@@ -1,0 +1,6 @@
+interface:
+  display_name: "Coding convention"
+  short_description: "Write and test TypeScript the way this repo does"
+  default_prompt: "Use $coding-convention while writing or editing this TypeScript and its tests."
+policy:
+  allow_implicit_invocation: true

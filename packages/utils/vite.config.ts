@@ -15,4 +15,7 @@ export default defineConfig({
     },
   },
   fmt: {},
+  test: {
+    server: { deps: { inline: ["vite-plus"] } },
+  },
 });

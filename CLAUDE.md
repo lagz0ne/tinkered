@@ -25,3 +25,16 @@ release. Add a tool name to select part of the graph. For example, run
 - [ ] If setup, runtime, or package-manager behavior looks wrong, run `vp env doctor` and include its output when asking for help.
 
 <!--VITE PLUS END-->
+
+## Elaboration workflow
+
+Skills live in `.agents/skills/` (Codex) with symlinks in `.claude/skills/` (Claude).
+When a request is a plan, design, decision, or "how does X work":
+
+1. `grill-with-docs` — interview one question at a time; write ADRs in
+   `docs/decisions/` and terms in `docs/glossary.md` as decisions land.
+2. `show-me` — before asking a question or recording a decision that has
+   structure (flow, layers, options, data shape), show it first: a small
+   diagram, file tree, pseudocode, or diff. Smallest view that makes the point.
+3. `to-tickets` — once the design is settled, break it into tickets.
+4. `coding-convention` — applies to every TypeScript file and test written after.
