@@ -1928,3 +1928,49 @@ test("a sink returning a thenable whose then getter throws is isolated", () => {
   });
   expect(scope.getController(op).resolve()).toBe(3);
 });
+
+test("a shared resource used by two commands links a used edge to each caller span", () => {
+  const spans: Observe.Span[] = [];
+  const conn = resource({ label: "conn", factory: () => ({ id: 1 }) });
+  const a = operation({ label: "a", depends: { conn }, run: () => 1 });
+  const b = operation({ label: "b", depends: { conn }, run: () => 2 });
+  const scope = createScope({ observe: { export: (s) => void spans.push(s) } });
+  scope.getController(a).resolve();
+  scope.getController(b).resolve();
+  const aSpan = spans.find((s) => s.name === "a");
+  const bSpan = spans.find((s) => s.name === "b");
+  const usedIn = (span: Observe.Span | undefined) =>
+    span?.events.filter((e) => e.name === "used" && e.attributes.resource === "conn") ?? [];
+  expect(usedIn(aSpan).length).toBe(1);
+  expect(usedIn(bSpan).length).toBe(1);
+  const connSpans = spans.filter((s) => s.name === "conn" && s.kind === "resource");
+  expect(connSpans.length).toBe(1);
+  expect(connSpans[0].parentId).toBe(aSpan?.id);
+});
+
+test("resource value identity is unchanged with observation on (no wrapping)", () => {
+  const instance = { id: 1 };
+  const conn = resource({ label: "conn", factory: () => instance });
+  const scope = createScope({ observe: { export: () => undefined } });
+  expect(scope.getController(conn).resolve()).toBe(instance);
+});
+
+test("an async resource build opens and closes a balanced span", async () => {
+  const spans: Observe.Span[] = [];
+  let now = 0;
+  const gate = deferred();
+  const conn = resource({
+    label: "conn",
+    factory: async () => {
+      await gate.promise;
+      return { id: 1 };
+    },
+  });
+  const scope = createScope({ observe: { clock: () => ++now, export: (s) => void spans.push(s) } });
+  const p = scope.getController(conn).resolve();
+  gate.resolve();
+  await p;
+  const connSpan = spans.find((s) => s.name === "conn" && s.kind === "resource");
+  expect(connSpan?.status).toBe("ok");
+  expect(connSpan?.end).not.toBe(undefined);
+});

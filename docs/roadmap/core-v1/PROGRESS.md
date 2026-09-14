@@ -46,7 +46,7 @@ Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its 
 | core/t13 | Release cascade within owner           | 12         | [x]    |
 | core/t14 | Release cascade across owners          | 13         | [x]    |
 | core/t15 | Command / manual observation           | 07         | [x]    |
-| core/t16 | Resource observation                   | 09, 10, 15 | [ ]    |
+| core/t16 | Resource observation                   | 09, 10, 15 | [x]    |
 | core/t17 | Data/command presets                   | 05         | [ ]    |
 | core/t18 | Resource presets                       | 09, 10, 17 | [ ]    |
 | core/t19 | v1 validation milestone                | 01–18      | [ ]    |

@@ -547,7 +547,7 @@ function resolveDep(
   if (isData(dep)) return readCell(layer, dep);
   if (isTag(dep)) return tagRequired(layer, dep);
   if (isCommand(dep)) return commandController(layer, dep, parent);
-  if (isResource(dep)) return resourceController(layer, dep).resolve();
+  if (isResource(dep)) return resourceController(layer, dep, parent).resolve();
   raise("InvalidDependency", { label: "unknown", reason: "unknown dependency" });
 }
 
@@ -645,7 +645,8 @@ function settleSpan(obs: Obs, span: Observe.Span, result: unknown): void {
   );
 }
 
-function obsCtx(obs: Obs, span: Observe.Span): Observe.Ctx {
+function obsCtx(obs: Obs, span: Observe.Span | undefined): Observe.Ctx {
+  if (!span) return OFF_OBS;
   return {
     span,
     event: (name, attributes) => {
@@ -674,6 +675,16 @@ function logFor(
   if (!sink) return OFF_LOG;
   return (message, attributes) =>
     isolate(() => sink({ time: obs.clock(), message, attributes: attributes ?? {}, span }));
+}
+
+function recordUsed(
+  obs: Obs,
+  caller: Observe.Span | undefined,
+  target: Resource.Handle<unknown>,
+): void {
+  if (caller) {
+    caller.events.push({ name: "used", time: obs.clock(), attributes: { resource: target.label } });
+  }
 }
 
 /** Track owned async work so `settled()`/`close` join it. `onReject` decides where a rejection
@@ -774,7 +785,7 @@ function commandController<T, I>(
           label: target.label,
           rawInput: raw,
           input,
-          obs: span ? obsCtx(obs, span) : OFF_OBS,
+          obs: obsCtx(obs, span),
           log: logFor(obs, span),
         });
       } catch (error) {
@@ -799,10 +810,16 @@ function ownerOf(layer: Layer, target: Resource.Handle<unknown>): Layer {
   return cur;
 }
 
-function buildResource<T>(owner: Layer, target: Resource.Handle<T>): unknown {
+function buildResource<T>(
+  owner: Layer,
+  target: Resource.Handle<T>,
+  parent: Observe.Span | undefined,
+): unknown {
   const gen = owner.generations.get(target) ?? 0;
   const superseded = (): boolean => (owner.generations.get(target) ?? 0) !== gen;
   const canPublish = (): boolean => !superseded() && !owner.closed;
+  const obs = owner.obs;
+  const span = openSpan(obs, parent, target.label, "resource");
   owner.building.add(target);
   let settled = false;
   try {
@@ -811,7 +828,7 @@ function buildResource<T>(owner: Layer, target: Resource.Handle<T>): unknown {
       const dep = target.depends[key];
       const node = depNode(dep);
       if (node) addDependent(owner, node, target);
-      deps[key] = resolveDep(owner, dep, undefined);
+      deps[key] = resolveDep(owner, dep, span);
     }
     const ctx: Resource.Ctx = {
       label: target.label,
@@ -824,21 +841,32 @@ function buildResource<T>(owner: Layer, target: Resource.Handle<T>): unknown {
         if (settled) raise("Disposed", { reason: "resource factory already finished" });
         if (!superseded()) owner.onOutcomes.push({ fn, resource: target });
       },
-      obs: OFF_OBS,
-      log: logFor(owner.obs, undefined),
+      obs: obsCtx(obs, span),
+      log: logFor(obs, span),
     };
     const result = target.factory(deps, ctx);
     if (!isThenable(result)) {
       settled = true;
       if (canPublish()) owner.resources.set(target, { value: result });
+      closeSpan(obs, span, "ok");
       return result;
     }
-    return finishAsyncBuild(owner, target, result, superseded, canPublish, () => {
-      settled = true;
-    });
+    return finishAsyncBuild(
+      owner,
+      target,
+      result,
+      superseded,
+      canPublish,
+      () => {
+        settled = true;
+      },
+      obs,
+      span,
+    );
   } catch (error) {
     settled = true;
     if (!superseded()) detachDependent(owner, target);
+    closeSpan(obs, span, "failed");
     throw error;
   } finally {
     owner.building.delete(target);
@@ -854,18 +882,22 @@ function finishAsyncBuild(
   superseded: () => boolean,
   canPublish: () => boolean,
   markSettled: () => void,
+  obs: Obs,
+  span: Observe.Span | undefined,
 ): Promise<unknown> {
   const build: Promise<unknown> = Promise.resolve(result).then(
     (value) => {
       markSettled();
       if (owner.builds.get(target) === build) owner.builds.delete(target);
       if (canPublish()) owner.resources.set(target, { value: build });
+      closeSpan(obs, span, "ok");
       return value;
     },
     (error) => {
       markSettled();
       if (owner.builds.get(target) === build) owner.builds.delete(target);
       if (!superseded()) detachDependent(owner, target);
+      closeSpan(obs, span, "failed");
       throw error;
     },
   );
@@ -879,18 +911,20 @@ function finishAsyncBuild(
 function resourceController<T>(
   layer: Layer,
   target: Resource.Handle<T>,
+  parent: Observe.Span | undefined,
 ): Scope.ResourceController<T> {
   const owner = ownerOf(layer, target);
   return {
     resolve: () => {
       ensureOpen(layer);
       ensureOpen(owner);
+      recordUsed(layer.obs, parent, target);
       const cached = owner.resources.get(target);
       if (cached) return cached.value as Scope.ResourceValue<T>;
       const inflight = owner.builds.get(target);
       if (inflight) return inflight as Scope.ResourceValue<T>;
       if (owner.building.has(target)) raise("CircularResource", { label: target.label });
-      return buildResource(owner, target) as Scope.ResourceValue<T>;
+      return buildResource(owner, target, parent) as Scope.ResourceValue<T>;
     },
     get: () => {
       ensureOpen(layer);
@@ -1228,7 +1262,7 @@ function handleFor(layer: Layer): Scope.Handle {
     getController: (<T, I>(target: Data.Cell<T> | Resource.Handle<T> | Operation.Command<T, I>) => {
       ensureOpen(layer);
       if (isData(target)) return dataController(layer, target);
-      if (isResource(target)) return resourceController(layer, target);
+      if (isResource(target)) return resourceController(layer, target, undefined);
       return commandController(layer, target, undefined);
     }) as Scope.Handle["getController"],
     createSession: (options?: Scope.Options) => {
