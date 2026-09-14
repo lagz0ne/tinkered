@@ -710,3 +710,64 @@ test("an async resource whose factory returns an augmented thenable resolves to 
   const value: number = await createScope().getController(conn).resolve();
   expect(value).toBe(42);
 });
+
+test("a scope-target resource is one instance shared across sessions", () => {
+  let built = 0;
+  const conn = resource({ label: "conn", factory: () => ({ id: ++built }) });
+  const root = createScope();
+  const s1 = root.createSession();
+  const s2 = root.createSession();
+  const a = s1.getController(conn).resolve();
+  const b = s2.getController(conn).resolve();
+  expect(a).toBe(b);
+  expect(built).toBe(1);
+});
+
+test("a session-target resource builds once per session, distinct across sessions", () => {
+  let built = 0;
+  const conn = resource({
+    label: "conn",
+    target: "session",
+    factory: () => ({ id: ++built }),
+  });
+  const root = createScope();
+  const s1 = root.createSession();
+  const s2 = root.createSession();
+  const a1 = s1.getController(conn).resolve();
+  const a2 = s1.getController(conn).resolve();
+  const b = s2.getController(conn).resolve();
+  expect(a1).toBe(a2);
+  expect(a1).not.toBe(b);
+  expect(built).toBe(2);
+});
+
+test("a scope resource requiring a session-only tag fails with MissingTag", () => {
+  const region = tag<string>({ label: "region" });
+  const conn = resource({
+    label: "conn",
+    depends: { region: region.required },
+    factory: ({ region }) => `db:${region}`,
+  });
+  const session = createScope().createSession({ tags: [region("eu")] });
+  try {
+    session.getController(conn).resolve();
+    throw new Error("expected MissingTag");
+  } catch (error) {
+    if (!isError(error, "MissingTag")) throw error;
+    expect(error.payload.label).toBe("region");
+  }
+});
+
+test("a session resource reads its owner-bound session data and tags", () => {
+  const region = tag({ label: "region", default: "us" });
+  const port = data({ initial: 5432, parse: asNumber });
+  const conn = resource({
+    label: "conn",
+    target: "session",
+    depends: { region: region.required, port },
+    factory: ({ region, port }) => `${region}:${port}`,
+  });
+  const session = createScope().createSession({ tags: [region("eu")] });
+  session.getController(port).set(6000);
+  expect(session.getController(conn).resolve()).toBe("eu:6000");
+});

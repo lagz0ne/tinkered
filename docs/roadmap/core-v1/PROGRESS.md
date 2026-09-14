@@ -40,7 +40,7 @@ Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its 
 | core/t07 | Structured close + onClose             | 05, 06     | [x]    |
 | core/t08 | Sync scope resources + cleanup         | 07         | [x]    |
 | core/t09 | Async resource builds + close          | 08         | [x]    |
-| core/t10 | Resource targets + owner-context       | 08         | [ ]    |
+| core/t10 | Resource targets + owner-context       | 08         | [x]    |
 | core/t11 | Outcome hooks + session(fn)            | 09, 10     | [ ]    |
 | core/t12 | Single-node release                    | 09, 10     | [ ]    |
 | core/t13 | Release cascade within owner           | 12         | [ ]    |

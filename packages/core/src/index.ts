@@ -80,11 +80,12 @@ export declare namespace Resource {
     readonly cleanup: (fn: () => void | PromiseLike<void>) => void;
   };
 
-  /** A reusable built instance. `target` picks the owning layer; `scope` = one per chain. */
+  /** A reusable built instance. `target` picks the owning layer: `scope` = one per chain
+   * (owner is the root), `session` = one per session (owner is the requesting layer). */
   export type Handle<T> = {
     readonly [resourceSym]: true;
     readonly label: string;
-    readonly target: "scope";
+    readonly target: "scope" | "session";
     readonly depends: Scope.Depends;
     factory(deps: Record<string, unknown>, ctx: Ctx): T;
   };
@@ -272,7 +273,7 @@ export function resource<
   T = unknown,
 >(config: {
   label: string;
-  target?: "scope";
+  target?: "scope" | "session";
   depends?: D;
   factory: (deps: Scope.SlotValues<D>, ctx: Resource.Ctx) => T;
 }): Resource.Handle<T> {
@@ -480,8 +481,8 @@ function commandController<T, I>(
   };
 }
 
-/** The layer a resource is owned by: `scope` targets bind at the root of the chain. */
-function ownerOf(layer: Layer, _target: Resource.Handle<unknown>): Layer {
+function ownerOf(layer: Layer, target: Resource.Handle<unknown>): Layer {
+  if (target.target === "session") return layer;
   let cur = layer;
   while (cur.parent) cur = cur.parent;
   return cur;
