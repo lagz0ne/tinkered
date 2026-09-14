@@ -185,3 +185,150 @@ test("a tag binding is validated by parse", () => {
     expect(error.payload.label).toBe("port");
   }
 });
+
+const deferred = () => {
+  let resolve!: () => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<void>((res, rej) => {
+    resolve = () => res();
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
+
+test("an async command resolves to its awaited value", async () => {
+  const gate = deferred();
+  const slow = operation({
+    label: "slow",
+    input: asNumber,
+    run: async (_deps, { input }) => {
+      await gate.promise;
+      return input * 2;
+    },
+  });
+  const p = createScope().getController(slow).resolve(21);
+  gate.resolve();
+  expect(await p).toBe(42);
+});
+
+test("a rejecting async command rejects with its cause, and settled still drains", async () => {
+  const cause = new Error("boom");
+  const gate = deferred();
+  const boom = operation({
+    label: "boom",
+    run: async () => {
+      await gate.promise;
+      throw cause;
+    },
+  });
+  const scope = createScope();
+  const p = scope.getController(boom).resolve();
+  let drained = false;
+  const s = scope.settled().then(() => {
+    drained = true;
+  });
+  await Promise.resolve();
+  expect(drained).toBe(false);
+  gate.resolve();
+  let caught: unknown;
+  try {
+    await p;
+  } catch (error) {
+    caught = error;
+  }
+  expect(caught).toBe(cause);
+  await s;
+  expect(drained).toBe(true);
+});
+
+test("dependency snapshots are captured at resolve time, before suspension", async () => {
+  const n = data({ initial: 1, parse: asNumber });
+  const gate = deferred();
+  const slow = operation({
+    label: "snap",
+    depends: { n },
+    run: async ({ n }) => {
+      await gate.promise;
+      return n;
+    },
+  });
+  const scope = createScope();
+  const p = scope.getController(slow).resolve();
+  scope.getController(n).set(99);
+  gate.resolve();
+  expect(await p).toBe(1);
+});
+
+test("concurrent calls are independent, released in reverse entry order", async () => {
+  const entered = new Map<number, ReturnType<typeof deferred>>([
+    [1, deferred()],
+    [2, deferred()],
+  ]);
+  const release = new Map<number, ReturnType<typeof deferred>>([
+    [1, deferred()],
+    [2, deferred()],
+  ]);
+  const echo = operation({
+    label: "echo",
+    input: asNumber,
+    run: async (_deps, { input }) => {
+      entered.get(input)!.resolve();
+      await release.get(input)!.promise;
+      return input * 10;
+    },
+  });
+  const scope = createScope();
+  const p1 = scope.getController(echo).resolve(1);
+  const p2 = scope.getController(echo).resolve(2);
+  await entered.get(1)!.promise;
+  await entered.get(2)!.promise;
+  release.get(2)!.resolve();
+  release.get(1)!.resolve();
+  expect(await p1).toBe(10);
+  expect(await p2).toBe(20);
+});
+
+test("overlapping scopes keep separate data snapshots (no shared/ambient state)", async () => {
+  const n = data({ initial: 0, parse: asNumber });
+  const gate = deferred();
+  const readN = operation({
+    label: "readN",
+    depends: { n },
+    run: async ({ n }) => {
+      await gate.promise;
+      return n;
+    },
+  });
+  const a = createScope();
+  const b = createScope();
+  a.getController(n).set(1);
+  b.getController(n).set(2);
+  const pa = a.getController(readN).resolve();
+  const pb = b.getController(readN).resolve();
+  gate.resolve();
+  expect(await pb).toBe(2);
+  expect(await pa).toBe(1);
+});
+
+test("settled reports work as pending until it finishes", async () => {
+  const gate = deferred();
+  const slow = operation({
+    label: "slow",
+    run: async () => {
+      await gate.promise;
+      return 1;
+    },
+  });
+  const scope = createScope();
+  const p = scope.getController(slow).resolve();
+  let joined = false;
+  const s = scope.settled().then(() => {
+    joined = true;
+  });
+  await Promise.resolve();
+  expect(joined).toBe(false);
+  gate.resolve();
+  await p;
+  await s;
+  expect(joined).toBe(true);
+});

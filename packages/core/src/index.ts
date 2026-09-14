@@ -123,16 +123,23 @@ export declare namespace Scope {
   export type Handle = {
     getController<T>(target: Data.Cell<T>): DataController<T>;
     getController<T, I>(target: Operation.Command<T, I>): CommandController<T, I>;
+    /** Resolve once all in-flight command work owned by this scope has settled. */
+    settled(): Promise<void>;
   };
 }
 
 const isData = (n: unknown): n is Data.Cell<unknown> =>
-  typeof n === "object" && n !== null && cell in n;
+  (n as { [cell]?: true } | null | undefined)?.[cell] === true;
 const isCommand = (n: unknown): n is Operation.Command<unknown, unknown> =>
-  typeof n === "object" && n !== null && command in n;
-const isTag = (n: unknown): n is Tag.Handle<unknown> => typeof n === "function" && tagSym in n;
+  (n as { [command]?: true } | null | undefined)?.[command] === true;
+const isTag = (n: unknown): n is Tag.Handle<unknown> =>
+  (n as { [tagSym]?: true } | null | undefined)?.[tagSym] === true;
 const isEdge = (n: unknown): n is Edge<string, unknown> =>
-  typeof n === "object" && n !== null && edge in n;
+  (n as { [edge]?: true } | null | undefined)?.[edge] === true;
+const isThenable = (v: unknown): v is PromiseLike<unknown> =>
+  !!v &&
+  (typeof v === "object" || typeof v === "function") &&
+  typeof (v as { then?: unknown }).then === "function";
 
 const edgeTo = <K extends string, N>(kind: K, target: N): Edge<K, N> => ({
   [edge]: true,
@@ -229,6 +236,7 @@ type Watcher = {
 export function createScope(options?: Scope.Options): Scope.Handle {
   const entries = new Map<Data.Cell<unknown>, Entry>();
   const watchers = new Set<Watcher>();
+  const pending = new Set<Promise<unknown>>();
   const tags = new Map<Tag.Handle<unknown>, unknown[]>();
   for (const binding of options?.tags ?? []) {
     const list = tags.get(binding.tag) ?? [];
@@ -310,7 +318,15 @@ export function createScope(options?: Scope.Options): Scope.Handle {
       const input = (target.input ? target.input(raw) : (undefined as I)) as I;
       const deps: Record<string, unknown> = {};
       for (const key in target.depends) deps[key] = resolveDep(target.depends[key]);
-      return target.run(deps, { label: target.label, rawInput: raw, input });
+      const result = target.run(deps, { label: target.label, rawInput: raw, input });
+      if (isThenable(result)) {
+        const tracked: Promise<unknown> = Promise.resolve(result).then(
+          () => pending.delete(tracked),
+          () => pending.delete(tracked),
+        );
+        pending.add(tracked);
+      }
+      return result;
     },
   });
 
@@ -340,11 +356,16 @@ export function createScope(options?: Scope.Options): Scope.Handle {
     raise("InvalidDependency", { label: "unknown", reason: "unknown dependency" });
   };
 
+  const settled = async (): Promise<void> => {
+    while (pending.size) await Promise.all(pending);
+  };
+
   const handle: Scope.Handle = {
     getController: (<T, I>(target: Data.Cell<T> | Operation.Command<T, I>) =>
       isData(target)
         ? dataController(target)
         : commandController(target)) as Scope.Handle["getController"],
+    settled,
   };
   return handle;
 }
