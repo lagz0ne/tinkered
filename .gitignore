@@ -35,3 +35,6 @@ dist-ssr
 # Stryker mutation testing
 .stryker-tmp
 reports
+
+# throwaway experiments
+scratch/
