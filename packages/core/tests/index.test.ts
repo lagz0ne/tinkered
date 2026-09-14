@@ -3,6 +3,7 @@ import {
   createScope,
   data,
   isError,
+  type Observe,
   operation,
   resource,
   type Resource,
@@ -1731,4 +1732,199 @@ test("closing an unrelated scope from a cleanup awaits its real teardown and sur
   );
   expect(bCleaned).toBe(true);
   if (!isError(thrown, "TeardownFailed")) throw thrown;
+});
+
+test("resolving an operation with a subflow yields a parent-linked span tree", () => {
+  const spans: Observe.Span[] = [];
+  let now = 0;
+  const inner = operation({
+    label: "inner",
+    input: asNumber,
+    run: (_deps, { input }) => input + 1,
+  });
+  const outer = operation({
+    label: "outer",
+    depends: { inner },
+    run: ({ inner }) => inner.resolve(9),
+  });
+  const scope = createScope({ observe: { clock: () => ++now, export: (s) => void spans.push(s) } });
+  expect(scope.getController(outer).resolve()).toBe(10);
+  const outerSpan = spans.find((s) => s.name === "outer");
+  const innerSpan = spans.find((s) => s.name === "inner");
+  expect(innerSpan?.parentId).toBe(outerSpan?.id);
+  expect(outerSpan?.parentId).toBe(undefined);
+  expect(outerSpan?.kind).toBe("operation");
+});
+
+test("two interleaved async commands keep separate parent-linked span trees (no ALS)", async () => {
+  const spans: Observe.Span[] = [];
+  let now = 0;
+  const g1 = deferred();
+  const g2 = deferred();
+  const leaf = operation({ label: "leaf", input: asNumber, run: (_deps, { input }) => input });
+  const a = operation({
+    label: "a",
+    depends: { leaf },
+    run: async ({ leaf }) => {
+      await g1.promise;
+      return leaf.resolve(1);
+    },
+  });
+  const b = operation({
+    label: "b",
+    depends: { leaf },
+    run: async ({ leaf }) => {
+      await g2.promise;
+      return leaf.resolve(2);
+    },
+  });
+  const scope = createScope({ observe: { clock: () => ++now, export: (s) => void spans.push(s) } });
+  const pa = scope.getController(a).resolve();
+  const pb = scope.getController(b).resolve();
+  g2.resolve();
+  g1.resolve();
+  await Promise.all([pa, pb]);
+  const aSpan = spans.find((s) => s.name === "a");
+  const bSpan = spans.find((s) => s.name === "b");
+  const leaves = spans.filter((s) => s.name === "leaf");
+  expect(new Set(leaves.map((s) => s.parentId))).toEqual(new Set([aSpan?.id, bSpan?.id]));
+});
+
+test("observation off gives ctx.obs.span undefined and no retained spans", () => {
+  let sawSpan: unknown = "unset";
+  const op = operation({
+    label: "op",
+    run: (_deps, { obs }) => {
+      sawSpan = obs.span;
+      return 1;
+    },
+  });
+  const scope = createScope();
+  scope.getController(op).resolve();
+  expect(sawSpan).toBe(undefined);
+  expect(scope.spans()).toEqual([]);
+});
+
+test("a throwing exporter does not fail the operation", () => {
+  const op = operation({ label: "op", run: () => 42 });
+  const scope = createScope({
+    observe: {
+      export: () => {
+        throw new Error("sink");
+      },
+    },
+  });
+  expect(scope.getController(op).resolve()).toBe(42);
+});
+
+test("history is bounded and toggles independently of export and logging", () => {
+  const logs: string[] = [];
+  const op = operation({
+    label: "op",
+    run: (_deps, { log }) => {
+      log("hi");
+      return 1;
+    },
+  });
+  const scope = createScope({ observe: { history: 2, log: (e) => void logs.push(e.message) } });
+  scope.getController(op).resolve();
+  scope.getController(op).resolve();
+  scope.getController(op).resolve();
+  expect(scope.spans().length).toBe(2);
+  expect(logs).toEqual(["hi", "hi", "hi"]);
+});
+
+test("observation on keeps the command's returned value identity (behavior-neutral)", async () => {
+  const promise = Promise.resolve(7);
+  const op = operation({ label: "op", run: () => promise });
+  const scope = createScope({ observe: { export: () => undefined } });
+  const result = scope.getController(op).resolve();
+  expect(result).toBe(promise);
+  expect(await result).toBe(7);
+});
+
+test("an async exporter that rejects is isolated (no unhandled rejection, op unaffected)", async () => {
+  const op = operation({ label: "op", run: () => 1 });
+  const scope = createScope({
+    observe: {
+      export: async () => {
+        throw new Error("async-sink");
+      },
+    },
+  });
+  expect(scope.getController(op).resolve()).toBe(1);
+  await Promise.resolve();
+});
+
+test("a throwing logger does not fail the operation", () => {
+  const op = operation({
+    label: "op",
+    run: (_deps, { log }) => {
+      log("x");
+      return 5;
+    },
+  });
+  const scope = createScope({
+    observe: {
+      log: () => {
+        throw new Error("log-sink");
+      },
+    },
+  });
+  expect(scope.getController(op).resolve()).toBe(5);
+});
+
+test("a span for an operation whose setup throws is still closed and exported as failed", () => {
+  const spans: Observe.Span[] = [];
+  const parseError = new Error("parse");
+  const op = operation({
+    label: "op",
+    input: (_raw): number => {
+      throw parseError;
+    },
+    run: () => 1,
+  });
+  const scope = createScope({ observe: { export: (s) => void spans.push(s) } });
+  try {
+    scope.getController(op).resolve(1);
+    throw new Error("expected the parser to throw");
+  } catch (error) {
+    if (error !== parseError) throw error;
+  }
+  expect(spans.length).toBe(1);
+  expect(spans[0].status).toBe("failed");
+});
+
+test("a manual child span does not consume a non-promise thenable's then", () => {
+  let thenCalls = 0;
+  const lazy = {
+    then: (res: (v: number) => void) => {
+      thenCalls++;
+      res(1);
+    },
+  };
+  const op = operation({
+    label: "op",
+    run: (_deps, { obs }) => {
+      obs.child("lazy", () => lazy);
+      return 42;
+    },
+  });
+  const scope = createScope({ observe: { export: () => undefined } });
+  scope.getController(op).resolve();
+  expect(thenCalls).toBe(0);
+});
+
+test("a sink returning a thenable whose then getter throws is isolated", () => {
+  const op = operation({ label: "op", run: () => 3 });
+  const scope = createScope({
+    observe: {
+      export: () => ({
+        get then() {
+          throw new Error("evil-then");
+        },
+      }),
+    },
+  });
+  expect(scope.getController(op).resolve()).toBe(3);
 });

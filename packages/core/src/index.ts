@@ -53,12 +53,58 @@ export declare namespace Tag {
   };
 }
 
+export declare namespace Observe {
+  /** What opened a span: resolving an operation or a resource, or a manual `ctx.obs.child`. */
+  export type Kind = "operation" | "resource" | "manual";
+  /** A point-in-time note attached to a span. */
+  export type Event = {
+    readonly name: string;
+    readonly time: number;
+    readonly attributes: Record<string, unknown>;
+  };
+  /** One unit of tracked work; nests by explicit `parentId` into a tree. Behavior-neutral. */
+  export type Span = {
+    readonly id: number;
+    readonly parentId: number | undefined;
+    readonly name: string;
+    readonly kind: Kind;
+    readonly start: number;
+    end: number | undefined;
+    status: "ok" | "failed" | undefined;
+    readonly attributes: Record<string, unknown>;
+    readonly events: Event[];
+  };
+  /** A log line, carrying the span it was written under (if any). */
+  export type Log = {
+    readonly time: number;
+    readonly message: string;
+    readonly attributes: Record<string, unknown>;
+    readonly span: Span | undefined;
+  };
+  /** Seeded on a scope; every switch is independent. Off (absent, or no `export`/`history`)
+   * costs one boolean and allocates no spans. `clock` is injected for deterministic tests. */
+  export type Config = {
+    readonly clock?: () => number;
+    readonly export?: (span: Span) => void;
+    readonly history?: number;
+    readonly log?: (entry: Log) => void;
+  };
+  /** The observation receiver on a ctx: the current span, plus manual span/event openers. */
+  export type Ctx = {
+    readonly span: Span | undefined;
+    event(name: string, attributes?: Record<string, unknown>): void;
+    child<T>(name: string, fn: (span: Span | undefined) => T): T;
+  };
+}
+
 export declare namespace Operation {
   /** The receiver a command body reads its own invocation through. */
   export type Ctx<I> = {
     readonly label: string;
     readonly rawInput: unknown;
     readonly input: I;
+    readonly obs: Observe.Ctx;
+    readonly log: (message: string, attributes?: Record<string, unknown>) => void;
   };
 
   /** A command: typed input, declared deps, runs on each resolve. Not reactive, not memoized. */
@@ -80,6 +126,8 @@ export declare namespace Resource {
     readonly label: string;
     readonly cleanup: (fn: () => void | PromiseLike<void>) => void;
     readonly onOutcome: (fn: (outcome: Scope.Outcome) => void | PromiseLike<void>) => void;
+    readonly obs: Observe.Ctx;
+    readonly log: (message: string, attributes?: Record<string, unknown>) => void;
   };
 
   /** A reusable built instance. `target` picks the owning layer: `scope` = one per chain
@@ -155,7 +203,7 @@ export declare namespace Scope {
   export type SlotValues<D extends Depends> = { [K in keyof D]: SlotValue<D[K]> };
 
   /** Values seeded on a scope at creation. */
-  export type Options = { tags?: readonly Tag.Binding<unknown>[] };
+  export type Options = { tags?: readonly Tag.Binding<unknown>[]; observe?: Observe.Config };
 
   /** How a scope settled: declared outside-in on success, or failed by an inside-out cause. */
   export type Outcome =
@@ -180,6 +228,8 @@ export declare namespace Scope {
     release(target: Data.Cell<unknown> | Resource.Handle<unknown>): void;
     /** Register a userland teardown hook, run (LIFO) when this scope closes. */
     onClose(fn: () => void | PromiseLike<void>): void;
+    /** The retained span history (bounded by `observe.history`; empty when observation is off). */
+    spans(): readonly Observe.Span[];
     /** Resolve once all in-flight command work owned by this scope has settled. */
     settled(): Promise<void>;
     /** Close children first, join owned work, notify outcome hooks then cleanup, then seal.
@@ -346,6 +396,7 @@ type Layer = {
   body: Promise<unknown> | undefined;
   closed: boolean;
   closing: Promise<void> | undefined;
+  obs: Obs;
 };
 
 /** Late use of a sealed scope fails loudly. */
@@ -465,25 +516,37 @@ function dataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataContro
   };
 }
 
-function resolveControllerEdge(layer: Layer, target: unknown): unknown {
+function resolveControllerEdge(
+  layer: Layer,
+  target: unknown,
+  parent: Observe.Span | undefined,
+): unknown {
   if (isData(target)) return dataController(layer, target);
-  if (isCommand(target)) return commandController(layer, target);
+  if (isCommand(target)) return commandController(layer, target, parent);
   raise("InvalidDependency", { label: "edge", reason: "unknown controller target" });
 }
 
-function resolveEdge(layer: Layer, dep: Edge<string, unknown>): unknown {
-  if (dep.kind === "controller") return resolveControllerEdge(layer, dep.target);
+function resolveEdge(
+  layer: Layer,
+  dep: Edge<string, unknown>,
+  parent: Observe.Span | undefined,
+): unknown {
+  if (dep.kind === "controller") return resolveControllerEdge(layer, dep.target, parent);
   const target = dep.target as Tag.Handle<unknown>;
   if (dep.kind === "all") return tagAll(layer, target);
   if (dep.kind === "optional") return tagFind(layer, target);
   return tagRequired(layer, target);
 }
 
-function resolveDep(layer: Layer, dep: Scope.Dependency): unknown {
-  if (isEdge(dep)) return resolveEdge(layer, dep);
+function resolveDep(
+  layer: Layer,
+  dep: Scope.Dependency,
+  parent: Observe.Span | undefined,
+): unknown {
+  if (isEdge(dep)) return resolveEdge(layer, dep, parent);
   if (isData(dep)) return readCell(layer, dep);
   if (isTag(dep)) return tagRequired(layer, dep);
-  if (isCommand(dep)) return commandController(layer, dep);
+  if (isCommand(dep)) return commandController(layer, dep, parent);
   if (isResource(dep)) return resourceController(layer, dep).resolve();
   raise("InvalidDependency", { label: "unknown", reason: "unknown dependency" });
 }
@@ -493,20 +556,148 @@ const noop = (): void => undefined;
 /** Attach a rejection handler to a fire-and-forget close so an internally started close (from a
  * teardown hook) is never an unhandled rejection; the promise keeps its rejection for a later
  * external awaiter. */
-function observe(promise: Promise<unknown>): void {
+function ignoreRejection(promise: Promise<unknown>): void {
   return void promise.catch(noop);
+}
+
+type Obs = {
+  observing: boolean;
+  clock: () => number;
+  export: ((span: Observe.Span) => void) | undefined;
+  historyMax: number;
+  history: Observe.Span[];
+  log: ((entry: Observe.Log) => void) | undefined;
+  nextId: number;
+};
+
+const OFF_LOG = (): void => undefined;
+const OFF_OBS: Observe.Ctx = {
+  span: undefined,
+  event: () => undefined,
+  child: (_name, fn) => fn(undefined),
+};
+
+function makeObs(config: Observe.Config | undefined): Obs {
+  const c: Observe.Config = config ?? {};
+  const historyMax = c.history ?? 0;
+  return {
+    observing: c.export !== undefined || historyMax > 0,
+    clock: c.clock ?? Date.now,
+    export: c.export,
+    historyMax,
+    history: [],
+    log: c.log,
+    nextId: 1,
+  };
+}
+
+function openSpan(
+  obs: Obs,
+  parent: Observe.Span | undefined,
+  name: string,
+  kind: Observe.Kind,
+): Observe.Span | undefined {
+  if (!obs.observing) return undefined;
+  return {
+    id: obs.nextId++,
+    parentId: parent?.id,
+    name,
+    kind,
+    start: obs.clock(),
+    end: undefined,
+    status: undefined,
+    attributes: {},
+    events: [],
+  };
+}
+
+function isolate(run: () => unknown): void {
+  try {
+    const result = run();
+    if (isThenable(result)) ignoreRejection(Promise.resolve(result));
+  } catch (error) {
+    void error;
+  }
+}
+
+function closeSpan(obs: Obs, span: Observe.Span | undefined, status: "ok" | "failed"): void {
+  if (!span || span.end !== undefined) return;
+  span.end = obs.clock();
+  span.status = status;
+  if (obs.historyMax > 0) {
+    obs.history.push(span);
+    if (obs.history.length > obs.historyMax) obs.history.shift();
+  }
+  const sink = obs.export;
+  if (sink) isolate(() => sink(span));
+}
+
+function settleSpan(obs: Obs, span: Observe.Span, result: unknown): void {
+  if (!(result instanceof Promise)) {
+    closeSpan(obs, span, "ok");
+    return;
+  }
+  ignoreRejection(
+    result.then(
+      () => closeSpan(obs, span, "ok"),
+      () => closeSpan(obs, span, "failed"),
+    ),
+  );
+}
+
+function obsCtx(obs: Obs, span: Observe.Span): Observe.Ctx {
+  return {
+    span,
+    event: (name, attributes) => {
+      span.events.push({ name, time: obs.clock(), attributes: attributes ?? {} });
+    },
+    child: (name, fn) => {
+      const child = openSpan(obs, span, name, "manual");
+      let result: unknown;
+      try {
+        result = fn(child);
+      } catch (error) {
+        closeSpan(obs, child, "failed");
+        throw error;
+      }
+      if (child) settleSpan(obs, child, result);
+      return result as ReturnType<typeof fn>;
+    },
+  };
+}
+
+function logFor(
+  obs: Obs,
+  span: Observe.Span | undefined,
+): (message: string, attributes?: Record<string, unknown>) => void {
+  const sink = obs.log;
+  if (!sink) return OFF_LOG;
+  return (message, attributes) =>
+    isolate(() => sink({ time: obs.clock(), message, attributes: attributes ?? {}, span }));
 }
 
 /** Track owned async work so `settled()`/`close` join it. `onReject` decides where a rejection
  * goes: the owner's primary failure (commands, current-generation builds) or the secondary
  * bucket (release/abandoned cleanups) which never changes the outcome (ADR 0017). */
-function track(layer: Layer, result: unknown, onReject: (error: unknown) => void): void {
-  if (!isThenable(result)) return;
+function track(
+  layer: Layer,
+  result: unknown,
+  onReject: (error: unknown) => void,
+  onSettle?: (status: "ok" | "failed") => void,
+): void {
+  if (!isThenable(result)) {
+    onSettle?.("ok");
+    return;
+  }
   const tracked: Promise<unknown> = Promise.resolve(result).then(
-    () => layer.pending.delete(tracked),
+    () => {
+      layer.pending.delete(tracked);
+      onSettle?.("ok");
+    },
     (error: unknown) => {
       layer.pending.delete(tracked);
       onReject(error);
+      onSettle?.("failed");
     },
   );
   layer.pending.add(tracked);
@@ -567,15 +758,35 @@ function runCleanup(layer: Layer, fn: () => void | PromiseLike<void>): void {
 function commandController<T, I>(
   layer: Layer,
   target: Operation.Command<T, I>,
+  parent: Observe.Span | undefined,
 ): Scope.CommandController<T, I> {
   return {
     resolve: (raw?: I) => {
       ensureOpen(layer);
-      const input = (target.input ? target.input(raw) : (undefined as I)) as I;
-      const deps: Record<string, unknown> = {};
-      for (const key in target.depends) deps[key] = resolveDep(layer, target.depends[key]);
-      const result = target.run(deps, { label: target.label, rawInput: raw, input });
-      track(layer, result, asPrimary(layer));
+      const obs = layer.obs;
+      const span = openSpan(obs, parent, target.label, "operation");
+      let result: T;
+      try {
+        const input = (target.input ? target.input(raw) : (undefined as I)) as I;
+        const deps: Record<string, unknown> = {};
+        for (const key in target.depends) deps[key] = resolveDep(layer, target.depends[key], span);
+        result = target.run(deps, {
+          label: target.label,
+          rawInput: raw,
+          input,
+          obs: span ? obsCtx(obs, span) : OFF_OBS,
+          log: logFor(obs, span),
+        });
+      } catch (error) {
+        closeSpan(obs, span, "failed");
+        throw error;
+      }
+      track(
+        layer,
+        result,
+        asPrimary(layer),
+        span ? (status) => closeSpan(obs, span, status) : undefined,
+      );
       return result;
     },
   };
@@ -600,7 +811,7 @@ function buildResource<T>(owner: Layer, target: Resource.Handle<T>): unknown {
       const dep = target.depends[key];
       const node = depNode(dep);
       if (node) addDependent(owner, node, target);
-      deps[key] = resolveDep(owner, dep);
+      deps[key] = resolveDep(owner, dep, undefined);
     }
     const ctx: Resource.Ctx = {
       label: target.label,
@@ -613,6 +824,8 @@ function buildResource<T>(owner: Layer, target: Resource.Handle<T>): unknown {
         if (settled) raise("Disposed", { reason: "resource factory already finished" });
         if (!superseded()) owner.onOutcomes.push({ fn, resource: target });
       },
+      obs: OFF_OBS,
+      log: logFor(owner.obs, undefined),
     };
     const result = target.factory(deps, ctx);
     if (!isThenable(result)) {
@@ -837,6 +1050,7 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     body: undefined,
     closed: false,
     closing: undefined,
+    obs: parent ? parent.obs : makeObs(options?.observe),
   };
   if (parent) parent.children.add(layer);
   return layer;
@@ -911,7 +1125,7 @@ function closeLayer(layer: Layer, outcome: Scope.Outcome = SUCCESS): Promise<voi
     layer.closing = startClose(layer, outcome);
   }
   if (closeWouldReenter(layer)) {
-    observe(layer.closing);
+    ignoreRejection(layer.closing);
     return Promise.resolve();
   }
   return layer.closing;
@@ -1015,7 +1229,7 @@ function handleFor(layer: Layer): Scope.Handle {
       ensureOpen(layer);
       if (isData(target)) return dataController(layer, target);
       if (isResource(target)) return resourceController(layer, target);
-      return commandController(layer, target);
+      return commandController(layer, target, undefined);
     }) as Scope.Handle["getController"],
     createSession: (options?: Scope.Options) => {
       ensureOpen(layer);
@@ -1031,6 +1245,7 @@ function handleFor(layer: Layer): Scope.Handle {
       return runSession(layer, a, b);
     }) as Scope.Handle["session"],
     release: (target: Data.Cell<unknown> | Resource.Handle<unknown>) => releaseNode(layer, target),
+    spans: () => layer.obs.history.slice(),
     onClose: (fn: () => void | PromiseLike<void>) => {
       ensureOpen(layer);
       layer.cleanups.push({ fn, resource: undefined });
