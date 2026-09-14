@@ -44,7 +44,7 @@ Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its 
 | core/t11 | Outcome hooks + session(fn)            | 09, 10     | [x]    |
 | core/t12 | Single-node release                    | 09, 10     | [x]    |
 | core/t13 | Release cascade within owner           | 12         | [x]    |
-| core/t14 | Release cascade across owners          | 13         | [ ]    |
+| core/t14 | Release cascade across owners          | 13         | [x]    |
 | core/t15 | Command / manual observation           | 07         | [ ]    |
 | core/t16 | Resource observation                   | 09, 10, 15 | [ ]    |
 | core/t17 | Data/command presets                   | 05         | [ ]    |

@@ -345,7 +345,6 @@ type Layer = {
   secondary: unknown[];
   body: Promise<unknown> | undefined;
   closed: boolean;
-  tearingDown: boolean;
   closing: Promise<void> | undefined;
 };
 
@@ -524,20 +523,43 @@ const asSecondary =
     layer.secondary.push(error);
   };
 
+/** Layers whose teardown callbacks (cleanups/hooks) are executing right now, by depth. */
+const teardownDepth = new Map<Layer, number>();
+
+function enterTeardown(layer: Layer): void {
+  teardownDepth.set(layer, (teardownDepth.get(layer) ?? 0) + 1);
+}
+function exitTeardown(layer: Layer): void {
+  const next = (teardownDepth.get(layer) ?? 1) - 1;
+  if (next <= 0) teardownDepth.delete(layer);
+  else teardownDepth.set(layer, next);
+}
+
+/** True if closing `target` would join a layer that is mid-teardown — `target` is that layer or an
+ * ancestor of it — so a re-entrant close from within a (descendant) teardown must not wait on itself.
+ * A close of an unrelated scope from a cleanup is not re-entrant and gets its real closing promise. */
+function closeWouldReenter(target: Layer): boolean {
+  for (const active of teardownDepth.keys()) {
+    for (let cur: Layer | undefined = active; cur; cur = cur.parent) {
+      if (cur === target) return true;
+    }
+  }
+  return false;
+}
+
 /** Run one cleanup now (so sync teardown stays synchronous), collecting any failure as a
  * secondary error: joined by `settled`/`close` and surfaced via `TeardownFailed`, never
  * settling the owner's outcome (ADR 0017). */
 function runCleanup(layer: Layer, fn: () => void | PromiseLike<void>): void {
-  const prev = layer.tearingDown;
-  layer.tearingDown = true;
   let result: void | PromiseLike<void>;
+  enterTeardown(layer);
   try {
     result = fn();
   } catch (error) {
     layer.secondary.push(error);
     return;
   } finally {
-    layer.tearingDown = prev;
+    exitTeardown(layer);
   }
   track(layer, result, asSecondary(layer));
 }
@@ -667,14 +689,14 @@ function resourceController<T>(
   };
 }
 
-/** Drop a resource's cache/generation/hook-registrations and edges without running any user
+type Affected = { node: Node; owner: Layer };
+
+/** Drop a resource's cache/generation/hook-registrations and edges at its owner, running no user
  * callback; returns its cleanups for the caller to run after every affected node is invalidated. */
 function invalidateResource(
-  layer: Layer,
+  owner: Layer,
   target: Resource.Handle<unknown>,
 ): (() => void | PromiseLike<void>)[] {
-  const owner = ownerOf(layer, target);
-  ensureOpen(owner);
   owner.generations.set(target, (owner.generations.get(target) ?? 0) + 1);
   owner.resources.delete(target);
   owner.builds.delete(target);
@@ -687,50 +709,82 @@ function invalidateResource(
 }
 
 /** Drop a cell's shadow (revert to inherited/initial) and edges without notifying watchers. */
-function invalidateData(layer: Layer, target: Data.Cell<unknown>): void {
-  if (layer.cells.has(target)) {
-    layer.cells.delete(target);
-    invalidateEff(layer, target);
+function invalidateData(owner: Layer, target: Data.Cell<unknown>): void {
+  if (owner.cells.has(target)) {
+    owner.cells.delete(target);
+    invalidateEff(owner, target);
   }
-  layer.dependents.delete(target);
+  owner.dependents.delete(target);
 }
 
-/** Release a node and cascade to its dependents. Two phases so a throwing/closing callback can
- * never strand a dependent: first collect every affected node (iterative, diamond-safe) and drop
- * all their caches; then run cleanups and notify watchers. */
-/** Walk dependents from `target` (iterative, diamond-safe) → every affected node, in release order. */
-function collectAffected(layer: Layer, target: Node): Node[] {
-  const seen = new Set<Node>();
-  const order: Node[] = [];
-  const stack: Node[] = [target];
+/** Whether a node's dependents can live below its owner: a `scope` resource and a data cell are
+ * shared down the chain, so dependents may sit in descendant sessions; a `session` resource is a
+ * per-session instance whose dependents are only ever in its own owner layer. */
+function spansDescendants(node: Node): boolean {
+  return !isResource(node) || node.target === "scope";
+}
+
+/** Visit each (dependent resource, its owner) that depends on `node`. Scope nodes search the
+ * owner's whole subtree (to reach session instances); a session node searches only its owner. */
+function forEachDependent(
+  nodeOwner: Layer,
+  node: Node,
+  visit: (target: Resource.Handle<unknown>, owner: Layer) => void,
+): void {
+  const deep = spansDescendants(node);
+  const stack: Layer[] = [nodeOwner];
   while (stack.length) {
-    const node = stack.pop() as Node;
-    if (seen.has(node)) continue;
-    seen.add(node);
-    order.push(node);
-    const owner = isResource(node) ? ownerOf(layer, node) : layer;
-    const dependents = owner.dependents.get(node);
-    if (dependents) for (const dependent of dependents) stack.push(dependent);
+    const scope = stack.pop() as Layer;
+    const deps = scope.dependents.get(node);
+    if (deps) for (const target of deps) visit(target, scope);
+    if (deep) for (const child of scope.children) stack.push(child);
+  }
+}
+
+/** Walk dependents from a node (iterative; keyed on node+owner so diamonds collapse while the same
+ * handle in two sessions stays distinct) → every affected (node, owner), in release order. */
+function collectAffected(target: Node, targetOwner: Layer): Affected[] {
+  const seen = new Map<Node, Set<Layer>>();
+  const order: Affected[] = [];
+  const stack: Affected[] = [{ node: target, owner: targetOwner }];
+  while (stack.length) {
+    const item = stack.pop() as Affected;
+    let owners = seen.get(item.node);
+    if (!owners) {
+      owners = new Set();
+      seen.set(item.node, owners);
+    }
+    if (owners.has(item.owner)) continue;
+    owners.add(item.owner);
+    order.push(item);
+    forEachDependent(item.owner, item.node, (t, owner) => stack.push({ node: t, owner }));
   }
   return order;
 }
 
+/** Release a node and cascade to its dependents across owners. Two phases so a throwing/closing
+ * callback can never strand a dependent: first collect every affected (node, owner) and drop all
+ * their caches; then notify watchers and run cleanups (each at its own owner). */
 function releaseNode(layer: Layer, target: Node): void {
   ensureOpen(layer);
-  const order = collectAffected(layer, target);
-  const cleanups: (() => void | PromiseLike<void>)[] = [];
+  const targetOwner = isResource(target) ? ownerOf(layer, target) : layer;
+  ensureOpen(targetOwner);
+  const order = collectAffected(target, targetOwner);
+  const cleanups: { owner: Layer; fn: () => void | PromiseLike<void> }[] = [];
   let dataReleased = false;
-  for (const node of order) {
-    if (isResource(node)) cleanups.push(...invalidateResource(layer, node));
+  for (const { node, owner } of order) {
+    if (owner.closed) continue;
+    if (isResource(node))
+      for (const fn of invalidateResource(owner, node)) cleanups.push({ owner, fn });
     else {
-      invalidateData(layer, node);
+      invalidateData(owner, node);
       dataReleased = true;
     }
   }
   try {
     if (dataReleased) flushTree(layer);
   } finally {
-    for (let i = cleanups.length - 1; i >= 0; i--) runCleanup(layer, cleanups[i]);
+    for (let i = cleanups.length - 1; i >= 0; i--) runCleanup(cleanups[i].owner, cleanups[i].fn);
   }
 }
 
@@ -782,7 +836,6 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     secondary: [],
     body: undefined,
     closed: false,
-    tearingDown: false,
     closing: undefined,
   };
   if (parent) parent.children.add(layer);
@@ -798,15 +851,15 @@ async function drainHooks(
 ): Promise<void> {
   for (let i = hooks.length - 1; i >= 0; i--) {
     let pending: void | PromiseLike<void>;
+    enterTeardown(layer);
     try {
-      layer.tearingDown = true;
       pending = hooks[i]();
     } catch (cause) {
-      layer.tearingDown = false;
       causes.push(cause);
       continue;
+    } finally {
+      exitTeardown(layer);
     }
-    layer.tearingDown = false;
     try {
       await pending;
     } catch (cause) {
@@ -857,7 +910,7 @@ function closeLayer(layer: Layer, outcome: Scope.Outcome = SUCCESS): Promise<voi
     layer.closed = true;
     layer.closing = startClose(layer, outcome);
   }
-  if (layer.tearingDown) {
+  if (closeWouldReenter(layer)) {
     observe(layer.closing);
     return Promise.resolve();
   }

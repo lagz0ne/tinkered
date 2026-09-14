@@ -1577,3 +1577,158 @@ test("an old build's late rejection does not detach the replacement's edges", as
   const c = await scope.getController(r).resolve();
   expect(c.n).toBe(3);
 });
+
+test("releasing a scope resource cascades to its dependent instances in each session", () => {
+  let poolBuilds = 0;
+  let txBuilds = 0;
+  const pool = resource({ label: "pool", factory: () => ({ id: ++poolBuilds }) });
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    depends: { pool },
+    factory: ({ pool }) => ({ from: pool.id, n: ++txBuilds }),
+  });
+  const root = createScope();
+  const s1 = root.createSession();
+  const s2 = root.createSession();
+  s1.getController(tx).resolve();
+  s2.getController(tx).resolve();
+  expect([poolBuilds, txBuilds]).toEqual([1, 2]);
+  root.release(pool);
+  s1.getController(tx).resolve();
+  s2.getController(tx).resolve();
+  expect(poolBuilds).toBe(2);
+  expect(txBuilds).toBe(4);
+});
+
+test("a sibling session that did not depend on the released scope resource is unaffected", () => {
+  const pool = resource({ label: "pool", factory: () => ({ id: 1 }) });
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    depends: { pool },
+    factory: ({ pool }) => ({ from: pool.id }),
+  });
+  const other = resource({ label: "other", target: "session", factory: () => ({ k: 1 }) });
+  const root = createScope();
+  const s1 = root.createSession();
+  const s2 = root.createSession();
+  s1.getController(tx).resolve();
+  const otherInstance = s2.getController(other).resolve();
+  root.release(pool);
+  expect(s2.getController(other).resolve()).toBe(otherInstance);
+});
+
+test("a closed session's dependency edges are pruned so a later release skips it", async () => {
+  let txBuilds = 0;
+  const pool = resource({ label: "pool", factory: () => ({ id: 1 }) });
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    depends: { pool },
+    factory: ({ pool }) => ({ from: pool.id, n: ++txBuilds }),
+  });
+  const root = createScope();
+  const s1 = root.createSession();
+  s1.getController(tx).resolve();
+  await s1.close();
+  root.release(pool);
+  expect(txBuilds).toBe(1);
+});
+
+test("releasing a scope resource skips a closing session and still releases the others", async () => {
+  let poolCleaned = false;
+  let txBuilds = 0;
+  const pool = resource({
+    label: "pool",
+    factory: (_deps, { cleanup }) => {
+      cleanup(() => void (poolCleaned = true));
+      return { id: 1 };
+    },
+  });
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    depends: { pool },
+    factory: ({ pool }) => ({ from: pool.id, n: ++txBuilds }),
+  });
+  const root = createScope();
+  const s1 = root.createSession();
+  const s2 = root.createSession();
+  s1.getController(tx).resolve();
+  s2.getController(tx).resolve();
+  const closing = s1.close();
+  root.release(pool);
+  await closing;
+  expect(poolCleaned).toBe(true);
+  s2.getController(tx).resolve();
+  expect(txBuilds).toBe(3);
+});
+
+test("a session cleanup that closes the root does not deadlock", async () => {
+  let rootClosed = false;
+  const pool = resource({ label: "pool", factory: () => ({ id: 1 }) });
+  const root = createScope();
+  const s1 = root.createSession();
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    depends: { pool },
+    factory: (_deps, { cleanup }) => {
+      cleanup(() => root.close());
+      return { ok: true };
+    },
+  });
+  root.onClose(() => void (rootClosed = true));
+  s1.getController(tx).resolve();
+  root.release(pool);
+  await root.close();
+  expect(rootClosed).toBe(true);
+});
+
+test("releasing a parent session's resource does not touch a child session's own instance", () => {
+  let connBuilds = 0;
+  let txBuilds = 0;
+  const conn = resource({ label: "conn", target: "session", factory: () => ({ c: ++connBuilds }) });
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    depends: { conn },
+    factory: ({ conn }) => ({ from: conn.c, n: ++txBuilds }),
+  });
+  const root = createScope();
+  const parent = root.createSession();
+  const child = parent.createSession();
+  parent.getController(tx).resolve();
+  child.getController(tx).resolve();
+  expect([connBuilds, txBuilds]).toEqual([2, 2]);
+  parent.release(conn);
+  const childTx = child.getController(tx).resolve();
+  expect(childTx.n).toBe(2);
+  expect(txBuilds).toBe(2);
+});
+
+test("closing an unrelated scope from a cleanup awaits its real teardown and surfaces its error", async () => {
+  let bCleaned = false;
+  const cleanupError = new Error("b-cleanup");
+  const a = createScope();
+  const b = createScope();
+  const r = resource({
+    label: "r",
+    factory: (_deps, { cleanup }) => {
+      cleanup(async () => {
+        bCleaned = true;
+        throw cleanupError;
+      });
+      return 1;
+    },
+  });
+  b.getController(r).resolve();
+  a.onClose(() => b.close());
+  const thrown = await a.close().then(
+    () => undefined,
+    (e: unknown) => e,
+  );
+  expect(bCleaned).toBe(true);
+  if (!isError(thrown, "TeardownFailed")) throw thrown;
+});
