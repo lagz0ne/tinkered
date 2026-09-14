@@ -91,10 +91,14 @@ export declare namespace Resource {
 }
 
 export declare namespace Scope {
+  /** What a resource delivers: an async factory is normalized to a plain `Promise<value>`,
+   * so the extra shape of a returned thenable never leaks into the caller's type. */
+  export type ResourceValue<T> = T extends PromiseLike<unknown> ? Promise<Awaited<T>> : T;
+
   /** A build-once handle onto one resource instance. */
   export type ResourceController<T> = {
-    resolve(): T;
-    get(): T;
+    resolve(): ResourceValue<T>;
+    get(): ResourceValue<T>;
   };
 
   /** A read/write handle onto one cell. */
@@ -296,7 +300,9 @@ type Layer = {
   cells: Map<Data.Cell<unknown>, Entry>;
   effCache: Map<Data.Cell<unknown>, Entry | undefined>;
   resources: Map<Resource.Handle<unknown>, Entry>;
+  builds: Map<Resource.Handle<unknown>, Promise<unknown>>;
   building: Set<Resource.Handle<unknown>>;
+  generation: number;
   tags: Map<Tag.Handle<unknown>, unknown[]>;
   watchers: Set<Watcher>;
   pending: Set<Promise<unknown>>;
@@ -481,6 +487,48 @@ function ownerOf(layer: Layer, _target: Resource.Handle<unknown>): Layer {
   return cur;
 }
 
+function buildResource<T>(owner: Layer, target: Resource.Handle<T>): unknown {
+  owner.building.add(target);
+  let settled = false;
+  try {
+    const deps: Record<string, unknown> = {};
+    for (const key in target.depends) deps[key] = resolveDep(owner, target.depends[key]);
+    const ctx: Resource.Ctx = {
+      label: target.label,
+      cleanup: (fn) => {
+        if (settled) raise("Disposed", { reason: "resource factory already finished" });
+        owner.onCloses.push(fn);
+      },
+    };
+    const result = target.factory(deps, ctx);
+    if (!isThenable(result)) {
+      settled = true;
+      owner.resources.set(target, { value: result });
+      return result;
+    }
+    const gen = owner.generation;
+    const build: Promise<unknown> = Promise.resolve(result).then(
+      (value) => {
+        settled = true;
+        if (owner.builds.get(target) === build) owner.builds.delete(target);
+        if (!owner.closed && owner.generation === gen)
+          owner.resources.set(target, { value: build });
+        return value;
+      },
+      (error) => {
+        settled = true;
+        if (owner.builds.get(target) === build) owner.builds.delete(target);
+        throw error;
+      },
+    );
+    owner.builds.set(target, build);
+    track(owner, build);
+    return build;
+  } finally {
+    owner.building.delete(target);
+  }
+}
+
 function resourceController<T>(
   layer: Layer,
   target: Resource.Handle<T>,
@@ -491,32 +539,18 @@ function resourceController<T>(
       ensureOpen(layer);
       ensureOpen(owner);
       const cached = owner.resources.get(target);
-      if (cached) return cached.value as T;
+      if (cached) return cached.value as Scope.ResourceValue<T>;
+      const inflight = owner.builds.get(target);
+      if (inflight) return inflight as Scope.ResourceValue<T>;
       if (owner.building.has(target)) raise("CircularResource", { label: target.label });
-      owner.building.add(target);
-      try {
-        const deps: Record<string, unknown> = {};
-        for (const key in target.depends) deps[key] = resolveDep(owner, target.depends[key]);
-        const ctx: Resource.Ctx = {
-          label: target.label,
-          cleanup: (fn) => {
-            ensureOpen(owner);
-            owner.onCloses.push(fn);
-          },
-        };
-        const value = target.factory(deps, ctx);
-        owner.resources.set(target, { value });
-        return value;
-      } finally {
-        owner.building.delete(target);
-      }
+      return buildResource(owner, target) as Scope.ResourceValue<T>;
     },
     get: () => {
       ensureOpen(layer);
       ensureOpen(owner);
       const cached = owner.resources.get(target);
       if (!cached) raise("NotResolved", { label: target.label });
-      return cached.value as T;
+      return cached.value as Scope.ResourceValue<T>;
     },
   };
 }
@@ -534,7 +568,9 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     cells: new Map(),
     effCache: new Map(),
     resources: new Map(),
+    builds: new Map(),
     building: new Set(),
+    generation: 0,
     tags,
     watchers: new Set(),
     pending: new Set(),
@@ -549,6 +585,7 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
 function closeLayer(layer: Layer): Promise<void> {
   if (layer.closing) return layer.closing;
   layer.closed = true;
+  layer.generation++;
   const children = Array.from(layer.children);
   const run = async (): Promise<void> => {
     const causes: unknown[] = [];
@@ -571,6 +608,7 @@ function closeLayer(layer: Layer): Promise<void> {
     layer.cells.clear();
     layer.effCache.clear();
     layer.resources.clear();
+    layer.builds.clear();
     layer.building.clear();
     layer.tags.clear();
     layer.watchers.clear();

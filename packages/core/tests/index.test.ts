@@ -615,3 +615,98 @@ test("a resource factory that resolves itself fails with CircularResource", () =
     expect(error.payload.label).toBe("cyclic");
   }
 });
+
+test("concurrent resolves of an async resource share one in-flight build", async () => {
+  let built = 0;
+  const gate = deferred();
+  const conn = resource({
+    label: "conn",
+    factory: async () => {
+      built++;
+      await gate.promise;
+      return { id: built };
+    },
+  });
+  const ctl = createScope().getController(conn);
+  const p1 = ctl.resolve();
+  const p2 = ctl.resolve();
+  gate.resolve();
+  const [a, b] = await Promise.all([p1, p2]);
+  expect(a).toBe(b);
+  expect(built).toBe(1);
+});
+
+test("a resolved async resource caches: a later resolve returns the same instance", async () => {
+  const conn = resource({
+    label: "conn",
+    factory: async () => ({ id: 1 }),
+  });
+  const ctl = createScope().getController(conn);
+  const first = await ctl.resolve();
+  const second = await ctl.resolve();
+  expect(second).toBe(first);
+});
+
+test("close awaits an in-flight async build before tearing down", async () => {
+  const order: string[] = [];
+  const gate = deferred();
+  const conn = resource({
+    label: "conn",
+    factory: async () => {
+      await gate.promise;
+      order.push("built");
+      return "open";
+    },
+  });
+  const scope = createScope();
+  void scope.getController(conn).resolve();
+  const closing = scope.close().then(() => order.push("closed"));
+  gate.resolve();
+  await closing;
+  expect(order).toEqual(["built", "closed"]);
+});
+
+test("an async build that completes during close does not publish and close stays clean", async () => {
+  const gate = deferred();
+  const conn = resource({
+    label: "conn",
+    factory: async () => {
+      await gate.promise;
+      return "open";
+    },
+  });
+  const scope = createScope();
+  const build = scope.getController(conn).resolve();
+  const closing = scope.close();
+  gate.resolve();
+  await closing;
+  expect(await build).toBe("open");
+});
+
+test("cleanup registered by an in-flight factory during close still runs", async () => {
+  const closed: string[] = [];
+  const gate = deferred();
+  const conn = resource({
+    label: "conn",
+    factory: async (_deps, { cleanup }) => {
+      await gate.promise;
+      cleanup(() => void closed.push("conn"));
+      return "open";
+    },
+  });
+  const scope = createScope();
+  void scope.getController(conn).resolve();
+  const closing = scope.close();
+  gate.resolve();
+  await closing;
+  expect(closed).toEqual(["conn"]);
+});
+
+test("an async resource whose factory returns an augmented thenable resolves to the awaited value", async () => {
+  const conn = resource({
+    label: "conn",
+    factory: () => Object.assign(Promise.resolve(42), { cancel: () => undefined }),
+  });
+  const value: number = await createScope().getController(conn).resolve();
+  expect(value).toBe(42);
+});
