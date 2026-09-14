@@ -5,6 +5,7 @@ import {
   isError,
   type Observe,
   operation,
+  preset,
   resource,
   type Resource,
   tag,
@@ -1973,4 +1974,60 @@ test("an async resource build opens and closes a balanced span", async () => {
   const connSpan = spans.find((s) => s.name === "conn" && s.kind === "resource");
   expect(connSpan?.status).toBe("ok");
   expect(connSpan?.end).not.toBe(undefined);
+});
+
+test("a data preset is seen by a downstream command, validated by parse", () => {
+  const count = data({ initial: 1, parse: asNumber });
+  const read = operation({ label: "read", depends: { n: count }, run: ({ n }) => n });
+  const scope = createScope({ presets: [preset(count, 42)] });
+  expect(scope.getController(read).resolve()).toBe(42);
+});
+
+test("a data preset value runs through parse and can be rejected", () => {
+  const nonNegative = (v: unknown): number => {
+    if (typeof v !== "number" || v < 0) throw new Error("must be >= 0");
+    return v;
+  };
+  const count = data({ label: "count", initial: 0, parse: nonNegative });
+  try {
+    createScope({ presets: [preset(count, -1)] });
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "DataValidationFailed")) throw error;
+    expect(error.payload.label).toBe("count");
+  }
+});
+
+test("a command preset replaces the run for a downstream subflow", () => {
+  const inner = operation({
+    label: "inner",
+    input: asNumber,
+    run: (_deps, { input }) => input + 1,
+  });
+  const outer = operation({
+    label: "outer",
+    depends: { inner },
+    run: ({ inner }) => inner.resolve(9),
+  });
+  const scope = createScope({ presets: [preset(inner, (_deps, { input }) => input * 100)] });
+  expect(scope.getController(outer).resolve()).toBe(900);
+});
+
+test("a command preset replaces the run for a direct resolve too", () => {
+  const greet = operation({
+    label: "greet",
+    input: asText,
+    run: (_deps, { input }) => `hello ${input}`,
+  });
+  const scope = createScope({ presets: [preset(greet, (_deps, { input }) => `hi ${input}`)] });
+  expect(scope.getController(greet).resolve("ada")).toBe("hi ada");
+});
+
+test("a preset is scoped to its scope, not the node globally", () => {
+  const count = data({ initial: 1, parse: asNumber });
+  const read = operation({ label: "read", depends: { n: count }, run: ({ n }) => n });
+  const presetScope = createScope({ presets: [preset(count, 42)] });
+  const plainScope = createScope();
+  expect(presetScope.getController(read).resolve()).toBe(42);
+  expect(plainScope.getController(read).resolve()).toBe(1);
 });

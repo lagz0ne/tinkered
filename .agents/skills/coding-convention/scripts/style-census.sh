@@ -40,6 +40,7 @@ S12|all|ts-ignore / ts-expect-error|@ts-(ignore|expect-error)
 S13|all|lint disable|(eslint|oxlint|biome)-disable
 S14|src|tuple index read x[N]|[a-zA-Z_]+\[[0-9]\][^=]
 S15|src|Object.freeze|Object\.freeze\(
+S16|src|preset() call in source (test-only API)|^(?![[:space:]]*[*/])(?:(?!//|/\*|["\x27\x60]).)*(?<!function )\bpreset\b[[:space:]]*(<[^;>]*>)?[[:space:]]*\(
 T01|test|mock or spy|\bvi\.(mock|fn|spyOn|doMock|stubGlobal|useFakeTimers)\(
 T02|test|sleeping in a test|\b(setTimeout|sleep)\(
 T03|test|only / skip left in|\.(only|skip)\(

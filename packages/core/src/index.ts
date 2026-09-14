@@ -5,6 +5,7 @@ const command: unique symbol = Symbol("operation");
 const tagSym: unique symbol = Symbol("tag");
 const edge: unique symbol = Symbol("edge");
 const resourceSym: unique symbol = Symbol("resource");
+const presetSym: unique symbol = Symbol("preset");
 
 /** A declared dependency edge: a mode (`controller`, `required`, `optional`, `all`) onto a target. */
 export type Edge<K extends string, Target> = {
@@ -202,8 +203,19 @@ export declare namespace Scope {
                     : never;
   export type SlotValues<D extends Depends> = { [K in keyof D]: SlotValue<D[K]> };
 
+  /** A test-only substitution of a node's realization, seen by downstream consumers (ADR 0015). */
+  export type Preset = {
+    readonly [presetSym]: true;
+    readonly node: unknown;
+    readonly replacement: unknown;
+  };
+
   /** Values seeded on a scope at creation. */
-  export type Options = { tags?: readonly Tag.Binding<unknown>[]; observe?: Observe.Config };
+  export type Options = {
+    tags?: readonly Tag.Binding<unknown>[];
+    observe?: Observe.Config;
+    presets?: readonly Preset[];
+  };
 
   /** How a scope settled: declared outside-in on success, or failed by an inside-out cause. */
   export type Outcome =
@@ -355,6 +367,18 @@ export function resource<
   } as Resource.Handle<T>;
 }
 
+/** Test-only: substitute a node's realization for downstream consumers of a scope (ADR 0015).
+ * A `data` value is validated through `parse`; a command takes a replacement `run`. Seed via
+ * `createScope({ presets: [preset(node, ...)] })`. Resource presets land in a later ticket. */
+export function preset<T>(node: Data.Cell<T>, value: T): Scope.Preset;
+export function preset<T, I>(
+  node: Operation.Command<T, I>,
+  run: (deps: Scope.SlotValues<Operation.Command<T, I>["depends"]>, ctx: Operation.Ctx<I>) => T,
+): Scope.Preset;
+export function preset(node: unknown, replacement: unknown): Scope.Preset {
+  return { [presetSym]: true, node, replacement } as Scope.Preset;
+}
+
 type Entry = { value: unknown };
 /** A releasable node: a data cell or a resource. Release cascades from a node to its dependents. */
 type Node = Data.Cell<unknown> | Resource.Handle<unknown>;
@@ -386,6 +410,7 @@ type Layer = {
   building: Set<Resource.Handle<unknown>>;
   generations: Map<Resource.Handle<unknown>, number>;
   dependents: Map<Node, Set<Resource.Handle<unknown>>>;
+  presets: Map<unknown, unknown>;
   tags: Map<Tag.Handle<unknown>, unknown[]>;
   watchers: Set<Watcher>;
   pending: Set<Promise<unknown>>;
@@ -487,6 +512,14 @@ function tagRequired(layer: Layer, target: Tag.Handle<unknown>): unknown {
   const found = tagFind(layer, target);
   if (!found.present) raise("MissingTag", { label: target.label });
   return found.value;
+}
+
+/** The nearest preset replacement for a command/resource node up the chain, or undefined. */
+function presetFor(layer: Layer, node: unknown): unknown {
+  for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
+    if (cur.presets.has(node)) return cur.presets.get(node);
+  }
+  return undefined;
 }
 
 function addWatcher(
@@ -776,18 +809,20 @@ function commandController<T, I>(
       ensureOpen(layer);
       const obs = layer.obs;
       const span = openSpan(obs, parent, target.label, "operation");
+      const override = presetFor(layer, target) as Operation.Command<T, I>["run"] | undefined;
       let result: T;
       try {
         const input = (target.input ? target.input(raw) : (undefined as I)) as I;
         const deps: Record<string, unknown> = {};
         for (const key in target.depends) deps[key] = resolveDep(layer, target.depends[key], span);
-        result = target.run(deps, {
+        const ctx: Operation.Ctx<I> = {
           label: target.label,
           rawInput: raw,
           input,
           obs: obsCtx(obs, span),
           log: logFor(obs, span),
-        });
+        };
+        result = override ? override(deps, ctx) : target.run(deps, ctx);
       } catch (error) {
         closeSpan(obs, span, "failed");
         throw error;
@@ -1057,23 +1092,46 @@ function depNode(dep: Scope.Dependency): Node | undefined {
   return undefined;
 }
 
-function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
+function seedTags(
+  bindings: readonly Tag.Binding<unknown>[] | undefined,
+): Map<Tag.Handle<unknown>, unknown[]> {
   const tags = new Map<Tag.Handle<unknown>, unknown[]>();
-  for (const binding of options?.tags ?? []) {
+  for (const binding of bindings ?? []) {
     const list = tags.get(binding.tag) ?? [];
     list.push(binding.value);
     tags.set(binding.tag, list);
   }
+  return tags;
+}
+
+function seedPresets(seeds: readonly Scope.Preset[] | undefined): {
+  cells: Map<Data.Cell<unknown>, Entry>;
+  presets: Map<unknown, unknown>;
+} {
+  const cells = new Map<Data.Cell<unknown>, Entry>();
+  const presets = new Map<unknown, unknown>();
+  for (const p of seeds ?? []) {
+    const node = p.node;
+    if (isData(node)) cells.set(node, { value: admit(node.label, node.parse, p.replacement) });
+    else presets.set(node, p.replacement);
+  }
+  return { cells, presets };
+}
+
+function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
+  const tags = seedTags(options?.tags);
+  const { cells, presets } = seedPresets(options?.presets);
   const layer: Layer = {
     parent,
     children: new Set(),
-    cells: new Map(),
+    cells,
     effCache: new Map(),
     resources: new Map(),
     builds: new Map(),
     building: new Set(),
     generations: new Map(),
     dependents: new Map(),
+    presets,
     tags,
     watchers: new Set(),
     pending: new Set(),
@@ -1196,6 +1254,7 @@ function startClose(layer: Layer, outcome: Scope.Outcome): Promise<void> {
     layer.building.clear();
     layer.generations.clear();
     layer.dependents.clear();
+    layer.presets.clear();
     layer.tags.clear();
     layer.watchers.clear();
     layer.pending.clear();
