@@ -25,6 +25,8 @@ export declare namespace Data {
     readonly initial: T;
     readonly parse: Parse<T> | undefined;
     eq(a: T, b: T): boolean;
+    /** Static metadata bindings, read off the handle (never affects resolution). */
+    readonly meta: readonly Tag.Binding<unknown>[];
     /** Depend on this cell in write mode: delivered as a controller. */
     readonly controller: Edge<"controller", Cell<T>>;
   };
@@ -39,6 +41,9 @@ export declare namespace Tag {
   /** One value bound to a tag, seeded on a scope. `Handle<any>` is the callable-variance escape hatch. */
   export type Binding<T> = { readonly tag: Handle<any>; readonly value: T };
 
+  /** Any unit carrying static metadata bindings (data/operation/resource/tag). */
+  export type Metaed = { readonly meta: readonly Binding<unknown>[] };
+
   /** Ambient metadata read through the scope chain. Callable to bind a value. */
   export type Handle<T> = {
     readonly [tagSym]: true;
@@ -47,9 +52,13 @@ export declare namespace Tag {
     readonly def: T | undefined;
     readonly parse: Data.Parse<T> | undefined;
     eq(a: T, b: T): boolean;
+    /** Static metadata bindings on the tag itself (a tag can be tagged). */
+    readonly meta: readonly Binding<unknown>[];
     readonly required: Edge<"required", Handle<T>>;
     readonly optional: Edge<"optional", Handle<T>>;
     readonly all: Edge<"all", Handle<T>>;
+    /** Read this tag's static value off a unit's `meta` (nearest binding, else default, else absent). */
+    read(unit: Metaed): Presence<T>;
     (value: T): Binding<T>;
   };
 }
@@ -115,6 +124,8 @@ export declare namespace Operation {
     readonly input: Data.Parse<I> | undefined;
     readonly depends: Scope.Depends;
     run(deps: Record<string, unknown>, ctx: Ctx<I>): T;
+    /** Static metadata bindings, read off the handle (never affects resolution). */
+    readonly meta: readonly Tag.Binding<unknown>[];
     /** Depend on this command: delivered as a callable controller. */
     readonly controller: Edge<"controller", Command<T, I>>;
   };
@@ -139,6 +150,8 @@ export declare namespace Resource {
     readonly target: "scope" | "session";
     readonly depends: Scope.Depends;
     factory(deps: Record<string, unknown>, ctx: Ctx): T;
+    /** Static metadata bindings, read off the handle (never affects resolution). */
+    readonly meta: readonly Tag.Binding<unknown>[];
   };
 }
 
@@ -315,12 +328,28 @@ function admit<T>(label: string, parse: Data.Parse<T> | undefined, raw: unknown)
   }
 }
 
+/** The shared, frozen empty meta for units declared without any — immutable so no caller can
+ * reach past the `readonly` type and leak a binding across every no-meta unit. */
+const NO_META: readonly Tag.Binding<unknown>[] = Object.freeze([]);
+
+/** Read a tag's static value off a unit's `meta`: the nearest matching binding, else the tag's
+ * default, else absent. Static (no scope chain) — this is definition-time metadata. */
+function metaFind<T>(unit: Tag.Metaed, target: Tag.Handle<T>): Tag.Presence<T> {
+  for (let i = unit.meta.length - 1; i >= 0; i--) {
+    const binding = unit.meta[i];
+    if (binding.tag === target) return { present: true, value: binding.value as T };
+  }
+  return target.hasDefault ? { present: true, value: target.def as T } : { present: false };
+}
+
 /** Declare a reactive value cell. `parse` validates the initial value once. */
+
 export function data<T>(config: {
   label?: string;
   initial: T;
   parse?: Data.Parse<T>;
   eq?: (a: T, b: T) => boolean;
+  meta?: readonly Tag.Binding<unknown>[];
 }): Data.Cell<T> {
   const label = config.label ?? "anon";
   const base = {
@@ -329,6 +358,7 @@ export function data<T>(config: {
     initial: admit(label, config.parse, config.initial),
     parse: config.parse,
     eq: config.eq ?? Object.is,
+    meta: config.meta ?? NO_META,
   } as Data.Cell<T>;
   return Object.assign(base, { controller: edgeTo("controller", base) });
 }
@@ -339,6 +369,7 @@ export function tag<T>(config: {
   default?: T;
   parse?: Data.Parse<T>;
   eq?: (a: T, b: T) => boolean;
+  meta?: readonly Tag.Binding<unknown>[];
 }): Tag.Handle<T> {
   const parse = config.parse;
   const label = config.label;
@@ -353,6 +384,8 @@ export function tag<T>(config: {
     def: config.default,
     parse,
     eq: config.eq ?? Object.is,
+    meta: config.meta ?? NO_META,
+    read: (unit: Tag.Metaed): Tag.Presence<T> => metaFind(unit, handle),
   }) as Tag.Handle<T>;
   return Object.assign(handle, {
     required: edgeTo("required", handle),
@@ -371,6 +404,7 @@ export function operation<
   input?: Data.Parse<I>;
   depends?: D;
   run: (deps: Scope.SlotValues<D>, ctx: Operation.Ctx<I>) => R;
+  meta?: readonly Tag.Binding<unknown>[];
 }): Operation.Command<R, I> {
   const base = {
     [command]: true,
@@ -378,6 +412,7 @@ export function operation<
     input: config.input,
     depends: config.depends ?? {},
     run: config.run as Operation.Command<R, I>["run"],
+    meta: config.meta ?? NO_META,
   } as Operation.Command<R, I>;
   return Object.assign(base, { controller: edgeTo("controller", base) });
 }
@@ -391,6 +426,7 @@ export function resource<
   target?: "scope" | "session";
   depends?: D;
   factory: (deps: Scope.SlotValues<D>, ctx: Resource.Ctx) => T;
+  meta?: readonly Tag.Binding<unknown>[];
 }): Resource.Handle<T> {
   return {
     [resourceSym]: true,
@@ -398,6 +434,7 @@ export function resource<
     target: config.target ?? "scope",
     depends: config.depends ?? {},
     factory: config.factory as Resource.Handle<T>["factory"],
+    meta: config.meta ?? NO_META,
   } as Resource.Handle<T>;
 }
 

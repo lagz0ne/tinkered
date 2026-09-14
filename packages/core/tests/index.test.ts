@@ -2152,3 +2152,40 @@ test("a resource preset receives the resolved deps, delivered untyped (narrow at
   });
   expect(scope.getController(conn).resolve()).toBe(141);
 });
+
+test("a unit carries static tag meta, readable off its handle via tag.read", () => {
+  const ui = tag<string>({ label: "ui" });
+  const group = tag<string>({ label: "group", default: "misc" });
+  const other = tag<string>({ label: "other" });
+  const port = data({ initial: 8080, parse: asNumber, meta: [ui("slider")] });
+  expect(port.meta.length).toBe(1);
+  expect(ui.read(port)).toEqual({ present: true, value: "slider" });
+  expect(group.read(port)).toEqual({ present: true, value: "misc" });
+  expect(other.read(port)).toEqual({ present: false });
+});
+
+test("meta attaches to every unit kind, including a tag itself", () => {
+  const ui = tag<string>({ label: "ui" });
+  const op = operation({ label: "op", run: () => 1, meta: [ui("button")] });
+  const res = resource({ label: "res", factory: () => 1, meta: [ui("panel")] });
+  const secret = tag<string>({ label: "secret", meta: [ui("password")] });
+  expect(ui.read(op)).toEqual({ present: true, value: "button" });
+  expect(ui.read(res)).toEqual({ present: true, value: "panel" });
+  expect(ui.read(secret)).toEqual({ present: true, value: "password" });
+});
+
+test("meta is static and never affects resolution; no meta reads as empty", () => {
+  const ui = tag<string>({ label: "ui" });
+  const count = data({ initial: 5, parse: asNumber, meta: [ui("slider")] });
+  const read = operation({ label: "read", depends: { count }, run: ({ count }) => count });
+  expect(createScope().getController(read).resolve()).toBe(5);
+  expect(operation({ label: "bare", run: () => 0 }).meta).toEqual([]);
+});
+
+test("shared empty meta is frozen, so a no-meta unit cannot be mutated to leak across units", () => {
+  const ui = tag<string>({ label: "ui" });
+  const a = data({ initial: 0 });
+  const b = resource({ label: "b", factory: () => 0 });
+  expect(() => Array.prototype.push.call(a.meta, ui("leaked"))).toThrow();
+  expect(ui.read(b)).toEqual({ present: false });
+});

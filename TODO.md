@@ -7,15 +7,13 @@ Core ticket detail + reset recipes: `docs/roadmap/core-v1/PROGRESS.md`.
 
 ## Now
 
-- [ ] pick the next thread (presets line t17+t18 + subflow all landed). Options: streaming design
-      grill (needs the user) or tag-meta-on-every-unit (buildable now). See Next.
+- [ ] pick the next thread (presets line + subflow + tag-meta all landed). Remaining v1: streaming
+      (needs a design grill with the user) and core/t19 (validation capstone — best done last).
 
 ## Next (roadmap, in order)
 
 - [ ] streaming design grill — LLM producer specifics (ADR 0021 is model-only)
   - Verify: ADR 0021 updated with cell ownership / accumulate-vs-replace / end + error-vs-cancel; a streaming ticket added here.
-- [ ] tag-meta-on-every-unit — tags attach static metadata to data/operation/resource/tag
-  - Verify: `scripts/ticket.sh` passes; metadata is readable off a unit handle (test); folded into the extension pickup story.
 - [ ] streaming (impl) — `ctx.signal` + accumulate-via-`data` (ADR 0021)
   - Verify: `scripts/ticket.sh` passes; a producer writes a cell over time, a watcher sees the growing value, and `close()` cancels the producer (test).
 - [ ] core/t19 — v1 validation milestone
@@ -23,6 +21,8 @@ Core ticket detail + reset recipes: `docs/roadmap/core-v1/PROGRESS.md`.
 
 ## Done
 
+- [x] core/tag-meta — static metadata on every unit (ADR 0023): `meta: [someTag(v)]` on data/operation/resource/tag (incl. a tag itself), read via `handle.meta` or `tag.read(unit)`; inert (never affects resolution)
+  - Verified: gate green (check + 128 tests + size 8232 B + mutation 77.00% core); tag `core/tag-meta`. Astra: 1 bug (shared mutable empty-meta array leaked across units) — fixed by freezing the sentinel (`Object.freeze([])`, allowed by the user), census S15 narrowed to permit an empty-literal freeze while still flagging value-freezing; regression test added.
 - [x] core/t18 — resource presets (ADR 0015): `preset(resource, factory)` swaps the factory only for downstream consumers; same deps/caching/generation/teardown; async path included
   - Verified: gate green (check + 124 tests + size 7945 B + mutation exit 0 ~76.5% core); tag `core/t18`. Astra: 2 type-precision gaps — silent-any preset deps (fixed → `Record<string, unknown>`, reproduced+verified, narrowing test added) and a `void`-resource accepting an async preset (documented TS limitation; void resources are an anti-pattern). Census hardened to skip `.stryker-tmp`. **Presets line (t17+t18) complete.**
 - [x] core/subflow — invocation object (ADR 0022, refines 0020): a bare op / command controller is always a callable; `resolve({ input?, rawInput?, tags? })` — defined `input` wins, `rawInput` is parsed, `tags` overlay the caller's ambient bindings for that one call (not into resources or nested subflows)
