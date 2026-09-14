@@ -7,25 +7,13 @@ Core ticket detail + reset recipes: `docs/roadmap/core-v1/PROGRESS.md`.
 
 ## Now
 
-- [ ] subflow contract fix (dep-model / ADR 0020 refinement) — a bare operation dep is ALWAYS a
-      callable, never a value even on void input; the callable accepts one object `{ input?, rawInput?, tags? }`.
-  - Decision (user): one object arg (not positional). `input` = pre-typed (skip parse); `rawInput` = raw (parsed); `tags` = per-call bindings overlaid on the caller's context.
-  - Verify: `scripts/ticket.sh` passes; a void-input bare op is delivered as a function (test);
-    a subflow call passes rawInput (parsed), pre-typed input, and per-call tag bindings (test);
-    new ADR (0022) refining 0020 + glossary `subflow` row updated.
-
-## Next (roadmap, in order)
-
-- [ ] subflow contract fix (dep-model / ADR 0020 refinement) — a bare operation dep is ALWAYS a
-      callable, never a value even on void input; the callable accepts `input`, `rawInput`, and `tags`.
-  - Verify: `scripts/ticket.sh` passes; a void-input bare op is delivered as a function (test);
-    a subflow call can pass rawInput (parsed), pre-typed input, and per-call tag bindings (test);
-    ADR 0020 updated + glossary `subflow` row updated.
-
 - [ ] core/t18 — resource presets (ADR 0015): re-add the `preset(resource, factory)` overload and
       wire it through ownership / caching / generation / teardown.
   - Verify: `scripts/ticket.sh` passes; a resource preset replaces the built instance for downstream
     consumers, respects target/owner, and is torn down on close (test).
+
+## Next (roadmap, in order)
+
 - [ ] streaming design grill — LLM producer specifics (ADR 0021 is model-only)
   - Verify: ADR 0021 updated with cell ownership / accumulate-vs-replace / end + error-vs-cancel; a streaming ticket added here.
 - [ ] tag-meta-on-every-unit — tags attach static metadata to data/operation/resource/tag
@@ -37,6 +25,8 @@ Core ticket detail + reset recipes: `docs/roadmap/core-v1/PROGRESS.md`.
 
 ## Done
 
+- [x] core/subflow — invocation object (ADR 0022, refines 0020): a bare op / command controller is always a callable; `resolve({ input?, rawInput?, tags? })` — defined `input` wins, `rawInput` is parsed, `tags` overlay the caller's ambient bindings for that one call (not into resources or nested subflows)
+  - Verified: gate green (check + 119 tests + size 7916 B + mutation 76.48% core); tag `core/subflow`. Astra: 2 type holes found (undefined-input→NaN; `never`→optional arg), both fixed (runtime + `CallArgs` conditional) with regression tests; second focused pass CLEAN.
 - [x] core/t17 — data/command presets (ADR 0015): `preset(dataCell, value)` (parse-validated) and `preset(command, run)`, downstream-only, cleared on close
   - Verified: gate green (check + 113 tests + size 7750 B + mutation 76.47% core); tag `core/t17`. Astra found no preset-runtime bugs; 2 census-regex bugs (S16 missed `preset<T>(`/`preset (`, flagged strings/comments) fixed + `style-census.selftest.sh` regression added. Resource-preset overload deferred to t18.
 - [x] core/t07..t11 — structured close, sync/async resources, targets, outcome+session(fn)

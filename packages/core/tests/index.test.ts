@@ -8,6 +8,7 @@ import {
   preset,
   resource,
   type Resource,
+  type Scope,
   tag,
 } from "../src/index.ts";
 
@@ -79,7 +80,7 @@ test("a command parses rawInput into typed input and returns synchronously", () 
     input: asNumber,
     run: (_deps, { input }) => input * 2,
   });
-  const result: number = createScope().getController(double).resolve(3);
+  const result: number = createScope().getController(double).resolve({ rawInput: 3 });
   expect(result).toBe(6);
 });
 
@@ -94,7 +95,7 @@ test("read-mode dep delivers the current value; write-mode dep causes an effect"
   });
   const scope = createScope();
   expect(scope.getController(peek).resolve()).toBe(10);
-  scope.getController(bump).resolve(5);
+  scope.getController(bump).resolve({ rawInput: 5 });
   expect(scope.getController(peek).resolve()).toBe(15);
 });
 
@@ -116,7 +117,7 @@ test("a command composes a child command through its controller", () => {
   const outer = operation({
     label: "outer",
     depends: { inner: inner.controller },
-    run: ({ inner }) => inner.resolve(9),
+    run: ({ inner }) => inner.resolve({ rawInput: 9 }),
   });
   expect(createScope().getController(outer).resolve()).toBe(10);
 });
@@ -130,7 +131,7 @@ test("a bare operation dependency is delivered as a subflow the caller invokes",
   const outer = operation({
     label: "outer",
     depends: { inner },
-    run: ({ inner }) => inner.resolve(9),
+    run: ({ inner }) => inner.resolve({ rawInput: 9 }),
   });
   expect(createScope().getController(outer).resolve()).toBe(10);
 });
@@ -238,7 +239,7 @@ test("an async command resolves to its awaited value", async () => {
       return input * 2;
     },
   });
-  const p = createScope().getController(slow).resolve(21);
+  const p = createScope().getController(slow).resolve({ rawInput: 21 });
   gate.resolve();
   expect(await p).toBe(42);
 });
@@ -310,8 +311,8 @@ test("concurrent calls are independent, released in reverse entry order", async 
     },
   });
   const scope = createScope();
-  const p1 = scope.getController(echo).resolve(1);
-  const p2 = scope.getController(echo).resolve(2);
+  const p1 = scope.getController(echo).resolve({ rawInput: 1 });
+  const p2 = scope.getController(echo).resolve({ rawInput: 2 });
   await entered.get(1)!.promise;
   await entered.get(2)!.promise;
   release.get(2)!.resolve();
@@ -1746,7 +1747,7 @@ test("resolving an operation with a subflow yields a parent-linked span tree", (
   const outer = operation({
     label: "outer",
     depends: { inner },
-    run: ({ inner }) => inner.resolve(9),
+    run: ({ inner }) => inner.resolve({ rawInput: 9 }),
   });
   const scope = createScope({ observe: { clock: () => ++now, export: (s) => void spans.push(s) } });
   expect(scope.getController(outer).resolve()).toBe(10);
@@ -1768,7 +1769,7 @@ test("two interleaved async commands keep separate parent-linked span trees (no 
     depends: { leaf },
     run: async ({ leaf }) => {
       await g1.promise;
-      return leaf.resolve(1);
+      return leaf.resolve({ rawInput: 1 });
     },
   });
   const b = operation({
@@ -1776,7 +1777,7 @@ test("two interleaved async commands keep separate parent-linked span trees (no 
     depends: { leaf },
     run: async ({ leaf }) => {
       await g2.promise;
-      return leaf.resolve(2);
+      return leaf.resolve({ rawInput: 2 });
     },
   });
   const scope = createScope({ observe: { clock: () => ++now, export: (s) => void spans.push(s) } });
@@ -1887,7 +1888,7 @@ test("a span for an operation whose setup throws is still closed and exported as
   });
   const scope = createScope({ observe: { export: (s) => void spans.push(s) } });
   try {
-    scope.getController(op).resolve(1);
+    scope.getController(op).resolve({ rawInput: 1 });
     throw new Error("expected the parser to throw");
   } catch (error) {
     if (error !== parseError) throw error;
@@ -2007,7 +2008,7 @@ test("a command preset replaces the run for a downstream subflow", () => {
   const outer = operation({
     label: "outer",
     depends: { inner },
-    run: ({ inner }) => inner.resolve(9),
+    run: ({ inner }) => inner.resolve({ rawInput: 9 }),
   });
   const scope = createScope({ presets: [preset(inner, (_deps, { input }) => input * 100)] });
   expect(scope.getController(outer).resolve()).toBe(900);
@@ -2020,7 +2021,7 @@ test("a command preset replaces the run for a direct resolve too", () => {
     run: (_deps, { input }) => `hello ${input}`,
   });
   const scope = createScope({ presets: [preset(greet, (_deps, { input }) => `hi ${input}`)] });
-  expect(scope.getController(greet).resolve("ada")).toBe("hi ada");
+  expect(scope.getController(greet).resolve({ rawInput: "ada" })).toBe("hi ada");
 });
 
 test("a preset is scoped to its scope, not the node globally", () => {
@@ -2030,4 +2031,68 @@ test("a preset is scoped to its scope, not the node globally", () => {
   const plainScope = createScope();
   expect(presetScope.getController(read).resolve()).toBe(42);
   expect(plainScope.getController(read).resolve()).toBe(1);
+});
+
+test("a void-input operation is always delivered as a callable subflow, never a value", () => {
+  let runs = 0;
+  const ping = operation({ label: "ping", run: () => ++runs });
+  const outer = operation({
+    label: "outer",
+    depends: { ping },
+    run: ({ ping }) => [ping.resolve(), ping.resolve()],
+  });
+  expect(createScope().getController(outer).resolve()).toEqual([1, 2]);
+  expect(runs).toBe(2);
+});
+
+test("a subflow call with input skips parse; rawInput runs parse", () => {
+  let parses = 0;
+  const parseCount = (v: unknown): number => {
+    parses++;
+    if (typeof v !== "number") throw new Error("not a number");
+    return v;
+  };
+  const op = operation({ label: "op", input: parseCount, run: (_deps, { input }) => input });
+  const scope = createScope();
+  expect(scope.getController(op).resolve({ input: 7 })).toBe(7);
+  expect(parses).toBe(0);
+  expect(scope.getController(op).resolve({ rawInput: 8 })).toBe(8);
+  expect(parses).toBe(1);
+});
+
+test("a subflow call layers per-call tags over the caller's ambient bindings, per call only", () => {
+  const zone = tag<string>({ label: "zone", default: "base" });
+  const readZone = operation({ label: "readZone", depends: { zone }, run: ({ zone }) => zone });
+  const scope = createScope({ tags: [zone("eu")] });
+  expect(scope.getController(readZone).resolve()).toBe("eu");
+  expect(scope.getController(readZone).resolve({ tags: [zone("us")] })).toBe("us");
+  expect(scope.getController(readZone).resolve()).toBe("eu");
+});
+
+test("per-call tags do not propagate into a nested subflow", () => {
+  const zone = tag<string>({ label: "zone", default: "base" });
+  const inner = operation({ label: "inner", depends: { zone }, run: ({ zone }) => zone });
+  const outer = operation({
+    label: "outer",
+    depends: { inner, zone },
+    run: ({ inner, zone }) => `${zone}/${inner.resolve()}`,
+  });
+  const scope = createScope({ tags: [zone("eu")] });
+  expect(scope.getController(outer).resolve({ tags: [zone("us")] })).toBe("us/eu");
+});
+
+test("an undefined input is treated as absent, so rawInput is parsed (no NaN leak)", () => {
+  const double = operation({
+    label: "double",
+    input: asNumber,
+    run: (_deps, { input }) => input * 2,
+  });
+  expect(createScope().getController(double).resolve({ input: undefined, rawInput: 7 })).toBe(14);
+});
+
+test("the invocation type requires an argument for a never-parse operation", () => {
+  const neverRequiresArg: [] extends Parameters<Scope.CommandController<number, never>["resolve"]>
+    ? false
+    : true = true;
+  expect(neverRequiresArg).toBe(true);
 });

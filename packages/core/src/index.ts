@@ -162,10 +162,44 @@ export declare namespace Scope {
     watch(listener: (next: T) => void): () => void;
   };
 
-  /** A callable handle onto one command. A `void` input still allows `resolve()`; a required
-   * input must be passed (ADR 0020 subflow contract). */
+  /** How a subflow call is supplied (ADR 0022): a pre-typed `input` (parse skipped), or a raw
+   * `rawInput` (run through the operation's parse), plus per-call ambient tag bindings that
+   * overlay the caller's for this one invocation. A defined `input` wins; an `undefined` `input`
+   * counts as absent, so `rawInput` is parsed instead. */
+  export type Invocation<I> = {
+    readonly input?: I;
+    readonly rawInput?: unknown;
+    readonly tags?: readonly Tag.Binding<unknown>[];
+  };
+
+  /** An invocation that carries an input — exactly one of `input` or `rawInput`, never both and
+   * never an `undefined` input smuggled in beside a `rawInput`. */
+  export type ProvideInput<I> =
+    | {
+        readonly input: I;
+        readonly rawInput?: never;
+        readonly tags?: readonly Tag.Binding<unknown>[];
+      }
+    | {
+        readonly input?: never;
+        readonly rawInput: unknown;
+        readonly tags?: readonly Tag.Binding<unknown>[];
+      };
+
+  /** The `resolve` argument list for input `I`: a genuinely void input is callable with no
+   * argument; anything else (including a `never`-typed parse) must supply `input` or `rawInput`.
+   * `never` is excluded from the void case first — `[never] extends [void]` is otherwise true. */
+  export type CallArgs<I> = [I] extends [never]
+    ? [call: ProvideInput<I>]
+    : [I] extends [void]
+      ? [call?: Invocation<I>]
+      : [call: ProvideInput<I>];
+
+  /** A callable handle onto one command — always a function, never a value (ADR 0022). A
+   * void-input operation is called `resolve()`; an input-carrying one must supply `input` or
+   * `rawInput`. */
   export type CommandController<T, I> = {
-    resolve(input: I): T;
+    resolve(...call: CallArgs<I>): T;
   };
 
   export type Dependency =
@@ -491,7 +525,15 @@ function writeCell<T>(layer: Layer, target: Data.Cell<T>, next: unknown): void {
   flushTree(layer);
 }
 
-function tagFind(layer: Layer, target: Tag.Handle<unknown>): Tag.Presence<unknown> {
+type TagOverlay = Map<Tag.Handle<unknown>, unknown[]>;
+
+function tagFind(
+  layer: Layer,
+  target: Tag.Handle<unknown>,
+  overlay?: TagOverlay,
+): Tag.Presence<unknown> {
+  const front = overlay?.get(target);
+  if (front && front.length) return { present: true, value: front[front.length - 1] };
   for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
     const list = cur.tags.get(target);
     if (list && list.length) return { present: true, value: list[list.length - 1] };
@@ -499,8 +541,10 @@ function tagFind(layer: Layer, target: Tag.Handle<unknown>): Tag.Presence<unknow
   return target.hasDefault ? { present: true, value: target.def } : { present: false };
 }
 
-function tagAll(layer: Layer, target: Tag.Handle<unknown>): unknown[] {
+function tagAll(layer: Layer, target: Tag.Handle<unknown>, overlay?: TagOverlay): unknown[] {
   const out: unknown[] = [];
+  const front = overlay?.get(target);
+  if (front) for (let i = front.length - 1; i >= 0; i--) out.push(front[i]);
   for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
     const list = cur.tags.get(target);
     if (list) for (let i = list.length - 1; i >= 0; i--) out.push(list[i]);
@@ -508,8 +552,8 @@ function tagAll(layer: Layer, target: Tag.Handle<unknown>): unknown[] {
   return out;
 }
 
-function tagRequired(layer: Layer, target: Tag.Handle<unknown>): unknown {
-  const found = tagFind(layer, target);
+function tagRequired(layer: Layer, target: Tag.Handle<unknown>, overlay?: TagOverlay): unknown {
+  const found = tagFind(layer, target, overlay);
   if (!found.present) raise("MissingTag", { label: target.label });
   return found.value;
 }
@@ -563,22 +607,24 @@ function resolveEdge(
   layer: Layer,
   dep: Edge<string, unknown>,
   parent: Observe.Span | undefined,
+  overlay?: TagOverlay,
 ): unknown {
   if (dep.kind === "controller") return resolveControllerEdge(layer, dep.target, parent);
   const target = dep.target as Tag.Handle<unknown>;
-  if (dep.kind === "all") return tagAll(layer, target);
-  if (dep.kind === "optional") return tagFind(layer, target);
-  return tagRequired(layer, target);
+  if (dep.kind === "all") return tagAll(layer, target, overlay);
+  if (dep.kind === "optional") return tagFind(layer, target, overlay);
+  return tagRequired(layer, target, overlay);
 }
 
 function resolveDep(
   layer: Layer,
   dep: Scope.Dependency,
   parent: Observe.Span | undefined,
+  overlay?: TagOverlay,
 ): unknown {
-  if (isEdge(dep)) return resolveEdge(layer, dep, parent);
+  if (isEdge(dep)) return resolveEdge(layer, dep, parent, overlay);
   if (isData(dep)) return readCell(layer, dep);
-  if (isTag(dep)) return tagRequired(layer, dep);
+  if (isTag(dep)) return tagRequired(layer, dep, overlay);
   if (isCommand(dep)) return commandController(layer, dep, parent);
   if (isResource(dep)) return resourceController(layer, dep, parent).resolve();
   raise("InvalidDependency", { label: "unknown", reason: "unknown dependency" });
@@ -799,43 +845,57 @@ function runCleanup(layer: Layer, fn: () => void | PromiseLike<void>): void {
   track(layer, result, asSecondary(layer));
 }
 
+function readCall<T, I>(
+  target: Operation.Command<T, I>,
+  call: Scope.Invocation<I> | undefined,
+): { input: I; rawInput: unknown; overlay: TagOverlay | undefined } {
+  const overlay = call?.tags?.length ? seedTags(call.tags) : undefined;
+  if (call !== undefined && call.input !== undefined) {
+    return { input: call.input, rawInput: call.input, overlay };
+  }
+  const rawInput = call?.rawInput;
+  const input = (target.input ? target.input(rawInput) : undefined) as I;
+  return { input, rawInput, overlay };
+}
+
 function commandController<T, I>(
   layer: Layer,
   target: Operation.Command<T, I>,
   parent: Observe.Span | undefined,
 ): Scope.CommandController<T, I> {
-  return {
-    resolve: (raw?: I) => {
-      ensureOpen(layer);
-      const obs = layer.obs;
-      const span = openSpan(obs, parent, target.label, "operation");
-      const override = presetFor(layer, target) as Operation.Command<T, I>["run"] | undefined;
-      let result: T;
-      try {
-        const input = (target.input ? target.input(raw) : (undefined as I)) as I;
-        const deps: Record<string, unknown> = {};
-        for (const key in target.depends) deps[key] = resolveDep(layer, target.depends[key], span);
-        const ctx: Operation.Ctx<I> = {
-          label: target.label,
-          rawInput: raw,
-          input,
-          obs: obsCtx(obs, span),
-          log: logFor(obs, span),
-        };
-        result = override ? override(deps, ctx) : target.run(deps, ctx);
-      } catch (error) {
-        closeSpan(obs, span, "failed");
-        throw error;
+  const resolve = (call?: Scope.Invocation<I>): T => {
+    ensureOpen(layer);
+    const obs = layer.obs;
+    const span = openSpan(obs, parent, target.label, "operation");
+    const override = presetFor(layer, target) as Operation.Command<T, I>["run"] | undefined;
+    let result: T;
+    try {
+      const { input, rawInput, overlay } = readCall(target, call);
+      const deps: Record<string, unknown> = {};
+      for (const key in target.depends) {
+        deps[key] = resolveDep(layer, target.depends[key], span, overlay);
       }
-      track(
-        layer,
-        result,
-        asPrimary(layer),
-        span ? (status) => closeSpan(obs, span, status) : undefined,
-      );
-      return result;
-    },
+      const ctx: Operation.Ctx<I> = {
+        label: target.label,
+        rawInput,
+        input,
+        obs: obsCtx(obs, span),
+        log: logFor(obs, span),
+      };
+      result = override ? override(deps, ctx) : target.run(deps, ctx);
+    } catch (error) {
+      closeSpan(obs, span, "failed");
+      throw error;
+    }
+    track(
+      layer,
+      result,
+      asPrimary(layer),
+      span ? (status) => closeSpan(obs, span, status) : undefined,
+    );
+    return result;
   };
+  return { resolve } as Scope.CommandController<T, I>;
 }
 
 function ownerOf(layer: Layer, target: Resource.Handle<unknown>): Layer {
