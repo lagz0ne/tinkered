@@ -5,6 +5,9 @@
 # tags `core/t<NN>` only if the gate passes; a red gate makes no checkpoint.
 set -euo pipefail
 
+# use the workspace's toolchain whether or not `vp` is global
+export PATH="$(git rev-parse --show-toplevel)/node_modules/.bin:$PATH"
+
 NN="${1:?usage: scripts/ticket.sh <NN> \"<title>\"}"
 TITLE="${2:?usage: scripts/ticket.sh <NN> \"<title>\"}"
 TAG="core/t${NN}"
@@ -13,7 +16,9 @@ echo "== gate ${TAG}: vp check =="
 vp check
 echo "== gate ${TAG}: vp run -r test =="
 vp run -r test
-echo "== gate ${TAG}: budgets (mutate; best-effort until wired) =="
+echo "== gate ${TAG}: size budget =="
+vp run core#size
+echo "== gate ${TAG}: mutation (best-effort until thresholds finalized) =="
 vp run -r mutate || echo "  (mutate not wired yet — skipped)"
 
 git add -A

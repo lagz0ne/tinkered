@@ -31,7 +31,7 @@ Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its 
 
 | tag      | ticket                                 | blockers   | status |
 | -------- | -------------------------------------- | ---------- | ------ |
-| core/t01 | Packaged scope + data read             | —          | [ ]    |
+| core/t01 | Packaged scope + data read             | —          | [x]    |
 | core/t02 | data write + watch                     | 01         | [ ]    |
 | core/t03 | Sync commands (incl. effects)          | 02         | [ ]    |
 | core/t04 | Scope tags, all modes                  | 03         | [ ]    |
