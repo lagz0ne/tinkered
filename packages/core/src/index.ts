@@ -306,6 +306,8 @@ export function resource<
 }
 
 type Entry = { value: unknown };
+/** A releasable node: a data cell or a resource. Release cascades from a node to its dependents. */
+type Node = Data.Cell<unknown> | Resource.Handle<unknown>;
 type Watcher = {
   read: () => unknown;
   last: unknown;
@@ -333,6 +335,7 @@ type Layer = {
   builds: Map<Resource.Handle<unknown>, Promise<unknown>>;
   building: Set<Resource.Handle<unknown>>;
   generations: Map<Resource.Handle<unknown>, number>;
+  dependents: Map<Node, Set<Resource.Handle<unknown>>>;
   tags: Map<Tag.Handle<unknown>, unknown[]>;
   watchers: Set<Watcher>;
   pending: Set<Promise<unknown>>;
@@ -571,7 +574,12 @@ function buildResource<T>(owner: Layer, target: Resource.Handle<T>): unknown {
   let settled = false;
   try {
     const deps: Record<string, unknown> = {};
-    for (const key in target.depends) deps[key] = resolveDep(owner, target.depends[key]);
+    for (const key in target.depends) {
+      const dep = target.depends[key];
+      const node = depNode(dep);
+      if (node) addDependent(owner, node, target);
+      deps[key] = resolveDep(owner, dep);
+    }
     const ctx: Resource.Ctx = {
       label: target.label,
       cleanup: (fn) => {
@@ -584,39 +592,53 @@ function buildResource<T>(owner: Layer, target: Resource.Handle<T>): unknown {
         if (!superseded()) owner.onOutcomes.push({ fn, resource: target });
       },
     };
-    let result: unknown;
-    try {
-      result = target.factory(deps, ctx);
-    } catch (error) {
-      settled = true;
-      throw error;
-    }
+    const result = target.factory(deps, ctx);
     if (!isThenable(result)) {
       settled = true;
       if (canPublish()) owner.resources.set(target, { value: result });
       return result;
     }
-    const build: Promise<unknown> = Promise.resolve(result).then(
-      (value) => {
-        settled = true;
-        if (owner.builds.get(target) === build) owner.builds.delete(target);
-        if (canPublish()) owner.resources.set(target, { value: build });
-        return value;
-      },
-      (error) => {
-        settled = true;
-        if (owner.builds.get(target) === build) owner.builds.delete(target);
-        throw error;
-      },
-    );
-    if (!superseded()) owner.builds.set(target, build);
-    track(owner, build, (error) => {
-      if (!superseded()) owner.failure ??= { cause: error };
+    return finishAsyncBuild(owner, target, result, superseded, canPublish, () => {
+      settled = true;
     });
-    return build;
+  } catch (error) {
+    settled = true;
+    if (!superseded()) detachDependent(owner, target);
+    throw error;
   } finally {
     owner.building.delete(target);
   }
+}
+
+/** Wire up an async build: publish on success only if still current, and on rejection drop the
+ * in-flight entry and (unless superseded by a replacement) detach the failed build's edges. */
+function finishAsyncBuild(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  result: PromiseLike<unknown>,
+  superseded: () => boolean,
+  canPublish: () => boolean,
+  markSettled: () => void,
+): Promise<unknown> {
+  const build: Promise<unknown> = Promise.resolve(result).then(
+    (value) => {
+      markSettled();
+      if (owner.builds.get(target) === build) owner.builds.delete(target);
+      if (canPublish()) owner.resources.set(target, { value: build });
+      return value;
+    },
+    (error) => {
+      markSettled();
+      if (owner.builds.get(target) === build) owner.builds.delete(target);
+      if (!superseded()) detachDependent(owner, target);
+      throw error;
+    },
+  );
+  if (!superseded()) owner.builds.set(target, build);
+  track(owner, build, (error) => {
+    if (!superseded()) owner.failure ??= { cause: error };
+  });
+  return build;
 }
 
 function resourceController<T>(
@@ -645,34 +667,93 @@ function resourceController<T>(
   };
 }
 
-function releaseResource(layer: Layer, target: Resource.Handle<unknown>): void {
+/** Drop a resource's cache/generation/hook-registrations and edges without running any user
+ * callback; returns its cleanups for the caller to run after every affected node is invalidated. */
+function invalidateResource(
+  layer: Layer,
+  target: Resource.Handle<unknown>,
+): (() => void | PromiseLike<void>)[] {
   const owner = ownerOf(layer, target);
   ensureOpen(owner);
   owner.generations.set(target, (owner.generations.get(target) ?? 0) + 1);
   owner.resources.delete(target);
   owner.builds.delete(target);
   owner.onOutcomes = owner.onOutcomes.filter((entry) => entry.resource !== target);
-  const mine = owner.cleanups.filter((entry) => entry.resource === target);
+  const mine = owner.cleanups.filter((entry) => entry.resource === target).map((entry) => entry.fn);
   owner.cleanups = owner.cleanups.filter((entry) => entry.resource !== target);
-  for (let i = mine.length - 1; i >= 0; i--) runCleanup(owner, mine[i].fn);
+  detachDependent(owner, target);
+  owner.dependents.delete(target);
+  return mine;
 }
 
-function releaseData(layer: Layer, target: Data.Cell<unknown>): void {
+/** Drop a cell's shadow (revert to inherited/initial) and edges without notifying watchers. */
+function invalidateData(layer: Layer, target: Data.Cell<unknown>): void {
   if (layer.cells.has(target)) {
     layer.cells.delete(target);
     invalidateEff(layer, target);
   }
-  flushTree(layer);
+  layer.dependents.delete(target);
 }
 
-function releaseNode(layer: Layer, target: Data.Cell<unknown> | Resource.Handle<unknown>): void {
+/** Release a node and cascade to its dependents. Two phases so a throwing/closing callback can
+ * never strand a dependent: first collect every affected node (iterative, diamond-safe) and drop
+ * all their caches; then run cleanups and notify watchers. */
+/** Walk dependents from `target` (iterative, diamond-safe) → every affected node, in release order. */
+function collectAffected(layer: Layer, target: Node): Node[] {
+  const seen = new Set<Node>();
+  const order: Node[] = [];
+  const stack: Node[] = [target];
+  while (stack.length) {
+    const node = stack.pop() as Node;
+    if (seen.has(node)) continue;
+    seen.add(node);
+    order.push(node);
+    const owner = isResource(node) ? ownerOf(layer, node) : layer;
+    const dependents = owner.dependents.get(node);
+    if (dependents) for (const dependent of dependents) stack.push(dependent);
+  }
+  return order;
+}
+
+function releaseNode(layer: Layer, target: Node): void {
   ensureOpen(layer);
-  if (isResource(target)) return releaseResource(layer, target);
-  if (isData(target)) return releaseData(layer, target);
-  raise("InvalidDependency", {
-    label: "release",
-    reason: "release needs a data cell or a resource",
-  });
+  const order = collectAffected(layer, target);
+  const cleanups: (() => void | PromiseLike<void>)[] = [];
+  let dataReleased = false;
+  for (const node of order) {
+    if (isResource(node)) cleanups.push(...invalidateResource(layer, node));
+    else {
+      invalidateData(layer, node);
+      dataReleased = true;
+    }
+  }
+  try {
+    if (dataReleased) flushTree(layer);
+  } finally {
+    for (let i = cleanups.length - 1; i >= 0; i--) runCleanup(layer, cleanups[i]);
+  }
+}
+
+function addDependent(owner: Layer, node: Node, dependent: Resource.Handle<unknown>): void {
+  const set = owner.dependents.get(node);
+  if (set) set.add(dependent);
+  else owner.dependents.set(node, new Set([dependent]));
+}
+
+/** Remove one resource from every dependents set (its incoming edges), dropping empty sets. */
+function detachDependent(owner: Layer, dependent: Resource.Handle<unknown>): void {
+  for (const [node, set] of owner.dependents) {
+    if (set.delete(dependent) && set.size === 0) owner.dependents.delete(node);
+  }
+}
+
+/** The releasable node a dependency reads through, if any — a bare data cell or its controller
+ * edge, or a bare resource. Tags and commands (subflows) create no release edge. */
+function depNode(dep: Scope.Dependency): Node | undefined {
+  if (isData(dep)) return dep;
+  if (isResource(dep)) return dep;
+  if (isEdge(dep) && dep.kind === "controller" && isData(dep.target)) return dep.target;
+  return undefined;
 }
 
 function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
@@ -691,6 +772,7 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     builds: new Map(),
     building: new Set(),
     generations: new Map(),
+    dependents: new Map(),
     tags,
     watchers: new Set(),
     pending: new Set(),
@@ -812,6 +894,7 @@ function startClose(layer: Layer, outcome: Scope.Outcome): Promise<void> {
     layer.builds.clear();
     layer.building.clear();
     layer.generations.clear();
+    layer.dependents.clear();
     layer.tags.clear();
     layer.watchers.clear();
     layer.pending.clear();

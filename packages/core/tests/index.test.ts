@@ -1414,3 +1414,166 @@ test("a release cleanup that rejects surfaces as secondary without changing the 
   if (!isError(thrown, "TeardownFailed")) throw thrown;
   expect(thrown.payload.causes).toContain(cleanupError);
 });
+
+test("releasing a resource cascades to its dependent exactly once; upstream untouched", () => {
+  let cBuilds = 0;
+  let bBuilds = 0;
+  let aBuilds = 0;
+  const c = resource({ label: "c", factory: () => ({ c: ++cBuilds }) });
+  const b = resource({
+    label: "b",
+    depends: { c },
+    factory: ({ c }) => ({ b: ++bBuilds, from: c.c }),
+  });
+  const a = resource({
+    label: "a",
+    depends: { b },
+    factory: ({ b }) => ({ a: ++aBuilds, from: b.b }),
+  });
+  const scope = createScope();
+  scope.getController(a).resolve();
+  expect([cBuilds, bBuilds, aBuilds]).toEqual([1, 1, 1]);
+  scope.release(b);
+  scope.getController(a).resolve();
+  expect(cBuilds).toBe(1);
+  expect(bBuilds).toBe(2);
+  expect(aBuilds).toBe(2);
+});
+
+test("a diamond release cascades to the shared dependent exactly once", () => {
+  const cleaned: string[] = [];
+  const d = resource({ label: "d", factory: () => ({ d: 1 }) });
+  const l = resource({ label: "l", depends: { d }, factory: ({ d }) => ({ l: d.d }) });
+  const r = resource({ label: "r", depends: { d }, factory: ({ d }) => ({ r: d.d }) });
+  const top = resource({
+    label: "top",
+    depends: { l, r },
+    factory: (_deps, { cleanup }) => {
+      cleanup(() => void cleaned.push("top"));
+      return { ok: true };
+    },
+  });
+  const scope = createScope();
+  scope.getController(top).resolve();
+  scope.release(d);
+  expect(cleaned).toEqual(["top"]);
+});
+
+test("a cascade re-runs no command", () => {
+  let runs = 0;
+  const flag = data({ initial: 0, parse: asNumber });
+  const cmd = operation({
+    label: "cmd",
+    depends: { flag },
+    run: ({ flag }) => {
+      runs++;
+      return flag;
+    },
+  });
+  const r = resource({ label: "r", depends: { flag }, factory: ({ flag }) => flag });
+  const scope = createScope();
+  scope.getController(cmd).resolve();
+  scope.getController(r).resolve();
+  scope.release(flag);
+  expect(runs).toBe(1);
+});
+
+test("a throwing cleanup mid-cascade still drops every dependent's cache", () => {
+  const base = data({ initial: 0, parse: asNumber });
+  let topBuilds = 0;
+  const mid = resource({
+    label: "mid",
+    depends: { base },
+    factory: (_deps, { cleanup }) => {
+      cleanup(() => {
+        throw new Error("mid-cleanup");
+      });
+      return { v: 1 };
+    },
+  });
+  const top = resource({
+    label: "top",
+    depends: { mid },
+    factory: ({ mid }) => ({ built: ++topBuilds, from: mid.v }),
+  });
+  const scope = createScope();
+  scope.getController(top).resolve();
+  scope.release(base);
+  scope.getController(top).resolve();
+  expect(topBuilds).toBe(2);
+});
+
+test("releasing the head of a deep chain does not overflow the stack", () => {
+  const base = data({ initial: 0, parse: asNumber });
+  const chain: Resource.Handle<{ n: number }>[] = [
+    resource({ label: "r0", depends: { base }, factory: ({ base }) => ({ n: base }) }),
+  ];
+  for (let i = 1; i < 5000; i++) {
+    const dep = chain[i - 1];
+    chain.push(
+      resource({ label: `r${i}`, depends: { dep }, factory: ({ dep }) => ({ n: dep.n + 1 }) }),
+    );
+  }
+  const scope = createScope();
+  for (const node of chain) scope.getController(node).resolve();
+  scope.release(chain[0]);
+  expect(scope.getController(chain[0]).resolve().n).toBe(0);
+});
+
+test("a throwing watcher during release still runs the cleanups", () => {
+  const base = data({ initial: 0, parse: asNumber });
+  const watcherError = new Error("watcher");
+  const cleaned: string[] = [];
+  const r = resource({
+    label: "r",
+    depends: { base },
+    factory: (_deps, { cleanup }) => {
+      cleanup(() => void cleaned.push("r"));
+      return { v: 1 };
+    },
+  });
+  const scope = createScope();
+  scope.getController(base).set(5);
+  scope.getController(r).resolve();
+  scope.getController(base).watch(() => {
+    throw watcherError;
+  });
+  try {
+    scope.release(base);
+    throw new Error("expected the watcher to throw");
+  } catch (error) {
+    if (error !== watcherError) throw error;
+  }
+  expect(cleaned).toEqual(["r"]);
+});
+
+test("an old build's late rejection does not detach the replacement's edges", async () => {
+  const base = data({ initial: 0, parse: asNumber });
+  let builds = 0;
+  const gate = deferred();
+  const r = resource({
+    label: "r",
+    depends: { base },
+    factory: async () => {
+      const n = ++builds;
+      if (n === 1) {
+        await gate.promise;
+        throw new Error("old-fail");
+      }
+      return { n };
+    },
+  });
+  const scope = createScope();
+  const build1 = scope.getController(r).resolve();
+  const settled1 = build1.then(
+    () => undefined,
+    () => undefined,
+  );
+  scope.release(r);
+  await scope.getController(r).resolve();
+  gate.resolve();
+  await settled1;
+  scope.release(base);
+  const c = await scope.getController(r).resolve();
+  expect(c.n).toBe(3);
+});
