@@ -113,20 +113,23 @@ export declare namespace Scope {
     watch(listener: (next: T) => void): () => void;
   };
 
-  /** A callable handle onto one command. */
+  /** A callable handle onto one command. A `void` input still allows `resolve()`; a required
+   * input must be passed (ADR 0020 subflow contract). */
   export type CommandController<T, I> = {
-    resolve(input?: I): T;
+    resolve(input: I): T;
   };
 
   export type Dependency =
     | Data.Cell<unknown>
     | Operation.Command<unknown, unknown>
+    | Resource.Handle<unknown>
     | Tag.Handle<any>
     | Edge<"controller", Data.Cell<unknown> | Operation.Command<unknown, unknown>>
     | Edge<"required" | "optional" | "all", Tag.Handle<any>>;
   export type Depends = Readonly<Record<string, Dependency>>;
 
-  /** Maps one declared dependency to the value delivered in `deps` — exact, no casts in userland. */
+  /** Maps one declared dependency to the value delivered in `deps` — exact, no casts in userland.
+   * A bare command is a subflow (a callable controller); a bare resource is its built instance. */
   export type SlotValue<D> =
     D extends Edge<"controller", infer N>
       ? N extends Data.Cell<infer T>
@@ -144,7 +147,11 @@ export declare namespace Scope {
               ? T
               : D extends Data.Cell<infer T>
                 ? T
-                : never;
+                : D extends Operation.Command<infer T, infer I>
+                  ? CommandController<T, I>
+                  : D extends Resource.Handle<infer T>
+                    ? ResourceValue<T>
+                    : never;
   export type SlotValues<D extends Depends> = { [K in keyof D]: SlotValue<D[K]> };
 
   /** Values seeded on a scope at creation. */
@@ -474,11 +481,8 @@ function resolveDep(layer: Layer, dep: Scope.Dependency): unknown {
   if (isEdge(dep)) return resolveEdge(layer, dep);
   if (isData(dep)) return readCell(layer, dep);
   if (isTag(dep)) return tagRequired(layer, dep);
-  if (isCommand(dep))
-    raise("InvalidDependency", {
-      label: dep.label,
-      reason: "a command is not a value; depend on `command.controller`",
-    });
+  if (isCommand(dep)) return commandController(layer, dep);
+  if (isResource(dep)) return resourceController(layer, dep).resolve();
   raise("InvalidDependency", { label: "unknown", reason: "unknown dependency" });
 }
 

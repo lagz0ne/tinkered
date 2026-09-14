@@ -119,16 +119,34 @@ test("a command composes a child command through its controller", () => {
   expect(createScope().getController(outer).resolve()).toBe(10);
 });
 
-test("a bare command used as a value dependency is rejected", () => {
-  const x = operation({ label: "x", run: () => 1 });
-  const bad = operation({ label: "bad", depends: { x }, run: () => 1 });
-  try {
-    createScope().getController(bad).resolve();
-    expect.unreachable();
-  } catch (error) {
-    if (!isError(error, "InvalidDependency")) throw error;
-    expect(error.payload.label).toBe("x");
-  }
+test("a bare operation dependency is delivered as a subflow the caller invokes", () => {
+  const inner = operation({
+    label: "inner",
+    input: asNumber,
+    run: (_deps, { input }) => input + 1,
+  });
+  const outer = operation({
+    label: "outer",
+    depends: { inner },
+    run: ({ inner }) => inner.resolve(9),
+  });
+  expect(createScope().getController(outer).resolve()).toBe(10);
+});
+
+test("a resource depends on another resource and receives its instance (pool → tx)", () => {
+  let pools = 0;
+  const pool = resource({ label: "pool", factory: () => ({ id: ++pools }) });
+  const tx = resource({
+    label: "tx",
+    depends: { pool },
+    factory: ({ pool }) => ({ from: pool.id }),
+  });
+  const scope = createScope();
+  const a = scope.getController(tx).resolve();
+  const b = scope.getController(tx).resolve();
+  expect(a).toBe(b);
+  expect(a.from).toBe(1);
+  expect(pools).toBe(1);
 });
 
 const region = tag<string>({ label: "region", default: "base" });
