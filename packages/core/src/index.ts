@@ -2,7 +2,15 @@ import { raise } from "./errors.ts";
 
 const cell: unique symbol = Symbol("data");
 const command: unique symbol = Symbol("operation");
+const tagSym: unique symbol = Symbol("tag");
 const edge: unique symbol = Symbol("edge");
+
+/** A declared dependency edge: a mode (`controller`, `required`, `optional`, `all`) onto a target. */
+export type Edge<K extends string, Target> = {
+  readonly [edge]: true;
+  readonly kind: K;
+  readonly target: Target;
+};
 
 export declare namespace Data {
   /** Validates raw input into a trusted value once, at the process edge. */
@@ -15,17 +23,34 @@ export declare namespace Data {
     readonly initial: T;
     readonly parse: Parse<T> | undefined;
     eq(a: T, b: T): boolean;
-    /** Depend on this cell in write mode: the dep is delivered as a controller. */
+    /** Depend on this cell in write mode: delivered as a controller. */
     readonly controller: Edge<"controller", Cell<T>>;
   };
 }
 
-/** A declared dependency edge (e.g. write-mode `controller`). */
-export type Edge<K extends string, Target> = {
-  readonly [edge]: true;
-  readonly kind: K;
-  readonly target: Target;
-};
+export declare namespace Tag {
+  /** The result of reading a tag that may be absent. */
+  export type Presence<T> =
+    | { readonly present: true; readonly value: T }
+    | { readonly present: false };
+
+  /** One value bound to a tag, seeded on a scope. `Handle<any>` is the callable-variance escape hatch. */
+  export type Binding<T> = { readonly tag: Handle<any>; readonly value: T };
+
+  /** Ambient metadata read through the scope chain. Callable to bind a value. */
+  export type Handle<T> = {
+    readonly [tagSym]: true;
+    readonly label: string;
+    readonly hasDefault: boolean;
+    readonly def: T | undefined;
+    readonly parse: Data.Parse<T> | undefined;
+    eq(a: T, b: T): boolean;
+    readonly required: Edge<"required", Handle<T>>;
+    readonly optional: Edge<"optional", Handle<T>>;
+    readonly all: Edge<"all", Handle<T>>;
+    (value: T): Binding<T>;
+  };
+}
 
 export declare namespace Operation {
   /** The receiver a command body reads its own invocation through. */
@@ -42,7 +67,7 @@ export declare namespace Operation {
     readonly input: Data.Parse<I> | undefined;
     readonly depends: Scope.Depends;
     run(deps: Record<string, unknown>, ctx: Ctx<I>): T;
-    /** Depend on this command: the dep is delivered as a callable controller. */
+    /** Depend on this command: delivered as a callable controller. */
     readonly controller: Edge<"controller", Command<T, I>>;
   };
 }
@@ -65,7 +90,9 @@ export declare namespace Scope {
   export type Dependency =
     | Data.Cell<unknown>
     | Operation.Command<unknown, unknown>
-    | Edge<"controller", Data.Cell<unknown> | Operation.Command<unknown, unknown>>;
+    | Tag.Handle<any>
+    | Edge<"controller", Data.Cell<unknown> | Operation.Command<unknown, unknown>>
+    | Edge<"required" | "optional" | "all", Tag.Handle<any>>;
   export type Depends = Readonly<Record<string, Dependency>>;
 
   /** Maps one declared dependency to the value delivered in `deps` — exact, no casts in userland. */
@@ -76,10 +103,21 @@ export declare namespace Scope {
         : N extends Operation.Command<infer T, infer I>
           ? CommandController<T, I>
           : never
-      : D extends Data.Cell<infer T>
-        ? T
-        : never;
+      : D extends Edge<"all", Tag.Handle<infer T>>
+        ? T[]
+        : D extends Edge<"optional", Tag.Handle<infer T>>
+          ? Tag.Presence<T>
+          : D extends Edge<"required", Tag.Handle<infer T>>
+            ? T
+            : D extends Tag.Handle<infer T>
+              ? T
+              : D extends Data.Cell<infer T>
+                ? T
+                : never;
   export type SlotValues<D extends Depends> = { [K in keyof D]: SlotValue<D[K]> };
+
+  /** Values seeded on a scope at creation. */
+  export type Options = { tags?: readonly Tag.Binding<unknown>[] };
 
   /** What `createScope()` returns: the one seam tests and callers touch. */
   export type Handle = {
@@ -92,8 +130,15 @@ const isData = (n: unknown): n is Data.Cell<unknown> =>
   typeof n === "object" && n !== null && cell in n;
 const isCommand = (n: unknown): n is Operation.Command<unknown, unknown> =>
   typeof n === "object" && n !== null && command in n;
+const isTag = (n: unknown): n is Tag.Handle<unknown> => typeof n === "function" && tagSym in n;
 const isEdge = (n: unknown): n is Edge<string, unknown> =>
   typeof n === "object" && n !== null && edge in n;
+
+const edgeTo = <K extends string, N>(kind: K, target: N): Edge<K, N> => ({
+  [edge]: true,
+  kind,
+  target,
+});
 
 /** Admit a raw value through a parser once; parse failures become a registry error. */
 function admit<T>(label: string, parse: Data.Parse<T> | undefined, raw: unknown): T {
@@ -120,8 +165,34 @@ export function data<T>(config: {
     parse: config.parse,
     eq: config.eq ?? Object.is,
   } as Data.Cell<T>;
-  return Object.assign(base, {
-    controller: { [edge]: true, kind: "controller" as const, target: base },
+  return Object.assign(base, { controller: edgeTo("controller", base) });
+}
+
+/** Declare an ambient tag. Call it to bind a value; read it via `.required`/`.optional`/`.all`. */
+export function tag<T>(config: {
+  label: string;
+  default?: T;
+  parse?: Data.Parse<T>;
+  eq?: (a: T, b: T) => boolean;
+}): Tag.Handle<T> {
+  const parse = config.parse;
+  const label = config.label;
+  const bind = (value: T): Tag.Binding<T> => ({
+    tag: handle,
+    value: admit(label, parse, value),
+  });
+  const handle = Object.assign(bind, {
+    [tagSym]: true as const,
+    label,
+    hasDefault: "default" in config,
+    def: config.default,
+    parse,
+    eq: config.eq ?? Object.is,
+  }) as Tag.Handle<T>;
+  return Object.assign(handle, {
+    required: edgeTo("required", handle),
+    optional: edgeTo("optional", handle),
+    all: edgeTo("all", handle),
   });
 }
 
@@ -143,9 +214,7 @@ export function operation<
     depends: config.depends ?? {},
     run: config.run as Operation.Command<R, I>["run"],
   } as Operation.Command<R, I>;
-  return Object.assign(base, {
-    controller: { [edge]: true, kind: "controller" as const, target: base },
-  });
+  return Object.assign(base, { controller: edgeTo("controller", base) });
 }
 
 type Entry = { value: unknown };
@@ -156,10 +225,16 @@ type Watcher = {
   fn: (next: unknown) => void;
 };
 
-/** Create a scope: the graph that resolves cells and commands to controllers. */
-export function createScope(): Scope.Handle {
+/** Create a scope: the graph that resolves cells, tags, and commands to controllers. */
+export function createScope(options?: Scope.Options): Scope.Handle {
   const entries = new Map<Data.Cell<unknown>, Entry>();
   const watchers = new Set<Watcher>();
+  const tags = new Map<Tag.Handle<unknown>, unknown[]>();
+  for (const binding of options?.tags ?? []) {
+    const list = tags.get(binding.tag) ?? [];
+    list.push(binding.value);
+    tags.set(binding.tag, list);
+  }
 
   const eqOf =
     <T>(target: Data.Cell<T>) =>
@@ -193,6 +268,21 @@ export function createScope(): Scope.Handle {
     flush();
   };
 
+  const tagFind = (target: Tag.Handle<unknown>): Tag.Presence<unknown> => {
+    const list = tags.get(target);
+    if (list && list.length) return { present: true, value: list[list.length - 1] };
+    return target.hasDefault ? { present: true, value: target.def } : { present: false };
+  };
+  const tagAll = (target: Tag.Handle<unknown>): unknown[] => {
+    const list = tags.get(target) ?? [];
+    return [...list].reverse();
+  };
+  const tagRequired = (target: Tag.Handle<unknown>): unknown => {
+    const found = tagFind(target);
+    if (!found.present) raise("MissingTag", { label: target.label });
+    return found.value;
+  };
+
   const dataController = <T>(target: Data.Cell<T>): Scope.DataController<T> => {
     const read = (): T => entryOf(target).value as T;
     return {
@@ -224,16 +314,24 @@ export function createScope(): Scope.Handle {
     },
   });
 
+  const resolveControllerEdge = (target: unknown): unknown => {
+    if (isData(target)) return dataController(target);
+    if (isCommand(target)) return commandController(target);
+    raise("InvalidDependency", { label: "edge", reason: "unknown controller target" });
+  };
+
+  const resolveEdge = (dep: Edge<string, unknown>): unknown => {
+    if (dep.kind === "controller") return resolveControllerEdge(dep.target);
+    const target = dep.target as Tag.Handle<unknown>;
+    if (dep.kind === "all") return tagAll(target);
+    if (dep.kind === "optional") return tagFind(target);
+    return tagRequired(target);
+  };
+
   const resolveDep = (dep: Scope.Dependency): unknown => {
-    if (isEdge(dep)) {
-      if (dep.kind !== "controller")
-        raise("InvalidDependency", { label: dep.kind, reason: "unsupported edge mode" });
-      const node = dep.target;
-      if (isData(node)) return dataController(node);
-      if (isCommand(node)) return commandController(node);
-      raise("InvalidDependency", { label: "edge", reason: "unknown controller target" });
-    }
+    if (isEdge(dep)) return resolveEdge(dep);
     if (isData(dep)) return entryOf(dep).value;
+    if (isTag(dep)) return tagRequired(dep);
     if (isCommand(dep))
       raise("InvalidDependency", {
         label: dep.label,

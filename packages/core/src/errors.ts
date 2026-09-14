@@ -2,6 +2,7 @@
 type Payloads = {
   DataValidationFailed: { label: string; cause: unknown };
   InvalidDependency: { label: string; reason: string };
+  MissingTag: { label: string };
 };
 
 export declare namespace Errors {

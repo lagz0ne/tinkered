@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, isError, operation } from "../src/index.ts";
+import { createScope, data, isError, operation, tag } from "../src/index.ts";
 
 const asNumber = (v: unknown): number => {
   if (typeof v !== "number") throw new Error("not a number");
@@ -116,5 +116,72 @@ test("a bare command used as a value dependency is rejected", () => {
   } catch (error) {
     if (!isError(error, "InvalidDependency")) throw error;
     expect(error.payload.label).toBe("x");
+  }
+});
+
+const region = tag<string>({ label: "region", default: "base" });
+const maybe = tag<string | undefined>({ label: "maybe", default: undefined });
+const secret = tag<string>({ label: "secret" });
+
+test("a required tag reads its binding, or its default when unbound", () => {
+  const read = operation({ label: "read", depends: { region }, run: ({ region }) => region });
+  expect(createScope().getController(read).resolve()).toBe("base");
+  expect(
+    createScope({ tags: [region("eu")] })
+      .getController(read)
+      .resolve(),
+  ).toBe("eu");
+});
+
+test("a required tag with no binding and no default throws MissingTag", () => {
+  const read = operation({ label: "read", depends: { secret }, run: ({ secret }) => secret });
+  try {
+    createScope().getController(read).resolve();
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "MissingTag")) throw error;
+    expect(error.payload.label).toBe("secret");
+  }
+});
+
+test("optional distinguishes absent from an undefined default", () => {
+  const readMaybe = operation({ label: "m", depends: { m: maybe.optional }, run: ({ m }) => m });
+  const readSecret = operation({ label: "s", depends: { s: secret.optional }, run: ({ s }) => s });
+  expect(createScope().getController(readMaybe).resolve()).toEqual({
+    present: true,
+    value: undefined,
+  });
+  expect(createScope().getController(readSecret).resolve()).toEqual({ present: false });
+  expect(
+    createScope({ tags: [secret("x")] })
+      .getController(readSecret)
+      .resolve(),
+  ).toEqual({ present: true, value: "x" });
+});
+
+test("all returns every binding nearest-first, with no default fallback", () => {
+  const readAll = operation({ label: "all", depends: { xs: region.all }, run: ({ xs }) => xs });
+  expect(
+    createScope({ tags: [region("a"), region("b")] })
+      .getController(readAll)
+      .resolve(),
+  ).toEqual(["b", "a"]);
+  expect(createScope().getController(readAll).resolve()).toEqual([]);
+});
+
+test("a tag binding is validated by parse", () => {
+  const port = tag<number>({
+    label: "port",
+    parse: (v) => {
+      if (typeof v !== "number" || v <= 0) throw new Error("bad port");
+      return v;
+    },
+  });
+  try {
+    port(-1);
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "DataValidationFailed")) throw error;
+    expect(error.payload.label).toBe("port");
   }
 });
