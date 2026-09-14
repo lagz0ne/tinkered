@@ -5,6 +5,8 @@ type Payloads = {
   MissingTag: { label: string };
   Disposed: { reason: string };
   TeardownFailed: { causes: unknown[] };
+  NotResolved: { label: string };
+  CircularResource: { label: string };
 };
 
 export declare namespace Errors {

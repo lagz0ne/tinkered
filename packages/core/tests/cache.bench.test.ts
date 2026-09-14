@@ -1,8 +1,9 @@
 /** Bench-lane probe (ADR 0016 exception to the no-clock rule): a warm read must be
  * O(1) in chain depth — the effective-cell cache must not re-walk ancestors. Ratio
  * against a shallow chain, with generous slack, so it proves shape without flaking. */
+import { createHook } from "node:async_hooks";
 import { expect, test } from "vite-plus/test";
-import { createScope, data } from "../src/index.ts";
+import { createScope, data, resource } from "../src/index.ts";
 
 const asNumber = (v: unknown): number => {
   if (typeof v !== "number") throw new Error("not a number");
@@ -34,4 +35,20 @@ test("warm read with cached absence (initial) is O(1) in chain depth", () => {
   const shallow = warmReadMs(1, iters, false);
   const deep = warmReadMs(200, iters, false);
   expect(deep).toBeLessThan(shallow * 5 + 10);
+});
+
+test("a cached resource resolve allocates no promise on the hot path", () => {
+  const conn = resource({ label: "conn", factory: () => ({ open: true }) });
+  const ctl = createScope().getController(conn);
+  ctl.resolve();
+  let promises = 0;
+  const hook = createHook({
+    init: (_id, type) => {
+      if (type === "PROMISE") promises++;
+    },
+  });
+  hook.enable();
+  for (let i = 0; i < 10_000; i++) ctl.resolve();
+  hook.disable();
+  expect(promises).toBe(0);
 });

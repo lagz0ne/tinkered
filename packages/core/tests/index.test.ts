@@ -1,5 +1,13 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, isError, operation, tag } from "../src/index.ts";
+import {
+  createScope,
+  data,
+  isError,
+  operation,
+  resource,
+  type Resource,
+  tag,
+} from "../src/index.ts";
 
 const asNumber = (v: unknown): number => {
   if (typeof v !== "number") throw new Error("not a number");
@@ -506,4 +514,104 @@ test("close joins command work started before the command's first await", async 
   gate.resolve();
   await closing;
   expect(order).toEqual(["work-done", "closed"]);
+});
+
+test("a scope resource builds once: two resolves share one instance", () => {
+  let built = 0;
+  const conn = resource({
+    label: "conn",
+    factory: () => ({ id: ++built }),
+  });
+  const scope = createScope();
+  const ctl = scope.getController(conn);
+  const a = ctl.resolve();
+  const b = ctl.resolve();
+  expect(a).toBe(b);
+  expect(built).toBe(1);
+});
+
+test("a resource factory sees its owner-bound deps", () => {
+  const port = data({ initial: 5432, parse: asNumber });
+  const conn = resource({
+    label: "conn",
+    depends: { port },
+    factory: ({ port }) => `db:${port}`,
+  });
+  const scope = createScope();
+  scope.getController(port).set(6000);
+  expect(scope.getController(conn).resolve()).toBe("db:6000");
+});
+
+test("resource cleanup runs on close", async () => {
+  const closed: string[] = [];
+  const conn = resource({
+    label: "conn",
+    factory: (_deps, { cleanup }) => {
+      cleanup(() => void closed.push("conn"));
+      return "open";
+    },
+  });
+  const scope = createScope();
+  scope.getController(conn).resolve();
+  await scope.close();
+  expect(closed).toEqual(["conn"]);
+});
+
+test("get() before resolve fails with NotResolved", () => {
+  const conn = resource({ label: "conn", factory: () => "open" });
+  const scope = createScope();
+  try {
+    scope.getController(conn).get();
+    throw new Error("expected NotResolved");
+  } catch (error) {
+    if (!isError(error, "NotResolved")) throw error;
+    expect(error.payload.label).toBe("conn");
+  }
+});
+
+test("get() through a closed session fails with Disposed, not a stale value", async () => {
+  const conn = resource({ label: "conn", factory: () => "open" });
+  const root = createScope();
+  const child = root.createSession();
+  const ctl = child.getController(conn);
+  ctl.resolve();
+  await child.close();
+  try {
+    ctl.get();
+    throw new Error("expected Disposed");
+  } catch (error) {
+    if (!isError(error, "Disposed")) throw error;
+  }
+});
+
+test("resolve() through a controller whose owner has closed fails with Disposed", async () => {
+  let built = 0;
+  const conn = resource({ label: "conn", factory: () => ++built });
+  const root = createScope();
+  const leaf = root.createSession();
+  const ctl = leaf.getController(conn);
+  const closing = root.close();
+  try {
+    ctl.resolve();
+    throw new Error("expected Disposed");
+  } catch (error) {
+    if (!isError(error, "Disposed")) throw error;
+  }
+  await closing;
+  expect(built).toBe(0);
+});
+
+test("a resource factory that resolves itself fails with CircularResource", () => {
+  const scope = createScope();
+  const cyclic: Resource.Handle<string> = resource({
+    label: "cyclic",
+    factory: () => scope.getController(cyclic).resolve(),
+  });
+  try {
+    scope.getController(cyclic).resolve();
+    throw new Error("expected CircularResource");
+  } catch (error) {
+    if (!isError(error, "CircularResource")) throw error;
+    expect(error.payload.label).toBe("cyclic");
+  }
 });

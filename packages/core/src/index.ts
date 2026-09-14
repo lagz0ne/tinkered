@@ -4,6 +4,7 @@ const cell: unique symbol = Symbol("data");
 const command: unique symbol = Symbol("operation");
 const tagSym: unique symbol = Symbol("tag");
 const edge: unique symbol = Symbol("edge");
+const resourceSym: unique symbol = Symbol("resource");
 
 /** A declared dependency edge: a mode (`controller`, `required`, `optional`, `all`) onto a target. */
 export type Edge<K extends string, Target> = {
@@ -72,7 +73,30 @@ export declare namespace Operation {
   };
 }
 
+export declare namespace Resource {
+  /** The receiver a resource factory builds through: register per-instance cleanup. */
+  export type Ctx = {
+    readonly label: string;
+    readonly cleanup: (fn: () => void | PromiseLike<void>) => void;
+  };
+
+  /** A reusable built instance. `target` picks the owning layer; `scope` = one per chain. */
+  export type Handle<T> = {
+    readonly [resourceSym]: true;
+    readonly label: string;
+    readonly target: "scope";
+    readonly depends: Scope.Depends;
+    factory(deps: Record<string, unknown>, ctx: Ctx): T;
+  };
+}
+
 export declare namespace Scope {
+  /** A build-once handle onto one resource instance. */
+  export type ResourceController<T> = {
+    resolve(): T;
+    get(): T;
+  };
+
   /** A read/write handle onto one cell. */
   export type DataController<T> = {
     get(): T;
@@ -127,6 +151,7 @@ export declare namespace Scope {
   /** What `createScope()` returns: the one seam tests and callers touch. */
   export type Handle = {
     getController<T>(target: Data.Cell<T>): DataController<T>;
+    getController<T>(target: Resource.Handle<T>): ResourceController<T>;
     getController<T, I>(target: Operation.Command<T, I>): CommandController<T, I>;
     /** Open a child session: it inherits this scope's data and tags, and shadows on write. */
     createSession(options?: Options): Handle;
@@ -143,6 +168,8 @@ const isData = (n: unknown): n is Data.Cell<unknown> =>
   (n as { [cell]?: true } | null | undefined)?.[cell] === true;
 const isCommand = (n: unknown): n is Operation.Command<unknown, unknown> =>
   (n as { [command]?: true } | null | undefined)?.[command] === true;
+const isResource = (n: unknown): n is Resource.Handle<unknown> =>
+  (n as { [resourceSym]?: true } | null | undefined)?.[resourceSym] === true;
 const isTag = (n: unknown): n is Tag.Handle<unknown> =>
   (n as { [tagSym]?: true } | null | undefined)?.[tagSym] === true;
 const isEdge = (n: unknown): n is Edge<string, unknown> =>
@@ -235,6 +262,25 @@ export function operation<
   return Object.assign(base, { controller: edgeTo("controller", base) });
 }
 
+/** Declare a reusable resource: built once per owner, cleaned up when its owner closes. */
+export function resource<
+  const D extends Scope.Depends = Record<string, never>,
+  T = unknown,
+>(config: {
+  label: string;
+  target?: "scope";
+  depends?: D;
+  factory: (deps: Scope.SlotValues<D>, ctx: Resource.Ctx) => T;
+}): Resource.Handle<T> {
+  return {
+    [resourceSym]: true,
+    label: config.label,
+    target: config.target ?? "scope",
+    depends: config.depends ?? {},
+    factory: config.factory as Resource.Handle<T>["factory"],
+  } as Resource.Handle<T>;
+}
+
 type Entry = { value: unknown };
 type Watcher = {
   read: () => unknown;
@@ -249,6 +295,8 @@ type Layer = {
   children: Set<Layer>;
   cells: Map<Data.Cell<unknown>, Entry>;
   effCache: Map<Data.Cell<unknown>, Entry | undefined>;
+  resources: Map<Resource.Handle<unknown>, Entry>;
+  building: Set<Resource.Handle<unknown>>;
   tags: Map<Tag.Handle<unknown>, unknown[]>;
   watchers: Set<Watcher>;
   pending: Set<Promise<unknown>>;
@@ -426,6 +474,53 @@ function commandController<T, I>(
   };
 }
 
+/** The layer a resource is owned by: `scope` targets bind at the root of the chain. */
+function ownerOf(layer: Layer, _target: Resource.Handle<unknown>): Layer {
+  let cur = layer;
+  while (cur.parent) cur = cur.parent;
+  return cur;
+}
+
+function resourceController<T>(
+  layer: Layer,
+  target: Resource.Handle<T>,
+): Scope.ResourceController<T> {
+  const owner = ownerOf(layer, target);
+  return {
+    resolve: () => {
+      ensureOpen(layer);
+      ensureOpen(owner);
+      const cached = owner.resources.get(target);
+      if (cached) return cached.value as T;
+      if (owner.building.has(target)) raise("CircularResource", { label: target.label });
+      owner.building.add(target);
+      try {
+        const deps: Record<string, unknown> = {};
+        for (const key in target.depends) deps[key] = resolveDep(owner, target.depends[key]);
+        const ctx: Resource.Ctx = {
+          label: target.label,
+          cleanup: (fn) => {
+            ensureOpen(owner);
+            owner.onCloses.push(fn);
+          },
+        };
+        const value = target.factory(deps, ctx);
+        owner.resources.set(target, { value });
+        return value;
+      } finally {
+        owner.building.delete(target);
+      }
+    },
+    get: () => {
+      ensureOpen(layer);
+      ensureOpen(owner);
+      const cached = owner.resources.get(target);
+      if (!cached) raise("NotResolved", { label: target.label });
+      return cached.value as T;
+    },
+  };
+}
+
 function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
   const tags = new Map<Tag.Handle<unknown>, unknown[]>();
   for (const binding of options?.tags ?? []) {
@@ -438,6 +533,8 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     children: new Set(),
     cells: new Map(),
     effCache: new Map(),
+    resources: new Map(),
+    building: new Set(),
     tags,
     watchers: new Set(),
     pending: new Set(),
@@ -473,6 +570,8 @@ function closeLayer(layer: Layer): Promise<void> {
     layer.parent?.children.delete(layer);
     layer.cells.clear();
     layer.effCache.clear();
+    layer.resources.clear();
+    layer.building.clear();
     layer.tags.clear();
     layer.watchers.clear();
     layer.pending.clear();
@@ -489,9 +588,11 @@ function handleFor(layer: Layer): Scope.Handle {
     while (layer.pending.size) await Promise.all(layer.pending);
   };
   return {
-    getController: (<T, I>(target: Data.Cell<T> | Operation.Command<T, I>) => {
+    getController: (<T, I>(target: Data.Cell<T> | Resource.Handle<T> | Operation.Command<T, I>) => {
       ensureOpen(layer);
-      return isData(target) ? dataController(layer, target) : commandController(layer, target);
+      if (isData(target)) return dataController(layer, target);
+      if (isResource(target)) return resourceController(layer, target);
+      return commandController(layer, target);
     }) as Scope.Handle["getController"],
     createSession: (options?: Scope.Options) => {
       ensureOpen(layer);
