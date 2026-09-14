@@ -1,24 +1,55 @@
 import { raise } from "./errors.ts";
 
 const cell: unique symbol = Symbol("data");
+const command: unique symbol = Symbol("operation");
+const edge: unique symbol = Symbol("edge");
 
 export declare namespace Data {
   /** Validates raw input into a trusted value once, at the process edge. */
   export type Parse<T> = (raw: unknown) => T;
 
-  /** A reactive value cell — the only reactive unit. `createScope` reads and writes it. */
+  /** A reactive value cell — the only reactive unit. */
   export type Cell<T> = {
     readonly [cell]: true;
     readonly label: string;
     readonly initial: T;
     readonly parse: Parse<T> | undefined;
     eq(a: T, b: T): boolean;
+    /** Depend on this cell in write mode: the dep is delivered as a controller. */
+    readonly controller: Edge<"controller", Cell<T>>;
+  };
+}
+
+/** A declared dependency edge (e.g. write-mode `controller`). */
+export type Edge<K extends string, Target> = {
+  readonly [edge]: true;
+  readonly kind: K;
+  readonly target: Target;
+};
+
+export declare namespace Operation {
+  /** The receiver a command body reads its own invocation through. */
+  export type Ctx<I> = {
+    readonly label: string;
+    readonly rawInput: unknown;
+    readonly input: I;
+  };
+
+  /** A command: typed input, declared deps, runs on each resolve. Not reactive, not memoized. */
+  export type Command<T, I> = {
+    readonly [command]: true;
+    readonly label: string;
+    readonly input: Data.Parse<I> | undefined;
+    readonly depends: Scope.Depends;
+    run(deps: Record<string, unknown>, ctx: Ctx<I>): T;
+    /** Depend on this command: the dep is delivered as a callable controller. */
+    readonly controller: Edge<"controller", Command<T, I>>;
   };
 }
 
 export declare namespace Scope {
   /** A read/write handle onto one cell. */
-  export type Controller<T> = {
+  export type DataController<T> = {
     get(): T;
     read(): T;
     set(value: T): void;
@@ -26,19 +57,51 @@ export declare namespace Scope {
     watch(listener: (next: T) => void): () => void;
   };
 
+  /** A callable handle onto one command. */
+  export type CommandController<T, I> = {
+    resolve(input?: I): T;
+  };
+
+  export type Dependency =
+    | Data.Cell<unknown>
+    | Operation.Command<unknown, unknown>
+    | Edge<"controller", Data.Cell<unknown> | Operation.Command<unknown, unknown>>;
+  export type Depends = Readonly<Record<string, Dependency>>;
+
+  /** Maps one declared dependency to the value delivered in `deps` — exact, no casts in userland. */
+  export type SlotValue<D> =
+    D extends Edge<"controller", infer N>
+      ? N extends Data.Cell<infer T>
+        ? DataController<T>
+        : N extends Operation.Command<infer T, infer I>
+          ? CommandController<T, I>
+          : never
+      : D extends Data.Cell<infer T>
+        ? T
+        : never;
+  export type SlotValues<D extends Depends> = { [K in keyof D]: SlotValue<D[K]> };
+
   /** What `createScope()` returns: the one seam tests and callers touch. */
   export type Handle = {
-    getController<T>(target: Data.Cell<T>): Controller<T>;
+    getController<T>(target: Data.Cell<T>): DataController<T>;
+    getController<T, I>(target: Operation.Command<T, I>): CommandController<T, I>;
   };
 }
 
-/** Admit a raw value through the cell's parser once; parse failures become a registry error. */
-function admit<T>(target: Data.Cell<T>, raw: unknown): T {
-  if (!target.parse) return raw as T;
+const isData = (n: unknown): n is Data.Cell<unknown> =>
+  typeof n === "object" && n !== null && cell in n;
+const isCommand = (n: unknown): n is Operation.Command<unknown, unknown> =>
+  typeof n === "object" && n !== null && command in n;
+const isEdge = (n: unknown): n is Edge<string, unknown> =>
+  typeof n === "object" && n !== null && edge in n;
+
+/** Admit a raw value through a parser once; parse failures become a registry error. */
+function admit<T>(label: string, parse: Data.Parse<T> | undefined, raw: unknown): T {
+  if (!parse) return raw as T;
   try {
-    return target.parse(raw);
+    return parse(raw);
   } catch (cause) {
-    raise("DataValidationFailed", { label: target.label, cause });
+    raise("DataValidationFailed", { label, cause });
   }
 }
 
@@ -50,14 +113,39 @@ export function data<T>(config: {
   eq?: (a: T, b: T) => boolean;
 }): Data.Cell<T> {
   const label = config.label ?? "anon";
-  const target = {
+  const base = {
     [cell]: true,
     label,
-    initial: undefined as T,
+    initial: admit(label, config.parse, config.initial),
     parse: config.parse,
     eq: config.eq ?? Object.is,
   } as Data.Cell<T>;
-  return { ...target, initial: admit(target, config.initial) };
+  return Object.assign(base, {
+    controller: { [edge]: true, kind: "controller" as const, target: base },
+  });
+}
+
+/** Declare a command: a function with typed input that runs on each resolve. */
+export function operation<
+  const D extends Scope.Depends = Record<string, never>,
+  R = unknown,
+  I = void,
+>(config: {
+  label: string;
+  input?: Data.Parse<I>;
+  depends?: D;
+  run: (deps: Scope.SlotValues<D>, ctx: Operation.Ctx<I>) => R;
+}): Operation.Command<R, I> {
+  const base = {
+    [command]: true,
+    label: config.label,
+    input: config.input,
+    depends: config.depends ?? {},
+    run: config.run as Operation.Command<R, I>["run"],
+  } as Operation.Command<R, I>;
+  return Object.assign(base, {
+    controller: { [edge]: true, kind: "controller" as const, target: base },
+  });
 }
 
 type Entry = { value: unknown };
@@ -68,7 +156,7 @@ type Watcher = {
   fn: (next: unknown) => void;
 };
 
-/** Create a scope: the graph that resolves cells to controllers. */
+/** Create a scope: the graph that resolves cells and commands to controllers. */
 export function createScope(): Scope.Handle {
   const entries = new Map<Data.Cell<unknown>, Entry>();
   const watchers = new Set<Watcher>();
@@ -98,34 +186,69 @@ export function createScope(): Scope.Handle {
   };
 
   const write = <T>(target: Data.Cell<T>, next: unknown) => {
-    const value = admit(target, next);
+    const value = admit(target.label, target.parse, next);
     const entry = entryOf(target);
     if (eqOf(target)(entry.value, value)) return;
     entry.value = value;
     flush();
   };
 
-  return {
-    getController<T>(target: Data.Cell<T>): Scope.Controller<T> {
-      const read = (): T => entryOf(target).value as T;
-      return {
-        get: read,
-        read,
-        set: (value: T) => write(target, value),
-        update: (fn: (previous: T) => T) => write(target, fn(read())),
-        watch: (listener: (next: T) => void) => {
-          const w: Watcher = {
-            read: read as () => unknown,
-            last: read(),
-            eq: eqOf(target),
-            fn: listener as (next: unknown) => void,
-          };
-          watchers.add(w);
-          return () => void watchers.delete(w);
-        },
-      };
-    },
+  const dataController = <T>(target: Data.Cell<T>): Scope.DataController<T> => {
+    const read = (): T => entryOf(target).value as T;
+    return {
+      get: read,
+      read,
+      set: (value: T) => write(target, value),
+      update: (fn: (previous: T) => T) => write(target, fn(read())),
+      watch: (listener: (next: T) => void) => {
+        const w: Watcher = {
+          read: read as () => unknown,
+          last: read(),
+          eq: eqOf(target),
+          fn: listener as (next: unknown) => void,
+        };
+        watchers.add(w);
+        return () => void watchers.delete(w);
+      },
+    };
   };
+
+  const commandController = <T, I>(
+    target: Operation.Command<T, I>,
+  ): Scope.CommandController<T, I> => ({
+    resolve: (raw?: I) => {
+      const input = (target.input ? target.input(raw) : (undefined as I)) as I;
+      const deps: Record<string, unknown> = {};
+      for (const key in target.depends) deps[key] = resolveDep(target.depends[key]);
+      return target.run(deps, { label: target.label, rawInput: raw, input });
+    },
+  });
+
+  const resolveDep = (dep: Scope.Dependency): unknown => {
+    if (isEdge(dep)) {
+      if (dep.kind !== "controller")
+        raise("InvalidDependency", { label: dep.kind, reason: "unsupported edge mode" });
+      const node = dep.target;
+      if (isData(node)) return dataController(node);
+      if (isCommand(node)) return commandController(node);
+      raise("InvalidDependency", { label: "edge", reason: "unknown controller target" });
+    }
+    if (isData(dep)) return entryOf(dep).value;
+    if (isCommand(dep))
+      raise("InvalidDependency", {
+        label: dep.label,
+        reason: "a command is not a value; depend on `command.controller`",
+      });
+    raise("InvalidDependency", { label: "unknown", reason: "unknown dependency" });
+  };
+
+  const handle: Scope.Handle = {
+    getController: (<T, I>(target: Data.Cell<T> | Operation.Command<T, I>) =>
+      isData(target)
+        ? dataController(target)
+        : commandController(target)) as Scope.Handle["getController"],
+  };
+  return handle;
 }
 
 export { isError } from "./errors.ts";

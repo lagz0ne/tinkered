@@ -1,6 +1,7 @@
 /** Payload type for each core error. The registry is the only place core throws. */
 type Payloads = {
   DataValidationFailed: { label: string; cause: unknown };
+  InvalidDependency: { label: string; reason: string };
 };
 
 export declare namespace Errors {
