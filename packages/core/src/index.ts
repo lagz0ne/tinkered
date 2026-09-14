@@ -167,6 +167,10 @@ export declare namespace Scope {
      * primary cause is thrown, hook errors aggregated (ADR 0017). */
     session<R>(fn: (scope: Handle) => R | PromiseLike<R>): Promise<R>;
     session<R>(options: Options, fn: (scope: Handle) => R | PromiseLike<R>): Promise<R>;
+    /** Reset a node: a data cell reverts to its inherited/initial value and notifies
+     * watchers; a resource runs its cleanup, drops its instance, and a re-resolve rebuilds
+     * a fresh generation (a late build from the released generation never publishes). */
+    release(target: Data.Cell<unknown> | Resource.Handle<unknown>): void;
     /** Register a userland teardown hook, run (LIFO) when this scope closes. */
     onClose(fn: () => void | PromiseLike<void>): void;
     /** Resolve once all in-flight command work owned by this scope has settled. */
@@ -301,6 +305,16 @@ type Watcher = {
   eq: (a: unknown, b: unknown) => boolean;
   fn: (next: unknown) => void;
 };
+/** A teardown hook tagged with the resource that registered it (undefined = userland `onClose`),
+ * so `release` can drop exactly one resource's hooks without touching others. */
+type CleanupEntry = {
+  fn: () => void | PromiseLike<void>;
+  resource: Resource.Handle<unknown> | undefined;
+};
+type OutcomeEntry = {
+  fn: (outcome: Scope.Outcome) => void | PromiseLike<void>;
+  resource: Resource.Handle<unknown> | undefined;
+};
 
 /** One layer of the scope chain. A session is a child layer. */
 type Layer = {
@@ -311,13 +325,14 @@ type Layer = {
   resources: Map<Resource.Handle<unknown>, Entry>;
   builds: Map<Resource.Handle<unknown>, Promise<unknown>>;
   building: Set<Resource.Handle<unknown>>;
-  generation: number;
+  generations: Map<Resource.Handle<unknown>, number>;
   tags: Map<Tag.Handle<unknown>, unknown[]>;
   watchers: Set<Watcher>;
   pending: Set<Promise<unknown>>;
-  onCloses: (() => void | PromiseLike<void>)[];
-  onOutcomes: ((outcome: Scope.Outcome) => void | PromiseLike<void>)[];
+  cleanups: CleanupEntry[];
+  onOutcomes: OutcomeEntry[];
   failure: { cause: unknown } | undefined;
+  secondary: unknown[];
   body: Promise<unknown> | undefined;
   closed: boolean;
   tearingDown: boolean;
@@ -467,16 +482,57 @@ function resolveDep(layer: Layer, dep: Scope.Dependency): unknown {
   raise("InvalidDependency", { label: "unknown", reason: "unknown dependency" });
 }
 
-function track(layer: Layer, result: unknown): void {
+const noop = (): void => undefined;
+
+/** Attach a rejection handler to a fire-and-forget close so an internally started close (from a
+ * teardown hook) is never an unhandled rejection; the promise keeps its rejection for a later
+ * external awaiter. */
+function observe(promise: Promise<unknown>): void {
+  return void promise.catch(noop);
+}
+
+/** Track owned async work so `settled()`/`close` join it. `onReject` decides where a rejection
+ * goes: the owner's primary failure (commands, current-generation builds) or the secondary
+ * bucket (release/abandoned cleanups) which never changes the outcome (ADR 0017). */
+function track(layer: Layer, result: unknown, onReject: (error: unknown) => void): void {
   if (!isThenable(result)) return;
   const tracked: Promise<unknown> = Promise.resolve(result).then(
     () => layer.pending.delete(tracked),
     (error: unknown) => {
       layer.pending.delete(tracked);
-      layer.failure ??= { cause: error };
+      onReject(error);
     },
   );
   layer.pending.add(tracked);
+}
+
+const asPrimary =
+  (layer: Layer) =>
+  (error: unknown): void => {
+    layer.failure ??= { cause: error };
+  };
+const asSecondary =
+  (layer: Layer) =>
+  (error: unknown): void => {
+    layer.secondary.push(error);
+  };
+
+/** Run one cleanup now (so sync teardown stays synchronous), collecting any failure as a
+ * secondary error: joined by `settled`/`close` and surfaced via `TeardownFailed`, never
+ * settling the owner's outcome (ADR 0017). */
+function runCleanup(layer: Layer, fn: () => void | PromiseLike<void>): void {
+  const prev = layer.tearingDown;
+  layer.tearingDown = true;
+  let result: void | PromiseLike<void>;
+  try {
+    result = fn();
+  } catch (error) {
+    layer.secondary.push(error);
+    return;
+  } finally {
+    layer.tearingDown = prev;
+  }
+  track(layer, result, asSecondary(layer));
 }
 
 function commandController<T, I>(
@@ -490,7 +546,7 @@ function commandController<T, I>(
       const deps: Record<string, unknown> = {};
       for (const key in target.depends) deps[key] = resolveDep(layer, target.depends[key]);
       const result = target.run(deps, { label: target.label, rawInput: raw, input });
-      track(layer, result);
+      track(layer, result, asPrimary(layer));
       return result;
     },
   };
@@ -504,6 +560,9 @@ function ownerOf(layer: Layer, target: Resource.Handle<unknown>): Layer {
 }
 
 function buildResource<T>(owner: Layer, target: Resource.Handle<T>): unknown {
+  const gen = owner.generations.get(target) ?? 0;
+  const superseded = (): boolean => (owner.generations.get(target) ?? 0) !== gen;
+  const canPublish = (): boolean => !superseded() && !owner.closed;
   owner.building.add(target);
   let settled = false;
   try {
@@ -513,11 +572,12 @@ function buildResource<T>(owner: Layer, target: Resource.Handle<T>): unknown {
       label: target.label,
       cleanup: (fn) => {
         if (settled) raise("Disposed", { reason: "resource factory already finished" });
-        owner.onCloses.push(fn);
+        if (superseded()) runCleanup(owner, fn);
+        else owner.cleanups.push({ fn, resource: target });
       },
       onOutcome: (fn) => {
         if (settled) raise("Disposed", { reason: "resource factory already finished" });
-        owner.onOutcomes.push(fn);
+        if (!superseded()) owner.onOutcomes.push({ fn, resource: target });
       },
     };
     let result: unknown;
@@ -529,16 +589,14 @@ function buildResource<T>(owner: Layer, target: Resource.Handle<T>): unknown {
     }
     if (!isThenable(result)) {
       settled = true;
-      owner.resources.set(target, { value: result });
+      if (canPublish()) owner.resources.set(target, { value: result });
       return result;
     }
-    const gen = owner.generation;
     const build: Promise<unknown> = Promise.resolve(result).then(
       (value) => {
         settled = true;
         if (owner.builds.get(target) === build) owner.builds.delete(target);
-        if (!owner.closed && owner.generation === gen)
-          owner.resources.set(target, { value: build });
+        if (canPublish()) owner.resources.set(target, { value: build });
         return value;
       },
       (error) => {
@@ -547,8 +605,10 @@ function buildResource<T>(owner: Layer, target: Resource.Handle<T>): unknown {
         throw error;
       },
     );
-    owner.builds.set(target, build);
-    track(owner, build);
+    if (!superseded()) owner.builds.set(target, build);
+    track(owner, build, (error) => {
+      if (!superseded()) owner.failure ??= { cause: error };
+    });
     return build;
   } finally {
     owner.building.delete(target);
@@ -581,6 +641,36 @@ function resourceController<T>(
   };
 }
 
+function releaseResource(layer: Layer, target: Resource.Handle<unknown>): void {
+  const owner = ownerOf(layer, target);
+  ensureOpen(owner);
+  owner.generations.set(target, (owner.generations.get(target) ?? 0) + 1);
+  owner.resources.delete(target);
+  owner.builds.delete(target);
+  owner.onOutcomes = owner.onOutcomes.filter((entry) => entry.resource !== target);
+  const mine = owner.cleanups.filter((entry) => entry.resource === target);
+  owner.cleanups = owner.cleanups.filter((entry) => entry.resource !== target);
+  for (let i = mine.length - 1; i >= 0; i--) runCleanup(owner, mine[i].fn);
+}
+
+function releaseData(layer: Layer, target: Data.Cell<unknown>): void {
+  if (layer.cells.has(target)) {
+    layer.cells.delete(target);
+    invalidateEff(layer, target);
+  }
+  flushTree(layer);
+}
+
+function releaseNode(layer: Layer, target: Data.Cell<unknown> | Resource.Handle<unknown>): void {
+  ensureOpen(layer);
+  if (isResource(target)) return releaseResource(layer, target);
+  if (isData(target)) return releaseData(layer, target);
+  raise("InvalidDependency", {
+    label: "release",
+    reason: "release needs a data cell or a resource",
+  });
+}
+
 function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
   const tags = new Map<Tag.Handle<unknown>, unknown[]>();
   for (const binding of options?.tags ?? []) {
@@ -596,13 +686,14 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     resources: new Map(),
     builds: new Map(),
     building: new Set(),
-    generation: 0,
+    generations: new Map(),
     tags,
     watchers: new Set(),
     pending: new Set(),
-    onCloses: [],
+    cleanups: [],
     onOutcomes: [],
     failure: undefined,
+    secondary: [],
     body: undefined,
     closed: false,
     tearingDown: false,
@@ -676,9 +767,18 @@ async function closeChildren(
 }
 
 function closeLayer(layer: Layer, outcome: Scope.Outcome = SUCCESS): Promise<void> {
-  if (layer.closing) return layer.tearingDown ? Promise.resolve() : layer.closing;
-  layer.closed = true;
-  layer.generation++;
+  if (!layer.closing) {
+    layer.closed = true;
+    layer.closing = startClose(layer, outcome);
+  }
+  if (layer.tearingDown) {
+    observe(layer.closing);
+    return Promise.resolve();
+  }
+  return layer.closing;
+}
+
+function startClose(layer: Layer, outcome: Scope.Outcome): Promise<void> {
   const run = async (): Promise<void> => {
     const causes: unknown[] = [];
     const bodyFailure = await joinBody(layer);
@@ -692,26 +792,32 @@ function closeLayer(layer: Layer, outcome: Scope.Outcome = SUCCESS): Promise<voi
     if (settled.status === "failed") layer.failure = { cause: settled.error };
     await drainHooks(
       layer,
-      layer.onOutcomes.map((hook) => () => hook(settled)),
+      layer.onOutcomes.map((entry) => () => entry.fn(settled)),
       causes,
     );
-    await drainHooks(layer, layer.onCloses, causes);
+    await drainHooks(
+      layer,
+      layer.cleanups.map((entry) => entry.fn),
+      causes,
+    );
+    if (layer.secondary.length) causes.push(...layer.secondary);
     layer.parent?.children.delete(layer);
     layer.cells.clear();
     layer.effCache.clear();
     layer.resources.clear();
     layer.builds.clear();
     layer.building.clear();
+    layer.generations.clear();
     layer.tags.clear();
     layer.watchers.clear();
     layer.pending.clear();
     layer.children.clear();
-    layer.onCloses.length = 0;
+    layer.cleanups.length = 0;
     layer.onOutcomes.length = 0;
+    layer.secondary.length = 0;
     if (causes.length) throw makeError("TeardownFailed", { causes });
   };
-  layer.closing = Promise.resolve().then(run);
-  return layer.closing;
+  return Promise.resolve().then(run);
 }
 
 function settleSession(
@@ -784,9 +890,10 @@ function handleFor(layer: Layer): Scope.Handle {
         raise("InvalidDependency", { label: "session", reason: "session(options, fn) needs fn" });
       return runSession(layer, a, b);
     }) as Scope.Handle["session"],
+    release: (target: Data.Cell<unknown> | Resource.Handle<unknown>) => releaseNode(layer, target),
     onClose: (fn: () => void | PromiseLike<void>) => {
       ensureOpen(layer);
-      layer.onCloses.push(fn);
+      layer.cleanups.push({ fn, resource: undefined });
     },
     settled,
     close: (outcome?: Scope.Outcome) => closeLayer(layer, outcome),

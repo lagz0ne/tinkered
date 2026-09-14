@@ -1119,3 +1119,280 @@ test("when owned work and the body both fail, the body cause is primary for hook
   expect(thrown).toBe(bodyCause);
   expect(seen).toEqual([bodyCause]);
 });
+
+test("releasing a resource runs its cleanup and a re-resolve rebuilds a new instance", () => {
+  let built = 0;
+  const cleaned: number[] = [];
+  const conn = resource({
+    label: "conn",
+    factory: (_deps, { cleanup }) => {
+      const id = ++built;
+      cleanup(() => void cleaned.push(id));
+      return { id };
+    },
+  });
+  const scope = createScope();
+  const a = scope.getController(conn).resolve();
+  scope.release(conn);
+  expect(cleaned).toEqual([1]);
+  const b = scope.getController(conn).resolve();
+  expect(b).not.toBe(a);
+  expect(built).toBe(2);
+});
+
+test("a build in flight when its resource is released never publishes", async () => {
+  let built = 0;
+  const gate = deferred();
+  const conn = resource({
+    label: "conn",
+    factory: async () => {
+      built++;
+      await gate.promise;
+      return { id: built };
+    },
+  });
+  const scope = createScope();
+  const first = scope.getController(conn).resolve();
+  scope.release(conn);
+  gate.resolve();
+  await first;
+  try {
+    void scope.getController(conn).get();
+    throw new Error("expected NotResolved");
+  } catch (error) {
+    if (!isError(error, "NotResolved")) throw error;
+  }
+});
+
+test("releasing a data cell resets it to its initial value and notifies watchers", () => {
+  const count = data({ initial: 1, parse: asNumber });
+  const scope = createScope();
+  const ctl = scope.getController(count);
+  const seen: number[] = [];
+  ctl.watch((n) => void seen.push(n));
+  ctl.set(5);
+  scope.release(count);
+  expect(ctl.read()).toBe(1);
+  expect(seen).toEqual([5, 1]);
+});
+
+test("an old build settling after release does not drop the replacement build", async () => {
+  let built = 0;
+  const gates = [deferred(), deferred()];
+  const conn = resource({
+    label: "conn",
+    factory: async () => {
+      const id = built++;
+      await gates[id].promise;
+      return { id };
+    },
+  });
+  const scope = createScope();
+  const first = scope.getController(conn).resolve();
+  scope.release(conn);
+  const second = scope.getController(conn).resolve();
+  gates[0].resolve();
+  await first;
+  gates[1].resolve();
+  const b = await second;
+  expect(b).toEqual({ id: 1 });
+  expect(await scope.getController(conn).resolve()).toBe(b);
+});
+
+test("an old build rejecting after release does not fail a session that got the replacement", async () => {
+  let attempt = 0;
+  const gate = deferred();
+  const conn = resource({
+    label: "conn",
+    target: "session",
+    factory: async () => {
+      attempt++;
+      const n = attempt;
+      if (n === 1) {
+        await gate.promise;
+        throw new Error("old-build-boom");
+      }
+      return { n };
+    },
+  });
+  const result = await createScope().session((s) => {
+    void s
+      .getController(conn)
+      .resolve()
+      .then(undefined, () => undefined);
+    s.release(conn);
+    const replacement = s.getController(conn).resolve();
+    gate.resolve();
+    return replacement;
+  });
+  expect(result).toEqual({ n: 2 });
+});
+
+test("release drops only the resource's cleanup, not a shared onClose callback", async () => {
+  let calls = 0;
+  const shared = () => void calls++;
+  const conn = resource({
+    label: "conn",
+    factory: (_deps, { cleanup }) => {
+      cleanup(shared);
+      return 1;
+    },
+  });
+  const scope = createScope();
+  scope.onClose(shared);
+  scope.getController(conn).resolve();
+  scope.release(conn);
+  expect(calls).toBe(1);
+  await scope.close();
+  expect(calls).toBe(2);
+});
+
+test("a release triggered during a factory prevents that build from publishing", () => {
+  const flag = data({ initial: 0, parse: asNumber });
+  let built = 0;
+  const conn = resource({
+    label: "conn",
+    depends: { flag: flag.controller },
+    factory: ({ flag }) => {
+      built++;
+      flag.set(1);
+      return { n: built };
+    },
+  });
+  const scope = createScope();
+  scope.getController(flag).watch((n) => {
+    if (n === 1) scope.release(conn);
+  });
+  scope.getController(conn).resolve();
+  try {
+    scope.getController(conn).get();
+    throw new Error("expected NotResolved");
+  } catch (error) {
+    if (!isError(error, "NotResolved")) throw error;
+  }
+  expect(built).toBe(1);
+});
+
+test("releasing a resource whose owner is already closing fails with Disposed", async () => {
+  const conn = resource({ label: "conn", factory: () => ({ id: 1 }) });
+  const root = createScope();
+  const child = root.createSession();
+  child.getController(conn).resolve();
+  const closing = root.close();
+  try {
+    child.release(conn);
+    throw new Error("expected Disposed");
+  } catch (error) {
+    if (!isError(error, "Disposed")) throw error;
+  }
+  await closing;
+});
+
+test("a nested release inside a release cleanup does not hang close", async () => {
+  const scope = createScope();
+  let closed = false;
+  scope.onClose(() => void (closed = true));
+  const b = resource({
+    label: "b",
+    factory: (_deps, { cleanup }) => {
+      cleanup(() => undefined);
+      return 1;
+    },
+  });
+  const a = resource({
+    label: "a",
+    factory: (_deps, { cleanup }) => {
+      cleanup(() => {
+        scope.release(b);
+        return scope.close();
+      });
+      return 1;
+    },
+  });
+  scope.getController(b).resolve();
+  scope.getController(a).resolve();
+  scope.release(a);
+  await scope.close();
+  expect(closed).toBe(true);
+});
+
+test("a release cleanup that returns its own close does not hang", async () => {
+  const scope = createScope();
+  let closedFlag = false;
+  scope.onClose(() => void (closedFlag = true));
+  const conn = resource({
+    label: "conn",
+    factory: (_deps, { cleanup }) => {
+      cleanup(() => scope.close());
+      return 1;
+    },
+  });
+  scope.getController(conn).resolve();
+  scope.release(conn);
+  await scope.close();
+  expect(closedFlag).toBe(true);
+});
+
+test("a session-owned build that rejects during auto-close fails the session", async () => {
+  const gate = deferred();
+  const cause = new Error("build-boom");
+  const conn = resource({
+    label: "conn",
+    target: "session",
+    factory: async () => {
+      await gate.promise;
+      throw cause;
+    },
+  });
+  const thrown = await createScope()
+    .session((s) => {
+      void s
+        .getController(conn)
+        .resolve()
+        .then(undefined, () => undefined);
+      gate.resolve();
+      return "ok";
+    })
+    .then(
+      () => undefined,
+      (e: unknown) => e,
+    );
+  expect(thrown).toBe(cause);
+});
+
+test("a release cleanup that rejects surfaces as secondary without changing the outcome", async () => {
+  const seen: string[] = [];
+  const cleanupError = new Error("cleanup-fail");
+  const audited = resource({
+    label: "audited",
+    target: "session",
+    factory: (_deps, { onOutcome }) => {
+      onOutcome((o) => void seen.push(o.status));
+      return 1;
+    },
+  });
+  const conn = resource({
+    label: "conn",
+    target: "session",
+    factory: (_deps, { cleanup }) => {
+      cleanup(async () => {
+        throw cleanupError;
+      });
+      return 1;
+    },
+  });
+  const thrown = await createScope()
+    .session((s) => {
+      s.getController(audited).resolve();
+      s.getController(conn).resolve();
+      s.release(conn);
+      return "ok";
+    })
+    .then(
+      () => undefined,
+      (e: unknown) => e,
+    );
+  expect(seen).toEqual(["success"]);
+  if (!isError(thrown, "TeardownFailed")) throw thrown;
+  expect(thrown.payload.causes).toContain(cleanupError);
+});
