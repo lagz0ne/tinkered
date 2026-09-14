@@ -38,3 +38,30 @@ When a request is a plan, design, decision, or "how does X work":
    diagram, file tree, pseudocode, or diff. Smallest view that makes the point.
 3. `to-tickets` — once the design is settled, break it into tickets.
 4. `coding-convention` — applies to every TypeScript file and test written after.
+
+## Execution workflow (todo list)
+
+Any work with more than one step runs off an explicit todo list. **The goal is
+always to drive the list to empty.**
+
+The durable list is `TODO.md` at the repo root (the single working list, incl. blocked
+design threads); core ticket detail + reset recipes stay in `docs/roadmap/**/PROGRESS.md`.
+
+1. **Build the list first.** Turn the request (or the tickets it maps to) into a
+   flat, ordered todo list in `TODO.md` before writing code. Keep it visible and current:
+   add items as they surface, split an item that turns out to be several.
+2. **One item in progress at a time.** Finish (and verify) the current item before
+   starting the next, unless items are genuinely independent.
+3. **Verify before you mark done — never tick on intent.** An item is `done` only
+   when its result is _observed_, not when the edit is written:
+   - code items: `vp check` clean, the relevant `vp test` / `vp run <script>` green,
+     and (for `core`) the ticket gate (`scripts/ticket.sh`) passes;
+   - a fix for a reported defect: a test that fails without the fix and passes with it;
+   - anything claimed "works": the command output that proves it.
+     If you cannot show it, the item stays `in_progress` (or gets a new `blocked`
+     item describing the exact missing thing). Say so plainly rather than marking done.
+4. **Then tick it**, and reflect it in the durable tracker
+   (`docs/roadmap/**/PROGRESS.md` for core tickets) so the list survives a context reset.
+5. **Keep going until empty.** Do not stop with items open; if you must pause,
+   leave the list with each item's true state (`done` / `in_progress` / `blocked`)
+   and the next concrete action.
