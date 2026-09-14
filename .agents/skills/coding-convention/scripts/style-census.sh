@@ -19,7 +19,8 @@ done
 
 test_glob='.*\.(test|spec)\.tsx?$'
 all_files=$(find "${targets[@]}" -type f \( -name '*.ts' -o -name '*.tsx' \) \
-  -not -path '*/node_modules/*' -not -path '*/dist/*' -not -name '*.d.ts' 2>/dev/null || true)
+  -not -path '*/node_modules/*' -not -path '*/dist/*' -not -path '*/.stryker-tmp/*' \
+  -not -name '*.d.ts' 2>/dev/null || true)
 src_files=$(printf '%s\n' "$all_files" | grep -Ev "$test_glob" || true)
 test_files=$(printf '%s\n' "$all_files" | grep -E "$test_glob" || true)
 

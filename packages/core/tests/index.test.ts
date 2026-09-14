@@ -2096,3 +2096,59 @@ test("the invocation type requires an argument for a never-parse operation", () 
     : true = true;
   expect(neverRequiresArg).toBe(true);
 });
+
+test("a resource preset replaces the built instance for downstream consumers", () => {
+  const conn = resource({ label: "conn", factory: () => ({ id: "real" }) });
+  const read = operation({ label: "read", depends: { conn }, run: ({ conn }) => conn.id });
+  expect(createScope().getController(read).resolve()).toBe("real");
+  const presetScope = createScope({ presets: [preset(conn, () => ({ id: "fake" }))] });
+  expect(presetScope.getController(read).resolve()).toBe("fake");
+});
+
+test("a resource preset is built once per owner and cached", () => {
+  let builds = 0;
+  const conn = resource({ label: "conn", factory: () => ({ id: 0 }) });
+  const scope = createScope({ presets: [preset(conn, () => ({ id: ++builds }))] });
+  const a = scope.getController(conn).resolve();
+  const b = scope.getController(conn).resolve();
+  expect(a).toBe(b);
+  expect(builds).toBe(1);
+});
+
+test("a resource preset's cleanup runs when the owner closes; the real factory never runs", async () => {
+  const events: string[] = [];
+  const conn = resource({
+    label: "conn",
+    factory: (_deps, { cleanup }) => {
+      cleanup(() => void events.push("real-teardown"));
+      return "real";
+    },
+  });
+  const scope = createScope({
+    presets: [
+      preset(conn, (_deps, { cleanup }) => {
+        cleanup(() => void events.push("fake-teardown"));
+        return "fake";
+      }),
+    ],
+  });
+  scope.getController(conn).resolve();
+  await scope.close();
+  expect(events).toEqual(["fake-teardown"]);
+});
+
+test("an async resource preset resolves to its awaited value", async () => {
+  const conn = resource({ label: "conn", factory: async () => ({ id: "real" }) });
+  const scope = createScope({ presets: [preset(conn, async () => ({ id: "fake" }))] });
+  const value = await scope.getController(conn).resolve();
+  expect(value.id).toBe("fake");
+});
+
+test("a resource preset receives the resolved deps, delivered untyped (narrow at use)", () => {
+  const count = data({ initial: 41, parse: asNumber });
+  const conn = resource({ label: "conn", depends: { count }, factory: ({ count }) => count + 1 });
+  const scope = createScope({
+    presets: [preset(conn, (deps) => asNumber(deps.count) + 100)],
+  });
+  expect(scope.getController(conn).resolve()).toBe(141);
+});

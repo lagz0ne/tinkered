@@ -402,12 +402,19 @@ export function resource<
 }
 
 /** Test-only: substitute a node's realization for downstream consumers of a scope (ADR 0015).
- * A `data` value is validated through `parse`; a command takes a replacement `run`. Seed via
- * `createScope({ presets: [preset(node, ...)] })`. Resource presets land in a later ticket. */
+ * A `data` value is validated through `parse`; a command takes a replacement `run`; a resource
+ * takes a replacement `factory` (built and torn down like the real one). Seed via
+ * `createScope({ presets: [preset(node, ...)] })`. The replacement's `deps` are delivered
+ * untyped (a `Record<string, unknown>`, like the real factory) — narrow at use. A `void`-returning
+ * resource is the one shape whose async/sync parity the type cannot enforce; don't preset one async. */
 export function preset<T>(node: Data.Cell<T>, value: T): Scope.Preset;
 export function preset<T, I>(
   node: Operation.Command<T, I>,
-  run: (deps: Scope.SlotValues<Operation.Command<T, I>["depends"]>, ctx: Operation.Ctx<I>) => T,
+  run: (deps: Record<string, unknown>, ctx: Operation.Ctx<I>) => T,
+): Scope.Preset;
+export function preset<T>(
+  node: Resource.Handle<T>,
+  factory: (deps: Record<string, unknown>, ctx: Resource.Ctx) => T,
 ): Scope.Preset;
 export function preset(node: unknown, replacement: unknown): Scope.Preset {
   return { [presetSym]: true, node, replacement } as Scope.Preset;
@@ -905,6 +912,21 @@ function ownerOf(layer: Layer, target: Resource.Handle<unknown>): Layer {
   return cur;
 }
 
+function resolveResourceDeps(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  span: Observe.Span | undefined,
+): Record<string, unknown> {
+  const deps: Record<string, unknown> = {};
+  for (const key in target.depends) {
+    const dep = target.depends[key];
+    const node = depNode(dep);
+    if (node) addDependent(owner, node, target);
+    deps[key] = resolveDep(owner, dep, span);
+  }
+  return deps;
+}
+
 function buildResource<T>(
   owner: Layer,
   target: Resource.Handle<T>,
@@ -918,13 +940,7 @@ function buildResource<T>(
   owner.building.add(target);
   let settled = false;
   try {
-    const deps: Record<string, unknown> = {};
-    for (const key in target.depends) {
-      const dep = target.depends[key];
-      const node = depNode(dep);
-      if (node) addDependent(owner, node, target);
-      deps[key] = resolveDep(owner, dep, span);
-    }
+    const deps = resolveResourceDeps(owner, target, span);
     const ctx: Resource.Ctx = {
       label: target.label,
       cleanup: (fn) => {
@@ -939,7 +955,8 @@ function buildResource<T>(
       obs: obsCtx(obs, span),
       log: logFor(obs, span),
     };
-    const result = target.factory(deps, ctx);
+    const override = presetFor(owner, target) as Resource.Handle<T>["factory"] | undefined;
+    const result = override ? override(deps, ctx) : target.factory(deps, ctx);
     if (!isThenable(result)) {
       settled = true;
       if (canPublish()) owner.resources.set(target, { value: result });

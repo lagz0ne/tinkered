@@ -48,7 +48,7 @@ Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its 
 | core/t15 | Command / manual observation           | 07         | [x]    |
 | core/t16 | Resource observation                   | 09, 10, 15 | [x]    |
 | core/t17 | Data/command presets                   | 05         | [x]    |
-| core/t18 | Resource presets                       | 09, 10, 17 | [ ]    |
+| core/t18 | Resource presets                       | 09, 10, 17 | [x]    |
 | core/t19 | v1 validation milestone                | 01–18      | [ ]    |
 
 Parallelizable once upstream lands: 04‖05, 15 alongside 12→13→14, 17 early off 05.

@@ -7,10 +7,8 @@ Core ticket detail + reset recipes: `docs/roadmap/core-v1/PROGRESS.md`.
 
 ## Now
 
-- [ ] core/t18 — resource presets (ADR 0015): re-add the `preset(resource, factory)` overload and
-      wire it through ownership / caching / generation / teardown.
-  - Verify: `scripts/ticket.sh` passes; a resource preset replaces the built instance for downstream
-    consumers, respects target/owner, and is torn down on close (test).
+- [ ] pick the next thread (presets line t17+t18 + subflow all landed). Options: streaming design
+      grill (needs the user) or tag-meta-on-every-unit (buildable now). See Next.
 
 ## Next (roadmap, in order)
 
@@ -25,6 +23,8 @@ Core ticket detail + reset recipes: `docs/roadmap/core-v1/PROGRESS.md`.
 
 ## Done
 
+- [x] core/t18 — resource presets (ADR 0015): `preset(resource, factory)` swaps the factory only for downstream consumers; same deps/caching/generation/teardown; async path included
+  - Verified: gate green (check + 124 tests + size 7945 B + mutation exit 0 ~76.5% core); tag `core/t18`. Astra: 2 type-precision gaps — silent-any preset deps (fixed → `Record<string, unknown>`, reproduced+verified, narrowing test added) and a `void`-resource accepting an async preset (documented TS limitation; void resources are an anti-pattern). Census hardened to skip `.stryker-tmp`. **Presets line (t17+t18) complete.**
 - [x] core/subflow — invocation object (ADR 0022, refines 0020): a bare op / command controller is always a callable; `resolve({ input?, rawInput?, tags? })` — defined `input` wins, `rawInput` is parsed, `tags` overlay the caller's ambient bindings for that one call (not into resources or nested subflows)
   - Verified: gate green (check + 119 tests + size 7916 B + mutation 76.48% core); tag `core/subflow`. Astra: 2 type holes found (undefined-input→NaN; `never`→optional arg), both fixed (runtime + `CallArgs` conditional) with regression tests; second focused pass CLEAN.
 - [x] core/t17 — data/command presets (ADR 0015): `preset(dataCell, value)` (parse-validated) and `preset(command, run)`, downstream-only, cleared on close
