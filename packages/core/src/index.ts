@@ -1,4 +1,4 @@
-import { makeError, raise } from "./errors.ts";
+import { isError, makeError, raise } from "./errors.ts";
 
 const cell: unique symbol = Symbol("data");
 const command: unique symbol = Symbol("operation");
@@ -74,10 +74,12 @@ export declare namespace Operation {
 }
 
 export declare namespace Resource {
-  /** The receiver a resource factory builds through: register per-instance cleanup. */
+  /** The receiver a resource factory builds through: register per-instance cleanup and
+   * an outcome hook that commits (success) or rolls back (failed) when the owner settles. */
   export type Ctx = {
     readonly label: string;
     readonly cleanup: (fn: () => void | PromiseLike<void>) => void;
+    readonly onOutcome: (fn: (outcome: Scope.Outcome) => void | PromiseLike<void>) => void;
   };
 
   /** A reusable built instance. `target` picks the owning layer: `scope` = one per chain
@@ -160,11 +162,17 @@ export declare namespace Scope {
     getController<T, I>(target: Operation.Command<T, I>): CommandController<T, I>;
     /** Open a child session: it inherits this scope's data and tags, and shadows on write. */
     createSession(options?: Options): Handle;
+    /** Run `fn` in a fresh child session: normal return = success (outside-in), a thrown
+     * error = failed(cause) (inside-out). The session auto-closes with that outcome; the
+     * primary cause is thrown, hook errors aggregated (ADR 0017). */
+    session<R>(fn: (scope: Handle) => R | PromiseLike<R>): Promise<R>;
+    session<R>(options: Options, fn: (scope: Handle) => R | PromiseLike<R>): Promise<R>;
     /** Register a userland teardown hook, run (LIFO) when this scope closes. */
     onClose(fn: () => void | PromiseLike<void>): void;
     /** Resolve once all in-flight command work owned by this scope has settled. */
     settled(): Promise<void>;
-    /** Close children first, join owned work, run teardown, then seal so late acts fail. */
+    /** Close children first, join owned work, notify outcome hooks then cleanup, then seal.
+     * `outcome` defaults to success; failures aggregate into a `TeardownFailed`. */
     close(outcome?: Outcome): Promise<void>;
   };
 }
@@ -308,7 +316,11 @@ type Layer = {
   watchers: Set<Watcher>;
   pending: Set<Promise<unknown>>;
   onCloses: (() => void | PromiseLike<void>)[];
+  onOutcomes: ((outcome: Scope.Outcome) => void | PromiseLike<void>)[];
+  failure: { cause: unknown } | undefined;
+  body: Promise<unknown> | undefined;
   closed: boolean;
+  tearingDown: boolean;
   closing: Promise<void> | undefined;
 };
 
@@ -459,7 +471,10 @@ function track(layer: Layer, result: unknown): void {
   if (!isThenable(result)) return;
   const tracked: Promise<unknown> = Promise.resolve(result).then(
     () => layer.pending.delete(tracked),
-    () => layer.pending.delete(tracked),
+    (error: unknown) => {
+      layer.pending.delete(tracked);
+      layer.failure ??= { cause: error };
+    },
   );
   layer.pending.add(tracked);
 }
@@ -500,8 +515,18 @@ function buildResource<T>(owner: Layer, target: Resource.Handle<T>): unknown {
         if (settled) raise("Disposed", { reason: "resource factory already finished" });
         owner.onCloses.push(fn);
       },
+      onOutcome: (fn) => {
+        if (settled) raise("Disposed", { reason: "resource factory already finished" });
+        owner.onOutcomes.push(fn);
+      },
     };
-    const result = target.factory(deps, ctx);
+    let result: unknown;
+    try {
+      result = target.factory(deps, ctx);
+    } catch (error) {
+      settled = true;
+      throw error;
+    }
     if (!isThenable(result)) {
       settled = true;
       owner.resources.set(target, { value: result });
@@ -576,35 +601,101 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     watchers: new Set(),
     pending: new Set(),
     onCloses: [],
+    onOutcomes: [],
+    failure: undefined,
+    body: undefined,
     closed: false,
+    tearingDown: false,
     closing: undefined,
   };
   if (parent) parent.children.add(layer);
   return layer;
 }
 
-function closeLayer(layer: Layer): Promise<void> {
-  if (layer.closing) return layer.closing;
+const SUCCESS: Scope.Outcome = { status: "success" };
+
+async function drainHooks(
+  layer: Layer,
+  hooks: (() => void | PromiseLike<void>)[],
+  causes: unknown[],
+): Promise<void> {
+  for (let i = hooks.length - 1; i >= 0; i--) {
+    let pending: void | PromiseLike<void>;
+    try {
+      layer.tearingDown = true;
+      pending = hooks[i]();
+    } catch (cause) {
+      layer.tearingDown = false;
+      causes.push(cause);
+      continue;
+    }
+    layer.tearingDown = false;
+    try {
+      await pending;
+    } catch (cause) {
+      causes.push(cause);
+    }
+  }
+}
+
+async function joinBody(layer: Layer): Promise<{ cause: unknown } | undefined> {
+  if (!layer.body) return undefined;
+  try {
+    await layer.body;
+    return undefined;
+  } catch (cause) {
+    return { cause };
+  }
+}
+
+function chooseOutcome(
+  outcome: Scope.Outcome,
+  body: { cause: unknown } | undefined,
+  owned: { cause: unknown } | undefined,
+): Scope.Outcome {
+  if (body) return { status: "failed", error: body.cause };
+  if (owned) return { status: "failed", error: owned.cause };
+  return outcome;
+}
+
+async function closeChildren(
+  layer: Layer,
+  outcome: Scope.Outcome,
+  causes: unknown[],
+): Promise<{ cause: unknown } | undefined> {
+  let failure: { cause: unknown } | undefined;
+  for (const child of Array.from(layer.children)) {
+    try {
+      await closeLayer(child, outcome);
+    } catch (cause) {
+      causes.push(cause);
+    }
+    failure ??= child.failure;
+  }
+  return failure;
+}
+
+function closeLayer(layer: Layer, outcome: Scope.Outcome = SUCCESS): Promise<void> {
+  if (layer.closing) return layer.tearingDown ? Promise.resolve() : layer.closing;
   layer.closed = true;
   layer.generation++;
-  const children = Array.from(layer.children);
   const run = async (): Promise<void> => {
     const causes: unknown[] = [];
-    for (const child of children) {
-      try {
-        await closeLayer(child);
-      } catch (cause) {
-        causes.push(cause);
-      }
-    }
+    const bodyFailure = await joinBody(layer);
+    const childFailure = await closeChildren(
+      layer,
+      chooseOutcome(outcome, bodyFailure, undefined),
+      causes,
+    );
     while (layer.pending.size) await Promise.all(layer.pending);
-    for (let i = layer.onCloses.length - 1; i >= 0; i--) {
-      try {
-        await layer.onCloses[i]();
-      } catch (cause) {
-        causes.push(cause);
-      }
-    }
+    const settled = chooseOutcome(outcome, bodyFailure, layer.failure ?? childFailure);
+    if (settled.status === "failed") layer.failure = { cause: settled.error };
+    await drainHooks(
+      layer,
+      layer.onOutcomes.map((hook) => () => hook(settled)),
+      causes,
+    );
+    await drainHooks(layer, layer.onCloses, causes);
     layer.parent?.children.delete(layer);
     layer.cells.clear();
     layer.effCache.clear();
@@ -616,10 +707,57 @@ function closeLayer(layer: Layer): Promise<void> {
     layer.pending.clear();
     layer.children.clear();
     layer.onCloses.length = 0;
+    layer.onOutcomes.length = 0;
     if (causes.length) throw makeError("TeardownFailed", { causes });
   };
   layer.closing = Promise.resolve().then(run);
   return layer.closing;
+}
+
+function settleSession(
+  hasFailure: boolean,
+  cause: unknown,
+  teardownCauses: unknown[] | undefined,
+): void {
+  if (hasFailure) {
+    if (teardownCauses) raise("TeardownFailed", { causes: [cause, ...teardownCauses] });
+    throw cause;
+  }
+  if (teardownCauses) raise("TeardownFailed", { causes: teardownCauses });
+}
+
+async function runSession<R>(
+  parent: Layer,
+  options: Scope.Options | undefined,
+  fn: (scope: Scope.Handle) => R | PromiseLike<R>,
+): Promise<R> {
+  ensureOpen(parent);
+  const child = makeLayer(parent, options);
+  const body = (async (): Promise<R> => fn(handleFor(child)))();
+  child.body = body;
+  let result: R | undefined;
+  let cause: unknown;
+  let failed = false;
+  try {
+    result = await body;
+  } catch (error) {
+    failed = true;
+    cause = error;
+  }
+  const outcome: Scope.Outcome = failed ? { status: "failed", error: cause } : SUCCESS;
+  let teardownCauses: unknown[] | undefined;
+  try {
+    await closeLayer(child, outcome);
+  } catch (error) {
+    if (!isError(error, "TeardownFailed")) throw error;
+    teardownCauses = error.payload.causes;
+  }
+  settleSession(
+    failed || child.failure !== undefined,
+    failed ? cause : child.failure?.cause,
+    teardownCauses,
+  );
+  return result as R;
 }
 
 function handleFor(layer: Layer): Scope.Handle {
@@ -637,12 +775,21 @@ function handleFor(layer: Layer): Scope.Handle {
       ensureOpen(layer);
       return handleFor(makeLayer(layer, options));
     },
+    session: (<R>(
+      a: Scope.Options | ((scope: Scope.Handle) => R | PromiseLike<R>),
+      b?: (scope: Scope.Handle) => R | PromiseLike<R>,
+    ) => {
+      if (typeof a === "function") return runSession(layer, undefined, a);
+      if (!b)
+        raise("InvalidDependency", { label: "session", reason: "session(options, fn) needs fn" });
+      return runSession(layer, a, b);
+    }) as Scope.Handle["session"],
     onClose: (fn: () => void | PromiseLike<void>) => {
       ensureOpen(layer);
       layer.onCloses.push(fn);
     },
     settled,
-    close: () => closeLayer(layer),
+    close: (outcome?: Scope.Outcome) => closeLayer(layer, outcome),
   };
 }
 
@@ -651,5 +798,5 @@ export function createScope(options?: Scope.Options): Scope.Handle {
   return handleFor(makeLayer(undefined, options));
 }
 
-export { isError } from "./errors.ts";
+export { isError };
 export type { Errors } from "./errors.ts";

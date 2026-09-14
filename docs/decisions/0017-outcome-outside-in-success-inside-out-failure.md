@@ -32,3 +32,24 @@ must decide when it _succeeded_ and let inside resources commit or roll back.
   back the transaction.
 - Ticket "outcome hooks + session(fn)" implements this; the open question from
   ADR 0011 is closed.
+
+## Scope boundary (single-pass close)
+
+`close` is a single children-first pass (join this layer's body + owned work,
+close children, run `onOutcome` then `cleanup`, teardown). This keeps the
+per-request hot path lean and dead-lock-free, at two deliberate cost:
+
+- **A failure only rolls back the boundary that owns the failing work and its own
+  subtree, bubbling _upward_ to ancestors.** It does not flow _sideways_ into an
+  already-closed sibling: a resource on a bare nested `createSession()` child is
+  committed on its own terms and is not retro-rolled-back because a _sibling_
+  owned-work on the parent later failed. Put transactional resources on the
+  boundary that owns them (the `session`), or use a nested `session(fn)` so the
+  child settles on its own outcome. Full cross-boundary propagation would need a
+  multi-phase close (join subtree → settle → notify → cleanup); rejected as a
+  hot-path complexity/perf cost.
+- **A session body that awaits its own `close()` is unsupported** (a genuine
+  cycle: close joins the body while the body awaits close). It cannot be detected
+  without async context (`AsyncLocalStorage` is out — the library targets browser
+  and node). A re-entrant `close()` from a teardown hook is safe (returns a
+  resolved promise; teardown still runs once).
