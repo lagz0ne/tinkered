@@ -1,4 +1,4 @@
-import { raise } from "./errors.ts";
+import { makeError, raise } from "./errors.ts";
 
 const cell: unique symbol = Symbol("data");
 const command: unique symbol = Symbol("operation");
@@ -119,14 +119,23 @@ export declare namespace Scope {
   /** Values seeded on a scope at creation. */
   export type Options = { tags?: readonly Tag.Binding<unknown>[] };
 
+  /** How a scope settled: declared outside-in on success, or failed by an inside-out cause. */
+  export type Outcome =
+    | { readonly status: "success" }
+    | { readonly status: "failed"; readonly error?: unknown };
+
   /** What `createScope()` returns: the one seam tests and callers touch. */
   export type Handle = {
     getController<T>(target: Data.Cell<T>): DataController<T>;
     getController<T, I>(target: Operation.Command<T, I>): CommandController<T, I>;
     /** Open a child session: it inherits this scope's data and tags, and shadows on write. */
     createSession(options?: Options): Handle;
+    /** Register a userland teardown hook, run (LIFO) when this scope closes. */
+    onClose(fn: () => void | PromiseLike<void>): void;
     /** Resolve once all in-flight command work owned by this scope has settled. */
     settled(): Promise<void>;
+    /** Close children first, join owned work, run teardown, then seal so late acts fail. */
+    close(outcome?: Outcome): Promise<void>;
   };
 }
 
@@ -243,7 +252,15 @@ type Layer = {
   tags: Map<Tag.Handle<unknown>, unknown[]>;
   watchers: Set<Watcher>;
   pending: Set<Promise<unknown>>;
+  onCloses: (() => void | PromiseLike<void>)[];
+  closed: boolean;
+  closing: Promise<void> | undefined;
 };
+
+/** Late use of a sealed scope fails loudly. */
+function ensureOpen(layer: Layer): void {
+  if (layer.closed) raise("Disposed", { reason: "scope is closed" });
+}
 
 const eqOf =
   <T>(target: Data.Cell<T>) =>
@@ -300,6 +317,7 @@ function flushTree(layer: Layer): void {
 }
 
 function writeCell<T>(layer: Layer, target: Data.Cell<T>, next: unknown): void {
+  ensureOpen(layer);
   const value = admit(target.label, target.parse, next);
   if (eqOf(target)(readCell(layer, target), value)) return;
   ownCell(layer, target).value = value;
@@ -335,6 +353,7 @@ function addWatcher(
   eq: (a: unknown, b: unknown) => boolean,
   fn: (next: unknown) => void,
 ): () => void {
+  ensureOpen(layer);
   const w: Watcher = { read, last: read(), eq, fn };
   layer.watchers.add(w);
   return () => void layer.watchers.delete(w);
@@ -346,7 +365,10 @@ function dataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataContro
     get: read,
     read,
     set: (value: T) => writeCell(layer, target, value),
-    update: (fn: (previous: T) => T) => writeCell(layer, target, fn(read())),
+    update: (fn: (previous: T) => T) => {
+      ensureOpen(layer);
+      writeCell(layer, target, fn(read()));
+    },
     watch: (listener: (next: T) => void) =>
       addWatcher(layer, read as () => unknown, eqOf(target), listener as (next: unknown) => void),
   };
@@ -393,6 +415,7 @@ function commandController<T, I>(
 ): Scope.CommandController<T, I> {
   return {
     resolve: (raw?: I) => {
+      ensureOpen(layer);
       const input = (target.input ? target.input(raw) : (undefined as I)) as I;
       const deps: Record<string, unknown> = {};
       for (const key in target.depends) deps[key] = resolveDep(layer, target.depends[key]);
@@ -418,9 +441,47 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     tags,
     watchers: new Set(),
     pending: new Set(),
+    onCloses: [],
+    closed: false,
+    closing: undefined,
   };
   if (parent) parent.children.add(layer);
   return layer;
+}
+
+function closeLayer(layer: Layer): Promise<void> {
+  if (layer.closing) return layer.closing;
+  layer.closed = true;
+  const children = Array.from(layer.children);
+  const run = async (): Promise<void> => {
+    const causes: unknown[] = [];
+    for (const child of children) {
+      try {
+        await closeLayer(child);
+      } catch (cause) {
+        causes.push(cause);
+      }
+    }
+    while (layer.pending.size) await Promise.all(layer.pending);
+    for (let i = layer.onCloses.length - 1; i >= 0; i--) {
+      try {
+        await layer.onCloses[i]();
+      } catch (cause) {
+        causes.push(cause);
+      }
+    }
+    layer.parent?.children.delete(layer);
+    layer.cells.clear();
+    layer.effCache.clear();
+    layer.tags.clear();
+    layer.watchers.clear();
+    layer.pending.clear();
+    layer.children.clear();
+    layer.onCloses.length = 0;
+    if (causes.length) throw makeError("TeardownFailed", { causes });
+  };
+  layer.closing = Promise.resolve().then(run);
+  return layer.closing;
 }
 
 function handleFor(layer: Layer): Scope.Handle {
@@ -428,12 +489,20 @@ function handleFor(layer: Layer): Scope.Handle {
     while (layer.pending.size) await Promise.all(layer.pending);
   };
   return {
-    getController: (<T, I>(target: Data.Cell<T> | Operation.Command<T, I>) =>
-      isData(target)
-        ? dataController(layer, target)
-        : commandController(layer, target)) as Scope.Handle["getController"],
-    createSession: (options?: Scope.Options) => handleFor(makeLayer(layer, options)),
+    getController: (<T, I>(target: Data.Cell<T> | Operation.Command<T, I>) => {
+      ensureOpen(layer);
+      return isData(target) ? dataController(layer, target) : commandController(layer, target);
+    }) as Scope.Handle["getController"],
+    createSession: (options?: Scope.Options) => {
+      ensureOpen(layer);
+      return handleFor(makeLayer(layer, options));
+    },
+    onClose: (fn: () => void | PromiseLike<void>) => {
+      ensureOpen(layer);
+      layer.onCloses.push(fn);
+    },
     settled,
+    close: () => closeLayer(layer),
   };
 }
 

@@ -397,3 +397,113 @@ test("a nearer shadow invalidates a descendant's cached effective cell", () => {
   expect(leaf.getController(v).read()).toBe("c");
   expect(root.getController(v).read()).toBe("b");
 });
+
+test("close runs children first, then userland onClose hooks in LIFO order", async () => {
+  const order: string[] = [];
+  const root = createScope();
+  const child = root.createSession();
+  root.onClose(() => void order.push("root-A"));
+  root.onClose(() => void order.push("root-B"));
+  child.onClose(() => void order.push("child"));
+  await root.close();
+  expect(order).toEqual(["child", "root-B", "root-A"]);
+});
+
+test("close joins in-flight command work before completing", async () => {
+  const gate = deferred();
+  let finished = false;
+  const slow = operation({
+    label: "slow",
+    run: async () => {
+      await gate.promise;
+      finished = true;
+    },
+  });
+  const scope = createScope();
+  void scope.getController(slow).resolve();
+  let closed = false;
+  const closing = scope.close().then(() => {
+    closed = true;
+  });
+  await Promise.resolve();
+  expect(closed).toBe(false);
+  gate.resolve();
+  await closing;
+  expect(finished).toBe(true);
+});
+
+test("a closed scope is sealed: late access and late writes fail with Disposed", async () => {
+  const n = data({ initial: 0 });
+  const scope = createScope();
+  const c = scope.getController(n);
+  await scope.close();
+  try {
+    scope.getController(n);
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "Disposed")) throw error;
+  }
+  try {
+    c.set(1);
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "Disposed")) throw error;
+  }
+});
+
+test("a throwing onClose hook does not stop the others, and its cause surfaces", async () => {
+  const ran: string[] = [];
+  const cause = new Error("x");
+  const scope = createScope();
+  scope.onClose(() => void ran.push("a"));
+  scope.onClose(() => {
+    throw cause;
+  });
+  scope.onClose(() => void ran.push("c"));
+  const error = await scope.close().then(
+    () => undefined,
+    (e: unknown) => e,
+  );
+  expect(ran).toEqual(["c", "a"]);
+  if (!isError(error, "TeardownFailed")) throw error;
+  expect(error.payload.causes).toContain(cause);
+});
+
+test("close is idempotent: hooks run once", async () => {
+  let count = 0;
+  const scope = createScope();
+  scope.onClose(() => void count++);
+  await scope.close();
+  await scope.close();
+  expect(count).toBe(1);
+});
+
+test("a hook that re-enters close does not run teardown twice", async () => {
+  let count = 0;
+  const scope = createScope();
+  scope.onClose(() => {
+    count++;
+    void scope.close();
+  });
+  await scope.close();
+  expect(count).toBe(1);
+});
+
+test("close joins command work started before the command's first await", async () => {
+  const order: string[] = [];
+  const gate = deferred();
+  const scope = createScope();
+  const selfClose = operation({
+    label: "selfClose",
+    run: async () => {
+      void scope.close();
+      await gate.promise;
+      order.push("work-done");
+    },
+  });
+  void scope.getController(selfClose).resolve();
+  const closing = scope.close().then(() => order.push("closed"));
+  gate.resolve();
+  await closing;
+  expect(order).toEqual(["work-done", "closed"]);
+});

@@ -3,6 +3,8 @@ type Payloads = {
   DataValidationFailed: { label: string; cause: unknown };
   InvalidDependency: { label: string; reason: string };
   MissingTag: { label: string };
+  Disposed: { reason: string };
+  TeardownFailed: { causes: unknown[] };
 };
 
 export declare namespace Errors {
@@ -17,11 +19,19 @@ export declare namespace Errors {
   };
 }
 
-/** Throw a registry error. The only throw site in the package. */
-export function raise<N extends Errors.Name>(kind: N, payload: Errors.Payload<N>): never {
+/** Build a registry error without throwing (for rejecting a promise). */
+export function makeError<N extends Errors.Name>(
+  kind: N,
+  payload: Errors.Payload<N>,
+): Errors.Of<N> {
   const error = new Error(kind) as Errors.Of<N>;
   Object.assign(error, { kind, payload });
-  throw error;
+  return error;
+}
+
+/** Throw a registry error. The only throw site in the package. */
+export function raise<N extends Errors.Name>(kind: N, payload: Errors.Payload<N>): never {
+  throw makeError(kind, payload);
 }
 
 /** Narrow an unknown error to one registry entry; callers rethrow on mismatch. */
