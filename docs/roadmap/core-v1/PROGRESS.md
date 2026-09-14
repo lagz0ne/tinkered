@@ -36,7 +36,7 @@ Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its 
 | core/t03 | Sync commands (incl. effects)          | 02         | [x]    |
 | core/t04 | Scope tags, all modes                  | 03         | [x]    |
 | core/t05 | Async commands + work ownership        | 03         | [x]    |
-| core/t06 | Sessions + inheritance + copy-on-write | 04         | [ ]    |
+| core/t06 | Sessions + inheritance + copy-on-write | 04         | [x]    |
 | core/t07 | Structured close + onClose             | 05, 06     | [ ]    |
 | core/t08 | Sync scope resources + cleanup         | 07         | [ ]    |
 | core/t09 | Async resource builds + close          | 08         | [ ]    |

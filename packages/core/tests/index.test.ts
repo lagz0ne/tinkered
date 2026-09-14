@@ -5,6 +5,10 @@ const asNumber = (v: unknown): number => {
   if (typeof v !== "number") throw new Error("not a number");
   return v;
 };
+const asText = (v: unknown): string => {
+  if (typeof v !== "string") throw new Error("not a string");
+  return v;
+};
 
 test("reads a cell's initial value through the scope seam", () => {
   const count = data({ initial: 1 });
@@ -331,4 +335,65 @@ test("settled reports work as pending until it finishes", async () => {
   await p;
   await s;
   expect(joined).toBe(true);
+});
+
+test("a session inherits its parent's data and tags", () => {
+  const theme = data({ initial: "light", parse: asText });
+  const region = tag<string>({ label: "region", default: "base" });
+  const readRegion = operation({ label: "rr", depends: { region }, run: ({ region }) => region });
+  const root = createScope({ tags: [region("root")] });
+  const child = root.createSession();
+  expect(child.getController(theme).read()).toBe("light");
+  expect(child.getController(readRegion).resolve()).toBe("root");
+  root.getController(theme).set("dark");
+  expect(child.getController(theme).read()).toBe("dark");
+});
+
+test("a session write shadows locally (copy-on-write); the parent is unchanged", () => {
+  const theme = data({ initial: "light", parse: asText });
+  const root = createScope();
+  const child = root.createSession();
+  root.getController(theme).set("dark");
+  child.getController(theme).set("solar");
+  expect(child.getController(theme).read()).toBe("solar");
+  expect(root.getController(theme).read()).toBe("dark");
+});
+
+test("inherited watchers react to parent writes until the child shadows", () => {
+  const n = data({ initial: 0, parse: asNumber });
+  const root = createScope();
+  const child = root.createSession();
+  const seen: number[] = [];
+  const stop = child.getController(n).watch((v) => seen.push(v));
+  root.getController(n).set(1);
+  expect(seen).toEqual([1]);
+  child.getController(n).set(2);
+  expect(seen).toEqual([1, 2]);
+  root.getController(n).set(3);
+  expect(seen).toEqual([1, 2]);
+  stop();
+});
+
+test("nested tags: nearest layer wins, and .all collects nearest-first across layers", () => {
+  const region = tag<string>({ label: "region", default: "base" });
+  const nearest = operation({ label: "n", depends: { region }, run: ({ region }) => region });
+  const every = operation({ label: "e", depends: { xs: region.all }, run: ({ xs }) => xs });
+  const root = createScope({ tags: [region("root")] });
+  const child = root.createSession({ tags: [region("sess")] });
+  expect(child.getController(nearest).resolve()).toBe("sess");
+  expect(child.getController(every).resolve()).toEqual(["sess", "root"]);
+  expect(root.getController(nearest).resolve()).toBe("root");
+});
+
+test("a nearer shadow invalidates a descendant's cached effective cell", () => {
+  const v = data({ initial: "a", parse: asText });
+  const root = createScope();
+  const mid = root.createSession();
+  const leaf = mid.createSession();
+  expect(leaf.getController(v).read()).toBe("a");
+  root.getController(v).set("b");
+  expect(leaf.getController(v).read()).toBe("b");
+  mid.getController(v).set("c");
+  expect(leaf.getController(v).read()).toBe("c");
+  expect(root.getController(v).read()).toBe("b");
 });

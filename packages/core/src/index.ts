@@ -123,6 +123,8 @@ export declare namespace Scope {
   export type Handle = {
     getController<T>(target: Data.Cell<T>): DataController<T>;
     getController<T, I>(target: Operation.Command<T, I>): CommandController<T, I>;
+    /** Open a child session: it inherits this scope's data and tags, and shadows on write. */
+    createSession(options?: Options): Handle;
     /** Resolve once all in-flight command work owned by this scope has settled. */
     settled(): Promise<void>;
   };
@@ -232,142 +234,212 @@ type Watcher = {
   fn: (next: unknown) => void;
 };
 
-/** Create a scope: the graph that resolves cells, tags, and commands to controllers. */
-export function createScope(options?: Scope.Options): Scope.Handle {
-  const entries = new Map<Data.Cell<unknown>, Entry>();
-  const watchers = new Set<Watcher>();
-  const pending = new Set<Promise<unknown>>();
+/** One layer of the scope chain. A session is a child layer. */
+type Layer = {
+  parent: Layer | undefined;
+  children: Set<Layer>;
+  cells: Map<Data.Cell<unknown>, Entry>;
+  effCache: Map<Data.Cell<unknown>, Entry | undefined>;
+  tags: Map<Tag.Handle<unknown>, unknown[]>;
+  watchers: Set<Watcher>;
+  pending: Set<Promise<unknown>>;
+};
+
+const eqOf =
+  <T>(target: Data.Cell<T>) =>
+  (a: unknown, b: unknown): boolean =>
+    target.eq(a as T, b as T);
+
+/** The nearest cell up the chain (cached per layer); absent means "use the cell's initial". */
+function effectiveEntry(layer: Layer, target: Data.Cell<unknown>): Entry | undefined {
+  if (layer.effCache.has(target)) return layer.effCache.get(target);
+  let found: Entry | undefined;
+  for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
+    const owned = cur.cells.get(target);
+    if (owned) {
+      found = owned;
+      break;
+    }
+  }
+  layer.effCache.set(target, found);
+  return found;
+}
+
+function readCell(layer: Layer, target: Data.Cell<unknown>): unknown {
+  const entry = effectiveEntry(layer, target);
+  return entry ? entry.value : target.initial;
+}
+
+/** Creating a nearer shadow changes the effective cell for this layer and its descendants. */
+function invalidateEff(layer: Layer, target: Data.Cell<unknown>): void {
+  layer.effCache.delete(target);
+  for (const child of layer.children) invalidateEff(child, target);
+}
+
+/** Copy-on-write: get or create this layer's own shadow of a cell, seeded from the inherited value. */
+function ownCell(layer: Layer, target: Data.Cell<unknown>): Entry {
+  let entry = layer.cells.get(target);
+  if (!entry) {
+    entry = { value: readCell(layer, target) };
+    layer.cells.set(target, entry);
+    invalidateEff(layer, target);
+  }
+  return entry;
+}
+
+/** Fire watchers on this layer, then descendants (inherited reads see the change; shadowed ones don't). */
+function flushTree(layer: Layer): void {
+  for (const w of layer.watchers) {
+    const next = w.read();
+    if (!w.eq(w.last, next)) {
+      w.last = next;
+      w.fn(next);
+    }
+  }
+  for (const child of layer.children) flushTree(child);
+}
+
+function writeCell<T>(layer: Layer, target: Data.Cell<T>, next: unknown): void {
+  const value = admit(target.label, target.parse, next);
+  if (eqOf(target)(readCell(layer, target), value)) return;
+  ownCell(layer, target).value = value;
+  flushTree(layer);
+}
+
+function tagFind(layer: Layer, target: Tag.Handle<unknown>): Tag.Presence<unknown> {
+  for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
+    const list = cur.tags.get(target);
+    if (list && list.length) return { present: true, value: list[list.length - 1] };
+  }
+  return target.hasDefault ? { present: true, value: target.def } : { present: false };
+}
+
+function tagAll(layer: Layer, target: Tag.Handle<unknown>): unknown[] {
+  const out: unknown[] = [];
+  for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
+    const list = cur.tags.get(target);
+    if (list) for (let i = list.length - 1; i >= 0; i--) out.push(list[i]);
+  }
+  return out;
+}
+
+function tagRequired(layer: Layer, target: Tag.Handle<unknown>): unknown {
+  const found = tagFind(layer, target);
+  if (!found.present) raise("MissingTag", { label: target.label });
+  return found.value;
+}
+
+function addWatcher(
+  layer: Layer,
+  read: () => unknown,
+  eq: (a: unknown, b: unknown) => boolean,
+  fn: (next: unknown) => void,
+): () => void {
+  const w: Watcher = { read, last: read(), eq, fn };
+  layer.watchers.add(w);
+  return () => void layer.watchers.delete(w);
+}
+
+function dataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataController<T> {
+  const read = (): T => readCell(layer, target) as T;
+  return {
+    get: read,
+    read,
+    set: (value: T) => writeCell(layer, target, value),
+    update: (fn: (previous: T) => T) => writeCell(layer, target, fn(read())),
+    watch: (listener: (next: T) => void) =>
+      addWatcher(layer, read as () => unknown, eqOf(target), listener as (next: unknown) => void),
+  };
+}
+
+function resolveControllerEdge(layer: Layer, target: unknown): unknown {
+  if (isData(target)) return dataController(layer, target);
+  if (isCommand(target)) return commandController(layer, target);
+  raise("InvalidDependency", { label: "edge", reason: "unknown controller target" });
+}
+
+function resolveEdge(layer: Layer, dep: Edge<string, unknown>): unknown {
+  if (dep.kind === "controller") return resolveControllerEdge(layer, dep.target);
+  const target = dep.target as Tag.Handle<unknown>;
+  if (dep.kind === "all") return tagAll(layer, target);
+  if (dep.kind === "optional") return tagFind(layer, target);
+  return tagRequired(layer, target);
+}
+
+function resolveDep(layer: Layer, dep: Scope.Dependency): unknown {
+  if (isEdge(dep)) return resolveEdge(layer, dep);
+  if (isData(dep)) return readCell(layer, dep);
+  if (isTag(dep)) return tagRequired(layer, dep);
+  if (isCommand(dep))
+    raise("InvalidDependency", {
+      label: dep.label,
+      reason: "a command is not a value; depend on `command.controller`",
+    });
+  raise("InvalidDependency", { label: "unknown", reason: "unknown dependency" });
+}
+
+function track(layer: Layer, result: unknown): void {
+  if (!isThenable(result)) return;
+  const tracked: Promise<unknown> = Promise.resolve(result).then(
+    () => layer.pending.delete(tracked),
+    () => layer.pending.delete(tracked),
+  );
+  layer.pending.add(tracked);
+}
+
+function commandController<T, I>(
+  layer: Layer,
+  target: Operation.Command<T, I>,
+): Scope.CommandController<T, I> {
+  return {
+    resolve: (raw?: I) => {
+      const input = (target.input ? target.input(raw) : (undefined as I)) as I;
+      const deps: Record<string, unknown> = {};
+      for (const key in target.depends) deps[key] = resolveDep(layer, target.depends[key]);
+      const result = target.run(deps, { label: target.label, rawInput: raw, input });
+      track(layer, result);
+      return result;
+    },
+  };
+}
+
+function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
   const tags = new Map<Tag.Handle<unknown>, unknown[]>();
   for (const binding of options?.tags ?? []) {
     const list = tags.get(binding.tag) ?? [];
     list.push(binding.value);
     tags.set(binding.tag, list);
   }
-
-  const eqOf =
-    <T>(target: Data.Cell<T>) =>
-    (a: unknown, b: unknown): boolean =>
-      target.eq(a as T, b as T);
-
-  const entryOf = (target: Data.Cell<unknown>): Entry => {
-    let entry = entries.get(target);
-    if (!entry) {
-      entry = { value: target.initial };
-      entries.set(target, entry);
-    }
-    return entry;
+  const layer: Layer = {
+    parent,
+    children: new Set(),
+    cells: new Map(),
+    effCache: new Map(),
+    tags,
+    watchers: new Set(),
+    pending: new Set(),
   };
+  if (parent) parent.children.add(layer);
+  return layer;
+}
 
-  const flush = () => {
-    for (const w of watchers) {
-      const next = w.read();
-      if (!w.eq(w.last, next)) {
-        w.last = next;
-        w.fn(next);
-      }
-    }
-  };
-
-  const write = <T>(target: Data.Cell<T>, next: unknown) => {
-    const value = admit(target.label, target.parse, next);
-    const entry = entryOf(target);
-    if (eqOf(target)(entry.value, value)) return;
-    entry.value = value;
-    flush();
-  };
-
-  const tagFind = (target: Tag.Handle<unknown>): Tag.Presence<unknown> => {
-    const list = tags.get(target);
-    if (list && list.length) return { present: true, value: list[list.length - 1] };
-    return target.hasDefault ? { present: true, value: target.def } : { present: false };
-  };
-  const tagAll = (target: Tag.Handle<unknown>): unknown[] => {
-    const list = tags.get(target) ?? [];
-    return [...list].reverse();
-  };
-  const tagRequired = (target: Tag.Handle<unknown>): unknown => {
-    const found = tagFind(target);
-    if (!found.present) raise("MissingTag", { label: target.label });
-    return found.value;
-  };
-
-  const dataController = <T>(target: Data.Cell<T>): Scope.DataController<T> => {
-    const read = (): T => entryOf(target).value as T;
-    return {
-      get: read,
-      read,
-      set: (value: T) => write(target, value),
-      update: (fn: (previous: T) => T) => write(target, fn(read())),
-      watch: (listener: (next: T) => void) => {
-        const w: Watcher = {
-          read: read as () => unknown,
-          last: read(),
-          eq: eqOf(target),
-          fn: listener as (next: unknown) => void,
-        };
-        watchers.add(w);
-        return () => void watchers.delete(w);
-      },
-    };
-  };
-
-  const commandController = <T, I>(
-    target: Operation.Command<T, I>,
-  ): Scope.CommandController<T, I> => ({
-    resolve: (raw?: I) => {
-      const input = (target.input ? target.input(raw) : (undefined as I)) as I;
-      const deps: Record<string, unknown> = {};
-      for (const key in target.depends) deps[key] = resolveDep(target.depends[key]);
-      const result = target.run(deps, { label: target.label, rawInput: raw, input });
-      if (isThenable(result)) {
-        const tracked: Promise<unknown> = Promise.resolve(result).then(
-          () => pending.delete(tracked),
-          () => pending.delete(tracked),
-        );
-        pending.add(tracked);
-      }
-      return result;
-    },
-  });
-
-  const resolveControllerEdge = (target: unknown): unknown => {
-    if (isData(target)) return dataController(target);
-    if (isCommand(target)) return commandController(target);
-    raise("InvalidDependency", { label: "edge", reason: "unknown controller target" });
-  };
-
-  const resolveEdge = (dep: Edge<string, unknown>): unknown => {
-    if (dep.kind === "controller") return resolveControllerEdge(dep.target);
-    const target = dep.target as Tag.Handle<unknown>;
-    if (dep.kind === "all") return tagAll(target);
-    if (dep.kind === "optional") return tagFind(target);
-    return tagRequired(target);
-  };
-
-  const resolveDep = (dep: Scope.Dependency): unknown => {
-    if (isEdge(dep)) return resolveEdge(dep);
-    if (isData(dep)) return entryOf(dep).value;
-    if (isTag(dep)) return tagRequired(dep);
-    if (isCommand(dep))
-      raise("InvalidDependency", {
-        label: dep.label,
-        reason: "a command is not a value; depend on `command.controller`",
-      });
-    raise("InvalidDependency", { label: "unknown", reason: "unknown dependency" });
-  };
-
+function handleFor(layer: Layer): Scope.Handle {
   const settled = async (): Promise<void> => {
-    while (pending.size) await Promise.all(pending);
+    while (layer.pending.size) await Promise.all(layer.pending);
   };
-
-  const handle: Scope.Handle = {
+  return {
     getController: (<T, I>(target: Data.Cell<T> | Operation.Command<T, I>) =>
       isData(target)
-        ? dataController(target)
-        : commandController(target)) as Scope.Handle["getController"],
+        ? dataController(layer, target)
+        : commandController(layer, target)) as Scope.Handle["getController"],
+    createSession: (options?: Scope.Options) => handleFor(makeLayer(layer, options)),
     settled,
   };
-  return handle;
+}
+
+/** Create a scope: the root of a layer chain that resolves cells, tags, and commands to controllers. */
+export function createScope(options?: Scope.Options): Scope.Handle {
+  return handleFor(makeLayer(undefined, options));
 }
 
 export { isError } from "./errors.ts";
