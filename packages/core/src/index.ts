@@ -1020,10 +1020,7 @@ function commandController<T, I>(
         borrow = new Promise<void>((r) => (settleBorrow = r));
         for (const b of borrowed) addBorrow(b.owner, b.resource, borrow);
       }
-      const deps: Record<string, unknown> = {};
-      for (const key in target.depends) {
-        deps[key] = resolveDep(layer, target.depends[key], span, overlay);
-      }
+      const deps = buildDeps(layer, target.depends, span, overlay, undefined);
       const ctx: Operation.Ctx<I> = {
         label: target.label,
         rawInput,
@@ -1055,19 +1052,72 @@ function ownerOf(layer: Layer, target: Resource.Handle<unknown>): Layer {
   return cur;
 }
 
+/** Per-dependency edge bookkeeping run when a dependency is realized (undefined for operations, which
+ * form no release edges). */
+type RegisterEdge = ((dep: Scope.Dependency) => void) | undefined;
+
+/** Install a lazy getter on `deps[key]`: its first read registers the resource's edge, builds/resolves
+ * it, and caches; later reads return the cache. A body that never reads the key never triggers the
+ * build. The build span, `used` edge, and circular-resource guard all fire at that first access.
+ * Enumerable + configurable so `Object.values`/`for..in`/spread still observe (and thus build) it. */
+function defineLazyDep(
+  deps: Record<string, unknown>,
+  key: string,
+  layer: Layer,
+  dep: Scope.Dependency,
+  span: Observe.Span | undefined,
+  registerEdge: RegisterEdge,
+): void {
+  let built = false;
+  let value: unknown;
+  Object.defineProperty(deps, key, {
+    enumerable: true,
+    configurable: true,
+    get: () => {
+      if (!built) {
+        registerEdge?.(dep);
+        value = resolveDep(layer, dep, span, undefined);
+        built = true;
+      }
+      return value;
+    },
+  });
+}
+
+/** Build the `deps` object a factory/run reads. A resource-target dependency is delivered as a LAZY
+ * getter (see {@link defineLazyDep}) so a body that ignores it never builds it. Every other kind (a
+ * data snapshot, tag, subflow, or controller) is resolved EAGERLY here, so its value — and, for data,
+ * its release edge — is fixed at resolve time, before any suspension (snapshot determinism, ADR 0026).
+ * `registerEdge` records a realized resource's dependency edge and is omitted for operations. */
+function buildDeps(
+  layer: Layer,
+  depends: Scope.Depends,
+  span: Observe.Span | undefined,
+  overlay: TagOverlay | undefined,
+  registerEdge: RegisterEdge,
+): Record<string, unknown> {
+  const deps: Record<string, unknown> = {};
+  for (const key in depends) {
+    const dep = depends[key];
+    if (isResource(dep)) {
+      defineLazyDep(deps, key, layer, dep, span, registerEdge);
+    } else {
+      registerEdge?.(dep);
+      deps[key] = resolveDep(layer, dep, span, overlay);
+    }
+  }
+  return deps;
+}
+
 function resolveResourceDeps(
   owner: Layer,
   target: Resource.Handle<unknown>,
   span: Observe.Span | undefined,
 ): Record<string, unknown> {
-  const deps: Record<string, unknown> = {};
-  for (const key in target.depends) {
-    const dep = target.depends[key];
+  return buildDeps(owner, target.depends, span, undefined, (dep) => {
     const node = depNode(dep);
     if (node) addDependent(owner, node, target);
-    deps[key] = resolveDep(owner, dep, span);
-  }
-  return deps;
+  });
 }
 
 function buildResource<T>(
