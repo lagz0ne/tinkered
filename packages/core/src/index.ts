@@ -1,4 +1,4 @@
-import { isError, makeError, raise } from "./errors.ts";
+import { isError, raise } from "./errors.ts";
 
 const cell: unique symbol = Symbol("data");
 const command: unique symbol = Symbol("operation");
@@ -277,6 +277,22 @@ export declare namespace Scope {
    * individually released resource ends `released` while its layer lives on. */
   export type End = Outcome | { readonly status: "released" };
 
+  /** What `close()` resolves to — the ACTUAL settled state, never a thrown error (ADR 0027). The
+   * outcome you pass to `close()` is a fallback wish; reality wins (a real failure is never cancelled
+   * away). `teardownErrors` (defer/cleanup throws, in execution order) may accompany any status. */
+  export type Result =
+    | { readonly status: "success"; readonly teardownErrors?: readonly unknown[] }
+    | {
+        readonly status: "cancelled";
+        readonly reason: unknown;
+        readonly teardownErrors?: readonly unknown[];
+      }
+    | {
+        readonly status: "failed";
+        readonly error: unknown;
+        readonly teardownErrors?: readonly unknown[];
+      };
+
   /** What `createScope()` returns: the one seam tests and callers touch. */
   export type Handle = {
     getController<T>(target: Data.Cell<T>): DataController<T>;
@@ -299,9 +315,10 @@ export declare namespace Scope {
     spans(): readonly Observe.Span[];
     /** Resolve once all in-flight command work owned by this scope has settled. */
     settled(): Promise<void>;
-    /** Close children first, join owned work, notify outcome hooks then cleanup, then seal.
-     * `outcome` defaults to success; failures aggregate into a `TeardownFailed`. */
-    close(outcome?: Outcome): Promise<void>;
+    /** Close children first, join owned work, notify outcome hooks then cleanup, then seal. The
+     * `outcome` is a fallback wish (defaults to success); reality wins. Always resolves to a
+     * {@link Result} describing the actual settled state + any teardown errors — never throws (0027). */
+    close(outcome?: Outcome): Promise<Result>;
   };
 }
 
@@ -507,7 +524,7 @@ type Layer = {
   secondary: unknown[];
   body: Promise<unknown> | undefined;
   closed: boolean;
-  closing: Promise<void> | undefined;
+  closing: Promise<Scope.Result> | undefined;
   obs: Obs;
 };
 
@@ -1605,17 +1622,14 @@ async function closeChildren(
 ): Promise<{ cause: unknown } | undefined> {
   let failure: { cause: unknown } | undefined;
   for (const child of Array.from(layer.children)) {
-    try {
-      await closeLayer(child, outcome);
-    } catch (cause) {
-      layer.secondary.push(cause);
-    }
+    const result = await closeLayer(child, outcome);
+    if (result.teardownErrors) for (const e of result.teardownErrors) layer.secondary.push(e);
     failure ??= child.failure;
   }
   return failure;
 }
 
-function closeLayer(layer: Layer, outcome: Scope.Outcome = SUCCESS): Promise<void> {
+function closeLayer(layer: Layer, outcome: Scope.Outcome = SUCCESS): Promise<Scope.Result> {
   if (!layer.closing) {
     layer.closed = true;
     layer.closing = startClose(layer, outcome);
@@ -1627,17 +1641,34 @@ function closeLayer(layer: Layer, outcome: Scope.Outcome = SUCCESS): Promise<voi
     layer.inheritedEnd = moreSevere(layer.inheritedEnd, outcome);
     abortSubtree(layer, layer.inheritedEnd);
   }
+  /** A `close()` re-entered from within this layer's (or an ancestor's) own teardown is a request-only
+   * acknowledgement: return an already-resolved best-effort `Result` so it never waits on itself (no
+   * hang, no throw — ADR 0026 Q3, 0027). The real settled `Result` is `layer.closing`. */
   if (closeWouldReenter(layer)) {
-    ignoreRejection(layer.closing);
-    return Promise.resolve();
+    return Promise.resolve(buildResult(moreSevere(layer.inheritedEnd, outcome), layer, undefined));
   }
   return layer.closing;
 }
 
-function startClose(layer: Layer, outcome: Scope.Outcome): Promise<void> {
+/** Build the `close()` Result from the settled outcome, the layer's abort reason (for a cancel), and
+ * the teardown errors — never throws (ADR 0027). */
+function buildResult(
+  settled: Scope.Outcome,
+  layer: Layer,
+  teardownErrors: readonly unknown[] | undefined,
+): Scope.Result {
+  if (settled.status === "failed")
+    return { status: "failed", error: settled.error, teardownErrors };
+  if (settled.status === "cancelled") {
+    return { status: "cancelled", reason: layer.abort.signal.reason, teardownErrors };
+  }
+  return { status: "success", teardownErrors };
+}
+
+function startClose(layer: Layer, outcome: Scope.Outcome): Promise<Scope.Result> {
   const requested = moreSevere(layer.inheritedEnd, outcome);
   layer.inheritedEnd = requested;
-  const run = async (): Promise<void> => {
+  const run = async (): Promise<Scope.Result> => {
     abortSubtree(layer, requested);
     const body = await classifyBody(layer);
     /** Re-read the LIVE `inheritedEnd`: a concurrent ancestor close can upgrade it (by severity) while
@@ -1654,7 +1685,7 @@ function startClose(layer: Layer, outcome: Scope.Outcome): Promise<void> {
     if (settled.status === "failed") layer.failure = { cause: settled.error };
     await drainDefers(layer, layer.defers, settled);
     const teardownErrors = finishLayer(layer);
-    if (teardownErrors) throw makeError("TeardownFailed", { causes: teardownErrors });
+    return buildResult(settled, layer, teardownErrors);
   };
   return Promise.resolve().then(run);
 }
@@ -1709,18 +1740,15 @@ async function runSession<R>(
       isCancel(child, cause) ? { status: "cancelled" } : { status: "failed", error: cause },
   );
   const result = await bodyResult(body);
-  let teardownCauses: unknown[] | undefined;
-  try {
-    await closeLayer(child, SUCCESS);
-  } catch (error) {
-    if (!isError(error, "TeardownFailed")) throw error;
-    teardownCauses = error.payload.causes;
-  }
-  settleSession(
-    child.failure !== undefined || child.cancelled,
-    child.failure ? child.failure.cause : child.abort.signal.reason,
-    teardownCauses,
-  );
+  /** `close()` never throws (ADR 0027); it resolves to the actual settled `Result`. A session is
+   * promise-style, so map that Result back to resolve/reject: a real failure or cancellation rejects
+   * (with the cause / abort reason), a clean run resolves the body value; teardown errors aggregate
+   * into `TeardownFailed` either way. */
+  const ended = await closeLayer(child, SUCCESS);
+  const teardownCauses = ended.teardownErrors ? [...ended.teardownErrors] : undefined;
+  if (ended.status === "failed") settleSession(true, ended.error, teardownCauses);
+  else if (ended.status === "cancelled") settleSession(true, ended.reason, teardownCauses);
+  else settleSession(false, undefined, teardownCauses);
   return result as R;
 }
 

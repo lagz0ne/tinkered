@@ -133,6 +133,23 @@ lt2 (release + cross-owner + borrow) — SCOPE DECISION after a 14-round drift:
   single-cascade case it was meant to cover (releasing a shared node that cascades to a dependent
   whose async cleanup uses a co-released dependency) is handled correctly by the depth-ordered chain
   awaiting each descendant owner's full (incl. async) drain before the ancestor's.
+  lt3 progress + a further deferral:
+
+- Q4 realized as **ADR 0027**: `close()` returns a `Result` and never throws (wish is a fallback,
+  reality wins, errors in the Result). Built + astra round 1.
+- Q3 (deadlock no-hang): SYNC reentry (a teardown callback that synchronously calls/returns its own or
+  an ancestor's `close()`) is handled by the teardown guard (`teardownDepth` + `closeWouldReenter`) and
+  gets a best-effort ack, no hang. **Deferred (async self-reentry, close AND release side):** a
+  teardown callback that `await`s THEN calls `close()`/`release()` on its own scope can hang, because
+  the guard only spans the callback's SYNC part. Attempted fix — hold the guard across the callback's
+  async execution — was tried and REVERTED: it makes an EXTERNAL concurrent `close()` during teardown
+  return an early ack instead of the real Result (astra lt3 r2), and the release-side variant also
+  breaks the release chain (8 tests). Distinguishing an async teardown-internal caller from an external
+  one needs async-context tracking (AsyncLocalStorage), which this design deliberately avoids. Since
+  awaiting your OWN scope's full close from within its own teardown is circular by construction (the
+  callback is part of the close it awaits), we keep the correct external behavior and treat this as a
+  documented footgun — revisit in lt4 if an ALS-free discriminator emerges.
+
 - **Deferred to lt3** (cancellation/timing hardening): ordering a resource-cleanup against a
   dependency released by a SEPARATE later `release()` call (two independent teardown operations); AND
   ordering a **superseded build's late cleanup** (a dependent still mid-(async-)build when its

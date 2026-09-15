@@ -40,6 +40,22 @@ Core ticket detail + reset recipes: `docs/roadmap/core-v1/PROGRESS.md`.
 
 ## Done
 
+- [x] lt3 slice 1 review, round 2 — P1: external concurrent close during an awaited close defer
+      gets an early ack with missing teardown errors (`packages/core/src/index.ts:1556,1640`).
+  - Verified: `/tmp/lt3-review-r2/concurrent-close.test.ts` fails; true async reentry control passes.
+    Restoring only the old guard span in a `/tmp` source copy makes the external-close probe pass.
+    Plain Node `/tmp/lt3-review-r2/direct.mts` confirms early ack before the hook is released.
+    Core suite 177/177 and root suite 183/183 pass; strict style census clean.
+    `vp check` exits 1 on existing formatting in `docs/roadmap/core-v1/teardown-redesign.md`.
+    Review complete; next author action: distinguish external close from async teardown reentry.
+    No library/test edits and no deferred release-side or ordering findings.
+
+- [x] lt3 slice 1 review — async teardown re-entry deadlock at
+      `packages/core/src/index.ts:1562,1650`; also reproduced on `core/lt2`.
+  - Verified: `/tmp/lt3-review-r1/reentry.test.ts` synchronous control passes; after-await probe
+    times out. `vp check` exits 0 (two existing warnings), core tests 176/176, root tests 182/182,
+    strict style census clean. No library/test edits; fix left to the author.
+
 - [x] core/lt2 — release via the reverse-registration drain (diamonds), cross-owner order by depth
       (descendants first, chained awaiting each descendant owner's full async drain), direct op-borrow
       (ADR 0026 Q2: release waits for in-flight operations borrowing the resource, across the op body +

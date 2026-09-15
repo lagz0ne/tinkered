@@ -489,13 +489,9 @@ test("a throwing onClose hook does not stop the others, and its cause surfaces",
     throw cause;
   });
   scope.onClose(() => void ran.push("c"));
-  const error = await scope.close().then(
-    () => undefined,
-    (e: unknown) => e,
-  );
+  const result = await scope.close();
   expect(ran).toEqual(["c", "a"]);
-  if (!isError(error, "TeardownFailed")) throw error;
-  expect(error.payload.causes).toContain(cause);
+  expect(result.teardownErrors).toContain(cause);
 });
 
 test("close is idempotent: hooks run once", async () => {
@@ -1032,7 +1028,9 @@ test("a leaf failure bubbles out through nested sessions to the caller and rolls
 test("a teardown hook that returns its own close() does not hang", async () => {
   let cleaned = 0;
   const scope = createScope();
-  scope.onClose(() => scope.close());
+  scope.onClose(async () => {
+    await scope.close();
+  });
   scope.onClose(() => void cleaned++);
   await scope.close();
   expect(cleaned).toBe(1);
@@ -1073,35 +1071,21 @@ test("a concurrent close during an async hook awaits the real teardown and its e
   await entered.promise;
   const second = scope.close();
   release.resolve();
-  const secondErr = await second.then(
-    () => undefined,
-    (e: unknown) => e,
-  );
-  await first.then(
-    () => undefined,
-    () => undefined,
-  );
-  if (!isError(secondErr, "TeardownFailed")) throw secondErr;
-  expect(secondErr.payload.causes).toContain(hookError);
+  const result = await second;
+  await first;
+  expect(result.teardownErrors).toContain(hookError);
 });
 
-test("closing again after a failed close re-reports the aggregated failure", async () => {
+test("closing again after a close with teardown errors re-reports them", async () => {
   const hookError = new Error("hook");
   const scope = createScope();
   scope.onClose(() => {
     throw hookError;
   });
-  const first = await scope.close().then(
-    () => undefined,
-    (e: unknown) => e,
-  );
-  const second = await scope.close().then(
-    () => undefined,
-    (e: unknown) => e,
-  );
-  if (!isError(first, "TeardownFailed")) throw first;
-  if (!isError(second, "TeardownFailed")) throw second;
-  expect(second.payload.causes).toContain(hookError);
+  const first = await scope.close();
+  const second = await scope.close();
+  expect(first.teardownErrors).toContain(hookError);
+  expect(second.teardownErrors).toContain(hookError);
 });
 
 test("when owned work and the body both fail, the body cause is primary for hook and caller", async () => {
@@ -1323,9 +1307,9 @@ test("a nested release inside a release cleanup does not hang close", async () =
   const a = resource({
     label: "a",
     factory: (_deps, { defer }) => {
-      defer(() => {
+      defer(async () => {
         scope.release(b);
-        return scope.close();
+        await scope.close();
       });
       return 1;
     },
@@ -1344,7 +1328,9 @@ test("a release cleanup that returns its own close does not hang", async () => {
   const conn = resource({
     label: "conn",
     factory: (_deps, { defer }) => {
-      defer(() => scope.close());
+      defer(async () => {
+        await scope.close();
+      });
       return 1;
     },
   });
@@ -1679,7 +1665,9 @@ test("a session cleanup that closes the root does not deadlock", async () => {
     target: "session",
     depends: { pool },
     factory: (_deps, { defer }) => {
-      defer(() => root.close());
+      defer(async () => {
+        await root.close();
+      });
       return { ok: true };
     },
   });
@@ -1728,13 +1716,13 @@ test("closing an unrelated scope from a cleanup awaits its real teardown and sur
     },
   });
   b.getController(r).resolve();
-  a.onClose(() => b.close());
-  const thrown = await a.close().then(
-    () => undefined,
-    (e: unknown) => e,
-  );
+  let bResult: Scope.Result | undefined;
+  a.onClose(async () => {
+    bResult = await b.close();
+  });
+  await a.close();
   expect(bCleaned).toBe(true);
-  if (!isError(thrown, "TeardownFailed")) throw thrown;
+  expect(bResult?.teardownErrors).toContain(cleanupError);
 });
 
 test("resolving an operation with a subflow yields a parent-linked span tree", () => {
@@ -2378,13 +2366,9 @@ test("a throwing defer is aggregated as TeardownFailed and does not stop other d
   });
   const scope = createScope();
   scope.getController(r).resolve();
-  const thrown = await scope.close().then(
-    () => undefined,
-    (error: unknown) => error,
-  );
+  const result = await scope.close();
   expect(seen).toEqual(["kept"]);
-  if (!isError(thrown, "TeardownFailed")) throw thrown;
-  expect(thrown.payload.causes).toContain(boom);
+  expect(result.teardownErrors).toContain(boom);
 });
 
 test("closing a scope with thousands of defers does not overflow", async () => {
@@ -2459,17 +2443,13 @@ test("teardown errors are aggregated in execution order", async () => {
   scope.onClose(() => {
     throw second;
   });
-  const thrown = await scope.close().then(
-    () => undefined,
-    (error: unknown) => error,
-  );
-  if (!isError(thrown, "TeardownFailed")) throw thrown;
-  expect(thrown.payload.causes).toEqual([first, second]);
+  const result = await scope.close();
+  expect(result.teardownErrors).toEqual([first, second]);
 });
 
 test("close aborts children created by a still-running nested body", async () => {
   const gate = deferred();
-  let closeBoundary = (): Promise<void> => Promise.resolve();
+  let closeBoundary = (): Promise<unknown> => Promise.resolve();
   const park = operation({
     label: "park",
     run: (_deps, { signal }) =>
@@ -2536,7 +2516,7 @@ test("a failed close reaches the child its parent body awaits", async () => {
       });
     },
   });
-  let closeParent = (): Promise<void> => Promise.resolve();
+  let closeParent = (): Promise<unknown> => Promise.resolve();
   const done = createScope().session((parent) => {
     closeParent = () => parent.close({ status: "failed", error: cause });
     return parent.session((child) => child.getController(tx).resolve());
@@ -2771,7 +2751,7 @@ test("an ancestor cancel does not overwrite a failed parent close in a self-clos
     },
   });
   const root = createScope();
-  let closeParent = (): Promise<void> => Promise.resolve();
+  let closeParent = (): Promise<unknown> => Promise.resolve();
   const running = root.session((parent) => {
     closeParent = () => parent.close({ status: "failed", error: cause });
     return parent
@@ -2809,7 +2789,7 @@ test("separate nested cancel requests stay cancelled when the child rejection re
     },
   });
   const root = createScope();
-  let closeChild = (): Promise<void> => Promise.resolve();
+  let closeChild = (): Promise<unknown> => Promise.resolve();
   let parentReason: unknown;
   const running = root.session((parent) => {
     const signal = parent.getController(tx).resolve();
@@ -2847,7 +2827,7 @@ test("a failed ancestor reaches a child whose cancelled close is awaiting its bo
     },
   });
   const root = createScope();
-  let closeChild = (): Promise<void> => Promise.resolve();
+  let closeChild = (): Promise<unknown> => Promise.resolve();
   const running = root.session(async (child) => {
     child.getController(tx).resolve();
     closeChild = () => child.close({ status: "cancelled" });
@@ -2879,7 +2859,7 @@ test("a parent body failure reaches its already-closing child", async () => {
     },
   });
   const root = createScope();
-  let closeChild = (): Promise<void> => Promise.resolve();
+  let closeChild = (): Promise<unknown> => Promise.resolve();
   let childResult: Promise<unknown> = Promise.resolve();
   const running = root.session((parent) => {
     childResult = parent
@@ -3358,4 +3338,42 @@ test("release during dependency resolution waits for the operation's cleanup", a
   gate.resolve();
   await scope.close();
   expect(order).toEqual(["op-clean-open", "conn-clean"]);
+});
+
+test("close returns a success Result on a clean scope, and never throws", async () => {
+  const scope = createScope();
+  const result = await scope.close();
+  expect(result).toEqual({ status: "success", teardownErrors: undefined });
+});
+
+test("close(cancelled) is honored as a fallback wish on an otherwise-clean scope", async () => {
+  const scope = createScope();
+  const result = await scope.close({ status: "cancelled" });
+  expect(result.status).toBe("cancelled");
+});
+
+test("a wished cancelled close cannot override a real owned failure (reality wins)", async () => {
+  const cause = new Error("owned failed");
+  const bad = operation({ label: "bad", run: () => Promise.reject(cause) });
+  const scope = createScope();
+  void scope
+    .getController(bad)
+    .resolve()
+    .catch(() => undefined);
+  await scope.settled();
+  const result = await scope.close({ status: "cancelled" });
+  expect(result.status).toBe("failed");
+  if (result.status === "failed") expect(result.error).toBe(cause);
+});
+
+test("a second close returns the owned Result and never throws", async () => {
+  const boom = new Error("hook");
+  const scope = createScope();
+  scope.onClose(() => {
+    throw boom;
+  });
+  const first = await scope.close({ status: "cancelled" });
+  const second = await scope.close({ status: "success" });
+  expect(second.status).toBe(first.status);
+  expect(second.teardownErrors).toContain(boom);
 });
