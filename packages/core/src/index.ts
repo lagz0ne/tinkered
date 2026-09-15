@@ -277,9 +277,13 @@ export declare namespace Scope {
    * individually released resource ends `released` while its layer lives on. */
   export type End = Outcome | { readonly status: "released" };
 
-  /** What `close()` resolves to — the ACTUAL settled state, never a thrown error (ADR 0027). The
-   * outcome you pass to `close()` is a fallback wish; reality wins (a real failure is never cancelled
-   * away). `teardownErrors` (defer/cleanup throws, in execution order) may accompany any status. */
+  /** How to shut a scope down (ADR 0028) — a mode, NOT a wished outcome. Forced (the default) aborts
+   * `ctx.signal` to stop in-flight work now; graceful lets it finish first. The outcome is a
+   * consequence of the mode and what actually happened, read from the {@link Result}. */
+  export type CloseOptions = { readonly graceful?: boolean };
+
+  /** What `close()` resolves to — the ACTUAL settled state, never a thrown error (ADR 0027/0028).
+   * `teardownErrors` (defer/cleanup throws, in execution order) may accompany any status. */
   export type Result =
     | { readonly status: "success"; readonly teardownErrors?: readonly unknown[] }
     | {
@@ -300,9 +304,9 @@ export declare namespace Scope {
     getController<T, I>(target: Operation.Command<T, I>): CommandController<T, I>;
     /** Open a child session: it inherits this scope's data and tags, and shadows on write. */
     createSession(options?: Options): Handle;
-    /** Run `fn` in a fresh child session: normal return = success (outside-in), a thrown
-     * error = failed(cause) (inside-out). The session auto-closes with that outcome; the
-     * primary cause is thrown, hook errors aggregated (ADR 0017). */
+    /** Run `fn` in a fresh child session: normal return = success, a thrown error = failed(cause),
+     * an external forced close while it runs = cancelled. The session auto-closes when `fn` settles;
+     * the primary cause is thrown, hook errors aggregated (ADR 0017). */
     session<R>(fn: (scope: Handle) => R | PromiseLike<R>): Promise<R>;
     session<R>(options: Options, fn: (scope: Handle) => R | PromiseLike<R>): Promise<R>;
     /** Reset a node: a data cell reverts to its inherited/initial value and notifies
@@ -315,10 +319,11 @@ export declare namespace Scope {
     spans(): readonly Observe.Span[];
     /** Resolve once all in-flight command work owned by this scope has settled. */
     settled(): Promise<void>;
-    /** Close children first, join owned work, notify outcome hooks then cleanup, then seal. The
-     * `outcome` is a fallback wish (defaults to success); reality wins. Always resolves to a
-     * {@link Result} describing the actual settled state + any teardown errors — never throws (0027). */
-    close(outcome?: Outcome): Promise<Result>;
+    /** Shut this scope down: close children first, join owned work, run outcome hooks then cleanup,
+     * then seal. `opts.graceful` lets in-flight work finish; the default (forced) aborts it now
+     * ({@link CloseOptions}, ADR 0028). Always resolves to a {@link Result} describing the actual
+     * settled state + any teardown errors — never throws (0027). */
+    close(opts?: CloseOptions): Promise<Result>;
   };
 }
 
@@ -518,9 +523,10 @@ type Layer = {
   defers: DeferEntry[];
   abort: AbortController;
   cancelled: boolean;
-  inheritedEnd: Scope.Outcome | undefined;
+  swept: boolean;
   bodyEnd: Promise<Scope.Outcome> | undefined;
   failure: { cause: unknown } | undefined;
+  descendantFailure: { cause: unknown } | undefined;
   secondary: unknown[];
   body: Promise<unknown> | undefined;
   closed: boolean;
@@ -1558,9 +1564,10 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     defers: [],
     abort: new AbortController(),
     cancelled: false,
-    inheritedEnd: undefined,
+    swept: false,
     bodyEnd: undefined,
     failure: undefined,
+    descendantFailure: undefined,
     secondary: [],
     body: undefined,
     closed: false,
@@ -1569,29 +1576,40 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
   };
   if (parent) {
     parent.children.add(layer);
-    if (parent.abort.signal.aborted) {
-      layer.abort.abort(parent.abort.signal.reason);
-      layer.inheritedEnd = parent.inheritedEnd;
-    }
+    /** Born into a subtree already being collected by an active ancestor close: inherit `swept` so this
+     * late child's real failure + teardown errors still push up to the collecting ancestor when it
+     * finishes; inherit the abort if the ancestor close is FORCED (creation under a CLOSED scope is
+     * blocked by `ensureOpen`, so a swept-but-open parent means an ancestor is mid-close). */
+    if (parent.swept) layer.swept = true;
+    if (parent.abort.signal.aborted) layer.abort.abort(parent.abort.signal.reason);
   }
   return layer;
 }
 
-/** Abort a layer and its whole subtree at once, iteratively (no recursion — deep trees are safe),
- * sharing the root's abort reason so `isCancel` recognizes the cancel across the subtree. Called at
- * close start so work awaited in descendants unblocks before the body is joined. An explicit
- * `failed`/`cancelled` end is propagated to descendants (`inheritedEnd`) so a self-closing nested
- * session adopts it instead of settling from its own interrupted body (ADR 0026). Propagation merges
- * by severity (`moreSevere`) so a later ancestor `cancelled` never erases an earlier, more-severe
- * inherited `failed` a descendant already carries. */
-function abortSubtree(root: Layer, requested: Scope.Outcome): void {
-  if (!root.abort.signal.aborted) root.abort.abort(makeCancelReason());
-  const reason = root.abort.signal.reason;
-  const inherited = requested.status === "success" ? undefined : requested;
+/** Mark a layer's whole subtree `swept`, iteratively (no recursion — deep trees are safe). Run
+ * SYNCHRONOUSLY at close-call time so a descendant that finishes and detaches before this close's async
+ * body runs is still marked — then `finishLayer` pushes its real failure + teardown errors up to its
+ * parent, and a collecting ancestor sees them at any depth. A layer's own close never marks itself, so
+ * a unit that fails independently does not propagate. */
+function markSwept(root: Layer): void {
   const stack: Layer[] = [...root.children];
   while (stack.length) {
     const layer = stack.pop() as Layer;
-    if (inherited) layer.inheritedEnd = moreSevere(layer.inheritedEnd, inherited);
+    layer.swept = true;
+    for (const child of layer.children) stack.push(child);
+  }
+}
+
+/** Abort a layer and its whole subtree (forced teardown), sharing the root's reason so `isCancel`
+ * recognizes the cancel across the subtree and awaited work unblocks. Run inside the async close body
+ * (not at call time) so it does not race ahead of the body's own settlement — a body that already
+ * resolved is classified `success`, not flipped to `cancelled` by a later forced close. */
+function abortSubtree(root: Layer): void {
+  if (!root.abort.signal.aborted) root.abort.abort(makeCancelReason());
+  const reason = root.abort.signal.reason;
+  const stack: Layer[] = [...root.children];
+  while (stack.length) {
+    const layer = stack.pop() as Layer;
     if (!layer.abort.signal.aborted) layer.abort.abort(reason);
     for (const child of layer.children) stack.push(child);
   }
@@ -1602,7 +1620,8 @@ const RELEASED: Scope.End = { status: "released" };
 
 /** Drain a layer's `defer`s in reverse registration order (LIFO, ADR 0026), awaiting each before the
  * next, passing the settled `end`; teardown failures collect in `layer.secondary` in execution order
- * (→ `TeardownFailed`). */
+ * (→ `TeardownFailed`). The teardown guard spans the synchronous call so a callback that synchronously
+ * re-enters `close()` is acked (Q3 no-hang). */
 async function drainDefers(layer: Layer, entries: DeferEntry[], end: Scope.End): Promise<void> {
   for (let i = entries.length - 1; i >= 0; i--) {
     let pending: void | PromiseLike<void>;
@@ -1630,76 +1649,61 @@ function classifyBody(layer: Layer): Promise<Scope.Outcome | undefined> {
   return layer.bodyEnd ?? Promise.resolve(undefined);
 }
 
-/** The settlement reducer (ADR 0026 Q6 / ADR 0025 §4): a real body failure wins, then a recorded
- * owned-work failure, then an inherited/explicit failed close, then a cancellation fact, else success.
- * A body that rejects — whether it threw directly or surfaced a failure from a descendant it awaited —
- * is a real body failure and its cause wins; we deliberately do NOT try to distinguish an "own" throw
- * from a "propagated" one, because a re-surfaced cause is only knowable by value and value cannot
- * prove where the body's error came from (rounds 7–9). A cancel body is not a failure. */
-function chooseOutcome(
-  outcome: Scope.Outcome,
-  body: Scope.Outcome | undefined,
-  owned: { cause: unknown } | undefined,
-  cancelled: boolean,
-): Scope.Outcome {
-  if (body?.status === "failed") return body;
-  if (owned) return { status: "failed", error: owned.cause };
-  if (outcome.status === "failed") return outcome;
-  return endedCancelled(outcome, body, cancelled) ? { status: "cancelled" } : outcome;
-}
-
-/** Combine an inherited end (propagated from a closing ancestor) with this layer's own close request,
- * taking the more severe: a real `failed` (with its cause) wins over `cancelled` wins over `success`,
- * so a parent's genuine failure is never masked by an ancestor's cancel (ADR 0026). */
-function moreSevere(inherited: Scope.Outcome | undefined, outcome: Scope.Outcome): Scope.Outcome {
-  if (!inherited) return outcome;
-  return severity(inherited) > severity(outcome) ? inherited : outcome;
-}
-
-function severity(outcome: Scope.Outcome): number {
-  return outcome.status === "failed" ? 2 : outcome.status === "cancelled" ? 1 : 0;
-}
-
-/** Whether a non-failed layer ended by cancellation: an explicit/inherited cancel flag, a cancelled
- * body, or a cancelled close request. */
-function endedCancelled(
-  outcome: Scope.Outcome,
-  body: Scope.Outcome | undefined,
-  cancelled: boolean,
-): boolean {
-  return cancelled || body?.status === "cancelled" || outcome.status === "cancelled";
-}
-
-async function closeChildren(
-  layer: Layer,
-  outcome: Scope.Outcome,
-): Promise<{ cause: unknown } | undefined> {
-  let failure: { cause: unknown } | undefined;
-  for (const child of Array.from(layer.children)) {
-    const result = await closeLayer(child, outcome);
-    if (result.teardownErrors) for (const e of result.teardownErrors) layer.secondary.push(e);
-    failure ??= child.failure;
+/** The reality-only settlement reducer (ADR 0028): a real failure wins — the body threw, an owned-work
+ * op rejected, or a descendant really failed (bubbled into `layer.failure`/`descendantFailure`) — then
+ * an interrupted body settles `cancelled`, else `success`. No wished outcome participates. Records the
+ * winning real failure in `layer.failure` so it propagates to a collecting ancestor. A body that
+ * rejects (whether it threw or surfaced a descendant failure it awaited) is a real body failure; we do
+ * NOT distinguish an "own" throw from a "propagated" one (unknowable by value — rounds 7–9). */
+function settleOutcome(layer: Layer, body: Scope.Outcome | undefined): Scope.Outcome {
+  if (body?.status === "failed") {
+    /** A body failure is the PRIMARY cause and outranks a caught/recorded owned-work failure, so it
+     * OVERRIDES `layer.failure` (which `asPrimary` may already have set from the op) — otherwise a
+     * collecting ancestor would push up the owned-work error while this layer reports the body error. */
+    layer.failure = { cause: body.error };
+    return body;
   }
-  return failure;
+  const owned = layer.failure ?? layer.descendantFailure;
+  if (owned) {
+    layer.failure ??= owned;
+    return { status: "failed", error: owned.cause };
+  }
+  if (layer.cancelled) return { status: "cancelled" };
+  return SUCCESS;
 }
 
-function closeLayer(layer: Layer, outcome: Scope.Outcome = SUCCESS): Promise<Scope.Result> {
+/** A best-effort outcome for a re-entrant close ack before the layer has settled: whatever real state
+ * is already known (a recorded failure, then an interrupted body), else success. */
+function bestEffort(layer: Layer): Scope.Outcome {
+  if (layer.failure) return { status: "failed", error: layer.failure.cause };
+  return layer.cancelled ? { status: "cancelled" } : SUCCESS;
+}
+
+/** Drive every currently-attached child to close (children first, awaited sequentially). The mode is
+ * re-checked per child: once an EARLIER child's failure has been collected (pushed into this layer's
+ * `descendantFailure` while we awaited it), the remaining children close FORCED so their resources roll
+ * back too. Collection is NOT done here: each child's real failure + teardown errors flow up through
+ * `finishLayer` (swept push), so a child that already finished and detached still reaches its ancestor. */
+async function closeChildren(layer: Layer, force: boolean): Promise<void> {
+  for (const child of Array.from(layer.children)) {
+    await closeLayer(child, force || (layer.failure ?? layer.descendantFailure) !== undefined);
+  }
+}
+
+function closeLayer(layer: Layer, force = true): Promise<Scope.Result> {
   if (!layer.closing) {
     layer.closed = true;
-    layer.closing = startClose(layer, outcome);
-  } else if (outcome.status !== "success" && !closeWouldReenter(layer)) {
-    /** The layer is already closing but its close has not settled: a more-severe outcome arriving now
-     * (e.g. a parent's body failure passed down through `closeChildren`) must still reach it. Merge it
-     * into the live `inheritedEnd` and re-propagate so the in-flight close picks it up at settlement
-     * (r13); an already-started close otherwise ignored the new outcome. */
-    layer.inheritedEnd = moreSevere(layer.inheritedEnd, outcome);
-    abortSubtree(layer, layer.inheritedEnd);
+    layer.closing = startClose(layer, force);
   }
+  /** A second/later close (any mode) returns the in-flight close's Result — the mode of the FIRST call
+   * wins (no graceful→forced escalation in v1; force-close from the start if a hang is a concern). This
+   * also means a session's automatic self-close does not override an in-progress explicit graceful
+   * close (ADR 0028). */
   /** A `close()` re-entered from within this layer's (or an ancestor's) own teardown is a request-only
    * acknowledgement: return an already-resolved best-effort `Result` so it never waits on itself (no
-   * hang, no throw — ADR 0026 Q3, 0027). The real settled `Result` is `layer.closing`. */
+   * hang, no throw — ADR 0026 Q3, 0027/0028). The real settled `Result` is `layer.closing`. */
   if (closeWouldReenter(layer)) {
-    return Promise.resolve(buildResult(moreSevere(layer.inheritedEnd, outcome), layer, undefined));
+    return Promise.resolve(buildResult(bestEffort(layer), layer, undefined));
   }
   return layer.closing;
 }
@@ -1719,36 +1723,65 @@ function buildResult(
   return { status: "success", teardownErrors };
 }
 
-function startClose(layer: Layer, outcome: Scope.Outcome): Promise<Scope.Result> {
-  const requested = moreSevere(layer.inheritedEnd, outcome);
-  layer.inheritedEnd = requested;
+/** Run a layer's close (ADR 0028): sweep the subtree, classify the body, close children, join owned
+ * work, settle by reality, drain defers, then re-settle (a late child failure can land during the
+ * drain) and detach. Never throws — resolves to the `Result`. A layer already aborted by an ancestor's
+ * FORCED close is itself being force-torn-down whatever its own close mode, so it rolls back. The sweep
+ * is SYNCHRONOUS (at close-call time) so a child that finishes and detaches before this close's async
+ * body runs is still marked `swept` and its failure/errors still collected. */
+/** Whether a layer's teardown rolls its subtree back (resources see `cancelled`) rather than committing
+ * gracefully: the close is forced, an ancestor already aborted it, or it is FAILING — a real failure
+ * (body throw, or an already-recorded owned-work / descendant failure) rolls the subtree back even
+ * under a graceful close (transaction-abort). */
+function rollsBack(layer: Layer, forced: boolean, body: Scope.Outcome | undefined): boolean {
+  return (
+    forced || body?.status === "failed" || (layer.failure ?? layer.descendantFailure) !== undefined
+  );
+}
+
+function startClose(layer: Layer, force: boolean): Promise<Scope.Result> {
+  const forced = force || layer.abort.signal.aborted;
+  markSwept(layer);
   const run = async (): Promise<Scope.Result> => {
-    abortSubtree(layer, requested);
+    if (forced) abortSubtree(layer);
     const body = await classifyBody(layer);
-    /** Re-read the LIVE `inheritedEnd`: a concurrent ancestor close can upgrade it (by severity) while
-     * we await the body/children, and the stale start-of-close `requested` would miss that (r12). */
-    const inherited = moreSevere(layer.inheritedEnd, requested);
-    if (inherited.status === "cancelled" || body?.status === "cancelled") layer.cancelled = true;
-    const childFailure = await closeChildren(
-      layer,
-      chooseOutcome(inherited, body, undefined, layer.cancelled),
-    );
+    const rollback = rollsBack(layer, forced, body);
+    /** A session settles cancelled iff its body was interrupted; a bodyless scope iff its teardown rolls
+     * back (POSIX-style: forced rolls resources back, graceful commits) — a body that SUCCEEDED is never
+     * cancelled by a forced self-close. */
+    if (body ? body.status === "cancelled" : rollback) layer.cancelled = true;
+    await closeChildren(layer, rollback);
     while (layer.pending.size) await Promise.all(layer.pending);
-    const effective = moreSevere(layer.inheritedEnd, requested);
-    const settled = chooseOutcome(effective, body, layer.failure ?? childFailure, layer.cancelled);
-    if (settled.status === "failed") layer.failure = { cause: settled.error };
+    const settled = settleOutcome(layer, body);
     await drainDefers(layer, layer.defers, settled);
+    /** Re-settle once more: a late real failure (pushed up from a child whose cleanup was parked on a
+     * gate) can land WHILE we await the defers; `settleOutcome` never downgrades a recorded failure, so
+     * the result stays monotonic and a collecting ancestor still sees it. */
+    const finalSettled = settleOutcome(layer, body);
     const teardownErrors = finishLayer(layer);
-    return buildResult(settled, layer, teardownErrors);
+    return buildResult(finalSettled, layer, teardownErrors);
   };
   return Promise.resolve().then(run);
 }
 
 /** Detach the layer and clear all its state after teardown; returns the collected teardown errors
- * (in execution order) for `TeardownFailed`, or undefined if there were none. */
+ * (in execution order) for `TeardownFailed`, or undefined if there were none. A layer swept by an
+ * ancestor's close pushes its teardown errors + failure up to its parent as it detaches, so a
+ * collecting ancestor gathers descendant results at any depth even when a descendant finished and
+ * detached before the intervening scopes began their own close (F1 / grandchild). */
 function finishLayer(layer: Layer): unknown[] | undefined {
   const teardownErrors = layer.secondary.length ? [...layer.secondary] : undefined;
-  layer.parent?.children.delete(layer);
+  const parent = layer.parent;
+  if (parent) {
+    parent.children.delete(layer);
+    if (layer.swept) {
+      for (const cause of layer.secondary) parent.secondary.push(cause);
+      /** A descendant's settled failure goes to a SEPARATE slot ranked BELOW the parent's OWN failure
+       * (body/owned-work): a real owned-work failure must still beat a failure a child merely inherited
+       * from the close request (a wished `failed` echoed back down and up). First descendant wins. */
+      if (layer.failure) parent.descendantFailure ??= layer.failure;
+    }
+  }
   layer.cells.clear();
   layer.effCache.clear();
   layer.resources.clear();
@@ -1794,11 +1827,12 @@ async function runSession<R>(
       isCancel(child, cause) ? { status: "cancelled" } : { status: "failed", error: cause },
   );
   const result = await bodyResult(body);
-  /** `close()` never throws (ADR 0027); it resolves to the actual settled `Result`. A session is
+  /** `close()` never throws (ADR 0027/0028); it resolves to the actual settled `Result`. A session is
    * promise-style, so map that Result back to resolve/reject: a real failure or cancellation rejects
    * (with the cause / abort reason), a clean run resolves the body value; teardown errors aggregate
-   * into `TeardownFailed` either way. */
-  const ended = await closeLayer(child, SUCCESS);
+   * into `TeardownFailed` either way. The self-close is FORCED — the body is done, so any still-running
+   * owned work is aborted rather than awaited; the body's own outcome decides success/cancelled. */
+  const ended = await closeLayer(child, true);
   const teardownCauses = ended.teardownErrors ? [...ended.teardownErrors] : undefined;
   if (ended.status === "failed") settleSession(true, ended.error, teardownCauses);
   else if (ended.status === "cancelled") settleSession(true, ended.reason, teardownCauses);
@@ -1806,9 +1840,10 @@ async function runSession<R>(
   return result as R;
 }
 
-/** Run the session body, normalizing to a promise. `fn` is called synchronously (no extra
- * adoption microtask) so a body that returns an already-settled value/promise is observed before a
- * later close's abort can flip its end to `cancelled` (Q5); a synchronous throw becomes a rejection. */
+/** Run the session body, normalizing to a promise. `fn` is called synchronously (no extra adoption
+ * microtask) so an already-settled value/promise settles `bodyEnd` before a later abort, letting the
+ * body's OWN end reflect whether the BODY was interrupted (an aborted body → cancelled) rather than a
+ * subsequent self-close abort. A sync throw becomes a rejection. */
 function runBodyFn<R>(child: Layer, fn: (scope: Scope.Handle) => R | PromiseLike<R>): Promise<R> {
   try {
     return Promise.resolve(fn(handleFor(child)));
@@ -1858,7 +1893,7 @@ function handleFor(layer: Layer): Scope.Handle {
       layer.defers.push({ fn: () => fn(), resource: undefined });
     },
     settled,
-    close: (outcome?: Scope.Outcome) => closeLayer(layer, outcome),
+    close: (opts?: Scope.CloseOptions) => closeLayer(layer, !opts?.graceful),
   };
 }
 

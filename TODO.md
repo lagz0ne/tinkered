@@ -7,22 +7,21 @@ Core ticket detail + reset recipes: `docs/roadmap/core-v1/PROGRESS.md`.
 
 ## Now
 
-- [ ] core/lt3 (in progress; WIP checkpoints on `core-rebuild`, NOT yet tagged). Combined astra review
-      (lazy + close→Result) running.
-  - DONE (slice, commit `facf3ff`): **Q4 → ADR 0027** — `close()` returns a `Result` and never throws
-    (wish is a fallback; reality wins; `session(fn)` keeps promise semantics). Sync re-entry acks.
-  - DONE (merged): **lazy resource building** — a resource dep builds only on first access (getter;
-    `defineLazyDep`/`buildDeps`); data/edges/tags/subflows stay eager; ops borrow declared resource
-    deps eagerly. 3 new tests; merged clean into `core-rebuild`.
-  - REMAINING for lt3: Q5 cancel-before/after-body-settle race MATRIX as explicit tests (mostly
-    covered by lt1's `bodyEnd`, needs the matrix); then decide the deferred timing/ordering + async
-    self-reentry items (all documented in `teardown-redesign.md` — likely stay deferred to lt4).
-  - Deferred (documented, needs async-context or a release-drain redesign — see ledger): async
-    self-reentry (teardown callback awaits then closes/releases its own scope, close AND release side);
-    separate-release resource-cleanup ordering; superseded mid-build late-cleanup order; async
-    dep-cycle detection when first touched after an await in an async factory.
-  - Verify: gate green (`vp check` + core tests + census + size + mutation) + astra-clean; then tag
-    `core/lt3` once the Q5 matrix lands and the deferrals are confirmed (or reclassified) for lt4.
+- [x] core/lt3 — teardown cancel/deadlock/state + the `close()` REDESIGN. Lazy resource building; Q4
+      (ADR 0027, close returns a Result never throws); Q5 cancel-timing; then the big pivot: **Q — close
+      is a shutdown MODE, not a wished outcome** (ADR 0028). `close(opts?: { graceful?: boolean })` —
+      forced (default) aborts + rolls resources back (cancelled), graceful commits (success); reality-only
+      reducer (failed > cancelled > success); the wish/severity machinery (`inheritedEnd`, `moreSevere`,
+      `severity`, `chooseOutcome` wish branch, r13) DELETED. Real-descendant-failure push-up collection
+      kept + hardened.
+  - Verified: gate green — `vp check` 0 errors, core 185, root 191, strict census, size 15.1 KB gzip,
+    mutation 77.45%. Reviewed to CONFIRM CLEAN (204 scratch cases) after two rounds / 6 timing-mode
+    findings all fixed + regression-tested. Design in ADR 0027 + 0028; ledger `teardown-redesign.md`.
+    Ready to tag `core/lt3`.
+  - Reclassified to lt4 (documented in `teardown-redesign.md`): graceful→forced escalation
+    (SIGTERM→SIGKILL); a layer's OWN owned-work failure surfacing only AFTER its child cascade;
+    async self-reentry; separate-release + superseded mid-build ordering; async dep-cycle-after-await.
+    Hostile/adversarial userland objects are out of scope for v1 (user policy; ADR 0027 scope note).
 
 - [ ] teardown/lifetime REDESIGN (umbrella) — converged API `ctx.defer(end)` + `ctx.signal` (ADR 0024)
       with teardown as reverse-registration LIFO (ADR 0026). Tracked as core/lt1–lt4 in PROGRESS.md;
@@ -42,6 +41,147 @@ Core ticket detail + reset recipes: `docs/roadmap/core-v1/PROGRESS.md`.
   - Verify: all budget lanes green together (size, promises, heap, mutation, CRAP, both entries, cast-free examples).
 
 ## Done
+
+- [x] Final lt3 descendant-failure precedence review — prior own-work precedence fix
+      confirmed; one P2 remains: a first child's inherited failed wish occupies
+      `descendantFailure`, blocking a later child's real failure from reaching the parent.
+  - Verified: `/tmp/lt3-descendant-confirm/README.md`; minimal repro and manual/session
+    variants at two and three levels fail. All 445 prior cases and 670 new controls pass,
+    including 664 chain precedence combinations, exact-once errors, independent-failure
+    isolation, Q5, and own body/work precedence. Core 190/190, root 196/196,
+    `vp check` passes (2 warnings), strict census clean. No repo library/test edits.
+    Next author action: retain real-failure versus requested-outcome priority between children.
+
+- [x] FIX lt3 failure precedence — the push model pushed a child's failure into the parent's OWN slot,
+      letting a child's inherited wished `failed` pre-empt the parent's REAL owned-work failure (broke
+      "real failure beats wish"). Fix: descendant failures go to a SEPARATE `descendantFailure` slot
+      ranked BELOW own; `deriveOutcome` uses `layer.failure ?? layer.descendantFailure` (restores the
+      pre-push own>descendant precedence).
+  - Verified: regression "a child's inherited failed wish does not replace its parent's real operation
+    failure" FAILS with the push aimed at the own slot and PASSES with the separate slot. Gate: `vp
+check` 0 errors, core 190/190, root 196/196, census clean, size 15.0 KB gzip; mutation isolated.
+
+- [x] Final lt3 inherited-sweep review — late-child fix confirmed; one P2 remains:
+      a child's inherited failed wish is pushed into the parent's primary failure
+      slot, preventing a later real owned operation failure from winning.
+  - Verified: `/tmp/lt3-inherited-confirm/README.md`; minimal repro plus manual/session
+    variants fail. All 400 prior cases and 42 new controls pass, including deep
+    present/late-born collection, independent-failure isolation, exact-once errors,
+    Q5, and real failure versus late cancel. Core 189/189, root 195/195,
+    `vp check` passes (2 warnings), strict census clean. No repo library/test edits.
+    Next author action: preserve real-failure versus wish precedence when pushing results.
+
+- [x] FIX lt3 late-child collection — completed the push-up model: a child CREATED after the ancestor
+      sweep started `swept: false` and didn't push up. Fix: in `makeLayer`, a child born under an
+      already-aborted (swept, not-yet-closed) parent inherits `swept = true`. Now the swept mark covers
+      descendants present at the sweep AND those born into the subtree afterward.
+  - Verified: regressions "close collects a child born and finished during its ancestor's body wait
+    (Q5)" (manual + session) FAIL with the inheritance disabled and PASS with it; full suite green.
+    Gate: `vp check` 0 errors, core 189/189, root 195/195, census clean, size 14.9 KB gzip; mutation
+    running isolated.
+
+- [x] Final lt3 swept-collection review — prior grandchild fix confirmed; one P2 remains:
+      a child created after the ancestor sweep keeps `swept: false`, so if it finishes
+      during the ancestor's body wait its failure and cleanup errors are lost.
+  - Verified: `/tmp/lt3-swept-confirm/README.md`; deterministic manual/session repros
+    both fail. All 374 prior controls pass. All 24 new controls pass, covering
+    independent-failure isolation and exact-once ordered collection through 64 levels.
+    Core 187/187, root 193/193, `vp check` passes (2 warnings), strict census clean.
+    No repo library/test edits. Next author action: include children created under an
+    active ancestor close in collection while preserving independent-failure isolation.
+
+- [x] FIX lt3 grandchild collection — converged the collection model (was: direct-child cascade only).
+      A grandchild that finishes+detaches while a top ancestor awaits its body was lost before the
+      middle scope closed. Fix: `abortSubtree` marks swept descendants; `finishLayer` PUSHES a swept
+      layer's teardown errors + failure to its parent as it detaches (bubbles to any depth, O(1));
+      `closeChildren` only drives attached children (removed the cascade snapshot, the pull, and the
+      `childFailure` plumbing; `deriveOutcome` simplified). A unit that fails independently (no ancestor
+      sweep) does not propagate.
+  - Verified: regressions "close keeps a grandchild's failure while its ancestor awaits its body (Q5)"
+    (manual + session variants) FAIL with the swept-push disabled (root cancelled, errors lost) and
+    PASS with it; direct-child F1 still passes. Gate: `vp check` 0 errors, core 187/187, root 193/193,
+    census clean, size 14.8 KB gzip; mutation running isolated.
+
+- [x] Final lt3 cascade review — direct-child F1 fix confirmed; one P2 remains one
+      level deeper: a grandchild can finish and detach while an ancestor awaits its
+      body, before the middle scope starts closing and snapshots its own children.
+      The ancestor then loses the grandchild's failure and cleanup errors.
+  - Verified: `/tmp/lt3-cascade-confirm/README.md`; two deterministic failures for
+    manual/session grandchildren, using only ordinary promises and Errors. All 372
+    controls pass, including the original F1, 324-case overlap matrix, cascade/current
+    deduplication, awaited child order, Q5, precedence, and lazy/release controls.
+    Core 185/185, root 191/191, `vp check` passes (2 warnings), strict census clean.
+    No repo library/test edits. Next author action: retain descendant Results for an
+    active ancestor close even before the intermediate scopes start their own close.
+
+- [x] FIX lt3 sweep — F1 fixed; F2–F5 out of scope (user policy: don't defend against user wrongdoing).
+      F1 (real): a manual child that finishes+detaches during its parent's body wait lost its failure +
+      teardown errors (parent settled cancelled instead of failed). Fix: capture children at close
+      START into a `cascade` set; `closeChildren` closes `cascade ∪ current`. F2–F5 all need adversarial
+      userland objects (hostile `then`/`constructor` getters; a Proxy reject value with a throwing `has`
+      trap) — not defended in v1 (see ledger + ADR 0027 scope note). Consistent with that, the 3 earlier
+      hostile-`then`-getter guards this session were REVERTED (drains back to lt2 shape).
+  - Verified: regression "close keeps a child's failure and cleanup error while waiting for its
+    parent's body (Q5)" FAILS on the pre-fix code (root cancelled, no teardownErrors) and PASSES now.
+    Gate: `vp check` 0 errors, core 185/185, root 191/191, census clean, size 14.7 KB gzip; mutation
+    running isolated.
+
+- [x] Complete lt3 teardown sweep — all 19 checklist items reviewed; both previous fixes
+      confirmed. Five P2s: child detach during parent body wait loses failure/errors;
+      await can reread native cleanup `then` outside the guard; native rejection unowned
+      after getter failure; session-body native getter failure skips cleanup; cancel-brand
+      inspection of a thrown Proxy can reject close or lose an owned failure.
+  - Verified: `/tmp/lt3-complete-sweep/README.md` maps every checklist item to its result,
+    with minimal public-entry repros. Scratch suite: 402 pass, 7 fail across five defect
+    classes, plus 3 unhandled rejections proving two classes. Core 187/187, root 193/193,
+    `vp check` passes (7 warnings), strict census clean. No repo library/test edits.
+    Next author action: address the five listed defects and rerun the complete scratch sweep.
+
+- [x] Teardown correctness follow-up — previous cancel fix confirmed; one P2 remains:
+      a failed close received during child cleanup reaches its final Result but is not
+      saved in `layer.failure`, so a joining parent's `closeChildren` misses the failure.
+  - Verified: `/tmp/teardown-followup-review/late-failure.test.ts` fails (child failed,
+    parent cancelled); storing the final failure in a `/tmp` source copy makes it pass.
+    Prior 6 probes and 17 new timing/failure/error controls pass on current source.
+    Core 186/186, root 192/192, `vp check` passes (7 warnings), strict census clean.
+    No repo library or test edits. Next author action: persist a final failed outcome
+    before returning the Result so parents can collect it.
+
+- [x] FIX teardown-correctness P2 — parent cancel during a child's awaited cleanup left the child
+      session successful. `startClose` computed `settled` before `drainDefers` and returned it
+      unchanged. Fix: re-derive the outcome from live `inheritedEnd` AFTER the drain (extract
+      `deriveOutcome`, used pre- and post-drain; keeps the closure under the complexity cap). A prototyped
+      `cancelReason` field was removed as observationally-irrelevant (cancel reasons are opaque brands).
+  - Verified: regression "parent cancel cancels a child whose returned body is still cleaning up (Q5)"
+    FAILS on the pre-fix code (child resolves {success,42}) and PASSES with the fix. Gate: `vp check`
+    0 errors, core 186/186, root 192/192, census clean, size 14.6 KB gzip.
+
+- [x] Teardown correctness review — P2: parent cancel during a child's awaited cleanup
+      leaves the child session successful. `startClose` saves `settled` before the drain
+      and uses it after the drain without rereading the inherited cancel.
+  - Verified: `/tmp/teardown-correctness-review/cancel-during-cleanup.test.ts` fails
+    deterministically (expected cancelled; received success with value 42). Five drain,
+    error-collection, reentry, and completed-child controls pass. Core 185/185, root
+    191/191, `vp check` passes (7 warnings), strict census clean. No library or repo
+    test edits. Next author action: apply late ancestor cancellation to the final Result.
+
+- [x] FIX combined-review-r2 P2 — `runDefers` read a returned thenable's `then` getter OUTSIDE its
+      try/catch, so a defer returning a thenable whose `then` getter throws lost the teardown error +
+      leaked an unhandled rejection. Fix: read `isThenable` / `Promise.resolve(pending)` inside the try.
+  - Verified: regression test "close collects a teardown thenable whose then getter throws" FAILS on
+    the buggy version (missing `teardownErrors` + the exact unhandled rejection) and PASSES with the
+    fix. Gate: `vp check` 0 errors, core 181/181, root 187/187, census clean, size 14.1 KB gzip.
+    (`drainDefers`, the close-side drain, was already safe — reads `.then` via `await` inside try.)
+
+- [x] Combined lazy + close Result review round 2 — generation guard confirmed; one P2:
+      an operation defer's throwing `then` getter escapes `runDefers`' catch
+      (`packages/core/src/index.ts:952`), losing the teardown error from the close Result.
+  - Verified: `/tmp/lazy-lt3-review-r2/thenable-close.test.ts` fails with missing `teardownErrors`
+    and an unhandled rejection. Moving the getter check inside the catch in a `/tmp` source copy
+    makes all 14 probes pass. Both current-edge cases fail if lazy edges are suppressed; stale-edge
+    fails if the generation guard is removed. Required check and core suite 180/180 pass;
+    root suite 186/186 and strict census pass. No library or repository test edits.
+    Next author action: contain returned-thenable inspection in the teardown error boundary.
 
 - [x] Combined lazy + close Result review — P2: a superseded build's first lazy access registers
       a stale release edge against its live replacement (`packages/core/src/index.ts:1117–1119`).

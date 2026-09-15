@@ -48,6 +48,12 @@ type Result =
 - **One owned end (0026 Q4 intent kept).** The first end to settle owns the outcome; later requests do
   not silently overwrite it — they get the already-settled `Result` back. No invalid-transition throw
   (superseded): the guarantee is "you always learn the truth," not "you get an exception."
+- **Scope: well-behaved values only.** "Never throws" and "cleanups always run" hold for ordinary
+  values. The library does NOT defend against adversarial userland objects returned from a cleanup or
+  body — a thenable whose `then`/`constructor` accessor throws or mutates across reads, or a reject
+  value that is a `Proxy` whose `has`/`get` trap throws. Reading such a value can surface its throw or
+  leak an unhandled rejection; that is the caller's bug, not the library's (v1 decision — we do not
+  harden against user wrongdoing). Revisit only if a real, non-adversarial case appears.
 
 `session(fn)` is a different verb and keeps promise semantics: it resolves the body's value and
 rejects a real failure / cancellation (idiomatic "run this and give me the value"). Internally the

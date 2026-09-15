@@ -31,6 +31,13 @@ release. Add a tool name to select part of the graph. For example, run
 Skills live in `.agents/skills/` (Codex) with symlinks in `.claude/skills/` (Claude).
 When a request is a plan, design, decision, or "how does X work":
 
+0. **Find the analogy first.** Before inventing a model from scratch, look for an
+   established precedent the problem is already shaped like (POSIX signals, a DB
+   transaction, a filesystem, an HTTP semantic, a well-known library's API). Name
+   it, borrow its vocabulary and its solved trade-offs, then note where ours is
+   _simpler_. Guessing a bespoke model invites edge cases the precedent already
+   settled — e.g. "close is a graceful-vs-forced shutdown (POSIX), not a wished
+   outcome" (ADR 0028) dissolved nine rounds of ad-hoc failure-precedence bugs.
 1. `grill-with-docs` — interview one question at a time; write ADRs in
    `docs/decisions/` and terms in `docs/glossary.md` as decisions land.
 2. `show-me` — before asking a question or recording a decision that has

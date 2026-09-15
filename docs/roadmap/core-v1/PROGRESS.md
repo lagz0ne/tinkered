@@ -61,12 +61,12 @@ LIFO** (ADR 0026 — not a dependency scheduler). Replaces `cleanup` + `onOutcom
 ADR 0024 (API), ADR 0026 (decisions), ADR 0025 (analysis/bug map), and the bug/requirements ledger
 `teardown-redesign.md`. Each ticket lands astra-clean via the gate; sits before core/t19.
 
-| tag      | ticket                                          | blockers | status |
-| -------- | ----------------------------------------------- | -------- | ------ |
-| core/lt1 | Converged ctx + reverse-registration close      | t14, t16 | [x]    |
-| core/lt2 | Release + cross-owner via the same drain        | lt1      | [x]    |
-| core/lt3 | Cancellation hardening + deadlock-kill + states | lt2      | [ ]    |
-| core/lt4 | Prove the contract + remove old paths + budgets | lt3      | [ ]    |
+| tag      | ticket                                                               | blockers | status |
+| -------- | -------------------------------------------------------------------- | -------- | ------ |
+| core/lt1 | Converged ctx + reverse-registration close                           | t14, t16 | [x]    |
+| core/lt2 | Release + cross-owner via the same drain                             | lt1      | [x]    |
+| core/lt3 | Cancellation hardening + `close()` shutdown-mode redesign (ADR 0028) | lt2      | [x]    |
+| core/lt4 | Prove the contract + remove old paths + budgets                      | lt3      | [ ]    |
 
 - **lt1** — `ctx.defer(end)` (end = success|failed|cancelled|released) + `ctx.signal` on operation and
   resource ctx; `Scope.Outcome += cancelled`. Close drains the layer's one defer list (onClose is a
@@ -117,11 +117,16 @@ ADR 0024 (API), ADR 0026 (decisions), ADR 0025 (analysis/bug map), and the bug/r
   resource-cleanup against a dependency released by a SEPARATE later `release()`, and a superseded
   (mid-build) dependent's late-cleanup order vs its concurrently-released dependency — both run once,
   only order can be off. See `teardown-redesign.md`.
-- **lt3** — deadlock detect-and-kill (Q3: a teardown awaiting its own/ancestor same-root queued
-  teardown rejects, never hangs); one-end-per-lifetime state machine, invalid transition throws (Q4);
-  cancellation timing (Q5: body settled before interrupt keeps its value).
-  _Accept:_ a self/ancestor teardown-wait is killed with an error not hung; a conflicting end on an
-  already-ended lifetime throws; the cancel-before/after-body-settle race matrix.
+- **lt3** _LANDED (tag `core/lt3`)._ Gate green: `vp check`, 185 core / 191 root tests, strict census,
+  size 15.1 KB gzip, mutation 77.45%; CONFIRM CLEAN over two review rounds (6 timing/mode findings, all
+  fixed + regression-tested; 204 scratch cases). Delivered: lazy resource building; Q3 sync-reentry
+  no-hang; **Q4 → ADR 0027** (close returns a `Result`, never throws); Q5 cancel-timing; and the pivot
+  **ADR 0028 — `close()` is a shutdown MODE, not a wished outcome**: `close(opts?: { graceful?: boolean })`,
+  forced (default) aborts + rolls resources back (cancelled) / graceful commits (success), reality-only
+  reducer, the whole wish/severity machinery deleted (engine 15.0→14.5→15.1 KB across the churn). Real
+  descendant-failure push-up collection at any depth. Deferred to lt4: graceful→forced escalation; a
+  layer's own owned-work failure surfacing after its child cascade; async self-reentry; ordering races.
+  Hostile userland objects out of scope for v1.
 - **lt4** — full public-seam regression suite covering every bug-ledger class; remove any dead
   two-phase paths; budgets (size/promises/mutation) green; ADR refs updated.
   _Accept:_ every ledger class has a deterministic seam test; `scripts/ticket.sh` green; astra-clean.
