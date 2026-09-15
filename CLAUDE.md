@@ -63,6 +63,9 @@ design threads); core ticket detail + reset recipes stay in `docs/roadmap/**/PRO
    when its result is _observed_, not when the edit is written:
    - code items: `vp check` clean, the relevant `vp test` / `vp run <script>` green,
      and (for `core`) the ticket gate (`scripts/ticket.sh`) passes;
+   - a release/budget claim: the gate `pnpm validate` (`scripts/validate.mjs`, ADR 0016) is green —
+     size, promises, heap, CRAP, entries, cast-free examples; mutation via `vp run core#mutate`;
+     wall-clock timing via `bench` in a sandbox (never in-container);
    - a fix for a reported defect: a test that fails without the fix and passes with it;
    - anything claimed "works": the command output that proves it.
      If you cannot show it, the item stays `in_progress` (or gets a new `blocked`

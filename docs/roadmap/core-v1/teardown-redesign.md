@@ -1,10 +1,14 @@
 # Teardown / lifetime redesign — requirements & bug ledger
 
-Status: **design phase.** The converged API is settled (see below); the first _implementation_ of it
-grew too fast and hit ~20 ordering bugs over 4 adversarial-review rounds, so the patchy impl was
-**reverted** to `core/tag-meta` (proven two-phase `cleanup`/`onOutcome`). This file is the durable
-input to the redesign: the API we keep, the invariants, and every failure mode found (each becomes a
-regression test in the redesign tickets). Flow: astra redesign guideline → grill → ADR → to-tickets → build.
+Status: **COMPLETE** — realized in `core/lt1`–`core/lt4` (ADR 0024/0026/0027/0028/0029). This file is
+the durable HISTORY: the invariants, every failure mode found across the review rounds (each became a
+regression test), and the design pivots. The headline outcome: `close()` became a shutdown MODE, not a
+wished outcome (ADR 0028), which dissolved the wish/severity bug class and shrank the engine. Accepted
+v1 limitations live in ADR 0029. Kept for provenance; not a live worklist.
+
+Original framing (for context): the converged API (below) was settled first; an early implementation
+grew too fast and hit ~20 ordering bugs over 4 review rounds and was reverted to `core/tag-meta`, then
+rebuilt ticket-by-ticket to the ledger below.
 
 ## API (settled — keep; ADR 0024)
 

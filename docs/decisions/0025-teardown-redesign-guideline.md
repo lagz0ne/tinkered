@@ -1,12 +1,15 @@
 # 0025 Teardown redesign guideline
 
-Status: **proposed — design input, not implementation approval**. Date: 2026-09-15.
-Refines [0011](0011-close-is-structured-and-total.md),
-[0014](0014-release-cascades-downstream.md), and
-[0017](0017-outcome-outside-in-success-inside-out-failure.md).
-Keeps the public API of [0024](0024-converged-lifetime-signal-and-defer.md).
-The reviewed implementation has since been reverted to `core/tag-meta`; the
-[bug ledger](../roadmap/core-v1/teardown-redesign.md) preserves all four rounds.
+Status: **accepted — realized** by [0026](0026-teardown-is-reverse-registration-lifo.md),
+[0027](0027-close-returns-a-result-and-never-throws.md),
+[0028](0028-close-is-a-shutdown-mode-not-a-wished-outcome.md), and
+[0029](0029-teardown-v1-accepted-limitations.md), built as `core/lt1`–`core/lt4`. Date: 2026-09-15.
+Was the design GUIDELINE for the redesign; refines [0011](0011-close-is-structured-and-total.md),
+[0014](0014-release-cascades-downstream.md), [0017](0017-outcome-outside-in-success-inside-out-failure.md);
+keeps the public API of [0024](0024-converged-lifetime-signal-and-defer.md). The
+[bug ledger](../roadmap/core-v1/teardown-redesign.md) preserves the full history. NOTE: 0028 later
+superseded this guideline's outcome/settlement model — `close()` is a shutdown mode, not a wished
+outcome — so where this doc discusses reconciling a wished outcome, ADR 0028 is authoritative.
 
 ## Recommendation
 
