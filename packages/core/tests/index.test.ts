@@ -152,6 +152,41 @@ test("a resource depends on another resource and receives its instance (pool →
   expect(pools).toBe(1);
 });
 
+test("a resource dep the factory never reads is never built (lazy deps)", () => {
+  let unusedBuilds = 0;
+  const unused = resource({ label: "unused", factory: () => ({ n: ++unusedBuilds }) });
+  const used = resource({ label: "used", factory: () => ({ v: "ok" }) });
+  const top = resource({
+    label: "top",
+    depends: { unused, used },
+    factory: ({ used }) => used.v,
+  });
+  expect(createScope().getController(top).resolve()).toBe("ok");
+  expect(unusedBuilds).toBe(0);
+});
+
+test("a resource dep the factory reads twice builds once and caches (lazy access parity)", () => {
+  let builds = 0;
+  const dep = resource({ label: "dep", factory: () => ({ id: ++builds }) });
+  const top = resource({
+    label: "top",
+    depends: { dep },
+    factory: (deps) => deps.dep.id + deps.dep.id,
+  });
+  const scope = createScope();
+  expect(scope.getController(top).resolve()).toBe(2);
+  expect(scope.getController(top).resolve()).toBe(2);
+  expect(builds).toBe(1);
+});
+
+test("an operation dep the run never reads is never built (lazy deps)", () => {
+  let builds = 0;
+  const unused = resource({ label: "unused", factory: () => ({ n: ++builds }) });
+  const op = operation({ label: "op", depends: { unused }, run: () => "ok" });
+  expect(createScope().getController(op).resolve()).toBe("ok");
+  expect(builds).toBe(0);
+});
+
 const region = tag<string>({ label: "region", default: "base" });
 const maybe = tag<string | undefined>({ label: "maybe", default: undefined });
 const secret = tag<string>({ label: "secret" });
@@ -1451,9 +1486,9 @@ test("a diamond release cascades to the shared dependent exactly once", () => {
   const top = resource({
     label: "top",
     depends: { l, r },
-    factory: (_deps, { defer }) => {
+    factory: ({ l, r }, { defer }) => {
       defer(() => void cleaned.push("top"));
-      return { ok: true };
+      return { ok: true, l, r };
     },
   });
   const scope = createScope();
@@ -1935,8 +1970,8 @@ test("a sink returning a thenable whose then getter throws is isolated", () => {
 test("a shared resource used by two commands links a used edge to each caller span", () => {
   const spans: Observe.Span[] = [];
   const conn = resource({ label: "conn", factory: () => ({ id: 1 }) });
-  const a = operation({ label: "a", depends: { conn }, run: () => 1 });
-  const b = operation({ label: "b", depends: { conn }, run: () => 2 });
+  const a = operation({ label: "a", depends: { conn }, run: ({ conn }) => conn.id });
+  const b = operation({ label: "b", depends: { conn }, run: ({ conn }) => conn.id });
   const scope = createScope({ observe: { export: (s) => void spans.push(s) } });
   scope.getController(a).resolve();
   scope.getController(b).resolve();
@@ -2909,7 +2944,8 @@ test("a diamond release tears down dependents before dependencies (reverse regis
     resource({
       label,
       depends,
-      factory: (_deps, { defer }) => {
+      factory: (deps, { defer }) => {
+        Object.values(deps);
         defer(() => void order.push(label));
         return { [label]: 1 };
       },
@@ -2940,10 +2976,10 @@ test("release waits for an in-flight op borrowing the resource before running it
   const op = operation({
     label: "op",
     depends: { res },
-    run: async () => {
+    run: async ({ res }) => {
       await opGate.promise;
       order.push("op-done");
-      return 1;
+      return res;
     },
   });
   const scope = createScope();
@@ -2965,7 +3001,7 @@ test("a sync op borrowing a released resource does not delay its cleanup", () =>
       return 1;
     },
   });
-  const op = operation({ label: "op", depends: { res }, run: () => 1 });
+  const op = operation({ label: "op", depends: { res }, run: ({ res }) => res });
   const scope = createScope();
   scope.getController(op).resolve();
   scope.release(res);
@@ -2986,10 +3022,10 @@ test("releasing a scope resource waits for a cross-owner op that borrowed it", a
   const use = operation({
     label: "use",
     depends: { conn },
-    run: async () => {
+    run: async ({ conn }) => {
       await opGate.promise;
       order.push("use-done");
-      return 1;
+      return conn;
     },
   });
   const root = createScope();
@@ -3347,7 +3383,10 @@ test("release during dependency resolution waits for the operation's cleanup", a
   const use = operation({
     label: "use",
     depends: { conn, trigger },
-    run: ({ conn }, { defer }) => {
+    // Read conn first (builds + is borrowed), then trigger, whose lazy build releases conn mid-run.
+    // The op's borrow was registered up front, so the release still waits for the op's cleanup.
+    run: ({ conn, trigger }, { defer }) => {
+      void trigger;
       defer(async () => {
         await gate.promise;
         order.push(conn.open ? "op-clean-open" : "op-clean-closed");
