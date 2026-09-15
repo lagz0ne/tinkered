@@ -1,0 +1,55 @@
+# react v1 — build progress
+
+`@tinker/react`: a thin React adapter over `@tinker/core` (ADR 0030). One green git
+checkpoint per ticket. Progress is linear and resettable: land tickets in order, tag
+each, reset to any tag if a slice goes wrong.
+
+- **Tickets:** `docs/roadmap/react-v1/issues/NN-*.md` (numbered in dependency order).
+- **Decisions:** `docs/decisions/0030`–`0033`. **Glossary:** `docs/glossary.md` (React adapter section).
+- **Branch:** `core-rebuild`. Tests run in **vitest browser mode** (Playwright chromium, ADR 0033).
+
+## How a ticket lands (deterministic + correct)
+
+1. Build the slice + its seam behavior tests in browser mode (no mocks; deterministic
+   async via the r01 deferred fixture — no sleeps, ADR 0003).
+2. Gate + checkpoint:
+
+   ```bash
+   scripts/ticket-react.sh <NN> "<short title>"
+   ```
+
+   The gate runs `vp check` + `vp run -r test` (+ size where wired). It commits only if
+   green, then sets tag `react/r<NN>`. A red gate makes no checkpoint.
+
+## Reset (git techniques)
+
+- Undo current (unlanded) work: `git reset --hard react/r<last>` (or `core/base`).
+- Redo a landed ticket: `git reset --hard react/r<blocker>`, rebuild, re-run the gate.
+- Inspect a checkpoint: `git switch --detach react/r07`.
+
+## Order & status
+
+Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its tag exists.
+
+| tag       | ticket                                  | blockers | status |
+| --------- | --------------------------------------- | -------- | ------ |
+| react/r01 | Browser harness + async fixture         | —        | [ ]    |
+| react/r02 | `<ScopeProvider>` + `useScope`          | 01       | [ ]    |
+| react/r03 | `useData` reactive read                 | 02       | [ ]    |
+| react/r04 | `useController` write                   | 03       | [ ]    |
+| react/r05 | `useData` selector + `isEqual`          | 03       | [ ]    |
+| react/r06 | `useResource` sync value                | 02       | [ ]    |
+| react/r07 | `useResource` async + Suspense          | 06, 01   | [ ]    |
+| react/r08 | `useResource` failed build → boundary   | 07       | [ ]    |
+| react/r09 | `useResolve` success path               | 02, 01   | [ ]    |
+| react/r10 | `useResolve` error + `reset`            | 09       | [ ]    |
+| react/r11 | `<SessionProvider>` lifecycle           | 04, 07   | [ ]    |
+| react/r12 | `target:"session"` per-provider sharing | 11       | [ ]    |
+| react/r13 | StrictMode double-mount safety          | 11       | [ ]    |
+| react/r14 | `useRelease` + retry/reset              | 08       | [ ]    |
+| react/r15 | `useSpans` read                         | 07, 09   | [ ]    |
+| react/r16 | Opt-in React span emission              | 15       | [ ]    |
+| react/r17 | v1 validation milestone                 | 01–16    | [ ]    |
+
+Parallel frontier once r01→r02 land: **r03 ‖ r06 ‖ r09** are independent. Then r04,r05 off
+r03; r07→r08 off r06; r10 off r09; r11 needs r04+r07; r12,r13 off r11; r14 off r08; r15→r16.

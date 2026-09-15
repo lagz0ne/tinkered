@@ -4,17 +4,35 @@ The live working list. **Goal: drive it to empty.** Each item is checkable and c
 **Verify** — the exact observable proof. Tick `[x]` ONLY after the Verify passes (gate green,
 a failing→passing test, or command output). Never tick on intent. Add/split items freely.
 Core ticket detail + reset recipes: `docs/roadmap/core-v1/PROGRESS.md`.
+React ticket detail + reset recipes: `docs/roadmap/react-v1/PROGRESS.md`.
 
-## Now
+## Now — react v1 (`@tinker/react`)
 
-- [ ] **Authoring prep** — `@tinker/core` is feature-complete (v1). Next phase is authoring the
-      public-facing material. Nothing is in progress yet; scope it before writing.
-  - Likely items (to be turned into a real list): a `README` (what it is, install, a 60-second
-    example from `packages/core/examples/basic.ts`), the public API reference, a short concepts guide
-    (scope/session, data/operation/resource, `close()` shutdown modes), and the accepted-limitations
-    note (ADR 0029) surfaced for users. Grounding: `docs/glossary.md`, `docs/decisions/*`,
-    `docs/roadmap/core-v1/hot-paths.md`.
-  - Verify: TBD once scoped.
+A thin React adapter over `@tinker/core` (ADR 0030–0033). Land in order; each ticket is a
+tracer bullet with one decisive browser-mode behavior test. Gate each with
+`scripts/ticket-react.sh <NN> "<title>"` (tags `react/r<NN>`). Detail:
+`docs/roadmap/react-v1/issues/NN-*.md`.
+
+- [ ] **r01 — Browser harness + async fixture.** Verify: a component renders in a real browser
+      (vitest browser mode, Playwright) and the deferred fixture drives a pending→settled transition
+      without timers; `vp check` green.
+- [ ] **r02 — `<ScopeProvider>` + `useScope`.** Verify: a component reads the Handle; `create=` mode
+      fires teardown once on unmount; no-provider raises a registry error.
+- [ ] **r03 — `useData` reactive read.** Verify: external `set` re-renders; snapshot stable; unmount unsubscribes.
+- [ ] **r04 — `useController` write.** Verify: button `set` re-renders a reader; write-only component does not subscribe.
+- [ ] **r05 — `useData` selector + `isEqual`.** Verify: unrelated field change → no re-render; slice change → re-render.
+- [ ] **r06 — `useResource` sync value.** Verify: sync build renders value, no fallback; cached instance identity.
+- [ ] **r07 — `useResource` async + Suspense.** Verify: fallback→value; re-render while pending reuses the same promise (build runs once).
+- [ ] **r08 — `useResource` failed build → boundary.** Verify: rejected build renders the nearest error boundary; registry error preserved.
+- [ ] **r09 — `useResolve` success.** Verify: idle→pending→success with `data`; `rawInput` parsed; no suspend.
+- [ ] **r10 — `useResolve` error + `reset`.** Verify: error stays in `error`/`status` (no boundary throw); `reset()`→idle.
+- [ ] **r11 — `<SessionProvider>` lifecycle.** Verify: unmount forces-close (session resource `defer` rolls back); nearest-Handle-wins; write shadowed.
+- [ ] **r12 — `target:"session"` sharing.** Verify: one instance per provider (siblings distinct); `target:"scope"` shared across.
+- [ ] **r13 — StrictMode double-mount.** Verify: under `<StrictMode>`, exactly one live session; discarded session's `defer` ran.
+- [ ] **r14 — `useRelease` + retry.** Verify: boundary reset + `release` rebuilds a fresh generation green; releasing a cell reverts it.
+- [ ] **r15 — `useSpans` read.** Verify: resolved op + resource spans appear; bounded by `observe.history`; empty/cheap when off.
+- [ ] **r16 — Opt-in React span emission.** Verify: off = no React spans; on = component activity; results identical.
+- [ ] **r17 — v1 validation milestone.** Verify: size lane green; cast-free README + 60-sec example; full seam green in browser.
 
 ## Shipped — core v1 (complete)
 
