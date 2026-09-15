@@ -7,19 +7,22 @@ Core ticket detail + reset recipes: `docs/roadmap/core-v1/PROGRESS.md`.
 
 ## Now
 
-- [ ] lazy resource building (pair, parallel) — build a resource only when its value is actually used,
-      via a lazy getter on the deps object, so crafting an object that never touches a dep is cheap.
-  - Dispatched as an isolated worktree pair off `core/lt2`. Verify: a dep whose getter is never read
-    is never built (observable via a build counter / no cleanup); existing behavior unchanged when the
-    getter IS read; gate green + astra-clean. Land as its own tag.
-
-- [ ] core/lt3 — cancellation hardening + deadlock detect-and-kill + one-end state machine (ADR 0026
-      Q3/Q4/Q5), PLUS the lt2-deferred build/release timing races (separate-release resource-cleanup
-      ordering; superseded mid-build dependent's late-cleanup order vs a concurrently-released
-      dependency — both run once, only order can be off; see `teardown-redesign.md`).
-  - Verify: a self/ancestor teardown-wait is killed not hung; a conflicting end on an already-ended
-    lifetime throws; the cancel-before/after-body-settle matrix; the deferred ordering races; gate
-    green (`scripts/ticket.sh`) + astra-clean.
+- [ ] core/lt3 (in progress; WIP checkpoints on `core-rebuild`, NOT yet tagged). Combined astra review
+      (lazy + close→Result) running.
+  - DONE (slice, commit `facf3ff`): **Q4 → ADR 0027** — `close()` returns a `Result` and never throws
+    (wish is a fallback; reality wins; `session(fn)` keeps promise semantics). Sync re-entry acks.
+  - DONE (merged): **lazy resource building** — a resource dep builds only on first access (getter;
+    `defineLazyDep`/`buildDeps`); data/edges/tags/subflows stay eager; ops borrow declared resource
+    deps eagerly. 3 new tests; merged clean into `core-rebuild`.
+  - REMAINING for lt3: Q5 cancel-before/after-body-settle race MATRIX as explicit tests (mostly
+    covered by lt1's `bodyEnd`, needs the matrix); then decide the deferred timing/ordering + async
+    self-reentry items (all documented in `teardown-redesign.md` — likely stay deferred to lt4).
+  - Deferred (documented, needs async-context or a release-drain redesign — see ledger): async
+    self-reentry (teardown callback awaits then closes/releases its own scope, close AND release side);
+    separate-release resource-cleanup ordering; superseded mid-build late-cleanup order; async
+    dep-cycle detection when first touched after an await in an async factory.
+  - Verify: gate green (`vp check` + core tests + census + size + mutation) + astra-clean; then tag
+    `core/lt3` once the Q5 matrix lands and the deferrals are confirmed (or reclassified) for lt4.
 
 - [ ] teardown/lifetime REDESIGN (umbrella) — converged API `ctx.defer(end)` + `ctx.signal` (ADR 0024)
       with teardown as reverse-registration LIFO (ADR 0026). Tracked as core/lt1–lt4 in PROGRESS.md;
@@ -39,6 +42,15 @@ Core ticket detail + reset recipes: `docs/roadmap/core-v1/PROGRESS.md`.
   - Verify: all budget lanes green together (size, promises, heap, mutation, CRAP, both entries, cast-free examples).
 
 ## Done
+
+- [x] Combined lazy + close Result review — P2: a superseded build's first lazy access registers
+      a stale release edge against its live replacement (`packages/core/src/index.ts:1117–1119`).
+  - Verified: `/tmp/lazy-lt3-review/stale-edge.test.ts` fails (expected generation 2, got 3).
+    A generation guard in a `/tmp` source copy makes it pass. No teardown callbacks in the repro;
+    this is cache invalidation, not a deferred cleanup-order race.
+    Ten focused lazy/close/release/session controls pass; `vp check` passes (two existing warnings),
+    core suite 179/179, root suite 185/185, strict style census clean. No library/test edits.
+    Review complete; next author action: bind lazy edge registration to the build generation.
 
 - [x] lt3 slice 1 review, round 2 — P1: external concurrent close during an awaited close defer
       gets an early ack with missing teardown errors (`packages/core/src/index.ts:1556,1640`).

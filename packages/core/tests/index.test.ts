@@ -3416,3 +3416,32 @@ test("a second close returns the owned Result and never throws", async () => {
   expect(second.status).toBe(first.status);
   expect(second.teardownErrors).toContain(boom);
 });
+
+test("a released build's first lazy read cannot invalidate its unused replacement", async () => {
+  const gate = deferred();
+  let builds = 0;
+  const base = resource({ label: "base", factory: () => ({}) });
+  const view = resource({
+    label: "view",
+    depends: { base },
+    factory: async (deps) => {
+      const generation = ++builds;
+      if (generation === 1) {
+        await gate.promise;
+        void deps.base;
+      }
+      return { generation };
+    },
+  });
+  const scope = createScope();
+  const controller = scope.getController(view);
+  const old = controller.resolve();
+  scope.release(view);
+  const replacement = await controller.resolve();
+  gate.resolve();
+  await old;
+  scope.release(base);
+  const current = await controller.resolve();
+  await scope.close();
+  expect(current).toBe(replacement);
+});

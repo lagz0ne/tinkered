@@ -1113,10 +1113,14 @@ function resolveResourceDeps(
   owner: Layer,
   target: Resource.Handle<unknown>,
   span: Observe.Span | undefined,
+  superseded: () => boolean,
 ): Record<string, unknown> {
   return buildDeps(owner, target.depends, span, undefined, (dep) => {
     const node = depNode(dep);
-    if (node) addDependent(owner, node, target);
+    /** A lazy resource dep registers its release edge only at FIRST ACCESS, which for a paused build
+     * can happen after the build was released (superseded). Skip the edge then — a stale build must
+     * not record a dependency that would later evict its own LIVE replacement (lazy review P2). */
+    if (node && !superseded()) addDependent(owner, node, target);
   });
 }
 
@@ -1133,7 +1137,7 @@ function buildResource<T>(
   owner.building.add(target);
   let settled = false;
   try {
-    const deps = resolveResourceDeps(owner, target, span);
+    const deps = resolveResourceDeps(owner, target, span, superseded);
     const ctx: Resource.Ctx = {
       label: target.label,
       defer: (fn) => {
