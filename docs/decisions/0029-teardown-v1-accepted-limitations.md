@@ -53,6 +53,14 @@ resolves a truthful `Result`, cleanups run once, no lost error, no hang for coop
 7. **Async dependency-cycle detection has a gap.** A cycle first touched only AFTER an `await` inside an
    async factory is not detected. Note; no coverage. Synchronous cycles ARE detected.
 
+8. **Build-time recursion has finite (unrealistic) stack ceilings.** TEARDOWN, release and session
+   nesting are iterative/async and survive very deep trees (>10k — invariant 5). But resolving a deep
+   SYNC resource _dependency_ chain recurses on the native stack (`buildResource ↔ resolveDep`, ceiling
+   ~1k levels), and `flushTree` through deeply nested sessions recurses by tree depth (ceiling ~5k).
+   _Safe because:_ both are absurd depths for real dependency graphs / session nesting; the common case
+   is shallow. Measured by `bench/deep.mjs`. Convert to explicit-stack iteration only if a real case
+   approaches the ceiling.
+
 ## Consequences
 
 - These are documented boundaries, not TODOs blocking v1. Any that a real (non-adversarial) use case

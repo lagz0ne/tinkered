@@ -7,6 +7,29 @@ Core ticket detail + reset recipes: `docs/roadmap/core-v1/PROGRESS.md`.
 
 ## Now
 
+- [x] core/t19 — v1 validation milestone: ALL budget lanes green together (ADR 0016). Release gate
+      `pnpm validate` (`scripts/validate.mjs`) — a seeded regression fails it. Numbers recorded in
+      `docs/roadmap/core-v1/budgets.md`: size 15.1 KB, promises 0/5, heap 3.9 KB/req, mutation 77.45%,
+      complexity 8, CRAP 8.73, cast-free examples, pure universal bundle, deep chains 10k+ safe. No src
+      change (engine carries lt3's CONFIRM-CLEAN review); t19 is validation infra + docs. Tagged
+      `core/t19`. **core v1 COMPLETE.** Original slice plan (all done):
+  1. **Promise budget** (deterministic, no clock): count Promise allocations on the SYNC lane
+     (data read/write/flush + sync resolve/build) → assert **0**; and on a representative async toggle
+     → assert **≤10**. `bench/promises.mjs`, runnable via `node`. Verify: script exits 0.
+  2. **Deep-chain ceiling** (deterministic): sync resource chain + deeply nested sessions
+     (`flushTree`/`closeChildren`) don't overflow. `bench/deep.mjs`. Verify: runs, no RangeError.
+  3. **Both entries**: engine is import/global pure; confirm the built bundle works for BOTH node and
+     browser (build both targets, no node-only refs). Verify: builds pass; a purity assertion.
+  4. **Cast-free examples**: a few `examples/*.ts` using the public API with NO `as`/casts; typecheck
+     clean. Verify: `vp check` on examples clean, 0 casts (census).
+  5. **CRAP ceiling**: complexity (oxlint ≤8) × coverage → a CRAP ceiling check; cut complexity where
+     flagged. Verify: a `scripts/check-crap.mjs` (or documented ceiling from comp≤8 + coverage) passes.
+  6. **Heap-per-request** (wall-clock/gc → BUILD only): `bench/heap.mjs` (`--expose-gc`), target a few
+     KB. Run via `bench` outside the container; record the number in the ticket.
+  7. **Release gate + record + review + tag**: a single `validate` script runs all deterministic lanes
+     (size, promises, deep, entries, cast-free, crap) + `vp run core#test` + mutation; record concrete
+     thresholds; astra CONFIRM-CLEAN; tag `core/t19`. Verify: gate green; a seeded regression fails it.
+
 - [x] core/lt4 — prove the contract + budgets + accepted limitations (final teardown ticket). DONE:
       docs-only (no source change since `core/lt3` — the redesign already removed the old paths, no dead
       code); glossary + doc refs refreshed to the shutdown-mode model; ADR 0029 (accepted v1 limits);

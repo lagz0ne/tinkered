@@ -1,24 +1,34 @@
 # core v1 — budget baselines (ADR 0016)
 
-Enforced now; tightened at the v1 validation milestone (#19). A change that
-regresses a gate does not land.
+Enforced now; **finalized at the v1 validation milestone (#19, tag `core/t19`)**. A change that
+regresses a gate does not land. Release gate: **`pnpm validate`** (`scripts/validate.mjs`) runs every
+deterministic lane and fails on any regression (proven: a seeded cast fails it). The mutation lane runs
+via `vp run core#mutate`; the wall-clock timing lanes run via `bench` in a clean sandbox (not
+in-container).
 
-## Size (gzip, built entry)
+## All lanes at t19 (green together)
 
-- Budget: **≤20 kB preferred, 30 kB hard max** (zero runtime deps).
-- Gate: `vp run core#size` (fails over the cap). Wired ticket 01.
-- Baseline: **t01 = 401 B gzip**.
+| lane                | budget                          | t19 measurement                          | how                                           |
+| ------------------- | ------------------------------- | ---------------------------------------- | --------------------------------------------- |
+| bundle size (gzip)  | ≤20 kB preferred / 30 kB max    | **15,137 B**                             | `vp run core#size` → `scripts/check-size.mjs` |
+| promises — sync     | **0**                           | **0**                                    | `bench/promises.mjs` (async_hooks census)     |
+| promises — async    | ≤10 (representative toggle)     | **5**                                    | `bench/promises.mjs`                          |
+| live heap / request | a few KB (~hand-wired DI)       | **3,871 B**                              | `bench/heap.mjs` (`--expose-gc`)              |
+| mutation score      | Stryker break ≥ 60              | **77.45%**                               | `vp run core#mutate`                          |
+| complexity          | ≤ 8 (cyclomatic)                | **8** (hard cap)                         | oxlint `complexity` (`vite.config.ts`)        |
+| CRAP                | ≤ 30                            | **8.73** (12.1 at the 60% floor)         | `scripts/check-crap.mjs` (cap² ·(1−cov)³+cap) |
+| both entries        | pure universal ESM              | **pure** (no node imports/globals)       | dist purity grep + node import smoke          |
+| cast-free examples  | 0 casts, typecheck clean        | **0 casts**                              | `packages/core/examples/*.ts` + `vp check`    |
+| deep chains         | teardown iterative, no overflow | **10k+ safe**; build ceilings documented | `bench/deep.mjs` (see below)                  |
 
-## Complexity / quality
+## Notes
 
-- Cyclomatic complexity ceiling **8** — oxlint `complexity` (root `vite.config.ts`).
-- Mutation score — Stryker `break: 60` (`vp run core#mutate`).
-- A true CRAP metric (complexity × coverage) is deferred to #19, where numeric
-  thresholds are finalized; oxlint + Stryker are the interim complexity gates.
-
-## Performance (added per lane as tickets land)
-
-- 0 promises on the sync lane (data read/write/flush) — bench lane from t02/t03.
-- ≤10 promises for a representative async toggle — from the async tickets.
-- Live-heap-per-request budget — from the resource/session tickets.
-- Benchmark measurement is the explicit exception to the no-clock test rule.
+- **Deep chains.** Teardown, release and session nesting are iterative/async and survive ≥10k
+  (invariant 5). Two BUILD-time paths recurse on the native stack with finite, unrealistic ceilings —
+  sync resource _dependency_ chains ~1k, `flushTree` through nested sessions ~5k — documented as
+  accepted limitations in ADR 0029 (§8).
+- **Timing lanes** (cold resolve, warm read, write+flush, deep inheritance, many sessions — ADR 0016)
+  are wall-clock and must run via `bench -- node --experimental-strip-types bench/<lane>.mjs` from a
+  clean worktree; report median/p95. Not run in-container (host-noise). The heap lane is a memory delta
+  and runs in-container (recorded above); its authoritative value also comes from `bench`.
+- **Historical baseline:** t01 = 401 B gzip.
