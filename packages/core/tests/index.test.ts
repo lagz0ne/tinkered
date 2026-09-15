@@ -567,8 +567,8 @@ test("resource cleanup runs on close", async () => {
   const closed: string[] = [];
   const conn = resource({
     label: "conn",
-    factory: (_deps, { cleanup }) => {
-      cleanup(() => void closed.push("conn"));
+    factory: (_deps, { defer }) => {
+      defer(() => void closed.push("conn"));
       return "open";
     },
   });
@@ -709,9 +709,9 @@ test("cleanup registered by an in-flight factory during close still runs", async
   const gate = deferred();
   const conn = resource({
     label: "conn",
-    factory: async (_deps, { cleanup }) => {
+    factory: async (_deps, { defer }) => {
       await gate.promise;
-      cleanup(() => void closed.push("conn"));
+      defer(() => void closed.push("conn"));
       return "open";
     },
   });
@@ -798,8 +798,8 @@ test("session(fn) success commits via onOutcome; a thrown error rolls back and p
   const tx = resource({
     label: "tx",
     target: "session",
-    factory: (_deps, { onOutcome }) => {
-      onOutcome((o) => void audit.push(o.status === "success" ? "commit" : "rollback"));
+    factory: (_deps, { defer }) => {
+      defer((o) => void audit.push(o.status === "success" ? "commit" : "rollback"));
       return { ok: true };
     },
   });
@@ -827,8 +827,8 @@ test("a throwing onOutcome is aggregated, keeps the outcome, and does not stop o
   const bad = resource({
     label: "bad",
     target: "session",
-    factory: (_deps, { onOutcome }) => {
-      onOutcome(() => {
+    factory: (_deps, { defer }) => {
+      defer(() => {
         throw hookError;
       });
       return 1;
@@ -837,8 +837,8 @@ test("a throwing onOutcome is aggregated, keeps the outcome, and does not stop o
   const good = resource({
     label: "good",
     target: "session",
-    factory: (_deps, { onOutcome }) => {
-      onOutcome((o) => void seen.push(o.status));
+    factory: (_deps, { defer }) => {
+      defer((o) => void seen.push(o.status));
       return 2;
     },
   });
@@ -873,8 +873,8 @@ test("owned async work that fails settles the session outcome as failed and surf
   const tx = resource({
     label: "tx",
     target: "session",
-    factory: (_deps, { onOutcome }) => {
-      onOutcome((o) => void seen.push(o.status));
+    factory: (_deps, { defer }) => {
+      defer((o) => void seen.push(o.status));
       return { ok: true };
     },
   });
@@ -905,8 +905,8 @@ test("closing the parent while a session runs joins the body and rolls back on i
   const tx = resource({
     label: "tx",
     target: "session",
-    factory: (_deps, { onOutcome }) => {
-      onOutcome((o) => void seen.push(o.status));
+    factory: (_deps, { defer }) => {
+      defer((o) => void seen.push(o.status));
       return { ok: true };
     },
   });
@@ -933,8 +933,8 @@ test("a failing session rolls back a resource owned by its nested child", async 
   const tx = resource({
     label: "tx",
     target: "session",
-    factory: (_deps, { onOutcome }) => {
-      onOutcome((o) => void seen.push(o.status));
+    factory: (_deps, { defer }) => {
+      defer((o) => void seen.push(o.status));
       return { ok: true };
     },
   });
@@ -971,7 +971,7 @@ test("a factory context is dead after a synchronous throw: a late onOutcome fail
     if (error !== cause) throw error;
   }
   try {
-    saved?.onOutcome(() => undefined);
+    saved?.defer(() => undefined);
     throw new Error("expected Disposed");
   } catch (error) {
     if (!isError(error, "Disposed")) throw error;
@@ -1001,8 +1001,8 @@ test("a leaf failure bubbles out through nested sessions to the caller and rolls
   const tx = resource({
     label: "tx",
     target: "session",
-    factory: (_deps, { onOutcome }) => {
-      onOutcome((o) => void seen.push(o.status));
+    factory: (_deps, { defer }) => {
+      defer((o) => void seen.push(o.status));
       return { ok: true };
     },
   });
@@ -1109,8 +1109,8 @@ test("when owned work and the body both fail, the body cause is primary for hook
   const tx = resource({
     label: "tx",
     target: "session",
-    factory: (_deps, { onOutcome }) => {
-      onOutcome((o) => void seen.push(o.status === "failed" ? o.error : "success"));
+    factory: (_deps, { defer }) => {
+      defer((o) => void seen.push(o.status === "failed" ? o.error : "success"));
       return { ok: true };
     },
   });
@@ -1146,9 +1146,9 @@ test("releasing a resource runs its cleanup and a re-resolve rebuilds a new inst
   const cleaned: number[] = [];
   const conn = resource({
     label: "conn",
-    factory: (_deps, { cleanup }) => {
+    factory: (_deps, { defer }) => {
       const id = ++built;
-      cleanup(() => void cleaned.push(id));
+      defer(() => void cleaned.push(id));
       return { id };
     },
   });
@@ -1254,8 +1254,8 @@ test("release drops only the resource's cleanup, not a shared onClose callback",
   const shared = () => void calls++;
   const conn = resource({
     label: "conn",
-    factory: (_deps, { cleanup }) => {
-      cleanup(shared);
+    factory: (_deps, { defer }) => {
+      defer(shared);
       return 1;
     },
   });
@@ -1315,15 +1315,15 @@ test("a nested release inside a release cleanup does not hang close", async () =
   scope.onClose(() => void (closed = true));
   const b = resource({
     label: "b",
-    factory: (_deps, { cleanup }) => {
-      cleanup(() => undefined);
+    factory: (_deps, { defer }) => {
+      defer(() => undefined);
       return 1;
     },
   });
   const a = resource({
     label: "a",
-    factory: (_deps, { cleanup }) => {
-      cleanup(() => {
+    factory: (_deps, { defer }) => {
+      defer(() => {
         scope.release(b);
         return scope.close();
       });
@@ -1343,8 +1343,8 @@ test("a release cleanup that returns its own close does not hang", async () => {
   scope.onClose(() => void (closedFlag = true));
   const conn = resource({
     label: "conn",
-    factory: (_deps, { cleanup }) => {
-      cleanup(() => scope.close());
+    factory: (_deps, { defer }) => {
+      defer(() => scope.close());
       return 1;
     },
   });
@@ -1387,16 +1387,16 @@ test("a release cleanup that rejects surfaces as secondary without changing the 
   const audited = resource({
     label: "audited",
     target: "session",
-    factory: (_deps, { onOutcome }) => {
-      onOutcome((o) => void seen.push(o.status));
+    factory: (_deps, { defer }) => {
+      defer((o) => void seen.push(o.status));
       return 1;
     },
   });
   const conn = resource({
     label: "conn",
     target: "session",
-    factory: (_deps, { cleanup }) => {
-      cleanup(async () => {
+    factory: (_deps, { defer }) => {
+      defer(async () => {
         throw cleanupError;
       });
       return 1;
@@ -1451,8 +1451,8 @@ test("a diamond release cascades to the shared dependent exactly once", () => {
   const top = resource({
     label: "top",
     depends: { l, r },
-    factory: (_deps, { cleanup }) => {
-      cleanup(() => void cleaned.push("top"));
+    factory: (_deps, { defer }) => {
+      defer(() => void cleaned.push("top"));
       return { ok: true };
     },
   });
@@ -1487,8 +1487,8 @@ test("a throwing cleanup mid-cascade still drops every dependent's cache", () =>
   const mid = resource({
     label: "mid",
     depends: { base },
-    factory: (_deps, { cleanup }) => {
-      cleanup(() => {
+    factory: (_deps, { defer }) => {
+      defer(() => {
         throw new Error("mid-cleanup");
       });
       return { v: 1 };
@@ -1530,8 +1530,8 @@ test("a throwing watcher during release still runs the cleanups", () => {
   const r = resource({
     label: "r",
     depends: { base },
-    factory: (_deps, { cleanup }) => {
-      cleanup(() => void cleaned.push("r"));
+    factory: (_deps, { defer }) => {
+      defer(() => void cleaned.push("r"));
       return { v: 1 };
     },
   });
@@ -1644,8 +1644,8 @@ test("releasing a scope resource skips a closing session and still releases the 
   let txBuilds = 0;
   const pool = resource({
     label: "pool",
-    factory: (_deps, { cleanup }) => {
-      cleanup(() => void (poolCleaned = true));
+    factory: (_deps, { defer }) => {
+      defer(() => void (poolCleaned = true));
       return { id: 1 };
     },
   });
@@ -1677,8 +1677,8 @@ test("a session cleanup that closes the root does not deadlock", async () => {
     label: "tx",
     target: "session",
     depends: { pool },
-    factory: (_deps, { cleanup }) => {
-      cleanup(() => root.close());
+    factory: (_deps, { defer }) => {
+      defer(() => root.close());
       return { ok: true };
     },
   });
@@ -1718,8 +1718,8 @@ test("closing an unrelated scope from a cleanup awaits its real teardown and sur
   const b = createScope();
   const r = resource({
     label: "r",
-    factory: (_deps, { cleanup }) => {
-      cleanup(async () => {
+    factory: (_deps, { defer }) => {
+      defer(async () => {
         bCleaned = true;
         throw cleanupError;
       });
@@ -2119,15 +2119,15 @@ test("a resource preset's cleanup runs when the owner closes; the real factory n
   const events: string[] = [];
   const conn = resource({
     label: "conn",
-    factory: (_deps, { cleanup }) => {
-      cleanup(() => void events.push("real-teardown"));
+    factory: (_deps, { defer }) => {
+      defer(() => void events.push("real-teardown"));
       return "real";
     },
   });
   const scope = createScope({
     presets: [
-      preset(conn, (_deps, { cleanup }) => {
-        cleanup(() => void events.push("fake-teardown"));
+      preset(conn, (_deps, { defer }) => {
+        defer(() => void events.push("fake-teardown"));
         return "fake";
       }),
     ],
@@ -2188,4 +2188,716 @@ test("shared empty meta is frozen, so a no-meta unit cannot be mutated to leak a
   const b = resource({ label: "b", factory: () => 0 });
   expect(() => Array.prototype.push.call(a.meta, ui("leaked"))).toThrow();
   expect(ui.read(b)).toEqual({ present: false });
+});
+
+test("close runs defers in reverse registration order (LIFO)", async () => {
+  const seen: string[] = [];
+  const a = resource({
+    label: "a",
+    factory: (_deps, { defer }) => {
+      defer(() => void seen.push("a"));
+      return 1;
+    },
+  });
+  const b = resource({
+    label: "b",
+    factory: (_deps, { defer }) => {
+      defer(() => void seen.push("b"));
+      return 1;
+    },
+  });
+  const scope = createScope();
+  scope.getController(a).resolve();
+  scope.getController(b).resolve();
+  await scope.close();
+  expect(seen).toEqual(["b", "a"]);
+});
+
+test("a later onClose runs before an earlier resource defer (layer-wide LIFO)", async () => {
+  const seen: string[] = [];
+  const r = resource({
+    label: "r",
+    factory: (_deps, { defer }) => {
+      defer(() => void seen.push("r"));
+      return 1;
+    },
+  });
+  const scope = createScope();
+  scope.getController(r).resolve();
+  scope.onClose(() => void seen.push("onClose"));
+  await scope.close();
+  expect(seen).toEqual(["onClose", "r"]);
+});
+
+test("a dependent's defer runs before its dependency's (registration order)", async () => {
+  const seen: string[] = [];
+  const base = resource({
+    label: "base",
+    factory: (_deps, { defer }) => {
+      defer(() => void seen.push("base"));
+      return 1;
+    },
+  });
+  const top = resource({
+    label: "top",
+    depends: { base },
+    factory: ({ base }, { defer }) => {
+      defer(() => void seen.push("top"));
+      return base;
+    },
+  });
+  const scope = createScope();
+  scope.getController(top).resolve();
+  await scope.close();
+  expect(seen).toEqual(["top", "base"]);
+});
+
+test("an operation defer sees success, and failed when the run throws", () => {
+  const seen: string[] = [];
+  const ok = operation({
+    label: "ok",
+    run: (_deps, { defer }) => {
+      defer((end) => void seen.push(end.status));
+      return 1;
+    },
+  });
+  const bad = operation({
+    label: "bad",
+    run: (_deps, { defer }) => {
+      defer((end) => void seen.push(end.status));
+      throw new Error("boom");
+    },
+  });
+  createScope().getController(ok).resolve();
+  expect(() => createScope().getController(bad).resolve()).toThrow();
+  expect(seen).toEqual(["success", "failed"]);
+});
+
+test("a resource defer sees cancelled when the scope is closed as cancelled", async () => {
+  const seen: string[] = [];
+  const r = resource({
+    label: "r",
+    factory: (_deps, { defer }) => {
+      defer((end) => void seen.push(end.status));
+      return 1;
+    },
+  });
+  const scope = createScope();
+  scope.getController(r).resolve();
+  await scope.close({ status: "cancelled" });
+  expect(seen).toEqual(["cancelled"]);
+});
+
+test("close aborts ctx.signal so a parked op stops cleanly", async () => {
+  const gate = deferred();
+  let sawAbort = false;
+  const parked = operation({
+    label: "parked",
+    run: async (_deps, { signal }) => {
+      await gate.promise;
+      sawAbort = signal.aborted;
+    },
+  });
+  const scope = createScope();
+  const done = scope.getController(parked).resolve();
+  const closing = scope.close();
+  gate.resolve();
+  await closing;
+  await done;
+  expect(sawAbort).toBe(true);
+});
+
+test("a streaming operation writes a data cell over time; a watcher sees it grow", async () => {
+  const answer = data({ initial: "" });
+  const seen: string[] = [];
+  const chat = operation({
+    label: "chat",
+    depends: { out: answer.controller },
+    run: async ({ out }) => {
+      for (const v of ["He", "Hell", "Hello"]) {
+        out.set(v);
+        await Promise.resolve();
+      }
+    },
+  });
+  const scope = createScope();
+  scope.getController(answer).watch((v) => void seen.push(v));
+  await scope.getController(chat).resolve();
+  expect(seen).toEqual(["He", "Hell", "Hello"]);
+});
+
+test("a real late owned failure during close still surfaces (cancel-clean is only the abort reason)", async () => {
+  const closing = deferred();
+  const write = deferred();
+  const cause = new Error("db write failed");
+  const op = operation({
+    label: "write",
+    run: (_deps, { signal }) => {
+      signal.addEventListener("abort", () => closing.resolve(), { once: true });
+      return write.promise;
+    },
+  });
+  const done = createScope().session((s) => {
+    void s.getController(op).resolve();
+    return 42;
+  });
+  await closing.promise;
+  write.reject(cause);
+  await expect(done).rejects.toBe(cause);
+});
+
+test("a cancelled session rejects rather than resolving undefined", async () => {
+  const parked = operation({
+    label: "parked",
+    run: (_deps, { signal }) =>
+      new Promise<void>((resolve) => {
+        signal.addEventListener("abort", () => resolve(), { once: true });
+      }),
+  });
+  const root = createScope();
+  const running = root.session((s) => s.getController(parked).resolve());
+  await root.close({ status: "cancelled" });
+  let rejected = false;
+  await running.catch(() => void (rejected = true));
+  expect(rejected).toBe(true);
+});
+
+test("a throwing defer is aggregated as TeardownFailed and does not stop other defers", async () => {
+  const seen: string[] = [];
+  const boom = new Error("teardown boom");
+  const r = resource({
+    label: "r",
+    factory: (_deps, { defer }) => {
+      defer(() => void seen.push("kept"));
+      defer(() => {
+        throw boom;
+      });
+      return 1;
+    },
+  });
+  const scope = createScope();
+  scope.getController(r).resolve();
+  const thrown = await scope.close().then(
+    () => undefined,
+    (error: unknown) => error,
+  );
+  expect(seen).toEqual(["kept"]);
+  if (!isError(thrown, "TeardownFailed")) throw thrown;
+  expect(thrown.payload.causes).toContain(boom);
+});
+
+test("closing a scope with thousands of defers does not overflow", async () => {
+  const scope = createScope();
+  for (let i = 0; i < 5000; i++) {
+    const r = resource({
+      label: `r${i}`,
+      factory: (_deps, { defer }) => {
+        defer(() => undefined);
+        return i;
+      },
+    });
+    scope.getController(r).resolve();
+  }
+  await scope.close();
+  expect(true).toBe(true);
+});
+
+test("an interrupted session resource sees cancelled, not success", async () => {
+  const seen: string[] = [];
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    factory: (_deps, { defer, signal }) => {
+      defer((end) => void seen.push(end.status));
+      return new Promise<number>((resolve) => {
+        signal.addEventListener("abort", () => resolve(42), { once: true });
+      });
+    },
+  });
+  const root = createScope();
+  const done = root.session((s) => s.getController(tx).resolve());
+  await Promise.all([root.close(), done.catch(() => undefined)]);
+  expect(seen).toEqual(["cancelled"]);
+});
+
+test("closing a deeply nested scope tree does not overflow", async () => {
+  const root = createScope();
+  let leaf = root;
+  for (let i = 0; i < 3000; i++) leaf = leaf.createSession();
+  await root.close({ status: "cancelled" });
+  expect(true).toBe(true);
+  // 3000-deep async close cascade: generous timeout so coverage-instrumented runs (mutation) don't
+  // flake on the default 5s; the assertion here is "no stack overflow", not wall-clock speed.
+}, 30000);
+
+test("an owned rejection with an undefined cause keeps that cause", async () => {
+  const op = operation({ label: "fail", run: () => Promise.reject(undefined) });
+  const done = createScope().session((s) => {
+    void s.getController(op).resolve();
+    return 42;
+  });
+  let caught = { has: false, value: "unset" as unknown };
+  await done.catch((error: unknown) => void (caught = { has: true, value: error }));
+  expect(caught.has).toBe(true);
+  expect(caught.value).toBe(undefined);
+});
+
+test("teardown errors are aggregated in execution order", async () => {
+  const first = new Error("first");
+  const second = new Error("second");
+  const op = operation({
+    label: "op",
+    run: (_deps, { defer }) => {
+      defer(() => {
+        throw first;
+      });
+    },
+  });
+  const scope = createScope();
+  scope.getController(op).resolve();
+  scope.onClose(() => {
+    throw second;
+  });
+  const thrown = await scope.close().then(
+    () => undefined,
+    (error: unknown) => error,
+  );
+  if (!isError(thrown, "TeardownFailed")) throw thrown;
+  expect(thrown.payload.causes).toEqual([first, second]);
+});
+
+test("close aborts children created by a still-running nested body", async () => {
+  const gate = deferred();
+  let closeBoundary = (): Promise<void> => Promise.resolve();
+  const park = operation({
+    label: "park",
+    run: (_deps, { signal }) =>
+      new Promise<void>((resolve) => {
+        if (signal.aborted) resolve();
+        else signal.addEventListener("abort", () => resolve(), { once: true });
+      }),
+  });
+  const done = createScope().session((outer) => {
+    closeBoundary = () => outer.close();
+    return outer.session(async (inner) => {
+      await gate.promise;
+      return inner.createSession().getController(park).resolve();
+    });
+  });
+  const rejected = done.catch(() => undefined);
+  const closing = closeBoundary();
+  await Promise.resolve();
+  gate.resolve();
+  await closing;
+  await rejected;
+  expect(true).toBe(true);
+});
+
+test("a settled body result survives a later interrupt", async () => {
+  const root = createScope();
+  const done = root.session(() => Promise.resolve(42));
+  const result = expect(done).resolves.toBe(42);
+  await root.close();
+  await result;
+});
+
+test("a failed parent close preserves the failure in an interrupted child", async () => {
+  const cause = new Error("parent failed");
+  const seen: Scope.End[] = [];
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    factory: (_deps, { signal, defer }) => {
+      defer((end) => void seen.push(end));
+      return new Promise<number>((resolve) => {
+        signal.addEventListener("abort", () => resolve(42), { once: true });
+      });
+    },
+  });
+  const root = createScope();
+  const done = root.session((s) => s.getController(tx).resolve());
+  const rejected = expect(done).rejects.toBe(cause);
+  await root.close({ status: "failed", error: cause });
+  await rejected;
+  expect(seen).toEqual([{ status: "failed", error: cause }]);
+});
+
+test("a failed close reaches the child its parent body awaits", async () => {
+  const cause = new Error("parent failed");
+  const seen: Scope.End[] = [];
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    factory: (_deps, { signal, defer }) => {
+      defer((end) => void seen.push(end));
+      return new Promise<number>((resolve) => {
+        signal.addEventListener("abort", () => resolve(42), { once: true });
+      });
+    },
+  });
+  let closeParent = (): Promise<void> => Promise.resolve();
+  const done = createScope().session((parent) => {
+    closeParent = () => parent.close({ status: "failed", error: cause });
+    return parent.session((child) => child.getController(tx).resolve());
+  });
+  const rejected = expect(done).rejects.toBe(cause);
+  await closeParent();
+  await rejected;
+  expect(seen).toEqual([{ status: "failed", error: cause }]);
+});
+
+test("a body that rejects with a surfaced failure reports it over a caught owned-work error", async () => {
+  // ADR 0026 Q6: a real body failure wins over owned-work. Here the body CAUGHT `own` (so it is not
+  // the body's outcome) and then rejected with `ancestor` (surfaced through the awaited grandchild),
+  // so the session settles with the body's cause `ancestor`, not the caught owned-work `own`.
+  const ready = deferred();
+  const own = new Error("owned failure");
+  const ancestor = new Error("ancestor failure");
+  const bad = operation({ label: "bad", run: () => Promise.reject(own) });
+  const park = operation({
+    label: "park",
+    run: (_deps, { signal }) =>
+      new Promise<number>((resolve) => {
+        signal.addEventListener("abort", () => resolve(42), { once: true });
+      }),
+  });
+  const root = createScope();
+  const done = root.session(async (child) => {
+    await expect(child.getController(bad).resolve()).rejects.toBe(own);
+    ready.resolve();
+    return child.session((grandchild) => grandchild.getController(park).resolve());
+  });
+  await ready.promise;
+  await root.close({ status: "failed", error: ancestor });
+  await expect(done).rejects.toBe(ancestor);
+});
+
+test("a parent body failure overrides inherited cancellation in its child", async () => {
+  const gate = deferred();
+  const cause = new Error("body failed");
+  const seen: Scope.End[] = [];
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    factory: (_deps, { defer }) => {
+      defer((end) => void seen.push(end));
+      return 1;
+    },
+  });
+  const root = createScope();
+  const done = root.session(async (parent) => {
+    parent.createSession().getController(tx).resolve();
+    await gate.promise;
+    throw cause;
+  });
+  const rejected = expect(done).rejects.toBe(cause);
+  const closing = root.close({ status: "cancelled" });
+  await Promise.resolve();
+  gate.resolve();
+  await closing;
+  await rejected;
+  expect(seen).toEqual([{ status: "failed", error: cause }]);
+});
+
+test("an own body failure wins even when an ancestor reports the same cause", async () => {
+  const ready = deferred();
+  const interrupted = deferred();
+  const bodyCause = new Error("body failed");
+  const ownedCause = new Error("owned work failed");
+  const seen: Scope.End[] = [];
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    factory: (_deps, { defer, signal }) => {
+      defer((end) => void seen.push(end));
+      signal.addEventListener("abort", () => interrupted.resolve(), { once: true });
+      return 1;
+    },
+  });
+  const bad = operation({ label: "bad", run: () => Promise.reject(ownedCause) });
+  const root = createScope();
+  const running = root.session(async (child) => {
+    child.getController(tx).resolve();
+    await expect(child.getController(bad).resolve()).rejects.toBe(ownedCause);
+    ready.resolve();
+    await interrupted.promise;
+    throw bodyCause;
+  });
+  const caught = running.then(
+    () => undefined,
+    (error: unknown) => error,
+  );
+  await ready.promise;
+  await root.close({ status: "failed", error: bodyCause });
+  expect.soft(await caught).toBe(bodyCause);
+  expect(seen).toEqual([{ status: "failed", error: bodyCause }]);
+});
+
+test("the settlement reducer handles a primitive (non-Error) body cause", async () => {
+  const ready = deferred();
+  const own = "owned failure";
+  const ancestor = "ancestor failure";
+  const bad = operation({ label: "bad", run: () => Promise.reject(own) });
+  const park = operation({
+    label: "park",
+    run: (_deps, { signal }) =>
+      new Promise<number>((resolve) => {
+        signal.addEventListener("abort", () => resolve(42), { once: true });
+      }),
+  });
+  const root = createScope();
+  const done = root.session(async (child) => {
+    await expect(child.getController(bad).resolve()).rejects.toBe(own);
+    ready.resolve();
+    return child.session((grandchild) => grandchild.getController(park).resolve());
+  });
+  await ready.promise;
+  await root.close({ status: "failed", error: ancestor });
+  await expect(done).rejects.toBe(ancestor);
+});
+
+test("a reused error object is a later session's own body failure, not a stale propagation", async () => {
+  const shared = new Error("shared");
+  const park = operation({
+    label: "park",
+    run: (_deps, { signal }) =>
+      new Promise<number>((resolve) => {
+        signal.addEventListener("abort", () => resolve(42), { once: true });
+      }),
+  });
+  const root1 = createScope();
+  const first = root1.session((child) =>
+    child.session((grandchild) => grandchild.getController(park).resolve()),
+  );
+  const firstRejected = expect(first).rejects.toBe(shared);
+  await root1.close({ status: "failed", error: shared });
+  await firstRejected;
+  const ready = deferred();
+  const interrupted = deferred();
+  const ownedCause = new Error("owned");
+  const seen: Scope.End[] = [];
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    factory: (_deps, { defer, signal }) => {
+      defer((end) => void seen.push(end));
+      signal.addEventListener("abort", () => interrupted.resolve(), { once: true });
+      return 1;
+    },
+  });
+  const bad = operation({ label: "bad", run: () => Promise.reject(ownedCause) });
+  const root2 = createScope();
+  const second = root2.session(async (child) => {
+    child.getController(tx).resolve();
+    await expect(child.getController(bad).resolve()).rejects.toBe(ownedCause);
+    ready.resolve();
+    await interrupted.promise;
+    throw shared;
+  });
+  const caught = second.then(
+    () => undefined,
+    (error: unknown) => error,
+  );
+  await ready.promise;
+  await root2.close({ status: "failed", error: shared });
+  expect.soft(await caught).toBe(shared);
+  expect(seen).toEqual([{ status: "failed", error: shared }]);
+});
+
+test("closing a manual child does not demote its parent's own body failure", async () => {
+  const bodyCause = new Error("body failed");
+  const ownedCause = new Error("owned work failed");
+  const seen: Scope.End[] = [];
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    factory: (_deps, { defer }) => {
+      defer((end) => void seen.push(end));
+      return 1;
+    },
+  });
+  const bad = operation({ label: "bad", run: () => Promise.reject(ownedCause) });
+  const root = createScope();
+  const running = root.session(async (parent) => {
+    parent.getController(tx).resolve();
+    parent.createSession();
+    await expect(parent.getController(bad).resolve()).rejects.toBe(ownedCause);
+    throw bodyCause;
+  });
+  const caught = await running.then(
+    () => undefined,
+    (error: unknown) => error,
+  );
+  await root.close();
+  expect.soft(caught).toBe(bodyCause);
+  expect(seen).toEqual([{ status: "failed", error: bodyCause }]);
+});
+
+test("a manual child's earlier close does not swallow the body's own throw of the same cause", async () => {
+  const cause = new Error("body failed");
+  const seen: Scope.End[] = [];
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    factory: (_deps, { defer }) => {
+      defer((end) => void seen.push(end));
+      return 1;
+    },
+  });
+  const root = createScope();
+  const running = root.session(async (parent) => {
+    parent.getController(tx).resolve();
+    await parent.createSession().close({ status: "failed", error: cause });
+    throw cause;
+  });
+  await expect.soft(running).rejects.toBe(cause);
+  expect(seen).toEqual([{ status: "failed", error: cause }]);
+  await root.close();
+});
+
+test("an ancestor cancel does not overwrite a failed parent close in a self-closing child", async () => {
+  const interrupted = deferred();
+  const cause = new Error("parent failed");
+  const seen: Scope.End[] = [];
+  const childErrors: unknown[] = [];
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    factory: (_deps, { signal, defer }) => {
+      defer((end) => void seen.push(end));
+      signal.addEventListener("abort", () => interrupted.resolve(), { once: true });
+      return 1;
+    },
+  });
+  const root = createScope();
+  let closeParent = (): Promise<void> => Promise.resolve();
+  const running = root.session((parent) => {
+    closeParent = () => parent.close({ status: "failed", error: cause });
+    return parent
+      .session(async (child) => {
+        child.getController(tx).resolve();
+        await interrupted.promise;
+        return 42;
+      })
+      .catch((error: unknown) => {
+        childErrors.push(error);
+        throw error;
+      });
+  });
+  const caught = running.then(
+    () => undefined,
+    (error: unknown) => error,
+  );
+  const failedClose = closeParent();
+  const cancelledClose = root.close({ status: "cancelled" });
+  await Promise.all([failedClose, cancelledClose]);
+  expect.soft(await caught).toBe(cause);
+  expect.soft(childErrors).toEqual([cause]);
+  expect(seen).toEqual([{ status: "failed", error: cause }]);
+});
+
+test("separate nested cancel requests stay cancelled when the child rejection reaches its parent", async () => {
+  const interrupted = deferred();
+  const seen: Scope.End[] = [];
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    factory: (_deps, { signal, defer }) => {
+      defer((end) => void seen.push(end));
+      return signal;
+    },
+  });
+  const root = createScope();
+  let closeChild = (): Promise<void> => Promise.resolve();
+  let parentReason: unknown;
+  const running = root.session((parent) => {
+    const signal = parent.getController(tx).resolve();
+    signal.addEventListener("abort", () => void (parentReason = signal.reason), { once: true });
+    return parent.session(async (child) => {
+      const childSignal = child.getController(tx).resolve();
+      childSignal.addEventListener("abort", () => interrupted.resolve(), { once: true });
+      closeChild = () => child.close({ status: "cancelled" });
+      await interrupted.promise;
+      return 42;
+    });
+  });
+  const caught = running.then(
+    () => undefined,
+    (error: unknown) => error,
+  );
+  const childClose = closeChild();
+  const rootClose = root.close({ status: "cancelled" });
+  await Promise.all([childClose, rootClose]);
+  expect.soft(await caught).toBe(parentReason);
+  expect(seen).toEqual([{ status: "cancelled" }, { status: "cancelled" }]);
+});
+
+test("a failed ancestor reaches a child whose cancelled close is awaiting its body", async () => {
+  const interrupted = deferred();
+  const cause = new Error("ancestor failed");
+  const seen: Scope.End[] = [];
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    factory: (_deps, { signal, defer }) => {
+      defer((end) => void seen.push(end));
+      signal.addEventListener("abort", () => interrupted.resolve(), { once: true });
+      return 1;
+    },
+  });
+  const root = createScope();
+  let closeChild = (): Promise<void> => Promise.resolve();
+  const running = root.session(async (child) => {
+    child.getController(tx).resolve();
+    closeChild = () => child.close({ status: "cancelled" });
+    await interrupted.promise;
+    return 42;
+  });
+  const caught = running.then(
+    () => undefined,
+    (error: unknown) => error,
+  );
+  const childClose = closeChild();
+  const rootClose = root.close({ status: "failed", error: cause });
+  await Promise.all([childClose, rootClose]);
+  expect.soft(await caught).toBe(cause);
+  expect(seen).toEqual([{ status: "failed", error: cause }]);
+});
+
+test("a parent body failure reaches its already-closing child", async () => {
+  const interrupted = deferred();
+  const cause = new Error("parent body failed");
+  const seen: Scope.End[] = [];
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    factory: (_deps, { signal, defer }) => {
+      defer((end) => void seen.push(end));
+      signal.addEventListener("abort", () => interrupted.resolve(), { once: true });
+      return 1;
+    },
+  });
+  const root = createScope();
+  let closeChild = (): Promise<void> => Promise.resolve();
+  let childResult: Promise<unknown> = Promise.resolve();
+  const running = root.session((parent) => {
+    childResult = parent
+      .session(async (child) => {
+        child.getController(tx).resolve();
+        closeChild = () => child.close({ status: "cancelled" });
+        await interrupted.promise;
+        return 42;
+      })
+      .then(
+        (value) => value,
+        (error: unknown) => error,
+      );
+    throw cause;
+  });
+  const parentResult = expect(running).rejects.toBe(cause);
+  const childClose = closeChild();
+  const rootClose = root.close({ status: "cancelled" });
+  await Promise.all([childClose, rootClose, parentResult]);
+  expect.soft(await childResult).toBe(cause);
+  expect(seen).toEqual([{ status: "failed", error: cause }]);
 });

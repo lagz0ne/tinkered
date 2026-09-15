@@ -7,19 +7,47 @@ Core ticket detail + reset recipes: `docs/roadmap/core-v1/PROGRESS.md`.
 
 ## Now
 
-- [ ] pick the next thread (presets line + subflow + tag-meta all landed). Remaining v1: streaming
-      (needs a design grill with the user) and core/t19 (validation capstone — best done last).
+- [ ] core/lt2 — release + cross-owner via the SAME reverse-registration drain (ADR 0026 Q2).
+  - `release` selects the affected set via the `dependents` graph (selection only) and runs their
+    defers through the reverse-registration drain with `{ status: "released" }`; cross-owner **claims**
+    so an owner's close joins queued (incl. cross-owner) release work and never drops a late throw;
+    borrow policy: wait for in-flight borrowers before physical teardown.
+  - Verify: diamond release correct; cross-owner release joined (late throw not lost); superseded/
+    failed builds run defers once; release/close/rebuild overlap has no double cleanup; gate green
+    (`scripts/ticket.sh`) + astra-clean.
+
+- [ ] teardown/lifetime REDESIGN (umbrella) — converged API `ctx.defer(end)` + `ctx.signal` (ADR 0024)
+      with teardown as reverse-registration LIFO (ADR 0026). Tracked as core/lt1–lt4 in PROGRESS.md;
+      failure ledger in `docs/roadmap/core-v1/teardown-redesign.md`.
+  - lt1 DONE (tag `core/lt1`): converged ctx + reverse-registration close; settlement = ADR 0026/0025
+    §4 reducer applied literally; branded cancel reasons; concurrent-close severity/inheritedEnd
+    correctness. 14 astra rounds, final clean; gate green (158 tests, mutation 76.91%).
+  - Remaining: lt2 (release + cross-owner) → lt3 (cancellation hardening + deadlock-kill + one-end
+    state machine + Q5 cancel-timing matrix + deferred teardown-error ordering) → lt4 (prove contract
+    - remove any dead two-phase paths + budgets).
+  - Verify: each lt ticket lands green (`scripts/ticket.sh`) + astra-clean; bug-ledger classes covered.
 
 ## Next (roadmap, in order)
 
-- [ ] streaming design grill — LLM producer specifics (ADR 0021 is model-only)
-  - Verify: ADR 0021 updated with cell ownership / accumulate-vs-replace / end + error-vs-cancel; a streaming ticket added here.
-- [ ] streaming (impl) — `ctx.signal` + accumulate-via-`data` (ADR 0021)
-  - Verify: `scripts/ticket.sh` passes; a producer writes a cell over time, a watcher sees the growing value, and `close()` cancels the producer (test).
 - [ ] core/t19 — v1 validation milestone
   - Verify: all budget lanes green together (size, promises, heap, mutation, CRAP, both entries, cast-free examples).
 
 ## Done
+
+- [x] core/lt1 — converged `ctx.defer(end)` + `ctx.signal` (replaces `cleanup`/`onOutcome`);
+      `Scope.Outcome += cancelled`; close drains one per-layer defer list in reverse registration order
+      (LIFO, onClose is a defer), sequential + awaited, children-first; settlement = ADR 0026/0025 §4
+      reducer applied literally; branded cancel reasons; parent→child abort chaining; cancelled session
+      rejects with the abort reason.
+  - Verified: gate green — `vp check`, 158 core tests, strict census, size 10808 B, mutation 76.91%;
+    tag `core/lt1`. 14 astra rounds (ledger `teardown-redesign.md`): rounds 7–9 removed an unsound
+    "own vs propagated" distinction (provenance by error value is impossible); rounds 10–13 fixed
+    concurrent/overlapping-close propagation (severity merge, branded reasons, live inheritedEnd read,
+    already-closing child adopts a more-severe outcome); round 14 CONFIRM CLEAN (768-case matrix).
+
+- [x] core/lifetime-design — proposed guideline in `docs/decisions/0025-teardown-redesign-guideline.md`.
+  - Verified: model, six-invariant coverage, unified algorithm, bug-class map, six open decisions,
+    and five sequenced ticket drafts are present; all document links resolve. No implementation edits.
 
 - [x] core/tag-meta — static metadata on every unit (ADR 0023): `meta: [someTag(v)]` on data/operation/resource/tag (incl. a tag itself), read via `handle.meta` or `tag.read(unit)`; inert (never affects resolution)
   - Verified: gate green (check + 128 tests + size 8232 B + mutation 77.00% core); tag `core/tag-meta`. Astra: 1 bug (shared mutable empty-meta array leaked across units) — fixed by freezing the sentinel (`Object.freeze([])`, allowed by the user), census S15 narrowed to permit an empty-literal freeze while still flagging value-freezing; regression test added.

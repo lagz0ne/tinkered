@@ -53,3 +53,54 @@ Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its 
 
 Parallelizable once upstream lands: 04‖05, 15 alongside 12→13→14, 17 early off 05.
 Family (keyed collections) is out of v1 (needs its own semantics ADR).
+
+## Teardown / lifetime redesign (LT1–LT4)
+
+Converge the ctx to `ctx.defer(end)` + `ctx.signal` (ADR 0024) with teardown as **reverse-registration
+LIFO** (ADR 0026 — not a dependency scheduler). Replaces `cleanup` + `onOutcome`. Design inputs:
+ADR 0024 (API), ADR 0026 (decisions), ADR 0025 (analysis/bug map), and the bug/requirements ledger
+`teardown-redesign.md`. Each ticket lands astra-clean via the gate; sits before core/t19.
+
+| tag      | ticket                                          | blockers | status |
+| -------- | ----------------------------------------------- | -------- | ------ |
+| core/lt1 | Converged ctx + reverse-registration close      | t14, t16 | [x]    |
+| core/lt2 | Release + cross-owner via the same drain        | lt1      | [ ]    |
+| core/lt3 | Cancellation hardening + deadlock-kill + states | lt2      | [ ]    |
+| core/lt4 | Prove the contract + remove old paths + budgets | lt3      | [ ]    |
+
+- **lt1** — `ctx.defer(end)` (end = success|failed|cancelled|released) + `ctx.signal` on operation and
+  resource ctx; `Scope.Outcome += cancelled`. Close drains the layer's one defer list (onClose is a
+  defer) in **reverse registration order**, sequential + awaited, children-first. Settlement reducer
+  (body/owned failure > cancel > success); `isCancel = error === signal.reason`; cancelled session
+  rejects with the abort reason; `signal` chains parent→child and aborts at close start.
+  _Accept (public seam):_ reverse-registration LIFO incl. onClose interleaving (even onClose
+  registered mid-factory); diamond/chain order via registration; 10k-deep chain closes without
+  overflow; op/resource `defer` sees the right status; a real late failure during close still
+  surfaces; real failure beats cancel; cancelled session rejects with the abort reason; a streaming
+  op writes a cell over time and stops cleanly when `close()` aborts its signal; throwing defer →
+  aggregated `TeardownFailed`, later defers still run.
+  _LANDED (tag `core/lt1`)._ Gate green: `vp check`, 158 core tests, strict census, size 10808 B,
+  mutation 76.91%. **14 astra rounds** — full failure ledger in `teardown-redesign.md` (rounds 1–14).
+  The settlement model is the ADR 0026/0025 §4 reducer applied **literally** (a real non-cancel body
+  rejection wins → owned-work → inherited/explicit failed → cancel → success): rounds 7–9 chased an
+  "own vs propagated body failure" distinction that is unsound (provenance by error value is
+  impossible) and it was removed. Concurrent/overlapping-close correctness (rounds 10–13): severity
+  merge of `inheritedEnd` in `abortSubtree`; **branded** abort reasons so `isCancel` recognizes a
+  cancel across layers; live `inheritedEnd` re-read at settlement; and an already-closing (not-yet-
+  settled) child adopts a more-severe incoming outcome. Round 14 confirmed clean (768-case 4-layer
+  overlap matrix + branding/LIFO/after-settlement probes).
+- **lt2** — `release` selects the affected set via the `dependents` graph (selection only) and runs
+  their defers through the SAME reverse-registration drain with `released`; cross-owner **claims** so
+  an owner's close joins queued (incl. cross-owner) release work and never drops a late throw; borrow
+  policy (Q2: wait for in-flight borrowers before physical teardown).
+  _Accept:_ diamond release correct; cross-owner release joined (late throw not lost); superseded/
+  failed builds run their defers once (released/failed); release/close/rebuild overlap has no double
+  cleanup.
+- **lt3** — deadlock detect-and-kill (Q3: a teardown awaiting its own/ancestor same-root queued
+  teardown rejects, never hangs); one-end-per-lifetime state machine, invalid transition throws (Q4);
+  cancellation timing (Q5: body settled before interrupt keeps its value).
+  _Accept:_ a self/ancestor teardown-wait is killed with an error not hung; a conflicting end on an
+  already-ended lifetime throws; the cancel-before/after-body-settle race matrix.
+- **lt4** — full public-seam regression suite covering every bug-ledger class; remove any dead
+  two-phase paths; budgets (size/promises/mutation) green; ADR refs updated.
+  _Accept:_ every ledger class has a deterministic seam test; `scripts/ticket.sh` green; astra-clean.

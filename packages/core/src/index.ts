@@ -108,11 +108,14 @@ export declare namespace Observe {
 }
 
 export declare namespace Operation {
-  /** The receiver a command body reads its own invocation through. */
+  /** The receiver a command body reads its own invocation through. `signal` aborts when the owning
+   * scope/session closes (hand it to `fetch`/an SDK); `defer` runs one hook when the run settles. */
   export type Ctx<I> = {
     readonly label: string;
     readonly rawInput: unknown;
     readonly input: I;
+    readonly signal: AbortSignal;
+    readonly defer: (fn: (end: Scope.End) => void | PromiseLike<void>) => void;
     readonly obs: Observe.Ctx;
     readonly log: (message: string, attributes?: Record<string, unknown>) => void;
   };
@@ -132,12 +135,12 @@ export declare namespace Operation {
 }
 
 export declare namespace Resource {
-  /** The receiver a resource factory builds through: register per-instance cleanup and
-   * an outcome hook that commits (success) or rolls back (failed) when the owner settles. */
+  /** The receiver a resource factory builds through: `defer` registers one end-hook (commit/roll
+   * back/release when the owner settles or the resource is released); `signal` aborts on close. */
   export type Ctx = {
     readonly label: string;
-    readonly cleanup: (fn: () => void | PromiseLike<void>) => void;
-    readonly onOutcome: (fn: (outcome: Scope.Outcome) => void | PromiseLike<void>) => void;
+    readonly defer: (fn: (end: Scope.End) => void | PromiseLike<void>) => void;
+    readonly signal: AbortSignal;
     readonly obs: Observe.Ctx;
     readonly log: (message: string, attributes?: Record<string, unknown>) => void;
   };
@@ -264,10 +267,15 @@ export declare namespace Scope {
     presets?: readonly Preset[];
   };
 
-  /** How a scope settled: declared outside-in on success, or failed by an inside-out cause. */
+  /** How a scope settled: cleanly, by an inside-out failure, or as a cancellation. */
   export type Outcome =
     | { readonly status: "success" }
-    | { readonly status: "failed"; readonly error?: unknown };
+    | { readonly status: "failed"; readonly error?: unknown }
+    | { readonly status: "cancelled" };
+
+  /** Why a lifetime ended, delivered to `ctx.defer`. A layer settles with an {@link Outcome}; an
+   * individually released resource ends `released` while its layer lives on. */
+  export type End = Outcome | { readonly status: "released" };
 
   /** What `createScope()` returns: the one seam tests and callers touch. */
   export type Handle = {
@@ -466,14 +474,11 @@ type Watcher = {
   eq: (a: unknown, b: unknown) => boolean;
   fn: (next: unknown) => void;
 };
-/** A teardown hook tagged with the resource that registered it (undefined = userland `onClose`),
- * so `release` can drop exactly one resource's hooks without touching others. */
-type CleanupEntry = {
-  fn: () => void | PromiseLike<void>;
-  resource: Resource.Handle<unknown> | undefined;
-};
-type OutcomeEntry = {
-  fn: (outcome: Scope.Outcome) => void | PromiseLike<void>;
+/** An end-hook (`ctx.defer`) tagged with the resource that registered it (undefined = userland
+ * `onClose`), so `release` can drop exactly one resource's hooks without touching others. Kept in
+ * registration order; teardown runs them in reverse (ADR 0026). */
+type DeferEntry = {
+  fn: (end: Scope.End) => void | PromiseLike<void>;
   resource: Resource.Handle<unknown> | undefined;
 };
 
@@ -492,8 +497,11 @@ type Layer = {
   tags: Map<Tag.Handle<unknown>, unknown[]>;
   watchers: Set<Watcher>;
   pending: Set<Promise<unknown>>;
-  cleanups: CleanupEntry[];
-  onOutcomes: OutcomeEntry[];
+  defers: DeferEntry[];
+  abort: AbortController;
+  cancelled: boolean;
+  inheritedEnd: Scope.Outcome | undefined;
+  bodyEnd: Promise<Scope.Outcome> | undefined;
   failure: { cause: unknown } | undefined;
   secondary: unknown[];
   body: Promise<unknown> | undefined;
@@ -817,7 +825,7 @@ function track(
   layer: Layer,
   result: unknown,
   onReject: (error: unknown) => void,
-  onSettle?: (status: "ok" | "failed") => void,
+  onSettle?: (status: "ok" | "failed", error?: unknown) => void,
 ): void {
   if (!isThenable(result)) {
     onSettle?.("ok");
@@ -831,22 +839,50 @@ function track(
     (error: unknown) => {
       layer.pending.delete(tracked);
       onReject(error);
-      onSettle?.("failed");
+      onSettle?.("failed", error);
     },
   );
   layer.pending.add(tracked);
 }
 
+/** Every abort reason we mint carries this brand, so a rejection can be recognized as one of OUR
+ * cancellations regardless of WHICH layer's abort produced it — a cancelled child rejects with its
+ * own reason, and its awaiting parent must still read that as a clean cancel, not a failure (r11). */
+const cancelBrand: unique symbol = Symbol("cancel");
+
+function makeCancelReason(): { [cancelBrand]: true } {
+  return { [cancelBrand]: true };
+}
+
+function isCancelReason(error: unknown): boolean {
+  return typeof error === "object" && error !== null && cancelBrand in error;
+}
+
+/** A rejection caused by our own cancellation — a clean cancel, not a failure (ADR 0026). The layer
+ * must be aborted AND the error must be a branded cancel reason (from this layer or a descendant it
+ * awaited); a real error rejecting during close is unbranded and still counts as a failure. */
+function isCancel(layer: Layer, error: unknown): boolean {
+  return layer.abort.signal.aborted && isCancelReason(error);
+}
+
 const asPrimary =
   (layer: Layer) =>
   (error: unknown): void => {
+    if (isCancel(layer, error)) return;
     layer.failure ??= { cause: error };
   };
-const asSecondary =
-  (layer: Layer) =>
-  (error: unknown): void => {
-    layer.secondary.push(error);
-  };
+
+/** The `defer` end for work that rejected: an abort-caused rejection is `cancelled`, else `failed`. */
+function rejectEnd(layer: Layer, error: unknown): Scope.End {
+  return isCancel(layer, error) ? { status: "cancelled" } : { status: "failed", error };
+}
+
+/** How an operation's run settled, for its `defer`: an abort-caused rejection (or a clean return
+ * under an aborted signal) is `cancelled`; a real rejection is `failed`; else `success`. */
+function endFor(layer: Layer, status: "ok" | "failed", error: unknown): Scope.End {
+  if (status === "failed") return rejectEnd(layer, error);
+  return layer.abort.signal.aborted ? { status: "cancelled" } : SUCCESS;
+}
 
 /** Layers whose teardown callbacks (cleanups/hooks) are executing right now, by depth. */
 const teardownDepth = new Map<Layer, number>();
@@ -872,21 +908,40 @@ function closeWouldReenter(target: Layer): boolean {
   return false;
 }
 
-/** Run one cleanup now (so sync teardown stays synchronous), collecting any failure as a
- * secondary error: joined by `settled`/`close` and surfaced via `TeardownFailed`, never
- * settling the owner's outcome (ADR 0017). */
-function runCleanup(layer: Layer, fn: () => void | PromiseLike<void>): void {
-  let result: void | PromiseLike<void>;
-  enterTeardown(layer);
-  try {
-    result = fn();
-  } catch (error) {
-    layer.secondary.push(error);
+/** Run `defer` fns in reverse (LIFO) from index `from`, passing `end`, awaiting each before the next
+ * so teardown order holds. Stays synchronous while the fns are; the first async one hands the rest to
+ * a tracked continuation joined by close. Failures collect as secondary errors, surfaced via
+ * `TeardownFailed`, never settling the owner's outcome (ADR 0017, 0026). */
+function runDefers(
+  layer: Layer,
+  fns: ((end: Scope.End) => void | PromiseLike<void>)[],
+  end: Scope.End,
+  from: number = fns.length - 1,
+): void {
+  for (let i = from; i >= 0; i--) {
+    let pending: void | PromiseLike<void>;
+    enterTeardown(layer);
+    try {
+      pending = fns[i](end);
+    } catch (error) {
+      layer.secondary.push(error);
+      continue;
+    } finally {
+      exitTeardown(layer);
+    }
+    if (!isThenable(pending)) continue;
+    const rest = i - 1;
+    const cont: Promise<void> = Promise.resolve(pending).then(
+      () => (layer.pending.delete(cont), runDefers(layer, fns, end, rest)),
+      (error: unknown) => (
+        layer.pending.delete(cont),
+        layer.secondary.push(error),
+        runDefers(layer, fns, end, rest)
+      ),
+    );
+    layer.pending.add(cont);
     return;
-  } finally {
-    exitTeardown(layer);
   }
-  track(layer, result, asSecondary(layer));
 }
 
 function readCall<T, I>(
@@ -912,6 +967,7 @@ function commandController<T, I>(
     const obs = layer.obs;
     const span = openSpan(obs, parent, target.label, "operation");
     const override = presetFor(layer, target) as Operation.Command<T, I>["run"] | undefined;
+    const defers: ((end: Scope.End) => void | PromiseLike<void>)[] = [];
     let result: T;
     try {
       const { input, rawInput, overlay } = readCall(target, call);
@@ -923,20 +979,21 @@ function commandController<T, I>(
         label: target.label,
         rawInput,
         input,
+        signal: layer.abort.signal,
+        defer: (fn) => void defers.push(fn),
         obs: obsCtx(obs, span),
         log: logFor(obs, span),
       };
       result = override ? override(deps, ctx) : target.run(deps, ctx);
     } catch (error) {
       closeSpan(obs, span, "failed");
+      runDefers(layer, defers, endFor(layer, "failed", error));
       throw error;
     }
-    track(
-      layer,
-      result,
-      asPrimary(layer),
-      span ? (status) => closeSpan(obs, span, status) : undefined,
-    );
+    track(layer, result, asPrimary(layer), (status, error) => {
+      if (span) closeSpan(obs, span, status);
+      runDefers(layer, defers, endFor(layer, status, error));
+    });
     return result;
   };
   return { resolve } as Scope.CommandController<T, I>;
@@ -980,15 +1037,12 @@ function buildResource<T>(
     const deps = resolveResourceDeps(owner, target, span);
     const ctx: Resource.Ctx = {
       label: target.label,
-      cleanup: (fn) => {
+      defer: (fn) => {
         if (settled) raise("Disposed", { reason: "resource factory already finished" });
-        if (superseded()) runCleanup(owner, fn);
-        else owner.cleanups.push({ fn, resource: target });
+        if (superseded()) runDefers(owner, [fn], RELEASED);
+        else owner.defers.push({ fn, resource: target });
       },
-      onOutcome: (fn) => {
-        if (settled) raise("Disposed", { reason: "resource factory already finished" });
-        if (!superseded()) owner.onOutcomes.push({ fn, resource: target });
-      },
+      signal: owner.abort.signal,
       obs: obsCtx(obs, span),
       log: logFor(obs, span),
     };
@@ -1052,7 +1106,7 @@ function finishAsyncBuild(
   );
   if (!superseded()) owner.builds.set(target, build);
   track(owner, build, (error) => {
-    if (!superseded()) owner.failure ??= { cause: error };
+    if (!superseded() && !isCancel(owner, error)) owner.failure ??= { cause: error };
   });
   return build;
 }
@@ -1087,18 +1141,18 @@ function resourceController<T>(
 
 type Affected = { node: Node; owner: Layer };
 
-/** Drop a resource's cache/generation/hook-registrations and edges at its owner, running no user
- * callback; returns its cleanups for the caller to run after every affected node is invalidated. */
+/** Drop a resource's cache/generation/defer-registrations and edges at its owner, running no user
+ * callback; returns its `defer`s (registration order) for the caller to run after every affected node
+ * is invalidated. */
 function invalidateResource(
   owner: Layer,
   target: Resource.Handle<unknown>,
-): (() => void | PromiseLike<void>)[] {
+): ((end: Scope.End) => void | PromiseLike<void>)[] {
   owner.generations.set(target, (owner.generations.get(target) ?? 0) + 1);
   owner.resources.delete(target);
   owner.builds.delete(target);
-  owner.onOutcomes = owner.onOutcomes.filter((entry) => entry.resource !== target);
-  const mine = owner.cleanups.filter((entry) => entry.resource === target).map((entry) => entry.fn);
-  owner.cleanups = owner.cleanups.filter((entry) => entry.resource !== target);
+  const mine = owner.defers.filter((entry) => entry.resource === target).map((entry) => entry.fn);
+  owner.defers = owner.defers.filter((entry) => entry.resource !== target);
   detachDependent(owner, target);
   owner.dependents.delete(target);
   return mine;
@@ -1165,23 +1219,34 @@ function releaseNode(layer: Layer, target: Node): void {
   ensureOpen(layer);
   const targetOwner = isResource(target) ? ownerOf(layer, target) : layer;
   ensureOpen(targetOwner);
-  const order = collectAffected(target, targetOwner);
-  const cleanups: { owner: Layer; fn: () => void | PromiseLike<void> }[] = [];
+  const byOwner = new Map<Layer, ((end: Scope.End) => void | PromiseLike<void>)[]>();
+  const dataReleased = invalidateAffected(collectAffected(target, targetOwner), byOwner);
+  try {
+    if (dataReleased) flushTree(layer);
+  } finally {
+    for (const [owner, fns] of byOwner) runDefers(owner, fns, RELEASED);
+  }
+}
+
+/** Drop every affected node's cache at its owner, collecting each released resource's `defer`s per
+ * owner; returns whether any data cell was reset (so the caller flushes watchers). */
+function invalidateAffected(
+  order: Affected[],
+  byOwner: Map<Layer, ((end: Scope.End) => void | PromiseLike<void>)[]>,
+): boolean {
   let dataReleased = false;
   for (const { node, owner } of order) {
     if (owner.closed) continue;
-    if (isResource(node))
-      for (const fn of invalidateResource(owner, node)) cleanups.push({ owner, fn });
-    else {
+    if (isResource(node)) {
+      const fns = byOwner.get(owner) ?? [];
+      for (const fn of invalidateResource(owner, node)) fns.push(fn);
+      byOwner.set(owner, fns);
+    } else {
       invalidateData(owner, node);
       dataReleased = true;
     }
   }
-  try {
-    if (dataReleased) flushTree(layer);
-  } finally {
-    for (let i = cleanups.length - 1; i >= 0; i--) runCleanup(cleanups[i].owner, cleanups[i].fn);
-  }
+  return dataReleased;
 }
 
 function addDependent(owner: Layer, node: Node, dependent: Resource.Handle<unknown>): void {
@@ -1249,8 +1314,11 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     tags,
     watchers: new Set(),
     pending: new Set(),
-    cleanups: [],
-    onOutcomes: [],
+    defers: [],
+    abort: new AbortController(),
+    cancelled: false,
+    inheritedEnd: undefined,
+    bodyEnd: undefined,
     failure: undefined,
     secondary: [],
     body: undefined,
@@ -1258,24 +1326,50 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     closing: undefined,
     obs: parent ? parent.obs : makeObs(options?.observe),
   };
-  if (parent) parent.children.add(layer);
+  if (parent) {
+    parent.children.add(layer);
+    if (parent.abort.signal.aborted) {
+      layer.abort.abort(parent.abort.signal.reason);
+      layer.inheritedEnd = parent.inheritedEnd;
+    }
+  }
   return layer;
 }
 
-const SUCCESS: Scope.Outcome = { status: "success" };
+/** Abort a layer and its whole subtree at once, iteratively (no recursion — deep trees are safe),
+ * sharing the root's abort reason so `isCancel` recognizes the cancel across the subtree. Called at
+ * close start so work awaited in descendants unblocks before the body is joined. An explicit
+ * `failed`/`cancelled` end is propagated to descendants (`inheritedEnd`) so a self-closing nested
+ * session adopts it instead of settling from its own interrupted body (ADR 0026). Propagation merges
+ * by severity (`moreSevere`) so a later ancestor `cancelled` never erases an earlier, more-severe
+ * inherited `failed` a descendant already carries. */
+function abortSubtree(root: Layer, requested: Scope.Outcome): void {
+  if (!root.abort.signal.aborted) root.abort.abort(makeCancelReason());
+  const reason = root.abort.signal.reason;
+  const inherited = requested.status === "success" ? undefined : requested;
+  const stack: Layer[] = [...root.children];
+  while (stack.length) {
+    const layer = stack.pop() as Layer;
+    if (inherited) layer.inheritedEnd = moreSevere(layer.inheritedEnd, inherited);
+    if (!layer.abort.signal.aborted) layer.abort.abort(reason);
+    for (const child of layer.children) stack.push(child);
+  }
+}
 
-async function drainHooks(
-  layer: Layer,
-  hooks: (() => void | PromiseLike<void>)[],
-  causes: unknown[],
-): Promise<void> {
-  for (let i = hooks.length - 1; i >= 0; i--) {
+const SUCCESS: Scope.Outcome = { status: "success" };
+const RELEASED: Scope.End = { status: "released" };
+
+/** Drain a layer's `defer`s in reverse registration order (LIFO, ADR 0026), awaiting each before the
+ * next, passing the settled `end`; teardown failures collect in `layer.secondary` in execution order
+ * (→ `TeardownFailed`). */
+async function drainDefers(layer: Layer, entries: DeferEntry[], end: Scope.End): Promise<void> {
+  for (let i = entries.length - 1; i >= 0; i--) {
     let pending: void | PromiseLike<void>;
     enterTeardown(layer);
     try {
-      pending = hooks[i]();
+      pending = entries[i].fn(end);
     } catch (cause) {
-      causes.push(cause);
+      layer.secondary.push(cause);
       continue;
     } finally {
       exitTeardown(layer);
@@ -1283,42 +1377,68 @@ async function drainHooks(
     try {
       await pending;
     } catch (cause) {
-      causes.push(cause);
+      layer.secondary.push(cause);
     }
   }
 }
 
-async function joinBody(layer: Layer): Promise<{ cause: unknown } | undefined> {
-  if (!layer.body) return undefined;
-  try {
-    await layer.body;
-    return undefined;
-  } catch (cause) {
-    return { cause };
-  }
+/** A layer's body end, classified at the moment the body settled (`bodyEnd`, attached at session
+ * creation so the abort-state reflects whether the body was interrupted, not the later own-close
+ * abort — Q5). A bodyless layer returns undefined (its outcome comes from the close request). */
+function classifyBody(layer: Layer): Promise<Scope.Outcome | undefined> {
+  return layer.bodyEnd ?? Promise.resolve(undefined);
 }
 
+/** The settlement reducer (ADR 0026 Q6 / ADR 0025 §4): a real body failure wins, then a recorded
+ * owned-work failure, then an inherited/explicit failed close, then a cancellation fact, else success.
+ * A body that rejects — whether it threw directly or surfaced a failure from a descendant it awaited —
+ * is a real body failure and its cause wins; we deliberately do NOT try to distinguish an "own" throw
+ * from a "propagated" one, because a re-surfaced cause is only knowable by value and value cannot
+ * prove where the body's error came from (rounds 7–9). A cancel body is not a failure. */
 function chooseOutcome(
   outcome: Scope.Outcome,
-  body: { cause: unknown } | undefined,
+  body: Scope.Outcome | undefined,
   owned: { cause: unknown } | undefined,
+  cancelled: boolean,
 ): Scope.Outcome {
-  if (body) return { status: "failed", error: body.cause };
+  if (body?.status === "failed") return body;
   if (owned) return { status: "failed", error: owned.cause };
-  return outcome;
+  if (outcome.status === "failed") return outcome;
+  return endedCancelled(outcome, body, cancelled) ? { status: "cancelled" } : outcome;
+}
+
+/** Combine an inherited end (propagated from a closing ancestor) with this layer's own close request,
+ * taking the more severe: a real `failed` (with its cause) wins over `cancelled` wins over `success`,
+ * so a parent's genuine failure is never masked by an ancestor's cancel (ADR 0026). */
+function moreSevere(inherited: Scope.Outcome | undefined, outcome: Scope.Outcome): Scope.Outcome {
+  if (!inherited) return outcome;
+  return severity(inherited) > severity(outcome) ? inherited : outcome;
+}
+
+function severity(outcome: Scope.Outcome): number {
+  return outcome.status === "failed" ? 2 : outcome.status === "cancelled" ? 1 : 0;
+}
+
+/** Whether a non-failed layer ended by cancellation: an explicit/inherited cancel flag, a cancelled
+ * body, or a cancelled close request. */
+function endedCancelled(
+  outcome: Scope.Outcome,
+  body: Scope.Outcome | undefined,
+  cancelled: boolean,
+): boolean {
+  return cancelled || body?.status === "cancelled" || outcome.status === "cancelled";
 }
 
 async function closeChildren(
   layer: Layer,
   outcome: Scope.Outcome,
-  causes: unknown[],
 ): Promise<{ cause: unknown } | undefined> {
   let failure: { cause: unknown } | undefined;
   for (const child of Array.from(layer.children)) {
     try {
       await closeLayer(child, outcome);
     } catch (cause) {
-      causes.push(cause);
+      layer.secondary.push(cause);
     }
     failure ??= child.failure;
   }
@@ -1329,6 +1449,13 @@ function closeLayer(layer: Layer, outcome: Scope.Outcome = SUCCESS): Promise<voi
   if (!layer.closing) {
     layer.closed = true;
     layer.closing = startClose(layer, outcome);
+  } else if (outcome.status !== "success" && !closeWouldReenter(layer)) {
+    /** The layer is already closing but its close has not settled: a more-severe outcome arriving now
+     * (e.g. a parent's body failure passed down through `closeChildren`) must still reach it. Merge it
+     * into the live `inheritedEnd` and re-propagate so the in-flight close picks it up at settlement
+     * (r13); an already-started close otherwise ignored the new outcome. */
+    layer.inheritedEnd = moreSevere(layer.inheritedEnd, outcome);
+    abortSubtree(layer, layer.inheritedEnd);
   }
   if (closeWouldReenter(layer)) {
     ignoreRejection(layer.closing);
@@ -1338,47 +1465,50 @@ function closeLayer(layer: Layer, outcome: Scope.Outcome = SUCCESS): Promise<voi
 }
 
 function startClose(layer: Layer, outcome: Scope.Outcome): Promise<void> {
+  const requested = moreSevere(layer.inheritedEnd, outcome);
+  layer.inheritedEnd = requested;
   const run = async (): Promise<void> => {
-    const causes: unknown[] = [];
-    const bodyFailure = await joinBody(layer);
+    abortSubtree(layer, requested);
+    const body = await classifyBody(layer);
+    /** Re-read the LIVE `inheritedEnd`: a concurrent ancestor close can upgrade it (by severity) while
+     * we await the body/children, and the stale start-of-close `requested` would miss that (r12). */
+    const inherited = moreSevere(layer.inheritedEnd, requested);
+    if (inherited.status === "cancelled" || body?.status === "cancelled") layer.cancelled = true;
     const childFailure = await closeChildren(
       layer,
-      chooseOutcome(outcome, bodyFailure, undefined),
-      causes,
+      chooseOutcome(inherited, body, undefined, layer.cancelled),
     );
     while (layer.pending.size) await Promise.all(layer.pending);
-    const settled = chooseOutcome(outcome, bodyFailure, layer.failure ?? childFailure);
+    const effective = moreSevere(layer.inheritedEnd, requested);
+    const settled = chooseOutcome(effective, body, layer.failure ?? childFailure, layer.cancelled);
     if (settled.status === "failed") layer.failure = { cause: settled.error };
-    await drainHooks(
-      layer,
-      layer.onOutcomes.map((entry) => () => entry.fn(settled)),
-      causes,
-    );
-    await drainHooks(
-      layer,
-      layer.cleanups.map((entry) => entry.fn),
-      causes,
-    );
-    if (layer.secondary.length) causes.push(...layer.secondary);
-    layer.parent?.children.delete(layer);
-    layer.cells.clear();
-    layer.effCache.clear();
-    layer.resources.clear();
-    layer.builds.clear();
-    layer.building.clear();
-    layer.generations.clear();
-    layer.dependents.clear();
-    layer.presets.clear();
-    layer.tags.clear();
-    layer.watchers.clear();
-    layer.pending.clear();
-    layer.children.clear();
-    layer.cleanups.length = 0;
-    layer.onOutcomes.length = 0;
-    layer.secondary.length = 0;
-    if (causes.length) throw makeError("TeardownFailed", { causes });
+    await drainDefers(layer, layer.defers, settled);
+    const teardownErrors = finishLayer(layer);
+    if (teardownErrors) throw makeError("TeardownFailed", { causes: teardownErrors });
   };
   return Promise.resolve().then(run);
+}
+
+/** Detach the layer and clear all its state after teardown; returns the collected teardown errors
+ * (in execution order) for `TeardownFailed`, or undefined if there were none. */
+function finishLayer(layer: Layer): unknown[] | undefined {
+  const teardownErrors = layer.secondary.length ? [...layer.secondary] : undefined;
+  layer.parent?.children.delete(layer);
+  layer.cells.clear();
+  layer.effCache.clear();
+  layer.resources.clear();
+  layer.builds.clear();
+  layer.building.clear();
+  layer.generations.clear();
+  layer.dependents.clear();
+  layer.presets.clear();
+  layer.tags.clear();
+  layer.watchers.clear();
+  layer.pending.clear();
+  layer.children.clear();
+  layer.defers.length = 0;
+  layer.secondary.length = 0;
+  return teardownErrors;
 }
 
 function settleSession(
@@ -1400,31 +1530,48 @@ async function runSession<R>(
 ): Promise<R> {
   ensureOpen(parent);
   const child = makeLayer(parent, options);
-  const body = (async (): Promise<R> => fn(handleFor(child)))();
+  const body = runBodyFn(child, fn);
   child.body = body;
-  let result: R | undefined;
-  let cause: unknown;
-  let failed = false;
-  try {
-    result = await body;
-  } catch (error) {
-    failed = true;
-    cause = error;
-  }
-  const outcome: Scope.Outcome = failed ? { status: "failed", error: cause } : SUCCESS;
+  child.bodyEnd = body.then(
+    (): Scope.Outcome => (child.abort.signal.aborted ? { status: "cancelled" } : SUCCESS),
+    (cause: unknown): Scope.Outcome =>
+      isCancel(child, cause) ? { status: "cancelled" } : { status: "failed", error: cause },
+  );
+  const result = await bodyResult(body);
   let teardownCauses: unknown[] | undefined;
   try {
-    await closeLayer(child, outcome);
+    await closeLayer(child, SUCCESS);
   } catch (error) {
     if (!isError(error, "TeardownFailed")) throw error;
     teardownCauses = error.payload.causes;
   }
   settleSession(
-    failed || child.failure !== undefined,
-    failed ? cause : child.failure?.cause,
+    child.failure !== undefined || child.cancelled,
+    child.failure ? child.failure.cause : child.abort.signal.reason,
     teardownCauses,
   );
   return result as R;
+}
+
+/** Run the session body, normalizing to a promise. `fn` is called synchronously (no extra
+ * adoption microtask) so a body that returns an already-settled value/promise is observed before a
+ * later close's abort can flip its end to `cancelled` (Q5); a synchronous throw becomes a rejection. */
+function runBodyFn<R>(child: Layer, fn: (scope: Scope.Handle) => R | PromiseLike<R>): Promise<R> {
+  try {
+    return Promise.resolve(fn(handleFor(child)));
+  } catch (error) {
+    return Promise.reject(error);
+  }
+}
+
+/** The session body's value, or undefined if it rejected — the body's end (success/failed/cancelled)
+ * is classified authoritatively by `startClose` via `classifyBody` (ADR 0026). */
+async function bodyResult<R>(body: Promise<R>): Promise<R | undefined> {
+  try {
+    return await body;
+  } catch {
+    return undefined;
+  }
 }
 
 function handleFor(layer: Layer): Scope.Handle {
@@ -1455,7 +1602,7 @@ function handleFor(layer: Layer): Scope.Handle {
     spans: () => layer.obs.history.slice(),
     onClose: (fn: () => void | PromiseLike<void>) => {
       ensureOpen(layer);
-      layer.cleanups.push({ fn, resource: undefined });
+      layer.defers.push({ fn: () => fn(), resource: undefined });
     },
     settled,
     close: (outcome?: Scope.Outcome) => closeLayer(layer, outcome),
