@@ -7,24 +7,30 @@ Core ticket detail + reset recipes: `docs/roadmap/core-v1/PROGRESS.md`.
 
 ## Now
 
-- [ ] core/lt2 — release + cross-owner via the SAME reverse-registration drain (ADR 0026 Q2).
-  - `release` selects the affected set via the `dependents` graph (selection only) and runs their
-    defers through the reverse-registration drain with `{ status: "released" }`; cross-owner **claims**
-    so an owner's close joins queued (incl. cross-owner) release work and never drops a late throw;
-    borrow policy: wait for in-flight borrowers before physical teardown.
-  - Verify: diamond release correct; cross-owner release joined (late throw not lost); superseded/
-    failed builds run defers once; release/close/rebuild overlap has no double cleanup; gate green
-    (`scripts/ticket.sh`) + astra-clean.
+- [ ] lazy resource building (pair, parallel) — build a resource only when its value is actually used,
+      via a lazy getter on the deps object, so crafting an object that never touches a dep is cheap.
+  - Dispatched as an isolated worktree pair off `core/lt2`. Verify: a dep whose getter is never read
+    is never built (observable via a build counter / no cleanup); existing behavior unchanged when the
+    getter IS read; gate green + astra-clean. Land as its own tag.
+
+- [ ] core/lt3 — cancellation hardening + deadlock detect-and-kill + one-end state machine (ADR 0026
+      Q3/Q4/Q5), PLUS the lt2-deferred build/release timing races (separate-release resource-cleanup
+      ordering; superseded mid-build dependent's late-cleanup order vs a concurrently-released
+      dependency — both run once, only order can be off; see `teardown-redesign.md`).
+  - Verify: a self/ancestor teardown-wait is killed not hung; a conflicting end on an already-ended
+    lifetime throws; the cancel-before/after-body-settle matrix; the deferred ordering races; gate
+    green (`scripts/ticket.sh`) + astra-clean.
 
 - [ ] teardown/lifetime REDESIGN (umbrella) — converged API `ctx.defer(end)` + `ctx.signal` (ADR 0024)
       with teardown as reverse-registration LIFO (ADR 0026). Tracked as core/lt1–lt4 in PROGRESS.md;
       failure ledger in `docs/roadmap/core-v1/teardown-redesign.md`.
-  - lt1 DONE (tag `core/lt1`): converged ctx + reverse-registration close; settlement = ADR 0026/0025
-    §4 reducer applied literally; branded cancel reasons; concurrent-close severity/inheritedEnd
-    correctness. 14 astra rounds, final clean; gate green (158 tests, mutation 76.91%).
-  - Remaining: lt2 (release + cross-owner) → lt3 (cancellation hardening + deadlock-kill + one-end
-    state machine + Q5 cancel-timing matrix + deferred teardown-error ordering) → lt4 (prove contract
-    - remove any dead two-phase paths + budgets).
+  - lt1 DONE (`core/lt1`): converged ctx + reverse-registration close; literal settlement reducer;
+    branded cancel reasons; concurrent-close severity/inheritedEnd correctness. 14 astra rounds.
+  - lt2 DONE (`core/lt2`): release via reverse-registration drain + depth-ordered cross-owner chain +
+    direct op-borrow (ADR Q2). A rounds-8–14 resource-cleanup dep-borrow was found beyond-spec +
+    deadlock-prone and REMOVED (simplified; code shrank). Timing-race ordering deferred to lt3.
+  - Remaining: lt3 (cancel/deadlock/state + deferred timing races) → lt4 (prove contract + remove any
+    dead two-phase paths + budgets).
   - Verify: each lt ticket lands green (`scripts/ticket.sh`) + astra-clean; bug-ledger classes covered.
 
 ## Next (roadmap, in order)
@@ -33,6 +39,15 @@ Core ticket detail + reset recipes: `docs/roadmap/core-v1/PROGRESS.md`.
   - Verify: all budget lanes green together (size, promises, heap, mutation, CRAP, both entries, cast-free examples).
 
 ## Done
+
+- [x] core/lt2 — release via the reverse-registration drain (diamonds), cross-owner order by depth
+      (descendants first, chained awaiting each descendant owner's full async drain), direct op-borrow
+      (ADR 0026 Q2: release waits for in-flight operations borrowing the resource, across the op body +
+      its own defers), defers extracted up front, superseded builds drain once.
+  - Verified: gate green — `vp check`, 172 core tests, strict census, size ~13.1 KB, mutation 77.33%;
+    tag `core/lt2`. 15 astra rounds; a rounds-8–14 resource-cleanup dependency-borrow (beyond ADR Q2,
+    deadlock-prone) was removed in a mid-course simplification (engine shrank ~1.2 KB). Two build/
+    release timing-race ordering edges deferred to lt3 (see `teardown-redesign.md`).
 
 - [x] core/lt1 — converged `ctx.defer(end)` + `ctx.signal` (replaces `cleanup`/`onOutcome`);
       `Scope.Outcome += cancelled`; close drains one per-layer defer list in reverse registration order

@@ -64,7 +64,7 @@ ADR 0024 (API), ADR 0026 (decisions), ADR 0025 (analysis/bug map), and the bug/r
 | tag      | ticket                                          | blockers | status |
 | -------- | ----------------------------------------------- | -------- | ------ |
 | core/lt1 | Converged ctx + reverse-registration close      | t14, t16 | [x]    |
-| core/lt2 | Release + cross-owner via the same drain        | lt1      | [ ]    |
+| core/lt2 | Release + cross-owner via the same drain        | lt1      | [x]    |
 | core/lt3 | Cancellation hardening + deadlock-kill + states | lt2      | [ ]    |
 | core/lt4 | Prove the contract + remove old paths + budgets | lt3      | [ ]    |
 
@@ -89,6 +89,14 @@ ADR 0024 (API), ADR 0026 (decisions), ADR 0025 (analysis/bug map), and the bug/r
   cancel across layers; live `inheritedEnd` re-read at settlement; and an already-closing (not-yet-
   settled) child adopts a more-severe incoming outcome. Round 14 confirmed clean (768-case 4-layer
   overlap matrix + branding/LIFO/after-settlement probes).
+- **lt2 final2 review:** P1 reproduced in `/tmp/lt2-final2-review/regression.test.ts`: one release
+  of root `conn` cascades to an in-flight child `tx` borrowed by an operation. Once the build and
+  operation finish, `conn` cleanup overtakes `tx`'s late async defer. The superseded defer's drain
+  (`src/index.ts:1319`) is not joined by the original owner chain (`:1294`, `:1342`). Expected
+  `tx-clean-open, conn-clean`; actual `conn-clean, tx-clean-closed`. Pre-release registration control
+  passes. Prior borrow-registration fix confirmed. Checks: `vp check` green (two warnings), core
+  172/172, workspace 178/178, strict census green. Source/tests unchanged; lt2 remains open.
+
 - **lt2** — `release` selects the affected set via the `dependents` graph (selection only) and runs
   their defers through the SAME reverse-registration drain with `released`; cross-owner **claims** so
   an owner's close joins queued (incl. cross-owner) release work and never drops a late throw; borrow
@@ -96,6 +104,19 @@ ADR 0024 (API), ADR 0026 (decisions), ADR 0025 (analysis/bug map), and the bug/r
   _Accept:_ diamond release correct; cross-owner release joined (late throw not lost); superseded/
   failed builds run their defers once (released/failed); release/close/rebuild overlap has no double
   cleanup.
+  _LANDED (tag `core/lt2`)._ Gate green: `vp check`, 172 core tests, strict census, size ~13.1 KB,
+  mutation 77.33%. Design (after a mid-course simplification — see the ledger lt2 scope decision):
+  release drains each affected owner's defers in reverse REGISTRATION order (diamonds), owners drained
+  DESCENDANTS-FIRST (invariant 6) and chained so an ancestor dependency waits for each descendant
+  owner's full (incl. async) drain; a **direct op-borrow** (ADR 0026 Q2) registered BEFORE dep
+  resolution makes a release wait for in-flight operations borrowing the resource (across the op's
+  body + its own defers); defers extracted up front so a rebuild during cleanup is not swept in;
+  superseded builds drain their late defer once, borrow-aware. A rounds-8–14 "resource-cleanup borrows
+  its dependency closure" mechanism was found beyond ADR 0026 Q2 and deadlock-prone, and REMOVED (net
+  code shrank). Deferred to lt3 (build/release timing races, not core lt2 invariants): ordering a
+  resource-cleanup against a dependency released by a SEPARATE later `release()`, and a superseded
+  (mid-build) dependent's late-cleanup order vs its concurrently-released dependency — both run once,
+  only order can be off. See `teardown-redesign.md`.
 - **lt3** — deadlock detect-and-kill (Q3: a teardown awaiting its own/ancestor same-root queued
   teardown rejects, never hangs); one-end-per-lifetime state machine, invalid transition throws (Q4);
   cancellation timing (Q5: body settled before interrupt keeps its value).

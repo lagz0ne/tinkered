@@ -1521,7 +1521,8 @@ test("releasing the head of a deep chain does not overflow the stack", () => {
   for (const node of chain) scope.getController(node).resolve();
   scope.release(chain[0]);
   expect(scope.getController(chain[0]).resolve().n).toBe(0);
-});
+  // 5000-node build + release: generous timeout so coverage-instrumented runs (mutation) don't flake.
+}, 30000);
 
 test("a throwing watcher during release still runs the cleanups", () => {
   const base = data({ initial: 0, parse: asNumber });
@@ -2900,4 +2901,461 @@ test("a parent body failure reaches its already-closing child", async () => {
   await Promise.all([childClose, rootClose, parentResult]);
   expect.soft(await childResult).toBe(cause);
   expect(seen).toEqual([{ status: "failed", error: cause }]);
+});
+
+test("a diamond release tears down dependents before dependencies (reverse registration)", () => {
+  const order: string[] = [];
+  const mk = (label: string, depends: Record<string, Scope.Dependency>) =>
+    resource({
+      label,
+      depends,
+      factory: (_deps, { defer }) => {
+        defer(() => void order.push(label));
+        return { [label]: 1 };
+      },
+    });
+  const d = mk("d", {});
+  const l = mk("l", { d });
+  const r = mk("r", { d });
+  const top = mk("top", { l, r });
+  const scope = createScope();
+  scope.getController(top).resolve();
+  scope.release(d);
+  expect(order[0]).toBe("top");
+  expect(order[order.length - 1]).toBe("d");
+  expect(order.indexOf("l")).toBeLessThan(order.indexOf("d"));
+  expect(order.indexOf("r")).toBeLessThan(order.indexOf("d"));
+});
+
+test("release waits for an in-flight op borrowing the resource before running its cleanup", async () => {
+  const opGate = deferred();
+  const order: string[] = [];
+  const res = resource({
+    label: "res",
+    factory: (_deps, { defer }) => {
+      defer(() => void order.push("res-clean"));
+      return 1;
+    },
+  });
+  const op = operation({
+    label: "op",
+    depends: { res },
+    run: async () => {
+      await opGate.promise;
+      order.push("op-done");
+      return 1;
+    },
+  });
+  const scope = createScope();
+  const running = scope.getController(op).resolve();
+  scope.release(res);
+  expect(order).toEqual([]);
+  opGate.resolve();
+  await running;
+  await scope.close();
+  expect(order).toEqual(["op-done", "res-clean"]);
+});
+
+test("a sync op borrowing a released resource does not delay its cleanup", () => {
+  const order: string[] = [];
+  const res = resource({
+    label: "res",
+    factory: (_deps, { defer }) => {
+      defer(() => void order.push("res-clean"));
+      return 1;
+    },
+  });
+  const op = operation({ label: "op", depends: { res }, run: () => 1 });
+  const scope = createScope();
+  scope.getController(op).resolve();
+  scope.release(res);
+  expect(order).toEqual(["res-clean"]);
+});
+
+test("releasing a scope resource waits for a cross-owner op that borrowed it", async () => {
+  const opGate = deferred();
+  const order: string[] = [];
+  const conn = resource({
+    label: "conn",
+    target: "scope",
+    factory: (_deps, { defer }) => {
+      defer(() => void order.push("conn-clean"));
+      return { id: 1 };
+    },
+  });
+  const use = operation({
+    label: "use",
+    depends: { conn },
+    run: async () => {
+      await opGate.promise;
+      order.push("use-done");
+      return 1;
+    },
+  });
+  const root = createScope();
+  const child = root.createSession();
+  const running = child.getController(use).resolve();
+  root.release(conn);
+  expect(order).toEqual([]);
+  opGate.resolve();
+  await running;
+  await root.close();
+  expect(order).toEqual(["use-done", "conn-clean"]);
+});
+
+test("release keeps a scope dependency alive while a child op borrows its dependent", async () => {
+  const gate = deferred();
+  const order: string[] = [];
+  const conn = resource({
+    label: "conn",
+    target: "scope",
+    factory: (_deps, { defer }) => {
+      const value = { open: true };
+      defer(() => {
+        value.open = false;
+        order.push("conn-clean");
+      });
+      return value;
+    },
+  });
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    depends: { conn },
+    factory: ({ conn }, { defer }) => {
+      defer(() => void order.push("tx-clean"));
+      return conn;
+    },
+  });
+  const use = operation({
+    label: "use",
+    depends: { tx },
+    run: async ({ tx }) => {
+      await gate.promise;
+      order.push(tx.open ? "use-open" : "use-closed");
+    },
+  });
+  const root = createScope();
+  const child = root.createSession();
+  const running = child.getController(use).resolve();
+  root.release(conn);
+  gate.resolve();
+  await running;
+  await root.close();
+  expect(order).toEqual(["use-open", "tx-clean", "conn-clean"]);
+});
+
+test("release keeps a scope dependency alive until a child resource's async cleanup finishes", async () => {
+  const gate = deferred();
+  const order: string[] = [];
+  const conn = resource({
+    label: "conn",
+    target: "scope",
+    factory: (_deps, { defer }) => {
+      const value = { open: true };
+      defer(() => {
+        value.open = false;
+        order.push("conn-clean");
+      });
+      return value;
+    },
+  });
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    depends: { conn },
+    factory: ({ conn }, { defer }) => {
+      defer(async () => {
+        await gate.promise;
+        order.push(conn.open ? "tx-clean-open" : "tx-clean-closed");
+      });
+      return conn;
+    },
+  });
+  const root = createScope();
+  const child = root.createSession();
+  child.getController(tx).resolve();
+  root.release(conn);
+  gate.resolve();
+  await root.close();
+  expect(order).toEqual(["tx-clean-open", "conn-clean"]);
+});
+
+test("release keeps a borrowed resource alive until the operation's async cleanup finishes", async () => {
+  const gate = deferred();
+  const order: string[] = [];
+  const conn = resource({
+    label: "conn",
+    factory: (_deps, { defer }) => {
+      const value = { open: true };
+      defer(() => {
+        value.open = false;
+        order.push("conn-clean");
+      });
+      return value;
+    },
+  });
+  const use = operation({
+    label: "use",
+    depends: { conn },
+    run: async ({ conn }, { defer }) => {
+      defer(async () => {
+        await gate.promise;
+        order.push(conn.open ? "op-clean-open" : "op-clean-closed");
+      });
+      return 1;
+    },
+  });
+  const scope = createScope();
+  await scope.getController(use).resolve();
+  scope.release(conn);
+  gate.resolve();
+  await scope.close();
+  expect(order).toEqual(["op-clean-open", "conn-clean"]);
+});
+
+test("release waits for a child borrower even when its resource has no defer", async () => {
+  const gate = deferred();
+  const order: string[] = [];
+  const conn = resource({
+    label: "conn",
+    target: "scope",
+    factory: (_deps, { defer }) => {
+      const value = { open: true };
+      defer(() => {
+        value.open = false;
+        order.push("conn-clean");
+      });
+      return value;
+    },
+  });
+  const view = resource({
+    label: "view",
+    target: "session",
+    depends: { conn },
+    factory: ({ conn }) => conn,
+  });
+  const use = operation({
+    label: "use",
+    depends: { view },
+    run: async ({ view }) => {
+      await gate.promise;
+      order.push(view.open ? "use-open" : "use-closed");
+    },
+  });
+  const root = createScope();
+  const child = root.createSession();
+  const running = child.getController(use).resolve();
+  root.release(conn);
+  gate.resolve();
+  await running;
+  await root.close();
+  expect(order).toEqual(["use-open", "conn-clean"]);
+});
+
+test("release keeps a borrowed resource alive through a synchronously throwing op's async cleanup", async () => {
+  const gate = deferred();
+  const cause = new Error("op failed");
+  const order: string[] = [];
+  const conn = resource({
+    label: "conn",
+    factory: (_deps, { defer }) => {
+      const value = { open: true };
+      defer(() => {
+        value.open = false;
+        order.push("conn-clean");
+      });
+      return value;
+    },
+  });
+  const use = operation({
+    label: "use",
+    depends: { conn },
+    run: ({ conn }, { defer }) => {
+      defer(async () => {
+        await gate.promise;
+        order.push(conn.open ? "op-clean-open" : "op-clean-closed");
+      });
+      throw cause;
+    },
+  });
+  const scope = createScope();
+  expect(() => scope.getController(use).resolve()).toThrow(cause);
+  scope.release(conn);
+  gate.resolve();
+  await scope.close();
+  expect(order).toEqual(["op-clean-open", "conn-clean"]);
+});
+
+test("release waits for a borrower before running a defer registered by an in-flight build", async () => {
+  const gate = deferred();
+  const order: string[] = [];
+  const conn = resource({
+    label: "conn",
+    factory: async (_deps, { defer }) => {
+      await gate.promise;
+      const value = { open: true };
+      defer(() => {
+        value.open = false;
+        order.push("conn-clean");
+      });
+      return value;
+    },
+  });
+  const use = operation({
+    label: "use",
+    depends: { conn },
+    run: async ({ conn }) => {
+      const value = await conn;
+      order.push(value.open ? "use-open" : "use-closed");
+    },
+  });
+  const scope = createScope();
+  const running = scope.getController(use).resolve();
+  scope.release(conn);
+  gate.resolve();
+  await running;
+  await scope.close();
+  expect(order).toEqual(["use-open", "conn-clean"]);
+});
+
+test("a superseded build's late defer leaves the rebuilt resource alive in cache", async () => {
+  const gate = deferred();
+  let builds = 0;
+  const conn = resource({
+    label: "conn",
+    target: "scope",
+    factory: async (_deps, { defer }) => {
+      const generation = ++builds;
+      if (generation === 1) await gate.promise;
+      const value = { open: true };
+      defer(() => {
+        value.open = false;
+      });
+      return value;
+    },
+  });
+  const use = operation({
+    label: "use",
+    depends: { conn },
+    run: async ({ conn }) => (await conn).open,
+  });
+  const root = createScope();
+  const child = root.createSession();
+  const oldBuild = root.getController(conn).resolve();
+  root.release(conn);
+  await root.getController(conn).resolve();
+  gate.resolve();
+  await oldBuild;
+  const open = await child.getController(use).resolve();
+  await root.close();
+  expect(open).toBe(true);
+});
+
+test("a cross-owner release leaves a dependency rebuilt by child cleanup alive in cache", async () => {
+  const conn = resource({
+    label: "conn",
+    target: "scope",
+    factory: (_deps, { defer }) => {
+      const value = { open: true };
+      defer(() => {
+        value.open = false;
+      });
+      return value;
+    },
+  });
+  const root = createScope();
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    depends: { conn },
+    factory: (deps, { defer }) => {
+      defer(() => {
+        root.getController(conn).resolve();
+      });
+      return deps.conn;
+    },
+  });
+  const child = root.createSession();
+  child.getController(tx).resolve();
+  root.release(conn);
+  const open = root.getController(conn).get().open;
+  await root.close();
+  expect(open).toBe(true);
+});
+
+test("cross-owner release tears down a descendant dependent before its ancestor dependency", async () => {
+  const gate = deferred();
+  const order: string[] = [];
+  const count = data({ initial: 0, parse: asNumber });
+  const conn = resource({
+    label: "conn",
+    target: "scope",
+    depends: { count },
+    factory: (_deps, { defer }) => {
+      const value = { open: true };
+      defer(() => {
+        value.open = false;
+        order.push("conn-clean");
+      });
+      return value;
+    },
+  });
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    depends: { conn, count },
+    factory: ({ conn }, { defer }) => {
+      defer(async () => {
+        await gate.promise;
+        order.push(conn.open ? "tx-clean-open" : "tx-clean-closed");
+      });
+      return conn;
+    },
+  });
+  const root = createScope();
+  const child = root.createSession();
+  child.getController(tx).resolve();
+  root.release(count);
+  gate.resolve();
+  await root.close();
+  expect(order).toEqual(["tx-clean-open", "conn-clean"]);
+});
+
+test("release during dependency resolution waits for the operation's cleanup", async () => {
+  const gate = deferred();
+  const scope = createScope();
+  const order: string[] = [];
+  const conn = resource({
+    label: "conn",
+    factory: (_deps, { defer }) => {
+      const value = { open: true };
+      defer(() => {
+        value.open = false;
+        order.push("conn-clean");
+      });
+      return value;
+    },
+  });
+  const trigger = resource({
+    label: "trigger",
+    factory: () => {
+      scope.release(conn);
+      return 1;
+    },
+  });
+  const use = operation({
+    label: "use",
+    depends: { conn, trigger },
+    run: ({ conn }, { defer }) => {
+      defer(async () => {
+        await gate.promise;
+        order.push(conn.open ? "op-clean-open" : "op-clean-closed");
+      });
+    },
+  });
+  scope.getController(use).resolve();
+  gate.resolve();
+  await scope.close();
+  expect(order).toEqual(["op-clean-open", "conn-clean"]);
 });

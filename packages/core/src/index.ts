@@ -493,6 +493,7 @@ type Layer = {
   building: Set<Resource.Handle<unknown>>;
   generations: Map<Resource.Handle<unknown>, number>;
   dependents: Map<Node, Set<Resource.Handle<unknown>>>;
+  borrowers: Map<Resource.Handle<unknown>, Set<Promise<unknown>>>;
   presets: Map<unknown, unknown>;
   tags: Map<Tag.Handle<unknown>, unknown[]>;
   watchers: Set<Watcher>;
@@ -911,13 +912,15 @@ function closeWouldReenter(target: Layer): boolean {
 /** Run `defer` fns in reverse (LIFO) from index `from`, passing `end`, awaiting each before the next
  * so teardown order holds. Stays synchronous while the fns are; the first async one hands the rest to
  * a tracked continuation joined by close. Failures collect as secondary errors, surfaced via
- * `TeardownFailed`, never settling the owner's outcome (ADR 0017, 0026). */
+ * `TeardownFailed`, never settling the owner's outcome (ADR 0017, 0026). Returns `undefined` when the
+ * whole drain finished synchronously, else a promise that resolves when the async tail completes — so
+ * a release chain can wait for a dependent owner's FULL cleanup before tearing down its base (lt2). */
 function runDefers(
   layer: Layer,
   fns: ((end: Scope.End) => void | PromiseLike<void>)[],
   end: Scope.End,
   from: number = fns.length - 1,
-): void {
+): Promise<void> | undefined {
   for (let i = from; i >= 0; i--) {
     let pending: void | PromiseLike<void>;
     enterTeardown(layer);
@@ -932,16 +935,20 @@ function runDefers(
     if (!isThenable(pending)) continue;
     const rest = i - 1;
     const cont: Promise<void> = Promise.resolve(pending).then(
-      () => (layer.pending.delete(cont), runDefers(layer, fns, end, rest)),
-      (error: unknown) => (
-        layer.pending.delete(cont),
-        layer.secondary.push(error),
-        runDefers(layer, fns, end, rest)
-      ),
+      () => {
+        layer.pending.delete(cont);
+        return runDefers(layer, fns, end, rest);
+      },
+      (error: unknown) => {
+        layer.pending.delete(cont);
+        layer.secondary.push(error);
+        return runDefers(layer, fns, end, rest);
+      },
     );
     layer.pending.add(cont);
-    return;
+    return cont;
   }
+  return undefined;
 }
 
 function readCall<T, I>(
@@ -968,9 +975,34 @@ function commandController<T, I>(
     const span = openSpan(obs, parent, target.label, "operation");
     const override = presetFor(layer, target) as Operation.Command<T, I>["run"] | undefined;
     const defers: ((end: Scope.End) => void | PromiseLike<void>)[] = [];
+    const borrowed: { owner: Layer; resource: Resource.Handle<unknown> }[] = [];
+    /** Hold a borrow across the op's WHOLE lifetime — body settle (or a throw) AND its own `defer`
+     * drain — so a release waits for the op's cleanup (which may still touch the resource) before
+     * tearing it down (ADR 0026 Q2). Registered once deps resolve (before the body runs), released
+     * after the defer drain on BOTH the success and throwing paths. A fully synchronous op resolves
+     * and removes the borrow within `resolve()`, so a later release sees no borrower and stays sync. */
+    let settleBorrow: () => void = noop;
+    let borrow: Promise<void> | undefined;
+    const releaseBorrow = (): void => {
+      if (!borrow) return;
+      for (const b of borrowed) removeBorrow(b.owner, b.resource, borrow);
+      settleBorrow();
+    };
+    const finishDefers = (status: "ok" | "failed", error?: unknown): void => {
+      const tail = runDefers(layer, defers, endFor(layer, status, error));
+      if (tail) ignoreRejection(tail.then(releaseBorrow, releaseBorrow));
+      else releaseBorrow();
+    };
     let result: T;
     try {
       const { input, rawInput, overlay } = readCall(target, call);
+      /** Register borrows BEFORE resolving deps: a dep's factory may release another dep during
+       * resolution, and the op must already hold it (ADR 0026 Q2). Borrows need only the dep handles. */
+      for (const b of collectBorrows(layer, target.depends)) borrowed.push(b);
+      if (borrowed.length) {
+        borrow = new Promise<void>((r) => (settleBorrow = r));
+        for (const b of borrowed) addBorrow(b.owner, b.resource, borrow);
+      }
       const deps: Record<string, unknown> = {};
       for (const key in target.depends) {
         deps[key] = resolveDep(layer, target.depends[key], span, overlay);
@@ -987,12 +1019,12 @@ function commandController<T, I>(
       result = override ? override(deps, ctx) : target.run(deps, ctx);
     } catch (error) {
       closeSpan(obs, span, "failed");
-      runDefers(layer, defers, endFor(layer, "failed", error));
+      finishDefers("failed", error);
       throw error;
     }
     track(layer, result, asPrimary(layer), (status, error) => {
       if (span) closeSpan(obs, span, status);
-      runDefers(layer, defers, endFor(layer, status, error));
+      finishDefers(status, error);
     });
     return result;
   };
@@ -1039,7 +1071,12 @@ function buildResource<T>(
       label: target.label,
       defer: (fn) => {
         if (settled) raise("Disposed", { reason: "resource factory already finished" });
-        if (superseded()) runDefers(owner, [fn], RELEASED);
+        /** A build that finished after its resource was released (superseded) tears down NOW, but
+         * borrow-aware so it still waits for any op that borrowed this resource before running its
+         * cleanup (ADR 0026 Q2), and holds its own dependency-closure borrows while it runs. Its `fn`
+         * is drained directly — never pushed to `owner.defers` — so it cannot sweep up a LIVE
+         * rebuild's defers registered under the same handle. */
+        if (superseded()) releaseSupersededDefer(owner, target, fn);
         else owner.defers.push({ fn, resource: target });
       },
       signal: owner.abort.signal,
@@ -1144,18 +1181,34 @@ type Affected = { node: Node; owner: Layer };
 /** Drop a resource's cache/generation/defer-registrations and edges at its owner, running no user
  * callback; returns its `defer`s (registration order) for the caller to run after every affected node
  * is invalidated. */
-function invalidateResource(
-  owner: Layer,
-  target: Resource.Handle<unknown>,
-): ((end: Scope.End) => void | PromiseLike<void>)[] {
+/** Drop a resource's cache, in-flight build, and edges (a fresh generation invalidates a late build).
+ * The resource's `defer`s stay in `owner.defers` — release drains them by reverse registration order
+ * (`extractReleasedDefers`) alongside its affected dependents, so a diamond tears down dependents
+ * before dependencies (ADR 0026), not per-resource grouped at build-completion. */
+function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): void {
   owner.generations.set(target, (owner.generations.get(target) ?? 0) + 1);
   owner.resources.delete(target);
   owner.builds.delete(target);
-  const mine = owner.defers.filter((entry) => entry.resource === target).map((entry) => entry.fn);
-  owner.defers = owner.defers.filter((entry) => entry.resource !== target);
   detachDependent(owner, target);
   owner.dependents.delete(target);
-  return mine;
+}
+
+/** Pull the affected resources' `defer`s out of `owner.defers` in registration order (removing them so
+ * a later close cannot re-run them). The release drain reverses this → dependents (registered after
+ * their dependencies) tear down first. */
+function extractReleasedDefers(
+  owner: Layer,
+  resources: Set<Resource.Handle<unknown>>,
+): ((end: Scope.End) => void | PromiseLike<void>)[] {
+  const released: ((end: Scope.End) => void | PromiseLike<void>)[] = [];
+  owner.defers = owner.defers.filter((entry) => {
+    if (entry.resource !== undefined && resources.has(entry.resource)) {
+      released.push(entry.fn);
+      return false;
+    }
+    return true;
+  });
+  return released;
 }
 
 /** Drop a cell's shadow (revert to inherited/initial) and edges without notifying watchers. */
@@ -1212,40 +1265,104 @@ function collectAffected(target: Node, targetOwner: Layer): Affected[] {
   return order;
 }
 
-/** Release a node and cascade to its dependents across owners. Two phases so a throwing/closing
- * callback can never strand a dependent: first collect every affected (node, owner) and drop all
- * their caches; then notify watchers and run cleanups (each at its own owner). */
+/** A released owner's affected resources and their OLD defers, extracted up front. */
+type Released = {
+  resources: Set<Resource.Handle<unknown>>;
+  fns: ((end: Scope.End) => void | PromiseLike<void>)[];
+};
+
+/** Release a node and cascade to its dependents across owners. Two phases so a throwing/closing/
+ * rebuilding callback can never strand a dependent or sweep up a fresh value: first collect every
+ * affected (node, owner), drop all their caches, and EXTRACT their old defers up front (keeps a
+ * rebuild's fresh defer out of the drain — r10); then notify watchers and drain the pre-extracted
+ * defers. Owners drain DESCENDANTS-FIRST (ledger invariant 6: children before parents), each chained
+ * after the prior via `prev`, so a dependency — always at a same-or-ancestor owner — tears down after
+ * its dependents (and after that owner's full, incl. async, drain); within an owner it is reverse-
+ * registration order. Each owner's drain waits for in-flight OPERATIONS borrowing its resources
+ * (ADR 0026 Q2). */
 function releaseNode(layer: Layer, target: Node): void {
   ensureOpen(layer);
   const targetOwner = isResource(target) ? ownerOf(layer, target) : layer;
   ensureOpen(targetOwner);
-  const byOwner = new Map<Layer, ((end: Scope.End) => void | PromiseLike<void>)[]>();
-  const dataReleased = invalidateAffected(collectAffected(target, targetOwner), byOwner);
+  const affected = new Map<Layer, Released>();
+  const dataReleased = invalidateAffected(collectAffected(target, targetOwner), affected);
   try {
     if (dataReleased) flushTree(layer);
   } finally {
-    for (const [owner, fns] of byOwner) runDefers(owner, fns, RELEASED);
+    let prev: Promise<void> | undefined;
+    for (const [owner, entry] of byDepthDesc(affected)) {
+      prev = drainBorrowAware(owner, entry.resources, entry.fns, prev);
+    }
   }
 }
 
-/** Drop every affected node's cache at its owner, collecting each released resource's `defer`s per
- * owner; returns whether any data cell was reset (so the caller flushes watchers). */
-function invalidateAffected(
-  order: Affected[],
-  byOwner: Map<Layer, ((end: Scope.End) => void | PromiseLike<void>)[]>,
-): boolean {
+/** Affected owners deepest-first (descendants before ancestors): a released dependency lives at a
+ * same-or-ancestor owner of its dependents, so this order tears dependents down before dependencies. */
+function byDepthDesc(affected: Map<Layer, Released>): [Layer, Released][] {
+  return [...affected].sort(([ownerA], [ownerB]) => layerDepth(ownerB) - layerDepth(ownerA));
+}
+
+function layerDepth(layer: Layer): number {
+  let depth = 0;
+  for (let cur = layer.parent; cur; cur = cur.parent) depth++;
+  return depth;
+}
+
+/** Tear down a superseded build's late `defer` immediately but borrow-aware (waits for an op that
+ * borrowed the resource before running; ADR 0026 Q2). Drained directly — never pushed to
+ * `owner.defers` — so it can't sweep up a LIVE rebuild's defers under the same handle. */
+function releaseSupersededDefer(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  fn: (end: Scope.End) => void | PromiseLike<void>,
+): void {
+  const done = drainBorrowAware(owner, new Set([target]), [fn], undefined);
+  if (done) ignoreRejection(done);
+}
+
+/** Run `fns` as a release drain at `owner`, after the prior (more-dependent) owner's drain (`prev`)
+ * and after any in-flight OPERATION borrowing one of `resources` settles (ADR 0026 Q2 — the cache is
+ * already invalidated; only physical teardown waits). Returns a promise the next owner chains on, or
+ * `undefined` when it ran fully synchronously (no `prev`, no borrowers) so an all-sync release stays
+ * synchronous. `fns` is passed explicitly (not re-selected by resource handle) so a superseded old
+ * build's late defer never sweeps up the LIVE rebuild's defers under the same handle. Tracked in
+ * `owner.pending`, joined by close. */
+function drainBorrowAware(
+  owner: Layer,
+  resources: Set<Resource.Handle<unknown>>,
+  fns: ((end: Scope.End) => void | PromiseLike<void>)[],
+  prev: Promise<void> | undefined,
+): Promise<void> | undefined {
+  const borrowers = collectBorrowers(owner, resources);
+  if (fns.length === 0 && borrowers.length === 0) return prev;
+  if (prev === undefined && borrowers.length === 0) return runDefers(owner, fns, RELEASED);
+  const waitOn: Promise<unknown>[] = prev ? [...borrowers, prev] : borrowers;
+  const wait: Promise<void> = Promise.allSettled(waitOn).then(() => {
+    owner.pending.delete(wait);
+    return runDefers(owner, fns, RELEASED);
+  });
+  owner.pending.add(wait);
+  return wait;
+}
+
+/** Drop every affected node's cache at its owner, then extract each affected owner's OLD defers (in
+ * registration order) BEFORE any cleanup or watcher runs. Returns whether any data cell was reset (so
+ * the caller flushes watchers). Extracting up front keeps a rebuild's fresh defer out of the drain. */
+function invalidateAffected(order: Affected[], affected: Map<Layer, Released>): boolean {
   let dataReleased = false;
   for (const { node, owner } of order) {
     if (owner.closed) continue;
     if (isResource(node)) {
-      const fns = byOwner.get(owner) ?? [];
-      for (const fn of invalidateResource(owner, node)) fns.push(fn);
-      byOwner.set(owner, fns);
+      invalidateResource(owner, node);
+      const entry = affected.get(owner) ?? { resources: new Set(), fns: [] };
+      entry.resources.add(node);
+      affected.set(owner, entry);
     } else {
       invalidateData(owner, node);
       dataReleased = true;
     }
   }
+  for (const [owner, entry] of affected) entry.fns = extractReleasedDefers(owner, entry.resources);
   return dataReleased;
 }
 
@@ -1269,6 +1386,58 @@ function depNode(dep: Scope.Dependency): Node | undefined {
   if (isResource(dep)) return dep;
   if (isEdge(dep) && dep.kind === "controller" && isData(dep.target)) return dep.target;
   return undefined;
+}
+
+/** The resource handle an operation dependency borrows a built value from — a bare resource or any
+ * resource edge (`required`/`optional`/`all`/`controller`) — so release can wait for in-flight
+ * borrowers before physically tearing that resource down (ADR 0026 Q2). */
+function resourceDepHandle(dep: Scope.Dependency): Resource.Handle<unknown> | undefined {
+  if (isResource(dep)) return dep;
+  if (isEdge(dep) && isResource(dep.target)) return dep.target;
+  return undefined;
+}
+
+type Borrow = { owner: Layer; resource: Resource.Handle<unknown> };
+
+/** The (owner, resource) borrows for an operation's dependencies: the resources it directly resolves
+ * (ADR 0026 Q2 — a release waits for in-flight OPERATIONS borrowing the released resource). Cross-owner
+ * and diamond ordering is handled by the depth-ordered release chain, not by transitive borrows. */
+function collectBorrows(layer: Layer, depends: Scope.Depends): Borrow[] {
+  const out: Borrow[] = [];
+  for (const key in depends) {
+    const res = resourceDepHandle(depends[key]);
+    if (res !== undefined) out.push({ owner: ownerOf(layer, res), resource: res });
+  }
+  return out;
+}
+
+function addBorrow(owner: Layer, resource: Resource.Handle<unknown>, work: Promise<unknown>): void {
+  const set = owner.borrowers.get(resource);
+  if (set) set.add(work);
+  else owner.borrowers.set(resource, new Set([work]));
+}
+
+function removeBorrow(
+  owner: Layer,
+  resource: Resource.Handle<unknown>,
+  work: Promise<unknown>,
+): void {
+  const set = owner.borrowers.get(resource);
+  if (set && set.delete(work) && set.size === 0) owner.borrowers.delete(resource);
+}
+
+/** In-flight operation promises borrowing any of `resources` at `owner`, so release can wait for them
+ * to settle before running the resources' cleanup. */
+function collectBorrowers(
+  owner: Layer,
+  resources: Set<Resource.Handle<unknown>>,
+): Promise<unknown>[] {
+  const out: Promise<unknown>[] = [];
+  for (const resource of resources) {
+    const set = owner.borrowers.get(resource);
+    if (set) for (const work of set) out.push(work);
+  }
+  return out;
 }
 
 function seedTags(
@@ -1310,6 +1479,7 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     building: new Set(),
     generations: new Map(),
     dependents: new Map(),
+    borrowers: new Map(),
     presets,
     tags,
     watchers: new Set(),
@@ -1501,6 +1671,7 @@ function finishLayer(layer: Layer): unknown[] | undefined {
   layer.building.clear();
   layer.generations.clear();
   layer.dependents.clear();
+  layer.borrowers.clear();
   layer.presets.clear();
   layer.tags.clear();
   layer.watchers.clear();

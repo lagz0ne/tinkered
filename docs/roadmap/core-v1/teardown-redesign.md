@@ -118,6 +118,31 @@ different layers in one turn, interacting through `inheritedEnd`/severity/abort 
 - R14: **CONFIRM CLEAN** for lt1's scope (768-case 4-layer overlap matrix across all 24 orders +
   branding, double-upgrade, and failure-after-settlement probes). lt1 landed.
 
+lt2 (release + cross-owner + borrow) — SCOPE DECISION after a 14-round drift:
+
+- lt2's contract is: diamond release order (within an owner, reverse-registration); cross-owner
+  order = **children/descendants first** (ledger invariant 6) via **depth-ordered** owner draining
+  (NOT owner-encounter order, which is arbitrary — r15); the **op** borrow policy (ADR 0026 Q2: a
+  release waits for in-flight OPERATIONS that borrowed the released resource, incl. across the op's
+  own defer drain); superseded/failed builds run their defers once; extraction up front so a rebuild
+  during cleanup isn't swept in.
+- Rounds 8/11/13/14 built a **resource-cleanup dependency-borrow** (a resource's cleanup borrows its
+  dependency closure so a SEPARATELY-released dependency waits for it). This is **beyond ADR 0026 Q2**
+  (which scopes the borrow to operations), is deadlock-adjacent across owners, and none of it is in
+  the lt2 acceptance list. **Removed** in favor of the simpler depth-order + direct op-borrow. The
+  single-cascade case it was meant to cover (releasing a shared node that cascades to a dependent
+  whose async cleanup uses a co-released dependency) is handled correctly by the depth-ordered chain
+  awaiting each descendant owner's full (incl. async) drain before the ancestor's.
+- **Deferred to lt3** (cancellation/timing hardening): ordering a resource-cleanup against a
+  dependency released by a SEPARATE later `release()` call (two independent teardown operations); AND
+  ordering a **superseded build's late cleanup** (a dependent still mid-(async-)build when its
+  dependency is released registers its `defer` after the release cascade already extracted defers, so
+  it drains in a separate chain — both cleanups still run exactly once, only their ORDER can be off,
+  like the lt4 teardown-error-ordering deferral). Neither is required by ADR 0026 for lt2 (invariant 1
+  presupposes a BUILT dependent with a registered defer); both are build/release timing races revisited
+  with lt3's one-end/timing work. The op-borrow still keeps the dependency open while the borrowing op
+  runs; only the two cleanups' relative order in this race is unspecified.
+
 Deferred to lt4 (ordering polish — both errors ARE reported, only their order can be off):
 
 - A child's teardown errors enter the parent's `secondary` bucket only when the whole child close
