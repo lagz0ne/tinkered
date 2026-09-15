@@ -7,6 +7,28 @@ Core ticket detail + reset recipes: `docs/roadmap/core-v1/PROGRESS.md`.
 
 ## Now
 
+- [x] core/lt4 — prove the contract + budgets + accepted limitations (final teardown ticket). DONE:
+      docs-only (no source change since `core/lt3` — the redesign already removed the old paths, no dead
+      code); glossary + doc refs refreshed to the shutdown-mode model; ADR 0029 (accepted v1 limits);
+      contract seam audit (every live guarantee has a test); budgets green (size 15.1 KB, mutation
+      77.45%). Verify: `vp check` clean, core 185 / root 191, size < 30 KB, code carried lt3's CONFIRM
+      CLEAN. Tagged `core/lt4`. Original slice plan (now all done):
+  1. **Cleanup + doc refs**: no dead code (confirmed — the redesign removed the wish paths cleanly);
+     update stale refs to the removed wish model in the glossary + ADR 0011/0017/0024/0026 headers so
+     they point at ADR 0028's shutdown-mode / reality-reducer. Verify: `vp check` clean + grep shows no
+     "wished outcome"/`inheritedEnd`/`moreSevere` references outside historical ledger/round-notes.
+  2. **Limitations ADR** (0029): consolidate the deferred edges as ACCEPTED v1 limitations with
+     rationale — graceful→forced escalation (forced default already avoids hangs; JS can't force-kill);
+     a layer's OWN owned-work failure surfacing AFTER its child cascade (children close first, ADR 0026);
+     async self-reentry (needs ALS, which the design avoids); separate-release + superseded mid-build
+     ordering; async dep-cycle-after-await; cross-owner teardown-error ORDER. Each: what holds vs what's
+     unspecified, and why it's safe for v1. Verify: ADR written + linked from the ledger.
+  3. **Contract seam audit**: map each STILL-LIVE ledger guarantee to a deterministic public-seam test;
+     add any gap (close never throws; reality reducer failed>cancelled>success; commit/rollback matrix;
+     descendant collection at depth; cancellation via signal; deep chains; streaming). Verify: gate green.
+  4. **Budgets + review + tag**: size (<30 KB) + mutation green together; astra CONFIRM-CLEAN on the
+     whole teardown subsystem (lt1–lt4); then tag `core/lt4`.
+
 - [x] core/lt3 — teardown cancel/deadlock/state + the `close()` REDESIGN. Lazy resource building; Q4
       (ADR 0027, close returns a Result never throws); Q5 cancel-timing; then the big pivot: **Q — close
       is a shutdown MODE, not a wished outcome** (ADR 0028). `close(opts?: { graceful?: boolean })` —

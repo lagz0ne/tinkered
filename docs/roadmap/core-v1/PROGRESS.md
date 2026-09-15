@@ -66,7 +66,7 @@ ADR 0024 (API), ADR 0026 (decisions), ADR 0025 (analysis/bug map), and the bug/r
 | core/lt1 | Converged ctx + reverse-registration close                           | t14, t16 | [x]    |
 | core/lt2 | Release + cross-owner via the same drain                             | lt1      | [x]    |
 | core/lt3 | Cancellation hardening + `close()` shutdown-mode redesign (ADR 0028) | lt2      | [x]    |
-| core/lt4 | Prove the contract + remove old paths + budgets                      | lt3      | [ ]    |
+| core/lt4 | Prove the contract + remove old paths + budgets + accepted limits    | lt3      | [x]    |
 
 - **lt1** — `ctx.defer(end)` (end = success|failed|cancelled|released) + `ctx.signal` on operation and
   resource ctx; `Scope.Outcome += cancelled`. Close drains the layer's one defer list (onClose is a
@@ -127,6 +127,14 @@ ADR 0024 (API), ADR 0026 (decisions), ADR 0025 (analysis/bug map), and the bug/r
   descendant-failure push-up collection at any depth. Deferred to lt4: graceful→forced escalation; a
   layer's own owned-work failure surfacing after its child cascade; async self-reentry; ordering races.
   Hostile userland objects out of scope for v1.
-- **lt4** — full public-seam regression suite covering every bug-ledger class; remove any dead
-  two-phase paths; budgets (size/promises/mutation) green; ADR refs updated.
-  _Accept:_ every ledger class has a deterministic seam test; `scripts/ticket.sh` green; astra-clean.
+- **lt4** _LANDED (tag `core/lt4`)._ Docs/proof-only — NO source change since `core/lt3` (the redesign
+  already removed the old wish/two-phase paths cleanly; no dead code). Delivered: glossary + ADR-ref
+  refresh to the shutdown-mode / reality-reducer model (removed stale `ctx.cleanup`/`onOutcome`/wished-
+  outcome terms); **ADR 0029 — teardown v1 accepted limitations** (escalation, own-owned-work-after-
+  cascade, async self-reentry, cooperative-cancellation precondition, unspecified teardown ORDER,
+  adversarial objects, async dep-cycle-after-await — each safe, each promotable if a real case hits);
+  contract seam audit (every live guarantee has a deterministic test — close never throws, reality
+  reducer, commit/rollback matrix, descendant collection at depth, cancellation, deep chains,
+  streaming). Budgets green: size 15.1 KB gzip (< 30 KB), mutation 77.45%. Code carried the lt3
+  CONFIRM-CLEAN review unchanged.
+  _Accept:_ every live ledger class has a deterministic seam test; gate green; limitations documented.

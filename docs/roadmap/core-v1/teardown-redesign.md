@@ -359,7 +359,15 @@ success/failed/cancelled; resource `defer` sees cancelled on `close({cancelled})
 `release`; a data preset seen downstream; the cross-owner, diamond, no-defer-chain, deep-chain,
 onClose-interleaving, sibling-LIFO, cancel-masks-failure, and cancelled-session-rejects cases above.
 
-## Next
+## lt4 — accepted limitations
+
+The deferred edges above are consolidated as accepted v1 boundaries in
+**ADR 0029 (teardown v1: accepted limitations)** — no escalation, own-owned-work-after-cascade,
+async self-reentry footgun, cooperative-cancellation precondition, unspecified teardown ORDER,
+adversarial userland objects, async dep-cycle-after-await. Each preserves the headline guarantees;
+promote any to a fix if a real (non-adversarial) case hits it.
+
+## Next (historical)
 
 - astra redesign guideline (agent dd5b5c47) → model + algorithm + open questions + ticket breakdown.
 - Grill the open questions → redesign ADR (supersedes the impl consequences of 0024; keeps its API).
