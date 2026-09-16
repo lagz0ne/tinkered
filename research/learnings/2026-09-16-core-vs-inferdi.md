@@ -101,3 +101,19 @@ Standalone probe (`.autoresearch/probe.mjs`, one scenario per process, `taskset 
 
 Rule: **never write `get x()` inside an object literal on a hot path**; use a class (prototype accessor)
 or a plain field. Landed in `9e86001` (swept into the t22 commit by a concurrent session).
+
+## Runs 14–18: small keeps, one rejected big one
+
+- keep: dependents `Set` grown by `add()` (an array-literal `new Set([x])` is slower); cold −3%.
+- keep: a root created without `observe` shares one `DEFAULT_OBS` (nothing is ever recorded on it);
+  `createScope` 161 → 151 ns.
+- discard: reusing the memoized controller on the internal dep path — within noise.
+- keep: one module-level `LAZY_HANDLER` for the lazy-deps Proxy, per-deps state under a symbol slot on
+  the target (invisible to `Object.keys`/`values`/`for..in`); cold −5% (≈850 ns).
+- **rejected**: `Scope.Handle` as a class with prototype methods. It is the single biggest remaining
+  `createScope` lever (151 → 87 ns, cold ≈770 ns, lifecycle ≈960 ns) but a spread-decorated handle
+  (`{ ...scope, createSession }`, which the react StrictMode test does) silently loses every method.
+  A handle must stay an object of own closures unless the public contract forbids spreading it.
+
+Micro-costs on this box: `new Set()` ≈ 18 ns, `new Map()` ≈ 26 ns, a 27-field object ≈ 40 ns, eight
+closures + object ≈ 60 ns, `[]` ≈ free.
