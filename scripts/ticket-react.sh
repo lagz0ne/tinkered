@@ -22,6 +22,8 @@ TAG="react/r${NN}"
 
 echo "== gate ${TAG}: vp check =="
 vp check
+echo "== gate ${TAG}: build core dist (react tests load @tinker/core from dist) =="
+vp run core#build
 echo "== gate ${TAG}: vp run -r test =="
 vp run -r test
 echo "== gate ${TAG}: size budget =="

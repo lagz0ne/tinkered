@@ -1270,6 +1270,116 @@ test("an old build rejecting after release does not fail a session that got the 
   expect(result).toEqual({ n: 2 });
 });
 
+test("a rejected build is sticky: a re-resolve without release returns the same rejection, one build", async () => {
+  let builds = 0;
+  const gate = deferred();
+  const conn = resource({
+    label: "conn",
+    factory: async () => {
+      builds++;
+      await gate.promise;
+      return 1;
+    },
+  });
+  const scope = createScope();
+  const first = scope.getController(conn).resolve();
+  const settled = first.then(
+    () => undefined,
+    () => undefined,
+  );
+  gate.reject(new Error("boom"));
+  await settled;
+  const again = scope.getController(conn).resolve();
+  expect(again).toBe(first);
+  expect(builds).toBe(1);
+  await scope.close();
+});
+
+test("releasing a rejected resource lets a re-resolve rebuild a fresh instance", async () => {
+  let builds = 0;
+  const gate = deferred();
+  const conn = resource({
+    label: "conn",
+    factory: async () => {
+      const n = ++builds;
+      if (n === 1) await gate.promise;
+      return { n };
+    },
+  });
+  const scope = createScope();
+  const first = scope.getController(conn).resolve();
+  const settled = first.then(
+    () => undefined,
+    () => undefined,
+  );
+  gate.reject(new Error("boom"));
+  await settled;
+  scope.release(conn);
+  const rebuilt = await scope.getController(conn).resolve();
+  expect(rebuilt).toEqual({ n: 2 });
+  expect(builds).toBe(2);
+  await scope.close();
+});
+
+test("releasing a dependency cascades to a dependent whose build had rejected, so it rebuilds", async () => {
+  let aBuilds = 0;
+  let bBuilds = 0;
+  const gate = deferred();
+  const a = resource({ label: "a", factory: () => ({ id: ++aBuilds }) });
+  const b = resource({
+    label: "b",
+    depends: { a },
+    factory: async ({ a }: { a: { id: number } }) => {
+      const n = ++bBuilds;
+      if (n === 1) await gate.promise;
+      return { from: a.id, n };
+    },
+  });
+  const scope = createScope();
+  const first = scope.getController(b).resolve();
+  const settled = first.then(
+    () => undefined,
+    () => undefined,
+  );
+  gate.reject(new Error("boom"));
+  await settled;
+  scope.release(a);
+  const rebuilt = await scope.getController(b).resolve();
+  expect(rebuilt).toEqual({ from: 2, n: 2 });
+  expect(bBuilds).toBe(2);
+  await scope.close();
+});
+
+test("two sessions share one scope-target resource's sticky rejection (one build)", async () => {
+  let builds = 0;
+  const gate = deferred();
+  const conn = resource({
+    label: "conn",
+    target: "scope",
+    factory: async () => {
+      builds++;
+      await gate.promise;
+      return 1;
+    },
+  });
+  const root = createScope();
+  const s1 = root.createSession();
+  const s2 = root.createSession();
+  const a = s1.getController(conn).resolve();
+  const b = s2.getController(conn).resolve();
+  expect(b).toBe(a);
+  const settled = a.then(
+    () => undefined,
+    () => undefined,
+  );
+  gate.reject(new Error("boom"));
+  await settled;
+  const c = s2.getController(conn).resolve();
+  expect(c).toBe(a);
+  expect(builds).toBe(1);
+  await root.close();
+});
+
 test("release drops only the resource's cleanup, not a shared onClose callback", async () => {
   let calls = 0;
   const shared = () => void calls++;

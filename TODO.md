@@ -28,7 +28,8 @@ tracer bullet with one decisive browser-mode behavior test. Gate each with
       value with no Suspense boundary (no suspend); returns core's exact cached instance. Under review.
 - [x] **r07 — `useResource` async + Suspense.** DONE (tag `react/r07`, commit `70bd131`): fallback→value on
       settle; a re-render while pending keeps the factory build count at 1 and Suspense still resolves (ADR 0032). Under review.
-- [ ] **r08 — `useResource` failed build → boundary.** Verify: rejected build renders the nearest error boundary; registry error preserved.
+- [x] **r08 — `useResource` failed build → boundary.** DONE (tag `react/r08`, commit `22137fc`): rejected async
+      build and throwing sync build both surface to the nearest error boundary with the original error intact. Under review.
 - [ ] **r09 — `useResolve` success.** Verify: idle→pending→success with `data`; `rawInput` parsed; no suspend.
 - [ ] **r10 — `useResolve` error + `reset`.** Verify: error stays in `error`/`status` (no boundary throw); `reset()`→idle.
 - [ ] **r11 — `<SessionProvider>` lifecycle.** Verify: unmount forces-close (session resource `defer` rolls back); nearest-Handle-wins; write shadowed.
@@ -38,6 +39,8 @@ tracer bullet with one decisive browser-mode behavior test. Gate each with
 - [ ] **r15 — `useSpans` read.** Verify: resolved op + resource spans appear; bounded by `observe.history`; empty/cheap when off.
 - [ ] **r16 — Opt-in React span emission.** Verify: off = no React spans; on = component activity; results identical.
 - [ ] **r17 — v1 validation milestone.** Verify: size lane green; cast-free README + 60-sec example; full seam green in browser.
+      Also **re-validate core** (`pnpm validate` incl. mutation/size) — r08 changed core's resource-failure caching
+      (sticky rejected build), so core's budgets must be re-confirmed green (run `core#mutate` isolated — see memory).
 
 ## Shipped — core v1 (complete)
 

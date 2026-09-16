@@ -1191,7 +1191,12 @@ function buildResource<T>(
 }
 
 /** Wire up an async build: publish on success only if still current, and on rejection drop the
- * in-flight entry and (unless superseded by a replacement) detach the failed build's edges. */
+ * in-flight entry and (unless superseded by a replacement) cache the rejected build. A failed build is
+ * sticky — a re-resolve returns the same rejection (not a fresh rebuild) until the resource is
+ * released/closed, so `resolve()` stays promise-stable across a consumer's retry (e.g. React Suspense),
+ * which would otherwise loop rebuilding. Its dependency edges are KEPT (not detached) while it stays
+ * cached, so releasing/closing a dependency still cascades to the cached failure; release and close
+ * clear `owner.resources` and detach the edges, so the sticky failure honors the normal lifetime. */
 function finishAsyncBuild(
   owner: Layer,
   target: Resource.Handle<unknown>,
@@ -1213,7 +1218,7 @@ function finishAsyncBuild(
     (error) => {
       markSettled();
       if (owner.builds.get(target) === build) owner.builds.delete(target);
-      if (!superseded()) detachDependent(owner, target);
+      if (!superseded()) owner.resources.set(target, { value: build });
       closeSpan(obs, span, "failed");
       throw error;
     },

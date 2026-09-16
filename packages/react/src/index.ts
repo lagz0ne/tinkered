@@ -122,8 +122,8 @@ export function useController<T>(cell: Data.Cell<T>): Scope.DataController<T> {
 /** Read a resource's built value from the nearest scope. A synchronously-built resource returns its
  * value directly (no promise). An async build suspends: the promise is handed to React's `use`, so a
  * `<Suspense>` fallback shows while pending and the value renders once it settles. Core builds once
- * per owner and hands back that same promise on every resolve, so a re-render while pending never
- * rebuilds and `use` never hangs (ADR 0032). */
+ * per owner and returns the same promise on every resolve (including a rejected build, which stays
+ * until release), so a Suspense retry reuses that promise rather than rebuilding (ADR 0032). */
 export function useResource<T>(handle: Resource.Handle<T>): Awaited<T> {
   const scope = useScope();
   const controller = useMemo(() => scope.getController(handle), [scope, handle]);
