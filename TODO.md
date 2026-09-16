@@ -22,7 +22,8 @@ tracer bullet with one decisive browser-mode behavior test. Gate each with
       object snapshot keeps identity across a parent re-render; clean unmount. Reviewed (astra).
 - [x] **r04 — `useController` write.** DONE (tag `react/r04`, commit `a7c0954`): controller write re-renders a
       reader; write-only component's render count unchanged after an external set. Under astra review.
-- [ ] **r05 — `useData` selector + `isEqual`.** Verify: unrelated field change → no re-render; slice change → re-render.
+- [x] **r05 — `useData` selector + `isEqual`.** DONE (tag `react/r05`, commit `3920c7f`): unrelated field
+      change → no re-render; slice change → re-render; custom `isEqual` suppresses a new-but-equal slice. Under review.
 - [ ] **r06 — `useResource` sync value.** Verify: sync build renders value, no fallback; cached instance identity.
 - [ ] **r07 — `useResource` async + Suspense.** Verify: fallback→value; re-render while pending reuses the same promise (build runs once).
 - [ ] **r08 — `useResource` failed build → boundary.** Verify: rejected build renders the nearest error boundary; registry error preserved.

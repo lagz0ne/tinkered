@@ -8,8 +8,8 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
 } from "react";
+import { useSyncExternalStoreWithSelector } from "use-sync-external-store/shim/with-selector";
 import { raise } from "./errors.ts";
 
 export { isError } from "./errors.ts";
@@ -22,6 +22,10 @@ const ScopeContext = createContext<Scope.Handle | undefined>(undefined);
 function closeScope(scope: Scope.Handle): void {
   return void scope.close();
 }
+
+/** The stable no-selector fallback for {@link useData}: a module constant so the selector handed to
+ * the store keeps a stable identity across renders (a fresh closure would defeat its memoization). */
+const identity = <V>(value: V): V => value;
 
 /** Props for {@link ScopeProvider}: either an app-owned `scope` (the app closes it), or a `create`
  * factory the provider owns and closes on unmount. Exactly one. */
@@ -68,9 +72,20 @@ export function useScope(): Scope.Handle {
   return scope;
 }
 
-/** Reactively read a `data` cell: returns its current value and re-renders when it changes. Backed
- * by `useSyncExternalStore` over the cell's `watch`/`get`, so reads never tear. */
-export function useData<T>(cell: Data.Cell<T>): T {
+/** Reactively read a `data` cell: returns its current value and re-renders when it changes. */
+export function useData<T>(cell: Data.Cell<T>): T;
+/** Reactively read a slice of a `data` cell: returns `selector(value)` and re-renders only when the
+ * slice changes (`isEqual`, default `Object.is`). Lets a component subscribe to part of a cell. */
+export function useData<T, S>(
+  cell: Data.Cell<T>,
+  selector: (value: T) => S,
+  isEqual?: (a: S, b: S) => boolean,
+): S;
+export function useData<T, S>(
+  cell: Data.Cell<T>,
+  selector?: (value: T) => S,
+  isEqual?: (a: S, b: S) => boolean,
+): T | S {
   const scope = useScope();
   const store = useMemo(() => {
     const controller = scope.getController(cell);
@@ -79,7 +94,14 @@ export function useData<T>(cell: Data.Cell<T>): T {
       getSnapshot: () => controller.get(),
     };
   }, [scope, cell]);
-  return useSyncExternalStore(store.subscribe, store.getSnapshot);
+  const equal = isEqual as ((a: T | S, b: T | S) => boolean) | undefined;
+  return useSyncExternalStoreWithSelector<T, T | S>(
+    store.subscribe,
+    store.getSnapshot,
+    store.getSnapshot,
+    selector ?? identity,
+    equal,
+  );
 }
 
 /** The nearest scope's read/write controller for a `data` cell (`get`/`read`/`set`/`update`/`watch`).

@@ -9,7 +9,9 @@ catalog:
   "@stryker-mutator/core": ^10.0.0
   "@stryker-mutator/vitest-runner": ^10.0.0
   "@types/node": ^24
+  "@types/use-sync-external-store": ^1.7.0
   typescript: ^7.0.2
+  use-sync-external-store: ^1.7.0
   vite: npm:@voidzero-dev/vite-plus-core@0.3.1
   vite-plus: 0.3.1
 overrides:
