@@ -3,6 +3,7 @@ import {
   createScope,
   data,
   isError,
+  makeTestClock,
   type Observe,
   operation,
   preset,
@@ -3770,4 +3771,47 @@ test("a released build's first lazy read cannot invalidate its unused replacemen
   const current = await controller.resolve();
   await scope.close();
   expect(current).toBe(replacement);
+});
+
+test("an operation reads the scope's clock, and advancing it moves later reads", () => {
+  const clk = makeTestClock({ now: 0 });
+  const now = operation({ label: "now", run: (_deps, { clock }) => clock.currentTimeMillis() });
+  const c = createScope({ clock: clk }).getController(now);
+  expect(c.resolve()).toBe(0);
+  clk.advance(50);
+  expect(c.resolve()).toBe(50);
+});
+
+test("a resource factory reads the scope's clock", () => {
+  const stamped = resource({
+    label: "stamped",
+    factory: (_deps, { clock }) => clock.currentTimeMillis(),
+  });
+  const built: number = createScope({ clock: makeTestClock({ now: 500 }) })
+    .getController(stamped)
+    .resolve();
+  expect(built).toBe(500);
+});
+
+test("the clock reports nanoseconds consistent with its milliseconds", () => {
+  const nanos = operation({ label: "nanos", run: (_deps, { clock }) => clock.currentTimeNanos() });
+  expect(
+    createScope({ clock: makeTestClock({ now: 2 }) })
+      .getController(nanos)
+      .resolve(),
+  ).toBe(2_000_000n);
+});
+
+test("the default scope clock reads real wall-clock time", () => {
+  const now = operation({ label: "now", run: (_deps, { clock }) => clock.currentTimeMillis() });
+  const before = Date.now();
+  const read: number = createScope().getController(now).resolve();
+  expect(read).toBeGreaterThanOrEqual(before);
+});
+
+test("a child session reads its parent scope's clock", async () => {
+  const now = operation({ label: "now", run: (_deps, { clock }) => clock.currentTimeMillis() });
+  const scope = createScope({ clock: makeTestClock({ now: 1234 }) });
+  const seen = await scope.session((s) => s.getController(now).resolve());
+  expect(seen).toBe(1234);
 });

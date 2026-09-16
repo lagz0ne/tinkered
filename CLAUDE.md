@@ -46,6 +46,21 @@ When a request is a plan, design, decision, or "how does X work":
 3. `to-tickets` — once the design is settled, break it into tickets.
 4. `coding-convention` — applies to every TypeScript file and test written after.
 
+## Code navigation (SCIP — lean on it)
+
+`scip-typescript` + the `scip` CLI live in the persistent home. **Lean on them** for precise
+symbol navigation — defs, refs, occurrences, and approximate call edges across `packages/*` —
+instead of guessing symbols or scanning by hand. It is the highest-signal way to map the API
+and find every use of a symbol before a change (see `docs/roadmap/core-v1/hot-paths.md` for a
+SCIP-backed hot-path map). Keep an index per package and regenerate as the code grows (indexes
+are gitignored under `.scip/`):
+
+```bash
+cd packages/<pkg> && scip-typescript index --output ../../.scip/<pkg>.scip
+scip print --json .scip/<pkg>.scip | head    # symbols / occurrences
+scip stats --from .scip/<pkg>.scip           # size of the map
+```
+
 ## Execution workflow (todo list)
 
 Any work with more than one step runs off an explicit todo list. **The goal is

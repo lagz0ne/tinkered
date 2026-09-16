@@ -107,6 +107,31 @@ export declare namespace Observe {
   };
 }
 
+export declare namespace Clock {
+  /** The ambient time source carried on every ctx (`ctx.clock`). Default is the system clock;
+   * set once via `createScope({ clock })` and inherited by child sessions. Cancelling a wait is
+   * explicit through `ctx.signal` (ADR 0034). */
+  export type Handle = {
+    /** Wall-clock time as whole milliseconds since the Unix epoch. */
+    currentTimeMillis(): number;
+    /** Wall-clock time as nanoseconds since the Unix epoch. */
+    currentTimeNanos(): bigint;
+  };
+
+  /** A controllable clock for tests: reads a virtual time that moves only when advanced by hand.
+   * The mock-free seam for time-dependent code — no `Date` mock, no fake timers (ADR 0034). Pass
+   * it to `createScope({ clock })`. */
+  export type Test = Handle & {
+    /** Move virtual time forward by `ms` milliseconds. */
+    advance(ms: number): void;
+    /** Set virtual time to `ms` milliseconds since the epoch. */
+    setTime(ms: number): void;
+  };
+
+  /** Seeds {@link makeTestClock}: the virtual time to start at (default `0`). */
+  export type Options = { readonly now?: number };
+}
+
 export declare namespace Operation {
   /** The receiver a command body reads its own invocation through. `signal` aborts when the owning
    * scope/session closes (hand it to `fetch`/an SDK); `defer` runs one hook when the run settles. */
@@ -118,6 +143,7 @@ export declare namespace Operation {
     readonly defer: (fn: (end: Scope.End) => void | PromiseLike<void>) => void;
     readonly obs: Observe.Ctx;
     readonly log: (message: string, attributes?: Record<string, unknown>) => void;
+    readonly clock: Clock.Handle;
   };
 
   /** A command: typed input, declared deps, runs on each resolve. Not reactive, not memoized. */
@@ -143,6 +169,7 @@ export declare namespace Resource {
     readonly signal: AbortSignal;
     readonly obs: Observe.Ctx;
     readonly log: (message: string, attributes?: Record<string, unknown>) => void;
+    readonly clock: Clock.Handle;
   };
 
   /** A reusable built instance. `target` picks the owning layer: `scope` = one per chain
@@ -265,6 +292,8 @@ export declare namespace Scope {
     tags?: readonly Tag.Binding<unknown>[];
     observe?: Observe.Config;
     presets?: readonly Preset[];
+    /** The ambient clock for this scope; child sessions inherit it. Default is the system clock. */
+    clock?: Clock.Handle;
   };
 
   /** How a scope settled: cleanly, by an inside-out failure, or as a cancellation. */
@@ -592,6 +621,7 @@ type Layer = {
   closed: boolean;
   closing: Promise<Scope.Result> | undefined;
   obs: Obs;
+  clock: Clock.Handle;
 };
 
 /** Late use of a sealed scope fails loudly. */
@@ -806,6 +836,28 @@ const OFF_OBS: Observe.Ctx = {
   child: (_name, fn) => fn(undefined),
 };
 
+/** The default ambient clock: real wall-clock time. */
+const systemClock: Clock.Handle = {
+  currentTimeMillis: () => Date.now(),
+  currentTimeNanos: () => BigInt(Date.now()) * 1_000_000n,
+};
+
+/** Create a controllable clock for tests: virtual time starts at `now` (default `0`) and only
+ * moves when you call `advance`/`setTime`. Pass it to `createScope({ clock })` (ADR 0034). */
+export function makeTestClock(options?: Clock.Options): Clock.Test {
+  let now = options?.now ?? 0;
+  return {
+    currentTimeMillis: () => now,
+    currentTimeNanos: () => BigInt(now) * 1_000_000n,
+    advance: (ms) => {
+      now += ms;
+    },
+    setTime: (ms) => {
+      now = ms;
+    },
+  };
+}
+
 /** A never-aborted signal for the shared {@link EMPTY_CTX}. */
 const IDLE_ABORT = new AbortController();
 /** Shared ctx for resource factories that declare no ctx param (arity < 2): they cannot touch it, so
@@ -816,6 +868,7 @@ const EMPTY_CTX: Resource.Ctx = {
   signal: IDLE_ABORT.signal,
   obs: OFF_OBS,
   log: OFF_LOG,
+  clock: systemClock,
 };
 
 function makeObs(config: Observe.Config | undefined): Obs {
@@ -1124,6 +1177,7 @@ function commandController<T, I>(
         defer: (fn) => void defers.push(fn),
         obs: obsCtx(obs, span),
         log: logFor(obs, span),
+        clock: layer.clock,
       };
       result = override ? override(deps, ctx) : target.run(deps, ctx);
     } catch (error) {
@@ -1255,6 +1309,7 @@ function buildCtx(
     },
     obs: obsCtx(obs, span),
     log: logFor(obs, span),
+    clock: owner.clock,
   };
 }
 
@@ -1676,6 +1731,13 @@ function seedPresets(seeds: readonly Scope.Preset[] | undefined): {
   return { nodes, presets };
 }
 
+/** The clock a new layer runs on: a child inherits its parent's; a root takes the seeded clock, or
+ * the system clock when none was given. */
+function clockFor(parent: Layer | undefined, options: Scope.Options | undefined): Clock.Handle {
+  if (parent) return parent.clock;
+  return options?.clock ?? systemClock;
+}
+
 function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
   const tags = seedTags(options?.tags);
   const { nodes, presets } = seedPresets(options?.presets);
@@ -1701,6 +1763,7 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     closed: false,
     closing: undefined,
     obs: parent ? parent.obs : makeObs(options?.observe),
+    clock: clockFor(parent, options),
   };
   if (parent) {
     parent.children.add(layer);
