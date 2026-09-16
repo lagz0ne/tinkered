@@ -1317,20 +1317,23 @@ function buildLazyDep(t: LazyTarget, key: string): void {
 }
 
 /** One shared handler for every lazy deps proxy (state lives on the target, see {@link LAZY}). */
-const LAZY_HANDLER: ProxyHandler<LazyTarget> = {
-  get: (t, key) => {
+const LAZY_TRAPS = {
+  get: (t: LazyTarget, key: string | symbol): unknown => {
     if (isLazyKey(t, key)) buildLazyDep(t, key);
     return t[key as string];
   },
-  has: (t, key) => isLazyKey(t, key) || key in t,
-  ownKeys: (t) => [
+  has: (t: LazyTarget, key: string | symbol): boolean => isLazyKey(t, key) || key in t,
+  ownKeys: (t: LazyTarget): string[] => [
     ...Object.keys(t),
     ...Object.keys(t[LAZY].depends).filter((k) => isLazyKey(t, k)),
   ],
-  getOwnPropertyDescriptor: (t, key) => {
+  getOwnPropertyDescriptor: (
+    t: LazyTarget,
+    key: string | symbol,
+  ): PropertyDescriptor | undefined => {
     if (isLazyKey(t, key))
       return { enumerable: true, configurable: true, writable: true, value: undefined };
-    return Reflect.getOwnPropertyDescriptor(t, key);
+    return Object.getOwnPropertyDescriptor(t, key);
   },
 };
 
@@ -1343,7 +1346,7 @@ function lazyDepsProxy(
 ): Record<string, unknown> {
   const t = target as LazyTarget;
   t[LAZY] = { depends, layer, span, registerEdge };
-  return new Proxy(t, LAZY_HANDLER);
+  return new Proxy(t, LAZY_TRAPS);
 }
 
 /** Build the `deps` object a factory/run reads. A resource-target dependency is delivered LAZILY (via
@@ -1962,7 +1965,7 @@ function markAborted(layer: Layer, reason: unknown): void {
   if (layer.aborted) return;
   layer.aborted = true;
   layer.abortReason = reason;
-  // Only fire the real signal if one was ever handed to a factory (else there are no listeners).
+  /** Only fire the real signal if one was ever handed to a factory (else there are no listeners). */
   layer.abort?.abort(reason);
 }
 
