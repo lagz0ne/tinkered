@@ -1,9 +1,10 @@
-import type { Data, Resource, Scope } from "@tinker/core";
+import type { Data, Operation, Resource, Scope } from "@tinker/core";
 import type { ReactNode } from "react";
 import {
   createContext,
   createElement,
   use,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -130,4 +131,65 @@ export function useResource<T>(handle: Resource.Handle<T>): Awaited<T> {
   const built = controller.resolve();
   if (isThenable(built)) return use(built) as Awaited<T>;
   return built as Awaited<T>;
+}
+
+export declare namespace Resolve {
+  /** The settled state of the latest {@link useResolve} run. */
+  export type State<T> =
+    | { readonly status: "idle"; readonly data: undefined; readonly error: undefined }
+    | { readonly status: "pending"; readonly data: undefined; readonly error: undefined }
+    | { readonly status: "success"; readonly data: T; readonly error: undefined }
+    | { readonly status: "error"; readonly data: undefined; readonly error: unknown };
+  /** What {@link useResolve} returns: the current {@link State} plus the imperative `resolve`/`reset`.
+   * `resolve` returns a `Promise<void>` that settles when the run does (it routes success/failure into
+   * state and never rejects), so a caller may await it or ignore it. */
+  export type Handle<T, I> = State<T> & {
+    readonly resolve: (...call: Scope.CallArgs<I>) => Promise<void>;
+    readonly reset: () => void;
+  };
+}
+
+async function drive<T>(
+  run: () => T,
+  set: (state: Resolve.State<Awaited<T>>) => void,
+): Promise<void> {
+  try {
+    const value = await run();
+    set({ status: "success", data: value, error: undefined });
+  } catch (error) {
+    set({ status: "error", data: undefined, error });
+  }
+}
+
+const IDLE = { status: "idle", data: undefined, error: undefined } as const;
+const PENDING = { status: "pending", data: undefined, error: undefined } as const;
+
+/** Run an operation imperatively (a mutation): never suspends. Returns the current `{ status, data,
+ * error }` plus `resolve(input)` (a `Promise<void>` you may await) to run it from an event handler and
+ * `reset()` to return to idle. `status` moves idle→pending→success/error; a rejection stays in `error`
+ * (it does not throw to an error boundary — that is {@link useResource}'s job). Only the latest run
+ * publishes: a slower earlier run that settles after a newer one (or after `reset`) is dropped. */
+export function useResolve<T, I>(op: Operation.Command<T, I>): Resolve.Handle<Awaited<T>, I> {
+  const scope = useScope();
+  const controller = useMemo(() => scope.getController(op), [scope, op]);
+  const [state, setState] = useState<Resolve.State<Awaited<T>>>(IDLE);
+  const runId = useRef(0);
+  const resolve = useCallback(
+    (...call: Scope.CallArgs<I>): Promise<void> => {
+      const id = (runId.current += 1);
+      setState(PENDING);
+      return drive(
+        () => controller.resolve(...call),
+        (next) => {
+          if (runId.current === id) setState(next);
+        },
+      );
+    },
+    [controller],
+  );
+  const reset = useCallback((): void => {
+    runId.current += 1;
+    setState(IDLE);
+  }, []);
+  return { ...state, resolve, reset };
 }

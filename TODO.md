@@ -28,9 +28,11 @@ tracer bullet with one decisive browser-mode behavior test. Gate each with
       value with no Suspense boundary (no suspend); returns core's exact cached instance. Under review.
 - [x] **r07 — `useResource` async + Suspense.** DONE (tag `react/r07`, commit `70bd131`): fallback→value on
       settle; a re-render while pending keeps the factory build count at 1 and Suspense still resolves (ADR 0032). Under review.
-- [x] **r08 — `useResource` failed build → boundary.** DONE (tag `react/r08`, commit `22137fc`): rejected async
-      build and throwing sync build both surface to the nearest error boundary with the original error intact. Under review.
-- [ ] **r09 — `useResolve` success.** Verify: idle→pending→success with `data`; `rawInput` parsed; no suspend.
+- [x] **r08 — `useResource` failed build → boundary.** DONE (tag `react/r08`, commit `99e6b86`, SHIP): rejected
+      build surfaces to the error boundary; core makes a rejected build **sticky** at the owner (kept edges → cascade;
+      cleared on release/close) so a Suspense retry doesn't loop; react delegates; gate rebuilds core dist first.
+- [x] **r09 — `useResolve` success.** DONE (tag `react/r09`, commit `8b08d54`): idle→pending→success with `data`;
+      `rawInput:"21"`→`data:42`; sync op→`data:6`; never suspends. Under astra review.
 - [ ] **r10 — `useResolve` error + `reset`.** Verify: error stays in `error`/`status` (no boundary throw); `reset()`→idle.
 - [ ] **r11 — `<SessionProvider>` lifecycle.** Verify: unmount forces-close (session resource `defer` rolls back); nearest-Handle-wins; write shadowed.
 - [ ] **r12 — `target:"session"` sharing.** Verify: one instance per provider (siblings distinct); `target:"scope"` shared across.
