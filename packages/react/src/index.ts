@@ -11,8 +11,8 @@ import {
   useReducer,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
-import { useSyncExternalStoreWithSelector } from "use-sync-external-store/shim/with-selector";
 import { raise } from "./errors.ts";
 
 export { isError } from "./errors.ts";
@@ -150,23 +150,12 @@ export function useData<T, S>(
 ): T | S | UseData.Pair<T, T | S> {
   const { selector, isEqual, writable } = readDataArgs(a, b);
   const scope = useScope();
-  const controller = useMemo(() => scope.getController(cell), [scope, cell]);
   const store = useMemo(
-    () => ({
-      subscribe: (onChange: () => void) => controller.watch(onChange),
-      getSnapshot: () => controller.get(),
-    }),
-    [controller],
+    () => createDataStore(scope.getController(cell), selector, isEqual),
+    [scope, cell, selector, isEqual],
   );
-  const value = useSyncExternalStoreWithSelector<T, T | S>(
-    store.subscribe,
-    store.getSnapshot,
-    store.getSnapshot,
-    selector ?? identity,
-    isEqual,
-  );
-  const set = useCallback((next: T) => controller.set(next), [controller]);
-  return writable ? [value, set] : value;
+  const value = useSyncExternalStore(store.subscribe, store.read, store.read);
+  return writable ? [value, store.set] : value;
 }
 
 function readDataArgs<T, S>(
@@ -184,6 +173,34 @@ function readDataArgs<T, S>(
     selector,
     isEqual: isEqual as ((a: T | S, b: T | S) => boolean) | undefined,
     writable: options?.writable === true,
+  };
+}
+
+function createDataStore<T, S>(
+  controller: Scope.DataController<T>,
+  selector: ((value: T) => S) | undefined,
+  isEqual: ((a: S, b: S) => boolean) | undefined,
+): {
+  subscribe: (notify: () => void) => () => void;
+  read: () => S;
+  set: (value: T) => void;
+} {
+  const select: (value: T) => S = selector ?? (identity as (value: T) => S);
+  const equal: (a: S, b: S) => boolean = isEqual ?? Object.is;
+  let memo: { raw: T; slice: S } | undefined = undefined;
+  const read = (): S => {
+    const raw = controller.get();
+    const prev = memo;
+    if (prev !== undefined && Object.is(prev.raw, raw)) return prev.slice;
+    const slice = select(raw);
+    if (prev !== undefined && equal(prev.slice, slice)) return prev.slice;
+    memo = { raw, slice };
+    return slice;
+  };
+  return {
+    subscribe: (notify: () => void) => controller.watch(notify),
+    read,
+    set: (value: T) => controller.set(value),
   };
 }
 

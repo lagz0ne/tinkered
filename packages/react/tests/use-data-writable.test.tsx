@@ -57,3 +57,30 @@ test("useData with a selector and writable returns the slice and a setter for th
 
   await scope.close();
 });
+
+test("the writable setter keeps its identity across a cell update", async () => {
+  const scope = createScope();
+  const count = data({ label: "stable-set", initial: 0 });
+  const seen: Array<(value: number) => void> = [];
+
+  function Stable(): React.ReactElement {
+    const [value, set] = useData(count, { writable: true });
+    seen.push(set);
+    return <p>stable:{value}</p>;
+  }
+
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <Stable />
+    </ScopeProvider>,
+  );
+
+  await expect.element(screen.getByText("stable:0")).toBeVisible();
+  scope.getController(count).set(1);
+  await expect.element(screen.getByText("stable:1")).toBeVisible();
+
+  expect(seen.length).toBeGreaterThan(1);
+  expect(seen[seen.length - 1]).toBe(seen[0]);
+
+  await scope.close();
+});
