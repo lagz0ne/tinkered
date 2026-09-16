@@ -61,7 +61,7 @@ Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its 
 | --------- | --------------------------------------- | -------- | ------ |
 | react/r01 | Browser harness + async fixture         | —        | [x]    |
 | react/r02 | `<ScopeProvider>` + `useScope`          | 01       | [x]    |
-| react/r03 | `useData` reactive read                 | 02       | [ ]    |
+| react/r03 | `useData` reactive read                 | 02       | [x]    |
 | react/r04 | `useController` write                   | 03       | [ ]    |
 | react/r05 | `useData` selector + `isEqual`          | 03       | [ ]    |
 | react/r06 | `useResource` sync value                | 02       | [ ]    |

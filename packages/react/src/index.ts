@@ -23,47 +23,40 @@ function closeScope(scope: Scope.Handle): void {
   return void scope.close();
 }
 
-/** Own a created scope for a subtree: create it once, and close it on unmount. StrictMode (and a
- * discarded concurrent render) runs mount→unmount→mount; the prior scope is closed by its cleanup,
- * so the remount creates a fresh one (ADR 0031) rather than reusing a closed scope. */
-function useOwnedScope(create: () => Scope.Handle): Scope.Handle {
-  const createRef = useRef(create);
-  createRef.current = create;
-  const [scope, setScope] = useState(() => createRef.current());
-  const reopen = useRef(false);
-  useEffect(() => {
-    if (reopen.current) {
-      reopen.current = false;
-      setScope(createRef.current());
-      return;
-    }
-    return () => {
-      reopen.current = true;
-      closeScope(scope);
-    };
-  }, [scope]);
-  return scope;
-}
-
 /** Props for {@link ScopeProvider}: either an app-owned `scope` (the app closes it), or a `create`
  * factory the provider owns and closes on unmount. Exactly one. */
 export type ScopeProviderProps =
   | { readonly scope: Scope.Handle; readonly create?: never; readonly children: ReactNode }
   | { readonly create: () => Scope.Handle; readonly scope?: never; readonly children: ReactNode };
 
+/** Own a created scope for a subtree: create it in an effect (never during render, so a discarded
+ * or StrictMode-replayed render leaks nothing), publish it to children only once it exists, and
+ * close exactly that scope on unmount. StrictMode's mount→unmount→mount makes a fresh scope for
+ * each live mount and never leaves a closed scope on context for a consumer to touch (ADR 0031). */
 function OwnedScopeProvider(props: {
   readonly create: () => Scope.Handle;
   readonly children: ReactNode;
 }): ReactNode {
-  const scope = useOwnedScope(props.create);
-  return createElement(ScopeContext.Provider, { value: scope }, props.children);
+  const createRef = useRef(props.create);
+  createRef.current = props.create;
+  const [scope, setScope] = useState<Scope.Handle | undefined>(undefined);
+  useEffect(() => {
+    const owned = createRef.current();
+    setScope(owned);
+    return () => {
+      setScope(undefined);
+      closeScope(owned);
+    };
+  }, []);
+  if (scope === undefined) return null;
+  return createElement(ScopeContext.Provider, { value: scope, children: props.children });
 }
 
 /** Put a `@tinker/core` scope on React context for the subtree. Hooks resolve against the nearest
  * provider's scope. */
 export function ScopeProvider(props: ScopeProviderProps): ReactNode {
-  if ("scope" in props) {
-    return createElement(ScopeContext.Provider, { value: props.scope }, props.children);
+  if (props.scope !== undefined) {
+    return createElement(ScopeContext.Provider, { value: props.scope, children: props.children });
   }
   return createElement(OwnedScopeProvider, { create: props.create, children: props.children });
 }

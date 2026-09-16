@@ -1,4 +1,5 @@
 import { createScope, data } from "@tinker/core";
+import { StrictMode } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
 import { ScopeProvider, isError, useScope } from "../src/index.ts";
@@ -11,8 +12,9 @@ function Greeting(): React.ReactElement {
   return <p>{scope.getController(greeting).get()}</p>;
 }
 
-test("provides an app-owned scope that hooks resolve against", async () => {
+test("uses the exact app-owned scope and never closes it", async () => {
   const scope = createScope();
+  scope.getController(greeting).set("seeded");
 
   const screen = await render(
     <ScopeProvider scope={scope}>
@@ -20,7 +22,11 @@ test("provides an app-owned scope that hooks resolve against", async () => {
     </ScopeProvider>,
   );
 
-  await expect.element(screen.getByText("hi")).toBeVisible();
+  await expect.element(screen.getByText("seeded")).toBeVisible();
+  await screen.unmount();
+
+  // the provider must not close (or substitute) an app-owned scope: it stays usable after unmount.
+  expect(scope.getController(greeting).get()).toBe("seeded");
   await scope.close();
 });
 
@@ -45,8 +51,36 @@ test("create mode closes the owned scope exactly once on unmount", async () => {
   await expect.poll(() => closes).toBe(1);
 });
 
+test("under StrictMode, create mode leaks no scope and never exposes a closed one", async () => {
+  let creates = 0;
+  let closes = 0;
+  const create = () => {
+    creates += 1;
+    const scope = createScope();
+    scope.onClose(() => {
+      closes += 1;
+    });
+    return scope;
+  };
+
+  const screen = await render(
+    <StrictMode>
+      <ScopeProvider create={create}>
+        <Greeting />
+      </ScopeProvider>
+    </StrictMode>,
+  );
+
+  // the consumer mounted and read the scope: a closed scope would have thrown `Disposed` on read.
+  await expect.element(screen.getByText("hi")).toBeVisible();
+  await screen.unmount();
+  // every scope that was created was also closed.
+  await expect.poll(() => creates > 0 && creates === closes).toBe(true);
+});
+
 function label(error: unknown): string {
-  return isError(error, "NoProvider") ? `caught:${error.payload.hook}` : "other";
+  if (!isError(error, "NoProvider")) throw error;
+  return `caught:${error.payload.hook}`;
 }
 
 test("a hook used with no provider raises NoProvider", async () => {
