@@ -135,11 +135,12 @@ const libs = {};
 {
   const { signal } = await import("@preact/signals-react");
   const { useSignals } = await import("@preact/signals-react/runtime");
+  let sink;
   const sigs = Array.from({ length: N }, () => signal(0));
   let renders = 0;
   const Cell = ({ i }) => {
     useSignals();
-    sigs[i].value;
+    sink = sigs[i].value;
     renders++;
     return null;
   };
