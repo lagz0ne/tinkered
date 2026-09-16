@@ -1191,17 +1191,19 @@ function runDefers(
   return undefined;
 }
 
-function readCall<T, I>(
+/** Parse a command's raw input once, at the process edge (no parser means void input). */
+function parseInput<I>(target: Operation.Command<unknown, I>, rawInput: unknown): I {
+  return (target.input ? target.input(rawInput) : undefined) as I;
+}
+
+/** Run a command's body: a preset replacement when seeded, else its declared run. */
+function runBody<T, I>(
+  override: Operation.Command<T, I>["run"] | undefined,
   target: Operation.Command<T, I>,
-  call: Scope.Invocation<I> | undefined,
-): { input: I; rawInput: unknown; overlay: TagOverlay | undefined } {
-  const overlay = call?.tags?.length ? seedTags(call.tags) : undefined;
-  if (call !== undefined && call.input !== undefined) {
-    return { input: call.input, rawInput: call.input, overlay };
-  }
-  const rawInput = call?.rawInput;
-  const input = (target.input ? target.input(rawInput) : undefined) as I;
-  return { input, rawInput, overlay };
+  deps: Record<string, unknown>,
+  ctx: Operation.Ctx<I>,
+): T {
+  return override ? override(deps, ctx) : target.run(deps, ctx);
 }
 
 class OperationCtx<I> implements Operation.Ctx<I> {
@@ -1250,18 +1252,17 @@ function commandController<T, I>(
     const obs = layer.obs;
     const span = openSpan(obs, parent, target.label, "operation");
     const override = presetFor(layer, target) as Operation.Command<T, I>["run"] | undefined;
-    const borrowed: { owner: Layer; resource: Resource.Handle<unknown> }[] = [];
     /** Hold a borrow across the op's WHOLE lifetime — body settle (or a throw) AND its own `defer`
      * drain — so a release waits for the op's cleanup (which may still touch the resource) before
-     * tearing it down (ADR 0026 Q2). Registered once deps resolve (before the body runs), released
-     * after the defer drain on BOTH the success and throwing paths. A fully synchronous op resolves
-     * and removes the borrow within `resolve()`, so a later release sees no borrower and stays sync. */
-    let settleBorrow: () => void = noop;
-    let borrow: Promise<void> | undefined;
+     * tearing it down (ADR 0026 Q2). Taken before deps resolve (a dep's factory may release another
+     * dep during resolution), released after the defer drain on BOTH the success and throwing paths.
+     * A fully synchronous op resolves and removes the borrow within `resolve()`, so a later release
+     * sees no borrower and stays sync. */
+    const held = takeBorrows(layer, target);
     const releaseBorrow = (): void => {
-      if (!borrow) return;
-      for (const b of borrowed) removeBorrow(b.owner, b.resource, borrow);
-      settleBorrow();
+      if (!held) return;
+      for (const b of held.list) removeBorrow(b.owner, b.resource, held.done);
+      held.settle();
     };
     let ctx: OperationCtx<I> | undefined;
     const finishDefers = (status: "ok" | "failed", error?: unknown): void => {
@@ -1277,19 +1278,19 @@ function commandController<T, I>(
     let result: T;
     buildDepth++;
     try {
-      const { input, rawInput, overlay } = readCall(target, call);
-      /** Register borrows BEFORE resolving deps: a dep's factory may release another dep during
-       * resolution, and the op must already hold it (ADR 0026 Q2). Borrows need only the dep handles. */
-      if ((target as BorrowFlag)[borrowSym] === true) {
-        for (const b of collectBorrows(layer, target.depends)) borrowed.push(b);
-      }
-      if (borrowed.length) {
-        borrow = new Promise<void>((r) => (settleBorrow = r));
-        for (const b of borrowed) addBorrow(b.owner, b.resource, borrow);
+      const overlay = call?.tags?.length ? seedTags(call.tags) : undefined;
+      let input: I;
+      let rawInput: unknown;
+      if (call !== undefined && call.input !== undefined) {
+        input = call.input;
+        rawInput = call.input;
+      } else {
+        rawInput = call?.rawInput;
+        input = parseInput(target, rawInput);
       }
       const deps = buildDeps(layer, target.depends, span, overlay, undefined);
       ctx = new OperationCtx<I>(layer, target.label, rawInput, input, obs, span);
-      result = override ? override(deps, ctx) : target.run(deps, ctx);
+      result = runBody(override, target, deps, ctx);
     } catch (error) {
       closeSpan(obs, span, "failed");
       finishDefers("failed", error);
@@ -1888,6 +1889,23 @@ function collectBorrows(layer: Layer, depends: Scope.Depends): Borrow[] {
 function addBorrow(owner: Layer, resource: Resource.Handle<unknown>, work: Promise<unknown>): void {
   const s = nodeState(owner, resource);
   (s.borrowers ??= new Set()).add(work);
+}
+
+/** Take an operation's dependency borrows, or return undefined when its deps name no resource (the
+ * common case — decided by the `operation()`-time flag, so the run path allocates nothing). The
+ * borrow spans the op's whole lifetime including its defer drain; the caller releases it via
+ * {@link removeBorrow} once the drain settles. */
+function takeBorrows(
+  layer: Layer,
+  target: Operation.Command<unknown, unknown>,
+): { list: Borrow[]; done: Promise<void>; settle: () => void } | undefined {
+  if ((target as BorrowFlag)[borrowSym] !== true) return undefined;
+  const list = collectBorrows(layer, target.depends);
+  if (list.length === 0) return undefined;
+  let settle: () => void = noop;
+  const done = new Promise<void>((r) => (settle = r));
+  for (const b of list) addBorrow(b.owner, b.resource, done);
+  return { list, done, settle };
 }
 
 function removeBorrow(
