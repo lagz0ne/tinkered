@@ -84,18 +84,22 @@ for (const s of scenarios) {
 
 const res = await run();
 
-const minOf = (alias) => {
-  const b = res.benchmarks.find((x) => x.alias === alias);
-  const stats = b?.runs?.[0]?.stats;
-  return stats ? stats.min : Number.NaN;
-};
+const statsOf = (alias) => res.benchmarks.find((x) => x.alias === alias)?.runs?.[0]?.stats;
 const fmt = (n) => (Number.isFinite(n) ? n.toFixed(4) : "NaN");
 
-console.log("\n--- metrics (min ns/iter; lower is better) ---");
+// Cold-di ns is GC-noise-dominated; allocation bytes/iter (stats.heap.min) is near-deterministic and
+// is the true lever (less allocation -> less GC -> faster). Emit both: `_b` = alloc bytes/iter.
+console.log("\n--- metrics (ns = min ns/iter; _b = alloc bytes/iter; both lower is better) ---");
 for (const s of scenarios) {
-  const t = minOf(`${s.key}_tinker`);
-  const e = minOf(`${s.key}_inferdi`);
-  console.log(`METRIC ${s.key}_tinker=${fmt(t)}`);
-  console.log(`METRIC ${s.key}_inferdi=${fmt(e)}`);
-  console.log(`METRIC ${s.key}_speedup=${fmt(e / t)}`);
+  const t = statsOf(`${s.key}_tinker`);
+  const e = statsOf(`${s.key}_inferdi`);
+  const tn = t ? t.min : Number.NaN;
+  const en = e ? e.min : Number.NaN;
+  const tb = t?.heap ? t.heap.min : Number.NaN;
+  const eb = e?.heap ? e.heap.min : Number.NaN;
+  console.log(`METRIC ${s.key}_tinker=${fmt(tn)}`);
+  console.log(`METRIC ${s.key}_inferdi=${fmt(en)}`);
+  console.log(`METRIC ${s.key}_speedup=${fmt(en / tn)}`);
+  console.log(`METRIC ${s.key}_tinker_b=${fmt(tb)}`);
+  console.log(`METRIC ${s.key}_inferdi_b=${fmt(eb)}`);
 }
