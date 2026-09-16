@@ -1,4 +1,4 @@
-import { createScope, data, operation, resource, tag } from "../src/index.ts";
+import { createScope, data, makeTestClock, operation, resource, tag } from "../src/index.ts";
 
 /** A cast-free tour of the public API: every value's type is INFERRED — no `as`, no non-null `!`. */
 export async function tour(): Promise<number> {
@@ -22,7 +22,14 @@ export async function tour(): Promise<number> {
     },
   });
 
-  const scope = createScope({ tags: [region("eu")] });
+  // Time is an ambient capability on every ctx; inject a controllable clock at the scope so this
+  // reads a fixed instant with no `Date.now` mock and no fake timers.
+  const stamp = operation({
+    label: "stamp",
+    run: (_deps, { clock }) => clock.currentTimeMillis(),
+  });
+
+  const scope = createScope({ tags: [region("eu")], clock: makeTestClock({ now: 0 }) });
   const c = scope.getController(count);
   c.set(21);
   const seen: number[] = [];
@@ -31,6 +38,7 @@ export async function tour(): Promise<number> {
   const n = scope.getController(doubled).resolve();
   const s = scope.getController(store).resolve();
   s.add("first");
+  const t = scope.getController(stamp).resolve(); // 0 — the injected test clock, deterministic
 
   const inSession = await scope.session((child) => {
     child.getController(count).set(100);
@@ -39,5 +47,5 @@ export async function tour(): Promise<number> {
 
   const result = await scope.close();
   const teardownOk = result.status === "success" || result.status === "cancelled";
-  return n + s.size() + inSession + c.get() + seen.length + (teardownOk ? 0 : 1);
+  return n + s.size() + inSession + c.get() + seen.length + t + (teardownOk ? 0 : 1);
 }
