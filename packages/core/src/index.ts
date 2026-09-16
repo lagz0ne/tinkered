@@ -1281,26 +1281,30 @@ type RegisterEdge = ((dep: Scope.Dependency) => void) | undefined;
  * so the enumeration contract holds. A Proxy get trap is ~7x cheaper than a per-build
  * `Object.defineProperty` accessor, and a body that never touches a key never builds it. */
 /** Per-deps lazy state, stashed on the deps target under a symbol so the handler needs no closures.
- * Symbol keys are invisible to `Object.keys`/`values`/`for..in`/JSON, so the factory never sees it. */
+ * Symbol keys are invisible to `Object.keys`/`values`/`for..in`/JSON, so the factory never sees it.
+ * A key is lazy while it names a resource in `depends` and is not yet an own property of the target
+ * (building it writes the own property), so no per-build bookkeeping collection is needed. */
 const LAZY = Symbol("lazy");
 type LazyState = {
-  lazy: Map<string, Scope.Dependency>;
+  depends: Scope.Depends;
   layer: Layer;
   span: Observe.Span | undefined;
   registerEdge: RegisterEdge;
 };
 type LazyTarget = Record<string, unknown> & { [LAZY]: LazyState };
 
+const isLazyKey = (t: LazyTarget, key: string | symbol): key is string => {
+  if (typeof key !== "string" || Object.hasOwn(t, key)) return false;
+  const dep = t[LAZY].depends[key];
+  return dep !== undefined && isResource(dep);
+};
+
 function buildLazyDep(t: LazyTarget, key: string): void {
-  const { lazy, layer, span, registerEdge } = t[LAZY];
-  const dep = lazy.get(key) as Scope.Dependency;
-  lazy.delete(key);
+  const { depends, layer, span, registerEdge } = t[LAZY];
+  const dep = depends[key] as Scope.Dependency;
   registerEdge?.(dep);
   t[key] = resolveDep(layer, dep, span, undefined);
 }
-
-const isLazyKey = (t: LazyTarget, key: string | symbol): key is string =>
-  typeof key === "string" && t[LAZY].lazy.has(key);
 
 /** One shared handler for every lazy deps proxy (state lives on the target, see {@link LAZY}). */
 const LAZY_HANDLER: ProxyHandler<LazyTarget> = {
@@ -1309,7 +1313,10 @@ const LAZY_HANDLER: ProxyHandler<LazyTarget> = {
     return t[key as string];
   },
   has: (t, key) => isLazyKey(t, key) || key in t,
-  ownKeys: (t) => [...Object.keys(t), ...t[LAZY].lazy.keys()],
+  ownKeys: (t) => [
+    ...Object.keys(t),
+    ...Object.keys(t[LAZY].depends).filter((k) => isLazyKey(t, k)),
+  ],
   getOwnPropertyDescriptor: (t, key) => {
     if (isLazyKey(t, key))
       return { enumerable: true, configurable: true, writable: true, value: undefined };
@@ -1319,13 +1326,13 @@ const LAZY_HANDLER: ProxyHandler<LazyTarget> = {
 
 function lazyDepsProxy(
   target: Record<string, unknown>,
-  lazy: Map<string, Scope.Dependency>,
+  depends: Scope.Depends,
   layer: Layer,
   span: Observe.Span | undefined,
   registerEdge: RegisterEdge,
 ): Record<string, unknown> {
   const t = target as LazyTarget;
-  t[LAZY] = { lazy, layer, span, registerEdge };
+  t[LAZY] = { depends, layer, span, registerEdge };
   return new Proxy(t, LAZY_HANDLER);
 }
 
@@ -1343,16 +1350,16 @@ function buildDeps(
   registerEdge: RegisterEdge,
 ): Record<string, unknown> {
   const deps: Record<string, unknown> = {};
-  let lazy: Map<string, Scope.Dependency> | undefined;
+  let lazy = false;
   for (const key in depends) {
     const dep = depends[key];
-    if (isResource(dep)) (lazy ??= new Map()).set(key, dep);
+    if (isResource(dep)) lazy = true;
     else {
       registerEdge?.(dep);
       deps[key] = resolveDep(layer, dep, span, overlay);
     }
   }
-  return lazy ? lazyDepsProxy(deps, lazy, layer, span, registerEdge) : deps;
+  return lazy ? lazyDepsProxy(deps, depends, layer, span, registerEdge) : deps;
 }
 
 function resolveResourceDeps(
