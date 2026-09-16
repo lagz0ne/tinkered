@@ -153,7 +153,9 @@ hot path is anything a request pays: create a scope, build a resource, run an op
    arrow field on that class, never a method.
 
 3. **No `Object.defineProperty` on a hot path** (~300 ns). Shape objects with
-   fields, classes, or a Proxy with one shared trap object.
+   fields, classes, or a Proxy with one shared trap object. A trap that must define
+   a property (a write to a not-yet-built key) is a cold path; the census watches it
+   (W12) and the reviewer judges.
 
 4. **Allocate on first use, share what never changes.** Collections, controllers,
    AbortControllers, and ctx objects are made when first read, not when the owner is

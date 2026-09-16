@@ -54,9 +54,9 @@ T09|test|mutation-score or coverage named in a test title|(test|it)\("[^"]*(muta
 T07|test|instanceof or message assert around an error|\.(toBeInstanceOf|toThrowErrorMatchingInlineSnapshot)\(|toThrow\("[^"]+"\)
 P01|src|accessor in an object literal (class + prototype accessor)|^[[:space:]]{4,}(get|set) [A-Za-z_]+\(
 P02|src|constructor parameter property (strip-types rejects)|constructor\((private|protected|public|readonly) |^[[:space:]]+(private|protected|public|readonly) [A-Za-z_]+\??: [^;]*[,)][[:space:]]*$
-P03|src|Object.defineProperty on a hot path|Object\.define(Property|Properties)\(
 P04|src|Set/Map seeded from an array literal (use add/set)|new (Set|Map)\(\[
 W10|src|Proxy creation (share one trap object)|new Proxy\(
+W12|src|Object.defineProperty (never on a hot path)|Object\.define(Property|Properties)\(
 W11|src|bind(this) (arrow field instead)|\.bind\(this\)
 W01|src|readonly modifier|\breadonly\b
 W02|src|as const|\bas const\b

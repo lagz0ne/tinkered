@@ -214,7 +214,7 @@ test("a factory that writes a lazy dep key before reading it keeps a plain prope
   });
 });
 
-test("after a lazy dep's build throws, reading it again does not build again", () => {
+test("after a lazy dep's build throws, the key reads undefined, is not listed, and is not built again", () => {
   let builds = 0;
   const bad = resource({
     label: "bad",
@@ -230,12 +230,47 @@ test("after a lazy dep's build throws, reading it again does not build again", (
       try {
         return String(deps.bad);
       } catch {
-        return deps.bad;
+        return { value: deps.bad, keys: Object.keys(deps), has: "bad" in deps };
       }
     },
   });
-  expect(createScope().getController(top).resolve()).toBeUndefined();
+  expect(createScope().getController(top).resolve()).toEqual({
+    value: undefined,
+    keys: [],
+    has: false,
+  });
   expect(builds).toBe(1);
+});
+
+test("a read of a lazy dep key while that dep is still building sees undefined", () => {
+  let captured: Record<string, unknown> | undefined;
+  const leaf = resource({
+    label: "leaf",
+    factory: () => (captured && "leaf" in captured ? "listed" : String(captured?.leaf)),
+  });
+  const top = resource({
+    label: "top",
+    depends: { leaf },
+    factory: (deps) => {
+      captured = deps;
+      return deps.leaf;
+    },
+  });
+  expect(createScope().getController(top).resolve()).toBe("undefined");
+});
+
+test("a write through an object inheriting from deps lands on the child, not on deps", () => {
+  const leaf = resource({ label: "leaf", factory: () => 1 });
+  const top = resource({
+    label: "top",
+    depends: { leaf },
+    factory: (deps) => {
+      const child: Record<string, unknown> = Object.create(deps);
+      child.leaf = 5;
+      return { child: child.leaf, own: Object.hasOwn(child, "leaf"), deps: deps.leaf };
+    },
+  });
+  expect(createScope().getController(top).resolve()).toEqual({ child: 5, own: true, deps: 1 });
 });
 
 test("an operation dep the run never reads is never built (lazy deps)", () => {
