@@ -1169,6 +1169,34 @@ function readCall<T, I>(
   return { input, rawInput, overlay };
 }
 
+/** The ctx an operation body receives. A class with a prototype `signal` accessor (see
+ * {@link EmptyCtx} for why not an object literal with a getter). */
+class OperationCtx<I> implements Operation.Ctx<I> {
+  readonly obs: Observe.Ctx;
+  readonly log: (message: string, attributes?: Record<string, unknown>) => void;
+  readonly clock: Clock.Handle;
+  constructor(
+    private owner: Layer,
+    readonly label: string,
+    readonly rawInput: unknown,
+    readonly input: I,
+    private defers: ((end: Scope.End) => void | PromiseLike<void>)[],
+    obs: Obs,
+    span: Observe.Span | undefined,
+  ) {
+    this.obs = obsCtx(obs, span);
+    this.log = logFor(obs, span);
+    this.clock = owner.clock;
+  }
+  /** An arrow field, not a method: bodies destructure `{ defer }` off the ctx. */
+  readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
+    this.defers.push(fn);
+  };
+  get signal(): AbortSignal {
+    return signalOf(this.owner);
+  }
+}
+
 function commandController<T, I>(
   layer: Layer,
   target: Operation.Command<T, I>,
@@ -1210,18 +1238,7 @@ function commandController<T, I>(
         for (const b of borrowed) addBorrow(b.owner, b.resource, borrow);
       }
       const deps = buildDeps(layer, target.depends, span, overlay, undefined);
-      const ctx: Operation.Ctx<I> = {
-        label: target.label,
-        rawInput,
-        input,
-        get signal() {
-          return signalOf(layer);
-        },
-        defer: (fn) => void defers.push(fn),
-        obs: obsCtx(obs, span),
-        log: logFor(obs, span),
-        clock: layer.clock,
-      };
+      const ctx = new OperationCtx<I>(layer, target.label, rawInput, input, defers, obs, span);
       result = override ? override(deps, ctx) : target.run(deps, ctx);
     } catch (error) {
       closeSpan(obs, span, "failed");
@@ -1328,6 +1345,41 @@ function resolveResourceDeps(
  * (arity >= 2); otherwise a per-layer empty ctx (see {@link emptyCtxFor}) is passed, allocated at
  * most once per layer. `defer` closes over the build's `settled`/`superseded` so late registration
  * behaves correctly. */
+class ResourceCtx implements Resource.Ctx {
+  readonly label: string;
+  readonly obs: Observe.Ctx;
+  readonly log: (message: string, attributes?: Record<string, unknown>) => void;
+  readonly clock: Clock.Handle;
+  constructor(
+    private owner: Layer,
+    private target: Resource.Handle<unknown>,
+    obs: Obs,
+    span: Observe.Span | undefined,
+    private isSettled: () => boolean,
+    private superseded: () => boolean,
+  ) {
+    this.label = target.label;
+    this.obs = obsCtx(obs, span);
+    this.log = logFor(obs, span);
+    this.clock = owner.clock;
+  }
+  /** An arrow field, not a method: factories destructure `{ defer }` off the ctx. */
+  readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
+    const { owner, target } = this;
+    if (this.isSettled()) raise("Disposed", { reason: "resource factory already finished" });
+    /** A build that finished after its resource was released (superseded) tears down NOW, but
+     * borrow-aware so it still waits for any op that borrowed this resource before running its
+     * cleanup (ADR 0026 Q2), and holds its own dependency-closure borrows while it runs. Its `fn`
+     * is drained directly — never pushed to `owner.defers` — so it cannot sweep up a LIVE
+     * rebuild's defers registered under the same handle. */
+    if (this.superseded()) releaseSupersededDefer(owner, target, fn);
+    else owner.defers.push({ fn, resource: target });
+  };
+  get signal(): AbortSignal {
+    return signalOf(this.owner);
+  }
+}
+
 function buildCtx(
   owner: Layer,
   target: Resource.Handle<unknown>,
@@ -1336,38 +1388,32 @@ function buildCtx(
   isSettled: () => boolean,
   superseded: () => boolean,
 ): Resource.Ctx {
-  return {
-    label: target.label,
-    defer: (fn) => {
-      if (isSettled()) raise("Disposed", { reason: "resource factory already finished" });
-      /** A build that finished after its resource was released (superseded) tears down NOW, but
-       * borrow-aware so it still waits for any op that borrowed this resource before running its
-       * cleanup (ADR 0026 Q2), and holds its own dependency-closure borrows while it runs. Its `fn`
-       * is drained directly — never pushed to `owner.defers` — so it cannot sweep up a LIVE
-       * rebuild's defers registered under the same handle. */
-      if (superseded()) releaseSupersededDefer(owner, target, fn);
-      else owner.defers.push({ fn, resource: target });
-    },
-    get signal() {
-      return signalOf(owner);
-    },
-    obs: obsCtx(obs, span),
-    log: logFor(obs, span),
-    clock: owner.clock,
-  };
+  return new ResourceCtx(owner, target, obs, span, isSettled, superseded);
+}
+
+/** The ctx a resource factory that declares no ctx param (arity < 2) receives: one per layer, made on
+ * first use, carrying that layer's clock and (lazily) its signal so an injected clock is honored even
+ * on the arity-skip path. A class with prototype accessors, not an object literal with a getter: V8
+ * builds a literal that holds an accessor through slow runtime calls on every creation (~2.5 µs measured
+ * per scope), while a class instance is one small allocation. */
+class EmptyCtx implements Resource.Ctx {
+  readonly label = "";
+  readonly obs = OFF_OBS;
+  readonly log = OFF_LOG;
+  readonly clock: Clock.Handle;
+  constructor(private owner: Layer) {
+    this.clock = owner.clock;
+  }
+  defer(): void {
+    raise("Disposed", { reason: "resource factory declared no ctx" });
+  }
+  get signal(): AbortSignal {
+    return signalOf(this.owner);
+  }
 }
 
 function emptyCtxFor(owner: Layer): Resource.Ctx {
-  return (owner.emptyCtx ??= {
-    label: "",
-    defer: () => raise("Disposed", { reason: "resource factory declared no ctx" }),
-    get signal() {
-      return signalOf(owner);
-    },
-    obs: OFF_OBS,
-    log: OFF_LOG,
-    clock: owner.clock,
-  });
+  return (owner.emptyCtx ??= new EmptyCtx(owner));
 }
 
 function buildResource<T>(
@@ -1686,8 +1732,7 @@ function invalidateAffected(order: Affected[], affected: Map<Layer, Released>): 
 
 function addDependent(owner: Layer, node: Node, dependent: Resource.Handle<unknown>): void {
   const s = nodeState(owner, node);
-  if (s.dependents) s.dependents.add(dependent);
-  else s.dependents = new Set([dependent]);
+  (s.dependents ??= new Set()).add(dependent);
 }
 
 /** Remove one resource from every dependents set (its incoming edges), dropping empty sets. */

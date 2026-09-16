@@ -78,3 +78,26 @@ it needs an opt-in `memo`/`computed` node + an ADR, not auto-caching.
 `bench/core-vs-effect.mjs` has the same operation-vs-resource fairness quirk, but tinker beat Effect so
 decisively (cold dominated by Effect's fiber-runtime build, ~265 µs) that the conclusion holds. Fix it
 for tidiness if that session is revisited. See [[core-beats-effect-baseline]].
+
+## Run 13 (2026-09-16, after clock v1 landed): object literals with a getter are a ~2.5 µs trap
+
+Clock commit `c2467e1` replaced the shared `EMPTY_CTX` with a per-layer literal `{ ..., get signal() {...} }`
+and cold make+resolve silently went **943 → 3706 ns** (bisected across the clock commits with the
+standalone probe). Cause: V8 builds an object literal that contains an accessor through slow runtime
+calls (`DefineAccessorProperty`) on every creation instead of cloning a boilerplate. The same pattern had
+been in `buildCtx` (arity ≥ 2 factories) and the op ctx since the lazy-AbortController change, taxing
+paths the bench did not cover.
+
+Fix: three small classes with a prototype `get signal()` (`EmptyCtx`, `ResourceCtx`, `OperationCtx`);
+`defer` stays an arrow **field** because bodies destructure `{ defer }` (a method would lose `this`).
+Standalone probe (`.autoresearch/probe.mjs`, one scenario per process, `taskset -c 7`):
+
+| scenario                              | before  | after   |
+| ------------------------------------- | ------- | ------- |
+| cold make+resolve (arity-1 factories) | 3353 ns | 935 ns  |
+| cold make+resolve, arity-2 factory    | 3169 ns | 467 ns  |
+| op run (warm scope)                   | 532 ns  | 136 ns  |
+| create+resolve+close lifecycle        | 4090 ns | 1285 ns |
+
+Rule: **never write `get x()` inside an object literal on a hot path**; use a class (prototype accessor)
+or a plain field. Landed in `9e86001` (swept into the t22 commit by a concurrent session).
