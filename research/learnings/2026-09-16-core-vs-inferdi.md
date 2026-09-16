@@ -47,6 +47,32 @@ resolves to its value. The first benchmark used an operation and hid the real co
 3. Reuse/skip the per-build `ctx` allocation when the factory doesn't read defer/signal/obs/log
    (hard to know statically; consider a lazily-populated ctx).
 
+## Results (runs 2–12, all committed, 189 tests green throughout)
+
+Techniques that landed, most impactful last:
+
+- controller cache per layer; lazy build-Maps; **single node-map** `Map<node, NodeState>` (stable-shape
+  class — merges ~9 parallel Maps, sets up "trace to close"); lazy presets/tags/watchers.
+- **lazy ctx**: a factory with arity < 2 gets a shared `EMPTY_CTX` — no per-build ctx object/closure.
+- **2-layer warm cache**: the (already-cached) controller captures the node record, so a warm resolve is
+  a field read, not `owner.nodes.get`.
+- **lazy AbortController**: cancel state (a flag + reason) decoupled from the signal; the signal is
+  materialized only on `ctx.signal` read, so a forced close skips `abort()` event dispatch when no
+  factory ever asked for it (−25% lifecycle).
+- **lazy deps via Proxy** (not `Object.defineProperty`): get trap ~54 ns vs ~360 ns; preserves the
+  `Object.values(deps)` enumeration contract via ownKeys + an enumerable descriptor (cold −35%).
+- **O(1) idle fast-close**: an idle scope's `close` skips the async teardown protocol; guarded by a
+  global `buildDepth` counter so a close called from inside a running body's sync prefix (work not yet in
+  `pending`) still takes the deferred path.
+
+Final standing (clean standalone) vs InferDI: cold make+resolve **915 ns** vs 200 (~4.6x, was ~8x);
+warm resolve **15 ns** vs 9 (~1.7x); single read **9.2 ns** vs 9.6 (tied); full request lifecycle
+create+resolve+close **3525 → 1208 ns (−66%)**. Remaining cold gap is largely structural (tinker builds
+per-resource teardown/observation/cascade machinery InferDI does not).
+
+Deferred: caching operation resolve (idea B) — operations aren't pure (can write cells / take input), so
+it needs an opt-in `memo`/`computed` node + an ADR, not auto-caching.
+
 ## Note
 
 `bench/core-vs-effect.mjs` has the same operation-vs-resource fairness quirk, but tinker beat Effect so
