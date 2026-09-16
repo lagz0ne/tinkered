@@ -10,9 +10,12 @@
     "prepare": "vp config"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "catalog:",
     "@inferdi/inferdi": "catalog:",
     "effect": "catalog:",
     "mitata": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:",
     "zustand": "catalog:"
