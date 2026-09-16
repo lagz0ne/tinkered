@@ -485,9 +485,7 @@ export function operation<
 
 type BorrowFlag = { readonly [borrowSym]?: boolean };
 
-/** True when an operation's deps name a resource (directly or behind an edge), so a run must hold
- * a borrow across its whole lifetime (ADR 0026 Q2). Decided once at `operation()` time — `depends`
- * is readonly — so the run path skips `collectBorrows` entirely when there is nothing to borrow. */
+/** True when an operation's deps name a resource, directly or behind an edge. */
 function seesResource(depends: Scope.Depends): boolean {
   for (const key in depends) {
     const dep = depends[key];
@@ -1191,17 +1189,17 @@ function runDefers(
   return undefined;
 }
 
-/** Seed a call's tag overlay, or undefined when the call carries no tag bindings. */
+/** A call's tag overlay, or undefined when it carries no tag bindings. */
 function seedOverlay(call: Scope.Invocation<unknown> | undefined): TagOverlay | undefined {
   return call?.tags?.length ? seedTags(call.tags) : undefined;
 }
 
-/** Parse a command's raw input once, at the process edge (no parser means void input). */
+/** A command's parsed raw input (no parser means void input). */
 function parseInput<I>(target: Operation.Command<unknown, I>, rawInput: unknown): I {
   return (target.input ? target.input(rawInput) : undefined) as I;
 }
 
-/** Run a command's body: a preset replacement when seeded, else its declared run. */
+/** A preset replacement when seeded, else the declared run. */
 function runBody<T, I>(
   override: Operation.Command<T, I>["run"] | undefined,
   target: Operation.Command<T, I>,
@@ -1239,8 +1237,10 @@ class OperationCtx<I> implements Operation.Ctx<I> {
   readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
     (this.defers ??= []).push(fn);
   };
-  registeredDefers(): ((end: Scope.End) => void | PromiseLike<void>)[] | undefined {
-    return this.defers;
+  static defersOf<J>(
+    ctx: OperationCtx<J>,
+  ): ((end: Scope.End) => void | PromiseLike<void>)[] | undefined {
+    return ctx.defers;
   }
   get signal(): AbortSignal {
     return signalOf(this.owner);
@@ -1271,7 +1271,7 @@ function commandController<T, I>(
     };
     let ctx: OperationCtx<I> | undefined;
     const finishDefers = (status: "ok" | "failed", error?: unknown): void => {
-      const fns = ctx?.registeredDefers();
+      const fns = ctx ? OperationCtx.defersOf(ctx) : undefined;
       if (fns === undefined || fns.length === 0) {
         releaseBorrow();
         return;
@@ -1901,10 +1901,7 @@ function addBorrow(owner: Layer, resource: Resource.Handle<unknown>, work: Promi
   (s.borrowers ??= new Set()).add(work);
 }
 
-/** Take an operation's dependency borrows, or return undefined when its deps name no resource (the
- * common case — decided by the `operation()`-time flag, so the run path allocates nothing). The
- * borrow spans the op's whole lifetime including its defer drain; the caller releases it via
- * {@link removeBorrow} once the drain settles. */
+/** An operation's dependency borrows, or undefined when its deps name no resource. */
 function takeBorrows(
   layer: Layer,
   target: Operation.Command<unknown, unknown>,

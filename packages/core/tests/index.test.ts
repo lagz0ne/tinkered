@@ -2550,6 +2550,14 @@ test("an operation defer sees success, and failed when the run throws", () => {
   expect(seen).toEqual(["success", "failed"]);
 });
 
+test("an operation ctx exposes no borrow or drain internals", () => {
+  const probe = operation({
+    label: "probe",
+    run: (_deps, ctx) => "registeredDefers" in ctx,
+  });
+  expect(createScope().getController(probe).resolve()).toBe(false);
+});
+
 test("a resource cleanup rolls back on a forced close, commits on a graceful close", async () => {
   const seen: string[] = [];
   const r = resource({
