@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import {
   createContext,
   createElement,
+  use,
   useContext,
   useEffect,
   useMemo,
@@ -26,6 +27,12 @@ function closeScope(scope: Scope.Handle): void {
 /** The stable no-selector fallback for {@link useData}: a module constant so the selector handed to
  * the store keeps a stable identity across renders (a fresh closure would defeat its memoization). */
 const identity = <V>(value: V): V => value;
+
+/** Does a built resource value need awaiting? An async factory is delivered as a promise. */
+const isThenable = (value: unknown): value is PromiseLike<unknown> =>
+  !!value &&
+  (typeof value === "object" || typeof value === "function") &&
+  typeof (value as { then?: unknown }).then === "function";
 
 /** Props for {@link ScopeProvider}: either an app-owned `scope` (the app closes it), or a `create`
  * factory the provider owns and closes on unmount. Exactly one. */
@@ -113,9 +120,14 @@ export function useController<T>(cell: Data.Cell<T>): Scope.DataController<T> {
 }
 
 /** Read a resource's built value from the nearest scope. A synchronously-built resource returns its
- * built value directly, allocating no promise. */
-export function useResource<T>(handle: Resource.Handle<T>): Scope.ResourceValue<T> {
+ * value directly (no promise). An async build suspends: the promise is handed to React's `use`, so a
+ * `<Suspense>` fallback shows while pending and the value renders once it settles. Core builds once
+ * per owner and hands back that same promise on every resolve, so a re-render while pending never
+ * rebuilds and `use` never hangs (ADR 0032). */
+export function useResource<T>(handle: Resource.Handle<T>): Awaited<T> {
   const scope = useScope();
   const controller = useMemo(() => scope.getController(handle), [scope, handle]);
-  return controller.resolve();
+  const built = controller.resolve();
+  if (isThenable(built)) return use(built) as Awaited<T>;
+  return built as Awaited<T>;
 }

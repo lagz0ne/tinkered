@@ -26,7 +26,8 @@ tracer bullet with one decisive browser-mode behavior test. Gate each with
       change → no re-render; slice change → re-render; custom `isEqual` suppresses a new-but-equal slice. Under review.
 - [x] **r06 — `useResource` sync value.** DONE (tag `react/r06`, commit `2b4a326`): renders a sync resource
       value with no Suspense boundary (no suspend); returns core's exact cached instance. Under review.
-- [ ] **r07 — `useResource` async + Suspense.** Verify: fallback→value; re-render while pending reuses the same promise (build runs once).
+- [x] **r07 — `useResource` async + Suspense.** DONE (tag `react/r07`, commit `70bd131`): fallback→value on
+      settle; a re-render while pending keeps the factory build count at 1 and Suspense still resolves (ADR 0032). Under review.
 - [ ] **r08 — `useResource` failed build → boundary.** Verify: rejected build renders the nearest error boundary; registry error preserved.
 - [ ] **r09 — `useResolve` success.** Verify: idle→pending→success with `data`; `rawInput` parsed; no suspend.
 - [ ] **r10 — `useResolve` error + `reset`.** Verify: error stays in `error`/`status` (no boundary throw); `reset()`→idle.

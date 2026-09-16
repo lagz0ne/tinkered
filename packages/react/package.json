@@ -51,6 +51,6 @@
     "vitest-browser-react": "^2.3.0"
   },
   "peerDependencies": {
-    "react": ">=18.3"
+    "react": ">=19"
   }
 }

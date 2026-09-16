@@ -38,4 +38,6 @@ store-sync, no cache invalidation, no `queryKey`. Hooks only subscribe and provi
   batching. No batching layer in v1 (YAGNI); a `batch()` escape hatch is added only if profiling proves
   redundant renders.
 - The package depends on core's public seam (`src/index.ts`) only, with `react` as a `peerDependency`
-  (`>= 18.3`, developed/tested against 19).
+  (`>= 19`, developed/tested against 19). The minimum is React **19**, not 18.3: the async resource
+  read path uses `use()` for promises ([0032](0032-resources-suspend-operations-are-imperative.md)),
+  which is a React 19 API (`useSyncExternalStore` alone would have allowed 18, but `use` does not).
