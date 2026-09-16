@@ -6,6 +6,7 @@ packages:
 catalogMode: prefer
 
 catalog:
+  "@inferdi/inferdi": ^6.1.0
   "@stryker-mutator/core": ^10.0.0
   "@stryker-mutator/vitest-runner": ^10.0.0
   "@types/node": ^24

@@ -164,6 +164,9 @@ settings:
 
 catalogs:
   default:
+    '@inferdi/inferdi':
+      specifier: ^6.1.0
+      version: 6.1.0
     '@stryker-mutator/core':
       specifier: ^10.0.0
       version: 10.0.0
@@ -196,6 +199,9 @@ importers:
 
   .:
     devDependencies:
+      '@inferdi/inferdi':
+        specifier: 'catalog:'
+        version: 6.1.0
       effect:
         specifier: 'catalog:'
         version: 3.22.2
@@ -513,6 +519,10 @@ packages:
 
   '@blazediff/core@1.9.1':
     resolution: {integrity: sha512-ehg3jIkYKulZh+8om/O25vkvSsXXwC+skXmyA87FFx6A/45eqOkZsBltMw/TVteb0mloiGT8oGRTcjRAz66zaA==}
+
+  '@inferdi/inferdi@6.1.0':
+    resolution: {integrity: sha512-lbiWw4l+iGjm5j3HYajJNmGlw2zvv2340edfTqlUaMakJxlHij0h82DNCrKVzO1D0xG0easACotEIXhUw9ToyA==}
+    engines: {node: '>=16.0.0'}
 
   '@inquirer/ansi@2.0.8':
     resolution: {integrity: sha512-WpQM+Ti6Z40EFwwt+uL2p4UabT+W179zHp6HhLVOzfbwnVn05IPO/eXIZXGNqcT1jbQ15SujNLzQ39k4QPPxBQ==}
@@ -2480,6 +2490,8 @@ snapshots:
       '@babel/helper-validator-identifier': 8.0.4
 
   '@blazediff/core@1.9.1': {}
+
+  '@inferdi/inferdi@6.1.0': {}
 
   '@inquirer/ansi@2.0.8': {}
 

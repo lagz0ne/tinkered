@@ -10,6 +10,7 @@
     "prepare": "vp config"
   },
   "devDependencies": {
+    "@inferdi/inferdi": "catalog:",
     "effect": "catalog:",
     "mitata": "catalog:",
     "vite": "catalog:",
