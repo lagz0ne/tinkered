@@ -1145,39 +1145,45 @@ function ownerOf(layer: Layer, target: Resource.Handle<unknown>): Layer {
  * form no release edges). */
 type RegisterEdge = ((dep: Scope.Dependency) => void) | undefined;
 
-/** Install a lazy getter on `deps[key]`: its first read registers the resource's edge, builds/resolves
- * it, and caches; later reads return the cache. A body that never reads the key never triggers the
- * build. The build span, `used` edge, and circular-resource guard all fire at that first access.
- * Enumerable + configurable so `Object.values`/`for..in`/spread still observe (and thus build) it. */
-function defineLazyDep(
-  deps: Record<string, unknown>,
-  key: string,
+/** Wrap eagerly-resolved `target` deps in a Proxy that resolves each still-lazy resource dep on first
+ * access — registering its edge and caching into `target` (then removing it from `lazy`). A read via
+ * `Object.values`/`for..in`/spread also triggers the build (ownKeys + an enumerable descriptor + get),
+ * so the enumeration contract holds. A Proxy get trap is ~7x cheaper than a per-build
+ * `Object.defineProperty` accessor, and a body that never touches a key never builds it. */
+function lazyDepsProxy(
+  target: Record<string, unknown>,
+  lazy: Map<string, Scope.Dependency>,
   layer: Layer,
-  dep: Scope.Dependency,
   span: Observe.Span | undefined,
   registerEdge: RegisterEdge,
-): void {
-  let built = false;
-  let value: unknown;
-  Object.defineProperty(deps, key, {
-    enumerable: true,
-    configurable: true,
-    get: () => {
-      if (!built) {
-        registerEdge?.(dep);
-        value = resolveDep(layer, dep, span, undefined);
-        built = true;
-      }
-      return value;
+): Record<string, unknown> {
+  const build = (key: string): void => {
+    const dep = lazy.get(key) as Scope.Dependency;
+    lazy.delete(key);
+    registerEdge?.(dep);
+    target[key] = resolveDep(layer, dep, span, undefined);
+  };
+  return new Proxy(target, {
+    get: (t, key) => {
+      if (typeof key === "string" && lazy.has(key)) build(key);
+      return t[key as string];
+    },
+    has: (t, key) => (typeof key === "string" && lazy.has(key)) || key in t,
+    ownKeys: (t) => [...Reflect.ownKeys(t), ...lazy.keys()],
+    getOwnPropertyDescriptor: (t, key) => {
+      if (typeof key === "string" && lazy.has(key))
+        return { enumerable: true, configurable: true, writable: true, value: undefined };
+      return Reflect.getOwnPropertyDescriptor(t, key);
     },
   });
 }
 
-/** Build the `deps` object a factory/run reads. A resource-target dependency is delivered as a LAZY
- * getter (see {@link defineLazyDep}) so a body that ignores it never builds it. Every other kind (a
- * data snapshot, tag, subflow, or controller) is resolved EAGERLY here, so its value — and, for data,
- * its release edge — is fixed at resolve time, before any suspension (snapshot determinism, ADR 0026).
- * `registerEdge` records a realized resource's dependency edge and is omitted for operations. */
+/** Build the `deps` object a factory/run reads. A resource-target dependency is delivered LAZILY (via
+ * {@link lazyDepsProxy}) so a body that ignores it never builds it. Every other kind (a data snapshot,
+ * tag, subflow, or controller) is resolved EAGERLY here, so its value — and, for data, its release
+ * edge — is fixed at resolve time, before any suspension (snapshot determinism, ADR 0026). When there
+ * are no resource deps, the plain eager object is returned (no Proxy). `registerEdge` records a
+ * realized resource's dependency edge and is omitted for operations. */
 function buildDeps(
   layer: Layer,
   depends: Scope.Depends,
@@ -1186,16 +1192,16 @@ function buildDeps(
   registerEdge: RegisterEdge,
 ): Record<string, unknown> {
   const deps: Record<string, unknown> = {};
+  let lazy: Map<string, Scope.Dependency> | undefined;
   for (const key in depends) {
     const dep = depends[key];
-    if (isResource(dep)) {
-      defineLazyDep(deps, key, layer, dep, span, registerEdge);
-    } else {
+    if (isResource(dep)) (lazy ??= new Map()).set(key, dep);
+    else {
       registerEdge?.(dep);
       deps[key] = resolveDep(layer, dep, span, overlay);
     }
   }
-  return deps;
+  return lazy ? lazyDepsProxy(deps, lazy, layer, span, registerEdge) : deps;
 }
 
 function resolveResourceDeps(
