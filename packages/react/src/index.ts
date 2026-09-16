@@ -73,6 +73,37 @@ export function ScopeProvider(props: ScopeProviderProps): ReactNode {
   return createElement(OwnedScopeProvider, { create: props.create, children: props.children });
 }
 
+/** Open a child session for a subtree: created on mount from the nearest scope, force-closed on
+ * unmount — a React subtree's mount lifetime IS a session lifetime (ADR 0031). Hooks under it resolve
+ * against the session (the nearest `Handle`), so a `data` write is shadowed and does not reach the
+ * parent. Created in an effect (StrictMode-safe, like {@link ScopeProvider}'s `create` mode): a
+ * discarded or replayed mount closes its own session and the next live mount opens a fresh one. The
+ * session is published paired with the parent it belongs to; if the nearest scope changes, the old
+ * session is never exposed for the new parent (render null until the effect opens a fresh one).
+ * `options` apply when the session is created — changing them for the same parent has no effect until
+ * the provider remounts. */
+export function SessionProvider(props: {
+  readonly children: ReactNode;
+  readonly options?: Scope.Options;
+}): ReactNode {
+  const parent = useScope();
+  const optionsRef = useRef(props.options);
+  optionsRef.current = props.options;
+  const [owned, setOwned] = useState<{ parent: Scope.Handle; session: Scope.Handle } | undefined>(
+    undefined,
+  );
+  useEffect(() => {
+    const session = parent.createSession(optionsRef.current);
+    setOwned({ parent, session });
+    return () => {
+      setOwned(undefined);
+      closeScope(session);
+    };
+  }, [parent]);
+  if (owned === undefined || owned.parent !== parent) return null;
+  return createElement(ScopeContext.Provider, { value: owned.session, children: props.children });
+}
+
 /** Read the nearest scope `Handle`. Raises `NoProvider` when used outside a {@link ScopeProvider}. */
 export function useScope(): Scope.Handle {
   const scope = useContext(ScopeContext);

@@ -33,8 +33,10 @@ tracer bullet with one decisive browser-mode behavior test. Gate each with
       cleared on release/close) so a Suspense retry doesn't loop; react delegates; gate rebuilds core dist first.
 - [x] **r09 — `useResolve` success.** DONE (tag `react/r09`, commit `4c58513`, SHIP): idle→pending→success;
       run-sequenced (only the latest publishes — deterministic out-of-order regression); `resolve` returns awaitable `Promise<void>`.
-- [x] **r10 — `useResolve` error + `reset`.** DONE (tag `react/r10`, commit `9e8c408`): rejection lands in
-      `error`/`status` (exact identity), no boundary throw; `reset()`→idle, data cleared. Under astra review.
+- [x] **r10 — `useResolve` error + `reset`.** DONE (tag `react/r10`, commit `4fdac97`, SHIP): rejection stays local
+      (no boundary throw); reset from success AND error clears full state; reset-during-pending drops the late result.
+- [x] **r11 — `<SessionProvider>` lifecycle.** DONE (tag `react/r11`, commit `61fbc62`): unmount force-closes the
+      session (resource `defer`→`cancelled` rollback); a write under the session is shadowed (under:session / above:root). Under review.
 - [ ] **r10 — `useResolve` error + `reset`.** Verify: error stays in `error`/`status` (no boundary throw); `reset()`→idle.
 - [ ] **r11 — `<SessionProvider>` lifecycle.** Verify: unmount forces-close (session resource `defer` rolls back); nearest-Handle-wins; write shadowed.
 - [ ] **r12 — `target:"session"` sharing.** Verify: one instance per provider (siblings distinct); `target:"scope"` shared across.
