@@ -510,6 +510,10 @@ type Layer = {
   children: Set<Layer>;
   cells: Map<Data.Cell<unknown>, Entry>;
   effCache: Map<Data.Cell<unknown>, Entry | undefined>;
+  /** Memoized controllers per node: the public `getController` path always passes an undefined
+   * observation span, so a controller for (layer, node) is stable — reuse it instead of allocating
+   * a fresh closure object on every call (the warm-resolve hot path). */
+  controllers: Map<object, unknown>;
   resources: Map<Resource.Handle<unknown>, Entry>;
   builds: Map<Resource.Handle<unknown>, Promise<unknown>>;
   building: Set<Resource.Handle<unknown>>;
@@ -1556,6 +1560,7 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     children: new Set(),
     cells,
     effCache: new Map(),
+    controllers: new Map(),
     resources: new Map(),
     builds: new Map(),
     building: new Set(),
@@ -1874,9 +1879,15 @@ function handleFor(layer: Layer): Scope.Handle {
   return {
     getController: (<T, I>(target: Data.Cell<T> | Resource.Handle<T> | Operation.Command<T, I>) => {
       ensureOpen(layer);
-      if (isData(target)) return dataController(layer, target);
-      if (isResource(target)) return resourceController(layer, target, undefined);
-      return commandController(layer, target, undefined);
+      const cached = layer.controllers.get(target);
+      if (cached) return cached;
+      const ctl = isData(target)
+        ? dataController(layer, target)
+        : isResource(target)
+          ? resourceController(layer, target, undefined)
+          : commandController(layer, target, undefined);
+      layer.controllers.set(target, ctl);
+      return ctl;
     }) as Scope.Handle["getController"],
     createSession: (options?: Scope.Options) => {
       ensureOpen(layer);
