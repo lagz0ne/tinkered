@@ -573,11 +573,6 @@ function nodeState(layer: Layer, key: object): NodeState {
   return s;
 }
 
-/** A resource's current generation at its owner (0 if never invalidated). */
-function genOf(owner: Layer, target: object): number {
-  return owner.nodes.get(target)?.gen ?? 0;
-}
-
 /** Depth of factory/op execution in progress across all scopes. Non-zero means a user body is running
  * its synchronous prefix — work it starts may not be tracked in `pending` yet — so a close called now
  * must take the full (deferred) path, never the idle fast path. */
@@ -1455,12 +1450,15 @@ function buildResource<T>(
   target: Resource.Handle<T>,
   parent: Observe.Span | undefined,
 ): unknown {
-  const gen = genOf(owner, target);
-  const superseded = (): boolean => genOf(owner, target) !== gen;
+  /** The node record is a stable object mutated in place (see {@link resourceController}), so one
+   * lookup serves the whole build: generation checks, the building flag, and publication. */
+  const rec = nodeState(owner, target);
+  const gen = rec.gen;
+  const superseded = (): boolean => rec.gen !== gen;
   const canPublish = (): boolean => !superseded() && !owner.closed;
   const obs = owner.obs;
   const span = openSpan(obs, parent, target.label, "resource");
-  nodeState(owner, target).building = true;
+  rec.building = true;
   let settled = false;
   buildDepth++;
   try {
@@ -1474,13 +1472,13 @@ function buildResource<T>(
     const result = fn(deps, ctx);
     if (!isThenable(result)) {
       settled = true;
-      if (canPublish()) nodeState(owner, target).resource = { value: result };
+      if (canPublish()) rec.resource = { value: result };
       closeSpan(obs, span, "ok");
       return result;
     }
     return finishAsyncBuild(
       owner,
-      target,
+      rec,
       result,
       superseded,
       canPublish,
@@ -1497,7 +1495,7 @@ function buildResource<T>(
     throw error;
   } finally {
     buildDepth--;
-    nodeState(owner, target).building = false;
+    rec.building = false;
   }
 }
 
@@ -1510,7 +1508,7 @@ function buildResource<T>(
  * clear `owner.resources` and detach the edges, so the sticky failure honors the normal lifetime. */
 function finishAsyncBuild(
   owner: Layer,
-  target: Resource.Handle<unknown>,
+  rec: NodeState,
   result: PromiseLike<unknown>,
   superseded: () => boolean,
   canPublish: () => boolean,
@@ -1521,22 +1519,20 @@ function finishAsyncBuild(
   const build: Promise<unknown> = Promise.resolve(result).then(
     (value) => {
       markSettled();
-      const done = owner.nodes.get(target);
-      if (done?.build === build) done.build = undefined;
-      if (canPublish()) nodeState(owner, target).resource = { value: build };
+      if (rec.build === build) rec.build = undefined;
+      if (canPublish()) rec.resource = { value: build };
       closeSpan(obs, span, "ok");
       return value;
     },
     (error) => {
       markSettled();
-      const done = owner.nodes.get(target);
-      if (done?.build === build) done.build = undefined;
-      if (!superseded()) nodeState(owner, target).resource = { value: build };
+      if (rec.build === build) rec.build = undefined;
+      if (!superseded()) rec.resource = { value: build };
       closeSpan(obs, span, "failed");
       throw error;
     },
   );
-  if (!superseded()) nodeState(owner, target).build = build;
+  if (!superseded()) rec.build = build;
   track(owner, build, (error) => {
     if (!superseded() && !isCancel(owner, error)) owner.failure ??= { cause: error };
   });
