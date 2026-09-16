@@ -35,8 +35,10 @@ tracer bullet with one decisive browser-mode behavior test. Gate each with
       run-sequenced (only the latest publishes — deterministic out-of-order regression); `resolve` returns awaitable `Promise<void>`.
 - [x] **r10 — `useResolve` error + `reset`.** DONE (tag `react/r10`, commit `4fdac97`, SHIP): rejection stays local
       (no boundary throw); reset from success AND error clears full state; reset-during-pending drops the late result.
-- [x] **r11 — `<SessionProvider>` lifecycle.** DONE (tag `react/r11`, commit `61fbc62`): unmount force-closes the
-      session (resource `defer`→`cancelled` rollback); a write under the session is shadowed (under:session / above:root). Under review.
+- [x] **r11 — `<SessionProvider>` lifecycle.** DONE (tag `react/r11`, commit `6bf0856`, SHIP): unmount force-closes
+      (defer→cancelled); write shadowed; a changed parent never exposes the old session (paired parent+session guard).
+- [x] **r12 — `target:"session"` sharing.** DONE (tag `react/r12`, commit `c5c643c`): session-target resource
+      distinct per provider (siblings); scope-target resource shared across siblings. Under astra review.
 - [ ] **r10 — `useResolve` error + `reset`.** Verify: error stays in `error`/`status` (no boundary throw); `reset()`→idle.
 - [ ] **r11 — `<SessionProvider>` lifecycle.** Verify: unmount forces-close (session resource `defer` rolls back); nearest-Handle-wins; write shadowed.
 - [ ] **r12 — `target:"session"` sharing.** Verify: one instance per provider (siblings distinct); `target:"scope"` shared across.
