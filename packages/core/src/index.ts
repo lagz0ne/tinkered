@@ -541,6 +541,11 @@ function nodeState(layer: Layer, key: object): NodeState {
   return s;
 }
 
+/** A resource's current generation at its owner (0 if never invalidated). */
+function genOf(owner: Layer, target: object): number {
+  return owner.nodes.get(target)?.gen ?? 0;
+}
+
 /** One layer of the scope chain. A session is a child layer. */
 type Layer = {
   parent: Layer | undefined;
@@ -777,6 +782,18 @@ const OFF_OBS: Observe.Ctx = {
   span: undefined,
   event: () => undefined,
   child: (_name, fn) => fn(undefined),
+};
+
+/** A never-aborted signal for the shared {@link EMPTY_CTX}. */
+const IDLE_ABORT = new AbortController();
+/** Shared ctx for resource factories that declare no ctx param (arity < 2): they cannot touch it, so
+ * skip the per-build allocation. `defer` is unreachable without a declared param, so it fails loudly. */
+const EMPTY_CTX: Resource.Ctx = {
+  label: "",
+  defer: () => raise("Disposed", { reason: "resource factory declared no ctx" }),
+  signal: IDLE_ABORT.signal,
+  obs: OFF_OBS,
+  log: OFF_LOG,
 };
 
 function makeObs(config: Observe.Config | undefined): Obs {
@@ -1177,13 +1194,42 @@ function resolveResourceDeps(
   });
 }
 
+/** Build the ctx a resource factory receives. Only called when the factory declares a ctx param
+ * (arity >= 2); otherwise the shared {@link EMPTY_CTX} is passed and nothing is allocated. `defer`
+ * closes over the build's `settled`/`superseded` so late registration behaves correctly. */
+function buildCtx(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  obs: Obs,
+  span: Observe.Span | undefined,
+  isSettled: () => boolean,
+  superseded: () => boolean,
+): Resource.Ctx {
+  return {
+    label: target.label,
+    defer: (fn) => {
+      if (isSettled()) raise("Disposed", { reason: "resource factory already finished" });
+      /** A build that finished after its resource was released (superseded) tears down NOW, but
+       * borrow-aware so it still waits for any op that borrowed this resource before running its
+       * cleanup (ADR 0026 Q2), and holds its own dependency-closure borrows while it runs. Its `fn`
+       * is drained directly — never pushed to `owner.defers` — so it cannot sweep up a LIVE
+       * rebuild's defers registered under the same handle. */
+      if (superseded()) releaseSupersededDefer(owner, target, fn);
+      else owner.defers.push({ fn, resource: target });
+    },
+    signal: owner.abort.signal,
+    obs: obsCtx(obs, span),
+    log: logFor(obs, span),
+  };
+}
+
 function buildResource<T>(
   owner: Layer,
   target: Resource.Handle<T>,
   parent: Observe.Span | undefined,
 ): unknown {
-  const gen = owner.nodes.get(target)?.gen ?? 0;
-  const superseded = (): boolean => (owner.nodes.get(target)?.gen ?? 0) !== gen;
+  const gen = genOf(owner, target);
+  const superseded = (): boolean => genOf(owner, target) !== gen;
   const canPublish = (): boolean => !superseded() && !owner.closed;
   const obs = owner.obs;
   const span = openSpan(obs, parent, target.label, "resource");
@@ -1191,24 +1237,11 @@ function buildResource<T>(
   let settled = false;
   try {
     const deps = resolveResourceDeps(owner, target, span, superseded);
-    const ctx: Resource.Ctx = {
-      label: target.label,
-      defer: (fn) => {
-        if (settled) raise("Disposed", { reason: "resource factory already finished" });
-        /** A build that finished after its resource was released (superseded) tears down NOW, but
-         * borrow-aware so it still waits for any op that borrowed this resource before running its
-         * cleanup (ADR 0026 Q2), and holds its own dependency-closure borrows while it runs. Its `fn`
-         * is drained directly — never pushed to `owner.defers` — so it cannot sweep up a LIVE
-         * rebuild's defers registered under the same handle. */
-        if (superseded()) releaseSupersededDefer(owner, target, fn);
-        else owner.defers.push({ fn, resource: target });
-      },
-      signal: owner.abort.signal,
-      obs: obsCtx(obs, span),
-      log: logFor(obs, span),
-    };
     const override = presetFor(owner, target) as Resource.Handle<T>["factory"] | undefined;
-    const result = override ? override(deps, ctx) : target.factory(deps, ctx);
+    const fn = override ?? target.factory;
+    const ctx =
+      fn.length >= 2 ? buildCtx(owner, target, obs, span, () => settled, superseded) : EMPTY_CTX;
+    const result = fn(deps, ctx);
     if (!isThenable(result)) {
       settled = true;
       if (canPublish()) nodeState(owner, target).resource = { value: result };
