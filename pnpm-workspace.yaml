@@ -17,6 +17,7 @@ catalog:
   use-sync-external-store: ^1.7.0
   vite: npm:@voidzero-dev/vite-plus-core@0.3.1
   vite-plus: 0.3.1
+  zustand: ^5.0.15
 overrides:
   vite@*: "catalog:"
 peerDependencyRules:

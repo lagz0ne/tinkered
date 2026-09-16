@@ -14,7 +14,8 @@
     "effect": "catalog:",
     "mitata": "catalog:",
     "vite": "catalog:",
-    "vite-plus": "catalog:"
+    "vite-plus": "catalog:",
+    "zustand": "catalog:"
   },
   "devEngines": {
     "packageManager": {
