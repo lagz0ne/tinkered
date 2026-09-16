@@ -2,6 +2,7 @@ import { isError, raise } from "./errors.ts";
 
 const cell: unique symbol = Symbol("data");
 const command: unique symbol = Symbol("operation");
+const borrowSym: unique symbol = Symbol("borrow");
 const tagSym: unique symbol = Symbol("tag");
 const edge: unique symbol = Symbol("edge");
 const resourceSym: unique symbol = Symbol("resource");
@@ -476,7 +477,23 @@ export function operation<
     run: config.run as Operation.Command<R, I>["run"],
     meta: config.meta ?? NO_META,
   } as Operation.Command<R, I>;
-  return Object.assign(base, { controller: edgeTo("controller", base) });
+  return Object.assign(base, {
+    controller: edgeTo("controller", base),
+    [borrowSym]: seesResource(base.depends),
+  });
+}
+
+type BorrowFlag = { readonly [borrowSym]?: boolean };
+
+/** True when an operation's deps name a resource (directly or behind an edge), so a run must hold
+ * a borrow across its whole lifetime (ADR 0026 Q2). Decided once at `operation()` time — `depends`
+ * is readonly — so the run path skips `collectBorrows` entirely when there is nothing to borrow. */
+function seesResource(depends: Scope.Depends): boolean {
+  for (const key in depends) {
+    const dep = depends[key];
+    if (isResource(dep) || (isEdge(dep) && isResource(dep.target))) return true;
+  }
+  return false;
 }
 
 /** Declare a reusable resource: built once per owner, cleaned up when its owner closes. */
@@ -1263,7 +1280,9 @@ function commandController<T, I>(
       const { input, rawInput, overlay } = readCall(target, call);
       /** Register borrows BEFORE resolving deps: a dep's factory may release another dep during
        * resolution, and the op must already hold it (ADR 0026 Q2). Borrows need only the dep handles. */
-      for (const b of collectBorrows(layer, target.depends)) borrowed.push(b);
+      if ((target as BorrowFlag)[borrowSym] === true) {
+        for (const b of collectBorrows(layer, target.depends)) borrowed.push(b);
+      }
       if (borrowed.length) {
         borrow = new Promise<void>((r) => (settleBorrow = r));
         for (const b of borrowed) addBorrow(b.owner, b.resource, borrow);
