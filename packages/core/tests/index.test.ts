@@ -3793,13 +3793,12 @@ test("a resource factory reads the scope's clock", () => {
   expect(built).toBe(500);
 });
 
-test("the clock reports nanoseconds consistent with its milliseconds", () => {
-  const nanos = operation({ label: "nanos", run: (_deps, { clock }) => clock.currentTimeNanos() });
-  expect(
-    createScope({ clock: makeTestClock({ now: 2 }) })
-      .getController(nanos)
-      .resolve(),
-  ).toBe(2_000_000n);
+test("the test clock handles fractional virtual time: truncated millis, precise nanos", () => {
+  const millis = operation({ label: "ms", run: (_deps, { clock }) => clock.currentTimeMillis() });
+  const nanos = operation({ label: "ns", run: (_deps, { clock }) => clock.currentTimeNanos() });
+  const scope = createScope({ clock: makeTestClock({ now: 2.5 }) });
+  expect(scope.getController(millis).resolve()).toBe(2);
+  expect(scope.getController(nanos).resolve()).toBe(2_500_000n);
 });
 
 test("the default scope clock reads real wall-clock time", () => {

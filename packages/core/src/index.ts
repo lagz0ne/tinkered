@@ -622,8 +622,6 @@ type Layer = {
   closing: Promise<Scope.Result> | undefined;
   obs: Obs;
   clock: Clock.Handle;
-  /** Lazy per-layer ctx for factories that declare no ctx param; carries this layer's clock/signal
-   * so an injected clock is honored even on the arity-skip path, with no per-build allocation. */
   emptyCtx: Resource.Ctx | undefined;
 };
 
@@ -846,7 +844,8 @@ function nanosFromMillis(ms: number): bigint {
 
 const systemClock: Clock.Handle = {
   currentTimeMillis: () => Date.now(),
-  currentTimeNanos: () => nanosFromMillis(performance.timeOrigin + performance.now()),
+  currentTimeNanos: () =>
+    nanosFromMillis(performance.timeOrigin) + nanosFromMillis(performance.now()),
 };
 
 /** Create a controllable clock for tests: virtual time starts at `now` (default `0`) and only
