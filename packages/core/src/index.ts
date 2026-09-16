@@ -1318,23 +1318,25 @@ function resourceController<T>(
   parent: Observe.Span | undefined,
 ): Scope.ResourceController<T> {
   const owner = ownerOf(layer, target);
+  /** Second cache layer: the controller (already cached per node) holds the owner's node record
+   * directly, so a warm resolve is a field read — no per-call `owner.nodes.get`. The record is a
+   * stable object mutated in place by build/invalidate, so it always reflects the current state. */
+  const rec = nodeState(owner, target);
   return {
     resolve: () => {
       ensureOpen(layer);
       ensureOpen(owner);
       recordUsed(layer.obs, parent, target);
-      const s = owner.nodes.get(target);
-      if (s?.resource) return s.resource.value as Scope.ResourceValue<T>;
-      if (s?.build) return s.build as Scope.ResourceValue<T>;
-      if (s?.building) raise("CircularResource", { label: target.label });
+      if (rec.resource) return rec.resource.value as Scope.ResourceValue<T>;
+      if (rec.build) return rec.build as Scope.ResourceValue<T>;
+      if (rec.building) raise("CircularResource", { label: target.label });
       return buildResource(owner, target, parent) as Scope.ResourceValue<T>;
     },
     get: () => {
       ensureOpen(layer);
       ensureOpen(owner);
-      const cached = owner.nodes.get(target)?.resource;
-      if (!cached) raise("NotResolved", { label: target.label });
-      return cached.value as Scope.ResourceValue<T>;
+      if (!rec.resource) raise("NotResolved", { label: target.label });
+      return rec.resource.value as Scope.ResourceValue<T>;
     },
   };
 }
