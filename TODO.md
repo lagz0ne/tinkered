@@ -23,6 +23,11 @@ durable trackers (this list is just the pointer):
   lookup per build, lazy deps without a per-build Map (astra SHIP after 4 rounds); cold make+resolve
   3353 → ~715 ns, op run 532 → ~134 ns. Rules: coding-convention "Performance" + census P01–P04.
   Notes: `research/learnings/2026-09-16-core-vs-inferdi.md`.
+- **react/store perf vs the field (2026-09-16)** — six-library bench (`bench/react-stores.mjs`,
+  `bench/stores-probe.mjs`); tinker first on mount (535 µs) and update (69.5 µs) vs Zustand, Jotai,
+  Legend v2/v3, Preact Signals. Landed: per-cell watchers, 3-hook `useData`, data controller record
+  fast path, op run path trims (op 134→79 ns). Gate 808d289: validate PASS, mutation 78.29%.
+  Notes: `research/learnings/2026-09-16-react-stores.md`.
 - **react options (2026-09-16)** — `useResolve` in react-query mutation shape; `useData({ writable })`
   and `useResource({ suspense: false })` as options, not new hooks (ADR 0032 amended).
 - **core v1** — complete: packaged scope, data (read/write/watch), operations, tags, sessions,
