@@ -3806,7 +3806,9 @@ test("the default scope clock reads real wall-clock time", () => {
   const now = operation({ label: "now", run: (_deps, { clock }) => clock.currentTimeMillis() });
   const before = Date.now();
   const read: number = createScope().getController(now).resolve();
+  const after = Date.now();
   expect(read).toBeGreaterThanOrEqual(before);
+  expect(read).toBeLessThanOrEqual(after);
 });
 
 test("a child session reads its parent scope's clock", async () => {
@@ -3814,4 +3816,24 @@ test("a child session reads its parent scope's clock", async () => {
   const scope = createScope({ clock: makeTestClock({ now: 1234 }) });
   const seen = await scope.session((s) => s.getController(now).resolve());
   expect(seen).toBe(1234);
+});
+
+test("setTime replaces the test clock's current time", () => {
+  const clk = makeTestClock({ now: 100 });
+  const now = operation({ label: "now", run: (_deps, { clock }) => clock.currentTimeMillis() });
+  const c = createScope({ clock: clk }).getController(now);
+  expect(c.resolve()).toBe(100);
+  clk.setTime(9000);
+  expect(c.resolve()).toBe(9000);
+});
+
+test("a resource factory that defaults its deps param still reads the injected clock", () => {
+  const stamped = resource({
+    label: "stamped-default-deps",
+    factory: (_deps = {}, { clock }) => clock.currentTimeMillis(),
+  });
+  const built: number = createScope({ clock: makeTestClock({ now: 777 }) })
+    .getController(stamped)
+    .resolve();
+  expect(built).toBe(777);
 });

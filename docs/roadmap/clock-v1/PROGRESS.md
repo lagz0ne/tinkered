@@ -32,7 +32,7 @@ Linear; each ticket is one green checkpoint with a decisive, deterministic seam 
 
 | tag      | ticket                                                                                           | blockers | status |
 | -------- | ------------------------------------------------------------------------------------------------ | -------- | ------ |
-| core/t20 | Ambient clock plumbing + `currentTimeMillis`/`Nanos` + `makeTestClock` (now/advance/setTime)     | —        | [ ]    |
+| core/t20 | Ambient clock plumbing + `currentTimeMillis`/`Nanos` + `makeTestClock` (now/advance/setTime)     | —        | [x]    |
 | core/t21 | `sleep` on TestClock — virtual time + `advance` resolves + signal aborts a pending sleep         | 20       | [ ]    |
 | core/t22 | `sleep` on systemClock — real `setTimeout`, signal clears + rejects, forced close → `cancelled`  | 20       | [ ]    |
 | core/t23 | Validation milestone — `pnpm validate` green, cast-free README + example, universal bundle; SHIP | 21, 22   | [ ]    |
@@ -44,6 +44,12 @@ Linear; each ticket is one green checkpoint with a decisive, deterministic seam 
   `Date` mock); a default scope returns ≈ `Date.now()`; a child session reads the parent's clock
   (inherited, like `obs` — no per-session override). `currentTimeNanos()` is consistent with millis
   (`now·1e6` under the test clock). `vp check` + `vp run -r test` + `core#size` green.
+  - _astra round 1 (FIX → addressed):_ blocker — a factory that defaults its first param has
+    `fn.length < 2` and hit the shared empty ctx, reading real time; fixed with a **per-layer**
+    empty ctx (`emptyCtxFor`) that carries the layer's clock/signal (regression test added).
+    Also: system `currentTimeNanos` now high-res via `performance` (precision-safe split);
+    `makeTestClock` truncates millis and is fraction-safe; `setTime` now has a test; default-clock
+    test bounded by a second `Date.now()`; private-helper TSDoc removed.
 - **t21** — an op does `await clock.sleep(1000, signal)`; the promise is unsettled before
   `advance`; `testClock.advance(1000)` resolves it; `advance(500)` twice also resolves it; aborting
   the signal before `advance` rejects with the signal reason and drops the scheduled wake.

@@ -11,7 +11,9 @@ An ambient `Clock` on every `ctx`, Effect's default-service model, swapped by a 
 `scripts/ticket.sh <NN> "<title>"` (tag `core/t<NN>`) then astra-review to SHIP.
 Detail + reset recipes: `docs/roadmap/clock-v1/PROGRESS.md`.
 
-- [ ] **t20 — Ambient clock plumbing + reads + TestClock.** Add `Clock` type, `systemClock`,
+- [x] **t20 — Ambient clock plumbing + reads + TestClock.** DONE (tag `core/t20`, commit `6c3610f`;
+      under astra review). Gate green: `vp check` 0 errors, 194 core + 38 react tests pass, size 17.7 KB
+      gzip (cap 30). Added `Clock` type, `systemClock`,
       `Scope.Options.clock?`, a layer `clock` inherited from the parent (like `obs`), and thread
       `clock` into op + resource ctx + `EMPTY_CTX`; add `makeTestClock({ now })` (`currentTimeMillis`,
       `currentTimeNanos`, `advance`, `setTime`).

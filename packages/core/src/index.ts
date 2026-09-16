@@ -622,6 +622,9 @@ type Layer = {
   closing: Promise<Scope.Result> | undefined;
   obs: Obs;
   clock: Clock.Handle;
+  /** Lazy per-layer ctx for factories that declare no ctx param; carries this layer's clock/signal
+   * so an injected clock is honored even on the arity-skip path, with no per-build allocation. */
+  emptyCtx: Resource.Ctx | undefined;
 };
 
 /** Late use of a sealed scope fails loudly. */
@@ -836,10 +839,14 @@ const OFF_OBS: Observe.Ctx = {
   child: (_name, fn) => fn(undefined),
 };
 
-/** The default ambient clock: real wall-clock time. */
+function nanosFromMillis(ms: number): bigint {
+  const whole = Math.trunc(ms);
+  return BigInt(whole) * 1_000_000n + BigInt(Math.round((ms - whole) * 1_000_000));
+}
+
 const systemClock: Clock.Handle = {
   currentTimeMillis: () => Date.now(),
-  currentTimeNanos: () => BigInt(Date.now()) * 1_000_000n,
+  currentTimeNanos: () => nanosFromMillis(performance.timeOrigin + performance.now()),
 };
 
 /** Create a controllable clock for tests: virtual time starts at `now` (default `0`) and only
@@ -847,8 +854,8 @@ const systemClock: Clock.Handle = {
 export function makeTestClock(options?: Clock.Options): Clock.Test {
   let now = options?.now ?? 0;
   return {
-    currentTimeMillis: () => now,
-    currentTimeNanos: () => BigInt(now) * 1_000_000n,
+    currentTimeMillis: () => Math.trunc(now),
+    currentTimeNanos: () => nanosFromMillis(now),
     advance: (ms) => {
       now += ms;
     },
@@ -857,19 +864,6 @@ export function makeTestClock(options?: Clock.Options): Clock.Test {
     },
   };
 }
-
-/** A never-aborted signal for the shared {@link EMPTY_CTX}. */
-const IDLE_ABORT = new AbortController();
-/** Shared ctx for resource factories that declare no ctx param (arity < 2): they cannot touch it, so
- * skip the per-build allocation. `defer` is unreachable without a declared param, so it fails loudly. */
-const EMPTY_CTX: Resource.Ctx = {
-  label: "",
-  defer: () => raise("Disposed", { reason: "resource factory declared no ctx" }),
-  signal: IDLE_ABORT.signal,
-  obs: OFF_OBS,
-  log: OFF_LOG,
-  clock: systemClock,
-};
 
 function makeObs(config: Observe.Config | undefined): Obs {
   const c: Observe.Config = config ?? {};
@@ -1282,8 +1276,9 @@ function resolveResourceDeps(
 }
 
 /** Build the ctx a resource factory receives. Only called when the factory declares a ctx param
- * (arity >= 2); otherwise the shared {@link EMPTY_CTX} is passed and nothing is allocated. `defer`
- * closes over the build's `settled`/`superseded` so late registration behaves correctly. */
+ * (arity >= 2); otherwise a per-layer empty ctx (see {@link emptyCtxFor}) is passed, allocated at
+ * most once per layer. `defer` closes over the build's `settled`/`superseded` so late registration
+ * behaves correctly. */
 function buildCtx(
   owner: Layer,
   target: Resource.Handle<unknown>,
@@ -1313,6 +1308,19 @@ function buildCtx(
   };
 }
 
+function emptyCtxFor(owner: Layer): Resource.Ctx {
+  return (owner.emptyCtx ??= {
+    label: "",
+    defer: () => raise("Disposed", { reason: "resource factory declared no ctx" }),
+    get signal() {
+      return signalOf(owner);
+    },
+    obs: OFF_OBS,
+    log: OFF_LOG,
+    clock: owner.clock,
+  });
+}
+
 function buildResource<T>(
   owner: Layer,
   target: Resource.Handle<T>,
@@ -1331,7 +1339,9 @@ function buildResource<T>(
     const override = presetFor(owner, target) as Resource.Handle<T>["factory"] | undefined;
     const fn = override ?? target.factory;
     const ctx =
-      fn.length >= 2 ? buildCtx(owner, target, obs, span, () => settled, superseded) : EMPTY_CTX;
+      fn.length >= 2
+        ? buildCtx(owner, target, obs, span, () => settled, superseded)
+        : emptyCtxFor(owner);
     const result = fn(deps, ctx);
     if (!isThenable(result)) {
       settled = true;
@@ -1731,8 +1741,6 @@ function seedPresets(seeds: readonly Scope.Preset[] | undefined): {
   return { nodes, presets };
 }
 
-/** The clock a new layer runs on: a child inherits its parent's; a root takes the seeded clock, or
- * the system clock when none was given. */
 function clockFor(parent: Layer | undefined, options: Scope.Options | undefined): Clock.Handle {
   if (parent) return parent.clock;
   return options?.clock ?? systemClock;
@@ -1764,6 +1772,7 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     closing: undefined,
     obs: parent ? parent.obs : makeObs(options?.observe),
     clock: clockFor(parent, options),
+    emptyCtx: undefined,
   };
   if (parent) {
     parent.children.add(layer);
