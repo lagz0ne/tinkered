@@ -18,8 +18,10 @@ tracer bullet with one decisive browser-mode behavior test. Gate each with
       workspace tests green.
 - [x] **r02 — `<ScopeProvider>` + `useScope`.** DONE (tag `react/r02`, commit `0a36e80`): reads the
       Handle; `create=` closes once on unmount; no-provider raises `NoProvider`. Under astra review.
-- [ ] **r03 — `useData` reactive read.** Verify: external `set` re-renders; snapshot stable; unmount unsubscribes.
-- [ ] **r04 — `useController` write.** Verify: button `set` re-renders a reader; write-only component does not subscribe.
+- [x] **r03 — `useData` reactive read.** DONE (tag `react/r03`, commit `532e5eb`): external set re-renders;
+      object snapshot keeps identity across a parent re-render; clean unmount. Reviewed (astra).
+- [x] **r04 — `useController` write.** DONE (tag `react/r04`, commit `a7c0954`): controller write re-renders a
+      reader; write-only component's render count unchanged after an external set. Under astra review.
 - [ ] **r05 — `useData` selector + `isEqual`.** Verify: unrelated field change → no re-render; slice change → re-render.
 - [ ] **r06 — `useResource` sync value.** Verify: sync build renders value, no fallback; cached instance identity.
 - [ ] **r07 — `useResource` async + Suspense.** Verify: fallback→value; re-render while pending reuses the same promise (build runs once).

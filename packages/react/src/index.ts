@@ -81,3 +81,11 @@ export function useData<T>(cell: Data.Cell<T>): T {
   }, [scope, cell]);
   return useSyncExternalStore(store.subscribe, store.getSnapshot);
 }
+
+/** The nearest scope's read/write controller for a `data` cell (`get`/`read`/`set`/`update`/`watch`).
+ * For writes: a component that only holds a controller subscribes to nothing, so a write-only view
+ * never re-renders when the cell changes. Read reactively with {@link useData} instead. */
+export function useController<T>(cell: Data.Cell<T>): Scope.DataController<T> {
+  const scope = useScope();
+  return useMemo(() => scope.getController(cell), [scope, cell]);
+}
