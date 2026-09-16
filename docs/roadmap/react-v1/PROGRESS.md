@@ -73,7 +73,7 @@ Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its 
 | react/r07 | `useResource` async + Suspense          | 06, 01   | [x]    |
 | react/r08 | `useResource` failed build → boundary   | 07       | [x]    |
 | react/r09 | `useResolve` success path               | 02, 01   | [x]    |
-| react/r10 | `useResolve` error + `reset`            | 09       | [ ]    |
+| react/r10 | `useResolve` error + `reset`            | 09       | [x]    |
 | react/r11 | `<SessionProvider>` lifecycle           | 04, 07   | [ ]    |
 | react/r12 | `target:"session"` per-provider sharing | 11       | [ ]    |
 | react/r13 | StrictMode double-mount safety          | 11       | [ ]    |
