@@ -914,8 +914,21 @@ export function makeTestClock(options?: Clock.Options): Clock.Test {
   };
 }
 
+/** The observation state of a scope created without `observe`: nothing is ever recorded (no span is
+ * opened, `history` stays empty), so one shared instance serves every such root. */
+const DEFAULT_OBS: Obs = {
+  observing: false,
+  clock: Date.now,
+  export: undefined,
+  historyMax: 0,
+  history: [],
+  log: undefined,
+  nextId: 1,
+};
+
 function makeObs(config: Observe.Config | undefined): Obs {
-  const c: Observe.Config = config ?? {};
+  if (!config) return DEFAULT_OBS;
+  const c = config;
   const historyMax = c.history ?? 0;
   return {
     observing: c.export !== undefined || historyMax > 0,
@@ -1272,6 +1285,43 @@ type RegisterEdge = ((dep: Scope.Dependency) => void) | undefined;
  * `Object.values`/`for..in`/spread also triggers the build (ownKeys + an enumerable descriptor + get),
  * so the enumeration contract holds. A Proxy get trap is ~7x cheaper than a per-build
  * `Object.defineProperty` accessor, and a body that never touches a key never builds it. */
+/** Per-deps lazy state, stashed on the deps target under a symbol so the handler needs no closures.
+ * Symbol keys are invisible to `Object.keys`/`values`/`for..in`/JSON, so the factory never sees it. */
+const LAZY = Symbol("lazy");
+type LazyState = {
+  lazy: Map<string, Scope.Dependency>;
+  layer: Layer;
+  span: Observe.Span | undefined;
+  registerEdge: RegisterEdge;
+};
+type LazyTarget = Record<string, unknown> & { [LAZY]: LazyState };
+
+function buildLazyDep(t: LazyTarget, key: string): void {
+  const { lazy, layer, span, registerEdge } = t[LAZY];
+  const dep = lazy.get(key) as Scope.Dependency;
+  lazy.delete(key);
+  registerEdge?.(dep);
+  t[key] = resolveDep(layer, dep, span, undefined);
+}
+
+const isLazyKey = (t: LazyTarget, key: string | symbol): key is string =>
+  typeof key === "string" && t[LAZY].lazy.has(key);
+
+/** One shared handler for every lazy deps proxy (state lives on the target, see {@link LAZY}). */
+const LAZY_HANDLER: ProxyHandler<LazyTarget> = {
+  get: (t, key) => {
+    if (isLazyKey(t, key)) buildLazyDep(t, key);
+    return t[key as string];
+  },
+  has: (t, key) => isLazyKey(t, key) || key in t,
+  ownKeys: (t) => [...Object.keys(t), ...t[LAZY].lazy.keys()],
+  getOwnPropertyDescriptor: (t, key) => {
+    if (isLazyKey(t, key))
+      return { enumerable: true, configurable: true, writable: true, value: undefined };
+    return Reflect.getOwnPropertyDescriptor(t, key);
+  },
+};
+
 function lazyDepsProxy(
   target: Record<string, unknown>,
   lazy: Map<string, Scope.Dependency>,
@@ -1279,25 +1329,9 @@ function lazyDepsProxy(
   span: Observe.Span | undefined,
   registerEdge: RegisterEdge,
 ): Record<string, unknown> {
-  const build = (key: string): void => {
-    const dep = lazy.get(key) as Scope.Dependency;
-    lazy.delete(key);
-    registerEdge?.(dep);
-    target[key] = resolveDep(layer, dep, span, undefined);
-  };
-  return new Proxy(target, {
-    get: (t, key) => {
-      if (typeof key === "string" && lazy.has(key)) build(key);
-      return t[key as string];
-    },
-    has: (t, key) => (typeof key === "string" && lazy.has(key)) || key in t,
-    ownKeys: (t) => [...Reflect.ownKeys(t), ...lazy.keys()],
-    getOwnPropertyDescriptor: (t, key) => {
-      if (typeof key === "string" && lazy.has(key))
-        return { enumerable: true, configurable: true, writable: true, value: undefined };
-      return Reflect.getOwnPropertyDescriptor(t, key);
-    },
-  });
+  const t = target as LazyTarget;
+  t[LAZY] = { lazy, layer, span, registerEdge };
+  return new Proxy(t, LAZY_HANDLER);
 }
 
 /** Build the `deps` object a factory/run reads. A resource-target dependency is delivered LAZILY (via
