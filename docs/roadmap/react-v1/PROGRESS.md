@@ -76,7 +76,7 @@ Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its 
 | react/r10 | `useResolve` error + `reset`            | 09       | [x]    |
 | react/r11 | `<SessionProvider>` lifecycle           | 04, 07   | [x]    |
 | react/r12 | `target:"session"` per-provider sharing | 11       | [x]    |
-| react/r13 | StrictMode double-mount safety          | 11       | [ ]    |
+| react/r13 | StrictMode double-mount safety          | 11       | [x]    |
 | react/r14 | `useRelease` + retry/reset              | 08       | [ ]    |
 | react/r15 | `useSpans` read                         | 07, 09   | [ ]    |
 | react/r16 | Opt-in React span emission              | 15       | [ ]    |

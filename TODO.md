@@ -37,8 +37,10 @@ tracer bullet with one decisive browser-mode behavior test. Gate each with
       (no boundary throw); reset from success AND error clears full state; reset-during-pending drops the late result.
 - [x] **r11 — `<SessionProvider>` lifecycle.** DONE (tag `react/r11`, commit `6bf0856`, SHIP): unmount force-closes
       (defer→cancelled); write shadowed; a changed parent never exposes the old session (paired parent+session guard).
-- [x] **r12 — `target:"session"` sharing.** DONE (tag `react/r12`, commit `c5c643c`): session-target resource
-      distinct per provider (siblings); scope-target resource shared across siblings. Under astra review.
+- [x] **r12 — `target:"session"` sharing.** DONE (tag `react/r12`, commit `3f56214`, SHIP): one instance per
+      provider (two readers under one provider share; siblings distinct); scope-target shared across siblings.
+- [x] **r13 — StrictMode double-mount.** DONE (tag `react/r13`, commit `6644a8d`): under `<StrictMode>` two
+      sessions created, discarded one closed (creates-closes==1), live session read with no Disposed. Under review.
 - [ ] **r10 — `useResolve` error + `reset`.** Verify: error stays in `error`/`status` (no boundary throw); `reset()`→idle.
 - [ ] **r11 — `<SessionProvider>` lifecycle.** Verify: unmount forces-close (session resource `defer` rolls back); nearest-Handle-wins; write shadowed.
 - [ ] **r12 — `target:"session"` sharing.** Verify: one instance per provider (siblings distinct); `target:"scope"` shared across.
