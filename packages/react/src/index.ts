@@ -224,3 +224,11 @@ export function useResolve<T, I>(op: Operation.Command<T, I>): Resolve.Handle<Aw
   }, []);
   return { ...state, resolve, reset };
 }
+
+/** Release a node at the nearest scope: reset a `data` cell to its inherited/initial value (notifying
+ * `useData` readers) or drop a resource's instance so the next `useResource` rebuilds a fresh
+ * generation. Pair with an error-boundary reset to retry a failed resource (ADR 0032). */
+export function useRelease(): (node: Data.Cell<unknown> | Resource.Handle<unknown>) => void {
+  const scope = useScope();
+  return useCallback((node) => scope.release(node), [scope]);
+}
