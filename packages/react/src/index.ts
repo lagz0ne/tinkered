@@ -1,4 +1,4 @@
-import type { Data, Scope } from "@tinker/core";
+import type { Data, Resource, Scope } from "@tinker/core";
 import type { ReactNode } from "react";
 import {
   createContext,
@@ -110,4 +110,12 @@ export function useData<T, S>(
 export function useController<T>(cell: Data.Cell<T>): Scope.DataController<T> {
   const scope = useScope();
   return useMemo(() => scope.getController(cell), [scope, cell]);
+}
+
+/** Read a resource's built value from the nearest scope. A synchronously-built resource returns its
+ * built value directly, allocating no promise. */
+export function useResource<T>(handle: Resource.Handle<T>): Scope.ResourceValue<T> {
+  const scope = useScope();
+  const controller = useMemo(() => scope.getController(handle), [scope, handle]);
+  return controller.resolve();
 }

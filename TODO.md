@@ -24,7 +24,8 @@ tracer bullet with one decisive browser-mode behavior test. Gate each with
       reader; write-only component's render count unchanged after an external set. Under astra review.
 - [x] **r05 — `useData` selector + `isEqual`.** DONE (tag `react/r05`, commit `3920c7f`): unrelated field
       change → no re-render; slice change → re-render; custom `isEqual` suppresses a new-but-equal slice. Under review.
-- [ ] **r06 — `useResource` sync value.** Verify: sync build renders value, no fallback; cached instance identity.
+- [x] **r06 — `useResource` sync value.** DONE (tag `react/r06`, commit `2b4a326`): renders a sync resource
+      value with no Suspense boundary (no suspend); returns core's exact cached instance. Under review.
 - [ ] **r07 — `useResource` async + Suspense.** Verify: fallback→value; re-render while pending reuses the same promise (build runs once).
 - [ ] **r08 — `useResource` failed build → boundary.** Verify: rejected build renders the nearest error boundary; registry error preserved.
 - [ ] **r09 — `useResolve` success.** Verify: idle→pending→success with `data`; `rawInput` parsed; no suspend.

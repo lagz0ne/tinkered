@@ -69,7 +69,7 @@ Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its 
 | react/r03 | `useData` reactive read                 | 02       | [x]    |
 | react/r04 | `useController` write                   | 03       | [x]    |
 | react/r05 | `useData` selector + `isEqual`          | 03       | [x]    |
-| react/r06 | `useResource` sync value                | 02       | [ ]    |
+| react/r06 | `useResource` sync value                | 02       | [x]    |
 | react/r07 | `useResource` async + Suspense          | 06, 01   | [ ]    |
 | react/r08 | `useResource` failed build → boundary   | 07       | [ ]    |
 | react/r09 | `useResolve` success path               | 02, 01   | [ ]    |
