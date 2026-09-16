@@ -650,18 +650,6 @@ function readCell(layer: Layer, target: Data.Cell<unknown>): unknown {
   return entry ? entry.value : target.initial;
 }
 
-/** Read through a captured node record: the cached effective entry while the layer is open (the
- * record is never replaced under an open layer, and every shadow or release resets its `effSet`),
- * the ordinary chain walk once the close has orphaned it. Mirrors the controller's `read` below —
- * keep the two in sync; sharing one body costs a call on the hottest path. */
-function readCached(rec: NodeState, layer: Layer, target: Data.Cell<unknown>): unknown {
-  if (!layer.closed && rec.effSet) {
-    const entry = rec.eff;
-    return entry ? entry.value : target.initial;
-  }
-  return readCell(layer, target);
-}
-
 /** Creating a nearer shadow changes the effective cell for this layer and its descendants. */
 function invalidateEff(layer: Layer, target: Data.Cell<unknown>): void {
   const s = layer.nodes.get(target);
@@ -686,16 +674,10 @@ function ownCell(layer: Layer, target: Data.Cell<unknown>): Entry {
  * shadows the cell, and everything under it, still sees its own value). The value is read once per
  * layer, not once per watcher. */
 function flushCell(layer: Layer, target: Data.Cell<unknown>): void {
-  flushWith(layer, target);
-}
-
-/** Fan a write out to one layer's watchers and the inheriting descendants. The value is read
- * once per layer, not once per watcher; notification keeps registration order. */
-function flushWith(layer: Layer, target: Data.Cell<unknown>): void {
   const ws = layer.nodes.get(target)?.watchers;
   if (ws?.size) notifyLayer(ws, target, readCell(layer, target));
   for (const child of layer.children) {
-    if (!child.nodes.get(target)?.cell) flushWith(child, target);
+    if (!child.nodes.get(target)?.cell) flushCell(child, target);
   }
 }
 
@@ -770,20 +752,17 @@ function presetFor(layer: Layer, node: unknown): unknown {
 
 function addWatcher(
   layer: Layer,
-  target: Data.Cell<unknown>,
   rec: NodeState,
+  last: unknown,
   fn: (next: unknown) => void,
 ): () => void {
   ensureOpen(layer);
-  const w: Watcher = { last: readCached(rec, layer, target), fn };
+  const w: Watcher = { last, fn };
   (rec.watchers ??= new Set()).add(w);
   return () => void rec.watchers?.delete(w);
 }
 
 function dataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataController<T> {
-  /** The controller is memoized per (layer, cell), so hold the node record and read through it
-   * instead of repeating the map lookup on every call — the same trick `resourceController` uses.
-   * Inlined (not shared with `readCached` above) so `read` keeps a single caller; keep in sync. */
   const rec = nodeState(layer, target);
   const read = (): T => {
     if (!layer.closed && rec.effSet) {
@@ -801,7 +780,7 @@ function dataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataContro
       writeCell(layer, target, fn(read()));
     },
     watch: (listener: (next: T) => void) =>
-      addWatcher(layer, target, rec, listener as (next: unknown) => void),
+      addWatcher(layer, rec, read(), listener as (next: unknown) => void),
   };
 }
 
