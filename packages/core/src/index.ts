@@ -546,6 +546,18 @@ function genOf(owner: Layer, target: object): number {
   return owner.nodes.get(target)?.gen ?? 0;
 }
 
+/** Materialize this layer's AbortController on first `ctx.signal` read (kept in sync with the cheap
+ * `aborted` flag). Most scopes never hand out a signal, so most never allocate one. */
+function signalOf(layer: Layer): AbortSignal {
+  let ac = layer.abort;
+  if (!ac) {
+    ac = new AbortController();
+    if (layer.aborted) ac.abort(layer.abortReason);
+    layer.abort = ac;
+  }
+  return ac.signal;
+}
+
 /** One layer of the scope chain. A session is a child layer. */
 type Layer = {
   parent: Layer | undefined;
@@ -559,7 +571,12 @@ type Layer = {
   watchers: Set<Watcher> | undefined;
   pending: Set<Promise<unknown>>;
   defers: DeferEntry[];
-  abort: AbortController;
+  /** Cancel state, decoupled from the signal so a forced close needn't dispatch abort events when no
+   * factory ever asked for `ctx.signal`. `abort` (the real AbortController) is materialized lazily by
+   * {@link signalOf} on first `ctx.signal` read, and kept in sync with `aborted`/`abortReason`. */
+  aborted: boolean;
+  abortReason: unknown;
+  abort: AbortController | undefined;
   cancelled: boolean;
   swept: boolean;
   bodyEnd: Promise<Scope.Outcome> | undefined;
@@ -950,7 +967,7 @@ function isCancelReason(error: unknown): boolean {
  * must be aborted AND the error must be a branded cancel reason (from this layer or a descendant it
  * awaited); a real error rejecting during close is unbranded and still counts as a failure. */
 function isCancel(layer: Layer, error: unknown): boolean {
-  return layer.abort.signal.aborted && isCancelReason(error);
+  return layer.aborted && isCancelReason(error);
 }
 
 const asPrimary =
@@ -969,7 +986,7 @@ function rejectEnd(layer: Layer, error: unknown): Scope.End {
  * under an aborted signal) is `cancelled`; a real rejection is `failed`; else `success`. */
 function endFor(layer: Layer, status: "ok" | "failed", error: unknown): Scope.End {
   if (status === "failed") return rejectEnd(layer, error);
-  return layer.abort.signal.aborted ? { status: "cancelled" } : SUCCESS;
+  return layer.aborted ? { status: "cancelled" } : SUCCESS;
 }
 
 /** Layers whose teardown callbacks (cleanups/hooks) are executing right now, by depth. */
@@ -1095,7 +1112,9 @@ function commandController<T, I>(
         label: target.label,
         rawInput,
         input,
-        signal: layer.abort.signal,
+        get signal() {
+          return signalOf(layer);
+        },
         defer: (fn) => void defers.push(fn),
         obs: obsCtx(obs, span),
         log: logFor(obs, span),
@@ -1217,7 +1236,9 @@ function buildCtx(
       if (superseded()) releaseSupersededDefer(owner, target, fn);
       else owner.defers.push({ fn, resource: target });
     },
-    signal: owner.abort.signal,
+    get signal() {
+      return signalOf(owner);
+    },
     obs: obsCtx(obs, span),
     log: logFor(obs, span),
   };
@@ -1651,7 +1672,9 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     watchers: undefined,
     pending: new Set(),
     defers: [],
-    abort: new AbortController(),
+    aborted: false,
+    abortReason: undefined,
+    abort: undefined,
     cancelled: false,
     swept: false,
     bodyEnd: undefined,
@@ -1670,7 +1693,10 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
      * finishes; inherit the abort if the ancestor close is FORCED (creation under a CLOSED scope is
      * blocked by `ensureOpen`, so a swept-but-open parent means an ancestor is mid-close). */
     if (parent.swept) layer.swept = true;
-    if (parent.abort.signal.aborted) layer.abort.abort(parent.abort.signal.reason);
+    if (parent.aborted) {
+      layer.aborted = true;
+      layer.abortReason = parent.abortReason;
+    }
   }
   return layer;
 }
@@ -1693,13 +1719,21 @@ function markSwept(root: Layer): void {
  * recognizes the cancel across the subtree and awaited work unblocks. Run inside the async close body
  * (not at call time) so it does not race ahead of the body's own settlement — a body that already
  * resolved is classified `success`, not flipped to `cancelled` by a later forced close. */
+function markAborted(layer: Layer, reason: unknown): void {
+  if (layer.aborted) return;
+  layer.aborted = true;
+  layer.abortReason = reason;
+  // Only fire the real signal if one was ever handed to a factory (else there are no listeners).
+  layer.abort?.abort(reason);
+}
+
 function abortSubtree(root: Layer): void {
-  if (!root.abort.signal.aborted) root.abort.abort(makeCancelReason());
-  const reason = root.abort.signal.reason;
+  const reason = root.aborted ? root.abortReason : makeCancelReason();
+  markAborted(root, reason);
   const stack: Layer[] = [...root.children];
   while (stack.length) {
     const layer = stack.pop() as Layer;
-    if (!layer.abort.signal.aborted) layer.abort.abort(reason);
+    markAborted(layer, reason);
     for (const child of layer.children) stack.push(child);
   }
 }
@@ -1807,7 +1841,7 @@ function buildResult(
   if (settled.status === "failed")
     return { status: "failed", error: settled.error, teardownErrors };
   if (settled.status === "cancelled") {
-    return { status: "cancelled", reason: layer.abort.signal.reason, teardownErrors };
+    return { status: "cancelled", reason: layer.abortReason, teardownErrors };
   }
   return { status: "success", teardownErrors };
 }
@@ -1829,7 +1863,7 @@ function rollsBack(layer: Layer, forced: boolean, body: Scope.Outcome | undefine
 }
 
 function startClose(layer: Layer, force: boolean): Promise<Scope.Result> {
-  const forced = force || layer.abort.signal.aborted;
+  const forced = force || layer.aborted;
   markSwept(layer);
   const run = async (): Promise<Scope.Result> => {
     if (forced) abortSubtree(layer);
@@ -1904,7 +1938,7 @@ async function runSession<R>(
   const body = runBodyFn(child, fn);
   child.body = body;
   child.bodyEnd = body.then(
-    (): Scope.Outcome => (child.abort.signal.aborted ? { status: "cancelled" } : SUCCESS),
+    (): Scope.Outcome => (child.aborted ? { status: "cancelled" } : SUCCESS),
     (cause: unknown): Scope.Outcome =>
       isCancel(child, cause) ? { status: "cancelled" } : { status: "failed", error: cause },
   );
