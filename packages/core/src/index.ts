@@ -546,6 +546,11 @@ function genOf(owner: Layer, target: object): number {
   return owner.nodes.get(target)?.gen ?? 0;
 }
 
+/** Depth of factory/op execution in progress across all scopes. Non-zero means a user body is running
+ * its synchronous prefix — work it starts may not be tracked in `pending` yet — so a close called now
+ * must take the full (deferred) path, never the idle fast path. */
+let buildDepth = 0;
+
 /** Materialize this layer's AbortController on first `ctx.signal` read (kept in sync with the cheap
  * `aborted` flag). Most scopes never hand out a signal, so most never allocate one. */
 function signalOf(layer: Layer): AbortSignal {
@@ -1098,6 +1103,7 @@ function commandController<T, I>(
       else releaseBorrow();
     };
     let result: T;
+    buildDepth++;
     try {
       const { input, rawInput, overlay } = readCall(target, call);
       /** Register borrows BEFORE resolving deps: a dep's factory may release another dep during
@@ -1124,6 +1130,8 @@ function commandController<T, I>(
       closeSpan(obs, span, "failed");
       finishDefers("failed", error);
       throw error;
+    } finally {
+      buildDepth--;
     }
     track(layer, result, asPrimary(layer), (status, error) => {
       if (span) closeSpan(obs, span, status);
@@ -1262,6 +1270,7 @@ function buildResource<T>(
   const span = openSpan(obs, parent, target.label, "resource");
   nodeState(owner, target).building = true;
   let settled = false;
+  buildDepth++;
   try {
     const deps = resolveResourceDeps(owner, target, span, superseded);
     const override = presetFor(owner, target) as Resource.Handle<T>["factory"] | undefined;
@@ -1293,6 +1302,7 @@ function buildResource<T>(
     closeSpan(obs, span, "failed");
     throw error;
   } finally {
+    buildDepth--;
     nodeState(owner, target).building = false;
   }
 }
@@ -1819,8 +1829,42 @@ async function closeChildren(layer: Layer, force: boolean): Promise<void> {
   }
 }
 
+/** Whether a scope has nothing to tear down, so `close` can settle synchronously (see {@link fastClose}):
+ * no children, no in-flight owned work, no deferred cleanups, no running body, no recorded failure, and
+ * no build in progress (whose not-yet-tracked work a synchronous close would miss). */
+function canFastClose(layer: Layer): boolean {
+  return (
+    buildDepth === 0 &&
+    layer.children.size === 0 &&
+    layer.pending.size === 0 &&
+    layer.defers.length === 0 &&
+    layer.body === undefined &&
+    layer.failure === undefined &&
+    layer.descendantFailure === undefined &&
+    !closeWouldReenter(layer)
+  );
+}
+
+/** O(1) close for an idle scope: mark closed, settle by mode (forced rolls back to `cancelled`, which
+ * with nothing to roll back is just the status), detach from the parent, and let GC drop the layer —
+ * skipping the async teardown protocol, the abort event dispatch, and `nodes.clear()`. */
+function fastClose(layer: Layer, force: boolean): Promise<Scope.Result> {
+  layer.closed = true;
+  const forced = force || layer.aborted;
+  let settled: Scope.Outcome = SUCCESS;
+  if (forced) {
+    markAborted(layer, layer.aborted ? layer.abortReason : makeCancelReason());
+    layer.cancelled = true;
+    settled = { status: "cancelled" };
+  }
+  layer.parent?.children.delete(layer);
+  layer.closing = Promise.resolve(buildResult(settled, layer, undefined));
+  return layer.closing;
+}
+
 function closeLayer(layer: Layer, force = true): Promise<Scope.Result> {
   if (!layer.closing) {
+    if (canFastClose(layer)) return fastClose(layer, force);
     layer.closed = true;
     layer.closing = startClose(layer, force);
   }
