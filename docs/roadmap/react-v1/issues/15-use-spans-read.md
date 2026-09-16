@@ -1,6 +1,6 @@
 # 15: `useSpans` read
 
-**What to build:** `useSpans()` reactively returns the scope's bounded span history (ADR 0030). Behavior-neutral — reading spans never changes results.
+**What to build:** `useSpans()` returns the scope's bounded span history (ADR 0030) — a snapshot read each render (core exposes no span subscription, so it is not push-reactive; the caller arranges its re-renders). Behavior-neutral — reading spans never changes results.
 
 **Blocked by:** 07, 09
 

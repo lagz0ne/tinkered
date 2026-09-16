@@ -1,4 +1,4 @@
-import type { Data, Operation, Resource, Scope } from "@tinker/core";
+import type { Data, Observe, Operation, Resource, Scope } from "@tinker/core";
 import type { ReactNode } from "react";
 import {
   createContext,
@@ -231,4 +231,13 @@ export function useResolve<T, I>(op: Operation.Command<T, I>): Resolve.Handle<Aw
 export function useRelease(): (node: Data.Cell<unknown> | Resource.Handle<unknown>) => void {
   const scope = useScope();
   return useCallback((node) => scope.release(node), [scope]);
+}
+
+/** Read the nearest scope's bounded span history (ADR 0030) for an inspector/devtools view — a
+ * snapshot taken on each render (an empty snapshot when observation is off). Core exposes no span
+ * subscription, so this is not push-reactive: a standalone inspector will not update on its own when
+ * sibling components do work — the caller arranges its re-renders (co-render with the work, or a
+ * manual refresh). */
+export function useSpans(): readonly Observe.Span[] {
+  return useScope().spans();
 }
