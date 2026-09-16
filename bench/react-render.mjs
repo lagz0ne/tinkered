@@ -69,7 +69,15 @@ zRenders = 0;
 await act(async () => useZ.setState({ k0: 1 }));
 const rendersZ = zRenders;
 
-// --- (b) update latency: round-robin update one slice per iter (trees stay mounted) ---
+// The (a) trees are done: unmount them BEFORE the timed groups. Left mounted, thousands of (b) updates
+// on a live tree skew the later (c) mount timings ~2x (measured 2026-09-16), so each group below
+// mounts its own trees and measures only what it names.
+troot.unmount();
+zroot.unmount();
+
+// --- (b) update latency: round-robin update one slice per iter (own trees, mounted for this group) ---
+const tlive = await mount(TApp);
+const zlive = await mount(ZApp);
 let tk = 1;
 let zk = 1;
 group("update", () => {
@@ -85,7 +93,7 @@ group("update", () => {
   });
 });
 
-// --- (c) mount cost: mount N subscribed components, then unmount ---
+// --- (c) mount cost: mount N subscribed components, then unmount (the (b) trees are gone) ---
 group("mount", () => {
   summary(() => {
     bench("mount_tinker", async () => {
@@ -100,8 +108,8 @@ group("mount", () => {
 });
 
 const res = await run();
-troot.unmount();
-zroot.unmount();
+tlive.unmount();
+zlive.unmount();
 
 const minOf = (a) => res.benchmarks.find((b) => b.alias === a)?.runs?.[0]?.stats?.min ?? NaN;
 const fmt = (n) => (Number.isFinite(n) ? n.toFixed(1) : "NaN");
