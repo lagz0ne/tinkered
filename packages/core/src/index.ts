@@ -515,11 +515,13 @@ type Layer = {
    * a fresh closure object on every call (the warm-resolve hot path). */
   controllers: Map<object, unknown>;
   resources: Map<Resource.Handle<unknown>, Entry>;
-  builds: Map<Resource.Handle<unknown>, Promise<unknown>>;
+  /** Lazily allocated: empty on the synchronous happy path (only async builds, invalidation, and
+   * in-flight op borrows populate them). Read as absent when undefined; allocate on first write. */
+  builds: Map<Resource.Handle<unknown>, Promise<unknown>> | undefined;
   building: Set<Resource.Handle<unknown>>;
-  generations: Map<Resource.Handle<unknown>, number>;
+  generations: Map<Resource.Handle<unknown>, number> | undefined;
   dependents: Map<Node, Set<Resource.Handle<unknown>>>;
-  borrowers: Map<Resource.Handle<unknown>, Set<Promise<unknown>>>;
+  borrowers: Map<Resource.Handle<unknown>, Set<Promise<unknown>>> | undefined;
   presets: Map<unknown, unknown>;
   tags: Map<Tag.Handle<unknown>, unknown[]>;
   watchers: Set<Watcher>;
@@ -1139,8 +1141,8 @@ function buildResource<T>(
   target: Resource.Handle<T>,
   parent: Observe.Span | undefined,
 ): unknown {
-  const gen = owner.generations.get(target) ?? 0;
-  const superseded = (): boolean => (owner.generations.get(target) ?? 0) !== gen;
+  const gen = owner.generations?.get(target) ?? 0;
+  const superseded = (): boolean => (owner.generations?.get(target) ?? 0) !== gen;
   const canPublish = (): boolean => !superseded() && !owner.closed;
   const obs = owner.obs;
   const span = openSpan(obs, parent, target.label, "resource");
@@ -1214,20 +1216,20 @@ function finishAsyncBuild(
   const build: Promise<unknown> = Promise.resolve(result).then(
     (value) => {
       markSettled();
-      if (owner.builds.get(target) === build) owner.builds.delete(target);
+      if (owner.builds?.get(target) === build) owner.builds?.delete(target);
       if (canPublish()) owner.resources.set(target, { value: build });
       closeSpan(obs, span, "ok");
       return value;
     },
     (error) => {
       markSettled();
-      if (owner.builds.get(target) === build) owner.builds.delete(target);
+      if (owner.builds?.get(target) === build) owner.builds?.delete(target);
       if (!superseded()) owner.resources.set(target, { value: build });
       closeSpan(obs, span, "failed");
       throw error;
     },
   );
-  if (!superseded()) owner.builds.set(target, build);
+  if (!superseded()) (owner.builds ??= new Map()).set(target, build);
   track(owner, build, (error) => {
     if (!superseded() && !isCancel(owner, error)) owner.failure ??= { cause: error };
   });
@@ -1247,7 +1249,7 @@ function resourceController<T>(
       recordUsed(layer.obs, parent, target);
       const cached = owner.resources.get(target);
       if (cached) return cached.value as Scope.ResourceValue<T>;
-      const inflight = owner.builds.get(target);
+      const inflight = owner.builds?.get(target);
       if (inflight) return inflight as Scope.ResourceValue<T>;
       if (owner.building.has(target)) raise("CircularResource", { label: target.label });
       return buildResource(owner, target, parent) as Scope.ResourceValue<T>;
@@ -1272,9 +1274,10 @@ type Affected = { node: Node; owner: Layer };
  * (`extractReleasedDefers`) alongside its affected dependents, so a diamond tears down dependents
  * before dependencies (ADR 0026), not per-resource grouped at build-completion. */
 function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): void {
-  owner.generations.set(target, (owner.generations.get(target) ?? 0) + 1);
+  const gens = (owner.generations ??= new Map());
+  gens.set(target, (gens.get(target) ?? 0) + 1);
   owner.resources.delete(target);
-  owner.builds.delete(target);
+  owner.builds?.delete(target);
   detachDependent(owner, target);
   owner.dependents.delete(target);
 }
@@ -1498,9 +1501,9 @@ function collectBorrows(layer: Layer, depends: Scope.Depends): Borrow[] {
 }
 
 function addBorrow(owner: Layer, resource: Resource.Handle<unknown>, work: Promise<unknown>): void {
-  const set = owner.borrowers.get(resource);
+  const set = owner.borrowers?.get(resource);
   if (set) set.add(work);
-  else owner.borrowers.set(resource, new Set([work]));
+  else (owner.borrowers ??= new Map()).set(resource, new Set([work]));
 }
 
 function removeBorrow(
@@ -1508,8 +1511,8 @@ function removeBorrow(
   resource: Resource.Handle<unknown>,
   work: Promise<unknown>,
 ): void {
-  const set = owner.borrowers.get(resource);
-  if (set && set.delete(work) && set.size === 0) owner.borrowers.delete(resource);
+  const set = owner.borrowers?.get(resource);
+  if (set && set.delete(work) && set.size === 0) owner.borrowers?.delete(resource);
 }
 
 /** In-flight operation promises borrowing any of `resources` at `owner`, so release can wait for them
@@ -1520,7 +1523,7 @@ function collectBorrowers(
 ): Promise<unknown>[] {
   const out: Promise<unknown>[] = [];
   for (const resource of resources) {
-    const set = owner.borrowers.get(resource);
+    const set = owner.borrowers?.get(resource);
     if (set) for (const work of set) out.push(work);
   }
   return out;
@@ -1562,11 +1565,11 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     effCache: new Map(),
     controllers: new Map(),
     resources: new Map(),
-    builds: new Map(),
+    builds: undefined,
     building: new Set(),
-    generations: new Map(),
+    generations: undefined,
     dependents: new Map(),
-    borrowers: new Map(),
+    borrowers: undefined,
     presets,
     tags,
     watchers: new Set(),
@@ -1795,11 +1798,11 @@ function finishLayer(layer: Layer): unknown[] | undefined {
   layer.cells.clear();
   layer.effCache.clear();
   layer.resources.clear();
-  layer.builds.clear();
+  layer.builds = undefined;
   layer.building.clear();
-  layer.generations.clear();
+  layer.generations = undefined;
   layer.dependents.clear();
-  layer.borrowers.clear();
+  layer.borrowers = undefined;
   layer.presets.clear();
   layer.tags.clear();
   layer.watchers.clear();
