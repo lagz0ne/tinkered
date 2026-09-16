@@ -523,9 +523,7 @@ type Entry = { value: unknown };
 /** A releasable node: a data cell or a resource. Release cascades from a node to its dependents. */
 type Node = Data.Cell<unknown> | Resource.Handle<unknown>;
 type Watcher = {
-  read: () => unknown;
   last: unknown;
-  eq: (a: unknown, b: unknown) => boolean;
   fn: (next: unknown) => void;
 };
 /** An end-hook (`ctx.defer`) tagged with the resource that registered it (undefined = userland
@@ -561,6 +559,8 @@ class NodeState {
   /** Memoized controller: the public `getController` path always passes an undefined observation
    * span, so a controller for (layer, node) is stable — reuse it instead of reallocating closures. */
   controller: unknown = undefined;
+  /** Watchers of this cell registered at this layer (a write visits only the changed cell's). */
+  watchers: Set<Watcher> | undefined = undefined;
 }
 
 /** Get-or-create this layer's record for a node. */
@@ -597,10 +597,9 @@ type Layer = {
   /** Single node-keyed store: cells, effective-cache, resources, builds, generations, build-flag,
    * borrowers, dependents, and cached controllers all live in one {@link NodeState} per node. */
   nodes: Map<object, NodeState>;
-  /** Lazily allocated: empty unless the scope was seeded with presets/tags or a watcher was added. */
+  /** Lazily allocated: empty unless the scope was seeded with presets/tags. */
   presets: Map<unknown, unknown> | undefined;
   tags: Map<Tag.Handle<unknown>, unknown[]> | undefined;
-  watchers: Set<Watcher> | undefined;
   pending: Set<Promise<unknown>>;
   defers: DeferEntry[];
   /** Cancel state, decoupled from the signal so a forced close needn't dispatch abort events when no
@@ -627,11 +626,6 @@ type Layer = {
 function ensureOpen(layer: Layer): void {
   if (layer.closed) raise("Disposed", { reason: "scope is closed" });
 }
-
-const eqOf =
-  <T>(target: Data.Cell<T>) =>
-  (a: unknown, b: unknown): boolean =>
-    target.eq(a as T, b as T);
 
 /** The nearest cell up the chain (cached per layer); absent means "use the cell's initial". */
 function effectiveEntry(layer: Layer, target: Data.Cell<unknown>): Entry | undefined {
@@ -676,26 +670,36 @@ function ownCell(layer: Layer, target: Data.Cell<unknown>): Entry {
   return s.cell;
 }
 
-/** Fire watchers on this layer, then descendants (inherited reads see the change; shadowed ones don't). */
-function flushTree(layer: Layer): void {
-  const ws = layer.watchers;
-  if (ws)
-    for (const w of ws) {
-      const next = w.read();
-      if (!w.eq(w.last, next)) {
-        w.last = next;
-        w.fn(next);
-      }
+/** Fire the changed cell's watchers on this layer, then on descendants that inherit it (a child that
+ * shadows the cell, and everything under it, still sees its own value). The value is read once per
+ * layer, not once per watcher. */
+function flushCell(layer: Layer, target: Data.Cell<unknown>): void {
+  const ws = layer.nodes.get(target)?.watchers;
+  if (ws?.size) fireWatchers(ws, target, readCell(layer, target));
+  for (const child of layer.children) {
+    if (!child.nodes.get(target)?.cell) flushCell(child, target);
+  }
+}
+
+function cellEq(target: Data.Cell<unknown>, a: unknown, b: unknown): boolean {
+  return target.eq(a, b);
+}
+
+function fireWatchers(ws: Set<Watcher>, target: Data.Cell<unknown>, next: unknown): void {
+  for (const w of ws) {
+    if (!cellEq(target, w.last, next)) {
+      w.last = next;
+      w.fn(next);
     }
-  for (const child of layer.children) flushTree(child);
+  }
 }
 
 function writeCell<T>(layer: Layer, target: Data.Cell<T>, next: unknown): void {
   ensureOpen(layer);
   const value = admit(target.label, target.parse, next);
-  if (eqOf(target)(readCell(layer, target), value)) return;
+  if (cellEq(target, readCell(layer, target), value)) return;
   ownCell(layer, target).value = value;
-  flushTree(layer);
+  flushCell(layer, target);
 }
 
 type TagOverlay = Map<Tag.Handle<unknown>, unknown[]>;
@@ -747,14 +751,14 @@ function presetFor(layer: Layer, node: unknown): unknown {
 
 function addWatcher(
   layer: Layer,
-  read: () => unknown,
-  eq: (a: unknown, b: unknown) => boolean,
+  target: Data.Cell<unknown>,
   fn: (next: unknown) => void,
 ): () => void {
   ensureOpen(layer);
-  const w: Watcher = { read, last: read(), eq, fn };
-  (layer.watchers ??= new Set()).add(w);
-  return () => void layer.watchers?.delete(w);
+  const s = nodeState(layer, target);
+  const w: Watcher = { last: readCell(layer, target), fn };
+  (s.watchers ??= new Set()).add(w);
+  return () => void s.watchers?.delete(w);
 }
 
 function dataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataController<T> {
@@ -768,7 +772,7 @@ function dataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataContro
       writeCell(layer, target, fn(read()));
     },
     watch: (listener: (next: T) => void) =>
-      addWatcher(layer, read as () => unknown, eqOf(target), listener as (next: unknown) => void),
+      addWatcher(layer, target, listener as (next: unknown) => void),
   };
 }
 
@@ -1719,7 +1723,7 @@ function releaseNode(layer: Layer, target: Node): void {
   const affected = new Map<Layer, Released>();
   const dataReleased = invalidateAffected(collectAffected(target, targetOwner), affected);
   try {
-    if (dataReleased) flushTree(layer);
+    if (dataReleased && isData(target)) flushCell(layer, target);
   } finally {
     let prev: Promise<void> | undefined;
     for (const [owner, entry] of byDepthDesc(affected)) {
@@ -1921,7 +1925,6 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     nodes,
     presets,
     tags,
-    watchers: undefined,
     pending: new Set(),
     defers: [],
     aborted: false,
@@ -2196,7 +2199,6 @@ function finishLayer(layer: Layer): unknown[] | undefined {
   layer.nodes.clear();
   layer.presets = undefined;
   layer.tags = undefined;
-  layer.watchers = undefined;
   layer.pending.clear();
   layer.children.clear();
   layer.defers.length = 0;
