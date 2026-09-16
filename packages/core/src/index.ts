@@ -909,8 +909,6 @@ export function makeTestClock(options?: Clock.Options): Clock.Test {
   };
 }
 
-/** The observation state of a scope created without `observe`: nothing is ever recorded (no span is
- * opened, `history` stays empty), so one shared instance serves every such root. */
 const DEFAULT_OBS: Obs = {
   observing: false,
   clock: Date.now,
@@ -1348,8 +1346,9 @@ const LAZY_TRAPS = {
     return key === LAZY && real ? { ...real, enumerable: false } : real;
   },
   defineProperty: (t: LazyTarget, key: string | symbol, desc: PropertyDescriptor): boolean => {
-    const fresh = typeof key === "string" && lazyDepOf(t, key) !== undefined;
-    Object.defineProperty(t, key, fresh ? { ...PENDING_DESCRIPTOR, ...desc } : desc);
+    const valueOnly = "value" in desc && Object.keys(desc).length === 1;
+    const pending = valueOnly && typeof key === "string" && lazyDepOf(t, key) !== undefined;
+    Object.defineProperty(t, key, pending ? { ...PENDING_DESCRIPTOR, value: desc.value } : desc);
     return true;
   },
 };
@@ -1491,8 +1490,6 @@ function buildResource<T>(
   target: Resource.Handle<T>,
   parent: Observe.Span | undefined,
 ): unknown {
-  /** The node record is a stable object mutated in place (see {@link resourceController}), so one
-   * lookup serves the whole build: generation checks, the building flag, and publication. */
   const rec = nodeState(owner, target);
   const gen = rec.gen;
   const superseded = (): boolean => rec.gen !== gen;

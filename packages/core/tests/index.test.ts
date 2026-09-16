@@ -259,6 +259,27 @@ test("a read of a lazy dep key while that dep is still building sees undefined",
   expect(createScope().getController(top).resolve()).toBe("undefined");
 });
 
+test("a getter defined on a lazy dep key before it is read replaces that dep", () => {
+  let built = 0;
+  const leaf = resource({
+    label: "leaf",
+    factory: () => {
+      built += 1;
+      return 1;
+    },
+  });
+  const top = resource({
+    label: "top",
+    depends: { leaf },
+    factory: (deps) => {
+      Object.defineProperty(deps, "leaf", { get: () => 7 });
+      return deps.leaf;
+    },
+  });
+  expect(createScope().getController(top).resolve()).toBe(7);
+  expect(built).toBe(0);
+});
+
 test("a write through an object inheriting from deps lands on the child, not on deps", () => {
   const leaf = resource({ label: "leaf", factory: () => 1 });
   const top = resource({
