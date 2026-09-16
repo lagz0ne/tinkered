@@ -1,6 +1,15 @@
-import type { Scope } from "@tinker/core";
+import type { Data, Scope } from "@tinker/core";
 import type { ReactNode } from "react";
-import { createContext, createElement, useContext, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  createElement,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { raise } from "./errors.ts";
 
 export { isError } from "./errors.ts";
@@ -64,4 +73,18 @@ export function useScope(): Scope.Handle {
   const scope = useContext(ScopeContext);
   if (!scope) raise("NoProvider", { hook: "useScope" });
   return scope;
+}
+
+/** Reactively read a `data` cell: returns its current value and re-renders when it changes. Backed
+ * by `useSyncExternalStore` over the cell's `watch`/`get`, so reads never tear. */
+export function useData<T>(cell: Data.Cell<T>): T {
+  const scope = useScope();
+  const store = useMemo(() => {
+    const controller = scope.getController(cell);
+    return {
+      subscribe: (onChange: () => void) => controller.watch(onChange),
+      getSnapshot: () => controller.get(),
+    };
+  }, [scope, cell]);
+  return useSyncExternalStore(store.subscribe, store.getSnapshot);
 }

@@ -16,8 +16,8 @@ tracer bullet with one decisive browser-mode behavior test. Gate each with
 - [x] **r01 — Browser harness + async fixture.** DONE (tag `react/r01`, commit `fdf1ac4`): a Suspense
       tree resolves in real chromium when the deferred fixture settles — no timers; `vp check` +
       workspace tests green.
-- [ ] **r02 — `<ScopeProvider>` + `useScope`.** Verify: a component reads the Handle; `create=` mode
-      fires teardown once on unmount; no-provider raises a registry error.
+- [x] **r02 — `<ScopeProvider>` + `useScope`.** DONE (tag `react/r02`, commit `0a36e80`): reads the
+      Handle; `create=` closes once on unmount; no-provider raises `NoProvider`. Under astra review.
 - [ ] **r03 — `useData` reactive read.** Verify: external `set` re-renders; snapshot stable; unmount unsubscribes.
 - [ ] **r04 — `useController` write.** Verify: button `set` re-renders a reader; write-only component does not subscribe.
 - [ ] **r05 — `useData` selector + `isEqual`.** Verify: unrelated field change → no re-render; slice change → re-render.
