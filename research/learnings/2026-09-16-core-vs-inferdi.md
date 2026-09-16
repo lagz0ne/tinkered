@@ -117,3 +117,29 @@ or a plain field. Landed in `9e86001` (swept into the t22 commit by a concurrent
 
 Micro-costs on this box: `new Set()` ≈ 18 ns, `new Map()` ≈ 26 ns, a 27-field object ≈ 40 ns, eight
 closures + object ≈ 60 ns, `[]` ≈ free.
+
+## Runs 19–21 and standing after the session
+
+- keep (run 19): one `NodeState` lookup per build — the record is stable per (owner, node) and already
+  the basis of the warm controller cache, so generation checks, the building flag, and publication all
+  use it; `finishAsyncBuild` takes the record. cold −10%.
+- keep (run 20): lazy deps need no per-build `Map` — a key is lazy while it names a resource in the
+  handle's immutable `depends` and is not yet an own property of the deps target. cold −14%.
+- discard (run 21): inlining the `canPublish` closure — noise.
+
+Standing (clean standalone probe, `taskset -c 7`, min ns/iter), session start → end:
+
+| scenario                                 | start | end | InferDI |
+| ---------------------------------------- | ----- | --- | ------- |
+| createScope                              | 161   | 156 | —       |
+| cold make+resolve (2 resources, arity 1) | 3353  | 663 | 197     |
+| cold make+resolve, arity-2 factory       | 3169  | 392 | —       |
+| op run (warm scope)                      | 532   | 134 | —       |
+| warm resolve                             | 20    | 20  | 9       |
+| single read                              | 8.7   | 8.3 | 9.6     |
+| create+resolve+close                     | 4090  | 857 | —       |
+
+The cold gap is now ~3.4x (was 4.6x before the clock work, ~17x after it). Remaining cost is the
+per-build closures (`superseded`, `settled`, edge hook), the Proxy itself, the per-resolve controller
+pair, and the layer's eager `children`/`pending` Sets (~18 ns each) — all small, and the last is 26
+call sites of `?.` for ~35 ns.
