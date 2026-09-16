@@ -94,6 +94,44 @@ test("a stable object selector without isEqual keeps its result identity across 
   await scope.close();
 });
 
+test("a new inline selector after a parent re-render shows its output and still follows the cell", async () => {
+  const scope = createScope();
+
+  function Swapper({ pick }: { pick: "a" | "b" }): React.ReactElement {
+    const value = useData(box, (v) => (pick === "a" ? v.a : v.b));
+    return <p>picked:{value}</p>;
+  }
+
+  function Parent(): React.ReactElement {
+    const [pick, setPick] = useState<"a" | "b">("a");
+    return (
+      <button type="button" onClick={() => setPick("b")}>
+        pick:{pick}
+        <Swapper pick={pick} />
+      </button>
+    );
+  }
+
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <Parent />
+    </ScopeProvider>,
+  );
+
+  await expect.element(screen.getByText("picked:1")).toBeVisible();
+  scope.getController(box).update((v) => ({ ...v, b: 9 }));
+  await expect.element(screen.getByText("picked:1")).toBeVisible();
+
+  await screen.getByRole("button").click();
+  await expect.element(screen.getByText("pick:b")).toBeVisible();
+  await expect.element(screen.getByText("picked:9")).toBeVisible();
+
+  scope.getController(box).update((v) => ({ ...v, b: 10 }));
+  await expect.element(screen.getByText("picked:10")).toBeVisible();
+
+  await scope.close();
+});
+
 test("a custom isEqual suppresses re-render for a new slice it treats as equal", async () => {
   const scope = createScope();
   let renders = 0;

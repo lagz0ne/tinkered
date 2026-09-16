@@ -150,10 +150,9 @@ export function useData<T, S>(
 ): T | S | UseData.Pair<T, T | S> {
   const { selector, isEqual, writable } = readDataArgs(a, b);
   const scope = useScope();
-  const store = useMemo(
-    () => createDataStore(scope.getController(cell), selector, isEqual),
-    [scope, cell, selector, isEqual],
-  );
+  const store = useMemo(() => createDataStore<T, S>(scope.getController(cell)), [scope, cell]);
+  store.select = selector ?? (identity as (value: T) => S);
+  store.equal = (isEqual ?? Object.is) as (a: S, b: S) => boolean;
   const value = useSyncExternalStore(store.subscribe, store.read, store.read);
   return writable ? [value, store.set] : value;
 }
@@ -178,30 +177,43 @@ function readDataArgs<T, S>(
 
 function createDataStore<T, S>(
   controller: Scope.DataController<T>,
-  selector: ((value: T) => S) | undefined,
-  isEqual: ((a: S, b: S) => boolean) | undefined,
 ): {
+  select: (value: T) => S;
+  equal: (a: S, b: S) => boolean;
   subscribe: (notify: () => void) => () => void;
   read: () => S;
   set: (value: T) => void;
 } {
-  const select: (value: T) => S = selector ?? (identity as (value: T) => S);
-  const equal: (a: S, b: S) => boolean = isEqual ?? Object.is;
-  let memo: { raw: T; slice: S } | undefined = undefined;
-  const read = (): S => {
-    const raw = controller.get();
-    const prev = memo;
-    if (prev !== undefined && Object.is(prev.raw, raw)) return prev.slice;
-    const slice = select(raw);
-    if (prev !== undefined && equal(prev.slice, slice)) return prev.slice;
-    memo = { raw, slice };
-    return slice;
-  };
-  return {
+  let memo:
+    | { raw: T; slice: S; select: (value: T) => S; equal: (a: S, b: S) => boolean }
+    | undefined = undefined;
+  const store: {
+    select: (value: T) => S;
+    equal: (a: S, b: S) => boolean;
+    subscribe: (notify: () => void) => () => void;
+    read: () => S;
+    set: (value: T) => void;
+  } = {
+    select: identity as (value: T) => S,
+    equal: Object.is,
     subscribe: (notify: () => void) => controller.watch(notify),
-    read,
+    read: (): S => {
+      const raw = controller.get();
+      const prev = memo;
+      if (prev !== undefined && prev.select === store.select && prev.equal === store.equal) {
+        if (Object.is(prev.raw, raw)) return prev.slice;
+        const slice = store.select(raw);
+        const kept = store.equal(prev.slice, slice) ? prev.slice : slice;
+        memo = { raw, slice: kept, select: store.select, equal: store.equal };
+        return kept;
+      }
+      const fresh = store.select(raw);
+      memo = { raw, slice: fresh, select: store.select, equal: store.equal };
+      return fresh;
+    },
     set: (value: T) => controller.set(value),
   };
+  return store;
 }
 
 /** The nearest scope's read/write controller for a `data` cell (`get`/`read`/`set`/`update`/`watch`).
