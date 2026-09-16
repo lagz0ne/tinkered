@@ -43,8 +43,11 @@ tracer bullet with one decisive browser-mode behavior test. Gate each with
       sessions created, discarded one closed (creates-closes==1), live session read with no Disposed.
 - [x] **r14 — `useRelease` + retry.** DONE (tag `react/r14`, commit `43042ce`, SHIP): retry (release + boundary reset)
       rebuilds a failed resource green; releasing a cell reverts it + notifies readers.
-- [x] **r15 — `useSpans` read.** DONE (tag `react/r15`, commit `1de3521`): snapshot read of span history — op +
-      resource spans surface when observation on; empty when off. (Not push-reactive: core has no span subscription.) Under review.
+- [x] **r15 — `useSpans` read.** DONE (tag `react/r15`, commit `55efa3c`, SHIP): snapshot read of span history — op +
+      resource spans surface when observation on; empty when off. (Not push-reactive: core has no span subscription.)
+- [x] **r16 — Opt-in React span emission.** DONE (tag `react/r16`, commit `1502db1`): added core `scope.event()`;
+      `<ScopeProvider emit>` → `useResource`/`useResolve` emit `react.*` spans; off = none; behavior-neutral. Under review.
+      NOTE: core changed (event API + r08 sticky failure) → r17 must re-validate core budgets.
 - [ ] **r10 — `useResolve` error + `reset`.** Verify: error stays in `error`/`status` (no boundary throw); `reset()`→idle.
 - [ ] **r11 — `<SessionProvider>` lifecycle.** Verify: unmount forces-close (session resource `defer` rolls back); nearest-Handle-wins; write shadowed.
 - [ ] **r12 — `target:"session"` sharing.** Verify: one instance per provider (siblings distinct); `target:"scope"` shared across.

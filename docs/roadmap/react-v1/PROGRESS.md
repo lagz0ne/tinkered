@@ -79,7 +79,7 @@ Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its 
 | react/r13 | StrictMode double-mount safety          | 11       | [x]    |
 | react/r14 | `useRelease` + retry/reset              | 08       | [x]    |
 | react/r15 | `useSpans` read                         | 07, 09   | [x]    |
-| react/r16 | Opt-in React span emission              | 15       | [ ]    |
+| react/r16 | Opt-in React span emission              | 15       | [x]    |
 | react/r17 | v1 validation milestone                 | 01–16    | [ ]    |
 
 Parallel frontier once r01→r02 land: **r03 ‖ r06 ‖ r09** are independent. Then r04,r05 off
