@@ -1191,6 +1191,11 @@ function runDefers(
   return undefined;
 }
 
+/** Seed a call's tag overlay, or undefined when the call carries no tag bindings. */
+function seedOverlay(call: Scope.Invocation<unknown> | undefined): TagOverlay | undefined {
+  return call?.tags?.length ? seedTags(call.tags) : undefined;
+}
+
 /** Parse a command's raw input once, at the process edge (no parser means void input). */
 function parseInput<I>(target: Operation.Command<unknown, I>, rawInput: unknown): I {
   return (target.input ? target.input(rawInput) : undefined) as I;
@@ -1278,7 +1283,7 @@ function commandController<T, I>(
     let result: T;
     buildDepth++;
     try {
-      const overlay = call?.tags?.length ? seedTags(call.tags) : undefined;
+      const overlay = seedOverlay(call);
       let input: I;
       let rawInput: unknown;
       if (call !== undefined && call.input !== undefined) {
@@ -1298,10 +1303,15 @@ function commandController<T, I>(
     } finally {
       buildDepth--;
     }
-    track(layer, result, asPrimary(layer), (status, error) => {
-      if (span) closeSpan(obs, span, status);
-      finishDefers(status, error);
-    });
+    if (!isThenable(result)) {
+      if (span) closeSpan(obs, span, "ok");
+      finishDefers("ok");
+    } else {
+      track(layer, result, asPrimary(layer), (status, error) => {
+        if (span) closeSpan(obs, span, status);
+        finishDefers(status, error);
+      });
+    }
     return result;
   };
   return { resolve } as Scope.CommandController<T, I>;
