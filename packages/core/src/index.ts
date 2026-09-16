@@ -1180,18 +1180,28 @@ function readCall<T, I>(
 /** The ctx an operation body receives. A class with a prototype `signal` accessor (see
  * {@link EmptyCtx} for why not an object literal with a getter). */
 class OperationCtx<I> implements Operation.Ctx<I> {
+  private owner: Layer;
+  private defers: ((end: Scope.End) => void | PromiseLike<void>)[];
+  readonly label: string;
+  readonly rawInput: unknown;
+  readonly input: I;
   readonly obs: Observe.Ctx;
   readonly log: (message: string, attributes?: Record<string, unknown>) => void;
   readonly clock: Clock.Handle;
   constructor(
-    private owner: Layer,
-    readonly label: string,
-    readonly rawInput: unknown,
-    readonly input: I,
-    private defers: ((end: Scope.End) => void | PromiseLike<void>)[],
+    owner: Layer,
+    label: string,
+    rawInput: unknown,
+    input: I,
+    defers: ((end: Scope.End) => void | PromiseLike<void>)[],
     obs: Obs,
     span: Observe.Span | undefined,
   ) {
+    this.owner = owner;
+    this.defers = defers;
+    this.label = label;
+    this.rawInput = rawInput;
+    this.input = input;
     this.obs = obsCtx(obs, span);
     this.log = logFor(obs, span);
     this.clock = owner.clock;
@@ -1382,18 +1392,26 @@ function resolveResourceDeps(
  * most once per layer. `defer` closes over the build's `settled`/`superseded` so late registration
  * behaves correctly. */
 class ResourceCtx implements Resource.Ctx {
+  private owner: Layer;
+  private target: Resource.Handle<unknown>;
+  private isSettled: () => boolean;
+  private superseded: () => boolean;
   readonly label: string;
   readonly obs: Observe.Ctx;
   readonly log: (message: string, attributes?: Record<string, unknown>) => void;
   readonly clock: Clock.Handle;
   constructor(
-    private owner: Layer,
-    private target: Resource.Handle<unknown>,
+    owner: Layer,
+    target: Resource.Handle<unknown>,
     obs: Obs,
     span: Observe.Span | undefined,
-    private isSettled: () => boolean,
-    private superseded: () => boolean,
+    isSettled: () => boolean,
+    superseded: () => boolean,
   ) {
+    this.owner = owner;
+    this.target = target;
+    this.isSettled = isSettled;
+    this.superseded = superseded;
     this.label = target.label;
     this.obs = obsCtx(obs, span);
     this.log = logFor(obs, span);
@@ -1437,7 +1455,9 @@ class EmptyCtx implements Resource.Ctx {
   readonly obs = OFF_OBS;
   readonly log = OFF_LOG;
   readonly clock: Clock.Handle;
-  constructor(private owner: Layer) {
+  private owner: Layer;
+  constructor(owner: Layer) {
+    this.owner = owner;
     this.clock = owner.clock;
   }
   defer(): void {
