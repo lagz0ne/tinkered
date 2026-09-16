@@ -147,3 +147,19 @@ call sites of `?.` for ~35 ns.
 Rule learned from the validate gate: the promises/deep/heap lanes load the TS source under
 `node --experimental-strip-types`, which rejects TS-only syntax such as constructor parameter properties
 (`constructor(private owner: Layer)`). Declare fields explicitly; `vp check`/tsdown do not catch this.
+
+## Review rounds on the batch (astra, static, 4 rounds → SHIP at 425b1cd)
+
+- r1: the lazy-deps Proxy must report every real own key (names + symbols) or a non-enumerable extra
+  property breaks enumeration; a value-only write to a pending key through the synthetic descriptor
+  produced a frozen property; pending keys must be walked the way `buildDeps` walks `depends`.
+- r2: a `set` trap that ignores its receiver breaks setters and `Object.create(deps)` writes — drop it and
+  let ordinary [[Set]] run; fix the frozen-property case in a `defineProperty` trap instead. Consumed
+  keys belong in private state (a `Set` on the lazy state, made on first build, ≈ +20–30 ns cold), not in
+  a public `undefined` property.
+- r3: complete only value-only descriptors; accessor/partial ones are forwarded unchanged.
+- Kept as designed: ctx `signal` stays a prototype accessor (eager = +80 ns/layer and +430 ns `abort()`
+  per forced close); `target as LazyTarget` stays (a branded construction would allocate).
+
+Final standing at `425b1cd` (standalone probe): cold make+resolve ≈ 715 ns (session start 3353),
+op run ≈ 134, create+resolve+close ≈ 927 (start 4090); mutation 79.13%; all validate lanes PASS.
