@@ -4,7 +4,8 @@
 # Source checks (S*) run on .ts/.tsx that are not tests.
 # Test checks (T*) run on *.test.ts / *.test.tsx / *.spec.ts / *.spec.tsx.
 # Watch checks (W*) are reported, never enforced; the formatter or a reviewer decides.
-# --strict exits 1 when any S* or T* id has a hit.
+# Performance checks (P*) run on source and are enforced like S*.
+# --strict exits 1 when any S*, T*, or P* id has a hit.
 set -euo pipefail
 
 strict=0
@@ -51,6 +52,12 @@ T06|test|cast through unknown|as unknown as
 T08|test|isError inside expect (guard used as assertion)|expect\(isError\(
 T09|test|mutation-score or coverage named in a test title|(test|it)\("[^"]*(mutant|mutation|coverage)
 T07|test|instanceof or message assert around an error|\.(toBeInstanceOf|toThrowErrorMatchingInlineSnapshot)\(|toThrow\("[^"]+"\)
+P01|src|accessor in an object literal (class + prototype accessor)|^[[:space:]]{4,}(get|set) [A-Za-z_]+\(
+P02|src|constructor parameter property (strip-types rejects)|constructor\((private|protected|public|readonly) |^[[:space:]]+(private|protected|public|readonly) [A-Za-z_]+\??: [^;]*[,)][[:space:]]*$
+P03|src|Object.defineProperty on a hot path|Object\.define(Property|Properties)\(
+P04|src|Set/Map seeded from an array literal (use add/set)|new (Set|Map)\(\[
+W10|src|Proxy creation (share one trap object)|new Proxy\(
+W11|src|bind(this) (arrow field instead)|\.bind\(this\)
 W01|src|readonly modifier|\breadonly\b
 W02|src|as const|\bas const\b
 W03|src|satisfies|\bsatisfies\b
@@ -77,7 +84,7 @@ while IFS='|' read -r id scope label regex; do
     count=$({ printf '%s\n' "$files" | xargs -r grep -nHP -- "$regex" 2>/dev/null || true; } | awk 'END { print NR + 0 }')
   fi
   printf '%-4s %6s  %s\n' "$id" "$count" "$label"
-  if (( strict )) && [[ "$id" == [ST]* ]] && (( count > 0 )); then
+  if (( strict )) && [[ "$id" == [STP]* ]] && (( count > 0 )); then
     failed+=" $id"
     { printf '%s\n' "$files" | xargs -r grep -nHP -- "$regex" 2>/dev/null || true; } | sed 's/^/    /'
   fi

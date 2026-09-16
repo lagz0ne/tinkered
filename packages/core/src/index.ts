@@ -1753,7 +1753,12 @@ function releaseSupersededDefer(
   target: Resource.Handle<unknown>,
   fn: (end: Scope.End) => void | PromiseLike<void>,
 ): void {
-  const done = drainBorrowAware(owner, new Set([target]), [fn], undefined);
+  const done = drainBorrowAware(
+    owner,
+    new Set<Resource.Handle<unknown>>().add(target),
+    [fn],
+    undefined,
+  );
   if (done) ignoreRejection(done);
 }
 
@@ -1850,8 +1855,7 @@ function collectBorrows(layer: Layer, depends: Scope.Depends): Borrow[] {
 
 function addBorrow(owner: Layer, resource: Resource.Handle<unknown>, work: Promise<unknown>): void {
   const s = nodeState(owner, resource);
-  if (s.borrowers) s.borrowers.add(work);
-  else s.borrowers = new Set([work]);
+  (s.borrowers ??= new Set()).add(work);
 }
 
 function removeBorrow(

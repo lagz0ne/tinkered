@@ -137,6 +137,58 @@ copies), `tests/tasks.test.ts` (five behavior tests at the public seam, one
 control-flow line to tell two failures apart). Read it before writing a new
 package. The root test run collects it, so it stays honest.
 
+## Performance
+
+Learned on `@tinker/core` (see `research/learnings/2026-09-16-core-vs-inferdi.md`). The
+hot path is anything a request pays: create a scope, build a resource, run an op, close.
+
+1. **Measure, then change, then measure.** One scenario per process, pinned to one
+   core, min ns/iter (`taskset -c N node --expose-gc <probe> <scenario>`). Grouped
+   benches and heap minima are GC-noisy; a change is kept only when the standalone
+   probe moves and no other scenario regresses. Record the numbers in the commit.
+
+2. **No accessor in an object literal.** `{ get x() {} }` is built through slow
+   runtime calls on every creation (measured 0.3–2.5 µs). A lazy member is a class
+   with a prototype accessor. A member that callers destructure (`{ defer }`) is an
+   arrow field on that class, never a method.
+
+3. **No `Object.defineProperty` on a hot path** (~300 ns). Shape objects with
+   fields, classes, or a Proxy with one shared trap object.
+
+4. **Allocate on first use, share what never changes.** Collections, controllers,
+   AbortControllers, and ctx objects are made when first read, not when the owner is
+   made. A default that is never mutated (observation off, empty ctx) is one shared
+   instance. Grow a `Set`/`Map` with `add`/`set`, not from an array literal.
+
+5. **One lookup per record.** Fetch a stable record once (`nodeState`) and use it for
+   every check and write in that operation; do not re-look it up through the map.
+
+6. **State on the instance, not in closures.** A per-instance handler or trap set
+   is one module-level object; the per-instance facts sit on the instance (a field,
+   or a symbol slot on a Proxy target reported non-enumerable).
+
+7. **Laziness has a price on the other side.** A lazily made signal costs an
+   `abort()` dispatch (~430 ns) on forced close once it exists; a lazy dep needs a
+   consumed state so a failed build is not retried. Measure the close/failure path
+   too.
+
+8. **Keep the public shape spreadable when the contract allows spread.** A value
+   users may copy with `{ ...x }` (a scope handle) stays an object of own
+   properties; prototype methods vanish in a copy. A ctx is passed by reference.
+
+9. **Only syntax `node --experimental-strip-types` accepts.** No constructor
+   parameter properties, enums, or namespaces with values; the budget lanes run the
+   source directly.
+
+10. **A perf change ships with** the probe numbers before/after, `vp check` and
+    `vp test` green, a seam test for every changed semantic, and a learnings entry.
+
+Review checklist for a perf diff: getter in a literal? defineProperty? eager
+collection or controller that most callers never use? repeated map lookups on the
+same record? per-instance closures where a shared object would do? failure and
+close paths measured? public spread contract kept? strip-types clean? numbers in
+the commit?
+
 ## Check
 
 Formatting and lint are the machine's job. Run, in order:
