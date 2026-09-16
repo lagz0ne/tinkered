@@ -8,6 +8,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
 } from "react";
@@ -111,6 +112,17 @@ export function useScope(): Scope.Handle {
   return scope;
 }
 
+export declare namespace UseData {
+  /** Options for {@link useData}: `writable` returns `[value, set]` (a `useState`-like pair) instead
+   * of the bare value; `isEqual` compares selected slices (default `Object.is`). */
+  export type Options<S> = {
+    readonly isEqual?: (a: S, b: S) => boolean;
+    readonly writable?: boolean;
+  };
+  /** The pair `useData(cell, { writable: true })` returns: the (selected) value and the cell's `set`. */
+  export type Pair<T, S> = readonly [value: S, set: (value: T) => void];
+}
+
 /** Reactively read a `data` cell: returns its current value and re-renders when it changes. */
 export function useData<T>(cell: Data.Cell<T>): T;
 /** Reactively read a slice of a `data` cell: returns `selector(value)` and re-renders only when the
@@ -120,27 +132,59 @@ export function useData<T, S>(
   selector: (value: T) => S,
   isEqual?: (a: S, b: S) => boolean,
 ): S;
+/** Read and write a `data` cell as a `useState`-like pair: `[value, set]`. */
+export function useData<T>(
+  cell: Data.Cell<T>,
+  options: UseData.Options<T> & { readonly writable: true },
+): UseData.Pair<T, T>;
+/** Read a slice and write the whole cell: `[selector(value), set]`. */
 export function useData<T, S>(
   cell: Data.Cell<T>,
-  selector?: (value: T) => S,
-  isEqual?: (a: S, b: S) => boolean,
-): T | S {
+  selector: (value: T) => S,
+  options: UseData.Options<S> & { readonly writable: true },
+): UseData.Pair<T, S>;
+export function useData<T, S>(
+  cell: Data.Cell<T>,
+  a?: ((value: T) => S) | UseData.Options<T>,
+  b?: ((a: S, b: S) => boolean) | UseData.Options<S>,
+): T | S | UseData.Pair<T, T | S> {
+  const { selector, isEqual, writable } = readDataArgs(a, b);
   const scope = useScope();
-  const store = useMemo(() => {
-    const controller = scope.getController(cell);
-    return {
+  const controller = useMemo(() => scope.getController(cell), [scope, cell]);
+  const store = useMemo(
+    () => ({
       subscribe: (onChange: () => void) => controller.watch(onChange),
       getSnapshot: () => controller.get(),
-    };
-  }, [scope, cell]);
-  const equal = isEqual as ((a: T | S, b: T | S) => boolean) | undefined;
-  return useSyncExternalStoreWithSelector<T, T | S>(
+    }),
+    [controller],
+  );
+  const value = useSyncExternalStoreWithSelector<T, T | S>(
     store.subscribe,
     store.getSnapshot,
     store.getSnapshot,
     selector ?? identity,
-    equal,
+    isEqual,
   );
+  const set = useCallback((next: T) => controller.set(next), [controller]);
+  return writable ? [value, set] : value;
+}
+
+function readDataArgs<T, S>(
+  a: ((value: T) => S) | UseData.Options<T> | undefined,
+  b: ((a: S, b: S) => boolean) | UseData.Options<S> | undefined,
+): {
+  selector: ((value: T) => S) | undefined;
+  isEqual: ((a: T | S, b: T | S) => boolean) | undefined;
+  writable: boolean;
+} {
+  const selector = typeof a === "function" ? a : undefined;
+  const options = typeof a === "function" ? (typeof b === "function" ? undefined : b) : a;
+  const isEqual = typeof b === "function" ? b : options?.isEqual;
+  return {
+    selector,
+    isEqual: isEqual as ((a: T | S, b: T | S) => boolean) | undefined,
+    writable: options?.writable === true,
+  };
 }
 
 /** The nearest scope's read/write controller for a `data` cell (`get`/`read`/`set`/`update`/`watch`).
@@ -151,17 +195,102 @@ export function useController<T>(cell: Data.Cell<T>): Scope.DataController<T> {
   return useMemo(() => scope.getController(cell), [scope, cell]);
 }
 
+type Outcome<T> =
+  | { readonly ok: true; readonly value: T }
+  | { readonly ok: false; readonly error: unknown };
+
+async function settle<T>(run: () => T): Promise<Outcome<Awaited<T>>> {
+  try {
+    return { ok: true, value: await run() };
+  } catch (error) {
+    return { ok: false, error };
+  }
+}
+
+export declare namespace Query {
+  /** Options for {@link useResource}: `suspense: false` renders a local status instead of suspending. */
+  export type Options = { readonly suspense?: boolean };
+  /** The build state of a resource read with `{ suspense: false }`: a synchronous build is `success`
+   * at once; an async build is `pending` until it settles; a failed build stays `error` until
+   * `refetch` (which releases the instance and builds a fresh generation). */
+  export type State<T> =
+    | { readonly status: "pending"; readonly data: undefined; readonly error: undefined }
+    | { readonly status: "success"; readonly data: T; readonly error: undefined }
+    | { readonly status: "error"; readonly data: undefined; readonly error: unknown };
+  export type Handle<T> = State<T> & {
+    readonly isPending: boolean;
+    readonly isSuccess: boolean;
+    readonly isError: boolean;
+    readonly refetch: () => void;
+  };
+}
+
+const QUERY_PENDING = { status: "pending", data: undefined, error: undefined } as const;
+
+type Settled<T> = { readonly key: PromiseLike<unknown>; readonly state: Query.State<T> };
+
+function queryHandle<T>(state: Query.State<T>, refetch: () => void): Query.Handle<T> {
+  return {
+    ...state,
+    isPending: state.status === "pending",
+    isSuccess: state.status === "success",
+    isError: state.status === "error",
+    refetch,
+  };
+}
+
 /** Read a resource's built value from the nearest scope. A synchronously-built resource returns its
  * value directly (no promise). An async build suspends: the promise is handed to React's `use`, so a
  * `<Suspense>` fallback shows while pending and the value renders once it settles. Core builds once
  * per owner and returns the same promise on every resolve (including a rejected build, which stays
- * until release), so a Suspense retry reuses that promise rather than rebuilding (ADR 0032). */
-export function useResource<T>(handle: Resource.Handle<T>): Awaited<T> {
+ * until release), so a Suspense retry reuses that promise rather than rebuilding (ADR 0032).
+ * With `{ suspense: false }` nothing suspends or throws: the hook returns a react-query-like
+ * `{ status, data, error, isPending, isSuccess, isError, refetch }` for a local loading state. */
+export function useResource<T>(
+  handle: Resource.Handle<T>,
+  options?: { suspense?: true },
+): Awaited<T>;
+export function useResource<T>(
+  handle: Resource.Handle<T>,
+  options: { suspense: false },
+): Query.Handle<Awaited<T>>;
+export function useResource<T>(
+  handle: Resource.Handle<T>,
+  options?: Query.Options,
+): Awaited<T> | Query.Handle<Awaited<T>> {
   const scope = useScope();
   const controller = useMemo(() => scope.getController(handle), [scope, handle]);
+  const [, bump] = useReducer((n: number) => n + 1, 0);
   const built = controller.resolve();
-  if (isThenable(built)) return use(built) as Awaited<T>;
-  return built as Awaited<T>;
+  const pending = isThenable(built) ? (built as PromiseLike<Awaited<T>>) : undefined;
+  const local = options?.suspense === false;
+  const settled = useSettled(local ? pending : undefined);
+  const refetch = useCallback(() => {
+    scope.release(handle);
+    bump();
+  }, [scope, handle]);
+  if (!local) return pending ? (use(pending) as Awaited<T>) : (built as Awaited<T>);
+  const state: Query.State<Awaited<T>> = pending
+    ? (settled ?? QUERY_PENDING)
+    : { status: "success", data: built as Awaited<T>, error: undefined };
+  return queryHandle(state, refetch);
+}
+
+/** The settled state of `pending`, or undefined while it is in flight (or when there is nothing to
+ * wait for). Keyed by promise identity, so a fresh promise after `refetch` reads as pending again. */
+function useSettled<T>(pending: PromiseLike<T> | undefined): Query.State<T> | undefined {
+  const [settled, setSettled] = useState<Settled<T> | undefined>(undefined);
+  useEffect(() => {
+    if (!pending) return;
+    let live = true;
+    settle(() => pending).then((outcome) => {
+      if (live) setSettled({ key: pending, state: settledState(outcome) });
+    }, noop);
+    return () => {
+      live = false;
+    };
+  }, [pending]);
+  return settled && settled.key === pending ? settled.state : undefined;
 }
 
 export declare namespace Resolve {
@@ -214,29 +343,14 @@ export declare namespace Resolve {
   };
 }
 
-type Outcome<T> =
-  | { readonly ok: true; readonly value: T }
-  | { readonly ok: false; readonly error: unknown };
-
-async function settle<T>(run: () => T): Promise<Outcome<Awaited<T>>> {
-  try {
-    return { ok: true, value: await run() };
-  } catch (error) {
-    return { ok: false, error };
-  }
-}
-
 const noop = (): void => undefined;
 
 const IDLE = { status: "idle", data: undefined, error: undefined, variables: undefined } as const;
 
-function settledState<T, I>(
-  outcome: Outcome<T>,
-  variables: Resolve.Variables<I>,
-): Resolve.State<T, I> {
+function settledState<T>(outcome: Outcome<T>): Query.State<T> {
   return outcome.ok
-    ? { status: "success", data: outcome.value, error: undefined, variables }
-    : { status: "error", data: undefined, error: outcome.error, variables };
+    ? { status: "success", data: outcome.value, error: undefined }
+    : { status: "error", data: undefined, error: outcome.error };
 }
 
 function notify<T, I>(
@@ -276,7 +390,7 @@ export function useResolve<T, I>(
       const [variables] = call;
       setState({ status: "pending", data: undefined, error: undefined, variables });
       const outcome = await settle(() => controller.resolve(...call));
-      if (runId.current === id) setState(settledState(outcome, variables));
+      if (runId.current === id) setState({ ...settledState(outcome), variables });
       notify(latest.current, outcome, variables);
       return outcome;
     },

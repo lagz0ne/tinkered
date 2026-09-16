@@ -33,6 +33,11 @@ resolveAsync, reset }`. `resolve(input)` fires and forgets from an event handler
   that needs the result; `options.onSuccess/onError/onSettled` fire per run. Errors stay in `error` and do
   **not** throw to an error boundary. (Amended 2026-09-16: was `{ resolve, status, data, error, reset }`
   with `resolve` returning `Promise<void>` — an awaited handle read as a query that runs on first touch.)
+- **Options, not more hooks (amended 2026-09-16).** The two shapes users also need are options on the
+  existing hooks: `useResource(handle, { suspense: false })` returns a react-query-like
+  `{ status, data, error, isPending, isSuccess, isError, refetch }` and never suspends or throws
+  (`refetch` releases and rebuilds); `useData(cell, { writable: true })` returns `[value, set]`
+  (with a selector, `[slice, set]`). Same subscriptions and caches underneath, one hook per concept.
 - **Retry/reset uses `useRelease()`.** A failed resource recovers by resetting the error boundary **and**
   calling `release(handle)` (core drops the failed instance; a re-resolve rebuilds a fresh generation).
   `useRelease()` returns a thin `release(cellOrResource)` over `scope.release`.
