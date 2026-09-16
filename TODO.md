@@ -45,9 +45,10 @@ tracer bullet with one decisive browser-mode behavior test. Gate each with
       rebuilds a failed resource green; releasing a cell reverts it + notifies readers.
 - [x] **r15 — `useSpans` read.** DONE (tag `react/r15`, commit `55efa3c`, SHIP): snapshot read of span history — op +
       resource spans surface when observation on; empty when off. (Not push-reactive: core has no span subscription.)
-- [x] **r16 — Opt-in React span emission.** DONE (tag `react/r16`, commit `fdd7760`, SHIP): added core `scope.event()`
-      (isolated, no-op off/closed); `<ScopeProvider emit>` → `useResource`/`useResolve` emit `react.*` root markers;
-      off = none; behavior-neutral. NOTE: core changed (event API + r08 sticky failure) → r17 re-validates core budgets.
+- [~] **r16 — Opt-in React span emission — REVERTED post-v1** (commit `85f2ae8`). Was built (markers via a new core
+  `scope.event()`) then removed: near-redundant with core's own work spans, and captured no React-only facts. The
+  useful version (observe a resolve's PENDING stage / per-component lifecycle) needs an observation redesign — see
+  `docs/roadmap/react-v1/PROGRESS.md`. Only r08's core change (sticky rejected build) remains; core re-validated.
 - [x] **r17 — v1 validation milestone.** DONE: react size 3.3 KB gzip (cap 10) ✓; cast-free README + `examples/basic.tsx` ✓;
       full seam green in browser (40 tests) ✓; core re-validated — mutation 77.47% (≥60), size 15.4 KB (cap 30), all
       `validate.mjs` lanes PASS. **@tinker/react v1 complete — all 17 tickets astra-reviewed to SHIP.**

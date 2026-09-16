@@ -25,16 +25,6 @@ function closeScope(scope: Scope.Handle): void {
   return void scope.close();
 }
 
-const EmitContext = createContext(false);
-
-function withScope(scope: Scope.Handle, emit: boolean, children: ReactNode): ReactNode {
-  return createElement(
-    ScopeContext.Provider,
-    { value: scope },
-    createElement(EmitContext.Provider, { value: emit, children }),
-  );
-}
-
 /** The stable no-selector fallback for {@link useData}: a module constant so the selector handed to
  * the store keeps a stable identity across renders (a fresh closure would defeat its memoization). */
 const identity = <V>(value: V): V => value;
@@ -46,21 +36,10 @@ const isThenable = (value: unknown): value is PromiseLike<unknown> =>
   typeof (value as { then?: unknown }).then === "function";
 
 /** Props for {@link ScopeProvider}: either an app-owned `scope` (the app closes it), or a `create`
- * factory the provider owns and closes on unmount. Exactly one. `emit` turns on the adapter's own
- * observation spans for component activity (off by default). */
+ * factory the provider owns and closes on unmount. Exactly one. */
 export type ScopeProviderProps =
-  | {
-      readonly scope: Scope.Handle;
-      readonly create?: never;
-      readonly emit?: boolean;
-      readonly children: ReactNode;
-    }
-  | {
-      readonly create: () => Scope.Handle;
-      readonly scope?: never;
-      readonly emit?: boolean;
-      readonly children: ReactNode;
-    };
+  | { readonly scope: Scope.Handle; readonly create?: never; readonly children: ReactNode }
+  | { readonly create: () => Scope.Handle; readonly scope?: never; readonly children: ReactNode };
 
 /** Own a created scope for a subtree: create it in an effect (never during render, so a discarded
  * or StrictMode-replayed render leaks nothing), publish it to children only once it exists, and
@@ -68,7 +47,6 @@ export type ScopeProviderProps =
  * each live mount and never leaves a closed scope on context for a consumer to touch (ADR 0031). */
 function OwnedScopeProvider(props: {
   readonly create: () => Scope.Handle;
-  readonly emit: boolean;
   readonly children: ReactNode;
 }): ReactNode {
   const createRef = useRef(props.create);
@@ -83,21 +61,16 @@ function OwnedScopeProvider(props: {
     };
   }, []);
   if (scope === undefined) return null;
-  return withScope(scope, props.emit, props.children);
+  return createElement(ScopeContext.Provider, { value: scope, children: props.children });
 }
 
 /** Put a `@tinker/core` scope on React context for the subtree. Hooks resolve against the nearest
  * provider's scope. */
 export function ScopeProvider(props: ScopeProviderProps): ReactNode {
-  const emit = props.emit ?? false;
   if (props.scope !== undefined) {
-    return withScope(props.scope, emit, props.children);
+    return createElement(ScopeContext.Provider, { value: props.scope, children: props.children });
   }
-  return createElement(OwnedScopeProvider, {
-    create: props.create,
-    emit,
-    children: props.children,
-  });
+  return createElement(OwnedScopeProvider, { create: props.create, children: props.children });
 }
 
 /** Open a child session for a subtree: created on mount from the nearest scope, force-closed on
@@ -185,11 +158,7 @@ export function useController<T>(cell: Data.Cell<T>): Scope.DataController<T> {
  * until release), so a Suspense retry reuses that promise rather than rebuilding (ADR 0032). */
 export function useResource<T>(handle: Resource.Handle<T>): Awaited<T> {
   const scope = useScope();
-  const on = useContext(EmitContext);
   const controller = useMemo(() => scope.getController(handle), [scope, handle]);
-  useEffect(() => {
-    if (on) scope.event("react.resource", { resource: handle.label });
-  }, [on, scope, handle]);
   const built = controller.resolve();
   if (isThenable(built)) return use(built) as Awaited<T>;
   return built as Awaited<T>;
@@ -233,13 +202,11 @@ const PENDING = { status: "pending", data: undefined, error: undefined } as cons
  * publishes: a slower earlier run that settles after a newer one (or after `reset`) is dropped. */
 export function useResolve<T, I>(op: Operation.Command<T, I>): Resolve.Handle<Awaited<T>, I> {
   const scope = useScope();
-  const on = useContext(EmitContext);
   const controller = useMemo(() => scope.getController(op), [scope, op]);
   const [state, setState] = useState<Resolve.State<Awaited<T>>>(IDLE);
   const runId = useRef(0);
   const resolve = useCallback(
     (...call: Scope.CallArgs<I>): Promise<void> => {
-      if (on) scope.event("react.resolve", { operation: op.label });
       const id = (runId.current += 1);
       setState(PENDING);
       return drive(
@@ -249,7 +216,7 @@ export function useResolve<T, I>(op: Operation.Command<T, I>): Resolve.Handle<Aw
         },
       );
     },
-    [controller, on, scope, op],
+    [controller],
   );
   const reset = useCallback((): void => {
     runId.current += 1;

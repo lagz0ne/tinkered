@@ -1972,40 +1972,6 @@ test("history is bounded and toggles independently of export and logging", () =>
   expect(logs).toEqual(["hi", "hi", "hi"]);
 });
 
-test("scope.event records a manual marker span; off it records nothing", () => {
-  const on = createScope({ observe: { history: 10 } });
-  on.event("react.suspend", { component: "Profile" });
-  const spans = on.spans();
-  expect(spans.length).toBe(1);
-  expect(spans[0].kind).toBe("manual");
-  expect(spans[0].name).toBe("react.suspend");
-  expect(spans[0].attributes.component).toBe("Profile");
-
-  const off = createScope();
-  off.event("react.suspend");
-  expect(off.spans()).toEqual([]);
-});
-
-test("scope.event isolates a throwing clock — it never escapes and records nothing", () => {
-  const scope = createScope({
-    observe: {
-      history: 10,
-      clock: () => {
-        throw new Error("clock-boom");
-      },
-    },
-  });
-  scope.event("x");
-  expect(scope.spans()).toEqual([]);
-});
-
-test("scope.event is a no-op after the scope is closed", async () => {
-  const scope = createScope({ observe: { history: 10 } });
-  await scope.close();
-  scope.event("late");
-  expect(scope.spans()).toEqual([]);
-});
-
 test("observation on keeps the command's returned value identity (behavior-neutral)", async () => {
   const promise = Promise.resolve(7);
   const op = operation({ label: "op", run: () => promise });

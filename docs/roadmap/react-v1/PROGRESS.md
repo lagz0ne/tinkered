@@ -92,13 +92,19 @@ All 17 tickets landed and **astra-reviewed to SHIP** (`codex/gpt-6-astra` xhigh 
 (sync / async-Suspense / failed→boundary), `useResolve` (success / error / reset), `useRelease`,
 `useSpans`, `isError`.
 
-Validation (r17): react bundle **3.3 KB gzip** (cap 10); cast-free `README` + `examples/basic.tsx`;
-full seam exercised by **40 browser behavior tests** (real chromium). Two core changes were needed and
-re-validated: a **sticky rejected build** (r08 — a failed async build is cached at the owner until
-release/close, so a Suspense retry doesn't loop) and **`scope.event()`** (r16 — a manual marker span
-for adapter emission). Core after both: mutation **77.47%** (≥ 60), size **15.4 KB** (cap 30), all
-deterministic `validate.mjs` lanes PASS.
+Validation (r17): cast-free `README` + `examples/basic.tsx`; full seam exercised by browser behavior
+tests (real chromium). One core change was needed and re-validated: a **sticky rejected build** (r08 —
+a failed async build is cached at the owner until release/close, so a Suspense retry doesn't loop).
 
-Deferred (noted, not blocking v1): span-emission markers are **root** spans (not nested under the work
-span — needs a core span-id API); react-package **mutation** lane (Stryker × browser mode is its own
-integration).
+**Post-v1 revert — r16 emission removed.** The opt-in `react.*` marker emission (r16) and the core
+`scope.event()` it used were **reverted**: as built, the markers only re-labeled work core already
+spans and never captured React-only facts (component identity, suspend/commit) — near-redundant. The
+useful version ("pending stage of a resolve"; per-component lifecycle) needs a real observation
+redesign — core records a span only on **close**, so a _pending_ resolve is invisible to `spans()`
+(confirmed empirically). Left for a dedicated design pass (a listener-gated, typed event bus +
+push-on-open pending spans), not a v1 bolt-on. `useSpans` remains (reads core's own work spans).
+
+Core after the revert: mutation ~77% (≥ 60), size ~15 KB (cap 30), all deterministic `validate.mjs`
+lanes PASS. react bundle **3.1 KB gzip** (cap 10).
+
+Deferred (noted): react-package **mutation** lane (Stryker × browser mode is its own integration).

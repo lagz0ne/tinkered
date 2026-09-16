@@ -317,11 +317,6 @@ export declare namespace Scope {
     onClose(fn: () => void | PromiseLike<void>): void;
     /** The retained span history (bounded by `observe.history`; empty when observation is off). */
     spans(): readonly Observe.Span[];
-    /** Record a manual marker span (kind `manual`) with `name` + `attributes` in this scope's
-     * observation — for an adapter to emit its own activity. Behavior-neutral: a no-op (allocating no
-     * span) when observation is off or the scope is closed, and isolated so a throwing `clock`/`export`
-     * never escapes into the caller. */
-    event(name: string, attributes?: Record<string, unknown>): void;
     /** Resolve once all in-flight command work owned by this scope has settled. */
     settled(): Promise<void>;
     /** Shut this scope down: close children first, join owned work, run outcome hooks then cleanup,
@@ -1898,14 +1893,6 @@ function handleFor(layer: Layer): Scope.Handle {
     }) as Scope.Handle["session"],
     release: (target: Data.Cell<unknown> | Resource.Handle<unknown>) => releaseNode(layer, target),
     spans: () => layer.obs.history.slice(),
-    event: (name: string, attributes?: Record<string, unknown>) => {
-      if (layer.closed) return;
-      isolate(() => {
-        const span = openSpan(layer.obs, undefined, name, "manual");
-        if (span && attributes) Object.assign(span.attributes, attributes);
-        closeSpan(layer.obs, span, "ok");
-      });
-    },
     onClose: (fn: () => void | PromiseLike<void>) => {
       ensureOpen(layer);
       layer.defers.push({ fn: () => fn(), resource: undefined });

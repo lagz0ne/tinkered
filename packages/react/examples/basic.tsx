@@ -68,7 +68,7 @@ function SpanCount(): React.ReactElement {
  * resource, an imperative operation, and a (manually refreshed) span inspector. */
 export function App(): React.ReactElement {
   return (
-    <ScopeProvider create={() => createScope({ observe: { history: 200 } })} emit>
+    <ScopeProvider create={() => createScope({ observe: { history: 200 } })}>
       <Counter />
       <Suspense fallback={<p>loading…</p>}>
         <ProfileCard />
