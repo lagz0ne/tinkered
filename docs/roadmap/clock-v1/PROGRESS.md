@@ -34,8 +34,8 @@ Linear; each ticket is one green checkpoint with a decisive, deterministic seam 
 | -------- | ------------------------------------------------------------------------------------------------ | -------- | ------ |
 | core/t20 | Ambient clock plumbing + `currentTimeMillis`/`Nanos` + `makeTestClock` (now/advance/setTime)     | —        | [x]    |
 | core/t21 | `sleep` on TestClock — virtual time + `advance` resolves + signal aborts a pending sleep         | 20       | [x]    |
-| core/t22 | `sleep` on systemClock — real `setTimeout`, signal clears + rejects, forced close → `cancelled`  | 20       | [ ]    |
-| core/t23 | Validation milestone — `pnpm validate` green, cast-free README + example, universal bundle; SHIP | 21, 22   | [ ]    |
+| core/t22 | `sleep` on systemClock — real `setTimeout`, signal clears + rejects, forced close → `cancelled`  | 20       | [x]    |
+| core/t23 | Validation milestone — `pnpm validate` green, cast-free README + example, universal bundle; SHIP | 21, 22   | [x]    |
 
 ### Verify (the observable proof for each)
 

@@ -25,13 +25,17 @@ Detail + reset recipes: `docs/roadmap/clock-v1/PROGRESS.md`.
       waiters woken in time order by `advance`/`setTime`, `sleep(0)` resolves immediately, abort drops the
       waiter + cleans its listener; systemClock uses real `setTimeout` with abort cleanup. Fixed census T02
       to allow `.sleep(`. 200 core tests, size 17.9 KB.
-- [ ] **t22 — `sleep` on systemClock (real time) + cancellation.** Real `setTimeout` honoring signal.
-      **Verify:** aborting the signal rejects promptly (no full-duration wait); a forced `close()` while an
-      op awaits a long `sleep` aborts it, the run settles `cancelled` (defer sees `cancelled`), `close()`
-      resolves a `cancelled` `Result` (ADR 0028).
-- [ ] **t23 — Validation milestone (SHIP).** **Verify:** `pnpm validate` all lanes green (size cap,
-      mutation ≥60 run isolated, cast-free examples, pure universal bundle); README +
-      `packages/core/examples/basic.ts` show the clock cast-free.
+- [x] **t22 — `sleep` cancellation via forced close (integration).** DONE (tag `core/t22`, commit
+      `6355916`, test-only). A forced `close()` aborts an in-flight `clock.sleep(60_000, signal)`; the
+      run's `defer` sees `cancelled` and `close()` resolves a `cancelled` `Result` (ADR 0028). 201 core
+      tests green. (systemClock real-timer abort path already tested in t21.) astra review batched with
+      tinkered-51's perf refactor — pending their commit-range ping.
+- [x] **t23 — Validation milestone (SHIP).** DONE + **SHIP** (tag `core/t23`, commit `425b1cd`; the
+      perf batch aee9954..425b1cd astra-reviewed 4 rounds to SHIP). `pnpm validate` all deterministic
+      lanes PASS (size 18.4 KB gzip, promises 0/5, deep OK, live heap 2567 B, CRAP, cast-free examples,
+      universal bundle); mutation 79.13% run isolated; 207 core + 38 react tests; style census OK.
+      README `@tinker/core` clock section + `packages/core/examples/basic.ts` `stamp` op show the clock
+      cast-free (snippet executed: 1000 → 1500, sleep woken by `advance`).
 
 ## Shipped — archived
 
