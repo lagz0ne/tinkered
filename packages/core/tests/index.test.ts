@@ -3887,3 +3887,22 @@ test("a test-clock sleep of zero resolves without advancing time", async () => {
   });
   expect(await createScope({ clock: clk }).getController(nap).resolve()).toBe("woke");
 });
+
+test("a forced close aborts an in-flight sleep: the run's defer sees cancelled and close settles cancelled", async () => {
+  let end: string | undefined;
+  const napping = operation({
+    label: "napping",
+    run: (_deps, { clock, signal, defer }) => {
+      defer((e) => {
+        end = e.status;
+      });
+      return clock.sleep(60_000, signal);
+    },
+  });
+  const scope = createScope();
+  const done = scope.getController(napping).resolve();
+  const result = await scope.close();
+  expect(result.status).toBe("cancelled");
+  expect(end).toBe("cancelled");
+  await expect(done).rejects.toBeDefined();
+});

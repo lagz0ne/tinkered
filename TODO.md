@@ -20,10 +20,11 @@ Detail + reset recipes: `docs/roadmap/clock-v1/PROGRESS.md`.
       `createScope({ clock: makeTestClock({ now: 1000 }) })` (no `Date` mock); default ≈ `Date.now`;
       session inherits parent clock (like `obs`, no override); nanos consistent with millis.
       `vp check` + `vp run -r test` + `core#size` green.
-- [ ] **t21 — `sleep` on TestClock (virtual time).** `sleep(ms)` schedules against virtual now;
-      `advance(ms)` resolves due sleeps; signal aborts a pending sleep.
-      **Verify:** `await clock.sleep(1000, signal)` unsettled before `advance`; `advance(1000)` resolves
-      it; abort before `advance` rejects with the signal reason and drops the wake. Deterministic (no timers).
+- [x] **t21 — `sleep` (testClock virtual + systemClock).** DONE + **SHIP** (tag `core/t21`, commit
+      `aee9954`; astra-reviewed, 2 rounds). `sleep(ms, signal?)` on `Clock`; testClock schedules virtual
+      waiters woken in time order by `advance`/`setTime`, `sleep(0)` resolves immediately, abort drops the
+      waiter + cleans its listener; systemClock uses real `setTimeout` with abort cleanup. Fixed census T02
+      to allow `.sleep(`. 200 core tests, size 17.9 KB.
 - [ ] **t22 — `sleep` on systemClock (real time) + cancellation.** Real `setTimeout` honoring signal.
       **Verify:** aborting the signal rejects promptly (no full-duration wait); a forced `close()` while an
       op awaits a long `sleep` aborts it, the run settles `cancelled` (defer sees `cancelled`), `close()`
