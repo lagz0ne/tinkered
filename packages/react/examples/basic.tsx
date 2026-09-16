@@ -47,7 +47,7 @@ function ProfileCard(): React.ReactElement {
 function SaveButton(): React.ReactElement {
   const run = useResolve(save);
   return (
-    <button type="button" onClick={() => void run.resolve({ rawInput: "doc" })}>
+    <button type="button" onClick={() => run.resolve({ rawInput: "doc" })}>
       {run.status === "success" ? run.data : "save"}
     </button>
   );

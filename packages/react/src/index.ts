@@ -226,6 +226,8 @@ async function settle<T>(run: () => T): Promise<Outcome<Awaited<T>>> {
   }
 }
 
+const noop = (): void => undefined;
+
 const IDLE = { status: "idle", data: undefined, error: undefined, variables: undefined } as const;
 
 function settledState<T, I>(
@@ -282,7 +284,7 @@ export function useResolve<T, I>(
   );
   const resolve = useCallback(
     (...call: Scope.CallArgs<I>): void => {
-      run(call);
+      run(call).catch(noop);
     },
     [run],
   );

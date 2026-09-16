@@ -13,7 +13,7 @@ function Inspector(): React.ReactElement {
   const names = spans.map((span) => span.name);
   return (
     <div>
-      <button type="button" onClick={() => void run.resolve()}>
+      <button type="button" onClick={() => run.resolve()}>
         go
       </button>
       <p>status:{run.status}</p>
