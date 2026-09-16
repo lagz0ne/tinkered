@@ -116,6 +116,9 @@ export declare namespace Clock {
     currentTimeMillis(): number;
     /** Wall-clock time as nanoseconds since the Unix epoch. */
     currentTimeNanos(): bigint;
+    /** Resolve after `ms` milliseconds. If `signal` aborts first, reject with its reason — pass
+     * `ctx.signal` to make the wait cancellable (a forced scope close aborts it). */
+    sleep(ms: number, signal?: AbortSignal): Promise<void>;
   };
 
   /** A controllable clock for tests: reads a virtual time that moves only when advanced by hand.
@@ -846,20 +849,65 @@ const systemClock: Clock.Handle = {
   currentTimeMillis: () => Date.now(),
   currentTimeNanos: () =>
     nanosFromMillis(performance.timeOrigin) + nanosFromMillis(performance.now()),
+  sleep: (ms, signal) =>
+    new Promise<void>((resolve, reject) => {
+      if (signal?.aborted) return reject(signal.reason);
+      if (!signal) {
+        setTimeout(resolve, ms);
+        return;
+      }
+      let id: ReturnType<typeof setTimeout>;
+      const onAbort = (): void => {
+        clearTimeout(id);
+        reject(signal.reason);
+      };
+      id = setTimeout(() => {
+        signal.removeEventListener("abort", onAbort);
+        resolve();
+      }, ms);
+      signal.addEventListener("abort", onAbort, { once: true });
+    }),
 };
 
 /** Create a controllable clock for tests: virtual time starts at `now` (default `0`) and only
  * moves when you call `advance`/`setTime`. Pass it to `createScope({ clock })` (ADR 0034). */
 export function makeTestClock(options?: Clock.Options): Clock.Test {
   let now = options?.now ?? 0;
+  const waiters = new Set<{ at: number; wake: () => void }>();
+  const drain = (): void => {
+    for (const w of [...waiters].sort((a, b) => a.at - b.at)) {
+      if (w.at <= now) {
+        waiters.delete(w);
+        w.wake();
+      }
+    }
+  };
   return {
     currentTimeMillis: () => Math.trunc(now),
     currentTimeNanos: () => nanosFromMillis(now),
+    sleep: (ms, signal) =>
+      new Promise<void>((resolve, reject) => {
+        if (signal?.aborted) return reject(signal.reason);
+        const w = { at: now + ms, wake: resolve };
+        waiters.add(w);
+        if (signal) {
+          signal.addEventListener(
+            "abort",
+            () => {
+              waiters.delete(w);
+              reject(signal.reason);
+            },
+            { once: true },
+          );
+        }
+      }),
     advance: (ms) => {
       now += ms;
+      drain();
     },
     setTime: (ms) => {
       now = ms;
+      drain();
     },
   };
 }

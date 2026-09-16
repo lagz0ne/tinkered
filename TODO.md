@@ -11,12 +11,11 @@ An ambient `Clock` on every `ctx`, Effect's default-service model, swapped by a 
 `scripts/ticket.sh <NN> "<title>"` (tag `core/t<NN>`) then astra-review to SHIP.
 Detail + reset recipes: `docs/roadmap/clock-v1/PROGRESS.md`.
 
-- [x] **t20 — Ambient clock plumbing + reads + TestClock.** DONE (tag `core/t20`, commit `6c3610f`;
-      under astra review). Gate green: `vp check` 0 errors, 194 core + 38 react tests pass, size 17.7 KB
-      gzip (cap 30). Added `Clock` type, `systemClock`,
-      `Scope.Options.clock?`, a layer `clock` inherited from the parent (like `obs`), and thread
-      `clock` into op + resource ctx + `EMPTY_CTX`; add `makeTestClock({ now })` (`currentTimeMillis`,
-      `currentTimeNanos`, `advance`, `setTime`).
+- [x] **t20 — Ambient clock plumbing + reads + TestClock.** DONE + **SHIP** (tag `core/t20`, commit
+      `0a9a47f`; astra-reviewed, 3 rounds). Gate green: `vp check` 0 errors, 196 core + 38 react tests,
+      size 17.6 KB gzip (cap 30). Added `Clock` type, `systemClock`, `makeTestClock` (millis/nanos/
+      advance/setTime), `Scope.Options.clock?`, a layer `clock` inherited from the parent (like `obs`),
+      threaded `clock` into op + resource ctx + a per-layer empty ctx (`emptyCtxFor`).
       **Verify:** op reads `clock.currentTimeMillis()` → returns `1000` under
       `createScope({ clock: makeTestClock({ now: 1000 }) })` (no `Date` mock); default ≈ `Date.now`;
       session inherits parent clock (like `obs`, no override); nanos consistent with millis.

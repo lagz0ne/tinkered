@@ -50,6 +50,9 @@ Linear; each ticket is one green checkpoint with a decisive, deterministic seam 
     Also: system `currentTimeNanos` now high-res via `performance` (precision-safe split);
     `makeTestClock` truncates millis and is fraction-safe; `setTime` now has a test; default-clock
     test bounded by a second `Date.now()`; private-helper TSDoc removed.
+  - _rounds 2 → 3 (FIX → SHIP):_ high-res nanos precision (convert `timeOrigin`/`now()` to BigInt
+    separately, add exactly); fractional regression test (`now: 2.5` → millis `2`, nanos `2_500_000n`);
+    `Layer.emptyCtx` comment removed. **SHIP at `0a9a47f`** (astra, 3 rounds).
 - **t21** — an op does `await clock.sleep(1000, signal)`; the promise is unsettled before
   `advance`; `testClock.advance(1000)` resolves it; `advance(500)` twice also resolves it; aborting
   the signal before `advance` rejects with the signal reason and drops the scheduled wake.

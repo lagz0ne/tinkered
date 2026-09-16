@@ -3836,3 +3836,45 @@ test("a resource factory that defaults its deps param still reads the injected c
     .resolve();
   expect(built).toBe(777);
 });
+
+test("a test-clock sleep resolves only once virtual time is advanced past it", async () => {
+  const clk = makeTestClock({ now: 0 });
+  const nap = operation({
+    label: "nap",
+    run: (_deps, { clock, signal }) =>
+      clock.sleep(1000, signal).then(() => clock.currentTimeMillis()),
+  });
+  const woke = createScope({ clock: clk }).getController(nap).resolve();
+  let done = false;
+  void woke.then(() => {
+    done = true;
+  });
+  clk.advance(500);
+  await Promise.resolve();
+  expect(done).toBe(false);
+  clk.advance(500);
+  expect(await woke).toBe(1000);
+});
+
+test("aborting a pending test-clock sleep rejects with the reason and drops the scheduled wake", async () => {
+  const clk = makeTestClock({ now: 0 });
+  const ac = new AbortController();
+  const cause = new Error("stop");
+  const nap = operation({ label: "nap", run: (_deps, { clock }) => clock.sleep(1000, ac.signal) });
+  const p = createScope({ clock: clk }).getController(nap).resolve();
+  ac.abort(cause);
+  await expect(p).rejects.toBe(cause);
+  clk.advance(2000);
+});
+
+test("a system-clock sleep rejects with the reason when its signal aborts", async () => {
+  const ac = new AbortController();
+  const cause = new Error("halt");
+  const nap = operation({
+    label: "sysnap",
+    run: (_deps, { clock }) => clock.sleep(60_000, ac.signal),
+  });
+  const p = createScope().getController(nap).resolve();
+  ac.abort(cause);
+  await expect(p).rejects.toBe(cause);
+});
