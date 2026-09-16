@@ -143,3 +143,7 @@ The cold gap is now ~3.4x (was 4.6x before the clock work, ~17x after it). Remai
 per-build closures (`superseded`, `settled`, edge hook), the Proxy itself, the per-resolve controller
 pair, and the layer's eager `children`/`pending` Sets (~18 ns each) — all small, and the last is 26
 call sites of `?.` for ~35 ns.
+
+Rule learned from the validate gate: the promises/deep/heap lanes load the TS source under
+`node --experimental-strip-types`, which rejects TS-only syntax such as constructor parameter properties
+(`constructor(private owner: Layer)`). Declare fields explicitly; `vp check`/tsdown do not catch this.
