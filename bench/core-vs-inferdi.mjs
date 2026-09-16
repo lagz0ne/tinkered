@@ -14,12 +14,16 @@
 import { bench, group, run, summary } from "mitata";
 import { Container } from "@inferdi/inferdi";
 
-const { createScope, data, operation, resource } = await import("../packages/core/dist/index.mjs");
+const { createScope, data, resource } = await import("../packages/core/dist/index.mjs");
 
 // Shared graph shape: cfg (value 21) -> doubled (cfg*2) -> store ({ base: doubled }).
+// `doubled` is a RESOURCE (built instance), not an operation: an operation dependency is delivered
+// as a controller (you call .resolve() yourself), so `store.base` would be a controller and tinker
+// would skip the cfg*2 work InferDI actually does. As a resource dep it resolves to the value (42),
+// making the graphs equivalent.
 // --- tinker definitions (module-level, built once) ---
 const cfg = data({ label: "cfg", initial: 21 });
-const doubled = operation({ label: "doubled", depends: { n: cfg }, run: ({ n }) => n * 2 });
+const doubled = resource({ label: "doubled", depends: { n: cfg }, factory: ({ n }) => n * 2 });
 const store = resource({
   label: "store",
   depends: { d: doubled },
