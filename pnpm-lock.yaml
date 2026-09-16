@@ -217,9 +217,21 @@ importers:
       '@inferdi/inferdi':
         specifier: 'catalog:'
         version: 6.1.0
+      '@preact/signals-react':
+        specifier: ^3.12.0
+        version: 3.12.0(react@19.3.0)
       effect:
         specifier: 'catalog:'
         version: 3.22.2
+      jotai:
+        specifier: ^3.0.0
+        version: 3.0.0(@types/react@19.3.0)(react@19.3.0)
+      legend2:
+        specifier: npm:@legendapp/state@2.1.15
+        version: '@legendapp/state@2.1.15(react@19.3.0)'
+      legend3:
+        specifier: npm:@legendapp/state@3.0.0-beta.48
+        version: '@legendapp/state@3.0.0-beta.48(react@19.3.0)'
       mitata:
         specifier: 'catalog:'
         version: 1.0.34
@@ -699,6 +711,22 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
+  '@legendapp/state@2.1.15':
+    resolution: {integrity: sha512-7/8Rgg7m38eznupr36QJeSkrtbhVxaRtQvRMjdBigSm+HW3ZIFgMtUX1DqZ2hJxbPqqAJamw5s+TLs8dRstUNw==}
+    peerDependencies:
+      react: '>=16.8.0'
+    peerDependenciesMeta:
+      react:
+        optional: true
+
+  '@legendapp/state@3.0.0-beta.48':
+    resolution: {integrity: sha512-aa7vpUSoBHnXQhYf2x/10C0w1EiesegRhR7LuxnIcEPyZzZyuSF2mevf1jphlh0zzqwIJm9QxnsayDNn8/kwcA==}
+    peerDependencies:
+      expo-sqlite: ^15.0.0
+    peerDependenciesMeta:
+      expo-sqlite:
+        optional: true
+
   '@oxc-project/runtime@0.148.0':
     resolution: {integrity: sha512-0ExYgJZv8+nFuoV0T/xzX5ZyXFXwkHJFJg9LWTwhqgRLpe+IzBLirvyYKSdS8mPofTBKAjDYIA2o84xh5BHXew==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -986,6 +1014,14 @@ packages:
 
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
+
+  '@preact/signals-core@1.14.4':
+    resolution: {integrity: sha512-HNB6HYeYKhQbJ1aKl+YRjrS4+QWHLKX6qKoUsfS/m0vqzsVaEBiZiaKbG/e+NKk2ch5ALQr/ihWaMHxiCuuWHA==}
+
+  '@preact/signals-react@3.12.0':
+    resolution: {integrity: sha512-o3zBSekC/RPcsHOYTLagjw6JX0ih5eMMFZE0AICEeuk7p3MrYOyEXxM7bmT1Uqi0jPy2pbuDQZTFXYe55IAFVg==}
+    peerDependencies:
+      react: ^16.14.0 || 17.x || 18.x || 19.x
 
   '@quansync/fs@1.0.0':
     resolution: {integrity: sha512-4TJ3DFtlf1L5LDMaM6CanJ/0lckGNtJcMjQ1NAV6zDmA0tEHKZtxNKin8EgPaVX1YzljbxckyT2tJrpQKAtngQ==}
@@ -1756,6 +1792,18 @@ packages:
   jiti@2.7.0:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
     hasBin: true
+
+  jotai@3.0.0:
+    resolution: {integrity: sha512-KxhbmsJUp/tmrv6aZgO+nzB3H9K8C0xmk5i3aGkwy/EANg73DVBkggv3zVHaAi5PlNlQgTgP4uiVepo+JC+wSA==}
+    engines: {node: '>=22.12.0'}
+    peerDependencies:
+      '@types/react': '>=18.0.0'
+      react: '>=18.0.0'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      react:
+        optional: true
 
   js-md4@0.3.2:
     resolution: {integrity: sha512-/GDnfQYsltsjRswQhN9fhv3EMw2sCpUdrdxyWDOUK7eyD++r3gRhzgiQgc/x4MAv2i1iuQ4lxO5mvqM3vj4bwA==}
@@ -2702,6 +2750,18 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
+  '@legendapp/state@2.1.15(react@19.3.0)':
+    dependencies:
+      use-sync-external-store: 1.7.0(react@19.3.0)
+    optionalDependencies:
+      react: 19.3.0
+
+  '@legendapp/state@3.0.0-beta.48(react@19.3.0)':
+    dependencies:
+      use-sync-external-store: 1.7.0(react@19.3.0)
+    transitivePeerDependencies:
+      - react
+
   '@oxc-project/runtime@0.148.0': {}
 
   '@oxc-project/types@0.148.0': {}
@@ -2841,6 +2901,14 @@ snapshots:
   '@oxlint/plugins@1.79.0': {}
 
   '@polka/url@1.0.0-next.29': {}
+
+  '@preact/signals-core@1.14.4': {}
+
+  '@preact/signals-react@3.12.0(react@19.3.0)':
+    dependencies:
+      '@preact/signals-core': 1.14.4
+      react: 19.3.0
+      use-sync-external-store: 1.7.0(react@19.3.0)
 
   '@quansync/fs@1.0.0':
     dependencies:
@@ -3485,6 +3553,11 @@ snapshots:
   isexe@2.0.0: {}
 
   jiti@2.7.0: {}
+
+  jotai@3.0.0(@types/react@19.3.0)(react@19.3.0):
+    optionalDependencies:
+      '@types/react': 19.3.0
+      react: 19.3.0
 
   js-md4@0.3.2: {}
 
