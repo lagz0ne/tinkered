@@ -1189,7 +1189,7 @@ function readCall<T, I>(
 
 class OperationCtx<I> implements Operation.Ctx<I> {
   private owner: Layer;
-  private defers: ((end: Scope.End) => void | PromiseLike<void>)[];
+  private defers: ((end: Scope.End) => void | PromiseLike<void>)[] | undefined = undefined;
   readonly label: string;
   readonly rawInput: unknown;
   readonly input: I;
@@ -1201,12 +1201,10 @@ class OperationCtx<I> implements Operation.Ctx<I> {
     label: string,
     rawInput: unknown,
     input: I,
-    defers: ((end: Scope.End) => void | PromiseLike<void>)[],
     obs: Obs,
     span: Observe.Span | undefined,
   ) {
     this.owner = owner;
-    this.defers = defers;
     this.label = label;
     this.rawInput = rawInput;
     this.input = input;
@@ -1215,8 +1213,11 @@ class OperationCtx<I> implements Operation.Ctx<I> {
     this.clock = owner.clock;
   }
   readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
-    this.defers.push(fn);
+    (this.defers ??= []).push(fn);
   };
+  registeredDefers(): ((end: Scope.End) => void | PromiseLike<void>)[] | undefined {
+    return this.defers;
+  }
   get signal(): AbortSignal {
     return signalOf(this.owner);
   }
@@ -1232,7 +1233,6 @@ function commandController<T, I>(
     const obs = layer.obs;
     const span = openSpan(obs, parent, target.label, "operation");
     const override = presetFor(layer, target) as Operation.Command<T, I>["run"] | undefined;
-    const defers: ((end: Scope.End) => void | PromiseLike<void>)[] = [];
     const borrowed: { owner: Layer; resource: Resource.Handle<unknown> }[] = [];
     /** Hold a borrow across the op's WHOLE lifetime — body settle (or a throw) AND its own `defer`
      * drain — so a release waits for the op's cleanup (which may still touch the resource) before
@@ -1246,8 +1246,14 @@ function commandController<T, I>(
       for (const b of borrowed) removeBorrow(b.owner, b.resource, borrow);
       settleBorrow();
     };
+    let ctx: OperationCtx<I> | undefined;
     const finishDefers = (status: "ok" | "failed", error?: unknown): void => {
-      const tail = runDefers(layer, defers, endFor(layer, status, error));
+      const fns = ctx?.registeredDefers();
+      if (fns === undefined || fns.length === 0) {
+        releaseBorrow();
+        return;
+      }
+      const tail = runDefers(layer, fns, endFor(layer, status, error));
       if (tail) ignoreRejection(tail.then(releaseBorrow, releaseBorrow));
       else releaseBorrow();
     };
@@ -1263,7 +1269,7 @@ function commandController<T, I>(
         for (const b of borrowed) addBorrow(b.owner, b.resource, borrow);
       }
       const deps = buildDeps(layer, target.depends, span, overlay, undefined);
-      const ctx = new OperationCtx<I>(layer, target.label, rawInput, input, defers, obs, span);
+      ctx = new OperationCtx<I>(layer, target.label, rawInput, input, obs, span);
       result = override ? override(deps, ctx) : target.run(deps, ctx);
     } catch (error) {
       closeSpan(obs, span, "failed");
