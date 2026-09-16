@@ -180,6 +180,64 @@ test("a resource dep the factory reads twice builds once and caches (lazy access
   expect(builds).toBe(1);
 });
 
+test("a deps object with an extra non-enumerable property still enumerates its lazy resource keys", () => {
+  const leaf = resource({ label: "leaf", factory: () => 1 });
+  const seen: string[][] = [];
+  const top = resource({
+    label: "top",
+    depends: { leaf },
+    factory: (deps) => {
+      Object.defineProperty(deps, "note", { value: "n" });
+      seen.push(Object.keys(deps), Object.keys({ ...deps }));
+      return deps.leaf;
+    },
+  });
+  expect(createScope().getController(top).resolve()).toBe(1);
+  expect(seen).toEqual([["leaf"], ["leaf"]]);
+});
+
+test("a factory that writes a lazy dep key before reading it keeps a plain property", () => {
+  const leaf = resource({ label: "leaf", factory: () => 1 });
+  const top = resource({
+    label: "top",
+    depends: { leaf },
+    factory: (deps: Record<string, unknown>) => {
+      deps.leaf = 5;
+      deps.leaf = 6;
+      return { copy: { ...deps }, keys: Object.keys(deps), value: deps.leaf };
+    },
+  });
+  expect(createScope().getController(top).resolve()).toEqual({
+    copy: { leaf: 6 },
+    keys: ["leaf"],
+    value: 6,
+  });
+});
+
+test("after a lazy dep's build throws, reading it again does not build again", () => {
+  let builds = 0;
+  const bad = resource({
+    label: "bad",
+    factory: () => {
+      builds += 1;
+      throw new Error("boom");
+    },
+  });
+  const top = resource({
+    label: "top",
+    depends: { bad },
+    factory: (deps) => {
+      try {
+        return String(deps.bad);
+      } catch {
+        return deps.bad;
+      }
+    },
+  });
+  expect(createScope().getController(top).resolve()).toBeUndefined();
+  expect(builds).toBe(1);
+});
+
 test("an operation dep the run never reads is never built (lazy deps)", () => {
   let builds = 0;
   const unused = resource({ label: "unused", factory: () => ({ n: ++builds }) });

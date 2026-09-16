@@ -1177,8 +1177,7 @@ function readCall<T, I>(
   return { input, rawInput, overlay };
 }
 
-/** The ctx an operation body receives. A class with a prototype `signal` accessor (see
- * {@link EmptyCtx} for why not an object literal with a getter). */
+/** The ctx an operation body receives: `signal` is a prototype accessor (materialized on first read). */
 class OperationCtx<I> implements Operation.Ctx<I> {
   private owner: Layer;
   private defers: ((end: Scope.End) => void | PromiseLike<void>)[];
@@ -1290,10 +1289,10 @@ type RegisterEdge = ((dep: Scope.Dependency) => void) | undefined;
  * `Object.values`/`for..in`/spread also triggers the build (ownKeys + an enumerable descriptor + get),
  * so the enumeration contract holds. A Proxy get trap is ~7x cheaper than a per-build
  * `Object.defineProperty` accessor, and a body that never touches a key never builds it. */
-/** Per-deps lazy state, stashed on the deps target under a symbol so the handler needs no closures.
- * Symbol keys are invisible to `Object.keys`/`values`/`for..in`/JSON, so the factory never sees it.
- * A key is lazy while it names a resource in `depends` and is not yet an own property of the target
- * (building it writes the own property), so no per-build bookkeeping collection is needed. */
+/** Per-deps lazy state, stashed on the deps target under a symbol (reported non-enumerable, so
+ * `Object.keys`/`values`/`for..in`/spread/JSON never show it). A key is lazy while it names a resource
+ * in `depends` and is not yet an own property of the target: building it (or a body writing it) makes
+ * it own. A failed build leaves the key own as `undefined`, so a later read does not build again. */
 const LAZY = Symbol("lazy");
 type LazyState = {
   depends: Scope.Depends;
@@ -1301,39 +1300,56 @@ type LazyState = {
   span: Observe.Span | undefined;
   registerEdge: RegisterEdge;
 };
-type LazyTarget = Record<string, unknown> & { [LAZY]: LazyState };
+type LazyTarget = Record<string | symbol, unknown> & { [LAZY]: LazyState };
 
-const isLazyKey = (t: LazyTarget, key: string | symbol): key is string => {
-  if (typeof key !== "string" || Object.hasOwn(t, key)) return false;
+function lazyDepOf(t: LazyTarget, key: string): Resource.Handle<unknown> | undefined {
+  if (Object.hasOwn(t, key)) return undefined;
   const dep = t[LAZY].depends[key];
-  return dep !== undefined && isResource(dep);
-};
-
-function buildLazyDep(t: LazyTarget, key: string): void {
-  const { depends, layer, span, registerEdge } = t[LAZY];
-  const dep = depends[key] as Scope.Dependency;
-  registerEdge?.(dep);
-  t[key] = resolveDep(layer, dep, span, undefined);
+  return dep !== undefined && isResource(dep) ? dep : undefined;
 }
 
-/** One shared handler for every lazy deps proxy (state lives on the target, see {@link LAZY}). */
+function buildLazyDep(t: LazyTarget, key: string, dep: Resource.Handle<unknown>): void {
+  const { layer, span, registerEdge } = t[LAZY];
+  registerEdge?.(dep);
+  try {
+    t[key] = resolveDep(layer, dep, span, undefined);
+  } catch (error) {
+    t[key] = undefined;
+    throw error;
+  }
+}
+
+function pendingLazyKeys(t: LazyTarget): string[] {
+  const keys: string[] = [];
+  for (const key in t[LAZY].depends) if (lazyDepOf(t, key)) keys.push(key);
+  return keys;
+}
+
 const LAZY_TRAPS = {
   get: (t: LazyTarget, key: string | symbol): unknown => {
-    if (isLazyKey(t, key)) buildLazyDep(t, key);
-    return t[key as string];
+    const dep = typeof key === "string" ? lazyDepOf(t, key) : undefined;
+    if (dep) buildLazyDep(t, key as string, dep);
+    return t[key];
   },
-  has: (t: LazyTarget, key: string | symbol): boolean => isLazyKey(t, key) || key in t,
-  ownKeys: (t: LazyTarget): string[] => [
-    ...Object.keys(t),
-    ...Object.keys(t[LAZY].depends).filter((k) => isLazyKey(t, k)),
+  set: (t: LazyTarget, key: string | symbol, value: unknown): boolean => {
+    t[key] = value;
+    return true;
+  },
+  has: (t: LazyTarget, key: string | symbol): boolean =>
+    (typeof key === "string" && lazyDepOf(t, key) !== undefined) || key in t,
+  ownKeys: (t: LazyTarget): (string | symbol)[] => [
+    ...Object.getOwnPropertyNames(t),
+    ...Object.getOwnPropertySymbols(t),
+    ...pendingLazyKeys(t),
   ],
   getOwnPropertyDescriptor: (
     t: LazyTarget,
     key: string | symbol,
   ): PropertyDescriptor | undefined => {
-    if (isLazyKey(t, key))
+    if (typeof key === "string" && lazyDepOf(t, key))
       return { enumerable: true, configurable: true, writable: true, value: undefined };
-    return Object.getOwnPropertyDescriptor(t, key);
+    const real = Object.getOwnPropertyDescriptor(t, key);
+    return key === LAZY && real ? { ...real, enumerable: false } : real;
   },
 };
 
@@ -1449,10 +1465,7 @@ function buildCtx(
 }
 
 /** The ctx a resource factory that declares no ctx param (arity < 2) receives: one per layer, made on
- * first use, carrying that layer's clock and (lazily) its signal so an injected clock is honored even
- * on the arity-skip path. A class with prototype accessors, not an object literal with a getter: V8
- * builds a literal that holds an accessor through slow runtime calls on every creation (~2.5 µs measured
- * per scope), while a class instance is one small allocation. */
+ * first use, carrying that layer's clock and (lazily) its signal. */
 class EmptyCtx implements Resource.Ctx {
   readonly label = "";
   readonly obs = OFF_OBS;
@@ -1463,9 +1476,9 @@ class EmptyCtx implements Resource.Ctx {
     this.owner = owner;
     this.clock = owner.clock;
   }
-  defer(): void {
+  readonly defer = (): void => {
     raise("Disposed", { reason: "resource factory declared no ctx" });
-  }
+  };
   get signal(): AbortSignal {
     return signalOf(this.owner);
   }
