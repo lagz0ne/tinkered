@@ -548,9 +548,10 @@ type Layer = {
   /** Single node-keyed store: cells, effective-cache, resources, builds, generations, build-flag,
    * borrowers, dependents, and cached controllers all live in one {@link NodeState} per node. */
   nodes: Map<object, NodeState>;
-  presets: Map<unknown, unknown>;
-  tags: Map<Tag.Handle<unknown>, unknown[]>;
-  watchers: Set<Watcher>;
+  /** Lazily allocated: empty unless the scope was seeded with presets/tags or a watcher was added. */
+  presets: Map<unknown, unknown> | undefined;
+  tags: Map<Tag.Handle<unknown>, unknown[]> | undefined;
+  watchers: Set<Watcher> | undefined;
   pending: Set<Promise<unknown>>;
   defers: DeferEntry[];
   abort: AbortController;
@@ -621,13 +622,15 @@ function ownCell(layer: Layer, target: Data.Cell<unknown>): Entry {
 
 /** Fire watchers on this layer, then descendants (inherited reads see the change; shadowed ones don't). */
 function flushTree(layer: Layer): void {
-  for (const w of layer.watchers) {
-    const next = w.read();
-    if (!w.eq(w.last, next)) {
-      w.last = next;
-      w.fn(next);
+  const ws = layer.watchers;
+  if (ws)
+    for (const w of ws) {
+      const next = w.read();
+      if (!w.eq(w.last, next)) {
+        w.last = next;
+        w.fn(next);
+      }
     }
-  }
   for (const child of layer.children) flushTree(child);
 }
 
@@ -641,16 +644,21 @@ function writeCell<T>(layer: Layer, target: Data.Cell<T>, next: unknown): void {
 
 type TagOverlay = Map<Tag.Handle<unknown>, unknown[]>;
 
+/** The last value of a tag list (its nearest binding), or undefined for an absent/empty list. */
+function topTag(list: unknown[] | undefined): { present: true; value: unknown } | undefined {
+  return list && list.length ? { present: true, value: list[list.length - 1] } : undefined;
+}
+
 function tagFind(
   layer: Layer,
   target: Tag.Handle<unknown>,
   overlay?: TagOverlay,
 ): Tag.Presence<unknown> {
-  const front = overlay?.get(target);
-  if (front && front.length) return { present: true, value: front[front.length - 1] };
+  const front = topTag(overlay?.get(target));
+  if (front) return front;
   for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
-    const list = cur.tags.get(target);
-    if (list && list.length) return { present: true, value: list[list.length - 1] };
+    const hit = topTag(cur.tags?.get(target));
+    if (hit) return hit;
   }
   return target.hasDefault ? { present: true, value: target.def } : { present: false };
 }
@@ -660,7 +668,7 @@ function tagAll(layer: Layer, target: Tag.Handle<unknown>, overlay?: TagOverlay)
   const front = overlay?.get(target);
   if (front) for (let i = front.length - 1; i >= 0; i--) out.push(front[i]);
   for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
-    const list = cur.tags.get(target);
+    const list = cur.tags?.get(target);
     if (list) for (let i = list.length - 1; i >= 0; i--) out.push(list[i]);
   }
   return out;
@@ -675,7 +683,8 @@ function tagRequired(layer: Layer, target: Tag.Handle<unknown>, overlay?: TagOve
 /** The nearest preset replacement for a command/resource node up the chain, or undefined. */
 function presetFor(layer: Layer, node: unknown): unknown {
   for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
-    if (cur.presets.has(node)) return cur.presets.get(node);
+    const p = cur.presets;
+    if (p?.has(node)) return p.get(node);
   }
   return undefined;
 }
@@ -688,8 +697,8 @@ function addWatcher(
 ): () => void {
   ensureOpen(layer);
   const w: Watcher = { read, last: read(), eq, fn };
-  layer.watchers.add(w);
-  return () => void layer.watchers.delete(w);
+  (layer.watchers ??= new Set()).add(w);
+  return () => void layer.watchers?.delete(w);
 }
 
 function dataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataController<T> {
@@ -1567,9 +1576,10 @@ function collectBorrowers(
 
 function seedTags(
   bindings: readonly Tag.Binding<unknown>[] | undefined,
-): Map<Tag.Handle<unknown>, unknown[]> {
+): Map<Tag.Handle<unknown>, unknown[]> | undefined {
+  if (!bindings || bindings.length === 0) return undefined;
   const tags = new Map<Tag.Handle<unknown>, unknown[]>();
-  for (const binding of bindings ?? []) {
+  for (const binding of bindings) {
     const list = tags.get(binding.tag) ?? [];
     list.push(binding.value);
     tags.set(binding.tag, list);
@@ -1579,17 +1589,17 @@ function seedTags(
 
 function seedPresets(seeds: readonly Scope.Preset[] | undefined): {
   nodes: Map<object, NodeState>;
-  presets: Map<unknown, unknown>;
+  presets: Map<unknown, unknown> | undefined;
 } {
   const nodes = new Map<object, NodeState>();
-  const presets = new Map<unknown, unknown>();
+  let presets: Map<unknown, unknown> | undefined;
   for (const p of seeds ?? []) {
     const node = p.node;
     if (isData(node)) {
       const s = new NodeState();
       s.cell = { value: admit(node.label, node.parse, p.replacement) };
       nodes.set(node, s);
-    } else presets.set(node, p.replacement);
+    } else (presets ??= new Map()).set(node, p.replacement);
   }
   return { nodes, presets };
 }
@@ -1603,7 +1613,7 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     nodes,
     presets,
     tags,
-    watchers: new Set(),
+    watchers: undefined,
     pending: new Set(),
     defers: [],
     abort: new AbortController(),
@@ -1827,9 +1837,9 @@ function finishLayer(layer: Layer): unknown[] | undefined {
     }
   }
   layer.nodes.clear();
-  layer.presets.clear();
-  layer.tags.clear();
-  layer.watchers.clear();
+  layer.presets = undefined;
+  layer.tags = undefined;
+  layer.watchers = undefined;
   layer.pending.clear();
   layer.children.clear();
   layer.defers.length = 0;
