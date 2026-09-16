@@ -6,7 +6,7 @@ import { ScopeProvider, useResolve } from "../src/index.ts";
 import { Catch } from "./support/boundary.tsx";
 import { deferred } from "./support/deferred.ts";
 
-type Resolver = (...call: Scope.CallArgs<number>) => Promise<void>;
+type Resolver = (...call: Scope.CallArgs<number>) => Promise<number>;
 type Ctl = { readonly resolve: Resolver; readonly reset: () => void };
 type Snapshot = { readonly status: string; readonly data: unknown; readonly error: unknown };
 
@@ -25,7 +25,7 @@ function OpRunner<T>({
   if (run.status === "error") captured = run.error;
   return (
     <div>
-      <button type="button" onClick={() => void run.resolve(call)}>
+      <button type="button" onClick={() => run.resolve(call)}>
         go
       </button>
       <button type="button" onClick={() => run.reset()}>
@@ -44,7 +44,7 @@ function Exposer({
   bind: (ctl: Ctl) => void;
 }): React.ReactElement {
   const run = useResolve(op);
-  bind({ resolve: run.resolve, reset: run.reset });
+  bind({ resolve: run.resolveAsync, reset: run.reset });
   last = { status: run.status, data: run.data, error: run.error };
   return <p>status:{run.status}</p>;
 }

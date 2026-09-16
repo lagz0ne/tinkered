@@ -46,18 +46,18 @@ function App() {
 
 ## The seam
 
-| export            | what it does                                                                                                                               |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ScopeProvider`   | Puts a scope on context: `scope={handle}` (app-owned) or `create={() => …}` (owned, closed on unmount).                                    |
-| `SessionProvider` | Opens a child session for the subtree; **unmount force-closes it** (resources roll back). Nearest `Handle` wins; writes shadow the parent. |
-| `useScope`        | The nearest scope `Handle` (raises `NoProvider` outside a provider).                                                                       |
-| `useData`         | Reactive read of a cell; `useData(cell, selector, isEqual?)` reads a slice.                                                                |
-| `useController`   | A cell's read/write controller for writes; a write-only view subscribes to nothing.                                                        |
-| `useResource`     | A resource's built value; async builds **suspend**, a failed build throws to the error boundary.                                           |
-| `useResolve`      | Run an operation imperatively: `{ status, data, error, resolve, reset }`. Never suspends.                                                  |
-| `useRelease`      | `release(cellOrResource)` — revert a cell, or drop a resource so a retry rebuilds it.                                                      |
-| `useSpans`        | A snapshot of the scope's span history (for an inspector; observation must be on).                                                         |
-| `isError`         | Narrow an unknown error to this package's registry (`NoProvider`).                                                                         |
+| export            | what it does                                                                                                                                                                                                               |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ScopeProvider`   | Puts a scope on context: `scope={handle}` (app-owned) or `create={() => …}` (owned, closed on unmount).                                                                                                                    |
+| `SessionProvider` | Opens a child session for the subtree; **unmount force-closes it** (resources roll back). Nearest `Handle` wins; writes shadow the parent.                                                                                 |
+| `useScope`        | The nearest scope `Handle` (raises `NoProvider` outside a provider).                                                                                                                                                       |
+| `useData`         | Reactive read of a cell; `useData(cell, selector, isEqual?)` reads a slice.                                                                                                                                                |
+| `useController`   | A cell's read/write controller for writes; a write-only view subscribes to nothing.                                                                                                                                        |
+| `useResource`     | A resource's built value; async builds **suspend**, a failed build throws to the error boundary.                                                                                                                           |
+| `useResolve`      | Run an operation imperatively, react-query mutation shape: `{ status, data, error, variables, isIdle/isPending/isSuccess/isError, resolve, resolveAsync, reset }` + `onSuccess/onError/onSettled` options. Never suspends. |
+| `useRelease`      | `release(cellOrResource)` — revert a cell, or drop a resource so a retry rebuilds it.                                                                                                                                      |
+| `useSpans`        | A snapshot of the scope's span history (for an inspector; observation must be on).                                                                                                                                         |
+| `isError`         | Narrow an unknown error to this package's registry (`NoProvider`).                                                                                                                                                         |
 
 ## Testing
 

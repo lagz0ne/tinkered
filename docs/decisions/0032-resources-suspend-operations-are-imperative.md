@@ -26,9 +26,13 @@ both kinds through one hook shape would misrepresent core's own semantics.
   owner (a `target:"scope"` resource read from two sessions) and would go stale on release/close/cascade,
   which core's owner cache already handles. Because react tests load `@tinker/core` from `dist`, the react
   gate rebuilds core first.
-- **`useResolve(op)` is imperative, never suspends.** It returns `{ resolve, status, data, error, reset }`.
-  You call `resolve(input)` from an event handler; `status` (`idle`/`pending`/`success`/`error`) drives
-  local UI; errors stay in `error` and do **not** throw to an error boundary. This is the mutation shape.
+- **`useResolve(op, options?)` is imperative, never suspends.** It is shaped like react-query's
+  `useMutation`: `{ status, data, error, variables, isIdle, isPending, isSuccess, isError, resolve,
+resolveAsync, reset }`. `resolve(input)` fires and forgets from an event handler (the outcome lands in
+  state, `variables` is the call); `resolveAsync(input)` also returns the value or rejects, for a handler
+  that needs the result; `options.onSuccess/onError/onSettled` fire per run. Errors stay in `error` and do
+  **not** throw to an error boundary. (Amended 2026-09-16: was `{ resolve, status, data, error, reset }`
+  with `resolve` returning `Promise<void>` — an awaited handle read as a query that runs on first touch.)
 - **Retry/reset uses `useRelease()`.** A failed resource recovers by resetting the error boundary **and**
   calling `release(handle)` (core drops the failed instance; a re-resolve rebuilds a fresh generation).
   `useRelease()` returns a thin `release(cellOrResource)` over `scope.release`.

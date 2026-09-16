@@ -165,64 +165,149 @@ export function useResource<T>(handle: Resource.Handle<T>): Awaited<T> {
 }
 
 export declare namespace Resolve {
-  /** The settled state of the latest {@link useResolve} run. */
-  export type State<T> =
-    | { readonly status: "idle"; readonly data: undefined; readonly error: undefined }
-    | { readonly status: "pending"; readonly data: undefined; readonly error: undefined }
-    | { readonly status: "success"; readonly data: T; readonly error: undefined }
-    | { readonly status: "error"; readonly data: undefined; readonly error: unknown };
-  /** What {@link useResolve} returns: the current {@link State} plus the imperative `resolve`/`reset`.
-   * `resolve` returns a `Promise<void>` that settles when the run does (it routes success/failure into
-   * state and never rejects), so a caller may await it or ignore it. */
-  export type Handle<T, I> = State<T> & {
-    readonly resolve: (...call: Scope.CallArgs<I>) => Promise<void>;
+  /** The call a run was made with: the first argument of {@link useResolve}'s `resolve`. */
+  export type Variables<I> = Scope.CallArgs<I>[0];
+  /** The settled state of the latest {@link useResolve} run, shaped like a react-query mutation:
+   * `status` plus `data`/`error`/`variables` and one boolean per status. */
+  export type State<T, I> =
+    | {
+        readonly status: "idle";
+        readonly data: undefined;
+        readonly error: undefined;
+        readonly variables: undefined;
+      }
+    | {
+        readonly status: "pending";
+        readonly data: undefined;
+        readonly error: undefined;
+        readonly variables: Variables<I>;
+      }
+    | {
+        readonly status: "success";
+        readonly data: T;
+        readonly error: undefined;
+        readonly variables: Variables<I>;
+      }
+    | {
+        readonly status: "error";
+        readonly data: undefined;
+        readonly error: unknown;
+        readonly variables: Variables<I>;
+      };
+  /** Hook-level callbacks, fired for every run when it settles (success, failure, then either way). */
+  export type Options<T, I> = {
+    readonly onSuccess?: (data: T, variables: Variables<I>) => void;
+    readonly onError?: (error: unknown, variables: Variables<I>) => void;
+    readonly onSettled?: (data: T | undefined, error: unknown, variables: Variables<I>) => void;
+  };
+  /** What {@link useResolve} returns: the current {@link State}, one boolean per status, and the
+   * imperative `resolve` (fire-and-forget: the outcome lands in state), `resolveAsync` (returns the
+   * value, rejects with the failure — for callers that need the result in a handler) and `reset`. */
+  export type Handle<T, I> = State<T, I> & {
+    readonly isIdle: boolean;
+    readonly isPending: boolean;
+    readonly isSuccess: boolean;
+    readonly isError: boolean;
+    readonly resolve: (...call: Scope.CallArgs<I>) => void;
+    readonly resolveAsync: (...call: Scope.CallArgs<I>) => Promise<T>;
     readonly reset: () => void;
   };
 }
 
-async function drive<T>(
-  run: () => T,
-  set: (state: Resolve.State<Awaited<T>>) => void,
-): Promise<void> {
+type Outcome<T> =
+  | { readonly ok: true; readonly value: T }
+  | { readonly ok: false; readonly error: unknown };
+
+async function settle<T>(run: () => T): Promise<Outcome<Awaited<T>>> {
   try {
-    const value = await run();
-    set({ status: "success", data: value, error: undefined });
+    return { ok: true, value: await run() };
   } catch (error) {
-    set({ status: "error", data: undefined, error });
+    return { ok: false, error };
   }
 }
 
-const IDLE = { status: "idle", data: undefined, error: undefined } as const;
-const PENDING = { status: "pending", data: undefined, error: undefined } as const;
+const IDLE = { status: "idle", data: undefined, error: undefined, variables: undefined } as const;
 
-/** Run an operation imperatively (a mutation): never suspends. Returns the current `{ status, data,
- * error }` plus `resolve(input)` (a `Promise<void>` you may await) to run it from an event handler and
- * `reset()` to return to idle. `status` moves idle→pending→success/error; a rejection stays in `error`
- * (it does not throw to an error boundary — that is {@link useResource}'s job). Only the latest run
- * publishes: a slower earlier run that settles after a newer one (or after `reset`) is dropped. */
-export function useResolve<T, I>(op: Operation.Command<T, I>): Resolve.Handle<Awaited<T>, I> {
+function settledState<T, I>(
+  outcome: Outcome<T>,
+  variables: Resolve.Variables<I>,
+): Resolve.State<T, I> {
+  return outcome.ok
+    ? { status: "success", data: outcome.value, error: undefined, variables }
+    : { status: "error", data: undefined, error: outcome.error, variables };
+}
+
+function notify<T, I>(
+  on: Resolve.Options<T, I> | undefined,
+  outcome: Outcome<T>,
+  variables: Resolve.Variables<I>,
+): void {
+  if (!on) return;
+  if (outcome.ok) on.onSuccess?.(outcome.value, variables);
+  else on.onError?.(outcome.error, variables);
+  on.onSettled?.(
+    outcome.ok ? outcome.value : undefined,
+    outcome.ok ? undefined : outcome.error,
+    variables,
+  );
+}
+
+/** Run an operation imperatively (a mutation): never suspends. Shaped like react-query's
+ * `useMutation`: `resolve(input)` fires and forgets (the outcome lands in `status`/`data`/`error`
+ * with `variables` = the call), `resolveAsync(input)` also returns the value or rejects, `reset()`
+ * returns to idle. A rejection never reaches an error boundary (that is {@link useResource}'s job).
+ * Only the latest run publishes state: a slower earlier run that settles after a newer one (or after
+ * `reset`) is dropped, though its `options` callbacks still fire. */
+export function useResolve<T, I>(
+  op: Operation.Command<T, I>,
+  options?: Resolve.Options<Awaited<T>, I>,
+): Resolve.Handle<Awaited<T>, I> {
   const scope = useScope();
   const controller = useMemo(() => scope.getController(op), [scope, op]);
-  const [state, setState] = useState<Resolve.State<Awaited<T>>>(IDLE);
+  const [state, setState] = useState<Resolve.State<Awaited<T>, I>>(IDLE);
   const runId = useRef(0);
-  const resolve = useCallback(
-    (...call: Scope.CallArgs<I>): Promise<void> => {
+  const latest = useRef(options);
+  latest.current = options;
+  const run = useCallback(
+    async (call: Scope.CallArgs<I>): Promise<Outcome<Awaited<T>>> => {
       const id = (runId.current += 1);
-      setState(PENDING);
-      return drive(
-        () => controller.resolve(...call),
-        (next) => {
-          if (runId.current === id) setState(next);
-        },
-      );
+      const [variables] = call;
+      setState({ status: "pending", data: undefined, error: undefined, variables });
+      const outcome = await settle(() => controller.resolve(...call));
+      if (runId.current === id) setState(settledState(outcome, variables));
+      notify(latest.current, outcome, variables);
+      return outcome;
     },
     [controller],
+  );
+  const resolve = useCallback(
+    (...call: Scope.CallArgs<I>): void => {
+      run(call);
+    },
+    [run],
+  );
+  const resolveAsync = useCallback(
+    async (...call: Scope.CallArgs<I>): Promise<Awaited<T>> => {
+      const outcome = await run(call);
+      if (outcome.ok) return outcome.value;
+      throw outcome.error;
+    },
+    [run],
   );
   const reset = useCallback((): void => {
     runId.current += 1;
     setState(IDLE);
   }, []);
-  return { ...state, resolve, reset };
+  return {
+    ...state,
+    isIdle: state.status === "idle",
+    isPending: state.status === "pending",
+    isSuccess: state.status === "success",
+    isError: state.status === "error",
+    resolve,
+    resolveAsync,
+    reset,
+  };
 }
 
 /** Release a node at the nearest scope: reset a `data` cell to its inherited/initial value (notifying

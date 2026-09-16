@@ -15,7 +15,7 @@ function Runner<T>({
   const run = useResolve(op);
   return (
     <div>
-      <button type="button" onClick={() => void run.resolve(call)}>
+      <button type="button" onClick={() => run.resolve(call)}>
         go
       </button>
       <p>status:{run.status}</p>
@@ -24,7 +24,7 @@ function Runner<T>({
   );
 }
 
-type Resolver = (...call: Scope.CallArgs<number>) => Promise<void>;
+type Resolver = (...call: Scope.CallArgs<number>) => Promise<number>;
 
 function Exposer({
   op,
@@ -34,7 +34,7 @@ function Exposer({
   bind: (resolve: Resolver) => void;
 }): React.ReactElement {
   const run = useResolve(op);
-  bind(run.resolve);
+  bind(run.resolveAsync);
   return <p>data:{run.status === "success" ? String(run.data) : run.status}</p>;
 }
 
@@ -122,6 +122,119 @@ test("only the latest run publishes: a stale earlier run that settles later is d
 
   await expect.element(screen.getByText("data:2")).toBeVisible();
   await expect.element(screen.getByText("data:1")).not.toBeInTheDocument();
+
+  await scope.close();
+});
+
+test("resolveAsync returns the value and rejects with the failure while state tracks both", async () => {
+  const scope = createScope();
+  const failure = new Error("nope");
+  const pick = operation({
+    label: "pick",
+    input: (raw) => Number(raw),
+    run: (_deps, { input }) => (input > 0 ? Promise.resolve(input) : Promise.reject(failure)),
+  });
+
+  let resolve: Resolver | undefined;
+  const ui = (
+    <ScopeProvider scope={scope}>
+      <Exposer
+        op={pick}
+        bind={(r) => {
+          resolve = r;
+        }}
+      />
+    </ScopeProvider>
+  );
+  const screen = await render(ui);
+  if (!resolve) throw new Error("resolve was not bound");
+
+  await expect(resolve({ rawInput: "3" })).resolves.toBe(3);
+  await screen.rerender(ui);
+  await expect.element(screen.getByText("data:3")).toBeVisible();
+
+  await expect(resolve({ rawInput: "0" })).rejects.toBe(failure);
+  await screen.rerender(ui);
+  await expect.element(screen.getByText("data:error")).toBeVisible();
+
+  await scope.close();
+});
+
+function Flags({
+  op,
+  call,
+  events,
+}: {
+  op: Operation.Command<Promise<number>, number>;
+  call: Scope.ProvideInput<number>;
+  events: string[];
+}): React.ReactElement {
+  const run = useResolve(op, {
+    onSuccess: (data, variables) =>
+      void events.push(`success:${data}:${String(variables.rawInput)}`),
+    onError: (error, variables) =>
+      void events.push(`error:${String(error)}:${String(variables.rawInput)}`),
+    onSettled: (data, error, variables) =>
+      void events.push(`settled:${String(data)}:${String(error)}:${String(variables.rawInput)}`),
+  });
+  const flags = [run.isIdle, run.isPending, run.isSuccess, run.isError].map(Number).join("");
+  return (
+    <div>
+      <button type="button" onClick={() => run.resolve(call)}>
+        go
+      </button>
+      <p>flags:{flags}</p>
+      <p>variables:{run.variables === undefined ? "-" : String(run.variables.rawInput)}</p>
+    </div>
+  );
+}
+
+test("status flags and variables follow the latest call, and the option callbacks fire with it", async () => {
+  const scope = createScope();
+  const gate = deferred<void>();
+  const events: string[] = [];
+  const doubleAsync = operation({
+    label: "doubleAsync",
+    input: (raw) => Number(raw),
+    run: (_deps, { input }) => gate.promise.then(() => input * 2),
+  });
+
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <Flags op={doubleAsync} call={{ rawInput: "21" }} events={events} />
+    </ScopeProvider>,
+  );
+
+  await expect.element(screen.getByText("flags:1000")).toBeVisible();
+  await expect.element(screen.getByText("variables:-")).toBeVisible();
+  await screen.getByRole("button").click();
+  await expect.element(screen.getByText("flags:0100")).toBeVisible();
+  await expect.element(screen.getByText("variables:21")).toBeVisible();
+  gate.resolve();
+  await expect.element(screen.getByText("flags:0010")).toBeVisible();
+  expect(events).toEqual(["success:42:21", "settled:42:undefined:21"]);
+
+  await scope.close();
+});
+
+test("onError and onSettled fire with the failure and the call", async () => {
+  const scope = createScope();
+  const events: string[] = [];
+  const failing = operation({
+    label: "failing",
+    input: (raw) => Number(raw),
+    run: (_deps, { input }) => Promise.reject(new Error(`bad ${input}`)),
+  });
+
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <Flags op={failing} call={{ rawInput: "7" }} events={events} />
+    </ScopeProvider>,
+  );
+
+  await screen.getByRole("button").click();
+  await expect.element(screen.getByText("flags:0001")).toBeVisible();
+  expect(events).toEqual(["error:Error: bad 7:7", "settled:undefined:Error: bad 7:7"]);
 
   await scope.close();
 });
