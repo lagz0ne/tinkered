@@ -36,6 +36,11 @@ each, reset to any tag if a slice goes wrong.
    `git tag -f`), record accepted-as-is nits, then move to the next ticket. The reviewer is
    told never to edit or ask questions (paseo permission responses are unreliable here).
 
+   **Run serial:** do not start the next ticket until the current one's review is addressed. A
+   fix often edits the same file a later ticket also touched, so building ahead makes the fix
+   land after the later commit (non-monotonic tags). (r02's StrictMode fix was pipelined and so
+   landed in the r03 checkpoint — see commit 277ecc5.)
+
 ## SCIP code intelligence
 
 `scip-typescript` (0.4.0) is installed in the persistent home. Regenerate a package index

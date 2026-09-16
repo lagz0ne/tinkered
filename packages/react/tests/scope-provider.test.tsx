@@ -25,7 +25,6 @@ test("uses the exact app-owned scope and never closes it", async () => {
   await expect.element(screen.getByText("seeded")).toBeVisible();
   await screen.unmount();
 
-  // the provider must not close (or substitute) an app-owned scope: it stays usable after unmount.
   expect(scope.getController(greeting).get()).toBe("seeded");
   await scope.close();
 });
@@ -71,10 +70,8 @@ test("under StrictMode, create mode leaks no scope and never exposes a closed on
     </StrictMode>,
   );
 
-  // the consumer mounted and read the scope: a closed scope would have thrown `Disposed` on read.
   await expect.element(screen.getByText("hi")).toBeVisible();
   await screen.unmount();
-  // every scope that was created was also closed.
   await expect.poll(() => creates > 0 && creates === closes).toBe(true);
 });
 
