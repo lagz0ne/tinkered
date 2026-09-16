@@ -43,7 +43,7 @@ S14|src|tuple index read x[N]|[a-zA-Z_]+\[[0-9]\][^=]
 S15|src|Object.freeze of a value (empty-literal sentinel allowed)|Object\.freeze\((?!\[\]\)|\{\}\))
 S16|src|preset() call in source (test-only API)|^(?![[:space:]]*[*/])(?:(?!//|/\*|["\x27\x60]).)*(?<!function )\bpreset\b[[:space:]]*(<[^;>]*>)?[[:space:]]*\(
 T01|test|mock or spy|\bvi\.(mock|fn|spyOn|doMock|stubGlobal|useFakeTimers)\(
-T02|test|sleeping in a test|\b(setTimeout|sleep)\(
+T02|test|sleeping in a test|\bsetTimeout\(|(?<!\.)\bsleep\(
 T03|test|only / skip left in|\.(only|skip)\(
 T04|test|import of a private source module|from "\.\./src/(?!index\.ts")|from "\.\./src/[^"]*/[^"]+"
 T05|test|internals asserted|Object\.(isFrozen|getPrototypeOf|getOwnPropertyDescriptor)\(

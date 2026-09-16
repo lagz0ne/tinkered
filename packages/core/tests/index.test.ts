@@ -3839,24 +3839,25 @@ test("a resource factory that defaults its deps param still reads the injected c
 
 test("a test-clock sleep resolves only once virtual time is advanced past it", async () => {
   const clk = makeTestClock({ now: 0 });
+  let done = false;
   const nap = operation({
     label: "nap",
     run: (_deps, { clock, signal }) =>
-      clock.sleep(1000, signal).then(() => clock.currentTimeMillis()),
+      clock.sleep(1000, signal).then(() => {
+        done = true;
+        return clock.currentTimeMillis();
+      }),
   });
   const woke = createScope({ clock: clk }).getController(nap).resolve();
-  let done = false;
-  void woke.then(() => {
-    done = true;
-  });
   clk.advance(500);
   await Promise.resolve();
   expect(done).toBe(false);
   clk.advance(500);
   expect(await woke).toBe(1000);
+  expect(done).toBe(true);
 });
 
-test("aborting a pending test-clock sleep rejects with the reason and drops the scheduled wake", async () => {
+test("aborting a pending test-clock sleep rejects with the signal's reason", async () => {
   const clk = makeTestClock({ now: 0 });
   const ac = new AbortController();
   const cause = new Error("stop");
@@ -3864,7 +3865,6 @@ test("aborting a pending test-clock sleep rejects with the reason and drops the 
   const p = createScope({ clock: clk }).getController(nap).resolve();
   ac.abort(cause);
   await expect(p).rejects.toBe(cause);
-  clk.advance(2000);
 });
 
 test("a system-clock sleep rejects with the reason when its signal aborts", async () => {
@@ -3877,4 +3877,13 @@ test("a system-clock sleep rejects with the reason when its signal aborts", asyn
   const p = createScope().getController(nap).resolve();
   ac.abort(cause);
   await expect(p).rejects.toBe(cause);
+});
+
+test("a test-clock sleep of zero resolves without advancing time", async () => {
+  const clk = makeTestClock({ now: 0 });
+  const nap = operation({
+    label: "nap0",
+    run: (_deps, { clock }) => clock.sleep(0).then(() => "woke"),
+  });
+  expect(await createScope({ clock: clk }).getController(nap).resolve()).toBe("woke");
 });

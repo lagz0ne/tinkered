@@ -888,17 +888,19 @@ export function makeTestClock(options?: Clock.Options): Clock.Test {
     sleep: (ms, signal) =>
       new Promise<void>((resolve, reject) => {
         if (signal?.aborted) return reject(signal.reason);
+        if (ms <= 0) return resolve();
         const w = { at: now + ms, wake: resolve };
         waiters.add(w);
         if (signal) {
-          signal.addEventListener(
-            "abort",
-            () => {
-              waiters.delete(w);
-              reject(signal.reason);
-            },
-            { once: true },
-          );
+          const onAbort = (): void => {
+            waiters.delete(w);
+            reject(signal.reason);
+          };
+          w.wake = () => {
+            signal.removeEventListener("abort", onAbort);
+            resolve();
+          };
+          signal.addEventListener("abort", onAbort, { once: true });
         }
       }),
     advance: (ms) => {
