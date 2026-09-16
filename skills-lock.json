@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "autoresearch": {
+      "source": "lagz0ne/1percent",
+      "sourceType": "github",
+      "skillPath": "skills/autoresearch/SKILL.md",
+      "computedHash": "36f0536a919fc646062d9d75e1f9fdab3ccab342d20e00ba6f8ce2bab04ea4b3"
+    },
     "domain-modeling": {
       "source": "mattpocock/skills",
       "sourceType": "github",

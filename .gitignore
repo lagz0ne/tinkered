@@ -41,3 +41,6 @@ reports
 
 # throwaway experiments
 scratch/
+
+# autoresearch runtime state
+.autoresearch/

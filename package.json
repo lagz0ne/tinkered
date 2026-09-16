@@ -10,6 +10,8 @@
     "prepare": "vp config"
   },
   "devDependencies": {
+    "effect": "catalog:",
+    "mitata": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:"
   },
