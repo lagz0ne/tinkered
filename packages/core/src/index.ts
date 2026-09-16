@@ -650,6 +650,18 @@ function readCell(layer: Layer, target: Data.Cell<unknown>): unknown {
   return entry ? entry.value : target.initial;
 }
 
+/** Read through a captured node record: the cached effective entry while the layer is open (the
+ * record is never replaced under an open layer, and every shadow or release resets its `effSet`),
+ * the ordinary chain walk once the close has orphaned it. Mirrors the controller's `read` below —
+ * keep the two in sync; sharing one body costs a call on the hottest path. */
+function readCached(rec: NodeState, layer: Layer, target: Data.Cell<unknown>): unknown {
+  if (!layer.closed && rec.effSet) {
+    const entry = rec.eff;
+    return entry ? entry.value : target.initial;
+  }
+  return readCell(layer, target);
+}
+
 /** Creating a nearer shadow changes the effective cell for this layer and its descendants. */
 function invalidateEff(layer: Layer, target: Data.Cell<unknown>): void {
   const s = layer.nodes.get(target);
@@ -674,24 +686,31 @@ function ownCell(layer: Layer, target: Data.Cell<unknown>): Entry {
  * shadows the cell, and everything under it, still sees its own value). The value is read once per
  * layer, not once per watcher. */
 function flushCell(layer: Layer, target: Data.Cell<unknown>): void {
+  flushWith(layer, target);
+}
+
+/** Fan a write out to one layer's watchers and the inheriting descendants. The value is read
+ * once per layer, not once per watcher; notification keeps registration order. */
+function flushWith(layer: Layer, target: Data.Cell<unknown>): void {
   const ws = layer.nodes.get(target)?.watchers;
-  if (ws?.size) fireWatchers(ws, target, readCell(layer, target));
+  if (ws?.size) notifyLayer(ws, target, readCell(layer, target));
   for (const child of layer.children) {
-    if (!child.nodes.get(target)?.cell) flushCell(child, target);
+    if (!child.nodes.get(target)?.cell) flushWith(child, target);
+  }
+}
+
+/** Run one layer's watchers in registration order against the value already read for the layer. */
+function notifyLayer(ws: Set<Watcher>, target: Data.Cell<unknown>, next: unknown): void {
+  for (const w of ws) {
+    if (!target.eq(w.last, next)) {
+      w.last = next;
+      w.fn(next);
+    }
   }
 }
 
 function cellEq(target: Data.Cell<unknown>, a: unknown, b: unknown): boolean {
   return target.eq(a, b);
-}
-
-function fireWatchers(ws: Set<Watcher>, target: Data.Cell<unknown>, next: unknown): void {
-  for (const w of ws) {
-    if (!cellEq(target, w.last, next)) {
-      w.last = next;
-      w.fn(next);
-    }
-  }
 }
 
 function writeCell<T>(layer: Layer, target: Data.Cell<T>, next: unknown): void {
@@ -752,17 +771,27 @@ function presetFor(layer: Layer, node: unknown): unknown {
 function addWatcher(
   layer: Layer,
   target: Data.Cell<unknown>,
+  rec: NodeState,
   fn: (next: unknown) => void,
 ): () => void {
   ensureOpen(layer);
-  const s = nodeState(layer, target);
-  const w: Watcher = { last: readCell(layer, target), fn };
-  (s.watchers ??= new Set()).add(w);
-  return () => void s.watchers?.delete(w);
+  const w: Watcher = { last: readCached(rec, layer, target), fn };
+  (rec.watchers ??= new Set()).add(w);
+  return () => void rec.watchers?.delete(w);
 }
 
 function dataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataController<T> {
-  const read = (): T => readCell(layer, target) as T;
+  /** The controller is memoized per (layer, cell), so hold the node record and read through it
+   * instead of repeating the map lookup on every call — the same trick `resourceController` uses.
+   * Inlined (not shared with `readCached` above) so `read` keeps a single caller; keep in sync. */
+  const rec = nodeState(layer, target);
+  const read = (): T => {
+    if (!layer.closed && rec.effSet) {
+      const entry = rec.eff;
+      return (entry ? entry.value : target.initial) as T;
+    }
+    return readCell(layer, target) as T;
+  };
   return {
     get: read,
     read,
@@ -772,7 +801,7 @@ function dataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataContro
       writeCell(layer, target, fn(read()));
     },
     watch: (listener: (next: T) => void) =>
-      addWatcher(layer, target, listener as (next: unknown) => void),
+      addWatcher(layer, target, rec, listener as (next: unknown) => void),
   };
 }
 

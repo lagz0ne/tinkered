@@ -553,6 +553,32 @@ test("inherited watchers react to parent writes until the child shadows", () => 
   stop();
 });
 
+test("a watcher subscribed after a write still fires when the value returns to the initial", () => {
+  const count = data({ initial: 0 });
+  const c = createScope().getController(count);
+  c.set(1);
+  const seen: number[] = [];
+  const stop = c.watch((n) => seen.push(n));
+  c.set(1);
+  expect(seen).toEqual([]);
+  c.set(0);
+  expect(seen).toEqual([0]);
+  stop();
+});
+
+test("a watcher registered before a child shadows still sees the parent's later write", () => {
+  const n = data({ initial: 0, parse: asNumber });
+  const root = createScope();
+  const seen: number[] = [];
+  const stop = root.getController(n).watch((v) => seen.push(v));
+  const child = root.createSession();
+  child.getController(n).set(1);
+  expect(seen).toEqual([]);
+  root.getController(n).set(2);
+  expect(seen).toEqual([2]);
+  stop();
+});
+
 test("nested tags: nearest layer wins, and .all collects nearest-first across layers", () => {
   const region = tag<string>({ label: "region", default: "base" });
   const nearest = operation({ label: "n", depends: { region }, run: ({ region }) => region });
