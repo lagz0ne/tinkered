@@ -45,19 +45,12 @@ tracer bullet with one decisive browser-mode behavior test. Gate each with
       rebuilds a failed resource green; releasing a cell reverts it + notifies readers.
 - [x] **r15 — `useSpans` read.** DONE (tag `react/r15`, commit `55efa3c`, SHIP): snapshot read of span history — op +
       resource spans surface when observation on; empty when off. (Not push-reactive: core has no span subscription.)
-- [x] **r16 — Opt-in React span emission.** DONE (tag `react/r16`, commit `1502db1`): added core `scope.event()`;
-      `<ScopeProvider emit>` → `useResource`/`useResolve` emit `react.*` spans; off = none; behavior-neutral. Under review.
-      NOTE: core changed (event API + r08 sticky failure) → r17 must re-validate core budgets.
-- [ ] **r10 — `useResolve` error + `reset`.** Verify: error stays in `error`/`status` (no boundary throw); `reset()`→idle.
-- [ ] **r11 — `<SessionProvider>` lifecycle.** Verify: unmount forces-close (session resource `defer` rolls back); nearest-Handle-wins; write shadowed.
-- [ ] **r12 — `target:"session"` sharing.** Verify: one instance per provider (siblings distinct); `target:"scope"` shared across.
-- [ ] **r13 — StrictMode double-mount.** Verify: under `<StrictMode>`, exactly one live session; discarded session's `defer` ran.
-- [ ] **r14 — `useRelease` + retry.** Verify: boundary reset + `release` rebuilds a fresh generation green; releasing a cell reverts it.
-- [ ] **r15 — `useSpans` read.** Verify: resolved op + resource spans appear; bounded by `observe.history`; empty/cheap when off.
-- [ ] **r16 — Opt-in React span emission.** Verify: off = no React spans; on = component activity; results identical.
-- [ ] **r17 — v1 validation milestone.** Verify: size lane green; cast-free README + 60-sec example; full seam green in browser.
-      Also **re-validate core** (`pnpm validate` incl. mutation/size) — r08 changed core's resource-failure caching
-      (sticky rejected build), so core's budgets must be re-confirmed green (run `core#mutate` isolated — see memory).
+- [x] **r16 — Opt-in React span emission.** DONE (tag `react/r16`, commit `fdd7760`, SHIP): added core `scope.event()`
+      (isolated, no-op off/closed); `<ScopeProvider emit>` → `useResource`/`useResolve` emit `react.*` root markers;
+      off = none; behavior-neutral. NOTE: core changed (event API + r08 sticky failure) → r17 re-validates core budgets.
+- [x] **r17 — v1 validation milestone.** DONE: react size 3.3 KB gzip (cap 10) ✓; cast-free README + `examples/basic.tsx` ✓;
+      full seam green in browser (40 tests) ✓; core re-validated — mutation 77.47% (≥60), size 15.4 KB (cap 30), all
+      `validate.mjs` lanes PASS. **@tinker/react v1 complete — all 17 tickets astra-reviewed to SHIP.**
 
 ## Shipped — core v1 (complete)
 

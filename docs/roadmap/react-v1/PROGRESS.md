@@ -80,7 +80,25 @@ Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its 
 | react/r14 | `useRelease` + retry/reset              | 08       | [x]    |
 | react/r15 | `useSpans` read                         | 07, 09   | [x]    |
 | react/r16 | Opt-in React span emission              | 15       | [x]    |
-| react/r17 | v1 validation milestone                 | 01–16    | [ ]    |
+| react/r17 | v1 validation milestone                 | 01–16    | [x]    |
 
 Parallel frontier once r01→r02 land: **r03 ‖ r06 ‖ r09** are independent. Then r04,r05 off
 r03; r07→r08 off r06; r10 off r09; r11 needs r04+r07; r12,r13 off r11; r14 off r08; r15→r16.
+
+## v1 complete
+
+All 17 tickets landed and **astra-reviewed to SHIP** (`codex/gpt-6-astra` xhigh via paseo). The seam:
+`ScopeProvider` / `SessionProvider`, `useScope`, `useData` (+ selector), `useController`, `useResource`
+(sync / async-Suspense / failed→boundary), `useResolve` (success / error / reset), `useRelease`,
+`useSpans`, `isError`.
+
+Validation (r17): react bundle **3.3 KB gzip** (cap 10); cast-free `README` + `examples/basic.tsx`;
+full seam exercised by **40 browser behavior tests** (real chromium). Two core changes were needed and
+re-validated: a **sticky rejected build** (r08 — a failed async build is cached at the owner until
+release/close, so a Suspense retry doesn't loop) and **`scope.event()`** (r16 — a manual marker span
+for adapter emission). Core after both: mutation **77.47%** (≥ 60), size **15.4 KB** (cap 30), all
+deterministic `validate.mjs` lanes PASS.
+
+Deferred (noted, not blocking v1): span-emission markers are **root** spans (not nested under the work
+span — needs a core span-id API); react-package **mutation** lane (Stryker × browser mode is its own
+integration).
