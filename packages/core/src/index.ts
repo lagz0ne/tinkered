@@ -504,24 +504,50 @@ type DeferEntry = {
   resource: Resource.Handle<unknown> | undefined;
 };
 
+/** All per-node state for one layer, colocated in a single record so a scope allocates ONE Map
+ * (`Layer.nodes`) instead of a dozen parallel ones — one `Map.get(node)` fetches everything.
+ * A CLASS (not `{}` grown field-by-field) so every record shares one V8 hidden class: compact
+ * allocation and monomorphic field access on the hot paths. */
+class NodeState {
+  /** This layer's own data-cell shadow (copy-on-write). */
+  cell: Entry | undefined = undefined;
+  /** Memoized nearest cell up the chain; `effSet` distinguishes "not computed" from "computed=absent". */
+  eff: Entry | undefined = undefined;
+  effSet = false;
+  /** Built resource instance. */
+  resource: Entry | undefined = undefined;
+  /** In-flight async build. */
+  build: Promise<unknown> | undefined = undefined;
+  /** Resource generation (bumped on invalidation to supersede a late build). */
+  gen = 0;
+  /** Build currently in progress (circular-resource guard). */
+  building = false;
+  /** In-flight op promises borrowing this resource (release waits on them). */
+  borrowers: Set<Promise<unknown>> | undefined = undefined;
+  /** Resources that depend on this node (for cascade release/close). */
+  dependents: Set<Resource.Handle<unknown>> | undefined = undefined;
+  /** Memoized controller: the public `getController` path always passes an undefined observation
+   * span, so a controller for (layer, node) is stable — reuse it instead of reallocating closures. */
+  controller: unknown = undefined;
+}
+
+/** Get-or-create this layer's record for a node. */
+function nodeState(layer: Layer, key: object): NodeState {
+  let s = layer.nodes.get(key);
+  if (s === undefined) {
+    s = new NodeState();
+    layer.nodes.set(key, s);
+  }
+  return s;
+}
+
 /** One layer of the scope chain. A session is a child layer. */
 type Layer = {
   parent: Layer | undefined;
   children: Set<Layer>;
-  cells: Map<Data.Cell<unknown>, Entry>;
-  effCache: Map<Data.Cell<unknown>, Entry | undefined>;
-  /** Memoized controllers per node: the public `getController` path always passes an undefined
-   * observation span, so a controller for (layer, node) is stable — reuse it instead of allocating
-   * a fresh closure object on every call (the warm-resolve hot path). */
-  controllers: Map<object, unknown>;
-  resources: Map<Resource.Handle<unknown>, Entry>;
-  /** Lazily allocated: empty on the synchronous happy path (only async builds, invalidation, and
-   * in-flight op borrows populate them). Read as absent when undefined; allocate on first write. */
-  builds: Map<Resource.Handle<unknown>, Promise<unknown>> | undefined;
-  building: Set<Resource.Handle<unknown>>;
-  generations: Map<Resource.Handle<unknown>, number> | undefined;
-  dependents: Map<Node, Set<Resource.Handle<unknown>>>;
-  borrowers: Map<Resource.Handle<unknown>, Set<Promise<unknown>>> | undefined;
+  /** Single node-keyed store: cells, effective-cache, resources, builds, generations, build-flag,
+   * borrowers, dependents, and cached controllers all live in one {@link NodeState} per node. */
+  nodes: Map<object, NodeState>;
   presets: Map<unknown, unknown>;
   tags: Map<Tag.Handle<unknown>, unknown[]>;
   watchers: Set<Watcher>;
@@ -552,16 +578,19 @@ const eqOf =
 
 /** The nearest cell up the chain (cached per layer); absent means "use the cell's initial". */
 function effectiveEntry(layer: Layer, target: Data.Cell<unknown>): Entry | undefined {
-  if (layer.effCache.has(target)) return layer.effCache.get(target);
+  const self = layer.nodes.get(target);
+  if (self?.effSet) return self.eff;
   let found: Entry | undefined;
   for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
-    const owned = cur.cells.get(target);
+    const owned = cur.nodes.get(target)?.cell;
     if (owned) {
       found = owned;
       break;
     }
   }
-  layer.effCache.set(target, found);
+  const s = self ?? nodeState(layer, target);
+  s.eff = found;
+  s.effSet = true;
   return found;
 }
 
@@ -572,19 +601,22 @@ function readCell(layer: Layer, target: Data.Cell<unknown>): unknown {
 
 /** Creating a nearer shadow changes the effective cell for this layer and its descendants. */
 function invalidateEff(layer: Layer, target: Data.Cell<unknown>): void {
-  layer.effCache.delete(target);
+  const s = layer.nodes.get(target);
+  if (s) {
+    s.eff = undefined;
+    s.effSet = false;
+  }
   for (const child of layer.children) invalidateEff(child, target);
 }
 
 /** Copy-on-write: get or create this layer's own shadow of a cell, seeded from the inherited value. */
 function ownCell(layer: Layer, target: Data.Cell<unknown>): Entry {
-  let entry = layer.cells.get(target);
-  if (!entry) {
-    entry = { value: readCell(layer, target) };
-    layer.cells.set(target, entry);
+  const s = nodeState(layer, target);
+  if (!s.cell) {
+    s.cell = { value: readCell(layer, target) };
     invalidateEff(layer, target);
   }
-  return entry;
+  return s.cell;
 }
 
 /** Fire watchers on this layer, then descendants (inherited reads see the change; shadowed ones don't). */
@@ -1141,12 +1173,12 @@ function buildResource<T>(
   target: Resource.Handle<T>,
   parent: Observe.Span | undefined,
 ): unknown {
-  const gen = owner.generations?.get(target) ?? 0;
-  const superseded = (): boolean => (owner.generations?.get(target) ?? 0) !== gen;
+  const gen = owner.nodes.get(target)?.gen ?? 0;
+  const superseded = (): boolean => (owner.nodes.get(target)?.gen ?? 0) !== gen;
   const canPublish = (): boolean => !superseded() && !owner.closed;
   const obs = owner.obs;
   const span = openSpan(obs, parent, target.label, "resource");
-  owner.building.add(target);
+  nodeState(owner, target).building = true;
   let settled = false;
   try {
     const deps = resolveResourceDeps(owner, target, span, superseded);
@@ -1170,7 +1202,7 @@ function buildResource<T>(
     const result = override ? override(deps, ctx) : target.factory(deps, ctx);
     if (!isThenable(result)) {
       settled = true;
-      if (canPublish()) owner.resources.set(target, { value: result });
+      if (canPublish()) nodeState(owner, target).resource = { value: result };
       closeSpan(obs, span, "ok");
       return result;
     }
@@ -1192,7 +1224,7 @@ function buildResource<T>(
     closeSpan(obs, span, "failed");
     throw error;
   } finally {
-    owner.building.delete(target);
+    nodeState(owner, target).building = false;
   }
 }
 
@@ -1216,20 +1248,22 @@ function finishAsyncBuild(
   const build: Promise<unknown> = Promise.resolve(result).then(
     (value) => {
       markSettled();
-      if (owner.builds?.get(target) === build) owner.builds?.delete(target);
-      if (canPublish()) owner.resources.set(target, { value: build });
+      const done = owner.nodes.get(target);
+      if (done?.build === build) done.build = undefined;
+      if (canPublish()) nodeState(owner, target).resource = { value: build };
       closeSpan(obs, span, "ok");
       return value;
     },
     (error) => {
       markSettled();
-      if (owner.builds?.get(target) === build) owner.builds?.delete(target);
-      if (!superseded()) owner.resources.set(target, { value: build });
+      const done = owner.nodes.get(target);
+      if (done?.build === build) done.build = undefined;
+      if (!superseded()) nodeState(owner, target).resource = { value: build };
       closeSpan(obs, span, "failed");
       throw error;
     },
   );
-  if (!superseded()) (owner.builds ??= new Map()).set(target, build);
+  if (!superseded()) nodeState(owner, target).build = build;
   track(owner, build, (error) => {
     if (!superseded() && !isCancel(owner, error)) owner.failure ??= { cause: error };
   });
@@ -1247,17 +1281,16 @@ function resourceController<T>(
       ensureOpen(layer);
       ensureOpen(owner);
       recordUsed(layer.obs, parent, target);
-      const cached = owner.resources.get(target);
-      if (cached) return cached.value as Scope.ResourceValue<T>;
-      const inflight = owner.builds?.get(target);
-      if (inflight) return inflight as Scope.ResourceValue<T>;
-      if (owner.building.has(target)) raise("CircularResource", { label: target.label });
+      const s = owner.nodes.get(target);
+      if (s?.resource) return s.resource.value as Scope.ResourceValue<T>;
+      if (s?.build) return s.build as Scope.ResourceValue<T>;
+      if (s?.building) raise("CircularResource", { label: target.label });
       return buildResource(owner, target, parent) as Scope.ResourceValue<T>;
     },
     get: () => {
       ensureOpen(layer);
       ensureOpen(owner);
-      const cached = owner.resources.get(target);
+      const cached = owner.nodes.get(target)?.resource;
       if (!cached) raise("NotResolved", { label: target.label });
       return cached.value as Scope.ResourceValue<T>;
     },
@@ -1274,12 +1307,12 @@ type Affected = { node: Node; owner: Layer };
  * (`extractReleasedDefers`) alongside its affected dependents, so a diamond tears down dependents
  * before dependencies (ADR 0026), not per-resource grouped at build-completion. */
 function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): void {
-  const gens = (owner.generations ??= new Map());
-  gens.set(target, (gens.get(target) ?? 0) + 1);
-  owner.resources.delete(target);
-  owner.builds?.delete(target);
+  const s = nodeState(owner, target);
+  s.gen = (s.gen ?? 0) + 1;
+  s.resource = undefined;
+  s.build = undefined;
   detachDependent(owner, target);
-  owner.dependents.delete(target);
+  s.dependents = undefined;
 }
 
 /** Pull the affected resources' `defer`s out of `owner.defers` in registration order (removing them so
@@ -1302,11 +1335,12 @@ function extractReleasedDefers(
 
 /** Drop a cell's shadow (revert to inherited/initial) and edges without notifying watchers. */
 function invalidateData(owner: Layer, target: Data.Cell<unknown>): void {
-  if (owner.cells.has(target)) {
-    owner.cells.delete(target);
+  const s = owner.nodes.get(target);
+  if (s?.cell) {
+    s.cell = undefined;
     invalidateEff(owner, target);
   }
-  owner.dependents.delete(target);
+  if (s) s.dependents = undefined;
 }
 
 /** Whether a node's dependents can live below its owner: a `scope` resource and a data cell are
@@ -1327,7 +1361,7 @@ function forEachDependent(
   const stack: Layer[] = [nodeOwner];
   while (stack.length) {
     const scope = stack.pop() as Layer;
-    const deps = scope.dependents.get(node);
+    const deps = scope.nodes.get(node)?.dependents;
     if (deps) for (const target of deps) visit(target, scope);
     if (deep) for (const child of scope.children) stack.push(child);
   }
@@ -1456,15 +1490,16 @@ function invalidateAffected(order: Affected[], affected: Map<Layer, Released>): 
 }
 
 function addDependent(owner: Layer, node: Node, dependent: Resource.Handle<unknown>): void {
-  const set = owner.dependents.get(node);
-  if (set) set.add(dependent);
-  else owner.dependents.set(node, new Set([dependent]));
+  const s = nodeState(owner, node);
+  if (s.dependents) s.dependents.add(dependent);
+  else s.dependents = new Set([dependent]);
 }
 
 /** Remove one resource from every dependents set (its incoming edges), dropping empty sets. */
 function detachDependent(owner: Layer, dependent: Resource.Handle<unknown>): void {
-  for (const [node, set] of owner.dependents) {
-    if (set.delete(dependent) && set.size === 0) owner.dependents.delete(node);
+  for (const s of owner.nodes.values()) {
+    const set = s.dependents;
+    if (set && set.delete(dependent) && set.size === 0) s.dependents = undefined;
   }
 }
 
@@ -1501,9 +1536,9 @@ function collectBorrows(layer: Layer, depends: Scope.Depends): Borrow[] {
 }
 
 function addBorrow(owner: Layer, resource: Resource.Handle<unknown>, work: Promise<unknown>): void {
-  const set = owner.borrowers?.get(resource);
-  if (set) set.add(work);
-  else (owner.borrowers ??= new Map()).set(resource, new Set([work]));
+  const s = nodeState(owner, resource);
+  if (s.borrowers) s.borrowers.add(work);
+  else s.borrowers = new Set([work]);
 }
 
 function removeBorrow(
@@ -1511,8 +1546,9 @@ function removeBorrow(
   resource: Resource.Handle<unknown>,
   work: Promise<unknown>,
 ): void {
-  const set = owner.borrowers?.get(resource);
-  if (set && set.delete(work) && set.size === 0) owner.borrowers?.delete(resource);
+  const s = owner.nodes.get(resource);
+  const set = s?.borrowers;
+  if (set && set.delete(work) && set.size === 0 && s) s.borrowers = undefined;
 }
 
 /** In-flight operation promises borrowing any of `resources` at `owner`, so release can wait for them
@@ -1523,7 +1559,7 @@ function collectBorrowers(
 ): Promise<unknown>[] {
   const out: Promise<unknown>[] = [];
   for (const resource of resources) {
-    const set = owner.borrowers?.get(resource);
+    const set = owner.nodes.get(resource)?.borrowers;
     if (set) for (const work of set) out.push(work);
   }
   return out;
@@ -1542,34 +1578,29 @@ function seedTags(
 }
 
 function seedPresets(seeds: readonly Scope.Preset[] | undefined): {
-  cells: Map<Data.Cell<unknown>, Entry>;
+  nodes: Map<object, NodeState>;
   presets: Map<unknown, unknown>;
 } {
-  const cells = new Map<Data.Cell<unknown>, Entry>();
+  const nodes = new Map<object, NodeState>();
   const presets = new Map<unknown, unknown>();
   for (const p of seeds ?? []) {
     const node = p.node;
-    if (isData(node)) cells.set(node, { value: admit(node.label, node.parse, p.replacement) });
-    else presets.set(node, p.replacement);
+    if (isData(node)) {
+      const s = new NodeState();
+      s.cell = { value: admit(node.label, node.parse, p.replacement) };
+      nodes.set(node, s);
+    } else presets.set(node, p.replacement);
   }
-  return { cells, presets };
+  return { nodes, presets };
 }
 
 function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
   const tags = seedTags(options?.tags);
-  const { cells, presets } = seedPresets(options?.presets);
+  const { nodes, presets } = seedPresets(options?.presets);
   const layer: Layer = {
     parent,
     children: new Set(),
-    cells,
-    effCache: new Map(),
-    controllers: new Map(),
-    resources: new Map(),
-    builds: undefined,
-    building: new Set(),
-    generations: undefined,
-    dependents: new Map(),
-    borrowers: undefined,
+    nodes,
     presets,
     tags,
     watchers: new Set(),
@@ -1795,14 +1826,7 @@ function finishLayer(layer: Layer): unknown[] | undefined {
       if (layer.failure) parent.descendantFailure ??= layer.failure;
     }
   }
-  layer.cells.clear();
-  layer.effCache.clear();
-  layer.resources.clear();
-  layer.builds = undefined;
-  layer.building.clear();
-  layer.generations = undefined;
-  layer.dependents.clear();
-  layer.borrowers = undefined;
+  layer.nodes.clear();
   layer.presets.clear();
   layer.tags.clear();
   layer.watchers.clear();
@@ -1882,14 +1906,14 @@ function handleFor(layer: Layer): Scope.Handle {
   return {
     getController: (<T, I>(target: Data.Cell<T> | Resource.Handle<T> | Operation.Command<T, I>) => {
       ensureOpen(layer);
-      const cached = layer.controllers.get(target);
-      if (cached) return cached;
+      const s = nodeState(layer, target);
+      if (s.controller) return s.controller;
       const ctl = isData(target)
         ? dataController(layer, target)
         : isResource(target)
           ? resourceController(layer, target, undefined)
           : commandController(layer, target, undefined);
-      layer.controllers.set(target, ctl);
+      s.controller = ctl;
       return ctl;
     }) as Scope.Handle["getController"],
     createSession: (options?: Scope.Options) => {
