@@ -13,9 +13,9 @@ tracer bullet with one decisive browser-mode behavior test. Gate each with
 `scripts/ticket-react.sh <NN> "<title>"` (tags `react/r<NN>`). Detail:
 `docs/roadmap/react-v1/issues/NN-*.md`.
 
-- [ ] **r01 — Browser harness + async fixture.** Verify: a component renders in a real browser
-      (vitest browser mode, Playwright) and the deferred fixture drives a pending→settled transition
-      without timers; `vp check` green.
+- [x] **r01 — Browser harness + async fixture.** DONE (tag `react/r01`, commit `fdf1ac4`): a Suspense
+      tree resolves in real chromium when the deferred fixture settles — no timers; `vp check` +
+      workspace tests green.
 - [ ] **r02 — `<ScopeProvider>` + `useScope`.** Verify: a component reads the Handle; `create=` mode
       fires teardown once on unmount; no-provider raises a registry error.
 - [ ] **r03 — `useData` reactive read.** Verify: external `set` re-renders; snapshot stable; unmount unsubscribes.

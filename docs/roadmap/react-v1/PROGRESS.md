@@ -11,15 +11,41 @@ each, reset to any tag if a slice goes wrong.
 ## How a ticket lands (deterministic + correct)
 
 1. Build the slice + its seam behavior tests in browser mode (no mocks; deterministic
-   async via the r01 deferred fixture — no sleeps, ADR 0003).
+   async via the r01 deferred fixture — no sleeps, ADR 0003). Navigate the core API with
+   the **SCIP** index (see below) rather than guessing symbols.
 2. Gate + checkpoint:
 
    ```bash
    scripts/ticket-react.sh <NN> "<short title>"
    ```
 
-   The gate runs `vp check` + `vp run -r test` (+ size where wired). It commits only if
-   green, then sets tag `react/r<NN>`. A red gate makes no checkpoint.
+   The gate runs `vp check` + `vp run -r test` + `vp run react#size` (a build+size lane —
+   a hard gate, not swallowed). It commits only if green, then sets tag `react/r<NN>`. A
+   red gate makes no checkpoint.
+
+3. **Review loop (mandatory).** Send the just-landed tag's diff to the standing reviewer
+   and drive it to `SHIP`:
+
+   ```
+   paseo agent: codex/gpt-6-astra, thinking=xhigh, mode=full-access  (read-only reviewer)
+   round prompt: "review tag react/r<NN>; git show react/r<NN>; ticket issues/<NN>-*.md"
+   ```
+
+   The reviewer returns a coverage checklist + all findings at once (blocker/should-fix/nit)
+   and a `SHIP`/`FIX` verdict. Address every **blocker** (fix + re-gate, moving the tag with
+   `git tag -f`), record accepted-as-is nits, then move to the next ticket. The reviewer is
+   told never to edit or ask questions (paseo permission responses are unreliable here).
+
+## SCIP code intelligence
+
+`scip-typescript` (0.4.0) is installed in the persistent home. Regenerate a package index
+for cross-reference as the code grows (indexes are gitignored under `.scip/`):
+
+```bash
+cd packages/core  && scip-typescript index --output ../../.scip/core.scip
+cd packages/react && scip-typescript index --output ../../.scip/react.scip
+scip print --json .scip/react.scip | head   # inspect symbols/occurrences
+```
 
 ## Reset (git techniques)
 
@@ -33,7 +59,7 @@ Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its 
 
 | tag       | ticket                                  | blockers | status |
 | --------- | --------------------------------------- | -------- | ------ |
-| react/r01 | Browser harness + async fixture         | —        | [ ]    |
+| react/r01 | Browser harness + async fixture         | —        | [x]    |
 | react/r02 | `<ScopeProvider>` + `useScope`          | 01       | [ ]    |
 | react/r03 | `useData` reactive read                 | 02       | [ ]    |
 | react/r04 | `useController` write                   | 03       | [ ]    |

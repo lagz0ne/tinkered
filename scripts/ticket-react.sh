@@ -25,7 +25,7 @@ vp check
 echo "== gate ${TAG}: vp run -r test =="
 vp run -r test
 echo "== gate ${TAG}: size budget =="
-vp run react#size || echo "  (size not wired yet — skipped)"
+vp run react#size
 
 git add -A
 git commit -m "react(r${NN}): ${TITLE}

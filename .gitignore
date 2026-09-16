@@ -36,5 +36,8 @@ dist-ssr
 .stryker-tmp
 reports
 
+# SCIP code-intelligence indexes (regenerated per package as we go)
+.scip/
+
 # throwaway experiments
 scratch/

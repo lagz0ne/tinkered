@@ -1,3 +1,5 @@
+import { resource } from "@tinker/core";
+
 /** A promise whose settlement a test drives by hand — the deterministic-async fixture:
  * no timers, no sleeps. Hand `promise` to the code under test, then `resolve`/`reject`
  * to advance it to a settled state on command. */
@@ -16,4 +18,13 @@ export function deferred<T>(): Deferred<T> {
     reject = rej;
   });
   return { promise, resolve, reject };
+}
+
+/** A core `resource` whose async build settles exactly when `gate` settles — the core-backed
+ * async fixture that later Suspense/pending tests resolve on command instead of sleeping. */
+export function pendingResource<T>(gate: Deferred<T>) {
+  return resource({
+    label: "pending",
+    factory: () => gate.promise,
+  });
 }
