@@ -24,6 +24,15 @@ writes; the later mount group then read ~2x too high for tinker (1117 vs 490 µs
 - Earlier in the day: watchers indexed per cell (a write visits only that cell's subscribers, value read
   once per layer). notifyN 30→15 µs.
 
+- D (2026-09-17) the two "structural" gaps fell too. Bare read: the effective entry is always valid
+  while the layer is open (a missing cell resolves to an entry holding the initial; close resets every
+  record's `eff` before `nodes.clear()`), so `get` is one undefined check + one deref: 2.0 → 0.54 ns
+  (Zustand 0.47). Fan-out: every watcher at a layer always holds that layer's current value (each starts
+  from `read()`, every flush that reaches the layer updates all of them, a shadowing child is skipped as a
+  subtree), so ONE `eq` per (layer, cell) per flush suffices — `notified` on the record, refreshed when a
+  watcher registers on a layer with no watchers; watchers are `{ fn }` wrappers so the same listener
+  subscribed twice keeps two identities. notifyN 15.4 → 8.4 µs (Zustand 12.0), now faster.
+
 ## Standing (per-process min µs; tinker first on both)
 
 | lib            | mount | update |
@@ -35,14 +44,15 @@ writes; the later mount group then read ~2x too high for tinker (1117 vs 490 µs
 | legend v2      | 735   | 96     |
 | legend v3 beta | 825   | 108    |
 
-Vanilla store vs Zustand: read 2.0 vs 0.5 ns (structural: scoped cell vs captured object), write+1 sub
-69 vs 91, write+1000 subs 15.4 vs 12.5 µs, sub+unsub 90 vs 74. Gate at 808d289: validate lanes PASS,
-mutation 78.29%, 210 core + 48 react tests, census OK.
+Vanilla store vs Zustand at 70c7924: read 0.55 vs 0.47 ns, write+1 sub 65 vs 85, write+1000 subs
+8.4 vs 12.0 µs, sub+unsub 88 vs 72 (the only remaining loss: a wrapper + Set add per subscription).
+Gate at 70c7924: validate lanes PASS, mutation 78.52%, 213 core + 48 react tests, census OK.
 
 ## Review lessons (contributor drafts, one round each)
 
 - A keyed its memo on selector identity → resubscribe every render for inline selectors (numbers hid it).
 - B duplicated the hot read body with a "keep in sync" note and wrapped a function in a facade.
 - C put a drain accessor on the ctx class as an instance method → leaked onto the user-facing ctx.
+- D stored watchers as a `Set` of bare functions → the same listener twice collapsed to one entry.
   All three fixed cleanly after one review; the pattern is "correct numbers, shape shortcut" — review the
   shape, re-measure yourself.

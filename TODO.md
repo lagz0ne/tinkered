@@ -26,7 +26,8 @@ durable trackers (this list is just the pointer):
 - **react/store perf vs the field (2026-09-16)** — six-library bench (`bench/react-stores.mjs`,
   `bench/stores-probe.mjs`); tinker first on mount (535 µs) and update (69.5 µs) vs Zustand, Jotai,
   Legend v2/v3, Preact Signals. Landed: per-cell watchers, 3-hook `useData`, data controller record
-  fast path, op run path trims (op 134→79 ns). Gate 808d289: validate PASS, mutation 78.29%.
+  fast path, op run path trims (op 134→79 ns), always-valid effective entry (read 9.8→0.54 ns), one eq
+  per layer per flush (1000-way fan-out 30→8.4 µs, Zustand 12). Gate 70c7924: validate PASS, mutation 78.52%.
   Notes: `research/learnings/2026-09-16-react-stores.md`.
 - **react options (2026-09-16)** — `useResolve` in react-query mutation shape; `useData({ writable })`
   and `useResource({ suspense: false })` as options, not new hooks (ADR 0032 amended).
