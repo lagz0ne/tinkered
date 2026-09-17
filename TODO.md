@@ -15,12 +15,15 @@ detail in `docs/roadmap/http-v1/PROGRESS.md`). Next candidates for a dedicated i
 integration (Hono, maybe Express); app entrypoint with graceful shutdown; TUI app — each starts with
 `grill-with-docs`.
 
-- [ ] **core/t25 — tests speak the everyday verbs (SCIP-driven, optional, strike if unwanted).** SCIP shows
-      core tests call `scope.controller(op).run()` 128× and `scope.run(op)` 3×; migrate operation calls
-      to `scope.run(op, call)` and resource reads to `scope.resolve(res)` where the controller is not
-      otherwise used. **Verify:** `scripts/scip.sh refs` shows `Handle#…:run()` ≫ `OperationController…:run()`
-      in tests; `vp run core#test` green; no behaviour change.
-- [x] **core/t27 — performance protection for the new call paths.** _Done: tag `core/t27` (2e1f261 + docs ff83d6d): probes `session`/`tagged`/`inline`, exact `promises_tagged` = 17 as a validate gate, heap figure recorded, "Call paths (t27)" table in `docs/roadmap/core-v1/budgets.md`; mutation 78.47. Parity on `op` unmeasurable in-container (box bimodal 78/90 on both trees) → sandbox `bench` when available._
+- [x] **core/t25 — tests speak the everyday verbs (SCIP-driven).** _Done: tag `core/t25`. 193 inline
+      `controller(x).run(...)` / `controller(x).resolve()` chains in core tests rewritten to `scope.run(x, …)` /
+      `scope.resolve(x)`; SCIP after: `Scope.run` 21→102 refs, `Scope.resolve` 8→120, `controller` 290→97
+      (the 45 remaining `OperationController.run` are held controllers and subflows). 228 tests green, 0 errors,
+      census OK; no behaviour change._
+
+**The list is empty.** Next authoring candidates (each starts with `grill-with-docs`): server
+integration (Hono, maybe Express); app entrypoint with graceful shutdown; TUI app. Perf follow-up
+when the sandbox `bench` is available: `op` parity (budgets.md "Call paths (t27)").
 
 ## Shipped — archived
 
