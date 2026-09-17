@@ -25,6 +25,14 @@ CommandController|Operation\.Command` left in packages/ bench/ README docs (grep
       to `scope.run(op, call)` and resource reads to `scope.resolve(res)` where the controller is not
       otherwise used. **Verify:** `scripts/scip.sh refs` shows `Handle#…:run()` ≫ `OperationController…:run()`
       in tests; `vp run core#test` green; no behaviour change.
+- [ ] **core/t26 — inline operation via `scope.run(inline, input?)` (ADR 0037).** Second `run`
+      overload: `{ label?, depends?, run }` + bare param → throwaway handle through the operation
+      path (span `label ?? "inline"`, full ctx, owned work, deps in natural form, presets on deps
+      apply), no cache/residue; probe scenario `inline` beside `op`. **Verify:** seam tests — deps +
+      param delivered (`ctx.input === row`, data value, resource instance, tag); no-arg form when
+      void; span named and nested; forced close cancels an in-flight inline (`cancelled`); a preset
+      on a dep is seen; `vp check` 0, `vp run -r test`, `pnpm validate` green; SCIP refs table for
+      `Scope/Handle#…:run()` before/after; lead review SHIP.
 - [ ] **http/t01 — package + frame + execute.** `packages/http` scaffold (10 kB cap, errors registry,
       gate via `scripts/ticket.sh` with a package arg); `httpClient({ label })` → `config` tag,
       `client` resource; shared `backend` tag with `fetchBackend`; `HttpRequest.*` constructors +

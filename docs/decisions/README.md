@@ -20,3 +20,4 @@ by a new decision that names the old one.
 | [0034](0034-clock-is-an-ambient-ctx-capability.md)                     | Clock is an ambient ctx capability (Effect default-service model)                    |
 | [0035](0035-http-client-is-a-frame-of-core-primitives.md)              | The HTTP client is a pre-wired frame of core primitives (Effect HttpClient model)    |
 | [0036](0036-scope-verbs-resolve-reads-controller-controls-run-runs.md) | Scope verbs: `resolve` reads a snapshot, `controller` gives back control, `run` runs |
+| [0037](0037-inline-operation-via-scope-run.md)                         | `scope.run` also runs an inline operation, with its param passed in, not closed over |
