@@ -115,9 +115,12 @@ config)` = `prependUrl` + header merge, request headers winning over config head
 - **Errors** (`packages/http/src/errors.ts`, ADR 0004): `RequestFailed { request, reason:
 "Transport" | "Encode" | "InvalidUrl", cause? }` and `ResponseFailed { request, response,
 reason: "StatusCode" | "Decode" | "EmptyBody", cause? }` — Effect's unions.
-- **Retry** is a frame slot: `httpClient({ label, retry: { times, delay?: (attempt) => ms } })`.
-  Transient only: `RequestFailed/Transport`, status 408, 429, 5xx. An aborted signal never
-  retries. Backoff is `ctx.clock.sleep(delay(attempt), ctx.signal)`.
+- **Retry** is a frame slot: `httpClient({ label, retry: { times, delay?: (n) => ms } })` —
+  `times` extra attempts after the first (default 0), `delay(n)` the wait before retry `n`
+  (1-based; default no wait). Transient only: `RequestFailed/Transport`, status 408, 429, 5xx.
+  An aborted signal never retries; a non-transient status is never retried. Each attempt is its
+  own child span (attribute `attempt`); a retried transient status settles its span `"ok"` — the
+  transport worked, the retry is policy. Backoff is `ctx.clock.sleep(delay(n), ctx.signal)`.
 - **Observation + logging** are built in: `execute` opens a manual child span
   (`http <METHOD> <url>`, attributes method/url/status), marks it failed on error, and writes one
   `log` line on failure. Behaviour-neutral (ADR 0009).
