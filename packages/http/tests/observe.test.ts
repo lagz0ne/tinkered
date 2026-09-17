@@ -48,7 +48,7 @@ test("a request opens one child span with method, url, and status", async () => 
   expect(child?.name).toBe(`http GET ${url}`);
   expect(child?.kind).toBe("manual");
   expect(child?.status).toBe("ok");
-  expect(child?.attributes).toEqual({ method: "GET", url, status: 200 });
+  expect(child?.attributes).toEqual({ method: "GET", url, status: 200, attempt: 1 });
   await scope.close();
 });
 

@@ -7,7 +7,7 @@ import {
   type Resource,
   type Tag,
 } from "@tinker/core";
-import { raise } from "./errors.ts";
+import { isError, raise } from "./errors.ts";
 import { HttpRequest } from "./request.ts";
 import { HttpResponse } from "./response.ts";
 
@@ -23,6 +23,11 @@ export declare namespace HttpClient {
     readonly baseUrl?: string;
     readonly headers?: Readonly<globalThis.Record<string, string>>;
   };
+  /** Retry policy for a frame: `times` extra attempts after the first (`{ times: 0 }` never
+   * retries); `delay` maps the 1-based wait number to ms slept on `ctx.clock` before that retry
+   * (`delay(1)` is the first wait, after attempt 1), default no wait. Only transient failures
+   * retry — a rejected backend, or a received 408, 429, or 5xx — never after `ctx.signal` aborts. */
+  export type Retry = { readonly times: number; readonly delay?: (attempt: number) => number };
   /** The caller's receiver an `execute` sends through: the signal aborts on close, the rest is
    * the caller's own observation, logging, and clock (as on `Operation.Ctx`). */
   export type Ctx = Pick<Operation.Ctx<unknown>, "signal" | "obs" | "log" | "clock">;
@@ -173,14 +178,16 @@ export function applyConfig(
  * bindings, `.all` reads `[]`), a `client` resource labelled `${label}.client` (`target:
  * "session"`, `depends: { send: backend }` — the bare tag delivers its value — so deps resolve
  * at the requesting layer and a session-bound `backend` is seen), whose factory closes over the
- * frame's `filterStatus` predicate (default accept all) and returns the `Handle`. The handle is
- * a tiny object, so one build per session costs nothing. */
+ * frame's `filterStatus` predicate (default accept all) and `retry` policy (default never retry)
+ * and returns the `Handle`. The handle is a tiny object, so one build per session costs nothing. */
 export function httpClient(config: {
   label: string;
+  retry?: HttpClient.Retry;
   filterStatus?: (status: number) => boolean;
   meta?: readonly Tag.Binding<unknown>[];
 }): HttpClient.Frame {
   const accept = config.filterStatus ?? acceptAll;
+  const retry = config.retry ?? noRetry;
   const configTag: Tag.Handle<HttpClient.Config> = tag({
     label: `${config.label}.config`,
     meta: config.meta,
@@ -192,7 +199,7 @@ export function httpClient(config: {
     depends: { send: backend },
     factory: ({ send }) => ({
       label: config.label,
-      execute: (request, ctx) => execute(send, request, ctx, accept),
+      execute: (request, ctx) => execute(send, request, ctx, accept, retry),
     }),
   });
   const frameBase = { label: frameLabel, config: configTag, client };
@@ -205,6 +212,14 @@ export function httpClient(config: {
 /** The frame's default status policy: accept every status. */
 function acceptAll(_status: number): boolean {
   return true;
+}
+
+/** The frame's default retry policy: no retry. Shared — never mutated. */
+const noRetry: HttpClient.Retry = { times: 0 };
+
+/** Transient in v1 (fixed policy, not configurable): 408, 429, or 5xx — worth another attempt. */
+function isTransientStatus(status: number): boolean {
+  return status === 408 || status === 429 || status >= 500;
 }
 
 /** Bind the frame's `operation` method: one overload per response shape, closing over the
@@ -237,21 +252,24 @@ function readEndpointOperation(frame: Omit<HttpClient.Frame, "operation">): Http
   return operation;
 }
 
-/** Send an already-configured request through `send`: validate the final URL once (failure →
- * `RequestFailed/InvalidUrl` with `cause`); then send inside one manual child span (`http <METHOD>
- * <url>`, attributes method/url/status). A backend rejection becomes `RequestFailed/Transport`
- * with `cause` — except when `ctx.signal` aborted: the signal's reason is rethrown untouched (a
- * cancel is a clean end, ADR 0028) — and a transport failure writes one `http request failed` log
- * line. After the backend returns, the frame's `filterStatus` predicate runs BEFORE the caller
- * sees the response: a rejected status raises `ResponseFailed/StatusCode` carrying `request` and
- * `response` (the body stays readable by a catch handler), before any endpoint `response` reader
- * runs. The child span settles `"ok"` on success and `"failed"` on any rejection (`obs.child`
- * semantics); with observation off the span is `undefined` and nothing is recorded. */
+/** Send an already-configured request through `send`, retrying transient failures: validate the
+ * final URL once (failure → `RequestFailed/InvalidUrl` with `cause`); then loop up to
+ * `retry.times + 1` attempts — `waitBeforeRetry` sleeps `ctx.clock` before every retry (an abort
+ * during the wait rejects with the signal reason, no further call); each attempt is one `sendOnce`
+ * in its own child span. A backend rejection logs one `http request failed` line and retries while
+ * attempts remain, else becomes `RequestFailed/Transport` with the last cause — except when
+ * `ctx.signal` aborted: the signal's reason is rethrown untouched (a cancel is a clean end,
+ * ADR 0028). A received transient status with attempts remaining retries too; otherwise the
+ * frame's `filterStatus` predicate runs BEFORE the caller sees the response (a rejected status
+ * raises `ResponseFailed/StatusCode` carrying `request` and `response`, the body staying readable
+ * by a catch handler). With `times: 0` the loop runs once and allocates nothing beyond today's
+ * single send. */
 async function execute(
   send: HttpClient.Backend,
   request: HttpRequest.Record,
   ctx: HttpClient.Ctx,
   accept: (status: number) => boolean,
+  retry: HttpClient.Retry,
 ): Promise<HttpResponse.Handle> {
   const url = HttpRequest.toUrl(request);
   try {
@@ -259,23 +277,72 @@ async function execute(
   } catch (cause) {
     raise("RequestFailed", { request, reason: "InvalidUrl", cause });
   }
+  const tries = retry.times + 1;
+  for (let attempt = 1; ; attempt += 1) {
+    await waitBeforeRetry(ctx, retry, attempt);
+    try {
+      const received = await sendOnce(send, request, url, ctx, accept, attempt, tries);
+      if (retriesStatus(received.status, attempt, tries)) continue;
+      return received;
+    } catch (error) {
+      if (ctx.signal.aborted) throw ctx.signal.reason;
+      if (isError(error, "ResponseFailed")) throw error;
+      if (attempt < tries) continue;
+      raise("RequestFailed", { request, reason: "Transport", cause: error });
+    }
+  }
+}
+
+/** Sleep `retry.delay` for the 1-based wait number on `ctx.clock` before a retry (`delay(1)` is the
+ * first wait, after attempt 1), default no wait; the first attempt never waits. An abort during the
+ * wait rejects with the signal reason. */
+async function waitBeforeRetry(
+  ctx: HttpClient.Ctx,
+  retry: HttpClient.Retry,
+  attempt: number,
+): Promise<void> {
+  if (attempt === 1) return;
+  await ctx.clock.sleep(retry.delay?.(attempt - 1) ?? 0, ctx.signal);
+}
+
+/** True while attempts remain and the received status is transient: policy says try again. */
+function retriesStatus(status: number, attempt: number, tries: number): boolean {
+  return attempt < tries && isTransientStatus(status);
+}
+
+/** One attempt inside its own manual child span (`http <METHOD> <url>`, attributes method/url/status
+ * plus the 1-based `attempt`): a backend rejection logs one line and rethrows raw (the loop wraps
+ * it); a received transient status with attempts remaining returns raw — that attempt's span
+ * settles `"ok"` (the transport succeeded, the retry is policy) — otherwise `accept` runs inside
+ * the span, so a rejected status settles it `"failed"`. */
+async function sendOnce(
+  send: HttpClient.Backend,
+  request: HttpRequest.Record,
+  url: string,
+  ctx: HttpClient.Ctx,
+  accept: (status: number) => boolean,
+  attempt: number,
+  tries: number,
+): Promise<HttpResponse.Handle> {
   return ctx.obs.child(`http ${request.method} ${url}`, async (span) => {
     if (span !== undefined) {
       span.attributes.method = request.method;
       span.attributes.url = url;
+      span.attributes.attempt = attempt;
     }
-    let received: HttpResponse.Handle;
+    let delivered: HttpResponse.Handle;
     try {
-      received = await send(request, ctx.signal);
+      delivered = await send(request, ctx.signal);
     } catch (error) {
       if (ctx.signal.aborted) throw ctx.signal.reason;
       ctx.log("http request failed", { method: request.method, url });
-      raise("RequestFailed", { request, reason: "Transport", cause: error });
+      throw error;
     }
-    if (span !== undefined) span.attributes.status = received.status;
-    if (!accept(received.status)) {
-      raise("ResponseFailed", { request, response: received, reason: "StatusCode" });
+    if (span !== undefined) span.attributes.status = delivered.status;
+    if (retriesStatus(delivered.status, attempt, tries)) return delivered;
+    if (!accept(delivered.status)) {
+      raise("ResponseFailed", { request, response: delivered, reason: "StatusCode" });
     }
-    return received;
+    return delivered;
   });
 }
