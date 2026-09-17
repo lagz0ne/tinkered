@@ -50,9 +50,7 @@ export function handle<T, I>(
 - **t02** — `app.request` on a route whose op parse throws → 400; a request aborted mid-flight → 499
   (the op settles `cancelled`); an op depending on a missing required tag → 500; `handle` without
   `tinker` → 500 `NoSession`; an unmapped error (plain `Error`) → reaches `app.onError`; `tinker(scope,
-{ onError: (e, c) => isError(e, "X") ? c.text("teapot", 418) : undefined })` overrides one case; in each
-  mapped case the request span is `failed` with `attributes.status` = the mapped status and the log line
-  carries it.
+{ onError: (e, c) => isError(e, "X") ? c.text("teapot", 418) : undefined })` overrides one case; in each mapped case the request span is `ok` with `attributes.status` = the mapped status and the log line carries it, while the route op's span is `failed`; an unmapped error leaves the request span `failed`.
 - **t03** — a route using `stream(c, async (write) => { for (const ch of chunks) { await write(ch); await
 clock.sleep(10, signal); } })` under a TestClock: the response body yields the chunks as the clock
   advances; a session-target resource's `defer` runs only after the last chunk (session still open during

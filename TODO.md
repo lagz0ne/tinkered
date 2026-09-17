@@ -29,8 +29,7 @@ shutdown; TUI app — each starts with `grill-with-docs`.
       graceful vs forced close; request span parents the op span; one log line; observation off = no spans.
 - [ ] **hono/t02 — error mapping inside the request (ADR 0040 §2).** `tinker(scope, { onError? })` slot first,
       then the default map: `DataValidationFailed` → 400, `cancelled` → 499, `MissingTag`/`NoSession` → 500,
-      else rethrow to Hono. **Verify:** each mapping through `app.request`; the request span settles `failed`
-      with the mapped `status`; the log line carries it; `onError` overrides one case; an unmapped error
+      else rethrow to Hono. **Verify:** each mapping through `app.request`; the request span settles `ok` with the mapped `status` (the op's span is `failed`); the log line carries it; `onError` overrides one case; an unmapped error
       reaches `app.onError`.
 - [ ] **hono/t03 — `stream(c, write)` (ADR 0040 §3).** Streaming Response; the request session stays open
       until the body finishes or the client cancels, then closes. **Verify:** a route that writes three
