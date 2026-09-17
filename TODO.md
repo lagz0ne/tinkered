@@ -10,10 +10,9 @@ Perf pursuit is closed (see archive). Next: production-ready "tinkered-first" co
 operation/resource model — glue without side effects, testable without mocks, the scope as the single
 configuration point. Start with `grill-with-docs` (ADRs in `docs/decisions/`, terms in `docs/glossary.md`).
 
-First integration shipped: **httpClient** as a frame of core primitives (ADR 0035, archived below;
-detail in `docs/roadmap/http-v1/PROGRESS.md`). Next candidates for a dedicated integration: server
-integration (Hono, maybe Express); app entrypoint with graceful shutdown; TUI app — each starts with
-`grill-with-docs`.
+First integration shipped: **httpClient** (ADR 0035, archived below). Second: the **Hono driver**
+(ADR 0039; plan `docs/roadmap/hono-v1/PROGRESS.md`). Later candidates: app entrypoint with graceful
+shutdown; TUI app — each starts with `grill-with-docs`.
 
 - [x] **core/t25 — tests speak the everyday verbs (SCIP-driven).** _Done: tag `core/t25`. 193 inline
       `controller(x).run(...)` / `controller(x).resolve()` chains in core tests rewritten to `scope.run(x, …)` /
@@ -21,7 +20,19 @@ integration (Hono, maybe Express); app entrypoint with graceful shutdown; TUI ap
       (the 45 remaining `OperationController.run` are held controllers and subflows). 228 tests green, 0 errors,
       census OK; no behaviour change._
 
-**The list is empty.** Next authoring candidates (each starts with `grill-with-docs`): server
+- [ ] **hono/t01 — package + `tinker` middleware + `handle` + `request` tag (ADR 0039).** `packages/hono`
+      (`@tinker/hono`, `hono` peer, 10 kB cap, errors registry with `NoSession`), `tinker(scope, { tags? })`
+      opens a session per request (`request(raw)` + `tags(c)`), client abort → forced close, close after
+      `next()`; `handle(op, { input?, respond? })` runs the op in the request session (default `c.json`).
+      **Verify:** seam tests via Hono's `app.request` — an op depending on the `request` tag and a tenant tag
+      sees both; `handle` with `input` parses via the op's `parse` and answers JSON; a void op needs no
+      route options; `respond` overrides; an aborted request settles the op `cancelled`; `handle` without
+      `tinker` → `NoSession`; `scope.close({ graceful: true })` with an in-flight request resolves `success`
+      after the response and a forced close resolves `cancelled`; validate lanes for hono; lead review SHIP.
+- [ ] **hono/t02 — validation milestone.** Size ≤ 10 kB, mutation ≥ 60 alone, README + cast-free example
+      (a routes module + a test-as-entrypoint), universal bundle (no `node:`), archive here.
+
+**Then the list is empty.** Next authoring candidates (each starts with `grill-with-docs`): server
 integration (Hono, maybe Express); app entrypoint with graceful shutdown; TUI app. Perf follow-up
 when the sandbox `bench` is available: `op` parity (budgets.md "Call paths (t27)").
 
