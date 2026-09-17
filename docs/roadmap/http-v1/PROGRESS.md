@@ -50,7 +50,7 @@ its tag exists.
 | tag      | ticket                                                                                        | blockers | status |
 | -------- | --------------------------------------------------------------------------------------------- | -------- | ------ |
 | http/t01 | Package + frame + `execute`: scaffold, errors, tags, `fetchBackend`, request/response records | —        | [x]    |
-| http/t02 | Endpoint operations + `preset` seam + cancel; status filters                                  | 01       | [ ]    |
+| http/t02 | Endpoint operations + `preset` seam + cancel; status filters                                  | 01       | [x]    |
 | http/t03 | Observation + logging: child span per request, failure log line, zero cost when off           | 01       | [ ]    |
 | http/t04 | Retry: frame slot, transient policy, `ctx.clock.sleep` backoff under a TestClock              | 02       | [ ]    |
 | http/t05 | Validation milestone: size, mutation, README + cast-free example, universal bundle; SHIP      | 03, 04   | [ ]    |

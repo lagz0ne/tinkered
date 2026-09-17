@@ -52,7 +52,7 @@ CommandController|Operation\.Command` left in packages/ bench/ README docs (grep
       forwards `ctx.signal`. **Verify:** seam test — an operation depending on `github.client`
       executes a GET through a closure backend bound on the tag; the backend sees the merged URL +
       headers; the body reads back; `InvalidUrl` when no baseUrl and a relative path. Gate green.
-- [ ] **http/t02 — endpoint operations + preset seam + cancel.** `x.operation({...})` typed input
+- [x] **http/t02 — endpoint operations + preset seam + cancel.** _Done: tag `http/t02` (38e5490), gate green (294 tests), size 5243 B, lead review SHIP, mutation 66.15 (up from 43.35; uncovered mutants 102 → 25)._ `x.operation({...})` typed input
       (`parse`), `response` reader (`res.json(parse)`), raw response by default; `filterStatusOk`
       → `ResponseFailed/StatusCode`; `preset(x.client, …)` and `preset(endpoint, …)` swap;
       forced close aborts an in-flight request and the run settles `cancelled`. **Verify:** tests
