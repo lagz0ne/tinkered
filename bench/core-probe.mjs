@@ -2,7 +2,8 @@
 // usage: taskset -c 7 node --expose-gc bench/core-probe.mjs <cold|create|warm|get1|lifecycle|inferdi_cold|op|run|cold2|s1_getctl|s2_data|s3_doubled|s4_warm_ctl>
 import { bench, run } from "mitata";
 import { Container } from "@inferdi/inferdi";
-const { createScope, data, resource, operation } = await import("../packages/core/dist/index.mjs");
+const { createScope, data, resource, operation, tag } =
+  await import("../packages/core/dist/index.mjs");
 const cfg = data({ label: "cfg", initial: 21 });
 const doubled = resource({ label: "doubled", depends: { n: cfg }, factory: ({ n }) => n * 2 });
 const store = resource({
@@ -30,6 +31,10 @@ const opC = opScope.controller(op);
 opC.run();
 const inlineCfg = { depends: { n: cfg }, run: ({ n }) => n + 1 };
 const inlineScope = createScope();
+const zone = tag({ label: "zone", default: "base" });
+const taggedOp = operation({ label: "taggedOp", depends: { n: cfg }, run: ({ n }) => n + 1 });
+const taggedScope = createScope();
+const sessionScope = createScope();
 const fns = {
   s1_getctl: () => createScope().controller(store),
   s2_data: () => createScope().controller(cfg).get(),
@@ -38,6 +43,8 @@ const fns = {
   op: () => opC.run(),
   run: () => opScope.run(op),
   inline: () => inlineScope.run(inlineCfg),
+  tagged: () => taggedScope.run(taggedOp, { tags: [zone("us")] }),
+  session: () => sessionScope.session(() => 1),
   cold2: () => createScope().controller(twoArg).resolve(),
   cold: () => createScope().controller(store).resolve().base,
   create: () => createScope(),

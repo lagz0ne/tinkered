@@ -21,6 +21,39 @@ in-container).
 | cast-free examples  | 0 casts, typecheck clean        | **0 casts**                              | `packages/core/examples/*.ts` + `vp check`    |
 | deep chains         | teardown iterative, no overflow | **10k+ safe**; build ceilings documented | `bench/deep.mjs` (see below)                  |
 
+## Call paths (t27)
+
+In-container references (min of 5, pinned core 7, this box, 2026-09-17) plus the
+main-at-t24 comparison from the same alternating A/B runs. Wall-clock rows are
+references — the sandbox `bench` is unavailable in this container today — and the
+census rows are gates (`pnpm validate` runs `bench/promises.mjs` and `bench/heap.mjs`).
+
+| scenario              | t27 reference (min of 5) | main at t24 (same A/B) | rule                                                        |
+| --------------------- | ------------------------ | ---------------------- | ----------------------------------------------------------- |
+| `op`                  | 78.3 ns                  | 78.3 ns                | must not exceed main's t24 number + 2 ns in alternating A/B |
+| `run`                 | 88.5 ns                  | 88.5 ns                | must not exceed main's t24 number + 2 ns in alternating A/B |
+| `inline`              | 180.7 ns                 | 180.3 ns               | ≤ run + one handle+controller allocation (~90 ns)           |
+| `session`             | 1600.0 ns                | — (new probe)          | reference only                                              |
+| `tagged`              | 1939.0 ns                | — (new probe)          | ≤ session + op + 10%                                        |
+| `promises_tagged`     | **17** (exact)           | — (new census)         | exact: a change that adds one fails                         |
+| `heap_tagged_per_req` | 4901 B                   | — (new figure)         | informative (no gate yet)                                   |
+
+- **Part 1 residual:** no parity gap was measurable on this box. Main and the
+  worktree share the same `packages/core/src/index.ts` at t26/bc60d80, yet both
+  alternate between ~78 and ~90 ns for `op` (and ~89/102 ns for `run`) run to run —
+  the ADR 0038 landing numbers (78→90, 88→101) sit inside that bimodal host noise.
+  The t27 change keeps the hot closure at one optional `call.tags` read with the
+  untagged body inline (`hasCallTags` helper, no extra frame or call) and records
+  the floor above. Raw A/B lines are in the commit body.
+- `tagged` (1939) ≈ `session` (1600) + `op` (78) + ~16%: the tagged path IS the
+  session path plus one untagged run; the +10% rule has ~6 points of headroom to
+  investigate when the sandbox `bench` is available.
+- `promises_tagged` = 17, measured by awaiting the run's own promise inside the
+  hook window (awaiting through an extra async wrapper counts 18 — the wrapper's
+  own promise, not the run's). Threshold is exactly 17.
+- `heap_tagged_per_req` = 4901 B vs 2906 B untagged: one open child session + one
+  in-flight tagged run retained per request. Informative only.
+
 ## Notes
 
 - **Deep chains.** Teardown, release and session nesting are iterative/async and survive ≥10k

@@ -9,7 +9,7 @@ const hook = createHook({
   },
 });
 
-const { createScope, data, operation } = await import("../packages/core/src/index.ts");
+const { createScope, data, operation, tag } = await import("../packages/core/src/index.ts");
 
 const measure = (fn) => {
   promises = 0;
@@ -51,8 +51,24 @@ await scope.controller(toggle).run();
 hook.disable();
 const asyncCount = promises;
 
+// --- TAGGED lane: ONE tagged run of a sync op (always async: child session + close) ---
+const zone = tag({ label: "zone", default: "base" });
+const cfg = data({ label: "cfg", initial: 21 });
+const ping = operation({ label: "ping", depends: { n: cfg }, run: ({ n }) => n + 1 });
+const taggedScope = createScope();
+// Await the run's OWN promise inside the hook window: awaiting through an extra
+// async wrapper counts the wrapper's promise too (18, not the run's 17). The census
+// is the run's own promises, so capture the promise first, then await it directly.
+promises = 0;
+hook.enable();
+const taggedFlight = taggedScope.run(ping, { tags: [zone("us")] });
+await taggedFlight;
+hook.disable();
+const taggedCount = promises;
+
 console.log(`sync-lane promises:  ${sync}   (budget 0)`);
 console.log(`async-toggle promises: ${asyncCount}   (budget <=10)`);
+console.log(`METRIC promises_tagged=${taggedCount}`);
 
 let fail = false;
 if (sync !== 0) {
@@ -61,6 +77,10 @@ if (sync !== 0) {
 }
 if (asyncCount > 10) {
   console.error(`FAIL: async toggle allocated ${asyncCount} promises, budget is <=10`);
+  fail = true;
+}
+if (taggedCount !== 17) {
+  console.error(`FAIL: tagged run allocated ${taggedCount} promises, budget is exactly 17`);
   fail = true;
 }
 process.exit(fail ? 1 : 0);

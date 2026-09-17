@@ -1303,13 +1303,12 @@ class OperationCtx<I> implements Operation.Ctx<I> {
   }
 }
 
-/** The `tags` a call carries, if any — one optional read, no chain. A tagged call opens a child
- * session for the run (ADR 0038); anything else takes the untagged body inline in the
- * controller's `run` closure (exactly main's, plus this check). */
-function readCallTags(call: Scope.Invocation<unknown> | undefined): Scope.Bindings | undefined {
-  if (call === undefined) return undefined;
-  const tags = call.tags;
-  return tags !== undefined && tags.length > 0 ? tags : undefined;
+/** True when a call carries tag bindings (ADR 0038): one optional `tags` read, no chain.
+ * A tagged call opens a child session for the run; anything else takes the untagged body
+ * inline below. `tags: []` counts as untagged (no session for an empty binding list). */
+function hasCallTags(call: Scope.Invocation<unknown> | undefined): boolean {
+  const tags = call?.tags;
+  return tags !== undefined && tags.length !== 0;
 }
 
 /** Run `target` in a child session bound with the call's tags (ADR 0038) — sugar over
@@ -1345,12 +1344,11 @@ function operationController<T, I>(
 ): Scope.OperationController<T, I> {
   /** The single entry every run takes — declared, subflow, and inline alike. A call carrying
    * `tags` opens a child session for the run (ADR 0038, always async); anything else runs the
-   * untagged body inline below, which is main's, unchanged — one `call?.tags` check, no extra
-   * frame on the hot path. The implementation signature stays broad (one input shape would mean
-   * no overload — rule 9); the two public overloads type the fork. */
+   * untagged body inline below, which is main's, unchanged — one optional `call.tags` read, no
+   * extra frame or call on the hot path. The implementation signature stays broad (one input
+   * shape would mean no overload — rule 9); the two public overloads type the fork. */
   const run = (call?: Scope.Invocation<I>): unknown => {
-    const tags = readCallTags(call);
-    if (tags !== undefined)
+    if (hasCallTags(call))
       return runTagged(
         layer,
         target,
