@@ -37,8 +37,8 @@ export function handle<T, I>(
 | -------- | -------------------------------------------------------------------------------------------------- | -------- | ------ |
 | hono/t01 | Package + `tinker` + `handle` (request = inline op: span + log) + `request` tag; abort → cancelled | —        | [x]    |
 | hono/t02 | Error mapping inside the request + `onError` slot (400 / 499 / 500 / rethrow)                      | 01       | [x]    |
-| hono/t03 | `stream(c, write)`: streaming Response keeps the request session open until the body ends          | 01       | [ ]    |
-| hono/t04 | Validation milestone: size, mutation, README + cast-free example, validate lanes; SHIP             | 02, 03   | [ ]    |
+| hono/t03 | `stream(c, write)`: streaming Response keeps the request session open until the body ends          | 01       | [x]    |
+| hono/t04 | Validation milestone: size, mutation, README + cast-free example, validate lanes; SHIP             | 02, 03   | [x]    |
 
 ### Verify
 
@@ -58,6 +58,9 @@ clock.sleep(10, signal); } })` under a TestClock: the response body yields the c
   advances; a session-target resource's `defer` runs only after the last chunk (session still open during
   the body); cancelling the body's reader closes the session forced (`defer` sees `cancelled`); a plain
   `handle` route still closes its session right after `next()`.
+  - _Landed (t03 03701d9 mutation 83.33; t04 on the validate-gate commit):_ 17 validate lanes green; size
+    2838 B; 24 seam tests; README rewritten at review (entrypoint with `serve` + SIGTERM, tenant + `request`
+    tag, streaming block). **SHIPPED.**
 - **t04** — `vp run hono#size` ≤ 10240; `vp run hono#mutate` alone ≥ 60; README (main/routes/test shape from ADR 0039) + cast-free `examples/basic.ts`; `pnpm validate` gains hono lanes (tests, size, cast-free, pure bundle — `hono` import allowed, no `node:`); lead review SHIP; TODO archive entry.
 
 ## Review loop

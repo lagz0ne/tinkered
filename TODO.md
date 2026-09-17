@@ -10,8 +10,8 @@ Perf pursuit is closed (see archive). Next: production-ready "tinkered-first" co
 operation/resource model — glue without side effects, testable without mocks, the scope as the single
 configuration point. Start with `grill-with-docs` (ADRs in `docs/decisions/`, terms in `docs/glossary.md`).
 
-First integration shipped: **httpClient** (ADR 0035, archived below). Second: the **Hono driver**
-(ADR 0039; plan `docs/roadmap/hono-v1/PROGRESS.md`). Later candidates: app entrypoint with graceful
+First integration shipped: **httpClient** (ADR 0035, archived below). Second shipped: the **Hono driver**
+(ADR 0039/0040, archived below). Later candidates: app entrypoint with graceful
 shutdown; TUI app — each starts with `grill-with-docs`.
 
 - [x] **core/t25 — tests speak the everyday verbs (SCIP-driven).** _Done: tag `core/t25`. 193 inline
@@ -20,29 +20,9 @@ shutdown; TUI app — each starts with `grill-with-docs`.
       (the 45 remaining `OperationController.run` are held controllers and subflows). 228 tests green, 0 errors,
       census OK; no behaviour change._
 
-- [x] **hono/t01 — package + `tinker` middleware + `handle` as the request inline op + `request` tag (ADR 0039, 0040 §1).** _Done: tag `hono/t01` (cf29af8), 12 tests, size 1497 B, mutation 77.42, lead review SHIP (6 nits + census S09 skips import lines)._
-      `packages/hono` (`@tinker/hono`, `hono` peer, 10 kB cap, `NoSession`), a session per request
-      (`request(raw)` + `tags(c)`, abort → forced close, close after `next()`); `handle(op, { input?, respond? })`
-      runs the request as an inline op (`depends: { op }`, span `GET /users/:id` with method/route/path/status,
-      one `http request` log line) whose subflow is the route op. **Verify:** via `app.request` — tenant +
-      `request` tag seen; parse via the op; void op; `respond` override; abort → op `cancelled`; `NoSession`;
-      graceful vs forced close; request span parents the op span; one log line; observation off = no spans.
-- [x] **core/t28 — operation parse failures are `DataValidationFailed`.** _Done: tag `core/t28`; `parseInput` goes
-      through `admit` like data/tag parses (label + cause); the span-closure test narrows on the registry error;
-      all packages green. Found by hono/t02 review (the contributor had re-run the parse to classify the error)._
-- [x] **hono/t02 — error mapping inside the request (ADR 0040 §2).** _Done: tag `hono/t02` (ed3bbec), 17 tests, size 2012 B, mutation 83.52, lead review SHIP (parse re-run removed after core/t28)._ `tinker(scope, { onError? })` slot first,
-      then the default map: `DataValidationFailed` → 400, `cancelled` → 499, `MissingTag`/`NoSession` → 500,
-      else rethrow to Hono. **Verify:** each mapping through `app.request`; the request span settles `ok` with the mapped `status` (the op's span is `failed`); the log line carries it; `onError` overrides one case; an unmapped error
-      reaches `app.onError`.
-- [ ] **hono/t03 — `stream(c, write)` (ADR 0040 §3).** Streaming Response; the request session stays open
-      until the body finishes or the client cancels, then closes. **Verify:** a route that writes three
-      chunks over `clock.sleep` under a TestClock — the session-target resource's `defer` runs only after the
-      last chunk; cancelling the response body closes the session forced (`cancelled`); a plain route still
-      closes right after `next()`.
-- [ ] **hono/t04 — validation milestone.** Size ≤ 10 kB, mutation ≥ 60 alone, README (main/routes/test,
-      spans+log, errors, stream) + cast-free example, `pnpm validate` gains hono lanes; archive here.
-
-**Then the list is empty.** Next authoring candidates (each starts with `grill-with-docs`): server
+**The list is empty.** Next authoring candidates (each starts with `grill-with-docs`): app entrypoint
+with graceful shutdown (one scope, several drivers — amends ADR 0039 Q3); TUI app. Perf follow-up when the
+sandbox `bench` is available: `op` parity (budgets.md "Call paths (t27)"). Next authoring candidates (each starts with `grill-with-docs`): server
 integration (Hono, maybe Express); app entrypoint with graceful shutdown; TUI app. Perf follow-up
 when the sandbox `bench` is available: `op` parity (budgets.md "Call paths (t27)").
 
@@ -50,6 +30,17 @@ when the sandbox `bench` is available: `op` parity (budgets.md "Call paths (t27)
 
 Both v1 milestones are complete. Full ticket detail, budgets, and reset recipes live in the
 durable trackers (this list is just the pointer):
+
+- **hono v1 (2026-09-17)** — complete: `@tinker/hono` as a session-level driver (ADR 0039, 0040; tags
+  `hono/t01`…`hono/t04`): the entrypoint owns the scope, `tinker(scope, { tags?, onError? })` opens a session per
+  request (graceful close = commit after the handler, forced = rollback on client abort), `handle(op, { input?,
+respond? })` runs the request as an inline operation (span `GET /users/:id`, one `http request` log line, the
+  route op as a nested subflow), error mapping inside the request (400 / 499 / 500 / rethrow), `stream(c, write)`
+  keeps the session open until the body ends (the writer is an inline op), `request` tag, `NoSession`. Gate: 17
+  validate lanes green (hono tests/size/cast-free/pure bundle added), size 2838 B, mutation 83.33, 24 seam tests
+  through `app.request`, every ticket lead-reviewed (found: a forced close after a good request rolled resources
+  back; a parse re-run hack → core/t28). core/t28: an operation's `parse` failure is `DataValidationFailed`.
+  Census S09 skips import lines. Detail: `docs/roadmap/hono-v1/PROGRESS.md`.
 
 - **http v1 (2026-09-17)** — complete: `@tinker/http` as a frame of core primitives (ADR 0035; tags
   `http/t01`…`http/t05`): shared `backend` tag (default `fetchBackend`), per-client `config` tag read

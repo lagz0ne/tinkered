@@ -1,31 +1,41 @@
 # @tinker/hono
 
 A Hono server as a **session-level driver** (ADR 0039, 0040): the entrypoint owns the scope,
-` tinker(scope)` opens one session per request, routes are declarations that never see a handle.
+`tinker(scope)` opens one session per request, routes are declarations that never see a handle.
 
 ```ts
-// main.ts (the entrypoint owns the scope)
+// main.ts (the entrypoint owns the scope and its close)
+import { serve } from "@hono/node-server";
 import { Hono } from "hono";
-import { createScope } from "@tinker/core";
+import { createScope, tag } from "@tinker/core";
 import { tinker } from "@tinker/hono";
-import { routes } from "./routes.ts";
+import { routes, tenant } from "./routes.ts";
 
-const scope = createScope();
-const app = new Hono().use(tinker(scope)).route("/", routes);
-export default app;
-await scope.close({ graceful: true });
+const scope = createScope({ tags: [tenant("public")] });
+const app = new Hono()
+  .use(tinker(scope, { tags: (c) => [tenant(c.req.header("x-tenant") ?? "public")] })) // request-derived bindings
+  .route("/", routes);
+serve({ fetch: app.fetch });
+process.on("SIGTERM", async () => {
+  await scope.close({ graceful: true }); // waits for in-flight requests
+  process.exit(0);
+});
 ```
 
 ```ts
-// routes.ts (declarations: input off the request, respond back to it)
-import { operation } from "@tinker/core";
+// routes.ts (declarations: input off the request, respond back to it — no scope here)
+import { Hono } from "hono";
+import { operation, tag } from "@tinker/core";
 import { handle, request } from "@tinker/hono";
+
+export const tenant = tag<string>({ label: "tenant" });
 
 const getUser = operation({
   label: "getUser",
-  input: parseId,
-  depends: { users },
-  run: ({ users }, ctx) => users.find(ctx.input),
+  input: parseId, // the edge: "42" -> 42, or DataValidationFailed -> 400
+  depends: { users, tenant, req: request }, // `request` = the web Request, for the rare op that needs headers
+  run: ({ users, tenant, req }, { input, signal }) =>
+    users.find(tenant, input, { signal, lang: req.headers.get("accept-language") }),
 });
 
 export const routes = new Hono()
@@ -55,8 +65,18 @@ the body finishes or the client cancels, then closes (every other response close
 `ctx.clock`, `ctx.log`, and its span are all available while the request span has ended.
 
 ```ts
-.get("/ticks", handle(ticks, { respond: (ts, c) => stream(c, async (emit, { clock, signal }) => {
-  for (const t of ts) { await emit(`${t}\n`); await clock.sleep(1000, signal); } } ) }));
+.get(
+  "/ticks",
+  handle(ticks, {
+    respond: (ts, c) =>
+      stream(c, async (emit, { clock, signal }) => {
+        for (const t of ts) {
+          await emit(`${t}\n`);
+          await clock.sleep(1000, signal);
+        }
+      }),
+  }),
+);
 ```
 
 ## Errors

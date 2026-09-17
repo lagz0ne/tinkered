@@ -31,6 +31,17 @@ const lanes = [
     "http pure universal bundle",
     `bash -c 'grep -qE "from \\"node:" packages/http/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/http/dist/index.mjs\\").then(m=>process.exit(m.httpClient?0:1))"'`,
   ],
+  // @tinker/hono (ADR 0039/0040, hono-v1 t04): same promises; `hono` is a peer import, `node:` is not.
+  ["hono tests", `${VP} run --no-cache hono#test`],
+  ["hono size (<= 10 kB gzip)", `${VP} run --no-cache hono#size`],
+  [
+    "hono cast-free examples (0 casts)",
+    `bash -c 'test $(grep -rcE "\\\\bas [A-Za-z{(]|\\\\bas unknown|[a-zA-Z0-9_)\\\\]]!" packages/hono/examples | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
+  ],
+  [
+    "hono pure universal bundle",
+    `bash -c 'grep -qE "from \\"node:" packages/hono/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/hono/dist/index.mjs\\").then(m=>process.exit(m.tinker&&m.handle&&m.stream?0:1))"'`,
+  ],
 ];
 
 let failed = 0;
@@ -51,7 +62,7 @@ for (const [name, cmd] of lanes) {
   }
 }
 console.log(
-  `\nMutation lanes: run \`${VP} run --no-cache core#mutate\` and \`${VP} run --no-cache http#mutate\` ALONE (break >= 60; core ~78%, http ~70%).`,
+  `\nMutation lanes: run \`${VP} run --no-cache core#mutate\` and \`${VP} run --no-cache http#mutate\` and \`${VP} run --no-cache hono#mutate\` ALONE (break >= 60; core ~78%, http ~70%, hono ~80%).`,
 );
 console.log(
   `Timing lanes:  run via \`bench -- ${strip} bench/<lane>.mjs\` in a clean worktree (not in-container).`,
