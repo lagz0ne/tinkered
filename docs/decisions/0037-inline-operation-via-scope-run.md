@@ -12,7 +12,7 @@ captures the parameter — which hides the input from `ctx.input`, `rawInput`, a
 ## Decision
 
 `scope.run` gains a second input shape (one overload per shape, ADR-free rule 9 of the
-convention): an **inline operation** config, with the parameter as the next argument.
+convention): an **inline operation** config, with the same call object as a declared run.
 
 ```ts
 scope.run(op, ...call);                            // declared operation, unchanged (ADR 0036)
