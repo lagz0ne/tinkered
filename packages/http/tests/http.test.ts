@@ -83,7 +83,7 @@ test("scope, session, and per-call config bindings merge nearest-first", async (
   const session = scope.createSession({
     tags: [child.config({ headers: { b: "2" } })],
   });
-  const merged = session.controller(readConfig).run({
+  const merged = await session.controller(readConfig).run({
     tags: [child.config({ baseUrl: "https://other" })],
   });
   expect(merged.baseUrl).toBe("https://other");

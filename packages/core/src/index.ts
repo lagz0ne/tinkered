@@ -246,8 +246,8 @@ export declare namespace Scope {
    * `rawInput`. A call carrying `tags` opens a child session for the run (ADR 0038) and is
    * always async: it returns `Promise<Awaited<T>>` even when the body is sync. */
   export type OperationController<T, I> = {
-    run(...call: CallArgs<I>): T;
     run(...call: TaggedCall<I>): Promise<Awaited<T>>;
+    run(...call: CallArgs<I>): T;
   };
 
   /** The tag bindings a call may carry. Present on a call, they open a child session bound

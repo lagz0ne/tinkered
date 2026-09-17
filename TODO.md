@@ -25,7 +25,7 @@ CommandController|Operation\.Command` left in packages/ bench/ README docs (grep
       to `scope.run(op, call)` and resource reads to `scope.resolve(res)` where the controller is not
       otherwise used. **Verify:** `scripts/scip.sh refs` shows `Handle#…:run()` ≫ `OperationController…:run()`
       in tests; `vp run core#test` green; no behaviour change.
-- [ ] **core/t26 — inline operation + tagged calls (ADR 0037 + 0038).** Second `run` overload:
+- [x] **core/t26 — inline operation + tagged calls (ADR 0037 + 0038).** _Done: tag `core/t26`, gate green (285 tests, validate PASS), lead review SHIP after one fix round (dispatch frames + session WeakMap removed; tests merged; tagged overload first on the controller). Residual +9 ns `op` / +12 ns `run` in-container recorded in ADR 0038 → core/t27._ Second `run` overload:
       `scope.run({ label?, depends?, run }, { input?, tags? }?)` → throwaway handle through the
       operation path (span `label ?? "inline"`, full ctx, owned work, deps in natural form, presets
       on deps apply), no cache/residue; probe scenario `inline` beside `op`. `tags` on ANY call

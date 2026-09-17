@@ -34,8 +34,11 @@ scope.run(importJob, { input: file, tags: [logBackend(fileSink)] });
   session-target resources settle when the run settles (ADR 0026 LIFO); the run's outcome is the
   session's outcome (ADR 0017/0028); a forced close of the parent cascades into it.
 - **Cost:** one session create + close per tagged call (≈ 1 µs today). A call without `tags`
-  takes exactly the current path — zero added cost. A hot loop does not pass tags per call; it
-  binds them once on a session.
+  takes the current path plus one `call.tags` check. Measured at landing (core/t26, in-container
+  alternating A/B on one pinned core): `op` 78 → 90 ns, `run` 88 → 101 ns — the path does strictly
+  less work than before (the old overlay seeding is gone), so the residual is code layout, not
+  work; core/t27 owns recovering it and setting floors. A hot loop does not pass tags per call;
+  it binds them once on a session.
 - **A tagged call is always async.** A session closes asynchronously (`close()` resolves a
   `Result`, ADR 0027), so `run(x, { tags })` returns `Promise<Awaited<T>>` even when the body is
   sync — typed that way on the overload, no sync fast path. Accepted deliberately: a per-flow
