@@ -10,9 +10,37 @@ Perf pursuit is closed (see archive). Next: production-ready "tinkered-first" co
 operation/resource model — glue without side effects, testable without mocks, the scope as the single
 configuration point. Start with `grill-with-docs` (ADRs in `docs/decisions/`, terms in `docs/glossary.md`).
 
-- [ ] **Pick the first dedicated integration** (clock is done, embedded like observation). Candidates:
-      httpClient; server integration (Hono, maybe Express); app entrypoint with graceful shutdown; TUI app.
-      **Verify:** an ADR names the tier (ambient / capability / driver), the seam, and the no-mock test story.
+First integration picked: **httpClient** as a frame of core primitives (ADR 0035; detail + verify +
+reset recipes in `docs/roadmap/http-v1/PROGRESS.md`). Tickets `http/t01`…`http/t05`, each gated,
+each astra-reviewed to SHIP before the next.
+
+- [ ] **core/t24 — verb alignment (ADR 0036), lands BEFORE http/t01.** `scope.controller(x)`,
+      `scope.resolve(x)` (data/resource/tag snapshot; op = type error), `scope.run(op, call?)`,
+      `OperationController.run`, `Operation.Handle`, drop `DataController.read`; React `useRun`
+      (`run`/`runAsync`). Docs, README, examples, benches, tests move together. **Verify:** `vp check`
+      0 errors, `vp run -r test` green, `pnpm validate` green, no `getController|\.read\(\)|useResolve|
+CommandController|Operation\.Command` left in packages/ bench/ README docs (grep = 0); astra SHIP.
+- [ ] **http/t01 — package + frame + execute.** `packages/http` scaffold (10 kB cap, errors registry,
+      gate via `scripts/ticket.sh` with a package arg); `httpClient({ label })` → `config` tag,
+      `client` resource; shared `backend` tag with `fetchBackend`; `HttpRequest.*` constructors +
+      bodies; `HttpResponse.fromWeb/make`; `execute(request, ctx)` merges baseUrl/headers and
+      forwards `ctx.signal`. **Verify:** seam test — an operation depending on `github.client`
+      executes a GET through a closure backend bound on the tag; the backend sees the merged URL +
+      headers; the body reads back; `InvalidUrl` when no baseUrl and a relative path. Gate green.
+- [ ] **http/t02 — endpoint operations + preset seam + cancel.** `x.operation({...})` typed input
+      (`parse`), `response` reader (`res.json(parse)`), raw response by default; `filterStatusOk`
+      → `ResponseFailed/StatusCode`; `preset(x.client, …)` and `preset(endpoint, …)` swap;
+      forced close aborts an in-flight request and the run settles `cancelled`. **Verify:** tests
+      for each; gate green.
+- [ ] **http/t03 — observation + logging.** A child span `http GET <url>` under the endpoint span
+      with method/url/status attributes, failed on error, one `log` line on failure. **Verify:**
+      `scope.spans()` + `observe.log` assertions; observation off costs nothing (no spans). Gate.
+- [ ] **http/t04 — retry.** Frame slot `retry: { times, delay? }`, transient policy, backoff via
+      `ctx.clock.sleep` under a `TestClock`; abort stops retrying; 404 never retries. **Verify:**
+      deterministic tests with `makeTestClock`; gate green.
+- [ ] **http/t05 — validation milestone.** Size ≤ 10 kB gzip, mutation ≥ 60, README + cast-free
+      `packages/http/examples/basic.ts`, pure universal bundle (no `node:` imports), astra SHIP.
+      **Verify:** `vp run http#size`, `vp run http#mutate` isolated, `vp check`; archive here.
 
 ## Shipped — archived
 
