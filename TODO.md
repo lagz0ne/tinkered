@@ -37,6 +37,14 @@ CommandController|Operation\.Command` left in packages/ bench/ README docs (grep
       session resource's `defer` runs with the run's outcome); untagged calls take the old path
       (probe `op`/`run` unchanged). `vp check` 0, `vp run -r test`, `pnpm validate` green; SCIP refs
       for `Scope/Handle#…:run()` before/after; lead review SHIP.
+- [ ] **core/t27 — performance protection for the new call paths (later, after t26 lands).** The
+      new shapes (tagged call = session per call, inline = handle per call) get their own guard
+      rails, separate from the feature work: probe scenarios `inline`, `tagged`, `tagged_sync` in
+      `bench/core-probe.mjs` with recorded floors in `docs/roadmap/core-v1/budgets.md`; a
+      `promises` lane count for a tagged call (ADR 0016 style: N promises per tagged call, fixed);
+      heap lane covers a tagged call; `op`/`run`/`warm` floors unchanged. **Verify:** `pnpm validate`
+      has the new lanes green; `bench` sandbox numbers recorded in budgets.md; a regression on any
+      floor fails the gate.
 - [ ] **http/t01 — package + frame + execute.** `packages/http` scaffold (10 kB cap, errors registry,
       gate via `scripts/ticket.sh` with a package arg); `httpClient({ label })` → `config` tag,
       `client` resource; shared `backend` tag with `fetchBackend`; `HttpRequest.*` constructors +
