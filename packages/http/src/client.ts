@@ -1,4 +1,12 @@
-import { resource, tag, type Operation, type Resource, type Tag } from "@tinker/core";
+import {
+  operation as operationCore,
+  resource,
+  tag,
+  type Data,
+  type Operation,
+  type Resource,
+  type Tag,
+} from "@tinker/core";
 import { raise } from "./errors.ts";
 import { HttpRequest } from "./request.ts";
 import { HttpResponse } from "./response.ts";
@@ -24,12 +32,39 @@ export declare namespace HttpClient {
     readonly label: string;
     execute(request: HttpRequest.Record, ctx: Ctx): Promise<HttpResponse.Handle>;
   };
+  /** An endpoint: a pure request builder plus an optional body reader. `request` is a pure
+   * function of the parsed input; `response` reads the body once at the process edge
+   * (`res.json(parse)`, ADR 0006) and is optional — when omitted the operation delivers the raw
+   * `HttpResponse.Handle`. Declares no other `depends`: anything dynamic (a token, a tenant
+   * base URL) is composed in a userland operation that depends on the endpoint and passes it
+   * via per-call `tags` or a session binding, so every endpoint stays presettable and pure. */
+  export type Endpoint<I, T> = {
+    label: string;
+    input?: Data.Parse<I>;
+    request: (input: I) => HttpRequest.Record;
+    response?: (response: HttpResponse.Handle) => T | PromiseLike<T>;
+  };
+  /** The `operation` method on a frame: one overload per response shape — an endpoint with a
+   * `response` reader delivers its value, one without delivers the raw handle. */
+  export type OperationFn = {
+    <I = void, T = HttpResponse.Handle>(
+      endpoint: Endpoint<I, T> & {
+        response: (response: HttpResponse.Handle) => T | PromiseLike<T>;
+      },
+    ): Operation.Handle<Promise<T>, I>;
+    <I = void>(
+      endpoint: Endpoint<I, HttpResponse.Handle>,
+    ): Operation.Handle<Promise<HttpResponse.Handle>, I>;
+  };
   /** The frame `httpClient` returns: its label, its per-client `config` tag, its `client`
-   * resource. Nothing runs until an operation resolves. */
+   * resource, and `operation` — the composition unit — which turns an endpoint into an ordinary
+   * operation labelled `${frame.label}.${endpoint.label}`. A userland operation depends on the
+   * endpoint as a subflow and hands a per-call value (a fresh token) through `tags`. */
   export type Frame = {
     readonly label: string;
     readonly config: Tag.Handle<Config>;
     readonly client: Resource.Handle<Handle>;
+    readonly operation: OperationFn;
   };
 }
 
@@ -137,46 +172,98 @@ export function applyConfig(
 /** Build the frame: a `config` tag labelled `${label}.config` (no default: absent means no
  * bindings, `.all` reads `[]`), a `client` resource labelled `${label}.client` (`target:
  * "session"`, `depends: { send: backend }` — the bare tag delivers its value — so deps resolve
- * at the requesting layer and a session-bound `backend` is seen), whose factory returns the
- * `Handle`. The handle is a tiny object, so one build per session costs nothing. */
+ * at the requesting layer and a session-bound `backend` is seen), whose factory closes over the
+ * frame's `filterStatus` predicate (default accept all) and returns the `Handle`. The handle is
+ * a tiny object, so one build per session costs nothing. */
 export function httpClient(config: {
   label: string;
+  filterStatus?: (status: number) => boolean;
   meta?: readonly Tag.Binding<unknown>[];
 }): HttpClient.Frame {
+  const accept = config.filterStatus ?? acceptAll;
   const configTag: Tag.Handle<HttpClient.Config> = tag({
     label: `${config.label}.config`,
     meta: config.meta,
   });
+  const frameLabel = config.label;
   const client: Resource.Handle<HttpClient.Handle> = resource({
     label: `${config.label}.client`,
     target: "session",
     depends: { send: backend },
     factory: ({ send }) => ({
       label: config.label,
-      execute: (request, ctx) => execute(send, request, ctx),
+      execute: (request, ctx) => execute(send, request, ctx, accept),
     }),
   });
-  return { label: config.label, config: configTag, client };
+  const frameBase = { label: frameLabel, config: configTag, client };
+  return {
+    ...frameBase,
+    operation: readEndpointOperation(frameBase),
+  };
+}
+
+/** The frame's default status policy: accept every status. */
+function acceptAll(_status: number): boolean {
+  return true;
+}
+
+/** Bind the frame's `operation` method: one overload per response shape, closing over the
+ * frame's label, config tag, and client resource. */
+function readEndpointOperation(frame: Omit<HttpClient.Frame, "operation">): HttpClient.OperationFn {
+  function operation<I = void, T = HttpResponse.Handle>(
+    endpoint: HttpClient.Endpoint<I, T> & {
+      response: (response: HttpResponse.Handle) => T | PromiseLike<T>;
+    },
+  ): Operation.Handle<Promise<T>, I>;
+  function operation<I = void>(
+    endpoint: HttpClient.Endpoint<I, HttpResponse.Handle>,
+  ): Operation.Handle<Promise<HttpResponse.Handle>, I>;
+  function operation(
+    endpoint: HttpClient.Endpoint<unknown, unknown>,
+  ): Operation.Handle<Promise<unknown>, unknown> {
+    const read = endpoint.response;
+    return operationCore({
+      label: `${frame.label}.${endpoint.label}`,
+      input: endpoint.input,
+      depends: { client: frame.client, config: frame.config.all },
+      run: async ({ client, config }, ctx) => {
+        const request = applyConfig(endpoint.request(ctx.input), mergeConfig(config));
+        const received = await client.execute(request, ctx);
+        if (read !== undefined) return read(received);
+        return received;
+      },
+    });
+  }
+  return operation;
 }
 
 /** Send an already-configured request through `send`: validate the final URL once (failure →
  * `RequestFailed/InvalidUrl` with `cause`); a backend rejection becomes `RequestFailed/Transport`
  * with `cause` — except when `ctx.signal` aborted: the signal's reason is rethrown untouched (a
- * cancel is a clean end, ADR 0028). Nothing else in t01. */
+ * cancel is a clean end, ADR 0028). After the backend returns, the frame's `filterStatus`
+ * predicate runs BEFORE the caller sees the response: a rejected status raises
+ * `ResponseFailed/StatusCode` carrying `request` and `response` (the body stays readable by a
+ * catch handler), before any endpoint `response` reader runs. */
 async function execute(
   send: HttpClient.Backend,
   request: HttpRequest.Record,
   ctx: HttpClient.Ctx,
+  accept: (status: number) => boolean,
 ): Promise<HttpResponse.Handle> {
   try {
     new URL(HttpRequest.toUrl(request));
   } catch (cause) {
     raise("RequestFailed", { request, reason: "InvalidUrl", cause });
   }
+  let received: HttpResponse.Handle;
   try {
-    return await send(request, ctx.signal);
+    received = await send(request, ctx.signal);
   } catch (error) {
     if (ctx.signal.aborted) throw ctx.signal.reason;
     raise("RequestFailed", { request, reason: "Transport", cause: error });
   }
+  if (!accept(received.status)) {
+    raise("ResponseFailed", { request, response: received, reason: "StatusCode" });
+  }
+  return received;
 }

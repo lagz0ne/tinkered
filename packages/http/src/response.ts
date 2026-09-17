@@ -21,6 +21,18 @@ export declare namespace HttpResponse {
   };
   /** A body parser for `json(parse)`: validates raw JSON into a trusted value at the process edge. */
   export type Parse<T> = Data.Parse<T>;
+  /** One status case: reads the response into a value. */
+  export type Case<R> = (response: Handle) => R;
+  /** The cases `matchStatus` dispatches on: exact statuses by number, class buckets, and a
+   * fallback. An exact status beats its class bucket; anything unmatched falls to `orElse`. */
+  export type Cases<R> = {
+    readonly [status: number]: Case<R> | undefined;
+    readonly "2xx"?: Case<R>;
+    readonly "3xx"?: Case<R>;
+    readonly "4xx"?: Case<R>;
+    readonly "5xx"?: Case<R>;
+    readonly orElse: Case<R>;
+  };
   /** Options for {@link make}: status, headers, a body (string, bytes, a byte stream, or null for
    * none), and the adapter's own object when the response wraps one. */
   export type MakeOptions = {
@@ -101,5 +113,50 @@ function readMakeBody(
   return body;
 }
 
-/** The response constructors: `HttpResponse.fromWeb(...)`, `HttpResponse.make(...)`. */
-export const HttpResponse = { fromWeb, make };
+/** The response constructors plus the status readers: `HttpResponse.fromWeb(...)`,
+ * `HttpResponse.make(...)`, `HttpResponse.filterStatus(...)`,
+ * `HttpResponse.filterStatusOk(...)`, `HttpResponse.matchStatus(...)`. */
+export const HttpResponse = { fromWeb, make, filterStatus, filterStatusOk, matchStatus };
+
+/** Pass the response through when `accept(status)` holds, else raise `ResponseFailed/StatusCode`
+ * carrying `request` and `response` (the body stays readable by a catch handler). */
+export function filterStatus(
+  response: HttpResponse.Handle,
+  accept: (status: number) => boolean,
+): HttpResponse.Handle {
+  if (accept(response.status)) return response;
+  raise("ResponseFailed", {
+    request: response.request,
+    response,
+    reason: "StatusCode",
+  });
+}
+
+/** `filterStatus` with the 2xx range — Effect's `filterStatusOk` shape, no `pipe`. */
+export function filterStatusOk(response: HttpResponse.Handle): HttpResponse.Handle {
+  return filterStatus(response, (status) => status >= 200 && status < 300);
+}
+
+/** Read a response into a value by status: an exact status beats its class bucket
+ * (`"2xx"`/`"3xx"`/`"4xx"`/`"5xx"` by hundreds digit), anything unmatched falls to `orElse`.
+ * The return type is the union of the case results (Effect's shape, no `Unify`). */
+export function matchStatus<R>(response: HttpResponse.Handle, cases: HttpResponse.Cases<R>): R {
+  const exact = cases[response.status];
+  if (exact !== undefined) return exact(response);
+  const bucket = readBucket(cases, response.status);
+  if (bucket !== undefined) return bucket(response);
+  return cases.orElse(response);
+}
+
+/** The class bucket for a status: `"2xx"` through `"5xx"` by hundreds digit. */
+function readBucket<R>(
+  cases: HttpResponse.Cases<R>,
+  status: number,
+): HttpResponse.Case<R> | undefined {
+  const klass = Math.floor(status / 100);
+  if (klass === 2) return cases["2xx"];
+  if (klass === 3) return cases["3xx"];
+  if (klass === 4) return cases["4xx"];
+  if (klass === 5) return cases["5xx"];
+  return undefined;
+}
