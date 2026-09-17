@@ -18,7 +18,7 @@ const { createScope, data, resource } = await import("../packages/core/dist/inde
 
 // Shared graph shape: cfg (value 21) -> doubled (cfg*2) -> store ({ base: doubled }).
 // `doubled` is a RESOURCE (built instance), not an operation: an operation dependency is delivered
-// as a controller (you call .resolve() yourself), so `store.base` would be a controller and tinker
+// as a controller (you call .run() yourself), so `store.base` would be a controller and tinker
 // would skip the cfg*2 work InferDI actually does. As a resource dep it resolves to the value (42),
 // making the graphs equivalent.
 // --- tinker definitions (module-level, built once) ---
@@ -51,17 +51,17 @@ warmRoot.get("store"); // prime the singleton cache
 // ---------------------------------------------------------------------------
 // `di`: cold per-request resolve of the 3-node graph (fresh instances each request).
 // tinker: brand-new scope resolves the leaf. inferdi: child scope off the root resolves scoped leaf.
-const tinkerDi = () => createScope().getController(store).resolve().base;
+const tinkerDi = () => createScope().controller(store).resolve().base;
 const inferdiDi = () => coldRoot.createScope().get("store").base;
 
 // `di_warm`: resolve an already-constructed singleton graph (a cache hit on both sides).
 const warmScope = createScope();
-warmScope.getController(store).resolve();
-const tinkerDiWarm = () => warmScope.getController(store).resolve().base;
+warmScope.controller(store).resolve();
+const tinkerDiWarm = () => warmScope.controller(store).resolve().base;
 const inferdiDiWarm = () => warmRoot.get("store").base;
 
 // `get1`: read a single already-resolved value (the tightest lookup).
-const g1 = createScope().getController(cfg);
+const g1 = createScope().controller(cfg);
 g1.get();
 const tinkerGet1 = () => g1.get();
 const inferdiGet1 = () => warmRoot.get("cfg");

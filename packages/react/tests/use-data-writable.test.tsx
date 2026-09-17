@@ -35,7 +35,7 @@ test("useData with writable returns the value and a setter that writes the cell"
   await expect.element(screen.getByText("count:1")).toBeVisible();
   await screen.getByRole("button").click();
   await expect.element(screen.getByText("count:2")).toBeVisible();
-  expect(scope.getController(count).get()).toBe(2);
+  expect(scope.controller(count).get()).toBe(2);
 
   await scope.close();
 });
@@ -53,7 +53,7 @@ test("useData with a selector and writable returns the slice and a setter for th
   await expect.element(screen.getByText("twice:6")).toBeVisible();
   await screen.getByRole("button").click();
   await expect.element(screen.getByText("twice:20")).toBeVisible();
-  expect(scope.getController(count).get()).toBe(10);
+  expect(scope.controller(count).get()).toBe(10);
 
   await scope.close();
 });
@@ -76,7 +76,7 @@ test("the writable setter keeps its identity across a cell update", async () => 
   );
 
   await expect.element(screen.getByText("stable:0")).toBeVisible();
-  scope.getController(count).set(1);
+  scope.controller(count).set(1);
   await expect.element(screen.getByText("stable:1")).toBeVisible();
 
   expect(seen.length).toBeGreaterThan(1);

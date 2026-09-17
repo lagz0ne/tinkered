@@ -59,7 +59,7 @@ test("a write-only component does not subscribe to the cell it controls", async 
   await expect.element(screen.getByText("counter:0")).toBeVisible();
   const mounted = writerRenders;
 
-  scope.getController(counter).set(7);
+  scope.controller(counter).set(7);
   await expect.element(screen.getByText("counter:7")).toBeVisible();
 
   expect(writerRenders).toBe(mounted);

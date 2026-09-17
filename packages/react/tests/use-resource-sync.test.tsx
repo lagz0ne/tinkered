@@ -45,7 +45,7 @@ test("builds synchronously: the value commits on the first flushed render, no su
 
 test("returns the exact instance core cached for the owner", async () => {
   const scope = createScope();
-  const built = scope.getController(store).resolve();
+  const built = scope.controller(store).resolve();
 
   const screen = await render(
     <ScopeProvider scope={scope}>

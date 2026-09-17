@@ -9,12 +9,12 @@ const greeting = data({ label: "greeting", initial: "hi" });
 
 function Greeting(): React.ReactElement {
   const scope = useScope();
-  return <p>{scope.getController(greeting).get()}</p>;
+  return <p>{scope.controller(greeting).get()}</p>;
 }
 
 test("uses the exact app-owned scope and never closes it", async () => {
   const scope = createScope();
-  scope.getController(greeting).set("seeded");
+  scope.controller(greeting).set("seeded");
 
   const screen = await render(
     <ScopeProvider scope={scope}>
@@ -25,7 +25,7 @@ test("uses the exact app-owned scope and never closes it", async () => {
   await expect.element(screen.getByText("seeded")).toBeVisible();
   await screen.unmount();
 
-  expect(scope.getController(greeting).get()).toBe("seeded");
+  expect(scope.controller(greeting).get()).toBe("seeded");
   await scope.close();
 });
 

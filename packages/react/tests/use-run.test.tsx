@@ -2,20 +2,20 @@ import type { Operation, Scope } from "@tinker/core";
 import { createScope, operation } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, useResolve } from "../src/index.ts";
+import { ScopeProvider, useRun } from "../src/index.ts";
 import { deferred } from "./support/deferred.ts";
 
 function Runner<T>({
   op,
   call,
 }: {
-  op: Operation.Command<T, number>;
+  op: Operation.Handle<T, number>;
   call: Scope.ProvideInput<number>;
 }): React.ReactElement {
-  const run = useResolve(op);
+  const run = useRun(op);
   return (
     <div>
-      <button type="button" onClick={() => run.resolve(call)}>
+      <button type="button" onClick={() => run.run(call)}>
         go
       </button>
       <p>status:{run.status}</p>
@@ -30,11 +30,11 @@ function Exposer({
   op,
   bind,
 }: {
-  op: Operation.Command<Promise<number>, number>;
-  bind: (resolve: Resolver) => void;
+  op: Operation.Handle<Promise<number>, number>;
+  bind: (runAsync: Resolver) => void;
 }): React.ReactElement {
-  const run = useResolve(op);
-  bind(run.resolveAsync);
+  const run = useRun(op);
+  bind(run.runAsync);
   return <p>data:{run.status === "success" ? String(run.data) : run.status}</p>;
 }
 
@@ -63,7 +63,7 @@ test("runs an operation imperatively: idle -> pending -> success, with rawInput 
   await scope.close();
 });
 
-test("a synchronous operation resolves to success with its value", async () => {
+test("a synchronous operation runs to success with its value", async () => {
   const scope = createScope();
   const inc = operation({
     label: "inc",
@@ -94,22 +94,22 @@ test("only the latest run publishes: a stale earlier run that settles later is d
     run: (_deps, { input }) => (input === 1 ? gateA.promise : gateB.promise).then(() => input),
   });
 
-  let resolve: Resolver | undefined;
+  let runAsync: Resolver | undefined;
   const ui = (
     <ScopeProvider scope={scope}>
       <Exposer
         op={raced}
         bind={(r) => {
-          resolve = r;
+          runAsync = r;
         }}
       />
     </ScopeProvider>
   );
   const screen = await render(ui);
-  if (!resolve) throw new Error("resolve was not bound");
+  if (!runAsync) throw new Error("runAsync was not bound");
 
-  const runA = resolve({ rawInput: "1" });
-  const runB = resolve({ rawInput: "2" });
+  const runA = runAsync({ rawInput: "1" });
+  const runB = runAsync({ rawInput: "2" });
 
   gateB.resolve();
   await runB;
@@ -126,7 +126,7 @@ test("only the latest run publishes: a stale earlier run that settles later is d
   await scope.close();
 });
 
-test("resolveAsync returns the value and rejects with the failure while state tracks both", async () => {
+test("runAsync returns the value and rejects with the failure while state tracks both", async () => {
   const scope = createScope();
   const failure = new Error("nope");
   const pick = operation({
@@ -135,25 +135,25 @@ test("resolveAsync returns the value and rejects with the failure while state tr
     run: (_deps, { input }) => (input > 0 ? Promise.resolve(input) : Promise.reject(failure)),
   });
 
-  let resolve: Resolver | undefined;
+  let runAsync: Resolver | undefined;
   const ui = (
     <ScopeProvider scope={scope}>
       <Exposer
         op={pick}
         bind={(r) => {
-          resolve = r;
+          runAsync = r;
         }}
       />
     </ScopeProvider>
   );
   const screen = await render(ui);
-  if (!resolve) throw new Error("resolve was not bound");
+  if (!runAsync) throw new Error("runAsync was not bound");
 
-  await expect(resolve({ rawInput: "3" })).resolves.toBe(3);
+  await expect(runAsync({ rawInput: "3" })).resolves.toBe(3);
   await screen.rerender(ui);
   await expect.element(screen.getByText("data:3")).toBeVisible();
 
-  await expect(resolve({ rawInput: "0" })).rejects.toBe(failure);
+  await expect(runAsync({ rawInput: "0" })).rejects.toBe(failure);
   await screen.rerender(ui);
   await expect.element(screen.getByText("data:error")).toBeVisible();
 
@@ -165,11 +165,11 @@ function Flags({
   call,
   events,
 }: {
-  op: Operation.Command<Promise<number>, number>;
+  op: Operation.Handle<Promise<number>, number>;
   call: Scope.ProvideInput<number>;
   events: string[];
 }): React.ReactElement {
-  const run = useResolve(op, {
+  const run = useRun(op, {
     onSuccess: (data, variables) =>
       void events.push(`success:${data}:${String(variables.rawInput)}`),
     onError: (error, variables) =>
@@ -180,7 +180,7 @@ function Flags({
   const flags = [run.isIdle, run.isPending, run.isSuccess, run.isError].map(Number).join("");
   return (
     <div>
-      <button type="button" onClick={() => run.resolve(call)}>
+      <button type="button" onClick={() => run.run(call)}>
         go
       </button>
       <p>flags:{flags}</p>

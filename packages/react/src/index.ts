@@ -150,7 +150,7 @@ export function useData<T, S>(
 ): T | S | UseData.Pair<T, T | S> {
   const { selector, isEqual, writable } = readDataArgs(a, b);
   const scope = useScope();
-  const store = useMemo(() => createDataStore<T, S>(scope.getController(cell)), [scope, cell]);
+  const store = useMemo(() => createDataStore<T, S>(scope.controller(cell)), [scope, cell]);
   store.select = selector ?? (identity as (value: T) => S);
   store.equal = (isEqual ?? Object.is) as (a: S, b: S) => boolean;
   const value = useSyncExternalStore(store.subscribe, store.read, store.read);
@@ -216,12 +216,12 @@ function createDataStore<T, S>(
   return store;
 }
 
-/** The nearest scope's read/write controller for a `data` cell (`get`/`read`/`set`/`update`/`watch`).
+/** The nearest scope's read/write controller for a `data` cell (`get`/`set`/`update`/`watch`).
  * For writes: a component that only holds a controller subscribes to nothing, so a write-only view
  * never re-renders when the cell changes. Read reactively with {@link useData} instead. */
 export function useController<T>(cell: Data.Cell<T>): Scope.DataController<T> {
   const scope = useScope();
-  return useMemo(() => scope.getController(cell), [scope, cell]);
+  return useMemo(() => scope.controller(cell), [scope, cell]);
 }
 
 type Outcome<T> =
@@ -288,7 +288,7 @@ export function useResource<T>(
   options?: Query.Options,
 ): Awaited<T> | Query.Handle<Awaited<T>> {
   const scope = useScope();
-  const controller = useMemo(() => scope.getController(handle), [scope, handle]);
+  const controller = useMemo(() => scope.controller(handle), [scope, handle]);
   const [, bump] = useReducer((n: number) => n + 1, 0);
   const built = controller.resolve();
   const pending = isThenable(built) ? (built as PromiseLike<Awaited<T>>) : undefined;
@@ -322,10 +322,10 @@ function useSettled<T>(pending: PromiseLike<T> | undefined): Query.State<T> | un
   return settled && settled.key === pending ? settled.state : undefined;
 }
 
-export declare namespace Resolve {
-  /** The call a run was made with: the first argument of {@link useResolve}'s `resolve`. */
+export declare namespace Run {
+  /** The call a run was made with: the first argument of {@link useRun}'s `run`. */
   export type Variables<I> = Scope.CallArgs<I>[0];
-  /** The settled state of the latest {@link useResolve} run, shaped like a react-query mutation:
+  /** The settled state of the latest {@link useRun} run, shaped like a react-query mutation:
    * `status` plus `data`/`error`/`variables` and one boolean per status. */
   export type State<T, I> =
     | {
@@ -358,16 +358,16 @@ export declare namespace Resolve {
     readonly onError?: (error: unknown, variables: Variables<I>) => void;
     readonly onSettled?: (data: T | undefined, error: unknown, variables: Variables<I>) => void;
   };
-  /** What {@link useResolve} returns: the current {@link State}, one boolean per status, and the
-   * imperative `resolve` (fire-and-forget: the outcome lands in state), `resolveAsync` (returns the
+  /** What {@link useRun} returns: the current {@link State}, one boolean per status, and the
+   * imperative `run` (fire-and-forget: the outcome lands in state), `runAsync` (returns the
    * value, rejects with the failure — for callers that need the result in a handler) and `reset`. */
   export type Handle<T, I> = State<T, I> & {
     readonly isIdle: boolean;
     readonly isPending: boolean;
     readonly isSuccess: boolean;
     readonly isError: boolean;
-    readonly resolve: (...call: Scope.CallArgs<I>) => void;
-    readonly resolveAsync: (...call: Scope.CallArgs<I>) => Promise<T>;
+    readonly run: (...call: Scope.CallArgs<I>) => void;
+    readonly runAsync: (...call: Scope.CallArgs<I>) => Promise<T>;
     readonly reset: () => void;
   };
 }
@@ -383,9 +383,9 @@ function settledState<T>(outcome: Outcome<T>): Query.State<T> {
 }
 
 function notify<T, I>(
-  on: Resolve.Options<T, I> | undefined,
+  on: Run.Options<T, I> | undefined,
   outcome: Outcome<T>,
-  variables: Resolve.Variables<I>,
+  variables: Run.Variables<I>,
 ): void {
   if (!on) return;
   if (outcome.ok) on.onSuccess?.(outcome.value, variables);
@@ -398,46 +398,46 @@ function notify<T, I>(
 }
 
 /** Run an operation imperatively (a mutation): never suspends. Shaped like react-query's
- * `useMutation`: `resolve(input)` fires and forgets (the outcome lands in `status`/`data`/`error`
- * with `variables` = the call), `resolveAsync(input)` also returns the value or rejects, `reset()`
+ * `useMutation`: `run(input)` fires and forgets (the outcome lands in `status`/`data`/`error`
+ * with `variables` = the call), `runAsync(input)` also returns the value or rejects, `reset()`
  * returns to idle. A rejection never reaches an error boundary (that is {@link useResource}'s job).
  * Only the latest run publishes state: a slower earlier run that settles after a newer one (or after
  * `reset`) is dropped, though its `options` callbacks still fire. */
-export function useResolve<T, I>(
-  op: Operation.Command<T, I>,
-  options?: Resolve.Options<Awaited<T>, I>,
-): Resolve.Handle<Awaited<T>, I> {
+export function useRun<T, I>(
+  op: Operation.Handle<T, I>,
+  options?: Run.Options<Awaited<T>, I>,
+): Run.Handle<Awaited<T>, I> {
   const scope = useScope();
-  const controller = useMemo(() => scope.getController(op), [scope, op]);
-  const [state, setState] = useState<Resolve.State<Awaited<T>, I>>(IDLE);
+  const controller = useMemo(() => scope.controller(op), [scope, op]);
+  const [state, setState] = useState<Run.State<Awaited<T>, I>>(IDLE);
   const runId = useRef(0);
   const latest = useRef(options);
   latest.current = options;
-  const run = useCallback(
+  const invoke = useCallback(
     async (call: Scope.CallArgs<I>): Promise<Outcome<Awaited<T>>> => {
       const id = (runId.current += 1);
       const [variables] = call;
       setState({ status: "pending", data: undefined, error: undefined, variables });
-      const outcome = await settle(() => controller.resolve(...call));
+      const outcome = await settle(() => controller.run(...call));
       if (runId.current === id) setState({ ...settledState(outcome), variables });
       notify(latest.current, outcome, variables);
       return outcome;
     },
     [controller],
   );
-  const resolve = useCallback(
+  const run = useCallback(
     (...call: Scope.CallArgs<I>): void => {
-      run(call).catch(noop);
+      invoke(call).catch(noop);
     },
-    [run],
+    [invoke],
   );
-  const resolveAsync = useCallback(
+  const runAsync = useCallback(
     async (...call: Scope.CallArgs<I>): Promise<Awaited<T>> => {
-      const outcome = await run(call);
+      const outcome = await invoke(call);
       if (outcome.ok) return outcome.value;
       throw outcome.error;
     },
-    [run],
+    [invoke],
   );
   const reset = useCallback((): void => {
     runId.current += 1;
@@ -449,8 +449,8 @@ export function useResolve<T, I>(
     isPending: state.status === "pending",
     isSuccess: state.status === "success",
     isError: state.status === "error",
-    resolve,
-    resolveAsync,
+    run,
+    runAsync,
     reset,
   };
 }

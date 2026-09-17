@@ -20,7 +20,7 @@ const { createScope, data } = await import("../packages/core/dist/index.mjs");
 
 // --- tinker store (data cell + a scope controller, created once, like a route-level store) ---
 const cell = data({ label: "cell", initial: { v: 0 } });
-const ctl = createScope().getController(cell);
+const ctl = createScope().controller(cell);
 
 // --- zustand vanilla store (created once) ---
 const store = createStore(() => ({ v: 0 }));
@@ -33,7 +33,7 @@ store.subscribe(() => void sink++);
 // Prime N subscribers for the fan-out scenario.
 const N = 1000;
 const cellN = data({ label: "cellN", initial: { v: 0 } });
-const ctlN = createScope().getController(cellN);
+const ctlN = createScope().controller(cellN);
 const storeN = createStore(() => ({ v: 0 }));
 for (let i = 0; i < N; i++) {
   ctlN.watch(() => void sink++);

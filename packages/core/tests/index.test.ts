@@ -24,7 +24,7 @@ const asText = (v: unknown): string => {
 
 test("reads a cell's initial value through the scope seam", () => {
   const count = data({ initial: 1 });
-  expect(createScope().getController(count).read()).toBe(1);
+  expect(createScope().controller(count).get()).toBe(1);
 });
 
 test("parse transforms + validates the initial, and the read type is inferred", () => {
@@ -33,22 +33,22 @@ test("parse transforms + validates the initial, and the read type is inferred", 
     return v.trim();
   };
   const name = data({ initial: "  ada  ", parse: trimmed });
-  const value: string = createScope().getController(name).get();
+  const value: string = createScope().controller(name).get();
   expect(value).toBe("ada");
 });
 
 test("set and update are reflected on the next read", () => {
   const count = data({ initial: 0 });
-  const c = createScope().getController(count);
+  const c = createScope().controller(count);
   c.set(5);
-  expect(c.read()).toBe(5);
+  expect(c.get()).toBe(5);
   c.update((n) => n + 1);
-  expect(c.read()).toBe(6);
+  expect(c.get()).toBe(6);
 });
 
 test("watch fires once per real change, never on an eq-equal write; unsubscribe stops it", () => {
   const count = data({ initial: 0 });
-  const c = createScope().getController(count);
+  const c = createScope().controller(count);
   const seen: number[] = [];
   const stop = c.watch((n) => seen.push(n));
   c.set(1);
@@ -65,7 +65,7 @@ test("an invalid write throws DataValidationFailed with a typed payload", () => 
     return v;
   };
   const count = data({ label: "count", initial: 0, parse: nonNegative });
-  const c = createScope().getController(count);
+  const c = createScope().controller(count);
   try {
     c.set(-1);
     expect.unreachable();
@@ -75,13 +75,13 @@ test("an invalid write throws DataValidationFailed with a typed payload", () => 
   }
 });
 
-test("a command parses rawInput into typed input and returns synchronously", () => {
+test("an operation parses rawInput into typed input and returns synchronously", () => {
   const double = operation({
     label: "double",
     input: asNumber,
     run: (_deps, { input }) => input * 2,
   });
-  const result: number = createScope().getController(double).resolve({ rawInput: 3 });
+  const result: number = createScope().controller(double).run({ rawInput: 3 });
   expect(result).toBe(6);
 });
 
@@ -95,21 +95,21 @@ test("read-mode dep delivers the current value; write-mode dep causes an effect"
     run: ({ c }, { input }) => c.update((n) => n + input),
   });
   const scope = createScope();
-  expect(scope.getController(peek).resolve()).toBe(10);
-  scope.getController(bump).resolve({ rawInput: 5 });
-  expect(scope.getController(peek).resolve()).toBe(15);
+  expect(scope.controller(peek).run()).toBe(10);
+  scope.controller(bump).run({ rawInput: 5 });
+  expect(scope.controller(peek).run()).toBe(15);
 });
 
-test("a command runs on every resolve (never memoized)", () => {
+test("an operation runs on every run (never memoized)", () => {
   let runs = 0;
   const ping = operation({ label: "ping", run: () => ++runs });
-  const c = createScope().getController(ping);
-  c.resolve();
-  c.resolve();
+  const c = createScope().controller(ping);
+  c.run();
+  c.run();
   expect(runs).toBe(2);
 });
 
-test("a command composes a child command through its controller", () => {
+test("an operation composes a child operation through its controller", () => {
   const inner = operation({
     label: "inner",
     input: asNumber,
@@ -118,9 +118,9 @@ test("a command composes a child command through its controller", () => {
   const outer = operation({
     label: "outer",
     depends: { inner: inner.controller },
-    run: ({ inner }) => inner.resolve({ rawInput: 9 }),
+    run: ({ inner }) => inner.run({ rawInput: 9 }),
   });
-  expect(createScope().getController(outer).resolve()).toBe(10);
+  expect(createScope().controller(outer).run()).toBe(10);
 });
 
 test("a bare operation dependency is delivered as a subflow the caller invokes", () => {
@@ -132,9 +132,9 @@ test("a bare operation dependency is delivered as a subflow the caller invokes",
   const outer = operation({
     label: "outer",
     depends: { inner },
-    run: ({ inner }) => inner.resolve({ rawInput: 9 }),
+    run: ({ inner }) => inner.run({ rawInput: 9 }),
   });
-  expect(createScope().getController(outer).resolve()).toBe(10);
+  expect(createScope().controller(outer).run()).toBe(10);
 });
 
 test("a resource depends on another resource and receives its instance (pool → tx)", () => {
@@ -146,8 +146,8 @@ test("a resource depends on another resource and receives its instance (pool →
     factory: ({ pool }) => ({ from: pool.id }),
   });
   const scope = createScope();
-  const a = scope.getController(tx).resolve();
-  const b = scope.getController(tx).resolve();
+  const a = scope.controller(tx).resolve();
+  const b = scope.controller(tx).resolve();
   expect(a).toBe(b);
   expect(a.from).toBe(1);
   expect(pools).toBe(1);
@@ -162,7 +162,7 @@ test("a resource dep the factory never reads is never built (lazy deps)", () => 
     depends: { unused, used },
     factory: ({ used }) => used.v,
   });
-  expect(createScope().getController(top).resolve()).toBe("ok");
+  expect(createScope().controller(top).resolve()).toBe("ok");
   expect(unusedBuilds).toBe(0);
 });
 
@@ -175,8 +175,8 @@ test("a resource dep the factory reads twice builds once and caches (lazy access
     factory: (deps) => deps.dep.id + deps.dep.id,
   });
   const scope = createScope();
-  expect(scope.getController(top).resolve()).toBe(2);
-  expect(scope.getController(top).resolve()).toBe(2);
+  expect(scope.controller(top).resolve()).toBe(2);
+  expect(scope.controller(top).resolve()).toBe(2);
   expect(builds).toBe(1);
 });
 
@@ -192,7 +192,7 @@ test("a deps object with an extra non-enumerable property still enumerates its l
       return deps.leaf;
     },
   });
-  expect(createScope().getController(top).resolve()).toBe(1);
+  expect(createScope().controller(top).resolve()).toBe(1);
   expect(seen).toEqual([["leaf"], ["leaf"]]);
 });
 
@@ -207,7 +207,7 @@ test("a factory that writes a lazy dep key before reading it keeps a plain prope
       return { copy: { ...deps }, keys: Object.keys(deps), value: deps.leaf };
     },
   });
-  expect(createScope().getController(top).resolve()).toEqual({
+  expect(createScope().controller(top).resolve()).toEqual({
     copy: { leaf: 6 },
     keys: ["leaf"],
     value: 6,
@@ -234,7 +234,7 @@ test("after a lazy dep's build throws, the key reads undefined, is not listed, a
       }
     },
   });
-  expect(createScope().getController(top).resolve()).toEqual({
+  expect(createScope().controller(top).resolve()).toEqual({
     value: undefined,
     keys: [],
     has: false,
@@ -256,7 +256,7 @@ test("a read of a lazy dep key while that dep is still building sees undefined",
       return deps.leaf;
     },
   });
-  expect(createScope().getController(top).resolve()).toBe("undefined");
+  expect(createScope().controller(top).resolve()).toBe("undefined");
 });
 
 test("a getter defined on a lazy dep key before it is read replaces that dep", () => {
@@ -276,7 +276,7 @@ test("a getter defined on a lazy dep key before it is read replaces that dep", (
       return deps.leaf;
     },
   });
-  expect(createScope().getController(top).resolve()).toBe(7);
+  expect(createScope().controller(top).resolve()).toBe(7);
   expect(built).toBe(0);
 });
 
@@ -291,14 +291,14 @@ test("a write through an object inheriting from deps lands on the child, not on 
       return { child: child.leaf, own: Object.hasOwn(child, "leaf"), deps: deps.leaf };
     },
   });
-  expect(createScope().getController(top).resolve()).toEqual({ child: 5, own: true, deps: 1 });
+  expect(createScope().controller(top).resolve()).toEqual({ child: 5, own: true, deps: 1 });
 });
 
 test("an operation dep the run never reads is never built (lazy deps)", () => {
   let builds = 0;
   const unused = resource({ label: "unused", factory: () => ({ n: ++builds }) });
   const op = operation({ label: "op", depends: { unused }, run: () => "ok" });
-  expect(createScope().getController(op).resolve()).toBe("ok");
+  expect(createScope().controller(op).run()).toBe("ok");
   expect(builds).toBe(0);
 });
 
@@ -308,18 +308,18 @@ const secret = tag<string>({ label: "secret" });
 
 test("a required tag reads its binding, or its default when unbound", () => {
   const read = operation({ label: "read", depends: { region }, run: ({ region }) => region });
-  expect(createScope().getController(read).resolve()).toBe("base");
+  expect(createScope().controller(read).run()).toBe("base");
   expect(
     createScope({ tags: [region("eu")] })
-      .getController(read)
-      .resolve(),
+      .controller(read)
+      .run(),
   ).toBe("eu");
 });
 
 test("a required tag with no binding and no default throws MissingTag", () => {
   const read = operation({ label: "read", depends: { secret }, run: ({ secret }) => secret });
   try {
-    createScope().getController(read).resolve();
+    createScope().controller(read).run();
     expect.unreachable();
   } catch (error) {
     if (!isError(error, "MissingTag")) throw error;
@@ -330,15 +330,15 @@ test("a required tag with no binding and no default throws MissingTag", () => {
 test("optional distinguishes absent from an undefined default", () => {
   const readMaybe = operation({ label: "m", depends: { m: maybe.optional }, run: ({ m }) => m });
   const readSecret = operation({ label: "s", depends: { s: secret.optional }, run: ({ s }) => s });
-  expect(createScope().getController(readMaybe).resolve()).toEqual({
+  expect(createScope().controller(readMaybe).run()).toEqual({
     present: true,
     value: undefined,
   });
-  expect(createScope().getController(readSecret).resolve()).toEqual({ present: false });
+  expect(createScope().controller(readSecret).run()).toEqual({ present: false });
   expect(
     createScope({ tags: [secret("x")] })
-      .getController(readSecret)
-      .resolve(),
+      .controller(readSecret)
+      .run(),
   ).toEqual({ present: true, value: "x" });
 });
 
@@ -346,10 +346,10 @@ test("all returns every binding nearest-first, with no default fallback", () => 
   const readAll = operation({ label: "all", depends: { xs: region.all }, run: ({ xs }) => xs });
   expect(
     createScope({ tags: [region("a"), region("b")] })
-      .getController(readAll)
-      .resolve(),
+      .controller(readAll)
+      .run(),
   ).toEqual(["b", "a"]);
-  expect(createScope().getController(readAll).resolve()).toEqual([]);
+  expect(createScope().controller(readAll).run()).toEqual([]);
 });
 
 test("a tag binding is validated by parse", () => {
@@ -379,7 +379,7 @@ const deferred = () => {
   return { promise, resolve, reject };
 };
 
-test("an async command resolves to its awaited value", async () => {
+test("an async operation runs to its awaited value", async () => {
   const gate = deferred();
   const slow = operation({
     label: "slow",
@@ -389,12 +389,12 @@ test("an async command resolves to its awaited value", async () => {
       return input * 2;
     },
   });
-  const p = createScope().getController(slow).resolve({ rawInput: 21 });
+  const p = createScope().controller(slow).run({ rawInput: 21 });
   gate.resolve();
   expect(await p).toBe(42);
 });
 
-test("a rejecting async command rejects with its cause, and settled still drains", async () => {
+test("a rejecting async operation rejects with its cause, and settled still drains", async () => {
   const cause = new Error("boom");
   const gate = deferred();
   const boom = operation({
@@ -405,7 +405,7 @@ test("a rejecting async command rejects with its cause, and settled still drains
     },
   });
   const scope = createScope();
-  const p = scope.getController(boom).resolve();
+  const p = scope.controller(boom).run();
   let drained = false;
   const s = scope.settled().then(() => {
     drained = true;
@@ -436,8 +436,8 @@ test("dependency snapshots are captured at resolve time, before suspension", asy
     },
   });
   const scope = createScope();
-  const p = scope.getController(slow).resolve();
-  scope.getController(n).set(99);
+  const p = scope.controller(slow).run();
+  scope.controller(n).set(99);
   gate.resolve();
   expect(await p).toBe(1);
 });
@@ -461,8 +461,8 @@ test("concurrent calls are independent, released in reverse entry order", async 
     },
   });
   const scope = createScope();
-  const p1 = scope.getController(echo).resolve({ rawInput: 1 });
-  const p2 = scope.getController(echo).resolve({ rawInput: 2 });
+  const p1 = scope.controller(echo).run({ rawInput: 1 });
+  const p2 = scope.controller(echo).run({ rawInput: 2 });
   await entered.get(1)!.promise;
   await entered.get(2)!.promise;
   release.get(2)!.resolve();
@@ -484,10 +484,10 @@ test("overlapping scopes keep separate data snapshots (no shared/ambient state)"
   });
   const a = createScope();
   const b = createScope();
-  a.getController(n).set(1);
-  b.getController(n).set(2);
-  const pa = a.getController(readN).resolve();
-  const pb = b.getController(readN).resolve();
+  a.controller(n).set(1);
+  b.controller(n).set(2);
+  const pa = a.controller(readN).run();
+  const pb = b.controller(readN).run();
   gate.resolve();
   expect(await pb).toBe(2);
   expect(await pa).toBe(1);
@@ -503,7 +503,7 @@ test("settled reports work as pending until it finishes", async () => {
     },
   });
   const scope = createScope();
-  const p = scope.getController(slow).resolve();
+  const p = scope.controller(slow).run();
   let joined = false;
   const s = scope.settled().then(() => {
     joined = true;
@@ -522,20 +522,20 @@ test("a session inherits its parent's data and tags", () => {
   const readRegion = operation({ label: "rr", depends: { region }, run: ({ region }) => region });
   const root = createScope({ tags: [region("root")] });
   const child = root.createSession();
-  expect(child.getController(theme).read()).toBe("light");
-  expect(child.getController(readRegion).resolve()).toBe("root");
-  root.getController(theme).set("dark");
-  expect(child.getController(theme).read()).toBe("dark");
+  expect(child.controller(theme).get()).toBe("light");
+  expect(child.controller(readRegion).run()).toBe("root");
+  root.controller(theme).set("dark");
+  expect(child.controller(theme).get()).toBe("dark");
 });
 
 test("a session write shadows locally (copy-on-write); the parent is unchanged", () => {
   const theme = data({ initial: "light", parse: asText });
   const root = createScope();
   const child = root.createSession();
-  root.getController(theme).set("dark");
-  child.getController(theme).set("solar");
-  expect(child.getController(theme).read()).toBe("solar");
-  expect(root.getController(theme).read()).toBe("dark");
+  root.controller(theme).set("dark");
+  child.controller(theme).set("solar");
+  expect(child.controller(theme).get()).toBe("solar");
+  expect(root.controller(theme).get()).toBe("dark");
 });
 
 test("inherited watchers react to parent writes until the child shadows", () => {
@@ -543,19 +543,19 @@ test("inherited watchers react to parent writes until the child shadows", () => 
   const root = createScope();
   const child = root.createSession();
   const seen: number[] = [];
-  const stop = child.getController(n).watch((v) => seen.push(v));
-  root.getController(n).set(1);
+  const stop = child.controller(n).watch((v) => seen.push(v));
+  root.controller(n).set(1);
   expect(seen).toEqual([1]);
-  child.getController(n).set(2);
+  child.controller(n).set(2);
   expect(seen).toEqual([1, 2]);
-  root.getController(n).set(3);
+  root.controller(n).set(3);
   expect(seen).toEqual([1, 2]);
   stop();
 });
 
 test("a watcher subscribed after a write still fires when the value returns to the initial", () => {
   const count = data({ initial: 0 });
-  const c = createScope().getController(count);
+  const c = createScope().controller(count);
   c.set(1);
   const seen: number[] = [];
   const stop = c.watch((n) => seen.push(n));
@@ -569,7 +569,7 @@ test("a watcher subscribed after a write still fires when the value returns to t
 test("a watcher joining after the value returned still fires on the next change", () => {
   const n = data({ initial: 0, parse: asNumber });
   const scope = createScope();
-  const ctl = scope.getController(n);
+  const ctl = scope.controller(n);
   const first: number[] = [];
   const stopFirst = ctl.watch((v) => first.push(v));
   ctl.set(1);
@@ -585,7 +585,7 @@ test("a watcher joining after the value returned still fires on the next change"
 
 test("the same listener subscribed twice fires twice, and one unsubscribe leaves the other", () => {
   const n = data({ initial: 0, parse: asNumber });
-  const ctl = createScope().getController(n);
+  const ctl = createScope().controller(n);
   let calls = 0;
   const listener = (): void => {
     calls++;
@@ -604,11 +604,11 @@ test("a watcher registered before a child shadows still sees the parent's later 
   const n = data({ initial: 0, parse: asNumber });
   const root = createScope();
   const seen: number[] = [];
-  const stop = root.getController(n).watch((v) => seen.push(v));
+  const stop = root.controller(n).watch((v) => seen.push(v));
   const child = root.createSession();
-  child.getController(n).set(1);
+  child.controller(n).set(1);
   expect(seen).toEqual([]);
-  root.getController(n).set(2);
+  root.controller(n).set(2);
   expect(seen).toEqual([2]);
   stop();
 });
@@ -619,9 +619,9 @@ test("nested tags: nearest layer wins, and .all collects nearest-first across la
   const every = operation({ label: "e", depends: { xs: region.all }, run: ({ xs }) => xs });
   const root = createScope({ tags: [region("root")] });
   const child = root.createSession({ tags: [region("sess")] });
-  expect(child.getController(nearest).resolve()).toBe("sess");
-  expect(child.getController(every).resolve()).toEqual(["sess", "root"]);
-  expect(root.getController(nearest).resolve()).toBe("root");
+  expect(child.controller(nearest).run()).toBe("sess");
+  expect(child.controller(every).run()).toEqual(["sess", "root"]);
+  expect(root.controller(nearest).run()).toBe("root");
 });
 
 test("a nearer shadow invalidates a descendant's cached effective cell", () => {
@@ -629,22 +629,22 @@ test("a nearer shadow invalidates a descendant's cached effective cell", () => {
   const root = createScope();
   const mid = root.createSession();
   const leaf = mid.createSession();
-  expect(leaf.getController(v).read()).toBe("a");
-  root.getController(v).set("b");
-  expect(leaf.getController(v).read()).toBe("b");
-  mid.getController(v).set("c");
-  expect(leaf.getController(v).read()).toBe("c");
-  expect(root.getController(v).read()).toBe("b");
+  expect(leaf.controller(v).get()).toBe("a");
+  root.controller(v).set("b");
+  expect(leaf.controller(v).get()).toBe("b");
+  mid.controller(v).set("c");
+  expect(leaf.controller(v).get()).toBe("c");
+  expect(root.controller(v).get()).toBe("b");
 });
 
 test("a closed scope's held controller still reads the initial value", async () => {
   const count = data({ initial: 3 });
   const scope = createScope();
-  const held = scope.getController(count);
+  const held = scope.controller(count);
   held.set(4);
   scope.onClose(() => undefined);
   await scope.close();
-  expect(held.read()).toBe(3);
+  expect(held.get()).toBe(3);
 });
 
 test("close runs children first, then userland onClose hooks in LIFO order", async () => {
@@ -658,7 +658,7 @@ test("close runs children first, then userland onClose hooks in LIFO order", asy
   expect(order).toEqual(["child", "root-B", "root-A"]);
 });
 
-test("close joins in-flight command work before completing", async () => {
+test("close joins in-flight operation work before completing", async () => {
   const gate = deferred();
   let finished = false;
   const slow = operation({
@@ -669,7 +669,7 @@ test("close joins in-flight command work before completing", async () => {
     },
   });
   const scope = createScope();
-  void scope.getController(slow).resolve();
+  void scope.controller(slow).run();
   let closed = false;
   const closing = scope.close().then(() => {
     closed = true;
@@ -684,10 +684,10 @@ test("close joins in-flight command work before completing", async () => {
 test("a closed scope is sealed: late access and late writes fail with Disposed", async () => {
   const n = data({ initial: 0 });
   const scope = createScope();
-  const c = scope.getController(n);
+  const c = scope.controller(n);
   await scope.close();
   try {
-    scope.getController(n);
+    scope.controller(n);
     expect.unreachable();
   } catch (error) {
     if (!isError(error, "Disposed")) throw error;
@@ -734,7 +734,7 @@ test("a hook that re-enters close does not run teardown twice", async () => {
   expect(count).toBe(1);
 });
 
-test("close joins command work started before the command's first await", async () => {
+test("close joins operation work started before the operation's first await", async () => {
   const order: string[] = [];
   const gate = deferred();
   const scope = createScope();
@@ -746,7 +746,7 @@ test("close joins command work started before the command's first await", async 
       order.push("work-done");
     },
   });
-  void scope.getController(selfClose).resolve();
+  void scope.controller(selfClose).run();
   const closing = scope.close().then(() => order.push("closed"));
   gate.resolve();
   await closing;
@@ -760,7 +760,7 @@ test("a scope resource builds once: two resolves share one instance", () => {
     factory: () => ({ id: ++built }),
   });
   const scope = createScope();
-  const ctl = scope.getController(conn);
+  const ctl = scope.controller(conn);
   const a = ctl.resolve();
   const b = ctl.resolve();
   expect(a).toBe(b);
@@ -775,8 +775,8 @@ test("a resource factory sees its owner-bound deps", () => {
     factory: ({ port }) => `db:${port}`,
   });
   const scope = createScope();
-  scope.getController(port).set(6000);
-  expect(scope.getController(conn).resolve()).toBe("db:6000");
+  scope.controller(port).set(6000);
+  expect(scope.controller(conn).resolve()).toBe("db:6000");
 });
 
 test("resource cleanup runs on close", async () => {
@@ -789,7 +789,7 @@ test("resource cleanup runs on close", async () => {
     },
   });
   const scope = createScope();
-  scope.getController(conn).resolve();
+  scope.controller(conn).resolve();
   await scope.close();
   expect(closed).toEqual(["conn"]);
 });
@@ -798,7 +798,7 @@ test("get() before resolve fails with NotResolved", () => {
   const conn = resource({ label: "conn", factory: () => "open" });
   const scope = createScope();
   try {
-    scope.getController(conn).get();
+    scope.controller(conn).get();
     throw new Error("expected NotResolved");
   } catch (error) {
     if (!isError(error, "NotResolved")) throw error;
@@ -810,7 +810,7 @@ test("get() through a closed session fails with Disposed, not a stale value", as
   const conn = resource({ label: "conn", factory: () => "open" });
   const root = createScope();
   const child = root.createSession();
-  const ctl = child.getController(conn);
+  const ctl = child.controller(conn);
   ctl.resolve();
   await child.close();
   try {
@@ -826,7 +826,7 @@ test("resolve() through a controller whose owner has closed fails with Disposed"
   const conn = resource({ label: "conn", factory: () => ++built });
   const root = createScope();
   const leaf = root.createSession();
-  const ctl = leaf.getController(conn);
+  const ctl = leaf.controller(conn);
   const closing = root.close();
   try {
     ctl.resolve();
@@ -842,10 +842,10 @@ test("a resource factory that resolves itself fails with CircularResource", () =
   const scope = createScope();
   const cyclic: Resource.Handle<string> = resource({
     label: "cyclic",
-    factory: () => scope.getController(cyclic).resolve(),
+    factory: () => scope.controller(cyclic).resolve(),
   });
   try {
-    scope.getController(cyclic).resolve();
+    scope.controller(cyclic).resolve();
     throw new Error("expected CircularResource");
   } catch (error) {
     if (!isError(error, "CircularResource")) throw error;
@@ -864,7 +864,7 @@ test("concurrent resolves of an async resource share one in-flight build", async
       return { id: built };
     },
   });
-  const ctl = createScope().getController(conn);
+  const ctl = createScope().controller(conn);
   const p1 = ctl.resolve();
   const p2 = ctl.resolve();
   gate.resolve();
@@ -878,7 +878,7 @@ test("a resolved async resource caches: a later resolve returns the same instanc
     label: "conn",
     factory: async () => ({ id: 1 }),
   });
-  const ctl = createScope().getController(conn);
+  const ctl = createScope().controller(conn);
   const first = await ctl.resolve();
   const second = await ctl.resolve();
   expect(second).toBe(first);
@@ -896,7 +896,7 @@ test("close awaits an in-flight async build before tearing down", async () => {
     },
   });
   const scope = createScope();
-  void scope.getController(conn).resolve();
+  void scope.controller(conn).resolve();
   const closing = scope.close().then(() => order.push("closed"));
   gate.resolve();
   await closing;
@@ -913,7 +913,7 @@ test("an async build that completes during close does not publish and close stay
     },
   });
   const scope = createScope();
-  const build = scope.getController(conn).resolve();
+  const build = scope.controller(conn).resolve();
   const closing = scope.close();
   gate.resolve();
   await closing;
@@ -932,7 +932,7 @@ test("cleanup registered by an in-flight factory during close still runs", async
     },
   });
   const scope = createScope();
-  void scope.getController(conn).resolve();
+  void scope.controller(conn).resolve();
   const closing = scope.close();
   gate.resolve();
   await closing;
@@ -944,7 +944,7 @@ test("an async resource whose factory returns an augmented thenable resolves to 
     label: "conn",
     factory: () => Object.assign(Promise.resolve(42), { cancel: () => undefined }),
   });
-  const value: number = await createScope().getController(conn).resolve();
+  const value: number = await createScope().controller(conn).resolve();
   expect(value).toBe(42);
 });
 
@@ -954,8 +954,8 @@ test("a scope-target resource is one instance shared across sessions", () => {
   const root = createScope();
   const s1 = root.createSession();
   const s2 = root.createSession();
-  const a = s1.getController(conn).resolve();
-  const b = s2.getController(conn).resolve();
+  const a = s1.controller(conn).resolve();
+  const b = s2.controller(conn).resolve();
   expect(a).toBe(b);
   expect(built).toBe(1);
 });
@@ -970,9 +970,9 @@ test("a session-target resource builds once per session, distinct across session
   const root = createScope();
   const s1 = root.createSession();
   const s2 = root.createSession();
-  const a1 = s1.getController(conn).resolve();
-  const a2 = s1.getController(conn).resolve();
-  const b = s2.getController(conn).resolve();
+  const a1 = s1.controller(conn).resolve();
+  const a2 = s1.controller(conn).resolve();
+  const b = s2.controller(conn).resolve();
   expect(a1).toBe(a2);
   expect(a1).not.toBe(b);
   expect(built).toBe(2);
@@ -987,7 +987,7 @@ test("a scope resource requiring a session-only tag fails with MissingTag", () =
   });
   const session = createScope().createSession({ tags: [region("eu")] });
   try {
-    session.getController(conn).resolve();
+    session.controller(conn).resolve();
     throw new Error("expected MissingTag");
   } catch (error) {
     if (!isError(error, "MissingTag")) throw error;
@@ -1005,8 +1005,8 @@ test("a session resource reads its owner-bound session data and tags", () => {
     factory: ({ region, port }) => `${region}:${port}`,
   });
   const session = createScope().createSession({ tags: [region("eu")] });
-  session.getController(port).set(6000);
-  expect(session.getController(conn).resolve()).toBe("eu:6000");
+  session.controller(port).set(6000);
+  expect(session.controller(conn).resolve()).toBe("eu:6000");
 });
 
 test("session(fn) success commits via onOutcome; a thrown error rolls back and propagates", async () => {
@@ -1021,12 +1021,12 @@ test("session(fn) success commits via onOutcome; a thrown error rolls back and p
   });
   const root = createScope();
   await root.session((s) => {
-    s.getController(tx).resolve();
+    s.controller(tx).resolve();
   });
   const cause = new Error("boom");
   const thrown = await root
     .session((s) => {
-      s.getController(tx).resolve();
+      s.controller(tx).resolve();
       throw cause;
     })
     .then(
@@ -1061,8 +1061,8 @@ test("a throwing onOutcome is aggregated, keeps the outcome, and does not stop o
   const root = createScope();
   const thrown = await root
     .session((s) => {
-      s.getController(bad).resolve();
-      s.getController(good).resolve();
+      s.controller(bad).resolve();
+      s.controller(good).resolve();
     })
     .then(
       () => undefined,
@@ -1077,7 +1077,7 @@ test("session(fn) closes the child automatically after fn returns", async () => 
   const cell = data({ initial: 1 });
   const inner = await createScope().session((s) => s);
   try {
-    inner.getController(cell).read();
+    inner.controller(cell).get();
     throw new Error("expected Disposed");
   } catch (error) {
     if (!isError(error, "Disposed")) throw error;
@@ -1103,8 +1103,8 @@ test("owned async work that fails settles the session outcome as failed and surf
   });
   const thrown = await createScope()
     .session((s) => {
-      s.getController(tx).resolve();
-      void s.getController(failer).resolve();
+      s.controller(tx).resolve();
+      void s.controller(failer).run();
       return 42;
     })
     .then(
@@ -1129,7 +1129,7 @@ test("closing the parent while a session runs joins the body and rolls back on i
   const cause = new Error("late-boom");
   const root = createScope();
   const running = root.session(async (s) => {
-    s.getController(tx).resolve();
+    s.controller(tx).resolve();
     await gate.promise;
     throw cause;
   });
@@ -1158,7 +1158,7 @@ test("an ancestor failure force-closes its subtree: a nested child's resource ro
   const thrown = await createScope()
     .session((s) => {
       const child = s.createSession();
-      child.getController(tx).resolve();
+      child.controller(tx).resolve();
       throw cause;
     })
     .then(
@@ -1183,7 +1183,7 @@ test("a factory context is dead after a synchronous throw: a late onOutcome fail
   });
   const scope = createScope();
   try {
-    scope.getController(boom).resolve();
+    scope.controller(boom).resolve();
     throw new Error("expected the factory throw");
   } catch (error) {
     if (error !== cause) throw error;
@@ -1206,7 +1206,7 @@ test("settled() inside session(fn) drains owned work without waiting on the body
     },
   });
   const done = await createScope().session(async (s) => {
-    void s.getController(slow).resolve();
+    void s.controller(slow).run();
     gate.resolve();
     await s.settled();
     return "ok";
@@ -1235,8 +1235,8 @@ test("a leaf failure bubbles out through nested sessions to the caller and rolls
     .session((outer) => {
       const middle = outer.createSession();
       const leaf = middle.createSession();
-      leaf.getController(tx).resolve();
-      void leaf.getController(failer).resolve();
+      leaf.controller(tx).resolve();
+      void leaf.controller(failer).run();
       return 42;
     })
     .then(
@@ -1274,7 +1274,7 @@ test("closing a parent whose owned work awaits a child's onClose does not deadlo
       order.push("waiter-done");
     },
   });
-  void root.getController(waiter).resolve();
+  void root.controller(waiter).run();
   await root.close();
   expect(order).toEqual(["child-closed", "waiter-done"]);
 });
@@ -1331,8 +1331,8 @@ test("when owned work and the body both fail, the body cause is primary for hook
   const gate = deferred();
   const root = createScope();
   const running = root.session(async (s) => {
-    s.getController(tx).resolve();
-    void s.getController(failer).resolve();
+    s.controller(tx).resolve();
+    void s.controller(failer).run();
     await gate.promise;
     throw bodyCause;
   });
@@ -1359,10 +1359,10 @@ test("releasing a resource runs its cleanup and a re-resolve rebuilds a new inst
     },
   });
   const scope = createScope();
-  const a = scope.getController(conn).resolve();
+  const a = scope.controller(conn).resolve();
   scope.release(conn);
   expect(cleaned).toEqual([1]);
-  const b = scope.getController(conn).resolve();
+  const b = scope.controller(conn).resolve();
   expect(b).not.toBe(a);
   expect(built).toBe(2);
 });
@@ -1379,12 +1379,12 @@ test("a build in flight when its resource is released never publishes", async ()
     },
   });
   const scope = createScope();
-  const first = scope.getController(conn).resolve();
+  const first = scope.controller(conn).resolve();
   scope.release(conn);
   gate.resolve();
   await first;
   try {
-    void scope.getController(conn).get();
+    void scope.controller(conn).get();
     throw new Error("expected NotResolved");
   } catch (error) {
     if (!isError(error, "NotResolved")) throw error;
@@ -1394,12 +1394,12 @@ test("a build in flight when its resource is released never publishes", async ()
 test("releasing a data cell resets it to its initial value and notifies watchers", () => {
   const count = data({ initial: 1, parse: asNumber });
   const scope = createScope();
-  const ctl = scope.getController(count);
+  const ctl = scope.controller(count);
   const seen: number[] = [];
   ctl.watch((n) => void seen.push(n));
   ctl.set(5);
   scope.release(count);
-  expect(ctl.read()).toBe(1);
+  expect(ctl.get()).toBe(1);
   expect(seen).toEqual([5, 1]);
 });
 
@@ -1415,15 +1415,15 @@ test("an old build settling after release does not drop the replacement build", 
     },
   });
   const scope = createScope();
-  const first = scope.getController(conn).resolve();
+  const first = scope.controller(conn).resolve();
   scope.release(conn);
-  const second = scope.getController(conn).resolve();
+  const second = scope.controller(conn).resolve();
   gates[0].resolve();
   await first;
   gates[1].resolve();
   const b = await second;
   expect(b).toEqual({ id: 1 });
-  expect(await scope.getController(conn).resolve()).toBe(b);
+  expect(await scope.controller(conn).resolve()).toBe(b);
 });
 
 test("an old build rejecting after release does not fail a session that got the replacement", async () => {
@@ -1444,11 +1444,11 @@ test("an old build rejecting after release does not fail a session that got the 
   });
   const result = await createScope().session((s) => {
     void s
-      .getController(conn)
+      .controller(conn)
       .resolve()
       .then(undefined, () => undefined);
     s.release(conn);
-    const replacement = s.getController(conn).resolve();
+    const replacement = s.controller(conn).resolve();
     gate.resolve();
     return replacement;
   });
@@ -1467,14 +1467,14 @@ test("a rejected build is sticky: a re-resolve without release returns the same 
     },
   });
   const scope = createScope();
-  const first = scope.getController(conn).resolve();
+  const first = scope.controller(conn).resolve();
   const settled = first.then(
     () => undefined,
     () => undefined,
   );
   gate.reject(new Error("boom"));
   await settled;
-  const again = scope.getController(conn).resolve();
+  const again = scope.controller(conn).resolve();
   expect(again).toBe(first);
   expect(builds).toBe(1);
   await scope.close();
@@ -1492,7 +1492,7 @@ test("releasing a rejected resource lets a re-resolve rebuild a fresh instance",
     },
   });
   const scope = createScope();
-  const first = scope.getController(conn).resolve();
+  const first = scope.controller(conn).resolve();
   const settled = first.then(
     () => undefined,
     () => undefined,
@@ -1500,7 +1500,7 @@ test("releasing a rejected resource lets a re-resolve rebuild a fresh instance",
   gate.reject(new Error("boom"));
   await settled;
   scope.release(conn);
-  const rebuilt = await scope.getController(conn).resolve();
+  const rebuilt = await scope.controller(conn).resolve();
   expect(rebuilt).toEqual({ n: 2 });
   expect(builds).toBe(2);
   await scope.close();
@@ -1521,7 +1521,7 @@ test("releasing a dependency cascades to a dependent whose build had rejected, s
     },
   });
   const scope = createScope();
-  const first = scope.getController(b).resolve();
+  const first = scope.controller(b).resolve();
   const settled = first.then(
     () => undefined,
     () => undefined,
@@ -1529,7 +1529,7 @@ test("releasing a dependency cascades to a dependent whose build had rejected, s
   gate.reject(new Error("boom"));
   await settled;
   scope.release(a);
-  const rebuilt = await scope.getController(b).resolve();
+  const rebuilt = await scope.controller(b).resolve();
   expect(rebuilt).toEqual({ from: 2, n: 2 });
   expect(bBuilds).toBe(2);
   await scope.close();
@@ -1550,8 +1550,8 @@ test("two sessions share one scope-target resource's sticky rejection (one build
   const root = createScope();
   const s1 = root.createSession();
   const s2 = root.createSession();
-  const a = s1.getController(conn).resolve();
-  const b = s2.getController(conn).resolve();
+  const a = s1.controller(conn).resolve();
+  const b = s2.controller(conn).resolve();
   expect(b).toBe(a);
   const settled = a.then(
     () => undefined,
@@ -1559,7 +1559,7 @@ test("two sessions share one scope-target resource's sticky rejection (one build
   );
   gate.reject(new Error("boom"));
   await settled;
-  const c = s2.getController(conn).resolve();
+  const c = s2.controller(conn).resolve();
   expect(c).toBe(a);
   expect(builds).toBe(1);
   await root.close();
@@ -1577,7 +1577,7 @@ test("release drops only the resource's cleanup, not a shared onClose callback",
   });
   const scope = createScope();
   scope.onClose(shared);
-  scope.getController(conn).resolve();
+  scope.controller(conn).resolve();
   scope.release(conn);
   expect(calls).toBe(1);
   await scope.close();
@@ -1597,12 +1597,12 @@ test("a release triggered during a factory prevents that build from publishing",
     },
   });
   const scope = createScope();
-  scope.getController(flag).watch((n) => {
+  scope.controller(flag).watch((n) => {
     if (n === 1) scope.release(conn);
   });
-  scope.getController(conn).resolve();
+  scope.controller(conn).resolve();
   try {
-    scope.getController(conn).get();
+    scope.controller(conn).get();
     throw new Error("expected NotResolved");
   } catch (error) {
     if (!isError(error, "NotResolved")) throw error;
@@ -1614,7 +1614,7 @@ test("releasing a resource whose owner is already closing fails with Disposed", 
   const conn = resource({ label: "conn", factory: () => ({ id: 1 }) });
   const root = createScope();
   const child = root.createSession();
-  child.getController(conn).resolve();
+  child.controller(conn).resolve();
   const closing = root.close();
   try {
     child.release(conn);
@@ -1646,8 +1646,8 @@ test("a nested release inside a release cleanup does not hang close", async () =
       return 1;
     },
   });
-  scope.getController(b).resolve();
-  scope.getController(a).resolve();
+  scope.controller(b).resolve();
+  scope.controller(a).resolve();
   scope.release(a);
   await scope.close();
   expect(closed).toBe(true);
@@ -1666,7 +1666,7 @@ test("a release cleanup that returns its own close does not hang", async () => {
       return 1;
     },
   });
-  scope.getController(conn).resolve();
+  scope.controller(conn).resolve();
   scope.release(conn);
   await scope.close();
   expect(closedFlag).toBe(true);
@@ -1686,7 +1686,7 @@ test("a session-owned build that rejects during auto-close fails the session", a
   const thrown = await createScope()
     .session((s) => {
       void s
-        .getController(conn)
+        .controller(conn)
         .resolve()
         .then(undefined, () => undefined);
       gate.resolve();
@@ -1722,8 +1722,8 @@ test("a release cleanup that rejects surfaces as secondary without changing the 
   });
   const thrown = await createScope()
     .session((s) => {
-      s.getController(audited).resolve();
-      s.getController(conn).resolve();
+      s.controller(audited).resolve();
+      s.controller(conn).resolve();
       s.release(conn);
       return "ok";
     })
@@ -1752,10 +1752,10 @@ test("releasing a resource cascades to its dependent exactly once; upstream unto
     factory: ({ b }) => ({ a: ++aBuilds, from: b.b }),
   });
   const scope = createScope();
-  scope.getController(a).resolve();
+  scope.controller(a).resolve();
   expect([cBuilds, bBuilds, aBuilds]).toEqual([1, 1, 1]);
   scope.release(b);
-  scope.getController(a).resolve();
+  scope.controller(a).resolve();
   expect(cBuilds).toBe(1);
   expect(bBuilds).toBe(2);
   expect(aBuilds).toBe(2);
@@ -1775,12 +1775,12 @@ test("a diamond release cascades to the shared dependent exactly once", () => {
     },
   });
   const scope = createScope();
-  scope.getController(top).resolve();
+  scope.controller(top).resolve();
   scope.release(d);
   expect(cleaned).toEqual(["top"]);
 });
 
-test("a cascade re-runs no command", () => {
+test("a cascade re-runs no operation", () => {
   let runs = 0;
   const flag = data({ initial: 0, parse: asNumber });
   const cmd = operation({
@@ -1793,8 +1793,8 @@ test("a cascade re-runs no command", () => {
   });
   const r = resource({ label: "r", depends: { flag }, factory: ({ flag }) => flag });
   const scope = createScope();
-  scope.getController(cmd).resolve();
-  scope.getController(r).resolve();
+  scope.controller(cmd).run();
+  scope.controller(r).resolve();
   scope.release(flag);
   expect(runs).toBe(1);
 });
@@ -1818,9 +1818,9 @@ test("a throwing cleanup mid-cascade still drops every dependent's cache", () =>
     factory: ({ mid }) => ({ built: ++topBuilds, from: mid.v }),
   });
   const scope = createScope();
-  scope.getController(top).resolve();
+  scope.controller(top).resolve();
   scope.release(base);
-  scope.getController(top).resolve();
+  scope.controller(top).resolve();
   expect(topBuilds).toBe(2);
 });
 
@@ -1836,9 +1836,9 @@ test("releasing the head of a deep chain does not overflow the stack", () => {
     );
   }
   const scope = createScope();
-  for (const node of chain) scope.getController(node).resolve();
+  for (const node of chain) scope.controller(node).resolve();
   scope.release(chain[0]);
-  expect(scope.getController(chain[0]).resolve().n).toBe(0);
+  expect(scope.controller(chain[0]).resolve().n).toBe(0);
   // 5000-node build + release: generous timeout so coverage-instrumented runs (mutation) don't flake.
 }, 30000);
 
@@ -1855,9 +1855,9 @@ test("a throwing watcher during release still runs the cleanups", () => {
     },
   });
   const scope = createScope();
-  scope.getController(base).set(5);
-  scope.getController(r).resolve();
-  scope.getController(base).watch(() => {
+  scope.controller(base).set(5);
+  scope.controller(r).resolve();
+  scope.controller(base).watch(() => {
     throw watcherError;
   });
   try {
@@ -1886,17 +1886,17 @@ test("an old build's late rejection does not detach the replacement's edges", as
     },
   });
   const scope = createScope();
-  const build1 = scope.getController(r).resolve();
+  const build1 = scope.controller(r).resolve();
   const settled1 = build1.then(
     () => undefined,
     () => undefined,
   );
   scope.release(r);
-  await scope.getController(r).resolve();
+  await scope.controller(r).resolve();
   gate.resolve();
   await settled1;
   scope.release(base);
-  const c = await scope.getController(r).resolve();
+  const c = await scope.controller(r).resolve();
   expect(c.n).toBe(3);
 });
 
@@ -1913,12 +1913,12 @@ test("releasing a scope resource cascades to its dependent instances in each ses
   const root = createScope();
   const s1 = root.createSession();
   const s2 = root.createSession();
-  s1.getController(tx).resolve();
-  s2.getController(tx).resolve();
+  s1.controller(tx).resolve();
+  s2.controller(tx).resolve();
   expect([poolBuilds, txBuilds]).toEqual([1, 2]);
   root.release(pool);
-  s1.getController(tx).resolve();
-  s2.getController(tx).resolve();
+  s1.controller(tx).resolve();
+  s2.controller(tx).resolve();
   expect(poolBuilds).toBe(2);
   expect(txBuilds).toBe(4);
 });
@@ -1935,10 +1935,10 @@ test("a sibling session that did not depend on the released scope resource is un
   const root = createScope();
   const s1 = root.createSession();
   const s2 = root.createSession();
-  s1.getController(tx).resolve();
-  const otherInstance = s2.getController(other).resolve();
+  s1.controller(tx).resolve();
+  const otherInstance = s2.controller(other).resolve();
   root.release(pool);
-  expect(s2.getController(other).resolve()).toBe(otherInstance);
+  expect(s2.controller(other).resolve()).toBe(otherInstance);
 });
 
 test("a closed session's dependency edges are pruned so a later release skips it", async () => {
@@ -1952,7 +1952,7 @@ test("a closed session's dependency edges are pruned so a later release skips it
   });
   const root = createScope();
   const s1 = root.createSession();
-  s1.getController(tx).resolve();
+  s1.controller(tx).resolve();
   await s1.close();
   root.release(pool);
   expect(txBuilds).toBe(1);
@@ -1977,13 +1977,13 @@ test("releasing a scope resource skips a closing session and still releases the 
   const root = createScope();
   const s1 = root.createSession();
   const s2 = root.createSession();
-  s1.getController(tx).resolve();
-  s2.getController(tx).resolve();
+  s1.controller(tx).resolve();
+  s2.controller(tx).resolve();
   const closing = s1.close();
   root.release(pool);
   await closing;
   expect(poolCleaned).toBe(true);
-  s2.getController(tx).resolve();
+  s2.controller(tx).resolve();
   expect(txBuilds).toBe(3);
 });
 
@@ -2004,7 +2004,7 @@ test("a session cleanup that closes the root does not deadlock", async () => {
     },
   });
   root.onClose(() => void (rootClosed = true));
-  s1.getController(tx).resolve();
+  s1.controller(tx).resolve();
   root.release(pool);
   await root.close();
   expect(rootClosed).toBe(true);
@@ -2023,11 +2023,11 @@ test("releasing a parent session's resource does not touch a child session's own
   const root = createScope();
   const parent = root.createSession();
   const child = parent.createSession();
-  parent.getController(tx).resolve();
-  child.getController(tx).resolve();
+  parent.controller(tx).resolve();
+  child.controller(tx).resolve();
   expect([connBuilds, txBuilds]).toEqual([2, 2]);
   parent.release(conn);
-  const childTx = child.getController(tx).resolve();
+  const childTx = child.controller(tx).resolve();
   expect(childTx.n).toBe(2);
   expect(txBuilds).toBe(2);
 });
@@ -2047,7 +2047,7 @@ test("closing an unrelated scope from a cleanup awaits its real teardown and sur
       return 1;
     },
   });
-  b.getController(r).resolve();
+  b.controller(r).resolve();
   let bResult: Scope.Result | undefined;
   a.onClose(async () => {
     bResult = await b.close();
@@ -2068,10 +2068,10 @@ test("resolving an operation with a subflow yields a parent-linked span tree", (
   const outer = operation({
     label: "outer",
     depends: { inner },
-    run: ({ inner }) => inner.resolve({ rawInput: 9 }),
+    run: ({ inner }) => inner.run({ rawInput: 9 }),
   });
   const scope = createScope({ observe: { clock: () => ++now, export: (s) => void spans.push(s) } });
-  expect(scope.getController(outer).resolve()).toBe(10);
+  expect(scope.controller(outer).run()).toBe(10);
   const outerSpan = spans.find((s) => s.name === "outer");
   const innerSpan = spans.find((s) => s.name === "inner");
   expect(innerSpan?.parentId).toBe(outerSpan?.id);
@@ -2079,7 +2079,7 @@ test("resolving an operation with a subflow yields a parent-linked span tree", (
   expect(outerSpan?.kind).toBe("operation");
 });
 
-test("two interleaved async commands keep separate parent-linked span trees (no ALS)", async () => {
+test("two interleaved async operations keep separate parent-linked span trees (no ALS)", async () => {
   const spans: Observe.Span[] = [];
   let now = 0;
   const g1 = deferred();
@@ -2090,7 +2090,7 @@ test("two interleaved async commands keep separate parent-linked span trees (no 
     depends: { leaf },
     run: async ({ leaf }) => {
       await g1.promise;
-      return leaf.resolve({ rawInput: 1 });
+      return leaf.run({ rawInput: 1 });
     },
   });
   const b = operation({
@@ -2098,12 +2098,12 @@ test("two interleaved async commands keep separate parent-linked span trees (no 
     depends: { leaf },
     run: async ({ leaf }) => {
       await g2.promise;
-      return leaf.resolve({ rawInput: 2 });
+      return leaf.run({ rawInput: 2 });
     },
   });
   const scope = createScope({ observe: { clock: () => ++now, export: (s) => void spans.push(s) } });
-  const pa = scope.getController(a).resolve();
-  const pb = scope.getController(b).resolve();
+  const pa = scope.controller(a).run();
+  const pb = scope.controller(b).run();
   g2.resolve();
   g1.resolve();
   await Promise.all([pa, pb]);
@@ -2123,7 +2123,7 @@ test("observation off gives ctx.obs.span undefined and no retained spans", () =>
     },
   });
   const scope = createScope();
-  scope.getController(op).resolve();
+  scope.controller(op).run();
   expect(sawSpan).toBe(undefined);
   expect(scope.spans()).toEqual([]);
 });
@@ -2137,7 +2137,7 @@ test("a throwing exporter does not fail the operation", () => {
       },
     },
   });
-  expect(scope.getController(op).resolve()).toBe(42);
+  expect(scope.controller(op).run()).toBe(42);
 });
 
 test("history is bounded and toggles independently of export and logging", () => {
@@ -2150,18 +2150,18 @@ test("history is bounded and toggles independently of export and logging", () =>
     },
   });
   const scope = createScope({ observe: { history: 2, log: (e) => void logs.push(e.message) } });
-  scope.getController(op).resolve();
-  scope.getController(op).resolve();
-  scope.getController(op).resolve();
+  scope.controller(op).run();
+  scope.controller(op).run();
+  scope.controller(op).run();
   expect(scope.spans().length).toBe(2);
   expect(logs).toEqual(["hi", "hi", "hi"]);
 });
 
-test("observation on keeps the command's returned value identity (behavior-neutral)", async () => {
+test("observation on keeps the operation's returned value identity (behavior-neutral)", async () => {
   const promise = Promise.resolve(7);
   const op = operation({ label: "op", run: () => promise });
   const scope = createScope({ observe: { export: () => undefined } });
-  const result = scope.getController(op).resolve();
+  const result = scope.controller(op).run();
   expect(result).toBe(promise);
   expect(await result).toBe(7);
 });
@@ -2175,7 +2175,7 @@ test("an async exporter that rejects is isolated (no unhandled rejection, op una
       },
     },
   });
-  expect(scope.getController(op).resolve()).toBe(1);
+  expect(scope.controller(op).run()).toBe(1);
   await Promise.resolve();
 });
 
@@ -2194,7 +2194,7 @@ test("a throwing logger does not fail the operation", () => {
       },
     },
   });
-  expect(scope.getController(op).resolve()).toBe(5);
+  expect(scope.controller(op).run()).toBe(5);
 });
 
 test("a span for an operation whose setup throws is still closed and exported as failed", () => {
@@ -2209,7 +2209,7 @@ test("a span for an operation whose setup throws is still closed and exported as
   });
   const scope = createScope({ observe: { export: (s) => void spans.push(s) } });
   try {
-    scope.getController(op).resolve({ rawInput: 1 });
+    scope.controller(op).run({ rawInput: 1 });
     throw new Error("expected the parser to throw");
   } catch (error) {
     if (error !== parseError) throw error;
@@ -2234,7 +2234,7 @@ test("a manual child span does not consume a non-promise thenable's then", () =>
     },
   });
   const scope = createScope({ observe: { export: () => undefined } });
-  scope.getController(op).resolve();
+  scope.controller(op).run();
   expect(thenCalls).toBe(0);
 });
 
@@ -2249,17 +2249,17 @@ test("a sink returning a thenable whose then getter throws is isolated", () => {
       }),
     },
   });
-  expect(scope.getController(op).resolve()).toBe(3);
+  expect(scope.controller(op).run()).toBe(3);
 });
 
-test("a shared resource used by two commands links a used edge to each caller span", () => {
+test("a shared resource used by two operations links a used edge to each caller span", () => {
   const spans: Observe.Span[] = [];
   const conn = resource({ label: "conn", factory: () => ({ id: 1 }) });
   const a = operation({ label: "a", depends: { conn }, run: ({ conn }) => conn.id });
   const b = operation({ label: "b", depends: { conn }, run: ({ conn }) => conn.id });
   const scope = createScope({ observe: { export: (s) => void spans.push(s) } });
-  scope.getController(a).resolve();
-  scope.getController(b).resolve();
+  scope.controller(a).run();
+  scope.controller(b).run();
   const aSpan = spans.find((s) => s.name === "a");
   const bSpan = spans.find((s) => s.name === "b");
   const usedIn = (span: Observe.Span | undefined) =>
@@ -2275,7 +2275,7 @@ test("resource value identity is unchanged with observation on (no wrapping)", (
   const instance = { id: 1 };
   const conn = resource({ label: "conn", factory: () => instance });
   const scope = createScope({ observe: { export: () => undefined } });
-  expect(scope.getController(conn).resolve()).toBe(instance);
+  expect(scope.controller(conn).resolve()).toBe(instance);
 });
 
 test("an async resource build opens and closes a balanced span", async () => {
@@ -2290,7 +2290,7 @@ test("an async resource build opens and closes a balanced span", async () => {
     },
   });
   const scope = createScope({ observe: { clock: () => ++now, export: (s) => void spans.push(s) } });
-  const p = scope.getController(conn).resolve();
+  const p = scope.controller(conn).resolve();
   gate.resolve();
   await p;
   const connSpan = spans.find((s) => s.name === "conn" && s.kind === "resource");
@@ -2298,11 +2298,11 @@ test("an async resource build opens and closes a balanced span", async () => {
   expect(connSpan?.end).not.toBe(undefined);
 });
 
-test("a data preset is seen by a downstream command, validated by parse", () => {
+test("a data preset is seen by a downstream operation, validated by parse", () => {
   const count = data({ initial: 1, parse: asNumber });
   const read = operation({ label: "read", depends: { n: count }, run: ({ n }) => n });
   const scope = createScope({ presets: [preset(count, 42)] });
-  expect(scope.getController(read).resolve()).toBe(42);
+  expect(scope.controller(read).run()).toBe(42);
 });
 
 test("a data preset value runs through parse and can be rejected", () => {
@@ -2320,7 +2320,7 @@ test("a data preset value runs through parse and can be rejected", () => {
   }
 });
 
-test("a command preset replaces the run for a downstream subflow", () => {
+test("an operation preset replaces the run for a downstream subflow", () => {
   const inner = operation({
     label: "inner",
     input: asNumber,
@@ -2329,20 +2329,20 @@ test("a command preset replaces the run for a downstream subflow", () => {
   const outer = operation({
     label: "outer",
     depends: { inner },
-    run: ({ inner }) => inner.resolve({ rawInput: 9 }),
+    run: ({ inner }) => inner.run({ rawInput: 9 }),
   });
   const scope = createScope({ presets: [preset(inner, (_deps, { input }) => input * 100)] });
-  expect(scope.getController(outer).resolve()).toBe(900);
+  expect(scope.controller(outer).run()).toBe(900);
 });
 
-test("a command preset replaces the run for a direct resolve too", () => {
+test("an operation preset replaces the run for a direct run too", () => {
   const greet = operation({
     label: "greet",
     input: asText,
     run: (_deps, { input }) => `hello ${input}`,
   });
   const scope = createScope({ presets: [preset(greet, (_deps, { input }) => `hi ${input}`)] });
-  expect(scope.getController(greet).resolve({ rawInput: "ada" })).toBe("hi ada");
+  expect(scope.controller(greet).run({ rawInput: "ada" })).toBe("hi ada");
 });
 
 test("a preset is scoped to its scope, not the node globally", () => {
@@ -2350,8 +2350,8 @@ test("a preset is scoped to its scope, not the node globally", () => {
   const read = operation({ label: "read", depends: { n: count }, run: ({ n }) => n });
   const presetScope = createScope({ presets: [preset(count, 42)] });
   const plainScope = createScope();
-  expect(presetScope.getController(read).resolve()).toBe(42);
-  expect(plainScope.getController(read).resolve()).toBe(1);
+  expect(presetScope.controller(read).run()).toBe(42);
+  expect(plainScope.controller(read).run()).toBe(1);
 });
 
 test("a void-input operation is always delivered as a callable subflow, never a value", () => {
@@ -2360,9 +2360,9 @@ test("a void-input operation is always delivered as a callable subflow, never a 
   const outer = operation({
     label: "outer",
     depends: { ping },
-    run: ({ ping }) => [ping.resolve(), ping.resolve()],
+    run: ({ ping }) => [ping.run(), ping.run()],
   });
-  expect(createScope().getController(outer).resolve()).toEqual([1, 2]);
+  expect(createScope().controller(outer).run()).toEqual([1, 2]);
   expect(runs).toBe(2);
 });
 
@@ -2375,9 +2375,9 @@ test("a subflow call with input skips parse; rawInput runs parse", () => {
   };
   const op = operation({ label: "op", input: parseCount, run: (_deps, { input }) => input });
   const scope = createScope();
-  expect(scope.getController(op).resolve({ input: 7 })).toBe(7);
+  expect(scope.controller(op).run({ input: 7 })).toBe(7);
   expect(parses).toBe(0);
-  expect(scope.getController(op).resolve({ rawInput: 8 })).toBe(8);
+  expect(scope.controller(op).run({ rawInput: 8 })).toBe(8);
   expect(parses).toBe(1);
 });
 
@@ -2385,9 +2385,9 @@ test("a subflow call layers per-call tags over the caller's ambient bindings, pe
   const zone = tag<string>({ label: "zone", default: "base" });
   const readZone = operation({ label: "readZone", depends: { zone }, run: ({ zone }) => zone });
   const scope = createScope({ tags: [zone("eu")] });
-  expect(scope.getController(readZone).resolve()).toBe("eu");
-  expect(scope.getController(readZone).resolve({ tags: [zone("us")] })).toBe("us");
-  expect(scope.getController(readZone).resolve()).toBe("eu");
+  expect(scope.controller(readZone).run()).toBe("eu");
+  expect(scope.controller(readZone).run({ tags: [zone("us")] })).toBe("us");
+  expect(scope.controller(readZone).run()).toBe("eu");
 });
 
 test("per-call tags do not propagate into a nested subflow", () => {
@@ -2396,10 +2396,10 @@ test("per-call tags do not propagate into a nested subflow", () => {
   const outer = operation({
     label: "outer",
     depends: { inner, zone },
-    run: ({ inner, zone }) => `${zone}/${inner.resolve()}`,
+    run: ({ inner, zone }) => `${zone}/${inner.run()}`,
   });
   const scope = createScope({ tags: [zone("eu")] });
-  expect(scope.getController(outer).resolve({ tags: [zone("us")] })).toBe("us/eu");
+  expect(scope.controller(outer).run({ tags: [zone("us")] })).toBe("us/eu");
 });
 
 test("an undefined input is treated as absent, so rawInput is parsed (no NaN leak)", () => {
@@ -2408,11 +2408,11 @@ test("an undefined input is treated as absent, so rawInput is parsed (no NaN lea
     input: asNumber,
     run: (_deps, { input }) => input * 2,
   });
-  expect(createScope().getController(double).resolve({ input: undefined, rawInput: 7 })).toBe(14);
+  expect(createScope().controller(double).run({ input: undefined, rawInput: 7 })).toBe(14);
 });
 
 test("the invocation type requires an argument for a never-parse operation", () => {
-  const neverRequiresArg: [] extends Parameters<Scope.CommandController<number, never>["resolve"]>
+  const neverRequiresArg: [] extends Parameters<Scope.OperationController<number, never>["run"]>
     ? false
     : true = true;
   expect(neverRequiresArg).toBe(true);
@@ -2421,17 +2421,17 @@ test("the invocation type requires an argument for a never-parse operation", () 
 test("a resource preset replaces the built instance for downstream consumers", () => {
   const conn = resource({ label: "conn", factory: () => ({ id: "real" }) });
   const read = operation({ label: "read", depends: { conn }, run: ({ conn }) => conn.id });
-  expect(createScope().getController(read).resolve()).toBe("real");
+  expect(createScope().controller(read).run()).toBe("real");
   const presetScope = createScope({ presets: [preset(conn, () => ({ id: "fake" }))] });
-  expect(presetScope.getController(read).resolve()).toBe("fake");
+  expect(presetScope.controller(read).run()).toBe("fake");
 });
 
 test("a resource preset is built once per owner and cached", () => {
   let builds = 0;
   const conn = resource({ label: "conn", factory: () => ({ id: 0 }) });
   const scope = createScope({ presets: [preset(conn, () => ({ id: ++builds }))] });
-  const a = scope.getController(conn).resolve();
-  const b = scope.getController(conn).resolve();
+  const a = scope.controller(conn).resolve();
+  const b = scope.controller(conn).resolve();
   expect(a).toBe(b);
   expect(builds).toBe(1);
 });
@@ -2453,7 +2453,7 @@ test("a resource preset's cleanup runs when the owner closes; the real factory n
       }),
     ],
   });
-  scope.getController(conn).resolve();
+  scope.controller(conn).resolve();
   await scope.close();
   expect(events).toEqual(["fake-teardown"]);
 });
@@ -2461,7 +2461,7 @@ test("a resource preset's cleanup runs when the owner closes; the real factory n
 test("an async resource preset resolves to its awaited value", async () => {
   const conn = resource({ label: "conn", factory: async () => ({ id: "real" }) });
   const scope = createScope({ presets: [preset(conn, async () => ({ id: "fake" }))] });
-  const value = await scope.getController(conn).resolve();
+  const value = await scope.controller(conn).resolve();
   expect(value.id).toBe("fake");
 });
 
@@ -2471,7 +2471,7 @@ test("a resource preset receives the resolved deps, delivered untyped (narrow at
   const scope = createScope({
     presets: [preset(conn, (deps) => asNumber(deps.count) + 100)],
   });
-  expect(scope.getController(conn).resolve()).toBe(141);
+  expect(scope.controller(conn).resolve()).toBe(141);
 });
 
 test("a unit carries static tag meta, readable off its handle via tag.read", () => {
@@ -2499,7 +2499,7 @@ test("meta is static and never affects resolution; no meta reads as empty", () =
   const ui = tag<string>({ label: "ui" });
   const count = data({ initial: 5, parse: asNumber, meta: [ui("slider")] });
   const read = operation({ label: "read", depends: { count }, run: ({ count }) => count });
-  expect(createScope().getController(read).resolve()).toBe(5);
+  expect(createScope().controller(read).run()).toBe(5);
   expect(operation({ label: "bare", run: () => 0 }).meta).toEqual([]);
 });
 
@@ -2528,8 +2528,8 @@ test("close runs defers in reverse registration order (LIFO)", async () => {
     },
   });
   const scope = createScope();
-  scope.getController(a).resolve();
-  scope.getController(b).resolve();
+  scope.controller(a).resolve();
+  scope.controller(b).resolve();
   await scope.close();
   expect(seen).toEqual(["b", "a"]);
 });
@@ -2544,7 +2544,7 @@ test("a later onClose runs before an earlier resource defer (layer-wide LIFO)", 
     },
   });
   const scope = createScope();
-  scope.getController(r).resolve();
+  scope.controller(r).resolve();
   scope.onClose(() => void seen.push("onClose"));
   await scope.close();
   expect(seen).toEqual(["onClose", "r"]);
@@ -2568,7 +2568,7 @@ test("a dependent's defer runs before its dependency's (registration order)", as
     },
   });
   const scope = createScope();
-  scope.getController(top).resolve();
+  scope.controller(top).resolve();
   await scope.close();
   expect(seen).toEqual(["top", "base"]);
 });
@@ -2589,8 +2589,8 @@ test("an operation defer sees success, and failed when the run throws", () => {
       throw new Error("boom");
     },
   });
-  createScope().getController(ok).resolve();
-  expect(() => createScope().getController(bad).resolve()).toThrow();
+  createScope().controller(ok).run();
+  expect(() => createScope().controller(bad).run()).toThrow();
   expect(seen).toEqual(["success", "failed"]);
 });
 
@@ -2599,7 +2599,7 @@ test("an operation ctx exposes no borrow or drain internals", () => {
     label: "probe",
     run: (_deps, ctx) => "registeredDefers" in ctx,
   });
-  expect(createScope().getController(probe).resolve()).toBe(false);
+  expect(createScope().controller(probe).run()).toBe(false);
 });
 
 test("a resource cleanup rolls back on a forced close, commits on a graceful close", async () => {
@@ -2612,10 +2612,10 @@ test("a resource cleanup rolls back on a forced close, commits on a graceful clo
     },
   });
   const forced = createScope();
-  forced.getController(r).resolve();
+  forced.controller(r).resolve();
   await forced.close();
   const graceful = createScope();
-  graceful.getController(r).resolve();
+  graceful.controller(r).resolve();
   await graceful.close({ graceful: true });
   expect(seen).toEqual(["cancelled", "success"]);
 });
@@ -2631,7 +2631,7 @@ test("close aborts ctx.signal so a parked op stops cleanly", async () => {
     },
   });
   const scope = createScope();
-  const done = scope.getController(parked).resolve();
+  const done = scope.controller(parked).run();
   const closing = scope.close();
   gate.resolve();
   await closing;
@@ -2653,8 +2653,8 @@ test("a streaming operation writes a data cell over time; a watcher sees it grow
     },
   });
   const scope = createScope();
-  scope.getController(answer).watch((v) => void seen.push(v));
-  await scope.getController(chat).resolve();
+  scope.controller(answer).watch((v) => void seen.push(v));
+  await scope.controller(chat).run();
   expect(seen).toEqual(["He", "Hell", "Hello"]);
 });
 
@@ -2670,7 +2670,7 @@ test("a real late owned failure during close still surfaces (cancel-clean is onl
     },
   });
   const done = createScope().session((s) => {
-    void s.getController(op).resolve();
+    void s.controller(op).run();
     return 42;
   });
   await closing.promise;
@@ -2687,7 +2687,7 @@ test("a cancelled session rejects rather than resolving undefined", async () => 
       }),
   });
   const root = createScope();
-  const running = root.session((s) => s.getController(parked).resolve());
+  const running = root.session((s) => s.controller(parked).run());
   await root.close();
   let rejected = false;
   await running.catch(() => void (rejected = true));
@@ -2708,7 +2708,7 @@ test("a throwing defer is aggregated as TeardownFailed and does not stop other d
     },
   });
   const scope = createScope();
-  scope.getController(r).resolve();
+  scope.controller(r).resolve();
   const result = await scope.close();
   expect(seen).toEqual(["kept"]);
   expect(result.teardownErrors).toContain(boom);
@@ -2724,7 +2724,7 @@ test("closing a scope with thousands of defers does not overflow", async () => {
         return i;
       },
     });
-    scope.getController(r).resolve();
+    scope.controller(r).resolve();
   }
   await scope.close();
   expect(true).toBe(true);
@@ -2743,7 +2743,7 @@ test("an interrupted session resource sees cancelled, not success", async () => 
     },
   });
   const root = createScope();
-  const done = root.session((s) => s.getController(tx).resolve());
+  const done = root.session((s) => s.controller(tx).resolve());
   await Promise.all([root.close(), done.catch(() => undefined)]);
   expect(seen).toEqual(["cancelled"]);
 });
@@ -2761,7 +2761,7 @@ test("closing a deeply nested scope tree does not overflow", async () => {
 test("an owned rejection with an undefined cause keeps that cause", async () => {
   const op = operation({ label: "fail", run: () => Promise.reject(undefined) });
   const done = createScope().session((s) => {
-    void s.getController(op).resolve();
+    void s.controller(op).run();
     return 42;
   });
   let caught = { has: false, value: "unset" as unknown };
@@ -2782,7 +2782,7 @@ test("teardown errors are aggregated in execution order", async () => {
     },
   });
   const scope = createScope();
-  scope.getController(op).resolve();
+  scope.controller(op).run();
   scope.onClose(() => {
     throw second;
   });
@@ -2805,7 +2805,7 @@ test("close aborts children created by a still-running nested body", async () =>
     closeBoundary = () => outer.close();
     return outer.session(async (inner) => {
       await gate.promise;
-      return inner.createSession().getController(park).resolve();
+      return inner.createSession().controller(park).run();
     });
   });
   const rejected = done.catch(() => undefined);
@@ -2854,8 +2854,8 @@ test("close keeps a child's real failure and cleanup error while waiting for its
         throw cleanup;
       });
       void child
-        .getController(failer)
-        .resolve()
+        .controller(failer)
+        .run()
         .catch(() => undefined);
       await body.promise;
       return 42;
@@ -2895,8 +2895,8 @@ test("close keeps a grandchild's real failure while its ancestor awaits its body
         throw cleanup;
       });
       void leaf
-        .getController(failer)
-        .resolve()
+        .controller(failer)
+        .run()
         .catch(() => undefined);
       await body.promise;
       return 42;
@@ -2985,8 +2985,8 @@ test("close collects a child born and finished during its ancestor's body wait",
         throw cleanup;
       });
       void late
-        .getController(failer)
-        .resolve()
+        .controller(failer)
+        .run()
         .catch(() => undefined);
       expect(await late.close()).toEqual({
         status: "failed",
@@ -3060,10 +3060,10 @@ test("a parent close preserves a real owned failure in an interrupted child", as
   const root = createScope();
   const done = root.session((s) => {
     void s
-      .getController(bad)
-      .resolve()
+      .controller(bad)
+      .run()
       .catch(() => undefined);
-    return s.getController(tx).resolve();
+    return s.controller(tx).resolve();
   });
   const rejected = expect(done).rejects.toBe(cause);
   const result = await root.close();
@@ -3088,8 +3088,8 @@ test("a collecting parent gets a child's winning body failure, not its caught ow
       childEnd = scope
         .session(async (child) => {
           await child
-            .getController(failer)
-            .resolve()
+            .controller(failer)
+            .run()
             .catch(() => undefined);
           ready.resolve();
           await childGate.promise;
@@ -3131,10 +3131,10 @@ test("a graceful close still force-rolls-back children when the scope already fa
   const failer = operation({ label: "failer", run: () => Promise.reject(opCause) });
   const scope = createScope();
   const child = scope.createSession();
-  child.getController(tx).resolve();
+  child.controller(tx).resolve();
   await scope
-    .getController(failer)
-    .resolve()
+    .controller(failer)
+    .run()
     .catch(() => undefined);
   await scope.settled();
   const result = await scope.close({ graceful: true });
@@ -3152,8 +3152,8 @@ for (const graceful of [false, true]) {
     const cleanup = new Error("child cleanup");
     const failer = operation({ label: "failer", run: () => Promise.reject(cause) });
     await child
-      .getController(failer)
-      .resolve()
+      .controller(failer)
+      .run()
       .then(
         () => expect.unreachable(),
         (e: unknown) => expect(e).toBe(cause),
@@ -3202,7 +3202,7 @@ test("a descendant failure known before the cascade rolls back the remaining chi
     .session(async (scope) => {
       parent = scope;
       failedChild = scope.createSession();
-      scope.createSession().getController(tx).resolve();
+      scope.createSession().controller(tx).resolve();
       await bodyGate.promise;
     })
     .then(
@@ -3210,8 +3210,8 @@ test("a descendant failure known before the cascade rolls back the remaining chi
       (e: unknown) => e,
     );
   await failedChild
-    .getController(failer)
-    .resolve()
+    .controller(failer)
+    .run()
     .then(
       () => expect.unreachable(),
       (e: unknown) => expect(e).toBe(cause),
@@ -3250,13 +3250,13 @@ test("a failure collected from an earlier child rolls back the next child", asyn
   });
   const first = root.createSession();
   const failed = first
-    .getController(failer)
-    .resolve()
+    .controller(failer)
+    .run()
     .then(
       () => expect.unreachable(),
       (e: unknown) => expect(e).toBe(cause),
     );
-  root.createSession().getController(tx).resolve();
+  root.createSession().controller(tx).resolve();
   const closing = root.close({ graceful: true });
   gate.resolve();
   await failed;
@@ -3286,7 +3286,7 @@ test("a first graceful child close after an ancestor abort still rolls its resou
     .session(async (scope) => {
       parent = scope;
       child = scope.createSession();
-      childSignal = child.getController(tx).resolve();
+      childSignal = child.controller(tx).resolve();
       await bodyGate.promise;
     })
     .then(
@@ -3315,7 +3315,7 @@ test("a body that rejects with a surfaced failure reports it over a caught owned
   const bad = operation({ label: "bad", run: () => Promise.reject(own) });
   const root = createScope();
   const done = root.session(async (child) => {
-    await expect(child.getController(bad).resolve()).rejects.toBe(own);
+    await expect(child.controller(bad).run()).rejects.toBe(own);
     return child.session(() => Promise.reject(ancestor));
   });
   await expect(done).rejects.toBe(ancestor);
@@ -3340,8 +3340,8 @@ test("an own body failure wins even when an ancestor reports the same cause", as
   const bad = operation({ label: "bad", run: () => Promise.reject(ownedCause) });
   const root = createScope();
   const running = root.session(async (child) => {
-    child.getController(tx).resolve();
-    await expect(child.getController(bad).resolve()).rejects.toBe(ownedCause);
+    child.controller(tx).resolve();
+    await expect(child.controller(bad).run()).rejects.toBe(ownedCause);
     ready.resolve();
     await interrupted.promise;
     throw bodyCause;
@@ -3362,7 +3362,7 @@ test("the settlement reducer handles a primitive (non-Error) body cause", async 
   const bad = operation({ label: "bad", run: () => Promise.reject(own) });
   const root = createScope();
   const done = root.session(async (child) => {
-    await expect(child.getController(bad).resolve()).rejects.toBe(own);
+    await expect(child.controller(bad).run()).rejects.toBe(own);
     return child.session(() => Promise.reject(ancestor));
   });
   await expect(done).rejects.toBe(ancestor);
@@ -3390,8 +3390,8 @@ test("a reused error object is a later session's own body failure, not a stale p
   const bad = operation({ label: "bad", run: () => Promise.reject(ownedCause) });
   const root2 = createScope();
   const second = root2.session(async (child) => {
-    child.getController(tx).resolve();
-    await expect(child.getController(bad).resolve()).rejects.toBe(ownedCause);
+    child.controller(tx).resolve();
+    await expect(child.controller(bad).run()).rejects.toBe(ownedCause);
     await interrupted.promise;
     throw shared;
   });
@@ -3419,9 +3419,9 @@ test("closing a manual child does not demote its parent's own body failure", asy
   const bad = operation({ label: "bad", run: () => Promise.reject(ownedCause) });
   const root = createScope();
   const running = root.session(async (parent) => {
-    parent.getController(tx).resolve();
+    parent.controller(tx).resolve();
     parent.createSession();
-    await expect(parent.getController(bad).resolve()).rejects.toBe(ownedCause);
+    await expect(parent.controller(bad).run()).rejects.toBe(ownedCause);
     throw bodyCause;
   });
   const caught = await running.then(
@@ -3446,7 +3446,7 @@ test("a manual child's earlier close does not swallow the body's own throw of th
   });
   const root = createScope();
   const running = root.session(async (parent) => {
-    parent.getController(tx).resolve();
+    parent.controller(tx).resolve();
     await parent.createSession().close();
     throw cause;
   });
@@ -3472,7 +3472,7 @@ test("a diamond release tears down dependents before dependencies (reverse regis
   const r = mk("r", { d });
   const top = mk("top", { l, r });
   const scope = createScope();
-  scope.getController(top).resolve();
+  scope.controller(top).resolve();
   scope.release(d);
   expect(order[0]).toBe("top");
   expect(order[order.length - 1]).toBe("d");
@@ -3500,7 +3500,7 @@ test("release waits for an in-flight op borrowing the resource before running it
     },
   });
   const scope = createScope();
-  const running = scope.getController(op).resolve();
+  const running = scope.controller(op).run();
   scope.release(res);
   expect(order).toEqual([]);
   opGate.resolve();
@@ -3520,7 +3520,7 @@ test("a sync op borrowing a released resource does not delay its cleanup", () =>
   });
   const op = operation({ label: "op", depends: { res }, run: ({ res }) => res });
   const scope = createScope();
-  scope.getController(op).resolve();
+  scope.controller(op).run();
   scope.release(res);
   expect(order).toEqual(["res-clean"]);
 });
@@ -3547,7 +3547,7 @@ test("releasing a scope resource waits for a cross-owner op that borrowed it", a
   });
   const root = createScope();
   const child = root.createSession();
-  const running = child.getController(use).resolve();
+  const running = child.controller(use).run();
   root.release(conn);
   expect(order).toEqual([]);
   opGate.resolve();
@@ -3590,7 +3590,7 @@ test("release keeps a scope dependency alive while a child op borrows its depend
   });
   const root = createScope();
   const child = root.createSession();
-  const running = child.getController(use).resolve();
+  const running = child.controller(use).run();
   root.release(conn);
   gate.resolve();
   await running;
@@ -3627,7 +3627,7 @@ test("release keeps a scope dependency alive until a child resource's async clea
   });
   const root = createScope();
   const child = root.createSession();
-  child.getController(tx).resolve();
+  child.controller(tx).resolve();
   root.release(conn);
   gate.resolve();
   await root.close();
@@ -3660,7 +3660,7 @@ test("release keeps a borrowed resource alive until the operation's async cleanu
     },
   });
   const scope = createScope();
-  await scope.getController(use).resolve();
+  await scope.controller(use).run();
   scope.release(conn);
   gate.resolve();
   await scope.close();
@@ -3698,7 +3698,7 @@ test("release waits for a child borrower even when its resource has no defer", a
   });
   const root = createScope();
   const child = root.createSession();
-  const running = child.getController(use).resolve();
+  const running = child.controller(use).run();
   root.release(conn);
   gate.resolve();
   await running;
@@ -3733,7 +3733,7 @@ test("release keeps a borrowed resource alive through a synchronously throwing o
     },
   });
   const scope = createScope();
-  expect(() => scope.getController(use).resolve()).toThrow(cause);
+  expect(() => scope.controller(use).run()).toThrow(cause);
   scope.release(conn);
   gate.resolve();
   await scope.close();
@@ -3764,7 +3764,7 @@ test("release waits for a borrower before running a defer registered by an in-fl
     },
   });
   const scope = createScope();
-  const running = scope.getController(use).resolve();
+  const running = scope.controller(use).run();
   scope.release(conn);
   gate.resolve();
   await running;
@@ -3795,12 +3795,12 @@ test("a superseded build's late defer leaves the rebuilt resource alive in cache
   });
   const root = createScope();
   const child = root.createSession();
-  const oldBuild = root.getController(conn).resolve();
+  const oldBuild = root.controller(conn).resolve();
   root.release(conn);
-  await root.getController(conn).resolve();
+  await root.controller(conn).resolve();
   gate.resolve();
   await oldBuild;
-  const open = await child.getController(use).resolve();
+  const open = await child.controller(use).run();
   await root.close();
   expect(open).toBe(true);
 });
@@ -3824,15 +3824,15 @@ test("a cross-owner release leaves a dependency rebuilt by child cleanup alive i
     depends: { conn },
     factory: (deps, { defer }) => {
       defer(() => {
-        root.getController(conn).resolve();
+        root.controller(conn).resolve();
       });
       return deps.conn;
     },
   });
   const child = root.createSession();
-  child.getController(tx).resolve();
+  child.controller(tx).resolve();
   root.release(conn);
-  const open = root.getController(conn).get().open;
+  const open = root.controller(conn).get().open;
   await root.close();
   expect(open).toBe(true);
 });
@@ -3868,7 +3868,7 @@ test("cross-owner release tears down a descendant dependent before its ancestor 
   });
   const root = createScope();
   const child = root.createSession();
-  child.getController(tx).resolve();
+  child.controller(tx).resolve();
   root.release(count);
   gate.resolve();
   await root.close();
@@ -3910,7 +3910,7 @@ test("release during dependency resolution waits for the operation's cleanup", a
       });
     },
   });
-  scope.getController(use).resolve();
+  scope.controller(use).run();
   gate.resolve();
   await scope.close();
   expect(order).toEqual(["op-clean-open", "conn-clean"]);
@@ -3953,7 +3953,7 @@ test("a released build's first lazy read cannot invalidate its unused replacemen
     },
   });
   const scope = createScope();
-  const controller = scope.getController(view);
+  const controller = scope.controller(view);
   const old = controller.resolve();
   scope.release(view);
   const replacement = await controller.resolve();
@@ -3968,10 +3968,10 @@ test("a released build's first lazy read cannot invalidate its unused replacemen
 test("an operation reads the scope's clock, and advancing it moves later reads", () => {
   const clk = makeTestClock({ now: 0 });
   const now = operation({ label: "now", run: (_deps, { clock }) => clock.currentTimeMillis() });
-  const c = createScope({ clock: clk }).getController(now);
-  expect(c.resolve()).toBe(0);
+  const c = createScope({ clock: clk }).controller(now);
+  expect(c.run()).toBe(0);
   clk.advance(50);
-  expect(c.resolve()).toBe(50);
+  expect(c.run()).toBe(50);
 });
 
 test("a resource factory reads the scope's clock", () => {
@@ -3980,7 +3980,7 @@ test("a resource factory reads the scope's clock", () => {
     factory: (_deps, { clock }) => clock.currentTimeMillis(),
   });
   const built: number = createScope({ clock: makeTestClock({ now: 500 }) })
-    .getController(stamped)
+    .controller(stamped)
     .resolve();
   expect(built).toBe(500);
 });
@@ -3989,14 +3989,14 @@ test("the test clock handles fractional virtual time: truncated millis, precise 
   const millis = operation({ label: "ms", run: (_deps, { clock }) => clock.currentTimeMillis() });
   const nanos = operation({ label: "ns", run: (_deps, { clock }) => clock.currentTimeNanos() });
   const scope = createScope({ clock: makeTestClock({ now: 2.5 }) });
-  expect(scope.getController(millis).resolve()).toBe(2);
-  expect(scope.getController(nanos).resolve()).toBe(2_500_000n);
+  expect(scope.controller(millis).run()).toBe(2);
+  expect(scope.controller(nanos).run()).toBe(2_500_000n);
 });
 
 test("the default scope clock reads real wall-clock time", () => {
   const now = operation({ label: "now", run: (_deps, { clock }) => clock.currentTimeMillis() });
   const before = Date.now();
-  const read: number = createScope().getController(now).resolve();
+  const read: number = createScope().controller(now).run();
   const after = Date.now();
   expect(read).toBeGreaterThanOrEqual(before);
   expect(read).toBeLessThanOrEqual(after);
@@ -4005,17 +4005,17 @@ test("the default scope clock reads real wall-clock time", () => {
 test("a child session reads its parent scope's clock", async () => {
   const now = operation({ label: "now", run: (_deps, { clock }) => clock.currentTimeMillis() });
   const scope = createScope({ clock: makeTestClock({ now: 1234 }) });
-  const seen = await scope.session((s) => s.getController(now).resolve());
+  const seen = await scope.session((s) => s.controller(now).run());
   expect(seen).toBe(1234);
 });
 
 test("setTime replaces the test clock's current time", () => {
   const clk = makeTestClock({ now: 100 });
   const now = operation({ label: "now", run: (_deps, { clock }) => clock.currentTimeMillis() });
-  const c = createScope({ clock: clk }).getController(now);
-  expect(c.resolve()).toBe(100);
+  const c = createScope({ clock: clk }).controller(now);
+  expect(c.run()).toBe(100);
   clk.setTime(9000);
-  expect(c.resolve()).toBe(9000);
+  expect(c.run()).toBe(9000);
 });
 
 test("a resource factory that defaults its deps param still reads the injected clock", () => {
@@ -4024,7 +4024,7 @@ test("a resource factory that defaults its deps param still reads the injected c
     factory: (_deps = {}, { clock }) => clock.currentTimeMillis(),
   });
   const built: number = createScope({ clock: makeTestClock({ now: 777 }) })
-    .getController(stamped)
+    .controller(stamped)
     .resolve();
   expect(built).toBe(777);
 });
@@ -4040,7 +4040,7 @@ test("a test-clock sleep resolves only once virtual time is advanced past it", a
         return clock.currentTimeMillis();
       }),
   });
-  const woke = createScope({ clock: clk }).getController(nap).resolve();
+  const woke = createScope({ clock: clk }).controller(nap).run();
   clk.advance(500);
   await Promise.resolve();
   expect(done).toBe(false);
@@ -4054,7 +4054,7 @@ test("aborting a pending test-clock sleep rejects with the signal's reason", asy
   const ac = new AbortController();
   const cause = new Error("stop");
   const nap = operation({ label: "nap", run: (_deps, { clock }) => clock.sleep(1000, ac.signal) });
-  const p = createScope({ clock: clk }).getController(nap).resolve();
+  const p = createScope({ clock: clk }).controller(nap).run();
   ac.abort(cause);
   await expect(p).rejects.toBe(cause);
 });
@@ -4066,7 +4066,7 @@ test("a system-clock sleep rejects with the reason when its signal aborts", asyn
     label: "sysnap",
     run: (_deps, { clock }) => clock.sleep(60_000, ac.signal),
   });
-  const p = createScope().getController(nap).resolve();
+  const p = createScope().controller(nap).run();
   ac.abort(cause);
   await expect(p).rejects.toBe(cause);
 });
@@ -4077,7 +4077,7 @@ test("a test-clock sleep of zero resolves without advancing time", async () => {
     label: "nap0",
     run: (_deps, { clock }) => clock.sleep(0).then(() => "woke"),
   });
-  expect(await createScope({ clock: clk }).getController(nap).resolve()).toBe("woke");
+  expect(await createScope({ clock: clk }).controller(nap).run()).toBe("woke");
 });
 
 test("a forced close aborts an in-flight sleep: the run's defer sees cancelled and close settles cancelled", async () => {
@@ -4092,9 +4092,66 @@ test("a forced close aborts an in-flight sleep: the run's defer sees cancelled a
     },
   });
   const scope = createScope();
-  const done = scope.getController(napping).resolve();
+  const done = scope.controller(napping).run();
   const result = await scope.close();
   expect(result.status).toBe("cancelled");
   expect(end).toBe("cancelled");
   await expect(done).rejects.toBeDefined();
+});
+
+test("scope.resolve reads a data cell's current value with no subscription", () => {
+  const count = data({ initial: 3, parse: asNumber });
+  const scope = createScope();
+  expect(scope.resolve(count)).toBe(3);
+  scope.controller(count).set(4);
+  expect(scope.resolve(count)).toBe(4);
+});
+
+test("scope.resolve builds a resource once and caches, like controller resolve", () => {
+  let builds = 0;
+  const conn = resource({ label: "conn", factory: () => ({ id: ++builds }) });
+  const scope = createScope();
+  const a = scope.resolve(conn);
+  const b = scope.resolve(conn);
+  expect(a).toBe(b);
+  expect(a.id).toBe(1);
+  expect(scope.controller(conn).resolve()).toBe(a);
+});
+
+test("scope.resolve reads a tag's nearest binding, default, and throws MissingTag when absent", () => {
+  const scope = createScope({ tags: [region("eu")] });
+  expect(scope.resolve(region)).toBe("eu");
+  expect(scope.resolve(maybe)).toBe(undefined);
+  try {
+    scope.resolve(secret);
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "MissingTag")) throw error;
+    expect(error.payload.label).toBe("secret");
+  }
+});
+
+test("scope.run runs an operation now, with the same CallArgs rules as controller run", () => {
+  const double = operation({
+    label: "double",
+    input: asNumber,
+    depends: { n: data({ initial: 0, parse: asNumber }) },
+    run: ({ n }, { input }) => n + input,
+  });
+  const scope = createScope();
+  expect(scope.run(double, { rawInput: 3 })).toBe(3);
+  const stamp = operation({ label: "stamp", run: () => 7 });
+  expect(scope.run(stamp)).toBe(7);
+  expect(scope.controller(stamp).run()).toBe(7);
+});
+
+test("scope.run shares the controller path: one record lookup, stable controller identity", () => {
+  let runs = 0;
+  const ping = operation({ label: "ping", run: () => ++runs });
+  const scope = createScope();
+  const ctl = scope.controller(ping);
+  expect(scope.run(ping)).toBe(1);
+  expect(ctl.run()).toBe(2);
+  expect(scope.controller(ping)).toBe(ctl);
+  expect(runs).toBe(2);
 });

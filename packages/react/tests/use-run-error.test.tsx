@@ -2,12 +2,12 @@ import type { Operation, Scope } from "@tinker/core";
 import { createScope, operation } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, useResolve } from "../src/index.ts";
+import { ScopeProvider, useRun } from "../src/index.ts";
 import { Catch } from "./support/boundary.tsx";
 import { deferred } from "./support/deferred.ts";
 
 type Resolver = (...call: Scope.CallArgs<number>) => Promise<number>;
-type Ctl = { readonly resolve: Resolver; readonly reset: () => void };
+type Ctl = { readonly run: Resolver; readonly reset: () => void };
 type Snapshot = { readonly status: string; readonly data: unknown; readonly error: unknown };
 
 let captured: unknown;
@@ -17,15 +17,15 @@ function OpRunner<T>({
   op,
   call,
 }: {
-  op: Operation.Command<T, number>;
+  op: Operation.Handle<T, number>;
   call: Scope.ProvideInput<number>;
 }): React.ReactElement {
-  const run = useResolve(op);
+  const run = useRun(op);
   last = { status: run.status, data: run.data, error: run.error };
   if (run.status === "error") captured = run.error;
   return (
     <div>
-      <button type="button" onClick={() => run.resolve(call)}>
+      <button type="button" onClick={() => run.run(call)}>
         go
       </button>
       <button type="button" onClick={() => run.reset()}>
@@ -40,11 +40,11 @@ function Exposer({
   op,
   bind,
 }: {
-  op: Operation.Command<Promise<number>, number>;
+  op: Operation.Handle<Promise<number>, number>;
   bind: (ctl: Ctl) => void;
 }): React.ReactElement {
-  const run = useResolve(op);
-  bind({ resolve: run.resolveAsync, reset: run.reset });
+  const run = useRun(op);
+  bind({ run: run.runAsync, reset: run.reset });
   last = { status: run.status, data: run.data, error: run.error };
   return <p>status:{run.status}</p>;
 }
@@ -157,7 +157,7 @@ test("reset during a pending run drops the late result: state stays idle", async
   const screen = await render(ui);
   if (!ctl) throw new Error("ctl was not bound");
 
-  const running = ctl.resolve({ rawInput: "7" });
+  const running = ctl.run({ rawInput: "7" });
   await expect.element(screen.getByText("status:pending")).toBeVisible();
 
   ctl.reset();

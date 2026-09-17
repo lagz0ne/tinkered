@@ -1,5 +1,5 @@
 // Standalone core probe: ONE scenario per process (min ns/iter + bytes/iter), pinned to one core.
-// usage: taskset -c 7 node --expose-gc bench/core-probe.mjs <cold|create|warm|get1|lifecycle|inferdi_cold|op|cold2|s1_getctl|s2_data|s3_doubled|s4_warm_ctl>
+// usage: taskset -c 7 node --expose-gc bench/core-probe.mjs <cold|create|warm|get1|lifecycle|inferdi_cold|op|run|cold2|s1_getctl|s2_data|s3_doubled|s4_warm_ctl>
 import { bench, run } from "mitata";
 import { Container } from "@inferdi/inferdi";
 const { createScope, data, resource, operation } = await import("../packages/core/dist/index.mjs");
@@ -20,28 +20,29 @@ const coldRoot = new Container()
     "scoped",
   );
 const warmScope = createScope();
-warmScope.getController(store).resolve();
-const g1 = createScope().getController(cfg);
+warmScope.controller(store).resolve();
+const g1 = createScope().controller(cfg);
 g1.get();
 const twoArg = resource({ label: "twoArg", depends: { n: cfg }, factory: ({ n }, _ctx) => n * 2 });
 const op = operation({ label: "op", depends: { n: cfg }, run: ({ n }) => n + 1 });
 const opScope = createScope();
-const opC = opScope.getController(op);
-opC.resolve();
+const opC = opScope.controller(op);
+opC.run();
 const fns = {
-  s1_getctl: () => createScope().getController(store),
-  s2_data: () => createScope().getController(cfg).get(),
-  s3_doubled: () => createScope().getController(doubled).resolve(),
-  s4_warm_ctl: () => warmScope.getController(store),
-  op: () => opC.resolve(),
-  cold2: () => createScope().getController(twoArg).resolve(),
-  cold: () => createScope().getController(store).resolve().base,
+  s1_getctl: () => createScope().controller(store),
+  s2_data: () => createScope().controller(cfg).get(),
+  s3_doubled: () => createScope().controller(doubled).resolve(),
+  s4_warm_ctl: () => warmScope.controller(store),
+  op: () => opC.run(),
+  run: () => opScope.run(op),
+  cold2: () => createScope().controller(twoArg).resolve(),
+  cold: () => createScope().controller(store).resolve().base,
   create: () => createScope(),
-  warm: () => warmScope.getController(store).resolve().base,
+  warm: () => warmScope.controller(store).resolve().base,
   get1: () => g1.get(),
   lifecycle: () => {
     const s = createScope();
-    s.getController(store).resolve();
+    s.controller(store).resolve();
     return s.close();
   },
   inferdi_cold: () => coldRoot.createScope().get("store").base,

@@ -22,7 +22,7 @@ test("reads a cell and re-renders when it is set externally", async () => {
   );
 
   await expect.element(screen.getByText("count:0")).toBeVisible();
-  scope.getController(count).set(5);
+  scope.controller(count).set(5);
   await expect.element(screen.getByText("count:5")).toBeVisible();
 
   await scope.close();
@@ -79,7 +79,7 @@ test("a write after unmount neither updates the removed subtree nor breaks the s
   await expect.element(screen.getByText("read:a")).toBeVisible();
   await screen.unmount();
 
-  scope.getController(word).set("b");
+  scope.controller(word).set("b");
 
   const again = await render(
     <ScopeProvider scope={scope}>

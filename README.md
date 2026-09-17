@@ -44,17 +44,17 @@ const stamp = operation({
 
 const clock = makeTestClock({ now: 1_000 });
 const scope = createScope({ clock });
-scope.getController(stamp).resolve(); // 1000
+scope.run(stamp); // 1000
 
 clock.advance(500);
-scope.getController(stamp).resolve(); // 1500
+scope.run(stamp); // 1500
 
 // `sleep` waits on the same clock; pass `ctx.signal` so a forced close cancels it.
 const nap = operation({
   label: "nap",
   run: (_deps, { clock, signal }) => clock.sleep(1_000, signal),
 });
-const woke = scope.getController(nap).resolve();
+const woke = scope.run(nap);
 clock.advance(1_000); // resolves `woke`
 await woke;
 await scope.close();

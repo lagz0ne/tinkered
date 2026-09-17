@@ -56,7 +56,7 @@ const chainTop = (n) => {
 };
 assert(
   "resolve a 500-deep sync resource chain",
-  survives(() => createScope().getController(chainTop(500)).resolve()),
+  survives(() => createScope().controller(chainTop(500)).resolve()),
 );
 assert(
   "flush through 1000 nested sessions",
@@ -65,8 +65,8 @@ assert(
     const c = data({ label: "c", initial: 0 });
     let s = root;
     for (let i = 0; i < 1000; i++) s = s.createSession();
-    s.getController(c).watch(() => {});
-    root.getController(c).set(1);
+    s.controller(c).watch(() => {});
+    root.controller(c).set(1);
   }),
 );
 
@@ -82,7 +82,7 @@ const ceiling = (fn) => {
   return `~${lo}-${hi}`;
 };
 console.log(
-  `info: sync resource-chain ceiling ${ceiling((n) => createScope().getController(chainTop(n)).resolve())}`,
+  `info: sync resource-chain ceiling ${ceiling((n) => createScope().controller(chainTop(n)).resolve())}`,
 );
 
 process.exit(fail ? 1 : 0);

@@ -89,14 +89,14 @@ test("resolve() hands back one stable promise per owner — while pending and af
   const gate = deferred<Numbered>();
   const stable = resource({ label: "stable", factory: () => gate.promise });
 
-  const first = scope.getController(stable).resolve();
-  const whilePending = scope.getController(stable).resolve();
+  const first = scope.controller(stable).resolve();
+  const whilePending = scope.controller(stable).resolve();
   expect(whilePending).toBe(first);
 
   gate.resolve({ n: 3 });
   await first;
 
-  const afterSettle = scope.getController(stable).resolve();
+  const afterSettle = scope.controller(stable).resolve();
   expect(afterSettle).toBe(first);
 
   await scope.close();

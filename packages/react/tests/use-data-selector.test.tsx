@@ -53,11 +53,11 @@ test("re-renders only when the selected slice changes", async () => {
   await expect.element(screen.getByText("b:1")).toBeVisible();
   const afterMount = renders;
 
-  scope.getController(box).update((v) => ({ ...v, b: 2 }));
+  scope.controller(box).update((v) => ({ ...v, b: 2 }));
   await expect.element(screen.getByText("b:2")).toBeVisible();
   expect(renders).toBe(afterMount);
 
-  scope.getController(box).update((v) => ({ ...v, a: 2 }));
+  scope.controller(box).update((v) => ({ ...v, a: 2 }));
   await expect.element(screen.getByText("a:2")).toBeVisible();
   expect(renders).toBeGreaterThan(afterMount);
 
@@ -119,14 +119,14 @@ test("a new inline selector after a parent re-render shows its output and still 
   );
 
   await expect.element(screen.getByText("picked:1")).toBeVisible();
-  scope.getController(box).update((v) => ({ ...v, b: 9 }));
+  scope.controller(box).update((v) => ({ ...v, b: 9 }));
   await expect.element(screen.getByText("picked:1")).toBeVisible();
 
   await screen.getByRole("button").click();
   await expect.element(screen.getByText("pick:b")).toBeVisible();
   await expect.element(screen.getByText("picked:9")).toBeVisible();
 
-  scope.getController(box).update((v) => ({ ...v, b: 10 }));
+  scope.controller(box).update((v) => ({ ...v, b: 10 }));
   await expect.element(screen.getByText("picked:10")).toBeVisible();
 
   await scope.close();
@@ -150,7 +150,7 @@ test("a custom isEqual suppresses re-render for a new slice it treats as equal",
   await expect.element(screen.getByText("obj-a:1")).toBeVisible();
   const afterMount = renders;
 
-  scope.getController(box).update((v) => ({ ...v, b: 3 }));
+  scope.controller(box).update((v) => ({ ...v, b: 3 }));
   await expect.element(screen.getByText("b:3")).toBeVisible();
   expect(renders).toBe(afterMount);
 

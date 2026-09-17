@@ -11,7 +11,7 @@ function Value({ pending }: { pending: Promise<string> }): React.ReactElement {
 test("a Suspense tree resolves when a core resource built on the deferred fixture settles, in a real browser", async () => {
   const gate = deferred<string>();
   const scope = createScope();
-  const pending = scope.getController(pendingResource(gate)).resolve();
+  const pending = scope.controller(pendingResource(gate)).resolve();
 
   const screen = await render(
     <Suspense fallback={<p>loading</p>}>

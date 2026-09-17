@@ -1,7 +1,7 @@
 import { isError, raise } from "./errors.ts";
 
 const cell: unique symbol = Symbol("data");
-const command: unique symbol = Symbol("operation");
+const operationSym: unique symbol = Symbol("operation");
 const borrowSym: unique symbol = Symbol("borrow");
 const tagSym: unique symbol = Symbol("tag");
 const edge: unique symbol = Symbol("edge");
@@ -137,7 +137,7 @@ export declare namespace Clock {
 }
 
 export declare namespace Operation {
-  /** The receiver a command body reads its own invocation through. `signal` aborts when the owning
+  /** The receiver an operation body reads its own invocation through. `signal` aborts when the owning
    * scope/session closes (hand it to `fetch`/an SDK); `defer` runs one hook when the run settles. */
   export type Ctx<I> = {
     readonly label: string;
@@ -150,17 +150,17 @@ export declare namespace Operation {
     readonly clock: Clock.Handle;
   };
 
-  /** A command: typed input, declared deps, runs on each resolve. Not reactive, not memoized. */
-  export type Command<T, I> = {
-    readonly [command]: true;
+  /** An operation: typed input, declared deps, runs on every call. Not reactive, not memoized. */
+  export type Handle<T, I> = {
+    readonly [operationSym]: true;
     readonly label: string;
     readonly input: Data.Parse<I> | undefined;
     readonly depends: Scope.Depends;
     run(deps: Record<string, unknown>, ctx: Ctx<I>): T;
     /** Static metadata bindings, read off the handle (never affects resolution). */
     readonly meta: readonly Tag.Binding<unknown>[];
-    /** Depend on this command: delivered as a callable controller. */
-    readonly controller: Edge<"controller", Command<T, I>>;
+    /** Depend on this operation: delivered as a callable controller. */
+    readonly controller: Edge<"controller", Handle<T, I>>;
   };
 }
 
@@ -200,10 +200,9 @@ export declare namespace Scope {
     get(): ResourceValue<T>;
   };
 
-  /** A read/write handle onto one cell. */
+  /** A read/write handle onto one cell. `get` is the read. */
   export type DataController<T> = {
     get(): T;
-    read(): T;
     set(value: T): void;
     update(fn: (previous: T) => T): void;
     watch(listener: (next: T) => void): () => void;
@@ -233,7 +232,7 @@ export declare namespace Scope {
         readonly tags?: readonly Tag.Binding<unknown>[];
       };
 
-  /** The `resolve` argument list for input `I`: a genuinely void input is callable with no
+  /** The `run` argument list for input `I`: a genuinely void input is callable with no
    * argument; anything else (including a `never`-typed parse) must supply `input` or `rawInput`.
    * `never` is excluded from the void case first — `[never] extends [void]` is otherwise true. */
   export type CallArgs<I> = [I] extends [never]
@@ -242,30 +241,30 @@ export declare namespace Scope {
       ? [call?: Invocation<I>]
       : [call: ProvideInput<I>];
 
-  /** A callable handle onto one command — always a function, never a value (ADR 0022). A
-   * void-input operation is called `resolve()`; an input-carrying one must supply `input` or
+  /** A callable handle onto one operation — always a function, never a value (ADR 0022). A
+   * void-input operation is called `run()`; an input-carrying one must supply `input` or
    * `rawInput`. */
-  export type CommandController<T, I> = {
-    resolve(...call: CallArgs<I>): T;
+  export type OperationController<T, I> = {
+    run(...call: CallArgs<I>): T;
   };
 
   export type Dependency =
     | Data.Cell<unknown>
-    | Operation.Command<unknown, unknown>
+    | Operation.Handle<unknown, unknown>
     | Resource.Handle<unknown>
     | Tag.Handle<any>
-    | Edge<"controller", Data.Cell<unknown> | Operation.Command<unknown, unknown>>
+    | Edge<"controller", Data.Cell<unknown> | Operation.Handle<unknown, unknown>>
     | Edge<"required" | "optional" | "all", Tag.Handle<any>>;
   export type Depends = Readonly<Record<string, Dependency>>;
 
   /** Maps one declared dependency to the value delivered in `deps` — exact, no casts in userland.
-   * A bare command is a subflow (a callable controller); a bare resource is its built instance. */
+   * A bare operation is a subflow (a callable controller); a bare resource is its built instance. */
   export type SlotValue<D> =
     D extends Edge<"controller", infer N>
       ? N extends Data.Cell<infer T>
         ? DataController<T>
-        : N extends Operation.Command<infer T, infer I>
-          ? CommandController<T, I>
+        : N extends Operation.Handle<infer T, infer I>
+          ? OperationController<T, I>
           : never
       : D extends Edge<"all", Tag.Handle<infer T>>
         ? T[]
@@ -277,8 +276,8 @@ export declare namespace Scope {
               ? T
               : D extends Data.Cell<infer T>
                 ? T
-                : D extends Operation.Command<infer T, infer I>
-                  ? CommandController<T, I>
+                : D extends Operation.Handle<infer T, infer I>
+                  ? OperationController<T, I>
                   : D extends Resource.Handle<infer T>
                     ? ResourceValue<T>
                     : never;
@@ -332,9 +331,22 @@ export declare namespace Scope {
 
   /** What `createScope()` returns: the one seam tests and callers touch. */
   export type Handle = {
-    getController<T>(target: Data.Cell<T>): DataController<T>;
-    getController<T>(target: Resource.Handle<T>): ResourceController<T>;
-    getController<T, I>(target: Operation.Command<T, I>): CommandController<T, I>;
+    /** Give back control: a handle that delays and steers — data `get/set/update/watch`,
+     * resource `resolve/get`, operation `run(call)`. */
+    controller<T>(target: Data.Cell<T>): DataController<T>;
+    controller<T>(target: Resource.Handle<T>): ResourceController<T>;
+    controller<T, I>(target: Operation.Handle<T, I>): OperationController<T, I>;
+    /** Read the snapshot, in the form a `depends` slot delivers: a data cell reads its current
+     * value (no subscription); a resource reads its built instance (builds once if needed — the
+     * same build `depends` performs, so the one `resolve` that may do work); a tag reads the
+     * nearest binding, else its default, else throws `MissingTag`. An operation has no snapshot:
+     * it is not accepted (no overload), run it with `run` instead. */
+    resolve<T>(cell: Data.Cell<T>): T;
+    resolve<T>(res: Resource.Handle<T>): ResourceValue<T>;
+    resolve<T>(tag: Tag.Handle<T>): T;
+    /** Run an operation now — the everyday call; `controller(op).run(call)` is the long form.
+     * Same `CallArgs`/`Invocation` rules as before (ADR 0022). */
+    run<T, I>(op: Operation.Handle<T, I>, ...call: CallArgs<I>): T;
     /** Open a child session: it inherits this scope's data and tags, and shadows on write. */
     createSession(options?: Options): Handle;
     /** Run `fn` in a fresh child session: normal return = success, a thrown error = failed(cause),
@@ -350,7 +362,7 @@ export declare namespace Scope {
     onClose(fn: () => void | PromiseLike<void>): void;
     /** The retained span history (bounded by `observe.history`; empty when observation is off). */
     spans(): readonly Observe.Span[];
-    /** Resolve once all in-flight command work owned by this scope has settled. */
+    /** Resolve once all in-flight operation work owned by this scope has settled. */
     settled(): Promise<void>;
     /** Shut this scope down: close children first, join owned work, run outcome hooks then cleanup,
      * then seal. `opts.graceful` lets in-flight work finish; the default (forced) aborts it now
@@ -362,8 +374,8 @@ export declare namespace Scope {
 
 const isData = (n: unknown): n is Data.Cell<unknown> =>
   (n as { [cell]?: true } | null | undefined)?.[cell] === true;
-const isCommand = (n: unknown): n is Operation.Command<unknown, unknown> =>
-  (n as { [command]?: true } | null | undefined)?.[command] === true;
+const isOperation = (n: unknown): n is Operation.Handle<unknown, unknown> =>
+  (n as { [operationSym]?: true } | null | undefined)?.[operationSym] === true;
 const isResource = (n: unknown): n is Resource.Handle<unknown> =>
   (n as { [resourceSym]?: true } | null | undefined)?.[resourceSym] === true;
 const isTag = (n: unknown): n is Tag.Handle<unknown> =>
@@ -457,7 +469,7 @@ export function tag<T>(config: {
   });
 }
 
-/** Declare a command: a function with typed input that runs on each resolve. */
+/** Declare an operation: a function with typed input that runs on every call. */
 export function operation<
   const D extends Scope.Depends = Record<string, never>,
   R = unknown,
@@ -468,15 +480,15 @@ export function operation<
   depends?: D;
   run: (deps: Scope.SlotValues<D>, ctx: Operation.Ctx<I>) => R;
   meta?: readonly Tag.Binding<unknown>[];
-}): Operation.Command<R, I> {
+}): Operation.Handle<R, I> {
   const base = {
-    [command]: true,
+    [operationSym]: true,
     label: config.label,
     input: config.input,
     depends: config.depends ?? {},
-    run: config.run as Operation.Command<R, I>["run"],
+    run: config.run as Operation.Handle<R, I>["run"],
     meta: config.meta ?? NO_META,
-  } as Operation.Command<R, I>;
+  } as Operation.Handle<R, I>;
   return Object.assign(base, {
     controller: edgeTo("controller", base),
     [borrowSym]: seesResource(base.depends),
@@ -516,14 +528,14 @@ export function resource<
 }
 
 /** Test-only: substitute a node's realization for downstream consumers of a scope (ADR 0015).
- * A `data` value is validated through `parse`; a command takes a replacement `run`; a resource
+ * A `data` value is validated through `parse`; an operation takes a replacement `run`; a resource
  * takes a replacement `factory` (built and torn down like the real one). Seed via
  * `createScope({ presets: [preset(node, ...)] })`. The replacement's `deps` are delivered
  * untyped (a `Record<string, unknown>`, like the real factory) — narrow at use. A `void`-returning
  * resource is the one shape whose async/sync parity the type cannot enforce; don't preset one async. */
 export function preset<T>(node: Data.Cell<T>, value: T): Scope.Preset;
 export function preset<T, I>(
-  node: Operation.Command<T, I>,
+  node: Operation.Handle<T, I>,
   run: (deps: Record<string, unknown>, ctx: Operation.Ctx<I>) => T,
 ): Scope.Preset;
 export function preset<T>(
@@ -572,7 +584,7 @@ class NodeState {
   borrowers: Set<Promise<unknown>> | undefined = undefined;
   /** Resources that depend on this node (for cascade release/close). */
   dependents: Set<Resource.Handle<unknown>> | undefined = undefined;
-  /** Memoized controller: the public `getController` path always passes an undefined observation
+  /** Memoized controller: the public `controller` path always passes an undefined observation
    * span, so a controller for (layer, node) is stable — reuse it instead of reallocating closures. */
   controller: unknown = undefined;
   /** Watchers of this cell registered at this layer (a write visits only the changed cell's). */
@@ -760,7 +772,7 @@ function tagRequired(layer: Layer, target: Tag.Handle<unknown>, overlay?: TagOve
   return found.value;
 }
 
-/** The nearest preset replacement for a command/resource node up the chain, or undefined. */
+/** The nearest preset replacement for an operation/resource node up the chain, or undefined. */
 function presetFor(layer: Layer, node: unknown): unknown {
   for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
     const p = cur.presets;
@@ -791,18 +803,17 @@ function refreshNotified(layer: Layer, target: Data.Cell<unknown>, rec: NodeStat
 
 function dataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataController<T> {
   const rec = nodeState(layer, target);
-  const read = (): T => {
+  const get = (): T => {
     const entry = rec.eff;
     if (entry === undefined) return readCell(layer, target) as T;
     return entry.value as T;
   };
   return {
-    get: read,
-    read,
+    get,
     set: (value: T) => writeCell(layer, target, value),
     update: (fn: (previous: T) => T) => {
       ensureOpen(layer);
-      writeCell(layer, target, fn(read()));
+      writeCell(layer, target, fn(get()));
     },
     watch: (listener: (next: T) => void) =>
       addWatcher(layer, target, rec, listener as (next: unknown) => void),
@@ -815,7 +826,7 @@ function resolveControllerEdge(
   parent: Observe.Span | undefined,
 ): unknown {
   if (isData(target)) return dataController(layer, target);
-  if (isCommand(target)) return commandController(layer, target, parent);
+  if (isOperation(target)) return operationController(layer, target, parent);
   raise("InvalidDependency", { label: "edge", reason: "unknown controller target" });
 }
 
@@ -841,7 +852,7 @@ function resolveDep(
   if (isEdge(dep)) return resolveEdge(layer, dep, parent, overlay);
   if (isData(dep)) return readCell(layer, dep);
   if (isTag(dep)) return tagRequired(layer, dep, overlay);
-  if (isCommand(dep)) return commandController(layer, dep, parent);
+  if (isOperation(dep)) return operationController(layer, dep, parent);
   if (isResource(dep)) return resourceController(layer, dep, parent).resolve();
   raise("InvalidDependency", { label: "unknown", reason: "unknown dependency" });
 }
@@ -1068,7 +1079,7 @@ function recordUsed(
 }
 
 /** Track owned async work so `settled()`/`close` join it. `onReject` decides where a rejection
- * goes: the owner's primary failure (commands, current-generation builds) or the secondary
+ * goes: the owner's primary failure (operations, current-generation builds) or the secondary
  * bucket (release/abandoned cleanups) which never changes the outcome (ADR 0017). */
 function track(
   layer: Layer,
@@ -1204,15 +1215,15 @@ function seedOverlay(call: Scope.Invocation<unknown> | undefined): TagOverlay | 
   return call?.tags?.length ? seedTags(call.tags) : undefined;
 }
 
-/** A command's parsed raw input (no parser means void input). */
-function parseInput<I>(target: Operation.Command<unknown, I>, rawInput: unknown): I {
+/** An operation's parsed raw input (no parser means void input). */
+function parseInput<I>(target: Operation.Handle<unknown, I>, rawInput: unknown): I {
   return (target.input ? target.input(rawInput) : undefined) as I;
 }
 
 /** A preset replacement when seeded, else the declared run. */
 function runBody<T, I>(
-  override: Operation.Command<T, I>["run"] | undefined,
-  target: Operation.Command<T, I>,
+  override: Operation.Handle<T, I>["run"] | undefined,
+  target: Operation.Handle<T, I>,
   deps: Record<string, unknown>,
   ctx: Operation.Ctx<I>,
 ): T {
@@ -1257,21 +1268,21 @@ class OperationCtx<I> implements Operation.Ctx<I> {
   }
 }
 
-function commandController<T, I>(
+function operationController<T, I>(
   layer: Layer,
-  target: Operation.Command<T, I>,
+  target: Operation.Handle<T, I>,
   parent: Observe.Span | undefined,
-): Scope.CommandController<T, I> {
-  const resolve = (call?: Scope.Invocation<I>): T => {
+): Scope.OperationController<T, I> {
+  const run = (call?: Scope.Invocation<I>): T => {
     ensureOpen(layer);
     const obs = layer.obs;
     const span = openSpan(obs, parent, target.label, "operation");
-    const override = presetFor(layer, target) as Operation.Command<T, I>["run"] | undefined;
+    const override = presetFor(layer, target) as Operation.Handle<T, I>["run"] | undefined;
     /** Hold a borrow across the op's WHOLE lifetime — body settle (or a throw) AND its own `defer`
      * drain — so a release waits for the op's cleanup (which may still touch the resource) before
      * tearing it down (ADR 0026 Q2). Taken before deps resolve (a dep's factory may release another
      * dep during resolution), released after the defer drain on BOTH the success and throwing paths.
-     * A fully synchronous op resolves and removes the borrow within `resolve()`, so a later release
+     * A fully synchronous op runs and removes the borrow within `run()`, so a later release
      * sees no borrower and stays sync. */
     const held = takeBorrows(layer, target);
     const releaseBorrow = (): void => {
@@ -1324,7 +1335,7 @@ function commandController<T, I>(
     }
     return result;
   };
-  return { resolve } as Scope.CommandController<T, I>;
+  return { run } as Scope.OperationController<T, I>;
 }
 
 function ownerOf(layer: Layer, target: Resource.Handle<unknown>): Layer {
@@ -1875,7 +1886,7 @@ function detachDependent(owner: Layer, dependent: Resource.Handle<unknown>): voi
 }
 
 /** The releasable node a dependency reads through, if any — a bare data cell or its controller
- * edge, or a bare resource. Tags and commands (subflows) create no release edge. */
+ * edge, or a bare resource. Tags and operations (subflows) create no release edge. */
 function depNode(dep: Scope.Dependency): Node | undefined {
   if (isData(dep)) return dep;
   if (isResource(dep)) return dep;
@@ -1914,7 +1925,7 @@ function addBorrow(owner: Layer, resource: Resource.Handle<unknown>, work: Promi
 /** An operation's dependency borrows, or undefined when its deps name no resource. */
 function takeBorrows(
   layer: Layer,
-  target: Operation.Command<unknown, unknown>,
+  target: Operation.Handle<unknown, unknown>,
 ): { list: Borrow[]; done: Promise<void>; settle: () => void } | undefined {
   if ((target as BorrowFlag)[borrowSym] !== true) return undefined;
   const list = collectBorrows(layer, target.depends);
@@ -2341,19 +2352,41 @@ function handleFor(layer: Layer): Scope.Handle {
   const settled = async (): Promise<void> => {
     while (layer.pending.size) await Promise.all(layer.pending);
   };
+  const controllerOf = (
+    target: Data.Cell<unknown> | Resource.Handle<unknown> | Operation.Handle<unknown, unknown>,
+  ): unknown => {
+    const s = nodeState(layer, target);
+    if (s.controller) return s.controller;
+    const ctl = isData(target)
+      ? dataController(layer, target)
+      : isResource(target)
+        ? resourceController(layer, target, undefined)
+        : operationController(layer, target, undefined);
+    s.controller = ctl;
+    return ctl;
+  };
+  const controller = (<T, I>(
+    target: Data.Cell<T> | Resource.Handle<T> | Operation.Handle<T, I>,
+  ) => {
+    ensureOpen(layer);
+    return controllerOf(target);
+  }) as Scope.Handle["controller"];
+  const resolve = (<T>(target: Data.Cell<T> | Resource.Handle<T> | Tag.Handle<T>): unknown => {
+    ensureOpen(layer);
+    if (isData(target)) return readCell(layer, target);
+    if (isResource(target)) {
+      return (controllerOf(target) as Scope.ResourceController<T>).resolve();
+    }
+    return tagRequired(layer, target as Tag.Handle<unknown>, undefined);
+  }) as Scope.Handle["resolve"];
+  const run = (<T, I>(op: Operation.Handle<T, I>, call?: Scope.Invocation<I>): T => {
+    ensureOpen(layer);
+    return (controllerOf(op) as { run(call?: Scope.Invocation<I>): T }).run(call);
+  }) as Scope.Handle["run"];
   return {
-    getController: (<T, I>(target: Data.Cell<T> | Resource.Handle<T> | Operation.Command<T, I>) => {
-      ensureOpen(layer);
-      const s = nodeState(layer, target);
-      if (s.controller) return s.controller;
-      const ctl = isData(target)
-        ? dataController(layer, target)
-        : isResource(target)
-          ? resourceController(layer, target, undefined)
-          : commandController(layer, target, undefined);
-      s.controller = ctl;
-      return ctl;
-    }) as Scope.Handle["getController"],
+    controller,
+    resolve,
+    run,
     createSession: (options?: Scope.Options) => {
       ensureOpen(layer);
       return handleFor(makeLayer(layer, options));
@@ -2378,7 +2411,7 @@ function handleFor(layer: Layer): Scope.Handle {
   };
 }
 
-/** Create a scope: the root of a layer chain that resolves cells, tags, and commands to controllers. */
+/** Create a scope: the root of a layer chain that reads, controls, and runs cells, resources, tags, and operations. */
 export function createScope(options?: Scope.Options): Scope.Handle {
   return handleFor(makeLayer(undefined, options));
 }

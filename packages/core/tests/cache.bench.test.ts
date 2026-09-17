@@ -15,11 +15,11 @@ const warmReadMs = (depth: number, iters: number, seedRoot: boolean): number => 
   const root = createScope();
   let layer = root;
   for (let i = 0; i < depth; i++) layer = layer.createSession();
-  if (seedRoot) root.getController(v).set(1);
-  const leaf = layer.getController(v);
-  leaf.read();
+  if (seedRoot) root.controller(v).set(1);
+  const leaf = layer.controller(v);
+  leaf.get();
   const start = performance.now();
-  for (let i = 0; i < iters; i++) leaf.read();
+  for (let i = 0; i < iters; i++) leaf.get();
   return performance.now() - start;
 };
 
@@ -39,7 +39,7 @@ test("warm read with cached absence (initial) is O(1) in chain depth", () => {
 
 test("a cached resource resolve allocates no promise on the hot path", () => {
   const conn = resource({ label: "conn", factory: () => ({ open: true }) });
-  const ctl = createScope().getController(conn);
+  const ctl = createScope().controller(conn);
   ctl.resolve();
   let promises = 0;
   const hook = createHook({

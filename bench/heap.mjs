@@ -14,9 +14,9 @@ const store = resource({ label: "store", factory: () => ({ rows: [] }) });
 
 const request = () => {
   const scope = createScope();
-  scope.getController(n).set(1);
-  scope.getController(doubled).resolve();
-  scope.getController(store).resolve();
+  scope.controller(n).set(1);
+  scope.controller(doubled).run();
+  scope.controller(store).resolve();
   return scope;
 };
 

@@ -30,19 +30,19 @@ export async function tour(): Promise<number> {
   });
 
   const scope = createScope({ tags: [region("eu")], clock: makeTestClock({ now: 0 }) });
-  const c = scope.getController(count);
+  const c = scope.controller(count);
   c.set(21);
   const seen: number[] = [];
   c.watch((v) => seen.push(v));
 
-  const n = scope.getController(doubled).resolve();
-  const s = scope.getController(store).resolve();
+  const n = scope.run(doubled); // run an operation now
+  const s = scope.resolve(store); // read a snapshot: builds the resource once
   s.add("first");
-  const t = scope.getController(stamp).resolve(); // 0 — the injected test clock, deterministic
+  const t = scope.run(stamp); // 0 — the injected test clock, deterministic
 
   const inSession = await scope.session((child) => {
-    child.getController(count).set(100);
-    return child.getController(doubled).resolve();
+    child.controller(count).set(100); // give back control: a write handle
+    return child.run(doubled);
   });
 
   const result = await scope.close();

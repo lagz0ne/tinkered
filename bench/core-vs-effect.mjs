@@ -28,7 +28,7 @@ const store = resource({
   depends: { d: doubled },
   factory: ({ d }) => ({ base: d, size: () => 0 }),
 });
-const tinkerDi = () => createScope().getController(store).resolve().base;
+const tinkerDi = () => createScope().controller(store).resolve().base;
 
 class Cfg extends Context.Tag("Cfg")() {}
 class Doubled extends Context.Tag("Doubled")() {}
@@ -51,8 +51,8 @@ const effectDi = () => Effect.runSync(Effect.provide(diProgram, AppLive));
 // ManagedRuntime (layer built + memoized once) -> runSync just re-runs the program. This is the
 // comparison Effect is actually designed for (build the runtime once, reuse it per request).
 const warmScope = createScope();
-warmScope.getController(store).resolve();
-const tinkerDiWarm = () => warmScope.getController(store).resolve().base;
+warmScope.controller(store).resolve();
+const tinkerDiWarm = () => warmScope.controller(store).resolve().base;
 
 const warmRuntime = ManagedRuntime.make(AppLive);
 warmRuntime.runSync(diProgram);
@@ -63,7 +63,7 @@ const effectDiWarm = () => warmRuntime.runSync(diProgram);
 // tinker: data controller set/get. effect: Ref set/get (two runSync — Effect's wrap-everything tax).
 // ---------------------------------------------------------------------------
 const cell = data({ label: "cell", initial: 0 });
-const rwCtl = createScope().getController(cell);
+const rwCtl = createScope().controller(cell);
 let ki = 0;
 const tinkerRw = () => {
   rwCtl.set(++ki);
@@ -79,15 +79,15 @@ const effectRw = () => {
 
 // ---------------------------------------------------------------------------
 // Scenario `derive`: write a source, then read a derived (doubled) value off it.
-// tinker: set cfg, resolve the `doubled` operation. effect: set ref, run a mapped read.
+// tinker: set cfg, run the `doubled` operation. effect: set ref, run a mapped read.
 // ---------------------------------------------------------------------------
 const dScope = createScope();
-const dCfg = dScope.getController(cfg);
-const dDoubled = dScope.getController(doubled);
+const dCfg = dScope.controller(cfg);
+const dDoubled = dScope.controller(doubled);
 let kd = 0;
 const tinkerDerive = () => {
   dCfg.set(++kd);
-  return dDoubled.resolve();
+  return dDoubled.run();
 };
 
 const dref = Effect.runSync(Ref.make(0));

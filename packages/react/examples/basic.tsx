@@ -6,7 +6,7 @@ import {
   useController,
   useData,
   useRelease,
-  useResolve,
+  useRun,
   useResource,
   useSpans,
 } from "../src/index.ts";
@@ -45,9 +45,9 @@ function ProfileCard(): React.ReactElement {
 }
 
 function SaveButton(): React.ReactElement {
-  const run = useResolve(save);
+  const run = useRun(save);
   return (
-    <button type="button" onClick={() => run.resolve({ rawInput: "doc" })}>
+    <button type="button" onClick={() => run.run({ rawInput: "doc" })}>
       {run.status === "success" ? run.data : "save"}
     </button>
   );

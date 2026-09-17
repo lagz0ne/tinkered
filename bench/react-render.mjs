@@ -61,7 +61,7 @@ const mount = async (App) => {
 // --- (a) re-render count: update ONE slice, count how many components re-render (ideal 1) ---
 const troot = await mount(TApp);
 tRenders = 0;
-await act(async () => scope.getController(cells[0]).set(1));
+await act(async () => scope.controller(cells[0]).set(1));
 const rendersT = tRenders;
 
 const zroot = await mount(ZApp);
@@ -84,7 +84,7 @@ group("update", () => {
   summary(() => {
     bench("update_tinker", async () => {
       const i = tk % N;
-      await act(async () => scope.getController(cells[i]).set(++tk));
+      await act(async () => scope.controller(cells[i]).set(++tk));
     });
     bench("update_zustand", async () => {
       const i = zk % N;

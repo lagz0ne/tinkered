@@ -1,19 +1,19 @@
 import { createScope, operation, resource } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { ScopeProvider, useResolve, useResource, useSpans } from "../src/index.ts";
+import { ScopeProvider, useRun, useResource, useSpans } from "../src/index.ts";
 
 const res = resource({ label: "res", factory: () => ({ ok: true }) });
 const op = operation({ label: "op", run: () => 1 });
 
 function Inspector(): React.ReactElement {
-  const run = useResolve(op);
+  const run = useRun(op);
   useResource(res);
   const spans = useSpans();
   const names = spans.map((span) => span.name);
   return (
     <div>
-      <button type="button" onClick={() => run.resolve()}>
+      <button type="button" onClick={() => run.run()}>
         go
       </button>
       <p>status:{run.status}</p>
@@ -24,7 +24,7 @@ function Inspector(): React.ReactElement {
   );
 }
 
-test("useSpans surfaces spans from resolved work when observation is on", async () => {
+test("useSpans surfaces spans from run work when observation is on", async () => {
   const scope = createScope({ observe: { history: 100 } });
 
   const screen = await render(

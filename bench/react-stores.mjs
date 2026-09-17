@@ -28,7 +28,7 @@ const libs = {};
   };
   libs.tinker = {
     App: () => h(ScopeProvider, { scope, children: cells.map((_, i) => h(Cell, { key: i, i })) }),
-    update: (i, v) => scope.getController(cells[i]).set(v),
+    update: (i, v) => scope.controller(cells[i]).set(v),
     renders: () => renders,
     reset: () => (renders = 0),
   };
