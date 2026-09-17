@@ -42,10 +42,15 @@ request                a tag carrying the web Request for the rare operation tha
 - **Request-derived tags** come from one slot, `tags: (c) => Tag.Binding[]`, bound on the
   session (so every operation, subflow, and session-target resource in the request sees them —
   ADR 0038's reach) beside the built-in `request(raw)` binding.
-- **Lifetime = ADR 0028.** A client abort force-closes the session: in-flight operations settle
-  `cancelled`. After the handler returns, the session closes (forced; v1 has no work outliving
-  the response — streaming bodies are a later ticket). `scope.close({ graceful: true })` at the
-  entrypoint waits for in-flight request sessions; forced cancels them.
+- **Lifetime = ADR 0028, mode by outcome.** A client abort force-closes the session (rollback:
+  in-flight operations settle `cancelled`, session-target resources' `defer` sees `cancelled`).
+  After the handler returns, the session closes **gracefully** (commit: a per-request transaction
+  resource sees `success`; if the handler's owned work failed, core reports `failed`). The
+  middleware awaits that close before the response leaves, so nothing outlives the request; a
+  route that streams closes when the body ends (ADR 0040 §3). `scope.close({ graceful: true })`
+  at the entrypoint waits for in-flight request sessions; forced cancels them. (Amended at
+  hono/t03 review: the first cut closed forced after a completed handler, which rolled every
+  request back.)
 - **Tests are entrypoints.** A test builds `createScope({ presets, tags })`, mounts
   `tinker(scope)` and the routes on a `Hono`, and calls Hono's `app.request(...)`. No server, no
   mocks; the edges are preset or bound (a fake `backend` for outbound http).
