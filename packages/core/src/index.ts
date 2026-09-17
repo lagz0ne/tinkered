@@ -537,10 +537,6 @@ export function preset(node: unknown, replacement: unknown): Scope.Preset {
 type Entry = { value: unknown };
 /** A releasable node: a data cell or a resource. Release cascades from a node to its dependents. */
 type Node = Data.Cell<unknown> | Resource.Handle<unknown>;
-type Watcher = {
-  last: unknown;
-  fn: (next: unknown) => void;
-};
 /** An end-hook (`ctx.defer`) tagged with the resource that registered it (undefined = userland
  * `onClose`), so `release` can drop exactly one resource's hooks without touching others. Kept in
  * registration order; teardown runs them in reverse (ADR 0026). */
@@ -575,7 +571,10 @@ class NodeState {
    * span, so a controller for (layer, node) is stable — reuse it instead of reallocating closures. */
   controller: unknown = undefined;
   /** Watchers of this cell registered at this layer (a write visits only the changed cell's). */
-  watchers: Set<Watcher> | undefined = undefined;
+  watchers: Set<(next: unknown) => void> | undefined = undefined;
+  /** Value the watchers at this layer were last called with; refreshed at registration so a new
+   * watcher never inherits a stale comparison. */
+  notified: unknown = undefined;
 }
 
 /** Get-or-create this layer's record for a node. */
@@ -682,24 +681,28 @@ function ownCell(layer: Layer, target: Data.Cell<unknown>): Entry {
 }
 
 /** Fire the changed cell's watchers on this layer, then on descendants that inherit it (a child that
- * shadows the cell, and everything under it, still sees its own value). The value is read once per
- * layer, not once per watcher. */
+ * shadows the cell, and everything under it, still sees its own value). One equality check against
+ * the layer's last notified value, then every watcher runs in registration order. */
 function flushCell(layer: Layer, target: Data.Cell<unknown>): void {
-  const ws = layer.nodes.get(target)?.watchers;
-  if (ws?.size) notifyLayer(ws, target, readCell(layer, target));
+  flushOne(layer, target);
   for (const child of layer.children) {
     if (!child.nodes.get(target)?.cell) flushCell(child, target);
   }
 }
 
+/** Compare once against this layer's last notified value, then run every watcher in order. */
+function flushOne(layer: Layer, target: Data.Cell<unknown>): void {
+  const rec = layer.nodes.get(target);
+  const ws = rec?.watchers;
+  if (!ws?.size || !rec) return;
+  const next = readCell(layer, target);
+  if (!cellEq(target, rec.notified, next)) notifyLayer(rec, ws, next);
+}
+
 /** Run one layer's watchers in registration order against the value already read for the layer. */
-function notifyLayer(ws: Set<Watcher>, target: Data.Cell<unknown>, next: unknown): void {
-  for (const w of ws) {
-    if (!target.eq(w.last, next)) {
-      w.last = next;
-      w.fn(next);
-    }
-  }
+function notifyLayer(rec: NodeState, ws: Set<(next: unknown) => void>, next: unknown): void {
+  rec.notified = next;
+  for (const fn of ws) fn(next);
 }
 
 function cellEq(target: Data.Cell<unknown>, a: unknown, b: unknown): boolean {
@@ -763,14 +766,21 @@ function presetFor(layer: Layer, node: unknown): unknown {
 
 function addWatcher(
   layer: Layer,
+  target: Data.Cell<unknown>,
   rec: NodeState,
-  last: unknown,
   fn: (next: unknown) => void,
 ): () => void {
   ensureOpen(layer);
-  const w: Watcher = { last, fn };
-  (rec.watchers ??= new Set()).add(w);
-  return () => void rec.watchers?.delete(w);
+  refreshNotified(layer, target, rec);
+  (rec.watchers ??= new Set()).add(fn);
+  return () => void rec.watchers?.delete(fn);
+}
+
+/** Recompute this layer's last notified value when it went stale before a new watcher registers. */
+function refreshNotified(layer: Layer, target: Data.Cell<unknown>, rec: NodeState): void {
+  if (!rec.watchers?.size && !cellEq(target, rec.notified, readCell(layer, target))) {
+    rec.notified = readCell(layer, target);
+  }
 }
 
 function dataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataController<T> {
@@ -789,7 +799,7 @@ function dataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataContro
       writeCell(layer, target, fn(read()));
     },
     watch: (listener: (next: T) => void) =>
-      addWatcher(layer, rec, read(), listener as (next: unknown) => void),
+      addWatcher(layer, target, rec, listener as (next: unknown) => void),
   };
 }
 

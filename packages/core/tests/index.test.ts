@@ -566,6 +566,23 @@ test("a watcher subscribed after a write still fires when the value returns to t
   stop();
 });
 
+test("a watcher joining after the value returned still fires on the next change", () => {
+  const n = data({ initial: 0, parse: asNumber });
+  const scope = createScope();
+  const ctl = scope.getController(n);
+  const first: number[] = [];
+  const stopFirst = ctl.watch((v) => first.push(v));
+  ctl.set(1);
+  stopFirst();
+  ctl.set(0);
+  const second: number[] = [];
+  const stopSecond = ctl.watch((v) => second.push(v));
+  ctl.set(1);
+  expect(first).toEqual([1]);
+  expect(second).toEqual([1]);
+  stopSecond();
+});
+
 test("a watcher registered before a child shadows still sees the parent's later write", () => {
   const n = data({ initial: 0, parse: asNumber });
   const root = createScope();
