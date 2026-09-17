@@ -30,7 +30,7 @@ core primitives with **slots** the user fills in. Nothing in it runs until an op
 httpClient({ label: "github", retry?, filterStatus? })   // the frame
 ├── backend            (shared tag)             slot: how a request is sent; default fetchBackend
 ├── github.config      (tag, one per client)    slot: baseUrl, headers — scope, session, or per call
-├── github.client      (resource, one per scope) depends { backend }; execute(request, ctx): sends,
+├── github.client      (resource, per session)  depends { backend }; execute(request, ctx): sends,
 │                                               retries transient failures, filters status, spans, logs
 └── github.operation({ label, input?, request, response? })
       an ordinary operation: depends { client, config: github.config.all }; per call it merges the
@@ -76,9 +76,13 @@ Spans nest by construction: a userland operation → the endpoint operation (a s
   });
   ```
 
-- **Client resource**: `target: "scope"`, depends on `backend` only; it carries the frame's
-  policy (`retry`, `filterStatus`). Its one method is `execute(request, ctx)` — the request
-  arrives already configured (absolute URL, merged headers). `ctx` is the **caller's** ctx (`signal`, `obs`, `log`,
+- **Client resource**: `target: "session"` (deps resolve at the requesting layer, ADR 0018, so
+  a session — or a tagged call, ADR 0038 — may bind a different `backend` than its scope; the
+  root scope builds one for root-level runs; the instance is a tiny object, so per-session cost
+  is negligible), depends on `backend` only; it carries the frame's policy (`retry`,
+  `filterStatus`). Its one method is `execute(request, ctx)` — the request arrives already
+  configured (absolute URL, merged headers). (Amended at t01 review: the first cut said
+  `"scope"`, which would have made a session-bound backend invisible.) `ctx` is the **caller's** ctx (`signal`, `obs`, `log`,
   `clock`, as on `Operation.Ctx`/`Resource.Ctx`): cancellation is the caller's `ctx.signal`
   (ADR 0034's explicit-signal rule, nothing new), the request span nests under the caller's
   span, failures are logged through the caller's `log`, and retry backoff sleeps on the caller's
