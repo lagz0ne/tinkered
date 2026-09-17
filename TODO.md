@@ -4,11 +4,15 @@ The live working list. **Goal: drive it to empty.** Each item is checkable and c
 **Verify** — the exact observable proof. Tick `[x]` ONLY after the Verify passes (gate green,
 a failing→passing test, or command output). Never tick on intent. Add/split items freely.
 
-## Now
+## Now — authoring (first-class integrations, ADR 0034 tiers)
 
-Empty. Candidates, none started: a non-Suspense `useResource` was added as an option (done); the cold DI
-gap to InferDI (~3.6x at `425b1cd`) is structural and parked; next integration tier per
-`docs/decisions/0034-clock-is-an-ambient-ctx-capability.md` is the user's call.
+Perf pursuit is closed (see archive). Next: production-ready "tinkered-first" components on the reusable
+operation/resource model — glue without side effects, testable without mocks, the scope as the single
+configuration point. Start with `grill-with-docs` (ADRs in `docs/decisions/`, terms in `docs/glossary.md`).
+
+- [ ] **Pick the first dedicated integration** (clock is done, embedded like observation). Candidates:
+      httpClient; server integration (Hono, maybe Express); app entrypoint with graceful shutdown; TUI app.
+      **Verify:** an ADR names the tier (ambient / capability / driver), the seam, and the no-mock test story.
 
 ## Shipped — archived
 

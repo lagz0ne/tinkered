@@ -90,3 +90,18 @@ design threads); core ticket detail + reset recipes stay in `docs/roadmap/**/PRO
 5. **Keep going until empty.** Do not stop with items open; if you must pause,
    leave the list with each item's true state (`done` / `in_progress` / `blocked`)
    and the next concrete action.
+
+## Contributor workflow (delegated implementation)
+
+The lead session orchestrates and reviews; implementation is delegated to a Paseo contributor agent
+(`pi` / `meta-muse/muse-spark-1.3-contributor`, thinking `max`), one agent per task:
+
+1. Each contributor works in its own worktree: `git worktree add ../tinkered-<task> -b perf/<task> main`,
+   `vp install` there, never touches the main checkout, commits by explicit pathspec, never pushes.
+2. The brief is self-contained: read `.agents/skills/coding-convention/SKILL.md` (incl. Performance),
+   exact measure commands (`bench/core-probe.mjs`, `bench/stores-probe.mjs`, `bench/react-vs-zustand.mjs`,
+   min of 3), gates (`vp check` 0 errors, tests, census `--strict`, `pnpm validate`; the mutation lane is
+   the reviewer's), and the report format (branch, SHAs, before/after table, what was verified and how).
+3. The lead reviews the diff for shape (facades, duplicated hot bodies, leaked internals, identity-keyed
+   memos), re-measures, requests one fix round, cherry-picks onto `main`, runs `vp run core#mutate`
+   isolated, pushes, then removes the worktree and branch.
