@@ -30,7 +30,7 @@ shutdown; TUI app — each starts with `grill-with-docs`.
 - [x] **core/t28 — operation parse failures are `DataValidationFailed`.** _Done: tag `core/t28`; `parseInput` goes
       through `admit` like data/tag parses (label + cause); the span-closure test narrows on the registry error;
       all packages green. Found by hono/t02 review (the contributor had re-run the parse to classify the error)._
-- [ ] **hono/t02 — error mapping inside the request (ADR 0040 §2).** `tinker(scope, { onError? })` slot first,
+- [x] **hono/t02 — error mapping inside the request (ADR 0040 §2).** _Done: tag `hono/t02` (ed3bbec), 17 tests, size 2012 B, mutation 83.52, lead review SHIP (parse re-run removed after core/t28)._ `tinker(scope, { onError? })` slot first,
       then the default map: `DataValidationFailed` → 400, `cancelled` → 499, `MissingTag`/`NoSession` → 500,
       else rethrow to Hono. **Verify:** each mapping through `app.request`; the request span settles `ok` with the mapped `status` (the op's span is `failed`); the log line carries it; `onError` overrides one case; an unmapped error
       reaches `app.onError`.
