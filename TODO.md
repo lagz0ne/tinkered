@@ -15,29 +15,11 @@ detail in `docs/roadmap/http-v1/PROGRESS.md`). Next candidates for a dedicated i
 integration (Hono, maybe Express); app entrypoint with graceful shutdown; TUI app — each starts with
 `grill-with-docs`.
 
-- [x] **core/t24 — verb alignment (ADR 0036), lands BEFORE http/t01.** _Done: tag `core/t24`, gate green, mutation 78.57, lead review SHIP (3 nits fixed)._ `scope.controller(x)`,
-      `scope.resolve(x)` (data/resource/tag snapshot; op = type error), `scope.run(op, call?)`,
-      `OperationController.run`, `Operation.Handle`, drop `DataController.read`; React `useRun`
-      (`run`/`runAsync`). Docs, README, examples, benches, tests move together. **Verify:** `vp check`
-      0 errors, `vp run -r test` green, `pnpm validate` green, no `getController|\.read\(\)|useResolve|
-CommandController|Operation\.Command` left in packages/ bench/ README docs (grep = 0); lead review SHIP.
 - [ ] **core/t25 — tests speak the everyday verbs (SCIP-driven, optional, strike if unwanted).** SCIP shows
       core tests call `scope.controller(op).run()` 128× and `scope.run(op)` 3×; migrate operation calls
       to `scope.run(op, call)` and resource reads to `scope.resolve(res)` where the controller is not
       otherwise used. **Verify:** `scripts/scip.sh refs` shows `Handle#…:run()` ≫ `OperationController…:run()`
       in tests; `vp run core#test` green; no behaviour change.
-- [x] **core/t26 — inline operation + tagged calls (ADR 0037 + 0038).** _Done: tag `core/t26`, gate green (285 tests, validate PASS, mutation 78.39), lead review SHIP after one fix round (dispatch frames + session WeakMap removed; tests merged; tagged overload first on the controller). Residual +9 ns `op` / +12 ns `run` in-container recorded in ADR 0038 → core/t27._ Second `run` overload:
-      `scope.run({ label?, depends?, run }, { input?, tags? }?)` → throwaway handle through the
-      operation path (span `label ?? "inline"`, full ctx, owned work, deps in natural form, presets
-      on deps apply), no cache/residue; probe scenario `inline` beside `op`. `tags` on ANY call
-      (declared, inline, subflow) = a child session for that run; the shallow `TagOverlay` is
-      removed. **Verify:** seam tests — deps + input delivered (`ctx.input === row`), no-arg form when
-      void; span named and nested; forced close cancels an in-flight inline; a preset on a dep is
-      seen; a tagged call's tag is seen by a subflow AND by a session-target resource built in the
-      flow, not by a scope-target resource; the flow's session closes when the run settles (its
-      session resource's `defer` runs with the run's outcome); untagged calls take the old path
-      (probe `op`/`run` unchanged). `vp check` 0, `vp run -r test`, `pnpm validate` green; SCIP refs
-      for `Scope/Handle#…:run()` before/after; lead review SHIP.
 - [ ] **core/t27 — performance protection for the new call paths (later, after t26 lands).** The
       new shapes (tagged call = session per call, inline = handle per call) get their own guard
       rails, separate from the feature work: probe scenarios `inline`, `tagged`, `tagged_sync` in
