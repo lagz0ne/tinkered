@@ -556,9 +556,9 @@ type DeferEntry = {
 class NodeState {
   /** This layer's own data-cell shadow (copy-on-write). */
   cell: Entry | undefined = undefined;
-  /** Memoized nearest cell up the chain; `effSet` distinguishes "not computed" from "computed=absent". */
+  /** Memoized nearest cell up the chain, always valid once computed (a missing cell resolves to an
+   * entry holding the cell's initial value); undefined means not computed yet. */
   eff: Entry | undefined = undefined;
-  effSet = false;
   /** Built resource instance. */
   resource: Entry | undefined = undefined;
   /** In-flight async build. */
@@ -642,36 +642,32 @@ function ensureOpen(layer: Layer): void {
   if (layer.closed) raise("Disposed", { reason: "scope is closed" });
 }
 
-/** The nearest cell up the chain (cached per layer); absent means "use the cell's initial". */
-function effectiveEntry(layer: Layer, target: Data.Cell<unknown>): Entry | undefined {
-  const self = layer.nodes.get(target);
-  if (self?.effSet) return self.eff;
-  let found: Entry | undefined;
+/** The nearest cell up the chain (cached per layer); a missing cell resolves to an entry holding
+ * the cell's initial value, so reads never check for absence. */
+function effectiveEntry(layer: Layer, target: Data.Cell<unknown>): Entry {
+  const self = nodeState(layer, target);
+  const cached = self.eff;
+  if (cached !== undefined) return cached;
   for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
     const owned = cur.nodes.get(target)?.cell;
     if (owned) {
-      found = owned;
-      break;
+      self.eff = owned;
+      return owned;
     }
   }
-  const s = self ?? nodeState(layer, target);
-  s.eff = found;
-  s.effSet = true;
-  return found;
+  const fresh: Entry = { value: target.initial };
+  self.eff = fresh;
+  return fresh;
 }
 
 function readCell(layer: Layer, target: Data.Cell<unknown>): unknown {
-  const entry = effectiveEntry(layer, target);
-  return entry ? entry.value : target.initial;
+  return effectiveEntry(layer, target).value;
 }
 
 /** Creating a nearer shadow changes the effective cell for this layer and its descendants. */
 function invalidateEff(layer: Layer, target: Data.Cell<unknown>): void {
   const s = layer.nodes.get(target);
-  if (s) {
-    s.eff = undefined;
-    s.effSet = false;
-  }
+  if (s) s.eff = undefined;
   for (const child of layer.children) invalidateEff(child, target);
 }
 
@@ -780,11 +776,9 @@ function addWatcher(
 function dataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataController<T> {
   const rec = nodeState(layer, target);
   const read = (): T => {
-    if (!layer.closed && rec.effSet) {
-      const entry = rec.eff;
-      return (entry ? entry.value : target.initial) as T;
-    }
-    return readCell(layer, target) as T;
+    const entry = rec.eff;
+    if (entry === undefined) return readCell(layer, target) as T;
+    return entry.value as T;
   };
   return {
     get: read,
@@ -2254,6 +2248,7 @@ function finishLayer(layer: Layer): unknown[] | undefined {
       if (layer.failure) parent.descendantFailure ??= layer.failure;
     }
   }
+  for (const s of layer.nodes.values()) s.eff = undefined;
   layer.nodes.clear();
   layer.presets = undefined;
   layer.tags = undefined;

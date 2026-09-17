@@ -603,6 +603,16 @@ test("a nearer shadow invalidates a descendant's cached effective cell", () => {
   expect(root.getController(v).read()).toBe("b");
 });
 
+test("a closed scope's held controller still reads the initial value", async () => {
+  const count = data({ initial: 3 });
+  const scope = createScope();
+  const held = scope.getController(count);
+  held.set(4);
+  scope.onClose(() => undefined);
+  await scope.close();
+  expect(held.read()).toBe(3);
+});
+
 test("close runs children first, then userland onClose hooks in LIFO order", async () => {
   const order: string[] = [];
   const root = createScope();
