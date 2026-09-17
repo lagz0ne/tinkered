@@ -238,32 +238,44 @@ function readEndpointOperation(frame: Omit<HttpClient.Frame, "operation">): Http
 }
 
 /** Send an already-configured request through `send`: validate the final URL once (failure →
- * `RequestFailed/InvalidUrl` with `cause`); a backend rejection becomes `RequestFailed/Transport`
+ * `RequestFailed/InvalidUrl` with `cause`); then send inside one manual child span (`http <METHOD>
+ * <url>`, attributes method/url/status). A backend rejection becomes `RequestFailed/Transport`
  * with `cause` — except when `ctx.signal` aborted: the signal's reason is rethrown untouched (a
- * cancel is a clean end, ADR 0028). After the backend returns, the frame's `filterStatus`
- * predicate runs BEFORE the caller sees the response: a rejected status raises
- * `ResponseFailed/StatusCode` carrying `request` and `response` (the body stays readable by a
- * catch handler), before any endpoint `response` reader runs. */
+ * cancel is a clean end, ADR 0028) — and a transport failure writes one `http request failed` log
+ * line. After the backend returns, the frame's `filterStatus` predicate runs BEFORE the caller
+ * sees the response: a rejected status raises `ResponseFailed/StatusCode` carrying `request` and
+ * `response` (the body stays readable by a catch handler), before any endpoint `response` reader
+ * runs. The child span settles `"ok"` on success and `"failed"` on any rejection (`obs.child`
+ * semantics); with observation off the span is `undefined` and nothing is recorded. */
 async function execute(
   send: HttpClient.Backend,
   request: HttpRequest.Record,
   ctx: HttpClient.Ctx,
   accept: (status: number) => boolean,
 ): Promise<HttpResponse.Handle> {
+  const url = HttpRequest.toUrl(request);
   try {
-    new URL(HttpRequest.toUrl(request));
+    new URL(url);
   } catch (cause) {
     raise("RequestFailed", { request, reason: "InvalidUrl", cause });
   }
-  let received: HttpResponse.Handle;
-  try {
-    received = await send(request, ctx.signal);
-  } catch (error) {
-    if (ctx.signal.aborted) throw ctx.signal.reason;
-    raise("RequestFailed", { request, reason: "Transport", cause: error });
-  }
-  if (!accept(received.status)) {
-    raise("ResponseFailed", { request, response: received, reason: "StatusCode" });
-  }
-  return received;
+  return ctx.obs.child(`http ${request.method} ${url}`, async (span) => {
+    if (span !== undefined) {
+      span.attributes.method = request.method;
+      span.attributes.url = url;
+    }
+    let received: HttpResponse.Handle;
+    try {
+      received = await send(request, ctx.signal);
+    } catch (error) {
+      if (ctx.signal.aborted) throw ctx.signal.reason;
+      ctx.log("http request failed", { method: request.method, url });
+      raise("RequestFailed", { request, reason: "Transport", cause: error });
+    }
+    if (span !== undefined) span.attributes.status = received.status;
+    if (!accept(received.status)) {
+      raise("ResponseFailed", { request, response: received, reason: "StatusCode" });
+    }
+    return received;
+  });
 }
