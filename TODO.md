@@ -20,7 +20,7 @@ shutdown; TUI app — each starts with `grill-with-docs`.
       (the 45 remaining `OperationController.run` are held controllers and subflows). 228 tests green, 0 errors,
       census OK; no behaviour change._
 
-- [ ] **hono/t01 — package + `tinker` middleware + `handle` as the request inline op + `request` tag (ADR 0039, 0040 §1).**
+- [x] **hono/t01 — package + `tinker` middleware + `handle` as the request inline op + `request` tag (ADR 0039, 0040 §1).** _Done: tag `hono/t01` (cf29af8), 12 tests, size 1497 B, mutation 77.42, lead review SHIP (6 nits + census S09 skips import lines)._
       `packages/hono` (`@tinker/hono`, `hono` peer, 10 kB cap, `NoSession`), a session per request
       (`request(raw)` + `tags(c)`, abort → forced close, close after `next()`); `handle(op, { input?, respond? })`
       runs the request as an inline op (`depends: { op }`, span `GET /users/:id` with method/route/path/status,
