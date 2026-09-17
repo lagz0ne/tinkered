@@ -96,8 +96,9 @@ Spans nest by construction: a userland operation → the endpoint operation (a s
   `HttpRequest.get/post/put/patch/del/head/options(url, options?)` with body builders
   (`bodyJson`, `bodyText`, `bodyBytes`, `bodyFormData`, `bodyUrlParams`) and `modify(req, opts)`.
   Data-first, no `pipe`. `prependUrl` is string concatenation (Effect's semantics; `new URL`
-  would drop a base path). The endpoint applies the merged config with `prependUrl` +
-  `setHeaders` (request headers win over config headers).
+  would drop a base path). The endpoint applies the merged config with `applyConfig(request,
+config)` = `prependUrl` + header merge, request headers winning over config headers; the same
+  function serves a custom operation that calls `execute` directly.
 - **Response record**: a base every backend fills (`status`, `headers`, `request`, body readers
   `text/json/arrayBuffer/formData/stream`) plus `source`: the adapter's own object (the web
   `Response` for `fetchBackend`) for anything backend-specific. `HttpResponse.fromWeb` and
@@ -142,7 +143,11 @@ export function httpClient(config: {
   filterStatus?: (status: number) => boolean;
   meta?;
 }): HttpClient.Frame;
-export function mergeConfig(bindings: readonly HttpClient.Config[]): HttpClient.Config; // nearest-first in
+export function mergeConfig(bindings: readonly HttpClient.Config[]): HttpClient.Config; // nearest-first in (a `.all` list)
+export function applyConfig(
+  request: HttpRequest.Record,
+  config: HttpClient.Config,
+): HttpRequest.Record; // prepend baseUrl; config headers under request headers
 
 export declare namespace HttpClient {
   type Backend = (request: HttpRequest.Record, signal: AbortSignal) => Promise<HttpResponse.Handle>;

@@ -25,6 +25,10 @@ export function httpClient(config: {
   meta?;
 }): HttpClient.Frame;
 export function mergeConfig(bindings: readonly HttpClient.Config[]): HttpClient.Config;
+export function applyConfig(
+  request: HttpRequest.Record,
+  config: HttpClient.Config,
+): HttpRequest.Record;
 // HttpClient.Frame = { label, config: Tag.Handle<Config>, client: Resource.Handle<Handle>, operation(endpoint) }
 // HttpClient.Handle = { label, execute(request, ctx): Promise<HttpResponse.Handle> }   // ctx = caller's
 // HttpRequest.get/post/put/patch/del/head/options(url, options?) · bodyJson/Text/Bytes/FormData/UrlParams · modify
@@ -56,8 +60,8 @@ its tag exists.
 - **t01** — `packages/http` exists with `package.json` (`size` cap 10240), `vite.config.ts`,
   `tsconfig.json`, `src/errors.ts`, `src/index.ts`, `tests/`; `scripts/ticket.sh` gates a named
   package. Seam tests: an operation `depends: { client: github.client }` calls
-  `client.execute(HttpRequest.prependUrl(HttpRequest.get("/users"), cfg.baseUrl), ctx)` with
-  `cfg = mergeConfig(configs)` from `depends: { config: github.config.all }`; under
+  `client.execute(applyConfig(HttpRequest.get("/users"), mergeConfig(configs)), ctx)` with
+  `configs` from `depends: { config: github.config.all }`; under
   `createScope({ tags: [backend(fake), github.config({ baseUrl: "https://api", headers: { a: "1" } })] })`
   the closure backend receives `url === "https://api/users"` and header `a`; a request header
   overrides a config header; a session binding `github.config({ headers: { b: "2" } })` merges
