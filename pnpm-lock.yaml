@@ -287,6 +287,12 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@stryker-mutator/core':
+        specifier: 'catalog:'
+        version: 10.0.0(@types/node@26.5.1)
+      '@stryker-mutator/vitest-runner':
+        specifier: 'catalog:'
+        version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@26.5.1))(vitest@4.1.11)
       '@types/node':
         specifier: ^26.1.1
         version: 26.5.1
