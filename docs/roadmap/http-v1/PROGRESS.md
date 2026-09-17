@@ -89,22 +89,16 @@ its tag exists.
   no further call; `times: 0` (default) never retries.
 - **t05** — `vp run http#size` ≤ 10240 B; `vp run http#mutate` alone ≥ 60; the package README and
   `examples/basic.ts` are cast-free (same grep as core's validate lane); `dist/index.mjs` has no
-  `node:` import and loads in a bare `node --input-type=module`; astra SHIP; TODO archive entry.
+  `node:` import and loads in a bare `node --input-type=module`; lead review SHIP; TODO archive entry.
 
 ## Review loop (mandatory, per ticket)
 
-After a tag lands, send its diff to the standing reviewer and drive to `SHIP` before the next
-ticket (serial — a fix often re-touches the same file):
-
-```
-paseo agent: codex/gpt-6-astra, thinking=xhigh, mode=full-access (read-only reviewer)
-prompt: "review tag http/t<NN>; git show http/t<NN>; ADR 0035; ask for a full case checklist
-         + all findings at once (blocker/should-fix/nit) and a SHIP/FIX verdict; do not edit,
-         do not ask questions"
-```
-
-Use neutral wording in review prompts (the cyber-filter drops attack/reentrancy/deadlock/escape).
-Address every blocker (fix + re-gate, `git tag -f`), record accepted nits.
+The lead reviews every ticket itself before it lands (user decision 2026-09-17: we know what we
+expect from our own authoring, so no delegated reviewer). Review = the diff read line by line
+against the ADR's rows, the convention's shape rules (facades, duplicated hot bodies, leaked
+internals, per-call allocation, identity-keyed memos), test quality (seam-only, one promise per
+test), and the gate re-run by the lead. Blockers go back to the contributor as one fix round;
+nits the lead fixes directly. Serial tickets — a fix often re-touches the same file.
 
 ## Contributor briefs (delegated implementation, CLAUDE.md)
 

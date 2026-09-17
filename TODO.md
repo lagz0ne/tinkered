@@ -12,14 +12,14 @@ configuration point. Start with `grill-with-docs` (ADRs in `docs/decisions/`, te
 
 First integration picked: **httpClient** as a frame of core primitives (ADR 0035; detail + verify +
 reset recipes in `docs/roadmap/http-v1/PROGRESS.md`). Tickets `http/t01`…`http/t05`, each gated,
-each astra-reviewed to SHIP before the next.
+each lead-reviewed to SHIP before the next.
 
-- [ ] **core/t24 — verb alignment (ADR 0036), lands BEFORE http/t01.** `scope.controller(x)`,
+- [x] **core/t24 — verb alignment (ADR 0036), lands BEFORE http/t01.** _Done: tag `core/t24`, gate green, mutation 78.57, lead review SHIP (3 nits fixed)._ `scope.controller(x)`,
       `scope.resolve(x)` (data/resource/tag snapshot; op = type error), `scope.run(op, call?)`,
       `OperationController.run`, `Operation.Handle`, drop `DataController.read`; React `useRun`
       (`run`/`runAsync`). Docs, README, examples, benches, tests move together. **Verify:** `vp check`
       0 errors, `vp run -r test` green, `pnpm validate` green, no `getController|\.read\(\)|useResolve|
-CommandController|Operation\.Command` left in packages/ bench/ README docs (grep = 0); astra SHIP.
+CommandController|Operation\.Command` left in packages/ bench/ README docs (grep = 0); lead review SHIP.
 - [ ] **http/t01 — package + frame + execute.** `packages/http` scaffold (10 kB cap, errors registry,
       gate via `scripts/ticket.sh` with a package arg); `httpClient({ label })` → `config` tag,
       `client` resource; shared `backend` tag with `fetchBackend`; `HttpRequest.*` constructors +
@@ -39,7 +39,7 @@ CommandController|Operation\.Command` left in packages/ bench/ README docs (grep
       `ctx.clock.sleep` under a `TestClock`; abort stops retrying; 404 never retries. **Verify:**
       deterministic tests with `makeTestClock`; gate green.
 - [ ] **http/t05 — validation milestone.** Size ≤ 10 kB gzip, mutation ≥ 60, README + cast-free
-      `packages/http/examples/basic.ts`, pure universal bundle (no `node:` imports), astra SHIP.
+      `packages/http/examples/basic.ts`, pure universal bundle (no `node:` imports), lead review SHIP.
       **Verify:** `vp run http#size`, `vp run http#mutate` isolated, `vp check`; archive here.
 
 ## Shipped — archived
