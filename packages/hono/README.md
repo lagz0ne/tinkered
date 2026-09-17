@@ -43,8 +43,21 @@ expect(await res.json()).toEqual({ id: 42 });
 
 Each request runs as an inline operation (`"GET /users/:id"`) whose one dependency is the
 route's operation — so core's spans, one `http request` log line, clock, and signal come for
-free. A client abort force-closes the session; without `tinker` upstream, `handle` raises
-`NoSession`.
+free. The session closes gracefully (commit) after the handler; forced (rollback) on client
+abort; a `stream` route closes when the body ends. Without `tinker` upstream, `handle`
+raises `NoSession`.
+
+## Streaming
+
+A route that streams answers with `stream(c, write)`: the request session stays open until
+the body finishes or the client cancels, then closes (every other response closes after
+`next()`). The writer runs as its own inline operation (`"GET /path body"`), so `ctx.signal`,
+`ctx.clock`, `ctx.log`, and its span are all available while the request span has ended.
+
+```ts
+.get("/ticks", handle(ticks, { respond: (ts, c) => stream(c, async (emit, { clock, signal }) => {
+  for (const t of ts) { await emit(`${t}\n`); await clock.sleep(1000, signal); } } ) }));
+```
 
 ## Errors
 
