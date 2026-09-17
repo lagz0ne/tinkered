@@ -23,3 +23,4 @@ by a new decision that names the old one.
 | [0037](0037-inline-operation-via-scope-run.md)                         | `scope.run` also runs an inline operation, with its input passed in, not closed over            |
 | [0038](0038-tags-on-a-call-open-a-child-session.md)                    | `tags` on a call open a child session for that run (ambient, not a shallow overlay)             |
 | [0039](0039-hono-is-a-session-level-driver.md)                         | Hono is a session-level driver: a middleware opens the request session, routes are declarations |
+| [0040](0040-a-server-request-is-an-inline-operation.md)                | A server request is an inline operation: spans, one log line, error mapping, streaming lifetime |

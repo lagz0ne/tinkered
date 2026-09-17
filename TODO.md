@@ -20,17 +20,25 @@ shutdown; TUI app — each starts with `grill-with-docs`.
       (the 45 remaining `OperationController.run` are held controllers and subflows). 228 tests green, 0 errors,
       census OK; no behaviour change._
 
-- [ ] **hono/t01 — package + `tinker` middleware + `handle` + `request` tag (ADR 0039).** `packages/hono`
-      (`@tinker/hono`, `hono` peer, 10 kB cap, errors registry with `NoSession`), `tinker(scope, { tags? })`
-      opens a session per request (`request(raw)` + `tags(c)`), client abort → forced close, close after
-      `next()`; `handle(op, { input?, respond? })` runs the op in the request session (default `c.json`).
-      **Verify:** seam tests via Hono's `app.request` — an op depending on the `request` tag and a tenant tag
-      sees both; `handle` with `input` parses via the op's `parse` and answers JSON; a void op needs no
-      route options; `respond` overrides; an aborted request settles the op `cancelled`; `handle` without
-      `tinker` → `NoSession`; `scope.close({ graceful: true })` with an in-flight request resolves `success`
-      after the response and a forced close resolves `cancelled`; validate lanes for hono; lead review SHIP.
-- [ ] **hono/t02 — validation milestone.** Size ≤ 10 kB, mutation ≥ 60 alone, README + cast-free example
-      (a routes module + a test-as-entrypoint), universal bundle (no `node:`), archive here.
+- [ ] **hono/t01 — package + `tinker` middleware + `handle` as the request inline op + `request` tag (ADR 0039, 0040 §1).**
+      `packages/hono` (`@tinker/hono`, `hono` peer, 10 kB cap, `NoSession`), a session per request
+      (`request(raw)` + `tags(c)`, abort → forced close, close after `next()`); `handle(op, { input?, respond? })`
+      runs the request as an inline op (`depends: { op }`, span `GET /users/:id` with method/route/path/status,
+      one `http request` log line) whose subflow is the route op. **Verify:** via `app.request` — tenant +
+      `request` tag seen; parse via the op; void op; `respond` override; abort → op `cancelled`; `NoSession`;
+      graceful vs forced close; request span parents the op span; one log line; observation off = no spans.
+- [ ] **hono/t02 — error mapping inside the request (ADR 0040 §2).** `tinker(scope, { onError? })` slot first,
+      then the default map: `DataValidationFailed` → 400, `cancelled` → 499, `MissingTag`/`NoSession` → 500,
+      else rethrow to Hono. **Verify:** each mapping through `app.request`; the request span settles `failed`
+      with the mapped `status`; the log line carries it; `onError` overrides one case; an unmapped error
+      reaches `app.onError`.
+- [ ] **hono/t03 — `stream(c, write)` (ADR 0040 §3).** Streaming Response; the request session stays open
+      until the body finishes or the client cancels, then closes. **Verify:** a route that writes three
+      chunks over `clock.sleep` under a TestClock — the session-target resource's `defer` runs only after the
+      last chunk; cancelling the response body closes the session forced (`cancelled`); a plain route still
+      closes right after `next()`.
+- [ ] **hono/t04 — validation milestone.** Size ≤ 10 kB, mutation ≥ 60 alone, README (main/routes/test,
+      spans+log, errors, stream) + cast-free example, `pnpm validate` gains hono lanes; archive here.
 
 **Then the list is empty.** Next authoring candidates (each starts with `grill-with-docs`): server
 integration (Hono, maybe Express); app entrypoint with graceful shutdown; TUI app. Perf follow-up
