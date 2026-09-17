@@ -28,20 +28,43 @@ const listRepos = github.operation({
 
 const createIssue = github.operation({
   label: "createIssue",
+  input: parseIssue, // { title: string }
   request: ({ title }) => HttpRequest.post("/issues", { body: HttpRequest.bodyJson({ title }) }),
 });
 
-// a composing operation: owns the fresh token, hands it to one subflow call via tags
+// a composing operation: depends on the resource that owns the token and on the endpoint,
+// and hands a fresh token to one subflow call via tags (a child session for that call, ADR 0038)
 const onboard = operation({
   label: "onboard",
-  depends: { repos: listRepos, issue: createIssue },
-  run: ({ repos, issue }, ctx) =>
+  input: parseIssue,
+  depends: { auth, issue: createIssue },
+  run: async ({ auth, issue }, { input }) =>
     issue.run({
-      input: ctx.input,
-      tags: [github.config({ headers: { authorization: `Bearer ${fresh}` } })],
+      input,
+      tags: [github.config({ headers: { authorization: `Bearer ${await auth.token()}` } })],
     }),
 });
 ```
+
+## Retry: a frame slot
+
+`httpClient({ label, retry: { times, delay? } })` — `times` extra attempts after the first
+(default 0), `delay(n)` the milliseconds to wait before retry `n` (1-based, default none).
+Transient only: a backend failure, or status 408, 429, 5xx. A non-transient status is never
+retried, and an aborted signal never retries. Backoff sleeps on the caller's `ctx.clock`, so a
+`makeTestClock` drives it deterministically in tests.
+
+```ts
+const github = httpClient({ label: "github", retry: { times: 2, delay: (n) => n * 1000 } });
+```
+
+## Observation: one child span per attempt
+
+Every request opens one child span under the calling operation's span, named
+`http GET https://api/users/octocat/repos`, with attributes `method`, `url`, `status`, and
+`attempt`. It settles `ok` when the backend answered and `failed` when it did not or when the
+status was rejected. A transport failure also writes one log line, `http request failed`, with
+the method and url. Nothing is recorded when observation is off.
 
 ## Status: a frame slot plus response-level readers
 
@@ -89,13 +112,16 @@ createScope({
 // session: a tenant/user token for everything in that session; baseUrl inherited from the scope
 scope.session({ tags: [github.config({ headers: { authorization: `Bearer ${user}` } })] }, run);
 // per call: a composing operation hands a fresh token to one subflow call
-scope.run(listRepos, { tags: [github.config({ headers: { authorization: `Bearer ${fresh}` } })] });
+scope.run(listRepos, {
+  input: "octocat",
+  tags: [github.config({ headers: { authorization: `Bearer ${fresh}` } })],
+});
 ```
 
-Note: per-call `tags` reach the operation's **own** tag dependencies (the `config.all` read),
-not into the built `client` resource (ADR 0022). The client is `target: "session"`, so its
-`backend` dep resolves at the requesting layer (ADR 0018): a session-bound `backend` is seen by
-runs in that session, while the root scope keeps its own.
+A call with `tags` opens a child session for that run (ADR 0038, always a promise). The client
+is `target: "session"`, so it is built in that session and its `backend` dep resolves there
+(ADR 0018): a session-bound or call-bound `backend` is seen by that flow, while the root scope
+keeps its own.
 
 ## Test recipe: a closure backend
 

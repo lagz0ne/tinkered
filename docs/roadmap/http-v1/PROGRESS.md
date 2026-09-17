@@ -52,8 +52,8 @@ its tag exists.
 | http/t01 | Package + frame + `execute`: scaffold, errors, tags, `fetchBackend`, request/response records | —        | [x]    |
 | http/t02 | Endpoint operations + `preset` seam + cancel; status filters                                  | 01       | [x]    |
 | http/t03 | Observation + logging: child span per request, failure log line, zero cost when off           | 01       | [x]    |
-| http/t04 | Retry: frame slot, transient policy, `ctx.clock.sleep` backoff under a TestClock              | 02       | [ ]    |
-| http/t05 | Validation milestone: size, mutation, README + cast-free example, universal bundle; SHIP      | 03, 04   | [ ]    |
+| http/t04 | Retry: frame slot, transient policy, `ctx.clock.sleep` backoff under a TestClock              | 02       | [x]    |
+| http/t05 | Validation milestone: size, mutation, README + cast-free example, universal bundle; SHIP      | 03, 04   | [x]    |
 
 ### Verify (the observable proof for each)
 
@@ -96,6 +96,10 @@ its tag exists.
   and `advance(2000)` (three calls seen); a 503 then 200 succeeds; a 404 is not retried (one
   call, raw response); aborting the signal during backoff rejects with the signal reason and makes
   no further call; `times: 0` (default) never retries.
+  - _Landed (t03 b1ac653 mutation 67.26; t04 e0af696 mutation 69.87; t05 on the validate-gate commit):_
+    `pnpm validate` gained four http lanes (tests, size, cast-free examples, pure bundle) — 13 lanes
+    green; size 6203 B; 27 seam tests; README fixed at review (per-call `tags` = child session per
+    ADR 0038; retry + observation sections). **SHIPPED.**
 - **t05** — `vp run http#size` ≤ 10240 B; `vp run http#mutate` alone ≥ 60; the package README and
   `examples/basic.ts` are cast-free (same grep as core's validate lane); `dist/index.mjs` has no
   `node:` import and loads in a bare `node --input-type=module`; lead review SHIP; TODO archive entry.

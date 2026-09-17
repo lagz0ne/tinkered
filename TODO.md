@@ -10,9 +10,10 @@ Perf pursuit is closed (see archive). Next: production-ready "tinkered-first" co
 operation/resource model — glue without side effects, testable without mocks, the scope as the single
 configuration point. Start with `grill-with-docs` (ADRs in `docs/decisions/`, terms in `docs/glossary.md`).
 
-First integration picked: **httpClient** as a frame of core primitives (ADR 0035; detail + verify +
-reset recipes in `docs/roadmap/http-v1/PROGRESS.md`). Tickets `http/t01`…`http/t05`, each gated,
-each lead-reviewed to SHIP before the next.
+First integration shipped: **httpClient** as a frame of core primitives (ADR 0035, archived below;
+detail in `docs/roadmap/http-v1/PROGRESS.md`). Next candidates for a dedicated integration: server
+integration (Hono, maybe Express); app entrypoint with graceful shutdown; TUI app — each starts with
+`grill-with-docs`.
 
 - [x] **core/t24 — verb alignment (ADR 0036), lands BEFORE http/t01.** _Done: tag `core/t24`, gate green, mutation 78.57, lead review SHIP (3 nits fixed)._ `scope.controller(x)`,
       `scope.resolve(x)` (data/resource/tag snapshot; op = type error), `scope.run(op, call?)`,
@@ -45,32 +46,24 @@ CommandController|Operation\.Command` left in packages/ bench/ README docs (grep
       heap lane covers a tagged call; `op`/`run`/`warm` floors unchanged. **Verify:** `pnpm validate`
       has the new lanes green; `bench` sandbox numbers recorded in budgets.md; a regression on any
       floor fails the gate.
-- [x] **http/t01 — package + frame + execute.** _Done: tag `http/t01` (b31ad3f), gate green, size 4312 B, lead review SHIP (3 should-fix + nits taken; client resource is session-target). Mutation 43.35 — below the t05 break line (60): 102 uncovered mutants in the unexercised request builders and the fetch body builder; t02 must lift it (SCIP map: `head/put/patch/del/options/modify/appendUrl/setHeader/setUrlParams/bodyBytes/bodyFormData/bodyUrlParams` have no test reference)._ `packages/http` scaffold (10 kB cap, errors registry,
-      gate via `scripts/ticket.sh` with a package arg); `httpClient({ label })` → `config` tag,
-      `client` resource; shared `backend` tag with `fetchBackend`; `HttpRequest.*` constructors +
-      bodies; `HttpResponse.fromWeb/make`; `execute(request, ctx)` merges baseUrl/headers and
-      forwards `ctx.signal`. **Verify:** seam test — an operation depending on `github.client`
-      executes a GET through a closure backend bound on the tag; the backend sees the merged URL +
-      headers; the body reads back; `InvalidUrl` when no baseUrl and a relative path. Gate green.
-- [x] **http/t02 — endpoint operations + preset seam + cancel.** _Done: tag `http/t02` (38e5490), gate green (294 tests), size 5243 B, lead review SHIP, mutation 66.15 (up from 43.35; uncovered mutants 102 → 25)._ `x.operation({...})` typed input
-      (`parse`), `response` reader (`res.json(parse)`), raw response by default; `filterStatusOk`
-      → `ResponseFailed/StatusCode`; `preset(x.client, …)` and `preset(endpoint, …)` swap;
-      forced close aborts an in-flight request and the run settles `cancelled`. **Verify:** tests
-      for each; gate green.
-- [x] **http/t03 — observation + logging.** _Done: tag `http/t03` (b1ac653), gate green (299 tests), size 5514 B, lead review SHIP, mutation 67.26._ A child span `http GET <url>` under the endpoint span
-      with method/url/status attributes, failed on error, one `log` line on failure. **Verify:**
-      `scope.spans()` + `observe.log` assertions; observation off costs nothing (no spans). Gate.
-- [ ] **http/t04 — retry.** Frame slot `retry: { times, delay? }`, transient policy, backoff via
-      `ctx.clock.sleep` under a `TestClock`; abort stops retrying; 404 never retries. **Verify:**
-      deterministic tests with `makeTestClock`; gate green.
-- [ ] **http/t05 — validation milestone.** Size ≤ 10 kB gzip, mutation ≥ 60, README + cast-free
-      `packages/http/examples/basic.ts`, pure universal bundle (no `node:` imports), lead review SHIP.
-      **Verify:** `vp run http#size`, `vp run http#mutate` isolated, `vp check`; archive here.
 
 ## Shipped — archived
 
 Both v1 milestones are complete. Full ticket detail, budgets, and reset recipes live in the
 durable trackers (this list is just the pointer):
+
+- **http v1 (2026-09-17)** — complete: `@tinker/http` as a frame of core primitives (ADR 0035; tags
+  `http/t01`…`http/t05`): shared `backend` tag (default `fetchBackend`), per-client `config` tag read
+  per call and merged nearest-wins, session-target `client` resource with `execute(request, ctx)`,
+  pure endpoint operations (`x.operation`), `filterStatus` slot + `filterStatus/filterStatusOk/
+matchStatus`, one child span per attempt + one log line on transport failure, `retry` slot with a
+  fixed transient policy and backoff on `ctx.clock`, `preset` as the test seam. Gate: 13 validate
+  lanes green (`pnpm validate` now covers http tests/size/cast-free/pure bundle), size 6203 B of
+  10240, mutation 69.87 (break 60), 27 seam tests, every ticket lead-reviewed. Detail:
+  `docs/roadmap/http-v1/PROGRESS.md`.
+- **verbs + inline + tagged calls (2026-09-17)** — core/t24 (`controller`/`resolve`/`run`, ADR 0036,
+  mutation 78.57), core/t26 (inline `scope.run({ depends, run }, call?)`, ADR 0037; `tags` on a call
+  open a child session, always async, ADR 0038; mutation 78.39; +9 ns on `op` recorded → core/t27).
 
 - **clock v1** — complete and shipped (t20–t23, tags `core/t20`…`core/t23`, ADR 0034): ambient `Clock`
   on every ctx, `makeTestClock` (now/advance/setTime), virtual + real `sleep` with signal abort, forced
