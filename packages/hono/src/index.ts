@@ -84,7 +84,7 @@ export function handle<T, I>(op: Operation.Handle<T, I>, route?: HonoScope.Route
     return session.run({
       label: `${c.req.method} ${c.req.routePath}`,
       depends: { op },
-      run: readRoute(op, route, c, onError),
+      run: readRoute(route, c, onError),
     });
   };
   return run;
@@ -97,10 +97,9 @@ function runVoid<T, I>(flow: Scope.OperationController<T, I>): T {
 
 /** Build the request run: input to op subflow to respond to status + one log line.
  * `onError` answers first; otherwise the default map turns a handled failure into
- * a Response (400/499/500, request span `ok`) and rethrows the rest — the unmapped
+ * a Response (400/500, request span `ok`) and rethrows the rest — the unmapped
  * path is Hono's, so it writes no log line (Hono's `onError` decides that status). */
 function readRoute<T, I>(
-  op: Operation.Handle<T, I>,
   route: HonoScope.Route<I, T> | undefined,
   c: Context,
   onError: HonoScope.OnError | undefined,
@@ -133,13 +132,12 @@ function readRoute<T, I>(
     const respond: HonoScope.Respond<T> = route?.respond ?? defaultRespond;
     const readInput = route?.input;
     const answer = async (): Promise<Response> => {
-      const raw = readInput?.(c);
       let value: Awaited<T>;
       try {
-        const ran = readInput ? flow.run({ rawInput: raw }) : runVoid(flow);
+        const ran = readInput !== undefined ? flow.run({ rawInput: readInput(c) }) : runVoid(flow);
         value = await ran;
       } catch (error: unknown) {
-        const mapped = await mapError(error, op, raw, c, onError, ctx.signal);
+        const mapped = await mapError(error, c, onError, ctx.signal);
         if (mapped === undefined) {
           done(new Response(null, { status: 499 }));
           throw error;
@@ -153,12 +151,10 @@ function readRoute<T, I>(
 }
 
 /** Map a request failure to a Response. `onError` answers first; the default map answers
- * 400 (input parse), 499 (the request's own cancellation), 500 (a missing binding); the
- * rest rethrows, leaving the request span `failed` for Hono's `onError`. */
-function mapError<T, I>(
+ * 400 (input parse), 500 (a missing binding); anything else rethrows to Hono's `onError`.
+ * A cancelled request logs 499 then rethrows — Hono ends an aborted request itself. */
+function mapError(
   error: unknown,
-  op: Operation.Handle<T, I>,
-  raw: unknown,
   c: Context,
   onError: HonoScope.OnError | undefined,
   signal: AbortSignal,
@@ -166,26 +162,12 @@ function mapError<T, I>(
   const custom = onError ? onError(error, c) : undefined;
   return Promise.resolve(custom).then((response) => {
     if (response) return response;
-    if (isCoreError(error, "DataValidationFailed") || isRouteParse(error, op, raw))
-      return c.text("bad request", 400);
+    if (isCoreError(error, "DataValidationFailed")) return c.text("bad request", 400);
     if (signal.aborted || error === signal.reason) return undefined;
     if (isCoreError(error, "MissingTag") || isError(error, "NoSession"))
       return c.text("internal", 500);
     throw error;
   });
-}
-
-/** True when `error` is the route op's own input parse rejecting this request's raw
- * input: the parse throws on the same raw value (a parse is a pure check, so throwing
- * again on the same input identifies it without reading the message). */
-function isRouteParse<T, I>(error: unknown, op: Operation.Handle<T, I>, raw: unknown): boolean {
-  if (!(error instanceof Error) || !op.input) return false;
-  try {
-    op.input(raw);
-  } catch (rerun: unknown) {
-    return rerun instanceof Error && rerun.constructor === error.constructor;
-  }
-  return false;
 }
 
 const noop = (): void => undefined;

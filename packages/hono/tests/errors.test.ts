@@ -1,16 +1,21 @@
 import { expect, test } from "vite-plus/test";
 import { Hono } from "hono";
-import { createScope, makeTestClock, operation, tag, type Observe } from "@tinker/core";
+import {
+  createScope,
+  isError as isCoreError,
+  makeTestClock,
+  operation,
+  tag,
+  type Observe,
+} from "@tinker/core";
 import { handle, tinker } from "../src/index.ts";
 
 const tenant = tag<string>({ label: "tenant" });
 const secret = tag<string>({ label: "secret" });
 
-class BadId extends Error {}
-
 function parseId(raw: unknown): number {
   const id = Number(raw);
-  if (Number.isNaN(id)) throw new BadId();
+  if (Number.isNaN(id)) throw new Error("bad id");
   return id;
 }
 
@@ -27,11 +32,22 @@ test("a parse failure answers 400 with the request span ok and the op span faile
     tags: [tenant("acme")],
     observe: { history: 20, log: (entry) => logs.push(entry) },
   });
+  let seen: unknown;
   const app = new Hono()
-    .use(tinker(scope))
+    .use(
+      tinker(scope, {
+        onError: (e) => {
+          seen = e;
+          return undefined;
+        },
+      }),
+    )
     .get("/users/:id", handle(getUser, { input: (c) => c.req.param("id") }));
   const res = await app.request("/users/abc");
   expect(res.status).toBe(400);
+  if (!isCoreError(seen, "DataValidationFailed")) throw seen;
+  expect(seen.payload.label).toBe("getUser");
+  if (!(seen.payload.cause instanceof Error)) throw seen.payload.cause;
   const head = scope.spans().find((s) => s.name === "GET /users/:id");
   expect(head?.status).toBe("ok");
   expect(head?.attributes.status).toBe(400);
@@ -130,7 +146,8 @@ test("onError answers first: a parse failure becomes 418 while MissingTag keeps 
   const app = new Hono()
     .use(
       tinker(scope, {
-        onError: (e, c) => (e instanceof BadId ? c.text("teapot", 418) : undefined),
+        onError: (e, c) =>
+          isCoreError(e, "DataValidationFailed") ? c.text("teapot", 418) : undefined,
       }),
     )
     .get("/users/:id", handle(getUser, { input: (c) => c.req.param("id") }))

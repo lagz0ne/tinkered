@@ -48,12 +48,12 @@ free. A client abort force-closes the session; without `tinker` upstream, `handl
 
 ## Errors
 
-| failure                    | status                                    |
-| -------------------------- | ----------------------------------------- |
-| op input parse fails       | 400                                       |
-| request cancelled (abort)  | 499 (logged, then Hono rejects as before) |
-| `MissingTag` / `NoSession` | 500                                       |
-| anything else              | rethrown to Hono's `onError`, no log line |
+| failure                                                                      | status                                    |
+| ---------------------------------------------------------------------------- | ----------------------------------------- |
+| the operation's `parse` threw (`DataValidationFailed`, raw error as `cause`) | 400                                       |
+| request cancelled (abort)                                                    | 499 (logged, then Hono rejects as before) |
+| `MissingTag` / `NoSession`                                                   | 500                                       |
+| anything else                                                                | rethrown to Hono's `onError`, no log line |
 
 `tinker(scope, { onError: (e, c) => Response | undefined })` answers first; `undefined`
 falls through to the table. A mapped failure settles the request span `ok`.
