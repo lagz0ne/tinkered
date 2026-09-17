@@ -36,6 +36,10 @@ scope.run(importJob, { input: file, tags: [logBackend(fileSink)] });
 - **Cost:** one session create + close per tagged call (≈ 1 µs today). A call without `tags`
   takes exactly the current path — zero added cost. A hot loop does not pass tags per call; it
   binds them once on a session.
+- **A tagged call is always async.** A session closes asynchronously (`close()` resolves a
+  `Result`, ADR 0027), so `run(x, { tags })` returns `Promise<Awaited<T>>` even when the body is
+  sync — typed that way on the overload, no sync fast path. Accepted deliberately: a per-flow
+  binding is an I/O-shaped use, never a hot sync loop.
 - **The shallow overlay is removed** (`TagOverlay` and the overlay parameters on
   `tagFind`/`tagAll`/`tagRequired`/`resolveDep`/`buildDeps`). One meaning of `tags`.
 
