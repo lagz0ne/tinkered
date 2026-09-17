@@ -51,6 +51,13 @@ session.run({ label: "GET /users/:id", depends: { op }, run })
 
 ## Consequences
 
+- **core/t28 (same day):** an operation's `parse` failure is now `DataValidationFailed { label,
+cause }` — the same registry error a data or tag parse raises — instead of the raw throw. The
+  400 mapping needs no knowledge of the parser; the raw error stays reachable as `cause`.
+- **Cancellation (as landed in hono/t02):** a cancelled request is logged with `status: 499` and
+  the error is then rethrown, because Hono ends an aborted request itself (`app.request` rejects);
+  the request span settles `failed` on that path — the one exception to "mapped = ok".
+
 - The driver uses core's spans, log, clock, and signal through an ordinary ctx; nothing new in
   core. One inline handle + one session per request is the cost (ADR 0037/0038 budgets).
 - `tinker` alone (routes not made with `handle`) still opens the session but records no span; a

@@ -2206,7 +2206,9 @@ test("a span for an operation whose setup throws is still closed and exported as
     scope.run(op, { rawInput: 1 });
     throw new Error("expected the parser to throw");
   } catch (error) {
-    if (error !== parseError) throw error;
+    if (!isError(error, "DataValidationFailed")) throw error;
+    expect(error.payload.label).toBe("op");
+    expect(error.payload.cause).toBe(parseError);
   }
   expect(spans.length).toBe(1);
   expect(spans[0].status).toBe("failed");

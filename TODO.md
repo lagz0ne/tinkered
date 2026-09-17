@@ -27,6 +27,9 @@ shutdown; TUI app — each starts with `grill-with-docs`.
       one `http request` log line) whose subflow is the route op. **Verify:** via `app.request` — tenant +
       `request` tag seen; parse via the op; void op; `respond` override; abort → op `cancelled`; `NoSession`;
       graceful vs forced close; request span parents the op span; one log line; observation off = no spans.
+- [x] **core/t28 — operation parse failures are `DataValidationFailed`.** _Done: tag `core/t28`; `parseInput` goes
+      through `admit` like data/tag parses (label + cause); the span-closure test narrows on the registry error;
+      all packages green. Found by hono/t02 review (the contributor had re-run the parse to classify the error)._
 - [ ] **hono/t02 — error mapping inside the request (ADR 0040 §2).** `tinker(scope, { onError? })` slot first,
       then the default map: `DataValidationFailed` → 400, `cancelled` → 499, `MissingTag`/`NoSession` → 500,
       else rethrow to Hono. **Verify:** each mapping through `app.request`; the request span settles `ok` with the mapped `status` (the op's span is `failed`); the log line carries it; `onError` overrides one case; an unmapped error

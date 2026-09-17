@@ -1250,9 +1250,12 @@ function runDefers(
   return undefined;
 }
 
-/** An operation's parsed raw input (no parser means void input). */
+/** An operation's parsed raw input (no parser means void input). A throwing parse is the edge
+ * rejecting the value: `DataValidationFailed { label, cause }`, the same registry error a data or tag
+ * parse raises — so a driver maps it (400) without knowing the parser. */
 function parseInput<I>(target: Operation.Handle<unknown, I>, rawInput: unknown): I {
-  return (target.input ? target.input(rawInput) : undefined) as I;
+  if (!target.input) return undefined as I;
+  return admit(target.label, target.input, rawInput);
 }
 
 /** A preset replacement when seeded, else the declared run. */
