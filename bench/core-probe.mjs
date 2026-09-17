@@ -28,6 +28,8 @@ const op = operation({ label: "op", depends: { n: cfg }, run: ({ n }) => n + 1 }
 const opScope = createScope();
 const opC = opScope.controller(op);
 opC.run();
+const inlineCfg = { depends: { n: cfg }, run: ({ n }) => n + 1 };
+const inlineScope = createScope();
 const fns = {
   s1_getctl: () => createScope().controller(store),
   s2_data: () => createScope().controller(cfg).get(),
@@ -35,6 +37,7 @@ const fns = {
   s4_warm_ctl: () => warmScope.controller(store),
   op: () => opC.run(),
   run: () => opScope.run(op),
+  inline: () => inlineScope.run(inlineCfg),
   cold2: () => createScope().controller(twoArg).resolve(),
   cold: () => createScope().controller(store).resolve().base,
   create: () => createScope(),

@@ -35,7 +35,7 @@ be seeded with a controllable one, so time-dependent code is tested with no `Dat
 fake timers (ADR 0034). Nothing below needs a cast; see `packages/core/examples/basic.ts`.
 
 ```ts
-import { createScope, makeTestClock, operation } from "@tinker/core";
+import { createScope, data, makeTestClock, operation } from "@tinker/core";
 
 const stamp = operation({
   label: "stamp",
@@ -57,5 +57,10 @@ const nap = operation({
 const woke = scope.run(nap);
 clock.advance(1_000); // resolves `woke`
 await woke;
+const count = data({ label: "count", initial: 21 });
+const doubled = scope.run(
+  { depends: { count }, run: ({ count }, { input }) => count + input },
+  { input: 21 },
+); // inline: same call object, one span
 await scope.close();
 ```

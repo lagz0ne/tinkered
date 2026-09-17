@@ -208,10 +208,10 @@ export declare namespace Scope {
     watch(listener: (next: T) => void): () => void;
   };
 
-  /** How a subflow call is supplied (ADR 0022): a pre-typed `input` (parse skipped), or a raw
-   * `rawInput` (run through the operation's parse), plus per-call ambient tag bindings that
-   * overlay the caller's for this one invocation. A defined `input` wins; an `undefined` `input`
-   * counts as absent, so `rawInput` is parsed instead. */
+  /** How a subflow call is supplied (ADR 0022, 0038): a pre-typed `input` (parse skipped), or a
+   * raw `rawInput` (run through the operation's parse), plus per-call ambient tag bindings.
+   * A call carrying `tags` opens a child session for that run (always async). A defined `input`
+   * wins; an `undefined` `input` counts as absent, so `rawInput` is parsed instead. */
   export type Invocation<I> = {
     readonly input?: I;
     readonly rawInput?: unknown;
@@ -243,10 +243,48 @@ export declare namespace Scope {
 
   /** A callable handle onto one operation — always a function, never a value (ADR 0022). A
    * void-input operation is called `run()`; an input-carrying one must supply `input` or
-   * `rawInput`. */
+   * `rawInput`. A call carrying `tags` opens a child session for the run (ADR 0038) and is
+   * always async: it returns `Promise<Awaited<T>>` even when the body is sync. */
   export type OperationController<T, I> = {
     run(...call: CallArgs<I>): T;
+    run(...call: TaggedCall<I>): Promise<Awaited<T>>;
   };
+
+  /** The tag bindings a call may carry. Present on a call, they open a child session bound
+   * with them for that run (ADR 0038): the run's own tag reads, its subflows, and session-target
+   * resources built for the flow see them through the layer chain. Scope-target resources are
+   * unchanged. A call carrying `tags` always returns a promise — a session closes
+   * asynchronously, so no sync fast path is offered. */
+  export type Bindings = readonly Tag.Binding<unknown>[];
+
+  /** A call that carries `tags`: always async (ADR 0038). For a void input the call object
+   * holds only `tags`; otherwise it holds the run's `input` (or `rawInput`) plus `tags`. */
+  export type TaggedCall<I> = [I] extends [void]
+    ? [call: { readonly tags: Bindings }]
+    : [call: ProvideInput<I> & { readonly tags: Bindings }];
+
+  /** An inline operation: a config with the same deps + body shape as `operation()`, but no
+   * identity — no label requirement, no parse, no preset (ADR 0037). The body's parameter is
+   * passed in the call object, not closed over, so it lands on `ctx.input`/`ctx.rawInput`
+   * and is visible to observation. */
+  export type Inline<D extends Depends, R, I> = {
+    readonly label?: string;
+    readonly depends?: D;
+    readonly run: (deps: SlotValues<D>, ctx: Operation.Ctx<I>) => R;
+  };
+
+  /** The call object an inline run takes (ADR 0037, 0038): the same invocation shape as a
+   * declared run, minus `rawInput` (there is no parse). `I` is inferred from `call.input`;
+   * with nothing to pass, omit the call and `I` is void. A call carrying `tags` opens a
+   * child session for the run and is always async. */
+  export type InlineCall<I> = [I] extends [void]
+    ? [call?: { readonly tags?: Bindings }]
+    : [call: { readonly input: I; readonly tags?: Bindings }];
+
+  /** An inline run carrying `tags`: always async (ADR 0038). */
+  export type TaggedInlineCall<I> = [I] extends [void]
+    ? [call: { readonly tags: Bindings }]
+    : [call: { readonly input: I; readonly tags: Bindings }];
 
   export type Dependency =
     | Data.Cell<unknown>
@@ -345,8 +383,22 @@ export declare namespace Scope {
     resolve<T>(res: Resource.Handle<T>): ResourceValue<T>;
     resolve<T>(tag: Tag.Handle<T>): T;
     /** Run an operation now — the everyday call; `controller(op).run(call)` is the long form.
-     * Same `CallArgs`/`Invocation` rules as before (ADR 0022). */
+     * Same `CallArgs`/`Invocation` rules as before (ADR 0022). A call carrying `tags` opens a
+     * child session for the run (ADR 0038) and is always async: it returns `Promise<Awaited<T>>`
+     * even when the body is sync. Also runs an inline operation config (ADR 0037) — same call
+     * object, minus `rawInput` — through the same controller path, with one span named
+     * `label ?? "inline"` and nothing cached in the layer. The tagged overloads come first so a
+     * call carrying `tags` types as a promise even though an untagged shape would also match. */
+    run<T, I>(op: Operation.Handle<T, I>, ...call: TaggedCall<I>): Promise<Awaited<T>>;
     run<T, I>(op: Operation.Handle<T, I>, ...call: CallArgs<I>): T;
+    run<const D extends Depends = Record<string, never>, R = unknown, I = void>(
+      inline: Inline<D, R, I>,
+      ...call: TaggedInlineCall<I>
+    ): Promise<Awaited<R>>;
+    run<const D extends Depends = Record<string, never>, R = unknown, I = void>(
+      inline: Inline<D, R, I>,
+      ...call: InlineCall<I>
+    ): R;
     /** Open a child session: it inherits this scope's data and tags, and shadows on write. */
     createSession(options?: Options): Handle;
     /** Run `fn` in a fresh child session: normal return = success, a thrown error = failed(cause),
@@ -734,20 +786,12 @@ function writeCell<T>(layer: Layer, target: Data.Cell<T>, next: unknown): void {
   flushCell(layer, target);
 }
 
-type TagOverlay = Map<Tag.Handle<unknown>, unknown[]>;
-
 /** The last value of a tag list (its nearest binding), or undefined for an absent/empty list. */
 function topTag(list: unknown[] | undefined): { present: true; value: unknown } | undefined {
   return list && list.length ? { present: true, value: list[list.length - 1] } : undefined;
 }
 
-function tagFind(
-  layer: Layer,
-  target: Tag.Handle<unknown>,
-  overlay?: TagOverlay,
-): Tag.Presence<unknown> {
-  const front = topTag(overlay?.get(target));
-  if (front) return front;
+function tagFind(layer: Layer, target: Tag.Handle<unknown>): Tag.Presence<unknown> {
   for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
     const hit = topTag(cur.tags?.get(target));
     if (hit) return hit;
@@ -755,10 +799,8 @@ function tagFind(
   return target.hasDefault ? { present: true, value: target.def } : { present: false };
 }
 
-function tagAll(layer: Layer, target: Tag.Handle<unknown>, overlay?: TagOverlay): unknown[] {
+function tagAll(layer: Layer, target: Tag.Handle<unknown>): unknown[] {
   const out: unknown[] = [];
-  const front = overlay?.get(target);
-  if (front) for (let i = front.length - 1; i >= 0; i--) out.push(front[i]);
   for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
     const list = cur.tags?.get(target);
     if (list) for (let i = list.length - 1; i >= 0; i--) out.push(list[i]);
@@ -766,8 +808,8 @@ function tagAll(layer: Layer, target: Tag.Handle<unknown>, overlay?: TagOverlay)
   return out;
 }
 
-function tagRequired(layer: Layer, target: Tag.Handle<unknown>, overlay?: TagOverlay): unknown {
-  const found = tagFind(layer, target, overlay);
+function tagRequired(layer: Layer, target: Tag.Handle<unknown>): unknown {
+  const found = tagFind(layer, target);
   if (!found.present) raise("MissingTag", { label: target.label });
   return found.value;
 }
@@ -834,24 +876,22 @@ function resolveEdge(
   layer: Layer,
   dep: Edge<string, unknown>,
   parent: Observe.Span | undefined,
-  overlay?: TagOverlay,
 ): unknown {
   if (dep.kind === "controller") return resolveControllerEdge(layer, dep.target, parent);
   const target = dep.target as Tag.Handle<unknown>;
-  if (dep.kind === "all") return tagAll(layer, target, overlay);
-  if (dep.kind === "optional") return tagFind(layer, target, overlay);
-  return tagRequired(layer, target, overlay);
+  if (dep.kind === "all") return tagAll(layer, target);
+  if (dep.kind === "optional") return tagFind(layer, target);
+  return tagRequired(layer, target);
 }
 
 function resolveDep(
   layer: Layer,
   dep: Scope.Dependency,
   parent: Observe.Span | undefined,
-  overlay?: TagOverlay,
 ): unknown {
-  if (isEdge(dep)) return resolveEdge(layer, dep, parent, overlay);
+  if (isEdge(dep)) return resolveEdge(layer, dep, parent);
   if (isData(dep)) return readCell(layer, dep);
-  if (isTag(dep)) return tagRequired(layer, dep, overlay);
+  if (isTag(dep)) return tagRequired(layer, dep);
   if (isOperation(dep)) return operationController(layer, dep, parent);
   if (isResource(dep)) return resourceController(layer, dep, parent).resolve();
   raise("InvalidDependency", { label: "unknown", reason: "unknown dependency" });
@@ -1210,11 +1250,6 @@ function runDefers(
   return undefined;
 }
 
-/** A call's tag overlay, or undefined when it carries no tag bindings. */
-function seedOverlay(call: Scope.Invocation<unknown> | undefined): TagOverlay | undefined {
-  return call?.tags?.length ? seedTags(call.tags) : undefined;
-}
-
 /** An operation's parsed raw input (no parser means void input). */
 function parseInput<I>(target: Operation.Handle<unknown, I>, rawInput: unknown): I {
   return (target.input ? target.input(rawInput) : undefined) as I;
@@ -1268,12 +1303,62 @@ class OperationCtx<I> implements Operation.Ctx<I> {
   }
 }
 
+/** The `tags` a call carries, if any — one optional read, no chain. A tagged call opens a child
+ * session for the run (ADR 0038); anything else takes the untagged body inline in the
+ * controller's `run` closure (exactly main's, plus this check). */
+function readCallTags(call: Scope.Invocation<unknown> | undefined): Scope.Bindings | undefined {
+  if (call === undefined) return undefined;
+  const tags = call.tags;
+  return tags !== undefined && tags.length > 0 ? tags : undefined;
+}
+
+/** Run `target` in a child session bound with the call's tags (ADR 0038) — sugar over
+ * `session({ tags }, (s) => s.run(target, { input }))`. Always async: the session closes
+ * asynchronously when the run settles, so even a sync body resolves through a promise.
+ * `parent` carries through so a subflow's span still nests under its caller. */
+function runTagged<T, I>(
+  layer: Layer,
+  target: Operation.Handle<T, I>,
+  parent: Observe.Span | undefined,
+  call: Scope.Invocation<I> & { readonly tags: Scope.Bindings },
+): Promise<Awaited<T>> {
+  const tags = call.tags;
+  const inner: Scope.Invocation<I> | undefined =
+    call.input === undefined && call.rawInput === undefined ? undefined : stripTags(call);
+  return runSessionWith(layer, { tags }, (child) =>
+    runUntagged(child, target, parent, inner),
+  ) as Promise<Awaited<T>>;
+}
+
+/** The tag-stripped call a tagged run replays inside its child session (ADR 0038): the same
+ * `input`/`rawInput` selection the untagged path makes, minus `tags` (already honored).
+ * Only called when the call carries `input` or `rawInput` (see {@link runTagged}). */
+function stripTags<I>(call: Scope.Invocation<I>): Scope.Invocation<I> {
+  if (call.input !== undefined) return { input: call.input };
+  return { rawInput: call.rawInput };
+}
+
 function operationController<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
   parent: Observe.Span | undefined,
 ): Scope.OperationController<T, I> {
-  const run = (call?: Scope.Invocation<I>): T => {
+  /** The single entry every run takes — declared, subflow, and inline alike. A call carrying
+   * `tags` opens a child session for the run (ADR 0038, always async); anything else runs the
+   * untagged body inline below, which is main's, unchanged — one `call?.tags` check, no extra
+   * frame on the hot path. The implementation signature stays broad (one input shape would mean
+   * no overload — rule 9); the two public overloads type the fork. */
+  const run = (call?: Scope.Invocation<I>): unknown => {
+    const tags = readCallTags(call);
+    if (tags !== undefined)
+      return runTagged(
+        layer,
+        target,
+        parent,
+        call as Scope.Invocation<I> & {
+          readonly tags: Scope.Bindings;
+        },
+      );
     ensureOpen(layer);
     const obs = layer.obs;
     const span = openSpan(obs, parent, target.label, "operation");
@@ -1304,17 +1389,16 @@ function operationController<T, I>(
     let result: T;
     buildDepth++;
     try {
-      const overlay = seedOverlay(call);
       let input: I;
       let rawInput: unknown;
-      if (call !== undefined && call.input !== undefined) {
+      if (call?.input !== undefined) {
         input = call.input;
         rawInput = call.input;
       } else {
         rawInput = call?.rawInput;
         input = parseInput(target, rawInput);
       }
-      const deps = buildDeps(layer, target.depends, span, overlay, undefined);
+      const deps = buildDeps(layer, target.depends, span, undefined);
       ctx = new OperationCtx<I>(layer, target.label, rawInput, input, obs, span);
       result = runBody(override, target, deps, ctx);
     } catch (error) {
@@ -1336,6 +1420,24 @@ function operationController<T, I>(
     return result;
   };
   return { run } as Scope.OperationController<T, I>;
+}
+
+/** Run `target` on the tagged call's session layer with the tag-stripped call (ADR 0038) — a
+ * fresh controller per tagged run, so the hot closure above keeps its exact main shape for the
+ * optimizer. Cold path only (one session create + close already dominates); the hot untagged
+ * call never enters here. */
+function runUntagged<T, I>(
+  layer: Layer,
+  target: Operation.Handle<T, I>,
+  parent: Observe.Span | undefined,
+  call: Scope.Invocation<I> | undefined,
+): T {
+  const untagged: { run(call?: Scope.Invocation<I>): T } = operationController(
+    layer,
+    target,
+    parent,
+  ) as { run(call?: Scope.Invocation<I>): T };
+  return untagged.run(call);
 }
 
 function ownerOf(layer: Layer, target: Resource.Handle<unknown>): Layer {
@@ -1375,7 +1477,7 @@ function buildLazyDep(t: LazyTarget, key: string, dep: Resource.Handle<unknown>)
   const state = t[LAZY];
   (state.consumed ??= new Set()).add(key);
   state.registerEdge?.(dep);
-  t[key] = resolveDep(state.layer, dep, state.span, undefined);
+  t[key] = resolveDep(state.layer, dep, state.span);
 }
 
 function pendingLazyKeys(t: LazyTarget): string[] {
@@ -1444,7 +1546,6 @@ function buildDeps(
   layer: Layer,
   depends: Scope.Depends,
   span: Observe.Span | undefined,
-  overlay: TagOverlay | undefined,
   registerEdge: RegisterEdge,
 ): Record<string, unknown> {
   const deps: Record<string, unknown> = {};
@@ -1454,7 +1555,7 @@ function buildDeps(
     if (isResource(dep)) lazy = true;
     else {
       registerEdge?.(dep);
-      deps[key] = resolveDep(layer, dep, span, overlay);
+      deps[key] = resolveDep(layer, dep, span);
     }
   }
   return lazy ? lazyDepsProxy(deps, depends, layer, span, registerEdge) : deps;
@@ -1466,7 +1567,7 @@ function resolveResourceDeps(
   span: Observe.Span | undefined,
   superseded: () => boolean,
 ): Record<string, unknown> {
-  return buildDeps(owner, target.depends, span, undefined, (dep) => {
+  return buildDeps(owner, target.depends, span, (dep) => {
     const node = depNode(dep);
     /** A lazy resource dep registers its release edge only at FIRST ACCESS, which for a paused build
      * can happen after the build was released (superseded). Skip the edge then — a stale build must
@@ -2298,21 +2399,24 @@ function settleSession(
   if (teardownCauses) raise("TeardownFailed", { causes: teardownCauses });
 }
 
-async function runSession<R>(
+/** Run `body` in a child session of `parent`, then force-close it — `runSession` with the
+ * body receiving the child layer directly (no handle→layer registry; ADR 0038). The public
+ * `session()` passes `(child, handle) => fn(handle)`; a tagged call passes its own runner. */
+async function runSessionWith<R>(
   parent: Layer,
   options: Scope.Options | undefined,
-  fn: (scope: Scope.Handle) => R | PromiseLike<R>,
+  body: (child: Layer, handle: Scope.Handle) => R | PromiseLike<R>,
 ): Promise<R> {
   ensureOpen(parent);
   const child = makeLayer(parent, options);
-  const body = runBodyFn(child, fn);
-  child.body = body;
-  child.bodyEnd = body.then(
+  const started = runBodyWith(child, body);
+  child.body = started;
+  child.bodyEnd = started.then(
     (): Scope.Outcome => (child.aborted ? { status: "cancelled" } : SUCCESS),
     (cause: unknown): Scope.Outcome =>
       isCancel(child, cause) ? { status: "cancelled" } : { status: "failed", error: cause },
   );
-  const result = await bodyResult(body);
+  const result = await bodyResult(started);
   /** `close()` never throws (ADR 0027/0028); it resolves to the actual settled `Result`. A session is
    * promise-style, so map that Result back to resolve/reject: a real failure or cancellation rejects
    * (with the cause / abort reason), a clean run resolves the body value; teardown errors aggregate
@@ -2326,13 +2430,24 @@ async function runSession<R>(
   return result as R;
 }
 
-/** Run the session body, normalizing to a promise. `fn` is called synchronously (no extra adoption
- * microtask) so an already-settled value/promise settles `bodyEnd` before a later abort, letting the
- * body's OWN end reflect whether the BODY was interrupted (an aborted body → cancelled) rather than a
- * subsequent self-close abort. A sync throw becomes a rejection. */
-function runBodyFn<R>(child: Layer, fn: (scope: Scope.Handle) => R | PromiseLike<R>): Promise<R> {
+async function runSession<R>(
+  parent: Layer,
+  options: Scope.Options | undefined,
+  fn: (scope: Scope.Handle) => R | PromiseLike<R>,
+): Promise<R> {
+  return runSessionWith(parent, options, (_child, handle) => fn(handle));
+}
+
+/** Start a session body with its handle, normalizing to a promise. `fn` is called synchronously
+ * (no extra adoption microtask) so an already-settled value/promise settles `bodyEnd` before a
+ * later abort, letting the body's OWN end reflect whether the BODY was interrupted (an aborted
+ * body → cancelled) rather than a subsequent self-close abort. A sync throw becomes a rejection. */
+function runBodyWith<R>(
+  child: Layer,
+  fn: (child: Layer, handle: Scope.Handle) => R | PromiseLike<R>,
+): Promise<R> {
   try {
-    return Promise.resolve(fn(handleFor(child)));
+    return Promise.resolve(fn(child, handleFor(child)));
   } catch (error) {
     return Promise.reject(error);
   }
@@ -2377,12 +2492,40 @@ function handleFor(layer: Layer): Scope.Handle {
     if (isResource(target)) {
       return (controllerOf(target) as Scope.ResourceController<T>).resolve();
     }
-    return tagRequired(layer, target as Tag.Handle<unknown>, undefined);
+    return tagRequired(layer, target as Tag.Handle<unknown>);
   }) as Scope.Handle["resolve"];
-  const run = (<T, I>(op: Operation.Handle<T, I>, call?: Scope.Invocation<I>): T => {
+  const run = (<T, I>(op: unknown, call?: Scope.Invocation<I>): unknown => {
     ensureOpen(layer);
+    if (!isOperation(op)) return runInline(op as Scope.Inline<Scope.Depends, T, I>, call);
     return (controllerOf(op) as { run(call?: Scope.Invocation<I>): T }).run(call);
   }) as Scope.Handle["run"];
+  /** Run an inline config (ADR 0037): a throwaway `Operation.Handle` through the operation
+   * controller path — one handle + one controller per call, nothing cached in the layer
+   * (no `nodeState`/`controllerOf` residue). `input` lands on `ctx.input`/`ctx.rawInput`
+   * unchanged (no parse); `tags` open the run's child session exactly as for a declared
+   * operation (ADR 0038). Discrimination is the brand only. */
+  const runInline = <R, I>(
+    inline: Scope.Inline<Scope.Depends, R, I>,
+    call: Scope.Invocation<I> | undefined,
+  ): R | Promise<Awaited<R>> => {
+    /** A throwaway `Operation.Handle` through the controller path — one handle + one controller
+     * per call, nothing cached in the layer (no `nodeState`/`controllerOf` residue). The body's
+     * `input` is replayed as the invocation's `input`, landing on `ctx.input`/`ctx.rawInput`
+     * unchanged (no parse — ADR 0037); `tags` open the run's child session exactly as for a
+     * declared operation (ADR 0038). Discrimination is the brand only. */
+    const handle: Operation.Handle<R, I> = operation({
+      label: inline.label ?? "inline",
+      depends: inline.depends,
+      run: inline.run,
+    });
+    /** The controller's public face is two overloads, but this entry already holds a broad
+     * `Invocation<I>` — one untyped dispatch, no per-shape narrowing. The overloads still type
+     * every userland call site; the seam cast below only widens this internal entry. */
+    const dispatch = operationController(layer, handle, undefined).run as (
+      call?: Scope.Invocation<I>,
+    ) => R | Promise<Awaited<R>>;
+    return call === undefined ? dispatch() : dispatch(call);
+  };
   return {
     controller,
     resolve,

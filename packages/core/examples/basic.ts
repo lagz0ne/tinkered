@@ -36,6 +36,10 @@ export async function tour(): Promise<number> {
   c.watch((v) => seen.push(v));
 
   const n = scope.run(doubled); // run an operation now
+  const inline = scope.run(
+    { depends: { count }, run: ({ count }, { input }) => count + input },
+    { input: 1 },
+  ); // an inline body: same call object, one span, nothing cached
   const s = scope.resolve(store); // read a snapshot: builds the resource once
   s.add("first");
   const t = scope.run(stamp); // 0 — the injected test clock, deterministic
@@ -47,5 +51,5 @@ export async function tour(): Promise<number> {
 
   const result = await scope.close();
   const teardownOk = result.status === "success" || result.status === "cancelled";
-  return n + s.size() + inSession + c.get() + seen.length + t + (teardownOk ? 0 : 1);
+  return n + s.size() + inSession + c.get() + seen.length + t + inline + (teardownOk ? 0 : 1);
 }

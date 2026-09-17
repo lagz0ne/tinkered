@@ -2381,25 +2381,23 @@ test("a subflow call with input skips parse; rawInput runs parse", () => {
   expect(parses).toBe(1);
 });
 
-test("a subflow call layers per-call tags over the caller's ambient bindings, per call only", () => {
+test("a tagged scope.run binds the whole flow: the run, a subflow, and a nested subflow read the call's tags", async () => {
   const zone = tag<string>({ label: "zone", default: "base" });
-  const readZone = operation({ label: "readZone", depends: { zone }, run: ({ zone }) => zone });
-  const scope = createScope({ tags: [zone("eu")] });
-  expect(scope.controller(readZone).run()).toBe("eu");
-  expect(scope.controller(readZone).run({ tags: [zone("us")] })).toBe("us");
-  expect(scope.controller(readZone).run()).toBe("eu");
-});
-
-test("per-call tags do not propagate into a nested subflow", () => {
-  const zone = tag<string>({ label: "zone", default: "base" });
-  const inner = operation({ label: "inner", depends: { zone }, run: ({ zone }) => zone });
+  const leaf = operation({ label: "leaf", depends: { zone }, run: ({ zone }) => zone });
+  const mid = operation({
+    label: "mid",
+    depends: { leaf, zone },
+    run: ({ leaf, zone }) => `${zone}/${leaf.run()}`,
+  });
   const outer = operation({
     label: "outer",
-    depends: { inner, zone },
-    run: ({ inner, zone }) => `${zone}/${inner.run()}`,
+    depends: { mid, zone },
+    run: ({ mid, zone }) => `${zone}/${mid.run()}`,
   });
   const scope = createScope({ tags: [zone("eu")] });
-  expect(scope.controller(outer).run({ tags: [zone("us")] })).toBe("us/eu");
+  expect(scope.run(outer)).toBe("eu/eu/eu");
+  expect(await scope.run(outer, { tags: [zone("us")] })).toBe("us/us/us");
+  expect(scope.run(outer)).toBe("eu/eu/eu");
 });
 
 test("an undefined input is treated as absent, so rawInput is parsed (no NaN leak)", () => {
@@ -4154,4 +4152,192 @@ test("scope.run shares the controller path: one record lookup, stable controller
   expect(ctl.run()).toBe(2);
   expect(scope.controller(ping)).toBe(ctl);
   expect(runs).toBe(2);
+});
+
+test("scope.run runs an inline operation with deps, a param, and the full ctx", () => {
+  const count = data({ initial: 3, parse: asNumber });
+  const store = resource({ label: "store", factory: () => ({ id: "built" }) });
+  const zone = tag<string>({ label: "zone", default: "base" });
+  const row = { name: "ada" };
+  const scope = createScope({ tags: [zone("eu")] });
+  const out = scope.run(
+    {
+      depends: { count, store, zone },
+      run: ({ count, store, zone }, ctx) => ({
+        count,
+        store,
+        zone,
+        input: ctx.input,
+        raw: ctx.rawInput,
+      }),
+    },
+    { input: row },
+  );
+  expect(out.count).toBe(3);
+  expect(out.store).toBe(scope.resolve(store));
+  expect(out.zone).toBe("eu");
+  expect(out.input).toBe(row);
+  expect(out.raw).toBe(row);
+});
+
+test("scope.run runs an inline operation with no call: deps resolve and ctx.input is void", () => {
+  const count = data({ initial: 21, parse: asNumber });
+  const scope = createScope();
+  const doubled = scope.run({
+    depends: { count },
+    run: ({ count }, ctx) => {
+      const input: void = ctx.input;
+      expect(input).toBe(undefined);
+      return count * 2;
+    },
+  });
+  const value: number = doubled;
+  expect(value).toBe(42);
+});
+
+test("an inline run yields one span named inline (or its label), with a nested subflow under it", () => {
+  const inner = operation({ label: "inner", run: () => "in" });
+  const scope = createScope({ observe: { history: 10 } });
+  const out = scope.run({
+    label: "job",
+    depends: { inner },
+    run: ({ inner }) => `out-${inner.run()}`,
+  });
+  expect(out).toBe("out-in");
+  const spans = scope.spans();
+  expect(spans.length).toBe(2);
+  const job = spans.find((s) => s.name === "job");
+  const leaf = spans.find((s) => s.name === "inner");
+  expect(job?.kind).toBe("operation");
+  expect(job?.status).toBe("ok");
+  expect(leaf?.parentId).toBe(job?.id);
+  const plain = createScope({ observe: { history: 10 } });
+  plain.run({ run: () => "x" });
+  const only = plain.spans();
+  expect(only.length).toBe(1);
+  expect(only[0].name).toBe("inline");
+  expect(only[0].kind).toBe("operation");
+  expect(only[0].status).toBe("ok");
+});
+
+test("a forced close aborts an in-flight inline sleep: defer sees cancelled, close settles cancelled", async () => {
+  const clk = makeTestClock({ now: 0 });
+  let end: string | undefined;
+  const scope = createScope({ clock: clk });
+  const done = scope.run({
+    run: (_deps, { clock, signal, defer }) => {
+      defer((e) => {
+        end = e.status;
+      });
+      return clock.sleep(10_000, signal);
+    },
+  });
+  const result = await scope.close();
+  expect(result.status).toBe("cancelled");
+  expect(end).toBe("cancelled");
+  await expect(done).rejects.toBeDefined();
+});
+
+test("an inline run receives a preset resource through the deps it names", () => {
+  const store = resource({ label: "store", factory: () => ({ id: "real" }) });
+  const scope = createScope({ presets: [preset(store, () => ({ id: "fake" }))] });
+  expect(scope.run({ depends: { store }, run: ({ store }) => store.id })).toBe("fake");
+});
+
+test("the same inline config run twice shares nothing: two spans, two bodies", () => {
+  let runs = 0;
+  const scope = createScope({ observe: { history: 10 } });
+  const cfg = { run: () => ++runs };
+  expect(scope.run(cfg)).toBe(1);
+  expect(scope.run(cfg)).toBe(2);
+  expect(runs).toBe(2);
+  expect(scope.spans().length).toBe(2);
+});
+
+test("a tagged run builds session resources in the flow and leaves scope resources at the root", async () => {
+  const zone = tag<string>({ label: "zone", default: "base" });
+  const flow = resource({
+    label: "flow",
+    target: "session",
+    depends: { zone },
+    factory: ({ zone }) => zone,
+  });
+  const root = resource({
+    label: "root",
+    depends: { zone },
+    factory: ({ zone }) => zone,
+  });
+  const read = operation({
+    label: "read",
+    depends: { flow, root },
+    run: ({ flow, root }) => `${flow}/${root}`,
+  });
+  const scope = createScope({ tags: [zone("eu")] });
+  expect(await scope.run(read, { tags: [zone("us")] })).toBe("us/eu");
+});
+
+test("a tagged run's session closes when the run settles: success then failed", async () => {
+  const seen: string[] = [];
+  const flow = resource({
+    label: "flow",
+    target: "session",
+    factory: (_deps, { defer }) => {
+      defer((e) => {
+        seen.push(e.status);
+      });
+      return "f";
+    },
+  });
+  const ok = operation({ label: "ok", depends: { flow }, run: ({ flow }) => flow });
+  const boom = operation({
+    label: "boom",
+    depends: { flow },
+    run: ({ flow }) => {
+      if (flow === "f") throw new Error("no");
+      return flow;
+    },
+  });
+  const zone = tag<string>({ label: "zone", default: "base" });
+  const scope = createScope();
+  expect(await scope.run(ok, { tags: [zone("us")] })).toBe("f");
+  expect(seen).toEqual(["success"]);
+  try {
+    await scope.run(boom, { tags: [zone("us")] });
+    expect.unreachable();
+  } catch (error) {
+    if (!(error instanceof Error) || error.message !== "no") throw error;
+  }
+  expect(seen).toEqual(["success", "failed"]);
+});
+
+test("a tagged inline run behaves the same: the flow sees the tags", async () => {
+  const zone = tag<string>({ label: "zone", default: "base" });
+  const scope = createScope({ tags: [zone("eu")] });
+  const out: string = await scope.run(
+    { depends: { zone }, run: ({ zone }) => zone },
+    { tags: [zone("us")] },
+  );
+  expect(out).toBe("us");
+});
+
+test("an untagged run builds a session resource at the root, with no session opened", () => {
+  let builds = 0;
+  const flow = resource({
+    label: "flow",
+    target: "session",
+    factory: () => `f${++builds}`,
+  });
+  const read = operation({ label: "read", depends: { flow }, run: ({ flow }) => flow });
+  const scope = createScope();
+  expect(scope.run(read)).toBe("f1");
+  expect(scope.run(read)).toBe("f1");
+  expect(builds).toBe(1);
+});
+
+test("a tagged call is always async: a sync op resolves through a promise", async () => {
+  const ping = operation({ label: "ping", run: () => 7 });
+  const zone = tag<string>({ label: "zone", default: "base" });
+  const out: Promise<number> = createScope().run(ping, { tags: [zone("us")] });
+  expect(out instanceof Promise).toBe(true);
+  expect(await out).toBe(7);
 });
