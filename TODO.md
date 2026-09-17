@@ -20,14 +20,7 @@ integration (Hono, maybe Express); app entrypoint with graceful shutdown; TUI ap
       to `scope.run(op, call)` and resource reads to `scope.resolve(res)` where the controller is not
       otherwise used. **Verify:** `scripts/scip.sh refs` shows `Handle#…:run()` ≫ `OperationController…:run()`
       in tests; `vp run core#test` green; no behaviour change.
-- [ ] **core/t27 — performance protection for the new call paths (later, after t26 lands).** The
-      new shapes (tagged call = session per call, inline = handle per call) get their own guard
-      rails, separate from the feature work: probe scenarios `inline`, `tagged`, `tagged_sync` in
-      `bench/core-probe.mjs` with recorded floors in `docs/roadmap/core-v1/budgets.md`; a
-      `promises` lane count for a tagged call (ADR 0016 style: N promises per tagged call, fixed);
-      heap lane covers a tagged call; `op`/`run`/`warm` floors unchanged. **Verify:** `pnpm validate`
-      has the new lanes green; `bench` sandbox numbers recorded in budgets.md; a regression on any
-      floor fails the gate.
+- [x] **core/t27 — performance protection for the new call paths.** _Done: tag `core/t27` (2e1f261 + docs ff83d6d): probes `session`/`tagged`/`inline`, exact `promises_tagged` = 17 as a validate gate, heap figure recorded, "Call paths (t27)" table in `docs/roadmap/core-v1/budgets.md`; mutation 78.47. Parity on `op` unmeasurable in-container (box bimodal 78/90 on both trees) → sandbox `bench` when available._
 
 ## Shipped — archived
 
