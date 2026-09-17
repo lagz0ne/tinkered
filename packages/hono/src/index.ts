@@ -1,13 +1,13 @@
 import { createMiddleware } from "hono/factory";
 import type { Context, MiddlewareHandler as Middleware } from "hono";
 import type { Operation, Scope, Tag } from "@tinker/core";
-import { tag } from "@tinker/core";
-import { raise } from "./errors.ts";
+import { isError as isCoreError, tag } from "@tinker/core";
+import { isError, raise } from "./errors.ts";
 
 /** A Hono route endpoint: takes the context, answers the response. */
 type Endpoint = (c: Context) => Promise<Response>;
 
-export { isError } from "./errors.ts";
+export { isError };
 export type { Errors } from "./errors.ts";
 
 /** The web Request for this request, bound on the request session for the rare
@@ -15,10 +15,16 @@ export type { Errors } from "./errors.ts";
 export const request: Tag.Handle<Request> = tag({ label: "hono.request" });
 
 export declare namespace HonoScope {
-  /** Options for {@link tinker}: one slot for request-derived tag bindings. */
+  /** Options for {@link tinker}: request-derived tag bindings plus first-hand errors. */
   export type Options = {
     readonly tags?: (c: Context) => readonly Tag.Binding<unknown>[];
+    readonly onError?: OnError;
   };
+  /** Answer a request failure: return a Response to use it, `undefined` for the default map. */
+  export type OnError = (
+    error: unknown,
+    c: Context,
+  ) => Response | undefined | Promise<Response | undefined>;
   /** How a route answers: parses the request into raw input and writes the value. `I`
    * selects the overload (required `input` when the operation takes one); only `T` is read. */
   export type Route<_I, T> = {
@@ -29,7 +35,9 @@ export declare namespace HonoScope {
   export type Respond<T> = (value: Awaited<T>, c: Context) => Response | Promise<Response>;
 }
 
-type SessionEnv = { Variables: { "tinker.session": Scope.Handle } };
+type SessionEnv = {
+  Variables: { "tinker.session": Scope.Handle; "tinker.onError": HonoScope.OnError | undefined };
+};
 
 /** Open one session per request, bound with the request plus any request-derived tags.
  * A client abort force-closes the session; after the handler the session closes (forced). */
@@ -40,6 +48,7 @@ export function tinker(scope: Scope.Handle, options?: HonoScope.Options): Middle
       tags: [request(raw), ...(options?.tags?.(c) ?? [])],
     });
     c.set("tinker.session", session);
+    c.set("tinker.onError", options?.onError);
     const onAbort = (): void => {
       ignoreRejection(session.close());
     };
@@ -71,10 +80,11 @@ export function handle<T, I>(op: Operation.Handle<T, I>, route?: HonoScope.Route
   const run = (c: Context): Promise<Response> => {
     const session = (c as Context<SessionEnv>).get("tinker.session");
     if (!session) raise("NoSession", { label: op.label });
+    const onError = (c as Context<SessionEnv>).get("tinker.onError");
     return session.run({
       label: `${c.req.method} ${c.req.routePath}`,
       depends: { op },
-      run: readRoute(op, route, c),
+      run: readRoute(op, route, c, onError),
     });
   };
   return run;
@@ -85,11 +95,15 @@ function runVoid<T, I>(flow: Scope.OperationController<T, I>): T {
   return (flow.run as () => T)();
 }
 
-/** Build the request run: input \u2192 op subflow \u2192 respond \u2192 status + one log line. */
+/** Build the request run: input to op subflow to respond to status + one log line.
+ * `onError` answers first; otherwise the default map turns a handled failure into
+ * a Response (400/499/500, request span `ok`) and rethrows the rest — the unmapped
+ * path is Hono's, so it writes no log line (Hono's `onError` decides that status). */
 function readRoute<T, I>(
   op: Operation.Handle<T, I>,
   route: HonoScope.Route<I, T> | undefined,
   c: Context,
+  onError: HonoScope.OnError | undefined,
 ): (
   deps: { readonly op: Scope.OperationController<T, I> },
   ctx: Operation.Ctx<void>,
@@ -105,22 +119,73 @@ function readRoute<T, I>(
       span.attributes.route = pattern;
       span.attributes.path = path;
     }
+    const done = (response: Response): Response => {
+      if (span) span.attributes.status = response.status;
+      ctx.log("http request", {
+        method,
+        route: pattern,
+        path,
+        status: response.status,
+        ms: ctx.clock.currentTimeMillis() - started,
+      });
+      return response;
+    };
     const respond: HonoScope.Respond<T> = route?.respond ?? defaultRespond;
-    const ran = route?.input !== undefined ? flow.run({ rawInput: route.input(c) }) : runVoid(flow);
-    return Promise.resolve(ran).then((value) =>
-      Promise.resolve(respond(value, c)).then((response) => {
-        if (span) span.attributes.status = response.status;
-        ctx.log("http request", {
-          method,
-          route: pattern,
-          path,
-          status: response.status,
-          ms: ctx.clock.currentTimeMillis() - started,
-        });
-        return response;
-      }),
-    );
+    const readInput = route?.input;
+    const answer = async (): Promise<Response> => {
+      const raw = readInput?.(c);
+      let value: Awaited<T>;
+      try {
+        const ran = readInput ? flow.run({ rawInput: raw }) : runVoid(flow);
+        value = await ran;
+      } catch (error: unknown) {
+        const mapped = await mapError(error, op, raw, c, onError, ctx.signal);
+        if (mapped === undefined) {
+          done(new Response(null, { status: 499 }));
+          throw error;
+        }
+        return done(mapped);
+      }
+      return done(await respond(value, c));
+    };
+    return answer();
   };
+}
+
+/** Map a request failure to a Response. `onError` answers first; the default map answers
+ * 400 (input parse), 499 (the request's own cancellation), 500 (a missing binding); the
+ * rest rethrows, leaving the request span `failed` for Hono's `onError`. */
+function mapError<T, I>(
+  error: unknown,
+  op: Operation.Handle<T, I>,
+  raw: unknown,
+  c: Context,
+  onError: HonoScope.OnError | undefined,
+  signal: AbortSignal,
+): Promise<Response | undefined> {
+  const custom = onError ? onError(error, c) : undefined;
+  return Promise.resolve(custom).then((response) => {
+    if (response) return response;
+    if (isCoreError(error, "DataValidationFailed") || isRouteParse(error, op, raw))
+      return c.text("bad request", 400);
+    if (signal.aborted || error === signal.reason) return undefined;
+    if (isCoreError(error, "MissingTag") || isError(error, "NoSession"))
+      return c.text("internal", 500);
+    throw error;
+  });
+}
+
+/** True when `error` is the route op's own input parse rejecting this request's raw
+ * input: the parse throws on the same raw value (a parse is a pure check, so throwing
+ * again on the same input identifies it without reading the message). */
+function isRouteParse<T, I>(error: unknown, op: Operation.Handle<T, I>, raw: unknown): boolean {
+  if (!(error instanceof Error) || !op.input) return false;
+  try {
+    op.input(raw);
+  } catch (rerun: unknown) {
+    return rerun instanceof Error && rerun.constructor === error.constructor;
+  }
+  return false;
 }
 
 const noop = (): void => undefined;

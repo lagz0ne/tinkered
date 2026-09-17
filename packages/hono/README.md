@@ -44,5 +44,16 @@ expect(await res.json()).toEqual({ id: 42 });
 Each request runs as an inline operation (`"GET /users/:id"`) whose one dependency is the
 route's operation — so core's spans, one `http request` log line, clock, and signal come for
 free. A client abort force-closes the session; without `tinker` upstream, `handle` raises
-`NoSession`. Error mapping is a later ticket: an operation throwing reaches Hono's `onError`
-unchanged.
+`NoSession`.
+
+## Errors
+
+| failure                    | status                                    |
+| -------------------------- | ----------------------------------------- |
+| op input parse fails       | 400                                       |
+| request cancelled (abort)  | 499 (logged, then Hono rejects as before) |
+| `MissingTag` / `NoSession` | 500                                       |
+| anything else              | rethrown to Hono's `onError`, no log line |
+
+`tinker(scope, { onError: (e, c) => Response | undefined })` answers first; `undefined`
+falls through to the table. A mapped failure settles the request span `ok`.
