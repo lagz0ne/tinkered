@@ -14,11 +14,24 @@ First integration shipped: **httpClient** (ADR 0035, archived below). Second shi
 (ADR 0039/0040, archived below). Later candidates: app entrypoint with graceful
 shutdown; TUI app — each starts with `grill-with-docs`.
 
-**The list is empty.** Next authoring candidates (each starts with `grill-with-docs`): app entrypoint
-with graceful shutdown (one scope, several drivers — amends ADR 0039 Q3); TUI app. Perf follow-up when the
-sandbox `bench` is available: `op` parity (budgets.md "Call paths (t27)"). Next authoring candidates (each starts with `grill-with-docs`): server
-integration (Hono, maybe Express); app entrypoint with graceful shutdown; TUI app. Perf follow-up
-when the sandbox `bench` is available: `op` parity (budgets.md "Call paths (t27)").
+**Authoring queue (user-ordered, 2026-09-17).** Each starts with `grill-with-docs` (ADR + glossary), then
+tickets, then contributors with lead review:
+
+1. **Drizzle** — dedicated capability: `drizzleStore({ label, open, close? })` with `config` tag, scope-target
+   `db` resource (open/close by `defer`), session-target `tx` resource (commit on `success`, rollback on
+   `failed`/`cancelled` — the session outcome), one `db query` log line per statement, PGlite as the real test
+   database. Grill round 1 sent; awaiting answers.
+2. **CLI entrypoint** — the first scope-OWNING driver (`@tinker/cli`): creates the scope at `main`, parses argv
+   at the edge into an operation's `rawInput`, runs the command as an inline op in a session (span + log line, like
+   a request), maps the outcome to stdout + exit code, SIGINT/SIGTERM → forced close (`cancelled`), graceful close
+   on completion. Amends ADR 0039 Q3 (one scope, several drivers).
+3. **Claude** — dedicated capability over the Anthropic SDK (frame: backend slot, config tag with model/key,
+   message operations, streaming via `data` cells per ADR 0021, `ctx.signal` cancellation, usage on spans).
+   Design with the `claude-api` skill loaded for current model ids and params.
+4. **Codex** — the same frame shape over OpenAI's Codex, sharing whatever the Claude integration proves reusable
+   (an LLM-client frame), so the second one is mostly configuration.
+
+Perf follow-up when the sandbox `bench` is available: `op` parity (budgets.md "Call paths (t27)").
 
 ## Shipped — archived
 
