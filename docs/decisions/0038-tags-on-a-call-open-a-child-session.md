@@ -37,8 +37,10 @@ scope.run(importJob, { input: file, tags: [logBackend(fileSink)] });
   takes the current path plus one `call.tags` check. Measured at landing (core/t26, in-container
   alternating A/B on one pinned core): `op` 78 → 90 ns, `run` 88 → 101 ns — the path does strictly
   less work than before (the old overlay seeding is gone), so the residual is code layout, not
-  work; core/t27 owns recovering it and setting floors. A hot loop does not pass tags per call;
-  it binds them once on a session.
+  work. core/t27 re-measured: by then the box was bimodal (both main and the branch alternate
+  78/90 ns on `op`), so no gap was measurable; the floors and the exact tagged promise census
+  (17) are recorded in `docs/roadmap/core-v1/budgets.md` "Call paths (t27)". A hot loop does not
+  pass tags per call; it binds them once on a session.
 - **A tagged call is always async.** A session closes asynchronously (`close()` resolves a
   `Result`, ADR 0027), so `run(x, { tags })` returns `Promise<Awaited<T>>` even when the body is
   sync — typed that way on the overload, no sync fast path. Accepted deliberately: a per-flow
