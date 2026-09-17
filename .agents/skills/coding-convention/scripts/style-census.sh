@@ -35,7 +35,7 @@ S05|src|bare throw new Error / TypeError|throw new (Error|TypeError|RangeError)\
 S06|src|console in source|\bconsole\.[a-z]+\(
 S07|src|enum declaration|^[[:space:]]*(export )?(const )?enum 
 S08|src|Reflect call|\bReflect\.[a-zA-Z]+\(
-S09|src|layer word in a name|\b[A-Za-z]*(Runtime|Manager|Handler|Wrapper|Candidate|Provenance)\b
+S09|src|layer word in a name|^(?!\s*import\b).*\b[A-Za-z]*(Runtime|Manager|Handler|Wrapper|Candidate|Provenance)\b
 S10|src|line comment (only TSDoc allowed)|^[[:space:]]*//|[[:space:];][/]{2}[^/]
 S11|src|block comment that is not TSDoc|/\*[^*]
 S12|all|ts-ignore / ts-expect-error|@ts-(ignore|expect-error)

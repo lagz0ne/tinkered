@@ -13,6 +13,7 @@ catalog:
   "@types/node": ^24
   "@types/use-sync-external-store": ^1.7.0
   effect: ^3.22.2
+  hono: ^4.13.8
   mitata: ^1.0.34
   react: ^19.3.0
   react-dom: ^19.3.0
