@@ -35,7 +35,7 @@ export function handle<T, I>(
 
 | tag      | ticket                                                                                             | blockers | status |
 | -------- | -------------------------------------------------------------------------------------------------- | -------- | ------ |
-| hono/t01 | Package + `tinker` + `handle` (request = inline op: span + log) + `request` tag; abort → cancelled | —        | [ ]    |
+| hono/t01 | Package + `tinker` + `handle` (request = inline op: span + log) + `request` tag; abort → cancelled | —        | [x]    |
 | hono/t02 | Error mapping inside the request + `onError` slot (400 / 499 / 500 / rethrow)                      | 01       | [ ]    |
 | hono/t03 | `stream(c, write)`: streaming Response keeps the request session open until the body ends          | 01       | [ ]    |
 | hono/t04 | Validation milestone: size, mutation, README + cast-free example, validate lanes; SHIP             | 02, 03   | [ ]    |
