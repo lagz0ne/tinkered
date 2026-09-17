@@ -45,7 +45,7 @@ CommandController|Operation\.Command` left in packages/ bench/ README docs (grep
       heap lane covers a tagged call; `op`/`run`/`warm` floors unchanged. **Verify:** `pnpm validate`
       has the new lanes green; `bench` sandbox numbers recorded in budgets.md; a regression on any
       floor fails the gate.
-- [ ] **http/t01 — package + frame + execute.** `packages/http` scaffold (10 kB cap, errors registry,
+- [x] **http/t01 — package + frame + execute.** _Done: tag `http/t01` (b31ad3f), gate green, size 4312 B, lead review SHIP (3 should-fix + nits taken; client resource is session-target). Mutation 43.35 — below the t05 break line (60): 102 uncovered mutants in the unexercised request builders and the fetch body builder; t02 must lift it (SCIP map: `head/put/patch/del/options/modify/appendUrl/setHeader/setUrlParams/bodyBytes/bodyFormData/bodyUrlParams` have no test reference)._ `packages/http` scaffold (10 kB cap, errors registry,
       gate via `scripts/ticket.sh` with a package arg); `httpClient({ label })` → `config` tag,
       `client` resource; shared `backend` tag with `fetchBackend`; `HttpRequest.*` constructors +
       bodies; `HttpResponse.fromWeb/make`; `execute(request, ctx)` merges baseUrl/headers and

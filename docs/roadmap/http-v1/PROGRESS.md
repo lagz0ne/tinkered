@@ -49,7 +49,7 @@ its tag exists.
 
 | tag      | ticket                                                                                        | blockers | status |
 | -------- | --------------------------------------------------------------------------------------------- | -------- | ------ |
-| http/t01 | Package + frame + `execute`: scaffold, errors, tags, `fetchBackend`, request/response records | —        | [ ]    |
+| http/t01 | Package + frame + `execute`: scaffold, errors, tags, `fetchBackend`, request/response records | —        | [x]    |
 | http/t02 | Endpoint operations + `preset` seam + cancel; status filters                                  | 01       | [ ]    |
 | http/t03 | Observation + logging: child span per request, failure log line, zero cost when off           | 01       | [ ]    |
 | http/t04 | Retry: frame slot, transient policy, `ctx.clock.sleep` backoff under a TestClock              | 02       | [ ]    |
@@ -71,6 +71,11 @@ its tag exists.
   `RequestFailed/Transport` with the cause. `fetchBackend` is the tag default (type-level +
   `backend.hasDefault`). `HttpResponse.fromWeb(req, new Response("x"))` reads `text()`; `source`
   is the web `Response`. `vp check` + `vp run -r test` + `http#size` green.
+  - _Landed (b31ad3f, lead review SHIP):_ size 4312 B; mutation **43.35** with 102 uncovered mutants
+    (request builders never referenced by a test, `fetchBackend`'s body builder) — recorded, not
+    hidden; the t05 break line (60) is reached by t02's endpoint scenarios (verbs + bodies) and, if
+    still short, a `fetchBackend` scenario against a loopback server (a real dependency, not a mock).
+    Review changed the client resource to `target: "session"` (ADR 0035 amended).
 - **t02** — `github.operation({ label, input: parse, request, response })` is labelled
   `github.<label>` and resolves through a scope with `{ input }` and `{ rawInput }` (parse runs);
   `response` omitted delivers the raw `HttpResponse.Handle`; a per-call
