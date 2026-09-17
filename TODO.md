@@ -14,12 +14,6 @@ First integration shipped: **httpClient** (ADR 0035, archived below). Second shi
 (ADR 0039/0040, archived below). Later candidates: app entrypoint with graceful
 shutdown; TUI app — each starts with `grill-with-docs`.
 
-- [x] **core/t25 — tests speak the everyday verbs (SCIP-driven).** _Done: tag `core/t25`. 193 inline
-      `controller(x).run(...)` / `controller(x).resolve()` chains in core tests rewritten to `scope.run(x, …)` /
-      `scope.resolve(x)`; SCIP after: `Scope.run` 21→102 refs, `Scope.resolve` 8→120, `controller` 290→97
-      (the 45 remaining `OperationController.run` are held controllers and subflows). 228 tests green, 0 errors,
-      census OK; no behaviour change._
-
 **The list is empty.** Next authoring candidates (each starts with `grill-with-docs`): app entrypoint
 with graceful shutdown (one scope, several drivers — amends ADR 0039 Q3); TUI app. Perf follow-up when the
 sandbox `bench` is available: `op` parity (budgets.md "Call paths (t27)"). Next authoring candidates (each starts with `grill-with-docs`): server
@@ -53,7 +47,8 @@ matchStatus`, one child span per attempt + one log line on transport failure, `r
   `docs/roadmap/http-v1/PROGRESS.md`.
 - **verbs + inline + tagged calls (2026-09-17)** — core/t24 (`controller`/`resolve`/`run`, ADR 0036,
   mutation 78.57), core/t26 (inline `scope.run({ depends, run }, call?)`, ADR 0037; `tags` on a call
-  open a child session, always async, ADR 0038; mutation 78.39; +9 ns on `op` recorded → core/t27).
+  open a child session, always async, ADR 0038; mutation 78.39; +9 ns on `op` recorded → core/t27),
+  core/t27 (call-path floors, exact tagged promise census 17), core/t25 (tests speak the everyday verbs).
 
 - **clock v1** — complete and shipped (t20–t23, tags `core/t20`…`core/t23`, ADR 0034): ambient `Clock`
   on every ctx, `makeTestClock` (now/advance/setTime), virtual + real `sleep` with signal abort, forced
