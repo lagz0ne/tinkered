@@ -46,20 +46,28 @@ When a request is a plan, design, decision, or "how does X work":
 3. `to-tickets` — once the design is settled, break it into tickets.
 4. `coding-convention` — applies to every TypeScript file and test written after.
 
-## Code navigation (SCIP — lean on it)
+## Code navigation (SCIP — part of the workflow, not optional)
 
-`scip-typescript` + the `scip` CLI live in the persistent home. **Lean on them** for precise
-symbol navigation — defs, refs, occurrences, and approximate call edges across `packages/*` —
-instead of guessing symbols or scanning by hand. It is the highest-signal way to map the API
-and find every use of a symbol before a change (see `docs/roadmap/core-v1/hot-paths.md` for a
-SCIP-backed hot-path map). Keep an index per package and regenerate as the code grows (indexes
-are gitignored under `.scip/`):
+`scripts/scip.sh` wraps `scip-typescript` + the `scip` CLI (both in the persistent home; the script
+sets PATH itself). It gives symbol-precise defs and per-file reference counts — grep cannot tell
+`ResourceController.resolve()` from `OperationController.run()` in the same file; SCIP can.
 
 ```bash
-cd packages/<pkg> && scip-typescript index --output ../../.scip/<pkg>.scip
-scip print --json .scip/<pkg>.scip | head    # symbols / occurrences
-scip stats --from .scip/<pkg>.scip           # size of the map
+scripts/scip.sh index                                  # all packages -> .scip/<pkg>.scip (seconds; gitignored)
+scripts/scip.sh refs 'Handle#\w+:run\(\)\.$'           # definitions + refs per file, every package
+scripts/scip.sh symbols 'OperationController' core      # learn the exact symbol strings first
 ```
+
+Three fixed uses (skipping one is a review finding):
+
+1. **Before any public-symbol change** (rename, removal, signature): the contributor brief includes the
+   `refs` table for every touched symbol — the blast radius — and the contributor edits from that
+   table, not from grep or compiler errors alone.
+2. **Lead review of every ticket:** re-run `scripts/scip.sh index`, then `refs` on the OLD symbols (must
+   print `(none)`) and on the NEW ones (files must match the expectation from the brief). Paste both
+   in the review note.
+3. **Plans and ADRs** cite definition lines from `refs` ("Anchors" in `docs/roadmap/**/PROGRESS.md`),
+   never hand-typed line numbers.
 
 ## Execution workflow (todo list)
 

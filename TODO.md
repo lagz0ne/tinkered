@@ -20,6 +20,11 @@ each lead-reviewed to SHIP before the next.
       (`run`/`runAsync`). Docs, README, examples, benches, tests move together. **Verify:** `vp check`
       0 errors, `vp run -r test` green, `pnpm validate` green, no `getController|\.read\(\)|useResolve|
 CommandController|Operation\.Command` left in packages/ bench/ README docs (grep = 0); lead review SHIP.
+- [ ] **core/t25 — tests speak the everyday verbs (SCIP-driven, optional, strike if unwanted).** SCIP shows
+      core tests call `scope.controller(op).run()` 128× and `scope.run(op)` 3×; migrate operation calls
+      to `scope.run(op, call)` and resource reads to `scope.resolve(res)` where the controller is not
+      otherwise used. **Verify:** `scripts/scip.sh refs` shows `Handle#…:run()` ≫ `OperationController…:run()`
+      in tests; `vp run core#test` green; no behaviour change.
 - [ ] **http/t01 — package + frame + execute.** `packages/http` scaffold (10 kB cap, errors registry,
       gate via `scripts/ticket.sh` with a package arg); `httpClient({ label })` → `config` tag,
       `client` resource; shared `backend` tag with `fetchBackend`; `HttpRequest.*` constructors +
