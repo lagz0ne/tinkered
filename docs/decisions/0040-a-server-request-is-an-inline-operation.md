@@ -38,8 +38,11 @@ session.run({ label: "GET /users/:id", depends: { op }, run })
    and may answer; otherwise the default map answers: the operation's `parse` failure
    (`DataValidationFailed`) → **400**; the request's own cancellation (`cancelled` — client abort or
    forced close) → **499** client closed request; `MissingTag` / `NoSession` → **500**; anything
-   else rethrows to Hono's `onError`. A mapped failure still settles the request span `failed` and
-   is logged with its status; the operation's own span settled `failed` already.
+   else rethrows to Hono's `onError`. A mapped failure is a HANDLED request: the request span
+   settles `ok` with the mapped `status` attribute and the log line carries it (Effect's shape —
+   `toHandled` succeeds once a response exists); the operation's own span settled `failed`
+   already, so the failure is still visible where it happened. Only an unmapped error leaves the
+   request span `failed`.
 3. **Streaming lifetime, explicit.** A route that streams uses `stream(c, (write) => …)` from
    `@tinker/hono`: it builds the streaming Response and keeps the request session open until the
    body finishes or the client cancels, then closes it. Every other response closes the session
