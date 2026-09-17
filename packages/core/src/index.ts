@@ -537,6 +537,11 @@ export function preset(node: unknown, replacement: unknown): Scope.Preset {
 type Entry = { value: unknown };
 /** A releasable node: a data cell or a resource. Release cascades from a node to its dependents. */
 type Node = Data.Cell<unknown> | Resource.Handle<unknown>;
+/** One subscription: a wrapper so the same listener subscribed twice keeps two identities. The
+ * single per-layer compare lives on the record (`notified`), never here. */
+type Watcher = {
+  fn: (next: unknown) => void;
+};
 /** An end-hook (`ctx.defer`) tagged with the resource that registered it (undefined = userland
  * `onClose`), so `release` can drop exactly one resource's hooks without touching others. Kept in
  * registration order; teardown runs them in reverse (ADR 0026). */
@@ -571,7 +576,7 @@ class NodeState {
    * span, so a controller for (layer, node) is stable — reuse it instead of reallocating closures. */
   controller: unknown = undefined;
   /** Watchers of this cell registered at this layer (a write visits only the changed cell's). */
-  watchers: Set<(next: unknown) => void> | undefined = undefined;
+  watchers: Set<Watcher> | undefined = undefined;
   /** Value the watchers at this layer were last called with; refreshed at registration so a new
    * watcher never inherits a stale comparison. */
   notified: unknown = undefined;
@@ -700,9 +705,9 @@ function flushOne(layer: Layer, target: Data.Cell<unknown>): void {
 }
 
 /** Run one layer's watchers in registration order against the value already read for the layer. */
-function notifyLayer(rec: NodeState, ws: Set<(next: unknown) => void>, next: unknown): void {
+function notifyLayer(rec: NodeState, ws: Set<Watcher>, next: unknown): void {
   rec.notified = next;
-  for (const fn of ws) fn(next);
+  for (const w of ws) w.fn(next);
 }
 
 function cellEq(target: Data.Cell<unknown>, a: unknown, b: unknown): boolean {
@@ -772,15 +777,16 @@ function addWatcher(
 ): () => void {
   ensureOpen(layer);
   refreshNotified(layer, target, rec);
-  (rec.watchers ??= new Set()).add(fn);
-  return () => void rec.watchers?.delete(fn);
+  const w: Watcher = { fn };
+  (rec.watchers ??= new Set()).add(w);
+  return () => void rec.watchers?.delete(w);
 }
 
 /** Recompute this layer's last notified value when it went stale before a new watcher registers. */
 function refreshNotified(layer: Layer, target: Data.Cell<unknown>, rec: NodeState): void {
-  if (!rec.watchers?.size && !cellEq(target, rec.notified, readCell(layer, target))) {
-    rec.notified = readCell(layer, target);
-  }
+  if (rec.watchers?.size) return;
+  const next = readCell(layer, target);
+  if (!cellEq(target, rec.notified, next)) rec.notified = next;
 }
 
 function dataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataController<T> {

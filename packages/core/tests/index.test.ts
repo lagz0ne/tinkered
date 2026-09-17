@@ -583,6 +583,23 @@ test("a watcher joining after the value returned still fires on the next change"
   stopSecond();
 });
 
+test("the same listener subscribed twice fires twice, and one unsubscribe leaves the other", () => {
+  const n = data({ initial: 0, parse: asNumber });
+  const ctl = createScope().getController(n);
+  let calls = 0;
+  const listener = (): void => {
+    calls++;
+  };
+  const stopFirst = ctl.watch(listener);
+  const stopSecond = ctl.watch(listener);
+  ctl.set(1);
+  expect(calls).toBe(2);
+  stopFirst();
+  ctl.set(2);
+  expect(calls).toBe(3);
+  stopSecond();
+});
+
 test("a watcher registered before a child shadows still sees the parent's later write", () => {
   const n = data({ initial: 0, parse: asNumber });
   const root = createScope();
