@@ -57,7 +57,7 @@ CommandController|Operation\.Command` left in packages/ bench/ README docs (grep
       → `ResponseFailed/StatusCode`; `preset(x.client, …)` and `preset(endpoint, …)` swap;
       forced close aborts an in-flight request and the run settles `cancelled`. **Verify:** tests
       for each; gate green.
-- [ ] **http/t03 — observation + logging.** A child span `http GET <url>` under the endpoint span
+- [x] **http/t03 — observation + logging.** _Done: tag `http/t03` (b1ac653), gate green (299 tests), size 5514 B, lead review SHIP, mutation 67.26._ A child span `http GET <url>` under the endpoint span
       with method/url/status attributes, failed on error, one `log` line on failure. **Verify:**
       `scope.spans()` + `observe.log` assertions; observation off costs nothing (no spans). Gate.
 - [ ] **http/t04 — retry.** Frame slot `retry: { times, delay? }`, transient policy, backoff via
