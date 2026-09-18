@@ -57,6 +57,24 @@ A ✓ means the call is linked to the objective, intention, and verification
 chain. A ⚠ means at least one link is weak (≥ 60%): drop the call, or state in
 one line why you proceed anyway. It never blocks.
 
+### All-in-one — `run` (gate → execute → prune, a single call)
+
+To wrap a real command in the whole chain at once — no separate `before`/`after`:
+
+```bash
+node scripts/jev/toolcall.mjs run \
+  --intention "Inspect the failing auth test to locate the null-session bug" \
+  --why "read the test output" \
+  -- vp test auth
+```
+
+It gates the command (won't run an off-intention or unsafe one — add `--force` to
+override), runs it, then prunes the output. `--intention` (with optional
+`--objective`/`--verification`) is used inline; omit them to reuse the saved frame.
+Everything after `--` is the real command, run without a shell so your quoting is
+kept. This is the "squeeze it into one call" form; `frame`/`before`/`after` remain
+for wrapping non-command tools (Read, Edit, MCP calls).
+
 ### 3. After — verify the result and trim the output
 
 Write the tool's raw output to a file, then:

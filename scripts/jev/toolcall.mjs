@@ -18,6 +18,7 @@
 // (nothing lost; full dump in .jev/). The only pass/fail remains scripts/ticket.sh, the
 // gates, and the human. Exit is always 0 unless --strict (experiments; never in a gate).
 import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { loadKey, ask, pct } from "./lib.mjs";
 
 const DIR = process.env.JEV_TOOLCALL_DIR ?? ".jev";
@@ -249,6 +250,34 @@ const trimNote = (how, pick, conf, kept, total) =>
     : `${how} (${pct(conf)}): kept ${kept}/${total} line(s)`;
 const emit = (text) => process.stdout.write(text.endsWith("\n") ? text : text + "\n");
 
+/** Shared tail of `after` and `run`: verify the request/output, pick a strategy, prune, emit. */
+async function pruneEmit(frame, p, output, tag, traceCmd) {
+  const a = await ask(
+    { goal: goalText(frame), call: callStr(p), output: output.slice(0, 12_000) },
+    AFTER_QUESTIONS,
+  );
+  const flags = verifyFlags(a);
+  const { pick, conf, how } = pickStrategy(a);
+  const { text, kept, total } = applyStrategy(how, output);
+  trace({
+    cmd: traceCmd,
+    tool: p.tool,
+    why: p.why,
+    requestStrayed: a.requestStrayed.probability,
+    outputFailed: a.outputFailed.probability,
+    pick,
+    conf,
+    how,
+    kept,
+    total,
+    fullBytes: output.length,
+  });
+  for (const f of flags) console.error(`${tag}: ⚠ ${f}`);
+  emit(text);
+  console.error(`${tag}: ${trimNote(how, pick, conf, kept, total)}. Full output: ${FULL_FILE}`);
+  process.exit(strict && (flags.length || how !== "whole") ? 2 : 0);
+}
+
 async function doAfter() {
   const frame = readFrame();
   const p = payload();
@@ -261,38 +290,95 @@ async function doAfter() {
     emit(output);
     process.exit(0);
   }
-  const a = await ask(
-    { goal: goalText(frame), call: callStr(p), output: output.slice(0, 12_000) },
-    AFTER_QUESTIONS,
-  );
-  const flags = verifyFlags(a);
-  const { pick, conf, how } = pickStrategy(a);
-  const { text, kept, total } = applyStrategy(how, output);
+  await pruneEmit(frame, p, output, "after", "after");
+}
+
+// ---------- run: the whole chain around one real command, in a single call ----------
+// node scripts/jev/toolcall.mjs run --intention "..." --why "..." [--force] -- <command...>
+// Gates the command (before), runs it if allowed, then verifies + prunes its output (after).
+const splitList = (s) =>
+  (s ?? "")
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
+/** Inline --intention (with optional --objective/--verification) beats the saved frame. */
+function resolveFrame() {
+  const intention = opt("--intention");
+  if (!intention) return readFrame();
+  return {
+    objective: opt("--objective") ?? intention,
+    intention,
+    verification: splitList(opt("--verification")),
+  };
+}
+/** BEFORE as a real gate: returns whether the command may run. Advisory if no key. */
+async function gate(frame, p, command) {
+  if (!loadKey()) return true;
+  const a = await ask({ goal: goalText(frame), call: callStr(p) }, BEFORE_QUESTIONS);
+  const runP = a.shouldRun.probability;
+  const weak = weakLinks(a);
+  const allowed = runP >= 0.5 || argv.includes("--force");
   trace({
-    cmd: "after",
-    tool: p.tool,
+    cmd: "run/before",
+    command,
     why: p.why,
-    requestStrayed: a.requestStrayed.probability,
-    outputFailed: a.outputFailed.probability,
-    pick,
-    conf,
-    how,
-    kept,
-    total,
-    fullBytes: output.length,
+    shouldRun: runP,
+    decision: allowed ? "run" : "skip",
+    weak,
   });
-  for (const f of flags) console.error(`after: ⚠ ${f}`);
-  emit(text);
-  console.error(`after: ${trimNote(how, pick, conf, kept, total)}. Full output: ${FULL_FILE}`);
-  process.exit(strict && (flags.length || how !== "whole") ? 2 : 0);
+  if (!allowed)
+    console.error(
+      `toolcall: ⚠ skipped (run ${pct(runP)}${weak.length ? ", " + weak.join(", ") : ""}) — not run. Add --force to override.`,
+    );
+  else if (runP < 0.5) console.error(`toolcall: forced (run only ${pct(runP)})`);
+  return allowed;
+}
+/** Run the command (argv, no shell — preserves the caller's quoting), capturing
+ *  stdout+stderr even when it exits non-zero. */
+function execCapture(cmdArgv) {
+  try {
+    return execFileSync(cmdArgv[0], cmdArgv.slice(1), {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      maxBuffer: 32 * 1024 * 1024,
+    });
+  } catch (e) {
+    return `${e.stdout ?? ""}${e.stderr ?? ""}` || String(e.message ?? e);
+  }
+}
+async function doRun() {
+  const sep = argv.indexOf("--");
+  const cmdArgv = sep >= 0 ? argv.slice(sep + 1) : [];
+  if (cmdArgv.length === 0) {
+    console.error(
+      "usage: node scripts/jev/toolcall.mjs run --intention '...' [--why '...'] [--force] -- <command...>",
+    );
+    process.exit(2);
+  }
+  const command = cmdArgv.join(" "); // display / judged text only; execution uses the argv
+  const frame = resolveFrame();
+  const p = { tool: "Bash", args: { cmd: command }, why: opt("--why") ?? "(unstated)" };
+
+  if (!(await gate(frame, p, command))) process.exit(strict ? 2 : 0); // gate blocked → do NOT run
+
+  const output = execCapture(cmdArgv);
+  ensureDir();
+  writeFileSync(FULL_FILE, output);
+
+  if (!loadKey()) {
+    emit(output);
+    process.exit(0);
+  }
+  await pruneEmit(frame, p, output, "toolcall", "run/after");
 }
 
 // ---------- dispatch ----------
-const table = { frame: doFrame, before: doBefore, after: doAfter };
+const table = { frame: doFrame, before: doBefore, after: doAfter, run: doRun };
 const run = table[cmd];
 if (!run) {
   console.error(
-    "usage: node scripts/jev/toolcall.mjs <frame|before|after> [--json '<...>'|--in f] [--out f] [--strict]",
+    "usage: node scripts/jev/toolcall.mjs <frame|before|after|run> [--json '<...>'|--in f] [--out f] [--strict]\n" +
+      "       run --intention '...' [--why '...'] [--force] -- <command...>",
   );
   process.exit(2);
 }
