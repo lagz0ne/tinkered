@@ -3,7 +3,21 @@ import { useState } from "react";
 import type { ReactElement } from "react";
 import { Button } from "@/components/ui/button.tsx";
 import { cn } from "@/lib/utils.ts";
-import { buildLibs, type LibResult, measure, N } from "./runners.ts";
+import {
+  buildLibs,
+  DISCARD_ROUNDS,
+  endUpdates,
+  finish,
+  type LibResult,
+  MOUNT_SAMPLES,
+  N,
+  prepare,
+  sampleMount,
+  sampleUpdate,
+  type Sampler,
+  type Stat,
+  UPDATE_SAMPLES,
+} from "./runners.ts";
 
 function fmtUs(v: number): string {
   if (v >= 100) return `${Math.round(v)}`;
@@ -11,36 +25,36 @@ function fmtUs(v: number): string {
   return v.toFixed(2);
 }
 
+/** Relative half-width of the interquartile range, as a percentage of the median. */
+const spreadPct = (s: Stat): number => Math.round(((s.q3 - s.q1) / 2 / s.median) * 100);
+
+/** Interleaved medians drift 3–8% between clicks of "Run again"; anything under this is noise. */
+const GAP_FLOOR = 1.1;
+/** `a` is reported faster than `b` only if the gap beats the floor AND their IQRs do not overlap. */
+const faster = (a: Stat, b: Stat): boolean => b.median / a.median >= GAP_FLOOR && a.q3 < b.q1;
+/** A claimed ratio is rounded DOWN so the headline never overstates. */
+const floor1 = (k: number): string => (Math.floor(k * 10) / 10).toFixed(1);
+
 const isTinker = (r: LibResult) => r.name.includes("tinker");
 
-/** One timing cell: a label, the value, a badge with its gap vs the column's fastest, and a bar. */
-function Metric({
-  label,
-  value,
-  best,
-  tinker,
-}: {
-  label: string;
-  value: number;
-  best: number;
-  tinker: boolean;
-}): ReactElement {
-  const ratio = value / best;
-  const fastest = ratio <= 1.02;
-  const pct = Math.max(3, (value / (best * 4)) * 100); // bar scale: 4× the fastest fills the track
+/** One timing cell: label, median ± IQR, a badge relative to the column's fastest, and a bar. */
+function Metric({ label, stat, best }: { label: string; stat: Stat; best: Stat }): ReactElement {
+  const isFastest = !faster(best, stat);
+  const pct = Math.max(3, (stat.median / (best.median * 4)) * 100); // 4× the fastest fills the track
   return (
     <div className="min-w-0">
       <div className="mb-1 flex items-baseline justify-between gap-2 text-[11px] text-muted-foreground">
         <span>{label}</span>
         <span className="tabular-nums">
-          {fmtUs(value)} µs
+          {fmtUs(stat.median)} µs
+          <span className="ml-1 text-muted-foreground/70">±{spreadPct(stat)}%</span>
           <span
             className={cn(
-              "ml-1.5 rounded px-1 py-px font-semibold",
-              fastest ? "bg-emerald-100 text-emerald-700" : "bg-muted text-foreground/70",
+              "ml-1.5 rounded px-1 py-px font-semibold whitespace-nowrap",
+              isFastest ? "bg-emerald-100 text-emerald-700" : "bg-muted text-foreground/70",
             )}
           >
-            {fastest ? "fastest" : `${ratio.toFixed(1)}× slower`}
+            {isFastest ? "≈ fastest" : `${floor1(stat.median / best.median)}× slower`}
           </span>
         </span>
       </div>
@@ -48,7 +62,7 @@ function Metric({
         <div
           className={cn(
             "absolute inset-y-0 left-0 rounded-full transition-[width] duration-700 ease-out",
-            tinker ? "bg-primary" : fastest ? "bg-emerald-500" : "bg-zinc-400",
+            isFastest ? "bg-emerald-500" : "bg-zinc-400",
           )}
           style={{ width: `${Math.min(100, pct)}%` }}
         />
@@ -63,8 +77,8 @@ function ResultRow({
   bestMount,
 }: {
   r: LibResult;
-  bestUpdate: number;
-  bestMount: number;
+  bestUpdate: Stat;
+  bestMount: Stat;
 }): ReactElement {
   const tinker = isTinker(r);
   const ideal = r.metrics.rerenders <= 1;
@@ -73,6 +87,7 @@ function ResultRow({
       className={cn(
         "grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 border-b px-4 py-3 last:border-0 md:grid-cols-[1fr_auto_1.4fr_1.4fr] md:items-center",
         tinker && "bg-primary/5",
+        r.control && "text-muted-foreground",
       )}
     >
       <span className={cn("text-sm", tinker ? "font-semibold" : "font-medium")}>{r.name}</span>
@@ -86,20 +101,19 @@ function ResultRow({
         {r.metrics.rerenders}× re-render
       </span>
       <div className="col-span-2 md:col-span-1">
-        <Metric label="update" value={r.metrics.updateUs} best={bestUpdate} tinker={tinker} />
+        <Metric label="update" stat={r.metrics.update} best={bestUpdate} />
       </div>
       <div className="col-span-2 md:col-span-1">
-        <Metric label="mount" value={r.metrics.mountUs} best={bestMount} tinker={tinker} />
+        <Metric label="mount" stat={r.metrics.mount} best={bestMount} />
       </div>
     </div>
   );
 }
 
-/** How much faster (or slower) tinker's update is than another library, in plain words. */
-function gapWords(other: number, tinker: number): string {
-  const k = other / tinker;
-  if (k >= 1.05) return `${k.toFixed(1)}× faster than`;
-  if (k <= 0.95) return `${(1 / k).toFixed(1)}× slower than`;
+/** tinker's update gap vs another library, in words — and only when the data supports a claim. */
+function gapWords(other: Stat, tinker: Stat): string {
+  if (faster(tinker, other)) return `${floor1(other.median / tinker.median)}× faster than`;
+  if (faster(other, tinker)) return `${floor1(tinker.median / other.median)}× slower than`;
   return "about the same as";
 }
 
@@ -108,24 +122,24 @@ function Takeaway({ results }: { results: LibResult[] }): ReactElement | null {
   const tinker = results.find(isTinker);
   const naive = results.find((r) => !r.fine);
   if (!tinker) return null;
-  const others = results.filter((r) => r !== tinker);
+  const others = results.filter((r) => r !== tinker && !r.control);
   return (
     <div className="mt-6 rounded-xl border bg-muted/30 p-4 text-sm leading-relaxed">
       <p>
-        <b>Re-render work.</b> One update re-renders <b>{tinker.metrics.rerenders} component</b>{" "}
+        <b>Re-render count.</b> One update re-renders <b>{tinker.metrics.rerenders} component</b>{" "}
         with @tinker/react
         {naive && (
           <>
             {" "}
             — <b>{naive.name}</b> re-renders all <b>{naive.metrics.rerenders}</b>, that's{" "}
-            <b>{naive.metrics.rerenders}× the work</b> for the same change
+            <b>{naive.metrics.rerenders}× the component renders</b> for the same change
           </>
         )}
         .
       </p>
       <p className="mt-2">
         <b>Update speed.</b> @tinker/react applies one change in{" "}
-        <b>{fmtUs(tinker.metrics.updateUs)} µs</b>:
+        <b>{fmtUs(tinker.metrics.update.median)} µs</b> (±{spreadPct(tinker.metrics.update)}%):
       </p>
       <ul className="mt-2 flex flex-wrap gap-1.5">
         {others.map((o) => (
@@ -133,7 +147,7 @@ function Takeaway({ results }: { results: LibResult[] }): ReactElement | null {
             key={o.name}
             className="rounded-full border bg-background px-2.5 py-0.5 text-xs tabular-nums"
           >
-            {gapWords(o.metrics.updateUs, tinker.metrics.updateUs)} <b>{o.name}</b>
+            {gapWords(o.metrics.update, tinker.metrics.update)} <b>{o.name}</b>
           </li>
         ))}
       </ul>
@@ -141,10 +155,13 @@ function Takeaway({ results }: { results: LibResult[] }): ReactElement | null {
   );
 }
 
+const byMedian = (key: "update" | "mount") => (a: LibResult, b: LibResult) =>
+  a.metrics[key].median - b.metrics[key].median;
+
 function ResultsTable({ results }: { results: LibResult[] }): ReactElement {
-  const sorted = [...results].sort((a, b) => a.metrics.updateUs - b.metrics.updateUs);
-  const bestUpdate = sorted[0]?.metrics.updateUs ?? 1;
-  const bestMount = Math.min(...results.map((r) => r.metrics.mountUs));
+  const sorted = [...results].sort(byMedian("update"));
+  const bestUpdate = sorted[0].metrics.update;
+  const bestMount = [...results].sort(byMedian("mount"))[0].metrics.mount;
   return (
     <>
       <Takeaway results={results} />
@@ -160,10 +177,37 @@ function ResultsTable({ results }: { results: LibResult[] }): ReactElement {
         ))}
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        "N× slower" is relative to the fastest library in that column. Bars are on a shared scale.
+        Median of {UPDATE_SAMPLES} update and {MOUNT_SAMPLES} mount samples, taken in interleaved
+        rounds; ± is half the interquartile range. "N× slower" is against the fastest in that column
+        and is only claimed when the gap is ≥{GAP_FLOOR}× <i>and</i> the two spreads don't overlap.
+        The <i>control</i> row is plain per-component useState — the floor for one synchronous
+        re-render; every library's number is its overhead above that.
       </p>
     </>
   );
+}
+
+const nextTick = () => new Promise((r) => setTimeout(r, 0));
+
+/** Interleaved rounds with a rotating start, so no library always runs first in a round. */
+async function runRounds(
+  samplers: Sampler[],
+  rounds: number,
+  take: (s: Sampler) => number,
+  into: (s: Sampler) => number[],
+  onRound: (r: number, total: number) => void,
+): Promise<void> {
+  const total = rounds + DISCARD_ROUNDS;
+  const n = samplers.length;
+  for (let r = 0; r < total; r++) {
+    for (let j = 0; j < n; j++) {
+      const s = samplers[(r + j) % n];
+      const v = take(s);
+      if (r >= DISCARD_ROUNDS) into(s).push(v);
+    }
+    onRound(r + 1, total);
+    await nextTick();
+  }
 }
 
 export function BenchPage(): ReactElement {
@@ -177,20 +221,25 @@ export function BenchPage(): ReactElement {
     setError(null);
     setResults(null);
     try {
-      const libs = buildLibs();
-      // Warmup pass (discarded): tier up React + every lib's path so the first measured library
-      // isn't penalised for the cold JIT that all the others then benefit from.
-      setProgress("Warming up…");
-      await new Promise((r) => setTimeout(r, 0));
-      for (const lib of libs) await measure(lib);
-
-      const collected: LibResult[] = [];
-      for (const lib of libs) {
-        setProgress(`Measuring ${lib.name}…`);
-        await new Promise((r) => setTimeout(r, 0));
-        collected.push({ name: lib.name, fine: lib.fine, metrics: await measure(lib) });
-        setResults([...collected]);
-      }
+      setProgress("Preparing…");
+      await nextTick();
+      const samplers = buildLibs().map(prepare);
+      await runRounds(
+        samplers,
+        UPDATE_SAMPLES,
+        sampleUpdate,
+        (s) => s.updates,
+        (r, t) => setProgress(`Update rounds ${r}/${t}…`),
+      );
+      samplers.forEach(endUpdates);
+      await runRounds(
+        samplers,
+        MOUNT_SAMPLES,
+        sampleMount,
+        (s) => s.mounts,
+        (r, t) => setProgress(`Mount rounds ${r}/${t}…`),
+      );
+      setResults(samplers.map(finish));
       setProgress("");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -209,8 +258,9 @@ export function BenchPage(): ReactElement {
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             {N} components, each subscribed to <b>one</b> slice. We update a single slice and count
             how many components re-render (<b>1 is ideal</b>), plus update and mount time — the{" "}
-            <b>median</b> of many runs. Real React, in <b>your</b> browser: numbers are relative and
-            move with CPU load, not the CI benchmark.
+            <b>median</b> of many interleaved rounds. Real React, in <b>your</b> browser: numbers
+            are relative and move with CPU load, not the CI benchmark. Every library runs its
+            source-audited best configuration.
           </p>
         </header>
 
@@ -229,7 +279,8 @@ export function BenchPage(): ReactElement {
           !running && (
             <p className="mt-8 text-sm text-muted-foreground">
               Click <b>Run benchmark</b> to measure @tinker/react against Zustand, Jotai, Legend
-              State v2 &amp; v3, Preact Signals, and a naive React Context baseline.
+              State v2 &amp; v3, Preact Signals, a naive React Context baseline, and a plain
+              useState control.
             </p>
           )
         )}
