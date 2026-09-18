@@ -79,11 +79,19 @@ done | failed`), `text` (the assistant text of the current turn, streamed), `ite
 - **Resume rides the hooks.** The session's `x.resume(id)` binding reaches the adapter as
   `hooks.resume`; each adapter continues its own way (Claude spreads it into `Options.resume`,
   Codex calls `resumeThread(id)`) — no frame-level "resume key" is invented.
-- **Approvals and tools are later tickets** as operations: the SDK's `canUseTool` answered by a
-  subflow (t03); an operation exposed in-process (Claude's `tool()` + `createSdkMcpServer`) with
-  its span nested (t04). Both are Claude-only code: the Codex SDK (0.155.0) offers neither an
-  approval callback (approvals are the `approvalPolicy` string) nor in-process tools (MCP servers
-  are config for an external process). We do not invent either for Codex.
+- **Approvals and tools are operations attached at frame construction** (t03/t04): `harness({
+label, adapter, approve?, tools? })` — like `httpClient`'s policy slots — so the turn op can
+  DEPEND on them and each runs as a subflow of the turn (its span nests, it sees the session's
+  bindings and the frame's cells). The adapter carries a type-level `Harness.Calls` record naming
+  its SDK's own request/decision and tool-result types; the turn op hands the subflow controllers
+  to the thread as `TurnCalls`, and the adapter calls them from the SDK's own hook (Claude:
+  `canUseTool`; `tool()` + `createSdkMcpServer`). The decision lands in `items`
+  (`kind: "approval"`). A TAG-bound operation cannot be run as a subflow today (a tag delivers a
+  handle, a frame holds no scope) — recorded as core feedback; static attach is the honest v1.
+  Both are Claude-only code: the Codex SDK (0.155.0) offers neither an approval callback
+  (approvals are the `approvalPolicy` string) nor in-process tools (MCP servers are config for an
+  external process); its `Calls` says `never`, so the frame rejects `approve`/`tools` for it at
+  compile time. We do not invent either for Codex.
 
 ## Consequences
 

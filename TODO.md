@@ -75,33 +75,44 @@ tickets, then contributors with lead review:
          size 5279 B, 25 lanes green, mutation 66.74 (codex.ts 60.00 — t05 adds one all-keys options-split test), lead review SHIP after one fix round (raw event as `source`
          by identity; no module-level test state). SDK facts recorded: Codex offers NO approval callback and NO
          in-process tools — t03/t04 are Claude-only code._
-   - [ ] **harness/t03 — approvals as operations.** Claude-only (Codex has no callback): `harness({ …, approve })`
-         attaches a userland op at frame construction (option A, lead's pick 2026-09-18 — the http `retry`/`filterStatus`
-         precedent; a TAG-bound op cannot be run as a subflow today → core-feedback ask); the turn op depends on it, hands
-         its controller to the thread per turn, the adapter answers `canUseTool` with it; the decision lands in `items`
-         (`kind: "approval"`). Verify: allow/deny through a fake `query` calling `canUseTool`; the approve op's span is a
-         child of the turn span; the op sees a session tag. Three pi contributors died in the read phase (t03+t04, t03+t04, t03 alone) — the LEAD builds t03/t04 on the landed core/t31.
-   - [ ] **harness/t04 — tools as operations.** Claude-only: `harness({ …, tools: [{ name, description, schema, operation }] })`
-         (zod raw shape = the SDK's constraint; the op's result is the SDK's `CallToolResult`); an in-process MCP server
-         named after the frame, built once per thread, merged into `mcpServers`; the tool op runs as a subflow of the turn.
-         Verify: the handler delivers the op's result by identity; the tool span is a child of the turn span; one server for
-         two turns; a user-bound `mcpServers` entry survives.
-   - [ ] **harness/t05 — validation milestone.** Size, mutation ≥ 60 alone, README + cast-free example, harness
-         lanes in `pnpm validate`; one Codex options-split test binding EVERY `CodexOptions`/`ThreadOptions` key (t02
-         mutation left `codex.ts` at 60.00 on the untested key copies — a dropped key is user-observable); archive here.
-   - [x] **core/t31 — a resource dep is its value (ADR 0044).** _Done: tag `core/t31` (fa7282f), mutation 78.51._ User decision 2026-09-18 (`1A 2A`): `SlotValue<Resource.Handle<T>>`
-         = `Awaited<T>`; declared deps build before the body (the lazy deps Proxy is gone — W10/W12 in core drop to 0); a
-         still-building async dep is awaited by core, then the body runs with the value; a failed async build rejects the
-         call before the body runs (sticky until release); async-ness is typed through the graph (`AsyncBody<D>`: a body
-         over an async resource must return a promise); `scope.resolve(res)` keeps its promise. Lead-built (contributors
-         die reading core). Verify: core 227 tests incl. the 6 ADR 0044 promises; drizzle sheds every `(await tx)`; perf
-         A/B `op`/`run` within 2 ns, new `opres` scenario recorded; harness and drizzle shed their awaits in the same commit (4 harness sites, 5 drizzle sites, README + example).
+   - [x] **harness/t03 — approvals as operations.** _Done: tag `harness/t03` (b46ae7f), lead-built after three pi
+         contributor deaths. `harness({ …, approve })` attaches an approve op at frame construction (option A); the turn op
+         depends on it and hands its controller to the thread (`Harness.TurnCalls`); `claudeCode` answers `canUseTool`
+         through it and writes `{ kind: "approval", id: toolUseID, status: behavior }` into `items`; the op's input is the
+         SDK's own request (`ClaudeCode.Approval`, typed by the `claudeCode.approval` guard-parse), its result the SDK's
+         `PermissionResult` (`ClaudeCode.Decision`); adapters carry a type-level `Harness.Calls` record (`never` where the
+         SDK has no hook — Codex rejects `approve` at compile time). 3 seam tests (17 total), size 6049 B, 25 lanes green,
+         mutation with t04. Core feedback: a TAG-bound op cannot be run as a subflow (recorded)._
+   - [x] **harness/t04 — tools as operations.** _Done: tag `harness/t04` (658863e), lead-built (the re-wired pi writer
+         `opencode-go/muse-spark-1.3-contributor` hit its monthly quota at once). `claudeCode.tool({ name, description,
+ schema, depends?, run })` declares an in-process tool as an ordinary operation (input = the zod-inferred shape the
+         SDK already validated, result = the MCP `CallToolResult`); `harness({ …, tools })` spreads one `tool:<name>`
+         dep per tool into the turn op, so each call is a subflow of the turn; the adapter builds one MCP server per
+         thread named after the frame (`Hooks.label`) beside bound `mcpServers`; `ClaudeCode.Sdk` gains `tool` +
+         `createSdkMcpServer` (the seam; fakes share `readToolSdk()`); Codex's `Calls.tool` is `never`. 4 seam tests
+         (21 total), size 6746 B, 25 lanes green, mutation 64.38 (t03+t04, run once). zod + MCP SDK are devDeps only
+         (0 runtime imports in dist)._
+   - [x] **harness/t05 — validation milestone.** _Done: tag `harness/t05`; 29 validate lanes green (harness tests /
+         size / cast-free examples / pure bundle with no zod or MCP SDK at runtime), 22 seam tests (the all-keys Codex
+         options-split test added), size 6746 B, mutation 64.38 (claude.ts reports 42 uncovered mutants — a follow-up
+         look), README pass (frame tree with the seam and the `approve`/`tools` slots, a Testing section). Archived below._
 4. **`@tinker/ai`** — the LLM layer over the AI SDK (the model is the swappable slot; generateText/streamText as
    ops; tools as operations; `MockLanguageModelV4` as the test seam). Deferred until a driver asks.
 
 Perf follow-up when the sandbox `bench` is available: `op` parity (budgets.md "Call paths (t27)").
 
 ## Shipped — archived
+
+- **harness v1 (2026-09-18)** — complete: `@tinker/harness` (ADR 0043; tags `harness/t01`…`harness/t05`): one frame
+  `harness({ label, adapter, approve?, tools? })` over the SDK's OWN types; the SDK module is a resource and the test
+  seam (`claudeCode.sdk`, `codex.sdk`); the thread is a session resource (stops its SDK call on the signal; a forced
+  close seals the session); six ambient cells; `turn` is an op with one `harness turn` line; resume rides the hooks;
+  Claude + Codex adapters; approvals and tools are operations attached at construction, each a subflow of the turn
+  (Claude only — Codex's SDK has neither hook). Gate: 29 lanes green, 22 seam tests, size 6746 B, mutation 64.38.
+  Along the way: **core/t31** (ADR 0044) — a resource dep is its value, deps build before the body, async typed
+  through the graph, the lazy deps Proxy gone (`opres` −95 ns). Three pi contributor deaths in the read phase →
+  t03/t04/t05 lead-built. Detail: `docs/roadmap/harness-v1/PROGRESS.md`; core feedback rows in
+  `docs/roadmap/core-feedback.md`.
 
 Both v1 milestones are complete. Full ticket detail, budgets, and reset recipes live in the
 durable trackers (this list is just the pointer):
