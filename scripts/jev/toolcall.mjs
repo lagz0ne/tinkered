@@ -1,13 +1,13 @@
 // Tool-call decision chain (ADR: docs/roadmap/jev-loop/PLAN.md).
 //
-// Every tool call is wrapped by two Jev-judged gates and a Jev-routed trim:
+// Every tool call is wrapped by an advisory Jev read and a Jev-routed trim (no gating):
 //
 //   frame  — record the goal ONCE as a structured chain decision
 //            (objective · intention · verification[]). The agent supplies the
 //            structure; Jev never generates text, so it cannot invent it.
-//   before — judge the *intended* call: should it run now, or is it a detour off the
-//            objective / intention / verification chain? (should-run pre-filter, proven
-//            6/6 @ 82% separation). Advisory warn, never a block.
+//   before — advisory read on the *intended* call: is it a detour off the objective /
+//            intention / verification chain? Prints ✓/⚠ and always exits 0. It never
+//            blocks — the HARNESS owns whether a call may run.
 //   after  — verify the *result* (did the request stray? did the output fail?) AND trim:
 //            Jev picks ONE strategy (whole/pointer/head/tail/errors — proven 5/5) and the
 //            SCRIPT executes it. Jev routes; code cuts; the full output is always saved.
@@ -15,11 +15,10 @@
 // Doctrine (PLAN.md): Jev is advisory on every side and jagged — strong at whole-call
 // judgments, blind at per-line relevance (reading-intention.mjs, ~0% separation), so it
 // never picks which lines to keep. The trim keeps output WHOLE below the confidence bar
-// (nothing lost; full dump in .jev/). The only pass/fail remains scripts/ticket.sh, the
-// gates, and the human. Exit codes: 0 when it proceeds / keeps whole; 3 when a call is
-// advised-skipped or the gate blocks a command (nothing ran); the child's own code when
-// `run` executes; 2 for a usage error or --strict. "Advisory" means it never overrides
-// your real gates — not that it never sets an exit code.
+// (nothing lost; full dump in .jev/). It never gates execution — the HARNESS decides
+// whether a command may run; toolcall only advises and cleans up the output. Exit codes:
+// `run` returns the child's own code; `before`/`after` exit 0 (advisory); 2 for a usage
+// error. The only pass/fail remains scripts/ticket.sh, the gates, and the human.
 import {
   readFileSync,
   writeFileSync,
@@ -201,7 +200,7 @@ const weakLinks = (a) =>
   LINKS.filter(([id]) => a[id].probability >= LINK_THRESHOLD).map(
     ([id, label]) => `${label} link weak (${pct(a[id].probability)})`,
   );
-/** A before/gate answer we can act on: the decision and all three links are present. */
+/** A before answer we can act on: the decision and all three links are present. */
 const validBefore = (a) =>
   a && a.shouldRun && a.offObjective && a.offIntention && a.offVerification;
 
@@ -244,9 +243,9 @@ async function doBefore() {
   if (skip) {
     const why = weak.length ? ` (${weak.join(", ")})` : "";
     console.log(
-      `before: ⚠ skip — run confidence ${pct(runP)}${why} — reconsider or note why you proceed`,
+      `before: ⚠ advisory — off-goal (run confidence ${pct(runP)})${why}. The harness decides whether to run; proceed if intended.`,
     );
-    process.exit(strict ? 2 : 3); // exit 3 = advised skip (nothing ran)
+    process.exit(0); // advisory only — never blocks
   }
   console.log(
     `before: ✓ run (${pct(runP)}) — linked to objective · intention · verification — proceed`,
@@ -400,9 +399,9 @@ async function doAfter() {
   await pruneEmit(frame, p, output, full, "after", "after");
 }
 
-// ---------- run: the whole chain around one real command, in a single call ----------
-// node scripts/jev/toolcall.mjs run --intention "..." --why "..." [--force] -- <command...>
-// Gates the command (before), runs it if allowed, then verifies + prunes its output (after).
+// ---------- run: run a command, then verify + prune its output, in a single call ----------
+// node scripts/jev/toolcall.mjs run --intention "..." --why "..." -- <command...>
+// The HARNESS decides whether the command may run; toolcall executes it and prunes the output.
 const splitList = (s) =>
   (s ?? "")
     .split(",")
@@ -417,33 +416,6 @@ function resolveFrame() {
     intention,
     verification: splitList(opt("--verification")),
   };
-}
-/** BEFORE as a real gate: returns whether the command may run. Advisory if no key. */
-async function gate(frame, p, command) {
-  if (!loadKey()) return true;
-  const a = await askAdvisory(
-    { goal: goalText(frame), call: callStr(p) },
-    BEFORE_QUESTIONS,
-    "gate",
-  );
-  if (!validBefore(a)) return true; // jev unavailable or unusable answer → advisory, allow the run
-  const runP = a.shouldRun.probability;
-  const weak = weakLinks(a);
-  const allowed = runP >= 0.5 || argv.includes("--force");
-  trace({
-    cmd: "run/before",
-    command,
-    why: p.why,
-    shouldRun: runP,
-    decision: allowed ? "run" : "skip",
-    weak,
-  });
-  if (!allowed)
-    console.error(
-      `toolcall: ⚠ skipped (run ${pct(runP)}${weak.length ? ", " + weak.join(", ") : ""}) — not run. Add --force to override.`,
-    );
-  else if (runP < 0.5) console.error(`toolcall: forced (run only ${pct(runP)})`);
-  return allowed;
 }
 /** Run the command (argv, no shell — preserves the caller's quoting) and capture BOTH stdout and
  *  stderr (concatenated), plus the child's exit code, on success, failure, or buffer overflow. */
@@ -464,7 +436,7 @@ async function doRun() {
   const cmdArgv = cmdTail; // the command after `--`; wrapper options are the prefix only
   if (cmdArgv.length === 0) {
     console.error(
-      "usage: node scripts/jev/toolcall.mjs run --intention '...' [--why '...'] [--force] -- <command...>",
+      "usage: node scripts/jev/toolcall.mjs run --intention '...' [--why '...'] -- <command...>",
     );
     process.exit(2);
   }
@@ -472,14 +444,11 @@ async function doRun() {
   const frame = resolveFrame();
   const p = { tool: "Bash", args: { cmd: command }, why: opt("--why") ?? "(unstated)" };
 
-  // Gate only when we have a frame AND a key; otherwise run unwrapped (advisory).
-  const gated = frame && loadKey();
-  if (gated && !(await gate(frame, p, command))) process.exit(3); // exit 3 = gate blocked, nothing ran
-
+  // The harness already decided this command may run; toolcall never gates it.
   const { output, code } = execCapture(cmdArgv);
   const full = saveDump(output);
 
-  if (!gated) {
+  if (!frame || !loadKey()) {
     emit(output); // no frame/key → keep whole, preserve the child's exit code
     process.exit(code);
   }
@@ -492,7 +461,7 @@ const run = table[cmd];
 if (!run) {
   console.error(
     "usage: node scripts/jev/toolcall.mjs <frame|before|after|run> [--json '<...>'|--in f] [--out f] [--strict]\n" +
-      "       run --intention '...' [--why '...'] [--force] -- <command...>",
+      "       run --intention '...' [--why '...'] -- <command...>",
   );
   process.exit(2);
 }

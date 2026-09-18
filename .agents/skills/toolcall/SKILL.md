@@ -45,24 +45,23 @@ node scripts/jev/toolcall.mjs frame --json '{
 
 Saved to `.jev/frame.json` (gitignored). Re-frame when the goal changes.
 
-### 2. Before — judge the intended call
+### 2. Before — an advisory read on the intended call
 
 ```bash
 node scripts/jev/toolcall.mjs before --json '{
   "tool":"Edit","args":{"file":"src/ui/theme.css"},"why":"tweak button color"
 }'
-# ⚠ objective link weak (96%), intention link weak (95%) — reconsider or note why you proceed
+# ⚠ advisory — off-goal (run confidence 4%), objective link weak (96%) …
 ```
 
-A ✓ means the call is linked to the objective, intention, and verification
-chain (exit 0). A ⚠ means at least one link is weak (≥ 60%): drop the call, or
-state in one line why you proceed anyway. On a ⚠ skip it exits **3**, so
-`before ... && <cmd>` won't run `<cmd>` — but it never overrides your real gates
-(`ticket.sh`, tests); the decision is still yours.
+A ✓ means the call is linked to the objective, intention, and verification chain;
+a ⚠ means at least one link is weak (≥ 60%). **It never blocks** — it always exits
+0 and only advises. Whether the call runs is the harness's and your decision; the
+⚠ is a nudge to reconsider or note why you proceed.
 
-### All-in-one — `run` (gate → execute → prune, a single call)
+### All-in-one — `run` (execute → prune, a single call)
 
-To wrap a real command in the whole chain at once — no separate `before`/`after`:
+To run a real command and prune its output in one call — no separate `after`:
 
 ```bash
 node scripts/jev/toolcall.mjs run \
@@ -71,23 +70,21 @@ node scripts/jev/toolcall.mjs run \
   -- vp test auth
 ```
 
-It gates the command (won't run an off-intention or unsafe one — add `--force` to
-override), runs it, then prunes the output. `--intention` (with optional
-`--objective`/`--verification`) is used inline; omit them to reuse the saved frame.
-Everything after `--` is the real command, run without a shell so your quoting is
-kept. This is the "squeeze it into one call" form; `frame`/`before`/`after` remain
-for wrapping non-command tools (Read, Edit, MCP calls).
+The **harness** decides whether the command may run; `toolcall` does **not** gate
+it. It runs the command, then verifies and prunes the output. `--intention` (with
+optional `--objective`/`--verification`) is used inline; omit them to reuse the
+saved frame. Everything after `--` is the real command, run without a shell so your
+quoting is kept. `frame`/`before`/`after` remain for wrapping non-command tools
+(Read, Edit, MCP calls).
 
-**Exit codes:** the child's own exit code when the command runs; **3** when the gate
-blocks it (nothing ran — distinct from a passing `0`); `2` for a usage error. So
-`toolcall run ... && next` runs `next` only if the command ran _and_ passed.
+**Exit codes:** `run` returns the child command's own exit code (so `run ... &&
+next` behaves exactly like the bare command); `before`/`after` exit 0 (advisory);
+`2` for a usage error.
 
-> **Write `--why`/`why` to name how the command serves the intention.** The gate
-> judges the command text + your `why`, not your unspoken plan. A bare
-> `cat /tmp/x` with `why: "reproduce the failure"` scored 24% → skipped; the same
-> command with `why: "read the captured test output for the null-session failure"`
-> scored 80% → ran. If a call you know is on-goal gets skipped, sharpen the `why`
-> (or pass `--force`).
+> **Write `--why`/`why` to name how the command serves the intention.** The
+> advisory read judges the command text + your `why`, not your unspoken plan, and
+> the same signal feeds the `.jev/` trace we analyze. A sharp `why` gives a
+> truer read; it changes nothing about whether the command runs.
 
 ### 3. After — verify the result and trim the output
 
