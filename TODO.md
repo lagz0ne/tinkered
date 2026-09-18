@@ -9,11 +9,15 @@ a failing→passing test, or command output). Never tick on intent. Add/split it
 Landed: advisory scripts `scripts/jev/{plan-check,preflight,review}.mjs` (judge set proven 11/11;
 route gated at 0.6). Advisory only — the gate and the human decide (no self-grading).
 
-- [ ] **jev/impact — protect-node-0: SCIP + Jev impact chain.** Cross the plan's expected refs table
-      (brief Anchors) against SCIP's actual refs of the changed symbols; Jev judges each discrepancy
-      ("does the goal require this symbol?") → source wrong / plan wrong / both / neither. Needs a plan
-      refs-table convention first. Verify: on a diff whose plan under-scoped a symbol, the chain returns
-      "plan wrong" (not "source wrong"); on a clean landed ticket it returns "neither".
+- [ ] **jev/impact — the impact chain (ADR 0047).** `scripts/jev/impact.mjs <tag> [range]`: reads the
+      ` ```impact <tag> ` block from `docs/roadmap/*/PROGRESS.md`, runs SCIP `refs` per line, set-diffs
+      expected vs actual files (+ undeclared exports in the diff), asks Jev ONE boolean per discrepancy and
+      maps it (unexpected: true → plan wrong, false → source wrong; missing: the reverse; 0.4–0.6 → unclear);
+      `scripts/ticket.sh` prints it as a never-blocking pre-read; CLAUDE.md says the lead writes the block
+      when cutting a ticket. Verify: `node scripts/jev/evals/impact.mjs` — the real cli/t04 block answers
+      "neither" with zero model calls; the under-scoped variant (`commands` only in `src/index.ts`) answers
+      "plan wrong" for `tests/cli.test.ts` and `examples/basic.ts` (or reports "unclear" honestly with the
+      probabilities — then the question wording is the follow-up, not the mapping).
 - [ ] **jev/calibrate — route + plan-check fixtures.** Label 3 pos / 3 neg per question (mine from git
       history); set each threshold from data. Verify: `eval.mjs`-style separation report per question.
 

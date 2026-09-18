@@ -30,6 +30,14 @@ bundled), size cap 10 kB gzip, no core change.
 | cli/t04     | c8dad0b | 25    | 4057          | 72.03             | a command is an op with `command` meta; `commands(op)`; `readCommand`/`CommandUndeclared`; bound ops become eager rows; help shows descriptions. Writer-built, one fix round. |
 | mcp/t02     | 4eb9588 | 8     | 1591          | 80.60             | validation milestone: four mcp lanes (33 total), stdio entry through `@tinker/cli` (`examples/cli.ts`), README pass. Writer-built, no fix round.                              |
 
+### Impact blocks (ADR 0047)
+
+```impact cli/t04
+cli  ^readCommand$  src/index.ts
+cli  ^commands$     src/index.ts tests/cli.test.ts examples/basic.ts
+cli  ^readRun$      src/index.ts
+```
+
 ## Review loop
 
 The lead reviews every ticket (diff vs ADR rows, convention, one promise per test, gate re-run, SCIP

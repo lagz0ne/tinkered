@@ -62,7 +62,9 @@ Three fixed uses (skipping one is a review finding):
 
 1. **Before any public-symbol change** (rename, removal, signature): the contributor brief includes the
    `refs` table for every touched symbol — the blast radius — and the contributor edits from that
-   table, not from grep or compiler errors alone.
+   table, not from grep or compiler errors alone. The same table is committed as the ticket's ` ```impact <tag> `
+   block in the track's `PROGRESS.md` before the code (ADR 0047); in review the lead runs
+   `node scripts/jev/impact.mjs <tag>` (advisory) beside `refs`.
 2. **Lead review of every ticket:** re-run `scripts/scip.sh index`, then `refs` on the OLD symbols (must
    print `(none)`) and on the NEW ones (files must match the expectation from the brief). Paste both
    in the review note.
