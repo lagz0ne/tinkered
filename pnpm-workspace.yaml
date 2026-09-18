@@ -10,8 +10,10 @@ catalog:
   "@inferdi/inferdi": ^6.1.0
   "@stryker-mutator/core": ^10.0.0
   "@stryker-mutator/vitest-runner": ^10.0.0
+  "@electric-sql/pglite": ^0.5.8
   "@types/node": ^24
   "@types/use-sync-external-store": ^1.7.0
+  drizzle-orm: ^0.45.2
   effect: ^3.22.2
   hono: ^4.13.8
   mitata: ^1.0.34
