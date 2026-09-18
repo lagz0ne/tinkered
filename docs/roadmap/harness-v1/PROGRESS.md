@@ -22,7 +22,7 @@ systemPrompt, maxTurns, effort, thinking, maxBudgetUsd, includePartialMessages`;
 | tag         | ticket                                                                                              | blockers | status |
 | ----------- | --------------------------------------------------------------------------------------------------- | -------- | ------ |
 | harness/t01 | Package + frame + Claude Code adapter + ambient cells + `turn` op; fake adapter + recorded fixtures | —        | [x]    |
-| harness/t02 | Codex adapter (same frame), recorded `ThreadEvent` fixtures                                         | 01       | [ ]    |
+| harness/t02 | Codex adapter (same frame), recorded `ThreadEvent` fixtures                                         | 01       | [x]    |
 | harness/t03 | Approvals as operations (`canUseTool` / approval mode → a subflow)                                  | 01       | [ ]    |
 | harness/t04 | Tools as operations (in-process MCP; the tool's run is a subflow of the turn)                       | 01       | [ ]    |
 | harness/t05 | Validation milestone: size, mutation, README + cast-free example, validate lanes; SHIP              | 02–04    | [ ]    |
@@ -31,9 +31,10 @@ systemPrompt, maxTurns, effort, thinking, maxBudgetUsd, includePartialMessages`;
 
 ### Landed
 
-| tag         | sha     | tests | size (B gzip) | mutation | notes                                                                                                                                                                           |
-| ----------- | ------- | ----- | ------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| harness/t01 | 87e5023 | 7     | 3722          | 69.27    | The SDK module is a resource (`claudeCode.sdk`) and the seam; no `Thread.interrupt` (the signal is the interrupt — ops settle before defers); a forced close seals the session. |
+| tag         | sha     | tests | size (B gzip) | mutation                                                          | notes                                                                                                                                                                              |
+| ----------- | ------- | ----- | ------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| harness/t01 | 87e5023 | 7     | 3722          | 69.27                                                             | The SDK module is a resource (`claudeCode.sdk`) and the seam; no `Thread.interrupt` (the signal is the interrupt — ops settle before defers); a forced close seals the session.    |
+| harness/t02 | 97e284b | 14    | 5279          | 66.74 (codex.ts 60.00 — t05 adds one all-keys options-split test) | `Hooks.resume` replaces `withResume`; Codex options split by key; agent text growth → deltas; `turn.failed` → `TurnFailed`. Codex SDK has no approval callback / in-process tools. |
 
 ## Review loop
 

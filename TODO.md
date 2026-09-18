@@ -53,14 +53,22 @@ tickets, then contributors with lead review:
          `Thread.interrupt` — the signal is the interrupt (ops settle before defers); a forced close seals the session
          so no `status` write lands. First contributor archived mid-draft at the lead handoff; relaunched. Core
          feedback recorded (three rows)._
-   - [ ] **harness/t02 — Codex adapter.** Same frame; `codex.options` = the SDK's `CodexOptions & ThreadOptions`;
-         `runStreamed` events → cells; recorded `ThreadEvent` fixtures.
+   - [x] **harness/t02 — Codex adapter.** _Done: tag `harness/t02` (97e284b), `codex` adapter on `@openai/codex-sdk` 0.155.0:
+         `codex.options` = the SDK's `CodexOptions & ThreadOptions` (split at thread start: the constructor's six keys,
+         `startThread` the rest), the SDK module is a resource (`codex.sdk`, the seam), `runStreamed` events → cells
+         (agent text growth streamed as deltas — Codex reports the whole text so far), the result is the SDK's own
+         `Turn`, `turn.failed` → `TurnFailed`; frame change: `Hooks.resume` replaces `Adapter.withResume` (Claude spreads
+         it into `Options`, Codex calls `resumeThread`). 7 seam tests over recorded `ThreadEvent` fixtures (14 total),
+         size 5279 B, 25 lanes green, mutation 66.74 (codex.ts 60.00 — t05 adds one all-keys options-split test), lead review SHIP after one fix round (raw event as `source`
+         by identity; no module-level test state). SDK facts recorded: Codex offers NO approval callback and NO
+         in-process tools — t03/t04 are Claude-only code._
    - [ ] **harness/t03 — approvals as operations.** `canUseTool` (Claude) / approval mode (Codex) answered by a
          subflow; the decision visible in `items`.
    - [ ] **harness/t04 — tools as operations.** An operation exposed in-process (Claude `tool()` +
          `createSdkMcpServer`; Codex MCP config) whose run is a subflow of the turn op.
    - [ ] **harness/t05 — validation milestone.** Size, mutation ≥ 60 alone, README + cast-free example, harness
-         lanes in `pnpm validate`; archive here.
+         lanes in `pnpm validate`; one Codex options-split test binding EVERY `CodexOptions`/`ThreadOptions` key (t02
+         mutation left `codex.ts` at 60.00 on the untested key copies — a dropped key is user-observable); archive here.
 4. **`@tinker/ai`** — the LLM layer over the AI SDK (the model is the swappable slot; generateText/streamText as
    ops; tools as operations; `MockLanguageModelV4` as the test seam). Deferred until a driver asks.
 

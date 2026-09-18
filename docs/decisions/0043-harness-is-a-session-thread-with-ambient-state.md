@@ -76,9 +76,14 @@ done | failed`), `text` (the assistant text of the current turn, streamed), `ite
   on `x.thread`, runs the turn with `ctx.signal`, and delivers the SDK's result (or `response`'s
   reading of it). Span attributes: adapter, model, input/output/cached tokens, cost, turns; one
   `harness turn` log line.
-- **Approvals and tools are later tickets** as operations: the SDK's `canUseTool` / approval mode
-  answered by a subflow (t03); an operation exposed in-process (Claude's `tool()` +
-  `createSdkMcpServer`, Codex's MCP config) with its span nested (t04).
+- **Resume rides the hooks.** The session's `x.resume(id)` binding reaches the adapter as
+  `hooks.resume`; each adapter continues its own way (Claude spreads it into `Options.resume`,
+  Codex calls `resumeThread(id)`) — no frame-level "resume key" is invented.
+- **Approvals and tools are later tickets** as operations: the SDK's `canUseTool` answered by a
+  subflow (t03); an operation exposed in-process (Claude's `tool()` + `createSdkMcpServer`) with
+  its span nested (t04). Both are Claude-only code: the Codex SDK (0.155.0) offers neither an
+  approval callback (approvals are the `approvalPolicy` string) nor in-process tools (MCP servers
+  are config for an external process). We do not invent either for Codex.
 
 ## Consequences
 
