@@ -31,16 +31,15 @@ tickets, then contributors with lead review:
          exit 130 and `cancelled`; `runMain` is covered by a smoke test that spawns `node` on the example (real
          process, real exit code — the one process-level test).
    - [x] **cli/t02 — validation milestone.** _Done: tag `cli/t02`; 25 validate lanes green (cli lanes added), mutation 68.94, README + cast-free examples (`basic.ts` tour, `main.ts` real entrypoint). core/t29 landed alongside: `scope.resolve(tag.all)`._
-   - [ ] **hono/t05 — routes at the scope, eager mount (ADR 0042 policy).** `route.get(path, load, { input?,
- respond? })` tag bindings; `honoApp(scope)` returns a Hono app with the session middleware and every bound
-         route mounted, all loaders resolved at mount; `tinker` + `handle` stay for hand mounting. Verify: an app
-         built only from scope bindings answers; all loaders ran at mount (counter), none at request time; a bad
-         loader fails `honoApp` at boot, not on a request; README shows `await scope.resolve(store.db)` as warm-up.
-3. **Claude** — dedicated capability over the Anthropic SDK (frame: backend slot, config tag with model/key,
-   message operations, streaming via `data` cells per ADR 0021, `ctx.signal` cancellation, usage on spans).
-   Design with the `claude-api` skill loaded for current model ids and params.
-4. **Codex** — the same frame shape over OpenAI's Codex, sharing whatever the Claude integration proves reusable
-   (an LLM-client frame), so the second one is mostly configuration.
+   - [x] **hono/t05 — routes at the scope, eager mount (ADR 0042 policy).** _Done: tag `hono/t05`, `routes` tag +
+         `route.get/post/put/patch/delete` bindings, `honoApp(scope)` mounts every route eagerly (loaders run once at
+         boot, a rejecting loader fails boot), 30 hono tests, size 3376 B, lead review SHIP. Core feedback: a lazy
+         operation unit now has TWO askers (cli, hono) → core/t30 queued below._
+   - [ ] **core/t30 — a lazy operation unit.** `lazy(() => import("./x.ts").then((m) => m.op))` returns an
+         `Operation.Handle` whose module loads on first run (and resolves deps then); usable as a `depends` slot and
+         by `scope.run`; presettable by identity. Deletes the load-then-run two-step in cli and hono (`Load` types,
+         `Promise.resolve(load())`, the `bind as Verb` widening). Starts with `grill-with-docs` (ADR): what a lazy
+         op's `label`/`meta` are before load, whether `depends` may be lazy too, and how a load failure surfaces.
 
 Perf follow-up when the sandbox `bench` is available: `op` parity (budgets.md "Call paths (t27)").
 
