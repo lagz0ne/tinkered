@@ -41,9 +41,9 @@ Proven on labeled cases (2026-09-18, `pilot/side-projects/jev-probe/eval.mjs`):
 Key: `AI_GATEWAY_API_KEY` (or `JEV_TOKEN_FILE`); never printed. Cost is ~fractions of a cent per
 ticket. Free tier is request-rate capped; paid credits lift it.
 
-## protect-node-0: the SCIP + Jev impact chain — decided (ADR 0047), ticket jev/impact
+## protect-node-0: the SCIP + Jev impact chain — landed (ADR 0047, `scripts/jev/impact.mjs`)
 
-Decided 2026-09-18 (ADR 0047: an `impact` block per ticket in `PROGRESS.md`; one boolean per discrepancy; a fixed mapping to source/plan wrong). The idea: cross the plan's
+Landed 2026-09-18 (eval `scripts/jev/evals/impact.mjs`: clean block → neither, no model call; under-scoped block → plan wrong at 82–87% once the file's diff hunk rides in the state). Decided (ADR 0047: an `impact` block per ticket in `PROGRESS.md`; one boolean per discrepancy; a fixed mapping to source/plan wrong). The idea: cross the plan's
 **expected** blast radius (the Anchors/refs table the brief already requires) against SCIP's
 **actual** refs of the changed symbols; Jev judges each discrepancy ("does the goal require this
 symbol?") to return **source wrong / plan wrong / both / neither** — catching the "wrong thing

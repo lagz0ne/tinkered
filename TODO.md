@@ -9,15 +9,13 @@ a failing→passing test, or command output). Never tick on intent. Add/split it
 Landed: advisory scripts `scripts/jev/{plan-check,preflight,review}.mjs` (judge set proven 11/11;
 route gated at 0.6). Advisory only — the gate and the human decide (no self-grading).
 
-- [ ] **jev/impact — the impact chain (ADR 0047).** `scripts/jev/impact.mjs <tag> [range]`: reads the
-      ` ```impact <tag> ` block from `docs/roadmap/*/PROGRESS.md`, runs SCIP `refs` per line, set-diffs
-      expected vs actual files (+ undeclared exports in the diff), asks Jev ONE boolean per discrepancy and
-      maps it (unexpected: true → plan wrong, false → source wrong; missing: the reverse; 0.4–0.6 → unclear);
-      `scripts/ticket.sh` prints it as a never-blocking pre-read; CLAUDE.md says the lead writes the block
-      when cutting a ticket. Verify: `node scripts/jev/evals/impact.mjs` — the real cli/t04 block answers
-      "neither" with zero model calls; the under-scoped variant (`commands` only in `src/index.ts`) answers
-      "plan wrong" for `tests/cli.test.ts` and `examples/basic.ts` (or reports "unclear" honestly with the
-      probabilities — then the question wording is the follow-up, not the mapping).
+- [x] **jev/impact — the impact chain (ADR 0047).** _Done 2026-09-18 (917171a, writer-built with one fix round):
+      `scripts/jev/impact.mjs <tag> [range] [--goal] [--block]` reads the ` ```impact <tag> ` block, runs SCIP `refs` by
+      exact display name, set-diffs expected vs actual files (+ undeclared exports), asks Jev one boolean per discrepancy
+      with the file's diff hunk as evidence, maps it to the verdict; `scripts/ticket.sh` pre-read. Verify observed:
+      `node scripts/jev/evals/impact.mjs` → the real cli/t04 block = neither (0 discrepancies, no model call); the
+      under-scoped block = PLAN wrong on tests/cli.test.ts and examples/basic.ts at 82–87% over 3 runs (without the
+      hunk it wobbled at 57–61% = unclear — the evidence is what makes the question answerable)._
 - [ ] **jev/calibrate — route + plan-check fixtures.** Label 3 pos / 3 neg per question (mine from git
       history); set each threshold from data. Verify: `eval.mjs`-style separation report per question.
 

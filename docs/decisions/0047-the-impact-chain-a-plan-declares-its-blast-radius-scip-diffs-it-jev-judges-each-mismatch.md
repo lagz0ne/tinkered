@@ -24,14 +24,16 @@ dependency). Ours is simpler: no resolution, only presence of a symbol in files.
 
    ````text
    ```impact cli/t04
-   cli  ^readCommand$  src/index.ts
-   cli  ^commands$     src/index.ts tests/cli.test.ts examples/basic.ts
-   cli  ^readRun$      src/index.ts
+   cli  readCommand  src/index.ts
+   cli  commands     src/index.ts tests/cli.test.ts examples/basic.ts
+   cli  readRun      src/index.ts
    ```
    ````
 
-   One line per symbol: package, the SCIP `refs` regex, then the files (relative to the package)
-   expected to define or reference it. `(none)` means the symbol must have no definition left (a
+   One line per symbol: package, the exact SCIP display name (the `symbol` column `scripts/scip.sh
+refs` prints — a regex never matches the full symbol string, so the script searches by name and
+   keeps exact matches only), then the files (relative to the package) expected to define or
+   reference it. `(none)` means the symbol must have no definition left (a
    removal). The formatter leaves fences alone, so the block never re-pads.
 
 2. **SCIP is the sensor.** `scripts/jev/impact.mjs <tag> [range]` indexes the block's packages,
@@ -40,7 +42,8 @@ dependency). Ours is simpler: no resolution, only presence of a symbol in files.
    or renamed in the range's diff that no line's regex covers). Deterministic; no model yet.
 3. **Jev answers one boolean per discrepancy**, in its proven zone: "Does achieving the goal
    require `<symbol>` to be referenced in `<file>`?" (for an undeclared export: "…require a new
-   public symbol `<name>`?"). The goal is the range's commit message (`--goal` overrides). The
+   public symbol `<name>`?"). The goal is the range's commit message (`--goal` overrides); the state also carries the
+   file's diff hunk in the range (or the file's head when the diff is empty) as the evidence. The
    verdict is a fixed mapping, never the model's:
 
    | discrepancy       | Jev true                       | Jev false                     |
