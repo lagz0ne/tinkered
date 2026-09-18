@@ -80,7 +80,7 @@ for wrapping non-command tools (Read, Edit, MCP calls).
 
 **Exit codes:** the child's own exit code when the command runs; **3** when the gate
 blocks it (nothing ran — distinct from a passing `0`); `2` for a usage error. So
-`toolcall run ... && next` runs `next` only if the command ran *and* passed.
+`toolcall run ... && next` runs `next` only if the command ran _and_ passed.
 
 > **Write `--why`/`why` to name how the command serves the intention.** The gate
 > judges the command text + your `why`, not your unspoken plan. A bare

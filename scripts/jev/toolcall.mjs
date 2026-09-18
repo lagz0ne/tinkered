@@ -110,7 +110,9 @@ async function askAdvisory(state, questions, where) {
   try {
     return await ask(state, questions, 2); // few tries: a wrapped call must not stall on a 429
   } catch (e) {
-    console.error(`toolcall: ${where} advisory skipped — jev error (${String(e?.message ?? e).slice(0, 80)})`);
+    console.error(
+      `toolcall: ${where} advisory skipped — jev error (${String(e?.message ?? e).slice(0, 80)})`,
+    );
     return null;
   }
 }
@@ -219,7 +221,11 @@ async function doBefore() {
   const frame = readFrame();
   const p = payload();
   if (!beforeReady(frame)) process.exit(0);
-  const a = await askAdvisory({ goal: goalText(frame), call: callStr(p) }, BEFORE_QUESTIONS, "before");
+  const a = await askAdvisory(
+    { goal: goalText(frame), call: callStr(p) },
+    BEFORE_QUESTIONS,
+    "before",
+  );
   if (!validBefore(a)) {
     console.log("before: proceed (jev unavailable or unusable answer — advisory skipped)");
     process.exit(0);
@@ -280,33 +286,32 @@ const AFTER_QUESTIONS = {
 // pointer to the full dump, so nothing is ever lost. `whole` is the "none" option.
 const STRATEGIES = new Set(["whole", "pointer", "head", "tail", "errors"]);
 const ptr = (n, full) => `[… ${n} more line(s) trimmed — full at ${full}]`;
+/** The `head` / `tail` strategies: keep HEAD_TAIL_LINES from one end, point at the rest. */
+function applyEdge(how, lines, output, full) {
+  const total = lines.length;
+  const kept = how === "head" ? lines.slice(0, HEAD_TAIL_LINES) : lines.slice(-HEAD_TAIL_LINES);
+  const rest = total - kept.length;
+  if (rest === 0) return { text: output, kept: kept.length, total };
+  const text =
+    how === "head"
+      ? kept.join("\n") + "\n" + ptr(rest, full)
+      : ptr(rest, full) + "\n" + kept.join("\n");
+  return { text, kept: kept.length, total };
+}
 function applyStrategy(how, output, full) {
   const body = output.endsWith("\n") ? output.slice(0, -1) : output; // no phantom trailing line
   const lines = body === "" ? [] : body.split("\n");
   const total = lines.length;
   if (how === "pointer") return { text: ptr(total, full), kept: 0, total };
-  if (how === "head") {
-    const head = lines.slice(0, HEAD_TAIL_LINES);
-    const rest = total - head.length;
-    return {
-      text: rest > 0 ? head.join("\n") + "\n" + ptr(rest, full) : output,
-      kept: head.length,
-      total,
-    };
-  }
-  if (how === "tail") {
-    const tail = lines.slice(-HEAD_TAIL_LINES);
-    const rest = total - tail.length;
-    return {
-      text: rest > 0 ? ptr(rest, full) + "\n" + tail.join("\n") : output,
-      kept: tail.length,
-      total,
-    };
-  }
+  if (how === "head" || how === "tail") return applyEdge(how, lines, output, full);
   if (how === "errors") {
     const hits = lines.filter((l) => ERROR_RE.test(l) && !NOISE_LINE_RE.test(l));
     if (hits.length === 0) return { text: output, kept: total, total }; // safe: keep whole
-    return { text: hits.join("\n") + "\n" + ptr(total - hits.length, full), kept: hits.length, total };
+    return {
+      text: hits.join("\n") + "\n" + ptr(total - hits.length, full),
+      kept: hits.length,
+      total,
+    };
   }
   return { text: output, kept: total, total }; // whole
 }
@@ -416,7 +421,11 @@ function resolveFrame() {
 /** BEFORE as a real gate: returns whether the command may run. Advisory if no key. */
 async function gate(frame, p, command) {
   if (!loadKey()) return true;
-  const a = await askAdvisory({ goal: goalText(frame), call: callStr(p) }, BEFORE_QUESTIONS, "gate");
+  const a = await askAdvisory(
+    { goal: goalText(frame), call: callStr(p) },
+    BEFORE_QUESTIONS,
+    "gate",
+  );
   if (!validBefore(a)) return true; // jev unavailable or unusable answer → advisory, allow the run
   const runP = a.shouldRun.probability;
   const weak = weakLinks(a);
