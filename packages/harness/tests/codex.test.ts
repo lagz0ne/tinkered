@@ -145,6 +145,61 @@ test("options split into the constructor's keys and the thread's keys", async ()
   await scope.close();
 });
 
+test("every option key reaches its SDK side: the constructor's six, the thread's eleven", async () => {
+  const seen: Seen = { turns: [], clients: [] };
+  const coder = harness({ label: "coder", adapter: codex });
+  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
+  const scope = createScope({
+    tags: [
+      codex.options({
+        codexPathOverride: "/bin/codex",
+        baseUrl: "https://api",
+        apiKey: "k",
+        config: { a: 1 },
+        configOverrides: ["x=1"],
+        env: { HOME: "/h" },
+        model: "m",
+        threadSource: "src",
+        sandboxMode: "read-only",
+        workingDirectory: "/w",
+        skipGitRepoCheck: true,
+        modelReasoningEffort: "high",
+        networkAccessEnabled: false,
+        webSearchMode: "cached",
+        webSearchEnabled: true,
+        approvalPolicy: "never",
+        additionalDirectories: ["/d"],
+      }),
+    ],
+    presets: [preset(codex.sdk, async () => fakeCodexSdk([readCodexScript()], seen))],
+  });
+  await scope.createSession().run(ask, { input: "hello" });
+  expect(seen.clients[0].options).toEqual({
+    codexPathOverride: "/bin/codex",
+    baseUrl: "https://api",
+    apiKey: "k",
+    config: { a: 1 },
+    configOverrides: ["x=1"],
+    env: { HOME: "/h" },
+  });
+  expect(seen.clients[0].started).toEqual([
+    {
+      model: "m",
+      threadSource: "src",
+      sandboxMode: "read-only",
+      workingDirectory: "/w",
+      skipGitRepoCheck: true,
+      modelReasoningEffort: "high",
+      networkAccessEnabled: false,
+      webSearchMode: "cached",
+      webSearchEnabled: true,
+      approvalPolicy: "never",
+      additionalDirectories: ["/d"],
+    },
+  ]);
+  await scope.close();
+});
+
 test("a resume binding resumes the thread id", async () => {
   const seen: Seen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });

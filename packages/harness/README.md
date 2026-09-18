@@ -4,11 +4,13 @@ A harness is a session thread with ambient state; adapters keep the harness's ow
 (ADR 0043).
 
 ```text
-harness({ label, adapter })
+harness({ label, adapter, approve?, tools? })
 ├── adapter.options   (tag)                the SDK's own thread-level options, bound at scope or session
-├── adapter           (resource, scope)    factory imports the SDK; returns Harness.Backend
-├── x.thread          (resource, session)  backend.start(options merged nearest-first, hooks) — one per session
+├── adapter.sdk       (resource, scope)    the SDK module itself, imported lazily — the test seam (preset it)
+├── adapter           (resource, scope)    depends on the module; returns Harness.Backend
+├── x.thread          (resource, session)  backend.start(options merged nearest-first (+ resume), hooks) — one per session
 ├── x.status / x.text / x.items / x.usage / x.id / x.events   data cells, written as events arrive
+├── approve / tools   (operations)         attached at construction; each runs as a subflow of the turn
 └── x.turn({ label, input?, request, response? })   an op: request(input) → the turn; delivers the SDK result
 ```
 
@@ -17,7 +19,7 @@ watching `text` and `status`, and resume a conversation by id:
 
 ```ts
 import { createScope } from "@tinker/core";
-import { claudeCode, harness, type ClaudeCode } from "@tinker/harness";
+import { claudeCode, harness } from "@tinker/harness";
 
 const coder = harness({ label: "coder", adapter: claudeCode });
 const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
@@ -35,13 +37,15 @@ await resumed.run(ask, { input: "continue" });
 await scope.close();
 ```
 
-The test recipe presets the lazy SDK module with a fake `query`:
+The test recipe presets the lazy SDK module — the seam is the module's three members the adapter
+calls: `query`, `tool`, and `createSdkMcpServer` (the last two are one-liners in a fake that never
+registers tools; see `tests/fixtures.ts`):
 
 ```ts
 import { preset } from "@tinker/core";
 
 const scope = createScope({
-  presets: [preset(claudeCode.sdk, async () => ({ query: fakeQuery }))],
+  presets: [preset(claudeCode.sdk, async () => ({ ...toolSdk, query: fakeQuery }))],
 });
 ```
 
@@ -144,3 +148,10 @@ const scope = createScope({
   tags: [claudeCode.options({ cwd: "/work", allowedTools: ["mcp__coder__search"] })],
 });
 ```
+
+## Testing
+
+Everything above is proven at the seam with no mocks: preset the SDK module (`claudeCode.sdk`,
+`codex.sdk`) with a fake that yields recorded SDK messages or events, and assert the cells, the
+result, the items, and the spans. A resource dependency is delivered as its value (ADR 0044), so a
+fake thread, db, or module never needs an `await` in the body that uses it. See `tests/`.

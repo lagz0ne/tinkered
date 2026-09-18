@@ -64,6 +64,17 @@ const lanes = [
     "cli pure universal bundle",
     `bash -c 'grep -qE "from \\"node:" packages/cli/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/cli/dist/index.mjs\\").then(m=>process.exit(m.run&&m.runMain&&m.command?0:1))"'`,
   ],
+  // @tinker/harness (ADR 0043, harness-v1 t05): same promises; the SDKs, zod, and the MCP SDK never reach dist at runtime.
+  ["harness tests", `${VP} run --no-cache harness#test`],
+  ["harness size (<= 10 kB gzip)", `${VP} run --no-cache harness#size`],
+  [
+    "harness cast-free examples (0 casts)",
+    `bash -c 'test $(grep -rcE "\\bas [A-Za-z{(]|\\bas unknown|[a-zA-Z0-9_)\\]]!" packages/harness/examples | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
+  ],
+  [
+    "harness pure universal bundle (SDKs only behind import(); no zod/MCP at runtime)",
+    `bash -c 'grep -qE "from \\"(node:|@anthropic-ai/claude-agent-sdk|@openai/codex-sdk|zod|@modelcontextprotocol)" packages/harness/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/harness/dist/index.mjs\\").then(m=>process.exit(m.harness&&m.claudeCode&&m.codex?0:1))"'`,
+  ],
 ];
 
 let failed = 0;
