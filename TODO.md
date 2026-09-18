@@ -41,6 +41,27 @@ tickets, then contributors with lead review:
          `scope.run(await scope.resolve(module), …)`. Follow-up (optional): cli/hono tables accept a
          `Resource.Handle<Operation.Handle>` beside a loader so the load is cached per scope and observable._
 
+3. **Harnesses (Claude Code, Codex)** — **decided (ADR 0043)**: `@tinker/harness`, one frame generic over the
+   adapter's own SDK types; adapters are resources whose factories import the SDK; the thread is a session
+   resource; ambient state as data cells; a turn is an operation. Plan: `docs/roadmap/harness-v1/PROGRESS.md`.
+   - [ ] **harness/t01 — package + frame + Claude Code adapter + ambient cells + `turn` op.** Verify: with
+         `preset(claudeCode.resource, () => fake)` — a session's `turn` runs one turn; `status` idle→running→done;
+         `text` streams deltas; `items` records a tool call; `usage` carries tokens + cost; `id` set; `events` raw
+         and ordered; the result is the SDK's result; two turns reuse the thread; `x.resume(id)` reaches `start`;
+         options merge nearest-first with `includePartialMessages` forced; forced close → interrupt + close, turn
+         `cancelled`, status `failed`; `mapClaudeMessage` proven with recorded `SDKMessage` fixtures; span attr
+         `adapter` + one `harness turn` log line. Contributor running.
+   - [ ] **harness/t02 — Codex adapter.** Same frame; `codex.options` = the SDK's `CodexOptions & ThreadOptions`;
+         `runStreamed` events → cells; recorded `ThreadEvent` fixtures.
+   - [ ] **harness/t03 — approvals as operations.** `canUseTool` (Claude) / approval mode (Codex) answered by a
+         subflow; the decision visible in `items`.
+   - [ ] **harness/t04 — tools as operations.** An operation exposed in-process (Claude `tool()` +
+         `createSdkMcpServer`; Codex MCP config) whose run is a subflow of the turn op.
+   - [ ] **harness/t05 — validation milestone.** Size, mutation ≥ 60 alone, README + cast-free example, harness
+         lanes in `pnpm validate`; archive here.
+4. **`@tinker/ai`** — the LLM layer over the AI SDK (the model is the swappable slot; generateText/streamText as
+   ops; tools as operations; `MockLanguageModelV4` as the test seam). Deferred until a driver asks.
+
 Perf follow-up when the sandbox `bench` is available: `op` parity (budgets.md "Call paths (t27)").
 
 ## Shipped — archived
