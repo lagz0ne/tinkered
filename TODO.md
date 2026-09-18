@@ -102,7 +102,22 @@ tickets, then contributors with lead review:
          size / cast-free examples / pure bundle with no zod or MCP SDK at runtime), 22 seam tests (the all-keys Codex
          options-split test added), size 6746 B, mutation 64.38 (claude.ts reports 42 uncovered mutants — a follow-up
          look), README pass (frame tree with the seam and the `approve`/`tools` slots, a Testing section). Archived below._
-4. **`@tinker/ai`** — the LLM layer over the AI SDK (the model is the swappable slot; generateText/streamText as
+4. **Operations as tools; harnesses reach them over MCP** — **decided (ADR 0046)**, user 2026-09-18 (`1A 2:analyze
+& choose → external MCP server as a driver 3A 4A 5A`). Plan: `docs/roadmap/mcp-v1/PROGRESS.md`.
+   - [ ] **mcp/t01 — `@tinker/mcp`: `tool` meta tag, `tools` binding tag, `mcpServer(scope, { name, version })`.** Verify:
+         through the MCP SDK's in-memory client — `listTools` lists every bound op with its description and JSON
+         schema; `callTool` runs the op in a session as an inline op `mcp <name>` (span, one `mcp tool` line, the op's
+         span nested) and returns `respond(value)` (default one JSON text content); a parse failure and a thrown op →
+         `isError` with the session `failed`; a session-bound tool is visible only to its session's server; the op's
+         deps (a tag bound on the scope) are seen. Writer: the vercel-gateway pi.
+   - [ ] **harness/t06 — adapters read `tool.read(op)`.** `harness({ tools: [op] })` takes ordinary ops with meta; the
+         `claudeCode.tool` builder goes; Claude's in-process path registers from the meta; README: the MCP config recipe
+         for Claude (`mcpServers`) and Codex (`config.mcp_servers`), and a Paseo plugin entry.
+   - [ ] **cli/t04 — commands as operations with meta.** `command({ name, description, argv })` meta + `commands(op)`;
+         the loader/resource shapes stay for lazy modules; `run` reads `command.read(op)`.
+   - [ ] **mcp/t02 — validation milestone.** Lanes, mutation ≥ 60 alone, README + cast-free example (a stdio entry
+         through `@tinker/cli`), archive here.
+5. **`@tinker/ai`** — the LLM layer over the AI SDK (the model is the swappable slot; generateText/streamText as
    ops; tools as operations; `MockLanguageModelV4` as the test seam). Deferred until a driver asks.
 
 Perf follow-up when the sandbox `bench` is available: `op` parity (budgets.md "Call paths (t27)").
