@@ -14,8 +14,8 @@ runtime), PGlite as the real test database, size cap 10 kB gzip, no core change.
 
 | tag         | ticket                                                                                                                     | blockers | status |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------- | -------- | ------ |
-| drizzle/t01 | Package + frame: `config` tag, scope `db` (open/close by defer), session `tx` (commit/rollback by outcome), query log line | —        | [ ]    |
-| drizzle/t02 | Validation milestone: size, mutation ≥ 60 alone, README + cast-free example, validate lanes; SHIP                          | 01       | [ ]    |
+| drizzle/t01 | Package + frame: `config` tag, scope `db` (open/close by defer), session `tx` (commit/rollback by outcome), query log line | —        | [x]    |
+| drizzle/t02 | Validation milestone: size, mutation ≥ 60 alone, README + cast-free example, validate lanes; SHIP                          | 01       | [x]    |
 
 ### Verify
 
@@ -30,6 +30,8 @@ concurrently (PGlite is single-connection); (6) no`config`binding →`MissingTag
 label; (7) with`observe.log`, one `db query`entry per statement carrying`sql`and no params
 (insert a value like`"secret"`and assert it does not appear in any log entry); (8) at the root
 (no session)`tx`builds at the root and commits at`scope.close()`.
+  - _Landed (t01 169baa9 mutation 96.49; t02 on the validate-gate commit): 21 lanes green; size 1959 B;
+    README gained the cheap-to-import rule and the async-dep note at review. **SHIPPED.**_
 - **t02** — `vp run drizzle#size` ≤ 10240; `vp run drizzle#mutate` alone ≥ 60; README (the frame,
   an op that writes, the outcome rule, the one-transaction-per-request rule, the PGlite test recipe) +
   cast-free `examples/basic.ts`; `pnpm validate` gains drizzle lanes (tests, size, cast-free, pure

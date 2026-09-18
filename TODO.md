@@ -17,17 +17,7 @@ shutdown; TUI app — each starts with `grill-with-docs`.
 **Authoring queue (user-ordered, 2026-09-17).** Each starts with `grill-with-docs` (ADR + glossary), then
 tickets, then contributors with lead review:
 
-1. **Drizzle** — dedicated capability: `drizzleStore({ label, open, close? })` with `config` tag, scope-target
-   `db` resource (open/close by `defer`), session-target `tx` resource (commit on `success`, rollback on
-   `failed`/`cancelled` — the session outcome), one `db query` log line per statement, PGlite as the real test
-   database. **Decided (all A, ADR 0041).** Tickets:
-   - [x] **drizzle/t01 — package + frame + `db`/`tx` resources + query log line.** _Done: tag `drizzle/t01`, 8 PGlite-backed tests, size 1959 B, lead review SHIP; core feedback recorded (defer-after-await misread → docs note; build-count seam → use spans)._ Verify: the eight
-         PGlite-backed seam tests in `docs/roadmap/drizzle-v1/PROGRESS.md` (open once + close on scope
-         close; commit on session success; rollback on failed; rollback on forced close; sequential
-         sessions = two transactions; MissingTag without config; one `db query` line per statement with
-         no params; root-level tx commits at scope close); gate green; lead review SHIP.
-   - [ ] **drizzle/t02 — validation milestone.** Size ≤ 10 kB, mutation ≥ 60 alone, README + cast-free
-         example, drizzle lanes in `pnpm validate`; archive here.
+1. **Drizzle** — **shipped** (ADR 0041, tags `drizzle/t01`, `drizzle/t02`; archived below).
 2. **CLI entrypoint** — the first scope-OWNING driver (`@tinker/cli`), **decided (ADR 0042)**: commands are tag
    bindings on the scope (`command(name, load, { input?, respond? })`, `command.entry` for a server command that
    receives the scope), lazy loaders (help loads nothing), the command run is an inline op (span + `cli command`
@@ -59,6 +49,15 @@ Perf follow-up when the sandbox `bench` is available: `op` parity (budgets.md "C
 
 Both v1 milestones are complete. Full ticket detail, budgets, and reset recipes live in the
 durable trackers (this list is just the pointer):
+
+- **drizzle v1 (2026-09-18)** — complete: `@tinker/drizzle` — `drizzleStore({ label, open, close? })`: a
+  required `config` tag, a scope-target `db` resource (`open` once with a logger bound to `ctx.log`, `close`
+  by `defer`), a session-target `tx` resource that holds `db.transaction(cb)` open for the session and
+  commits on `success` / rolls back on `failed`/`cancelled`/`released` (the session outcome, ADR 0028 paying
+  off), one `db query` log line per statement with no params, PGlite as the real test database. Gate: 21
+  validate lanes green (drizzle lanes added), size 1959 B, mutation 96.49, 8 seam tests. Core feedback
+  recorded (savepoints need "inherit the parent session's instance"; a `defer` TSDoc note; build counts
+  via spans). Detail: `docs/roadmap/drizzle-v1/PROGRESS.md`.
 
 - **hono v1 (2026-09-17)** — complete: `@tinker/hono` as a session-level driver (ADR 0039, 0040; tags
   `hono/t01`…`hono/t04`): the entrypoint owns the scope, `tinker(scope, { tags?, onError? })` opens a session per

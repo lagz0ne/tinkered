@@ -10,7 +10,25 @@ drizzleStore({ label, open, close? })
 └── store.tx       (resource, session)    db.transaction(cb) held open for the session
 ```
 
-An op that writes declares `depends: { tx: store.tx }` and nothing else:
+A frame is cheap to import (ADR 0042): the driver import lives inside `open`, so binding
+`store.config` at an entrypoint — or listing CLI commands — loads no database code until the
+store is first resolved:
+
+```ts
+export const store = drizzleStore({
+  label: "store",
+  open: async ({ url }: { url: string }, { logger }) => {
+    const { PGlite } = await import("@electric-sql/pglite");
+    const { drizzle } = await import("drizzle-orm/pglite");
+    return drizzle(new PGlite(url), { logger });
+  },
+  close: (db) => db.$client.close(),
+});
+createScope({ tags: [store.config({ url: "memory://" })] });
+```
+
+An async resource is delivered as a promise (`Scope.ResourceValue`): an op that writes declares
+`depends: { tx: store.tx }` and awaits it, nothing else:
 
 ```ts
 const addUser = operation({
