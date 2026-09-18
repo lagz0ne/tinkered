@@ -16,10 +16,16 @@ bundled), size cap 10 kB gzip, no core change.
 
 | tag         | ticket                                                                                                 | blockers | status |
 | ----------- | ------------------------------------------------------------------------------------------------------ | -------- | ------ |
-| mcp/t01     | Package + `tool` meta tag + `tools` binding tag + `mcpServer(scope, …)` driver; in-memory client tests | —        | [ ]    |
+| mcp/t01     | Package + `tool` meta tag + `tools` binding tag + `mcpServer(scope, …)` driver; in-memory client tests | —        | [x]    |
 | harness/t06 | Adapters read `tool.read(op)`; `claudeCode.tool` builder removed; Codex `mcp_servers` recipe; README   | mcp/t01  | [ ]    |
 | cli/t04     | A command is an operation with `command` meta; `commands(op)`; loaders stay for lazy modules           | mcp/t01  | [ ]    |
 | mcp/t02     | Validation milestone: lanes, mutation, README + cast-free example (stdio entry via cli); archive       | 01       | [ ]    |
+
+### Landed
+
+| tag     | sha     | tests | size (B gzip) | mutation | notes                                                                                                           |
+| ------- | ------- | ----- | ------------- | -------- | --------------------------------------------------------------------------------------------------------------- |
+| mcp/t01 | 0e3d335 | 8     | 1529          | 80.60    | writer-built (vercel-gateway pi); session per call, op as subflow via `rawInput`; `Mcp.ZodShape` typed by hand. |
 
 ## Review loop
 

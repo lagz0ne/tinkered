@@ -104,12 +104,14 @@ tickets, then contributors with lead review:
          look), README pass (frame tree with the seam and the `approve`/`tools` slots, a Testing section). Archived below._
 4. **Operations as tools; harnesses reach them over MCP** — **decided (ADR 0046)**, user 2026-09-18 (`1A 2:analyze
 & choose → external MCP server as a driver 3A 4A 5A`). Plan: `docs/roadmap/mcp-v1/PROGRESS.md`.
-   - [ ] **mcp/t01 — `@tinker/mcp`: `tool` meta tag, `tools` binding tag, `mcpServer(scope, { name, version })`.** Verify:
-         through the MCP SDK's in-memory client — `listTools` lists every bound op with its description and JSON
-         schema; `callTool` runs the op in a session as an inline op `mcp <name>` (span, one `mcp tool` line, the op's
-         span nested) and returns `respond(value)` (default one JSON text content); a parse failure and a thrown op →
-         `isError` with the session `failed`; a session-bound tool is visible only to its session's server; the op's
-         deps (a tag bound on the scope) are seen. Writer: the vercel-gateway pi.
+   - [x] **mcp/t01 — `@tinker/mcp`: `tool` meta tag, `tools` binding tag, `mcpServer(scope, { name, version })`.** _Done: tag
+         `mcp/t01` (0e3d335), written by the vercel-gateway pi writer (one fix round: the session outcome tells the truth on a
+         parse failure — log + rethrow inside, one mapping outside; the `registerTool` callback built once; three test helpers).
+         Every bound op is registered off `tool.read(op)` (name = meta.name ?? label); each call is a session running an inline
+         op `mcp <name>` with the op as its subflow through `rawInput` (the op's parse stays the edge), `respond` default one
+         JSON text, failures → `{ isError: true }`, one `mcp tool` log line; `ToolUndeclared` for a bound op without meta.
+         8 seam tests through the MCP SDK's in-memory Client, size 1529 B, 29 lanes green, mutation 80.60. Core feedback
+         recorded (3 rows)._
    - [ ] **harness/t06 — adapters read `tool.read(op)`.** `harness({ tools: [op] })` takes ordinary ops with meta; the
          `claudeCode.tool` builder goes; Claude's in-process path registers from the meta; README: the MCP config recipe
          for Claude (`mcpServers`) and Codex (`config.mcp_servers`), and a Paseo plugin entry.
