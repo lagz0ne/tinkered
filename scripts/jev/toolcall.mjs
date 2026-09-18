@@ -17,8 +17,17 @@
 // never picks which lines to keep. The trim keeps output WHOLE below the confidence bar
 // (nothing lost; full dump in .jev/). The only pass/fail remains scripts/ticket.sh, the
 // gates, and the human. Exit is always 0 unless --strict (experiments; never in a gate).
-import { readFileSync, writeFileSync, appendFileSync, statSync, mkdirSync, existsSync } from "node:fs";
-import { execFileSync } from "node:child_process";
+import {
+  readFileSync,
+  writeFileSync,
+  appendFileSync,
+  statSync,
+  readdirSync,
+  rmSync,
+  mkdirSync,
+  existsSync,
+} from "node:fs";
+import { spawnSync } from "node:child_process";
 import { loadKey, ask, pct } from "./lib.mjs";
 
 const DIR = process.env.JEV_TOOLCALL_DIR ?? ".jev";
@@ -27,6 +36,8 @@ const FULL_FILE = `${DIR}/last-output.txt`;
 const TRACE_FILE = `${DIR}/trace.jsonl`; // run log (gitignored), FIFO-capped, for later analysis
 const TRACE_MAX_LINES = Number(process.env.JEV_TRACE_MAX_LINES ?? 2000); // keep newest N entries
 const TRACE_MAX_BYTES = Number(process.env.JEV_TRACE_MAX_BYTES ?? 1_048_576); // only compact past ~1 MB
+const OUT_DIR = `${DIR}/out`; // one immutable dump per call so trim pointers stay valid
+const OUT_MAX = Number(process.env.JEV_OUT_MAX ?? 500); // cap kept dumps (FIFO by name/timestamp)
 
 const LINK_THRESHOLD = 0.6; // warn a link is weak at/above this
 const HOW_MIN = 0.6; // trust the trim-how choice only at/above this, else keep whole (safe)
@@ -38,7 +49,13 @@ const ERROR_RE =
 const NOISE_LINE_RE = /\b(npm|pnpm|yarn)\b.*\bwarn\b|deprecated/i;
 
 // ---------- args ----------
-const argv = process.argv.slice(2);
+// Everything before the first `--` is the wrapper's own options; everything after is the
+// child command (for `run`). Parsing ONLY the prefix keeps a child flag (e.g. a command's
+// own --force) from leaking into wrapper behaviour.
+const rawArgv = process.argv.slice(2);
+const ddIndex = rawArgv.indexOf("--");
+const argv = ddIndex >= 0 ? rawArgv.slice(0, ddIndex) : rawArgv;
+const cmdTail = ddIndex >= 0 ? rawArgv.slice(ddIndex + 1) : [];
 const cmd = argv[0];
 const strict = argv.includes("--strict");
 const opt = (name) => {
@@ -76,6 +93,33 @@ function trace(rec) {
   } catch {
     /* trace is advisory too — never break a call over it */
   }
+}
+/** ask() but advisory: a gateway/auth/exhausted-retry failure returns null (logged) instead of
+ *  throwing, so a Jev outage never blocks a command or swallows output — every caller falls back. */
+async function askAdvisory(state, questions, where) {
+  try {
+    return await ask(state, questions);
+  } catch (e) {
+    console.error(`toolcall: ${where} advisory skipped — jev error (${String(e?.message ?? e).slice(0, 80)})`);
+    return null;
+  }
+}
+/** Save this call's full output under a unique, immutable name so earlier trim pointers keep
+ *  resolving; refresh last-output.txt as a newest-copy convenience and FIFO-cap the dump dir. */
+function saveDump(output) {
+  mkdirSync(OUT_DIR, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const path = `${OUT_DIR}/${stamp}-${Math.random().toString(36).slice(2, 8)}.txt`;
+  writeFileSync(path, output);
+  try {
+    writeFileSync(FULL_FILE, output);
+    const files = readdirSync(OUT_DIR).sort();
+    for (const f of files.slice(0, Math.max(0, files.length - OUT_MAX)))
+      rmSync(`${OUT_DIR}/${f}`, { force: true });
+  } catch {
+    /* housekeeping is best-effort */
+  }
+  return path;
 }
 const goalText = (f) =>
   `objective: ${f.objective}\nintention: ${f.intention}\nverification: ${(f.verification ?? []).join("; ")}`;
@@ -148,7 +192,11 @@ async function doBefore() {
     console.log("before: no key — advisory skipped, proceed");
     process.exit(0);
   }
-  const a = await ask({ goal: goalText(frame), call: callStr(p) }, BEFORE_QUESTIONS);
+  const a = await askAdvisory({ goal: goalText(frame), call: callStr(p) }, BEFORE_QUESTIONS, "before");
+  if (!a) {
+    console.log("before: proceed (jev unavailable — advisory skipped)");
+    process.exit(0);
+  }
   const weak = weakLinks(a);
   const runP = a.shouldRun.probability;
   const skip = runP < 0.5;
@@ -204,16 +252,16 @@ const AFTER_QUESTIONS = {
 // deterministic and cannot invent or reorder text. Every trimming strategy leaves a
 // pointer to the full dump, so nothing is ever lost. `whole` is the "none" option.
 const STRATEGIES = new Set(["whole", "pointer", "head", "tail", "errors"]);
-const ptr = (n) => `[… ${n} more line(s) trimmed — full at ${FULL_FILE}]`;
-function applyStrategy(how, output) {
+const ptr = (n, full) => `[… ${n} more line(s) trimmed — full at ${full}]`;
+function applyStrategy(how, output, full) {
   const lines = output.split("\n");
   const total = lines.length;
-  if (how === "pointer") return { text: ptr(total), kept: 0, total };
+  if (how === "pointer") return { text: ptr(total, full), kept: 0, total };
   if (how === "head") {
     const head = lines.slice(0, HEAD_TAIL_LINES);
     const rest = total - head.length;
     return {
-      text: rest > 0 ? head.join("\n") + "\n" + ptr(rest) : output,
+      text: rest > 0 ? head.join("\n") + "\n" + ptr(rest, full) : output,
       kept: head.length,
       total,
     };
@@ -222,7 +270,7 @@ function applyStrategy(how, output) {
     const tail = lines.slice(-HEAD_TAIL_LINES);
     const rest = total - tail.length;
     return {
-      text: rest > 0 ? ptr(rest) + "\n" + tail.join("\n") : output,
+      text: rest > 0 ? ptr(rest, full) + "\n" + tail.join("\n") : output,
       kept: tail.length,
       total,
     };
@@ -230,7 +278,7 @@ function applyStrategy(how, output) {
   if (how === "errors") {
     const hits = lines.filter((l) => ERROR_RE.test(l) && !NOISE_LINE_RE.test(l));
     if (hits.length === 0) return { text: output, kept: total, total }; // safe: keep whole
-    return { text: hits.join("\n") + "\n" + ptr(total - hits.length), kept: hits.length, total };
+    return { text: hits.join("\n") + "\n" + ptr(total - hits.length, full), kept: hits.length, total };
   }
   return { text: output, kept: total, total }; // whole
 }
@@ -257,15 +305,22 @@ const trimNote = (how, pick, conf, kept, total) =>
     : `${how} (${pct(conf)}): kept ${kept}/${total} line(s)`;
 const emit = (text) => process.stdout.write(text.endsWith("\n") ? text : text + "\n");
 
-/** Shared tail of `after` and `run`: verify the request/output, pick a strategy, prune, emit. */
-async function pruneEmit(frame, p, output, tag, traceCmd) {
-  const a = await ask(
+/** Shared tail of `after` and `run`: verify the request/output, pick a strategy, prune, emit.
+ *  `full` is this call's immutable dump path. A Jev outage keeps the output whole (nothing lost). */
+async function pruneEmit(frame, p, output, full, tag, traceCmd) {
+  const a = await askAdvisory(
     { goal: goalText(frame), call: callStr(p), output: output.slice(0, 12_000) },
     AFTER_QUESTIONS,
+    tag,
   );
+  if (!a) {
+    emit(output);
+    console.error(`${tag}: kept whole (jev unavailable). Full output: ${full}`);
+    process.exit(0);
+  }
   const flags = verifyFlags(a);
   const { pick, conf, how } = pickStrategy(a);
-  const { text, kept, total } = applyStrategy(how, output);
+  const { text, kept, total } = applyStrategy(how, output, full);
   trace({
     cmd: traceCmd,
     tool: p.tool,
@@ -281,7 +336,7 @@ async function pruneEmit(frame, p, output, tag, traceCmd) {
   });
   for (const f of flags) console.error(`${tag}: ⚠ ${f}`);
   emit(text);
-  console.error(`${tag}: ${trimNote(how, pick, conf, kept, total)}. Full output: ${FULL_FILE}`);
+  console.error(`${tag}: ${trimNote(how, pick, conf, kept, total)}. Full output: ${full}`);
   process.exit(strict && (flags.length || how !== "whole") ? 2 : 0);
 }
 
@@ -290,14 +345,13 @@ async function doAfter() {
   const p = payload();
   const outFile = opt("--out");
   const output = outFile ? readFileSync(outFile, "utf8") : String(p.output ?? "");
-  ensureDir();
-  writeFileSync(FULL_FILE, output);
+  const full = saveDump(output);
   if (!loadKey()) {
     console.log("after: no key — advisory skipped, output kept whole");
     emit(output);
     process.exit(0);
   }
-  await pruneEmit(frame, p, output, "after", "after");
+  await pruneEmit(frame, p, output, full, "after", "after");
 }
 
 // ---------- run: the whole chain around one real command, in a single call ----------
@@ -321,7 +375,8 @@ function resolveFrame() {
 /** BEFORE as a real gate: returns whether the command may run. Advisory if no key. */
 async function gate(frame, p, command) {
   if (!loadKey()) return true;
-  const a = await ask({ goal: goalText(frame), call: callStr(p) }, BEFORE_QUESTIONS);
+  const a = await askAdvisory({ goal: goalText(frame), call: callStr(p) }, BEFORE_QUESTIONS, "gate");
+  if (!a) return true; // jev unavailable → advisory, allow the command to run
   const runP = a.shouldRun.probability;
   const weak = weakLinks(a);
   const allowed = runP >= 0.5 || argv.includes("--force");
@@ -340,22 +395,18 @@ async function gate(frame, p, command) {
   else if (runP < 0.5) console.error(`toolcall: forced (run only ${pct(runP)})`);
   return allowed;
 }
-/** Run the command (argv, no shell — preserves the caller's quoting), capturing
- *  stdout+stderr even when it exits non-zero. */
+/** Run the command (argv, no shell — preserves the caller's quoting) and capture BOTH stdout
+ *  and stderr, on success or failure (stdout then stderr; not interleaved). */
 function execCapture(cmdArgv) {
-  try {
-    return execFileSync(cmdArgv[0], cmdArgv.slice(1), {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-      maxBuffer: 32 * 1024 * 1024,
-    });
-  } catch (e) {
-    return `${e.stdout ?? ""}${e.stderr ?? ""}` || String(e.message ?? e);
-  }
+  const r = spawnSync(cmdArgv[0], cmdArgv.slice(1), {
+    encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
+  });
+  if (r.error) return String(r.error.message ?? r.error); // spawn failed (e.g. not found)
+  return `${r.stdout ?? ""}${r.stderr ?? ""}`;
 }
 async function doRun() {
-  const sep = argv.indexOf("--");
-  const cmdArgv = sep >= 0 ? argv.slice(sep + 1) : [];
+  const cmdArgv = cmdTail; // the command after `--`; wrapper options are the prefix only
   if (cmdArgv.length === 0) {
     console.error(
       "usage: node scripts/jev/toolcall.mjs run --intention '...' [--why '...'] [--force] -- <command...>",
@@ -369,14 +420,13 @@ async function doRun() {
   if (!(await gate(frame, p, command))) process.exit(strict ? 2 : 0); // gate blocked → do NOT run
 
   const output = execCapture(cmdArgv);
-  ensureDir();
-  writeFileSync(FULL_FILE, output);
+  const full = saveDump(output);
 
   if (!loadKey()) {
     emit(output);
     process.exit(0);
   }
-  await pruneEmit(frame, p, output, "toolcall", "run/after");
+  await pruneEmit(frame, p, output, full, "toolcall", "run/after");
 }
 
 // ---------- dispatch ----------

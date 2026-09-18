@@ -101,8 +101,9 @@ node scripts/jev/toolcall.mjs after \
   `errors` (keep the failure lines). Jev only routes; the **script executes** the
   strategy deterministically, so nothing is invented or reordered, and the kept
   text still answers the goal. Trusted only at ≥ 60% confidence — below that it
-  keeps the output **whole** (safe default). Every trim leaves a pointer to the
-  full dump in `.jev/last-output.txt`; nothing is ever lost.
+  keeps the output **whole** (safe default). Every trim leaves a pointer to that
+  call's own dump under `.jev/out/` (a unique file, so older pointers stay valid;
+  `.jev/last-output.txt` is a convenience copy of the newest). Nothing is ever lost.
 
 ## Honesty rails (measured, not guessed — see `[[toolcall-evals]]`)
 
