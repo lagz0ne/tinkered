@@ -91,7 +91,7 @@ Write the tool's raw output to a file, then:
 node scripts/jev/toolcall.mjs after \
   --json '{"tool":"Bash","args":{"cmd":"vp test auth"},"why":"see the failure"}' \
   --out /tmp/tool-output.txt
-# → trimmed output on stdout; verify flags + "kept 4/6 (rules dropped 2)" on stderr
+# → trimmed output on stdout; verify flags + "after: errors (95%): kept 3/11 line(s)" on stderr
 ```
 
 - **Verify** (Jev): flags if the request strayed from intention, or the output

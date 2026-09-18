@@ -45,8 +45,10 @@ const HEAD_TAIL_LINES = 20; // lines kept by the head/tail strategies
 // The `errors` strategy keeps real failure/error lines (incl. compiler/lint warnings)…
 const ERROR_RE =
   /\b(error|fail(ed|ure)?|assert(ion)?|exception|panic)\b|✗|(error|warning) TS\d+|\bwarning:/i;
-// …but never package-manager chatter, which also contains the word "warn".
-const NOISE_LINE_RE = /\b(npm|pnpm|yarn)\b.*\bwarn\b|deprecated/i;
+// …but never package-manager chatter (anchored to the tool name so a real "X is
+// deprecated" diagnostic is not mistaken for noise).
+const NOISE_LINE_RE = /\b(npm|pnpm|yarn)\b.*\b(warn|deprecated)\b/i;
+const JUDGE_SLICE = 6000; // when judging a big output, show Jev its head AND tail, not just the head
 
 // ---------- args ----------
 // Everything before the first `--` is the wrapper's own options; everything after is the
@@ -60,24 +62,29 @@ const cmd = argv[0];
 const strict = argv.includes("--strict");
 const opt = (name) => {
   const i = argv.indexOf(name);
-  return i >= 0 ? argv[i + 1] : undefined;
+  if (i < 0) return undefined;
+  const v = argv[i + 1];
+  return v && !v.startsWith("--") ? v : undefined; // reject a missing value / an adjacent flag
 };
-/** Payload JSON from --json '<...>' or --in <file> or stdin. */
+/** Payload JSON from --json '<...>' or --in <file> or stdin (never blocks on a TTY). */
 function payload() {
   const inline = opt("--json");
   if (inline) return JSON.parse(inline);
   const file = opt("--in");
   if (file) return JSON.parse(readFileSync(file, "utf8"));
+  if (process.stdin.isTTY) return {}; // no piped input — do not hang waiting on the terminal
   const stdin = readFileSync(0, "utf8").trim();
   if (stdin) return JSON.parse(stdin);
   return {};
 }
+/** The saved frame, or null when there is none — callers treat null as "advisory skipped". */
 function readFrame() {
-  if (!existsSync(FRAME_FILE)) {
-    console.error(`jev toolcall: no frame — run \`node scripts/jev/toolcall.mjs frame ...\` first`);
-    process.exit(strict ? 2 : 0);
+  if (!existsSync(FRAME_FILE)) return null;
+  try {
+    return JSON.parse(readFileSync(FRAME_FILE, "utf8"));
+  } catch {
+    return null;
   }
-  return JSON.parse(readFileSync(FRAME_FILE, "utf8"));
 }
 const ensureDir = () => mkdirSync(DIR, { recursive: true });
 /** Best-effort append one JSON record per call, then a light FIFO compaction (drop the
@@ -98,7 +105,7 @@ function trace(rec) {
  *  throwing, so a Jev outage never blocks a command or swallows output — every caller falls back. */
 async function askAdvisory(state, questions, where) {
   try {
-    return await ask(state, questions);
+    return await ask(state, questions, 2); // few tries: a wrapped call must not stall on a 429
   } catch (e) {
     console.error(`toolcall: ${where} advisory skipped — jev error (${String(e?.message ?? e).slice(0, 80)})`);
     return null;
@@ -107,20 +114,25 @@ async function askAdvisory(state, questions, where) {
 /** Save this call's full output under a unique, immutable name so earlier trim pointers keep
  *  resolving; refresh last-output.txt as a newest-copy convenience and FIFO-cap the dump dir. */
 function saveDump(output) {
-  mkdirSync(OUT_DIR, { recursive: true });
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const path = `${OUT_DIR}/${stamp}-${Math.random().toString(36).slice(2, 8)}.txt`;
-  writeFileSync(path, output);
   try {
-    writeFileSync(FULL_FILE, output);
+    mkdirSync(OUT_DIR, { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const path = `${OUT_DIR}/${stamp}-${Math.random().toString(36).slice(2, 8)}.txt`;
+    writeFileSync(path, output);
+    writeFileSync(FULL_FILE, output); // newest-copy convenience
     const files = readdirSync(OUT_DIR).sort();
     for (const f of files.slice(0, Math.max(0, files.length - OUT_MAX)))
       rmSync(`${OUT_DIR}/${f}`, { force: true });
+    return path;
   } catch {
-    /* housekeeping is best-effort */
+    return "(dump unavailable)"; // disk full / permissions — never crash a call over housekeeping
   }
-  return path;
 }
+/** Judge on the WHOLE small output; for a big one, show Jev both ends so a tail/errors pick is sound. */
+const judgeSample = (s) =>
+  s.length <= JUDGE_SLICE * 2
+    ? s
+    : `${s.slice(0, JUDGE_SLICE)}\n…[middle trimmed for judging]…\n${s.slice(-JUDGE_SLICE)}`;
 const goalText = (f) =>
   `objective: ${f.objective}\nintention: ${f.intention}\nverification: ${(f.verification ?? []).join("; ")}`;
 const callStr = (p) =>
@@ -185,13 +197,22 @@ const weakLinks = (a) =>
     ([id, label]) => `${label} link weak (${pct(a[id].probability)})`,
   );
 
+/** No frame or no key → advisory: proceed. Returns false when the caller should just proceed. */
+function beforeReady(frame) {
+  if (!frame) {
+    console.log("before: proceed (no frame — advisory skipped)");
+    return false;
+  }
+  if (!loadKey()) {
+    console.log("before: proceed (no key — advisory skipped)");
+    return false;
+  }
+  return true;
+}
 async function doBefore() {
   const frame = readFrame();
   const p = payload();
-  if (!loadKey()) {
-    console.log("before: no key — advisory skipped, proceed");
-    process.exit(0);
-  }
+  if (!beforeReady(frame)) process.exit(0);
   const a = await askAdvisory({ goal: goalText(frame), call: callStr(p) }, BEFORE_QUESTIONS, "before");
   if (!a) {
     console.log("before: proceed (jev unavailable — advisory skipped)");
@@ -254,7 +275,8 @@ const AFTER_QUESTIONS = {
 const STRATEGIES = new Set(["whole", "pointer", "head", "tail", "errors"]);
 const ptr = (n, full) => `[… ${n} more line(s) trimmed — full at ${full}]`;
 function applyStrategy(how, output, full) {
-  const lines = output.split("\n");
+  const body = output.endsWith("\n") ? output.slice(0, -1) : output; // no phantom trailing line
+  const lines = body === "" ? [] : body.split("\n");
   const total = lines.length;
   if (how === "pointer") return { text: ptr(total, full), kept: 0, total };
   if (how === "head") {
@@ -304,19 +326,22 @@ const trimNote = (how, pick, conf, kept, total) =>
       (pick !== "whole" ? ` — wanted ${pick} at only ${pct(conf)}` : "")
     : `${how} (${pct(conf)}): kept ${kept}/${total} line(s)`;
 const emit = (text) => process.stdout.write(text.endsWith("\n") ? text : text + "\n");
+/** A Jev answer we can act on: all three expected fields present. */
+const validAnswer = (a) => a && a.how?.probabilities && a.requestStrayed && a.outputFailed;
 
 /** Shared tail of `after` and `run`: verify the request/output, pick a strategy, prune, emit.
- *  `full` is this call's immutable dump path. A Jev outage keeps the output whole (nothing lost). */
-async function pruneEmit(frame, p, output, full, tag, traceCmd) {
+ *  `full` is this call's immutable dump path; `exitCode` is the child's code (0 for `after`).
+ *  A Jev outage or a malformed answer keeps the output whole (nothing lost). */
+async function pruneEmit(frame, p, output, full, tag, traceCmd, exitCode = 0) {
   const a = await askAdvisory(
-    { goal: goalText(frame), call: callStr(p), output: output.slice(0, 12_000) },
+    { goal: goalText(frame), call: callStr(p), output: judgeSample(output) },
     AFTER_QUESTIONS,
     tag,
   );
-  if (!a) {
+  if (!validAnswer(a)) {
     emit(output);
-    console.error(`${tag}: kept whole (jev unavailable). Full output: ${full}`);
-    process.exit(0);
+    console.error(`${tag}: kept whole (jev unavailable or unusable answer). Full output: ${full}`);
+    process.exit(strict ? 2 : exitCode);
   }
   const flags = verifyFlags(a);
   const { pick, conf, how } = pickStrategy(a);
@@ -337,20 +362,30 @@ async function pruneEmit(frame, p, output, full, tag, traceCmd) {
   for (const f of flags) console.error(`${tag}: ⚠ ${f}`);
   emit(text);
   console.error(`${tag}: ${trimNote(how, pick, conf, kept, total)}. Full output: ${full}`);
-  process.exit(strict && (flags.length || how !== "whole") ? 2 : 0);
+  process.exit(strict && (flags.length || how !== "whole") ? 2 : exitCode);
 }
 
+/** Read the tool output from --out <file> or the payload; a bad --out path is a clean error. */
+function afterOutput(p) {
+  const outFile = opt("--out");
+  if (!outFile) return String(p.output ?? "");
+  try {
+    return readFileSync(outFile, "utf8");
+  } catch (e) {
+    console.error(`after: cannot read --out file (${String(e?.message ?? e).slice(0, 80)})`);
+    process.exit(2);
+  }
+}
 async function doAfter() {
   const frame = readFrame();
   const p = payload();
-  const outFile = opt("--out");
-  const output = outFile ? readFileSync(outFile, "utf8") : String(p.output ?? "");
-  const full = saveDump(output);
-  if (!loadKey()) {
-    console.log("after: no key — advisory skipped, output kept whole");
+  const output = afterOutput(p);
+  if (!frame || !loadKey()) {
+    console.log("after: advisory skipped (no frame or key) — output kept whole");
     emit(output);
     process.exit(0);
   }
+  const full = saveDump(output);
   await pruneEmit(frame, p, output, full, "after", "after");
 }
 
@@ -395,15 +430,20 @@ async function gate(frame, p, command) {
   else if (runP < 0.5) console.error(`toolcall: forced (run only ${pct(runP)})`);
   return allowed;
 }
-/** Run the command (argv, no shell — preserves the caller's quoting) and capture BOTH stdout
- *  and stderr, on success or failure (stdout then stderr; not interleaved). */
+/** Run the command (argv, no shell — preserves the caller's quoting) and capture BOTH stdout and
+ *  stderr (concatenated), plus the child's exit code, on success, failure, or buffer overflow. */
 function execCapture(cmdArgv) {
   const r = spawnSync(cmdArgv[0], cmdArgv.slice(1), {
     encoding: "utf8",
     maxBuffer: 32 * 1024 * 1024,
   });
-  if (r.error) return String(r.error.message ?? r.error); // spawn failed (e.g. not found)
-  return `${r.stdout ?? ""}${r.stderr ?? ""}`;
+  const captured = `${r.stdout ?? ""}${r.stderr ?? ""}`;
+  if (r.error) {
+    // spawn/buffer failure (e.g. ENOENT, ENOBUFS): keep any partial output, add the reason.
+    const note = String(r.error.message ?? r.error);
+    return { output: captured ? `${captured}\n${note}` : note, code: 1 };
+  }
+  return { output: captured, code: r.signal ? 1 : (r.status ?? 0) };
 }
 async function doRun() {
   const cmdArgv = cmdTail; // the command after `--`; wrapper options are the prefix only
@@ -417,16 +457,18 @@ async function doRun() {
   const frame = resolveFrame();
   const p = { tool: "Bash", args: { cmd: command }, why: opt("--why") ?? "(unstated)" };
 
-  if (!(await gate(frame, p, command))) process.exit(strict ? 2 : 0); // gate blocked → do NOT run
+  // Gate only when we have a frame AND a key; otherwise run unwrapped (advisory).
+  const gated = frame && loadKey();
+  if (gated && !(await gate(frame, p, command))) process.exit(strict ? 2 : 0); // blocked → do NOT run
 
-  const output = execCapture(cmdArgv);
+  const { output, code } = execCapture(cmdArgv);
   const full = saveDump(output);
 
-  if (!loadKey()) {
-    emit(output);
-    process.exit(0);
+  if (!gated) {
+    emit(output); // no frame/key → keep whole, preserve the child's exit code
+    process.exit(code);
   }
-  await pruneEmit(frame, p, output, full, "toolcall", "run/after");
+  await pruneEmit(frame, p, output, full, "toolcall", "run/after", code);
 }
 
 // ---------- dispatch ----------
