@@ -53,6 +53,12 @@ tickets, then contributors with lead review:
          per owner, cached, presettable, with a span; `drizzleStore.open` already is one. Drivers do
          `scope.run(await scope.resolve(module), …)`. Follow-up (optional): cli/hono tables accept a
          `Resource.Handle<Operation.Handle>` beside a loader so the load is cached per scope and observable._
+   - [x] **cli/t03 — a command bound to a resource that delivers its operation.** _Done: tag `cli/t03` (d880d6b), the
+         first ticket written by the re-wired pi writer (`vercel-gateway/meta/muse-spark-1.3-contributor`, one launch, no
+         fix round): `command(name, module, route?)` / `command.entry(name, module)` beside the loaders; each row carries
+         one `source`; `run` resolves the resource through the scope it owns (built once per scope, a `resource` span);
+         help/unknown build nothing. 4 seam tests (20 total), size 3346 B, 29 lanes green, mutation 70.56. Core
+         feedback: a public `isResourceHandle` guard; drivers that close their scope test spans through `export`._
 
 3. **Harnesses (Claude Code, Codex)** — **decided (ADR 0043)**: `@tinker/harness`, one frame generic over the
    adapter's own SDK types; adapters are resources whose factories import the SDK; the thread is a session
