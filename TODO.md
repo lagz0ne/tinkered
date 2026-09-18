@@ -20,7 +20,14 @@ tickets, then contributors with lead review:
 1. **Drizzle** — dedicated capability: `drizzleStore({ label, open, close? })` with `config` tag, scope-target
    `db` resource (open/close by `defer`), session-target `tx` resource (commit on `success`, rollback on
    `failed`/`cancelled` — the session outcome), one `db query` log line per statement, PGlite as the real test
-   database. Grill round 1 sent; awaiting answers.
+   database. **Decided (all A, ADR 0041).** Tickets:
+   - [ ] **drizzle/t01 — package + frame + `db`/`tx` resources + query log line.** Verify: the eight
+         PGlite-backed seam tests in `docs/roadmap/drizzle-v1/PROGRESS.md` (open once + close on scope
+         close; commit on session success; rollback on failed; rollback on forced close; sequential
+         sessions = two transactions; MissingTag without config; one `db query` line per statement with
+         no params; root-level tx commits at scope close); gate green; lead review SHIP.
+   - [ ] **drizzle/t02 — validation milestone.** Size ≤ 10 kB, mutation ≥ 60 alone, README + cast-free
+         example, drizzle lanes in `pnpm validate`; archive here.
 2. **CLI entrypoint** — the first scope-OWNING driver (`@tinker/cli`): creates the scope at `main`, parses argv
    at the edge into an operation's `rawInput`, runs the command as an inline op in a session (span + log line, like
    a request), maps the outcome to stdout + exit code, SIGINT/SIGTERM → forced close (`cancelled`), graceful close

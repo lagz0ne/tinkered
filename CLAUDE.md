@@ -111,5 +111,9 @@ The lead session orchestrates and reviews; implementation is delegated to a Pase
    min of 3), gates (`vp check` 0 errors, tests, census `--strict`, `pnpm validate`; the mutation lane is
    the reviewer's), and the report format (branch, SHAs, before/after table, what was verified and how).
 3. The lead reviews the diff for shape (facades, duplicated hot bodies, leaked internals, identity-keyed
-   memos), re-measures, requests one fix round, cherry-picks onto `main`, runs `vp run core#mutate`
+   memos), re-measures, requests one fix round, cherry-picks onto `main`, runs the package's mutation lane
    isolated, pushes, then removes the worktree and branch.
+4. **Both sides of the spectrum.** An integration is also a probe of core: every contributor report ends
+   with a **Core feedback** section (friction, a workaround, a missing affordance, a rule that felt wrong),
+   and the lead records candidates in `docs/roadmap/core-feedback.md`. A candidate becomes a core ticket
+   after a second integration asks for it, or at once when the workaround is dishonest (core/t28).
