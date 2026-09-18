@@ -35,10 +35,14 @@ export declare namespace OpenAiCodex {
   export type Turn = { readonly input: Input; readonly outputSchema?: unknown };
   /** A v1 result: the SDK's own turn, delivered untouched. */
   export type Result = CodexTurn;
+  /** What userland may answer during a Codex turn: nothing — the SDK offers only the
+   * `approvalPolicy` string and MCP config for external processes (ADR 0043), so the frame
+   * rejects an `approve` op for this adapter at compile time. */
+  export type Calls = { readonly approval: never; readonly tool: never };
   /** The Codex adapter: options are the SDK's own `CodexOptions & ThreadOptions`, continuity
    * is by thread id (`resumeThread` on `hooks.resume`), and `sdk` is the lazy module
    * resource tests preset with a fake `Codex`. */
-  export type Adapter = Harness.Adapter<Options, Turn, Result> & {
+  export type Adapter = Harness.Adapter<Options, Turn, Result, Calls> & {
     readonly sdk: Resource.Handle<Promise<Sdk>>;
   };
   /** The Codex adapter's options: the SDK's own `CodexOptions & ThreadOptions`. */
@@ -109,7 +113,9 @@ function readThreadPolicy(options: OpenAiCodex.Options, read: ThreadOptions): vo
 
 /** The Codex adapter resource: awaits the lazy module, then opens threads on it. */
 const adapterResource: Resource.Handle<
-  Promise<Harness.Backend<OpenAiCodex.Options, OpenAiCodex.Turn, OpenAiCodex.Result>>
+  Promise<
+    Harness.Backend<OpenAiCodex.Options, OpenAiCodex.Turn, OpenAiCodex.Result, OpenAiCodex.Calls>
+  >
 > = resource({
   label: "codex",
   target: "scope",
@@ -118,7 +124,8 @@ const adapterResource: Resource.Handle<
     const start: Harness.Backend<
       OpenAiCodex.Options,
       OpenAiCodex.Turn,
-      OpenAiCodex.Result
+      OpenAiCodex.Result,
+      OpenAiCodex.Calls
     >["start"] = (opened, hooks) => startCodex(module, opened, hooks);
     return { start };
   },
@@ -154,7 +161,7 @@ function startCodex(
   sdk: OpenAiCodex.Sdk,
   options: OpenAiCodex.Options,
   hooks: Harness.Hooks,
-): Harness.Thread<OpenAiCodex.Turn, OpenAiCodex.Result> {
+): Harness.Thread<OpenAiCodex.Turn, OpenAiCodex.Result, OpenAiCodex.Calls> {
   const aborter = new AbortController();
   if (hooks.signal.aborted) aborter.abort(hooks.signal.reason);
   else

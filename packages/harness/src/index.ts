@@ -6,6 +6,7 @@ import {
   type Data,
   type Operation,
   type Resource,
+  type Scope,
   type Tag,
 } from "@tinker/core";
 
@@ -47,24 +48,50 @@ export declare namespace Harness {
     readonly usage: (usage: Usage) => void;
     readonly id: (id: string) => void;
   };
+  /** What a harness lets userland answer during a turn, as the SDK's OWN types (ADR 0043): an
+   * approval (`request` → `decision`) and a tool call (`result`). An adapter without the hook
+   * says `never`, so the frame rejects an `approve` op for it at compile time. A type-level
+   * record only — no runtime value. */
+  export type Calls = {
+    readonly approval: { readonly request: unknown; readonly decision: unknown };
+    readonly tool: { readonly result: unknown };
+  };
+  /** The approval operation a frame over `C` accepts: its input is the adapter's request, its
+   * result the adapter's decision. Attached at frame construction (like `httpClient`'s policy
+   * slots) so the turn op can depend on it — the approval runs as a SUBFLOW of the turn. */
+  export type ApproveOp<C extends Calls> = Operation.Handle<
+    C["approval"]["decision"] | PromiseLike<C["approval"]["decision"]>,
+    C["approval"]["request"]
+  >;
+  /** What the turn op hands its thread per turn: the approval subflow's controller, when the
+   * frame was built with one. The adapter calls it from the SDK's own hook. */
+  export type TurnCalls<C extends Calls> = {
+    readonly approve?: Scope.OperationController<
+      C["approval"]["decision"] | PromiseLike<C["approval"]["decision"]>,
+      C["approval"]["request"]
+    >;
+  };
   /** One live conversation: run turns on it, close it when done. The session's signal is the
    * interrupt — the thread stops its SDK call when it fires; `close` releases the thread's
-   * own process and handles. */
-  export type Thread<Turn, Result> = {
-    run(turn: Turn): Promise<Result>;
+   * own process and handles. `calls` carries the turn's subflows (ADR 0043 t03). */
+  export type Thread<Turn, Result, C extends Calls> = {
+    run(turn: Turn, calls: TurnCalls<C>): Promise<Result>;
     close(): Promise<void> | void;
   };
   /** What an adapter resource builds: `start` opens a thread on merged options and hooks. */
-  export type Backend<Options, Turn, Result> = {
-    start(options: Options, hooks: Hooks): Thread<Turn, Result> | PromiseLike<Thread<Turn, Result>>;
+  export type Backend<Options, Turn, Result, C extends Calls> = {
+    start(
+      options: Options,
+      hooks: Hooks,
+    ): Thread<Turn, Result, C> | PromiseLike<Thread<Turn, Result, C>>;
   };
   /** One harness's SDK binding: its label, its lazy backend resource, its options tag, and
    * the nearest-first merge over `.all` bindings. Continuity rides `Hooks.resume` — the
    * session's `resume` binding passed through hooks, so each adapter resumes its own way
    * (Claude spreads it into `Options`; Codex calls `resumeThread`). */
-  export type Adapter<Options, Turn, Result> = {
+  export type Adapter<Options, Turn, Result, C extends Calls> = {
     readonly label: string;
-    readonly resource: Resource.Handle<Promise<Backend<Options, Turn, Result>>>;
+    readonly resource: Resource.Handle<Promise<Backend<Options, Turn, Result, C>>>;
     readonly options: Tag.Handle<Partial<Options>>;
     readonly merge: (bindings: readonly Partial<Options>[]) => Options;
   };
@@ -92,10 +119,10 @@ export declare namespace Harness {
    * `events`), the `resume` tag (bind an id to continue a conversation), and `turn` —
    * the composition unit — which turns a turn shape into an ordinary operation labelled
    * `${frame.label}.${turn.label}`. */
-  export type Frame<Options, Turn, Result> = {
+  export type Frame<Options, Turn, Result, C extends Calls> = {
     readonly label: string;
-    readonly adapter: Adapter<Options, Turn, Result>;
-    readonly thread: Resource.Handle<Promise<Thread<Turn, Result>>>;
+    readonly adapter: Adapter<Options, Turn, Result, C>;
+    readonly thread: Resource.Handle<Promise<Thread<Turn, Result, C>>>;
     readonly status: Data.Cell<Status>;
     readonly text: Data.Cell<string>;
     readonly items: Data.Cell<readonly Item[]>;
@@ -121,11 +148,12 @@ const noEvents: readonly unknown[] = Object.freeze([]);
  * closes (a defer runs after in-flight turns settled — closing there cannot deadlock).
  * Appending one array per event is O(n²) for long turns — accepted in v1; a ring or a
  * limit is a later knob. */
-export function harness<O, T, R>(config: {
+export function harness<O, T, R, C extends Harness.Calls>(config: {
   label: string;
-  adapter: Harness.Adapter<O, T, R>;
+  adapter: Harness.Adapter<O, T, R, C>;
+  approve?: Harness.ApproveOp<C>;
   meta?: readonly Tag.Binding<unknown>[];
-}): Harness.Frame<O, T, R> {
+}): Harness.Frame<O, T, R, C> {
   const adapter = config.adapter;
   const status = data<Harness.Status>({ label: `${config.label}.status`, initial: "idle" });
   const text = data<string>({ label: `${config.label}.text`, initial: "" });
@@ -137,7 +165,7 @@ export function harness<O, T, R>(config: {
   const id = data<string | undefined>({ label: `${config.label}.id`, initial: undefined });
   const events = data<readonly unknown[]>({ label: `${config.label}.events`, initial: noEvents });
   const resume = tag<string>({ label: `${config.label}.resume`, meta: config.meta });
-  const thread: Resource.Handle<Promise<Harness.Thread<T, R>>> = resource({
+  const thread: Resource.Handle<Promise<Harness.Thread<T, R, C>>> = resource({
     label: `${config.label}.thread`,
     target: "session",
     depends: {
@@ -179,19 +207,63 @@ export function harness<O, T, R>(config: {
     events,
     resume,
   };
-  return { ...frameBase, turn: readTurnOperation(frameBase, status, text) };
+  return { ...frameBase, turn: readTurnOperation(frameBase, status, text, config.approve) };
+}
+
+/** What one turn body needs from its op: the thread, the cells it writes, and the approval
+ * subflow's controller when the frame has one. */
+type TurnDeps<T, R, C extends Harness.Calls> = {
+  readonly thread: Harness.Thread<T, R, C>;
+  readonly status: Scope.DataController<Harness.Status>;
+  readonly text: Scope.DataController<string>;
+};
+
+/** Run one turn: `running` plus a fresh `text`, the thread's `run` with the turn's calls, then
+ * `done` or `failed`. A forced close seals the layer before the catch runs, so the `failed` cell
+ * write is skipped under an abort (the close itself settles `cancelled`, and the log line says
+ * so); real errors still record it. */
+async function runTurn<I, T, R, C extends Harness.Calls>(
+  frame: Pick<Harness.Frame<unknown, T, R, C>, "label" | "adapter">,
+  shape: Harness.TurnShape<I, T, R, unknown>,
+  deps: TurnDeps<T, R, C>,
+  calls: Harness.TurnCalls<C>,
+  ctx: Operation.Ctx<I>,
+): Promise<unknown> {
+  if (ctx.signal.aborted) throw ctx.signal.reason;
+  const started = ctx.clock.currentTimeMillis();
+  deps.status.set("running");
+  deps.text.set("");
+  const span = ctx.obs.span;
+  if (span) span.attributes.adapter = frame.adapter.label;
+  try {
+    const result = await deps.thread.run(shape.request(ctx.input), calls);
+    deps.status.set("done");
+    const ms = ctx.clock.currentTimeMillis() - started;
+    ctx.log("harness turn", { harness: frame.label, turn: shape.label, status: "done", ms });
+    if (shape.response !== undefined) return shape.response(result);
+    return result;
+  } catch (error) {
+    if (!ctx.signal.aborted) deps.status.set("failed");
+    const ms = ctx.clock.currentTimeMillis() - started;
+    ctx.log("harness turn", {
+      harness: frame.label,
+      turn: shape.label,
+      status: ctx.signal.aborted ? "cancelled" : "failed",
+      ms,
+    });
+    throw error;
+  }
 }
 
 /** Bind the frame's `turn` method: one overload per response shape, closing over the frame's
- * label, thread, and the status/text cells the turn writes (`running` plus a fresh `text`
- * — the current turn's assistant text — then `done` or `failed`). A forced close seals the
- * layer before the turn's catch runs, so the `failed` cell write is skipped under an abort
- * (the close itself settles `cancelled`, and the log line below says so); real errors still
- * record it. */
-function readTurnOperation<O, T, R>(
-  frame: Pick<Harness.Frame<O, T, R>, "label" | "adapter" | "thread">,
+ * label, thread, the status/text cells the turn writes, and the approval op when the frame has
+ * one — then the turn op depends on it too, so the approval is a subflow of the turn (its span
+ * nests, it sees the session's bindings). Two declared shapes, one body ({@link runTurn}). */
+function readTurnOperation<O, T, R, C extends Harness.Calls>(
+  frame: Pick<Harness.Frame<O, T, R, C>, "label" | "adapter" | "thread">,
   status: Data.Cell<Harness.Status>,
   text: Data.Cell<string>,
+  approve: Harness.ApproveOp<C> | undefined,
 ): Harness.TurnFn<T, R> {
   function turn<I = void, Out = R>(
     shape: Harness.TurnShape<I, T, R, Out> & {
@@ -202,37 +274,25 @@ function readTurnOperation<O, T, R>(
   function turn(
     shape: Harness.TurnShape<unknown, T, R, unknown>,
   ): Operation.Handle<Promise<unknown>, unknown> {
-    const read = shape.response;
+    const label = `${frame.label}.${shape.label}`;
+    if (approve === undefined) {
+      return operation({
+        label,
+        input: shape.input,
+        depends: { thread: frame.thread, status: status.controller, text: text.controller },
+        run: (deps, ctx) => runTurn(frame, shape, deps, {}, ctx),
+      });
+    }
     return operation({
-      label: `${frame.label}.${shape.label}`,
+      label,
       input: shape.input,
-      depends: { thread: frame.thread, status: status.controller, text: text.controller },
-      run: async ({ thread, status, text }, ctx) => {
-        if (ctx.signal.aborted) throw ctx.signal.reason;
-        const started = ctx.clock.currentTimeMillis();
-        status.set("running");
-        text.set("");
-        const span = ctx.obs.span;
-        if (span) span.attributes.adapter = frame.adapter.label;
-        try {
-          const result = await thread.run(shape.request(ctx.input));
-          status.set("done");
-          const ms = ctx.clock.currentTimeMillis() - started;
-          ctx.log("harness turn", { harness: frame.label, turn: shape.label, status: "done", ms });
-          if (read !== undefined) return read(result);
-          return result;
-        } catch (error) {
-          if (!ctx.signal.aborted) status.set("failed");
-          const ms = ctx.clock.currentTimeMillis() - started;
-          ctx.log("harness turn", {
-            harness: frame.label,
-            turn: shape.label,
-            status: ctx.signal.aborted ? "cancelled" : "failed",
-            ms,
-          });
-          throw error;
-        }
+      depends: {
+        thread: frame.thread,
+        status: status.controller,
+        text: text.controller,
+        approve,
       },
+      run: (deps, ctx) => runTurn(frame, shape, deps, { approve: deps.approve }, ctx),
     });
   }
   return turn;

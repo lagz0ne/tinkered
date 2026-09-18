@@ -17,7 +17,7 @@ watching `text` and `status`, and resume a conversation by id:
 
 ```ts
 import { createScope } from "@tinker/core";
-import { claudeCode, harness } from "@tinker/harness";
+import { claudeCode, harness, type ClaudeCode } from "@tinker/harness";
 
 const coder = harness({ label: "coder", adapter: claudeCode });
 const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
@@ -85,3 +85,31 @@ const scope = createScope({
 ```
 
 See `examples/codex.ts` for the real adapter.
+
+## Approvals
+
+Claude's `canUseTool` is answered by an ordinary operation: pass it as `approve` when you build the
+frame, and the turn op depends on it — the approval runs as a **subflow** of the turn (its span nests
+under the turn's, it sees the session's bindings and the frame's cells). Its input is the SDK's own
+request (`ClaudeCode.Approval`: `toolName`, `input`, the SDK's options), its result the SDK's own
+`PermissionResult`. Each decision lands in `items` as `{ kind: "approval", status: "allow" | "deny" }`.
+An `approve` op overrides a `canUseTool` bound in `claudeCode.options`; without one, a bound
+`canUseTool` still applies. Codex has no approval callback (only `approvalPolicy`), so `approve` is a
+compile error for the `codex` adapter.
+
+```ts
+import { createScope, operation, tag } from "@tinker/core";
+import { claudeCode, harness, type ClaudeCode } from "@tinker/harness";
+
+const policy = tag<"allow" | "deny">({ label: "policy", default: "deny" });
+const approve = operation({
+  label: "approve",
+  input: claudeCode.approval,
+  depends: { policy },
+  run: ({ policy }, ctx): ClaudeCode.Decision =>
+    policy === "allow" || ctx.input.toolName === "Read"
+      ? { behavior: "allow" }
+      : { behavior: "deny", message: "policy" },
+});
+const coder = harness({ label: "coder", adapter: claudeCode, approve });
+```

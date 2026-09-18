@@ -2,6 +2,7 @@
 type Payloads = {
   TurnEnded: { readonly harness: string };
   TurnFailed: { readonly harness: string; readonly message: string };
+  InvalidApproval: { readonly harness: string };
 };
 
 export declare namespace Errors {
