@@ -131,3 +131,15 @@
 | impact block   | A fenced ` ```impact <tag> ` block in a track's `PROGRESS.md`, written by the lead before the code: one line per symbol — package, exact SCIP display name, the files expected to define or reference it (`(none)` = must be gone). The plan's declared blast radius (ADR 0047). |
 | discrepancy    | One mismatch between the impact block and SCIP's actual refs: an unexpected file, a missing file, or an undeclared public export in the diff. Found deterministically; each gets exactly one boolean question to Jev.                                                            |
 | impact verdict | Per discrepancy, the fixed mapping of Jev's answer: source wrong · plan wrong · both · neither (no discrepancy) · unclear → human (probability inside 0.4–0.6). Advisory; never a gate.                                                                                          |
+
+## Sync (`@tinker/sync`)
+
+| term          | meaning                                                                                                                                                                                             |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| synced cell   | A `data` cell carrying `synced({ key })` meta: the same module imported on both sides; its `parse` is the edge for a snapshot from the wire (ADR 0048).                                             |
+| family        | `family({ label, initial, parse?, eq? })`: `(id) => Data.Cell<T>`, memoized per id, each member a synced cell keyed `label/id`. A cell with an id. Published whole (every member the server holds). |
+| published set | The `sync(cell \| family)` bindings on a scope; both drivers read `scope.resolve(sync.all)`.                                                                                                        |
+| sync server   | `syncServer(scope).connect(transport)`: a session per transport; snapshots down; a `set` is an inline op `sync set <key>` — parse, last-writer-wins by version, ack or reject, fan out.             |
+| sync client   | `syncClient(scope, transport)`: writes snapshots into the cells through their parse, sends local changes as `set` with the last seen version, reverts on `reject` (latency compensation).           |
+| transport     | `Sync.Transport = { send, onMessage, onClose, close }` — userland's wire (SSE+POST, WebSocket, postMessage); the package ships only `memoryPair()`, the test seam.                                  |
+| version       | A per-key integer the server increments on each applied write; a `set` carries the `base` it saw; `base !== version` → reject with the current truth.                                               |

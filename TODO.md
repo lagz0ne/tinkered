@@ -136,7 +136,16 @@ tickets, then contributors with lead review:
          `examples/cli.ts` = the stdio entry through `@tinker/cli` (`command.entry("mcp", () => serve)` beside
          `tools(search)`; `node cli.ts help` exits 0), README pass (dual `tool` + `command` meta on one op;
          `readTool`/`answerTool` as the shared readers). Size 1591 B, mutation 80.60. Archived below._
-5. **`@tinker/ai`** — the LLM layer over the AI SDK (the model is the swappable slot; generateText/streamText as
+5. **Sync (`@tinker/sync`)** — **decided (ADR 0048)**, user 2026-09-18 (`1A`; a cell with an id is a family member;
+   transport agnostic; hook waits: `B`). Plan: `docs/roadmap/sync-v1/PROGRESS.md`.
+   - [ ] **sync/t01 — package: `synced` meta, `family`, `sync` binding tag, `Sync.Message` + `Sync.Transport`, `memoryPair()`.**
+   - [ ] **sync/t02 — `syncServer(scope).connect(transport)`:** a session per transport, snapshots down, `set` as inline op
+         `sync set <key>` (parse → LWW by version → ack/reject → fan out), one `sync set` log line.
+   - [ ] **sync/t03 — `syncClient(scope, transport)`:** snapshots through parse (family members created on arrival),
+         optimistic local writes with `base`, revert on reject.
+   - [ ] **sync/t04 — validation milestone:** lanes (37), mutation ≥ 60 alone, README (Hono SSE+POST and WebSocket
+         recipes, React usage), cast-free examples, archive here.
+6. **`@tinker/ai`** — the LLM layer over the AI SDK (the model is the swappable slot; generateText/streamText as
    ops; tools as operations; `MockLanguageModelV4` as the test seam). Deferred until a driver asks.
 
 Perf follow-up when the sandbox `bench` is available: `op` parity (budgets.md "Call paths (t27)").
