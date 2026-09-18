@@ -382,6 +382,12 @@ export declare namespace Scope {
     resolve<T>(cell: Data.Cell<T>): T;
     resolve<T>(res: Resource.Handle<T>): ResourceValue<T>;
     resolve<T>(tag: Tag.Handle<T>): T;
+    /** A tag edge reads exactly what that `depends` slot would deliver (ADR 0020/0036): `.all` →
+     * every binding nearest-first, `.optional` → a presence, `.required` → the value or `MissingTag`.
+     * The way a driver reads a whole routing table off the scope (core/t29). */
+    resolve<T>(edge: Edge<"all", Tag.Handle<T>>): T[];
+    resolve<T>(edge: Edge<"optional", Tag.Handle<T>>): Tag.Presence<T>;
+    resolve<T>(edge: Edge<"required", Tag.Handle<T>>): T;
     /** Run an operation now — the everyday call; `controller(op).run(call)` is the long form.
      * Same `CallArgs`/`Invocation` rules as before (ADR 0022). A call carrying `tags` opens a
      * child session for the run (ADR 0038) and is always async: it returns `Promise<Awaited<T>>`
@@ -2487,12 +2493,15 @@ function handleFor(layer: Layer): Scope.Handle {
     ensureOpen(layer);
     return controllerOf(target);
   }) as Scope.Handle["controller"];
-  const resolve = (<T>(target: Data.Cell<T> | Resource.Handle<T> | Tag.Handle<T>): unknown => {
+  const resolve = (<T>(
+    target: Data.Cell<T> | Resource.Handle<T> | Tag.Handle<T> | Edge<string, Tag.Handle<T>>,
+  ): unknown => {
     ensureOpen(layer);
     if (isData(target)) return readCell(layer, target);
     if (isResource(target)) {
       return (controllerOf(target) as Scope.ResourceController<T>).resolve();
     }
+    if (isEdge(target)) return resolveEdge(layer, target, undefined);
     return tagRequired(layer, target as Tag.Handle<unknown>);
   }) as Scope.Handle["resolve"];
   const run = (<T, I>(op: unknown, call?: Scope.Invocation<I>): unknown => {

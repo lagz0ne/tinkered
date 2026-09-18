@@ -4098,6 +4098,22 @@ test("scope.resolve reads a tag's nearest binding, default, and throws MissingTa
   }
 });
 
+test("scope.resolve accepts a tag edge and delivers the depends form: all, optional, required", () => {
+  const scope = createScope({ tags: [region("eu")] });
+  const session = scope.createSession({ tags: [region("us")] });
+  expect(session.resolve(region.all)).toEqual(["us", "eu"]);
+  expect(scope.resolve(maybe.optional)).toEqual({ present: true, value: undefined });
+  expect(scope.resolve(secret.optional)).toEqual({ present: false });
+  expect(scope.resolve(region.required)).toBe("eu");
+  try {
+    scope.resolve(secret.required);
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "MissingTag")) throw error;
+    expect(error.payload.label).toBe("secret");
+  }
+});
+
 test("scope.run runs an operation now, with the same CallArgs rules as controller run", () => {
   const double = operation({
     label: "double",

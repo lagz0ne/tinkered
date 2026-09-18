@@ -22,6 +22,10 @@ One meaning per verb, on the scope handle and on every controller.
 | `scope.controller(x)`  | **Give back control**: a handle that delays and steers — data `get/set/update/watch`, resource `resolve/get`, operation `run(call)`.                      |
 | `scope.run(op, call?)` | **Run an operation** now — the everyday call; `scope.controller(op).run(call)` is the long form. Same `CallArgs`/`Invocation` rules as before (ADR 0022). |
 
+- `resolve` also accepts a **tag edge** (`tag.all` → every binding nearest-first, `tag.optional` →
+  a presence, `tag.required` → the value or `MissingTag`): the same delivery a `depends` slot
+  makes. Added at core/t29 (2026-09-18) after two drivers (cli, hono routes-at-scope) needed to
+  read a whole routing table off the scope and had smuggled it out through an inline operation.
 - `resolve` is never accepted for an operation (a type error). An operation is a command (ADR
   0010): it has no snapshot, is not memoized, and running it has effects. A "read" that fires a
   network call would be a lie.
