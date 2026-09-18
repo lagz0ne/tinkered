@@ -1,0 +1,49 @@
+{
+  "name": "@tinker/sync",
+  "version": "0.0.0",
+  "description": "Tinkered sync: a cell is the shared unit; the server is the truth; the transport is userland's (ADR 0048).",
+  "homepage": "https://github.com/author/library#readme",
+  "bugs": {
+    "url": "https://github.com/author/library/issues"
+  },
+  "license": "MIT",
+  "author": "Author Name <author.name@mail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/author/library.git"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vp pack",
+    "check": "vp check",
+    "dev": "vp pack --watch",
+    "mutate": "stryker run",
+    "prepublishOnly": "vp run build",
+    "size": "vp pack && node ../../scripts/check-size.mjs 10240",
+    "test": "vp test"
+  },
+  "dependencies": {
+    "@tinker/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@stryker-mutator/core": "catalog:",
+    "@stryker-mutator/vitest-runner": "catalog:",
+    "@tinker/cli": "workspace:*",
+    "@tinker/core": "workspace:*",
+    "@types/node": "^26.1.1",
+    "bumpp": "^11.1.0",
+    "typescript": "^7.0.2",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}
