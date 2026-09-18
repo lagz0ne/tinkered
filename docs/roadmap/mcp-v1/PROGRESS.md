@@ -33,9 +33,9 @@ bundled), size cap 10 kB gzip, no core change.
 ### Impact blocks (ADR 0047)
 
 ```impact cli/t04
-cli  ^readCommand$  src/index.ts
-cli  ^commands$     src/index.ts tests/cli.test.ts examples/basic.ts
-cli  ^readRun$      src/index.ts
+cli  readCommand  src/index.ts
+cli  commands     src/index.ts tests/cli.test.ts examples/basic.ts
+cli  readRun      src/index.ts
 ```
 
 ## Review loop

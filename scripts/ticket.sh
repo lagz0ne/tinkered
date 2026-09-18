@@ -27,6 +27,9 @@ TAG="${PKG}/t${NN}"
 # attention. NEVER blocks the gate (|| true) and is NOT the source of truth — the gate below is.
 echo "== ${TAG}: jev review (advisory) =="
 node scripts/jev/review.mjs HEAD || true
+# Impact chain pre-read (ADR 0047): the plan's blast radius vs SCIP refs, one Jev
+# boolean per discrepancy. NEVER blocks (|| true) — advisory only, like review.mjs.
+node scripts/jev/impact.mjs "${TAG}" || true
 
 echo "== gate ${TAG}: vp check =="
 vp check
