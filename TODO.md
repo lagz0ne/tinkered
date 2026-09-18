@@ -112,9 +112,15 @@ tickets, then contributors with lead review:
          JSON text, failures → `{ isError: true }`, one `mcp tool` log line; `ToolUndeclared` for a bound op without meta.
          8 seam tests through the MCP SDK's in-memory Client, size 1529 B, 29 lanes green, mutation 80.60. Core feedback
          recorded (3 rows)._
-   - [ ] **harness/t06 — adapters read `tool.read(op)`.** `harness({ tools: [op] })` takes ordinary ops with meta; the
-         `claudeCode.tool` builder goes; Claude's in-process path registers from the meta; README: the MCP config recipe
-         for Claude (`mcpServers`) and Codex (`config.mcp_servers`), and a Paseo plugin entry.
+   - [x] **harness/t06 — adapters read `tool.read(op)`.** _Done: tag `harness/t06` (08f3846), writer-built with one fix round
+         (the tool op's result is `unknown` — one declaration serves the MCP driver and Claude's in-process path at the
+         type level too; `readTool` lives in `@tinker/mcp` so `ToolUndeclared` has one registry; a seam test binds the
+         same op in `mcpServer` and `harness({ tools })`). `Harness.Tool<C>` = an ordinary op with `tool` meta (Codex's
+         `never` still rejects `tools`); `ToolCall = { op, meta, run }`; Claude registers `sdk.tool(meta.name ?? op.label,
+ meta.description, meta.schema, args => answerTool(meta, await run.run({ rawInput: args })))`; `claudeCode.tool`
+         builder deleted; `answerTool` exported by `@tinker/mcp` (a harness dependency, never bundled); README: Tools
+         rewritten + MCP recipes (Claude `mcpServers`, Codex `config.mcp_servers`, Paseo plugin). Harness 24 tests,
+         size 6886 B, 29 lanes green, mutation harness 69.77 / mcp 80.60._
    - [ ] **cli/t04 — commands as operations with meta.** `command({ name, description, argv })` meta + `commands(op)`;
          the loader/resource shapes stay for lazy modules; `run` reads `command.read(op)`.
    - [ ] **mcp/t02 — validation milestone.** Lanes, mutation ≥ 60 alone, README + cast-free example (a stdio entry
