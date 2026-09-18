@@ -16,23 +16,35 @@ Package `packages/sync` (`@tinker/sync`), runtime import only `@tinker/core`, on
 
 | tag      | ticket                                                                                                | blockers | status |
 | -------- | ----------------------------------------------------------------------------------------------------- | -------- | ------ |
-| sync/t01 | Package: `synced` meta, `family`, `sync` binding tag, `Sync.Message`/`Sync.Transport`, `memoryPair()` | —        | [ ]    |
+| sync/t01 | Package: `synced` meta, `family`, `sync` binding tag, `Sync.Message`/`Sync.Transport`, `memoryPair()` | —        | [x]    |
 | sync/t02 | `syncServer(scope).connect(transport)`: session per transport, snapshots, `sync set <key>`, fan-out   | t01      | [ ]    |
 | sync/t03 | `syncClient(scope, transport)`: snapshots through parse, optimistic sets, revert on reject            | t02      | [ ]    |
 | sync/t04 | Validation milestone: lanes, mutation, README recipes (Hono SSE+POST, WebSocket, React), archive      | t03      | [ ]    |
 
 ### Landed
 
-| tag | sha | tests | size (B gzip) | mutation | notes |
-| --- | --- | ----- | ------------- | -------- | ----- |
+| tag      | sha     | tests | size (B gzip) | mutation | notes                                                                                                                                         |
+| -------- | ------- | ----- | ------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| sync/t01 | 7f25563 | 8     | 1429          | 80.60    | writer-built, no fix round; `family` from `data()` + a Map, nothing from core; impact chain: plan under-declared 3 symbols (corrected below). |
 
 ### Impact blocks (ADR 0047)
 
 ```impact sync/t01
-sync  synced      src/index.ts tests/sync.test.ts
-sync  family      src/index.ts tests/sync.test.ts
-sync  sync        src/index.ts tests/sync.test.ts
-sync  memoryPair  src/index.ts tests/sync.test.ts
+sync  synced      src/index.ts tests/sync.test.ts examples/basic.ts
+sync  sync        src/index.ts tests/sync.test.ts examples/basic.ts
+sync  family      src/index.ts tests/sync.test.ts examples/basic.ts
+sync  readSynced  src/index.ts tests/sync.test.ts examples/basic.ts
+sync  isFamily    src/index.ts tests/sync.test.ts
+sync  memoryPair  src/index.ts tests/sync.test.ts examples/basic.ts
+sync  Sync        src/index.ts tests/sync.test.ts
+sync  raise       src/errors.ts src/index.ts
+sync  isError     src/errors.ts src/index.ts tests/sync.test.ts
+sync  Errors      src/errors.ts src/index.ts
+```
+
+```impact sync/t02
+sync  syncServer  src/index.ts tests/sync.test.ts examples/basic.ts
+sync  onMember    src/index.ts tests/sync.test.ts
 ```
 
 ## Review loop

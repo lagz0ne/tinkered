@@ -138,7 +138,12 @@ tickets, then contributors with lead review:
          `readTool`/`answerTool` as the shared readers). Size 1591 B, mutation 80.60. Archived below._
 5. **Sync (`@tinker/sync`)** — **decided (ADR 0048)**, user 2026-09-18 (`1A`; a cell with an id is a family member;
    transport agnostic; hook waits: `B`). Plan: `docs/roadmap/sync-v1/PROGRESS.md`.
-   - [ ] **sync/t01 — package: `synced` meta, `family`, `sync` binding tag, `Sync.Message` + `Sync.Transport`, `memoryPair()`.**
+   - [x] **sync/t01 — package: `synced` meta, `family`, `sync` binding tag, `Sync.Message` + `Sync.Transport`, `memoryPair()`.**
+         _Done: tag `sync/t01` (7f25563), writer-built, no fix round: `@tinker/sync` with `synced`/`sync` tags, `family()` (members
+         memoized per id, each an ordinary cell keyed `label/id`, `members()`), `readSynced`/`SyncUndeclared`, `isFamily`,
+         `memoryPair()` (microtask delivery in order; close fires both sides once). 8 seam tests, size 1429 B, 33 lanes green,
+         mutation 80.60. First real `impact.mjs` run: PLAN wrong on `readSynced`/`isFamily`/`Sync` — the block
+         under-declared the brief's surface (corrected); scanner nit fixed (undeclared exports scan `src/` only)._
    - [ ] **sync/t02 — `syncServer(scope).connect(transport)`:** a session per transport, snapshots down, `set` as inline op
          `sync set <key>` (parse → LWW by version → ack/reject → fan out), one `sync set` log line.
    - [ ] **sync/t03 — `syncClient(scope, transport)`:** snapshots through parse (family members created on arrival),

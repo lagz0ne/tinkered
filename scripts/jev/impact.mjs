@@ -102,7 +102,12 @@ function parseDiffExports(text, pkg, lines) {
   const removed = new Set();
   let file = "";
   for (const line of text.split("\n")) {
-    if (line.startsWith("+++ b/")) file = line.slice(6).replace(`packages/${pkg}/`, "");
+    if (line.startsWith("+++ b/")) {
+      const path = line.slice(6).replace(`packages/${pkg}/`, "");
+      // Only source files declare a public surface: README fences, examples, and tests
+      // also contain `export` lines but are not the package's API.
+      file = path.startsWith("src/") ? path : "";
+    }
     const a = line.match(EXPORT_RE);
     if (a && file && !added.has(a[1])) added.set(a[1], file);
     const r = line.match(REMOVED_RE);
