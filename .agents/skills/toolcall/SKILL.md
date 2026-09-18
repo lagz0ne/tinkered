@@ -76,6 +76,10 @@ Everything after `--` is the real command, run without a shell so your quoting i
 kept. This is the "squeeze it into one call" form; `frame`/`before`/`after` remain
 for wrapping non-command tools (Read, Edit, MCP calls).
 
+**Exit codes:** the child's own exit code when the command runs; **3** when the gate
+blocks it (nothing ran — distinct from a passing `0`); `2` for a usage error. So
+`toolcall run ... && next` runs `next` only if the command ran *and* passed.
+
 > **Write `--why`/`why` to name how the command serves the intention.** The gate
 > judges the command text + your `why`, not your unspoken plan. A bare
 > `cat /tmp/x` with `why: "reproduce the failure"` scored 24% → skipped; the same

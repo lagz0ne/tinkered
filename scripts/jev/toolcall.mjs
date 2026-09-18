@@ -196,6 +196,9 @@ const weakLinks = (a) =>
   LINKS.filter(([id]) => a[id].probability >= LINK_THRESHOLD).map(
     ([id, label]) => `${label} link weak (${pct(a[id].probability)})`,
   );
+/** A before/gate answer we can act on: the decision and all three links are present. */
+const validBefore = (a) =>
+  a && a.shouldRun && a.offObjective && a.offIntention && a.offVerification;
 
 /** No frame or no key → advisory: proceed. Returns false when the caller should just proceed. */
 function beforeReady(frame) {
@@ -214,8 +217,8 @@ async function doBefore() {
   const p = payload();
   if (!beforeReady(frame)) process.exit(0);
   const a = await askAdvisory({ goal: goalText(frame), call: callStr(p) }, BEFORE_QUESTIONS, "before");
-  if (!a) {
-    console.log("before: proceed (jev unavailable — advisory skipped)");
+  if (!validBefore(a)) {
+    console.log("before: proceed (jev unavailable or unusable answer — advisory skipped)");
     process.exit(0);
   }
   const weak = weakLinks(a);
@@ -234,7 +237,7 @@ async function doBefore() {
     console.log(
       `before: ⚠ skip — run confidence ${pct(runP)}${why} — reconsider or note why you proceed`,
     );
-    process.exit(strict ? 2 : 0);
+    process.exit(strict ? 2 : 3); // exit 3 = advised skip (nothing ran)
   }
   console.log(
     `before: ✓ run (${pct(runP)}) — linked to objective · intention · verification — proceed`,
@@ -381,7 +384,7 @@ async function doAfter() {
   const p = payload();
   const output = afterOutput(p);
   if (!frame || !loadKey()) {
-    console.log("after: advisory skipped (no frame or key) — output kept whole");
+    console.error("after: advisory skipped (no frame or key) — output kept whole"); // status → stderr
     emit(output);
     process.exit(0);
   }
@@ -411,7 +414,7 @@ function resolveFrame() {
 async function gate(frame, p, command) {
   if (!loadKey()) return true;
   const a = await askAdvisory({ goal: goalText(frame), call: callStr(p) }, BEFORE_QUESTIONS, "gate");
-  if (!a) return true; // jev unavailable → advisory, allow the command to run
+  if (!validBefore(a)) return true; // jev unavailable or unusable answer → advisory, allow the run
   const runP = a.shouldRun.probability;
   const weak = weakLinks(a);
   const allowed = runP >= 0.5 || argv.includes("--force");
@@ -459,7 +462,7 @@ async function doRun() {
 
   // Gate only when we have a frame AND a key; otherwise run unwrapped (advisory).
   const gated = frame && loadKey();
-  if (gated && !(await gate(frame, p, command))) process.exit(strict ? 2 : 0); // blocked → do NOT run
+  if (gated && !(await gate(frame, p, command))) process.exit(3); // exit 3 = gate blocked, nothing ran
 
   const { output, code } = execCapture(cmdArgv);
   const full = saveDump(output);
