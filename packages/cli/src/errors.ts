@@ -1,6 +1,7 @@
 /** Payload type for each cli error. The registry is the only place this package throws. */
 type Payloads = {
   UnknownCommand: { name: string; known: readonly string[] };
+  CommandUndeclared: { label: string };
 };
 
 export declare namespace Errors {

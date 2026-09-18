@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { expect, test } from "vite-plus/test";
 import { makeTestClock, operation, resource, type Observe, type Scope } from "@tinker/core";
-import { command, run } from "../src/index.ts";
+import { command, commands, isError, run } from "../src/index.ts";
 
 /** Parse argv[0] into a number; a throw becomes the op's parse failure (exit 2). */
 function parseCount(raw: unknown): number {
@@ -18,6 +18,26 @@ const double = operation({
 });
 
 const ping = operation({ label: "ping", run: () => "pong" });
+
+const metaDouble = operation({
+  label: "double",
+  input: parseCount,
+  meta: [command({ description: "double a number", argv: (argv) => argv[0] })],
+  run: (_deps, ctx) => ctx.input * 2,
+});
+
+const metaDbl = operation({
+  label: "double",
+  input: parseCount,
+  meta: [command({ description: "double a number", name: "dbl", argv: (argv) => argv[0] })],
+  run: (_deps, ctx) => ctx.input * 2,
+});
+
+const metaPing = operation({
+  label: "ping",
+  meta: [command({ description: "answer", respond: (value) => `got ${String(value)}\n` })],
+  run: () => "pong",
+});
 
 const silent = operation({ label: "silent", run: () => undefined });
 
@@ -420,6 +440,57 @@ test("io writers see the same streams the result collects", async () => {
   expect(result.code).toBe(1);
   expect(seenErr.join("")).toBe(result.stderr);
   expect(seenOut.join("")).toBe(result.stdout);
+});
+
+test("a meta-bound op answers argv through its own parse", async () => {
+  const result = await run({
+    name: "app",
+    version: "1.0.0",
+    scope: { tags: [commands(metaDouble)] },
+    argv: ["double", "21"],
+  });
+  expect(result.code).toBe(0);
+  expect(result.stdout).toBe("42\n");
+});
+
+test("help lists the meta name and description beside rows", async () => {
+  const result = await run({
+    name: "app",
+    version: "1.2.3",
+    scope: { tags: [commands(metaDbl), command("ping", () => ping)] },
+    argv: ["help"],
+  });
+  expect(result.code).toBe(0);
+  expect(result.stdout).toBe("app 1.2.3\n  dbl  double a number\n  ping\n");
+});
+
+test("meta respond overrides the default output and no argv runs without input", async () => {
+  const result = await run({
+    name: "app",
+    version: "1.0.0",
+    scope: { tags: [commands(metaPing)] },
+    argv: ["ping"],
+  });
+  expect(result.code).toBe(0);
+  expect(result.stdout).toBe("got pong\n");
+});
+
+test("a meta-bound op parse failure prints usage with exit 2", async () => {
+  const result = await run({
+    name: "app",
+    version: "1.0.0",
+    scope: { tags: [commands(metaDouble)] },
+    argv: ["double", "x"],
+  });
+  expect(result.code).toBe(2);
+  expect(result.stdout).toBe("");
+  expect(result.stderr).toBe("app 1.0.0\n  double  double a number\n");
+});
+
+test("a bound op without command meta rejects CommandUndeclared", async () => {
+  await expect(
+    run({ name: "app", version: "1.0.0", scope: { tags: [commands(ping)] }, argv: ["ping"] }),
+  ).rejects.toSatisfy((error: unknown) => isError(error, "CommandUndeclared"));
 });
 
 test("the process smoke test: node runs the example and help exits 0 with usage", async () => {

@@ -34,6 +34,15 @@ export declare namespace Cli {
   export type EntryModule = Resource.Handle<Entry | PromiseLike<Entry>>;
   /** One entry source: a loader function, or a resource that delivers the entry. */
   export type EntrySource = (() => Entry | PromiseLike<Entry>) | EntryModule;
+  /** The static facts an operation carries to declare itself a command. `name`
+   * defaults to the operation's label; `argv` hands raw argv to the operation's
+   * parse (absent, the op runs without input); `respond` writes the value. */
+  export type Meta = {
+    readonly description: string;
+    readonly name?: string;
+    readonly argv?: (argv: readonly string[]) => unknown;
+    readonly respond?: (value: unknown) => string;
+  };
   /** One row of the routing table: an operation run in a session as an inline op,
    * or an entry wired by hand. Each row carries one source: `load` (a function,
    * called once for the selected command) or `module` (a resource handle,
@@ -44,6 +53,7 @@ export declare namespace Cli {
     | {
         readonly name: string;
         readonly kind: "operation";
+        readonly description?: string;
         readonly route: Route<unknown>;
         readonly source: Load<unknown, unknown> | Module<unknown, unknown>;
       }
@@ -52,6 +62,10 @@ export declare namespace Cli {
         readonly kind: "entry";
         readonly source: EntrySource;
       };
+  /** One entry of the routing table: a row built by `command(name, …)` or
+   * `command.entry`, or an operation bound directly with `commands(op)` that
+   * declares itself through `command` meta. */
+  export type Bound = Command | Operation.Handle<unknown, unknown>;
   /** What the binary is called, which version it answers, which scope it builds. */
   export type Options = {
     readonly name: string;
@@ -73,35 +87,20 @@ export declare namespace Cli {
   };
 }
 
-/** The routing table: every bound command, read through `commands.all` from the
- * scope `run` creates. Usage lists the bound names; help loads nothing. */
-export const commands: Tag.Handle<Cli.Command> = tag({ label: "cli.command" });
+/** The routing table: bound commands, read through `commands.all` from the
+ * scope `run` creates. A binding is a command row or an operation that declares
+ * itself through `command` meta. Usage lists the bound names; help loads nothing. */
+export const commands: Tag.Handle<Cli.Bound> = tag({ label: "cli.command" });
 
-function commandOp<T>(
+/** The meta tag an operation carries to declare itself a command:
+ * `meta: [command({ description, argv })]`. Read with `command.read(op)`. */
+const commandMeta: Tag.Handle<Cli.Meta> = tag({ label: "cli.command.meta" });
+
+function commandOp(
   name: string,
-  load: Cli.Load<T, void>,
-  route?: Cli.Route<T>,
-): Tag.Binding<Cli.Command>;
-function commandOp<T>(
-  name: string,
-  module: Cli.Module<T, void>,
-  route?: Cli.Route<T>,
-): Tag.Binding<Cli.Command>;
-function commandOp<T, I>(
-  name: string,
-  load: Cli.Load<T, I>,
-  route: Cli.Route<T> & { readonly input: (argv: readonly string[]) => unknown },
-): Tag.Binding<Cli.Command>;
-function commandOp<T, I>(
-  name: string,
-  module: Cli.Module<T, I>,
-  route: Cli.Route<T> & { readonly input: (argv: readonly string[]) => unknown },
-): Tag.Binding<Cli.Command>;
-function commandOp<T, I>(
-  name: string,
-  source: Cli.Load<T, I> | Cli.Module<T, I>,
-  route?: Cli.Route<T>,
-): Tag.Binding<Cli.Command> {
+  source: Cli.Load<unknown, unknown> | Cli.Module<unknown, unknown>,
+  route?: Cli.Route<unknown>,
+): Tag.Binding<Cli.Bound> {
   return commands({
     name,
     kind: "operation",
@@ -141,9 +140,9 @@ async function readEntry(scope: Scope.Handle, source: Cli.EntrySource): Promise<
 function commandEntry(
   name: string,
   load: () => Cli.Entry | PromiseLike<Cli.Entry>,
-): Tag.Binding<Cli.Command>;
-function commandEntry(name: string, module: Cli.EntryModule): Tag.Binding<Cli.Command>;
-function commandEntry(name: string, source: Cli.EntrySource): Tag.Binding<Cli.Command> {
+): Tag.Binding<Cli.Bound>;
+function commandEntry(name: string, module: Cli.EntryModule): Tag.Binding<Cli.Bound>;
+function commandEntry(name: string, source: Cli.EntrySource): Tag.Binding<Cli.Bound> {
   return commands({ name, kind: "entry", source });
 }
 
@@ -151,25 +150,101 @@ function commandEntry(name: string, source: Cli.EntrySource): Tag.Binding<Cli.Co
  * Pass a loader function (called once for the selected command) or a resource
  * that delivers the operation (resolved through the scope `run` owns — cached
  * per scope, observable as a `resource` span). `input` is required when the
- * operation takes one. */
+ * operation takes one. Pass one meta object to declare the calling operation
+ * itself a command: `meta: [command({ description, argv })]` (ADR 0046 §5). */
 export const command: {
-  <T>(name: string, load: Cli.Load<T, void>, route?: Cli.Route<T>): Tag.Binding<Cli.Command>;
-  <T>(name: string, module: Cli.Module<T, void>, route?: Cli.Route<T>): Tag.Binding<Cli.Command>;
+  (meta: Cli.Meta): Tag.Binding<Cli.Meta>;
+  <T>(name: string, load: Cli.Load<T, void>, route?: Cli.Route<T>): Tag.Binding<Cli.Bound>;
+  <T>(name: string, module: Cli.Module<T, void>, route?: Cli.Route<T>): Tag.Binding<Cli.Bound>;
   <T, I>(
     name: string,
     load: Cli.Load<T, I>,
     route: Cli.Route<T> & { readonly input: (argv: readonly string[]) => unknown },
-  ): Tag.Binding<Cli.Command>;
+  ): Tag.Binding<Cli.Bound>;
   <T, I>(
     name: string,
     module: Cli.Module<T, I>,
     route: Cli.Route<T> & { readonly input: (argv: readonly string[]) => unknown },
-  ): Tag.Binding<Cli.Command>;
+  ): Tag.Binding<Cli.Bound>;
   readonly entry: {
-    (name: string, load: () => Cli.Entry | PromiseLike<Cli.Entry>): Tag.Binding<Cli.Command>;
-    (name: string, module: Cli.EntryModule): Tag.Binding<Cli.Command>;
+    (name: string, load: () => Cli.Entry | PromiseLike<Cli.Entry>): Tag.Binding<Cli.Bound>;
+    (name: string, module: Cli.EntryModule): Tag.Binding<Cli.Bound>;
   };
-} = Object.assign(commandOp, { entry: commandEntry });
+  readonly read: (unit: Tag.Metaed) => Tag.Presence<Cli.Meta>;
+} = Object.assign(commandDispatch, { entry: commandEntry, read });
+
+function commandDispatch(meta: Cli.Meta): Tag.Binding<Cli.Meta>;
+function commandDispatch<T>(
+  name: string,
+  load: Cli.Load<T, void>,
+  route?: Cli.Route<T>,
+): Tag.Binding<Cli.Bound>;
+function commandDispatch<T>(
+  name: string,
+  module: Cli.Module<T, void>,
+  route?: Cli.Route<T>,
+): Tag.Binding<Cli.Bound>;
+function commandDispatch<T, I>(
+  name: string,
+  load: Cli.Load<T, I>,
+  route: Cli.Route<T> & { readonly input: (argv: readonly string[]) => unknown },
+): Tag.Binding<Cli.Bound>;
+function commandDispatch<T, I>(
+  name: string,
+  module: Cli.Module<T, I>,
+  route: Cli.Route<T> & { readonly input: (argv: readonly string[]) => unknown },
+): Tag.Binding<Cli.Bound>;
+function commandDispatch(
+  ...args:
+    | readonly [meta: Cli.Meta]
+    | readonly [
+        name: string,
+        source: Cli.Load<unknown, unknown> | Cli.Module<unknown, unknown>,
+        route?: Cli.Route<unknown>,
+      ]
+): Tag.Binding<Cli.Meta> | Tag.Binding<Cli.Bound> {
+  if (args.length === 1) {
+    const [meta] = args;
+    return commandMeta(meta);
+  }
+  const [name, source, route] = args;
+  return commandOp(name, source, route);
+}
+
+/** Read the `command` meta off one command op, shared by the table reader. */
+function read(unit: Tag.Metaed): Tag.Presence<Cli.Meta> {
+  return commandMeta.read(unit);
+}
+
+/** Read the command facts off one command op: the `command` meta's facts. A
+ * bound op without meta cannot be routed, so this throws `CommandUndeclared`
+ * with the op's label. */
+export function readCommand(op: Operation.Handle<unknown, unknown>): Cli.Meta {
+  const found = read(op);
+  if (!found.present) raise("CommandUndeclared", { label: op.label });
+  return found.value;
+}
+
+/** Tell a routing row from an operation handle: rows carry `kind`, the handle
+ * carries none — the `in` check is the discriminator, no cast. */
+function isRow(entry: Cli.Bound): entry is Cli.Command {
+  return "kind" in entry;
+}
+
+/** Normalize one routing entry: a row as is, an op into an operation row named
+ * by meta (`name` or the op's label) with an eager loader — the op is already
+ * in hand. Nothing else downstream changes. */
+function readRow(entry: Cli.Bound): Cli.Command {
+  if (isRow(entry)) return entry;
+  const meta = readCommand(entry);
+  return {
+    name: meta.name ?? entry.label,
+    kind: "operation",
+    description: meta.description,
+    route: { input: meta.argv, respond: meta.respond },
+    source: () => entry,
+  };
+}
 
 /** Map a command failure to its exit code. Shared by the log line (inside the
  * inline op, where `cancelled` comes from its ctx) and the exit site (in `run`,
@@ -198,7 +273,7 @@ function runVoid(flow: Scope.OperationController<unknown, unknown>): unknown {
 /** Build the command run: the op as a subflow under the command span, the value
  * through `respond`, exactly one `cli command` log line. A failure logs its mapped
  * code then rethrows — the session settles, `run` maps again with the same rule. */
-function readCommand(
+function readRun(
   selected: Extract<Cli.Command, { readonly kind: "operation" }>,
   rest: readonly string[],
 ): (
@@ -282,11 +357,22 @@ function wireSignal(scope: Scope.Handle, signal: AbortSignal | undefined): () =>
   };
 }
 
+function usageLine(cmd: Cli.Command): string {
+  if (cmd.kind === "operation" && cmd.description !== undefined)
+    return `  ${cmd.name}  ${cmd.description}`;
+  return `  ${cmd.name}`;
+}
+
 function usageText(options: Cli.Options, table: readonly Cli.Command[]): string {
-  const lines = table.map((cmd) => cmd.name).sort();
-  return (
-    [`${options.name} ${options.version}`, ...lines.map((name) => `  ${name}`)].join("\n") + "\n"
-  );
+  const names = table.map(usageLine).sort();
+  return [`${options.name} ${options.version}`, ...names].join("\n") + "\n";
+}
+
+/** Normalize the routing table once: rows as is, bound ops into rows through
+ * their `command` meta. An op without meta is a configuration error — this
+ * throws `CommandUndeclared` with the op's label. */
+function openTable(scope: Scope.Handle): readonly Cli.Command[] {
+  return scope.resolve(commands.all).map(readRow);
 }
 
 function selectCommand(table: readonly Cli.Command[], head: string): Cli.Command {
@@ -352,7 +438,7 @@ async function runOperation(
       s.run({
         label,
         depends: { op: loaded },
-        run: readCommand(selected, rest),
+        run: readRun(selected, rest),
       }),
     );
     return { ...none, text };
@@ -390,7 +476,14 @@ export async function run(
     await scope.close({ graceful: true });
     return collected.result(code);
   };
-  const table = scope.resolve(commands.all);
+  let table: readonly Cli.Command[];
+  try {
+    table = openTable(scope);
+  } catch (error: unknown) {
+    unhook();
+    await scope.close({ graceful: true });
+    throw error;
+  }
   if (options.argv.length === 0) {
     collected.stdout(usageText(options, table));
     return finish(2);

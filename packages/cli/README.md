@@ -6,7 +6,7 @@ operations bound on the scope, and maps the outcome to stdout and an exit code
 
 ```ts
 import { operation } from "@tinker/core";
-import { command, runMain } from "@tinker/cli";
+import { command, commands, runMain } from "@tinker/cli";
 
 const migrate = operation({
   label: "migrate",
@@ -14,6 +14,7 @@ const migrate = operation({
     if (typeof raw !== "string") throw new Error("bad target");
     return raw;
   },
+  meta: [command({ description: "apply migrations", argv: (argv) => argv[0] })],
   run: (_deps, ctx) => `migrated to ${ctx.input}`,
 });
 
@@ -22,20 +23,21 @@ await runMain({
   version: "1.0.0",
   scope: {
     tags: [
-      command("migrate", () => import("./migrate.ts").then((m) => m.migrate), {
-        input: (argv) => argv[0],
-      }),
+      commands(migrate),
       command.entry("serve", () => import("./serve.ts").then((m) => m.serve)),
     ],
   },
 });
 ```
 
-`command(name, load, { input?, respond? })` binds an operation run in a session
-as an inline op (`app migrate` span, one `cli command` log line). The loader runs
-once, only for the selected command — `help` loads nothing. `command.entry`
-binds a server-style command that receives the scope itself. A command may also
-bind through a resource that delivers its operation — built once per scope and
+A command is an ordinary operation with `command` meta, the same rule
+`@tinker/mcp` sets for tools (ADR 0046): one declaration can be a CLI command
+and an MCP tool. `command(name, load, { input?, respond? })` binds a lazily
+loaded row instead; either way the command runs in a session as an inline op
+(`app migrate` span, one `cli command` log line). The loader runs once, only for the selected
+command — `help` loads nothing. `command.entry` binds a server-style command
+that receives the scope itself. A command may also bind through a resource
+that delivers its operation — built once per scope and
 observable as a `resource` span (ADR 0042, ADR 0044):
 
 ```ts
