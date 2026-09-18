@@ -28,10 +28,25 @@ tickets, then contributors with lead review:
          no params; root-level tx commits at scope close); gate green; lead review SHIP.
    - [ ] **drizzle/t02 — validation milestone.** Size ≤ 10 kB, mutation ≥ 60 alone, README + cast-free
          example, drizzle lanes in `pnpm validate`; archive here.
-2. **CLI entrypoint** — the first scope-OWNING driver (`@tinker/cli`): creates the scope at `main`, parses argv
-   at the edge into an operation's `rawInput`, runs the command as an inline op in a session (span + log line, like
-   a request), maps the outcome to stdout + exit code, SIGINT/SIGTERM → forced close (`cancelled`), graceful close
-   on completion. Amends ADR 0039 Q3 (one scope, several drivers).
+2. **CLI entrypoint** — the first scope-OWNING driver (`@tinker/cli`), **decided (ADR 0042)**: commands are tag
+   bindings on the scope (`command(name, load, { input?, respond? })`, `command.entry` for a server command that
+   receives the scope), lazy loaders (help loads nothing), the command run is an inline op (span + `cli command`
+   log line), exit codes 0/1/2/130, `run()` testable without the process, `runMain()` = run + signals + exit.
+   - [ ] **cli/t01 — package + `command` tag/builders + `run` + `runMain`.** Verify: tests through `run({ scope,
+ argv, io })` — a command loads only when selected (a loader counter; `help`/unknown load nothing and exit
+         0/2 with usage listing the bound names); the op's parse failure → exit 2 with usage; a throwing op → exit 1 + stderr; a void op prints nothing; `respond` overrides; an entry command receives the scope and can
+         `scope.resolve` a resource; with `observe` the command span `app migrate` parents the op span and one
+         `cli command` log line carries `{ command, code, ms }`; a session-target resource's `defer` sees `success`
+         on exit 0 and `failed` on exit 1; `run` with an `AbortSignal` in `io` (the signal stand-in for tests) →
+         exit 130 and `cancelled`; `runMain` is covered by a smoke test that spawns `node` on the example (real
+         process, real exit code — the one process-level test).
+   - [ ] **cli/t02 — validation milestone.** Size ≤ 10 kB, mutation ≥ 60 alone, README + cast-free example, cli
+         lanes in `pnpm validate`; archive here.
+   - [ ] **hono/t05 — routes at the scope, eager mount (ADR 0042 policy).** `route.get(path, load, { input?,
+ respond? })` tag bindings; `honoApp(scope)` returns a Hono app with the session middleware and every bound
+         route mounted, all loaders resolved at mount; `tinker` + `handle` stay for hand mounting. Verify: an app
+         built only from scope bindings answers; all loaders ran at mount (counter), none at request time; a bad
+         loader fails `honoApp` at boot, not on a request; README shows `await scope.resolve(store.db)` as warm-up.
 3. **Claude** — dedicated capability over the Anthropic SDK (frame: backend slot, config tag with model/key,
    message operations, streaming via `data` cells per ADR 0021, `ctx.signal` cancellation, usage on spans).
    Design with the `claude-api` skill loaded for current model ids and params.

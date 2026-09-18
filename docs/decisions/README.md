@@ -25,3 +25,4 @@ by a new decision that names the old one.
 | [0039](0039-hono-is-a-session-level-driver.md)                         | Hono is a session-level driver: a middleware opens the request session, routes are declarations                   |
 | [0040](0040-a-server-request-is-an-inline-operation.md)                | A server request is an inline operation: spans, one log line, error mapping, streaming lifetime                   |
 | [0041](0041-drizzle-transaction-is-a-session-resource.md)              | Drizzle: the client is a scope resource, the transaction a session resource whose commit is the session's success |
+| [0042](0042-cli-entrypoint-owns-the-scope-routing-is-scope-config.md)  | The CLI entrypoint owns the scope; routing is scope configuration; loading policy follows the process             |

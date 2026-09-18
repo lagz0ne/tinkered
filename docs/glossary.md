@@ -94,3 +94,12 @@
 | `tx` resource | The session's transaction: `db.transaction(cb)` held open for the session; its `defer` commits on `end.status === "success"` and rolls back on `failed`/`cancelled`/`released`, awaiting the commit before the close resolves. One per request session in v1. |
 | `db query`    | The one log line per statement: Drizzle's logger bound to the `db` resource's `ctx.log`, `{ sql }` only — params are data and never logged.                                                                                                                   |
 | core feedback | The section every integration report ends with; candidates live in `docs/roadmap/core-feedback.md` and become core tickets when a second integration asks or the workaround is dishonest.                                                                     |
+
+## CLI entrypoint (`@tinker/cli`)
+
+| term              | meaning                                                                                                                                                                                                                                      |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| entrypoint driver | A driver that IS `main`: it creates the scope from `Scope.Options`, runs the work, and closes the scope (graceful on completion, forced on a signal). `runMain` is one; a test's `run` is the same without process wiring (ADR 0042).        |
+| command binding   | `command(name, load, { input?, respond? })`: a tag binding on the scope — the routing table entry that maps `argv[0]` to a lazily loaded operation. `command.entry(name, load)` loads an entrypoint function that receives the scope handle. |
+| loading policy    | Follows the process: a CLI loads only the selected command (usage loads nothing); a server imports every route at mount and warms pools at boot via `scope.resolve`. Frames are cheap to import: driver imports live inside `open`/loaders.  |
+| exit codes        | 0 success · 1 failure · 2 usage or the operation's `parse` failure · 130 interrupted (SIGINT/SIGTERM).                                                                                                                                       |
