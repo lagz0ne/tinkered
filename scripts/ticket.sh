@@ -23,6 +23,11 @@ else
 fi
 TAG="${PKG}/t${NN}"
 
+# Advisory pre-read (ADR: docs/roadmap/jev-loop/PLAN.md): Jev flags anti-goals and routes
+# attention. NEVER blocks the gate (|| true) and is NOT the source of truth — the gate below is.
+echo "== ${TAG}: jev review (advisory) =="
+node scripts/jev/review.mjs HEAD || true
+
 echo "== gate ${TAG}: vp check =="
 vp check
 echo "== gate ${TAG}: vp run -r test =="
