@@ -39,6 +39,7 @@
     "@modelcontextprotocol/sdk": "catalog:",
     "@stryker-mutator/core": "catalog:",
     "@stryker-mutator/vitest-runner": "catalog:",
+    "@tinker/cli": "workspace:*",
     "@tinker/core": "workspace:*",
     "@types/node": "^26.1.1",
     "bumpp": "^11.1.0",

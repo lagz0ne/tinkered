@@ -75,6 +75,18 @@ const lanes = [
     "harness pure universal bundle (SDKs only behind import(); no zod/MCP at runtime)",
     `bash -c 'grep -qE "from \\"(node:|@anthropic-ai/claude-agent-sdk|@openai/codex-sdk|zod|@modelcontextprotocol)" packages/harness/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/harness/dist/index.mjs\\").then(m=>process.exit(m.harness&&m.claudeCode&&m.codex?0:1))"'`,
   ],
+  // @tinker/mcp (ADR 0046, mcp-v1 t02): same promises; zod is types-only at runtime,
+  // the SDK reaches dist only through server/mcp.js.
+  ["mcp tests", `${VP} run --no-cache mcp#test`],
+  ["mcp size (<= 10 kB gzip)", `${VP} run --no-cache mcp#size`],
+  [
+    "mcp cast-free examples (0 casts)",
+    `bash -c 'test $(grep -rcE "\\bas [A-Za-z{(]|\\bas unknown|[a-zA-Z0-9_)\\]]!" packages/mcp/examples | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
+  ],
+  [
+    "mcp pure bundle (runtime imports: @tinker/core + the SDK's server/mcp.js only)",
+    `bash -c 'grep -qE "from \\"(node:|zod)" packages/mcp/dist/index.mjs && exit 1; grep -E "from \\"@modelcontextprotocol/sdk/" packages/mcp/dist/index.mjs | grep -v "server/mcp.js" | grep -q . && exit 1 || node --input-type=module -e "import(\\"./packages/mcp/dist/index.mjs\\").then(m=>process.exit(m.mcpServer&&m.tool&&m.tools&&m.readTool&&m.answerTool?0:1))"'`,
+  ],
 ];
 
 let failed = 0;
@@ -95,7 +107,7 @@ for (const [name, cmd] of lanes) {
   }
 }
 console.log(
-  `\nMutation lanes: run \`${VP} run --no-cache core#mutate\` and \`${VP} run --no-cache http#mutate\` and \`${VP} run --no-cache hono#mutate\` and \`${VP} run --no-cache drizzle#mutate\` and \`${VP} run --no-cache cli#mutate\` ALONE (break >= 60; core ~78%, http ~70%, hono ~80%, drizzle ~96%, cli ~69%).`,
+  `\nMutation lanes: run \`${VP} run --no-cache core#mutate\` and \`${VP} run --no-cache http#mutate\` and \`${VP} run --no-cache hono#mutate\` and \`${VP} run --no-cache drizzle#mutate\` and \`${VP} run --no-cache cli#mutate\` and \`${VP} run --no-cache harness#mutate\` and \`${VP} run --no-cache mcp#mutate\` ALONE (break >= 60; core ~78%, http ~70%, hono ~80%, drizzle ~96%, cli ~69%, harness ~70%, mcp ~81%).`,
 );
 console.log(
   `Timing lanes:  run via \`bench -- ${strip} bench/<lane>.mjs\` in a clean worktree (not in-container).`,
