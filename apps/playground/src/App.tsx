@@ -1,0 +1,184 @@
+import { ScopeProvider, useController, useData } from "@tinker/react";
+import { RotateCcw } from "lucide-react";
+import { useEffect, useRef } from "react";
+import type { ReactElement } from "react";
+import { Editor } from "@/components/Editor.tsx";
+import { FileTabs } from "@/components/FileTabs.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable.tsx";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select.tsx";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.tsx";
+import { compile } from "@/lib/compile.ts";
+import { DEFAULT_FILES, ENTRY } from "@/lib/files.ts";
+import { previewDocument } from "@/lib/preview.ts";
+import { THEMES, type ThemeId } from "@/lib/themes.ts";
+import {
+  activeCell,
+  createPlaygroundScope,
+  filesCell,
+  persist,
+  statusCell,
+  themeCell,
+} from "@/store.ts";
+
+/** The playground shell — every piece of its state is a `@tinker/core` cell read through hooks. */
+function Shell(): ReactElement {
+  const files = useData(filesCell);
+  const setFiles = useController(filesCell);
+  const active = useData(activeCell);
+  const setActive = useController(activeCell);
+  const theme = useData(themeCell);
+  const setTheme = useController(themeCell);
+  const status = useData(statusCell);
+  const setStatus = useController(statusCell);
+  const iframe = useRef<HTMLIFrameElement>(null);
+
+  const activeFile = files.find((f) => f.name === active) ?? files[0];
+
+  // Debounced compile → preview, on any file change.
+  useEffect(() => {
+    persist(files, active, theme);
+    const timer = setTimeout(() => {
+      void compile(files).then((result) => {
+        if (result.ok) {
+          if (iframe.current) iframe.current.srcdoc = previewDocument(result.code);
+          setStatus.set({ kind: "info", text: "running…" });
+        } else {
+          setStatus.set({ kind: "error", text: result.error });
+        }
+      });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [files, active, theme, setStatus]);
+
+  // Runtime signals from the preview iframe.
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as { __pg?: string; text?: string };
+      if (data.__pg === "error")
+        setStatus.set({ kind: "error", text: data.text ?? "runtime error" });
+      else if (data.__pg === "ok") setStatus.set({ kind: "ok", text: "ready" });
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [setStatus]);
+
+  const setActiveContent = (content: string) =>
+    setFiles.update((prev) => prev.map((f) => (f.name === active ? { ...f, content } : f)));
+
+  const addFile = () => {
+    let n = 1;
+    while (files.some((f) => f.name === `Untitled${n}.tsx`)) n++;
+    const name = `Untitled${n}.tsx`;
+    setFiles.update((prev) => [...prev, { name, content: "" }]);
+    setActive.set(name);
+  };
+
+  const closeFile = (name: string) => {
+    const idx = files.findIndex((f) => f.name === name);
+    const next = files.filter((f) => f.name !== name);
+    setFiles.set(next);
+    if (active === name) setActive.set((next[idx] ?? next[idx - 1] ?? next[0]).name);
+  };
+
+  const renameFile = (from: string, to: string) => {
+    if (files.some((f) => f.name === to)) return;
+    setFiles.update((prev) => prev.map((f) => (f.name === from ? { ...f, name: to } : f)));
+    if (active === from) setActive.set(to);
+  };
+
+  const reset = () => {
+    setFiles.set([...DEFAULT_FILES]);
+    setActive.set(ENTRY);
+  };
+
+  const dotColor =
+    status.kind === "error"
+      ? "bg-destructive"
+      : status.kind === "ok"
+        ? "bg-emerald-500"
+        : "bg-amber-400";
+
+  return (
+    <div className="flex h-full flex-col">
+      <ResizablePanelGroup direction="horizontal" className="min-h-0 flex-1">
+        <ResizablePanel defaultSize={50} minSize={25}>
+          <Editor value={activeFile.content} onChange={setActiveContent} theme={theme} />
+        </ResizablePanel>
+        <ResizableHandle />
+        <ResizablePanel defaultSize={50} minSize={25}>
+          <iframe
+            ref={iframe}
+            title="Live preview"
+            sandbox="allow-scripts allow-same-origin"
+            className="h-full w-full border-0 bg-white"
+          />
+        </ResizablePanel>
+      </ResizablePanelGroup>
+
+      {/* All chrome lives in this slim bottom bar. */}
+      <div className="flex h-11 shrink-0 items-center gap-3 border-t bg-background/80 px-3 backdrop-blur">
+        <span className="hidden text-xs font-semibold tracking-tight text-muted-foreground sm:inline">
+          tinkered
+        </span>
+        <FileTabs
+          files={files.map((f) => f.name)}
+          active={activeFile.name}
+          onSelect={(name) => setActive.set(name)}
+          onAdd={addFile}
+          onClose={closeFile}
+          onRename={renameFile}
+        />
+
+        <div className="ml-auto flex items-center gap-2">
+          <div className="flex items-center gap-1.5 pr-1 text-xs text-muted-foreground">
+            <span className={`size-2 rounded-full ${dotColor} transition-colors`} />
+            <span className="max-w-[40ch] truncate" title={status.text}>
+              {status.text}
+            </span>
+          </div>
+
+          <Select value={theme} onValueChange={(v) => setTheme.set(v as ThemeId)}>
+            <SelectTrigger size="sm" className="h-8">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {THEMES.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon-sm" onClick={reset} aria-label="Reset">
+                <RotateCcw />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Reset to the starter project</TooltipContent>
+          </Tooltip>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function App(): ReactElement {
+  return (
+    <ScopeProvider create={createPlaygroundScope}>
+      <Shell />
+    </ScopeProvider>
+  );
+}
