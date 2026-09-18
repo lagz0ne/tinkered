@@ -104,3 +104,13 @@
 | loading policy    | Follows the process: a CLI loads only the selected command (usage loads nothing); a server imports every route at mount and warms pools at boot via `scope.resolve`. Frames are cheap to import: driver imports live inside `open`/loaders.           |
 | exit codes        | 0 success · 1 failure · 2 usage or the operation's `parse` failure · 130 interrupted (SIGINT/SIGTERM).                                                                                                                                                |
 | lazy module       | A resource whose factory imports: `resource({ factory: () => import("./x.ts").then((m) => m.op) })`. Built once per owner on first `resolve`, cached, presettable, spanned. The lazy unit — no separate primitive (ADR 0042, core-feedback register). |
+
+## Harness (`@tinker/harness`)
+
+| term          | meaning                                                                                                                                                                                                                                          |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| harness       | An agent loop with its own tools, sessions, permissions, and events (Claude Code via the Claude Agent SDK; Codex via the Codex SDK). Not an LLM API. `harness({ label, adapter })` is the frame (ADR 0043).                                      |
+| adapter       | A scope resource whose factory imports the harness SDK and returns `Harness.Backend` — `start(options, hooks) → Thread` with `run`/`interrupt`/`close`. Its `options` tag is the SDK's own thread-level options type, never a normalized config. |
+| thread        | The session resource: one harness thread per session, started with the session's merged options (or resumed by `x.resume(id)`), interrupted and killed on forced close, awaited on graceful close.                                               |
+| ambient state | What the thread knows, as data cells any operation in the session may read or watch: `status`, `text`, `items`, `usage`, `id`, and `events` (the raw SDK events, the `source`). Static facts live in the options tag.                            |
+| turn          | `x.turn({ label, input?, request, response? })`: an operation running one harness turn — `request(input)` = prompt + the SDK's per-turn options; result = the SDK's own result; span + one `harness turn` log line.                              |

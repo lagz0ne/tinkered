@@ -26,3 +26,4 @@ by a new decision that names the old one.
 | [0040](0040-a-server-request-is-an-inline-operation.md)                | A server request is an inline operation: spans, one log line, error mapping, streaming lifetime                   |
 | [0041](0041-drizzle-transaction-is-a-session-resource.md)              | Drizzle: the client is a scope resource, the transaction a session resource whose commit is the session's success |
 | [0042](0042-cli-entrypoint-owns-the-scope-routing-is-scope-config.md)  | The CLI entrypoint owns the scope; routing is scope configuration; loading policy follows the process             |
+| [0043](0043-harness-is-a-session-thread-with-ambient-state.md)         | A harness is a session thread with ambient state; adapters keep the harness's own types                           |
