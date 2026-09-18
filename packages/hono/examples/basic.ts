@@ -1,9 +1,8 @@
-import { Hono } from "hono";
 import { createScope, operation, tag } from "@tinker/core";
-import { handle, stream, tinker } from "../src/index.ts";
+import { honoApp, route, stream } from "../src/index.ts";
 
 /** A cast-free tour of the driver: a scope at the entrypoint, one session per request,
- * routes made of declarations. The tour returns a string with every type inferred. */
+ * routes bound on the scope and mounted eagerly at boot. The tour returns a string. */
 export async function tour(): Promise<string> {
   const tenant = tag<string>({ label: "tenant" });
 
@@ -23,23 +22,21 @@ export async function tour(): Promise<string> {
 
   const ticks = operation({ label: "ticks", run: () => ["a", "b"] });
 
-  const routes = new Hono()
-    .get("/greet/:name", handle(greet, { input: (c) => c.req.param("name") }))
-    .get("/health", handle(health))
-    .get(
-      "/ticks",
-      handle(ticks, {
-        respond: (ts, c) =>
-          stream(c, async (emit) => {
-            for (const t of ts) await emit(t);
-          }),
-      }),
-    );
+  const routeBindings = [
+    route.get("/greet/:name", () => greet, { input: (c) => c.req.param("name") }),
+    route.get("/health", () => health),
+    route.get("/ticks", () => ticks, {
+      respond: (ts, c) =>
+        stream(c, async (emit) => {
+          for (const t of ts) await emit(t);
+        }),
+    }),
+  ];
 
-  const scope = createScope({ tags: [tenant("acme")] });
-  const app = new Hono()
-    .use(tinker(scope, { tags: (c) => [tenant(c.req.header("x-tenant") ?? "public")] }))
-    .route("/", routes);
+  const scope = createScope({ tags: [...routeBindings, tenant("acme")] });
+  const app = await honoApp(scope, {
+    tags: (c) => [tenant(c.req.header("x-tenant") ?? "public")],
+  });
 
   const scoped = await app.request("/greet/ada", { headers: { "x-tenant": "beta" } });
   const fallback = await app.request("/greet/ada");

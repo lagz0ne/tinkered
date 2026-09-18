@@ -1,3 +1,4 @@
+import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
 import type { Context, MiddlewareHandler as Middleware } from "hono";
 import type { Operation, Scope, Tag } from "@tinker/core";
@@ -33,6 +34,22 @@ export declare namespace HonoScope {
   };
   /** Write the operation's value as a Response (default `c.json(value)`). */
   export type Respond<T> = (value: Awaited<T>, c: Context) => Response | Promise<Response>;
+  /** An HTTP verb a scope-bound route answers. */
+  export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  /** Load the route's operation. A dynamic `import` in practice; an eager handle
+   * is allowed. Runs once at mount — a server is eager (ADR 0042). */
+  export type Load<T, I> = () => Operation.Handle<T, I> | PromiseLike<Operation.Handle<T, I>>;
+  /** One row of the routing table: the verb plus path, the loader, and the request
+   * shape. Bound with `route.get` and friends, read through `routes.all`. */
+  export type BoundRoute = {
+    readonly method: Method;
+    readonly path: string;
+    readonly load: Load<unknown, unknown>;
+    readonly route: {
+      readonly input?: (c: Context) => unknown;
+      readonly respond?: Respond<unknown>;
+    };
+  };
 }
 
 type SessionEnv = {
@@ -139,6 +156,63 @@ export function stream(c: Context, write: Stream.Write): Response {
   if (c.res.headers.get("content-type") === null)
     c.header("Content-Type", "text/plain; charset=UTF-8");
   return c.body(readable);
+}
+
+/** The routing table: every bound route, read through `routes.all` from the
+ * scope `honoApp` receives. Mount reads the bound verbs and paths. */
+export const routes: Tag.Handle<HonoScope.BoundRoute> = tag({ label: "hono.route" });
+
+/** One verb's builder: the path, the loader, the request shape. `input` is required
+ * when the operation takes one. Every loader runs once at mount. */
+type Verb = {
+  <T>(
+    path: string,
+    load: HonoScope.Load<T, void>,
+    opts?: HonoScope.Route<void, T>,
+  ): Tag.Binding<HonoScope.BoundRoute>;
+  <T, I>(
+    path: string,
+    load: HonoScope.Load<T, I>,
+    opts: HonoScope.Route<I, T> & { readonly input: (c: Context) => unknown },
+  ): Tag.Binding<HonoScope.BoundRoute>;
+};
+
+function verb(method: HonoScope.Method): Verb {
+  const bind = (
+    path: string,
+    load: HonoScope.Load<unknown, unknown>,
+    opts?: {
+      readonly input?: (c: Context) => unknown;
+      readonly respond?: HonoScope.Respond<unknown>;
+    },
+  ): Tag.Binding<HonoScope.BoundRoute> =>
+    routes({ method, path, load, route: { input: opts?.input, respond: opts?.respond } });
+  return bind as Verb;
+}
+
+/** Bind a route: `route.get(path, load, opts?)` and friends, one per verb. Each
+ * returns a binding of the `routes` tag; `honoApp` mounts every bound row. */
+export const route: Record<"get" | "post" | "put" | "patch" | "delete", Verb> = {
+  get: verb("GET"),
+  post: verb("POST"),
+  put: verb("PUT"),
+  patch: verb("PATCH"),
+  delete: verb("DELETE"),
+};
+
+/** Mount every route bound on the scope, eagerly: each loader runs once here, so a
+ * rejecting loader rejects `honoApp` itself — boot fails, never a request. Then the
+ * session middleware plus one endpoint per row. `tinker` + `handle` stay public
+ * for hand mounting; this composes them, it adds no request logic of its own. */
+export async function honoApp(scope: Scope.Handle, options?: HonoScope.Options): Promise<Hono> {
+  const table = scope.resolve(routes.all);
+  const loaded = await Promise.all(table.map((row) => Promise.resolve(row.load())));
+  const app = new Hono().use(tinker(scope, options));
+  loaded.forEach((op, index) => {
+    const row = table[index];
+    app.on(row.method, row.path, handle(op, row.route));
+  });
+  return app;
 }
 
 /** Default `respond`: answer the value as JSON. */

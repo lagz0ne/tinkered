@@ -1,20 +1,22 @@
 # @tinker/hono
 
 A Hono server as a **session-level driver** (ADR 0039, 0040): the entrypoint owns the scope,
-`tinker(scope)` opens one session per request, routes are declarations that never see a handle.
+`tinker(scope)` opens one session per request, routes are scope config mounted eagerly at
+boot (ADR 0042).
 
 ```ts
 // main.ts (the entrypoint owns the scope and its close)
 import { serve } from "@hono/node-server";
-import { Hono } from "hono";
-import { createScope, tag } from "@tinker/core";
-import { tinker } from "@tinker/hono";
-import { routes, tenant } from "./routes.ts";
+import { createScope } from "@tinker/core";
+import { honoApp } from "@tinker/hono";
+import { store } from "./store.ts";
+import { routeBindings, tenant } from "./routes.ts";
 
-const scope = createScope({ tags: [tenant("public")] });
-const app = new Hono()
-  .use(tinker(scope, { tags: (c) => [tenant(c.req.header("x-tenant") ?? "public")] })) // request-derived bindings
-  .route("/", routes);
+const scope = createScope({ tags: [...routeBindings, tenant("public")] });
+await scope.resolve(store.db); // warm-up: the read verb is the warm-up
+const app = await honoApp(scope, {
+  tags: (c) => [tenant(c.req.header("x-tenant") ?? "public")], // request-derived bindings
+});
 serve({ fetch: app.fetch });
 process.on("SIGTERM", async () => {
   await scope.close({ graceful: true }); // waits for in-flight requests
@@ -23,10 +25,9 @@ process.on("SIGTERM", async () => {
 ```
 
 ```ts
-// routes.ts (declarations: input off the request, respond back to it — no scope here)
-import { Hono } from "hono";
+// routes.ts (bindings: verb plus path, a loader, the request shape — no scope here)
 import { operation, tag } from "@tinker/core";
-import { handle, request } from "@tinker/hono";
+import { request, route } from "@tinker/hono";
 
 export const tenant = tag<string>({ label: "tenant" });
 
@@ -38,18 +39,30 @@ const getUser = operation({
     users.find(tenant, input, { signal, lang: req.headers.get("accept-language") }),
 });
 
-export const routes = new Hono()
-  .get("/users/:id", handle(getUser, { input: (c) => c.req.param("id") }))
-  .get("/health", handle(health));
+export const routeBindings = [
+  route.get("/users/:id", () => import("./getUser.ts").then((m) => m.getUser), {
+    input: (c) => c.req.param("id"),
+  }),
+  route.get("/health", () => import("./health.ts").then((m) => m.health)),
+];
 ```
 
 ```ts
-// a test is an entrypoint: mount the middleware plus routes, drive via app.request
-const scope = createScope({ tags: [tenant("acme")] });
-const app = new Hono().use(tinker(scope)).route("/", routes);
+// a test is an entrypoint: bind routes on the scope, mount eagerly, drive via app.request
+const scope = createScope({ tags: [...routeBindings, tenant("acme")] });
+const app = await honoApp(scope);
 const res = await app.request("/users/42");
 expect(await res.json()).toEqual({ id: 42 });
 ```
+
+`honoApp(scope)` imports every route at mount — a rejecting loader rejects `honoApp`
+itself, so bad config fails at boot, never on a request.
+
+## Hand mounting
+
+`tinker` plus `handle` stay public for routes mounted by hand: `new Hono().use(tinker(scope))`
+opens the session per request, `handle(op, { input?, respond? })` answers one endpoint. `honoApp`
+composes the two — it adds no request logic of its own.
 
 Each request runs as an inline operation (`"GET /users/:id"`) whose one dependency is the
 route's operation — so core's spans, one `http request` log line, clock, and signal come for
