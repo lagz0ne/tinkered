@@ -49,9 +49,11 @@ function merge(bindings: readonly Partial<Options>[]): Options {
   return merged;
 }
 
-/** Continue a conversation on an id: the SDK takes `resume` in `Options`, so this is a spread. */
-function withResume(options: Options, id: string): Options {
-  return { ...options, resume: id };
+/** Fold the session's `resume` binding into the SDK's own `resume` option: the SDK takes
+ * `resume` in `Options`, so this is a spread. */
+function readOpened(options: Options, hooks: Harness.Hooks): Options {
+  if (hooks.resume === undefined) return options;
+  return { ...options, resume: hooks.resume };
 }
 
 /** The Claude Code adapter resource: awaits the lazy module, then opens threads on it. */
@@ -66,21 +68,21 @@ const adapterResource: Resource.Handle<
     const start: Harness.Backend<Options, ClaudeCode.Turn, ClaudeCode.Result>["start"] = (
       opened,
       hooks,
-    ) => startClaude(module.query.bind(module), opened, hooks);
+    ) => startClaude(module.query.bind(module), readOpened(opened, hooks), hooks);
     return { start };
   },
 });
 
 /** The Claude Code adapter: options are the SDK's own `Options`, turns are `{ prompt }`,
- * results are the SDK's result messages. Continuity is by session id: each `run` after the
- * first resumes the last session, so one thread is one conversation.
+ * results are the SDK's result messages. Continuity is by session id: the session's `resume`
+ * binding opens the first turn on it, each `run` after the first resumes the last session,
+ * so one thread is one conversation.
  * `includePartialMessages: true` is forced at merge — the frame needs the text deltas. */
 export const claudeCode: ClaudeCode.Adapter = {
   label: "claudeCode",
   sdk,
   options,
   merge,
-  withResume,
   resource: adapterResource,
 };
 

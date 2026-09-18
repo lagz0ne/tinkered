@@ -13,6 +13,8 @@ export type { Errors } from "./errors.ts";
 export { isError } from "./errors.ts";
 export { claudeCode } from "./claude.ts";
 export type { ClaudeCode } from "./claude.ts";
+export { codex } from "./codex.ts";
+export type { OpenAiCodex } from "./codex.ts";
 
 export declare namespace Harness {
   /** A thread's lifecycle as the session sees it: quiet, mid-turn, last turn done, last turn failed. */
@@ -32,11 +34,13 @@ export declare namespace Harness {
     readonly status?: string;
     readonly source: unknown;
   };
-  /** What a backend receives at thread start: the session's abort signal, plus the writers
-   * for the frame's ambient cells. Every writer funnels through its cell's controller, so a
-   * TUI watching `text` sees each delta as it lands. */
+  /** What a backend receives at thread start: the session's abort signal, the bound `resume`
+   * id when the session carries one (absent means start fresh), plus the writers for the
+   * frame's ambient cells. Every writer funnels through its cell's controller, so a TUI
+   * watching `text` sees each delta as it lands. */
   export type Hooks = {
     readonly signal: AbortSignal;
+    readonly resume?: string;
     readonly emit: (event: unknown) => void;
     readonly text: (delta: string) => void;
     readonly item: (item: Item) => void;
@@ -54,16 +58,15 @@ export declare namespace Harness {
   export type Backend<Options, Turn, Result> = {
     start(options: Options, hooks: Hooks): Thread<Turn, Result> | PromiseLike<Thread<Turn, Result>>;
   };
-  /** One harness's SDK binding: its label, its lazy backend resource, its options tag, the
-   * nearest-first merge over `.all` bindings, and `withResume` — the harness's own way to
-   * continue a conversation on an id (Claude's SDK takes `resume` in `Options`, so this is
-   * just a spread; there is no second resume path). */
+  /** One harness's SDK binding: its label, its lazy backend resource, its options tag, and
+   * the nearest-first merge over `.all` bindings. Continuity rides `Hooks.resume` — the
+   * session's `resume` binding passed through hooks, so each adapter resumes its own way
+   * (Claude spreads it into `Options`; Codex calls `resumeThread`). */
   export type Adapter<Options, Turn, Result> = {
     readonly label: string;
     readonly resource: Resource.Handle<Promise<Backend<Options, Turn, Result>>>;
     readonly options: Tag.Handle<Partial<Options>>;
     readonly merge: (bindings: readonly Partial<Options>[]) => Options;
-    readonly withResume: (options: Options, id: string) => Options;
   };
   /** One turn shape: a pure request builder from parsed input to the harness's turn type,
    * plus an optional result reader. When `response` is omitted the turn delivers the
@@ -112,8 +115,8 @@ const noEvents: readonly unknown[] = Object.freeze([]);
 
 /** Build the frame: six ambient cells, a `resume` tag (no default — absent means start
  * fresh), and a session `thread` resource whose factory merges the adapter's option
- * bindings nearest-first, folds `resume` through `adapter.withResume`, hands the backend
- * hook writers over each cell's controller, and always closes the thread on settle. The
+ * bindings nearest-first, passes `resume` through hooks, hands the backend hook writers
+ * over each cell's controller, and always closes the thread on settle. The
  * signal is the interrupt: the thread stops its SDK call when it fires, so the defer only
  * closes (a defer runs after in-flight turns settled — closing there cannot deadlock).
  * Appending one array per event is O(n²) for long turns — accepted in v1; a ring or a
@@ -150,16 +153,16 @@ export function harness<O, T, R>(config: {
     meta: config.meta,
     factory: async ({ backend, options, resume: resumed, text, items, usage, id, events }, ctx) => {
       const merged = adapter.merge(options);
-      const opened = resumed.present ? adapter.withResume(merged, resumed.value) : merged;
       const hooks: Harness.Hooks = {
         signal: ctx.signal,
+        resume: resumed.present ? resumed.value : undefined,
         emit: (event) => events.update((list) => [...list, event]),
         text: (delta) => text.update((current) => current + delta),
         item: (item) => items.update((list) => [...list, item]),
         usage: (value) => usage.set(value),
         id: (value) => id.set(value),
       };
-      const live = await (await backend).start(opened, hooks);
+      const live = await (await backend).start(merged, hooks);
       ctx.defer(() => live.close());
       return live;
     },

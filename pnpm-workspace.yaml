@@ -7,6 +7,7 @@ catalogMode: prefer
 
 catalog:
   "@anthropic-ai/claude-agent-sdk": ^0.3.275
+  "@openai/codex-sdk": ^0.155.0
   "@happy-dom/global-registrator": ^20.14.5
   "@inferdi/inferdi": ^6.1.0
   "@stryker-mutator/core": ^10.0.0
@@ -42,3 +43,5 @@ minimumReleaseAgeExclude:
   - "@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.275"
   - "@anthropic-ai/claude-agent-sdk-win32-x64@0.3.275"
   - "@anthropic-ai/claude-agent-sdk@0.3.275"
+  - "@openai/codex-sdk@0.155.0"
+  - "@openai/codex@0.155.0-darwin-arm64 || 0.155.0-darwin-x64 || 0.155.0-linux-arm64 || 0.155.0-linux-x64 || 0.155.0-win32-arm64 || 0.155.0-win32-x64 || 0.155.0"

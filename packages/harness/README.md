@@ -46,3 +46,42 @@ const scope = createScope({
 ```
 
 See `examples/basic.ts` for the fake-`query` tour and `examples/real.ts` for the real adapter.
+
+## Codex
+
+The same frame on the Codex SDK: options are the SDK's own `CodexOptions & ThreadOptions`
+(split at thread start — the `Codex` constructor takes its six keys, `startThread` the rest),
+turns carry the SDK's input plus its per-turn output schema, and results are the SDK's turns.
+Continuity is by thread id (`resumeThread` on the session's `resume` binding):
+
+```ts
+import { createScope } from "@tinker/core";
+import { codex, harness } from "@tinker/harness";
+
+const coder = harness({ label: "coder", adapter: codex });
+const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
+
+const scope = createScope({
+  tags: [codex.options({ workingDirectory: "/work", sandboxMode: "read-only", model: "gpt-5" })],
+});
+const session = scope.createSession();
+session.controller(coder.text).watch((next) => process.stdout.write(next));
+
+await session.run(ask, { input: "read the README" });
+
+const resumed = scope.createSession({ tags: [coder.resume("t-9")] });
+await resumed.run(ask, { input: "continue" });
+await scope.close();
+```
+
+The test recipe presets the lazy SDK module with a fake `Codex`:
+
+```ts
+import { preset } from "@tinker/core";
+
+const scope = createScope({
+  presets: [preset(codex.sdk, async () => ({ Codex: FakeCodex }))],
+});
+```
+
+See `examples/codex.ts` for the real adapter.

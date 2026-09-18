@@ -6,6 +6,7 @@ import type {
   SDKSystemMessage,
   SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
+import type { ThreadEvent, ThreadItem, Usage } from "@openai/codex-sdk";
 
 /** One recorded turn: the messages a fake `query` yields for it. */
 export type Script = { readonly messages: readonly SDKMessage[] };
@@ -145,6 +146,67 @@ export function readScript(text: string): Script {
       readToolUse(),
       readToolResult(),
       readResult(text),
+    ],
+  };
+}
+
+/** One recorded Codex turn: the events a fake `runStreamed` yields for it. */
+export type CodexScript = { readonly events: readonly ThreadEvent[] };
+
+/** The usage block every Codex fixture completion carries: 10 in, 2 cached, 5 out. */
+function readCodexUsage(): Usage {
+  return {
+    input_tokens: 10,
+    cached_input_tokens: 2,
+    cache_write_input_tokens: 0,
+    output_tokens: 5,
+    reasoning_output_tokens: 1,
+  };
+}
+
+/** One recorded agent message item carrying the turn text so far. */
+function readAgentMessage(id: string, text: string): ThreadItem {
+  return { id, type: "agent_message", text };
+}
+
+/** One recorded command item: `ls`, still running or done with its output. */
+function readCommand(status: "in_progress" | "completed"): ThreadItem {
+  if (status === "in_progress")
+    return { id: "c-1", type: "command_execution", command: "ls", aggregated_output: "", status };
+  return {
+    id: "c-1",
+    type: "command_execution",
+    command: "ls",
+    aggregated_output: "a\n",
+    exit_code: 0,
+    status,
+  };
+}
+
+/** A recorded Codex turn: started, an agent message growing Hel → Hello, a command, completion. */
+export function readCodexScript(): CodexScript {
+  return {
+    events: [
+      { type: "thread.started", thread_id: "t-1" },
+      { type: "turn.started" },
+      { type: "item.started", item: readAgentMessage("m-1", "") },
+      { type: "item.updated", item: readAgentMessage("m-1", "Hel") },
+      { type: "item.updated", item: readAgentMessage("m-1", "Hello") },
+      { type: "item.started", item: readCommand("in_progress") },
+      { type: "item.completed", item: readCommand("completed") },
+      { type: "item.completed", item: readAgentMessage("m-1", "Hello") },
+      { type: "turn.completed", usage: readCodexUsage() },
+    ],
+  };
+}
+
+/** A recorded Codex turn that fails: started, then `turn.failed` with the reason. */
+export function readCodexFailure(): CodexScript {
+  return {
+    events: [
+      { type: "thread.started", thread_id: "t-1" },
+      { type: "turn.started" },
+      { type: "turn.failed", error: { message: "boom" } },
     ],
   };
 }

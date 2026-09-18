@@ -1,6 +1,7 @@
 /** Payload type for each harness error. The registry is the only place this package throws. */
 type Payloads = {
   TurnEnded: { readonly harness: string };
+  TurnFailed: { readonly harness: string; readonly message: string };
 };
 
 export declare namespace Errors {
