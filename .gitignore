@@ -44,3 +44,6 @@ scratch/
 
 # autoresearch runtime state
 .autoresearch/
+
+# Jev tool-call decision-chain runtime state (advisory)
+.jev/
