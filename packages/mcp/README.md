@@ -49,26 +49,9 @@ so `mcpServer` sees the `tools` bindings on it. A harness runs
 `node cli.ts mcp`:
 
 ```ts
-import { operation } from "@tinker/core";
-import type { Scope } from "@tinker/core";
 import { command, runMain } from "@tinker/cli";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
-import { mcpServer, tool, tools } from "../src/index.ts";
-
-const searchShape = { q: z.string() };
-const searchSchema = z.object(searchShape);
-
-function parseSearch(raw: unknown): { q: string } {
-  return searchSchema.parse(raw);
-}
-
-const search = operation({
-  label: "search",
-  input: parseSearch,
-  meta: [tool({ description: "search the index", schema: searchShape })],
-  run: (_deps, ctx) => [`hit:${ctx.input.q}`],
-});
+import { mcpServer, tools } from "@tinker/mcp";
 
 function serve(scope: Scope.Handle): Promise<void> {
   return mcpServer(scope, { name: "coder", version: "1.0.0" }).connect(new StdioServerTransport());

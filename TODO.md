@@ -102,7 +102,7 @@ tickets, then contributors with lead review:
          size / cast-free examples / pure bundle with no zod or MCP SDK at runtime), 22 seam tests (the all-keys Codex
          options-split test added), size 6746 B, mutation 64.38 (claude.ts reports 42 uncovered mutants — a follow-up
          look), README pass (frame tree with the seam and the `approve`/`tools` slots, a Testing section). Archived below._
-4. **Operations as tools; harnesses reach them over MCP** — **decided (ADR 0046)**, user 2026-09-18 (`1A 2:analyze
+4. **Operations as tools; harnesses reach them over MCP** — **shipped (ADR 0046; archived below)**, user 2026-09-18 (`1A 2:analyze
 & choose → external MCP server as a driver 3A 4A 5A`). Plan: `docs/roadmap/mcp-v1/PROGRESS.md`.
    - [x] **mcp/t01 — `@tinker/mcp`: `tool` meta tag, `tools` binding tag, `mcpServer(scope, { name, version })`.** _Done: tag
          `mcp/t01` (0e3d335), written by the vercel-gateway pi writer (one fix round: the session outcome tells the truth on a
@@ -128,14 +128,28 @@ tickets, then contributors with lead review:
          (`run` rejects, the scope still closes); `run` normalizes each bound op into an eager row, so the session, span, log
          line, and exit codes are unchanged; help prints `  name  description`. Loaders and resource modules stay for lazy
          modules. 5 seam tests (25 total), size 4057 B, 29 lanes green, mutation 72.03. Core feedback recorded._
-   - [ ] **mcp/t02 — validation milestone.** Lanes, mutation ≥ 60 alone, README + cast-free example (a stdio entry
-         through `@tinker/cli`), archive here.
+   - [x] **mcp/t02 — validation milestone.** _Done: tag `mcp/t02` (4eb9588), writer-built with no fix round: four mcp
+         lanes in `pnpm validate` (tests, size, cast-free examples, pure bundle — runtime imports are `@tinker/core` and
+         the SDK's `server/mcp.js` only), 33 lanes green, the summary line lists `harness#mutate` and `mcp#mutate`,
+         `examples/cli.ts` = the stdio entry through `@tinker/cli` (`command.entry("mcp", () => serve)` beside
+         `tools(search)`; `node cli.ts help` exits 0), README pass (dual `tool` + `command` meta on one op;
+         `readTool`/`answerTool` as the shared readers). Size 1591 B, mutation 80.60. Archived below._
 5. **`@tinker/ai`** — the LLM layer over the AI SDK (the model is the swappable slot; generateText/streamText as
    ops; tools as operations; `MockLanguageModelV4` as the test seam). Deferred until a driver asks.
 
 Perf follow-up when the sandbox `bench` is available: `op` parity (budgets.md "Call paths (t27)").
 
 ## Shipped — archived
+
+- **mcp v1 (2026-09-18)** — complete: `@tinker/mcp` (ADR 0046; tags `mcp/t01`, `harness/t06`, `cli/t04`, `mcp/t02`): a
+  tool is an ordinary operation with `tool({ description, schema, name?, respond? })` meta; `tools(op)` binds the list on
+  the scope; `mcpServer(scope, { name, version })` returns the SDK's own `McpServer` with every bound op registered, each
+  call a session running an inline op `mcp <name>` with the op as its subflow (`rawInput` → the op's parse), one `mcp tool`
+  line, `answerTool` default JSON text, failures `{ isError: true }`; `readTool`/`answerTool` shared with the harness
+  adapters (the `claudeCode.tool` builder gone; MCP recipes for Claude, Codex, Paseo); the CLI follows the same rule
+  (`command` meta + `commands(op)`, loaders stay for lazy modules); a stdio entry through `@tinker/cli`. Gate: 33 lanes
+  green, 8 seam tests through the SDK's in-memory Client, size 1591 B, mutation 80.60 (cli 72.03, harness 69.77).
+  Detail: `docs/roadmap/mcp-v1/PROGRESS.md`; core feedback rows in `docs/roadmap/core-feedback.md`.
 
 - **harness v1 (2026-09-18)** — complete: `@tinker/harness` (ADR 0043; tags `harness/t01`…`harness/t05`): one frame
   `harness({ label, adapter, approve?, tools? })` over the SDK's OWN types; the SDK module is a resource and the test
