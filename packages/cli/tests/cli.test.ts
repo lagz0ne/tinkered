@@ -1,14 +1,7 @@
 import { execFile } from "node:child_process";
 import { expect, test } from "vite-plus/test";
-import {
-  isError as isCoreError,
-  makeTestClock,
-  operation,
-  resource,
-  type Observe,
-  type Scope,
-} from "@tinker/core";
-import { command, commands, isError, run } from "../src/index.ts";
+import { makeTestClock, operation, resource, type Observe, type Scope } from "@tinker/core";
+import { command, run } from "../src/index.ts";
 
 /** Parse argv[0] into a number; a throw becomes the op's parse failure (exit 2). */
 function parseCount(raw: unknown): number {
@@ -341,27 +334,6 @@ test("io writers see the same streams the result collects", async () => {
   expect(seenOut.join("")).toBe(result.stdout);
 });
 
-test("the table reads through commands.all on the scope", async () => {
-  const result = await run({
-    name: "app",
-    version: "9.9.9",
-    scope: {
-      tags: [
-        command("ping", () => ping),
-        commands({ name: "raw", kind: "entry", load: () => () => undefined }),
-      ],
-    },
-    argv: ["help"],
-  });
-  expect(result.code).toBe(0);
-  expect(result.stdout).toBe("app 9.9.9\n  ping\n  raw\n");
-});
-test("a run with no scope bindings answers empty usage", async () => {
-  const result = await run({ name: "app", version: "1.0.0", argv: ["help"] });
-  expect(result.code).toBe(0);
-  expect(result.stdout).toBe("app 1.0.0\n");
-});
-
 test("the process smoke test: node runs the example and help exits 0 with usage", async () => {
   const child = await new Promise<{ code: number; out: string; err: string }>((resolve, reject) => {
     execFile(
@@ -382,16 +354,4 @@ test("the process smoke test: node runs the example and help exits 0 with usage"
   expect(child.err).toBe("");
   expect(child.code).toBe(0);
   expect(child.out).toBe("tinker 0.0.0\n  greet\n  ping\n");
-});
-
-test("the UnknownCommand registry entry never escapes run", async () => {
-  let escaped = false;
-  try {
-    await run({ name: "app", version: "1.0.0", argv: ["ghost"] });
-  } catch (error: unknown) {
-    if (isError(error, "UnknownCommand")) escaped = true;
-    else if (isCoreError(error, "MissingTag")) throw error;
-    else throw error;
-  }
-  expect(escaped).toBe(false);
 });

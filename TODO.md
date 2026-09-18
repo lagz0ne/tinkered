@@ -22,7 +22,7 @@ tickets, then contributors with lead review:
    bindings on the scope (`command(name, load, { input?, respond? })`, `command.entry` for a server command that
    receives the scope), lazy loaders (help loads nothing), the command run is an inline op (span + `cli command`
    log line), exit codes 0/1/2/130, `run()` testable without the process, `runMain()` = run + signals + exit.
-   - [ ] **cli/t01 — package + `command` tag/builders + `run` + `runMain`.** Verify: tests through `run({ scope,
+   - [x] **cli/t01 — package + `command` tag/builders + `run` + `runMain`.** _Done: tag `cli/t01` (3d92fd3 + lead nits), 16 tests incl. one real-process smoke test, size 3087 B, 21 validate lanes green, lead review SHIP (3 internal-proof tests cut); core feedback recorded (`resolve(tag.all)` and a lazy op unit now each have a likely second asker in hono/t05)._ Verify: tests through `run({ scope,
  argv, io })` — a command loads only when selected (a loader counter; `help`/unknown load nothing and exit
          0/2 with usage listing the bound names); the op's parse failure → exit 2 with usage; a throwing op → exit 1 + stderr; a void op prints nothing; `respond` overrides; an entry command receives the scope and can
          `scope.resolve` a resource; with `observe` the command span `app migrate` parents the op span and one
