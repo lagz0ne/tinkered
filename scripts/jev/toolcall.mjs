@@ -17,14 +17,16 @@
 // never picks which lines to keep. The trim keeps output WHOLE below the confidence bar
 // (nothing lost; full dump in .jev/). The only pass/fail remains scripts/ticket.sh, the
 // gates, and the human. Exit is always 0 unless --strict (experiments; never in a gate).
-import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, appendFileSync, statSync, mkdirSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { loadKey, ask, pct } from "./lib.mjs";
 
 const DIR = process.env.JEV_TOOLCALL_DIR ?? ".jev";
 const FRAME_FILE = `${DIR}/frame.json`;
 const FULL_FILE = `${DIR}/last-output.txt`;
-const TRACE_FILE = `${DIR}/trace.jsonl`; // append-only run log (gitignored) for later analysis
+const TRACE_FILE = `${DIR}/trace.jsonl`; // run log (gitignored), FIFO-capped, for later analysis
+const TRACE_MAX_LINES = Number(process.env.JEV_TRACE_MAX_LINES ?? 2000); // keep newest N entries
+const TRACE_MAX_BYTES = Number(process.env.JEV_TRACE_MAX_BYTES ?? 1_048_576); // only compact past ~1 MB
 
 const LINK_THRESHOLD = 0.6; // warn a link is weak at/above this
 const HOW_MIN = 0.6; // trust the trim-how choice only at/above this, else keep whole (safe)
@@ -61,11 +63,16 @@ function readFrame() {
   return JSON.parse(readFileSync(FRAME_FILE, "utf8"));
 }
 const ensureDir = () => mkdirSync(DIR, { recursive: true });
-/** Best-effort append one JSON record per call — the trace we analyze after a day of runs. */
+/** Best-effort append one JSON record per call, then a light FIFO compaction (drop the
+ *  oldest lines) so the trace can't grow without bound — we analyze it after a day of runs. */
 function trace(rec) {
   try {
     ensureDir();
     appendFileSync(TRACE_FILE, JSON.stringify({ ts: new Date().toISOString(), ...rec }) + "\n");
+    if (statSync(TRACE_FILE).size <= TRACE_MAX_BYTES) return; // cheap gate: skip the read-back
+    const lines = readFileSync(TRACE_FILE, "utf8").split("\n").filter(Boolean);
+    if (lines.length > TRACE_MAX_LINES)
+      writeFileSync(TRACE_FILE, lines.slice(-TRACE_MAX_LINES).join("\n") + "\n");
   } catch {
     /* trace is advisory too — never break a call over it */
   }

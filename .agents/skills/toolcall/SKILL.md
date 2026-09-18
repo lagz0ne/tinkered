@@ -14,7 +14,8 @@ your gates (`scripts/ticket.sh`, `vp check`, tests) and the human still decide.
 Driver: `scripts/jev/toolcall.mjs` (`frame` · `before` · `after`). Key is read
 from `/home/paseo/pilot/.ai-gateway-token`, never printed. No key → the chain
 skips and you proceed. Cost is fractions of a cent per call. Every call appends a
-JSON record to `.jev/trace.jsonl` (gitignored) — the trace we analyze after a run.
+JSON record to `.jev/trace.jsonl` (gitignored, FIFO-capped to the newest
+~2000 entries) — the trace we analyze after a run.
 
 ## The three steps
 
@@ -74,6 +75,13 @@ override), runs it, then prunes the output. `--intention` (with optional
 Everything after `--` is the real command, run without a shell so your quoting is
 kept. This is the "squeeze it into one call" form; `frame`/`before`/`after` remain
 for wrapping non-command tools (Read, Edit, MCP calls).
+
+> **Write `--why`/`why` to name how the command serves the intention.** The gate
+> judges the command text + your `why`, not your unspoken plan. A bare
+> `cat /tmp/x` with `why: "reproduce the failure"` scored 24% → skipped; the same
+> command with `why: "read the captured test output for the null-session failure"`
+> scored 80% → ran. If a call you know is on-goal gets skipped, sharpen the `why`
+> (or pass `--force`).
 
 ### 3. After — verify the result and trim the output
 
