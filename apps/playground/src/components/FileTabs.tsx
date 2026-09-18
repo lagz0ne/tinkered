@@ -33,8 +33,12 @@ export function FileTabs({
   }, [active, files]);
 
   return (
-    <div className="flex items-center gap-1">
-      <div ref={strip} className="relative flex items-center gap-0.5">
+    <div className="flex min-w-0 items-center gap-1">
+      {/* Scrolls sideways on narrow screens instead of pushing the controls off the bar. */}
+      <div
+        ref={strip}
+        className="relative flex min-w-0 items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         <div
           className="pointer-events-none absolute inset-y-1 rounded-md bg-accent transition-all duration-200 ease-out"
           style={{ left: pill.left, width: pill.width }}
@@ -49,7 +53,7 @@ export function FileTabs({
             onClick={() => onSelect(name)}
             onDoubleClick={() => setEditing(name)}
             className={cn(
-              "group relative z-10 flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors select-none",
+              "group relative z-10 flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors select-none",
               name === active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
             )}
           >

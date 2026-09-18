@@ -1,6 +1,6 @@
 import { ScopeProvider, useController, useData } from "@tinker/react";
 import { BarChart3, Code2, RotateCcw } from "lucide-react";
-import { lazy, Suspense, useEffect, useRef } from "react";
+import { lazy, Suspense, useEffect, useRef, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
 import { Editor } from "@/components/Editor.tsx";
 import { FileTabs } from "@/components/FileTabs.tsx";
@@ -43,6 +43,8 @@ function ViewToggle({ view, onSelect }: { view: View; onSelect: (v: View) => voi
     <button
       type="button"
       onClick={() => onSelect(v)}
+      aria-label={label}
+      title={label}
       className={
         "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors " +
         (view === v
@@ -51,7 +53,7 @@ function ViewToggle({ view, onSelect }: { view: View; onSelect: (v: View) => voi
       }
     >
       <Icon className="size-3.5" />
-      {label}
+      <span className="hidden sm:inline">{label}</span>
     </button>
   );
   return (
@@ -60,6 +62,20 @@ function ViewToggle({ view, onSelect }: { view: View; onSelect: (v: View) => voi
       {item("bench", "Benchmark", BarChart3)}
     </div>
   );
+}
+
+const MOBILE = "(max-width: 767px)";
+/** Phones stack editor over preview; wider screens sit them side by side. */
+function useLayoutDirection(): "horizontal" | "vertical" {
+  const mobile = useSyncExternalStore(
+    (onChange) => {
+      const m = matchMedia(MOBILE);
+      m.addEventListener("change", onChange);
+      return () => m.removeEventListener("change", onChange);
+    },
+    () => matchMedia(MOBILE).matches,
+  );
+  return mobile ? "vertical" : "horizontal";
 }
 
 /** The playground shell — every piece of its state is a `@tinker/core` cell read through hooks. */
@@ -74,6 +90,7 @@ function Shell(): ReactElement {
   const setStatus = useController(statusCell);
   const view = useData(viewCell);
   const setView = useController(viewCell);
+  const direction = useLayoutDirection();
   const iframe = useRef<HTMLIFrameElement>(null);
 
   const activeFile = files.find((f) => f.name === active) ?? files[0];
@@ -146,7 +163,7 @@ function Shell(): ReactElement {
     <div className="flex h-full flex-col">
       {/* Editor stays mounted (keeps CodeMirror + iframe state); the bench overlays when selected. */}
       <div className="relative min-h-0 flex-1">
-        <ResizablePanelGroup direction="horizontal" className="h-full">
+        <ResizablePanelGroup key={direction} direction={direction} className="h-full">
           <ResizablePanel defaultSize={50} minSize={25}>
             <Editor value={activeFile.content} onChange={setActiveContent} theme={theme} />
           </ResizablePanel>
@@ -181,14 +198,16 @@ function Shell(): ReactElement {
           tinkered
         </span>
         {view === "editor" && (
-          <FileTabs
-            files={files.map((f) => f.name)}
-            active={activeFile.name}
-            onSelect={(name) => setActive.set(name)}
-            onAdd={addFile}
-            onClose={closeFile}
-            onRename={renameFile}
-          />
+          <div className="min-w-0 flex-1">
+            <FileTabs
+              files={files.map((f) => f.name)}
+              active={activeFile.name}
+              onSelect={(name) => setActive.set(name)}
+              onAdd={addFile}
+              onClose={closeFile}
+              onRename={renameFile}
+            />
+          </div>
         )}
 
         <div className="ml-auto flex items-center gap-2">
