@@ -1,4 +1,4 @@
-import type { Operation, Scope, Tag } from "@tinker/core";
+import type { Operation, Resource, Scope, Tag } from "@tinker/core";
 import { createScope, isError as isCoreError, tag } from "@tinker/core";
 import { isError, raise } from "./errors.ts";
 
@@ -11,6 +11,15 @@ export declare namespace Cli {
   /** Load the selected command's operation. A dynamic `import` in practice; an
    * eager handle is allowed. Runs once per `run` — a process runs one command. */
   export type Load<T, I> = () => Operation.Handle<T, I> | PromiseLike<Operation.Handle<T, I>>;
+  /** A resource that delivers the selected command's operation when the scope
+   * builds it. A lazy module in the house shape: `resource({ label, factory:
+   * () => import("./x.ts").then((m) => m.op) })` — built once per scope, so a
+   * second `run` on the same scope does not re-import, and the build opens a
+   * `resource` span named by the resource's label (the "lazy module is a resource"
+   * half of ADR 0042; the value arrives through `scope.resolve`, ADR 0044). */
+  export type Module<T, I> = Resource.Handle<
+    Operation.Handle<T, I> | PromiseLike<Operation.Handle<T, I>>
+  >;
   /** How a command reads argv and writes stdout. `input` hands raw argv to the
    * operation (its `parse` is the edge); `respond` writes the value. `I`
    * selects the overload (required `input` when the operation takes one). */
@@ -21,19 +30,27 @@ export declare namespace Cli {
   /** A server-style command: receives the scope itself (it is `main`), so it can
    * mount drivers and resolve resources. No session, no span. */
   export type Entry = (scope: Scope.Handle, argv: readonly string[]) => void | PromiseLike<void>;
+  /** A resource that delivers an entry command when the scope builds it. */
+  export type EntryModule = Resource.Handle<Entry | PromiseLike<Entry>>;
+  /** One entry source: a loader function, or a resource that delivers the entry. */
+  export type EntrySource = (() => Entry | PromiseLike<Entry>) | EntryModule;
   /** One row of the routing table: an operation run in a session as an inline op,
-   * or an entry wired by hand. */
+   * or an entry wired by hand. Each row carries one source: `load` (a function,
+   * called once for the selected command) or `module` (a resource handle,
+   * resolved through the scope `run` owns — cached per scope, observable
+   * as a `resource` span). Usage lists the bound names; help loads nothing
+   * either way. */
   export type Command =
     | {
         readonly name: string;
         readonly kind: "operation";
-        readonly load: Load<unknown, unknown>;
         readonly route: Route<unknown>;
+        readonly source: Load<unknown, unknown> | Module<unknown, unknown>;
       }
     | {
         readonly name: string;
         readonly kind: "entry";
-        readonly load: () => Entry | PromiseLike<Entry>;
+        readonly source: EntrySource;
       };
   /** What the binary is called, which version it answers, which scope it builds. */
   export type Options = {
@@ -65,6 +82,11 @@ function commandOp<T>(
   load: Cli.Load<T, void>,
   route?: Cli.Route<T>,
 ): Tag.Binding<Cli.Command>;
+function commandOp<T>(
+  name: string,
+  module: Cli.Module<T, void>,
+  route?: Cli.Route<T>,
+): Tag.Binding<Cli.Command>;
 function commandOp<T, I>(
   name: string,
   load: Cli.Load<T, I>,
@@ -72,13 +94,18 @@ function commandOp<T, I>(
 ): Tag.Binding<Cli.Command>;
 function commandOp<T, I>(
   name: string,
-  load: Cli.Load<T, I>,
+  module: Cli.Module<T, I>,
+  route: Cli.Route<T> & { readonly input: (argv: readonly string[]) => unknown },
+): Tag.Binding<Cli.Command>;
+function commandOp<T, I>(
+  name: string,
+  source: Cli.Load<T, I> | Cli.Module<T, I>,
   route?: Cli.Route<T>,
 ): Tag.Binding<Cli.Command> {
   return commands({
     name,
     kind: "operation",
-    load,
+    source,
     route: {
       input: route?.input,
       respond: route?.respond as ((value: unknown) => string) | undefined,
@@ -86,26 +113,62 @@ function commandOp<T, I>(
   });
 }
 
+function isOperationModule(
+  source: Cli.Load<unknown, unknown> | Cli.Module<unknown, unknown>,
+): source is Cli.Module<unknown, unknown> {
+  return typeof source !== "function";
+}
+
+/** Read one operation source either way: a loader function is called, a resource
+ * handle is resolved through the scope `run` owns (cached per scope, per the
+ * resource's target). A loader is a function, a handle is an object — the
+ * `typeof` check is the discriminator, no cast. */
+async function readOperation(
+  scope: Scope.Handle,
+  source: Cli.Load<unknown, unknown> | Cli.Module<unknown, unknown>,
+): Promise<Operation.Handle<unknown, unknown>> {
+  if (isOperationModule(source)) return scope.resolve(source);
+  return source();
+}
+
+/** Read one entry source either way: a loader function is called, a resource
+ * handle is resolved through the scope `run` owns. */
+async function readEntry(scope: Scope.Handle, source: Cli.EntrySource): Promise<Cli.Entry> {
+  if (typeof source !== "function") return scope.resolve(source);
+  return source();
+}
+
 function commandEntry(
   name: string,
   load: () => Cli.Entry | PromiseLike<Cli.Entry>,
-): Tag.Binding<Cli.Command> {
-  return commands({ name, kind: "entry", load });
+): Tag.Binding<Cli.Command>;
+function commandEntry(name: string, module: Cli.EntryModule): Tag.Binding<Cli.Command>;
+function commandEntry(name: string, source: Cli.EntrySource): Tag.Binding<Cli.Command> {
+  return commands({ name, kind: "entry", source });
 }
 
 /** Bind a command: an operation run in a session, lazily loaded when selected.
- * `input` is required when the operation takes one. */
+ * Pass a loader function (called once for the selected command) or a resource
+ * that delivers the operation (resolved through the scope `run` owns — cached
+ * per scope, observable as a `resource` span). `input` is required when the
+ * operation takes one. */
 export const command: {
   <T>(name: string, load: Cli.Load<T, void>, route?: Cli.Route<T>): Tag.Binding<Cli.Command>;
+  <T>(name: string, module: Cli.Module<T, void>, route?: Cli.Route<T>): Tag.Binding<Cli.Command>;
   <T, I>(
     name: string,
     load: Cli.Load<T, I>,
     route: Cli.Route<T> & { readonly input: (argv: readonly string[]) => unknown },
   ): Tag.Binding<Cli.Command>;
-  readonly entry: (
+  <T, I>(
     name: string,
-    load: () => Cli.Entry | PromiseLike<Cli.Entry>,
-  ) => Tag.Binding<Cli.Command>;
+    module: Cli.Module<T, I>,
+    route: Cli.Route<T> & { readonly input: (argv: readonly string[]) => unknown },
+  ): Tag.Binding<Cli.Command>;
+  readonly entry: {
+    (name: string, load: () => Cli.Entry | PromiseLike<Cli.Entry>): Tag.Binding<Cli.Command>;
+    (name: string, module: Cli.EntryModule): Tag.Binding<Cli.Command>;
+  };
 } = Object.assign(commandOp, { entry: commandEntry });
 
 /** Map a command failure to its exit code. Shared by the log line (inside the
@@ -258,7 +321,7 @@ async function runEntry(
   selected: Extract<Cli.Command, { readonly kind: "entry" }>,
   rest: readonly string[],
 ): Promise<Answer> {
-  const entry = await selected.load();
+  const entry = await readEntry(scope, selected.source);
   try {
     await entry(scope, rest);
   } catch (error: unknown) {
@@ -282,7 +345,7 @@ async function runOperation(
   selected: Extract<Cli.Command, { readonly kind: "operation" }>,
   rest: readonly string[],
 ): Promise<{ readonly code: number; readonly text: string | undefined; readonly failed: unknown }> {
-  const loaded = await selected.load();
+  const loaded = await readOperation(scope, selected.source);
   const none = { code: 0, text: undefined, failed: undefined };
   try {
     const text = await scope.session((s) =>
@@ -303,9 +366,10 @@ async function runOperation(
 /** Run one command: create the scope, route the first argv word through the bound table,
  * map the outcome to streams and an exit code, close the scope on every path.
  * Missing/`help` answers usage (2/0); unknown answers usage to stderr (2);
- * `--version` answers the version (0); `load()` runs only for the selected
- * command. An operation command runs in a session as an inline op
- * (`<name> <command>` span, one `cli command` line): success prints through
+ * `--version` answers the version (0); the selected source (loader call or
+ * resource resolve) runs only for the selected command. An operation command
+ * runs in a session as an inline op (`<name> <command>` span, one `cli command`
+ * line): success prints through
  * `respond` (default JSON, nothing for `undefined`) and exits 0, a parse failure
  * prints usage and exits 2, anything else prints and exits 1, an abort exits 130.
  * An entry command receives the scope directly: 0, 1 on throw, 130 on abort. */

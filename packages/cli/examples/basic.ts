@@ -1,8 +1,9 @@
-import { operation } from "@tinker/core";
+import { operation, resource } from "@tinker/core";
 import { command, run } from "../src/index.ts";
 
 /** A cast-free tour of the driver: the routing table is scope config, loaders run
- * only for the selected command. Returns the codes, the answer, and the count. */
+ * only for the selected command; one command binds through a resource that
+ * delivers its operation. Returns the codes, the answer, and the count. */
 export async function tour(): Promise<string> {
   const parseCount = (raw: unknown): number => {
     if (typeof raw !== "string") throw new Error("bad count");
@@ -29,7 +30,7 @@ export async function tour(): Promise<string> {
       },
       { input: (argv) => argv[0] },
     ),
-    command("ping", () => ping),
+    command("ping", resource({ label: "tour.ping", factory: () => ping })),
   ];
 
   const base = { name: "tour", version: "0.0.0", scope: { tags } };

@@ -319,6 +319,94 @@ test("an aborted signal exits 130 and the session-target defer sees cancelled", 
   expect(ends).toEqual(["cancelled"]);
 });
 
+test("a command bound to a resource runs its operation and builds once", async () => {
+  let builds = 0;
+  const migrate = resource({
+    label: "app.migrate",
+    factory: () => {
+      builds += 1;
+      return double;
+    },
+  });
+  const table = [command("double", migrate, { input: (argv) => argv[0] })];
+  const first = await run({
+    name: "app",
+    version: "1.0.0",
+    scope: { tags: table },
+    argv: ["double", "21"],
+  });
+  expect(first.code).toBe(0);
+  expect(first.stdout).toBe("42\n");
+  expect(builds).toBe(1);
+});
+
+test("a resource-bound command opens a resource span beside the command span", async () => {
+  const seen: string[] = [];
+  const migrate = resource({ label: "app.migrate", factory: () => double });
+  const result = await run({
+    name: "app",
+    version: "1.0.0",
+    scope: {
+      tags: [command("double", migrate, { input: (argv) => argv[0] })],
+      observe: {
+        history: 20,
+        export: (span) => {
+          seen.push(`${span.kind}:${span.name}`);
+        },
+      },
+    },
+    argv: ["double", "21"],
+  });
+  expect(result.code).toBe(0);
+  expect(seen).toContain("resource:app.migrate");
+  expect(seen).toContain("operation:app double");
+});
+
+test("help and an unknown command build no resource-bound module", async () => {
+  let builds = 0;
+  const migrate = resource({
+    label: "app.migrate",
+    factory: () => {
+      builds += 1;
+      return ping;
+    },
+  });
+  const helped = await run({
+    name: "app",
+    version: "1.0.0",
+    scope: { tags: [command("ping", migrate)] },
+    argv: ["help"],
+  });
+  expect(helped.code).toBe(0);
+  const unknown = await run({
+    name: "app",
+    version: "1.0.0",
+    scope: { tags: [command("ping", migrate)] },
+    argv: ["nope"],
+  });
+  expect(unknown.code).toBe(2);
+  expect(builds).toBe(0);
+});
+
+test("an entry command bound to a resource receives the scope", async () => {
+  const db = resource({ label: "db", factory: () => "real" });
+  let seen: unknown;
+  const serve = resource({
+    label: "app.serve",
+    factory: () => (scope: Scope.Handle) => {
+      seen = scope.resolve(db);
+    },
+  });
+  const result = await run({
+    name: "app",
+    version: "1.0.0",
+    scope: { tags: [command.entry("serve", serve)] },
+    argv: ["serve", "--port", "8080"],
+  });
+  expect(result.code).toBe(0);
+  expect(seen).toBe("real");
+});
+
 test("io writers see the same streams the result collects", async () => {
   const seenOut: string[] = [];
   const seenErr: string[] = [];
