@@ -1,3 +1,4 @@
+import { readTool, type Mcp } from "@tinker/mcp";
 import {
   data,
   operation,
@@ -50,34 +51,29 @@ export declare namespace Harness {
     readonly id: (id: string) => void;
   };
   /** What a harness lets userland answer during a turn, as the SDK's OWN types (ADR 0043): an
-   * approval (`request` → `decision`) and a tool (`definition` = the adapter's own extras such
-   * as a schema, `result` = what the tool's operation returns). An adapter without the hook says
-   * `never`, so the frame rejects an `approve` op or a `tools` list for it at compile time. A
-   * type-level record only — no runtime value. */
+   * approval (`request` → `decision`) and a tool (`result` = the SDK-side result the adapter
+   * maps values to — Claude: the MCP `CallToolResult`). The definition IS the operation's
+   * `tool` meta from `@tinker/mcp` (ADR 0046): a tool op returns whatever value it returns and
+   * maps it at the edge, so one declaration serves every harness. Its presence is what admits
+   * `tools` — an adapter without the hook says `never`, so the frame rejects a `tools` list
+   * for it at compile time. A type-level record only — no runtime value. */
   export type Calls = {
     readonly approval: { readonly request: unknown; readonly decision: unknown };
-    readonly tool: { readonly definition: unknown; readonly result: unknown };
+    readonly tool: { readonly result: unknown };
   };
-  /** One tool a frame exposes in-process: the adapter's own definition extras (Claude: a
-   * description and a zod raw shape) plus the operation the model's call runs — attached at
-   * frame construction so the turn op depends on it and the call is a SUBFLOW of the turn. Its
-   * input is the schema-inferred shape at the adapter's builder, widened to `unknown` here. */
-  export type Tool<C extends Calls> = C["tool"]["definition"] & {
-    readonly name: string;
-    readonly operation: ToolOp<C>;
-  };
-  /** The operation behind a tool: result = the adapter's tool result, input widened to `unknown`. */
-  export type ToolOp<C extends Calls> = Operation.Handle<
-    C["tool"]["result"] | PromiseLike<C["tool"]["result"]>,
-    unknown
-  >;
-  /** One tool as the thread receives it per turn: the tool and its subflow controller. */
+  /** One tool a frame exposes in-process: an operation carrying `tool` meta (it returns
+   * whatever value it returns — the adapter maps it at the edge), attached at frame construction so the turn op depends on it
+   * and the call is a SUBFLOW of the turn. The presence of `C["tool"]` keeps the compile-time
+   * gate: an adapter whose `Calls.tool` is `never` rejects `tools`. */
+  export type Tool<C extends Calls> = [C["tool"]] extends [never]
+    ? never
+    : Operation.Handle<unknown, unknown>;
+  /** One tool as the thread receives it per turn: the op, its meta facts, and its subflow
+   * controller. */
   export type ToolCall<C extends Calls> = {
-    readonly tool: Tool<C>;
-    readonly run: Scope.OperationController<
-      C["tool"]["result"] | PromiseLike<C["tool"]["result"]>,
-      unknown
-    >;
+    readonly op: Tool<C>;
+    readonly meta: Mcp.Tool;
+    readonly run: Scope.OperationController<unknown, unknown>;
   };
   /** The approval operation a frame over `C` accepts: its input is the adapter's request, its
    * result the adapter's decision. Attached at frame construction (like `httpClient`'s policy
@@ -165,32 +161,60 @@ const noItems: readonly Harness.Item[] = Object.freeze([]);
 /** The shared frozen empty event list — every frame's `events` cell starts here. */
 const noEvents: readonly unknown[] = Object.freeze([]);
 
-/** The shared frozen empty tool list — a frame built without `tools`. */
-const noTools: readonly Harness.Tool<Harness.Calls>[] = Object.freeze([]);
+/** The shared frozen empty tool list — a frame built without `tools`. `never` fits every
+ * `readonly Tool<C>[]`, including the `never` list a `never`-calls adapter takes. */
+const noTools: readonly never[] = Object.freeze([]);
 
 /** The `depends` slots of a frame's tools, one per tool under `tool:<name>`: a record the turn
- * op spreads into its own `depends`, so each tool's operation is a subflow of the turn. */
-type ToolDeps<C extends Harness.Calls> = Record<`tool:${string}`, Harness.ToolOp<C>>;
+ * op spreads into its own `depends`, so each tool's operation is a subflow of the turn. The
+ * value is whatever the op returns — the adapter maps it at the edge. */
+type ToolDeps<C extends Harness.Calls> = Record<
+  `tool:${string}`,
+  Operation.Handle<unknown, unknown>
+>;
 
 /** The controllers those slots deliver, read back by the same keys. */
 type ToolSlots<C extends Harness.Calls> = Record<`tool:${string}`, Harness.ToolCall<C>["run"]>;
 
+/** One tool's facts, read once at frame construction: the op, its `tool` meta, and its dep key. */
+type ToolEntry<C extends Harness.Calls> = {
+  readonly op: Harness.Tool<C>;
+  readonly meta: Mcp.Tool;
+  readonly key: `tool:${string}`;
+};
+
+/** Read the `tool` meta off every tool op once, through mcp's `readTool` (a bound op
+ * without meta cannot run, so the frame throws `ToolUndeclared` with the op's label). The dep
+ * key is the meta name, defaulting to the op's label. */
+function readToolEntries<C extends Harness.Calls>(
+  tools: readonly Harness.Tool<C>[],
+): readonly ToolEntry<C>[] {
+  return tools.map((op) => {
+    const meta = readTool(op);
+    return { op, meta, key: `tool:${meta.name ?? op.label}` };
+  });
+}
+
 /** One `tool:<name>` slot per tool, built once at frame construction. */
-function readToolDeps<C extends Harness.Calls>(tools: readonly Harness.Tool<C>[]): ToolDeps<C> {
+function readToolDeps<C extends Harness.Calls>(entries: readonly ToolEntry<C>[]): ToolDeps<C> {
   const deps: ToolDeps<C> = {};
-  for (const tool of tools) deps[`tool:${tool.name}`] = tool.operation;
+  for (const entry of entries) deps[entry.key] = entry.op;
   return deps;
 }
 
 /** The turn's calls from its resolved slots: the approval controller when configured, and one
- * `{ tool, run }` per tool (absent when the frame has none — nothing allocated then). */
+ * `{ op, meta, run }` per tool (absent when the frame has none — nothing allocated then). */
 function readCalls<C extends Harness.Calls>(
   slots: ToolSlots<C>,
-  tools: readonly Harness.Tool<C>[],
+  entries: readonly ToolEntry<C>[],
   approve: Harness.TurnCalls<C>["approve"],
 ): Harness.TurnCalls<C> {
-  if (tools.length === 0) return approve === undefined ? {} : { approve };
-  const calls = tools.map((tool) => ({ tool, run: slots[`tool:${tool.name}`] }));
+  if (entries.length === 0) return approve === undefined ? {} : { approve };
+  const calls = entries.map((entry) => ({
+    op: entry.op,
+    meta: entry.meta,
+    run: slots[entry.key],
+  }));
   return approve === undefined ? { tools: calls } : { approve, tools: calls };
 }
 
@@ -325,7 +349,8 @@ function readTurnOperation<O, T, R, C extends Harness.Calls>(
   approve: Harness.ApproveOp<C> | undefined,
   tools: readonly Harness.Tool<C>[],
 ): Harness.TurnFn<T, R> {
-  const toolDeps = readToolDeps(tools);
+  const entries = readToolEntries(tools);
+  const toolDeps = readToolDeps(entries);
   function turn<I = void, Out = R>(
     shape: Harness.TurnShape<I, T, R, Out> & {
       response: (result: R) => Out | PromiseLike<Out>;
@@ -346,7 +371,7 @@ function readTurnOperation<O, T, R, C extends Harness.Calls>(
           text: text.controller,
           ...toolDeps,
         },
-        run: (deps, ctx) => runTurn(frame, shape, deps, readCalls(deps, tools, undefined), ctx),
+        run: (deps, ctx) => runTurn(frame, shape, deps, readCalls(deps, entries, undefined), ctx),
       });
     }
     return operation({
@@ -359,7 +384,7 @@ function readTurnOperation<O, T, R, C extends Harness.Calls>(
         approve,
         ...toolDeps,
       },
-      run: (deps, ctx) => runTurn(frame, shape, deps, readCalls(deps, tools, deps.approve), ctx),
+      run: (deps, ctx) => runTurn(frame, shape, deps, readCalls(deps, entries, deps.approve), ctx),
     });
   }
   return turn;

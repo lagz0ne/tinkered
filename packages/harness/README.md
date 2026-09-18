@@ -120,34 +120,55 @@ const coder = harness({ label: "coder", adapter: claudeCode, approve });
 
 ## Tools
 
-An in-process tool is an ordinary operation the model can call. Declare it with `claudeCode.tool`
-(the SDK's own constraint: a description and a zod raw shape the SDK validates the arguments
-against; the operation's input IS the inferred shape, its result the MCP `CallToolResult`), pass
-it in `harness({ tools })`, and the turn op depends on it: the call runs as a **subflow** of the
-turn (its span nests under the turn's, it sees the session's bindings). The adapter registers one
-in-process MCP server named after the frame, built once per thread, beside any `mcpServers` you
-bound. The model needs `allowedTools: ["mcp__coder__search"]` (or an `approve` op) to call it
+A tool is an ordinary operation with `tool` meta from `@tinker/mcp` — the same declaration
+the MCP driver serves (`mcpServer(scope)`), shared with every MCP host. The operation's `run`
+is the handler, its `input` parse is the edge, and `tool.read(op)` gives any driver or adapter
+the facts (description, zod raw shape, name defaulting to the op's label, an optional `respond`
+that maps the value to a result — default one JSON text content). Pass tool ops in
+`harness({ tools })`, and the turn op depends on them: the call runs as a **subflow** of the
+turn (its span nests under the turn's, it sees the session's bindings). A bound op without
+`tool` meta throws `ToolUndeclared` at construction.
+
+The in-process path is Claude's zero-process fast path: the adapter registers one in-process
+MCP server named after the frame (built once per thread, beside any `mcpServers` you bound),
+one SDK tool per tool op, and maps the value with `answerTool` exactly as the driver does.
+The model needs `allowedTools: ["mcp__coder__search"]` (or an `approve` op) to call it
 without a prompt. Codex has no in-process tools (MCP servers are config for an external
 process), so `tools` is a compile error for the `codex` adapter.
 
 ```ts
-import { createScope, tag } from "@tinker/core";
+import { createScope, operation, tag } from "@tinker/core";
+import { tool } from "@tinker/mcp";
 import { claudeCode, harness } from "@tinker/harness";
 import { z } from "zod";
 
 const index = tag<string>({ label: "index", default: "docs" });
-const search = claudeCode.tool({
-  name: "search",
-  description: "find a phrase in the index",
-  schema: { q: z.string() },
+const searchShape = { q: z.string() };
+const search = operation({
+  label: "search",
+  input: (raw: unknown) => z.object(searchShape).parse(raw),
   depends: { index },
-  run: ({ index }, ctx) => ({ content: [{ type: "text", text: `${index}: ${ctx.input.q}` }] }),
+  meta: [tool({ description: "find a phrase in the index", schema: searchShape })],
+  run: ({ index }, ctx) => `${index}: ${ctx.input.q}`,
 });
 const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
 const scope = createScope({
   tags: [claudeCode.options({ cwd: "/work", allowedTools: ["mcp__coder__search"] })],
 });
 ```
+
+The universal path is an external MCP server over the SDKs' own config — one `tools.ts` entry
+serving the same ops through `mcpServer(scope)`:
+
+```ts
+// Claude: an MCP server entry beside the fast path
+claudeCode.options({ mcpServers: { coder: { command: "node", args: ["tools.ts"] } } });
+// Codex: the same server through its config
+codex.options({ config: { mcp_servers: { coder: { command: "node", args: ["tools.ts"] } } } });
+```
+
+Paseo reaches the same server through a plugin: the plugin registers the entry per agent, and
+the agent's harness calls it over MCP like any other host.
 
 ## Testing
 

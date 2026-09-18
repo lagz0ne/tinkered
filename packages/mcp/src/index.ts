@@ -43,9 +43,10 @@ function failureResult(text: string): CallToolResult {
   return { isError: true, content: [{ type: "text", text }] };
 }
 
-/** Map the settled value to a tool result: `respond` wins, the default is one
- * JSON text content, `undefined` answers with no content. */
-function answerResult(meta: Mcp.Tool, value: unknown): CallToolResult {
+/** Map a tool op's value to a tool result, exactly as the driver answers a call:
+ * `respond` wins, the default is one JSON text content, `undefined` answers
+ * with no content. Harnesses share it for the in-process path (ADR 0046). */
+export function answerTool(meta: Mcp.Tool, value: unknown): CallToolResult {
   if (meta.respond !== undefined) return meta.respond(value);
   if (value === undefined) return { content: [] };
   return textResult(JSON.stringify(value));
@@ -78,7 +79,7 @@ function readCall(
                   ok: true,
                   ms: ctx.clock.currentTimeMillis() - started,
                 });
-                return answerResult(meta, value);
+                return answerTool(meta, value);
               } catch (error: unknown) {
                 ctx.log("mcp tool", {
                   tool: name,
@@ -98,9 +99,10 @@ function readCall(
       });
 }
 
-/** Read the tool facts off one bound operation: a bound op without meta cannot
- * be advertised, so the driver throws. */
-function readTool(op: Operation.Handle<unknown, unknown>): Mcp.Tool {
+/** Read the tool facts off one tool op: the `tool` meta's facts, shared by the driver and
+ * harness adapters (ADR 0046). A bound op without meta cannot be advertised, so this throws
+ * `ToolUndeclared` with the op's label. */
+export function readTool(op: Operation.Handle<unknown, unknown>): Mcp.Tool {
   const found = tool.read(op);
   if (!found.present) raise("ToolUndeclared", { label: op.label });
   return found.value;

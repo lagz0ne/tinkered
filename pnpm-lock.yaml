@@ -484,6 +484,9 @@ importers:
       '@tinker/core':
         specifier: workspace:*
         version: link:../core
+      '@tinker/mcp':
+        specifier: workspace:*
+        version: link:../mcp
     devDependencies:
       '@anthropic-ai/claude-agent-sdk':
         specifier: 'catalog:'

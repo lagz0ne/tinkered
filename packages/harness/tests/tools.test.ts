@@ -1,5 +1,8 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, preset, tag } from "@tinker/core";
+import { createScope, operation, preset, tag } from "@tinker/core";
+import { isError, mcpServer, tool, tools } from "@tinker/mcp";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { McpServerConfig, Options, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
@@ -33,6 +36,15 @@ function fakeSdk(seen: Seen): ClaudeCode.Sdk {
   };
 }
 
+/** The op edge and the declaration share one source: parse through the object built from the
+ * raw shape (the shape `@tinker/mcp`'s tests declare the same way). */
+function parseWith<T>(schema: { parse: (raw: unknown) => T }): (raw: unknown) => T {
+  function parse(raw: unknown): T {
+    return schema.parse(raw);
+  }
+  return parse;
+}
+
 /** The recorded turn: init, the simulated model call of the LAST registered server's first tool
  * (each session's thread registers its own) when a `coder` server is present, then the tool
  * use, its result, and the turn result. */
@@ -49,15 +61,20 @@ async function* readStream(options: Options | undefined, seen: Seen): AsyncGener
 
 const index = tag<string>({ label: "index", default: "base" });
 
-test("a tool op runs as a subflow of the turn and its result reaches the SDK by identity", async () => {
+const searchShape = { q: z.string() };
+const parseSearch = parseWith(z.object(searchShape));
+
+/** One declaration for every harness: a plain-value op with `tool` meta — the same shape
+ * `@tinker/mcp`'s tests declare. The MCP driver and the Claude fast path map the value. */
+const search = operation({
+  label: "search",
+  input: parseSearch,
+  meta: [tool({ description: "find things", schema: searchShape })],
+  run: (_deps, ctx) => `hit:${ctx.input.q}`,
+});
+
+test("a tool op runs as a subflow of the turn and answers the mapped value", async () => {
   const seen: Seen = { servers: [], queries: [], results: [] };
-  const answer: CallToolResult = { content: [{ type: "text", text: "found x" }] };
-  const search = claudeCode.tool({
-    name: "search",
-    description: "find things",
-    schema: { q: z.string() },
-    run: (_deps, ctx) => (ctx.input.q === "x" ? answer : { content: [] }),
-  });
   const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
   const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
   const scope = createScope({
@@ -66,7 +83,7 @@ test("a tool op runs as a subflow of the turn and its result reaches the SDK by 
   });
   const session = scope.createSession();
   await session.run(ask, { input: "hello" });
-  expect(seen.results[0]).toBe(answer);
+  expect(seen.results[0]?.content).toEqual([{ type: "text", text: '"hit:x"' }]);
   const spans = scope.spans();
   const turn = spans.find((span) => span.name === "coder.ask");
   const call = spans.find((span) => span.name === "search");
@@ -76,12 +93,6 @@ test("a tool op runs as a subflow of the turn and its result reaches the SDK by 
 
 test("the in-process server is built once per thread and reused across turns", async () => {
   const seen: Seen = { servers: [], queries: [], results: [] };
-  const search = claudeCode.tool({
-    name: "search",
-    description: "find things",
-    schema: { q: z.string() },
-    run: (): CallToolResult => ({ content: [] }),
-  });
   const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
   const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
   const scope = createScope({ presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))] });
@@ -97,12 +108,6 @@ test("the in-process server is built once per thread and reused across turns", a
 
 test("a user-bound mcpServers entry survives beside the frame's server", async () => {
   const seen: Seen = { servers: [], queries: [], results: [] };
-  const search = claudeCode.tool({
-    name: "search",
-    description: "find things",
-    schema: { q: z.string() },
-    run: (): CallToolResult => ({ content: [] }),
-  });
   const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
   const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
   const scope = createScope({
@@ -116,24 +121,53 @@ test("a user-bound mcpServers entry survives beside the frame's server", async (
 
 test("a tool op sees the session's own bindings", async () => {
   const seen: Seen = { servers: [], queries: [], results: [] };
-  const search = claudeCode.tool({
-    name: "search",
-    description: "find things",
-    schema: { q: z.string() },
+  const lookup = operation({
+    label: "search",
+    input: parseSearch,
     depends: { index },
-    run: ({ index }, ctx): CallToolResult => ({
-      content: [{ type: "text", text: `${index}:${ctx.input.q}` }],
-    }),
+    meta: [tool({ description: "find things", schema: searchShape })],
+    run: ({ index }, ctx) => `${index}:${ctx.input.q}`,
   });
-  const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
+  const coder = harness({ label: "coder", adapter: claudeCode, tools: [lookup] });
   const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
   const scope = createScope({ presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))] });
   await scope.createSession({ tags: [index("docs")] }).run(ask, { input: "a" });
   await scope.createSession({ tags: [index("code")] }).run(ask, { input: "b" });
   const texts = seen.results.map((result) => result.content[0]);
   expect(texts).toEqual([
-    { type: "text", text: "docs:x" },
-    { type: "text", text: "code:x" },
+    { type: "text", text: '"docs:x"' },
+    { type: "text", text: '"code:x"' },
   ]);
   await scope.close();
+});
+
+test("a tool op without tool meta throws ToolUndeclared with its label", async () => {
+  const bare = operation({ label: "bare", run: () => "hi" });
+  try {
+    harness({ label: "coder", adapter: claudeCode, tools: [bare] });
+    expect.unreachable();
+  } catch (error: unknown) {
+    if (!isError(error, "ToolUndeclared")) throw error;
+    expect(error.payload.label).toBe("bare");
+  }
+});
+
+test("one declaration serves the MCP driver and the Claude fast path", async () => {
+  const seen: Seen = { servers: [], queries: [], results: [] };
+  const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
+  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const scope = createScope({
+    tags: [tools(search)],
+    presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))],
+  });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const server = mcpServer(scope, { name: "coder", version: "0" });
+  await server.connect(serverTransport);
+  const client = new Client({ name: "test", version: "0" });
+  await client.connect(clientTransport);
+  const listed = await client.listTools();
+  expect(listed.tools.find((entry) => entry.name === "search")?.description).toBe("find things");
+  await scope.createSession().run(ask, { input: "hello" });
+  expect(seen.servers[0]?.tools.map((entry) => entry.name)).toContain("search");
+  await scope.close({ graceful: true });
 });

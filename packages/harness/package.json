@@ -33,7 +33,8 @@
     "prepublishOnly": "vp run build"
   },
   "dependencies": {
-    "@tinker/core": "workspace:*"
+    "@tinker/core": "workspace:*",
+    "@tinker/mcp": "workspace:*"
   },
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "catalog:",
@@ -42,6 +43,7 @@
     "@stryker-mutator/core": "catalog:",
     "@stryker-mutator/vitest-runner": "catalog:",
     "@tinker/core": "workspace:*",
+    "@tinker/mcp": "workspace:*",
     "@types/node": "^26.1.1",
     "bumpp": "^11.1.0",
     "typescript": "^7.0.2",

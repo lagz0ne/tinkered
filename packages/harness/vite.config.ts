@@ -6,6 +6,7 @@ export default defineConfig({
       resolveDepSubpath: true,
       neverBundle: [
         "@tinker/core",
+        "@tinker/mcp",
         "@anthropic-ai/claude-agent-sdk",
         "@openai/codex-sdk",
         "zod",

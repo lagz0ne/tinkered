@@ -1,16 +1,7 @@
-import {
-  operation,
-  resource,
-  tag,
-  type Data,
-  type Operation,
-  type Resource,
-  type Scope,
-  type Tag,
-} from "@tinker/core";
+import { resource, tag, type Data, type Resource, type Tag } from "@tinker/core";
+import { answerTool, type Mcp } from "@tinker/mcp";
 import type {
   CanUseTool,
-  InferShape,
   McpServerConfig,
   Options,
   PermissionResult,
@@ -25,10 +16,6 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { raise } from "./errors.ts";
 import type { Harness } from "./index.ts";
 
-/** A zod raw shape as the SDK's `tool()` takes it — read off the SDK's own tool definition type
- * so the SDK's name for it never becomes one of ours. */
-type ZodShape = SdkMcpToolDefinition["inputSchema"];
-
 export declare namespace ClaudeCode {
   /** The seam: the SDK module's shape the adapter calls. The real module is assignable —
    * its `query` takes a wider prompt type and returns a `Query`, an AsyncIterable of SDKMessage. */
@@ -37,12 +24,12 @@ export declare namespace ClaudeCode {
     tool(
       name: string,
       description: string,
-      schema: ZodShape,
+      schema: Mcp.ZodShape,
       handler: (args: Record<string, unknown>, extra: unknown) => Promise<CallToolResult>,
-    ): SdkMcpToolDefinition<ZodShape>;
+    ): SdkMcpToolDefinition<Mcp.ZodShape>;
     createSdkMcpServer(options: {
       name: string;
-      tools: SdkMcpToolDefinition<ZodShape>[];
+      tools: SdkMcpToolDefinition<Mcp.ZodShape>[];
     }): McpServerConfig;
   };
   /** A v1 turn: a string prompt. The SDK also accepts an async iterable of user messages — later. */
@@ -60,38 +47,17 @@ export declare namespace ClaudeCode {
   /** An approval's answer: the SDK's own `PermissionResult` (allow with optional updated input
    * and permissions, or deny with a message). */
   export type Decision = PermissionResult;
-  /** A tool's definition extras beyond its name: the description the model reads and the zod
-   * raw shape the SDK validates the call's arguments against (the SDK's own constraint). */
-  export type ToolDefinition = { readonly description: string; readonly schema: ZodShape };
-  /** What `claudeCode.tool` takes: the definition plus the operation body — its input IS the
-   * schema-inferred shape (already validated by the SDK), its result the MCP `CallToolResult`. */
-  export type ToolShape<Schema extends ZodShape, D extends Scope.Depends, R> = {
-    readonly name: string;
-    readonly description: string;
-    readonly schema: Schema;
-    readonly depends?: D;
-    readonly run: (
-      deps: Scope.SlotValues<D>,
-      ctx: Operation.Ctx<InferShape<Schema>>,
-    ) => R & Scope.AsyncBody<D>;
-  };
-  /** What userland may answer during a Claude turn: an approval, and an in-process tool. */
+  /** What userland may answer during a Claude turn: an approval, and an in-process tool whose
+   * result is the MCP `CallToolResult` the value maps to. */
   export type Calls = {
     readonly approval: { readonly request: Approval; readonly decision: Decision };
-    readonly tool: { readonly definition: ToolDefinition; readonly result: CallToolResult };
+    readonly tool: { readonly result: CallToolResult };
   };
   /** The Claude Code adapter: options are the SDK's own `Options`, continuity is by session id,
    * and `sdk` is the lazy module resource tests preset with a fake `query`. */
   export type Adapter = Harness.Adapter<Options, Turn, Result, Calls> & {
     readonly sdk: Resource.Handle<Promise<Sdk>>;
     readonly approval: Data.Parse<Approval>;
-    readonly tool: <
-      Schema extends ZodShape,
-      const D extends Scope.Depends,
-      R extends CallToolResult | PromiseLike<CallToolResult>,
-    >(
-      shape: ToolShape<Schema, D, R>,
-    ) => Harness.Tool<Calls>;
   };
 }
 
@@ -145,23 +111,6 @@ function approval(raw: unknown): ClaudeCode.Approval {
   raise("InvalidApproval", { harness: "claudeCode" });
 }
 
-/** Declare an in-process tool: the definition the SDK registers (name, description, zod shape)
- * and the operation the model's call runs — an ordinary operation labelled by the tool's name,
- * whose input is the schema-inferred shape (no parse: the SDK validated the call) and whose
- * result is the MCP `CallToolResult`. Pass it in `harness({ tools })`. */
-function tool<
-  Schema extends ZodShape,
-  const D extends Scope.Depends,
-  R extends CallToolResult | PromiseLike<CallToolResult>,
->(shape: ClaudeCode.ToolShape<Schema, D, R>): Harness.Tool<ClaudeCode.Calls> {
-  return {
-    name: shape.name,
-    description: shape.description,
-    schema: shape.schema,
-    operation: operation({ label: shape.name, depends: shape.depends, run: shape.run }),
-  };
-}
-
 /** The Claude Code adapter resource: awaits the lazy module, then opens threads on it. */
 const adapterResource: Resource.Handle<
   Promise<Harness.Backend<Options, ClaudeCode.Turn, ClaudeCode.Result, ClaudeCode.Calls>>
@@ -192,7 +141,6 @@ export const claudeCode: ClaudeCode.Adapter = {
   merge,
   resource: adapterResource,
   approval,
-  tool,
 };
 
 /** Start a Claude thread on merged options and hooks: each `run({ prompt })` opens one `query`,
@@ -260,8 +208,11 @@ function readTurnOptions(
   return opened;
 }
 
-/** The in-process MCP server for a frame's tools, named after the frame: one SDK tool per frame
- * tool, whose handler runs the tool's operation as a subflow of the turn that is running. */
+/** The in-process MCP server for a frame's tools, named after the frame: one SDK tool per
+ * tool op, read off its `tool` meta, whose handler runs the op as a subflow of the turn that is
+ * running — the op's own parse is the edge (the SDK validated the args against the schema
+ * first), and the value answers exactly as the MCP driver maps it. A thrown op rejects the
+ * handler; the SDK reports the tool error to the model. */
 function readServer(
   sdk: ClaudeCode.Sdk,
   label: string,
@@ -269,8 +220,10 @@ function readServer(
 ): McpServerConfig {
   return sdk.createSdkMcpServer({
     name: label,
-    tools: tools.map(({ tool, run }) =>
-      sdk.tool(tool.name, tool.description, tool.schema, async (args) => run.run({ input: args })),
+    tools: tools.map(({ op, meta, run }) =>
+      sdk.tool(meta.name ?? op.label, meta.description, meta.schema, async (args) =>
+        answerTool(meta, await run.run({ rawInput: args })),
+      ),
     ),
   });
 }
