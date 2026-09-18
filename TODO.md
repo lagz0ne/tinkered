@@ -121,8 +121,13 @@ tickets, then contributors with lead review:
          builder deleted; `answerTool` exported by `@tinker/mcp` (a harness dependency, never bundled); README: Tools
          rewritten + MCP recipes (Claude `mcpServers`, Codex `config.mcp_servers`, Paseo plugin). Harness 24 tests,
          size 6886 B, 29 lanes green, mutation harness 69.77 / mcp 80.60._
-   - [ ] **cli/t04 — commands as operations with meta.** `command({ name, description, argv })` meta + `commands(op)`;
-         the loader/resource shapes stay for lazy modules; `run` reads `command.read(op)`.
+   - [x] **cli/t04 — commands as operations with `command` meta.** _Done: tag `cli/t04` (c8dad0b), writer-built with one
+         fix round (internal overloads and a duplicated dispatch branch cut; the parse-failure test asserts stderr).
+         `command({ description, argv?, respond?, name? })` is a meta tag (`command.read(op)`), `commands(op)` binds the op on
+         the scope (`Cli.Bound = Cli.Command | Operation.Handle`), `readCommand(op)` reads the facts or throws `CommandUndeclared`
+         (`run` rejects, the scope still closes); `run` normalizes each bound op into an eager row, so the session, span, log
+         line, and exit codes are unchanged; help prints `  name  description`. Loaders and resource modules stay for lazy
+         modules. 5 seam tests (25 total), size 4057 B, 29 lanes green, mutation 72.03. Core feedback recorded._
    - [ ] **mcp/t02 — validation milestone.** Lanes, mutation ≥ 60 alone, README + cast-free example (a stdio entry
          through `@tinker/cli`), archive here.
 5. **`@tinker/ai`** — the LLM layer over the AI SDK (the model is the swappable slot; generateText/streamText as

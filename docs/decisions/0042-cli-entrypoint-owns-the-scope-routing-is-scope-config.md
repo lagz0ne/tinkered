@@ -1,6 +1,6 @@
 # 0042 The CLI entrypoint owns the scope; routing is scope configuration; loading policy follows the process
 
-Date: 2026-09-18. Status: accepted. Refines: 0034 (tiers: driver), 0039 (Hono: session-level driver,
+Date: 2026-09-18. Status: accepted. Refined by 0046 §5 (cli/t04): a command is an operation with `command` meta bound with `commands(op)`; the loader and resource rows below stay for lazy modules. Refines: 0034 (tiers: driver), 0039 (Hono: session-level driver,
 answers its open Q3), 0040 (a request is an inline operation), 0037/0038 (inline ops, tagged calls),
 0028 (close modes), 0006 (the operation's `parse` is the edge).
 
