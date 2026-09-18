@@ -28,8 +28,9 @@ its SDK inside a resource factory, so declaring a harness loads nothing.
 harness({ label, adapter })               a dedicated capability, generic over the adapter's own types
 ├── adapter.options   (tag)                the SDK's OWN thread-level options type, bound at scope or session
 ├── adapter           (resource, scope)    factory imports the SDK; returns Harness.Backend<Options, Turn, Result>
-├── x.thread          (resource, session)  backend.start(options merged nearest-first, { resume?, signal, emit }) — one per session
-│                                          forced close → interrupt/abort + kill; graceful → let the turn finish
+├── adapter.sdk       (resource, scope)    the SDK module itself, imported lazily — the test seam (preset it)
+├── x.thread          (resource, session)  backend.start(options merged nearest-first (+ resume), hooks) — one per session
+│                                          forced close → the signal aborts the SDK call, then close(); graceful → let the turn finish
 ├── x.status / x.text / x.items / x.usage / x.id / x.events   data cells, written by the thread as events arrive
 └── x.turn({ label, input?, request, response? })   an op: request(input) → { prompt, ...the SDK's per-turn options };
                                            result = the SDK's own result; span attrs (adapter, model, tokens, cost); one `harness turn` log line
@@ -41,16 +42,27 @@ harness({ label, adapter })               a dedicated capability, generic over t
   cross-harness config; what cannot change per call in the SDK cannot change per call here.
   Merging follows ADR 0012/0038: nearest binding wins per key, so a session may override `cwd` or
   `model` where the SDK allows it at thread start.
-- **The adapter is a resource** whose factory does `await import("@anthropic-ai/claude-agent-sdk")`
-  (or the Codex SDK) and returns a `Harness.Backend`. The one interface we own, kept minimal:
-  `start(options, hooks) → Thread`, `Thread.run(turn) → Promise<Result>`, `Thread.interrupt()`,
-  `Thread.close()`, plus `hooks.emit(event)` for the raw SDK event stream and `hooks.signal`.
-  Tests `preset(adapter, () => fake)`; the real SDKs run in examples only (auth + a binary).
-  Each adapter's event → cell mapping is a pure function tested with recorded SDK messages.
+- **The adapter is a resource** whose factory imports the SDK — and the imported module is itself
+  a resource (`claudeCode.sdk`, ADR 0042: a lazy module is a resource), so the adapter's backend
+  resource depends on it and a test presets the module (`preset(claudeCode.sdk, async () => ({
+query: fakeQuery }))`) to feed recorded SDK messages through the REAL adapter code. The one
+  interface we own, kept minimal: `Backend.start(options, hooks) → Thread`, `Thread.run(turn) →
+Promise<Result>`, `Thread.close()`, plus `hooks` — the thread's `signal` and the cell writers
+  (`emit(event)` for the raw SDK event stream, `text`, `item`, `usage`, `id`). No `interrupt`
+  method: the signal is the interrupt (below). The real SDKs run in examples only (auth + a
+  binary). Each adapter's event → cell mapping is a pure function proven through the seam with
+  recorded SDK messages.
 - **The thread is a session resource** (ADR 0038 reach: a tagged call or a request opens one).
-  `x.resume(id)` is a binding on the session that makes `start` resume rather than begin. A
-  forced close interrupts the harness and kills its process (the turn settles `cancelled`); a
-  graceful close waits for the running turn.
+  `x.resume(id)` is a binding on the session that makes `start` resume rather than begin. Close
+  follows core's order (ADR 0028): a forced close aborts every signal first, waits for the
+  in-flight turn to settle, then runs `defer`s. So the adapter stops its SDK call on
+  `hooks.signal` (Claude: an `AbortController` bound to it, checking `aborted` first — the signal
+  may already be aborted when `start` runs), the turn settles `cancelled`, and the thread's
+  `defer` then `close()`s it (releasing the process). A `defer` that tried to interrupt the
+  running turn would wait for itself. A graceful close aborts nothing and waits for the turn. The
+  forced close also seals the session at call time, so the turn's `status` write is skipped under
+  an abort (a cell write would throw `Disposed`); `status: failed` is for a turn the SDK failed,
+  and the `harness turn` log line says `cancelled` for an aborted one.
 - **Ambient state is data.** The frame declares cells per harness: `status` (`idle | running |
 done | failed`), `text` (the assistant text of the current turn, streamed), `items` (tool calls,
   commands, file changes as the SDK reports them), `usage` (input/cached/output tokens, cost
@@ -75,7 +87,9 @@ done | failed`), `text` (the assistant text of the current turn, streamed), `ite
 - Everything a harness knows is ambient and inspectable through core's own primitives: cells to
   watch, a tag to read, spans to export.
 - Core feedback: a resource that must write several cells needs `data.controller` deps for each —
-  fine at five cells; if harnesses grow, "a resource publishes a record of cells" is the candidate.
+  fine at six cells; if harnesses grow, "a resource publishes a record of cells" is the candidate.
+  Found by t01's forced-close test: ops settle before defers, and a listener on an already-aborted
+  signal never fires — both belong in the `Resource.Ctx` TSDoc (`docs/roadmap/core-feedback.md`).
 
 ## Alternatives rejected
 
