@@ -18,7 +18,7 @@ shutdown; TUI app — each starts with `grill-with-docs`.
 tickets, then contributors with lead review:
 
 1. **Drizzle** — **shipped** (ADR 0041, tags `drizzle/t01`, `drizzle/t02`; archived below).
-2. **CLI entrypoint** — the first scope-OWNING driver (`@tinker/cli`), **decided (ADR 0042)**: commands are tag
+2. **CLI entrypoint** — **shipped** (ADR 0042, tags `cli/t01`, `cli/t02`, core/t29; archived below). Was: commands are tag
    bindings on the scope (`command(name, load, { input?, respond? })`, `command.entry` for a server command that
    receives the scope), lazy loaders (help loads nothing), the command run is an inline op (span + `cli command`
    log line), exit codes 0/1/2/130, `run()` testable without the process, `runMain()` = run + signals + exit.
@@ -30,8 +30,7 @@ tickets, then contributors with lead review:
          on exit 0 and `failed` on exit 1; `run` with an `AbortSignal` in `io` (the signal stand-in for tests) →
          exit 130 and `cancelled`; `runMain` is covered by a smoke test that spawns `node` on the example (real
          process, real exit code — the one process-level test).
-   - [ ] **cli/t02 — validation milestone.** Size ≤ 10 kB, mutation ≥ 60 alone, README + cast-free example, cli
-         lanes in `pnpm validate`; archive here.
+   - [x] **cli/t02 — validation milestone.** _Done: tag `cli/t02`; 25 validate lanes green (cli lanes added), mutation 68.94, README + cast-free examples (`basic.ts` tour, `main.ts` real entrypoint). core/t29 landed alongside: `scope.resolve(tag.all)`._
    - [ ] **hono/t05 — routes at the scope, eager mount (ADR 0042 policy).** `route.get(path, load, { input?,
  respond? })` tag bindings; `honoApp(scope)` returns a Hono app with the session middleware and every bound
          route mounted, all loaders resolved at mount; `tinker` + `handle` stay for hand mounting. Verify: an app
@@ -49,6 +48,15 @@ Perf follow-up when the sandbox `bench` is available: `op` parity (budgets.md "C
 
 Both v1 milestones are complete. Full ticket detail, budgets, and reset recipes live in the
 durable trackers (this list is just the pointer):
+
+- **cli v1 (2026-09-18)** — complete: `@tinker/cli` — the entrypoint driver (ADR 0042): `runMain({ name,
+version, scope })` creates and closes the scope; commands are tag bindings on it (`command(name, load, {
+input?, respond? })`, `command.entry` for a server command that receives the scope); loaders are lazy
+  (help loads nothing); the command runs as an inline op in a session (span + one `cli command` log line);
+  exit codes 0/1/2/130; `run()` is the process-free seam. Gate: 25 validate lanes green (cli lanes added),
+  size 3087 B, mutation 68.94, 16 tests incl. one real-process smoke test. **core/t29** (found by cli +
+  hono/t05): `scope.resolve(tag.all | .optional | .required)` delivers the depends form — no more
+  smuggling a table out through an inline op. Core feedback: a lazy operation unit (two askers now).
 
 - **drizzle v1 (2026-09-18)** — complete: `@tinker/drizzle` — `drizzleStore({ label, open, close? })`: a
   required `config` tag, a scope-target `db` resource (`open` once with a logger bound to `ctx.log`, `close`

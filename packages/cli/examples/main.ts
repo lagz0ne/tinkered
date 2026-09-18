@@ -12,7 +12,7 @@ const greet = operation({
   run: (_deps, ctx) => `hello ${ctx.input}`,
 });
 
-/** The real entrypoint: same routing table shape as the tour, run through the
+/** The real entrypoint: the tour's routing table shape, run through the
  * process — argv in, exit code out. The smoke test spawns this file. */
 await runMain({
   name: "tinker",

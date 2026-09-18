@@ -326,10 +326,7 @@ export async function run(
     await scope.close({ graceful: true });
     return collected.result(code);
   };
-  const table: Cli.Command[] = scope.run({
-    depends: { table: commands.all },
-    run: ({ table }) => table,
-  });
+  const table = scope.resolve(commands.all);
   if (options.argv.length === 0) {
     collected.stdout(usageText(options, table));
     return finish(2);
