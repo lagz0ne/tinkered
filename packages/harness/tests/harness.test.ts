@@ -2,7 +2,7 @@ import { expect, test } from "vite-plus/test";
 import { createScope, preset, type Observe } from "@tinker/core";
 import type { Options, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { claudeCode, harness, type ClaudeCode, type Harness } from "../src/index.ts";
-import { readScript, type Script } from "./fixtures.ts";
+import { readScript, type Script, readToolSdk } from "./fixtures.ts";
 
 /** One `query` call a test fake saw: the prompt plus the options it opened with. */
 type Seen = { readonly prompt: string; readonly options: Options | undefined };
@@ -12,6 +12,7 @@ type Seen = { readonly prompt: string; readonly options: Options | undefined };
  * no script left, the stream parks on `gate` instead (for the mid-turn close test). */
 function fakeSdk(scripts: Script[], seen: Seen[], gate?: Gate): ClaudeCode.Sdk {
   return {
+    ...readToolSdk(),
     query: ({ prompt, options }) => {
       seen.push({ prompt, options });
       const script = scripts.shift();

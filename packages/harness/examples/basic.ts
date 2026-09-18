@@ -79,6 +79,13 @@ export async function tour(): Promise<string> {
     { words: ["Hi", "again"], reply: "Hi again" },
   ];
   const fake: ClaudeCode.Sdk = {
+    tool: (name, description, schema, handler) => ({
+      name,
+      description,
+      inputSchema: schema,
+      handler,
+    }),
+    createSdkMcpServer: () => ({ type: "stdio", command: "fake" }),
     query: ({ prompt }) => {
       seen.push(prompt);
       const script = scripts.shift();

@@ -40,6 +40,7 @@ export declare namespace Harness {
    * frame's ambient cells. Every writer funnels through its cell's controller, so a TUI
    * watching `text` sees each delta as it lands. */
   export type Hooks = {
+    readonly label: string;
     readonly signal: AbortSignal;
     readonly resume?: string;
     readonly emit: (event: unknown) => void;
@@ -49,12 +50,34 @@ export declare namespace Harness {
     readonly id: (id: string) => void;
   };
   /** What a harness lets userland answer during a turn, as the SDK's OWN types (ADR 0043): an
-   * approval (`request` → `decision`) and a tool call (`result`). An adapter without the hook
-   * says `never`, so the frame rejects an `approve` op for it at compile time. A type-level
-   * record only — no runtime value. */
+   * approval (`request` → `decision`) and a tool (`definition` = the adapter's own extras such
+   * as a schema, `result` = what the tool's operation returns). An adapter without the hook says
+   * `never`, so the frame rejects an `approve` op or a `tools` list for it at compile time. A
+   * type-level record only — no runtime value. */
   export type Calls = {
     readonly approval: { readonly request: unknown; readonly decision: unknown };
-    readonly tool: { readonly result: unknown };
+    readonly tool: { readonly definition: unknown; readonly result: unknown };
+  };
+  /** One tool a frame exposes in-process: the adapter's own definition extras (Claude: a
+   * description and a zod raw shape) plus the operation the model's call runs — attached at
+   * frame construction so the turn op depends on it and the call is a SUBFLOW of the turn. Its
+   * input is the schema-inferred shape at the adapter's builder, widened to `unknown` here. */
+  export type Tool<C extends Calls> = C["tool"]["definition"] & {
+    readonly name: string;
+    readonly operation: ToolOp<C>;
+  };
+  /** The operation behind a tool: result = the adapter's tool result, input widened to `unknown`. */
+  export type ToolOp<C extends Calls> = Operation.Handle<
+    C["tool"]["result"] | PromiseLike<C["tool"]["result"]>,
+    unknown
+  >;
+  /** One tool as the thread receives it per turn: the tool and its subflow controller. */
+  export type ToolCall<C extends Calls> = {
+    readonly tool: Tool<C>;
+    readonly run: Scope.OperationController<
+      C["tool"]["result"] | PromiseLike<C["tool"]["result"]>,
+      unknown
+    >;
   };
   /** The approval operation a frame over `C` accepts: its input is the adapter's request, its
    * result the adapter's decision. Attached at frame construction (like `httpClient`'s policy
@@ -63,13 +86,15 @@ export declare namespace Harness {
     C["approval"]["decision"] | PromiseLike<C["approval"]["decision"]>,
     C["approval"]["request"]
   >;
-  /** What the turn op hands its thread per turn: the approval subflow's controller, when the
-   * frame was built with one. The adapter calls it from the SDK's own hook. */
+  /** What the turn op hands its thread per turn: the approval subflow's controller and the tool
+   * subflows, when the frame was built with them. The adapter calls them from the SDK's own
+   * hooks. */
   export type TurnCalls<C extends Calls> = {
     readonly approve?: Scope.OperationController<
       C["approval"]["decision"] | PromiseLike<C["approval"]["decision"]>,
       C["approval"]["request"]
     >;
+    readonly tools?: readonly ToolCall<C>[];
   };
   /** One live conversation: run turns on it, close it when done. The session's signal is the
    * interrupt — the thread stops its SDK call when it fires; `close` releases the thread's
@@ -140,6 +165,35 @@ const noItems: readonly Harness.Item[] = Object.freeze([]);
 /** The shared frozen empty event list — every frame's `events` cell starts here. */
 const noEvents: readonly unknown[] = Object.freeze([]);
 
+/** The shared frozen empty tool list — a frame built without `tools`. */
+const noTools: readonly Harness.Tool<Harness.Calls>[] = Object.freeze([]);
+
+/** The `depends` slots of a frame's tools, one per tool under `tool:<name>`: a record the turn
+ * op spreads into its own `depends`, so each tool's operation is a subflow of the turn. */
+type ToolDeps<C extends Harness.Calls> = Record<`tool:${string}`, Harness.ToolOp<C>>;
+
+/** The controllers those slots deliver, read back by the same keys. */
+type ToolSlots<C extends Harness.Calls> = Record<`tool:${string}`, Harness.ToolCall<C>["run"]>;
+
+/** One `tool:<name>` slot per tool, built once at frame construction. */
+function readToolDeps<C extends Harness.Calls>(tools: readonly Harness.Tool<C>[]): ToolDeps<C> {
+  const deps: ToolDeps<C> = {};
+  for (const tool of tools) deps[`tool:${tool.name}`] = tool.operation;
+  return deps;
+}
+
+/** The turn's calls from its resolved slots: the approval controller when configured, and one
+ * `{ tool, run }` per tool (absent when the frame has none — nothing allocated then). */
+function readCalls<C extends Harness.Calls>(
+  slots: ToolSlots<C>,
+  tools: readonly Harness.Tool<C>[],
+  approve: Harness.TurnCalls<C>["approve"],
+): Harness.TurnCalls<C> {
+  if (tools.length === 0) return approve === undefined ? {} : { approve };
+  const calls = tools.map((tool) => ({ tool, run: slots[`tool:${tool.name}`] }));
+  return approve === undefined ? { tools: calls } : { approve, tools: calls };
+}
+
 /** Build the frame: six ambient cells, a `resume` tag (no default — absent means start
  * fresh), and a session `thread` resource whose factory merges the adapter's option
  * bindings nearest-first, passes `resume` through hooks, hands the backend hook writers
@@ -152,6 +206,7 @@ export function harness<O, T, R, C extends Harness.Calls>(config: {
   label: string;
   adapter: Harness.Adapter<O, T, R, C>;
   approve?: Harness.ApproveOp<C>;
+  tools?: readonly Harness.Tool<C>[];
   meta?: readonly Tag.Binding<unknown>[];
 }): Harness.Frame<O, T, R, C> {
   const adapter = config.adapter;
@@ -182,6 +237,7 @@ export function harness<O, T, R, C extends Harness.Calls>(config: {
     factory: async ({ backend, options, resume: resumed, text, items, usage, id, events }, ctx) => {
       const merged = adapter.merge(options);
       const hooks: Harness.Hooks = {
+        label: config.label,
         signal: ctx.signal,
         resume: resumed.present ? resumed.value : undefined,
         emit: (event) => events.update((list) => [...list, event]),
@@ -207,7 +263,10 @@ export function harness<O, T, R, C extends Harness.Calls>(config: {
     events,
     resume,
   };
-  return { ...frameBase, turn: readTurnOperation(frameBase, status, text, config.approve) };
+  return {
+    ...frameBase,
+    turn: readTurnOperation(frameBase, status, text, config.approve, config.tools ?? noTools),
+  };
 }
 
 /** What one turn body needs from its op: the thread, the cells it writes, and the approval
@@ -264,7 +323,9 @@ function readTurnOperation<O, T, R, C extends Harness.Calls>(
   status: Data.Cell<Harness.Status>,
   text: Data.Cell<string>,
   approve: Harness.ApproveOp<C> | undefined,
+  tools: readonly Harness.Tool<C>[],
 ): Harness.TurnFn<T, R> {
+  const toolDeps = readToolDeps(tools);
   function turn<I = void, Out = R>(
     shape: Harness.TurnShape<I, T, R, Out> & {
       response: (result: R) => Out | PromiseLike<Out>;
@@ -279,8 +340,13 @@ function readTurnOperation<O, T, R, C extends Harness.Calls>(
       return operation({
         label,
         input: shape.input,
-        depends: { thread: frame.thread, status: status.controller, text: text.controller },
-        run: (deps, ctx) => runTurn(frame, shape, deps, {}, ctx),
+        depends: {
+          thread: frame.thread,
+          status: status.controller,
+          text: text.controller,
+          ...toolDeps,
+        },
+        run: (deps, ctx) => runTurn(frame, shape, deps, readCalls(deps, tools, undefined), ctx),
       });
     }
     return operation({
@@ -291,8 +357,9 @@ function readTurnOperation<O, T, R, C extends Harness.Calls>(
         status: status.controller,
         text: text.controller,
         approve,
+        ...toolDeps,
       },
-      run: (deps, ctx) => runTurn(frame, shape, deps, { approve: deps.approve }, ctx),
+      run: (deps, ctx) => runTurn(frame, shape, deps, readCalls(deps, tools, deps.approve), ctx),
     });
   }
   return turn;

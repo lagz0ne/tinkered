@@ -2,7 +2,13 @@ import { expect, test } from "vite-plus/test";
 import { createScope, operation, preset, tag } from "@tinker/core";
 import type { Options, PermissionResult, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { claudeCode, harness, type ClaudeCode } from "../src/index.ts";
-import { readResult, readSystemInit, readToolResult, readToolUse } from "./fixtures.ts";
+import {
+  readResult,
+  readSystemInit,
+  readToolResult,
+  readToolUse,
+  readToolSdk,
+} from "./fixtures.ts";
 
 /** What one fake turn saw: the decision the SDK's `canUseTool` got back, if it was asked. */
 type Seen = { decisions: PermissionResult[] };
@@ -10,7 +16,7 @@ type Seen = { decisions: PermissionResult[] };
 /** A fake SDK module whose `query` asks `canUseTool` for `Bash ls` mid-stream (tool-use id
  * `tu-1`), then yields the tool use, the tool result only when allowed, and the result. */
 function fakeSdk(seen: Seen): ClaudeCode.Sdk {
-  return { query: ({ options }) => readStream(options, seen) };
+  return { ...readToolSdk(), query: ({ options }) => readStream(options, seen) };
 }
 
 /** The recorded turn as an SDK stream: init, the permission prompt, then the messages. */

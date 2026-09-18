@@ -1,22 +1,49 @@
-import { resource, tag, type Data, type Resource, type Tag } from "@tinker/core";
+import {
+  operation,
+  resource,
+  tag,
+  type Data,
+  type Operation,
+  type Resource,
+  type Scope,
+  type Tag,
+} from "@tinker/core";
 import type {
   CanUseTool,
+  InferShape,
+  McpServerConfig,
   Options,
   PermissionResult,
+  SdkMcpToolDefinition,
   SDKAssistantMessage,
   SDKMessage,
   SDKPartialAssistantMessage,
   SDKResultMessage,
   SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { raise } from "./errors.ts";
 import type { Harness } from "./index.ts";
+
+/** A zod raw shape as the SDK's `tool()` takes it — read off the SDK's own tool definition type
+ * so the SDK's name for it never becomes one of ours. */
+type ZodShape = SdkMcpToolDefinition["inputSchema"];
 
 export declare namespace ClaudeCode {
   /** The seam: the SDK module's shape the adapter calls. The real module is assignable —
    * its `query` takes a wider prompt type and returns a `Query`, an AsyncIterable of SDKMessage. */
   export type Sdk = {
     query(params: { prompt: string; options?: Options }): AsyncIterable<SDKMessage>;
+    tool(
+      name: string,
+      description: string,
+      schema: ZodShape,
+      handler: (args: Record<string, unknown>, extra: unknown) => Promise<CallToolResult>,
+    ): SdkMcpToolDefinition<ZodShape>;
+    createSdkMcpServer(options: {
+      name: string;
+      tools: SdkMcpToolDefinition<ZodShape>[];
+    }): McpServerConfig;
   };
   /** A v1 turn: a string prompt. The SDK also accepts an async iterable of user messages — later. */
   export type Turn = { readonly prompt: string };
@@ -33,16 +60,38 @@ export declare namespace ClaudeCode {
   /** An approval's answer: the SDK's own `PermissionResult` (allow with optional updated input
    * and permissions, or deny with a message). */
   export type Decision = PermissionResult;
-  /** What userland may answer during a Claude turn: an approval. Tools come with t04. */
+  /** A tool's definition extras beyond its name: the description the model reads and the zod
+   * raw shape the SDK validates the call's arguments against (the SDK's own constraint). */
+  export type ToolDefinition = { readonly description: string; readonly schema: ZodShape };
+  /** What `claudeCode.tool` takes: the definition plus the operation body — its input IS the
+   * schema-inferred shape (already validated by the SDK), its result the MCP `CallToolResult`. */
+  export type ToolShape<Schema extends ZodShape, D extends Scope.Depends, R> = {
+    readonly name: string;
+    readonly description: string;
+    readonly schema: Schema;
+    readonly depends?: D;
+    readonly run: (
+      deps: Scope.SlotValues<D>,
+      ctx: Operation.Ctx<InferShape<Schema>>,
+    ) => R & Scope.AsyncBody<D>;
+  };
+  /** What userland may answer during a Claude turn: an approval, and an in-process tool. */
   export type Calls = {
     readonly approval: { readonly request: Approval; readonly decision: Decision };
-    readonly tool: never;
+    readonly tool: { readonly definition: ToolDefinition; readonly result: CallToolResult };
   };
   /** The Claude Code adapter: options are the SDK's own `Options`, continuity is by session id,
    * and `sdk` is the lazy module resource tests preset with a fake `query`. */
   export type Adapter = Harness.Adapter<Options, Turn, Result, Calls> & {
     readonly sdk: Resource.Handle<Promise<Sdk>>;
     readonly approval: Data.Parse<Approval>;
+    readonly tool: <
+      Schema extends ZodShape,
+      const D extends Scope.Depends,
+      R extends CallToolResult | PromiseLike<CallToolResult>,
+    >(
+      shape: ToolShape<Schema, D, R>,
+    ) => Harness.Tool<Calls>;
   };
 }
 
@@ -96,6 +145,23 @@ function approval(raw: unknown): ClaudeCode.Approval {
   raise("InvalidApproval", { harness: "claudeCode" });
 }
 
+/** Declare an in-process tool: the definition the SDK registers (name, description, zod shape)
+ * and the operation the model's call runs — an ordinary operation labelled by the tool's name,
+ * whose input is the schema-inferred shape (no parse: the SDK validated the call) and whose
+ * result is the MCP `CallToolResult`. Pass it in `harness({ tools })`. */
+function tool<
+  Schema extends ZodShape,
+  const D extends Scope.Depends,
+  R extends CallToolResult | PromiseLike<CallToolResult>,
+>(shape: ClaudeCode.ToolShape<Schema, D, R>): Harness.Tool<ClaudeCode.Calls> {
+  return {
+    name: shape.name,
+    description: shape.description,
+    schema: shape.schema,
+    operation: operation({ label: shape.name, depends: shape.depends, run: shape.run }),
+  };
+}
+
 /** The Claude Code adapter resource: awaits the lazy module, then opens threads on it. */
 const adapterResource: Resource.Handle<
   Promise<Harness.Backend<Options, ClaudeCode.Turn, ClaudeCode.Result, ClaudeCode.Calls>>
@@ -109,8 +175,7 @@ const adapterResource: Resource.Handle<
       ClaudeCode.Turn,
       ClaudeCode.Result,
       ClaudeCode.Calls
-    >["start"] = (opened, hooks) =>
-      startClaude(module.query.bind(module), readOpened(opened, hooks), hooks);
+    >["start"] = (opened, hooks) => startClaude(module, readOpened(opened, hooks), hooks);
     return { start };
   },
 });
@@ -127,14 +192,20 @@ export const claudeCode: ClaudeCode.Adapter = {
   merge,
   resource: adapterResource,
   approval,
+  tool,
 };
 
 /** Start a Claude thread on merged options and hooks: each `run({ prompt })` opens one `query`,
  * feeds every message to `mapClaudeMessage`, and resolves with the result message; later runs
  * resume the last session id. The thread stops when its own aborter fires — wired to the
  * session's signal BEFORE the turn starts, since a defer runs after the turn settled. */
+/** What one thread remembers between turns: the last session id (resumed by the next `query`)
+ * and its in-process tool server, built on the first turn that carries tools and reused after
+ * (the tools do not change between turns). */
+type ThreadState = { lastId: string | undefined; server: McpServerConfig | undefined };
+
 function startClaude(
-  query: ClaudeCode.Sdk["query"],
+  sdk: ClaudeCode.Sdk,
   options: Options,
   hooks: Harness.Hooks,
 ): Harness.Thread<ClaudeCode.Turn, ClaudeCode.Result, ClaudeCode.Calls> {
@@ -144,14 +215,14 @@ function startClaude(
     hooks.signal.addEventListener("abort", () => aborter.abort(hooks.signal.reason), {
       once: true,
     });
-  let lastId: string | undefined;
+  const state: ThreadState = { lastId: undefined, server: undefined };
   return {
     run: async (turn, calls) => {
-      const opened = readTurnOptions(options, lastId, aborter, calls, hooks);
-      for await (const message of query({ prompt: turn.prompt, options: opened })) {
+      const opened = readTurnOptions(sdk, options, state, aborter, calls, hooks);
+      for await (const message of sdk.query({ prompt: turn.prompt, options: opened })) {
         const result = mapClaudeMessage(message, hooks);
         if (result !== undefined) {
-          lastId = result.session_id;
+          state.lastId = result.session_id;
           return result;
         }
       }
@@ -165,22 +236,43 @@ function startClaude(
 }
 
 /** The options one `query` opens with: the merged options, the last session id to resume, the
- * thread's aborter, and — when the frame was built with an `approve` op — a `canUseTool` that
- * answers through it (overriding a `canUseTool` bound in `claudeCode.options`; without an
- * `approve` op a bound one still applies). */
+ * thread's aborter; when the frame was built with an `approve` op, a `canUseTool` that answers
+ * through it (overriding a `canUseTool` bound in `claudeCode.options`; without an `approve` op
+ * a bound one still applies); when it was built with tools, the thread's in-process server
+ * under the frame's label beside any `mcpServers` bound in the options. */
 function readTurnOptions(
+  sdk: ClaudeCode.Sdk,
   options: Options,
-  lastId: string | undefined,
+  state: ThreadState,
   aborter: AbortController,
   calls: Harness.TurnCalls<ClaudeCode.Calls>,
   hooks: Harness.Hooks,
 ): Options {
   const opened: Options =
-    lastId === undefined
+    state.lastId === undefined
       ? { ...options, abortController: aborter }
-      : { ...options, resume: lastId, abortController: aborter };
+      : { ...options, resume: state.lastId, abortController: aborter };
   if (calls.approve !== undefined) opened.canUseTool = readCanUseTool(calls.approve, hooks);
+  if (calls.tools !== undefined) {
+    state.server ??= readServer(sdk, hooks.label, calls.tools);
+    opened.mcpServers = { ...options.mcpServers, [hooks.label]: state.server };
+  }
   return opened;
+}
+
+/** The in-process MCP server for a frame's tools, named after the frame: one SDK tool per frame
+ * tool, whose handler runs the tool's operation as a subflow of the turn that is running. */
+function readServer(
+  sdk: ClaudeCode.Sdk,
+  label: string,
+  tools: readonly Harness.ToolCall<ClaudeCode.Calls>[],
+): McpServerConfig {
+  return sdk.createSdkMcpServer({
+    name: label,
+    tools: tools.map(({ tool, run }) =>
+      sdk.tool(tool.name, tool.description, tool.schema, async (args) => run.run({ input: args })),
+    ),
+  });
 }
 
 /** Answer the SDK's permission prompt through the approval subflow: the request goes in as the

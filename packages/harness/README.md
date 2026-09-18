@@ -113,3 +113,34 @@ const approve = operation({
 });
 const coder = harness({ label: "coder", adapter: claudeCode, approve });
 ```
+
+## Tools
+
+An in-process tool is an ordinary operation the model can call. Declare it with `claudeCode.tool`
+(the SDK's own constraint: a description and a zod raw shape the SDK validates the arguments
+against; the operation's input IS the inferred shape, its result the MCP `CallToolResult`), pass
+it in `harness({ tools })`, and the turn op depends on it: the call runs as a **subflow** of the
+turn (its span nests under the turn's, it sees the session's bindings). The adapter registers one
+in-process MCP server named after the frame, built once per thread, beside any `mcpServers` you
+bound. The model needs `allowedTools: ["mcp__coder__search"]` (or an `approve` op) to call it
+without a prompt. Codex has no in-process tools (MCP servers are config for an external
+process), so `tools` is a compile error for the `codex` adapter.
+
+```ts
+import { createScope, tag } from "@tinker/core";
+import { claudeCode, harness } from "@tinker/harness";
+import { z } from "zod";
+
+const index = tag<string>({ label: "index", default: "docs" });
+const search = claudeCode.tool({
+  name: "search",
+  description: "find a phrase in the index",
+  schema: { q: z.string() },
+  depends: { index },
+  run: ({ index }, ctx) => ({ content: [{ type: "text", text: `${index}: ${ctx.input.q}` }] }),
+});
+const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
+const scope = createScope({
+  tags: [claudeCode.options({ cwd: "/work", allowedTools: ["mcp__coder__search"] })],
+});
+```

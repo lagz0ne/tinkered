@@ -6,6 +6,7 @@ import type {
   SDKSystemMessage,
   SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
+import type { ClaudeCode } from "../src/index.ts";
 import type { ThreadEvent, ThreadItem, Usage } from "@openai/codex-sdk";
 
 /** One recorded turn: the messages a fake `query` yields for it. */
@@ -208,5 +209,19 @@ export function readCodexFailure(): CodexScript {
       { type: "turn.started" },
       { type: "turn.failed", error: { message: "boom" } },
     ],
+  };
+}
+
+/** The two tool members of the Claude seam for a fake that never registers tools: `tool` keeps
+ * the definition, `createSdkMcpServer` returns a stdio config (a legit `McpServerConfig`). */
+export function readToolSdk(): Pick<ClaudeCode.Sdk, "tool" | "createSdkMcpServer"> {
+  return {
+    tool: (name, description, schema, handler) => ({
+      name,
+      description,
+      inputSchema: schema,
+      handler,
+    }),
+    createSdkMcpServer: () => ({ type: "stdio", command: "fake" }),
   };
 }

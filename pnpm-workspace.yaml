@@ -8,6 +8,8 @@ catalogMode: prefer
 catalog:
   "@anthropic-ai/claude-agent-sdk": ^0.3.275
   "@openai/codex-sdk": ^0.155.0
+  "@modelcontextprotocol/sdk": ^1.29.0
+  zod: ^4.0.0
   "@happy-dom/global-registrator": ^20.14.5
   "@inferdi/inferdi": ^6.1.0
   "@stryker-mutator/core": ^10.0.0
