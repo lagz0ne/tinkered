@@ -6,6 +6,7 @@ import { DEFAULT_FILES, ENTRY, type PlaygroundFile } from "@/lib/files.ts";
 import type { ThemeId } from "@/lib/themes.ts";
 
 export type Status = { kind: "ok" | "error" | "info"; text: string };
+export type View = "editor" | "bench";
 
 const STORAGE = "tinkered-playground:v2";
 type Persisted = { files: PlaygroundFile[]; active: string; theme: ThemeId };
@@ -33,6 +34,8 @@ export const statusCell = data<Status>({
   label: "status",
   initial: { kind: "info", text: "starting…" },
 });
+/** Which top-level view is showing: the editor or the benchmark. */
+export const viewCell = data<View>({ label: "view", initial: "editor" });
 
 export function createPlaygroundScope(): Scope.Handle {
   return createScope();

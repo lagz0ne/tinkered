@@ -1,6 +1,6 @@
 import { ScopeProvider, useController, useData } from "@tinker/react";
-import { RotateCcw } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { BarChart3, Code2, RotateCcw } from "lucide-react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import type { ReactElement } from "react";
 import { Editor } from "@/components/Editor.tsx";
 import { FileTabs } from "@/components/FileTabs.tsx";
@@ -29,7 +29,38 @@ import {
   persist,
   statusCell,
   themeCell,
+  type View,
+  viewCell,
 } from "@/store.ts";
+
+// The benchmark pulls in Zustand/Jotai/Legend/Preact — lazy-load so it costs nothing until opened.
+const BenchPage = lazy(() =>
+  import("@/bench/BenchPage.tsx").then((m) => ({ default: m.BenchPage })),
+);
+
+function ViewToggle({ view, onSelect }: { view: View; onSelect: (v: View) => void }): ReactElement {
+  const item = (v: View, label: string, Icon: typeof Code2) => (
+    <button
+      type="button"
+      onClick={() => onSelect(v)}
+      className={
+        "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors " +
+        (view === v
+          ? "bg-background text-foreground shadow-sm"
+          : "text-muted-foreground hover:text-foreground")
+      }
+    >
+      <Icon className="size-3.5" />
+      {label}
+    </button>
+  );
+  return (
+    <div className="flex items-center gap-0.5 rounded-lg bg-muted p-0.5">
+      {item("editor", "Editor", Code2)}
+      {item("bench", "Benchmark", BarChart3)}
+    </div>
+  );
+}
 
 /** The playground shell — every piece of its state is a `@tinker/core` cell read through hooks. */
 function Shell(): ReactElement {
@@ -41,6 +72,8 @@ function Shell(): ReactElement {
   const setTheme = useController(themeCell);
   const status = useData(statusCell);
   const setStatus = useController(statusCell);
+  const view = useData(viewCell);
+  const setView = useController(viewCell);
   const iframe = useRef<HTMLIFrameElement>(null);
 
   const activeFile = files.find((f) => f.name === active) ?? files[0];
@@ -111,64 +144,88 @@ function Shell(): ReactElement {
 
   return (
     <div className="flex h-full flex-col">
-      <ResizablePanelGroup direction="horizontal" className="min-h-0 flex-1">
-        <ResizablePanel defaultSize={50} minSize={25}>
-          <Editor value={activeFile.content} onChange={setActiveContent} theme={theme} />
-        </ResizablePanel>
-        <ResizableHandle />
-        <ResizablePanel defaultSize={50} minSize={25}>
-          <iframe
-            ref={iframe}
-            title="Live preview"
-            sandbox="allow-scripts allow-same-origin"
-            className="h-full w-full border-0 bg-white"
-          />
-        </ResizablePanel>
-      </ResizablePanelGroup>
+      {/* Editor stays mounted (keeps CodeMirror + iframe state); the bench overlays when selected. */}
+      <div className="relative min-h-0 flex-1">
+        <ResizablePanelGroup direction="horizontal" className="h-full">
+          <ResizablePanel defaultSize={50} minSize={25}>
+            <Editor value={activeFile.content} onChange={setActiveContent} theme={theme} />
+          </ResizablePanel>
+          <ResizableHandle />
+          <ResizablePanel defaultSize={50} minSize={25}>
+            <iframe
+              ref={iframe}
+              title="Live preview"
+              sandbox="allow-scripts allow-same-origin"
+              className="h-full w-full border-0 bg-white"
+            />
+          </ResizablePanel>
+        </ResizablePanelGroup>
+        {view === "bench" && (
+          <div className="absolute inset-0 bg-background">
+            <Suspense
+              fallback={
+                <div className="grid h-full place-items-center text-sm text-muted-foreground">
+                  loading benchmark…
+                </div>
+              }
+            >
+              <BenchPage />
+            </Suspense>
+          </div>
+        )}
+      </div>
 
       {/* All chrome lives in this slim bottom bar. */}
       <div className="flex h-11 shrink-0 items-center gap-3 border-t bg-background/80 px-3 backdrop-blur">
         <span className="hidden text-xs font-semibold tracking-tight text-muted-foreground sm:inline">
           tinkered
         </span>
-        <FileTabs
-          files={files.map((f) => f.name)}
-          active={activeFile.name}
-          onSelect={(name) => setActive.set(name)}
-          onAdd={addFile}
-          onClose={closeFile}
-          onRename={renameFile}
-        />
+        {view === "editor" && (
+          <FileTabs
+            files={files.map((f) => f.name)}
+            active={activeFile.name}
+            onSelect={(name) => setActive.set(name)}
+            onAdd={addFile}
+            onClose={closeFile}
+            onRename={renameFile}
+          />
+        )}
 
         <div className="ml-auto flex items-center gap-2">
-          <div className="flex items-center gap-1.5 pr-1 text-xs text-muted-foreground">
-            <span className={`size-2 rounded-full ${dotColor} transition-colors`} />
-            <span className="max-w-[40ch] truncate" title={status.text}>
-              {status.text}
-            </span>
-          </div>
+          <ViewToggle view={view} onSelect={(v) => setView.set(v)} />
 
-          <Select value={theme} onValueChange={(v) => setTheme.set(v as ThemeId)}>
-            <SelectTrigger size="sm" className="h-8">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {THEMES.map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  {t.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {view === "editor" && (
+            <>
+              <div className="flex items-center gap-1.5 pr-1 text-xs text-muted-foreground">
+                <span className={`size-2 rounded-full ${dotColor} transition-colors`} />
+                <span className="hidden max-w-[32ch] truncate md:inline" title={status.text}>
+                  {status.text}
+                </span>
+              </div>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-sm" onClick={reset} aria-label="Reset">
-                <RotateCcw />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Reset to the starter project</TooltipContent>
-          </Tooltip>
+              <Select value={theme} onValueChange={(v) => setTheme.set(v as ThemeId)}>
+                <SelectTrigger size="sm" className="h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {THEMES.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon-sm" onClick={reset} aria-label="Reset">
+                    <RotateCcw />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Reset to the starter project</TooltipContent>
+              </Tooltip>
+            </>
+          )}
         </div>
       </div>
     </div>
