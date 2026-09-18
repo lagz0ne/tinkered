@@ -21,7 +21,7 @@ tickets, then contributors with lead review:
    `db` resource (open/close by `defer`), session-target `tx` resource (commit on `success`, rollback on
    `failed`/`cancelled` — the session outcome), one `db query` log line per statement, PGlite as the real test
    database. **Decided (all A, ADR 0041).** Tickets:
-   - [ ] **drizzle/t01 — package + frame + `db`/`tx` resources + query log line.** Verify: the eight
+   - [x] **drizzle/t01 — package + frame + `db`/`tx` resources + query log line.** _Done: tag `drizzle/t01`, 8 PGlite-backed tests, size 1959 B, lead review SHIP; core feedback recorded (defer-after-await misread → docs note; build-count seam → use spans)._ Verify: the eight
          PGlite-backed seam tests in `docs/roadmap/drizzle-v1/PROGRESS.md` (open once + close on scope
          close; commit on session success; rollback on failed; rollback on forced close; sequential
          sessions = two transactions; MissingTag without config; one `db query` line per statement with

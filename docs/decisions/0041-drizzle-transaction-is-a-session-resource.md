@@ -39,7 +39,8 @@ schema, logger })` makes every statement a `db query` log line (`{ sql }` only �
 "success"` returns from the callback (commit); anything else throws inside it (rollback). The
   `defer` awaits the transaction's own promise, so a graceful close resolves only after the
   commit is durable. Operations depend on `store.tx` and just write; the request decides.
-- **At the root scope** (no session) `tx` builds at the root and commits at scope close — legal,
+- **At the root scope** (no session) `tx` builds at the root and follows the scope's close mode:
+  `scope.close({ graceful: true })` commits, a forced `close()` rolls back (ADR 0028) — legal,
   documented, rarely what you want; a CLI command runs in a session (ADR 0042) for this reason.
 - **One transaction per request session (v1).** A tagged call (ADR 0038) opens a child session,
   and a child session would build its own `tx` — a second transaction, not a savepoint. Rule:
