@@ -79,8 +79,11 @@ argv })` and assert code and output — no process, no mocks.
 - The command run is an inline operation, so spans, the log line, clock, and signal come from
   core exactly as in hono (ADR 0040).
 - hono/t05 adopts routes-at-the-scope with the eager policy; the two drivers then read alike.
-- Core feedback: a **lazy operation handle** (`lazy(() => import(...))`) would let a loader be a
-  first-class unit usable as a `depends` slot; today drivers load and then run. Recorded, not built.
+- **A lazy module is a resource** (settled after two askers, 2026-09-18): `resource({ factory: () =>
+import("./x.ts").then((m) => m.op) })` is the lazy unit — built once per owner, cached, presettable,
+  with a span — and `drizzleStore.open` already has this shape. A driver runs `scope.run(await
+scope.resolve(module), …)`; a userland operation depends on the module resource like any other.
+  No new core unit; the drivers' loader functions are the hand-rolled form of it.
 
 ## Alternatives rejected
 

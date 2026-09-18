@@ -35,11 +35,11 @@ tickets, then contributors with lead review:
          `route.get/post/put/patch/delete` bindings, `honoApp(scope)` mounts every route eagerly (loaders run once at
          boot, a rejecting loader fails boot), 30 hono tests, size 3376 B, mutation 82.10, lead review SHIP. Core feedback: a lazy
          operation unit now has TWO askers (cli, hono) → core/t30 queued below._
-   - [ ] **core/t30 — a lazy operation unit.** `lazy(() => import("./x.ts").then((m) => m.op))` returns an
-         `Operation.Handle` whose module loads on first run (and resolves deps then); usable as a `depends` slot and
-         by `scope.run`; presettable by identity. Deletes the load-then-run two-step in cli and hono (`Load` types,
-         `Promise.resolve(load())`, the `bind as Verb` widening). Starts with `grill-with-docs` (ADR): what a lazy
-         op's `label`/`meta` are before load, whether `depends` may be lazy too, and how a load failure surfaces.
+   - [x] **core/t30 — a lazy operation unit: NOT NEEDED.** _Closed 2026-09-18 by the user's observation: laziness is a
+         resource whose factory imports (`resource({ factory: () => import("./x.ts").then((m) => m.op) })`) — built once
+         per owner, cached, presettable, with a span; `drizzleStore.open` already is one. Drivers do
+         `scope.run(await scope.resolve(module), …)`. Follow-up (optional): cli/hono tables accept a
+         `Resource.Handle<Operation.Handle>` beside a loader so the load is cached per scope and observable._
 
 Perf follow-up when the sandbox `bench` is available: `op` parity (budgets.md "Call paths (t27)").
 
