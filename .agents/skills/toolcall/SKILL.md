@@ -55,8 +55,10 @@ node scripts/jev/toolcall.mjs before --json '{
 ```
 
 A ✓ means the call is linked to the objective, intention, and verification
-chain. A ⚠ means at least one link is weak (≥ 60%): drop the call, or state in
-one line why you proceed anyway. It never blocks.
+chain (exit 0). A ⚠ means at least one link is weak (≥ 60%): drop the call, or
+state in one line why you proceed anyway. On a ⚠ skip it exits **3**, so
+`before ... && <cmd>` won't run `<cmd>` — but it never overrides your real gates
+(`ticket.sh`, tests); the decision is still yours.
 
 ### All-in-one — `run` (gate → execute → prune, a single call)
 

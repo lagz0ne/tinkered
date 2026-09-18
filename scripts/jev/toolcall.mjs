@@ -16,7 +16,10 @@
 // judgments, blind at per-line relevance (reading-intention.mjs, ~0% separation), so it
 // never picks which lines to keep. The trim keeps output WHOLE below the confidence bar
 // (nothing lost; full dump in .jev/). The only pass/fail remains scripts/ticket.sh, the
-// gates, and the human. Exit is always 0 unless --strict (experiments; never in a gate).
+// gates, and the human. Exit codes: 0 when it proceeds / keeps whole; 3 when a call is
+// advised-skipped or the gate blocks a command (nothing ran); the child's own code when
+// `run` executes; 2 for a usage error or --strict. "Advisory" means it never overrides
+// your real gates — not that it never sets an exit code.
 import {
   readFileSync,
   writeFileSync,
