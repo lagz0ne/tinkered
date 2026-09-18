@@ -63,8 +63,7 @@ const adapterResource: Resource.Handle<
   label: "claudeCode",
   target: "scope",
   depends: { sdk },
-  factory: async ({ sdk: pending }) => {
-    const module: ClaudeCode.Sdk = await pending;
+  factory: async ({ sdk: module }) => {
     const start: Harness.Backend<Options, ClaudeCode.Turn, ClaudeCode.Result>["start"] = (
       opened,
       hooks,

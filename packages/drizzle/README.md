@@ -35,7 +35,7 @@ const addUser = operation({
   label: "addUser",
   input: parseName,
   depends: { tx: store.tx },
-  run: async ({ tx }, ctx) => (await tx).insert(users).values({ name: ctx.input }),
+  run: async ({ tx }, ctx) => tx.insert(users).values({ name: ctx.input }),
 });
 ```
 

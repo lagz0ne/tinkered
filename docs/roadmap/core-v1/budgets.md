@@ -28,15 +28,18 @@ main-at-t24 comparison from the same alternating A/B runs. Wall-clock rows are
 references — the sandbox `bench` is unavailable in this container today — and the
 census rows are gates (`pnpm validate` runs `bench/promises.mjs` and `bench/heap.mjs`).
 
-| scenario              | t27 reference (min of 5) | main at t24 (same A/B) | rule                                                                    |
-| --------------------- | ------------------------ | ---------------------- | ----------------------------------------------------------------------- |
-| `op`                  | 78.3 ns                  | 78.3 ns                | must not exceed main's t24 number + 2 ns in alternating A/B             |
-| `run`                 | 88.5 ns                  | 88.5 ns                | must not exceed main's t24 number + 2 ns in alternating A/B             |
-| `inline`              | 180.7 ns                 | 180.3 ns               | ≤ run + one handle+controller allocation (~90 ns)                       |
-| `session`             | 1600.0 ns                | — (new probe)          | reference only                                                          |
-| `tagged`              | 1939.0 ns                | — (new probe)          | ≤ 2000 ns here (= session + op + ~16%; the 16% is the sandbox question) |
-| `promises_tagged`     | **17** (exact)           | — (new census)         | exact: a change that adds one fails                                     |
-| `heap_tagged_per_req` | 4901 B                   | — (new figure)         | informative (no gate yet)                                               |
+| scenario              | t27 reference (min of 5) | main at t24 (same A/B) | rule                                                                                       |
+| --------------------- | ------------------------ | ---------------------- | ------------------------------------------------------------------------------------------ |
+| `op`                  | 78.3 ns                  | 78.3 ns                | must not exceed main's t24 number + 2 ns in alternating A/B                                |
+| `run`                 | 88.5 ns                  | 88.5 ns                | must not exceed main's t24 number + 2 ns in alternating A/B                                |
+| `inline`              | 180.7 ns                 | 180.3 ns               | ≤ run + one handle+controller allocation (~90 ns)                                          |
+| `session`             | 1600.0 ns                | — (new probe)          | reference only                                                                             |
+| `op` (t31, ADR 0044)  | 99.2 ns (med 101.7)      | 89.0 (med 106.4)       | in-container A/B min of 7: +10 min (one main outlier) / −4.7 med; sandbox re-check pending |
+| `run` (t31)           | 110.6 ns (med 113.6)     | 116.4 (med 117.7)      | −5.8 min / −4.1 med                                                                        |
+| `opres` (t31, new)    | 320.5 ns (med 328.6)     | 415.1 (med 424.4)      | op over a built sync resource: −95 ns (no lazy Proxy per call)                             |
+| `tagged`              | 1939.0 ns                | — (new probe)          | ≤ 2000 ns here (= session + op + ~16%; the 16% is the sandbox question)                    |
+| `promises_tagged`     | **17** (exact)           | — (new census)         | exact: a change that adds one fails                                                        |
+| `heap_tagged_per_req` | 4901 B                   | — (new figure)         | informative (no gate yet)                                                                  |
 
 - **Part 1 residual:** no parity gap was measurable on this box. Main and the
   worktree share the same `packages/core/src/index.ts` at t26/bc60d80, yet both

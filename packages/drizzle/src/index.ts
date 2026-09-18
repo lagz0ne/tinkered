@@ -98,9 +98,7 @@ type OpenTransaction<DB extends DrizzleStore.Transactional> = {
  * ({@link settleTransaction}), so nobody outside ever sees it. After the handle resolves, a
  * begin failure is impossible — the callback already ran — so the rejection tracker is a no-op
  * by then, which is intended. */
-function readTransaction<DB extends DrizzleStore.Transactional>(
-  db: DB | PromiseLike<DB>,
-): OpenTransaction<DB> {
+function readTransaction<DB extends DrizzleStore.Transactional>(db: DB): OpenTransaction<DB> {
   let resolveOutcome!: (end: Scope.End) => void;
   const outcome = new Promise<Scope.End>((resolve) => {
     resolveOutcome = resolve;
@@ -111,13 +109,11 @@ function readTransaction<DB extends DrizzleStore.Transactional>(
     resolveTx = resolve;
     rejectTx = reject;
   });
-  const done = Promise.resolve(db).then((client) =>
-    client.transaction(async (tx: DrizzleStore.Tx<DB>) => {
-      resolveTx(tx);
-      const end = await outcome;
-      if (end.status !== "success") raise("Rollback", { status: end.status });
-    }),
-  );
+  const done = db.transaction(async (tx: DrizzleStore.Tx<DB>) => {
+    resolveTx(tx);
+    const end = await outcome;
+    if (end.status !== "success") raise("Rollback", { status: end.status });
+  });
   ignoreRejection(done.then(noop, rejectTx));
   return { handle, done, settle: resolveOutcome };
 }

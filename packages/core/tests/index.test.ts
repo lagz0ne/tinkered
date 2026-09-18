@@ -1,10 +1,11 @@
-import { expect, test } from "vite-plus/test";
+import { expect, expectTypeOf, test } from "vite-plus/test";
 import {
   createScope,
   data,
   isError,
   makeTestClock,
   type Observe,
+  type Operation,
   operation,
   preset,
   resource,
@@ -153,17 +154,119 @@ test("a resource depends on another resource and receives its instance (pool →
   expect(pools).toBe(1);
 });
 
-test("a resource dep the factory never reads is never built (lazy deps)", () => {
-  let unusedBuilds = 0;
-  const unused = resource({ label: "unused", factory: () => ({ n: ++unusedBuilds }) });
+test("a resource dep is built before the body runs, whether or not the body reads it", () => {
+  let builds = 0;
+  const unused = resource({ label: "unused", factory: () => ({ n: ++builds }) });
   const used = resource({ label: "used", factory: () => ({ v: "ok" }) });
   const top = resource({
     label: "top",
     depends: { unused, used },
     factory: ({ used }) => used.v,
   });
-  expect(createScope().controller(top).resolve()).toBe("ok");
-  expect(unusedBuilds).toBe(0);
+  const op = operation({ label: "op", depends: { unused }, run: () => "ran" });
+  const scope = createScope();
+  expect(scope.resolve(top)).toBe("ok");
+  expect(builds).toBe(1);
+  expect(scope.run(op)).toBe("ran");
+  expect(builds).toBe(1);
+});
+
+test("an async resource dep is delivered as its value: the body reads it without awaiting", async () => {
+  const conn = resource({ label: "conn", factory: async () => ({ open: true }) });
+  const view = resource({
+    label: "view",
+    depends: { conn },
+    factory: async ({ conn }) => ({ sees: conn.open }),
+  });
+  const op = operation({
+    label: "op",
+    depends: { conn, view },
+    run: async ({ conn, view }) => [conn.open, view.sees],
+  });
+  const scope = createScope();
+  expect(await scope.run(op)).toEqual([true, true]);
+  expect(await scope.run(op)).toEqual([true, true]);
+  await scope.close();
+});
+
+test("a run over a still-building async dep waits for the build, then runs with the value", async () => {
+  const gate = deferred();
+  let builds = 0;
+  const conn = resource({
+    label: "conn",
+    factory: async () => {
+      builds += 1;
+      await gate.promise;
+      return { id: builds };
+    },
+  });
+  const op = operation({ label: "op", depends: { conn }, run: async ({ conn }) => conn.id });
+  const scope = createScope();
+  const first = scope.run(op);
+  const second = scope.run(op);
+  gate.resolve();
+  expect(await Promise.all([first, second])).toEqual([1, 1]);
+  expect(builds).toBe(1);
+  await scope.close();
+});
+
+test("a failed async build fails the call before the body runs and stays failed until release", async () => {
+  const boom = new Error("boom");
+  let builds = 0;
+  const conn = resource({
+    label: "conn",
+    factory: async () => {
+      builds += 1;
+      if (builds === 1) throw boom;
+      return { id: builds };
+    },
+  });
+  let bodies = 0;
+  const op = operation({
+    label: "op",
+    depends: { conn },
+    run: async ({ conn }) => {
+      bodies += 1;
+      return conn.id;
+    },
+  });
+  const scope = createScope();
+  const first = await scope.run(op).then(
+    () => "resolved",
+    (error: unknown) => error,
+  );
+  const second = await scope.run(op).then(
+    () => "resolved",
+    (error: unknown) => error,
+  );
+  expect(first).toBe(boom);
+  expect(second).toBe(boom);
+  expect(bodies).toBe(0);
+  expect(builds).toBe(1);
+  scope.release(conn);
+  expect(await scope.run(op)).toBe(2);
+  expect(bodies).toBe(1);
+  await scope.close();
+});
+
+test("resolve of an async resource keeps returning the same settled promise", async () => {
+  const conn = resource({ label: "conn", factory: async () => ({ open: true }) });
+  const scope = createScope();
+  const a = scope.resolve(conn);
+  const value = await a;
+  const b = scope.resolve(conn);
+  expect(b).toBe(a);
+  expect(await b).toBe(value);
+  expect(scope.controller(conn).get()).toBe(a);
+  await scope.close();
+});
+
+test("async is typed through the graph: an op over an async resource is an async op", () => {
+  const conn = resource({ label: "conn", factory: async () => ({ open: true }) });
+  const view = resource({ label: "view", depends: { conn }, factory: async ({ conn }) => conn });
+  const op = operation({ label: "op", depends: { view }, run: async ({ view }) => view.open });
+  expectTypeOf(op).toEqualTypeOf<Operation.Handle<Promise<boolean>, void>>();
+  expectTypeOf(view).toEqualTypeOf<Resource.Handle<Promise<{ open: boolean }>>>();
 });
 
 test("a resource dep the factory reads twice builds once and caches (lazy access parity)", () => {
@@ -180,106 +283,6 @@ test("a resource dep the factory reads twice builds once and caches (lazy access
   expect(builds).toBe(1);
 });
 
-test("a deps object with an extra non-enumerable property still enumerates its lazy resource keys", () => {
-  const leaf = resource({ label: "leaf", factory: () => 1 });
-  const seen: string[][] = [];
-  const top = resource({
-    label: "top",
-    depends: { leaf },
-    factory: (deps) => {
-      Object.defineProperty(deps, "note", { value: "n" });
-      seen.push(Object.keys(deps), Object.keys({ ...deps }));
-      return deps.leaf;
-    },
-  });
-  expect(createScope().controller(top).resolve()).toBe(1);
-  expect(seen).toEqual([["leaf"], ["leaf"]]);
-});
-
-test("a factory that writes a lazy dep key before reading it keeps a plain property", () => {
-  const leaf = resource({ label: "leaf", factory: () => 1 });
-  const top = resource({
-    label: "top",
-    depends: { leaf },
-    factory: (deps: Record<string, unknown>) => {
-      deps.leaf = 5;
-      deps.leaf = 6;
-      return { copy: { ...deps }, keys: Object.keys(deps), value: deps.leaf };
-    },
-  });
-  expect(createScope().controller(top).resolve()).toEqual({
-    copy: { leaf: 6 },
-    keys: ["leaf"],
-    value: 6,
-  });
-});
-
-test("after a lazy dep's build throws, the key reads undefined, is not listed, and is not built again", () => {
-  let builds = 0;
-  const bad = resource({
-    label: "bad",
-    factory: () => {
-      builds += 1;
-      throw new Error("boom");
-    },
-  });
-  const top = resource({
-    label: "top",
-    depends: { bad },
-    factory: (deps) => {
-      try {
-        return String(deps.bad);
-      } catch {
-        return { value: deps.bad, keys: Object.keys(deps), has: "bad" in deps };
-      }
-    },
-  });
-  expect(createScope().controller(top).resolve()).toEqual({
-    value: undefined,
-    keys: [],
-    has: false,
-  });
-  expect(builds).toBe(1);
-});
-
-test("a read of a lazy dep key while that dep is still building sees undefined", () => {
-  let captured: Record<string, unknown> | undefined;
-  const leaf = resource({
-    label: "leaf",
-    factory: () => (captured && "leaf" in captured ? "listed" : String(captured?.leaf)),
-  });
-  const top = resource({
-    label: "top",
-    depends: { leaf },
-    factory: (deps) => {
-      captured = deps;
-      return deps.leaf;
-    },
-  });
-  expect(createScope().controller(top).resolve()).toBe("undefined");
-});
-
-test("a getter defined on a lazy dep key before it is read replaces that dep", () => {
-  let built = 0;
-  const leaf = resource({
-    label: "leaf",
-    factory: () => {
-      built += 1;
-      return 1;
-    },
-  });
-  const top = resource({
-    label: "top",
-    depends: { leaf },
-    factory: (deps) => {
-      Object.defineProperty(deps, "leaf", { get: () => 7 });
-      return deps.leaf;
-    },
-  });
-  expect(createScope().controller(top).resolve()).toBe(7);
-  expect(built).toBe(0);
-});
-
 test("a write through an object inheriting from deps lands on the child, not on deps", () => {
   const leaf = resource({ label: "leaf", factory: () => 1 });
   const top = resource({
@@ -293,15 +296,6 @@ test("a write through an object inheriting from deps lands on the child, not on 
   });
   expect(createScope().controller(top).resolve()).toEqual({ child: 5, own: true, deps: 1 });
 });
-
-test("an operation dep the run never reads is never built (lazy deps)", () => {
-  let builds = 0;
-  const unused = resource({ label: "unused", factory: () => ({ n: ++builds }) });
-  const op = operation({ label: "op", depends: { unused }, run: () => "ok" });
-  expect(createScope().controller(op).run()).toBe("ok");
-  expect(builds).toBe(0);
-});
-
 const region = tag<string>({ label: "region", default: "base" });
 const maybe = tag<string | undefined>({ label: "maybe", default: undefined });
 const secret = tag<string>({ label: "secret" });
@@ -3901,35 +3895,6 @@ test("a second close returns the owned Result and never throws", async () => {
   const second = await scope.close();
   expect(second.status).toBe(first.status);
   expect(second.teardownErrors).toContain(boom);
-});
-
-test("a released build's first lazy read cannot invalidate its unused replacement", async () => {
-  const gate = deferred();
-  let builds = 0;
-  const base = resource({ label: "base", factory: () => ({}) });
-  const view = resource({
-    label: "view",
-    depends: { base },
-    factory: async (deps) => {
-      const generation = ++builds;
-      if (generation === 1) {
-        await gate.promise;
-        void deps.base;
-      }
-      return { generation };
-    },
-  });
-  const scope = createScope();
-  const controller = scope.controller(view);
-  const old = controller.resolve();
-  scope.release(view);
-  const replacement = await controller.resolve();
-  gate.resolve();
-  await old;
-  scope.release(base);
-  const current = await controller.resolve();
-  await scope.close();
-  expect(current).toBe(replacement);
 });
 
 test("an operation reads the scope's clock, and advancing it moves later reads", () => {

@@ -114,8 +114,7 @@ const adapterResource: Resource.Handle<
   label: "codex",
   target: "scope",
   depends: { sdk },
-  factory: async ({ sdk: pending }) => {
-    const module: OpenAiCodex.Sdk = await pending;
+  factory: async ({ sdk: module }) => {
     const start: Harness.Backend<
       OpenAiCodex.Options,
       OpenAiCodex.Turn,

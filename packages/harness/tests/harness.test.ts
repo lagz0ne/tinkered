@@ -147,6 +147,7 @@ test("a forced close mid-turn rejects the turn and cancels the close", async () 
     presets: [preset(claudeCode.sdk, async () => fakeSdk([], seen, gate))],
   });
   const session = scope.createSession();
+  await session.resolve(coder.thread);
   const statusSeen: Harness.Status[] = [];
   session.controller(coder.status).watch((next) => statusSeen.push(next));
   const settled = session.run(ask, { input: "hello" }).then(

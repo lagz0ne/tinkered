@@ -1,5 +1,5 @@
 // Standalone core probe: ONE scenario per process (min ns/iter + bytes/iter), pinned to one core.
-// usage: taskset -c 7 node --expose-gc bench/core-probe.mjs <cold|create|warm|get1|lifecycle|inferdi_cold|op|run|cold2|s1_getctl|s2_data|s3_doubled|s4_warm_ctl>
+// usage: taskset -c 7 node --expose-gc bench/core-probe.mjs <cold|create|warm|get1|lifecycle|inferdi_cold|op|opres|run|cold2|s1_getctl|s2_data|s3_doubled|s4_warm_ctl>
 import { bench, run } from "mitata";
 import { Container } from "@inferdi/inferdi";
 const { createScope, data, resource, operation, tag } =
@@ -29,6 +29,9 @@ const op = operation({ label: "op", depends: { n: cfg }, run: ({ n }) => n + 1 }
 const opScope = createScope();
 const opC = opScope.controller(op);
 opC.run();
+const opRes = operation({ label: "opRes", depends: { store }, run: ({ store }) => store.base });
+const opResC = opScope.controller(opRes);
+opResC.run();
 const inlineCfg = { depends: { n: cfg }, run: ({ n }) => n + 1 };
 const inlineScope = createScope();
 const zone = tag({ label: "zone", default: "base" });
@@ -41,6 +44,7 @@ const fns = {
   s3_doubled: () => createScope().controller(doubled).resolve(),
   s4_warm_ctl: () => warmScope.controller(store),
   op: () => opC.run(),
+  opres: () => opResC.run(),
   run: () => opScope.run(op),
   inline: () => inlineScope.run(inlineCfg),
   tagged: () => taggedScope.run(taggedOp, { tags: [zone("us")] }),

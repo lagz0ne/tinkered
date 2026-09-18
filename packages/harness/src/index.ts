@@ -162,7 +162,7 @@ export function harness<O, T, R>(config: {
         usage: (value) => usage.set(value),
         id: (value) => id.set(value),
       };
-      const live = await (await backend).start(merged, hooks);
+      const live = await backend.start(merged, hooks);
       ctx.defer(() => live.close());
       return live;
     },
@@ -215,7 +215,7 @@ function readTurnOperation<O, T, R>(
         const span = ctx.obs.span;
         if (span) span.attributes.adapter = frame.adapter.label;
         try {
-          const result = await (await thread).run(shape.request(ctx.input));
+          const result = await thread.run(shape.request(ctx.input));
           status.set("done");
           const ms = ctx.clock.currentTimeMillis() - started;
           ctx.log("harness turn", { harness: frame.label, turn: shape.label, status: "done", ms });

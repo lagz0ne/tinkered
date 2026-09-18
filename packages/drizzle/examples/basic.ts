@@ -29,12 +29,12 @@ export async function tour(): Promise<string> {
     label: "addUser",
     input: parseName,
     depends: { tx: store.tx },
-    run: ({ tx }, ctx) => tx.then((live) => live.insert(users).values({ name: ctx.input })),
+    run: ({ tx }, ctx) => tx.insert(users).values({ name: ctx.input }),
   });
   const listNames = operation({
     label: "listNames",
     depends: { db: store.db },
-    run: ({ db }) => db.then((live) => live.select().from(users)),
+    run: ({ db }) => db.select().from(users),
   });
   const scope = createScope({ tags: [store.config(null)] });
   await scope.session((s) => s.run(addUser, { input: "ada" }));

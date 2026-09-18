@@ -270,7 +270,7 @@ export declare namespace Scope {
   export type Inline<D extends Depends, R, I> = {
     readonly label?: string;
     readonly depends?: D;
-    readonly run: (deps: SlotValues<D>, ctx: Operation.Ctx<I>) => R;
+    readonly run: (deps: SlotValues<D>, ctx: Operation.Ctx<I>) => R & AsyncBody<D>;
   };
 
   /** The call object an inline run takes (ADR 0037, 0038): the same invocation shape as a
@@ -317,9 +317,26 @@ export declare namespace Scope {
                 : D extends Operation.Handle<infer T, infer I>
                   ? OperationController<T, I>
                   : D extends Resource.Handle<infer T>
-                    ? ResourceValue<T>
+                    ? Awaited<T>
                     : never;
   export type SlotValues<D extends Depends> = { [K in keyof D]: SlotValue<D[K]> };
+
+  /** True when a declared dependency is an async resource (its factory returns a promise, or it is
+   * itself contagious). Async is a build detail the type system carries through the graph (ADR
+   * 0044): a body over an async resource is an async body. */
+  export type AsyncDeps<D extends Depends> = true extends {
+    [K in keyof D]: D[K] extends Resource.Handle<infer T>
+      ? T extends PromiseLike<unknown>
+        ? true
+        : false
+      : false;
+  }[keyof D]
+    ? true
+    : false;
+  /** The return-type constraint a body over `D` must satisfy: a promise when `D` holds an async
+   * resource (the call is awaited, so the type says so), anything otherwise. */
+  export type AsyncBody<D extends Depends> =
+    AsyncDeps<D> extends true ? PromiseLike<unknown> : unknown;
 
   /** A test-only substitution of a node's realization, seen by downstream consumers (ADR 0015). */
   export type Preset = {
@@ -536,7 +553,7 @@ export function operation<
   label: string;
   input?: Data.Parse<I>;
   depends?: D;
-  run: (deps: Scope.SlotValues<D>, ctx: Operation.Ctx<I>) => R;
+  run: (deps: Scope.SlotValues<D>, ctx: Operation.Ctx<I>) => R & Scope.AsyncBody<D>;
   meta?: readonly Tag.Binding<unknown>[];
 }): Operation.Handle<R, I> {
   const base = {
@@ -555,6 +572,12 @@ export function operation<
 
 type BorrowFlag = { readonly [borrowSym]?: boolean };
 
+/** Read the declaration-time flag: does this operation's `depends` name a resource? Ops without one
+ * skip every per-dep resource check on the call path (ADR 0044 keeps `op`/`run` untouched). */
+function seesResourceOf(target: Operation.Handle<unknown, unknown>): boolean {
+  return (target as BorrowFlag)[borrowSym] === true;
+}
+
 /** True when an operation's deps name a resource, directly or behind an edge. */
 function seesResource(depends: Scope.Depends): boolean {
   for (const key in depends) {
@@ -572,7 +595,7 @@ export function resource<
   label: string;
   target?: "scope" | "session";
   depends?: D;
-  factory: (deps: Scope.SlotValues<D>, ctx: Resource.Ctx) => T;
+  factory: (deps: Scope.SlotValues<D>, ctx: Resource.Ctx) => T & Scope.AsyncBody<D>;
   meta?: readonly Tag.Binding<unknown>[];
 }): Resource.Handle<T> {
   return {
@@ -630,8 +653,14 @@ class NodeState {
   /** Memoized nearest cell up the chain, always valid once computed (a missing cell resolves to an
    * entry holding the cell's initial value); undefined means not computed yet. */
   eff: Entry | undefined = undefined;
-  /** Built resource instance. */
+  /** Built resource instance — the delivered VALUE, for sync and async builds alike (ADR 0044). */
   resource: Entry | undefined = undefined;
+  /** The settled build promise of an async resource: the imperative verbs (`resolve`/`get`) hand
+   * it back with a stable identity; a dependency slot gets the value instead. */
+  promise: Promise<unknown> | undefined = undefined;
+  /** A rejected async build, sticky until release: a slot throws its error, `resolve` returns
+   * the same rejected promise. */
+  failed: { error: unknown; promise: Promise<unknown> } | undefined = undefined;
   /** In-flight async build. */
   build: Promise<unknown> | undefined = undefined;
   /** Resource generation (bumped on invalidation to supersede a late build). */
@@ -899,7 +928,7 @@ function resolveDep(
   if (isData(dep)) return readCell(layer, dep);
   if (isTag(dep)) return tagRequired(layer, dep);
   if (isOperation(dep)) return operationController(layer, dep, parent);
-  if (isResource(dep)) return resourceController(layer, dep, parent).resolve();
+  if (isResource(dep)) return resourceSlot(layer, dep, parent);
   raise("InvalidDependency", { label: "unknown", reason: "unknown dependency" });
 }
 
@@ -1265,13 +1294,19 @@ function parseInput<I>(target: Operation.Handle<unknown, I>, rawInput: unknown):
 }
 
 /** A preset replacement when seeded, else the declared run. */
+/** Call the body now when every declared dep delivered, else after the parked builds settle
+ * (ADR 0044) — the call is then a promise, which the body's type already promised. */
 function runBody<T, I>(
   override: Operation.Handle<T, I>["run"] | undefined,
   target: Operation.Handle<T, I>,
   deps: Record<string, unknown>,
   ctx: Operation.Ctx<I>,
+  pending: PendingSlot[] | undefined,
 ): T {
-  return override ? override(deps, ctx) : target.run(deps, ctx);
+  if (pending === undefined) return override ? override(deps, ctx) : target.run(deps, ctx);
+  return settleDeps(deps, pending).then(() =>
+    override ? override(deps, ctx) : target.run(deps, ctx),
+  ) as T;
 }
 
 class OperationCtx<I> implements Operation.Ctx<I> {
@@ -1356,6 +1391,7 @@ function operationController<T, I>(
    * untagged body inline below, which is main's, unchanged — one optional `call.tags` read, no
    * extra frame or call on the hot path. The implementation signature stays broad (one input
    * shape would mean no overload — rule 9); the two public overloads type the fork. */
+  const sees = seesResourceOf(target);
   const run = (call?: Scope.Invocation<I>): unknown => {
     if (hasCallTags(call))
       return runTagged(
@@ -1405,9 +1441,9 @@ function operationController<T, I>(
         rawInput = call?.rawInput;
         input = parseInput(target, rawInput);
       }
-      const deps = buildDeps(layer, target.depends, span, undefined);
+      const deps = readOpDeps(layer, target, span, sees);
       ctx = new OperationCtx<I>(layer, target.label, rawInput, input, obs, span);
-      result = runBody(override, target, deps, ctx);
+      result = runBody(override, target, deps, ctx, parked);
     } catch (error) {
       closeSpan(obs, span, "failed");
       finishDefers("failed", error);
@@ -1458,97 +1494,20 @@ function ownerOf(layer: Layer, target: Resource.Handle<unknown>): Layer {
  * form no release edges). */
 type RegisterEdge = ((dep: Scope.Dependency) => void) | undefined;
 
-/** Wrap eagerly-resolved `target` deps in a Proxy that resolves each still-lazy resource dep on first
- * access — registering its edge and caching into `target` (then removing it from `lazy`). A read via
- * `Object.values`/`for..in`/spread also triggers the build (ownKeys + an enumerable descriptor + get),
- * so the enumeration contract holds. A Proxy get trap is ~7x cheaper than a per-build
- * `Object.defineProperty` accessor, and a body that never touches a key never builds it. */
-const LAZY = Symbol("lazy");
-type LazyState = {
-  depends: Scope.Depends;
-  layer: Layer;
-  span: Observe.Span | undefined;
-  registerEdge: RegisterEdge;
-  consumed: Set<string> | undefined;
-};
-type LazyTarget = Record<string | symbol, unknown> & { [LAZY]: LazyState };
+/** One still-building resource slot of a `deps` object: its key and the build to await. */
+type PendingSlot = { key: string; build: Promise<unknown> };
+/** The slots the last {@link buildDeps} parked, handed to its caller through this module slot —
+ * read at once, before any other build can run (single-threaded, no await between). No per-call
+ * allocation, no symbol lookup on the sync fast path; undefined when every declared dep delivered
+ * synchronously. */
+let parked: PendingSlot[] | undefined;
 
-function lazyDepOf(t: LazyTarget, key: string): Resource.Handle<unknown> | undefined {
-  const state = t[LAZY];
-  if (Object.hasOwn(t, key) || state.consumed?.has(key)) return undefined;
-  const dep = state.depends[key];
-  return dep !== undefined && isResource(dep) ? dep : undefined;
-}
-
-function buildLazyDep(t: LazyTarget, key: string, dep: Resource.Handle<unknown>): void {
-  const state = t[LAZY];
-  (state.consumed ??= new Set()).add(key);
-  state.registerEdge?.(dep);
-  t[key] = resolveDep(state.layer, dep, state.span);
-}
-
-function pendingLazyKeys(t: LazyTarget): string[] {
-  const keys: string[] = [];
-  for (const key in t[LAZY].depends) if (lazyDepOf(t, key)) keys.push(key);
-  return keys;
-}
-
-const PENDING_DESCRIPTOR: PropertyDescriptor = {
-  enumerable: true,
-  configurable: true,
-  writable: true,
-  value: undefined,
-};
-
-const LAZY_TRAPS = {
-  get: (t: LazyTarget, key: string | symbol): unknown => {
-    if (typeof key === "string") {
-      const dep = lazyDepOf(t, key);
-      if (dep) buildLazyDep(t, key, dep);
-    }
-    return t[key];
-  },
-  has: (t: LazyTarget, key: string | symbol): boolean =>
-    (typeof key === "string" && lazyDepOf(t, key) !== undefined) || key in t,
-  ownKeys: (t: LazyTarget): (string | symbol)[] => [
-    ...Object.getOwnPropertyNames(t),
-    ...Object.getOwnPropertySymbols(t),
-    ...pendingLazyKeys(t),
-  ],
-  getOwnPropertyDescriptor: (
-    t: LazyTarget,
-    key: string | symbol,
-  ): PropertyDescriptor | undefined => {
-    if (typeof key === "string" && lazyDepOf(t, key)) return PENDING_DESCRIPTOR;
-    const real = Object.getOwnPropertyDescriptor(t, key);
-    return key === LAZY && real ? { ...real, enumerable: false } : real;
-  },
-  defineProperty: (t: LazyTarget, key: string | symbol, desc: PropertyDescriptor): boolean => {
-    const valueOnly = "value" in desc && Object.keys(desc).length === 1;
-    const pending = valueOnly && typeof key === "string" && lazyDepOf(t, key) !== undefined;
-    Object.defineProperty(t, key, pending ? { ...PENDING_DESCRIPTOR, value: desc.value } : desc);
-    return true;
-  },
-};
-
-function lazyDepsProxy(
-  target: Record<string, unknown>,
-  depends: Scope.Depends,
-  layer: Layer,
-  span: Observe.Span | undefined,
-  registerEdge: RegisterEdge,
-): Record<string, unknown> {
-  const t = target as LazyTarget;
-  t[LAZY] = { depends, layer, span, registerEdge, consumed: undefined };
-  return new Proxy(t, LAZY_TRAPS);
-}
-
-/** Build the `deps` object a factory/run reads. A resource-target dependency is delivered LAZILY (via
- * {@link lazyDepsProxy}) so a body that ignores it never builds it. Every other kind (a data snapshot,
- * tag, subflow, or controller) is resolved EAGERLY here, so its value — and, for data, its release
- * edge — is fixed at resolve time, before any suspension (snapshot determinism, ADR 0026). When there
- * are no resource deps, the plain eager object is returned (no Proxy). `registerEdge` records a
- * realized resource's dependency edge and is omitted for operations. */
+/** Build the `deps` object a factory/run reads. Every declared dependency is resolved EAGERLY here,
+ * before the body runs (ADR 0026 for data, ADR 0044 for resources): a data snapshot, tag, subflow,
+ * or controller is fixed at resolve time; a resource is built now — its value lands in the slot
+ * when the build is sync or already settled, and a still-building async resource parks its build
+ * under {@link PENDING} for the caller to await before the body. `registerEdge` records a
+ * resource's dependency edge and is omitted for operations. */
 function buildDeps(
   layer: Layer,
   depends: Scope.Depends,
@@ -1556,16 +1515,54 @@ function buildDeps(
   registerEdge: RegisterEdge,
 ): Record<string, unknown> {
   const deps: Record<string, unknown> = {};
-  let lazy = false;
+  let pending: PendingSlot[] | undefined;
   for (const key in depends) {
     const dep = depends[key];
-    if (isResource(dep)) lazy = true;
-    else {
-      registerEdge?.(dep);
-      deps[key] = resolveDep(layer, dep, span);
+    registerEdge?.(dep);
+    const value = resolveDep(layer, dep, span);
+    if (isThenable(value) && isResource(dep)) {
+      (pending ??= []).push({ key, build: Promise.resolve(value) });
     }
+    deps[key] = value;
   }
-  return lazy ? lazyDepsProxy(deps, depends, layer, span, registerEdge) : deps;
+  parked = pending;
+  return deps;
+}
+
+/** The `deps` object of a body whose `depends` name no resource: the plain eager loop, byte for
+ * byte the pre-0044 hot path (`op`/`run` must not move), nothing parked. */
+function buildPlainDeps(
+  layer: Layer,
+  depends: Scope.Depends,
+  span: Observe.Span | undefined,
+): Record<string, unknown> {
+  const deps: Record<string, unknown> = {};
+  for (const key in depends) deps[key] = resolveDep(layer, depends[key], span);
+  parked = undefined;
+  return deps;
+}
+
+/** An operation's deps: the parking loop when its `depends` name a resource (the declaration-time
+ * flag, read once per controller), else the plain loop. Either way {@link parked} is set for the
+ * caller to hand to {@link runBody}. */
+function readOpDeps(
+  layer: Layer,
+  target: Operation.Handle<unknown, unknown>,
+  span: Observe.Span | undefined,
+  sees: boolean,
+): Record<string, unknown> {
+  return sees
+    ? buildDeps(layer, target.depends, span, undefined)
+    : buildPlainDeps(layer, target.depends, span);
+}
+
+/** Await every parked build, then deliver the values into their slots. A rejected build rejects
+ * here with its own error, so the call fails before the body runs (ADR 0044) — the same outcome a
+ * throwing sync factory has today. */
+function settleDeps(deps: Record<string, unknown>, pending: PendingSlot[]): Promise<void> {
+  return Promise.all(pending.map((slot) => slot.build)).then((values) => {
+    for (let i = 0; i < pending.length; i++) deps[pending[i].key] = values[i];
+  });
 }
 
 function resolveResourceDeps(
@@ -1576,9 +1573,8 @@ function resolveResourceDeps(
 ): Record<string, unknown> {
   return buildDeps(owner, target.depends, span, (dep) => {
     const node = depNode(dep);
-    /** A lazy resource dep registers its release edge only at FIRST ACCESS, which for a paused build
-     * can happen after the build was released (superseded). Skip the edge then — a stale build must
-     * not record a dependency that would later evict its own LIVE replacement (lazy review P2). */
+    /** Edges register before the factory runs (eager deps, ADR 0044); a build superseded while its
+     * deps were still resolving records none, so a stale build never evicts its live replacement. */
     if (node && !superseded()) addDependent(owner, node, target);
   });
 }
@@ -1678,13 +1674,15 @@ function buildResource<T>(
   buildDepth++;
   try {
     const deps = resolveResourceDeps(owner, target, span, superseded);
+    const pending = parked;
     const override = presetFor(owner, target) as Resource.Handle<T>["factory"] | undefined;
     const fn = override ?? target.factory;
     const ctx =
       fn.length >= 2
         ? buildCtx(owner, target, obs, span, () => settled, superseded)
         : emptyCtxFor(owner);
-    const result = fn(deps, ctx);
+    const result =
+      pending === undefined ? fn(deps, ctx) : settleDeps(deps, pending).then(() => fn(deps, ctx));
     if (!isThenable(result)) {
       settled = true;
       if (canPublish()) rec.resource = { value: result };
@@ -1735,14 +1733,17 @@ function finishAsyncBuild(
     (value) => {
       markSettled();
       if (rec.build === build) rec.build = undefined;
-      if (canPublish()) rec.resource = { value: build };
+      if (canPublish()) {
+        rec.resource = { value };
+        rec.promise = build;
+      }
       closeSpan(obs, span, "ok");
       return value;
     },
-    (error) => {
+    (error: unknown) => {
       markSettled();
       if (rec.build === build) rec.build = undefined;
-      if (!superseded()) rec.resource = { value: build };
+      if (!superseded()) rec.failed = { error, promise: build };
       closeSpan(obs, span, "failed");
       throw error;
     },
@@ -1766,21 +1767,39 @@ function resourceController<T>(
   const rec = nodeState(owner, target);
   return {
     resolve: () => {
-      ensureOpen(layer);
-      ensureOpen(owner);
-      recordUsed(layer.obs, parent, target);
-      if (rec.resource) return rec.resource.value as Scope.ResourceValue<T>;
-      if (rec.build) return rec.build as Scope.ResourceValue<T>;
-      if (rec.building) raise("CircularResource", { label: target.label });
-      return buildResource(owner, target, parent) as Scope.ResourceValue<T>;
+      const value = resourceSlot(layer, target, parent);
+      return (rec.promise ?? value) as Scope.ResourceValue<T>;
     },
     get: () => {
       ensureOpen(layer);
       ensureOpen(owner);
+      if (rec.failed) return rec.failed.promise as Scope.ResourceValue<T>;
       if (!rec.resource) raise("NotResolved", { label: target.label });
-      return rec.resource.value as Scope.ResourceValue<T>;
+      return (rec.promise ?? rec.resource.value) as Scope.ResourceValue<T>;
     },
   };
+}
+
+/** A resource in a `depends` slot (ADR 0044): the built VALUE for sync and async builds alike; a
+ * still-building async resource returns its build promise, and a sticky async failure its rejected
+ * one — {@link buildDeps} parks either for the caller to await before the body, so the call rejects
+ * with the build's error and the body never runs. One record lookup, no controller allocation —
+ * the dependency hot path. */
+function resourceSlot(
+  layer: Layer,
+  target: Resource.Handle<unknown>,
+  parent: Observe.Span | undefined,
+): unknown {
+  const owner = ownerOf(layer, target);
+  const rec = nodeState(owner, target);
+  ensureOpen(layer);
+  ensureOpen(owner);
+  recordUsed(layer.obs, parent, target);
+  if (rec.resource) return rec.resource.value;
+  if (rec.failed) return rec.failed.promise;
+  if (rec.build) return rec.build;
+  if (rec.building) raise("CircularResource", { label: target.label });
+  return buildResource(owner, target, parent);
 }
 
 type Affected = { node: Node; owner: Layer };
@@ -1796,6 +1815,8 @@ function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): voi
   const s = nodeState(owner, target);
   s.gen = (s.gen ?? 0) + 1;
   s.resource = undefined;
+  s.promise = undefined;
+  s.failed = undefined;
   s.build = undefined;
   detachDependent(owner, target);
   s.dependents = undefined;

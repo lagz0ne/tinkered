@@ -170,9 +170,9 @@ hot path is anything a request pays: create a scope, build a resource, run an op
    or a symbol slot on a Proxy target reported non-enumerable).
 
 7. **Laziness has a price on the other side.** A lazily made signal costs an
-   `abort()` dispatch (~430 ns) on forced close once it exists; a lazy dep needs a
-   consumed state so a failed build is not retried. Measure the close/failure path
-   too.
+   `abort()` dispatch (~430 ns) on forced close once it exists; a failed async build
+   stays sticky on its node so a retry does not rebuild it (ADR 0044). Measure the
+   close/failure path too.
 
 8. **Keep the public shape spreadable when the contract allows spread.** A value
    users may copy with `{ ...x }` (a scope handle) stays an object of own

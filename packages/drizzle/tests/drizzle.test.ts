@@ -49,7 +49,7 @@ function insertOp(store: DrizzleStore.Frame<null, PgDatabase>) {
       return raw;
     },
     depends: { tx: store.tx },
-    run: async ({ tx }, ctx) => (await tx).insert(users).values({ name: ctx.input }),
+    run: async ({ tx }, ctx) => tx.insert(users).values({ name: ctx.input }),
   });
 }
 
@@ -60,7 +60,7 @@ test("db opens once per scope and close runs on scope close", async () => {
   const read = operation({
     label: "read",
     depends: { db: store.db },
-    run: ({ db }) => db.then((client) => client.select().from(users)),
+    run: ({ db }) => db.select().from(users),
   });
   await scope.run(read);
   await scope.run(read);
@@ -89,7 +89,7 @@ test("a throwing op rolls back: session rejects with the op error and the row is
     label: "insertThenThrow",
     depends: { tx: store.tx },
     run: async ({ tx }) => {
-      await (await tx).insert(users).values({ name: "grace" });
+      await tx.insert(users).values({ name: "grace" });
       throw new Error("kaboom");
     },
   });
@@ -127,7 +127,7 @@ test("a forced close rolls back: the parked insert is absent after cancelled", a
     label: "parkedInsert",
     depends: { tx: store.tx },
     run: async ({ tx }, ctx) => {
-      await (await tx).insert(users).values({ name: "hopper" });
+      await tx.insert(users).values({ name: "hopper" });
       await ctx.clock.sleep(10_000, ctx.signal);
     },
   });
