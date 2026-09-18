@@ -33,7 +33,7 @@ tickets, then contributors with lead review:
    - [x] **cli/t02 — validation milestone.** _Done: tag `cli/t02`; 25 validate lanes green (cli lanes added), mutation 68.94, README + cast-free examples (`basic.ts` tour, `main.ts` real entrypoint). core/t29 landed alongside: `scope.resolve(tag.all)`._
    - [x] **hono/t05 — routes at the scope, eager mount (ADR 0042 policy).** _Done: tag `hono/t05`, `routes` tag +
          `route.get/post/put/patch/delete` bindings, `honoApp(scope)` mounts every route eagerly (loaders run once at
-         boot, a rejecting loader fails boot), 30 hono tests, size 3376 B, lead review SHIP. Core feedback: a lazy
+         boot, a rejecting loader fails boot), 30 hono tests, size 3376 B, mutation 82.10, lead review SHIP. Core feedback: a lazy
          operation unit now has TWO askers (cli, hono) → core/t30 queued below._
    - [ ] **core/t30 — a lazy operation unit.** `lazy(() => import("./x.ts").then((m) => m.op))` returns an
          `Operation.Handle` whose module loads on first run (and resolves deps then); usable as a `depends` slot and
