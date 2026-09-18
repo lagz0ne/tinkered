@@ -104,8 +104,15 @@ export function BenchPage(): ReactElement {
     setError(null);
     setResults(null);
     try {
+      const libs = buildLibs();
+      // Warmup pass (discarded): tier up React + every lib's path so the first measured library
+      // isn't penalised for the cold JIT that all the others then benefit from.
+      setProgress("Warming up…");
+      await new Promise((r) => setTimeout(r, 0));
+      for (const lib of libs) await measure(lib);
+
       const collected: LibResult[] = [];
-      for (const lib of buildLibs()) {
+      for (const lib of libs) {
         setProgress(`Measuring ${lib.name}…`);
         await new Promise((r) => setTimeout(r, 0));
         collected.push({ name: lib.name, fine: lib.fine, metrics: await measure(lib) });
@@ -128,8 +135,9 @@ export function BenchPage(): ReactElement {
           <h1 className="text-2xl font-semibold tracking-tight">Store benchmark</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             {N} components, each subscribed to <b>one</b> slice. We update a single slice and count
-            how many components re-render (<b>1 is ideal</b>), plus update and mount time. Real
-            React, in <b>your</b> browser — numbers are relative, not the CI benchmark.
+            how many components re-render (<b>1 is ideal</b>), plus update and mount time — the{" "}
+            <b>median</b> of many runs. Real React, in <b>your</b> browser: numbers are relative and
+            move with CPU load, not the CI benchmark.
           </p>
         </header>
 

@@ -231,13 +231,27 @@ export function buildLibs(): Lib[] {
 
 const nextTick = () => new Promise((r) => setTimeout(r, 0));
 
+function median(xs: number[]): number {
+  const s = [...xs].sort((a, b) => a - b);
+  const m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
 function mount(App: () => ReactNode): Root {
   const root = createRoot(document.createElement("div"));
   flushSync(() => root.render(h(App)));
   return root;
 }
 
-/** Measure one library. Timings are batched so the browser clock's coarse resolution averages out. */
+// We report the MEDIAN across samples (robust to CPU-scheduling outliers). Each sample times a large
+// BATCH of ops so the elapsed time is many ms — far above `performance.now()`'s ~100µs clamp when the
+// page isn't cross-origin isolated — otherwise per-op numbers quantize into clock-resolution noise.
+const UPDATE_SAMPLES = 31;
+const UPDATE_BATCH = 400;
+const MOUNT_SAMPLES = 21;
+const MOUNT_BATCH = 8; // N-component mounts per sample
+
+/** Measure one library: exact re-render count, plus median update and mount time over many samples. */
 export async function measure(lib: Lib): Promise<Metrics> {
   // (a) re-render count on a single-slice update (ideal 1).
   const r0 = mount(lib.App);
@@ -246,32 +260,31 @@ export async function measure(lib: Lib): Promise<Metrics> {
   const rerenders = lib.renders();
   r0.unmount();
 
-  // (b) update latency on a live tree.
+  // (b) update latency on a live tree: median of per-op times across many batched samples.
   const live = mount(lib.App);
   let k = 1;
-  for (let w = 0; w < 20; w++) flushSync(() => lib.update(++k % N, k));
-  let bestUpdate = Infinity;
-  const B = 100;
-  for (let rep = 0; rep < 3; rep++) {
+  for (let w = 0; w < UPDATE_BATCH; w++) flushSync(() => lib.update(++k % N, k)); // warmup
+  const updates: number[] = [];
+  for (let s = 0; s < UPDATE_SAMPLES; s++) {
     const t0 = performance.now();
-    for (let i = 0; i < B; i++) flushSync(() => lib.update(++k % N, k));
-    bestUpdate = Math.min(bestUpdate, (performance.now() - t0) / B);
-    await nextTick();
+    for (let i = 0; i < UPDATE_BATCH; i++) flushSync(() => lib.update(++k % N, k));
+    updates.push((performance.now() - t0) / UPDATE_BATCH);
+    await nextTick(); // yield each sample so the UI stays alive and thermal state settles
   }
   live.unmount();
 
-  // (c) mount cost of N subscribed components.
-  let bestMount = Infinity;
-  const MB = 15;
-  for (let rep = 0; rep < 3; rep++) {
+  // (c) mount cost of N subscribed components: median of per-mount times across batched samples.
+  for (let w = 0; w < MOUNT_BATCH; w++) mount(lib.App).unmount(); // warmup
+  const mounts: number[] = [];
+  for (let s = 0; s < MOUNT_SAMPLES; s++) {
     const roots: Root[] = [];
     const t0 = performance.now();
-    for (let i = 0; i < MB; i++) roots.push(mount(lib.App));
-    bestMount = Math.min(bestMount, (performance.now() - t0) / MB);
+    for (let i = 0; i < MOUNT_BATCH; i++) roots.push(mount(lib.App));
+    mounts.push((performance.now() - t0) / MOUNT_BATCH);
     for (const root of roots) root.unmount();
     await nextTick();
   }
 
   void sink;
-  return { rerenders, updateUs: bestUpdate * 1000, mountUs: bestMount * 1000 };
+  return { rerenders, updateUs: median(updates) * 1000, mountUs: median(mounts) * 1000 };
 }
