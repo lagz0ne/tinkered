@@ -4,6 +4,19 @@ The live working list. **Goal: drive it to empty.** Each item is checkable and c
 **Verify** — the exact observable proof. Tick `[x]` ONLY after the Verify passes (gate green,
 a failing→passing test, or command output). Never tick on intent. Add/split items freely.
 
+## Jev advisory layer (see docs/roadmap/jev-loop/PLAN.md)
+
+Landed: advisory scripts `scripts/jev/{plan-check,preflight,review}.mjs` (judge set proven 11/11;
+route gated at 0.6). Advisory only — the gate and the human decide (no self-grading).
+
+- [ ] **jev/impact — protect-node-0: SCIP + Jev impact chain.** Cross the plan's expected refs table
+      (brief Anchors) against SCIP's actual refs of the changed symbols; Jev judges each discrepancy
+      ("does the goal require this symbol?") → source wrong / plan wrong / both / neither. Needs a plan
+      refs-table convention first. Verify: on a diff whose plan under-scoped a symbol, the chain returns
+      "plan wrong" (not "source wrong"); on a clean landed ticket it returns "neither".
+- [ ] **jev/calibrate — route + plan-check fixtures.** Label 3 pos / 3 neg per question (mine from git
+      history); set each threshold from data. Verify: `eval.mjs`-style separation report per question.
+
 ## Now — authoring (first-class integrations, ADR 0034 tiers)
 
 Perf pursuit is closed (see archive). Next: production-ready "tinkered-first" components on the reusable
@@ -62,13 +75,27 @@ tickets, then contributors with lead review:
          size 5279 B, 25 lanes green, mutation 66.74 (codex.ts 60.00 — t05 adds one all-keys options-split test), lead review SHIP after one fix round (raw event as `source`
          by identity; no module-level test state). SDK facts recorded: Codex offers NO approval callback and NO
          in-process tools — t03/t04 are Claude-only code._
-   - [ ] **harness/t03 — approvals as operations.** `canUseTool` (Claude) / approval mode (Codex) answered by a
-         subflow; the decision visible in `items`.
-   - [ ] **harness/t04 — tools as operations.** An operation exposed in-process (Claude `tool()` +
-         `createSdkMcpServer`; Codex MCP config) whose run is a subflow of the turn op.
+   - [ ] **harness/t03 — approvals as operations.** Claude-only (Codex has no callback): `harness({ …, approve })`
+         attaches a userland op at frame construction (option A, lead's pick 2026-09-18 — the http `retry`/`filterStatus`
+         precedent; a TAG-bound op cannot be run as a subflow today → core-feedback ask); the turn op depends on it, hands
+         its controller to the thread per turn, the adapter answers `canUseTool` with it; the decision lands in `items`
+         (`kind: "approval"`). Verify: allow/deny through a fake `query` calling `canUseTool`; the approve op's span is a
+         child of the turn span; the op sees a session tag. Three pi contributors died in the read phase (t03+t04, t03+t04, t03 alone) — the LEAD builds t03/t04 on the landed core/t31.
+   - [ ] **harness/t04 — tools as operations.** Claude-only: `harness({ …, tools: [{ name, description, schema, operation }] })`
+         (zod raw shape = the SDK's constraint; the op's result is the SDK's `CallToolResult`); an in-process MCP server
+         named after the frame, built once per thread, merged into `mcpServers`; the tool op runs as a subflow of the turn.
+         Verify: the handler delivers the op's result by identity; the tool span is a child of the turn span; one server for
+         two turns; a user-bound `mcpServers` entry survives.
    - [ ] **harness/t05 — validation milestone.** Size, mutation ≥ 60 alone, README + cast-free example, harness
          lanes in `pnpm validate`; one Codex options-split test binding EVERY `CodexOptions`/`ThreadOptions` key (t02
          mutation left `codex.ts` at 60.00 on the untested key copies — a dropped key is user-observable); archive here.
+   - [x] **core/t31 — a resource dep is its value (ADR 0044).** _Done: tag `core/t31` (fa7282f), mutation 78.51._ User decision 2026-09-18 (`1A 2A`): `SlotValue<Resource.Handle<T>>`
+         = `Awaited<T>`; declared deps build before the body (the lazy deps Proxy is gone — W10/W12 in core drop to 0); a
+         still-building async dep is awaited by core, then the body runs with the value; a failed async build rejects the
+         call before the body runs (sticky until release); async-ness is typed through the graph (`AsyncBody<D>`: a body
+         over an async resource must return a promise); `scope.resolve(res)` keeps its promise. Lead-built (contributors
+         die reading core). Verify: core 227 tests incl. the 6 ADR 0044 promises; drizzle sheds every `(await tx)`; perf
+         A/B `op`/`run` within 2 ns, new `opres` scenario recorded; harness and drizzle shed their awaits in the same commit (4 harness sites, 5 drizzle sites, README + example).
 4. **`@tinker/ai`** — the LLM layer over the AI SDK (the model is the swappable slot; generateText/streamText as
    ops; tools as operations; `MockLanguageModelV4` as the test seam). Deferred until a driver asks.
 

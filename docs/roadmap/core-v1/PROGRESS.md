@@ -29,27 +29,28 @@ in order, tag each, reset to any tag if a slice goes wrong.
 
 Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its tag exists.
 
-| tag      | ticket                                 | blockers   | status |
-| -------- | -------------------------------------- | ---------- | ------ |
-| core/t01 | Packaged scope + data read             | —          | [x]    |
-| core/t02 | data write + watch                     | 01         | [x]    |
-| core/t03 | Sync commands (incl. effects)          | 02         | [x]    |
-| core/t04 | Scope tags, all modes                  | 03         | [x]    |
-| core/t05 | Async commands + work ownership        | 03         | [x]    |
-| core/t06 | Sessions + inheritance + copy-on-write | 04         | [x]    |
-| core/t07 | Structured close + onClose             | 05, 06     | [x]    |
-| core/t08 | Sync scope resources + cleanup         | 07         | [x]    |
-| core/t09 | Async resource builds + close          | 08         | [x]    |
-| core/t10 | Resource targets + owner-context       | 08         | [x]    |
-| core/t11 | Outcome hooks + session(fn)            | 09, 10     | [x]    |
-| core/t12 | Single-node release                    | 09, 10     | [x]    |
-| core/t13 | Release cascade within owner           | 12         | [x]    |
-| core/t14 | Release cascade across owners          | 13         | [x]    |
-| core/t15 | Command / manual observation           | 07         | [x]    |
-| core/t16 | Resource observation                   | 09, 10, 15 | [x]    |
-| core/t17 | Data/command presets                   | 05         | [x]    |
-| core/t18 | Resource presets                       | 09, 10, 17 | [x]    |
-| core/t19 | v1 validation milestone                | 01–18      | [x]    |
+| tag      | ticket                                                                                                             | blockers   | status                                               |
+| -------- | ------------------------------------------------------------------------------------------------------------------ | ---------- | ---------------------------------------------------- |
+| core/t01 | Packaged scope + data read                                                                                         | —          | [x]                                                  |
+| core/t02 | data write + watch                                                                                                 | 01         | [x]                                                  |
+| core/t03 | Sync commands (incl. effects)                                                                                      | 02         | [x]                                                  |
+| core/t04 | Scope tags, all modes                                                                                              | 03         | [x]                                                  |
+| core/t05 | Async commands + work ownership                                                                                    | 03         | [x]                                                  |
+| core/t06 | Sessions + inheritance + copy-on-write                                                                             | 04         | [x]                                                  |
+| core/t07 | Structured close + onClose                                                                                         | 05, 06     | [x]                                                  |
+| core/t08 | Sync scope resources + cleanup                                                                                     | 07         | [x]                                                  |
+| core/t09 | Async resource builds + close                                                                                      | 08         | [x]                                                  |
+| core/t10 | Resource targets + owner-context                                                                                   | 08         | [x]                                                  |
+| core/t11 | Outcome hooks + session(fn)                                                                                        | 09, 10     | [x]                                                  |
+| core/t12 | Single-node release                                                                                                | 09, 10     | [x]                                                  |
+| core/t13 | Release cascade within owner                                                                                       | 12         | [x]                                                  |
+| core/t14 | Release cascade across owners                                                                                      | 13         | [x]                                                  |
+| core/t15 | Command / manual observation                                                                                       | 07         | [x]                                                  |
+| core/t16 | Resource observation                                                                                               | 09, 10, 15 | [x]                                                  |
+| core/t17 | Data/command presets                                                                                               | 05         | [x]                                                  |
+| core/t18 | Resource presets                                                                                                   | 09, 10, 17 | [x]                                                  |
+| core/t19 | v1 validation milestone                                                                                            | 01–18      | [x]                                                  |
+| core/t31 | A resource dep is its value; deps build before the body; async typed through the graph; lazy Proxy gone (ADR 0044) | —          | [x] fa7282f, 227 tests, mutation 78.51, opres −95 ns |
 
 Parallelizable once upstream lands: 04‖05, 15 alongside 12→13→14, 17 early off 05.
 Family (keyed collections) is out of v1 (needs its own semantics ADR).
