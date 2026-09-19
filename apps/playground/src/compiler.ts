@@ -66,9 +66,8 @@ export const compile = operation({
       : raise("InvalidInput", { operation: "compile", reason: "expected files" }),
   depends: { esbuild: compiler, entry: entry.required },
   run: async ({ esbuild, entry }, { input: files }) => {
-    const es = await esbuild;
     try {
-      const result = await es.build({
+      const result = await esbuild.build({
         entryPoints: [entry],
         bundle: true,
         write: false,
