@@ -346,8 +346,8 @@ export declare namespace Scope {
     readonly replacement: unknown;
   };
 
-  /** Middleware over the scope's verbs (ADR 0050): each hook is an onion layer with `next`. Only
-   * `start`, `resolve`, and `close` are wired in core/t33; a declared `run`/`write` throws `NotSupported`. */
+  /** Middleware over the scope's verbs (ADR 0050): each hook is an onion layer with `next`. All
+   * hooks are wired; sessions keep the plain dispatch (the v1 limit). */
   export type Extension<T = unknown> = {
     readonly [extensionSym]: true;
     readonly label: string;
@@ -1715,10 +1715,52 @@ class EmptyCtx implements Resource.Ctx {
   }
 }
 
-/** Throw `NotSupported` for an extension hook that lands in a later ticket (ADR 0050). */
-function rejectUnwired(ext: Scope.Extension<unknown>): void {
-  if (ext.write !== undefined)
-    raise("NotSupported", { label: ext.label, reason: "write lands in core/t35" });
+function writeThrough(
+  layer: Layer,
+  writers: readonly Scope.Extension<unknown>[],
+  plain: Scope.Handle,
+): Scope.Handle["controller"] {
+  const cache = new Map<Data.Cell<unknown>, Scope.DataController<unknown>>();
+  const chained = (
+    target: Data.Cell<unknown> | Resource.Handle<unknown> | Operation.Handle<unknown, unknown>,
+  ): unknown => {
+    ensureOpen(layer);
+    if (isData(target)) {
+      const hit = cache.get(target);
+      if (hit !== undefined) return hit;
+      const plainCtl = plain.controller(target);
+      const at = (value: unknown, index: number): void => {
+        if (index >= writers.length) {
+          plainCtl.set(value);
+          return;
+        }
+        const writer = writers[index];
+        if (writer.write === undefined) {
+          at(value, index + 1);
+          return;
+        }
+        writer.write(target, value, () => at(value, index + 1));
+      };
+      const wrapped: Scope.DataController<unknown> = {
+        get: () => plainCtl.get(),
+        set: (value: unknown) => {
+          ensureOpen(layer);
+          at(value, 0);
+        },
+        update: (fn: (previous: unknown) => unknown) => {
+          ensureOpen(layer);
+          at(fn(plainCtl.get()), 0);
+        },
+        watch: (listener: (next: unknown) => void) => plainCtl.watch(listener),
+      };
+      cache.set(target, wrapped);
+      return wrapped;
+    }
+    if (isResource(target)) return plain.controller(target);
+    return plain.controller(target);
+  };
+  /** One cast: the broad internal entry covers every overload the public face types. */
+  return chained as Scope.Handle["controller"];
 }
 
 /** Wrap the structural close in the extensions' `close` onion (ADR 0050): first registered is
@@ -2643,7 +2685,7 @@ async function bodyResult<R>(body: Promise<R>): Promise<R | undefined> {
   }
 }
 
-/** Wrap a plain root handle with the extensions' plumbing (ADR 0050): validate hooks, store one
+/** Wrap a plain root handle with the extensions' plumbing (ADR 0050): store one
  * start-value record per installed extension, override `close` with the close chain, add `ready`,
  * then kick the start chain with the EXTENDED handle. Cold path only — plain scopes never enter. */
 function extendHandle(
@@ -2651,13 +2693,13 @@ function extendHandle(
   plain: Scope.Handle,
   exts: readonly Scope.Extension<unknown>[],
 ): Scope.Handle {
-  for (const ext of exts) rejectUnwired(ext);
   const records = new Map<Scope.Extension<unknown>, ExtRec>();
   for (const ext of exts) records.set(ext, { settled: false, value: undefined });
   EXTENSIONS.set(layer, records);
   const closers = exts.filter((ext) => ext.close !== undefined);
   const resolvers = exts.filter((ext) => ext.resolve !== undefined);
   const runners = exts.filter((ext) => ext.run !== undefined);
+  const writers = exts.filter((ext) => ext.write !== undefined);
   let settleReady: () => void = noop;
   let failReady: (error: unknown) => void = noop;
   const ready = new Promise<void>((resolveReady, rejectReady) => {
@@ -2672,6 +2714,7 @@ function extendHandle(
   };
   if (resolvers.length > 0) extended.resolve = resolveThrough(layer, resolvers);
   if (runners.length > 0) extended.run = runThrough(layer, runners, plain);
+  if (writers.length > 0) extended.controller = writeThrough(layer, writers, plain);
   runStartChain(layer, extended, exts, settleReady, failReady);
   return extended;
 }

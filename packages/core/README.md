@@ -48,5 +48,21 @@ const audit = extension({
 });
 ```
 
-Await `ready` before the first `resolve(ext)`. A request's reads and calls are not wrapped yet:
-sessions created from an extended scope read and run with the plain dispatch (the v1 limit).
+Await `ready` before the first `resolve(ext)`.
+
+A `write` hook wraps cell writes on the root handle (first registered is outermost; skip
+`next()` to refuse a write, leaving the value and watchers unchanged):
+
+```ts
+const even = extension({
+  label: "even",
+  write: (_cell, value, next) => {
+    if (typeof value !== "number" || value % 2 === 0) next();
+  },
+});
+```
+
+A request's reads, calls, and writes are not wrapped yet: sessions created from an extended
+scope read, run, and write with the plain dispatch (the v1 limit). A write that reaches the cell
+through a `depends: { x: cell.controller }` edge inside an operation runs on the layer directly
+and is not wrapped either (the v1 limit).

@@ -4467,20 +4467,6 @@ test("ctx.signal aborts on a forced close", async () => {
   expect(aborted).toBe(true);
 });
 
-test("a declared write hook throws NotSupported at creation", () => {
-  const ext = extension({
-    label: "later",
-    write: (_cell, _value, next) => next(),
-  });
-  try {
-    createScope({ extensions: [ext] });
-    throw new Error("unreachable");
-  } catch (e) {
-    if (!isError(e, "NotSupported")) throw e;
-    expect(e.payload.label).toBe("later");
-  }
-});
-
 test("a session after ready has an already-resolved ready", async () => {
   const ext = extension({
     label: "base",
@@ -4631,29 +4617,6 @@ test("a session reads with the plain dispatch, unwrapped by the chain", async ()
   await scope.close();
 });
 
-test("a declared write hook still throws NotSupported, a run hook no longer does", async () => {
-  const later = extension({
-    label: "later",
-    write: (_cell, _value, next) => next(),
-  });
-  try {
-    createScope({ extensions: [later] });
-    throw new Error("unreachable");
-  } catch (e) {
-    if (!isError(e, "NotSupported")) throw e;
-    expect(e.payload.label).toBe("later");
-  }
-  const op = operation({ label: "op", run: () => 1 });
-  const ok = extension({
-    label: "ok",
-    run: (_op, _call, next) => next(),
-  });
-  const scope = createScope({ extensions: [ok] });
-  await scope.ready;
-  expect(scope.run(op)).toBe(1);
-  await scope.close();
-});
-
 test("a run hook wraps a declared operation call: before, next, after", async () => {
   const log: string[] = [];
   const triple = operation({ label: "triple", run: () => 3 });
@@ -4790,5 +4753,185 @@ test("a session from an extended scope runs with the plain dispatch", async () =
   const session = scope.createSession();
   expect(session.run(op)).toBe("ran");
   expect(calls).toBe(0);
+  await scope.close();
+});
+
+test("a write hook wraps controller(cell).set: before, next, after", async () => {
+  const log: string[] = [];
+  const cell = data({ initial: 0, parse: asNumber });
+  let seen: unknown = "unset";
+  const wrap = extension({
+    label: "wrap",
+    write: (_cell, value, next) => {
+      log.push("before");
+      seen = value;
+      next();
+      log.push("after");
+    },
+  });
+  const scope = createScope({ extensions: [wrap] });
+  await scope.ready;
+  let fires = 0;
+  scope.controller(cell).watch(() => {
+    fires += 1;
+  });
+  scope.controller(cell).set(2);
+  expect(scope.controller(cell).get()).toBe(2);
+  expect(seen).toBe(2);
+  expect(log).toEqual(["before", "after"]);
+  expect(fires).toBe(1);
+  await scope.close();
+});
+
+test("a write hook that skips next refuses the write: value and watchers unchanged", async () => {
+  const cell = data({ initial: 1, parse: asNumber });
+  const deny = extension({ label: "deny", write: () => undefined });
+  const scope = createScope({ extensions: [deny] });
+  await scope.ready;
+  let fires = 0;
+  scope.controller(cell).watch(() => {
+    fires += 1;
+  });
+  scope.controller(cell).set(9);
+  expect(scope.controller(cell).get()).toBe(1);
+  expect(fires).toBe(0);
+  await scope.close();
+});
+
+test("two write hooks nest in registration order", async () => {
+  const order: string[] = [];
+  const cell = data({ initial: 0 });
+  const a = extension({
+    label: "a",
+    write: (_cell, _value, next) => {
+      order.push("a:before");
+      next();
+      order.push("a:after");
+    },
+  });
+  const b = extension({
+    label: "b",
+    write: (_cell, _value, next) => {
+      order.push("b:before");
+      next();
+      order.push("b:after");
+    },
+  });
+  const scope = createScope({ extensions: [a, b] });
+  await scope.ready;
+  scope.controller(cell).set(1);
+  expect(order).toEqual(["a:before", "b:before", "b:after", "a:after"]);
+  expect(scope.controller(cell).get()).toBe(1);
+  await scope.close();
+});
+
+test("update(fn) runs through the chain with the computed value", async () => {
+  const cell = data({ initial: 10, parse: asNumber });
+  let seen: unknown = "unset";
+  const spy = extension({
+    label: "spy",
+    write: (_cell, value, next) => {
+      seen = value;
+      next();
+    },
+  });
+  const scope = createScope({ extensions: [spy] });
+  await scope.ready;
+  scope.controller(cell).update((n) => n + 5);
+  expect(seen).toBe(15);
+  expect(scope.controller(cell).get()).toBe(15);
+  await scope.close();
+});
+
+test("the wrapped cell controller is cached per cell", async () => {
+  const first = data({ initial: 0 });
+  const second = data({ initial: 0 });
+  const spy = extension({
+    label: "spy",
+    write: (_cell, _value, next) => next(),
+  });
+  const scope = createScope({ extensions: [spy] });
+  await scope.ready;
+  expect(scope.controller(first)).toBe(scope.controller(first));
+  expect(scope.controller(second)).not.toBe(scope.controller(first));
+  await scope.close();
+});
+
+test("a cached write controller still rejects controller(cell) after close", async () => {
+  const cell = data({ initial: 0 });
+  const spy = extension({
+    label: "spy",
+    write: (_cell, _value, next) => next(),
+  });
+  const scope = createScope({ extensions: [spy] });
+  await scope.ready;
+  scope.controller(cell);
+  await scope.close();
+  try {
+    scope.controller(cell);
+    throw new Error("unreachable");
+  } catch (e) {
+    if (!isError(e, "Disposed")) throw e;
+  }
+});
+
+test("resource and operation controllers from the extended handle stay plain", async () => {
+  let writes = 0;
+  const count = extension({
+    label: "count",
+    write: (_cell, _value, next) => {
+      writes += 1;
+      next();
+    },
+  });
+  const scope = createScope({ extensions: [count] });
+  await scope.ready;
+  const res = resource({ label: "res", factory: () => 7 });
+  expect(scope.controller(res).resolve()).toBe(7);
+  const op = operation({ label: "op", run: () => "ran" });
+  expect(scope.controller(op).run()).toBe("ran");
+  expect(writes).toBe(0);
+  await scope.close();
+});
+
+test("a session from an extended scope writes with the plain dispatch", async () => {
+  let writes = 0;
+  const cell = data({ initial: 0, parse: asNumber });
+  const count = extension({
+    label: "count",
+    write: (_cell, _value, next) => {
+      writes += 1;
+      next();
+    },
+  });
+  const scope = createScope({ extensions: [count] });
+  await scope.ready;
+  const session = scope.createSession();
+  session.controller(cell).set(1);
+  expect(session.controller(cell).get()).toBe(1);
+  expect(writes).toBe(0);
+  await scope.close();
+});
+
+test("an op writing through a depends controller edge is not wrapped (v1 limit)", async () => {
+  let writes = 0;
+  const cell = data({ initial: 0, parse: asNumber });
+  const count = extension({
+    label: "count",
+    write: (_cell, _value, next) => {
+      writes += 1;
+      next();
+    },
+  });
+  const bump = operation({
+    label: "bump",
+    depends: { c: cell.controller },
+    run: ({ c }) => c.set(5),
+  });
+  const scope = createScope({ extensions: [count] });
+  await scope.ready;
+  scope.run(bump);
+  expect(writes).toBe(0);
+  expect(scope.controller(cell).get()).toBe(5);
   await scope.close();
 });
