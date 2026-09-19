@@ -18,7 +18,8 @@ pushes or runs mutation. The lead reviews the actual diff and browser result, th
 ## Active writer
 
 `tracker/t01`: Paseo agent `e00bd12d-94f9-49c9-af99-b61c5970e92f`, provider
-`pi/vercel-gateway/meta/muse-spark-1.3-contributor`, thinking max. Current workspace only:
+`pi/meta-muse/muse-spark-1.3-contributor`, thinking max (switched from the Vercel Gateway route
+after repeated HTTP 503; same agent and files). Current workspace only:
 `wks_85042cce8c480929`. Explicit shell cwd `/home/paseo/next/tinkered-issue-t01`, branch
 `tracker/t01-live-create`, cut from plan commit `a15b49b`. Brief `/tmp/issue-tracker-t01-brief.md`;
 report target `/tmp/issue-tracker-t01-report.md`. No application completion claim yet.
@@ -69,3 +70,12 @@ built values, and commit cleanup must finish before publication. Pushed `fabb7db
 passed with zero errors and the same 13 warnings. Library source did not change. Fresh package
 SCIP indexes passed; review refs are `/tmp/tracker-t01-lead-{core,sync,drizzle,hono}-refs.txt`.
 App indexing and final code gates still wait for the finished slice.
+
+The Vercel Gateway retry also failed before saving a fix. The same writer now uses the configured
+direct Muse route, still thinking max, and has saved the source-identity and JSON-input corrections.
+The lead sent one collected review round in `/tmp/issue-tracker-t01-review-fixes.md`: browser
+transport close must notify listeners and settle failed readiness; loss of sync needs visible UI
+state; network messages need real admission; startup/shutdown errors cannot be swallowed; the
+browser proof needs unique data so old rows cannot pass it; GET tests need saved values. Finish
+conventions, gates, browser proof, and report before landing. Recovery detail is preserved in
+`/tmp/issue-tracker-t01-recovery.md`. No code has landed and no completion claim is made.
