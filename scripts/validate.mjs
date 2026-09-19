@@ -87,7 +87,7 @@ const lanes = [
     "mcp pure bundle (runtime imports: @tinker/core + the SDK's server/mcp.js only)",
     `bash -c 'grep -qE "from \\"(node:|zod)" packages/mcp/dist/index.mjs && exit 1; grep -E "from \\"@modelcontextprotocol/sdk/" packages/mcp/dist/index.mjs | grep -v "server/mcp.js" | grep -q . && exit 1 || node --input-type=module -e "import(\\"./packages/mcp/dist/index.mjs\\").then(m=>process.exit(m.mcpServer&&m.tool&&m.tools&&m.readTool&&m.answerTool?0:1))"'`,
   ],
-  // @tinker/sync (ADR 0048, sync-v1 t04): same promises; the transport is
+  // @tinker/sync (ADR 0048, sync-v1 t05): same promises; the transport is
   // userland's, so dist imports only @tinker/core at runtime.
   ["sync tests", `${VP} run --no-cache sync#test`],
   ["sync size (<= 10 kB gzip)", `${VP} run --no-cache sync#size`],
@@ -97,7 +97,7 @@ const lanes = [
   ],
   [
     "sync pure bundle (runtime import: @tinker/core only)",
-    `bash -c 'grep -oE "from \\"[^\\"]+\\"" packages/sync/dist/index.mjs | sort -u | grep -v "from \\"@tinker/core\\"" | grep -q . && exit 1 || node --input-type=module -e "import(\\"./packages/sync/dist/index.mjs\\").then(m=>process.exit(m.syncServer&&m.syncClient&&m.family&&m.memoryPair?0:1))"'`,
+    `bash -c 'grep -oE "from \\"[^\\"]+\\"" packages/sync/dist/index.mjs | sort -u | grep -v "from \\"@tinker/core\\"" | grep -q . && exit 1 || node --input-type=module -e "import(\\"./packages/sync/dist/index.mjs\\").then(m=>process.exit(m.source&&m.subscribe&&m.family&&m.memoryPair?0:1))"'`,
   ],
 ];
 

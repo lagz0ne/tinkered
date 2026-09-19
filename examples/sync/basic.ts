@@ -1,5 +1,5 @@
 import { createScope, data } from "@tinker/core";
-import { family, memoryPair, readSynced, sync, syncClient, syncServer, synced } from "@tinker/sync";
+import { family, memoryPair, readSynced, source, subscribe, sync, synced } from "@tinker/sync";
 
 /** Parse raw input into text at the process edge. A named function, not a method pull. */
 function parseText(raw: unknown): string {
@@ -14,11 +14,11 @@ const counter = data({ label: "counter", initial: 0, meta: [synced({ key: "count
 const todo = family({ label: "todo", initial: "", parse: parseText });
 
 /** One shared declaration, two processes, no wrapper: a counter cell with
- * synced meta plus a todo family, both bound on the server and the client
- * scopes; the server snapshots the truth down, the client writes one set up,
- * and the tour ends once the applied value lands back on the client cell.
- * Answers the bound labels, the member key, the snapshot key, plus the final
- * client value. */
+ * synced meta plus a todo family, both bound on the source and the viewer
+ * scopes; the viewer registers the counter at connect, the source answers
+ * with its snapshot, and the tour ends once the value lands on the viewer
+ * cell. Answers the bound labels, the member key, the snapshot key, plus
+ * the final viewer value. */
 export function tour(): Promise<string> {
   const scope = createScope({ tags: [sync(counter), sync(todo)] });
   const bound = scope.resolve(sync.all);
@@ -26,24 +26,18 @@ export function tour(): Promise<string> {
   const member = todo("7");
   const key = readSynced(member).key;
   const [left, right] = memoryPair();
-  const server = syncServer(scope);
-  const done = server.connect(left);
+  const done = source(scope).connect(left);
   const guest = createScope({ tags: [sync(counter), sync(todo)] });
-  const client = syncClient(guest, right);
+  const viewing = subscribe(guest, right);
   const settled = new Promise<string>((resolve) => {
     guest.controller(counter).watch((next) => {
       if (next !== 1) return;
       resolve(`${names}:${key}:${key}:${next}`);
     });
   });
-  const waited = Promise.resolve()
-    .then(() => Promise.resolve())
-    .then(() => {
-      guest.controller(counter).set(1);
-      return settled;
-    });
-  return waited.then((answer) => {
-    client.close();
+  scope.controller(counter).set(1);
+  return settled.then((answer) => {
+    viewing.close();
     return done.then(() =>
       Promise.all([scope.close({ graceful: true }), guest.close({ graceful: true })]).then(
         () => answer,

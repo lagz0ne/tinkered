@@ -1,18 +1,19 @@
 # @tinker/sync
 
-A cell is the shared unit; the server is the truth; the transport is userland's (ADR 0048).
+A cell is the shared unit; the source holds the truth; the transport is userland's (ADR 0048, one way).
 
 ```text
 shared:  const counter = data({ label: "counter", initial: 0, parse, meta: [synced({ key: "counter" })] })
          const todo = family({ label: "todo", initial: "", parse })          todo("7") → a cell
-server:  createScope({ tags: [sync(counter), sync(todo)] }); syncServer(scope).connect(transport)
-client:  createScope({ tags: [sync(counter), sync(todo)] }); syncClient(scope, transport)
-wire:    snapshot ↓ · set ↑ · ack/reject ↓         (userland: memoryPair | SSE+POST | WebSocket)
+source:  createScope({ tags: [sync(counter), sync(todo)] }); source(scope).connect(transport)
+viewer:  createScope({ tags: [sync(counter), sync(todo)] }); subscribe(scope, transport)
+wire:    register ↑ · snapshot ↓         (userland: memoryPair | SSE+POST | WebSocket)
 ```
 
 Declare the shared cells once; bind them on both scopes with `sync`. The
-server owns the truth, the client mirrors it, and the wire between them is
-yours: `memoryPair` in tests, SSE + POST or a WebSocket in the browser.
+source owns the truth, the viewer mirrors what it registered, and the wire
+between them is yours: `memoryPair` in tests, SSE + POST or a WebSocket in
+the browser.
 
 ## Shared
 
@@ -20,46 +21,36 @@ yours: `memoryPair` in tests, SSE + POST or a WebSocket in the browser.
 reads it back, throwing `SyncUndeclared` on a plain cell. `family({ label,
 initial, parse })` builds a cell per id: `todo("7")` is an ordinary cell
 carrying the key `todo/7`. `sync(cell | family)` on the scope publishes the
-unit — a family goes whole, members now and on arrival.
+unit — registration is by identity: only the members the viewer holds go
+down, never the whole family.
 
-## Server
+## Source
 
-`syncServer(scope)` is the truth: one session per connected transport.
-`connect(transport)` sends one `snapshot` per published key (a family sends
-every member now, later members through `onMember`), then listens. The
-promise settles when the transport closes.
+`source(scope)` holds the truth: one session per subscriber. `connect(transport)`
+listens: nothing is pushed unasked. Each `register { keys }` runs `sync register`
+inline in that session (span, one `sync register` log line with the key count):
+a registered key answers at once with its snapshot (current version and value),
+and a changed cell fans out only to the live transports registered for that key.
+A member the source does not hold yet is created there with its initial value.
+A key that is not published, a message in the wrong direction, or an unexpected
+throw inside the op closes the transport, no reply. The promise settles when
+the transport closes.
 
-Each `set` runs `sync set <key>` inline in that session: parse first, then
-last-writer-wins by version — `base === version` applies (the version moves
-in the broadcast watcher, so a userland write fans out the same way),
-`ack`s, and fans the snapshot out; a stale base or a parse failure
-`reject`s with the current truth. A `set` for `label/id` of a published
-family creates it. Any other key, a non-`set` message, or an unexpected
-throw inside the write closes the transport, no log, no reply.
+## Subscribe
 
-## Client
+`subscribe(scope, transport)` drives the other end: at connect it sends one
+`register { keys }` with every bound singleton key and every family member it
+already holds; a member created later (through `onMember`) registers at once.
+Each `snapshot` goes into its cell through the cell's `parse` — an unregistered
+key that is `label/id` of a published family calls `family(id)` first, so the
+member exists before the value lands. Nothing goes up in v1: a userland write
+on a viewer cell stays local until the next snapshot overwrites it.
 
-`syncClient(scope, transport)` drives the other end: one registry built from
-`scope.resolve(sync.all)` (a cell per key, plus `onMember` for members that
-arrive later), one watcher per cell, one `nextId` counter per client, and
-the last version the server sent per key (starting at 0).
-
-Each `snapshot` goes into its cell through the cell's `parse` — an
-unregistered key that is `label/id` of a published family calls
-`family(id)` first, so the member exists before the value lands. `ack`
-moves the version forward. A local write goes up at once `set { id, key,
-base: version, value }`: the cell already holds it (optimistic), and a
-value the parse refuses never leaves — core throws `DataValidationFailed`
-to the writer. A `reject` reverts the cell to the server's value exactly
-like a snapshot, under the same guard, so the revert is never re-sent.
-
-Anything the client cannot place means the two sides disagree on the
-module: an `ack` or `reject` for an unknown key, a `reject` the cell's
-parse refuses, a snapshot that fails the parse or names no published key,
-or a `set` arriving at the client. Each is a protocol violation, so the
-client detaches and closes the transport. `client.close()` unwatches every
-key and closes the transport (idempotent); a close from the far side
-unwatches without closing twice.
+Anything the viewer cannot place means the two sides disagree on the
+module: a snapshot that fails the parse or names no published key, or any
+non-snapshot message. Each is a protocol violation, so the viewer detaches
+and closes the transport. `close()` detaches and closes the transport
+(idempotent); a close from the far side detaches without closing twice.
 
 ## Wire it
 
@@ -67,8 +58,8 @@ The transport is four methods: `send`, `onMessage`, `onClose`, `close`.
 Three ways to build one:
 
 Hono SSE + POST (the full recipe lives in `examples/hono.ts`): one
-`GET /sync?client=<id>` stream down, one `POST /sync?client=<id>` per
-client write up, routed by client id.
+`GET /sync?client=<id>` stream down, one `POST /sync?client=<id>` carrying
+the `register` up, routed by client id.
 
 ```ts
 const transport: Sync.Transport = {
@@ -93,7 +84,7 @@ const transport: Sync.Transport = {
     for (const part of partings) part();
   },
 };
-syncServer(scope).connect(transport);
+source(scope).connect(transport);
 ```
 
 WebSocket (one socket per tab, same four methods):
@@ -111,34 +102,20 @@ const transport: Sync.Transport = {
   },
   close: () => ws.close(),
 };
-syncClient(scope, transport);
+subscribe(scope, transport);
 ```
 
-React needs nothing new: where `syncClient` runs, `useData(counter)` keeps
-reading the same cell the snapshots land in; a `set` from a component is a
-local write like any other, optimistic, revertible.
+React needs nothing new: where `subscribe` runs, `useData(counter)` keeps
+reading the same cell the snapshots land in; a local write on a viewer cell
+stays local until the next snapshot overwrites it.
 
 ```ts
 export declare namespace Sync {
   export type Meta = { readonly key: string };
   export type Message =
+    | { readonly type: "register"; readonly keys: readonly string[] }
     | {
         readonly type: "snapshot";
-        readonly key: string;
-        readonly version: number;
-        readonly value: unknown;
-      }
-    | {
-        readonly type: "set";
-        readonly id: number;
-        readonly key: string;
-        readonly base: number;
-        readonly value: unknown;
-      }
-    | { readonly type: "ack"; readonly id: number; readonly key: string; readonly version: number }
-    | {
-        readonly type: "reject";
-        readonly id: number;
         readonly key: string;
         readonly version: number;
         readonly value: unknown;
@@ -156,11 +133,12 @@ export declare namespace Sync {
     onMember(listener: (id: string) => void): () => void;
   };
   export type Published = Data.Cell<unknown> | Family<unknown>;
-  /** The server driver: one session per connected transport; the scope's cells
-   * are the truth. */
-  export type Server = { connect(transport: Transport): Promise<void> };
-  /** The client driver's handle: detach the watchers and close the transport. */
-  export type Client = { close(): void };
+  /** The source extension: one session per subscriber; the scope's cells are
+   * the truth. */
+  export type Source = { connect(transport: Transport): Promise<void> };
+  /** The client extension's handle: detach the listeners and close the
+   * transport. */
+  export type Subscription = { close(): void };
 }
 export const synced: Tag.Handle<Sync.Meta>;
 export const sync: Tag.Handle<Sync.Published>;
@@ -173,8 +151,8 @@ export function family<T>(config: {
 export function readSynced(cell: Data.Cell<unknown>): Sync.Meta;
 export function isFamily(unit: Sync.Published): unit is Sync.Family<unknown>;
 export function memoryPair(): readonly [Sync.Transport, Sync.Transport];
-export function syncServer(scope: Scope.Handle): Sync.Server;
-export function syncClient(scope: Scope.Handle, transport: Sync.Transport): Sync.Client;
+export function source(scope: Scope.Handle): Sync.Source;
+export function subscribe(scope: Scope.Handle, transport: Sync.Transport): Sync.Subscription;
 export { isError };
 export type { Errors }; // SyncUndeclared: { label: string }
 ```

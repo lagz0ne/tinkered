@@ -1,14 +1,14 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, isError as isCoreError } from "@tinker/core";
+import { createScope, data } from "@tinker/core";
 import {
   family,
   isError,
   isFamily,
   memoryPair,
   readSynced,
+  source,
+  subscribe,
   sync,
-  syncClient,
-  syncServer,
   synced,
   type Sync,
 } from "../src/index.ts";
@@ -138,14 +138,9 @@ test("an unsubscribed listener hears nothing more", () => {
   });
 });
 
-/** The server's counter: a fresh cell per test so versions never leak. */
+/** The source's counter: a fresh cell per test so versions never leak. */
 function freshCounter() {
   return data({ label: "counter", initial: 0, meta: [synced({ key: "counter" })] });
-}
-
-/** A fresh numbered cell family, one per test (members memoize module-wide). */
-function freshTodos(tag: string) {
-  return family({ label: tag, initial: "" });
 }
 
 /** Every message arriving on a transport, plus a promise for the Nth one:
@@ -191,510 +186,163 @@ function parseWhole(raw: unknown): number {
   return raw;
 }
 
-test("connect sends one snapshot per published cell and member, version zero", () => {
+/** Read one line per frame: the first line parsing to a snapshot wins. */
+function untilSnapshot(text: string): Sync.Message | undefined {
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("data: ") === false) continue;
+    const message = JSON.parse(trimmed.slice("data: ".length));
+    if (typeof message === "object" && message !== null && message.type === "snapshot")
+      return message;
+  }
+  return undefined;
+}
+
+test("after connect the registered counter reads the source value", () => {
   const counter = freshCounter();
-  const todos = freshTodos("todo-init");
-  todos("7");
-  const scope = createScope({ tags: [sync(counter), sync(todos)] });
-  const server = syncServer(scope);
-  const [left, right] = memoryPair();
-  const box = inbox(right);
-  const done = server.connect(left);
-  const value = scope.resolve(counter);
-  const memberValue = scope.resolve(todos("7"));
-  return box.when(2).then(() => {
-    expect(box.seen).toEqual([
-      { type: "snapshot", key: "todo-init/7", version: 0, value: memberValue },
-      { type: "snapshot", key: "counter", version: 0, value },
-    ]);
-    left.close();
-    return done.then(() => scope.close({ graceful: true }));
+  const origin = createScope({ tags: [sync(counter)] });
+  origin.controller(counter).set(5);
+  const guest = createScope({ tags: [sync(counter)] });
+  const [near, far] = memoryPair();
+  const done = source(origin).connect(near);
+  const watching = reached(
+    (listener: (next: number) => void) => guest.controller(counter).watch(listener),
+    5,
+  );
+  const sub = subscribe(guest, far);
+  return watching.then(() => {
+    expect(guest.resolve(counter)).toBe(5);
+    sub.close();
+    near.close();
+    return done.then(() =>
+      Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]),
+    );
   });
 });
 
-test("a set at the current version applies, acks, and fans out", () => {
+test("a source write fans out to two subscribed clients", () => {
   const counter = freshCounter();
-  const scope = createScope({ tags: [sync(counter)] });
-  const server = syncServer(scope);
-  const [first, firstFar] = memoryPair();
-  const [second, secondFar] = memoryPair();
-  const writer = inbox(firstFar);
-  const other = inbox(secondFar);
-  const firstDone = server.connect(first);
-  const secondDone = server.connect(second);
-  return writer
-    .when(1)
-    .then(() => {
-      firstFar.send({ type: "set", id: 1, key: "counter", base: 0, value: 1 });
-      return writer.when(3);
-    })
-    .then(() => {
-      expect(scope.resolve(counter)).toBe(1);
-      expect(writer.seen[1]).toEqual({
-        type: "snapshot",
-        key: "counter",
-        version: 1,
-        value: 1,
-      });
-      expect(writer.seen[2]).toEqual({ type: "ack", id: 1, key: "counter", version: 1 });
-      return other.when(2);
-    })
-    .then(() => {
-      expect(other.seen[1]).toEqual({
-        type: "snapshot",
-        key: "counter",
-        version: 1,
-        value: 1,
-      });
-      first.close();
-      second.close();
-      return Promise.all([firstDone, secondDone]).then(() => scope.close({ graceful: true }));
-    });
-});
-
-test("a stale set rejects with the truth and leaves the cell", () => {
-  const counter = freshCounter();
-  const scope = createScope({ tags: [sync(counter)] });
-  const server = syncServer(scope);
-  const [left, right] = memoryPair();
-  const box = inbox(right);
-  const done = server.connect(left);
-  return box
-    .when(1)
-    .then(() => {
-      scope.controller(counter).set(1);
-      return box.when(2);
-    })
-    .then(() => {
-      right.send({ type: "set", id: 2, key: "counter", base: 0, value: 41 });
-      return box.when(3);
-    })
-    .then(() => {
-      expect(box.seen[2]).toEqual({
-        type: "reject",
-        id: 2,
-        key: "counter",
-        version: 1,
-        value: 1,
-      });
-      expect(scope.resolve(counter)).toBe(1);
-      left.close();
-      return done.then(() => scope.close({ graceful: true }));
-    });
-});
-
-test("a set the parse refuses rejects with the truth and leaves the cell", () => {
-  const strict = data({
-    label: "strict",
-    initial: 0,
-    parse: parseWhole,
-    meta: [synced({ key: "strict" })],
+  const origin = createScope({ tags: [sync(counter)] });
+  const firstScope = createScope({ tags: [sync(counter)] });
+  const secondScope = createScope({ tags: [sync(counter)] });
+  const [near, far] = memoryPair();
+  const [otherNear, otherFar] = memoryPair();
+  const firstDone = source(origin).connect(near);
+  const secondDone = source(origin).connect(otherNear);
+  const firstSeen = inbox(near);
+  const secondSeen = inbox(otherNear);
+  const first = subscribe(firstScope, far);
+  const second = subscribe(secondScope, otherFar);
+  const registered = Promise.all([firstSeen.when(1), secondSeen.when(1)]);
+  const firstWatch = reached(
+    (listener: (next: number) => void) => firstScope.controller(counter).watch(listener),
+    5,
+  );
+  const secondWatch = reached(
+    (listener: (next: number) => void) => secondScope.controller(counter).watch(listener),
+    5,
+  );
+  const settled = registered.then(() => {
+    origin.controller(counter).set(5);
+    return Promise.all([firstWatch, secondWatch]);
   });
-  const scope = createScope({ tags: [sync(strict)] });
-  const server = syncServer(scope);
-  const [left, right] = memoryPair();
-  const box = inbox(right);
-  const done = server.connect(left);
-  return box
-    .when(1)
-    .then(() => {
-      right.send({ type: "set", id: 3, key: "strict", base: 0, value: 1.5 });
-      return box.when(2);
-    })
-    .then(() => {
-      expect(box.seen[1]).toEqual({
-        type: "reject",
-        id: 3,
-        key: "strict",
-        version: 0,
-        value: 0,
-      });
-      expect(scope.resolve(strict)).toBe(0);
-      left.close();
-      return done.then(() => scope.close({ graceful: true }));
-    });
-});
-
-test("a userland write on the server fans a fresh snapshot out to all", () => {
-  const counter = freshCounter();
-  const scope = createScope({ tags: [sync(counter)] });
-  const server = syncServer(scope);
-  const [first, firstFar] = memoryPair();
-  const [second, secondFar] = memoryPair();
-  const one = inbox(firstFar);
-  const two = inbox(secondFar);
-  const firstDone = server.connect(first);
-  const secondDone = server.connect(second);
-  return one
-    .when(1)
-    .then(() => two.when(1))
-    .then(() => {
-      scope.controller(counter).set(5);
-      return Promise.all([one.when(2), two.when(2)]);
-    })
-    .then(() => {
-      expect(one.seen[1]).toEqual({ type: "snapshot", key: "counter", version: 1, value: 5 });
-      expect(two.seen[1]).toEqual({ type: "snapshot", key: "counter", version: 1, value: 5 });
-      first.close();
-      second.close();
-      return Promise.all([firstDone, secondDone]).then(() => scope.close({ graceful: true }));
-    });
-});
-
-test("a set for a new family member creates it for late transports", () => {
-  const todos = freshTodos("todo-grow");
-  const scope = createScope({ tags: [sync(todos)] });
-  const server = syncServer(scope);
-  const [left, right] = memoryPair();
-  const box = inbox(right);
-  const done = server.connect(left);
-  return box
-    .when(0)
-    .then(() => {
-      right.send({ type: "set", id: 4, key: "todo-grow/9", base: 0, value: "nine" });
-      return box.when(2);
-    })
-    .then(() => {
-      expect(todos.members()).toContain("9");
-      expect(scope.resolve(todos("9"))).toBe("nine");
-      expect(box.seen[0]).toEqual({
-        type: "snapshot",
-        key: "todo-grow/9",
-        version: 1,
-        value: "nine",
-      });
-      expect(box.seen[1]).toEqual({ type: "ack", id: 4, key: "todo-grow/9", version: 1 });
-      left.close();
-      return done.then(() => {
-        const [late, lateFar] = memoryPair();
-        const lateBox = inbox(lateFar);
-        const lateDone = server.connect(late);
-        return lateBox.when(1).then(() => {
-          expect(lateBox.seen).toEqual([
-            { type: "snapshot", key: "todo-grow/9", version: 1, value: "nine" },
-          ]);
-          late.close();
-          return lateDone.then(() => scope.close({ graceful: true }));
-        });
-      });
-    });
-});
-
-test("two sets leave two spans, each with one sync set log line", () => {
-  const counter = freshCounter();
-  const noting = createScope({
-    tags: [sync(counter)],
-    observe: {
-      history: 10,
-      log: (entry) => void seen.push({ message: entry.message, attributes: entry.attributes }),
-    },
+  return settled.then(() => {
+    expect(firstScope.resolve(counter)).toBe(5);
+    expect(secondScope.resolve(counter)).toBe(5);
+    first.close();
+    second.close();
+    near.close();
+    otherNear.close();
+    return Promise.all([firstDone, secondDone]).then(() =>
+      Promise.all([
+        origin.close({ graceful: true }),
+        firstScope.close({ graceful: true }),
+        secondScope.close({ graceful: true }),
+      ]),
+    );
   });
-  const seen: { message: string; attributes: Record<string, unknown> }[] = [];
-  const server = syncServer(noting);
-  const [left, right] = memoryPair();
-  const heard = inbox(right);
-  const done = server.connect(left);
-  return heard
-    .when(1)
-    .then(() => {
-      right.send({ type: "set", id: 5, key: "counter", base: 0, value: 1 });
-      return heard.when(3);
-    })
-    .then(() => {
-      right.send({ type: "set", id: 6, key: "counter", base: 0, value: 2 });
-      return heard.when(4);
-    })
-    .then(() => {
-      const spans = noting.spans().filter((span) => span.name === "sync set counter");
-      expect(spans.length).toBe(2);
-      const lines = seen.filter((entry) => entry.message === "sync set");
-      expect(lines.length).toBe(2);
-      expect(lines[0].attributes["code"]).toBe("applied");
-      expect(lines[1].attributes["code"]).toBe("stale");
-      left.close();
-      return done.then(() => noting.close({ graceful: true }));
-    });
 });
 
-test("closing the client side ends the session and stops the fan-out", () => {
-  const counter = freshCounter();
-  const scope = createScope({ tags: [sync(counter)] });
-  const server = syncServer(scope);
-  const [left, right] = memoryPair();
-  const box = inbox(right);
-  const done = server.connect(left);
-  return box
-    .when(1)
-    .then(() => {
-      right.close();
-      return done;
-    })
-    .then(() => {
-      scope.controller(counter).set(9);
-      const waited = new Promise<Sync.Message[]>((resolve) => {
-        queueMicrotask(() => resolve(box.seen));
-      });
-      return waited;
-    })
-    .then((got) => {
-      expect(got.length).toBe(1);
-      return scope.close({ graceful: true });
-    });
+test("a client sees only what it registered", () => {
+  const originTodos = family({ label: "todo", initial: "" });
+  const guestTodos = family({ label: "todo", initial: "" });
+  const origin = createScope({ tags: [sync(originTodos)] });
+  const guest = createScope({ tags: [sync(guestTodos)] });
+  guestTodos("7");
+  const [near, far] = memoryPair();
+  const done = source(origin).connect(near);
+  const sub = subscribe(guest, far);
+  origin.controller(originTodos("7")).set("seven");
+  origin.controller(originTodos("9")).set("nine");
+  const watching = reached(
+    (listener: (next: string) => void) => guest.controller(guestTodos("7")).watch(listener),
+    "seven",
+  );
+  return watching.then(() => {
+    expect(guest.resolve(guestTodos("7"))).toBe("seven");
+    expect(guestTodos.members()).not.toContain("9");
+    sub.close();
+    near.close();
+    return done.then(() =>
+      Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]),
+    );
+  });
 });
 
-test("a set for an unpublished key closes the transport", () => {
+test("a late registration arrives with the initial value, then a later write", () => {
+  const originTodos = family({ label: "todo", initial: "" });
+  const guestTodos = family({ label: "todo", initial: "" });
+  const origin = createScope({ tags: [sync(originTodos)] });
+  const guest = createScope({ tags: [sync(guestTodos)] });
+  const [near, far] = memoryPair();
+  const done = source(origin).connect(near);
+  const sub = subscribe(guest, far);
+  const member = guestTodos("3");
+  origin.controller(originTodos("3")).set("later");
+  const watching = reached(
+    (listener: (next: string) => void) => guest.controller(member).watch(listener),
+    "later",
+  );
+  return watching.then(() => {
+    expect(guest.resolve(member)).toBe("later");
+    sub.close();
+    near.close();
+    return done.then(() =>
+      Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]),
+    );
+  });
+});
+
+test("a register for an unpublished key closes the transport", () => {
   const counter = freshCounter();
-  const scope = createScope({ tags: [sync(counter)] });
-  const server = syncServer(scope);
-  const [left, right] = memoryPair();
-  const done = server.connect(left);
+  const origin = createScope({ tags: [sync(counter)] });
+  const [near, far] = memoryPair();
+  const done = source(origin).connect(near);
   const parted = new Promise<void>((resolve) => {
-    right.onClose(() => resolve());
+    far.onClose(() => resolve());
   });
   return Promise.resolve()
     .then(() => {
-      right.send({ type: "set", id: 7, key: "nope", base: 0, value: 1 });
+      far.send({ type: "register", keys: ["nope"] });
       return parted;
     })
-    .then(() => done.then(() => scope.close({ graceful: true })));
+    .then(() => done.then(() => origin.close({ graceful: true })));
 });
 
-test("after connect the client cell reads the server value", () => {
+test("a snapshot sent to the source closes the transport", () => {
   const counter = freshCounter();
-  const serverScope = createScope({ tags: [sync(counter)] });
-  serverScope.controller(counter).set(5);
-  const clientScope = createScope({ tags: [sync(counter)] });
+  const origin = createScope({ tags: [sync(counter)] });
   const [near, far] = memoryPair();
-  const server = syncServer(serverScope);
-  const done = server.connect(near);
-  const client = syncClient(clientScope, far);
-  const watch = (listener: (next: number) => void): (() => void) =>
-    clientScope.controller(counter).watch(listener);
-  return reached(watch, 5).then(() => {
-    expect(clientScope.resolve(counter)).toBe(5);
-    client.close();
-    near.close();
-    return done.then(() =>
-      Promise.all([serverScope.close({ graceful: true }), clientScope.close({ graceful: true })]),
-    );
+  const done = source(origin).connect(near);
+  const parted = new Promise<void>((resolve) => {
+    far.onClose(() => resolve());
   });
-});
-
-test("a client write reaches the server and a second client", () => {
-  const counter = freshCounter();
-  const serverScope = createScope({ tags: [sync(counter)] });
-  const firstScope = createScope({ tags: [sync(counter)] });
-  const secondScope = createScope({ tags: [sync(counter)] });
-  const server = syncServer(serverScope);
-  const [near, far] = memoryPair();
-  const [otherNear, otherFar] = memoryPair();
-  const firstDone = server.connect(near);
-  const secondDone = server.connect(otherNear);
-  const first = syncClient(firstScope, far);
-  const second = syncClient(secondScope, otherFar);
-  const watch = (listener: (next: number) => void): (() => void) =>
-    secondScope.controller(counter).watch(listener);
-  firstScope.controller(counter).set(1);
-  return reached(watch, 1).then(() => {
-    expect(serverScope.resolve(counter)).toBe(1);
-    expect(secondScope.resolve(counter)).toBe(1);
-    first.close();
-    second.close();
-    near.close();
-    otherNear.close();
-    return Promise.all([firstDone, secondDone]).then(() =>
-      Promise.all([
-        serverScope.close({ graceful: true }),
-        firstScope.close({ graceful: true }),
-        secondScope.close({ graceful: true }),
-      ]),
-    );
-  });
-});
-
-test("a stale client write reverts to the first applied value", () => {
-  const counter = freshCounter();
-  const serverScope = createScope({ tags: [sync(counter)] });
-  const firstScope = createScope({ tags: [sync(counter)] });
-  const secondScope = createScope({ tags: [sync(counter)] });
-  const server = syncServer(serverScope);
-  const [near, far] = memoryPair();
-  const [otherNear, otherFar] = memoryPair();
-  const firstDone = server.connect(near);
-  const secondDone = server.connect(otherNear);
-  const first = syncClient(firstScope, far);
-  const second = syncClient(secondScope, otherFar);
-  const watch = (listener: (next: number) => void): (() => void) =>
-    secondScope.controller(counter).watch(listener);
-  firstScope.controller(counter).set(1);
-  secondScope.controller(counter).set(2);
-  return reached(watch, 1).then(() => {
-    expect(serverScope.resolve(counter)).toBe(1);
-    expect(firstScope.resolve(counter)).toBe(1);
-    expect(secondScope.resolve(counter)).toBe(1);
-    first.close();
-    second.close();
-    near.close();
-    otherNear.close();
-    return Promise.all([firstDone, secondDone]).then(() =>
-      Promise.all([
-        serverScope.close({ graceful: true }),
-        firstScope.close({ graceful: true }),
-        secondScope.close({ graceful: true }),
-      ]),
-    );
-  });
-});
-
-test("a revert is never re-sent: two spans, one applied, one stale", () => {
-  const counter = freshCounter();
-  const noting = createScope({
-    tags: [sync(counter)],
-    observe: {
-      history: 10,
-      log: (entry) => void seen.push({ message: entry.message, attributes: entry.attributes }),
-    },
-  });
-  const seen: { message: string; attributes: Record<string, unknown> }[] = [];
-  const firstScope = createScope({ tags: [sync(counter)] });
-  const secondScope = createScope({ tags: [sync(counter)] });
-  const server = syncServer(noting);
-  const [near, far] = memoryPair();
-  const [otherNear, otherFar] = memoryPair();
-  const firstDone = server.connect(near);
-  const secondDone = server.connect(otherNear);
-  const first = syncClient(firstScope, far);
-  const second = syncClient(secondScope, otherFar);
-  const watch = (listener: (next: number) => void): (() => void) =>
-    secondScope.controller(counter).watch(listener);
-  firstScope.controller(counter).set(1);
-  secondScope.controller(counter).set(2);
-  return reached(watch, 1).then(() => {
-    const spans = noting.spans().filter((span) => span.name === "sync set counter");
-    expect(spans.length).toBe(2);
-    const lines = seen.filter((entry) => entry.message === "sync set");
-    expect(lines.length).toBe(2);
-    expect(lines[0].attributes["code"]).toBe("applied");
-    expect(lines[1].attributes["code"]).toBe("stale");
-    first.close();
-    second.close();
-    near.close();
-    otherNear.close();
-    return Promise.all([firstDone, secondDone]).then(() =>
-      Promise.all([
-        noting.close({ graceful: true }),
-        firstScope.close({ graceful: true }),
-        secondScope.close({ graceful: true }),
-      ]),
-    );
-  });
-});
-
-test("an invalid client write throws to the writer and leaves the server", () => {
-  const strict = data({
-    label: "strict",
-    initial: 0,
-    parse: parseWhole,
-    meta: [synced({ key: "strict" })],
-  });
-  const serverScope = createScope({ tags: [sync(strict)] });
-  const clientScope = createScope({ tags: [sync(strict)] });
-  const [near, far] = memoryPair();
-  const server = syncServer(serverScope);
-  const done = server.connect(near);
-  const client = syncClient(clientScope, far);
-  const watch = (listener: (next: number) => void): (() => void) =>
-    clientScope.controller(strict).watch(listener);
-  try {
-    clientScope.controller(strict).set(1.5);
-    expect.unreachable();
-  } catch (error: unknown) {
-    if (!isCoreError(error, "DataValidationFailed")) throw error;
-  }
-  expect(serverScope.resolve(strict)).toBe(0);
-  clientScope.controller(strict).set(3);
-  return reached(watch, 3).then(() => {
-    expect(serverScope.resolve(strict)).toBe(3);
-    expect(clientScope.resolve(strict)).toBe(3);
-    client.close();
-    near.close();
-    return done.then(() =>
-      Promise.all([serverScope.close({ graceful: true }), clientScope.close({ graceful: true })]),
-    );
-  });
-});
-
-test("a member written on the server appears on the client", () => {
-  const todos = freshTodos("todo-down");
-  const serverScope = createScope({ tags: [sync(todos)] });
-  const clientScope = createScope({ tags: [sync(todos)] });
-  const [near, far] = memoryPair();
-  const server = syncServer(serverScope);
-  const done = server.connect(near);
-  const client = syncClient(clientScope, far);
-  serverScope.controller(todos("9")).set("nine");
-  const member = todos("9");
-  const watch = (listener: (next: string) => void): (() => void) =>
-    clientScope.controller(member).watch(listener);
-  return reached(watch, "nine").then(() => {
-    expect(clientScope.resolve(todos("9"))).toBe("nine");
-    client.close();
-    near.close();
-    return done.then(() =>
-      Promise.all([serverScope.close({ graceful: true }), clientScope.close({ graceful: true })]),
-    );
-  });
-});
-
-test("a member written on the client reaches the server cell", () => {
-  const todos = freshTodos("todo-up");
-  const serverScope = createScope({ tags: [sync(todos)] });
-  const clientScope = createScope({ tags: [sync(todos)] });
-  const [near, far] = memoryPair();
-  const server = syncServer(serverScope);
-  const done = server.connect(near);
-  const client = syncClient(clientScope, far);
-  const member = todos("3");
-  const watch = (listener: (next: string) => void): (() => void) =>
-    serverScope.controller(member).watch(listener);
-  clientScope.controller(todos("3")).set("three");
-  return reached(watch, "three").then(() => {
-    expect(serverScope.resolve(todos("3"))).toBe("three");
-    client.close();
-    near.close();
-    return done.then(() =>
-      Promise.all([serverScope.close({ graceful: true }), clientScope.close({ graceful: true })]),
-    );
-  });
-});
-
-test("close detaches: a later server write never reaches the client", () => {
-  const counter = freshCounter();
-  const serverScope = createScope({ tags: [sync(counter)] });
-  const clientScope = createScope({ tags: [sync(counter)] });
-  const [near, far] = memoryPair();
-  const server = syncServer(serverScope);
-  const done = server.connect(near);
-  const client = syncClient(clientScope, far);
-  const watch = (listener: (next: number) => void): (() => void) =>
-    clientScope.controller(counter).watch(listener);
-  serverScope.controller(counter).set(4);
-  return reached(watch, 4)
+  return Promise.resolve()
     .then(() => {
-      client.close();
-      serverScope.controller(counter).set(5);
-      const waited = new Promise<number>((resolve) => {
-        queueMicrotask(() => resolve(clientScope.resolve(counter)));
-      });
-      return waited;
+      far.send({ type: "snapshot", key: "counter", version: 0, value: 0 });
+      return parted;
     })
-    .then((got) => {
-      expect(got).toBe(4);
-      near.close();
-      return done.then(() =>
-        Promise.all([serverScope.close({ graceful: true }), clientScope.close({ graceful: true })]),
-      );
-    });
+    .then(() => done.then(() => origin.close({ graceful: true })));
 });
 
 test("a snapshot the client parse refuses closes the client transport", () => {
@@ -703,175 +351,132 @@ test("a snapshot the client parse refuses closes the client transport", () => {
     initial: 0,
     meta: [synced({ key: "clash" })],
   });
-  const clientCell = data({
+  const guestCell = data({
     label: "strict-value",
     initial: 0,
     parse: parseWhole,
     meta: [synced({ key: "clash" })],
   });
-  const serverScope = createScope({ tags: [sync(serverCell)] });
-  const clientScope = createScope({ tags: [sync(clientCell)] });
+  const origin = createScope({ tags: [sync(serverCell)] });
+  const guest = createScope({ tags: [sync(guestCell)] });
   const [near, far] = memoryPair();
-  const server = syncServer(serverScope);
-  const done = server.connect(near);
-  const client = syncClient(clientScope, far);
+  const done = source(origin).connect(near);
+  const sub = subscribe(guest, far);
   const parted = new Promise<void>((resolve) => {
     near.onClose(() => resolve());
   });
-  serverScope.controller(serverCell).set(1.5);
+  origin.controller(serverCell).set(1.5);
   return parted.then(() => {
-    expect(clientScope.resolve(clientCell)).toBe(0);
-    client.close();
+    expect(guest.resolve(guestCell)).toBe(0);
+    sub.close();
     return done.then(() =>
-      Promise.all([serverScope.close({ graceful: true }), clientScope.close({ graceful: true })]),
+      Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]),
     );
   });
 });
 
-test("an ack for an unknown key closes the transport", () => {
+test("close detaches: a later source write never reaches the client", () => {
   const counter = freshCounter();
-  const scope = createScope({ tags: [sync(counter)] });
-  const [left, right] = memoryPair();
-  const client = syncClient(scope, left);
-  const parted = new Promise<void>((resolve) => {
-    right.onClose(() => resolve());
-  });
-  return Promise.resolve()
+  const origin = createScope({ tags: [sync(counter)] });
+  const guest = createScope({ tags: [sync(counter)] });
+  const [near, far] = memoryPair();
+  const done = source(origin).connect(near);
+  const sub = subscribe(guest, far);
+  const watching = reached(
+    (listener: (next: number) => void) => guest.controller(counter).watch(listener),
+    4,
+  );
+  origin.controller(counter).set(4);
+  return watching
     .then(() => {
-      right.send({ type: "ack", id: 1, key: "nope", version: 3 });
-      return parted;
-    })
-    .then(() => {
-      client.close();
-      return scope.close({ graceful: true });
-    });
-});
-
-test("a reject for an unknown key closes the transport", () => {
-  const counter = freshCounter();
-  const scope = createScope({ tags: [sync(counter)] });
-  const [left, right] = memoryPair();
-  const client = syncClient(scope, left);
-  const parted = new Promise<void>((resolve) => {
-    right.onClose(() => resolve());
-  });
-  return Promise.resolve()
-    .then(() => {
-      right.send({ type: "reject", id: 2, key: "nope", version: 0, value: 0 });
-      return parted;
-    })
-    .then(() => {
-      client.close();
-      return scope.close({ graceful: true });
-    });
-});
-
-test("a reject the client parse refuses closes the transport", () => {
-  const strict = data({
-    label: "strict-edge",
-    initial: 0,
-    parse: parseWhole,
-    meta: [synced({ key: "edge" })],
-  });
-  const scope = createScope({ tags: [sync(strict)] });
-  const [left, right] = memoryPair();
-  const client = syncClient(scope, left);
-  const parted = new Promise<void>((resolve) => {
-    right.onClose(() => resolve());
-  });
-  return Promise.resolve()
-    .then(() => {
-      right.send({ type: "reject", id: 3, key: "edge", version: 0, value: 1.5 });
-      return parted;
-    })
-    .then(() => {
-      expect(scope.resolve(strict)).toBe(0);
-      client.close();
-      return scope.close({ graceful: true });
-    });
-});
-
-test("a set arriving at the client closes the transport", () => {
-  const counter = freshCounter();
-  const scope = createScope({ tags: [sync(counter)] });
-  const [left, right] = memoryPair();
-  const client = syncClient(scope, left);
-  const parted = new Promise<void>((resolve) => {
-    right.onClose(() => resolve());
-  });
-  return Promise.resolve()
-    .then(() => {
-      right.send({ type: "set", id: 4, key: "counter", base: 0, value: 1 });
-      return parted;
-    })
-    .then(() => {
-      client.close();
-      return scope.close({ graceful: true });
-    });
-});
-
-test("a far-side close detaches: a later local write sends nothing", () => {
-  const counter = freshCounter();
-  const scope = createScope({ tags: [sync(counter)] });
-  const [left, right] = memoryPair();
-  const client = syncClient(scope, left);
-  const box = inbox(right);
-  const parted = new Promise<void>((resolve) => {
-    left.onClose(() => resolve());
-  });
-  return Promise.resolve()
-    .then(() => {
-      right.close();
-      return parted;
-    })
-    .then(() => {
-      scope.controller(counter).set(7);
-      const waited = new Promise<Sync.Message[]>((resolve) => {
-        queueMicrotask(() => resolve(box.seen));
+      sub.close();
+      origin.controller(counter).set(5);
+      const waited = new Promise<number>((resolve) => {
+        queueMicrotask(() => resolve(guest.resolve(counter)));
       });
       return waited;
     })
     .then((got) => {
-      expect(got).toEqual([]);
-      client.close();
-      return scope.close({ graceful: true });
+      expect(got).toBe(4);
+      near.close();
+      return done.then(() =>
+        Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]),
+      );
     });
 });
 
-test("an ack moves the version the next write carries", () => {
+test("a local write on a client cell stays local until the next snapshot", () => {
   const counter = freshCounter();
-  const scope = createScope({ tags: [sync(counter)] });
-  const [left, right] = memoryPair();
-  const client = syncClient(scope, left);
-  const box = inbox(right);
-  return Promise.resolve()
+  const origin = createScope({ tags: [sync(counter)] });
+  const guest = createScope({ tags: [sync(counter)] });
+  const [near, far] = memoryPair();
+  const done = source(origin).connect(near);
+  const sub = subscribe(guest, far);
+  const firstWatch = reached(
+    (listener: (next: number) => void) => guest.controller(counter).watch(listener),
+    1,
+  );
+  origin.controller(counter).set(1);
+  return firstWatch
     .then(() => {
-      right.send({ type: "ack", id: 9, key: "counter", version: 3 });
+      guest.controller(counter).set(42);
+      expect(origin.resolve(counter)).toBe(1);
+      const watching = reached(
+        (listener: (next: number) => void) => guest.controller(counter).watch(listener),
+        2,
+      );
+      origin.controller(counter).set(2);
+      return watching;
     })
     .then(() => {
-      scope.controller(counter).set(1);
-      return box.when(1);
-    })
-    .then(() => {
-      expect(box.seen).toEqual([{ type: "set", id: 1, key: "counter", base: 3, value: 1 }]);
-      client.close();
-      right.close();
-      return scope.close({ graceful: true });
+      expect(guest.resolve(counter)).toBe(2);
+      sub.close();
+      near.close();
+      return done.then(() =>
+        Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]),
+      );
     });
 });
 
-/** Read one line per frame: the first line parsing to the named kind wins. */
-function untilKind(text: string, kind: string): Sync.Message | undefined {
-  for (const line of text.split("\n")) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith("data: ") === false) continue;
-    const message = JSON.parse(trimmed.slice("data: ".length));
-    if (typeof message === "object" && message !== null && message.type === kind) return message;
-  }
-  return undefined;
-}
+test("two registers leave two sync register spans with their counts", () => {
+  const counter = freshCounter();
+  const seen: { message: string; attributes: Record<string, unknown> }[] = [];
+  const originTodos = family({ label: "todo-registers", initial: "" });
+  const noting = createScope({
+    tags: [sync(counter), sync(originTodos)],
+    observe: {
+      history: 10,
+      log: (entry) => void seen.push({ message: entry.message, attributes: entry.attributes }),
+    },
+  });
+  const guestTodos = family({ label: "todo-registers", initial: "" });
+  const guest = createScope({ tags: [sync(counter), sync(guestTodos)] });
+  const [near, far] = memoryPair();
+  const inboxNear = inbox(near);
+  const done = source(noting).connect(near);
+  const sub = subscribe(guest, far);
+  guestTodos("3");
+  return inboxNear.when(2).then(() => {
+    const tick = new Promise<void>((resolve) => {
+      queueMicrotask(() => resolve());
+    });
+    return tick.then(() => {
+      const spans = noting.spans().filter((span) => span.name === "sync register");
+      expect(spans.length).toBe(2);
+      const lines = seen.filter((entry) => entry.message === "sync register");
+      expect(lines.length).toBe(2);
+      expect(lines[0]?.attributes["count"]).toBe(1);
+      expect(lines[1]?.attributes["count"]).toBe(1);
+      sub.close();
+      near.close();
+      return done.then(() =>
+        Promise.all([noting.close({ graceful: true }), guest.close({ graceful: true })]),
+      );
+    });
+  });
+});
 
-test("the recipe streams the snapshot down and a post writes it up", async () => {
+test("the recipe registers by identity, then streams the snapshot down", async () => {
   const counter = freshCounter();
   const scope = createScope({ tags: [sync(counter)] });
   const app = recipe(scope);
@@ -884,32 +489,28 @@ test("the recipe streams the snapshot down and a post writes it up", async () =>
     reader: ReadableStreamDefaultReader<Uint8Array>,
     decoder: TextDecoder,
     text: string,
-    kind: string,
   ): Promise<string> {
     const next = await reader.read();
     if (next.done) return text;
     const grown = text + decoder.decode(next.value, { stream: true });
-    if (untilKind(grown, kind) === undefined) return readUntil(reader, decoder, grown, kind);
+    if (untilSnapshot(grown) === undefined) return readUntil(reader, decoder, grown);
     return grown;
   }
   const streamed = await app.request("/sync?client=a");
   const reader = readerOf(streamed);
-  const first = await readUntil(reader, new TextDecoder(), "", "snapshot");
-  expect(untilKind(first, "snapshot")).toEqual({
+  const answer = await app.request("/sync?client=a", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ type: "register", keys: ["counter"] }),
+  });
+  expect(answer.status).toBe(200);
+  const first = await readUntil(reader, new TextDecoder(), "");
+  expect(untilSnapshot(first)).toEqual({
     type: "snapshot",
     key: "counter",
     version: 0,
     value: 0,
   });
-  const answer = await app.request("/sync?client=a", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ type: "set", id: 1, key: "counter", base: 0, value: 1 }),
-  });
-  expect(answer.status).toBe(200);
-  const text = await readUntil(reader, new TextDecoder(), "", "ack");
-  expect(untilKind(text, "ack")).toEqual({ type: "ack", id: 1, key: "counter", version: 1 });
-  expect(scope.resolve(counter)).toBe(1);
   await scope.close();
 });
 

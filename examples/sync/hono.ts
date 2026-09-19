@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { createScope, data, type Scope } from "@tinker/core";
 import { stream, tinker } from "@tinker/hono";
-import { sync, syncServer, synced, type Sync } from "@tinker/sync";
+import { source, sync, synced, type Sync } from "@tinker/sync";
 
 /** The shared counter both ends publish. */
 const counter = data({ label: "counter", initial: 0, meta: [synced({ key: "counter" })] });
@@ -11,22 +11,14 @@ function frame(message: Sync.Message): string {
   return `data: ${JSON.stringify(message)}\n\n`;
 }
 
-/** The posted fields once each reads true. */
-function readFields(raw: Record<string, unknown>): Sync.Message | undefined {
-  const id = raw["id"];
-  const key = raw["key"];
-  const base = raw["base"];
-  if (typeof id !== "number") return undefined;
-  if (typeof key !== "string") return undefined;
-  if (typeof base !== "number") return undefined;
-  return { type: "set", id, key, base, value: raw["value"] };
-}
-
-/** One client write from a POST body. Anything else is refused at the door. */
+/** A posted register: the keys the viewer shows. Anything else is refused. */
 function readPosted(raw: unknown): Sync.Message | undefined {
   if (typeof raw !== "object" || raw === null) return undefined;
-  if (!("type" in raw) || raw.type !== "set") return undefined;
-  return readFields(raw);
+  if (!("type" in raw) || raw.type !== "register") return undefined;
+  if (!("keys" in raw) || Array.isArray(raw.keys) === false) return undefined;
+  const keys = raw.keys.filter((key): key is string => typeof key === "string");
+  if (keys.length !== raw.keys.length) return undefined;
+  return { type: "register", keys };
 }
 
 /** One live wire per browser tab, keyed by the `client` query value. */
@@ -34,9 +26,10 @@ function wires(): Map<string, (message: Sync.Message) => void> {
   return new Map<string, (message: Sync.Message) => void>();
 }
 
-/** The recipe: one Hono app sharing one scope, the stream down, posts up. */
+/** The recipe: one Hono app sharing one scope, the stream down, the
+ * registration up. One way: nothing is pushed unasked. */
 export function recipe(scope: Scope.Handle): Hono {
-  const server = syncServer(scope);
+  const origin = source(scope);
   const posts = wires();
   const app = new Hono();
   app.use(tinker(scope));
@@ -73,7 +66,7 @@ export function recipe(scope: Scope.Handle): Hono {
         for (const arrival of arrivals) arrival(message);
       });
       ctx.signal.addEventListener("abort", () => transport.close(), { once: true });
-      return server.connect(transport).then(() => {
+      return origin.connect(transport).then(() => {
         posts.delete(id);
       });
     });
@@ -90,7 +83,7 @@ export function recipe(scope: Scope.Handle): Hono {
   return app;
 }
 
-/** The server half in one call: a scope holding the counter plus the app. */
+/** The source half in one call: a scope holding the counter plus the app. */
 export function boot(): { scope: Scope.Handle; app: Hono } {
   const scope = createScope({ tags: [sync(counter)] });
   return { scope, app: recipe(scope) };
