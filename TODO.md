@@ -23,13 +23,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-| Card                                          | Next                                                                                                             | Verify                                                                               |
-| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| tracker/t01 — Create an issue and see it live | Delegate the [first slice](docs/roadmap/issue-tracker-v1/issues/01-create-and-see-live.md) in a private worktree | Saved issue reaches two tabs; persistence, behavior tests, checks, and Core feedback |
+_None._
 
 ## Doing
 
-_None._
+| Card                                          | Owner                                         | Next                                                                                                                   | Verify                                                                               |
+| --------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| tracker/t01 — Create an issue and see it live | Paseo writer e00bd12d; authoring lead reviews | Build the [first slice](docs/roadmap/issue-tracker-v1/issues/01-create-and-see-live.md) in the private writer worktree | Saved issue reaches two tabs; persistence, behavior tests, checks, and Core feedback |
 
 ## Review
 

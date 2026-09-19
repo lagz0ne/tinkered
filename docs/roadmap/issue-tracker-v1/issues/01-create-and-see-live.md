@@ -6,7 +6,7 @@ restarting the app keep the issue. Start with Open status. The app is a public-l
 
 **Blocked by:** None.
 
-**Status:** Ready.
+**Status:** Doing — writer e00bd12d-94f9-49c9-af99-b61c5970e92f.
 
 - [ ] One documented command starts the app and serves its frontend and API.
 - [ ] Real core operations, Drizzle/PGlite persistence, Hono endpoints, HTTP client, sync source/

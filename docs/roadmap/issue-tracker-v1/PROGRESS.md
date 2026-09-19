@@ -5,7 +5,7 @@ and testing of the existing libraries. [Plan](PLAN.md). No application code has 
 
 | Ticket      | Delivers                                                            | Blocked by | State   |
 | ----------- | ------------------------------------------------------------------- | ---------- | ------- |
-| tracker/t01 | [Create an issue and see it live](issues/01-create-and-see-live.md) | —          | Ready   |
+| tracker/t01 | [Create an issue and see it live](issues/01-create-and-see-live.md) | —          | Doing   |
 | tracker/t02 | [Edit, assign, and discuss issues](issues/02-edit-and-discuss.md)   | t01        | Waiting |
 | tracker/t03 | [Use the same actions from CLI and MCP](issues/03-cli-and-tools.md) | t02        | Waiting |
 | tracker/t04 | [Draft a summary with the harness](issues/04-triage-draft.md)       | t03        | Waiting |
@@ -14,6 +14,14 @@ and testing of the existing libraries. [Plan](PLAN.md). No application code has 
 Lead uses `/home/paseo/next/tinkered-sync-land` on `lead/sync-land`. Writers get private Git
 worktrees but stay in Paseo workspace `wks_85042cce8c480929`. One writer per ticket; no writer
 pushes or runs mutation. The lead reviews the actual diff and browser result, then lands and pushes.
+
+## Active writer
+
+`tracker/t01`: Paseo agent `e00bd12d-94f9-49c9-af99-b61c5970e92f`, provider
+`pi/vercel-gateway/meta/muse-spark-1.3-contributor`, thinking max. Current workspace only:
+`wks_85042cce8c480929`. Explicit shell cwd `/home/paseo/next/tinkered-issue-t01`, branch
+`tracker/t01-live-create`, cut from plan commit `a15b49b`. Brief `/tmp/issue-tracker-t01-brief.md`;
+report target `/tmp/issue-tracker-t01-report.md`. No application completion claim yet.
 
 ## Anchors
 
