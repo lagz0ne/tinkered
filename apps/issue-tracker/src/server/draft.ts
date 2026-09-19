@@ -1,6 +1,6 @@
 import { operation, type Scope } from "@tinker/core";
-import { claudeCode, harness, type ClaudeCode, type Harness } from "@tinker/harness";
-import { fail } from "../errors.ts";
+import { claudeCode, harness, type ClaudeCode } from "@tinker/harness";
+import { fail, isError } from "../errors.ts";
 import { parseDraftInput, type Draft } from "../shared/draft.ts";
 import { getRemote, listRemote } from "../tools/issues.ts";
 
@@ -47,63 +47,87 @@ export const draftTurn = triage.turn({
 });
 
 export declare namespace RunDraft {
-  /** What the run hands its caller: the final outcome plus the live text. */
+  /** What the run hands its caller, after the session closes. */
   export type Done = {
-    readonly status: Draft.Status;
+    readonly status: Draft.Outcome;
     readonly draft: string;
   };
 }
 
+/** Read a scope close result as one terminal draft outcome: any failure,
+ * cancellation, or teardown error means the run did not finish. Root
+ * shutdown can cancel the child even when the caller's signal is live. */
+function readClosed(end: Scope.Result): Draft.Outcome {
+  if (end.status !== "success") return end.status === "cancelled" ? "cancelled" : "failed";
+  if (end.teardownErrors !== undefined && end.teardownErrors.length > 0) return "failed";
+  return "done";
+}
+
 /** Run one draft turn in its own child session of the owning scope. The
  * caller borrows the owner, watches `notify` for transient text/status, and
- * aborts `signal` to cancel: the runner closes that session first, joins
- * the turn, removes its watchers, then reports the terminal outcome through
- * the returned `Done` — never by writing into the sealed session. Reads
- * only; it holds no DB transaction and saves nothing. */
+ * aborts `signal` to cancel. An already-aborted signal runs nothing and
+ * reports cancelled. Otherwise the runner starts a forced close on abort,
+ * joins the turn and that same close, removes its watchers, inspects the
+ * close result (failure, cancellation, teardown errors), and only then
+ * emits and returns the terminal outcome — never by writing into the
+ * sealed session. Reads only; it holds no DB transaction and saves nothing. */
 export async function runDraft(
   owner: Scope.Handle,
   input: { readonly id: string; readonly prompt: string },
   notify: (event: Draft.Event) => void,
   signal: AbortSignal,
 ): Promise<RunDraft.Done> {
+  if (signal.aborted) return { status: "cancelled", draft: "" };
   const session = owner.createSession({ tags: [draftGuardrails] });
-  const seen = { text: "", status: "" as Harness.Status };
+  let live = "";
   const unText = session.controller(triage.text).watch((next) => {
-    if (next.length > seen.text.length) notify({ kind: "text", text: next.slice(seen.text.length) });
-    seen.text = next;
+    if (next.length > live.length) notify({ kind: "text", text: next.slice(live.length) });
+    live = next;
   });
   const unStatus = session.controller(triage.status).watch((next) => {
-    seen.status = next;
     if (next === "running" || next === "done" || next === "failed") {
       notify({ kind: "status", status: next });
     }
   });
+  let closing: Promise<Scope.Result> | undefined;
   const onAbort = (): void => {
-    ignoreResult(session.close());
+    closing ??= session.close();
   };
   signal.addEventListener("abort", onAbort, { once: true });
+  const outcome = await settleRun(session, input, signal);
+  unText();
+  unStatus();
+  const closed = readClosed(await (closing ?? session.close({ graceful: true })));
+  signal.removeEventListener("abort", onAbort);
+  const status = readOutcome(outcome, closed);
+  if (status === "done") notify({ kind: "done", draft: outcome.draft });
+  return { status, draft: outcome.draft };
+}
+
+/** Join one turn: its draft text on success, empty text otherwise. A
+ * DraftFailed from the turn body is a model failure, not a throwaway. */
+async function settleRun(
+  session: Scope.Handle,
+  input: { readonly id: string; readonly prompt: string },
+  signal: AbortSignal,
+): Promise<{ readonly finished: boolean; readonly draft: string }> {
   try {
     const draft = await session.run(draftTurn, { input });
-    notify({ kind: "done", draft });
-    return { status: "done", draft };
+    return { finished: true, draft };
   } catch (error: unknown) {
-    if (signal.aborted) return { status: "cancelled", draft: seen.text };
-    return { status: "failed", draft: seen.text };
-  } finally {
-    signal.removeEventListener("abort", onAbort);
-    unText();
-    unStatus();
-    await readClosed(session);
+    if (signal.aborted) return { finished: false, draft: "" };
+    if (isError(error, "DraftFailed")) return { finished: false, draft: "" };
+    throw error;
   }
 }
 
-function ignoreResult(promise: Promise<unknown>): void {
-  promise.then(settledResult, settledResult);
-}
-
-function settledResult(): void {}
-
-async function readClosed(session: Scope.Handle): Promise<void> {
-  const end = await session.close({ graceful: true });
-  if (end.status === "failed") throw end.error;
+/** Combine the turn join with the close inspection: a close failure,
+ * cancellation, or teardown error overrides an advertised success. */
+function readOutcome(
+  outcome: { readonly finished: boolean; readonly draft: string },
+  closed: Draft.Outcome,
+): Draft.Outcome {
+  if (closed !== "done") return closed;
+  if (outcome.finished) return "done";
+  return "failed";
 }

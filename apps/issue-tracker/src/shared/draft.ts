@@ -1,6 +1,8 @@
 export declare namespace Draft {
   /** Where a draft sits: quiet, mid-run, ready to post, or stopped. */
   export type Status = "idle" | "running" | "done" | "cancelled" | "failed";
+  /** The run's terminal outcome, reported after the session closes. */
+  export type Outcome = "done" | "cancelled" | "failed";
   /** One streamed event a draft view shows: text the model wrote, a status
    * line, or the finished draft. */
   export type Event =
