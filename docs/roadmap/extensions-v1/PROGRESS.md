@@ -84,7 +84,11 @@ The lead reviews every ticket (diff vs ADR rows, convention, one promise per tes
 refs, `node scripts/jev/impact.mjs <tag>`, the probe table re-measured), cherry-picks, runs the
 mutation lane alone, tags. Reports end with **Core feedback**.
 
-### sync/t07 follow-up (next)
+### sync/t07 follow-up (in progress)
+
+Writer `403f44d0-a8c7-4803-bda0-81638905400f` runs in Paseo workspace `wks_85042cce8c480929`,
+with files isolated in `/home/paseo/next/tinkered-sync-t07`. Next: lead review, gates, isolated mutation,
+then tag and push.
 
 The t06 log (`/tmp/sync-t06-mutate.log`) ran all 21 tests, including forced close, far-side close,
 and zero keys. The earlier TODO attributed the 40 uncovered mutants to those paths in error.

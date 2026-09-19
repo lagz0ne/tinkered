@@ -204,7 +204,8 @@ tickets, then contributors with lead review:
          cold +17 ns, session +16 ns — one extra field on every `Layer` (`exts`) and on every handle (`ready`); t33 moves
          `exts` into a WeakMap keyed by root layer and extracts only the resolve dispatch (handleFor sits at the
          complexity ceiling, 13th warning)._
-   - [ ] **sync/t07 — restore seam coverage after t06 (mutation 62.34).** _Next: delegate `/tmp/sync-t07-brief.md` in this Paseo workspace. Lead inspection corrected
+   - [ ] **sync/t07 — restore seam coverage after t06 (mutation 62.34).** _In progress: writer `403f44d0-a8c7-4803-bda0-81638905400f` in this Paseo workspace,
+         private worktree `/home/paseo/next/tinkered-sync-t07`. Next: lead review, full gate, then isolated mutation. Lead inspection corrected
          the earlier diagnosis: forced close, far-side close, and zero keys already have tests and ran under Stryker.
          Missing coverage is mainly invalid snapshots, protocol cleanup, key conflicts, and source family creation;
          strengthen the whole-initial-set test too. Brief: `/tmp/sync-t07-brief.md`._ Verify: named public promises
