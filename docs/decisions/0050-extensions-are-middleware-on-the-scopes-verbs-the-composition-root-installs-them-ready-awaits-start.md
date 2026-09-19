@@ -88,3 +88,16 @@ createScope({ tags: [sync(counter), sync(todo)], extensions: [subscribe(transpor
 - **Before-only hooks** — not a middleware; the onion is what lets an extension refuse or wrap.
 - **All five hooks in one ticket** — one blended perf number for five hot-path changes.
 - **`ready` rejects but the scope stays open** — a half-started scope serving requests.
+
+## Implementation amendment 2026-09-19 — all verbs wired (core/t35)
+
+The root handle now wraps `resolve`, `run`, and `controller(cell).set/update`. Sessions retain
+the plain calls, and a write through a cell controller in an operation dependency bypasses the
+write hook in v1. An unhooked verb keeps its plain function. Wrapped cell controllers retain
+their identity per cell. All five hooks are wired; the temporary `NotSupported` error is removed.
+
+The shipped type extends the initial sketch: `Extension<T>.start` returns `T | PromiseLike<T>`,
+which supplies `resolve(ext)` after readiness. A `run` hook also accepts an inline operation
+config and an optional invocation, just as `scope.run` does. Store each extension once, then
+install and resolve that same object (`const sub = subscribe(transport)`); calling the builder
+again creates a different identity.

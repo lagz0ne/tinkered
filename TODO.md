@@ -204,7 +204,7 @@ tickets, then contributors with lead review:
          cold +17 ns, session +16 ns — one extra field on every `Layer` (`exts`) and on every handle (`ready`); t33 moves
          `exts` into a WeakMap keyed by root layer and extracts only the resolve dispatch (handleFor sits at the
          complexity ceiling, 13th warning)._
-   - [ ] **sync/t07 — restore seam coverage after t06 (mutation 62.34).** _Pending core/t35. Lead inspection corrected
+   - [ ] **sync/t07 — restore seam coverage after t06 (mutation 62.34).** _Next: delegate `/tmp/sync-t07-brief.md` in this Paseo workspace. Lead inspection corrected
          the earlier diagnosis: forced close, far-side close, and zero keys already have tests and ran under Stryker.
          Missing coverage is mainly invalid snapshots, protocol cleanup, key conflicts, and source family creation;
          strengthen the whole-initial-set test too. Brief: `/tmp/sync-t07-brief.md`._ Verify: named public promises
@@ -223,7 +223,13 @@ tickets, then contributors with lead review:
          keep the plain dispatch — the v1 limit); `handleFor` untouched; only `write` still throws `NotSupported`. 8 seam tests
          (core 253), size 22635 B, 37 lanes green, mutation 78.72, impact chain neither. Lead A/B (pinned, min of
          3, t33 → t34): op 101.1 → 100.9, run 112.4 → 112.3, opres 328.5 → 328.7, create 168.5 → 168.9 — flat._
-   - [ ] **core/t35 — the `write` chain.** _In progress: writer implementation, then lead review and pinned A/B._ Verify: cell-write probe flat when unhooked; a refusing write leaves the cell.
+   - [x] **core/t35 — the `write` chain.** _Done: tag `core/t35` (d9f333f), writer-built with one lead fix round:
+         root `controller(cell).set/update` runs the ordered write hooks; skipping `next` refuses the write. Controllers
+         are cached per cell; closed scopes still reject cached controller access (failing→passing regression proof).
+         Sessions and operation dependency writes retain the documented v1 bypass. `rejectUnwired` and `NotSupported`
+         retired; plain `handleFor`/`dataController` unchanged. Core 260 tests, size 22851 B, 37 lanes green, mutation
+         78.56, impact neither. Lead CPU7 min-of-3 A/B: write 27.1→27.1 ns, create 168.5→168.7, op 100.9→101.7;
+         opres varied between rounds with no consistent slowdown (both rounds recorded in PROGRESS). Core feedback recorded._
    - [x] **sync/t06 — `source()` and `subscribe(transport)` as extensions.** _Done: tag `sync/t06` (6409128), writer-built
          with one fix round (error construction back in the registry: `fail(kind, payload)`, `raise` throws it; no cast
          in src). `createScope({ tags, extensions: [src] })` / `[sub]`; `await scope.ready` = the viewer holds its initial

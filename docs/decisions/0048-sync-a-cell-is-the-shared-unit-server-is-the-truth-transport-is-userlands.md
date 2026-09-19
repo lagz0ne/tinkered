@@ -100,3 +100,13 @@ matching is by **family and identity** (the key `label/id`). Writes from the cli
 - A userland write on a client cell stays local in v1 (the next snapshot overwrites it); the README says so.
 - Unregister waits for `scope.onMount` (a member is memoized for the process's life); the core-feedback
   candidate stands with one asker.
+
+## Implementation amendment 2026-09-19 — installed extensions (sync/t06)
+
+ADR 0050 supplies the driver hand-off: create `src = source()` or `sub = subscribe(transport)`,
+install that identity in `createScope({ tags, extensions: [src] })` (or `[sub]`), and await
+`scope.ready`. Read `scope.resolve(src).connect` or `scope.resolve(sub).close` using the same
+extension identity. This supersedes the explicit scope arguments in the amendment above.
+The subscriber is ready only after every initially registered key has a snapshot; no keys means
+it is ready immediately. A close or protocol violation during that wait rejects readiness with
+`SyncNotReady { label, missing }` and the scope closes failed.
