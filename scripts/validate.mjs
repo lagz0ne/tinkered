@@ -93,7 +93,7 @@ const lanes = [
   ["sync size (<= 10 kB gzip)", `${VP} run --no-cache sync#size`],
   [
     "sync cast-free examples (0 casts)",
-    `bash -c 'test $(grep -rcE "\\bas [A-Za-z{(]|\\bas unknown|[a-zA-Z0-9_)\\]]!" packages/sync/examples | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
+    `bash -c 'test $(grep -rcE "\\bas [A-Za-z{(]|\\bas unknown|[a-zA-Z0-9_)\\]]!" examples/sync | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
   ],
   [
     "sync pure bundle (runtime import: @tinker/core only)",
