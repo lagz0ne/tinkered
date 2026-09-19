@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { operation } from "@tinker/core";
 import { handle, stream, tinker, type HonoScope } from "@tinker/hono";
 import type { Sync } from "@tinker/sync";
@@ -40,7 +40,6 @@ function onError(error: unknown, c: Parameters<HonoScope.OnError>[1]) {
   if (isError(error, "BadCommentInput")) return c.text(error.payload.reason, 400);
   if (isError(error, "BadDraftInput")) return c.text(error.payload.reason, 400);
   if (isError(error, "DraftFailed")) return c.text(error.payload.reason, 502);
-  if (isError(error, "IssueNotFound")) return c.text("issue not found", 404);
   return undefined;
 }
 
@@ -233,39 +232,49 @@ export function buildApp(booted: Booted.Composed): Hono {
   return app;
 }
 
-type DraftContext = Parameters<Parameters<Hono["get"]>[1]>[0];
+type DraftContext = Context;
 
 function draftFrame(event: { readonly kind: string; readonly [key: string]: unknown }): string {
   return `data: ${JSON.stringify(event)}\n\n`;
 }
 
-function draftStream(booted: Booted.Composed, c: DraftContext, id: string) {
+function draftStream(booted: Booted.Composed, c: DraftContext, id: string): Response | Promise<Response> {
   if (booted.draft.enabled === false) return c.text("draft helper is off", 404);
+  return draftOpened(booted, c, id);
+}
+
+async function draftOpened(booted: Booted.Composed, c: DraftContext, id: string): Promise<Response> {
+  let raw: unknown;
+  try {
+    raw = await c.req.json();
+  } catch {
+    raw = undefined;
+  }
+  const input = parseDraftInput(typeof raw === "object" && raw !== null ? { ...raw, id } : { id });
+  try {
+    await booted.detail(input.id);
+  } catch (error: unknown) {
+    if (isError(error, "IssueNotFound")) return c.text("that issue is gone", 404);
+    throw error;
+  }
+  if (c.req.raw.signal.aborted) return new Response("cancelled", { status: 499 });
+  c.header("Content-Type", "text/event-stream");
+  c.header("Cache-Control", "no-cache");
+  c.header("Connection", "keep-alive");
   return stream(c, async (emit, ctx) => {
-    let raw: unknown;
-    try {
-      raw = await c.req.json();
-    } catch {
-      raw = undefined;
-    }
-    const validated = parseDraftInput(
-      typeof raw === "object" && raw !== null ? { ...raw, id } : { id },
-    );
-    try {
-      await booted.detail(input.id);
-    } catch (error: unknown) {
-      if (isError(error, "IssueNotFound")) {
-        await emit(draftFrame({ kind: "failed", reason: "that issue is gone" }));
-        return;
-      }
-      throw error;
-    }
-    const input = validated;
     const queue: string[] = [];
     const waiter = readWaiter();
     const aborter = new AbortController();
+    const onAbort = (): void => {
+      aborter.abort(ctx.signal.reason);
+    };
     if (ctx.signal.aborted) aborter.abort(ctx.signal.reason);
-    else ctx.signal.addEventListener("abort", () => aborter.abort(ctx.signal.reason), { once: true });
+    else ctx.signal.addEventListener("abort", onAbort);
+    const rawAbort = (): void => {
+      aborter.abort(c.req.raw.signal.reason);
+    };
+    if (c.req.raw.signal.aborted) aborter.abort(c.req.raw.signal.reason);
+    else c.req.raw.signal.addEventListener("abort", rawAbort);
     const finished = readRunState(booted, input, queue, waiter, aborter);
     const pump = (async (): Promise<void> => {
       for (;;) {
@@ -287,6 +296,8 @@ function draftStream(booted: Booted.Composed, c: DraftContext, id: string) {
     try {
       done = await finished.value;
     } finally {
+      ctx.signal.removeEventListener("abort", onAbort);
+      c.req.raw.signal.removeEventListener("abort", rawAbort);
       waiter.wake();
       await pump;
     }

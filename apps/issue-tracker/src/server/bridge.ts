@@ -27,7 +27,6 @@ export declare namespace Booted {
     readonly save: Save;
     readonly detail: (id: string) => Promise<Issues.Detail>;
     readonly draft: Draft;
-    readonly presets: readonly Scope.Preset[];
   };
 }
 
@@ -83,7 +82,7 @@ export async function bootScope(
   await publishList(scope);
   await scope.ready;
   const serial = createSerial(scope);
-  return { scope, src, save: serial.save, detail: serial.detail, draft, presets };
+  return { scope, src, save: serial.save, detail: serial.detail, draft };
 }
 
 function draftBase(draft: Booted.Draft): Tag.Binding<HttpClient.Config> {

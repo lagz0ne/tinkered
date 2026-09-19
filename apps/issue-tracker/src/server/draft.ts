@@ -102,7 +102,7 @@ export async function runDraft(
   return { status, draft: outcome.draft };
 }
 
-function settleRun(
+async function settleRun(
   session: Scope.Handle,
   input: { readonly id: string; readonly prompt: string },
   signal: AbortSignal,
