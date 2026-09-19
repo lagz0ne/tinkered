@@ -2,6 +2,7 @@ import { Info, Loader2, Play } from "lucide-react";
 import { useState } from "react";
 import type { ReactElement } from "react";
 import { Button } from "@/components/ui/button.tsx";
+import { isError } from "@/errors.ts";
 import { cn } from "@/lib/utils.ts";
 import {
   buildLibs,
@@ -42,7 +43,7 @@ const isTinker = (r: LibResult) => r.name.includes("tinker");
 /** One timing cell: label, median ± IQR, a badge relative to the column's fastest, and a bar. */
 function Metric({ label, stat, best }: { label: string; stat: Stat; best: Stat }): ReactElement {
   const isFastest = !faster(best, stat);
-  const pct = Math.max(3, (stat.median / (best.median * 4)) * 100); // 4× the fastest fills the track
+  const pct = Math.max(3, (stat.median / (best.median * 4)) * 100);
   return (
     <div className="min-w-0">
       <div className="mb-1 flex items-baseline justify-between gap-2 text-[11px] text-muted-foreground">
@@ -205,9 +206,12 @@ const byMedian = (key: "update" | "mount" | "fanout") => (a: LibResult, b: LibRe
 
 function ResultsTable({ results }: { results: LibResult[] }): ReactElement {
   const sorted = [...results].sort(byMedian("update"));
-  const bestUpdate = sorted[0].metrics.update;
-  const bestMount = [...results].sort(byMedian("mount"))[0].metrics.mount;
-  const bestFanout = [...results].sort(byMedian("fanout"))[0].metrics.fanout;
+  const [fastest] = sorted;
+  const [quickestMount] = [...results].sort(byMedian("mount"));
+  const [quickestFanout] = [...results].sort(byMedian("fanout"));
+  const bestUpdate = fastest.metrics.update;
+  const bestMount = quickestMount.metrics.mount;
+  const bestFanout = quickestFanout.metrics.fanout;
   return (
     <>
       <Takeaway results={results} />
@@ -303,7 +307,8 @@ export function BenchPage(): ReactElement {
       setResults(samplers.map(finish));
       setProgress("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      if (!isError(err, "HarnessInvariant")) throw err;
+      setError(`${err.payload.library}: ${err.payload.reason}`);
     } finally {
       setRunning(false);
     }

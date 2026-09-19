@@ -2,6 +2,8 @@
 type Payloads = {
   CompileFailed: { message: string };
   InvalidInput: { operation: string; reason: string };
+  /** The benchmark harness caught a library — or the clock — breaking a measurement's premise. */
+  HarnessInvariant: { library: string; reason: string };
 };
 
 export declare namespace Errors {

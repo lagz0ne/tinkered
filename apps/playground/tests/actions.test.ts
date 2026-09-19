@@ -52,7 +52,8 @@ test("editFile replaces one file's content and marks the session dirty", () => {
   scope.run(editFile, { input: { name: "state.ts", content: "export const x = 1;" } });
   const files = scope.resolve(filesCell);
   expect(files.find((f) => f.name === "state.ts")?.content).toBe("export const x = 1;");
-  expect(files.find((f) => f.name === "main.tsx")).toBe(DEFAULT_FILES[0]);
+  const [starter] = DEFAULT_FILES;
+  expect(files.find((f) => f.name === "main.tsx")).toBe(starter);
   expect(scope.resolve(dirtyCell)).toBe(true);
 });
 

@@ -33,7 +33,10 @@ function reachable(entry: string, files: readonly PlaygroundFile[]): PlaygroundF
       raise("CompileFailed", { message: `[plugin: virtual-fs] Cannot find file "${path}"` });
     if (out.includes(file)) return;
     out.push(file);
-    for (const m of file.content.matchAll(RELATIVE)) visit(find(m[1] ?? m[2]), m[1] ?? m[2]);
+    for (const [, from, bare] of file.content.matchAll(RELATIVE)) {
+      const path = from ?? bare;
+      visit(find(path), path);
+    }
   };
   visit(byName.get(entry), entry);
   return out;

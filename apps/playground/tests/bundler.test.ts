@@ -42,7 +42,8 @@ test("compiles the open files once on build and records the compile time", async
   const ready = await until(status, (s) => s.text === "running…");
   expect(ready).toEqual({ kind: "info", text: "running…", ms: 7 });
   expect(writes.length).toBe(1);
-  expect(writes[0]).toContain('import { App } from "./App";');
+  const [first] = writes;
+  expect(first).toContain('import { App } from "./App";');
 });
 
 test("recompiles after a file change", async () => {
