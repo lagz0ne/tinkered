@@ -1238,3 +1238,16 @@ confirmed `pi/meta-muse/muse-spark-1.3-contributor`, thinking `max`.
 The same existing Paseo workspace is used. Full brief:
 `/tmp/issue-tracker-t05-brief.md`. Lead owns review, gates, landing, and
 the verified temporary public preview. No preview exists yet.
+
+### t05 independent recovery baselines
+
+At accepted t04, `/tmp/tracker-t05-retry-lead.mjs` uses the actual app
+HTTP server plus Chromium and returns HTTP 503 at the transport boundary.
+The startup case exits 1 waiting for a visible Reconnect button; the
+capability case exits 1 waiting for a failure alert because the failed
+helper check currently appears as off. Logs:
+`/tmp/tracker-t05-startup-before.log` and
+`/tmp/tracker-t05-capability-before.log`. Both are already-scoped t05
+recovery promises. The same writer has the probes; final runs must use
+separate output paths. These baselines own and close their servers,
+browsers, and roots; no lead process remains running.
