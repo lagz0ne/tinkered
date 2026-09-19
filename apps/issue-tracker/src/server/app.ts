@@ -1,0 +1,182 @@
+import { Hono } from "hono";
+import { operation } from "@tinker/core";
+import { handle, stream, tinker } from "@tinker/hono";
+import type { Sync } from "@tinker/sync";
+import { issueList, parseCreateInput } from "../shared/issues.ts";
+import { createSaver, type Booted } from "./bridge.ts";
+
+/** One line per message down the event stream. */
+function frame(message: Sync.Message): string {
+  return `data: ${JSON.stringify(message)}\n\n`;
+}
+
+/** A posted register: the keys the viewer shows. Anything else is refused. */
+function readPosted(raw: unknown): Sync.Message | undefined {
+  if (typeof raw !== "object" || raw === null) return undefined;
+  if (!("type" in raw) || raw.type !== "register") return undefined;
+  if (!("keys" in raw) || Array.isArray(raw.keys) === false) return undefined;
+  const keys = raw.keys.filter((key): key is string => typeof key === "string");
+  if (keys.length !== raw.keys.length) return undefined;
+  return { type: "register", keys };
+}
+
+/** One live wire per browser tab, keyed by the `client` query value. */
+function wires(): Map<string, (message: Sync.Message) => void> {
+  return new Map<string, (message: Sync.Message) => void>();
+}
+
+/** Build the Hono app on the owning root scope. Route operations close over the
+ * root: saves run in their own short child session and publish only after the
+ * database commit resolves; reads answer the published root cell. */
+export function buildApp(booted: Booted): Hono {
+  const { scope, src } = booted;
+  const save = createSaver(scope);
+  const saveIssue = operation({
+    label: "saveIssue",
+    input: parseCreateInput,
+    run: (_deps, ctx) => save(ctx.input),
+  });
+  const readIssues = operation({
+    label: "readIssues",
+    run: () => scope.resolve(issueList),
+  });
+  const posts = wires();
+  const app = new Hono();
+  app.use(tinker(scope));
+  app.post("/api/issues", async (c) => {
+    let raw: unknown;
+    try {
+      raw = await c.req.json();
+    } catch {
+      raw = undefined;
+    }
+    return handle(saveIssue, {
+      input: () => raw,
+      respond: (issue, res) => res.json(issue, 201),
+    })(c);
+  });
+  app.get(
+    "/api/issues",
+    handle(readIssues, {
+      respond: (issues, c) => c.json(issues),
+    }),
+  );
+  app.get("/sync", (c) => {
+    const id = c.req.query("client") ?? "guest";
+    c.header("Content-Type", "text/event-stream");
+    c.header("Cache-Control", "no-cache");
+    c.header("Connection", "keep-alive");
+    return stream(c, (emit, ctx) => {
+      let open = true;
+      const arrivals = new Set<(message: Sync.Message) => void>();
+      const partings = new Set<() => void>();
+      const queue: Sync.Message[] = [];
+      const transport: Sync.Transport = {
+        send: (message) => {
+          if (open === false) return;
+          queue.push(message);
+        },
+        onMessage: (listener) => {
+          arrivals.add(listener);
+          return () => {
+            arrivals.delete(listener);
+          };
+        },
+        onClose: (listener) => {
+          partings.add(listener);
+          return () => {
+            partings.delete(listener);
+          };
+        },
+        close: () => {
+          if (open === false) return;
+          open = false;
+          queue.length = 0;
+          posts.delete(id);
+          for (const part of Array.from(partings)) part();
+        },
+      };
+      const fail = (): void => {
+        transport.close();
+      };
+      posts.set(id, (message) => {
+        for (const arrival of Array.from(arrivals)) arrival(message);
+      });
+      ctx.signal.addEventListener("abort", () => transport.close(), { once: true });
+      const flush = async (): Promise<void> => {
+        while (open && queue.length > 0) {
+          const next = queue.shift();
+          if (next === undefined) return;
+          try {
+            await emit(frame(next));
+          } catch {
+            fail();
+            return;
+          }
+        }
+      };
+      const pump = async (): Promise<void> => {
+        try {
+          await emit(": ready\n\n");
+        } catch {
+          fail();
+          return;
+        }
+        await scope.resolve(src).connect(owned(transport, flush, fail));
+      };
+      return pump().then(
+        () => {
+          posts.delete(id);
+          transport.close();
+        },
+        () => {
+          posts.delete(id);
+          transport.close();
+        },
+      );
+    });
+  });
+  app.post("/sync", async (c) => {
+    const id = c.req.query("client") ?? "guest";
+    const send = posts.get(id);
+    if (send === undefined) return c.text("gone", 410);
+    let raw: unknown;
+    try {
+      raw = await c.req.json();
+    } catch {
+      return c.text("bad", 400);
+    }
+    const message = readPosted(raw);
+    if (message === undefined) return c.text("bad", 400);
+    send(message);
+    return c.text("ok");
+  });
+  return app;
+}
+
+/** Own the async gap: flush each send in order; a failed flush closes loudly. */
+function owned(
+  transport: Sync.Transport,
+  flush: () => Promise<void>,
+  fail: () => void,
+): Sync.Transport {
+  let tail: Promise<void> = Promise.resolve();
+  let dead = false;
+  return {
+    send: (message) => {
+      if (dead) return;
+      transport.send(message);
+      tail = tail.then(flush, fail);
+    },
+    onMessage: (listener) => transport.onMessage(listener),
+    onClose: (listener) =>
+      transport.onClose(() => {
+        dead = true;
+        listener();
+      }),
+    close: () => {
+      dead = true;
+      transport.close();
+    },
+  };
+}

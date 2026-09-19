@@ -1,0 +1,39 @@
+{
+  "name": "@tinker-issue-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Issue tracker slice 1: create an issue, save it, see it live in two tabs.",
+  "type": "module",
+  "scripts": {
+    "build": "vp build",
+    "dev": "node --experimental-strip-types ./src/server/main.ts",
+    "preview": "node --experimental-strip-types ./src/server/main.ts",
+    "start": "node --experimental-strip-types ./src/server/main.ts",
+    "test": "vp test",
+    "test:browser": "node --experimental-strip-types ./tests/browser-proof.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "npm:^1.19.5",
+    "@tinker/core": "workspace:*",
+    "@tinker/drizzle": "workspace:*",
+    "@tinker/hono": "workspace:*",
+    "@tinker/http": "workspace:*",
+    "@tinker/react": "workspace:*",
+    "@tinker/sync": "workspace:*",
+    "drizzle-orm": "catalog:",
+    "hono": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "catalog:",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "npm:^4.3.4",
+    "playwright": "1.55.0",
+    "typescript": "^7.0.2",
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}
