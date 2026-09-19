@@ -192,7 +192,19 @@ tickets, then contributors with lead review:
          Hono recipe with POST as registration), size 3324 B, 37 lanes green, mutation 73.53. Impact chain:
          a false "source wrong" — the examples moved to `examples/sync/` (outside the package index); blocks list src
          and tests only from now on._
-6. **`@tinker/ai`** — the LLM layer over the AI SDK (the model is the swappable slot; generateText/streamText as
+6. **Extensions (core)** — **decided (ADR 0050)**, user 2026-09-19 (`1A middleware-style, 2A, 3A`; delivery `A`: start +
+   close first). Plan: `docs/roadmap/extensions-v1/PROGRESS.md`.
+   - [ ] **core/t32 — `Scope.Extension` + `extensions` option + `start`/`close` chains + `scope.ready` + `resolve(ext)`.**
+         Verify: seam tests — `ready` waits for an async start; a rejected start rejects `ready` and the scope is closed
+         `failed`; the start chain runs in registration order with full onion semantics; `close` middleware wraps the
+         structural close; `resolve(ext)` delivers the start value; a declared `resolve`/`run`/`write` hook throws
+         `NotSupported`; `createScope` without extensions unchanged on the probes (min of 3).
+   - [ ] **core/t33 — the `resolve` chain.** Verify: probes flat when unhooked; one hooked read test.
+   - [ ] **core/t34 — the `run` chain.** Verify: `op` probe flat when unhooked; a refusing middleware short-circuits.
+   - [ ] **core/t35 — the `write` chain.** Verify: cell-write probe flat when unhooked; a refusing write leaves the cell.
+   - [ ] **sync/t06 — `source()` and `subscribe(transport)` as extensions;** `subscribe`'s start resolves when the initial
+         registration's snapshots arrived; `scope.resolve(source).connect`; the Hono recipe and README follow.
+7. **`@tinker/ai`** — the LLM layer over the AI SDK (the model is the swappable slot; generateText/streamText as
    ops; tools as operations; `MockLanguageModelV4` as the test seam). Deferred until a driver asks.
 
 Perf follow-up when the sandbox `bench` is available: `op` parity (budgets.md "Call paths (t27)").

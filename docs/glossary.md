@@ -144,3 +144,12 @@
 | subscribe       | `subscribe(scope, transport)`: the client extension — registers by identity, writes each `snapshot` into the cell through its parse, `close()` detaches. One way in v1: a local write stays local until the next snapshot. |
 | transport       | `Sync.Transport = { send, onMessage, onClose, close }` — userland's wire (SSE+POST, WebSocket, postMessage); the package ships only `memoryPair()`, the test seam. |
 | version         | A per-key integer the source bumps on each change; rides on every snapshot. |
+
+## Extensions (core, ADR 0050)
+
+| term            | meaning |
+| --------------- | ------- |
+| extension       | `Scope.Extension`: middleware over the scope's verbs — any of `start`, `resolve`, `run`, `write`, `close`, each an onion layer `(…, next)`; installed by the composition root via `createScope({ extensions })`, root scope only in v1. `start` receives the scope handle (the second place a handle reaches userland, after `command.entry`). |
+| hook chain      | The per-verb onion built once at creation from the extensions that declare that hook; registration order, first is outermost; a verb with no middleware keeps its direct call (pays nothing). |
+| ready           | `scope.ready`: a promise settled when every `start` chain settled; a rejected start rejects it and force-closes the scope (`failed`). No extensions → already resolved. |
+| extension value | What a `start` chain returned, read with `scope.resolve(ext)` once ready (`NotResolved` before). `source()` → `{ connect }`, `subscribe(transport)` → `{ close }`. |
