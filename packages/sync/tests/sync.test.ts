@@ -1,4 +1,5 @@
 import { expect, test } from "vite-plus/test";
+import { setImmediate } from "node:timers/promises";
 import { createScope, data } from "@tinker/core";
 import {
   family,
@@ -286,52 +287,51 @@ test("a late member after ready gets its snapshot", () => {
   });
 });
 
-test("readiness spans the whole initial set", () => {
-  const originTodos = family({ label: "todo", initial: "", parse: parseText });
-  const guestTodos = family({ label: "todo", initial: "", parse: parseText });
-  originTodos("7");
-  guestTodos("7");
-  const src = source();
-  const origin = createScope({ tags: [sync(counter), sync(originTodos)], extensions: [src] });
-  origin.controller(counter).set(5);
-  origin.controller(originTodos("7")).set("seven");
-  return origin.ready.then(() => {
-    const [near, far] = memoryPair();
-    const done = origin.resolve(src).connect(near);
-    const sub = subscribe(far);
-    const guest = createScope({ tags: [sync(counter), sync(guestTodos)], extensions: [sub] });
-    return guest.ready.then(() => {
-      expect(guest.resolve(counter)).toBe(5);
-      expect(guest.resolve(guestTodos("7"))).toBe("seven");
-      guest.resolve(sub).close();
-      return done.then(() =>
-        Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]),
-      );
-    });
+test("readiness spans the whole initial set", async () => {
+  const stagedTodos = family({ label: "todo-t07-stage", initial: "", parse: parseText });
+  stagedTodos("7");
+  const [near, far] = memoryPair();
+  const sub = subscribe(far);
+  const guest = createScope({ tags: [sync(counter), sync(stagedTodos)], extensions: [sub] });
+  let finished = false;
+  const outcome = guest.ready.then(() => {
+    finished = true;
   });
+  near.send({ type: "snapshot", key: "counter", version: 0, value: 5 });
+  await setImmediate();
+  expect(finished).toBe(false);
+  near.send({ type: "snapshot", key: "todo-t07-stage/7", version: 0, value: "seven" });
+  await outcome;
+  expect(guest.resolve(counter)).toBe(5);
+  expect(guest.resolve(stagedTodos("7"))).toBe("seven");
+  guest.resolve(sub).close();
+  await guest.close({ graceful: true });
 });
 
-test("the far side closing first rejects ready with SyncNotReady", () => {
+test("the far side closing first rejects ready with SyncNotReady", async () => {
   const src = source();
   const origin = createScope({ tags: [sync(counter)], extensions: [src] });
-  return origin.ready.then(() => {
-    const [near, far] = memoryPair();
-    const done = origin.resolve(src).connect(near);
-    done.then(undefined, () => undefined);
-    const sub = subscribe(far);
-    const guest = createScope({ tags: [sync(counter)], extensions: [sub] });
-    const checked = expect(guest.ready).rejects.toSatisfy((error: unknown) =>
-      isError(error, "SyncNotReady"),
-    );
-    checked.then(undefined, () => undefined);
-    near.close();
-    return checked.then(() =>
-      guest.close().then((result) => {
-        expect(result.status).toBe("failed");
-        return done.then(() => origin.close({ graceful: true }));
-      }),
-    );
-  });
+  await origin.ready;
+  const [near, far] = memoryPair();
+  const done = origin.resolve(src).connect(near);
+  const sub = subscribe(far);
+  const guest = createScope({ tags: [sync(counter)], extensions: [sub] });
+  const checked = guest.ready.then(
+    () => {
+      expect.unreachable();
+    },
+    (error: unknown) => {
+      if (!isError(error, "SyncNotReady")) throw error;
+      expect(error.payload.label).toBe("subscribe");
+      expect(error.payload.missing).toEqual(["counter"]);
+    },
+  );
+  near.close();
+  await checked;
+  const result = await guest.close();
+  expect(result.status).toBe("failed");
+  await done;
+  await origin.close({ graceful: true });
 });
 
 test("a forced close while waiting rejects ready and parts the source wire", () => {
@@ -393,6 +393,135 @@ test("an unpublished key on register closes the transport", () => {
     far.send({ type: "register", keys: ["nope"] });
     return parted.then(() => done.then(() => origin.close({ graceful: true })));
   });
+});
+
+test.each([{ kind: "unpublished key" }, { kind: "parse rejects" }, { kind: "wrong direction" }])(
+  "an initial $kind rejects ready with the missing keys",
+  async ({ kind }: { kind: string }) => {
+    const strict = data({
+      label: "t07-strict",
+      initial: 0,
+      parse: (raw: unknown): number => {
+        if (typeof raw !== "number") throw new Error("bad value");
+        return raw;
+      },
+      meta: [synced({ key: "t07-strict" })],
+    });
+    const [near, far] = memoryPair();
+    const parted = new Promise<void>((resolve) => {
+      near.onClose(() => resolve());
+    });
+    const sub = subscribe(far);
+    const guest = createScope({ tags: [sync(counter), sync(strict)], extensions: [sub] });
+    const checked = guest.ready.then(
+      () => {
+        expect.unreachable();
+      },
+      (error: unknown) => {
+        if (!isError(error, "SyncNotReady")) throw error;
+        expect(error.payload.label).toBe("subscribe");
+        expect(error.payload.missing).toEqual(["t07-strict"]);
+      },
+    );
+    near.send({ type: "snapshot", key: "counter", version: 0, value: 5 });
+    if (kind === "unpublished key") {
+      near.send({ type: "snapshot", key: "nope", version: 0, value: 0 });
+    } else if (kind === "parse rejects") {
+      near.send({ type: "snapshot", key: "t07-strict", version: 0, value: "not-a-number" });
+    } else {
+      near.send({ type: "register", keys: ["counter"] });
+    }
+    await checked;
+    await parted;
+    const result = await guest.close();
+    expect(result.status).toBe("failed");
+  },
+);
+
+test("after ready a bad snapshot closes the wire and drops later snapshots", async () => {
+  const originTodos = family({ label: "todo-t07-after", initial: "" });
+  const guestTodos = family({ label: "todo-t07-after", initial: "" });
+  guestTodos("7");
+  const src = source();
+  const origin = createScope({ tags: [sync(originTodos)], extensions: [src] });
+  await origin.ready;
+  const [near, far] = memoryPair();
+  const done = origin.resolve(src).connect(near);
+  const sub = subscribe(far);
+  const guest = createScope({ tags: [sync(guestTodos)], extensions: [sub] });
+  await guest.ready;
+  expect(guest.resolve(guestTodos("7"))).toBe("");
+  const parted = new Promise<void>((resolve) => {
+    near.onClose(() => resolve());
+  });
+  near.send({ type: "snapshot", key: "nope", version: 0, value: 0 });
+  near.send({ type: "snapshot", key: "todo-t07-after/7", version: 1, value: "new" });
+  await parted;
+  await setImmediate();
+  expect(guest.resolve(guestTodos("7"))).toBe("");
+  guest.resolve(sub).close();
+  await done;
+  await Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]);
+});
+
+test("a source member the origin never held arrives with the source value", async () => {
+  const originTodos = family({ label: "todo-t07-made", initial: "src-init" });
+  const guestTodos = family({ label: "todo-t07-made", initial: "guest-init" });
+  const memberId = "a/b";
+  guestTodos(memberId);
+  expect(originTodos.members()).toEqual([]);
+  const src = source();
+  const origin = createScope({ tags: [sync(originTodos)], extensions: [src] });
+  await origin.ready;
+  const [near, far] = memoryPair();
+  const done = origin.resolve(src).connect(near);
+  const sub = subscribe(far);
+  const guest = createScope({ tags: [sync(guestTodos)], extensions: [sub] });
+  await guest.ready;
+  expect(guest.resolve(guestTodos(memberId))).toBe("src-init");
+  expect(originTodos.members()).toEqual([memberId]);
+  guest.resolve(sub).close();
+  await done;
+  await Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]);
+});
+
+test("two cells under one key reject startup with SyncConflict", async () => {
+  const firstCell = data({ label: "t07-dup-a", initial: 0, meta: [synced({ key: "t07-dup" })] });
+  const secondCell = data({ label: "t07-dup-b", initial: 1, meta: [synced({ key: "t07-dup" })] });
+  const src = source();
+  const origin = createScope({ tags: [sync(firstCell), sync(secondCell)], extensions: [src] });
+  await origin.ready.then(
+    () => {
+      expect.unreachable();
+    },
+    (error: unknown) => {
+      if (!isError(error, "SyncConflict")) throw error;
+      expect(error.payload.key).toBe("t07-dup");
+    },
+  );
+  await origin.close();
+});
+
+test("binding the same cell twice stays ready with one registration key", async () => {
+  const src = source();
+  const origin = createScope({ tags: [sync(counter)], extensions: [src] });
+  origin.controller(counter).set(5);
+  await origin.ready;
+  const [near, far] = memoryPair();
+  const seen: Sync.Message[] = [];
+  near.onMessage((message) => {
+    seen.push(message);
+  });
+  const done = origin.resolve(src).connect(near);
+  const sub = subscribe(far);
+  const guest = createScope({ tags: [sync(counter), sync(counter)], extensions: [sub] });
+  await guest.ready;
+  expect(guest.resolve(counter)).toBe(5);
+  const registers = seen.filter((message): boolean => message.type === "register");
+  expect(registers).toEqual([{ type: "register", keys: ["counter"] }]);
+  guest.resolve(sub).close();
+  await done;
+  await Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]);
 });
 
 test("the recipe registers by identity, then streams the snapshot down", async () => {
