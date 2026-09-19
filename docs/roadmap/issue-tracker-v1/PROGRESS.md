@@ -1,14 +1,14 @@
 # Issue tracker v1 — build progress
 
 **Active.** User-approved app direction: a realtime issue tracker that shows easy composition
-and testing of the existing libraries. [Plan](PLAN.md). Create, edit, and discussion are complete; CLI and tools are next.
+and testing of the existing libraries. [Plan](PLAN.md). Create, edit, discussion, CLI, and MCP tools are complete. The optional helper and final browser polish remain.
 
 | Ticket      | Delivers                                                            | Blocked by | State   |
 | ----------- | ------------------------------------------------------------------- | ---------- | ------- |
 | tracker/t01 | [Create an issue and see it live](issues/01-create-and-see-live.md) | —          | Done    |
 | tracker/t02 | [Edit, assign, and discuss issues](issues/02-edit-and-discuss.md)   | t01        | Done    |
-| tracker/t03 | [Use the same actions from CLI and MCP](issues/03-cli-and-tools.md) | t02        | Doing   |
-| tracker/t04 | [Draft a summary with the harness](issues/04-triage-draft.md)       | t03        | Waiting |
+| tracker/t03 | [Use the same actions from CLI and MCP](issues/03-cli-and-tools.md) | t02        | Done    |
+| tracker/t04 | [Draft a summary with the harness](issues/04-triage-draft.md)       | t03        | Ready   |
 | tracker/t05 | [Finish the demo and its test guide](issues/05-finish-and-show.md)  | t04        | Waiting |
 
 Lead uses `/home/paseo/next/tinkered-sync-land` on `lead/sync-land`. Writers get private Git
@@ -551,3 +551,96 @@ current revision. Its MCP example uses direct Node but still has an absolute-pat
 placeholder, so the final guide must explain replacing it or give a concrete command.
 The next lead receives this immutable writer commit and all source/proof. The writer tree has a recorded 37-lane pass; final lead landing is still pending; t04/t05 and the temporary public browser preview remain
 required.
+
+## t03 complete — 2026-09-19
+
+Code `3303f5a` is the reviewed cherry-pick of `e8ddeef`. The lead personally reviewed the
+saved diff and the final tests, then ran all checks below in the private landing tree.
+Node-only CLI/MCP declarations delegate to the existing HTTP operations. The running server
+still owns all database writes. The browser imports no Node tool declarations.
+
+- Fresh build passed all nine tasks with zero cache hits: `/tmp/tracker-t03-final-build.log`.
+- All 15 app tests passed after the final test cleanup: `/tmp/tracker-t03-final-tests.log`.
+- `vp check` passed with 0 errors/13 existing warnings; exact app + changed MCP example census
+  passed: `/tmp/tracker-t03-final-check.log`, `/tmp/tracker-t03-final-census.log`.
+- Fresh `node scripts/validate.mjs` passed all 37 lanes, including the real CLI/MCP library
+  tests: `/tmp/tracker-t03-final-validate.log`. Library source is unchanged; no mutation run.
+- Independent real stdio/Chromium proof passed against the landed tree. Five tools; live MCP
+  create/edit/comment/get and CLI create reached the browser; stale CLI and MCP saves left
+  exact detail/history unchanged. Missing revision returned usage/code 2. EOF exited 0,
+  tool SIGTERM exited 130, and the web server exited 0 with live SSE. No browser page errors.
+  `/tmp/tracker-t03-final-browser.log`, `/tmp/tracker-t03-stdio-browser-lead-result.json`.
+- The fixed real MCP example served search and exited correctly on EOF/SIGTERM:
+  `/tmp/tracker-t03-final-example.log`. Its earlier failing process proof remains recorded above.
+- Public import and built-client scans found no private library entry or database/filesystem/
+  MCP/model SDK marker in browser JavaScript. The README now explains its absolute MCP path.
+- Install still reports the existing ignored esbuild build-script policy (exit 1); no policy
+  change. Fresh builds, tests, and actual processes all passed.
+
+All ten package SCIP indexes and the explicit app index passed. The removed `baseConfig`
+has no refs. Retained private readers have only their owning module as callers; their old
+public-index/test uses are gone. New tool/config callers match Node entry, public entry, and
+public tests. Jev reported no impact block for t03; it is package-only and provides no app
+coverage. Explicit app refs are the review evidence.
+
+Removed helper:
+
+```text
+== issue-tracker
+  definitions
+  references (count  symbol  file)
+    (none)
+```
+
+Retained private readers:
+
+```text
+== issue-tracker
+  definitions
+    parseGetInput().  ->  src/tools/issues.ts:73
+    readBaseUrl().  ->  src/tools/main.ts:5
+  references (count  symbol  file)
+        3  parseGetInput().  src/tools/issues.ts
+        1  readBaseUrl().  src/tools/main.ts
+```
+
+New public callers:
+
+```text
+== issue-tracker
+  definitions
+    /api.  ->  src/client/api.ts:14
+    /commentRemote.  ->  src/tools/issues.ts:177
+    /createRemote.  ->  src/tools/issues.ts:134
+    /getRemote.  ->  src/tools/issues.ts:198
+    /issueCommands.  ->  src/tools/issues.ts:216
+    /issueTools.  ->  src/tools/issues.ts:225
+    /listRemote.  ->  src/tools/issues.ts:117
+    /updateRemote.  ->  src/tools/issues.ts:155
+    serveIssues().  ->  src/tools/issues.ts:237
+  references (count  symbol  file)
+        5  /api.  src/client/api.ts
+        2  /api.  src/client/sync.ts
+        1  /api.  src/index.ts
+        2  /api.  src/tools/main.ts
+        4  /api.  tests/tools.test.ts
+        1  /commentRemote.  src/index.ts
+        2  /commentRemote.  src/tools/issues.ts
+        1  /createRemote.  src/index.ts
+        2  /createRemote.  src/tools/issues.ts
+        1  /getRemote.  src/index.ts
+        2  /getRemote.  src/tools/issues.ts
+        1  /issueCommands.  src/index.ts
+        2  /issueCommands.  src/tools/main.ts
+        4  /issueCommands.  tests/tools.test.ts
+        1  /issueTools.  src/index.ts
+        2  /issueTools.  src/tools/main.ts
+        5  /issueTools.  tests/tools.test.ts
+        1  /listRemote.  src/index.ts
+        2  /listRemote.  src/tools/issues.ts
+        1  /updateRemote.  src/index.ts
+        2  /updateRemote.  src/tools/issues.ts
+        1  serveIssues().  src/index.ts
+        2  serveIssues().  src/tools/issues.ts
+        2  serveIssues().  src/tools/main.ts
+```

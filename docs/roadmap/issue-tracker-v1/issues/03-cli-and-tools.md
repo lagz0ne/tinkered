@@ -6,11 +6,11 @@ silently own a separate source scope or bypass publication.
 
 **Blocked by:** 02 — Edit, assign, and discuss issues.
 
-**Status:** Review — writer commit e8ddeef; independent final gates and landing remain.
+**Status:** Done — code `3303f5a`; [independent final proof](../PROGRESS.md#t03-complete--2026-09-19).
 
-- [ ] HTTP routes and MCP tools use the same declared issue operations and input rules.
-- [ ] CLI uses the existing driver and HTTP frame to reach the running server.
-- [ ] MCP connects through a documented supported transport; no private library imports.
-- [ ] Tests through CLI `run` and the real MCP SDK client prove saved results and managed errors.
-- [ ] A change through one non-browser entry appears in the browser without a refresh.
-- [ ] Checks and Core feedback are recorded; duplicated domain logic is a review finding.
+- [x] HTTP routes and MCP tools use the same declared issue operations and input rules.
+- [x] CLI uses the existing driver and HTTP frame to reach the running server.
+- [x] MCP connects through a documented supported transport; no private library imports.
+- [x] Tests through CLI `run` and the real MCP SDK client prove saved results and managed errors.
+- [x] A change through one non-browser entry appears in the browser without a refresh.
+- [x] Checks and Core feedback are recorded; duplicated domain logic is a review finding.

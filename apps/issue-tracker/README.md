@@ -67,6 +67,9 @@ so run node itself rather than through the task runner):
 }
 ```
 
+Replace `/abs/path` with your repo folder. From the repo root, `pwd` prints it.
+For this private checkout the full entry is
+`/home/paseo/next/tinkered-sync-land/apps/issue-tracker/src/tools/main.ts`.
 No account is needed; the default path reaches the local server above.
 
 ## Check it

@@ -23,8 +23,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-| Card | Owner | Next | Verify |
-| ---- | ----- | ---- | ------ |
+| Card                                | Owner        | Next                                            | Verify                                                                     |
+| ----------------------------------- | ------------ | ----------------------------------------------- | -------------------------------------------------------------------------- |
+| tracker/t04 — Optional triage draft | Tracker lead | Start one private Muse writer from verified t03 | Stream/cancel/discard/post through the real harness adapter; offline tests |
 
 ## Doing
 
@@ -33,15 +34,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Review
 
-| Card                              | Owner                               | Next                                             | Verify                                                                     |
-| --------------------------------- | ----------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------------- |
-| tracker/t03 — CLI and issue tools | Tracker lead; writer commit e8ddeef | Review final diff; run final landing gates; land | Fresh app build/tests/check/census, 37 lanes, and real stdio/browser proof |
+| Card | Owner | Next | Verify |
+| ---- | ----- | ---- | ------ |
 
 ## Blocked
 
 | Card                                  | Waiting for | Next                                                                                           | Verify                                                                              |
 | ------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| tracker/t04 — Optional triage draft   | tracker/t03 | Build the [harness slice](docs/roadmap/issue-tracker-v1/issues/04-triage-draft.md)             | Stream/cancel a draft; posting uses the normal comment action; offline seam tests   |
 | tracker/t05 — Finish and show the app | tracker/t04 | Complete the [demo and test guide](docs/roadmap/issue-tracker-v1/issues/05-finish-and-show.md) | Full flow, reconnect/shutdown proof, checks, feedback, and verified browser preview |
 
 ## Parked
@@ -61,6 +60,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 | Card                                                              | Evidence                                                                                                                                                                                                                                   |
 | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| tracker/t03 — CLI and issue tools                                 | Code `3303f5a`; [final proof](docs/roadmap/issue-tracker-v1/PROGRESS.md#t03-complete--2026-09-19): 15 app tests, all 37 lanes, CLI/MCP live browser saves, stale-save safety, EOF/signal shutdown, and SCIP                                |
 | tracker/t02 — Edit, assign, and discuss issues                    | Code `1be5dfc`; [lead proof](docs/roadmap/issue-tracker-v1/PROGRESS.md#t02-complete--2026-09-19): 11 app tests, 37 fresh validation lanes, 48 React tests, stale-draft regression, two tabs, reload/restart, and clean shutdown            |
 | tracker/t01 — Create an issue and see it live                     | Code `3490295`; [lead proof](docs/roadmap/issue-tracker-v1/PROGRESS.md#t01-complete--2026-09-19): 3 app tests, 401 library tests, 37 lanes, two tabs, reload/restart, startup-drop error, clean shutdown, and app SCIP                     |
 | authoring/next — Choose and scope the issue tracker               | User chose the app; [plan and five working slices](docs/roadmap/issue-tracker-v1/PROGRESS.md) recorded; public API anchors indexed; doc links and `vp check` passed                                                                        |
