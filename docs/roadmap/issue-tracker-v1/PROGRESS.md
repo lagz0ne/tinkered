@@ -1,7 +1,7 @@
 # Issue tracker v1 — build progress
 
 **Active.** User-approved app direction: a realtime issue tracker that shows easy composition
-and testing of the existing libraries. [Plan](PLAN.md). Create, edit, discussion, CLI, and MCP tools are complete. The optional helper is complete. Final reconnect, browser polish, and preview remain.
+and testing of the existing libraries. [Plan](PLAN.md). Create, edit, discussion, CLI, and MCP tools are complete. The optional helper is complete. Reconnect and phone checks pass at the saved checkpoints. Durable browser proof, final guide/gates, and public preview remain.
 
 | Ticket      | Delivers                                                            | Blocked by | State |
 | ----------- | ------------------------------------------------------------------- | ---------- | ----- |
@@ -9,7 +9,7 @@ and testing of the existing libraries. [Plan](PLAN.md). Create, edit, discussion
 | tracker/t02 | [Edit, assign, and discuss issues](issues/02-edit-and-discuss.md)   | t01        | Done  |
 | tracker/t03 | [Use the same actions from CLI and MCP](issues/03-cli-and-tools.md) | t02        | Done  |
 | tracker/t04 | [Draft a summary with the harness](issues/04-triage-draft.md)       | t03        | Done  |
-| tracker/t05 | [Finish the demo and its test guide](issues/05-finish-and-show.md)  | t04        | Ready |
+| tracker/t05 | [Finish the demo and its test guide](issues/05-finish-and-show.md)  | t04        | Doing |
 
 Lead uses `/home/paseo/next/tinkered-sync-land` on `lead/sync-land`. Writers get private Git
 worktrees but stay in Paseo workspace `wks_85042cce8c480929`. One writer per ticket; no writer
@@ -1264,3 +1264,117 @@ actual temporary public preview. No new writer or reviewer is needed.
 The outgoing lead has no running server, browser, gate, probe, or preview.
 The exact continuation is in `/tmp/issue-tracker-t05-lead-handoff.md`,
 which supersedes the t04 finalization handoff. Parked lanes stay parked.
+
+### t05 lead continuation
+
+The handoff completed with the same running writer `ade1b488` and the
+same private lead tree at `6713434`. The new lead read the active brief,
+recovery probes, browser proof, and preview workflow. Source review and
+final acceptance remain pending; no t04 re-review is needed. Initial
+`vp install` again exits 1 only for the known esbuild build-policy entry
+(`/tmp/tracker-t05-lead-setup-install.log`); policy was not changed.
+
+The new lead's real-browser offline probe covers create, edit, comment,
+and detail in one page. Accepted t04 retains all typed drafts but shows
+RequestFailed in all four notices. The decisive failure is
+/tmp/tracker-t05-errors-baseline.log with
+/tmp/tracker-t05-errors-baseline-result.json; the same writer received
+it. Earlier diagnostic runs hit an exact-label locator issue, fixed by
+using the textbox role. No app failure claim rests on those locator runs.
+Final proof must use separate AFTER output.
+
+### t05 saved reconnect checkpoint
+
+The lead reviewed the actual source from writer commits a579d37 and
+0c0e08e and staged them in its private branch as 1331d29 and a27bf2c.
+Nothing from t05 is pushed or accepted yet. App, provider, and issue-form
+owners stay mounted as the scope changes. Close joins the transport tail;
+the startup catch inspects the close result. Review corrected a hidden
+close notice and an empty rejection handler before staging.
+
+The fresh 10-task build (zero cache hits) and full app TypeScript check
+both exit 0 in the private lead tree:
+/tmp/tracker-t05-checkpoint-build.log and
+/tmp/tracker-t05-checkpoint-tsc.log.
+
+The writer stopped at a partial checkpoint; the same agent received a
+concrete follow-up to finish helper retry, mobile controls/times, durable
+browser proof, final docs, gates, and report. No new writer or workspace.
+The reported earlier 720 missing-dist errors are writer observations,
+not a lead baseline finding. Lead source builds succeeded before its checks.
+
+Independent lead AFTER checks at a27bf2c all exit 0:
+
+- Reconnect after real process restart shows revision 6, keeps the local
+  title and comment, sends the original baseRevision 5, and receives 409.
+  Both server shutdowns exit 0; no browser page errors.
+- Real browser offline create/edit/comment/detail now show plain errors
+  and retain all typed work. Online edit and comment retries succeed.
+- Initial HTTP 503 shows Reconnect; retry loads the real saved list.
+
+Logs and result JSON share these prefixes:
+/tmp/tracker-t05-reconnect-checkpoint,
+/tmp/tracker-t05-errors-checkpoint,
+/tmp/tracker-t05-startup-checkpoint.
+Their failing BEFORE artifacts remain unchanged. Helper capability retry,
+phone layout, durable proof, and final gates are still pending.
+
+### t05 saved phone/helper checkpoint
+
+Writer 51f9fc5 is staged as e24bfad. The lead's phone probe and
+helper-capability HTTP 503/retry probe both exit 0; the phone screenshot
+was inspected. All controls meet 44px height, no horizontal overflow or
+page errors were seen, failed capability is distinct from disabled, and
+the typed edit survives Retry.
+
+Proof prefixes: /tmp/tracker-t05-mobile-checkpoint and
+/tmp/tracker-t05-capability-checkpoint. Fresh app build exits 0 at
+/tmp/tracker-t05-phone-checkpoint-build.log.
+
+The first lead check failed only on its two changed Markdown files;
+targeted formatting fixed that. The next check exits 0 with 15 warnings
+(/tmp/tracker-t05-phone-checkpoint-check-after-format.log). Two are NEW
+floating capability promises in DraftView.tsx, already returned to the
+same writer with the visible loading/unmount ownership correction. Do not
+call them pre-existing or accept this as the final clean gate.
+
+### t05 durable proof review
+
+Writer 7bd7772 fixes visible helper loading and its two floating-promise
+warnings, but is not staged yet. The lead found the first browser proof
+used direct HTTP for its claimed CLI step, bypassed browser Save for the
+reconnect revision check, and arranged a stale form as the conflict winner.
+Its child/process/temp ownership and unsafe casts also need correction.
+The same writer has the collected review at
+/tmp/issue-tracker-t05-browser-review.md. Required helper lifecycle and
+keyboard scenarios must be durable in the committed command, not only in
+older temporary lead probes. Capability request cancellation also remains
+in that review.
+
+The app recovery probes already pass; these findings concern the accuracy
+and completeness of the durable proof plus pending request ownership.
+No final t05 acceptance, push, tag, or public preview exists yet.
+
+### t05 second lead handoff checkpoint
+
+At the requested context handoff point, the private lead source is e24bfad
+(writer 51f9fc5); writer 7bd7772 and ec4b2d4 remain UNSTAGED and unaccepted.
+The actual ec4b2d4 browser source still contains wrong exact row selectors,
+a wait for detail before opening it after reload, a toggle that closes the
+second detail, an incorrect pre/post-winner revision comparison, two
+OwnedServer casts/early ownership clearing, and a shutdown block that has
+no client route or held SDK turn. The same active writer has the precise
+follow-up /tmp/issue-tracker-t05-browser-review-2.md. Do not accept its
+earlier claims that these are already resolved; inspect later actual source
+and a real passing command.
+
+Fresh normal app tests at staged e24bfad pass 25/25
+(/tmp/tracker-t05-checkpoint-tests.log); strict app census passes
+(/tmp/tracker-t05-checkpoint-census.log). These do not accept the unlanded
+browser proof or replace final gates. No lead probe/server/browser remains
+running. No public preview exists. T04 is done and needs no re-review.
+
+The next lead must finish the SAME writer, review fixes and all durable
+helper cases, then complete final gates, SCIP, Core feedback, README,
+landing/tag/push and verified public preview. Self-contained continuation:
+/tmp/issue-tracker-t05-proof-lead-handoff.md. It supersedes older handoffs.

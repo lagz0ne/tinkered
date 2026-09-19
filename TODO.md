@@ -28,9 +28,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-| Card                                  | Owner                                      | Next                                                                         | Verify                                                                                  |
-| ------------------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| tracker/t05 — Finish and show the app | Muse writer ade1b488; tracker lead reviews | Save reconnect/error/mobile fixes, then owned browser proof and final README | All app/repo gates, exact stale-draft safety, shutdown/restart, verified public preview |
+| Card                                  | Owner                                      | Next                                                                                                | Verify                                                                                  |
+| ------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| tracker/t05 — Finish and show the app | Muse writer ade1b488; tracker lead reviews | Fix owned browser proof review, finish guide and gates; lead checks final source and public preview | All app/repo gates, exact stale-draft safety, shutdown/restart, verified public preview |
 
 ## Review
 

@@ -6,7 +6,7 @@ and shutdown behavior for the flows already built. Publish a verified temporary 
 
 **Blocked by:** 04 — Draft a summary with the existing harness.
 
-**Status:** Doing — sole Muse writer `ade1b488`; private tree `tinkered-issue-t05`, base `ea73244`. Lead owns review and preview.
+**Status:** Doing — app recovery and phone checkpoints pass; durable browser proof remains under review. Same Muse writer ade1b488; lead owns final gates and public preview.
 
 - [ ] Reconnecting restores current server state; pending/error states are visible and recoverable.
 - [ ] Restart persistence, two-tab updates, a rejected edit, and run cancellation have direct proof.
