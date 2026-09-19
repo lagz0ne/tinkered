@@ -4,6 +4,11 @@ A cell is the shared unit; the server is the truth; the transport is userland's 
 Package `packages/sync` (`@tinker/sync`), runtime import only `@tinker/core`, one entry, size cap
 10 kB gzip, no core change.
 
+**Complete 2026-09-19.** All seven tickets are landed; `sync/t07` points to `3a6ae72`
+and is pushed to origin. The extensions follow-up is complete too. Remaining watcher/unregister
+ideas stay under the parked `core/ideas` card; they are not unfinished sync-v1 tickets.
+The optional off-host timing comparison is parked by user choice and does not block this track.
+
 - **Decision:** `docs/decisions/0048-sync-a-cell-is-the-shared-unit-server-is-the-truth-transport-is-userlands.md`.
 - **Glossary:** `docs/glossary.md` → "Sync".
 - **Gate + tag:** `scripts/ticket.sh sync <NN> "<title>"` → `sync/t<NN>`; validate lanes at the milestone.
@@ -35,6 +40,16 @@ Package `packages/sync` (`@tinker/sync`), runtime import only `@tinker/core`, on
 | sync/t05 | cf01bbb | 20    | 3324          | 73.53    | one way: `source` + `subscribe`, `register { keys }`, a key set per subscriber, `sync register` op; the write path deleted; stryker `inPlace` so the recipe test (root examples) loads. Writer-built, no fix round. |
 | sync/t06 | 6409128 | 21    | 4066          | 62.34    | both engines are core extensions (ADR 0050); tracked in `docs/roadmap/extensions-v1/PROGRESS.md`.                                                                                                                   |
 | sync/t07 | 3a6ae72 | 28    | 4066          | 78.06    | Tests only; one lead fix round; full gate and isolated mutation green. Review and old/new SCIP tables in extensions-v1/PROGRESS.md.                                                                                 |
+
+### Completion check — 2026-09-19
+
+Origin `main` contains `sync/t07` (`3a6ae72`) and `core/t35` (`d9f333f`); remote tags match.
+Sync source/tests, its mutation config, and core source are unchanged from `sync/t07`.
+Fresh sync build and 28 tests passed; all 37 deterministic validation lanes passed, including
+sync size, cast-free examples, and bundle purity. The recorded isolated mutation score remains
+78.06% (242 killed, 0 timeout, 63 survived, 5 uncovered, 0 errors); no mutation rerun was needed
+for these doc-only changes. The first validation attempt found doc formatting issues; formatting
+was fixed and the full run then passed. Logs: `/tmp/sync-closeout-{build,test,validate}.log`.
 
 ### Impact blocks (ADR 0047)
 

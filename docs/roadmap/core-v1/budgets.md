@@ -6,6 +6,14 @@ deterministic lane and fails on any regression (proven: a seeded cast fails it).
 via `vp run core#mutate`; the wall-clock timing lanes run via `bench` in a clean sandbox (not
 in-container).
 
+## Timing follow-up status — 2026-09-19
+
+The user accepts having no dedicated bench resource. `perf/op-parity` is Parked in
+[TODO.md](../../../TODO.md); no runner provisioning is required and this follow-up does not
+block sync completion. The off-host comparison remains unverified. Local timings remain
+reference measurements, not proof of the off-host gate. Resume only when the user revisits
+this work and a suitable runner is available; the recipe and budgets below remain the reference.
+
 ## All lanes at t19 (green together)
 
 | lane                | budget                          | t19 measurement                          | how                                           |
