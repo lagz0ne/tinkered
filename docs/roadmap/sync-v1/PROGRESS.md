@@ -21,6 +21,8 @@ Package `packages/sync` (`@tinker/sync`), runtime import only `@tinker/core`, on
 | sync/t03 | `syncClient(scope, transport)`: snapshots through parse, optimistic sets, revert on reject              | t02      | [x]    |
 | sync/t04 | Validation milestone: lanes, mutation, README recipes (Hono SSE+POST, WebSocket, React), archive        | t03      | [x]    |
 | sync/t05 | One way, registration by identity: `source` + `subscribe` replace `syncServer`/`syncClient` (amendment) | t04      | [x]    |
+| sync/t06 | Source/subscribe installed as extensions; ready is the initial data set (ADR 0050)                      | core/t32 | [x]    |
+| sync/t07 | Public seam coverage after t06; isolated mutation ≥ 70                                                  | t06      | [x]    |
 
 ### Landed
 
@@ -32,6 +34,7 @@ Package `packages/sync` (`@tinker/sync`), runtime import only `@tinker/core`, on
 | sync/t04 | e290944 | 34    | 3697          | 78.32    | validation milestone: four lanes (37), `examples/hono.ts` SSE+POST recipe with a seam test through `app.request`, six client edge tests, README pass. Writer-built, no fix round.                                   |
 | sync/t05 | cf01bbb | 20    | 3324          | 73.53    | one way: `source` + `subscribe`, `register { keys }`, a key set per subscriber, `sync register` op; the write path deleted; stryker `inPlace` so the recipe test (root examples) loads. Writer-built, no fix round. |
 | sync/t06 | 6409128 | 21    | 4066          | 62.34    | both engines are core extensions (ADR 0050); tracked in `docs/roadmap/extensions-v1/PROGRESS.md`.                                                                                                                   |
+| sync/t07 | 3a6ae72 | 28    | 4066          | 78.06    | Tests only; one lead fix round; full gate and isolated mutation green. Review and old/new SCIP tables in extensions-v1/PROGRESS.md.                                                                                 |
 
 ### Impact blocks (ADR 0047)
 

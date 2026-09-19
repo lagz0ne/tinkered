@@ -2,7 +2,7 @@
 
 Extensions are middleware on the scope's verbs; the composition root installs them; `scope.ready`
 awaits every start (ADR 0050). Core tickets first (start + close, then one verb per ticket), then
-sync adopts them.
+sync adopts them. **Complete 2026-09-19: the extensions-v1 queue is empty.**
 
 - **Decision:** `docs/decisions/0050-extensions-are-middleware-on-the-scopes-verbs-the-composition-root-installs-them-ready-awaits-start.md`.
 - **Glossary:** `docs/glossary.md` → "Extensions".
@@ -27,6 +27,7 @@ extension's `ctx`: `defer` lands in `owner.defers`, `signal` is the layer's); `S
 | core/t34 | the `run` chain (operation calls) — `op` probe flat when unhooked; short-circuit                              | t32      | [x]    |
 | core/t35 | the `write` chain (cell sets) — probe flat when unhooked; a refused write leaves the cell                     | t32      | [x]    |
 | sync/t06 | `source()` + `subscribe(transport)` as extensions; readiness = the initial data set; recipe + README          | t32      | [x]    |
+| sync/t07 | Restore public seam coverage after t06; isolated mutation ≥ 70                                                | t06      | [x]    |
 
 ### Landed
 
@@ -37,6 +38,7 @@ extension's `ctx`: `defer` lands in `owner.defers`, `signal` is the layer's); `S
 | core/t33 | 1810c85 | 246   | 22394         | 78.62    | t32 → t33 (pinned, min of 3): create 168.6→169.3, cold 716.7→707.0, session 1623→1587, op 101.9→100.9                              | `resolveThrough` onion on the root handle; records in a WeakMap off the Layer; the dispatch extraction measured and reverted. Writer-built, no fix round.          |
 | core/t34 | 761f4a5 | 253   | 22635         | 78.72    | t33 → t34 (pinned, min of 3): op 101.1→100.9, run 112.4→112.3, opres 328.5→328.7, create 168.5→168.9                               | `runThrough` onion on the root handle; innermost `next` = the plain `run`; `handleFor` untouched. Writer-built, no fix round.                                      |
 | core/t35 | d9f333f | 260   | 22851         | 78.56    | t34 → t35 (CPU7, min of 3): write 27.1→27.1, create 168.5→168.7, op 100.9→101.7, cold 709.2→706.3, session 1619→1609               | Writer-built, one fix round: closed cached-controller access guarded. Root set/update onion; sessions/dependency writes bypass; old guard/error retired.           |
+| sync/t07 | 3a6ae72 | 28    | 4066          | 78.06    | — (tests only; source unchanged)                                                                                                   | One lead fix round: exact missing keys and queued-message cleanup. Whole initial set staged across a turn.                                                         |
 
 ### Impact blocks (ADR 0047)
 
@@ -84,18 +86,17 @@ The lead reviews every ticket (diff vs ADR rows, convention, one promise per tes
 refs, `node scripts/jev/impact.mjs <tag>`, the probe table re-measured), cherry-picks, runs the
 mutation lane alone, tags. Reports end with **Core feedback**.
 
-### sync/t07 follow-up (in progress)
+### sync/t07 follow-up (done)
 
-Writer `403f44d0-a8c7-4803-bda0-81638905400f` runs in Paseo workspace `wks_85042cce8c480929`,
-with files isolated in `/home/paseo/next/tinkered-sync-t07`. Next: lead review, gates, isolated mutation,
-then tag and push.
+Writer `403f44d0-a8c7-4803-bda0-81638905400f` ran in Paseo workspace `wks_85042cce8c480929`,
+with files isolated in `/home/paseo/next/tinkered-sync-t07`. Writer commit `8593ef5` landed as
+`3a6ae72`; the writer is archived and its Git worktree/branch removed. The current workspace remains.
 
-The t06 log (`/tmp/sync-t06-mutate.log`) ran all 21 tests, including forced close, far-side close,
-and zero keys. The earlier TODO attributed the 40 uncovered mutants to those paths in error.
-Restore coverage of the shipped promises: invalid snapshots during readiness, protocol cleanup
-after readiness, conflicting keys, registration of a source family member not already held, and
-waiting for the final initial snapshot. Target: isolated sync mutation ≥ 70, without duplicate tests
-or changing the mutation threshold. No public symbol changes are planned.
+The t06 log ran all 21 tests, including forced close, far-side close, and zero keys; the earlier
+40-uncovered diagnosis was wrong. This follow-up covers the actual public gaps: invalid snapshots
+and wrong-direction messages during readiness, cleanup after readiness, conflicting/repeated keys,
+source family creation, and waiting for the final snapshot. No source or public signature changed.
+Isolated sync mutation is 78.06, above the ≥ 70 target; thresholds are unchanged.
 
 ```impact sync/t07
 sync  source     src/index.ts tests/sync.test.ts
@@ -232,3 +233,73 @@ New symbols (`scripts/scip.sh refs 'writeThrough|extendHandle'`):
 
 `node scripts/jev/impact.mjs core/t35 HEAD~1..HEAD` on the code landing: neither,
 zero discrepancies. Definitions above are the review's anchors (ADR 0047).
+
+### sync/t07 lead review (2026-09-19)
+
+SHIP after one fix round. The initial violation cases first deliver one valid snapshot, then
+assert only the remaining key in `SyncNotReady.missing`, the label, failed scope close, and wire
+closure. The first cleanup test was masked by `memoryPair` dropping sends after close; it now
+queues invalid then valid traffic before awaiting close and proves the later snapshot cannot apply.
+The whole-set test holds the final snapshot across an event-loop turn, so an early ready is visible.
+Separate family instances prove source-side creation of an unheld `a/b` identity. Distinct cells
+with a shared key fail with `SyncConflict`; rebinding one cell emits one registration key.
+Existing forced-close, far-side-close, and zero-key cases remain. No mocks, sleeps, internal tests,
+casts, or ignored cleanup promises were added. The far-side case now narrows its error by control flow.
+
+Lead reran the sync build, `vp check` (0 errors, 13 existing warnings), all package tests (sync 28),
+all 37 deterministic validation lanes (including purity and cast-free examples), size (4066 B gzip),
+and strict style census. Core and sync source are byte-identical to the baseline. No timing claim.
+All packages were reindexed. No symbols were removed or renamed; the old/new tables below have
+identical definition lines and file sets, with only test references growing. Impact for
+`sync/t07 HEAD~1..HEAD` on code commit `3a6ae72`: neither, zero discrepancies.
+
+Baseline (`scripts/scip.sh refs 'source|subscribe|family|memoryPair' sync`):
+
+```text
+== sync
+  definitions
+    family  ->  src/index.ts:70
+    memoryPair  ->  src/index.ts:445
+    source  ->  src/index.ts:187
+    subscribe  ->  src/index.ts:288
+  references (count  symbol  file)
+       19  family  src/index.ts
+       31  family  tests/sync.test.ts
+       16  memoryPair  tests/sync.test.ts
+        1  source  src/index.ts
+       11  source  tests/sync.test.ts
+        8  subscribe  src/index.ts
+       12  subscribe  tests/sync.test.ts
+```
+
+After landing and reindexing (same command):
+
+```text
+== sync
+  definitions
+    family  ->  src/index.ts:70
+    memoryPair  ->  src/index.ts:445
+    source  ->  src/index.ts:187
+    subscribe  ->  src/index.ts:288
+  references (count  symbol  file)
+       19  family  src/index.ts
+       39  family  tests/sync.test.ts
+       20  memoryPair  tests/sync.test.ts
+        1  source  src/index.ts
+       14  source  tests/sync.test.ts
+        8  subscribe  src/index.ts
+       16  subscribe  tests/sync.test.ts
+```
+
+Mutation ran alone, after writer archive and worktree removal: **78.06%** (242 killed, 0 timeout,
+63 survived, 5 uncovered, 0 errors), 28 tests, 1m33s. `Done in` and process exit were observed;
+Stryker restored the originals and `git status --short` was empty. The target ≥ 70 is met.
+The staged readiness test also removed the early-ready survivors that skipped the missing-set check;
+the remaining waiter guard survivor is not that same promise.
+
+Evidence: `/tmp/sync-t07-report.md`, `/tmp/sync-t07-lead-draft-tests.log`,
+`/tmp/sync-t07-land-{gate,build,check,tests,validate,size,census,index,impact}.log`,
+`/tmp/sync-t07-{baseline,land}-refs.txt`, `/tmp/sync-t07-mutate.log`.
+Installation still reports the pre-existing esbuild build-policy placeholder; existing dependencies
+passed the gates. No dependency policy changed. Core feedback: no missing primitive; the public
+transport, error payloads, and family identity supplied every needed seam.

@@ -192,7 +192,7 @@ tickets, then contributors with lead review:
          Hono recipe with POST as registration), size 3324 B, 37 lanes green, mutation 73.53. Impact chain:
          a false "source wrong" — the examples moved to `examples/sync/` (outside the package index); blocks list src
          and tests only from now on._
-6. **Extensions (core)** — **decided (ADR 0050)**, user 2026-09-19 (`1A middleware-style, 2A, 3A`; delivery `A`: start +
+6. **Extensions (core)** — **shipped (ADR 0050); queue empty**, user 2026-09-19 (`1A middleware-style, 2A, 3A`; delivery `A`: start +
    close first). Plan: `docs/roadmap/extensions-v1/PROGRESS.md`.
    - [x] **core/t32 — `Scope.Extension` + `extensions` option + `start`/`close` chains + `scope.ready` + `resolve(ext)`.**
          _Done: tag `core/t32` (66bcea7), writer-built with one fix round (the first cut extracted `handleFor` into helpers
@@ -204,12 +204,14 @@ tickets, then contributors with lead review:
          cold +17 ns, session +16 ns — one extra field on every `Layer` (`exts`) and on every handle (`ready`); t33 moves
          `exts` into a WeakMap keyed by root layer and extracts only the resolve dispatch (handleFor sits at the
          complexity ceiling, 13th warning)._
-   - [ ] **sync/t07 — restore seam coverage after t06 (mutation 62.34).** _In progress: writer `403f44d0-a8c7-4803-bda0-81638905400f` in this Paseo workspace,
-         private worktree `/home/paseo/next/tinkered-sync-t07`. Next: lead review, full gate, then isolated mutation. Lead inspection corrected
-         the earlier diagnosis: forced close, far-side close, and zero keys already have tests and ran under Stryker.
-         Missing coverage is mainly invalid snapshots, protocol cleanup, key conflicts, and source family creation;
-         strengthen the whole-initial-set test too. Brief: `/tmp/sync-t07-brief.md`._ Verify: named public promises
-         through `ready`/the wire, all gates green, and `sync#mutate` alone ≥ 70.
+   - [x] **sync/t07 — restore seam coverage after t06 (mutation 62.34 → 78.06).** _Done: tag `sync/t07`
+         (3a6ae72), writer-built in this Paseo workspace, one lead fix round. Tests only: partial-start failures
+         report only missing keys; queued traffic cannot apply after a protocol violation; conflicting keys,
+         repeated bindings, and source family creation are covered. Readiness waits across a turn for the
+         final snapshot. Existing close/zero-key tests retained; far-side errors narrowed by payload.
+         Lead verified 28 sync tests, all package tests, 37 lanes, 4066 B gzip, strict census, SCIP/impact neither.
+         Isolated mutation: 78.06 (242 killed, 0 timeout, 63 survived, 5 uncovered, 0 errors; 1m33s).
+         Source unchanged, restoration clean, Core feedback recorded; writer archived and worktree removed._
    - [x] **core/t33 — the `resolve` chain + the t32 follow-ups.** _Done: tag `core/t33` (1810c85), writer-built, no fix
          round: `resolveThrough(layer, resolvers)` = the onion on the root handle (registration order, short-circuit,
          `Extension` targets bypass to the registry; sessions keep the plain dispatch — the v1 limit, in the README);
@@ -246,17 +248,18 @@ Perf follow-up when the sandbox `bench` is available: `op` parity (budgets.md "C
 
 ## Shipped — archived
 
-- **sync v1 (2026-09-19)** — complete, ONE WAY: `@tinker/sync` (ADR 0048 + amendment; tags `sync/t01`…`sync/t05`): a
+- **sync v1 (2026-09-19)** — complete, ONE WAY: `@tinker/sync` (ADR 0048 + amendment; tags `sync/t01`…`sync/t07`): a
   cell is the shared unit (`synced({ key })` meta; `family({ label, initial, parse? })` = a cell with an id, members
   memoized per id), registration is the client scope's `sync(cell | family)` bindings sent by identity
   (`register { keys }`; a new member registers the moment it exists), the source is the truth
-  (`source(scope).connect(transport)`: a session per subscriber, a `sync register` inline op answers with the initial
+  (`scope.resolve(src).connect(transport)` after installing `src = source()`: a session per subscriber, a `sync register` inline op answers with the initial
   snapshots, then every change on a registered key fans out through one watcher per key), the client fills
-  snapshots through the cell's parse (`subscribe(scope, transport)`; local writes stay local in v1), and the transport
+  snapshots through the cell's parse (installed `subscribe(transport)`; local writes stay local in v1), and the transport
   is userland's (`Sync.Transport`; `memoryPair()` is the seam; the Hono SSE + POST recipe is `examples/sync/hono.ts`,
   proven through `app.request`). t02–t04 first shipped a two-way LWW design; the user re-cut v1 one way (t05);
   t06 made both engines core extensions (ADR 0050): `createScope({ extensions })`, `await scope.ready` = the initial data set.
-  Gate: 37 lanes green, 20 seam tests, size 3324 B, runtime import `@tinker/core` only, mutation 73.53.
+  t07 restored public seam coverage after the conversion. Gate: 37 lanes green, 28 seam tests, size 4066 B,
+  runtime import `@tinker/core` only, mutation 78.06.
   Core feedback: a session shadows cell writes; `tag.all` is newest-first; `scope.onMount` (unregister on last
   watcher) and a core cell family wait for a second asker. Detail: `docs/roadmap/sync-v1/PROGRESS.md`.
 
