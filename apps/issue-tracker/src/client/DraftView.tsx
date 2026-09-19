@@ -3,65 +3,77 @@ import { useRun } from "@tinker/react";
 import { postComment } from "./api.ts";
 import { assignees } from "../shared/issues.ts";
 import { parseDraftCapability, parseDraftEvent, type Draft } from "../shared/draft.ts";
-import { isError } from "../errors.ts";
+import { fail, isError } from "../errors.ts";
 
 type View = "quiet" | "running" | "ready" | "cancelled" | "failed";
 
 function readFailedMessage(error: unknown): string {
   if (isError(error, "BadDraftInput")) return "That draft update was unreadable. Try again.";
-  if (error instanceof Error && error.message.length > 0) return error.message;
+  if (isError(error, "DraftFailed")) return "The draft helper failed. Try again.";
+  if (isError(error, "IssueNotFound")) return "That issue is gone.";
   return "The draft helper failed. Try again.";
 }
 
 function readLine(line: string): Draft.Event | null {
   const text = line.startsWith("data:") ? line.slice(5).trim() : line.trim();
   if (text.length === 0 || text.startsWith(":")) return null;
+  let raw: unknown;
   try {
-    return parseDraftEvent(JSON.parse(text));
+    raw = JSON.parse(text);
   } catch {
-    return null;
+    throw fail("BadDraftInput", { reason: "draft update is unreadable" });
   }
+  return parseDraftEvent(raw);
 }
 
 async function runStream(
   issueId: string,
   prompt: string,
-  signal: AbortSignal,
+  stopper: AbortController,
   apply: (event: Draft.Event) => void,
 ): Promise<Draft.Outcome> {
   const res = await fetch(`/api/issues/${issueId}/draft`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ prompt }),
-    signal,
+    signal: stopper.signal,
   });
-  if (!res.ok || res.body === null) {
-    if (res.status === 404) throw new Error("That issue is gone, or the draft helper is off.");
-    throw new Error("The draft helper failed. Try again.");
+  if (!res.ok) {
+    if (res.status === 404) throw fail("IssueNotFound", { id: issueId });
+    throw fail("DraftFailed", { reason: "the draft helper failed" });
   }
+  if (res.body === null) throw fail("DraftFailed", { reason: "the draft helper failed" });
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let tail = "";
   let outcome: Draft.Outcome = "failed";
-  for (;;) {
-    const next = await reader.read();
-    if (next.done) break;
-    tail += decoder.decode(next.value, { stream: true });
-    const lines = tail.split("\n");
-    tail = lines.pop() ?? "";
-    for (const line of lines) {
-      const event = readLine(line);
-      if (event === null) continue;
-      if (event.kind === "terminal") {
-        outcome = event.status;
-        continue;
+  try {
+    for (;;) {
+      const next = await reader.read();
+      if (next.done) break;
+      tail += decoder.decode(next.value, { stream: true });
+      const lines = tail.split("\n");
+      tail = lines.pop() ?? "";
+      for (const line of lines) {
+        const event = readLine(line);
+        if (event === null) continue;
+        if (event.kind === "terminal") {
+          outcome = event.status;
+          continue;
+        }
+        apply(event);
       }
-      apply(event);
     }
+    const closing = readLine(tail);
+    if (closing !== null && closing.kind === "terminal") return closing.status;
+    return outcome;
+  } finally {
+    reader.releaseLock();
   }
-  const closing = readLine(tail);
-  if (closing !== null && closing.kind === "terminal") return closing.status;
-  return outcome;
+}
+
+function isAbort(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
 }
 
 function DraftView(props: { issueId: string; reload: () => void }) {
@@ -108,7 +120,7 @@ function DraftView(props: { issueId: string; reload: () => void }) {
     setDraft("");
     setNotice(null);
     try {
-      const outcome = await runStream(props.issueId, prompt, stopper.signal, (event) => {
+      const outcome = await runStream(props.issueId, prompt, stopper, (event) => {
         if (runId.current !== id) return;
         if (event.kind === "text") setText((seen) => seen + event.text);
         else if (event.kind === "done") setDraft(event.draft);
@@ -124,7 +136,8 @@ function DraftView(props: { issueId: string; reload: () => void }) {
       }
     } catch (error: unknown) {
       if (runId.current !== id) return;
-      if (error instanceof DOMException && error.name === "AbortError") {
+      stopper.abort();
+      if (isAbort(error)) {
         setView("cancelled");
         return;
       }
@@ -213,7 +226,7 @@ function DraftView(props: { issueId: string; reload: () => void }) {
           <button type="button" onClick={post} disabled={comment.isPending}>
             {comment.isPending ? "Posting…" : "Post draft"}
           </button>
-          <button type="button" onClick={discard}>
+          <button type="button" onClick={discard} disabled={comment.isPending}>
             Discard draft
           </button>
         </>
