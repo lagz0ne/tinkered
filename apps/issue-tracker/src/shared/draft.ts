@@ -4,14 +4,54 @@ export declare namespace Draft {
   /** The run's terminal outcome, reported after the session closes. */
   export type Outcome = "done" | "cancelled" | "failed";
   /** One streamed event a draft view shows: text the model wrote, a status
-   * line, or the finished draft. */
+   * line, the finished draft, or the joined terminal outcome. */
   export type Event =
     | { readonly kind: "text"; readonly text: string }
     | { readonly kind: "status"; readonly status: string }
-    | { readonly kind: "done"; readonly draft: string };
+    | { readonly kind: "done"; readonly draft: string }
+    | { readonly kind: "terminal"; readonly status: Outcome; readonly draft: string };
 }
 
 import { raise } from "../errors.ts";
+
+/** Read one streamed draft frame at the browser edge: the four event
+ * kinds the server emits, nothing else. */
+export function parseDraftEvent(raw: unknown): Draft.Event {
+  if (typeof raw !== "object" || raw === null) raise("BadDraftInput", { reason: "draft update is unreadable" });
+  if (!("kind" in raw)) raise("BadDraftInput", { reason: "draft update is unreadable" });
+  if (raw.kind === "text" && "text" in raw && typeof raw.text === "string") {
+    return { kind: "text", text: raw.text };
+  }
+  if (raw.kind === "status" && "status" in raw && typeof raw.status === "string") {
+    return { kind: "status", status: raw.status };
+  }
+  if (raw.kind === "done" && "draft" in raw && typeof raw.draft === "string") {
+    return { kind: "done", draft: raw.draft };
+  }
+  if (raw.kind === "terminal" && "status" in raw && "draft" in raw) {
+    return { kind: "terminal", status: readOutcome(raw.status), draft: readTerminalDraft(raw.draft) };
+  }
+  raise("BadDraftInput", { reason: "draft update is unreadable" });
+}
+
+function readOutcome(raw: unknown): Draft.Outcome {
+  if (raw === "done" || raw === "cancelled" || raw === "failed") return raw;
+  raise("BadDraftInput", { reason: "draft update is unreadable" });
+}
+
+function readTerminalDraft(raw: unknown): string {
+  if (typeof raw === "string") return raw;
+  raise("BadDraftInput", { reason: "draft update is unreadable" });
+}
+
+/** Read the draft capability answer at the browser edge. */
+export function parseDraftCapability(raw: unknown): { readonly enabled: boolean } {
+  if (typeof raw !== "object" || raw === null || !("enabled" in raw)) {
+    raise("BadDraftInput", { reason: "draft state is unreadable" });
+  }
+  if (typeof raw.enabled !== "boolean") raise("BadDraftInput", { reason: "draft state is unreadable" });
+  return { enabled: raw.enabled };
+}
 
 /** Read a draft issue id from the object the routes send: `{ id }`. */
 export function parseDraftId(raw: unknown): string {
