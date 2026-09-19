@@ -23,14 +23,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-| Card                              | Owner        | Next                                                                                       | Verify                                               |
-| --------------------------------- | ------------ | ------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
-| tracker/t03 — CLI and issue tools | Tracker lead | Build the [shared command slice](docs/roadmap/issue-tracker-v1/issues/03-cli-and-tools.md) | CLI and MCP update the same server and browser state |
+| Card | Owner | Next | Verify |
+| ---- | ----- | ---- | ------ |
 
 ## Doing
 
-| Card | Owner | Next | Verify |
-| ---- | ----- | ---- | ------ |
+| Card                              | Owner                              | Next                                                                                       | Verify                                               |
+| --------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
+| tracker/t03 — CLI and issue tools | Tracker lead + private contributor | Build the [shared command slice](docs/roadmap/issue-tracker-v1/issues/03-cli-and-tools.md) | CLI and MCP update the same server and browser state |
 
 ## Review
 

@@ -7,7 +7,7 @@ and testing of the existing libraries. [Plan](PLAN.md). Create, edit, and discus
 | ----------- | ------------------------------------------------------------------- | ---------- | ------- |
 | tracker/t01 | [Create an issue and see it live](issues/01-create-and-see-live.md) | —          | Done    |
 | tracker/t02 | [Edit, assign, and discuss issues](issues/02-edit-and-discuss.md)   | t01        | Done    |
-| tracker/t03 | [Use the same actions from CLI and MCP](issues/03-cli-and-tools.md) | t02        | Ready   |
+| tracker/t03 | [Use the same actions from CLI and MCP](issues/03-cli-and-tools.md) | t02        | Doing   |
 | tracker/t04 | [Draft a summary with the harness](issues/04-triage-draft.md)       | t03        | Waiting |
 | tracker/t05 | [Finish the demo and its test guide](issues/05-finish-and-show.md)  | t04        | Waiting |
 
@@ -445,3 +445,20 @@ new detail/edit/comment readers reach shared model, HTTP client, operations, and
         1  parseIssueDetail().  src/index.ts
         6  parseIssueDetail().  src/shared/issues.ts
 ```
+
+## t03 started — 2026-09-19
+
+The t02 code tag `tracker/t02` is `1be5dfc8fc7162406f3ba038a994975ac91b667c`;
+remote main was verified at `a87cef8abcca250c3ef3f9c620724fad46661449` after the atomic push.
+The clean t02 writer tree and branch were removed; the finished writer was archived.
+
+The new private tree is `/home/paseo/next/tinkered-issue-t03`, branch `tracker/t03-cli-tools`,
+from that verified main. Its single contributor stays in workspace `wks_85042cce8c480929`.
+The brief `/tmp/issue-tracker-t03-brief.md` includes the final t02 SCIP table above before changes.
+Expected new callers are Node CLI/tool declarations and public tests using the existing HTTP
+operations and shared readers. No existing library signature change is authorized. CLI/MCP
+must call the running HTTP authority; only that server owns PGlite and live publication.
+
+Profiles were empty. Provider/model discovery confirmed the direct Muse contributor route with
+max thinking. Active writer: `1fce876f-955e-4f43-b45a-1be85fada3a2`.
+No t03 code has been claimed ready.
