@@ -71,35 +71,37 @@ Three fixed uses (skipping one is a review finding):
 3. **Plans and ADRs** cite definition lines from `refs` ("Anchors" in `docs/roadmap/**/PROGRESS.md`),
    never hand-typed line numbers.
 
-## Execution workflow (todo list)
+## Execution workflow (Kanban)
 
-Any work with more than one step runs off an explicit todo list. **The goal is
-always to drive the list to empty.**
+Any work with more than one step runs from `TODO.md`, the single live Kanban board.
+The lanes are **Ready → Doing → Review → Done**, with **Blocked** for a missing dependency
+and **Parked** for deliberate deferrals or ideas. Finish approved work through Done;
+do not turn parked ideas into active work just to empty the board.
 
-The durable list is `TODO.md` at the repo root (the single working list, incl. blocked
-design threads); core ticket detail + reset recipes stay in `docs/roadmap/**/PROGRESS.md`.
+Ticket detail, gate evidence, and reset recipes stay in `docs/roadmap/**/PROGRESS.md`.
+Keep only recent results in Done; older detail belongs in `docs/roadmap/archive/` or the track.
 
-1. **Build the list first.** Turn the request (or the tickets it maps to) into a
-   flat, ordered todo list in `TODO.md` before writing code. Keep it visible and current:
-   add items as they surface, split an item that turns out to be several.
-2. **One item in progress at a time.** Finish (and verify) the current item before
-   starting the next, unless items are genuinely independent.
-3. **Verify before you mark done — never tick on intent.** An item is `done` only
-   when its result is _observed_, not when the edit is written:
+1. **Create the card first.** Put an approved request in Ready before writing code. Give it a
+   stable name, a concrete next step, and a Verify condition. Keep Ready ordered. Split a card
+   when it turns out to contain separate work; keep each card in one lane only.
+2. **Pull one card into Doing.** Name the owner. Limit each lead to one Doing card at a time;
+   genuinely independent work may have separate owners. Keep the next step current.
+3. **Move saved work to Review.** Keep the owner and the exact remaining review/check step.
+   Return it to Doing if changes are needed. A saved edit or contributor report is not Done.
+4. **Verify before Done.** Move a card only when its result is observed:
    - code items: `vp check` clean, the relevant `vp test` / `vp run <script>` green,
      and (for `core`) the ticket gate (`scripts/ticket.sh`) passes;
-   - a release/budget claim: the gate `pnpm validate` (`scripts/validate.mjs`, ADR 0016) is green —
+   - a release/budget claim: `pnpm validate` (`scripts/validate.mjs`, ADR 0016) is green —
      size, promises, heap, CRAP, entries, cast-free examples; mutation via `vp run core#mutate`;
      wall-clock timing via `bench` in a sandbox (never in-container);
    - a fix for a reported defect: a test that fails without the fix and passes with it;
    - anything claimed "works": the command output that proves it.
-     If you cannot show it, the item stays `in_progress` (or gets a new `blocked`
-     item describing the exact missing thing). Say so plainly rather than marking done.
-4. **Then tick it**, and reflect it in the durable tracker
-   (`docs/roadmap/**/PROGRESS.md` for core tickets) so the list survives a context reset.
-5. **Keep going until empty.** Do not stop with items open; if you must pause,
-   leave the list with each item's true state (`done` / `in_progress` / `blocked`)
-   and the next concrete action.
+
+   Link that proof in Done and update the track's `PROGRESS.md` where applicable.
+
+5. **Keep the state honest.** Blocked names the missing thing and the next action once it is
+   available; Parked names the condition for resuming. Missing proof stays in Review or Blocked.
+   At a handoff, leave the owner, lane, and next step accurate. Do not silently promote deferred work.
 
 ## Contributor workflow (delegated implementation)
 
