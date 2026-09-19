@@ -23,14 +23,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-| Card | Owner | Next | Verify |
-| ---- | ----- | ---- | ------ |
+| Card                                  | Owner        | Next                                                          | Verify                                                                           |
+| ------------------------------------- | ------------ | ------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| tracker/t05 — Finish and show the app | Tracker lead | Launch one writer from verified t04 with the saved caller map | Reconnect, durable browser proof, mobile checks, final docs and verified preview |
 
 ## Doing
 
-| Card                                | Owner                                             | Next                                                                    | Verify                                                                |
-| ----------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| tracker/t04 — Optional triage draft | Muse writer 257f478e; active tracker lead reviews | Close final test cleanup/default-command gaps; lead then runs all gates | Public adapter seam tests, saved-state safety, checks and lead review |
+| Card | Owner | Next | Verify |
+| ---- | ----- | ---- | ------ |
 
 ## Review
 
@@ -39,9 +39,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Blocked
 
-| Card                                  | Waiting for | Next                                                                                           | Verify                                                                              |
-| ------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| tracker/t05 — Finish and show the app | tracker/t04 | Complete the [demo and test guide](docs/roadmap/issue-tracker-v1/issues/05-finish-and-show.md) | Full flow, reconnect/shutdown proof, checks, feedback, and verified browser preview |
+| Card | Waiting for | Next | Verify |
+| ---- | ----------- | ---- | ------ |
 
 ## Parked
 
@@ -60,6 +59,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 | Card                                                              | Evidence                                                                                                                                                                                                                                   |
 | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| tracker/t04 — Optional triage draft                               | Code `db4f674`; [lead proof](docs/roadmap/issue-tracker-v1/PROGRESS.md#t04-complete--2026-09-19): 25 tests, all 37 lanes, read-only tool composition, cancel/discard/Post, shutdown/reopen, malformed-stream safety, and SCIP              |
 | tracker/t03 — CLI and issue tools                                 | Code `3303f5a`; [final proof](docs/roadmap/issue-tracker-v1/PROGRESS.md#t03-complete--2026-09-19): 15 app tests, all 37 lanes, CLI/MCP live browser saves, stale-save safety, EOF/signal shutdown, and SCIP                                |
 | tracker/t02 — Edit, assign, and discuss issues                    | Code `1be5dfc`; [lead proof](docs/roadmap/issue-tracker-v1/PROGRESS.md#t02-complete--2026-09-19): 11 app tests, 37 fresh validation lanes, 48 React tests, stale-draft regression, two tabs, reload/restart, and clean shutdown            |
 | tracker/t01 — Create an issue and see it live                     | Code `3490295`; [lead proof](docs/roadmap/issue-tracker-v1/PROGRESS.md#t01-complete--2026-09-19): 3 app tests, 401 library tests, 37 lanes, two tabs, reload/restart, startup-drop error, clean shutdown, and app SCIP                     |

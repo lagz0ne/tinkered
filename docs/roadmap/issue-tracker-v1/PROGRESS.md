@@ -1,15 +1,15 @@
 # Issue tracker v1 — build progress
 
 **Active.** User-approved app direction: a realtime issue tracker that shows easy composition
-and testing of the existing libraries. [Plan](PLAN.md). Create, edit, discussion, CLI, and MCP tools are complete. The optional helper and final browser polish remain.
+and testing of the existing libraries. [Plan](PLAN.md). Create, edit, discussion, CLI, and MCP tools are complete. The optional helper is complete. Final reconnect, browser polish, and preview remain.
 
-| Ticket      | Delivers                                                            | Blocked by | State   |
-| ----------- | ------------------------------------------------------------------- | ---------- | ------- |
-| tracker/t01 | [Create an issue and see it live](issues/01-create-and-see-live.md) | —          | Done    |
-| tracker/t02 | [Edit, assign, and discuss issues](issues/02-edit-and-discuss.md)   | t01        | Done    |
-| tracker/t03 | [Use the same actions from CLI and MCP](issues/03-cli-and-tools.md) | t02        | Done    |
-| tracker/t04 | [Draft a summary with the harness](issues/04-triage-draft.md)       | t03        | Doing   |
-| tracker/t05 | [Finish the demo and its test guide](issues/05-finish-and-show.md)  | t04        | Waiting |
+| Ticket      | Delivers                                                            | Blocked by | State |
+| ----------- | ------------------------------------------------------------------- | ---------- | ----- |
+| tracker/t01 | [Create an issue and see it live](issues/01-create-and-see-live.md) | —          | Done  |
+| tracker/t02 | [Edit, assign, and discuss issues](issues/02-edit-and-discuss.md)   | t01        | Done  |
+| tracker/t03 | [Use the same actions from CLI and MCP](issues/03-cli-and-tools.md) | t02        | Done  |
+| tracker/t04 | [Draft a summary with the harness](issues/04-triage-draft.md)       | t03        | Done  |
+| tracker/t05 | [Finish the demo and its test guide](issues/05-finish-and-show.md)  | t04        | Ready |
 
 Lead uses `/home/paseo/next/tinkered-sync-land` on `lead/sync-land`. Writers get private Git
 worktrees but stay in Paseo workspace `wks_85042cce8c480929`. One writer per ticket; no writer
@@ -1039,3 +1039,186 @@ remaining temporary database paths, exact comment timestamp comparison,
 and owned fetch/body outcomes in held tests. The same writer is correcting
 these bounded gaps. The lead has not landed the remaining range or pushed
 t04. Independent final gates follow the saved correction.
+
+The remaining reviewed series through writer `db14d96` is now staged
+privately at lead `5ba5fb2`. Fresh ten-task build and full app TypeScript
+check passed. The lead's normal test run failed five 5-second timeouts
+across all three app test files (including old CLI/MCP/reopen cases),
+recorded in `/tmp/tracker-t04-final-tests-before-timeout-config.log`.
+The same writer is adding app-scoped integration test headroom and
+finishing the explicit held-request joins. No acceptance or push yet.
+
+## t04 complete — 2026-09-19
+
+Lead source `db4f674` matches the complete writer app/lock range through
+`7228d75` exactly. The lead personally read the source, test fixture,
+tests, and README before acceptance. All changes use public library
+entries; browser code stays separate from Node/model/database code.
+No library source or credentials were changed or exercised.
+
+Independent checks on the private lead tree:
+
+- Fresh dependency/app build: ten tasks, zero cache hits, exit 0.
+- Full app `tsc --noEmit`: exit 0.
+- Normal app test command: 25/25, exit 0. The final app config gives
+  real DB/HTTP tests 30 seconds; the earlier five timeouts are preserved
+  in `/tmp/tracker-t04-final-tests-before-timeout-config.log`.
+- `vp check`: exit 0, zero errors and 13 existing warnings.
+- Strict app style census: exit 0.
+- `node scripts/validate.mjs`: all 37 deterministic lanes pass, exit 0.
+- Actual HTTP/adapter tests: existing get/list callbacks and read-only
+  guardrails, model failures, overlapping issue isolation, writes during
+  a held run, disconnect abort, live-caller root close, joined stream,
+  and unchanged saved detail after reopening: exit 0.
+- Actual Chromium at 390px, two tabs: cancel/discard keep saved and local
+  work; explicit Post uses the normal comment path and appears in the
+  other tab; switching issues aborts the run. No page errors or overflow.
+- Corrupted draft frame: visible plain error, model aborted, exact saved
+  state unchanged, no Post offered. The earlier failing browser capture
+  remains `/tmp/tracker-t04-malformed-before.log`. Final proof exits 0.
+- Source public-import and built-client marker scans: zero violations.
+
+Logs: `/tmp/tracker-t04-final-{build,tsc,tests,check,census,validate,http,browser,malformed,import-scan}.log`;
+JSON results use `/tmp/tracker-t04-final-{http,browser,malformed}-result.json`.
+`vp install` still exits 1 only for the known ignored esbuild build policy;
+linking/build/checks pass. No policy change, timing claim, or mutation run.
+The README names server-only opt-in and explicitly says the credentialed
+live model path was not verified. Core feedback is recorded in
+[the feedback ledger](../core-feedback.md).
+
+### t04 final caller review
+
+All ten package indexes and the explicit app index were refreshed.
+Package/app logs: `/tmp/tracker-t04-final-{package,app}-scip.log`.
+No old public name was removed or renamed: a removed-name `(none)` query
+is not applicable. Retained names extend only the declared app callers
+and public tests. New names stay in app composition/browser admission.
+Exact path-delimited symbol patterns avoid the prior App/buildApp suffix
+collision. Final retained table:
+
+```text
+== issue-tracker
+  definitions
+    /App().  ->  src/client/App.tsx:429
+    /Booted/Composed#  ->  src/server/bridge.ts:24
+    /Booted/Save#  ->  src/server/bridge.ts:11
+    /api.  ->  src/client/api.ts:14
+    /bootScope().  ->  src/server/bridge.ts:71
+    /buildApp().  ->  src/server/app.ts:56
+    /getRemote.  ->  src/tools/issues.ts:198
+    /listRemote.  ->  src/tools/issues.ts:117
+    /postComment.  ->  src/client/api.ts:34
+  references (count  symbol  file)
+        2  /App().  src/client/main.tsx
+        4  /Booted/Composed#  src/server/app.ts
+        1  /Booted/Composed#  src/server/bridge.ts
+        2  /Booted/Save#  src/server/bridge.ts
+        5  /api.  src/client/api.ts
+        2  /api.  src/client/sync.ts
+        1  /api.  src/index.ts
+        2  /api.  src/server/bridge.ts
+        2  /api.  src/tools/main.ts
+        4  /api.  tests/tools.test.ts
+        1  /bootScope().  src/index.ts
+        2  /bootScope().  src/server/main.ts
+       18  /bootScope().  tests/draft.test.ts
+       14  /bootScope().  tests/issues.test.ts
+        3  /bootScope().  tests/tools.test.ts
+        1  /buildApp().  src/index.ts
+        3  /buildApp().  src/server/main.ts
+       10  /buildApp().  tests/draft.test.ts
+        4  /buildApp().  tests/issues.test.ts
+        3  /buildApp().  tests/tools.test.ts
+        1  /getRemote.  src/index.ts
+        2  /getRemote.  src/server/draft.ts
+        2  /getRemote.  src/tools/issues.ts
+        1  /listRemote.  src/index.ts
+        2  /listRemote.  src/server/draft.ts
+        2  /listRemote.  src/tools/issues.ts
+        2  /postComment.  src/client/App.tsx
+        2  /postComment.  src/client/DraftView.tsx
+        2  /postComment.  src/tools/issues.ts
+```
+
+New-name table:
+
+```text
+== issue-tracker
+  definitions
+    /Booted/Draft#  ->  src/server/bridge.ts:16
+    /Draft/Event#  ->  src/shared/draft.ts:8
+    /Draft/Outcome#  ->  src/shared/draft.ts:5
+    /Draft/Status#  ->  src/shared/draft.ts:3
+    /DraftView().  ->  src/client/DraftView.tsx:146
+    /RunDraft/Done#  ->  src/server/draft.ts:44
+    /draftGuardrails.  ->  src/server/draft.ts:20
+    /draftTurn.  ->  src/server/draft.ts:32
+    /parseDraftCapability().  ->  src/shared/draft.ts:71
+    /parseDraftEvent().  ->  src/shared/draft.ts:19
+    /parseDraftId().  ->  src/shared/draft.ts:81
+    /parseDraftInput().  ->  src/shared/draft.ts:91
+    /runDraft().  ->  src/server/draft.ts:56
+    /triage.  ->  src/server/draft.ts:13
+  references (count  symbol  file)
+        5  /Booted/Draft#  src/server/bridge.ts
+        3  /Draft/Event#  src/client/DraftView.tsx
+        1  /Draft/Event#  src/server/draft.ts
+        6  /Draft/Event#  src/shared/draft.ts
+        6  /Draft/Outcome#  src/client/DraftView.tsx
+        4  /Draft/Outcome#  src/server/draft.ts
+        2  /Draft/Outcome#  src/shared/draft.ts
+        2  /DraftView().  src/client/App.tsx
+        1  /DraftView().  src/client/DraftView.tsx
+        2  /RunDraft/Done#  src/server/app.ts
+        1  /RunDraft/Done#  src/server/draft.ts
+        1  /draftGuardrails.  src/index.ts
+        1  /draftGuardrails.  src/server/draft.ts
+        1  /draftTurn.  src/index.ts
+        1  /draftTurn.  src/server/draft.ts
+        2  /parseDraftCapability().  src/client/DraftView.tsx
+        2  /parseDraftEvent().  src/client/DraftView.tsx
+        1  /parseDraftId().  src/index.ts
+        1  /parseDraftId().  src/shared/draft.ts
+        1  /parseDraftInput().  src/index.ts
+        2  /parseDraftInput().  src/server/app.ts
+        2  /parseDraftInput().  src/server/draft.ts
+        1  /runDraft().  src/index.ts
+        2  /runDraft().  src/server/app.ts
+        2  /runDraft().  tests/draft.test.ts
+        1  /triage.  src/index.ts
+        3  /triage.  src/server/draft.ts
+```
+
+`env -u AI_GATEWAY_API_KEY JEV_TOKEN_FILE=/dev/null node scripts/jev/impact.mjs tracker/t04 4b0c609..HEAD`
+ran advisory-only, without credentials or a model request. Its
+package-relative path/name handling reports missing app symbols; direct
+app refs above prove those definitions/callers exist. Full output is
+`/tmp/tracker-t04-final-impact.log`; the lead did not accept its false
+missing-name claims or claim a clean advisory result.
+
+## t05 caller brief — before implementation
+
+Baseline source `db4f674`; t05 may extend the app connection shape and
+retry props without remounting local issue/create/comment draft owners.
+The writer must edit from this app map and obtain a fresh map before
+changing any additional exported signature. No library signature change
+is planned.
+
+```impact tracker/t05
+issue-tracker /App(). src/client/App.tsx src/client/main.tsx
+issue-tracker /connectTab(). src/client/sync.ts src/client/main.tsx
+issue-tracker /TabSync/Connected# src/client/sync.ts src/client/App.tsx
+```
+
+```text
+== issue-tracker
+  definitions
+    /App().  ->  src/client/App.tsx:429
+    /TabSync/Connected#  ->  src/client/sync.ts:9
+    /connectTab().  ->  src/client/sync.ts:53
+  references (count  symbol  file)
+        2  /App().  src/client/main.tsx
+        2  /TabSync/Connected#  src/client/App.tsx
+        1  /TabSync/Connected#  src/client/sync.ts
+        3  /connectTab().  src/client/main.tsx
+```
