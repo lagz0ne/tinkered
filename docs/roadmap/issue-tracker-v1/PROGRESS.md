@@ -916,3 +916,24 @@ No t04 commits have been cherry-picked or pushed from the writer branch.
 No final t04 report or full gates exist. Continue the same writer, then
 review and land t04, finish t05, and publish a verified temporary preview.
 No preview or lead-owned process is left running at this checkpoint.
+
+### t04 durable-test continuation — 2026-09-19
+
+The next lead read the saved server, client, and composition source while the
+same writer resumed the bounded public-test and UI correction step. No
+second writer was created. The private landing remains at `c6c583d` before
+this note; no t04 source is accepted or landed yet.
+
+A new independent browser regression supplies malformed draft data through a
+real HTTP response while the real app adapter is held in an active turn. The
+old built client ignores the malformed event and never shows an alert:
+`/tmp/tracker-t04-malformed-before.log`, exit 1 at the five-second alert
+wait. The captured old client is `/tmp/tracker-t04-malformed-before-client`;
+`/tmp/tracker-t04-malformed-lead.mjs` will check the corrected client shows
+a plain error, aborts the model, and preserves exact saved detail. This is
+before evidence only, not a passing result or durable test coverage.
+
+The lead install again recorded the known ignored esbuild build-script
+policy failure in `/tmp/tracker-t04-new-lead-install.log`. No install policy
+was changed. t04 tests, full gates, README, landing, t05, and the public
+preview remain outstanding.
