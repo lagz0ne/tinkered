@@ -1,5 +1,4 @@
-import { preset } from "@tinker/core";
-import { claudeCode, type ClaudeCode } from "@tinker/harness";
+import { type ClaudeCode } from "@tinker/harness";
 import type {
   SDKPartialAssistantMessage,
   SDKResultError,
@@ -134,16 +133,14 @@ export type DraftFixture = {
   readonly toolsCalled: string[];
   readonly saved: unknown[];
   readonly decisions: unknown[];
-  readonly guardrails: Record<string, unknown> | undefined;
+  readonly readGuardrails: () => Record<string, unknown> | undefined;
   readonly turnCount: () => number;
   readonly started: () => Promise<void>;
   readonly aborted: () => Promise<void>;
   readonly release: () => void;
 };
 
-export function readDraftServer(
-  scripts: DraftScript[],
-): DraftFixture & { readonly preset: ReturnType<typeof preset> } {
+export function readDraftServer(scripts: DraftScript[]): DraftFixture {
   const toolsCalled: string[] = [];
   const saved: unknown[] = [];
   const decisions: unknown[] = [];
@@ -228,7 +225,9 @@ export function readDraftServer(
   ): Parameters<ClaudeCode.Sdk["createSdkMcpServer"]>[0]["tools"] {
     const configs = Object.values(options.mcpServers ?? {});
     if (configs.length !== 1) throw fail("DraftFailed", { reason: "expected one read server" });
-    const registered = registrations.get(configs[0]) ?? [];
+    const first = configs.at(0);
+    if (first === undefined) throw fail("DraftFailed", { reason: "expected one read server" });
+    const registered = registrations.get(first) ?? [];
     const names = registered.map((entry) => entry.name).sort();
     if (names.join(",") !== "get,list") {
       throw fail("DraftFailed", { reason: "expected only get and list tools" });
@@ -284,13 +283,10 @@ export function readDraftServer(
   }
   return {
     sdk,
-    preset: preset(claudeCode.sdk, async () => sdk),
     toolsCalled,
     saved,
     decisions,
-    get guardrails() {
-      return guardrails;
-    },
+    readGuardrails: () => guardrails,
     turnCount: () => turns,
     started,
     aborted,

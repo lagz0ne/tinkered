@@ -2,7 +2,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "vite-plus/test";
-import { createScope } from "@tinker/core";
+import { createScope, preset } from "@tinker/core";
 import {
   bootScope,
   buildApp,
@@ -11,6 +11,7 @@ import {
   parseIssueDetail,
   runDraft,
 } from "../src/index.ts";
+import { claudeCode } from "@tinker/harness";
 import { readDraftServer, reservePort } from "./draft-server.ts";
 
 function tempPath(): string {
@@ -63,7 +64,7 @@ test("a draft streams text and finishes without saving anything", async () => {
   const fixture = readDraftServer([{ id: created.id, text: "A short summary." }]);
   const live = await bootScope(path, {
     draft: { enabled: true, baseUrl: heard.base },
-    presets: [fixture.preset],
+    presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
   heard.serve(buildApp(live));
   try {
@@ -94,7 +95,7 @@ test("a draft streams text and finishes without saving anything", async () => {
       { behavior: "deny", message: "only issue reads are allowed" },
     ]);
     expect(fixture.saved).toEqual([before]);
-    expect(fixture.guardrails).toEqual({
+    expect(fixture.readGuardrails()).toEqual({
       allowedTools: ["mcp__triage__list", "mcp__triage__get"],
       tools: [],
       settingSources: [],
@@ -116,7 +117,7 @@ test("an explicit post sends the generated draft and appends once", async () => 
   const fixture = readDraftServer([{ id: created.id, text: "Post this draft." }]);
   const live = await bootScope(path, {
     draft: { enabled: true, baseUrl: heard.base },
-    presets: [fixture.preset],
+    presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
   heard.serve(buildApp(live));
   try {
@@ -164,7 +165,7 @@ test("a model error result and a thrown model error both fail without a draft", 
     const fixture = readDraftServer([{ id: created.id, text: "never shown", ...script }]);
     const live = await bootScope(path, {
       draft: { enabled: true, baseUrl: heard.base },
-      presets: [fixture.preset],
+      presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
     });
     heard.serve(buildApp(live));
     try {
@@ -189,7 +190,7 @@ test("a draft for a missing issue answers gone and runs no model", async () => {
   const fixture = readDraftServer([{ text: "never used" }]);
   const booted = await bootScope(tempPath(), {
     draft: { enabled: true, baseUrl: "http://127.0.0.1:1" },
-    presets: [fixture.preset],
+    presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
   const app = buildApp(booted);
   try {
@@ -207,7 +208,7 @@ test("a draft for a missing issue answers gone and runs no model", async () => {
 
 test("an aborted caller runs no model turn", async () => {
   const fixture = readDraftServer([{ text: "never used" }]);
-  const scope = createScope({ presets: [fixture.preset] });
+  const scope = createScope({ presets: [preset(claudeCode.sdk, async () => fixture.sdk)] });
   try {
     const stopper = new AbortController();
     stopper.abort();
@@ -229,7 +230,7 @@ test("ordinary saves continue while a draft turn holds", async () => {
   const fixture = readDraftServer([{ id: created.id, text: "Held draft.", hold: true }]);
   const live = await bootScope(path, {
     draft: { enabled: true, baseUrl: heard.base },
-    presets: [fixture.preset],
+    presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
   heard.serve(buildApp(live));
   const pending = fetch(`${heard.base}/api/issues/${created.id}/draft`, {
@@ -270,7 +271,7 @@ test("an HTTP disconnect cancels the model and saves nothing", async () => {
   const fixture = readDraftServer([{ id: created.id, text: "never finishes", hold: true }]);
   const live = await bootScope(path, {
     draft: { enabled: true, baseUrl: heard.base },
-    presets: [fixture.preset],
+    presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
   heard.serve(buildApp(live));
   const stopper = new AbortController();
@@ -321,7 +322,7 @@ test("root close with a live caller aborts the model and settles cancelled", asy
   const fixture = readDraftServer([{ id: created.id, text: "never finishes", hold: true }]);
   const live = await bootScope(path, {
     draft: { enabled: true, baseUrl: heard.base },
-    presets: [fixture.preset],
+    presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
   heard.serve(buildApp(live));
   const caller = new AbortController();
@@ -380,7 +381,7 @@ test("overlapping drafts on two issues stay isolated through one live app", asyn
   ]);
   const live = await bootScope(path, {
     draft: { enabled: true, baseUrl: heard.base },
-    presets: [fixture.preset],
+    presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
   heard.serve(buildApp(live));
   const firstFlight = new AbortController();
