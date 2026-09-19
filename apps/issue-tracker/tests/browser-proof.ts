@@ -2,8 +2,6 @@ import { chromium } from "playwright";
 
 const BASE = "http://127.0.0.1:4311";
 
-/** Two-tab proof: create in tab A, observe in tab B without refresh, reload A.
- * The title is unique per run, so a stale row can never fake a pass. */
 async function main(): Promise<void> {
   const title = `Two-tab proof ${Date.now()}`;
   const browser = await chromium.launch();

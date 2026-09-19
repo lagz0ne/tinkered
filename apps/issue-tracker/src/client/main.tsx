@@ -3,8 +3,6 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
 import { connectTab } from "./sync.ts";
 
-/** One tab: connect, then render once the first snapshot landed.
- * Every failure path renders its own message, so boot never rejects. */
 function boot(): void {
   const root = document.getElementById("root");
   if (root === null) return;

@@ -5,7 +5,6 @@ import { serve } from "@hono/node-server";
 import { bootScope } from "./bridge.ts";
 import { buildApp } from "./app.ts";
 
-/** Read HOST/PORT at the door; the later preview honors them. */
 function readHost(): string {
   return process.env.HOST ?? "127.0.0.1";
 }
@@ -21,7 +20,6 @@ function readDataPath(): string {
   return process.env.DATA_PATH ?? "./data/issues";
 }
 
-/** Serve the built client bundle at /; API and sync own their prefixes. */
 async function serveClient(app: ReturnType<typeof buildApp>): Promise<void> {
   const dir = join(process.cwd(), "dist", "client");
   app.get("/", async (c) => {
@@ -48,19 +46,12 @@ async function serveClient(app: ReturnType<typeof buildApp>): Promise<void> {
   });
 }
 
-/** A normal explicit shutdown exits 0: a forced scope close settles
- * `cancelled` by design, which is the expected stop — not a failure.
- * Anything else (failed, teardown errors) exits 1. */
 function readShutdown(result: Scope.Result): number {
   if (result.status === "failed") return 1;
   if (result.teardownErrors !== undefined && result.teardownErrors.length > 0) return 1;
   return 0;
 }
 
-/** Start the app: own the scope, serve the built client plus API and sync.
- * Shutdown is forced: endless SSE streams settle through their own close,
- * so the process never hangs waiting on a live tab. One owned shutdown
- * promise: the first signal wins, a stop failure still exits the process. */
 async function main(): Promise<number> {
   const booted = await bootScope(readDataPath());
   const app = buildApp(booted);
@@ -68,28 +59,12 @@ async function main(): Promise<number> {
   const host = readHost();
   const port = readPort();
   const server = serve({ fetch: app.fetch, hostname: host, port });
-  const stopped = new Promise<number>((resolve) => {
-    let stopping = false;
-    const stop = async (): Promise<void> => {
-      if (stopping) return;
-      stopping = true;
-      server.close();
-      const result = await booted.scope.close();
-      resolve(readShutdown(result));
-    };
-    const onSignal = (): void => {
-      stop().then(reportStopSettled, reportStopFailed);
-    };
-    process.on("SIGTERM", onSignal);
-    process.on("SIGINT", onSignal);
+  await new Promise<void>((resolve) => {
+    process.once("SIGTERM", resolve);
+    process.once("SIGINT", resolve);
   });
-  return stopped;
-}
-
-function reportStopSettled(): void {}
-
-function reportStopFailed(error: unknown): void {
-  throw error;
+  server.close();
+  return readShutdown(await booted.scope.close());
 }
 
 async function entry(): Promise<void> {

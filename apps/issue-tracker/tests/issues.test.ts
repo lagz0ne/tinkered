@@ -6,7 +6,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "vite-plus/test";
 
-/** One isolated temp database per test: save in test A never leaks into test B. */
 function tempPath(): string {
   return join(mkdtempSync(join(tmpdir(), "issues-")), "db");
 }

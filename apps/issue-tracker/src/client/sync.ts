@@ -16,7 +16,6 @@ function isRecord(raw: unknown): raw is Record<string, unknown> {
   return typeof raw === "object" && raw !== null;
 }
 
-/** Admit one wire message at the boundary. Anything else is a SyncDropped. */
 function readMessage(raw: unknown): Sync.Message {
   if (!isRecord(raw)) throw fail("SyncDropped", { reason: "bad snapshot" });
   if (raw.type !== "snapshot") throw fail("SyncDropped", { reason: "bad snapshot" });
@@ -36,8 +35,6 @@ function readData(event: MessageEvent): Sync.Message {
   return readMessage(raw);
 }
 
-/** Wait for the stream to open. A failed stream rejects: the tab shows the
- * failure instead of pretending an unsent draft was saved. */
 function opened(stream: EventSource): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     stream.onopen = () => resolve();

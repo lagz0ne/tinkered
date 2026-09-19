@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
-import type { Scope } from "@tinker/core";
 import { ScopeProvider, useData, useRun } from "@tinker/react";
 import { postIssue } from "./api.ts";
 import type { TabSync } from "./sync.ts";
 import { issueList } from "../shared/issues.ts";
 import { isError } from "../errors.ts";
 
-/** The create form: local draft state only; saving sends a command. */
 function IssueForm() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -52,14 +50,12 @@ function IssueForm() {
   );
 }
 
-/** Read the human sentence off any thrown value. */
 function readMessage(error: unknown): string {
   if (isError(error, "BadCreateInput")) return error.payload.reason;
   if (error instanceof Error && error.message.length > 0) return error.message;
   return "Could not save the issue.";
 }
 
-/** The saved list: what sync published, nothing else. */
 function IssueList() {
   const issues = useData(issueList);
   if (issues.length === 0) return <p>No issues yet. Create the first one.</p>;
@@ -90,7 +86,6 @@ export function App(props: { connected: TabSync.Connected }) {
   );
 }
 
-/** The live wire state: a dropped sync stays visible; reload retries. */
 function LiveState(props: {
   connected: TabSync.Connected;
   live: boolean;
@@ -106,5 +101,3 @@ function LiveState(props: {
   if (props.live) return null;
   return <p role="alert">Live updates stopped. Reload to reconnect.</p>;
 }
-
-export type { Scope };

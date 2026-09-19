@@ -2,15 +2,13 @@ import { Hono } from "hono";
 import { operation } from "@tinker/core";
 import { handle, stream, tinker } from "@tinker/hono";
 import type { Sync } from "@tinker/sync";
-import { issueList } from "../shared/issues.ts";
-import { readCreateInput, type Booted } from "./bridge.ts";
+import { issueList, parseCreateInput } from "../shared/issues.ts";
+import type { Booted } from "./bridge.ts";
 
-/** One line per message down the event stream. */
 function frame(message: Sync.Message): string {
   return `data: ${JSON.stringify(message)}\n\n`;
 }
 
-/** A posted register: the keys the viewer shows. Anything else is refused. */
 function readPosted(raw: unknown): Sync.Message | undefined {
   if (typeof raw !== "object" || raw === null) return undefined;
   if (!("type" in raw) || raw.type !== "register") return undefined;
@@ -20,11 +18,6 @@ function readPosted(raw: unknown): Sync.Message | undefined {
   return { type: "register", keys };
 }
 
-/** One live wire per browser tab, keyed by the `client` query value. */
-function wires(): Map<string, (message: Sync.Message) => void> {
-  return new Map<string, (message: Sync.Message) => void>();
-}
-
 /** Build the Hono app on the owning root scope. Route operations close over the
  * root: saves run in their own short child session and publish only after the
  * database commit resolves; reads answer the published root cell. */
@@ -32,14 +25,14 @@ export function buildApp(booted: Booted.Composed): Hono {
   const { scope, src, save } = booted;
   const saveIssue = operation({
     label: "saveIssue",
-    input: readCreateInput,
+    input: parseCreateInput,
     run: (_deps, ctx) => save(ctx.input),
   });
   const readIssues = operation({
     label: "readIssues",
     run: () => scope.resolve(issueList),
   });
-  const posts = wires();
+  const posts = new Map<string, (message: Sync.Message) => void>();
   const app = new Hono();
   app.use(tinker(scope));
   app.post("/api/issues", async (c) => {
@@ -153,7 +146,6 @@ export function buildApp(booted: Booted.Composed): Hono {
   return app;
 }
 
-/** Own the async gap: flush each send in order; a failed flush closes loudly. */
 function owned(
   transport: Sync.Transport,
   flush: () => Promise<void>,
