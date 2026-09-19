@@ -8,7 +8,7 @@ and testing of the existing libraries. [Plan](PLAN.md). Create, edit, discussion
 | tracker/t01 | [Create an issue and see it live](issues/01-create-and-see-live.md) | —          | Done    |
 | tracker/t02 | [Edit, assign, and discuss issues](issues/02-edit-and-discuss.md)   | t01        | Done    |
 | tracker/t03 | [Use the same actions from CLI and MCP](issues/03-cli-and-tools.md) | t02        | Done    |
-| tracker/t04 | [Draft a summary with the harness](issues/04-triage-draft.md)       | t03        | Ready   |
+| tracker/t04 | [Draft a summary with the harness](issues/04-triage-draft.md)       | t03        | Doing   |
 | tracker/t05 | [Finish the demo and its test guide](issues/05-finish-and-show.md)  | t04        | Waiting |
 
 Lead uses `/home/paseo/next/tinkered-sync-land` on `lead/sync-land`. Writers get private Git
@@ -720,3 +720,13 @@ issue-tracker App(). src/client/App.tsx src/client/main.tsx
         4  buildApp().  tests/issues.test.ts
         3  buildApp().  tests/tools.test.ts
 ```
+
+### t04 writer launched
+
+Sole writer 257f478e-50bb-460e-bcfb-0ab45b1d6759, private tree
+/home/paseo/next/tinkered-issue-t04, branch tracker/t04-triage-draft, base
+4b0c609f8d112b8a60d48d00ac48f24032a7745f. Same workspace wks_85042cce8c480929.
+Profiles were empty; fresh provider/model discovery confirmed
+pi/meta-muse/muse-spark-1.3-contributor, max thinking. No reviewer agent.
+The complete brief is /tmp/issue-tracker-t04-brief.md. t04 is Doing; no implementation
+or live credentialed run is claimed verified. t05 and public preview remain required.

@@ -6,7 +6,7 @@ draft as a comment. Normal tracker use does not need model credentials.
 
 **Blocked by:** 03 — Use the same actions from CLI and MCP.
 
-**Status:** Waiting.
+**Status:** Doing — sole private Muse writer 257f478e; lead review follows saved implementation.
 
 - [ ] Use `@tinker/harness` and the existing issue tools; do not create `@tinker/ai`.
 - [ ] The run has an owned session; transient progress is distinct from saved comments.

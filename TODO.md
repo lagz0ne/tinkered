@@ -23,14 +23,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-| Card                                | Owner        | Next                                            | Verify                                                                     |
-| ----------------------------------- | ------------ | ----------------------------------------------- | -------------------------------------------------------------------------- |
-| tracker/t04 — Optional triage draft | Tracker lead | Start one private Muse writer from verified t03 | Stream/cancel/discard/post through the real harness adapter; offline tests |
+| Card | Owner | Next | Verify |
+| ---- | ----- | ---- | ------ |
 
 ## Doing
 
-| Card | Owner | Next | Verify |
-| ---- | ----- | ---- | ------ |
+| Card                                | Owner                                      | Next                                                                   | Verify                                                                |
+| ----------------------------------- | ------------------------------------------ | ---------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| tracker/t04 — Optional triage draft | Muse writer 257f478e; tracker lead reviews | Build streamed draft/cancel/discard/post from the committed caller map | Public adapter seam tests, saved-state safety, checks and lead review |
 
 ## Review
 
