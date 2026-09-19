@@ -4507,3 +4507,150 @@ test("resolve of an extension that is not installed throws NotResolved", async (
   }
   await scope.close();
 });
+
+test("a resolve hook wraps a cell read: before, next, after", async () => {
+  const log: string[] = [];
+  const cell = data({ initial: 7 });
+  const wrap = extension({
+    label: "wrap",
+    resolve: (target, next) => {
+      log.push("before");
+      const value = next();
+      log.push("after");
+      return value;
+    },
+  });
+  const scope = createScope({ extensions: [wrap] });
+  await scope.ready;
+  const value: number = scope.resolve(cell);
+  expect(value).toBe(7);
+  expect(log).toEqual(["before", "after"]);
+  await scope.close();
+});
+
+test("a resolve hook that skips next short-circuits with a substitute", async () => {
+  const cell = data({ initial: 7 });
+  const deny = extension({
+    label: "deny",
+    resolve: (_target, _next) => 42,
+  });
+  const scope = createScope({ extensions: [deny] });
+  await scope.ready;
+  const value: number = scope.resolve(cell);
+  expect(value).toBe(42);
+  expect(scope.controller(cell).get()).toBe(7);
+  await scope.close();
+});
+
+test("two resolve hooks nest in registration order", async () => {
+  const order: string[] = [];
+  const cell = data({ initial: 1 });
+  const a = extension({
+    label: "a",
+    resolve: (_target, next) => {
+      order.push("a:before");
+      const value = next();
+      order.push("a:after");
+      return value;
+    },
+  });
+  const b = extension({
+    label: "b",
+    resolve: (_target, next) => {
+      order.push("b:before");
+      const value = next();
+      order.push("b:after");
+      return value;
+    },
+  });
+  const scope = createScope({ extensions: [a, b] });
+  await scope.ready;
+  scope.resolve(cell);
+  expect(order).toEqual(["a:before", "b:before", "b:after", "a:after"]);
+  await scope.close();
+});
+
+test("the resolve chain wraps tag and resource reads too", async () => {
+  let calls = 0;
+  const zone = tag<string>({ label: "zone", default: "base" });
+  const pool = resource({ label: "pool", factory: () => 9 });
+  const count = extension({
+    label: "count",
+    resolve: (_target, next) => {
+      calls += 1;
+      return next();
+    },
+  });
+  const scope = createScope({ extensions: [count] });
+  await scope.ready;
+  const value: string = scope.resolve(zone);
+  expect(value).toBe("base");
+  expect(calls).toBe(1);
+  const built: number = scope.resolve(pool);
+  expect(built).toBe(9);
+  expect(calls).toBe(2);
+  await scope.close();
+});
+
+test("resolve(ext) bypasses the resolve chain", async () => {
+  let calls = 0;
+  const base = extension({
+    label: "base",
+    start: (_scope, _ctx, next) => next(),
+  });
+  const count = extension({
+    label: "count",
+    resolve: (_target, next) => {
+      calls += 1;
+      return next();
+    },
+  });
+  const scope = createScope({ extensions: [base, count] });
+  await scope.ready;
+  scope.resolve(base);
+  expect(calls).toBe(0);
+  await scope.close();
+});
+
+test("a session reads with the plain dispatch, unwrapped by the chain", async () => {
+  let calls = 0;
+  const cell = data({ initial: 3 });
+  const count = extension({
+    label: "count",
+    resolve: (_target, next) => {
+      calls += 1;
+      return next();
+    },
+  });
+  const scope = createScope({ extensions: [count] });
+  await scope.ready;
+  const session = scope.createSession();
+  const value: number = session.resolve(cell);
+  expect(value).toBe(3);
+  expect(calls).toBe(0);
+  await scope.close();
+});
+
+test("a declared run hook still throws NotSupported, a resolve hook no longer does", async () => {
+  const later = extension({
+    label: "later",
+    run: (_op, _call, next) => next(),
+  });
+  try {
+    createScope({ extensions: [later] });
+    throw new Error("unreachable");
+  } catch (e) {
+    if (!isError(e, "NotSupported")) throw e;
+    expect(e.payload.label).toBe("later");
+  }
+  const cell = data({ initial: 1 });
+  const ok = extension({
+    label: "ok",
+    resolve: (_target, next) => next(),
+  });
+  const scope = createScope({ extensions: [ok] });
+  await scope.ready;
+  const value: number = scope.resolve(cell);
+  expect(value).toBe(1);
+  await scope.close();
+});

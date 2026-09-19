@@ -22,3 +22,16 @@ await scope.ready;
 scope.resolve(events).connect();
 await scope.close({ graceful: true });
 ```
+
+A `resolve` hook wraps snapshot reads on the root handle (first registered is outermost; skip
+`next()` to short-circuit with a substitute):
+
+```ts
+const gate = extension({
+  label: "gate",
+  resolve: (target, next) => (allowed ? next() : "denied"),
+});
+```
+
+Await `ready` before the first `resolve(ext)`. A request's reads are not wrapped yet: sessions
+created from an extended scope read with the plain dispatch (the v1 limit).

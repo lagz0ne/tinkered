@@ -347,7 +347,7 @@ export declare namespace Scope {
   };
 
   /** Middleware over the scope's verbs (ADR 0050): each hook is an onion layer with `next`. Only
-   * `start` and `close` are wired in core/t32; a declared `resolve`/`run`/`write` throws `NotSupported`. */
+   * `start`, `resolve`, and `close` are wired in core/t33; a declared `run`/`write` throws `NotSupported`. */
   export type Extension<T = unknown> = {
     readonly [extensionSym]: true;
     readonly label: string;
@@ -794,9 +794,12 @@ type Layer = {
   obs: Obs;
   clock: Clock.Handle;
   emptyCtx: Resource.Ctx | undefined;
-  /** Extension start values by extension, on the root layer only (ADR 0050). */
-  exts: Map<Scope.Extension<unknown>, { settled: boolean; value: unknown }> | undefined;
 };
+
+/** Extension start-value records, off the Layer record (ADR 0050, core/t33): written once by
+ * `extendHandle` for root layers with extensions, so the plain Layer keeps main's shape. */
+type ExtRec = { settled: boolean; value: unknown };
+const EXTENSIONS = new WeakMap<Layer, Map<Scope.Extension<unknown>, ExtRec>>();
 
 /** Late use of a sealed scope fails loudly. */
 function ensureOpen(layer: Layer): void {
@@ -1714,8 +1717,6 @@ class EmptyCtx implements Resource.Ctx {
 
 /** Throw `NotSupported` for an extension hook that lands in a later ticket (ADR 0050). */
 function rejectUnwired(ext: Scope.Extension<unknown>): void {
-  if (ext.resolve !== undefined)
-    raise("NotSupported", { label: ext.label, reason: "resolve lands in core/t33" });
   if (ext.run !== undefined)
     raise("NotSupported", { label: ext.label, reason: "run lands in core/t34" });
   if (ext.write !== undefined)
@@ -1755,7 +1756,7 @@ function runStartChain(
     const ext = exts[index];
     if (ext.start === undefined) return at(index + 1);
     const value = await ext.start(scope, new ExtensionCtx(layer, ext.label), () => at(index + 1));
-    const rec = layer.exts?.get(ext);
+    const rec = EXTENSIONS.get(layer)?.get(ext);
     if (rec !== undefined) {
       rec.value = value;
       rec.settled = true;
@@ -1800,7 +1801,7 @@ class ExtensionCtx implements Resource.Ctx {
  * extension, so a session walks up (ADR 0050). Unsettled or not installed is `NotResolved`. */
 function resolveExtension(layer: Layer, ext: Scope.Extension<unknown>): unknown {
   for (let current: Layer | undefined = layer; current !== undefined; current = current.parent) {
-    const rec = current.exts?.get(ext);
+    const rec = EXTENSIONS.get(current)?.get(ext);
     if (rec !== undefined) {
       if (!rec.settled) raise("NotResolved", { label: ext.label });
       return rec.value;
@@ -2301,7 +2302,6 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     obs: parent ? parent.obs : makeObs(options?.observe),
     clock: clockFor(parent, options),
     emptyCtx: undefined,
-    exts: undefined,
   };
   if (parent) {
     parent.children.add(layer);
@@ -2654,10 +2654,11 @@ function extendHandle(
   exts: readonly Scope.Extension<unknown>[],
 ): Scope.Handle {
   for (const ext of exts) rejectUnwired(ext);
-  const records = new Map<Scope.Extension<unknown>, { settled: boolean; value: unknown }>();
+  const records = new Map<Scope.Extension<unknown>, ExtRec>();
   for (const ext of exts) records.set(ext, { settled: false, value: undefined });
-  layer.exts = records;
+  EXTENSIONS.set(layer, records);
   const closers = exts.filter((ext) => ext.close !== undefined);
+  const resolvers = exts.filter((ext) => ext.resolve !== undefined);
   let settleReady: () => void = noop;
   let failReady: (error: unknown) => void = noop;
   const ready = new Promise<void>((resolveReady, rejectReady) => {
@@ -2667,11 +2668,42 @@ function extendHandle(
   ignoreRejection(ready);
   const extended: Scope.Handle = {
     ...plain,
-    close: closers.length ? closeThrough(layer, closers) : plain.close,
+    close: closers.length === 0 ? plain.close : closeThrough(layer, closers),
     ready,
   };
+  if (resolvers.length > 0) extended.resolve = resolveThrough(layer, resolvers);
   runStartChain(layer, extended, exts, settleReady, failReady);
   return extended;
+}
+
+/** The `resolve` onion (ADR 0050, core/t33): registration order, first is outermost. An
+ * `Extension` target bypasses the chain — `resolve(ext)` reads the extension registry, not a
+ * snapshot the chain wraps. Root handle only in v1: sessions keep the plain dispatch. */
+function resolveThrough(
+  layer: Layer,
+  resolvers: readonly Scope.Extension<unknown>[],
+): Scope.Handle["resolve"] {
+  type OnionTarget = Data.Cell<unknown> | Resource.Handle<unknown> | Tag.Handle<unknown>;
+  const at = (target: OnionTarget, index: number): unknown => {
+    if (index >= resolvers.length) {
+      if (isData(target)) return readCell(layer, target);
+      if (isEdge(target)) return resolveEdge(layer, target, undefined);
+      if (isResource(target)) return resourceController(layer, target, undefined).resolve();
+      return tagRequired(layer, target);
+    }
+    const next = (): unknown => at(target, index + 1);
+    const { resolve: hook } = resolvers[index] as {
+      resolve?: (target: OnionTarget, next: () => unknown) => unknown;
+    };
+    if (hook === undefined) return next();
+    return hook(target, next);
+  };
+  const chained = (target: OnionTarget): unknown => {
+    ensureOpen(layer);
+    if (isExtension(target)) return resolveExtension(layer, target);
+    return at(target, 0);
+  };
+  return chained as Scope.Handle["resolve"];
 }
 
 function handleFor(layer: Layer): Scope.Handle {
