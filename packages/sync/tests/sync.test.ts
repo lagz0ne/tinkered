@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data } from "@tinker/core";
+import { createScope, data, isError as isCoreError } from "@tinker/core";
 import {
   family,
   isError,
@@ -7,6 +7,7 @@ import {
   memoryPair,
   readSynced,
   sync,
+  syncClient,
   syncServer,
   synced,
   type Sync,
@@ -171,6 +172,16 @@ function inbox(transport: Sync.Transport): {
     });
   }
   return { seen, when };
+}
+
+/** Resolve when a watched cell reaches a value: the watcher settles the one
+ * awaited promise per test once the arrival lands. */
+function reached<T>(watch: (listener: (next: T) => void) => () => void, value: T): Promise<void> {
+  return new Promise<void>((resolve) => {
+    watch((next) => {
+      if (next === value) resolve();
+    });
+  });
 }
 
 /** Reject with a parse edge: only whole numbers cross. */
@@ -445,4 +456,287 @@ test("a set for an unpublished key closes the transport", () => {
       return parted;
     })
     .then(() => done.then(() => scope.close({ graceful: true })));
+});
+
+test("after connect the client cell reads the server value", () => {
+  const counter = freshCounter();
+  const serverScope = createScope({ tags: [sync(counter)] });
+  serverScope.controller(counter).set(5);
+  const clientScope = createScope({ tags: [sync(counter)] });
+  const [near, far] = memoryPair();
+  const server = syncServer(serverScope);
+  const done = server.connect(near);
+  const client = syncClient(clientScope, far);
+  const watch = (listener: (next: number) => void): (() => void) =>
+    clientScope.controller(counter).watch(listener);
+  return reached(watch, 5).then(() => {
+    expect(clientScope.resolve(counter)).toBe(5);
+    client.close();
+    near.close();
+    return done.then(() =>
+      Promise.all([serverScope.close({ graceful: true }), clientScope.close({ graceful: true })]),
+    );
+  });
+});
+
+test("a client write reaches the server and a second client", () => {
+  const counter = freshCounter();
+  const serverScope = createScope({ tags: [sync(counter)] });
+  const firstScope = createScope({ tags: [sync(counter)] });
+  const secondScope = createScope({ tags: [sync(counter)] });
+  const server = syncServer(serverScope);
+  const [near, far] = memoryPair();
+  const [otherNear, otherFar] = memoryPair();
+  const firstDone = server.connect(near);
+  const secondDone = server.connect(otherNear);
+  const first = syncClient(firstScope, far);
+  const second = syncClient(secondScope, otherFar);
+  const watch = (listener: (next: number) => void): (() => void) =>
+    secondScope.controller(counter).watch(listener);
+  firstScope.controller(counter).set(1);
+  return reached(watch, 1).then(() => {
+    expect(serverScope.resolve(counter)).toBe(1);
+    expect(secondScope.resolve(counter)).toBe(1);
+    first.close();
+    second.close();
+    near.close();
+    otherNear.close();
+    return Promise.all([firstDone, secondDone]).then(() =>
+      Promise.all([
+        serverScope.close({ graceful: true }),
+        firstScope.close({ graceful: true }),
+        secondScope.close({ graceful: true }),
+      ]),
+    );
+  });
+});
+
+test("a stale client write reverts to the first applied value", () => {
+  const counter = freshCounter();
+  const serverScope = createScope({ tags: [sync(counter)] });
+  const firstScope = createScope({ tags: [sync(counter)] });
+  const secondScope = createScope({ tags: [sync(counter)] });
+  const server = syncServer(serverScope);
+  const [near, far] = memoryPair();
+  const [otherNear, otherFar] = memoryPair();
+  const firstDone = server.connect(near);
+  const secondDone = server.connect(otherNear);
+  const first = syncClient(firstScope, far);
+  const second = syncClient(secondScope, otherFar);
+  const watch = (listener: (next: number) => void): (() => void) =>
+    secondScope.controller(counter).watch(listener);
+  firstScope.controller(counter).set(1);
+  secondScope.controller(counter).set(2);
+  return reached(watch, 1).then(() => {
+    expect(serverScope.resolve(counter)).toBe(1);
+    expect(firstScope.resolve(counter)).toBe(1);
+    expect(secondScope.resolve(counter)).toBe(1);
+    first.close();
+    second.close();
+    near.close();
+    otherNear.close();
+    return Promise.all([firstDone, secondDone]).then(() =>
+      Promise.all([
+        serverScope.close({ graceful: true }),
+        firstScope.close({ graceful: true }),
+        secondScope.close({ graceful: true }),
+      ]),
+    );
+  });
+});
+
+test("a revert is never re-sent: two spans, one applied, one stale", () => {
+  const counter = freshCounter();
+  const noting = createScope({
+    tags: [sync(counter)],
+    observe: {
+      history: 10,
+      log: (entry) => void seen.push({ message: entry.message, attributes: entry.attributes }),
+    },
+  });
+  const seen: { message: string; attributes: Record<string, unknown> }[] = [];
+  const firstScope = createScope({ tags: [sync(counter)] });
+  const secondScope = createScope({ tags: [sync(counter)] });
+  const server = syncServer(noting);
+  const [near, far] = memoryPair();
+  const [otherNear, otherFar] = memoryPair();
+  const firstDone = server.connect(near);
+  const secondDone = server.connect(otherNear);
+  const first = syncClient(firstScope, far);
+  const second = syncClient(secondScope, otherFar);
+  const watch = (listener: (next: number) => void): (() => void) =>
+    secondScope.controller(counter).watch(listener);
+  firstScope.controller(counter).set(1);
+  secondScope.controller(counter).set(2);
+  return reached(watch, 1).then(() => {
+    const spans = noting.spans().filter((span) => span.name === "sync set counter");
+    expect(spans.length).toBe(2);
+    const lines = seen.filter((entry) => entry.message === "sync set");
+    expect(lines.length).toBe(2);
+    expect(lines[0].attributes["code"]).toBe("applied");
+    expect(lines[1].attributes["code"]).toBe("stale");
+    first.close();
+    second.close();
+    near.close();
+    otherNear.close();
+    return Promise.all([firstDone, secondDone]).then(() =>
+      Promise.all([
+        noting.close({ graceful: true }),
+        firstScope.close({ graceful: true }),
+        secondScope.close({ graceful: true }),
+      ]),
+    );
+  });
+});
+
+test("an invalid client write throws to the writer and leaves the server", () => {
+  const strict = data({
+    label: "strict",
+    initial: 0,
+    parse: parseWhole,
+    meta: [synced({ key: "strict" })],
+  });
+  const serverScope = createScope({ tags: [sync(strict)] });
+  const clientScope = createScope({ tags: [sync(strict)] });
+  const [near, far] = memoryPair();
+  const server = syncServer(serverScope);
+  const done = server.connect(near);
+  const client = syncClient(clientScope, far);
+  const watch = (listener: (next: number) => void): (() => void) =>
+    clientScope.controller(strict).watch(listener);
+  try {
+    clientScope.controller(strict).set(1.5);
+    expect.unreachable();
+  } catch (error: unknown) {
+    if (!isCoreError(error, "DataValidationFailed")) throw error;
+  }
+  expect(serverScope.resolve(strict)).toBe(0);
+  clientScope.controller(strict).set(3);
+  return reached(watch, 3).then(() => {
+    expect(serverScope.resolve(strict)).toBe(3);
+    expect(clientScope.resolve(strict)).toBe(3);
+    client.close();
+    near.close();
+    return done.then(() =>
+      Promise.all([serverScope.close({ graceful: true }), clientScope.close({ graceful: true })]),
+    );
+  });
+});
+
+test("a member written on the server appears on the client", () => {
+  const todos = freshTodos("todo-down");
+  const serverScope = createScope({ tags: [sync(todos)] });
+  const clientScope = createScope({ tags: [sync(todos)] });
+  const [near, far] = memoryPair();
+  const server = syncServer(serverScope);
+  const done = server.connect(near);
+  const client = syncClient(clientScope, far);
+  serverScope.controller(todos("9")).set("nine");
+  const member = todos("9");
+  const watch = (listener: (next: string) => void): (() => void) =>
+    clientScope.controller(member).watch(listener);
+  return reached(watch, "nine").then(() => {
+    expect(clientScope.resolve(todos("9"))).toBe("nine");
+    client.close();
+    near.close();
+    return done.then(() =>
+      Promise.all([serverScope.close({ graceful: true }), clientScope.close({ graceful: true })]),
+    );
+  });
+});
+
+test("a member written on the client reaches the server cell", () => {
+  const todos = freshTodos("todo-up");
+  const serverScope = createScope({ tags: [sync(todos)] });
+  const clientScope = createScope({ tags: [sync(todos)] });
+  const [near, far] = memoryPair();
+  const server = syncServer(serverScope);
+  const done = server.connect(near);
+  const client = syncClient(clientScope, far);
+  const member = todos("3");
+  const watch = (listener: (next: string) => void): (() => void) =>
+    serverScope.controller(member).watch(listener);
+  clientScope.controller(todos("3")).set("three");
+  return reached(watch, "three").then(() => {
+    expect(serverScope.resolve(todos("3"))).toBe("three");
+    client.close();
+    near.close();
+    return done.then(() =>
+      Promise.all([serverScope.close({ graceful: true }), clientScope.close({ graceful: true })]),
+    );
+  });
+});
+
+test("close detaches: a later server write never reaches the client", () => {
+  const counter = freshCounter();
+  const serverScope = createScope({ tags: [sync(counter)] });
+  const clientScope = createScope({ tags: [sync(counter)] });
+  const [near, far] = memoryPair();
+  const server = syncServer(serverScope);
+  const done = server.connect(near);
+  const client = syncClient(clientScope, far);
+  const watch = (listener: (next: number) => void): (() => void) =>
+    clientScope.controller(counter).watch(listener);
+  serverScope.controller(counter).set(4);
+  return reached(watch, 4)
+    .then(() => {
+      client.close();
+      serverScope.controller(counter).set(5);
+      const waited = new Promise<number>((resolve) => {
+        queueMicrotask(() => resolve(clientScope.resolve(counter)));
+      });
+      return waited;
+    })
+    .then((got) => {
+      expect(got).toBe(4);
+      near.close();
+      return done.then(() =>
+        Promise.all([serverScope.close({ graceful: true }), clientScope.close({ graceful: true })]),
+      );
+    });
+});
+
+test("a snapshot the client parse refuses closes the client transport", () => {
+  const serverCell = data({
+    label: "loose-value",
+    initial: 0,
+    meta: [synced({ key: "clash" })],
+  });
+  const clientCell = data({
+    label: "strict-value",
+    initial: 0,
+    parse: parseWhole,
+    meta: [synced({ key: "clash" })],
+  });
+  const serverScope = createScope({ tags: [sync(serverCell)] });
+  const clientScope = createScope({ tags: [sync(clientCell)] });
+  const [near, far] = memoryPair();
+  const server = syncServer(serverScope);
+  const done = server.connect(near);
+  const client = syncClient(clientScope, far);
+  const parted = new Promise<void>((resolve) => {
+    near.onClose(() => resolve());
+  });
+  serverScope.controller(serverCell).set(1.5);
+  return parted.then(() => {
+    expect(clientScope.resolve(clientCell)).toBe(0);
+    client.close();
+    return done.then(() =>
+      Promise.all([serverScope.close({ graceful: true }), clientScope.close({ graceful: true })]),
+    );
+  });
+});
+
+test("onMember fires once per new member with the id, after it exists", () => {
+  const notes = family({ label: "note-arrive", initial: "" });
+  const heard: string[] = [];
+  const stop = notes.onMember((id) => {
+    heard.push(`${id}:${notes(id).label}`);
+  });
+  notes("a");
+  notes("a");
+  notes("b");
+  stop();
+  notes("c");
+  expect(heard).toEqual(["a:note-arrive/a", "b:note-arrive/b"]);
 });

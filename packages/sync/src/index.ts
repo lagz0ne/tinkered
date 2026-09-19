@@ -58,6 +58,8 @@ export declare namespace Sync {
   /** The server driver: one session per connected transport; the scope's cells
    * are the truth. */
   export type Server = { connect(transport: Transport): Promise<void> };
+  /** The client driver's handle: detach the watchers and close the transport. */
+  export type Client = { close(): void };
 }
 
 /** The meta tag a cell carries to declare itself synced:
@@ -122,6 +124,66 @@ export function isFamily(unit: Sync.Published): unit is Sync.Family<unknown> {
   return typeof unit === "function";
 }
 
+/** The published set of one scope as a key registry: singletons now,
+ * family members now and on arrival, and a lookup that creates a member for
+ * a `label/id` key of a published family. `make` builds one entry per key;
+ * a second cell under a known key raises `SyncConflict`. */
+function readPublished<E extends { cell: Data.Cell<unknown> }>(
+  scope: Scope.Handle,
+  make: (key: string, cell: Data.Cell<unknown>) => E,
+): { entries: Map<string, E>; entryFor(key: string): E | undefined; stop(): void } {
+  type Gate = { make: (id: string) => Data.Cell<unknown>; label: string };
+  const entries = new Map<string, E>();
+  const gates: Gate[] = [];
+  function register(key: string, cell: Data.Cell<unknown>): E {
+    const known = entries.get(key);
+    if (known !== undefined) {
+      if (known.cell === cell) return known;
+      raise("SyncConflict", { key });
+    }
+    const entry = make(key, cell);
+    entries.set(key, entry);
+    return entry;
+  }
+  function memberFor(key: string): Data.Cell<unknown> | undefined {
+    const slash = key.indexOf("/");
+    if (slash < 1 || slash + 1 >= key.length) return undefined;
+    const head = key.slice(0, slash);
+    const rest = key.slice(slash + 1);
+    for (const gate of gates) {
+      if (gate.label === head) return gate.make(rest);
+    }
+    return undefined;
+  }
+  function entryFor(key: string): E | undefined {
+    const known = entries.get(key);
+    if (known !== undefined) return known;
+    const cell = memberFor(key);
+    if (cell === undefined) return undefined;
+    return register(key, cell);
+  }
+  const arrivals: Array<() => void> = [];
+  for (const unit of scope.resolve(sync.all)) {
+    if (isFamily(unit)) {
+      const label = unit.label;
+      const makeMember = (id: string): Data.Cell<unknown> => unit(id);
+      gates.push({ make: makeMember, label });
+      for (const id of unit.members()) register(`${label}/${id}`, makeMember(id));
+      arrivals.push(
+        unit.onMember((id) => {
+          register(`${label}/${id}`, makeMember(id));
+        }),
+      );
+    } else {
+      register(readSynced(unit).key, unit);
+    }
+  }
+  function stop(): void {
+    for (const release of arrivals) release();
+  }
+  return { entries, entryFor, stop };
+}
+
 /** The server driver: one session per connected transport; the scope's
  * cells are the truth (ADR 0048). Snapshots go down to every connected
  * transport; a `set` runs one inline operation `sync set <key>` (parse,
@@ -133,10 +195,7 @@ export function isFamily(unit: Sync.Published): unit is Sync.Family<unknown> {
  * writes go through the scope handle the driver holds, since a session
  * shadows its own writes and the broadcast watcher would never fire. */
 export function syncServer(scope: Scope.Handle): Sync.Server {
-  type Gate = { make: (id: string) => Data.Cell<unknown>; label: string };
   type Entry = { cell: Data.Cell<unknown>; version: number };
-  const registry = new Map<string, Entry>();
-  const gates: Gate[] = [];
   const live = new Set<Sync.Transport>();
   function snapshot(key: string, entry: Entry): Sync.Message {
     return {
@@ -150,50 +209,15 @@ export function syncServer(scope: Scope.Handle): Sync.Server {
     const out = snapshot(key, entry);
     for (const transport of live) transport.send(out);
   }
-  function register(key: string, cell: Data.Cell<unknown>): Entry {
-    const known = registry.get(key);
-    if (known !== undefined) {
-      if (known.cell === cell) return known;
-      raise("SyncConflict", { key });
-    }
+  const published = readPublished(scope, (key, cell) => {
     const entry: Entry = { cell, version: 0 };
-    registry.set(key, entry);
     scope.controller(cell).watch(() => {
       entry.version += 1;
       broadcast(key, entry);
     });
     return entry;
-  }
-  function memberFor(key: string): Data.Cell<unknown> | undefined {
-    const slash = key.indexOf("/");
-    if (slash < 1 || slash + 1 >= key.length) return undefined;
-    const head = key.slice(0, slash);
-    const rest = key.slice(slash + 1);
-    for (const gate of gates) {
-      if (gate.label === head) return gate.make(rest);
-    }
-    return undefined;
-  }
-  for (const unit of scope.resolve(sync.all)) {
-    if (isFamily(unit)) {
-      const label = unit.label;
-      const make = (id: string): Data.Cell<unknown> => unit(id);
-      gates.push({ make, label });
-      for (const id of unit.members()) register(`${label}/${id}`, make(id));
-      unit.onMember((id) => {
-        register(`${label}/${id}`, make(id));
-      });
-    } else {
-      register(readSynced(unit).key, unit);
-    }
-  }
-  function entryFor(key: string): Entry | undefined {
-    const known = registry.get(key);
-    if (known !== undefined) return known;
-    const cell = memberFor(key);
-    if (cell === undefined) return undefined;
-    return register(key, cell);
-  }
+  });
+  const registry = published.entries;
   function connect(transport: Sync.Transport): Promise<void> {
     return scope.session((session) => {
       live.add(transport);
@@ -203,7 +227,7 @@ export function syncServer(scope: Scope.Handle): Sync.Server {
           transport.close();
           return;
         }
-        const entry = entryFor(message.key);
+        const entry = published.entryFor(message.key);
         if (entry === undefined) {
           transport.close();
           return;
@@ -280,7 +304,114 @@ export function syncServer(scope: Scope.Handle): Sync.Server {
   return { connect };
 }
 
-/** Queue one message for every listener on the other side, in send order. */
+/** The client driver: snapshots go into the cells through their parse
+ * (family members are created on arrival), local writes go up at once with
+ * the last seen version (optimistic: the cell already holds the write), and
+ * a `reject` reverts the cell to the server's value (ADR 0048). A snapshot
+ * that fails the cell's parse — or one for a key that is neither registered
+ * nor a published family's member — means the two sides disagree on the
+ * module: a protocol violation, so the client detaches and closes the
+ * transport. Reads and writes go through the scope handle the driver holds:
+ * it runs no session, so no shadow copy stands between it and the cells. */
+export function syncClient(scope: Scope.Handle, transport: Sync.Transport): Sync.Client {
+  type Entry = { cell: Data.Cell<unknown>; release: () => void; version: number };
+  let applying = false;
+  let shut = false;
+  let nextId = 0;
+  let stopMessages: () => void = () => undefined;
+  let stopParted: () => void = () => undefined;
+  const published = readPublished(scope, (key, cell) => {
+    const truth = scope.controller(cell);
+    const entry: Entry = { cell, release: () => undefined, version: 0 };
+    entry.release = truth.watch((next) => {
+      if (applying) return;
+      nextId += 1;
+      transport.send({ type: "set", id: nextId, key, base: entry.version, value: next });
+    });
+    return entry;
+  });
+  const registry = published.entries;
+  function fill(entry: Entry, value: unknown, version: number): void {
+    const truth = scope.controller(entry.cell);
+    applying = true;
+    try {
+      truth.set(value);
+    } finally {
+      applying = false;
+    }
+    entry.version = version;
+  }
+  function stop(): void {
+    if (shut) return;
+    shut = true;
+    stopMessages();
+    published.stop();
+    stopParted();
+    for (const entry of registry.values()) entry.release();
+  }
+  function violate(): void {
+    stop();
+    transport.close();
+  }
+  function snapshot(key: string, version: number, value: unknown): void {
+    const entry = published.entryFor(key);
+    if (entry === undefined) {
+      violate();
+      return;
+    }
+    try {
+      fill(entry, value, version);
+    } catch (error: unknown) {
+      if (!isCoreError(error, "DataValidationFailed")) throw error;
+      violate();
+    }
+  }
+  function ack(key: string, version: number): void {
+    const entry = registry.get(key);
+    if (entry === undefined) {
+      violate();
+      return;
+    }
+    entry.version = version;
+  }
+  function rejected(key: string, version: number, value: unknown): void {
+    const entry = registry.get(key);
+    if (entry === undefined) {
+      violate();
+      return;
+    }
+    try {
+      fill(entry, value, version);
+    } catch (error: unknown) {
+      if (!isCoreError(error, "DataValidationFailed")) throw error;
+      violate();
+    }
+  }
+  stopMessages = transport.onMessage((message) => {
+    if (shut) return;
+    if (message.type === "snapshot") {
+      snapshot(message.key, message.version, message.value);
+      return;
+    }
+    if (message.type === "ack") {
+      ack(message.key, message.version);
+      return;
+    }
+    if (message.type === "reject") {
+      rejected(message.key, message.version, message.value);
+      return;
+    }
+    violate();
+  });
+  stopParted = transport.onClose(() => {
+    stop();
+  });
+  function close(): void {
+    stop();
+    transport.close();
+  }
+  return { close };
+}
 function deliver(target: Set<(message: Sync.Message) => void>, message: Sync.Message): void {
   queueMicrotask(() => {
     for (const listener of target) listener(message);

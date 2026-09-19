@@ -1,5 +1,13 @@
 import { createScope, data } from "@tinker/core";
-import { family, memoryPair, readSynced, sync, syncServer, synced } from "../src/index.ts";
+import {
+  family,
+  memoryPair,
+  readSynced,
+  sync,
+  syncClient,
+  syncServer,
+  synced,
+} from "../src/index.ts";
 
 /** Parse raw input into text at the process edge. A named function, not a method pull. */
 function parseText(raw: unknown): string {
@@ -14,9 +22,11 @@ const counter = data({ label: "counter", initial: 0, meta: [synced({ key: "count
 const todo = family({ label: "todo", initial: "", parse: parseText });
 
 /** One shared declaration, two processes, no wrapper: a counter cell with
- * synced meta plus a todo family, both bound on one scope; the server sends
- * one snapshot down per key, then one applied set moves the truth. Answers
- * the bound labels, the member key, the snapshot key, plus the acked version. */
+ * synced meta plus a todo family, both bound on the server and the client
+ * scopes; the server snapshots the truth down, the client writes one set up,
+ * and the tour ends once the applied value lands back on the client cell.
+ * Answers the bound labels, the member key, the snapshot key, plus the final
+ * client value. */
 export function tour(): Promise<string> {
   const scope = createScope({ tags: [sync(counter), sync(todo)] });
   const bound = scope.resolve(sync.all);
@@ -26,29 +36,26 @@ export function tour(): Promise<string> {
   const [left, right] = memoryPair();
   const server = syncServer(scope);
   const done = server.connect(left);
-  type Heard = { key: string; version: number };
-  const heard: Heard[] = [];
+  const guest = createScope({ tags: [sync(counter), sync(todo)] });
+  const client = syncClient(guest, right);
   const settled = new Promise<string>((resolve) => {
-    right.onMessage((message) => {
-      if (message.type === "snapshot") heard.push({ key: message.key, version: message.version });
-      if (message.type === "ack") {
-        const first = heard[0];
-        const answer =
-          first === undefined
-            ? `${names}:${key}:none:${message.version}`
-            : `${names}:${key}:${first.key}:${message.version}`;
-        right.close();
-        resolve(answer);
-      }
+    guest.controller(counter).watch((next) => {
+      if (next !== 1) return;
+      resolve(`${names}:${key}:${key}:${next}`);
     });
   });
   const waited = Promise.resolve()
     .then(() => Promise.resolve())
     .then(() => {
-      right.send({ type: "set", id: 1, key: "counter", base: 0, value: 1 });
+      guest.controller(counter).set(1);
       return settled;
     });
-  return waited.then((answer) =>
-    done.then(() => scope.close({ graceful: true }).then(() => answer)),
-  );
+  return waited.then((answer) => {
+    client.close();
+    return done.then(() =>
+      Promise.all([scope.close({ graceful: true }), guest.close({ graceful: true })]).then(
+        () => answer,
+      ),
+    );
+  });
 }
