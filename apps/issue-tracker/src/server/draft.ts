@@ -54,12 +54,13 @@ export declare namespace RunDraft {
   };
 }
 
-/** Read a scope close result as one terminal draft outcome: any failure,
- * cancellation, or teardown error means the run did not finish. Root
- * shutdown can cancel the child even when the caller's signal is live. */
+/** Read a scope close result as one terminal draft outcome: any teardown
+ * error makes the run failed, on every status; then any failure or
+ * cancellation means the run did not finish. Root shutdown can cancel the
+ * child even when the caller's signal is live. */
 function readClosed(end: Scope.Result): Draft.Outcome {
-  if (end.status !== "success") return end.status === "cancelled" ? "cancelled" : "failed";
   if (end.teardownErrors !== undefined && end.teardownErrors.length > 0) return "failed";
+  if (end.status !== "success") return end.status === "cancelled" ? "cancelled" : "failed";
   return "done";
 }
 
@@ -94,11 +95,20 @@ export async function runDraft(
     closing ??= session.close();
   };
   signal.addEventListener("abort", onAbort, { once: true });
-  const outcome = await settleRun(session, input, signal);
-  unText();
-  unStatus();
+  let outcome: { readonly finished: boolean; readonly draft: string };
+  let thrown: unknown;
+  try {
+    outcome = await settleRun(session, input, signal);
+  } catch (error: unknown) {
+    outcome = { finished: false, draft: "" };
+    thrown = error;
+  } finally {
+    unText();
+    unStatus();
+    signal.removeEventListener("abort", onAbort);
+  }
   const closed = readClosed(await (closing ?? session.close({ graceful: true })));
-  signal.removeEventListener("abort", onAbort);
+  if (thrown !== undefined) throw thrown;
   const status = readOutcome(outcome, closed);
   if (status === "done") notify({ kind: "done", draft: outcome.draft });
   return { status, draft: outcome.draft };
