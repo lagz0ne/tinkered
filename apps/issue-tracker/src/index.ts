@@ -18,3 +18,14 @@ export { addComment, createIssue, editIssue, listIssues, readDetail } from "./se
 export { bootScope } from "./server/bridge.ts";
 export type { Booted } from "./server/bridge.ts";
 export { buildApp } from "./server/app.ts";
+export { api } from "./client/api.ts";
+export {
+  commentRemote,
+  createRemote,
+  getRemote,
+  issueCommands,
+  issueTools,
+  listRemote,
+  serveIssues,
+  updateRemote,
+} from "./tools/issues.ts";

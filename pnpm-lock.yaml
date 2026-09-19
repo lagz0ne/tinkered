@@ -277,6 +277,12 @@ importers:
       '@hono/node-server':
         specifier: npm:^1.19.5
         version: 1.19.17(hono@4.13.8)
+      '@modelcontextprotocol/sdk':
+        specifier: 'catalog:'
+        version: 1.30.0(zod@4.6.2)
+      '@tinker/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
       '@tinker/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -289,6 +295,9 @@ importers:
       '@tinker/http':
         specifier: workspace:*
         version: link:../../packages/http
+      '@tinker/mcp':
+        specifier: workspace:*
+        version: link:../../packages/mcp
       '@tinker/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -335,6 +344,9 @@ importers:
       vite-plus:
         specifier: 'catalog:'
         version: 0.3.1(@types/node@24.13.5)(@vitest/browser-playwright@4.1.11)(esbuild@0.28.2)(happy-dom@20.14.5)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1)
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.2
 
   apps/playground:
     dependencies:

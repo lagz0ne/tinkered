@@ -21,10 +21,27 @@ const search = operation({
   run: (_deps, ctx) => [`hit:${ctx.input.q}`],
 });
 
-/** Publish every tool bound on the entrypoint scope, then connect stdio.
- * Returns the connect promise; a harness runs `node cli.ts mcp`. */
-function serve(scope: Scope.Handle): Promise<void> {
-  return mcpServer(scope, { name: "coder", version: "1.0.0" }).connect(new StdioServerTransport());
+/** Publish every tool bound on the entrypoint scope, then serve stdio. Holds
+ * the owned lifetime: EOF or a transport close settles the entry, and a CLI
+ * signal closes the scope to settle it; the transport closes in every case.
+ * A harness runs `node cli.ts mcp`. */
+async function serve(scope: Scope.Handle): Promise<void> {
+  const server = mcpServer(scope, { name: "coder", version: "1.0.0" });
+  let stop: () => void = () => undefined;
+  const stopped = new Promise<void>((resolve) => {
+    stop = () => resolve();
+  });
+  scope.onClose(stop);
+  process.stdin.once("end", stop);
+  server.server.onclose = stop;
+  try {
+    await server.connect(new StdioServerTransport());
+    if (process.stdin.readableEnded) stop();
+    await stopped;
+  } finally {
+    process.stdin.removeListener("end", stop);
+    await server.close();
+  }
 }
 
 /** The stdio entry through the CLI driver: the entry command receives the
