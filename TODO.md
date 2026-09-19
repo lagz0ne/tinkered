@@ -215,7 +215,12 @@ tickets, then contributors with lead review:
          exact body. 7 seam tests (core 246), size 22394 B, 37 lanes green, mutation 78.62. Lead A/B
          (pinned, min of 3, t32 → t33): create 168.6 → 169.3, cold 716.7 → 707.0, session 1623 → 1587, op 101.9 → 100.9 —
          the cold/session cost of t32 is reclaimed._
-   - [ ] **core/t34 — the `run` chain.** Verify: `op` probe flat when unhooked; a refusing middleware short-circuits.
+   - [x] **core/t34 — the `run` chain.** _Done: tag `core/t34` (761f4a5), writer-built, no fix round: `runThrough(layer,
+ runners, plain)` = the onion over every operation call on the root handle (registration order; refuse by not calling
+         `next`; the innermost `next` is the plain `run`, so inline configs and tagged child sessions are unchanged; sessions
+         keep the plain dispatch — the v1 limit); `handleFor` untouched; only `write` still throws `NotSupported`. 8 seam tests
+         (core 253), size 22635 B, 37 lanes green, mutation 78.72, impact chain neither. Lead A/B (pinned, min of
+         3, t33 → t34): op 101.1 → 100.9, run 112.4 → 112.3, opres 328.5 → 328.7, create 168.5 → 168.9 — flat._
    - [ ] **core/t35 — the `write` chain.** Verify: cell-write probe flat when unhooked; a refusing write leaves the cell.
    - [x] **sync/t06 — `source()` and `subscribe(transport)` as extensions.** _Done: tag `sync/t06` (6409128), writer-built
          with one fix round (error construction back in the registry: `fail(kind, payload)`, `raise` throws it; no cast
