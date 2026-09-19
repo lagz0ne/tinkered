@@ -1378,3 +1378,47 @@ The next lead must finish the SAME writer, review fixes and all durable
 helper cases, then complete final gates, SCIP, Core feedback, README,
 landing/tag/push and verified public preview. Self-contained continuation:
 /tmp/issue-tracker-t05-proof-lead-handoff.md. It supersedes older handoffs.
+
+### t05 browser proof checkpoint — 2026-09-19
+
+The lead personally reviewed the saved proof and corrected its real selectors,
+SDK turn ownership, held Post assertions, same-database reopen, and cleanup.
+The reconnect proof now keeps the original viewer across one restart, after
+many saved updates, so the new server begins at a lower source version.
+The browser's own stale Save must still carry its old revision and receive 409.
+
+Reviewed writer commits staged on the PRIVATE lead branch:
+
+| Writer  | Private lead |
+| ------- | ------------ |
+| 7bd7772 | df0992a      |
+| ec4b2d4 | bf4ee29      |
+| c6ea16e | 55c4333      |
+| c045239 | 3f749b8      |
+| 587a759 | 39922de      |
+| 1ad20c8 | 2b831b0      |
+
+At 2b831b0, the lead's fresh app build and full test:browser command both
+exit 0. The command runs the owned process/UI/CLI/restart proof, followed
+by all seven real-browser helper tests. Logs:
+/tmp/tracker-t05-proof-checkpoint-build.log and
+/tmp/tracker-t05-proof-checkpoint-browser.log.
+The helper cases cover cancel, Post, view close, discard, held Post controls,
+malformed-stream abort with unchanged saved detail, and shutdown/reopen.
+
+All ten package SCIP indexes were rebuilt successfully:
+/tmp/tracker-t05-final-package-index.log. The app review index also succeeded
+(/tmp/tracker-t05-review-app-index.log), but must be refreshed for the final
+staged source. The old exported names are retained with changed signatures;
+they must not be falsely reported as absent. The added Connected.close
+has one App caller. Full actual reference tables belong in final acceptance.
+
+Writer 5a12482 saves the final README, package description, and examples link;
+it is NOT staged or reviewed here yet. The same writer is running final gates
+and preparing its report. Full lead gates, final source scans/SCIP, Core
+feedback, tag/push, and a verified public preview remain. No t05 code is pushed.
+No lead-owned process remains after the passing browser command.
+
+The next lead continues the whole task at the user's requested context
+handoff point. The self-contained current briefing is
+/tmp/issue-tracker-t05-final-lead-handoff.md; it supersedes older handoffs.
