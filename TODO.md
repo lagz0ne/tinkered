@@ -27,9 +27,9 @@ _None._
 
 ## Doing
 
-| Card                                          | Owner                                         | Next                                                                                                                                              | Verify                                                                               |
-| --------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| tracker/t01 — Create an issue and see it live | Paseo writer e00bd12d; authoring lead reviews | Finish the collected review fixes, gates, and browser proof for the [first slice](docs/roadmap/issue-tracker-v1/issues/01-create-and-see-live.md) | Saved issue reaches two tabs; persistence, behavior tests, checks, and Core feedback |
+| Card                                          | Owner                                         | Next                                                                                                                                                                       | Verify                                                                               |
+| --------------------------------------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| tracker/t01 — Create an issue and see it live | Paseo writer e00bd12d; authoring lead reviews | Fix the reproduced startup-drop and shutdown bugs; finish authority ownership review for the [first slice](docs/roadmap/issue-tracker-v1/issues/01-create-and-see-live.md) | Saved issue reaches two tabs; persistence, behavior tests, checks, and Core feedback |
 
 ## Review
 

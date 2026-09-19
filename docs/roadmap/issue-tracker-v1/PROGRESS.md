@@ -79,3 +79,32 @@ state; network messages need real admission; startup/shutdown errors cannot be s
 browser proof needs unique data so old rows cannot pass it; GET tests need saved values. Finish
 conventions, gates, browser proof, and report before landing. Recovery detail is preserved in
 `/tmp/issue-tracker-t01-recovery.md`. No code has landed and no completion claim is made.
+
+## t01 saved commit reviewed — 2026-09-19
+
+Writer commit `e166a01` is saved in `tracker/t01-live-create`, not landed. Its report claims
+four tests, browser create/reload/restart proof, checks, census, and 37 validation lanes passed.
+The lead independently reproduced two remaining failures against this saved code/build:
+
+- A real HTTP fixture opens SSE, accepts registration, then closes before the first snapshot.
+  The browser remains on `Loading…`: `stream.onerror` only switches to the owned close path
+  after `scope.ready`, leaving the readiness wait unsettled. Proof:
+  `/tmp/tracker-startup-drop-proof.mjs`, `/tmp/tracker-startup-drop-proof.log`.
+- A real app process with a registered live SSE connection exits 1 on a normal SIGTERM.
+  The shutdown maps expected forced cancellation to failure and uses the same error callback
+  on success. Proof: `/tmp/tracker-stop-proof.mjs`, `/tmp/tracker-stop-proof-result.json`.
+
+The same writer is fixing these observations; no new writer or workspace. Review also requires
+one save queue owned by the booted authority, typed input admission once, and final conventions.
+No application code is on main yet. The ticket remains Doing until independent checks pass.
+
+The lead package SCIP run succeeded for all ten packages (`/tmp/tracker-t01-review-index.log`).
+Library refs are `/tmp/tracker-t01-review-{core,sync,drizzle,hono}-refs.txt`. This resolves the
+writer-side package indexing failure; it does not substitute for indexing app callers.
+
+Explicit app indexing also succeeded (713 ms) using
+`/home/paseo/.local/share/pnpm/bin/scip-typescript index --output <landing>/.scip/issue-tracker.scip`
+from the writer app cwd. Draft refs: `/tmp/tracker-t01-app-draft-refs.txt`. Definitions are
+`bootScope`:39 and `createSaver`:19 in `src/server/bridge.ts`, `buildApp`:31 in
+`src/server/app.ts`, and `connectTab`:52 in `src/client/sync.ts`. The writer received the
+actual caller table before further authority/connection changes. Reindex the final code at landing.
