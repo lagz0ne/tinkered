@@ -41,6 +41,7 @@
     "typescript": "^7.0.2",
     "vite": "catalog:",
     "vite-plus": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@anthropic-ai/claude-agent-sdk": "catalog:"
   }
 }
