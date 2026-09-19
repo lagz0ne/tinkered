@@ -2,7 +2,7 @@
   "name": "@tinker-issue-tracker",
   "version": "0.1.0",
   "private": true,
-  "description": "Issue tracker slice 1: create an issue, save it, see it live in two tabs.",
+  "description": "Issue tracker: create, edit, discuss, and triage issues live in two tabs, from CLI and MCP.",
   "type": "module",
   "scripts": {
     "build": "vp build",

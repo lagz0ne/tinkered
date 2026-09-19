@@ -1,4 +1,4 @@
-# Issue tracker (slice t04: optional triage draft)
+# Issue tracker
 
 Create an issue, open it, edit its title/description, move it through
 Open/In progress/Done, assign Ada/Lin/Sam or nobody, and add comments.
@@ -12,14 +12,28 @@ HTTP 409 and the current saved issue; the local draft is kept so the
 person can reload the other change and try again. Comments append without
 an edit revision.
 
+If the live connection drops — a wire failure or a server restart — the
+page shows a Reconnect button and keeps every typed draft. Reconnecting
+swaps in a fresh connection on the same page, so the local title, comment,
+and edit revision survive. A server restart keeps the database on disk;
+the fresh connection accepts the newer saved state even when the server's
+revision is lower than the last one the old connection saw.
+
+Offline saves show a plain notice ("Could not reach the server. Your work
+is kept — try again.") instead of a raw error name, and the typed text is
+kept. The same plain wording covers create, edit, comment, and detail
+refresh; retrying after the connection returns saves normally.
+
 ## Triage draft (optional helper, off by default)
 
 Selecting an issue shows a triage draft box. With the helper off it says
-so and ordinary tracker use needs no account. With the helper on, "Draft
-a summary" streams a short summary or next steps for that issue. Cancel
-stops the run, Discard throws the draft away — neither saves anything.
-"Post draft" appends the generated text as a comment under the chosen
-Ada/Lin/Sam author through the normal comment action.
+so and ordinary tracker use needs no account. If checking the helper
+fails, the box shows a plain notice with a Retry button instead of
+claiming it is off; retrying keeps the surrounding edit draft. With the
+helper on, "Draft a summary" streams a short summary or next steps for
+that issue. Cancel stops the run, Discard throws the draft away — neither
+saves anything. "Post draft" appends the generated text as a comment
+under the chosen Ada/Lin/Sam author through the normal comment action.
 
 Turn the helper on for local use:
 
@@ -51,6 +65,16 @@ The build command builds the public workspace libraries before the app.
 
 Then open `http://127.0.0.1:4311/` in two tabs. `HOST` and `PORT` set the
 address; `DATA_PATH` is the persistent PGlite folder (gitignored).
+
+Walkthrough: create an issue in the first tab and see it appear in the
+second; open it in both; change status/assignee in one tab and watch the
+other; add a comment in the second and watch the first; reload either tab
+and everything persists. Stop the server, start it again on the same
+`DATA_PATH`, and the saved issues return. Type a local edit, restart the
+server while an edit is open, change the saved title elsewhere, press
+Reconnect, and the page shows the new saved title while keeping the local
+draft; saving with the old revision is rejected with 409 and the exact
+saved detail is unchanged until "Reload their change".
 
 ## Use it from the command line
 
@@ -95,8 +119,6 @@ so run node itself rather than through the task runner):
 ```
 
 Replace `/abs/path` with your repo folder. From the repo root, `pwd` prints it.
-For this private checkout the full entry is
-`/home/paseo/next/tinkered-sync-land/apps/issue-tracker/src/tools/main.ts`.
 No account is needed; the default path reaches the local server above.
 
 ## Check it
@@ -106,9 +128,18 @@ vp run @tinker-issue-tracker#test
 vp run @tinker-issue-tracker#test:browser
 ```
 
-`test` runs the behavior tests (real PGlite, real routes, memory-pair sync).
-`test:browser` runs the two-tab Playwright proof against a server on
-`127.0.0.1:4311` — start the server first with the commands above.
+`test` runs the behavior tests (real PGlite, real routes, memory-pair sync):
+`issues` (saves, conflicts, restart), `tools` (CLI/MCP over real HTTP), and
+`draft` (helper streaming, cancel, failure, shutdown).
+`test:browser` runs the self-owned browser proof: it starts its own
+temporary server on a free port with a temporary database, drives two real
+390px Chromium tabs (create/edit/status/assign/comment, conflict with
+explicit reload, CLI create/update/comment/get visible in the browser,
+reload, one server restart with Reconnect keeping local drafts and
+rejecting the stale revision with 409), then runs the helper cases
+(cancel/discard/Post with a held comment request, closing the view,
+malformed stream, shutdown with a live wire and held turn). It cleans up
+its servers, browsers, and temp data, and needs no model credentials.
 
 ## How it fits together
 
@@ -118,3 +149,27 @@ React screen ← sync snapshot ← committed root state.
 Saves run in their own short child session and publish to the shared root
 cell only after the database commit resolves. PGlite is single-connection,
 so short write transactions queue instead of overlapping.
+
+The app is built from the public libraries:
+
+- [`@tinker/core`](../../packages/core/src/index.ts): scopes, operations,
+  and data cells — the app boots one owning scope and runs each save as a
+  short operation.
+- [`@tinker/drizzle`](../../packages/drizzle/src/index.ts): the PGlite
+  store behind the issue/comment/activity rows.
+- [`@tinker/hono`](../../packages/hono/src/index.ts): the HTTP server —
+  one scope at the entrypoint, one session per request.
+- [`@tinker/http`](../../packages/http/src/index.ts): the browser command
+  frame — typed operations over HTTP with managed request/response errors.
+- [`@tinker/sync`](../../packages/sync/src/index.ts): the live list — the
+  server publishes the issue list source, each tab subscribes and fills
+  its cells from snapshots.
+- [`@tinker/react`](../../packages/react/src/index.ts): providers and
+  hooks — the page reads cells with `useData` and saves with `useRun`.
+- [`@tinker/cli`](../../packages/cli/src/index.ts): the `issues` command
+  entry — argv rows over the same HTTP operations.
+- [`@tinker/mcp`](../../packages/mcp/src/index.ts): the same five actions
+  as MCP tools over stdio.
+- [`@tinker/harness`](../../packages/harness/src/index.ts): the optional
+  triage draft — the real Claude adapter behind the helper, read-only
+  issue tools, server-side credentials only.
