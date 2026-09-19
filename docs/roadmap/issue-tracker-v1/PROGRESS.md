@@ -1251,3 +1251,16 @@ helper check currently appears as off. Logs:
 recovery promises. The same writer has the probes; final runs must use
 separate output paths. These baselines own and close their servers,
 browsers, and roots; no lead process remains running.
+
+### t05 lead handoff checkpoint
+
+At the user's requested context handoff point, t04 is accepted and pushed.
+T05 remains Doing with the same writer `ade1b488`. Its last inspected tree
+was clean at base `ea73244`; no t05 report or saved implementation was
+available yet. The new lead must continue that writer, personally review
+its final source, independently run gates, land/push, and verify the
+actual temporary public preview. No new writer or reviewer is needed.
+
+The outgoing lead has no running server, browser, gate, probe, or preview.
+The exact continuation is in `/tmp/issue-tracker-t05-lead-handoff.md`,
+which supersedes the t04 finalization handoff. Parked lanes stay parked.
