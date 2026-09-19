@@ -20,7 +20,9 @@ function readDataPath(): string {
   return process.env.DATA_PATH ?? "./data/issues";
 }
 
-function readDraftOptIn(): { readonly draft?: { readonly enabled: boolean; readonly baseUrl: string } } {
+function readDraftOptIn(): {
+  readonly draft?: { readonly enabled: boolean; readonly baseUrl: string };
+} {
   const raw = process.env.DRAFT_HELPER;
   if (raw !== "1" && raw !== "true") return {};
   const base = readPublicBase();

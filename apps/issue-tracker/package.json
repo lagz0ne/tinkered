@@ -32,6 +32,7 @@
     "react-dom": "catalog:"
   },
   "devDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "catalog:",
     "@electric-sql/pglite": "catalog:",
     "@types/node": "^24",
     "@types/react": "^19",
@@ -41,7 +42,6 @@
     "typescript": "^7.0.2",
     "vite": "catalog:",
     "vite-plus": "catalog:",
-    "zod": "catalog:",
-    "@anthropic-ai/claude-agent-sdk": "catalog:"
+    "zod": "catalog:"
   }
 }

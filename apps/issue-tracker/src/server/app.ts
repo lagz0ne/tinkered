@@ -2,7 +2,13 @@ import { Hono, type Context } from "hono";
 import { operation } from "@tinker/core";
 import { handle, stream, tinker, type HonoScope } from "@tinker/hono";
 import type { Sync } from "@tinker/sync";
-import { issueList, parseCommentInput, parseCreateInput, parseEditInput, parseIssueId } from "../shared/issues.ts";
+import {
+  issueList,
+  parseCommentInput,
+  parseCreateInput,
+  parseEditInput,
+  parseIssueId,
+} from "../shared/issues.ts";
 import { parseDraftInput } from "../shared/draft.ts";
 import { isError } from "../errors.ts";
 import { runDraft, type RunDraft } from "./draft.ts";
@@ -238,12 +244,20 @@ function draftFrame(event: { readonly kind: string; readonly [key: string]: unkn
   return `data: ${JSON.stringify(event)}\n\n`;
 }
 
-function draftStream(booted: Booted.Composed, c: DraftContext, id: string): Response | Promise<Response> {
+function draftStream(
+  booted: Booted.Composed,
+  c: DraftContext,
+  id: string,
+): Response | Promise<Response> {
   if (booted.draft.enabled === false) return c.text("draft helper is off", 404);
   return draftOpened(booted, c, id);
 }
 
-async function draftOpened(booted: Booted.Composed, c: DraftContext, id: string): Promise<Response> {
+async function draftOpened(
+  booted: Booted.Composed,
+  c: DraftContext,
+  id: string,
+): Promise<Response> {
   let raw: unknown;
   try {
     raw = await c.req.json();
