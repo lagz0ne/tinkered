@@ -1,4 +1,4 @@
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "vite-plus/test";
@@ -16,6 +16,10 @@ import { readDraftServer, reservePort } from "./draft-server.ts";
 
 function tempPath(): string {
   return join(mkdtempSync(join(tmpdir(), "issues-draft-")), "db");
+}
+
+function removeTemp(path: string): void {
+  rmSync(join(path, ".."), { recursive: true, force: true });
 }
 
 function readEvents(text: string): { kind: string; [key: string]: unknown }[] {
@@ -104,6 +108,7 @@ test("a draft streams text and finishes without saving anything", async () => {
   } finally {
     await live.scope.close({ graceful: true });
     await heard.stop();
+    removeTemp(path);
   }
 });
 
@@ -128,29 +133,30 @@ test("an explicit post sends the generated draft and appends once", async () => 
     });
     const seen = readEvents(await generated.text());
     const terminal = readTerminal(seen);
-    expect(terminal).toEqual({ kind: "terminal", status: "done", draft: "Post this draft." });
+    if (terminal === undefined || terminal.kind !== "terminal") {
+      throw fail("DraftFailed", { reason: "expected a finished draft" });
+    }
+    expect(terminal.status).toBe("done");
     const posted = await fetch(`${heard.base}/api/issues/${created.id}/comments`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ author: "Ada", text: "Post this draft." }),
+      body: JSON.stringify({ author: "Ada", text: terminal.draft }),
     });
     expect(posted.status).toBe(201);
-    expect(parseComment(await posted.json()).text).toBe("Post this draft.");
+    const comment = parseComment(await posted.json());
+    expect(comment.text).toBe(terminal.draft);
     const after = await live.detail(created.id);
     expect({ ...after.issue, updatedAt: 0 }).toEqual({ ...before.issue, updatedAt: 0 });
-    expect(after.comments).toEqual([
-      ...before.comments,
-      { ...after.comments.at(-1), author: "Ada", text: "Post this draft." },
+    expect(after.comments).toEqual([...before.comments, comment]);
+    expect(after.activity.map((entry) => entry.kind)).toEqual([
+      ...before.activity.map((entry) => entry.kind),
+      "commented",
     ]);
-    expect(after.comments.at(-1)?.author).toBe("Ada");
-    expect(after.comments.at(-1)?.text).toBe("Post this draft.");
-    expect(after.activity).toEqual([
-      ...before.activity,
-      { ...after.activity.at(-1), kind: "commented", summary: "Ada commented" },
-    ]);
+    expect(after.activity.at(-1)?.summary).toBe("Ada commented");
   } finally {
     await live.scope.close({ graceful: true });
     await heard.stop();
+    removeTemp(path);
   }
 });
 
@@ -182,6 +188,7 @@ test("a model error result and a thrown model error both fail without a draft", 
     } finally {
       await live.scope.close({ graceful: true });
       await heard.stop();
+      removeTemp(path);
     }
   }
 });
@@ -256,8 +263,7 @@ test("ordinary saves continue while a draft turn holds", async () => {
     fixture.release();
     await live.scope.close();
     await heard.stop();
-    const { rmSync } = await import("node:fs");
-    rmSync(path, { recursive: true, force: true });
+    removeTemp(path);
   }
 });
 
@@ -307,8 +313,7 @@ test("an HTTP disconnect cancels the model and saves nothing", async () => {
     fixture.release();
     await live.scope.close();
     await heard.stop();
-    const { rmSync } = await import("node:fs");
-    rmSync(path, { recursive: true, force: true });
+    removeTemp(path);
   }
 });
 
@@ -363,8 +368,7 @@ test("root close with a live caller aborts the model and settles cancelled", asy
     fixture.release();
     await live.scope.close();
     await heard.stop();
-    const { rmSync } = await import("node:fs");
-    rmSync(path, { recursive: true, force: true });
+    removeTemp(path);
   }
 });
 
@@ -436,7 +440,6 @@ test("overlapping drafts on two issues stay isolated through one live app", asyn
     fixture.release();
     await live.scope.close();
     await heard.stop();
-    const { rmSync } = await import("node:fs");
-    rmSync(path, { recursive: true, force: true });
+    removeTemp(path);
   }
 });

@@ -274,12 +274,18 @@ export function readDraftServer(scripts: DraftScript[]): DraftFixture {
       releaseHold();
     };
     signal.addEventListener("abort", onAbort, { once: true });
+    if (signal.aborted) {
+      signal.removeEventListener("abort", onAbort);
+      abortedResolve();
+      releaseHold();
+      throw signal.reason;
+    }
     try {
       await release;
     } finally {
       signal.removeEventListener("abort", onAbort);
     }
-    if (signal.aborted === true) throw signal.reason;
+    if (signal.aborted) throw signal.reason;
   }
   return {
     sdk,

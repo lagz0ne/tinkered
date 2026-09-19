@@ -29,8 +29,10 @@ DRAFT_HELPER=1 PUBLIC_BASE_URL=http://127.0.0.1:4311 HOST=127.0.0.1 PORT=4311 DA
 
 `DRAFT_HELPER=1` (or `true`) opts in; without it the helper stays off.
 `PUBLIC_BASE_URL` is the address the helper's read tools call — set it to
-the same server, or omit it to use `http://HOST:PORT`. Model credentials
-stay server-only: never put keys in the browser or client bundle.
+the same server, or omit it to use `http://HOST:PORT`. The real Claude
+adapter reads its credentials from the server environment (for example
+`ANTHROPIC_API_KEY` as the Claude Agent SDK documents); keep them
+server-only and never put keys in the browser or client bundle.
 
 The run may call only the existing issue `get`/`list` read tools through
 its in-process server. Built-in tools are disabled, filesystem settings

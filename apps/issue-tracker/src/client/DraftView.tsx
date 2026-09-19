@@ -143,19 +143,6 @@ function RetryView(props: RetryProps) {
   );
 }
 
-type Runner = {
-  readonly id: number;
-  readonly stopper: AbortController;
-};
-
-type DraftCells = {
-  readonly setView: (view: View) => void;
-  readonly setText: (text: (seen: string) => string) => void;
-  readonly setDraft: (draft: string) => void;
-  readonly setNotice: (notice: string | null) => void;
-  readonly currentRun: () => number;
-};
-
 function DraftView(props: { issueId: string; reload: () => void }) {
   const [capability, setCapability] = useState<"loading" | "off" | "on">("loading");
   const [view, setView] = useState<View>("quiet");
@@ -189,13 +176,6 @@ function DraftView(props: { issueId: string; reload: () => void }) {
     },
     [props.issueId],
   );
-  const cells: DraftCells = {
-    setView,
-    setText,
-    setDraft,
-    setNotice,
-    currentRun: () => runId.current,
-  };
   async function start(): Promise<void> {
     const id = runId.current + 1;
     runId.current = id;
@@ -206,7 +186,7 @@ function DraftView(props: { issueId: string; reload: () => void }) {
     setText("");
     setDraft("");
     setNotice(null);
-    const outcome = await startRun(props.issueId, prompt, { id, stopper }, cells);
+    const outcome = await startRun(id, stopper);
     if (runId.current !== id) return;
     if (flight.current === stopper) flight.current = null;
     if (outcome === undefined) return;
@@ -219,26 +199,24 @@ function DraftView(props: { issueId: string; reload: () => void }) {
     return "failed";
   }
   async function startRun(
-    issueId: string,
-    asked: string,
-    runner: Runner,
-    cells: DraftCells,
+    id: number,
+    stopper: AbortController,
   ): Promise<Draft.Outcome | undefined> {
     try {
-      return await runStream(issueId, asked, runner.stopper, (event) => {
-        if (cells.currentRun() !== runner.id) return;
-        if (event.kind === "text") cells.setText((seen) => seen + event.text);
-        else if (event.kind === "done") cells.setDraft(event.draft);
+      return await runStream(props.issueId, prompt, stopper, (event) => {
+        if (runId.current !== id) return;
+        if (event.kind === "text") setText((seen) => seen + event.text);
+        else if (event.kind === "done") setDraft(event.draft);
       });
     } catch (error: unknown) {
-      if (cells.currentRun() !== runner.id) return undefined;
-      runner.stopper.abort();
+      if (runId.current !== id) return undefined;
+      stopper.abort();
       if (isAbort(error)) {
-        cells.setView("cancelled");
+        setView("cancelled");
         return undefined;
       }
-      cells.setView("failed");
-      cells.setNotice(readFailedMessage(error));
+      setView("failed");
+      setNotice(readFailedMessage(error));
       return undefined;
     }
   }
