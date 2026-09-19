@@ -2,14 +2,10 @@ import { Hono } from "hono";
 import { operation } from "@tinker/core";
 import { handle, stream, tinker, type HonoScope } from "@tinker/hono";
 import type { Sync } from "@tinker/sync";
-import {
-  issueList,
-  parseCommentInput,
-  parseCreateInput,
-  parseEditInput,
-  parseIssueId,
-} from "../shared/issues.ts";
+import { issueList, parseCommentInput, parseCreateInput, parseEditInput, parseIssueId } from "../shared/issues.ts";
+import { parseDraftInput } from "../shared/draft.ts";
 import { isError } from "../errors.ts";
+import { runDraft, type RunDraft } from "./draft.ts";
 import type { Booted } from "./bridge.ts";
 
 function frame(message: Sync.Message): string {
@@ -42,6 +38,9 @@ function onError(error: unknown, c: Parameters<HonoScope.OnError>[1]) {
     return c.text(error.payload.reason, 400);
   }
   if (isError(error, "BadCommentInput")) return c.text(error.payload.reason, 400);
+  if (isError(error, "BadDraftInput")) return c.text(error.payload.reason, 400);
+  if (isError(error, "DraftFailed")) return c.text(error.payload.reason, 502);
+  if (isError(error, "IssueNotFound")) return c.text("issue not found", 404);
   return undefined;
 }
 
@@ -74,6 +73,10 @@ export function buildApp(booted: Booted.Composed): Hono {
     label: "readOne",
     input: parseIssueId,
     run: (_deps, ctx) => booted.detail(ctx.input),
+  });
+  const readCapability = operation({
+    label: "readCapability",
+    run: () => ({ enabled: booted.draft.enabled }),
   });
   const posts = new Map<string, (message: Sync.Message) => void>();
   const app = new Hono();
@@ -128,6 +131,15 @@ export function buildApp(booted: Booted.Composed): Hono {
       respond: (issues, c) => c.json(issues),
     }),
   );
+  app.get("/api/draft", (c) =>
+    handle(readCapability, {
+      respond: (capability, res) => res.json(capability, 200),
+    })(c),
+  );
+  app.post("/api/issues/:id/draft", (c) => {
+    const id = c.req.param("id");
+    return draftStream(booted, c, id);
+  });
   app.get("/sync", (c) => {
     const id = c.req.query("client") ?? "guest";
     c.header("Content-Type", "text/event-stream");
@@ -219,6 +231,124 @@ export function buildApp(booted: Booted.Composed): Hono {
     return c.text("ok");
   });
   return app;
+}
+
+type DraftContext = Parameters<Parameters<Hono["get"]>[1]>[0];
+
+function draftFrame(event: { readonly kind: string; readonly [key: string]: unknown }): string {
+  return `data: ${JSON.stringify(event)}\n\n`;
+}
+
+function draftStream(booted: Booted.Composed, c: DraftContext, id: string) {
+  if (booted.draft.enabled === false) return c.text("draft helper is off", 404);
+  return stream(c, async (emit, ctx) => {
+    let raw: unknown;
+    try {
+      raw = await c.req.json();
+    } catch {
+      raw = undefined;
+    }
+    const validated = parseDraftInput(
+      typeof raw === "object" && raw !== null ? { ...raw, id } : { id },
+    );
+    try {
+      await booted.detail(input.id);
+    } catch (error: unknown) {
+      if (isError(error, "IssueNotFound")) {
+        await emit(draftFrame({ kind: "failed", reason: "that issue is gone" }));
+        return;
+      }
+      throw error;
+    }
+    const input = validated;
+    const queue: string[] = [];
+    const waiter = readWaiter();
+    const aborter = new AbortController();
+    if (ctx.signal.aborted) aborter.abort(ctx.signal.reason);
+    else ctx.signal.addEventListener("abort", () => aborter.abort(ctx.signal.reason), { once: true });
+    const finished = readRunState(booted, input, queue, waiter, aborter);
+    const pump = (async (): Promise<void> => {
+      for (;;) {
+        while (queue.length > 0) {
+          const next = queue.shift();
+          if (next === undefined) break;
+          try {
+            await emit(next);
+          } catch {
+            aborter.abort();
+            return;
+          }
+        }
+        if (finished.settled) return;
+        await waiter.sleep();
+      }
+    })();
+    let done: RunDraft.Done;
+    try {
+      done = await finished.value;
+    } finally {
+      waiter.wake();
+      await pump;
+    }
+    try {
+      await emit(draftFrame({ kind: "terminal", status: done.status, draft: done.draft }));
+    } catch {
+      return;
+    }
+  });
+}
+
+type Waiter = { readonly sleep: () => Promise<void>; readonly wake: () => void };
+
+type RunState = { settled: boolean; readonly value: Promise<RunDraft.Done> };
+
+function readRunState(
+  booted: Booted.Composed,
+  input: { readonly id: string; readonly prompt: string },
+  queue: string[],
+  waiter: Waiter,
+  aborter: AbortController,
+): RunState {
+  const state: RunState = {
+    settled: false,
+    value: runDraft(
+      booted.scope,
+      input,
+      (event) => {
+        queue.push(draftFrame(event));
+        waiter.wake();
+      },
+      aborter.signal,
+    ).then(
+      (done) => {
+        state.settled = true;
+        waiter.wake();
+        return done;
+      },
+      (error: unknown) => {
+        state.settled = true;
+        waiter.wake();
+        throw error;
+      },
+    ),
+  };
+  return state;
+}
+
+function readWaiter(): Waiter {
+  let wake: () => void = () => undefined;
+  const sleep = (): Promise<void> =>
+    new Promise<void>((resolve) => {
+      wake = resolve;
+    });
+  return {
+    sleep,
+    wake: () => {
+      const next = wake;
+      wake = () => undefined;
+      next();
+    },
+  };
 }
 
 function owned(

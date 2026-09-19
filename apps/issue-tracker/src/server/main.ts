@@ -20,6 +20,20 @@ function readDataPath(): string {
   return process.env.DATA_PATH ?? "./data/issues";
 }
 
+function readDraftOptIn(): { readonly draft?: { readonly enabled: boolean; readonly baseUrl: string } } {
+  const raw = process.env.DRAFT_HELPER;
+  if (raw !== "1" && raw !== "true") return {};
+  const base = readPublicBase();
+  if (base === undefined) return {};
+  return { draft: { enabled: true, baseUrl: base } };
+}
+
+function readPublicBase(): string | undefined {
+  const raw = process.env.PUBLIC_BASE_URL;
+  if (raw !== undefined && raw.length > 0) return raw;
+  return `http://${readHost()}:${readPort()}`;
+}
+
 async function serveClient(app: ReturnType<typeof buildApp>): Promise<void> {
   const dir = join(process.cwd(), "dist", "client");
   app.get("/", async (c) => {
@@ -53,7 +67,7 @@ function readShutdown(result: Scope.Result): number {
 }
 
 async function main(): Promise<number> {
-  const booted = await bootScope(readDataPath());
+  const booted = await bootScope(readDataPath(), readDraftOptIn());
   const app = buildApp(booted);
   await serveClient(app);
   const host = readHost();

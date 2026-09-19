@@ -1,6 +1,8 @@
-import { createScope, type Scope } from "@tinker/core";
+import { createScope, type Scope, type Tag } from "@tinker/core";
+import type { HttpClient } from "@tinker/http";
 import { source, sync, type Sync } from "@tinker/sync";
 import { issueList, type Issues } from "../shared/issues.ts";
+import { api } from "../client/api.ts";
 import { addComment, createIssue, editIssue, listIssues, readDetail } from "./operations.ts";
 import { store } from "./store.ts";
 
@@ -11,6 +13,10 @@ export declare namespace Booted {
     readonly edit: (input: Issues.EditInput) => Promise<Issues.Issue>;
     readonly comment: (input: Issues.CommentInput) => Promise<Issues.Comment>;
   };
+  export type Draft = {
+    readonly enabled: boolean;
+    readonly baseUrl: string | undefined;
+  };
   /** The booted server composition: the owning root, the exact source
    * extension installed on it, its savers, and its serialized detail
    * reader. Callers resolve this same src object; a fresh source() call
@@ -20,6 +26,8 @@ export declare namespace Booted {
     readonly src: Scope.Extension<Sync.Source>;
     readonly save: Save;
     readonly detail: (id: string) => Promise<Issues.Detail>;
+    readonly draft: Draft;
+    readonly presets: readonly Scope.Preset[];
   };
 }
 
@@ -58,12 +66,33 @@ function settleQueue(): void {}
 
 /** Boot the owning scope with its save queue. Each save runs its short
  * transaction, then closes and publishes the committed list through the
- * root controller. Detail reads serialize on the same queue. */
-export async function bootScope(dataPath: string | undefined): Promise<Booted.Composed> {
+ * root controller. Detail reads serialize on the same queue. Presets seed
+ * the root so tests can substitute the SDK module; the normal app runs
+ * with none. The draft helper stays off unless a base URL is bound. */
+export async function bootScope(
+  dataPath: string | undefined,
+  options?: { readonly draft?: Partial<Booted.Draft>; readonly presets?: readonly Scope.Preset[] },
+): Promise<Booted.Composed> {
   const src = source();
-  const scope = createScope({ tags: [store.config(dataPath), sync(issueList)], extensions: [src] });
+  const presets = options?.presets ?? [];
+  const draft = readDraftConfig(options?.draft);
+  const tags = draft.enabled
+    ? [store.config(dataPath), sync(issueList), draftBase(draft)]
+    : [store.config(dataPath), sync(issueList)];
+  const scope = createScope({ tags, extensions: [src], presets });
   await publishList(scope);
   await scope.ready;
   const serial = createSerial(scope);
-  return { scope, src, save: serial.save, detail: serial.detail };
+  return { scope, src, save: serial.save, detail: serial.detail, draft, presets };
+}
+
+function draftBase(draft: Booted.Draft): Tag.Binding<HttpClient.Config> {
+  return api.config({ baseUrl: draft.baseUrl ?? "" });
+}
+
+function readDraftConfig(raw: Partial<Booted.Draft> | undefined): Booted.Draft {
+  if (raw?.enabled === true && raw.baseUrl !== undefined && raw.baseUrl.length > 0) {
+    return { enabled: true, baseUrl: raw.baseUrl };
+  }
+  return { enabled: false, baseUrl: undefined };
 }

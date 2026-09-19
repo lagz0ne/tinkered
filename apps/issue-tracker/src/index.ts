@@ -14,6 +14,10 @@ export {
   parseIssueList,
 } from "./shared/issues.ts";
 export type { Issues } from "./shared/issues.ts";
+export { parseDraftId, parseDraftInput } from "./shared/draft.ts";
+export type { Draft } from "./shared/draft.ts";
+export { draftGuardrails, draftTurn, runDraft, triage } from "./server/draft.ts";
+export type { RunDraft } from "./server/draft.ts";
 export { addComment, createIssue, editIssue, listIssues, readDetail } from "./server/operations.ts";
 export { bootScope } from "./server/bridge.ts";
 export type { Booted } from "./server/bridge.ts";
