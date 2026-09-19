@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ScopeProvider, useData, useRun } from "@tinker/react";
 import { isError as isHttpError } from "@tinker/http";
 import { getDetail, patchIssue, postComment, postIssue } from "./api.ts";
+import DraftView from "./DraftView.tsx";
 import type { TabSync } from "./sync.ts";
 import { assignees, issueList, parseIssue, type Issues } from "../shared/issues.ts";
 import { isError } from "../errors.ts";
@@ -402,6 +403,7 @@ function DetailView(props: { selectedId: string; stamp: number }) {
             </ul>
           )}
           <CommentForm issueId={shown.issue.id} reload={reload} />
+          <DraftView issueId={shown.issue.id} reload={reload} />
           <h3>Activity</h3>
           <ul aria-label="activity">
             {shown.activity.map((entry) => (
