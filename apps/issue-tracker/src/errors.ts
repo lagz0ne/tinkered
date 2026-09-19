@@ -6,6 +6,7 @@ type Payloads = {
   BadCreateInput: { reason: string };
   BadEditInput: { reason: string };
   BadCommentInput: { reason: string };
+  BadDraftInput: { reason: string };
   IssueNotFound: { id: string };
   IssueConflict: { id: string; currentRevision: number; current: Issues.Issue };
   SyncDropped: { reason: string };

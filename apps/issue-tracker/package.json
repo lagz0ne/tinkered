@@ -20,6 +20,7 @@
     "@tinker/cli": "workspace:*",
     "@tinker/core": "workspace:*",
     "@tinker/drizzle": "workspace:*",
+    "@tinker/harness": "workspace:*",
     "@tinker/hono": "workspace:*",
     "@tinker/http": "workspace:*",
     "@tinker/mcp": "workspace:*",
