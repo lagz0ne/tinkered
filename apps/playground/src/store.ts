@@ -9,16 +9,22 @@ export type Status = { kind: "ok" | "error" | "info"; text: string };
 export type View = "editor" | "bench";
 
 const STORAGE = "tinkered-playground:v2";
-type Persisted = { files: PlaygroundFile[]; active: string; theme: ThemeId };
+type Persisted = { files: PlaygroundFile[]; active: string; theme: ThemeId; dirty?: boolean };
 
+/** Restore the last session. Files come back only if the user actually edited them (`dirty`); an
+ * untouched workspace — including saves from before the flag existed — always gets the CURRENT
+ * default example, so shipping a new starter reaches returning visitors, not just fresh ones. */
 function load(): Persisted {
+  const fresh: Persisted = { files: [...DEFAULT_FILES], active: ENTRY, theme: "github-light" };
   try {
     const raw = localStorage.getItem(STORAGE);
-    if (raw) return JSON.parse(raw) as Persisted;
+    if (!raw) return fresh;
+    const saved = JSON.parse(raw) as Persisted;
+    if (saved.dirty !== true) return { ...fresh, theme: saved.theme ?? fresh.theme };
+    return { ...saved, dirty: true };
   } catch {
-    /* fall through to defaults */
+    return fresh;
   }
-  return { files: [...DEFAULT_FILES], active: ENTRY, theme: "github-light" };
 }
 
 const initial = load();
@@ -41,6 +47,14 @@ export function createPlaygroundScope(): Scope.Handle {
   return createScope();
 }
 
-export function persist(files: PlaygroundFile[], active: string, theme: ThemeId): void {
-  localStorage.setItem(STORAGE, JSON.stringify({ files, active, theme }));
+/** True once the user has changed a file (content, add, close, rename); reset clears it. */
+export const dirtyCell = data<boolean>({ label: "dirty", initial: initial.dirty === true });
+
+export function persist(
+  files: PlaygroundFile[],
+  active: string,
+  theme: ThemeId,
+  dirty: boolean,
+): void {
+  localStorage.setItem(STORAGE, JSON.stringify({ files, active, theme, dirty }));
 }

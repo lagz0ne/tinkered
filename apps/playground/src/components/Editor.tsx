@@ -1,10 +1,13 @@
 import { javascript } from "@codemirror/lang-javascript";
-import { Compartment, EditorState } from "@codemirror/state";
+import { Annotation, Compartment, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { basicSetup } from "codemirror";
 import { useEffect, useRef } from "react";
 import type { ReactElement } from "react";
 import { themeExtension, type ThemeId } from "@/lib/themes.ts";
+
+/** Marks a document swap the shell made (tab switch, reset) so it is not reported as a user edit. */
+const external = Annotation.define<boolean>();
 
 type EditorProps = {
   value: string;
@@ -32,7 +35,8 @@ export function Editor({ value, onChange, theme }: EditorProps): ReactElement {
           javascript({ jsx: true, typescript: true }),
           themeComp.current.of(themeExtension(theme)),
           EditorView.updateListener.of((u) => {
-            if (u.docChanged) onChangeRef.current(u.state.doc.toString());
+            const typed = u.docChanged && !u.transactions.some((tr) => tr.annotation(external));
+            if (typed) onChangeRef.current(u.state.doc.toString());
           }),
         ],
       }),
@@ -50,7 +54,10 @@ export function Editor({ value, onChange, theme }: EditorProps): ReactElement {
   useEffect(() => {
     const editor = view.current;
     if (editor && value !== editor.state.doc.toString()) {
-      editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: value } });
+      editor.dispatch({
+        changes: { from: 0, to: editor.state.doc.length, insert: value },
+        annotations: external.of(true),
+      });
     }
   }, [value]);
 

@@ -25,6 +25,7 @@ import { THEMES, type ThemeId } from "@/lib/themes.ts";
 import {
   activeCell,
   createPlaygroundScope,
+  dirtyCell,
   filesCell,
   persist,
   statusCell,
@@ -90,6 +91,8 @@ function Shell(): ReactElement {
   const setStatus = useController(statusCell);
   const view = useData(viewCell);
   const setView = useController(viewCell);
+  const dirty = useData(dirtyCell);
+  const setDirty = useController(dirtyCell);
   const direction = useLayoutDirection();
   const iframe = useRef<HTMLIFrameElement>(null);
 
@@ -97,7 +100,7 @@ function Shell(): ReactElement {
 
   // Debounced compile → preview, on any file change.
   useEffect(() => {
-    persist(files, active, theme);
+    persist(files, active, theme, dirty);
     const timer = setTimeout(() => {
       void compile(files).then((result) => {
         if (result.ok) {
@@ -109,7 +112,7 @@ function Shell(): ReactElement {
       });
     }, 250);
     return () => clearTimeout(timer);
-  }, [files, active, theme, setStatus]);
+  }, [files, active, theme, dirty, setStatus]);
 
   // Runtime signals from the preview iframe.
   useEffect(() => {
@@ -123,13 +126,16 @@ function Shell(): ReactElement {
     return () => window.removeEventListener("message", onMessage);
   }, [setStatus]);
 
-  const setActiveContent = (content: string) =>
+  const setActiveContent = (content: string) => {
+    setDirty.set(true);
     setFiles.update((prev) => prev.map((f) => (f.name === active ? { ...f, content } : f)));
+  };
 
   const addFile = () => {
     let n = 1;
     while (files.some((f) => f.name === `Untitled${n}.tsx`)) n++;
     const name = `Untitled${n}.tsx`;
+    setDirty.set(true);
     setFiles.update((prev) => [...prev, { name, content: "" }]);
     setActive.set(name);
   };
@@ -137,17 +143,20 @@ function Shell(): ReactElement {
   const closeFile = (name: string) => {
     const idx = files.findIndex((f) => f.name === name);
     const next = files.filter((f) => f.name !== name);
+    setDirty.set(true);
     setFiles.set(next);
     if (active === name) setActive.set((next[idx] ?? next[idx - 1] ?? next[0]).name);
   };
 
   const renameFile = (from: string, to: string) => {
     if (files.some((f) => f.name === to)) return;
+    setDirty.set(true);
     setFiles.update((prev) => prev.map((f) => (f.name === from ? { ...f, name: to } : f)));
     if (active === from) setActive.set(to);
   };
 
   const reset = () => {
+    setDirty.set(false);
     setFiles.set([...DEFAULT_FILES]);
     setActive.set(ENTRY);
   };
