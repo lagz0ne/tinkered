@@ -10,9 +10,34 @@ client:  createScope({ tags: [sync(counter), sync(todo)] }); syncClient(scope, t
 wire:    snapshot ↓ · set ↑ · ack/reject ↓         (userland: memoryPair | SSE+POST | WebSocket)
 ```
 
-t01 ships the shared half only; the drivers (`syncServer`, `syncClient`) land in t02/t03.
+Declare the shared cells once; bind them on both scopes with `sync`. The
+server owns the truth, the client mirrors it, and the wire between them is
+yours: `memoryPair` in tests, SSE + POST or a WebSocket in the browser.
 
-## Client (t03)
+## Shared
+
+`synced({ key })` in a cell's `meta` is the publish mark; `readSynced(cell)`
+reads it back, throwing `SyncUndeclared` on a plain cell. `family({ label,
+initial, parse })` builds a cell per id: `todo("7")` is an ordinary cell
+carrying the key `todo/7`. `sync(cell | family)` on the scope publishes the
+unit — a family goes whole, members now and on arrival.
+
+## Server
+
+`syncServer(scope)` is the truth: one session per connected transport.
+`connect(transport)` sends one `snapshot` per published key (a family sends
+every member now, later members through `onMember`), then listens. The
+promise settles when the transport closes.
+
+Each `set` runs `sync set <key>` inline in that session: parse first, then
+last-writer-wins by version — `base === version` applies (the version moves
+in the broadcast watcher, so a userland write fans out the same way),
+`ack`s, and fans the snapshot out; a stale base or a parse failure
+`reject`s with the current truth. A `set` for `label/id` of a published
+family creates it. Any other key, a non-`set` message, or an unexpected
+throw inside the write closes the transport, no log, no reply.
+
+## Client
 
 `syncClient(scope, transport)` drives the other end: one registry built from
 `scope.resolve(sync.all)` (a cell per key, plus `onMember` for members that
@@ -28,28 +53,70 @@ value the parse refuses never leaves — core throws `DataValidationFailed`
 to the writer. A `reject` reverts the cell to the server's value exactly
 like a snapshot, under the same guard, so the revert is never re-sent.
 
-A snapshot that fails the cell's parse — or one for a key that is neither
-registered nor a published family's member — means the two sides disagree
-on the module: a protocol violation, so the client detaches and closes the
-transport. `client.close()` unwatches every key and closes the transport
-(idempotent); a close from the far side unwatches without closing twice.
+Anything the client cannot place means the two sides disagree on the
+module: an `ack` or `reject` for an unknown key, a `reject` the cell's
+parse refuses, a snapshot that fails the parse or names no published key,
+or a `set` arriving at the client. Each is a protocol violation, so the
+client detaches and closes the transport. `client.close()` unwatches every
+key and closes the transport (idempotent); a close from the far side
+unwatches without closing twice.
+
+## Wire it
+
+The transport is four methods: `send`, `onMessage`, `onClose`, `close`.
+Three ways to build one:
+
+Hono SSE + POST (the full recipe lives in `examples/hono.ts`): one
+`GET /sync?client=<id>` stream down, one `POST /sync?client=<id>` per
+client write up, routed by client id.
+
+```ts
+const transport: Sync.Transport = {
+  send: (message) => {
+    if (open) void emit(`data: ${JSON.stringify(message)}\n\n`);
+  },
+  onMessage: (listener) => {
+    arrivals.add(listener);
+    return () => {
+      arrivals.delete(listener);
+    };
+  },
+  onClose: (listener) => {
+    partings.add(listener);
+    return () => {
+      partings.delete(listener);
+    };
+  },
+  close: () => {
+    if (open === false) return;
+    open = false;
+    for (const part of partings) part();
+  },
+};
+syncServer(scope).connect(transport);
+```
+
+WebSocket (one socket per tab, same four methods):
+
+```ts
+const transport: Sync.Transport = {
+  send: (m) => ws.send(JSON.stringify(m)),
+  onMessage: (listener) => {
+    ws.onmessage = (event) => listener(JSON.parse(event.data));
+    return () => (ws.onmessage = null);
+  },
+  onClose: (listener) => {
+    ws.onclose = () => listener();
+    return () => (ws.onclose = null);
+  },
+  close: () => ws.close(),
+};
+syncClient(scope, transport);
+```
 
 React needs nothing new: where `syncClient` runs, `useData(counter)` keeps
 reading the same cell the snapshots land in; a `set` from a component is a
 local write like any other, optimistic, revertible.
-
-## Server (t02)
-
-`syncServer(scope)` is the truth: one session per connected transport.
-`connect(transport)` sends one `snapshot` per published key (a family goes
-whole: every member now, later members through `onMember`), then listens.
-Each `set` runs `sync set <key>` inline in that session: parse first, then
-last-writer-wins by version — `base === version` applies (the version moves
-in the broadcast watcher, so a userland write fans out the same way), `ack`s,
-and fans the snapshot out; a stale base or a parse failure `reject`s with the
-current truth. A `set` for `label/id` of a published family creates it. Any
-other key, a non-`set` message, or an unexpected throw inside the write
-closes the transport, no log, no reply.
 
 ```ts
 export declare namespace Sync {

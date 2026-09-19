@@ -12,6 +12,7 @@ import {
   synced,
   type Sync,
 } from "../src/index.ts";
+import { recipe } from "../examples/hono.ts";
 
 /** Parse raw input into text at the process edge. A named function, not a method pull. */
 function parseText(raw: unknown): string {
@@ -725,6 +726,191 @@ test("a snapshot the client parse refuses closes the client transport", () => {
       Promise.all([serverScope.close({ graceful: true }), clientScope.close({ graceful: true })]),
     );
   });
+});
+
+test("an ack for an unknown key closes the transport", () => {
+  const counter = freshCounter();
+  const scope = createScope({ tags: [sync(counter)] });
+  const [left, right] = memoryPair();
+  const client = syncClient(scope, left);
+  const parted = new Promise<void>((resolve) => {
+    right.onClose(() => resolve());
+  });
+  return Promise.resolve()
+    .then(() => {
+      right.send({ type: "ack", id: 1, key: "nope", version: 3 });
+      return parted;
+    })
+    .then(() => {
+      client.close();
+      return scope.close({ graceful: true });
+    });
+});
+
+test("a reject for an unknown key closes the transport", () => {
+  const counter = freshCounter();
+  const scope = createScope({ tags: [sync(counter)] });
+  const [left, right] = memoryPair();
+  const client = syncClient(scope, left);
+  const parted = new Promise<void>((resolve) => {
+    right.onClose(() => resolve());
+  });
+  return Promise.resolve()
+    .then(() => {
+      right.send({ type: "reject", id: 2, key: "nope", version: 0, value: 0 });
+      return parted;
+    })
+    .then(() => {
+      client.close();
+      return scope.close({ graceful: true });
+    });
+});
+
+test("a reject the client parse refuses closes the transport", () => {
+  const strict = data({
+    label: "strict-edge",
+    initial: 0,
+    parse: parseWhole,
+    meta: [synced({ key: "edge" })],
+  });
+  const scope = createScope({ tags: [sync(strict)] });
+  const [left, right] = memoryPair();
+  const client = syncClient(scope, left);
+  const parted = new Promise<void>((resolve) => {
+    right.onClose(() => resolve());
+  });
+  return Promise.resolve()
+    .then(() => {
+      right.send({ type: "reject", id: 3, key: "edge", version: 0, value: 1.5 });
+      return parted;
+    })
+    .then(() => {
+      expect(scope.resolve(strict)).toBe(0);
+      client.close();
+      return scope.close({ graceful: true });
+    });
+});
+
+test("a set arriving at the client closes the transport", () => {
+  const counter = freshCounter();
+  const scope = createScope({ tags: [sync(counter)] });
+  const [left, right] = memoryPair();
+  const client = syncClient(scope, left);
+  const parted = new Promise<void>((resolve) => {
+    right.onClose(() => resolve());
+  });
+  return Promise.resolve()
+    .then(() => {
+      right.send({ type: "set", id: 4, key: "counter", base: 0, value: 1 });
+      return parted;
+    })
+    .then(() => {
+      client.close();
+      return scope.close({ graceful: true });
+    });
+});
+
+test("a far-side close detaches: a later local write sends nothing", () => {
+  const counter = freshCounter();
+  const scope = createScope({ tags: [sync(counter)] });
+  const [left, right] = memoryPair();
+  const client = syncClient(scope, left);
+  const box = inbox(right);
+  const parted = new Promise<void>((resolve) => {
+    left.onClose(() => resolve());
+  });
+  return Promise.resolve()
+    .then(() => {
+      right.close();
+      return parted;
+    })
+    .then(() => {
+      scope.controller(counter).set(7);
+      const waited = new Promise<Sync.Message[]>((resolve) => {
+        queueMicrotask(() => resolve(box.seen));
+      });
+      return waited;
+    })
+    .then((got) => {
+      expect(got).toEqual([]);
+      client.close();
+      return scope.close({ graceful: true });
+    });
+});
+
+test("an ack moves the version the next write carries", () => {
+  const counter = freshCounter();
+  const scope = createScope({ tags: [sync(counter)] });
+  const [left, right] = memoryPair();
+  const client = syncClient(scope, left);
+  const box = inbox(right);
+  return Promise.resolve()
+    .then(() => {
+      right.send({ type: "ack", id: 9, key: "counter", version: 3 });
+    })
+    .then(() => {
+      scope.controller(counter).set(1);
+      return box.when(1);
+    })
+    .then(() => {
+      expect(box.seen).toEqual([{ type: "set", id: 1, key: "counter", base: 3, value: 1 }]);
+      client.close();
+      right.close();
+      return scope.close({ graceful: true });
+    });
+});
+
+/** Read one line per frame: the first line parsing to the named kind wins. */
+function untilKind(text: string, kind: string): Sync.Message | undefined {
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("data: ") === false) continue;
+    const message = JSON.parse(trimmed.slice("data: ".length));
+    if (typeof message === "object" && message !== null && message.type === kind) return message;
+  }
+  return undefined;
+}
+
+test("the recipe streams the snapshot down and a post writes it up", async () => {
+  const counter = freshCounter();
+  const scope = createScope({ tags: [sync(counter)] });
+  const app = recipe(scope);
+  function readerOf(streamed: Response): ReadableStreamDefaultReader<Uint8Array> {
+    const body = streamed.body;
+    if (body === null) throw new Error("body");
+    return body.getReader();
+  }
+  async function readUntil(
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+    decoder: TextDecoder,
+    text: string,
+    kind: string,
+  ): Promise<string> {
+    const next = await reader.read();
+    if (next.done) return text;
+    const grown = text + decoder.decode(next.value, { stream: true });
+    if (untilKind(grown, kind) === undefined) return readUntil(reader, decoder, grown, kind);
+    return grown;
+  }
+  const streamed = await app.request("/sync?client=a");
+  const reader = readerOf(streamed);
+  const first = await readUntil(reader, new TextDecoder(), "", "snapshot");
+  expect(untilKind(first, "snapshot")).toEqual({
+    type: "snapshot",
+    key: "counter",
+    version: 0,
+    value: 0,
+  });
+  const answer = await app.request("/sync?client=a", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ type: "set", id: 1, key: "counter", base: 0, value: 1 }),
+  });
+  expect(answer.status).toBe(200);
+  const text = await readUntil(reader, new TextDecoder(), "", "ack");
+  expect(untilKind(text, "ack")).toEqual({ type: "ack", id: 1, key: "counter", version: 1 });
+  expect(scope.resolve(counter)).toBe(1);
+  await scope.close();
 });
 
 test("onMember fires once per new member with the id, after it exists", () => {

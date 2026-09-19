@@ -670,12 +670,18 @@ importers:
       '@tinker/cli':
         specifier: workspace:*
         version: link:../cli
+      '@tinker/hono':
+        specifier: workspace:*
+        version: link:../hono
       '@types/node':
         specifier: ^26.1.1
         version: 26.5.1
       bumpp:
         specifier: ^11.1.0
         version: 11.1.0
+      hono:
+        specifier: 'catalog:'
+        version: 4.13.8
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
