@@ -937,3 +937,38 @@ The lead install again recorded the known ignored esbuild build-script
 policy failure in `/tmp/tracker-t04-new-lead-install.log`. No install policy
 was changed. t04 tests, full gates, README, landing, t05, and the public
 preview remain outstanding.
+
+### t04 corrected UI checked in the private lead tree
+
+The lead personally reviewed `3340060` and cherry-picked the reviewed
+server/UI series into the private landing tree, through `51c0a46`. These
+commits are still unpublished; t04 stays Doing until durable tests, README,
+full checks, and the final caller review pass.
+
+Independent checks on this exact private landing source passed:
+
+- Fresh ten-task app/dependency build: `/tmp/tracker-t04-ui-lead-build.log`.
+- Full app type check: `/tmp/tracker-t04-ui-lead-tsc.log`, exit 0.
+- Real HTTP/adapter/read-tool/cancel/shutdown/persistence proof:
+  `/tmp/tracker-t04-ui-lead-http.log`, exit 0.
+- Real two-tab 390px cancel/discard/post/switch proof:
+  `/tmp/tracker-t04-ui-lead-browser.log`, exit 0, no page errors or overflow.
+- The same malformed-stream regression that failed with the old captured
+  client now passes: `/tmp/tracker-t04-malformed-after.log`, exit 0. It shows
+  the plain unreadable-update alert, observes model abort, and compares
+  exact saved detail unchanged. No Post button is offered for the bad run.
+- Strict app style census: `/tmp/tracker-t04-ui-lead-census.log`, exit 0.
+
+The writer is still completing the durable tests. An early review of the
+unfinished fixture caught HTTP reads pointing at a closed seed scope and
+lost registered tool callbacks; both findings were sent to the same writer.
+The unfinished tests are not accepted and are not in the private landing.
+No t04 tag, public push, t05 completion, or preview is claimed.
+
+The later full `vp check` exited 1 on formatting in `server/app.ts`,
+`server/main.ts`, and `shared/draft.ts`
+(`/tmp/tracker-t04-ui-lead-check.log`). The writer must format these during
+its final gate step; strict census success is not a full-check success.
+The private-source/public-entry scan and built-browser scan found no private
+library imports, model/database SDK markers, Node filesystem import, or
+server credential/config variable in the client assets.
