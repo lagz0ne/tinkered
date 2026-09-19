@@ -30,16 +30,27 @@ export type Lib = {
   name: string;
   fine: boolean; // fine-grained (ideal), or a naive baseline for contrast
   control?: boolean; // the no-store floor; shown in the table, excluded from the takeaway
+  /** Set when the fan-out idiom isn't the library's own state (e.g. the useState control borrows
+   * a React Context to have anything to fan out at all). Shown next to the fan-out label. */
+  fanoutNote?: string;
   App: () => ReactNode;
   update: (i: number, v: number) => void;
+  /** Writes the ONE shared slice every Cell also reads, so all N components re-render. */
+  updateShared: (v: number) => void;
   renders: () => number;
   reset: () => void;
 };
 
 /** Median and interquartile range, in µs, of one metric's samples. */
 export type Stat = { median: number; q1: number; q3: number };
-export type Metrics = { rerenders: number; update: Stat; mount: Stat };
-export type LibResult = { name: string; fine: boolean; control: boolean; metrics: Metrics };
+export type Metrics = { rerenders: number; update: Stat; mount: Stat; fanout: Stat };
+export type LibResult = {
+  name: string;
+  fine: boolean;
+  control: boolean;
+  fanoutNote?: string;
+  metrics: Metrics;
+};
 
 const keyed = <T>(make: (i: number) => T): T[] => Array.from({ length: N }, (_, i) => make(i));
 
@@ -53,11 +64,14 @@ export function buildLibs(): Lib[] {
   // --- tinker ---
   {
     const cells = keyed((i) => data({ label: `c${i}`, initial: 0 }));
+    const shared = data({ label: "shared", initial: 0 });
     const scope = createScope();
     const controllers = cells.map((c) => scope.controller(c)); // resolved once, like useController
+    const sharedController = scope.controller(shared);
     let renders = 0;
     const Cell = ({ i }: { i: number }) => {
       sink = useData(cells[i]);
+      sink = useData(shared);
       renders++;
       return null;
     };
@@ -67,6 +81,7 @@ export function buildLibs(): Lib[] {
       fine: true,
       App: () => h("div", null, h(ScopeProvider, { scope, children })),
       update: (i, v) => controllers[i].set(v),
+      updateShared: (v) => sharedController.set(v),
       renders: () => renders,
       reset: () => (renders = 0),
     });
@@ -82,14 +97,20 @@ export function buildLibs(): Lib[] {
   {
     type State = Record<string, number>;
     const keys = keyed((i) => `k${i}`);
-    const useZ = create<State>(() => Object.fromEntries(keys.map((k) => [k, 0])));
+    const SHARED_KEY = "shared";
+    const useZ = create<State>(() => ({
+      ...Object.fromEntries(keys.map((k) => [k, 0])),
+      [SHARED_KEY]: 0,
+    }));
     const selectors = keyed((i) => {
       const k = keys[i];
       return (s: State) => s[k];
     });
+    const sharedSelector = (s: State) => s[SHARED_KEY]; // hoisted, same stability reasoning as above
     let renders = 0;
     const Cell = ({ i }: { i: number }) => {
       sink = useZ(selectors[i]);
+      sink = useZ(sharedSelector);
       renders++;
       return null;
     };
@@ -99,6 +120,7 @@ export function buildLibs(): Lib[] {
       fine: true,
       App: () => h("div", null, children),
       update: (i, v) => useZ.setState({ [keys[i]]: v }),
+      updateShared: (v) => useZ.setState({ [SHARED_KEY]: v }),
       renders: () => renders,
       reset: () => (renders = 0),
     });
@@ -111,11 +133,13 @@ export function buildLibs(): Lib[] {
   // a number atom never needs. `store.set` is already the shortest write path Jotai exposes.
   {
     const atoms = keyed(() => atom(0));
+    const sharedAtom = atom(0);
     const store = createStore();
     const opts = { store };
     let renders = 0;
     const Cell = ({ i }: { i: number }) => {
       sink = useAtomValueRaw(atoms[i], opts);
+      sink = useAtomValueRaw(sharedAtom, opts);
       renders++;
       return null;
     };
@@ -125,6 +149,7 @@ export function buildLibs(): Lib[] {
       fine: true,
       App: () => h("div", null, children),
       update: (i, v) => store.set(atoms[i], v),
+      updateShared: (v) => store.set(sharedAtom, v),
       renders: () => renders,
       reset: () => (renders = 0),
     });
@@ -144,9 +169,11 @@ export function buildLibs(): Lib[] {
   // tracking.)
   {
     const slices = keyed(() => observable2(0));
+    const shared2 = observable2(0);
     let renders = 0;
     const Cell = observer2(({ i }: { i: number }) => {
       sink = slices[i].get(); // tracked by observer's render-level selector
+      sink = shared2.get();
       renders++;
       return null;
     });
@@ -156,6 +183,7 @@ export function buildLibs(): Lib[] {
       fine: true,
       App: () => h("div", null, children),
       update: (i, v) => slices[i].set(v),
+      updateShared: (v) => shared2.set(v),
       renders: () => renders,
       reset: () => (renders = 0),
     });
@@ -171,9 +199,11 @@ export function buildLibs(): Lib[] {
   // not a faster version of this workload — it would read 0 Cell renders / 1 leaf render.
   {
     const slices = keyed(() => observable3(0));
+    const shared3 = observable3(0);
     let renders = 0;
     const Cell = observer3(({ i }: { i: number }) => {
       sink = use$(slices[i]);
+      sink = use$(shared3);
       renders++;
       return null;
     });
@@ -183,6 +213,7 @@ export function buildLibs(): Lib[] {
       fine: true,
       App: () => h("div", null, children),
       update: (i, v) => slices[i].set(v),
+      updateShared: (v) => shared3.set(v),
       renders: () => renders,
       reset: () => (renders = 0),
     });
@@ -197,11 +228,13 @@ export function buildLibs(): Lib[] {
   // so a `return null` Cell would be silently skipped and report 0 re-renders with no subscription.
   {
     const sigs = keyed(() => signal(0));
+    const sharedSig = signal(0);
     let renders = 0;
     const Cell = ({ i }: { i: number }) => {
       const store = useSignals(1);
       try {
         sink = sigs[i].value;
+        sink = sharedSig.value;
         renders++;
         return null;
       } finally {
@@ -216,6 +249,9 @@ export function buildLibs(): Lib[] {
       update: (i, v) => {
         sigs[i].value = v;
       },
+      updateShared: (v) => {
+        sharedSig.value = v;
+      },
       renders: () => renders,
       reset: () => (renders = 0),
     });
@@ -226,23 +262,37 @@ export function buildLibs(): Lib[] {
   // overhead above this; if any library ever beat it, the harness — not the library — would be
   // what needs explaining. Setters are captured from the most recently mounted tree, so the live
   // tree must be the last root mounted before update sampling (see `prepare`).
+  // useState has no shared slice of its own, so fan-out is given a plain React Context holding the
+  // shared value — the honest "no store" way to fan a write out to every consumer — and the fan-out
+  // cell is labelled "(Context)" so the number reads as that idiom, not as a fifth store.
   {
     let renders = 0;
     const setters: Array<(v: number) => void> = [];
+    const SharedCtx = createContext(0);
+    let setShared: ((v: number) => void) | null = null;
     const Cell = ({ i }: { i: number }) => {
       const [v, set] = useState(0);
       setters[i] = set;
+      const shared = useContext(SharedCtx);
       sink = v;
+      sink = shared;
       renders++;
       return null;
     };
     const children = keyed((i) => h(Cell, { key: i, i }));
+    const SharedProvider = () => {
+      const [shared, set] = useState(0);
+      setShared = set;
+      return h(SharedCtx.Provider, { value: shared }, children);
+    };
     libs.push({
       name: "React useState (control)",
       fine: true,
       control: true,
-      App: () => h("div", null, children),
+      fanoutNote: "Context",
+      App: () => h("div", null, h(SharedProvider)),
       update: (i, v) => setters[i](v),
+      updateShared: (v) => setShared?.(v),
       renders: () => renders,
       reset: () => (renders = 0),
     });
@@ -270,16 +320,20 @@ export function buildLibs(): Lib[] {
       setArr = set;
       return h(Ctx.Provider, { value: arr }, children);
     };
+    // Fan-out needs no new idiom here: any single-slice write already replaces the whole array
+    // object, so every one of the 50 consumers already re-renders — that IS this library's fan-out.
+    const write = (i: number, v: number) => {
+      const next = current.slice();
+      next[i] = v;
+      current = next;
+      setArr?.(next);
+    };
     libs.push({
       name: "React Context",
       fine: false,
       App: () => h("div", null, h(Store)),
-      update: (i, v) => {
-        const next = current.slice();
-        next[i] = v;
-        current = next;
-        setArr?.(next);
-      },
+      update: write,
+      updateShared: (v) => write(0, v),
       renders: () => renders,
       reset: () => (renders = 0),
     });
@@ -297,6 +351,12 @@ export function buildLibs(): Lib[] {
 
 export const UPDATE_SAMPLES = 31;
 export const UPDATE_BATCH = 800; // updates per sample: the bare-useState control does ~4.7µs/op, so 400 sat under the 2 ms floor
+export const FANOUT_SAMPLES = 31;
+// A fan-out write commits all N=50 components in ONE flushSync, so its fixed per-commit overhead is
+// amortised over 50 renders instead of 1 — measured well under 50× an update's cost, not well over
+// it. 16 (a naive "50× an update" guess) and even 64 measured below the 2 ms floor for the fastest
+// libraries in-browser; 320 clears it with margin for all of them.
+export const FANOUT_BATCH = 320;
 export const MOUNT_SAMPLES = 21;
 export const MOUNT_BATCH = 32; // N-component mounts per sample (≥5 ms; 8 quantised mount to 12.5µs steps)
 export const DISCARD_ROUNDS = 2; // first rounds of each phase are thrown away
@@ -320,6 +380,7 @@ export type Sampler = {
   live: Root | null;
   k: number;
   updates: number[]; // ms per update, one entry per kept sample
+  fanouts: number[]; // ms per fan-out write, one entry per kept sample
   mounts: number[]; // ms per mount, one entry per kept sample
 };
 
@@ -334,7 +395,15 @@ export function prepare(lib: Lib): Sampler {
   // Mount warmup BEFORE the live tree: rows that capture setters from the latest mount need the
   // live tree to be the last root mounted before update sampling begins.
   for (let w = 0; w < MOUNT_BATCH; w++) mount(lib.App).unmount();
-  const s: Sampler = { lib, rerenders, live: mount(lib.App), k: 1, updates: [], mounts: [] };
+  const s: Sampler = {
+    lib,
+    rerenders,
+    live: mount(lib.App),
+    k: 1,
+    updates: [],
+    fanouts: [],
+    mounts: [],
+  };
   for (let w = 0; w < UPDATE_BATCH; w++) flushSync(() => lib.update(++s.k % N, s.k));
   return s;
 }
@@ -359,6 +428,23 @@ export function sampleUpdate(s: Sampler): number {
     );
   assertResolvable(lib, elapsed);
   return elapsed / UPDATE_BATCH;
+}
+
+/** One batched fan-out sample (ms per shared write). Guards that all N Cells re-rendered — the
+ * shared slice's whole point — inside flushSync, exactly like `sampleUpdate` guards one. */
+export function sampleFanout(s: Sampler): number {
+  const { lib } = s;
+  lib.reset();
+  const t0 = performance.now();
+  for (let i = 0; i < FANOUT_BATCH; i++) flushSync(() => lib.updateShared(++s.k));
+  const elapsed = performance.now() - t0;
+  const want = FANOUT_BATCH * N;
+  if (lib.renders() < want)
+    throw new Error(
+      `${lib.name}: ${lib.renders()} renders for ${FANOUT_BATCH} fan-out writes — expected ${want}`,
+    );
+  assertResolvable(lib, elapsed);
+  return elapsed / FANOUT_BATCH;
 }
 
 /** One batched mount sample (ms per N-component mount). */
@@ -396,6 +482,12 @@ export function finish(s: Sampler): LibResult {
     name: s.lib.name,
     fine: s.lib.fine,
     control: s.lib.control === true,
-    metrics: { rerenders: s.rerenders, update: stats(s.updates), mount: stats(s.mounts) },
+    fanoutNote: s.lib.fanoutNote,
+    metrics: {
+      rerenders: s.rerenders,
+      update: stats(s.updates),
+      mount: stats(s.mounts),
+      fanout: stats(s.fanouts),
+    },
   };
 }

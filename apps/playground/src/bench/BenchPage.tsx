@@ -1,4 +1,4 @@
-import { Loader2, Play } from "lucide-react";
+import { Info, Loader2, Play } from "lucide-react";
 import { useState } from "react";
 import type { ReactElement } from "react";
 import { Button } from "@/components/ui/button.tsx";
@@ -7,11 +7,13 @@ import {
   buildLibs,
   DISCARD_ROUNDS,
   endUpdates,
+  FANOUT_SAMPLES,
   finish,
   type LibResult,
   MOUNT_SAMPLES,
   N,
   prepare,
+  sampleFanout,
   sampleMount,
   sampleUpdate,
   type Sampler,
@@ -44,7 +46,7 @@ function Metric({ label, stat, best }: { label: string; stat: Stat; best: Stat }
   return (
     <div className="min-w-0">
       <div className="mb-1 flex items-baseline justify-between gap-2 text-[11px] text-muted-foreground">
-        <span>{label}</span>
+        <span className="shrink-0 whitespace-nowrap">{label}</span>
         <span className="tabular-nums">
           {fmtUs(stat.median)} µs
           <span className="ml-1 text-muted-foreground/70">±{spreadPct(stat)}%</span>
@@ -71,40 +73,63 @@ function Metric({ label, stat, best }: { label: string; stat: Stat; best: Stat }
   );
 }
 
+/** The naive baseline's re-render pill gets a one-sentence "why" next to it. SVG elements have no
+ * `title` prop in React's types (a real SVG tooltip needs a child `<title>` element instead), so
+ * the tooltip text lives on a wrapping `span`. */
+function WhyNaive(): ReactElement {
+  return (
+    <span
+      className="inline-flex shrink-0"
+      title="One context value object — every consumer re-renders on any change; the fine-grained libraries subscribe per slice."
+    >
+      <Info className="size-3.5 text-muted-foreground" aria-label="why" />
+    </span>
+  );
+}
+
 function ResultRow({
   r,
   bestUpdate,
   bestMount,
+  bestFanout,
 }: {
   r: LibResult;
   bestUpdate: Stat;
   bestMount: Stat;
+  bestFanout: Stat;
 }): ReactElement {
   const tinker = isTinker(r);
   const ideal = r.metrics.rerenders <= 1;
+  const fanoutLabel = r.fanoutNote ? `fan-out (${r.fanoutNote})` : "fan-out";
   return (
     <div
       className={cn(
-        "grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 border-b px-4 py-3 last:border-0 md:grid-cols-[1fr_auto_1.4fr_1.4fr] md:items-center",
+        "grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 border-b px-4 py-3 last:border-0 md:grid-cols-[1fr_auto_1.4fr_1.4fr_1.4fr] md:items-center",
         tinker && "bg-primary/5",
         r.control && "text-muted-foreground",
       )}
     >
       <span className={cn("text-sm", tinker ? "font-semibold" : "font-medium")}>{r.name}</span>
-      <span
-        className={cn(
-          "justify-self-end rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums",
-          ideal ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700",
-        )}
-        title="components re-rendered by one update"
-      >
-        {r.metrics.rerenders}× re-render
-      </span>
+      <div className="flex items-center justify-self-end gap-1">
+        <span
+          className={cn(
+            "rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums",
+            ideal ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700",
+          )}
+          title="components re-rendered by one update"
+        >
+          {r.metrics.rerenders}× re-render
+        </span>
+        {!r.fine && <WhyNaive />}
+      </div>
       <div className="col-span-2 md:col-span-1">
         <Metric label="update" stat={r.metrics.update} best={bestUpdate} />
       </div>
       <div className="col-span-2 md:col-span-1">
         <Metric label="mount" stat={r.metrics.mount} best={bestMount} />
+      </div>
+      <div className="col-span-2 md:col-span-1">
+        <Metric label={fanoutLabel} stat={r.metrics.fanout} best={bestFanout} />
       </div>
     </div>
   );
@@ -115,6 +140,30 @@ function gapWords(other: Stat, tinker: Stat): string {
   if (faster(tinker, other)) return `${floor1(other.median / tinker.median)}× faster than`;
   if (faster(other, tinker)) return `${floor1(tinker.median / other.median)}× slower than`;
   return "about the same as";
+}
+
+/** One row of "Nx faster/slower than X" badges against tinker, for a single metric. */
+function GapBadges({
+  tinker,
+  others,
+  metric,
+}: {
+  tinker: Stat;
+  others: LibResult[];
+  metric: (r: LibResult) => Stat;
+}): ReactElement {
+  return (
+    <ul className="mt-2 flex flex-wrap gap-1.5">
+      {others.map((o) => (
+        <li
+          key={o.name}
+          className="rounded-full border bg-background px-2.5 py-0.5 text-xs tabular-nums"
+        >
+          {gapWords(metric(o), tinker)} <b>{o.name}</b>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 /** The plain-language takeaway a reader should leave with. */
@@ -141,47 +190,52 @@ function Takeaway({ results }: { results: LibResult[] }): ReactElement | null {
         <b>Update speed.</b> @tinker/react applies one change in{" "}
         <b>{fmtUs(tinker.metrics.update.median)} µs</b> (±{spreadPct(tinker.metrics.update)}%):
       </p>
-      <ul className="mt-2 flex flex-wrap gap-1.5">
-        {others.map((o) => (
-          <li
-            key={o.name}
-            className="rounded-full border bg-background px-2.5 py-0.5 text-xs tabular-nums"
-          >
-            {gapWords(o.metrics.update, tinker.metrics.update)} <b>{o.name}</b>
-          </li>
-        ))}
-      </ul>
+      <GapBadges tinker={tinker.metrics.update} others={others} metric={(r) => r.metrics.update} />
+      <p className="mt-2">
+        <b>Fan-out.</b> One write that all {N} components read applies in{" "}
+        <b>{fmtUs(tinker.metrics.fanout.median)} µs</b> (±{spreadPct(tinker.metrics.fanout)}%):
+      </p>
+      <GapBadges tinker={tinker.metrics.fanout} others={others} metric={(r) => r.metrics.fanout} />
     </div>
   );
 }
 
-const byMedian = (key: "update" | "mount") => (a: LibResult, b: LibResult) =>
+const byMedian = (key: "update" | "mount" | "fanout") => (a: LibResult, b: LibResult) =>
   a.metrics[key].median - b.metrics[key].median;
 
 function ResultsTable({ results }: { results: LibResult[] }): ReactElement {
   const sorted = [...results].sort(byMedian("update"));
   const bestUpdate = sorted[0].metrics.update;
   const bestMount = [...results].sort(byMedian("mount"))[0].metrics.mount;
+  const bestFanout = [...results].sort(byMedian("fanout"))[0].metrics.fanout;
   return (
     <>
       <Takeaway results={results} />
       <div className="mt-4 overflow-hidden rounded-xl border">
-        <div className="hidden grid-cols-[1fr_auto_1.4fr_1.4fr] items-center gap-x-4 border-b bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground md:grid">
+        <div className="hidden grid-cols-[1fr_auto_1.4fr_1.4fr_1.4fr] items-center gap-x-4 border-b bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground md:grid">
           <span>Library · fastest update first</span>
           <span className="text-right">per update</span>
           <span>update (lower is better)</span>
           <span>mount (lower is better)</span>
+          <span>fan-out · 1 write → 50 re-renders</span>
         </div>
         {sorted.map((r) => (
-          <ResultRow key={r.name} r={r} bestUpdate={bestUpdate} bestMount={bestMount} />
+          <ResultRow
+            key={r.name}
+            r={r}
+            bestUpdate={bestUpdate}
+            bestMount={bestMount}
+            bestFanout={bestFanout}
+          />
         ))}
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        Median of {UPDATE_SAMPLES} update and {MOUNT_SAMPLES} mount samples, taken in interleaved
-        rounds; ± is half the interquartile range. "N× slower" is against the fastest in that column
-        and is only claimed when the gap is ≥{GAP_FLOOR}× <i>and</i> the two spreads don't overlap.
-        The <i>control</i> row is plain per-component useState — the floor for one synchronous
-        re-render; every library's number is its overhead above that.
+        Median of {UPDATE_SAMPLES} update, {FANOUT_SAMPLES} fan-out, and {MOUNT_SAMPLES} mount
+        samples, taken in interleaved rounds; ± is half the interquartile range. "N× slower" is
+        against the fastest in that column and is only claimed when the gap is ≥{GAP_FLOOR}×{" "}
+        <i>and</i> the two spreads don't overlap. The <i>control</i> row is plain per-component
+        useState — the floor for one synchronous re-render; every library's number is its overhead
+        above that.
       </p>
     </>
   );
@@ -231,6 +285,13 @@ export function BenchPage(): ReactElement {
         (s) => s.updates,
         (r, t) => setProgress(`Update rounds ${r}/${t}…`),
       );
+      await runRounds(
+        samplers,
+        FANOUT_SAMPLES,
+        sampleFanout,
+        (s) => s.fanouts,
+        (r, t) => setProgress(`Fan-out rounds ${r}/${t}…`),
+      );
       samplers.forEach(endUpdates);
       await runRounds(
         samplers,
@@ -252,7 +313,7 @@ export function BenchPage(): ReactElement {
 
   return (
     <div className="h-full overflow-auto">
-      <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
         <header className="mb-6">
           <h1 className="text-2xl font-semibold tracking-tight">Store benchmark</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
