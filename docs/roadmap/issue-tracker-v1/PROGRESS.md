@@ -644,3 +644,79 @@ New public callers:
         2  serveIssues().  src/tools/issues.ts
         2  serveIssues().  src/tools/main.ts
 ```
+
+## t04 caller brief — 2026-09-19
+
+Prerequisite t03 is verified and pushed: code tag `tracker/t03` = `3303f5a`, main = `ba359e1`.
+The finished t03 writer tree/branch were removed after an identical range-diff and clean check.
+One private Muse contributor will implement t04 after this caller map is committed. The lead
+owns final review, gates, notes, and landing. No library source changes are planned.
+
+```text
+Saved issue + discussion → read tools → owned harness session → draft stream
+Person clicks Post → existing comment action → saved discussion
+```
+
+The optional run owns a session and bridges progress to its requesting view. No database
+transaction spans a model turn. Only read tools reach the model. SDK presets belong in tests;
+the normal app and preview keep the helper off and need no account. Stop/join the turn before
+cleanup; keep local edit/comment drafts and saved history intact. Exact implementation scope
+and gates are in `/tmp/issue-tracker-t04-brief.md`.
+
+The following app callers must be preserved if optional setup extends their signatures.
+New callers are expected only in app-owned triage server/client files, the public app entry,
+and public behavior tests. A further public signature change requires its refs before editing.
+The advisory impact tool is package-only; the explicit app index is authoritative.
+
+```impact tracker/t04
+issue-tracker buildApp(). src/server/app.ts src/index.ts src/server/main.ts tests/issues.test.ts tests/tools.test.ts
+issue-tracker bootScope(). src/server/bridge.ts src/index.ts src/server/main.ts tests/issues.test.ts tests/tools.test.ts
+issue-tracker Booted/Composed# src/server/bridge.ts src/server/app.ts src/server/main.ts tests/issues.test.ts tests/tools.test.ts
+issue-tracker App(). src/client/App.tsx src/client/main.tsx
+```
+
+```text
+== issue-tracker
+  definitions
+    /api.  ->  src/client/api.ts:14
+    /getRemote.  ->  src/tools/issues.ts:198
+    /listRemote.  ->  src/tools/issues.ts:117
+    /postComment.  ->  src/client/api.ts:34
+    App().  ->  src/client/App.tsx:427
+    Booted/Composed#  ->  src/server/bridge.ts:22
+    Booted/Save#  ->  src/server/bridge.ts:12
+    bootScope().  ->  src/server/bridge.ts:62
+    buildApp().  ->  src/server/app.ts:52
+  references (count  symbol  file)
+        5  /api.  src/client/api.ts
+        2  /api.  src/client/sync.ts
+        1  /api.  src/index.ts
+        2  /api.  src/tools/main.ts
+        4  /api.  tests/tools.test.ts
+        1  /getRemote.  src/index.ts
+        2  /getRemote.  src/tools/issues.ts
+        1  /listRemote.  src/index.ts
+        2  /listRemote.  src/tools/issues.ts
+        2  /postComment.  src/client/App.tsx
+        2  /postComment.  src/tools/issues.ts
+        4  App().  src/client/App.tsx
+        3  App().  src/client/main.tsx
+        5  Booted/Composed#  src/server/app.ts
+        1  Booted/Composed#  src/server/bridge.ts
+        1  Booted/Composed#  src/server/main.ts
+       44  Booted/Composed#  tests/issues.test.ts
+        6  Booted/Composed#  tests/tools.test.ts
+        3  Booted/Save#  src/server/app.ts
+        5  Booted/Save#  src/server/bridge.ts
+       20  Booted/Save#  tests/issues.test.ts
+        1  bootScope().  src/index.ts
+        1  bootScope().  src/server/bridge.ts
+        2  bootScope().  src/server/main.ts
+       14  bootScope().  tests/issues.test.ts
+        3  bootScope().  tests/tools.test.ts
+        1  buildApp().  src/index.ts
+        2  buildApp().  src/server/app.ts
+        3  buildApp().  src/server/main.ts
+        4  buildApp().  tests/issues.test.ts
+        3  buildApp().  tests/tools.test.ts
+```
