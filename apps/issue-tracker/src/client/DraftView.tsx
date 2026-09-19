@@ -156,6 +156,7 @@ async function readCapability(): Promise<"off" | "on" | "failed"> {
 
 function DraftView(props: { issueId: string; reload: () => void }) {
   const [capability, setCapability] = useState<"loading" | "off" | "on" | "failed">("loading");
+  const [check, setCheck] = useState(0);
   const [view, setView] = useState<View>("quiet");
   const [text, setText] = useState("");
   const [draft, setDraft] = useState("");
@@ -167,16 +168,20 @@ function DraftView(props: { issueId: string; reload: () => void }) {
   const comment = useRun(postComment);
   useEffect(() => {
     let alive = true;
-    readCapability().then((found) => {
-      if (alive) setCapability(found);
-    });
+    setCapability("loading");
+    readCapability()
+      .then((found) => {
+        if (alive) setCapability(found);
+      })
+      .catch(() => {
+        if (alive) setCapability("failed");
+      });
     return () => {
       alive = false;
     };
-  }, []);
+  }, [check]);
   function retryCapability(): void {
-    setCapability("loading");
-    readCapability().then(setCapability);
+    setCheck((now) => now + 1);
   }
   useEffect(
     () => () => {
@@ -252,7 +257,14 @@ function DraftView(props: { issueId: string; reload: () => void }) {
       setNotice("Could not post the draft. It is kept — try again.");
     }
   }
-  if (capability === "loading") return null;
+  if (capability === "loading") {
+    return (
+      <section aria-label="triage draft">
+        <h3>Triage draft</h3>
+        <p aria-live="polite">Checking the draft helper…</p>
+      </section>
+    );
+  }
   if (capability === "failed") {
     return (
       <section aria-label="triage draft">
