@@ -136,7 +136,7 @@ tickets, then contributors with lead review:
          `examples/cli.ts` = the stdio entry through `@tinker/cli` (`command.entry("mcp", () => serve)` beside
          `tools(search)`; `node cli.ts help` exits 0), README pass (dual `tool` + `command` meta on one op;
          `readTool`/`answerTool` as the shared readers). Size 1591 B, mutation 80.60. Archived below._
-5. **Sync (`@tinker/sync`)** — **decided (ADR 0048)**, user 2026-09-18 (`1A`; a cell with an id is a family member;
+5. **Sync (`@tinker/sync`)** — **shipped (ADR 0048; archived below)**, user 2026-09-18 (`1A`; a cell with an id is a family member;
    transport agnostic; hook waits: `B`). Plan: `docs/roadmap/sync-v1/PROGRESS.md`.
    - [x] **sync/t01 — package: `synced` meta, `family`, `sync` binding tag, `Sync.Message` + `Sync.Transport`, `memoryPair()`.**
          _Done: tag `sync/t01` (7f25563), writer-built, no fix round: `@tinker/sync` with `synced`/`sync` tags, `family()` (members
@@ -159,14 +159,32 @@ tickets, then contributors with lead review:
          tells its write from userland's); a snapshot the parse refuses, an unknown key, or a `set` from the server
          close the transport; `client.close()` detaches. 10 seam tests (27 total, incl. a direct `onMember` test the
          impact chain asked for), size 3697 B, 33 lanes green, mutation 68.18. Impact chain: neither._
-   - [ ] **sync/t04 — validation milestone:** lanes (37), mutation ≥ 60 alone, README (Hono SSE+POST and WebSocket
-         recipes, React usage), cast-free examples, archive here.
+   - [x] **sync/t04 — validation milestone.** _Done: tag `sync/t04`, writer-built, no fix round: four sync lanes
+         (37 total; the summary line lists `sync#mutate`), `examples/hono.ts` = the SSE + POST recipe wired by hand on
+         `tinker(scope)` + `stream(c, write)` with ONE seam test through `app.request` (stream, POST a set, read to the
+         ack, assert the server cell), six client edge tests aimed at the surviving mutants, README pass (Shared / Server /
+         Client / Wire it: Hono, WebSocket sketch, React note). 34 tests, size 3697 B, mutation 78.32 (up from 68.18).
+         Impact chain: neither. Landed twice: the first landing was reset away by a concurrent lead in the shared
+         landing worktree — re-landed from a private one. Archived below._
 6. **`@tinker/ai`** — the LLM layer over the AI SDK (the model is the swappable slot; generateText/streamText as
    ops; tools as operations; `MockLanguageModelV4` as the test seam). Deferred until a driver asks.
 
 Perf follow-up when the sandbox `bench` is available: `op` parity (budgets.md "Call paths (t27)").
 
 ## Shipped — archived
+
+- **sync v1 (2026-09-19)** — complete: `@tinker/sync` (ADR 0048; tags `sync/t01`…`sync/t04`): a cell is the shared unit
+  (`synced({ key })` meta; `family({ label, initial, parse? })` = a cell with an id, members memoized per id and
+  published whole), the published set is scope config (`sync(cell | family)`), the server is the truth
+  (`syncServer(scope).connect(transport)`: a session per transport, snapshots down, a `set` as inline op
+  `sync set <key>` — parse → last-writer-wins by version → ack/reject → fan out through one watcher per key), the
+  client applies snapshots through the cell's parse and writes optimistically with the last seen version, reverting
+  on reject (`syncClient(scope, transport)`; an `applying` flag is the write origin), and the transport is userland's
+  (`Sync.Transport`; `memoryPair()` is the seam; the Hono SSE + POST recipe is `examples/hono.ts`, proven through
+  `app.request`). Gate: 37 lanes green, 34 seam tests, size 3697 B, runtime import `@tinker/core` only, mutation
+  78.32. Core feedback: a session shadows cell writes (write the truth through the scope handle); `tag.all` is
+  newest-first; `scope.onMount` and a core cell family wait for a second asker. Detail:
+  `docs/roadmap/sync-v1/PROGRESS.md`.
 
 - **mcp v1 (2026-09-18)** — complete: `@tinker/mcp` (ADR 0046; tags `mcp/t01`, `harness/t06`, `cli/t04`, `mcp/t02`): a
   tool is an ordinary operation with `tool({ description, schema, name?, respond? })` meta; `tools(op)` binds the list on

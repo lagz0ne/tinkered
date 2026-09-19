@@ -19,15 +19,16 @@ Package `packages/sync` (`@tinker/sync`), runtime import only `@tinker/core`, on
 | sync/t01 | Package: `synced` meta, `family`, `sync` binding tag, `Sync.Message`/`Sync.Transport`, `memoryPair()` | —        | [x]    |
 | sync/t02 | `syncServer(scope).connect(transport)`: session per transport, snapshots, `sync set <key>`, fan-out   | t01      | [x]    |
 | sync/t03 | `syncClient(scope, transport)`: snapshots through parse, optimistic sets, revert on reject            | t02      | [x]    |
-| sync/t04 | Validation milestone: lanes, mutation, README recipes (Hono SSE+POST, WebSocket, React), archive      | t03      | [ ]    |
+| sync/t04 | Validation milestone: lanes, mutation, README recipes (Hono SSE+POST, WebSocket, React), archive      | t03      | [x]    |
 
 ### Landed
 
-| tag      | sha     | tests | size (B gzip) | mutation | notes                                                                                                                                                                  |
-| -------- | ------- | ----- | ------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| sync/t01 | 7f25563 | 8     | 1429          | 80.60    | writer-built, no fix round; `family` from `data()` + a Map, nothing from core; impact chain: plan under-declared 3 symbols (corrected below).                          |
-| sync/t02 | b6bd197 | 17    | 2839          | 77.89    | writer-built (one death, one fix round); the truth is written through the scope handle (a session shadows writes); one watcher per key bumps the version and fans out. |
-| sync/t03 | 2a96f01 | 27    | 3697          | 68.18    | writer-built, one fix round (shared `readPublished` registry); `applying` flag = write origin; impact chain: neither.                                                  |
+| tag      | sha     | tests | size (B gzip) | mutation | notes                                                                                                                                                                             |
+| -------- | ------- | ----- | ------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| sync/t01 | 7f25563 | 8     | 1429          | 80.60    | writer-built, no fix round; `family` from `data()` + a Map, nothing from core; impact chain: plan under-declared 3 symbols (corrected below).                                     |
+| sync/t02 | b6bd197 | 17    | 2839          | 77.89    | writer-built (one death, one fix round); the truth is written through the scope handle (a session shadows writes); one watcher per key bumps the version and fans out.            |
+| sync/t03 | 2a96f01 | 27    | 3697          | 68.18    | writer-built, one fix round (shared `readPublished` registry); `applying` flag = write origin; impact chain: neither.                                                             |
+| sync/t04 | (tag)   | 34    | 3697          | 78.32    | validation milestone: four lanes (37), `examples/hono.ts` SSE+POST recipe with a seam test through `app.request`, six client edge tests, README pass. Writer-built, no fix round. |
 
 ### Impact blocks (ADR 0047)
 
