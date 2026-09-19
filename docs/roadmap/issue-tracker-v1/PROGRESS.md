@@ -260,3 +260,16 @@ Evidence: `/tmp/tracker-t02-http-draft.log` and `/tmp/tracker-t02-http-lead-resu
 
 This is early server evidence only. Browser behavior, final tests/checks, code review, and landing
 remain open. The old-schema fixture is now migrated; do not claim a later reopen repeats migration.
+
+## t02 draft browser review — 2026-09-19
+
+Lead `d99c8199-fd3a-4af8-b57d-9728e6f5fc96` owns the private landing. The same t02 writer
+continues. A two-tab browser probe reproduced a stale-draft bug: after one tab saved, the other
+tab retained its old fields but adopted the incoming revision. Its next save could overwrite the
+newer issue. The writer has saved a local draft-revision fix; final proof is pending.
+Before-fix evidence: `/tmp/tracker-t02-stale-draft-before.log`.
+
+The same review requires an issue-id-owned detail view, snapshot-driven comment refresh even when
+timestamps match, and visible refresh errors without losing drafts. The independent process probe
+is `/tmp/tracker-t02-browser-lead.mjs`; it checks edits, conflict/history, comments, clear assignment,
+filtering, switching issues, phone fit, reload, restart, and live-SSE shutdown. No preview exists yet.
