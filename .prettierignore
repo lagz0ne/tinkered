@@ -4,3 +4,7 @@
 docs/decisions/README.md
 docs/glossary.md
 docs/roadmap/core-feedback.md
+
+# A package's declaration pass (tsgo over its tsconfig program, tests included) emits a .d.ts beside any
+# example a test imports; that is a build artifact, not source.
+examples/**/*.d.ts

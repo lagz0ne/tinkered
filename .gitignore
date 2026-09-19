@@ -44,3 +44,6 @@ scratch/
 
 # autoresearch runtime state
 .autoresearch/
+
+# declaration artifacts a package build emits beside an example its tests import
+examples/**/*.d.ts
