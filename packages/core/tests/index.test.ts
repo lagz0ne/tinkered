@@ -4467,10 +4467,10 @@ test("ctx.signal aborts on a forced close", async () => {
   expect(aborted).toBe(true);
 });
 
-test("a declared run hook throws NotSupported at creation", () => {
+test("a declared write hook throws NotSupported at creation", () => {
   const ext = extension({
     label: "later",
-    run: (_op, _call, next) => next(),
+    write: (_cell, _value, next) => next(),
   });
   try {
     createScope({ extensions: [ext] });
@@ -4631,10 +4631,10 @@ test("a session reads with the plain dispatch, unwrapped by the chain", async ()
   await scope.close();
 });
 
-test("a declared run hook still throws NotSupported, a resolve hook no longer does", async () => {
+test("a declared write hook still throws NotSupported, a run hook no longer does", async () => {
   const later = extension({
     label: "later",
-    run: (_op, _call, next) => next(),
+    write: (_cell, _value, next) => next(),
   });
   try {
     createScope({ extensions: [later] });
@@ -4643,14 +4643,152 @@ test("a declared run hook still throws NotSupported, a resolve hook no longer do
     if (!isError(e, "NotSupported")) throw e;
     expect(e.payload.label).toBe("later");
   }
-  const cell = data({ initial: 1 });
+  const op = operation({ label: "op", run: () => 1 });
   const ok = extension({
     label: "ok",
-    resolve: (_target, next) => next(),
+    run: (_op, _call, next) => next(),
   });
   const scope = createScope({ extensions: [ok] });
   await scope.ready;
-  const value: number = scope.resolve(cell);
-  expect(value).toBe(1);
+  expect(scope.run(op)).toBe(1);
+  await scope.close();
+});
+
+test("a run hook wraps a declared operation call: before, next, after", async () => {
+  const log: string[] = [];
+  const triple = operation({ label: "triple", run: () => 3 });
+  const wrap = extension({
+    label: "wrap",
+    run: (_op, _call, next) => {
+      log.push("before");
+      const out = next();
+      log.push("after");
+      return out;
+    },
+  });
+  const scope = createScope({ extensions: [wrap] });
+  await scope.ready;
+  const value: number = scope.run(triple);
+  expect(value).toBe(3);
+  expect(log).toEqual(["before", "after"]);
+  await scope.close();
+});
+
+test("a run hook that skips next refuses the call and the body never runs", async () => {
+  let calls = 0;
+  const op = operation({
+    label: "op",
+    run: () => {
+      calls += 1;
+      return 1;
+    },
+  });
+  const deny = extension({ label: "deny", run: () => "denied" });
+  const scope = createScope({ extensions: [deny] });
+  await scope.ready;
+  expect(scope.run(op)).toBe("denied");
+  expect(calls).toBe(0);
+  await scope.close();
+});
+
+test("two run hooks nest in registration order", async () => {
+  const order: string[] = [];
+  const op = operation({ label: "op", run: () => 1 });
+  const a = extension({
+    label: "a",
+    run: (_op, _call, next) => {
+      order.push("a:before");
+      const out = next();
+      order.push("a:after");
+      return out;
+    },
+  });
+  const b = extension({
+    label: "b",
+    run: (_op, _call, next) => {
+      order.push("b:before");
+      const out = next();
+      order.push("b:after");
+      return out;
+    },
+  });
+  const scope = createScope({ extensions: [a, b] });
+  await scope.ready;
+  scope.run(op);
+  expect(order).toEqual(["a:before", "b:before", "b:after", "a:after"]);
+  await scope.close();
+});
+
+test("a run hook sees an inline config too", async () => {
+  let calls = 0;
+  const count = extension({
+    label: "count",
+    run: (_op, _call, next) => {
+      calls += 1;
+      return next();
+    },
+  });
+  const scope = createScope({ extensions: [count] });
+  await scope.ready;
+  const value: number = scope.run({ run: () => 7 });
+  expect(value).toBe(7);
+  expect(calls).toBe(1);
+  await scope.close();
+});
+
+test("a run hook passes the call through to the operation unchanged", async () => {
+  let seenInput: unknown = "unset";
+  let seenCall: unknown = "unset";
+  const double = operation({
+    label: "double",
+    input: asNumber,
+    run: (_deps, ctx) => {
+      seenInput = ctx.input;
+      return ctx.input * 2;
+    },
+  });
+  const pass = extension({
+    label: "pass",
+    run: (_op, call, next) => {
+      seenCall = call;
+      return next();
+    },
+  });
+  const scope = createScope({ extensions: [pass] });
+  await scope.ready;
+  expect(scope.run(double, { rawInput: 21 })).toBe(42);
+  expect(seenInput).toBe(21);
+  expect(seenCall).toEqual({ rawInput: 21 });
+  await scope.close();
+});
+
+test("a tagged call still opens its child session under the hook", async () => {
+  const zone = tag<string>({ label: "zone", default: "base" });
+  const read = operation({ label: "read", depends: { zone }, run: ({ zone }) => zone });
+  const pass = extension({
+    label: "pass",
+    run: (_op, _call, next) => next(),
+  });
+  const scope = createScope({ extensions: [pass] });
+  await scope.ready;
+  expect(await scope.run(read, { tags: [zone("us")] })).toBe("us");
+  await scope.close();
+});
+
+test("a session from an extended scope runs with the plain dispatch", async () => {
+  let calls = 0;
+  const op = operation({ label: "op", run: () => "ran" });
+  const count = extension({
+    label: "count",
+    run: (_op, _call, next) => {
+      calls += 1;
+      return next();
+    },
+  });
+  const scope = createScope({ extensions: [count] });
+  await scope.ready;
+  const session = scope.createSession();
+  expect(session.run(op)).toBe("ran");
+  expect(calls).toBe(0);
   await scope.close();
 });

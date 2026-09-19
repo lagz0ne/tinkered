@@ -33,5 +33,20 @@ const gate = extension({
 });
 ```
 
-Await `ready` before the first `resolve(ext)`. A request's reads are not wrapped yet: sessions
-created from an extended scope read with the plain dispatch (the v1 limit).
+A `run` hook wraps operation calls on the root handle (first registered is outermost; skip
+`next()` to refuse a call with a substitute):
+
+```ts
+const audit = extension({
+  label: "audit",
+  run: async (_op, _call, next) => {
+    console.log("before");
+    const out = await next();
+    console.log("after");
+    return out;
+  },
+});
+```
+
+Await `ready` before the first `resolve(ext)`. A request's reads and calls are not wrapped yet:
+sessions created from an extended scope read and run with the plain dispatch (the v1 limit).

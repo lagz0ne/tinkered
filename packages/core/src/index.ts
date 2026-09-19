@@ -357,8 +357,8 @@ export declare namespace Scope {
       next: () => unknown,
     ): unknown;
     run?(
-      op: Operation.Handle<unknown, unknown>,
-      call: Invocation<unknown>,
+      op: Operation.Handle<unknown, unknown> | Inline<Depends, unknown, unknown>,
+      call: Invocation<unknown> | undefined,
       next: () => unknown,
     ): unknown;
     write?(cell: Data.Cell<unknown>, value: unknown, next: () => void): void;
@@ -511,8 +511,8 @@ export function extension<T = void>(config: {
     next: () => unknown,
   ) => unknown;
   readonly run?: (
-    op: Operation.Handle<unknown, unknown>,
-    call: Scope.Invocation<unknown>,
+    op: Operation.Handle<unknown, unknown> | Scope.Inline<Scope.Depends, unknown, unknown>,
+    call: Scope.Invocation<unknown> | undefined,
     next: () => unknown,
   ) => unknown;
   readonly write?: (cell: Data.Cell<unknown>, value: unknown, next: () => void) => void;
@@ -1717,8 +1717,6 @@ class EmptyCtx implements Resource.Ctx {
 
 /** Throw `NotSupported` for an extension hook that lands in a later ticket (ADR 0050). */
 function rejectUnwired(ext: Scope.Extension<unknown>): void {
-  if (ext.run !== undefined)
-    raise("NotSupported", { label: ext.label, reason: "run lands in core/t34" });
   if (ext.write !== undefined)
     raise("NotSupported", { label: ext.label, reason: "write lands in core/t35" });
 }
@@ -2659,6 +2657,7 @@ function extendHandle(
   EXTENSIONS.set(layer, records);
   const closers = exts.filter((ext) => ext.close !== undefined);
   const resolvers = exts.filter((ext) => ext.resolve !== undefined);
+  const runners = exts.filter((ext) => ext.run !== undefined);
   let settleReady: () => void = noop;
   let failReady: (error: unknown) => void = noop;
   const ready = new Promise<void>((resolveReady, rejectReady) => {
@@ -2672,6 +2671,7 @@ function extendHandle(
     ready,
   };
   if (resolvers.length > 0) extended.resolve = resolveThrough(layer, resolvers);
+  if (runners.length > 0) extended.run = runThrough(layer, runners, plain);
   runStartChain(layer, extended, exts, settleReady, failReady);
   return extended;
 }
@@ -2704,6 +2704,35 @@ function resolveThrough(
     return at(target, 0);
   };
   return chained as Scope.Handle["resolve"];
+}
+
+/** The `run` onion (ADR 0050, core/t34): registration order, first is outermost. The innermost
+ * `next` is the plain handle's `run`, so declared operations and inline configs keep today's path,
+ * including the tagged-call child session; `call` passes through unchanged. A hook that skips
+ * `next` refuses the call. Root handle only in v1: sessions keep the plain dispatch. */
+function runThrough(
+  layer: Layer,
+  runners: readonly Scope.Extension<unknown>[],
+  plain: Scope.Handle,
+): Scope.Handle["run"] {
+  type OnionOp = Operation.Handle<unknown, unknown> | Scope.Inline<Scope.Depends, unknown, unknown>;
+  type OnionCall = Scope.Invocation<unknown> | undefined;
+  /** One cast: read the overloaded `run` as a plain function property, so the chain holds a callable instead of an unbound method. */
+  const plainView = plain as { readonly run: (op: OnionOp, call?: OnionCall) => unknown };
+  const at = (op: OnionOp, call: OnionCall, index: number): unknown => {
+    if (index >= runners.length) return plainView.run(op, call);
+    const next = (): unknown => at(op, call, index + 1);
+    const { run: hook } = runners[index] as {
+      run?: (op: OnionOp, call: OnionCall, next: () => unknown) => unknown;
+    };
+    if (hook === undefined) return next();
+    return hook(op, call, next);
+  };
+  const chained = (op: OnionOp, call?: OnionCall): unknown => {
+    ensureOpen(layer);
+    return at(op, call, 0);
+  };
+  return chained as Scope.Handle["run"];
 }
 
 function handleFor(layer: Layer): Scope.Handle {
