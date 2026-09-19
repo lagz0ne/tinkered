@@ -23,13 +23,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-_None._
+| Card                                           | Owner          | Next                                                                                                                 | Verify                                       |
+| ---------------------------------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| tracker/t02 — Edit, assign, and discuss issues | Authoring lead | Start the [edit/detail slice](docs/roadmap/issue-tracker-v1/issues/02-edit-and-discuss.md) from verified tracker/t01 | Shared edits, comments, conflicts, and tests |
 
 ## Doing
 
-| Card                                          | Owner                                         | Next                                                                                                                                                                       | Verify                                                                               |
-| --------------------------------------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| tracker/t01 — Create an issue and see it live | Paseo writer e00bd12d; authoring lead reviews | Fix the reproduced startup-drop and shutdown bugs; finish authority ownership review for the [first slice](docs/roadmap/issue-tracker-v1/issues/01-create-and-see-live.md) | Saved issue reaches two tabs; persistence, behavior tests, checks, and Core feedback |
+_None._
 
 ## Review
 
@@ -37,12 +37,11 @@ _None._
 
 ## Blocked
 
-| Card                                           | Waiting for | Next                                                                                           | Verify                                                                              |
-| ---------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| tracker/t02 — Edit, assign, and discuss issues | tracker/t01 | Build the [edit/detail slice](docs/roadmap/issue-tracker-v1/issues/02-edit-and-discuss.md)     | Shared edits, comments, conflict handling, and tests                                |
-| tracker/t03 — CLI and issue tools              | tracker/t02 | Build the [shared command slice](docs/roadmap/issue-tracker-v1/issues/03-cli-and-tools.md)     | CLI and MCP update the same server and browser state                                |
-| tracker/t04 — Optional triage draft            | tracker/t03 | Build the [harness slice](docs/roadmap/issue-tracker-v1/issues/04-triage-draft.md)             | Stream/cancel a draft; posting uses the normal comment action; offline seam tests   |
-| tracker/t05 — Finish and show the app          | tracker/t04 | Complete the [demo and test guide](docs/roadmap/issue-tracker-v1/issues/05-finish-and-show.md) | Full flow, reconnect/shutdown proof, checks, feedback, and verified browser preview |
+| Card                                  | Waiting for | Next                                                                                           | Verify                                                                              |
+| ------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| tracker/t03 — CLI and issue tools     | tracker/t02 | Build the [shared command slice](docs/roadmap/issue-tracker-v1/issues/03-cli-and-tools.md)     | CLI and MCP update the same server and browser state                                |
+| tracker/t04 — Optional triage draft   | tracker/t03 | Build the [harness slice](docs/roadmap/issue-tracker-v1/issues/04-triage-draft.md)             | Stream/cancel a draft; posting uses the normal comment action; offline seam tests   |
+| tracker/t05 — Finish and show the app | tracker/t04 | Complete the [demo and test guide](docs/roadmap/issue-tracker-v1/issues/05-finish-and-show.md) | Full flow, reconnect/shutdown proof, checks, feedback, and verified browser preview |
 
 ## Parked
 
@@ -61,6 +60,7 @@ _None._
 
 | Card                                                              | Evidence                                                                                                                                                                                                                                   |
 | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| tracker/t01 — Create an issue and see it live                     | Code `3490295`; [lead proof](docs/roadmap/issue-tracker-v1/PROGRESS.md#t01-complete--2026-09-19): 3 app tests, 401 library tests, 37 lanes, two tabs, reload/restart, startup-drop error, clean shutdown, and app SCIP                     |
 | authoring/next — Choose and scope the issue tracker               | User chose the app; [plan and five working slices](docs/roadmap/issue-tracker-v1/PROGRESS.md) recorded; public API anchors indexed; doc links and `vp check` passed                                                                        |
 | sync/v1 — Complete sync and confirm the pushed result             | [All seven tickets done](docs/roadmap/sync-v1/PROGRESS.md#completion-check--2026-09-19); remote `sync/t07` = `3a6ae72`; fresh 28 tests and 37 validation lanes passed; recorded mutation 78.06%; optional bench work parked by user choice |
 | docs/parked-review — Review all blockers and parked work          | [Findings and next steps](docs/roadmap/blocked-and-parked-review.md); 313 tests passed, `vp check` 0 errors/13 existing warnings; links and lane states verified; one false core proposal closed; two deferred React cards restored        |

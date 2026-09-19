@@ -1,12 +1,12 @@
 # Issue tracker v1 — build progress
 
 **Active.** User-approved app direction: a realtime issue tracker that shows easy composition
-and testing of the existing libraries. [Plan](PLAN.md). No application code has landed yet.
+and testing of the existing libraries. [Plan](PLAN.md). The create/live slice is complete; editing is next.
 
 | Ticket      | Delivers                                                            | Blocked by | State   |
 | ----------- | ------------------------------------------------------------------- | ---------- | ------- |
-| tracker/t01 | [Create an issue and see it live](issues/01-create-and-see-live.md) | —          | Doing   |
-| tracker/t02 | [Edit, assign, and discuss issues](issues/02-edit-and-discuss.md)   | t01        | Waiting |
+| tracker/t01 | [Create an issue and see it live](issues/01-create-and-see-live.md) | —          | Done    |
+| tracker/t02 | [Edit, assign, and discuss issues](issues/02-edit-and-discuss.md)   | t01        | Ready   |
 | tracker/t03 | [Use the same actions from CLI and MCP](issues/03-cli-and-tools.md) | t02        | Waiting |
 | tracker/t04 | [Draft a summary with the harness](issues/04-triage-draft.md)       | t03        | Waiting |
 | tracker/t05 | [Finish the demo and its test guide](issues/05-finish-and-show.md)  | t04        | Waiting |
@@ -17,12 +17,8 @@ pushes or runs mutation. The lead reviews the actual diff and browser result, th
 
 ## Active writer
 
-`tracker/t01`: Paseo agent `e00bd12d-94f9-49c9-af99-b61c5970e92f`, provider
-`pi/meta-muse/muse-spark-1.3-contributor`, thinking max (switched from the Vercel Gateway route
-after repeated HTTP 503; same agent and files). Current workspace only:
-`wks_85042cce8c480929`. Explicit shell cwd `/home/paseo/next/tinkered-issue-t01`, branch
-`tracker/t01-live-create`, cut from plan commit `a15b49b`. Brief `/tmp/issue-tracker-t01-brief.md`;
-report target `/tmp/issue-tracker-t01-report.md`. No application completion claim yet.
+None. `tracker/t01` is verified; launch the `tracker/t02` writer from the pushed landing
+commit. Keep all agents in workspace `wks_85042cce8c480929` and use a private Git tree.
 
 ## Anchors
 
@@ -108,3 +104,97 @@ from the writer app cwd. Draft refs: `/tmp/tracker-t01-app-draft-refs.txt`. Defi
 `bootScope`:39 and `createSaver`:19 in `src/server/bridge.ts`, `buildApp`:31 in
 `src/server/app.ts`, and `connectTab`:52 in `src/client/sync.ts`. The writer received the
 actual caller table before further authority/connection changes. Reindex the final code at landing.
+
+## t01 complete — 2026-09-19
+
+Code `3490295`: writer commits `e166a01` + `5b2e14f` cherry-picked as `5047be1` + `efef847`,
+then a small lead cleanup. Shutdown is awaited in the main entrypoint. Pass-through helpers,
+unused exports, and private comments were removed. The README builds public dependencies first.
+One booted authority owns the save queue; its transaction finishes before root publication.
+
+Independent lead checks on the landing tree:
+
+- `vp run --filter '@tinker-issue-tracker...' build` — 8 build tasks passed.
+  `/tmp/tracker-t01-lead-clean-build.log`.
+- `vp run @tinker-issue-tracker#test` — 3 tests passed with real PGlite, routes, and memory sync.
+  `/tmp/tracker-t01-final-test.log`.
+- `vp check` — 0 errors, 13 existing warnings; strict app census passed.
+  `/tmp/tracker-t01-final-check.log` and `/tmp/tracker-t01-final-census.log`.
+- Uncached core/http/drizzle/hono/react/sync tests — 401 passed across 6 packages.
+  `/tmp/tracker-t01-lead-package-tests.log`.
+- `node scripts/validate.mjs` — all 37 lanes passed. `/tmp/tracker-t01-lead-validate.log`.
+  Library source unchanged; no mutation rerun.
+- Real Chromium: a unique issue from one tab reached the other without refresh. Reload and a
+  full process restart restored the exact saved record. Both stops exited 0; a live tab showed
+  the dropped-connection message. No browser exceptions. The 390px phone view fits; the lead
+  inspected `/tmp/tracker-t01-mobile.png`. Proof:
+  `/tmp/tracker-t01-browser-lead.mjs` and `/tmp/tracker-t01-browser-lead-result.json`.
+- Startup-drop regression: real SSE opens, registration succeeds, then the stream ends before
+  its first snapshot. The same probe that showed `Loading…` before now shows a connection error.
+  `/tmp/tracker-t01-lead-startup-drop.log`. Preserve this proof in the final t05 test guide.
+- No private library imports. Browser assets contain no PGlite, Drizzle, Node filesystem, or
+  harness imports. Cast review found only the error registry and the typed empty issue array.
+- `vp install` installs links/dependencies but still exits 1 for the existing esbuild policy
+  placeholder. Build, tests, and server work. Shared dependency policy is unchanged.
+
+[Core feedback](../core-feedback.md) records root publication, synchronous Hono input admission
+(doc fixed in `8d8da92`), and app-owned transport lifecycle. Automatic reconnect, friendly
+command-error wording, and 44px touch targets remain in t05. No preview is claimed for this slice.
+
+Fresh SCIP covers all ten packages plus an explicit app index. Removed helper names:
+
+```text
+== issue-tracker
+  definitions
+  references (count  symbol  file)
+    (none)
+```
+
+Final app symbols and callers (paths relative to `apps/issue-tracker`):
+
+```text
+== issue-tracker
+  definitions
+    /createIssue.  ->  src/server/operations.ts:7
+    /issueList.  ->  src/shared/issues.ts:60
+    /listIssues.  ->  src/server/operations.ts:24
+    bootScope().  ->  src/server/bridge.ts:40
+    buildApp().  ->  src/server/app.ts:24
+    connectTab().  ->  src/client/sync.ts:53
+    createSaveQueue().  ->  src/server/bridge.ts:27
+    parseCreateInput().  ->  src/shared/issues.ts:44
+    parseIssue().  ->  src/shared/issues.ts:25
+    parseIssueList().  ->  src/shared/issues.ts:38
+  references (count  symbol  file)
+        1  /createIssue.  src/index.ts
+        2  /createIssue.  src/server/bridge.ts
+        2  /issueList.  src/client/App.tsx
+        2  /issueList.  src/client/sync.ts
+        1  /issueList.  src/index.ts
+        2  /issueList.  src/server/app.ts
+        4  /issueList.  src/server/bridge.ts
+        2  /issueList.  src/server/operations.ts
+        9  /issueList.  tests/issues.test.ts
+        1  /listIssues.  src/index.ts
+        3  /listIssues.  src/server/bridge.ts
+        1  bootScope().  src/index.ts
+        2  bootScope().  src/server/main.ts
+        5  bootScope().  tests/issues.test.ts
+        1  buildApp().  src/index.ts
+        3  buildApp().  src/server/main.ts
+        2  buildApp().  tests/issues.test.ts
+        3  connectTab().  src/client/main.tsx
+        1  createSaveQueue().  src/server/bridge.ts
+        2  parseCreateInput().  src/client/api.ts
+        1  parseCreateInput().  src/index.ts
+        2  parseCreateInput().  src/server/app.ts
+        2  parseCreateInput().  src/server/operations.ts
+        2  parseIssue().  src/client/api.ts
+        1  parseIssue().  src/index.ts
+        2  parseIssue().  src/server/operations.ts
+        1  parseIssue().  src/shared/issues.ts
+        2  parseIssueList().  src/client/api.ts
+        1  parseIssueList().  src/index.ts
+        1  parseIssueList().  src/shared/issues.ts
+        2  parseIssueList().  tests/issues.test.ts
+```
