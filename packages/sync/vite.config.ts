@@ -1,3 +1,4 @@
+import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
@@ -20,5 +21,8 @@ export default defineConfig({
   fmt: {},
   test: {
     server: { deps: { inline: ["vite-plus"] } },
+    alias: {
+      "@tinker/sync": fileURLToPath(new URL("./src/index.ts", import.meta.url)),
+    },
   },
 });

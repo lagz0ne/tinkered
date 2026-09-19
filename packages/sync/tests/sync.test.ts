@@ -12,7 +12,7 @@ import {
   synced,
   type Sync,
 } from "../src/index.ts";
-import { recipe } from "../examples/hono.ts";
+import { recipe } from "../../../examples/sync/hono.ts";
 
 /** Parse raw input into text at the process edge. A named function, not a method pull. */
 function parseText(raw: unknown): string {
