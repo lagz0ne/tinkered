@@ -1,0 +1,44 @@
+# Issue tracker v1 — build progress
+
+**Active.** User-approved app direction: a realtime issue tracker that shows easy composition
+and testing of the existing libraries. [Plan](PLAN.md). No application code has landed yet.
+
+| Ticket      | Delivers                                                            | Blocked by | State   |
+| ----------- | ------------------------------------------------------------------- | ---------- | ------- |
+| tracker/t01 | [Create an issue and see it live](issues/01-create-and-see-live.md) | —          | Ready   |
+| tracker/t02 | [Edit, assign, and discuss issues](issues/02-edit-and-discuss.md)   | t01        | Waiting |
+| tracker/t03 | [Use the same actions from CLI and MCP](issues/03-cli-and-tools.md) | t02        | Waiting |
+| tracker/t04 | [Draft a summary with the harness](issues/04-triage-draft.md)       | t03        | Waiting |
+| tracker/t05 | [Finish the demo and its test guide](issues/05-finish-and-show.md)  | t04        | Waiting |
+
+Lead uses `/home/paseo/next/tinkered-sync-land` on `lead/sync-land`. Writers get private Git
+worktrees but stay in Paseo workspace `wks_85042cce8c480929`. One writer per ticket; no writer
+pushes or runs mutation. The lead reviews the actual diff and browser result, then lands and pushes.
+
+## Anchors
+
+Baseline `2f31491`; all packages indexed 2026-09-19. These are function-symbol definitions from
+`scripts/scip.sh refs '(name1|name2)\(\)\.$' <package>`, not guessed source locations.
+
+| Package | Definitions in `src/index.ts`                                                                    |
+| ------- | ------------------------------------------------------------------------------------------------ |
+| core    | `data`:553; `tag`:573; `operation`:604; `resource`:647; `makeTestClock`:1053; `createScope`:2883 |
+| sync    | `family`:66; `source`:187; `subscribe`:288; `memoryPair`:445                                     |
+| drizzle | `drizzleStore`:48                                                                                |
+| hono    | `tinker`:66; `stream`:113; `honoApp`:207; `handle`:232                                           |
+
+Raw baseline tables: `/tmp/issue-tracker-{core,sync,drizzle,hono}-refs.txt`.
+The baseline changes no public library symbols, so it needs no removal/rename impact block.
+SCIP's standard script indexes packages, not apps. Index the new app explicitly at review if
+possible and record its refs; do not claim the package-only index covers app callers. Any library
+API change needs its own brief, impact block, caller table, review, and relevant mutation gate.
+
+## Gate and review notes
+
+Pending implementation. Do not claim completion from a writer report alone. Per slice: app tests
+and build, `vp check`, relevant repo tests/validation, strict style census, public-import/cast review,
+and Core feedback. Add browser proof where the slice changes user behavior. A new app mutation
+lane, if used, must run alone; never rerun all library mutations for unchanged library source.
+
+The known `vp install` esbuild build-policy placeholder remains; do not change shared dependency
+policy for this app. App-scoped dependencies and their lockfile entries may be added as needed.

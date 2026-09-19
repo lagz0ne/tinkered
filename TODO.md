@@ -23,7 +23,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-_None._
+| Card                                          | Next                                                                                                             | Verify                                                                               |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| tracker/t01 — Create an issue and see it live | Delegate the [first slice](docs/roadmap/issue-tracker-v1/issues/01-create-and-see-live.md) in a private worktree | Saved issue reaches two tabs; persistence, behavior tests, checks, and Core feedback |
 
 ## Doing
 
@@ -35,7 +37,12 @@ _None._
 
 ## Blocked
 
-_None._
+| Card                                           | Waiting for | Next                                                                                           | Verify                                                                              |
+| ---------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| tracker/t02 — Edit, assign, and discuss issues | tracker/t01 | Build the [edit/detail slice](docs/roadmap/issue-tracker-v1/issues/02-edit-and-discuss.md)     | Shared edits, comments, conflict handling, and tests                                |
+| tracker/t03 — CLI and issue tools              | tracker/t02 | Build the [shared command slice](docs/roadmap/issue-tracker-v1/issues/03-cli-and-tools.md)     | CLI and MCP update the same server and browser state                                |
+| tracker/t04 — Optional triage draft            | tracker/t03 | Build the [harness slice](docs/roadmap/issue-tracker-v1/issues/04-triage-draft.md)             | Stream/cancel a draft; posting uses the normal comment action; offline seam tests   |
+| tracker/t05 — Finish and show the app          | tracker/t04 | Complete the [demo and test guide](docs/roadmap/issue-tracker-v1/issues/05-finish-and-show.md) | Full flow, reconnect/shutdown proof, checks, feedback, and verified browser preview |
 
 ## Parked
 
@@ -44,7 +51,6 @@ _None._
 | perf/op-parity — Compare operation call cost            | User revisits timing work and a suitable runner is available                 | Pin baseline/current SHAs and run the [budget recipe](docs/roadmap/core-v1/budgets.md) if resumed; no runner provisioning needed now | Record measured results if resumed; current off-host comparison remains unverified |
 | jev/calibrate — Calibrate the advisory checks           | User resumes this deferred work                                              | Label three positive and three negative cases per question, following [the Jev plan](docs/roadmap/jev-loop/PLAN.md)                  | A separation report for each question; thresholds set from the data                |
 | ai/v1 — `@tinker/ai`                                    | A real driver needs the AI layer                                             | Start from that driver's use case and write the scope and tickets                                                                    | Driver need and acceptance checks recorded before implementation                   |
-| authoring/next — Next user-facing integration           | User picks the next integration                                              | Name a need beyond the existing CLI/Hono lifecycle; scope that need (a terminal UI is one idea)                                      | A scoped plan and tickets with clear acceptance checks                             |
 | core/ideas — Remaining core feedback                    | A second integration asks, or the existing workaround misrepresents behavior | Use the [reviewed ideas](docs/roadmap/blocked-and-parked-review.md#core-ideas-one-by-one), name the caller, and scope one need       | Evidence of the real need before creating a core ticket                            |
 | react/mutation — Mutation checks in the browser         | This deferred test-tool integration is scheduled                             | Set up Stryker with the existing browser tests; [track note](docs/roadmap/react-v1/PROGRESS.md#v1-complete)                          | Prove browser tests exercise mutants; record an isolated mutation run              |
 | react/observation — Pending work and component activity | A concrete UI/debugging need asks for these facts                            | Design the needed events and their lifetime; [reverted r16](docs/roadmap/react-v1/issues/16-react-span-emission.md)                  | Clear event contract and behavior checks before implementation                     |
@@ -55,6 +61,7 @@ _None._
 
 | Card                                                              | Evidence                                                                                                                                                                                                                                   |
 | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| authoring/next — Choose and scope the issue tracker               | User chose the app; [plan and five working slices](docs/roadmap/issue-tracker-v1/PROGRESS.md) recorded; public API anchors indexed; doc links and `vp check` passed                                                                        |
 | sync/v1 — Complete sync and confirm the pushed result             | [All seven tickets done](docs/roadmap/sync-v1/PROGRESS.md#completion-check--2026-09-19); remote `sync/t07` = `3a6ae72`; fresh 28 tests and 37 validation lanes passed; recorded mutation 78.06%; optional bench work parked by user choice |
 | docs/parked-review — Review all blockers and parked work          | [Findings and next steps](docs/roadmap/blocked-and-parked-review.md); 313 tests passed, `vp check` 0 errors/13 existing warnings; links and lane states verified; one false core proposal closed; two deferred React cards restored        |
 | docs/kanban — Convert TODO to a Kanban board                      | All 383 old lines preserved in the [archive](docs/roadmap/archive/todo-2026-09-19.md); links and lane states verified; `vp check` 0 errors; [agent rules](CLAUDE.md#execution-workflow-kanban) updated                                     |
