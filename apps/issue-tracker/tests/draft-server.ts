@@ -9,7 +9,7 @@ import type {
 import { fail } from "../src/index.ts";
 
 export type DraftScript = {
-  readonly id?: string;
+  id?: string;
   readonly text: string;
   readonly hold?: boolean;
   readonly fail?: boolean;
@@ -140,6 +140,7 @@ export type DraftFixture = {
   readonly started: () => Promise<void>;
   readonly aborted: () => Promise<void>;
   readonly release: () => void;
+  readonly fillIds: (id: string) => void;
 };
 
 export function readDraftServer(scripts: DraftScript[]): DraftFixture {
@@ -289,6 +290,11 @@ export function readDraftServer(scripts: DraftScript[]): DraftFixture {
     }
     if (signal.aborted) throw signal.reason;
   }
+  function fillIds(id: string): void {
+    for (const script of queue) {
+      if (script.id === undefined) script.id = id;
+    }
+  }
   return {
     sdk,
     toolsCalled,
@@ -299,5 +305,6 @@ export function readDraftServer(scripts: DraftScript[]): DraftFixture {
     started,
     aborted,
     release: () => releaseHold(),
+    fillIds,
   };
 }

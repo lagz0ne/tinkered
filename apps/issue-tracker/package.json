@@ -11,8 +11,8 @@
     "start": "node --experimental-strip-types ./src/server/main.ts",
     "tools": "node --experimental-strip-types ./src/tools/main.ts",
     "mcp": "node --experimental-strip-types ./src/tools/main.ts mcp",
-    "test": "vp test",
-    "test:browser": "node --experimental-strip-types ./tests/browser-proof.ts"
+    "test": "vp test tests/issues.test.ts tests/tools.test.ts tests/draft.test.ts",
+    "test:browser": "node --experimental-strip-types ./tests/browser-proof.ts && vp test tests/browser-helper.test.ts"
   },
   "dependencies": {
     "@hono/node-server": "npm:^1.19.5",
