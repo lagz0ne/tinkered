@@ -762,3 +762,22 @@ and Chromium at 390 × 844. `/tmp/tracker-t05-mobile-lead.mjs` recorded
 The screenshot is `/tmp/tracker-t05-mobile-before.png`. The probe stopped
 only its owned server and browser. This records baseline findings; t05
 remains waiting for reviewed t04.
+
+## t04 partial checkpoint — 2026-09-19
+
+Sole contributor `257f478e-50bb-460e-bcfb-0ab45b1d6759` saved commit
+`1f26f41e28c1d20493ad0f2ef31fed608e108779` in its existing private tree.
+It adds the harness dependency, draft event/input types, and a draft input
+error. The app dependency is linked; the required lockfile entry is saved
+but not yet committed. The known ignored esbuild build policy still makes
+`vp install` exit 1 after linking.
+
+Lead `73d730b1` read this first commit. No whole-feature review or behavior
+claim is made: the server draft runner, screen, and tests remain unfinished.
+The same contributor is continuing in small saved steps. t04 stays Doing;
+t05 still waits for a verified t04 landing.
+
+An independent test fixture is ready at `/tmp/tracker-t04-lead-sdk.mjs`.
+Its own smoke run, `/tmp/tracker-t04-lead-sdk-smoke.log`, called the real
+get/list callbacks through the public harness adapter and observed abort.
+This proves the review fixture only; it does not prove the unfinished t04 app.
