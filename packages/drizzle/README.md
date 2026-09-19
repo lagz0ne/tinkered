@@ -27,8 +27,9 @@ export const store = drizzleStore({
 createScope({ tags: [store.config({ url: "memory://" })] });
 ```
 
-An async resource is delivered as a promise (`Scope.ResourceValue`): an op that writes declares
-`depends: { tx: store.tx }` and awaits it, nothing else:
+A resource dependency is delivered as its built value (ADR 0044). An operation that writes
+declares `depends: { tx: store.tx }` and uses the transaction directly. Core waits for an async
+resource build before entering the operation body:
 
 ```ts
 const addUser = operation({
@@ -42,7 +43,9 @@ const addUser = operation({
 The outcome rule: when the owning session (or a graceful scope close) settles `success`,
 the factory returns from the transaction callback — commit. On `failed`, `cancelled`, or
 `released` it raises `Rollback` inside the callback — rollback. Nobody outside ever sees
-`Rollback`; the resource's `defer` swallows the transaction promise.
+`Rollback`; the resource's `defer` handles that expected rollback. Other commit or cleanup
+failures remain in the close result; `scope.session(...)` rejects when cleanup fails. Await
+the completed session before publishing saved state to other readers.
 
 One transaction per request session (v1): a tagged call opens a child session, which would
 build its own `tx` — a second transaction, not a savepoint. Bind per-flow tags at the
