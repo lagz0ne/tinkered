@@ -221,7 +221,7 @@ tickets, then contributors with lead review:
          keep the plain dispatch — the v1 limit); `handleFor` untouched; only `write` still throws `NotSupported`. 8 seam tests
          (core 253), size 22635 B, 37 lanes green, mutation 78.72, impact chain neither. Lead A/B (pinned, min of
          3, t33 → t34): op 101.1 → 100.9, run 112.4 → 112.3, opres 328.5 → 328.7, create 168.5 → 168.9 — flat._
-   - [ ] **core/t35 — the `write` chain.** Verify: cell-write probe flat when unhooked; a refusing write leaves the cell.
+   - [ ] **core/t35 — the `write` chain.** _In progress: writer implementation, then lead review and pinned A/B._ Verify: cell-write probe flat when unhooked; a refusing write leaves the cell.
    - [x] **sync/t06 — `source()` and `subscribe(transport)` as extensions.** _Done: tag `sync/t06` (6409128), writer-built
          with one fix round (error construction back in the registry: `fail(kind, payload)`, `raise` throws it; no cast
          in src). `createScope({ tags, extensions: [src] })` / `[sub]`; `await scope.ready` = the viewer holds its initial

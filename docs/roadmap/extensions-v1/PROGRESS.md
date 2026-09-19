@@ -50,7 +50,8 @@ sync  fail       src/errors.ts src/index.ts
 ```impact core/t35
 core  writeThrough   src/index.ts
 core  extendHandle   src/index.ts
-core  rejectUnwired  src/index.ts
+core  rejectUnwired  (none)
+core  NotSupported   (none)
 ```
 
 ```impact core/t33
