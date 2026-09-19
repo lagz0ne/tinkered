@@ -6,7 +6,7 @@ silently own a separate source scope or bypass publication.
 
 **Blocked by:** 02 — Edit, assign, and discuss issues.
 
-**Status:** Doing — private contributor, then independent lead review.
+**Status:** Review — writer commit e8ddeef; independent final gates and landing remain.
 
 - [ ] HTTP routes and MCP tools use the same declared issue operations and input rules.
 - [ ] CLI uses the existing driver and HTTP frame to reach the running server.

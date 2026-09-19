@@ -28,13 +28,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-| Card                              | Owner                              | Next                                                                                       | Verify                                               |
-| --------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
-| tracker/t03 — CLI and issue tools | Tracker lead + private contributor | Build the [shared command slice](docs/roadmap/issue-tracker-v1/issues/03-cli-and-tools.md) | CLI and MCP update the same server and browser state |
+| Card | Owner | Next | Verify |
+| ---- | ----- | ---- | ------ |
 
 ## Review
 
-_None._
+| Card                              | Owner                               | Next                                             | Verify                                                                     |
+| --------------------------------- | ----------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------------- |
+| tracker/t03 — CLI and issue tools | Tracker lead; writer commit e8ddeef | Review final diff; run final landing gates; land | Fresh app build/tests/check/census, 37 lanes, and real stdio/browser proof |
 
 ## Blocked
 

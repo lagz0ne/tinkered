@@ -514,3 +514,40 @@ App indexes are explicit; the package-only Jev/SCIP runner does not cover them.
         1  readBaseUrl().  src/index.ts
         2  readBaseUrl().  src/tools/main.ts
 ```
+
+### t03 candidate proof and remaining gate
+
+The missing-revision regression now passes: CLI usage/code 2 gives the required flag;
+stale CLI/code 1 and MCP/isError preserve exact saved detail/history.
+The extended real process/browser probe passed again, including offline help, the five
+stdio tools, live browser changes from both CLI and MCP, EOF 0, SIGTERM 130, and web
+shutdown with live SSE. Logs: `/tmp/tracker-t03-revision-usage-before.log` (failed),
+`/tmp/tracker-t03-revision-usage-after.log` (passed).
+
+The lead ran all 15 app tests successfully on the candidate source
+(`/tmp/tracker-t03-lead-candidate-tests.log`). Later test cleanups removed a private API
+import and unnecessary casts, and added exact saved detail equality. Those final edits
+still need the final test/check/census pass. Census targets are the app plus the changed
+`examples/mcp/cli.ts`; the unchanged basic example has an existing census hit outside this task.
+The corrected real CLI/MCP example also passed a search call and EOF/SIGTERM shutdown:
+`/tmp/tracker-t03-example-after.log`.
+
+The writer delivered commit `e8ddeefb3030203538acb9085d8e57d80af1d4cb`, based on
+`a87cef8abcca250c3ef3f9c620724fad46661449`; its tree is clean. t03 is now Review.
+The writer retracted its first report of 20 root errors and one failed validation lane.
+Its fresh saved logs show 0 errors/13 warnings and all 37 lanes passing; this lead read
+both logs and checked the listed lanes. The writer attributes the earlier report to
+reads during its own build, while dist files were being replaced.
+Logs: `/tmp/tracker-t03-root-check.log`, `/tmp/tracker-t03-validate.log`.
+The lead's own pre-landing root check also passed 0 errors/13 warnings
+(`/tmp/tracker-t03-handoff-root-check.log`). Final checks in the landed tree still remain.
+
+The writer is finished and its tree is clean. Its own demo server PID 189512 was stopped;
+the lead confirmed that PID is gone. The initial report remains at
+`/tmp/issue-tracker-t03-report.md`; the fresh logs supersede its failed-gate claims.
+
+The README now removes the forwarded CLI separator and says the conflict prints the
+current revision. Its MCP example uses direct Node but still has an absolute-path
+placeholder, so the final guide must explain replacing it or give a concrete command.
+The next lead receives this immutable writer commit and all source/proof. The writer tree has a recorded 37-lane pass; final lead landing is still pending; t04/t05 and the temporary public browser preview remain
+required.
