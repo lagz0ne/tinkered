@@ -995,3 +995,34 @@ The lead's HTTP/browser checks already prove these important lifetime paths
 at the real public seam, but temporary review scripts do not replace the
 missing durable regressions. `5c71766` is not cherry-picked. The source
 through writer `3340060` remains staged privately through lead `51c0a46`.
+
+### t04 finalization checkpoint at the requested context handoff
+
+The same writer saved `e780e90` (fixture/tests and UI lint extraction),
+`bc3cf45` (optional-helper README), `d641897` (fixture/cancel/root-close
+corrections), and `4832118` (formatting and test dependency order). None of
+these, nor `5c71766`, has been cherry-picked into the private lead tree.
+The writer is still making the last review corrections; no final report
+exists at this checkpoint.
+
+The lead read the new test/UI source and observed the writer logs reporting
+25 passing app tests and all 37 validation lanes passing. These are writer
+logs, not an independent final gate run. Latest corrections requested are:
+remove the redundant setter/runner bags passed into an already nested UI
+helper; post the actual generated draft in the test; compare the issue with
+the normal comment timestamp update; clean temporary databases; check an
+already-aborted fixture signal; and name server-only credential setup in
+the README. The writer must rerun affected checks after its final edits.
+
+All ten package SCIP indexes and an explicit app index were refreshed in
+the private lead tree. Current source callers stay within the declared app
+files. Final app/test refs must be refreshed after landing the remaining
+commits. Use path-delimited symbol patterns: `/App\(\)\.$` avoids matching
+the suffix of `buildApp`. The t05 caller-map draft is in
+`/tmp/tracker-t05-before-refs-draft.txt`; t05 is not launched.
+
+At this checkpoint remote main is still `c6c583d`; no t04 tag or push exists.
+The private lead tree is clean after this note is committed. No lead-owned
+server, browser, preview, gate command, or probe is left running. The next
+lead must continue the same writer and finish t04, t05, and the verified
+temporary preview. The app is not complete.
