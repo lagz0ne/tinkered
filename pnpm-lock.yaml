@@ -289,6 +289,9 @@ importers:
       '@tinker/drizzle':
         specifier: workspace:*
         version: link:../../packages/drizzle
+      '@tinker/harness':
+        specifier: workspace:*
+        version: link:../../packages/harness
       '@tinker/hono':
         specifier: workspace:*
         version: link:../../packages/hono
