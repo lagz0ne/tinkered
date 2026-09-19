@@ -50,3 +50,22 @@ lane, if used, must run alone; never rerun all library mutations for unchanged l
 
 The known `vp install` esbuild build-policy placeholder remains; do not change shared dependency
 policy for this app. App-scoped dependencies and their lockfile entries may be added as needed.
+
+## t01 draft review and recovery — 2026-09-19
+
+The writer saved the app scaffold before its provider returned HTTP 503. No code commit or final
+report exists yet. The lead preserved the private writer tree and resumed the same agent with a
+finish-only prompt; no duplicate writer or new Paseo workspace was created.
+
+Observed draft checks: `vp check` in the app has two type errors; `vp test` has four passing and
+two failing tests. Sync tries to resolve a newly-created source identity; the valid HTTP request
+passes the unresolved JSON-body promise to a synchronous input reader and gets 400. The writer
+has exact corrections plus the missing frontend-serving, stream-handshake, ownership, browser,
+and convention checks. Logs: `/tmp/tracker-t01-draft-{check,test}.log`. These are draft failures,
+not completion evidence. The ticket remains Doing.
+
+During the read-through, the lead fixed stale Drizzle wording: resource dependencies arrive as
+built values, and commit cleanup must finish before publication. Pushed `fabb7db`; `vp check`
+passed with zero errors and the same 13 warnings. Library source did not change. Fresh package
+SCIP indexes passed; review refs are `/tmp/tracker-t01-lead-{core,sync,drizzle,hono}-refs.txt`.
+App indexing and final code gates still wait for the finished slice.
