@@ -22,7 +22,7 @@ extension's `ctx`: `defer` lands in `owner.defers`, `signal` is the layer's); `S
 
 | tag      | ticket                                                                                                        | blockers | status |
 | -------- | ------------------------------------------------------------------------------------------------------------- | -------- | ------ |
-| core/t32 | `Scope.Extension`, `extensions` option, `start`/`close` chains, `scope.ready`, `resolve(ext)`, `NotSupported` | —        | [ ]    |
+| core/t32 | `Scope.Extension`, `extensions` option, `start`/`close` chains, `scope.ready`, `resolve(ext)`, `NotSupported` | —        | [x]    |
 | core/t33 | the `resolve` chain (cells, resources, tags) — probes flat when unhooked                                      | t32      | [ ]    |
 | core/t34 | the `run` chain (operation calls) — `op` probe flat when unhooked; short-circuit                              | t32      | [ ]    |
 | core/t35 | the `write` chain (cell sets) — probe flat when unhooked; a refused write leaves the cell                     | t32      | [ ]    |
@@ -30,15 +30,16 @@ extension's `ctx`: `defer` lands in `owner.defers`, `signal` is the layer's); `S
 
 ### Landed
 
-| tag | sha | tests | size (B gzip) | mutation | probes (before → after) | notes |
-| --- | --- | ----- | ------------- | -------- | ----------------------- | ----- |
+| tag      | sha     | tests | size (B gzip) | mutation | probes (before → after)                                                                                                            | notes                                                                                                                                                              |
+| -------- | ------- | ----- | ------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| core/t32 | 66bcea7 | 239   | 22128         | 78.47    | create 176→169, warm 29.2→29.2, op 100.9→101.1, opres 330→327, cold 695→711, session 1617→1633 (pinned, min of 3, A/B alternating) | writer-built, one fix round (handle literal restored; cold-path `extendHandle`). Follow-up in t33: `exts` off the Layer record; extract only the resolve dispatch. |
 
 ### Impact blocks (ADR 0047)
 
 Blocks list `src/` and `tests/` files only (examples live outside the package index).
 
 ```impact core/t32
-core  createScope   src/index.ts tests/index.test.ts
+core  createScope   src/index.ts tests/index.test.ts tests/cache.bench.test.ts
 core  handleFor     src/index.ts
 core  makeLayer     src/index.ts
 core  closeLayer    src/index.ts

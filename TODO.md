@@ -194,11 +194,16 @@ tickets, then contributors with lead review:
          and tests only from now on._
 6. **Extensions (core)** — **decided (ADR 0050)**, user 2026-09-19 (`1A middleware-style, 2A, 3A`; delivery `A`: start +
    close first). Plan: `docs/roadmap/extensions-v1/PROGRESS.md`.
-   - [ ] **core/t32 — `Scope.Extension` + `extensions` option + `start`/`close` chains + `scope.ready` + `resolve(ext)`.**
-         Verify: seam tests — `ready` waits for an async start; a rejected start rejects `ready` and the scope is closed
-         `failed`; the start chain runs in registration order with full onion semantics; `close` middleware wraps the
-         structural close; `resolve(ext)` delivers the start value; a declared `resolve`/`run`/`write` hook throws
-         `NotSupported`; `createScope` without extensions unchanged on the probes (min of 3).
+   - [x] **core/t32 — `Scope.Extension` + `extensions` option + `start`/`close` chains + `scope.ready` + `resolve(ext)`.**
+         _Done: tag `core/t32` (66bcea7), writer-built with one fix round (the first cut extracted `handleFor` into helpers
+         with a spread to satisfy the complexity lint: create +88 ns — restored to main's literal; extensions wired on the
+         cold path in `createScope` → `extendHandle`). `extension({ label, start?, close?, … })` builder; a declared
+         `resolve`/`run`/`write` throws `NotSupported`; a rejected start records the layer failure and force-closes;
+         `resolveExtension` walks up so sessions see values. 12 seam tests (core 239), size 22128 B, 37 lanes green,
+         mutation 78.47. Lead A/B (pinned core, min of 3): create −7 ns, warm 0, op +0.2, opres −3.5,
+         cold +17 ns, session +16 ns — one extra field on every `Layer` (`exts`) and on every handle (`ready`); t33 moves
+         `exts` into a WeakMap keyed by root layer and extracts only the resolve dispatch (handleFor sits at the
+         complexity ceiling, 13th warning)._
    - [ ] **core/t33 — the `resolve` chain.** Verify: probes flat when unhooked; one hooked read test.
    - [ ] **core/t34 — the `run` chain.** Verify: `op` probe flat when unhooked; a refusing middleware short-circuits.
    - [ ] **core/t35 — the `write` chain.** Verify: cell-write probe flat when unhooked; a refusing write leaves the cell.
