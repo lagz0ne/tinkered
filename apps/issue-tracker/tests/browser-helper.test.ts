@@ -362,19 +362,9 @@ test("shutdown with a live wire and held turn joins cleanly", async () => {
     const closed = await closing;
     assert.deepEqual(closed.teardownErrors ?? [], []);
     assert.equal(closed.status, "cancelled");
-    try {
-      await live.scope.close();
-      await sse.body?.cancel();
-      await heard.stop();
-      const end = await held;
-      if ("text" in end && end.text !== undefined) {
-        assert.equal(end.text.includes('"kind":"done"'), false);
-      }
-    } finally {
-      fixture.release();
-      await live.scope.close();
-      await heard.stop();
-      rmSync(join(path, ".."), { recursive: true, force: true });
+    const end = await held;
+    if ("text" in end && end.text !== undefined) {
+      assert.equal(end.text.includes('"kind":"done"'), false);
     }
     const reopened = await bootScope(path);
     try {
@@ -384,8 +374,19 @@ test("shutdown with a live wire and held turn joins cleanly", async () => {
     }
   } finally {
     fixture.release();
-    await live.scope.close();
-    await heard.stop();
-    rmSync(join(path, ".."), { recursive: true, force: true });
+    try {
+      await live.scope.close();
+    } finally {
+      try {
+        await sse.body?.cancel();
+      } finally {
+        try {
+          await heard.stop();
+        } finally {
+          await held;
+          rmSync(join(path, ".."), { recursive: true, force: true });
+        }
+      }
+    }
   }
 });
