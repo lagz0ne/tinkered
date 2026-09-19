@@ -6,7 +6,7 @@ see each saved change. Unsaved drafts remain local.
 
 **Blocked by:** 01 — Create an issue and see it live.
 
-**Status:** Ready — tracker/t01 verified.
+**Status:** Doing — private contributor, followed by independent lead review.
 
 - [ ] Detail and list remain consistent after edits, comments, and status changes.
 - [ ] Selected details use sync family identities where they simplify subscriptions.

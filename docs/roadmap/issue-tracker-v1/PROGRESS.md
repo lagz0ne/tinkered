@@ -6,7 +6,7 @@ and testing of the existing libraries. [Plan](PLAN.md). The create/live slice is
 | Ticket      | Delivers                                                            | Blocked by | State   |
 | ----------- | ------------------------------------------------------------------- | ---------- | ------- |
 | tracker/t01 | [Create an issue and see it live](issues/01-create-and-see-live.md) | —          | Done    |
-| tracker/t02 | [Edit, assign, and discuss issues](issues/02-edit-and-discuss.md)   | t01        | Ready   |
+| tracker/t02 | [Edit, assign, and discuss issues](issues/02-edit-and-discuss.md)   | t01        | Doing   |
 | tracker/t03 | [Use the same actions from CLI and MCP](issues/03-cli-and-tools.md) | t02        | Waiting |
 | tracker/t04 | [Draft a summary with the harness](issues/04-triage-draft.md)       | t03        | Waiting |
 | tracker/t05 | [Finish the demo and its test guide](issues/05-finish-and-show.md)  | t04        | Waiting |
@@ -17,8 +17,10 @@ pushes or runs mutation. The lead reviews the actual diff and browser result, th
 
 ## Active writer
 
-None. `tracker/t01` is verified; launch the `tracker/t02` writer from the pushed landing
-commit. Keep all agents in workspace `wks_85042cce8c480929` and use a private Git tree.
+`tracker/t02` uses `/home/paseo/next/tinkered-issue-t02`, branch `tracker/t02-edit-discuss`,
+from verified `0050bbc`. All agents remain in workspace `wks_85042cce8c480929`.
+Writer `0ebfe3e2-c0d7-4f80-8f84-bea2282f54b3` uses the discovered direct Muse route,
+thinking max. The lead reviews in its private landing tree; the shared checkout is untouched.
 
 ## Anchors
 
@@ -197,4 +199,46 @@ Final app symbols and callers (paths relative to `apps/issue-tracker`):
         1  parseIssueList().  src/index.ts
         1  parseIssueList().  src/shared/issues.ts
         2  parseIssueList().  tests/issues.test.ts
+```
+
+## t02 started — 2026-09-19
+
+The contributor brief `/tmp/issue-tracker-t02-brief.md` contains the actual t01 app caller table
+above and the type table below before edits. The work adds saved detail, revision checks, comments,
+and activity; one authority still owns every short write and publishes after commit. The expected
+changed files are the shared model, store, operations, bridge, routes, HTTP operations, sync viewer,
+UI, public entry, and their behavior tests. New detail members may add app-local files/callers.
+
+The advisory impact tool assumes `packages/<name>`, so its source diff and evidence paths do not
+cover `apps/issue-tracker`. Explicit app SCIP remains the review source of truth. The block records
+existing public app symbols whose shapes will grow; compare final callers manually and record new
+symbols at review. No public library symbol changes are authorized by this slice.
+
+```impact tracker/t02
+issue-tracker Booted/Composed# src/server/bridge.ts src/server/app.ts
+issue-tracker Booted/Save# src/server/bridge.ts
+issue-tracker Issues/Issue# src/shared/issues.ts src/server/bridge.ts src/server/operations.ts
+issue-tracker bootScope(). src/server/bridge.ts src/index.ts src/server/main.ts tests/issues.test.ts
+issue-tracker buildApp(). src/server/app.ts src/index.ts src/server/main.ts tests/issues.test.ts
+issue-tracker connectTab(). src/client/sync.ts src/client/main.tsx
+```
+
+Type definitions and callers from the explicit baseline app index:
+
+```text
+== issue-tracker
+  definitions
+    Booted/Composed#  ->  src/server/bridge.ts:13
+    Booted/Save#  ->  src/server/bridge.ts:9
+    Issues/CreateInput#  ->  src/shared/issues.ts:14
+    Issues/Issue#  ->  src/shared/issues.ts:7
+  references (count  symbol  file)
+        1  Booted/Composed#  src/server/app.ts
+        1  Booted/Composed#  src/server/bridge.ts
+        2  Booted/Save#  src/server/bridge.ts
+        2  Issues/CreateInput#  src/server/bridge.ts
+        1  Issues/CreateInput#  src/shared/issues.ts
+        2  Issues/Issue#  src/server/bridge.ts
+        1  Issues/Issue#  src/server/operations.ts
+        3  Issues/Issue#  src/shared/issues.ts
 ```

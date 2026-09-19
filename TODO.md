@@ -23,13 +23,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-| Card                                           | Owner          | Next                                                                                                                 | Verify                                       |
-| ---------------------------------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| tracker/t02 — Edit, assign, and discuss issues | Authoring lead | Start the [edit/detail slice](docs/roadmap/issue-tracker-v1/issues/02-edit-and-discuss.md) from verified tracker/t01 | Shared edits, comments, conflicts, and tests |
+| Card | Owner | Next | Verify |
+| ---- | ----- | ---- | ------ |
 
 ## Doing
 
-_None._
+| Card                                           | Owner                              | Next                                                                                                             | Verify                                       |
+| ---------------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| tracker/t02 — Edit, assign, and discuss issues | Tracker lead + private contributor | Implement the [edit/detail slice](docs/roadmap/issue-tracker-v1/issues/02-edit-and-discuss.md), then lead review | Shared edits, comments, conflicts, and tests |
 
 ## Review
 
