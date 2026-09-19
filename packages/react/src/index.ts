@@ -149,12 +149,58 @@ export function useData<T, S>(
   b?: ((a: S, b: S) => boolean) | UseData.Options<S>,
 ): T | S | UseData.Pair<T, T | S> {
   const { selector, isEqual, writable } = readDataArgs(a, b);
-  const scope = useScope();
-  const store = useMemo(() => createDataStore<T, S>(scope.controller(cell)), [scope, cell]);
-  store.select = selector ?? (identity as (value: T) => S);
-  store.equal = (isEqual ?? Object.is) as (a: S, b: S) => boolean;
+  const controller = useScope().controller(cell);
+  const own = useRef<SelectingStore<T, S> | undefined>(undefined);
+  let store: DataStore<T, T | S>;
+  if (selector === undefined && isEqual === undefined) {
+    store = rawStore(controller);
+  } else {
+    const kept = own.current;
+    const selecting =
+      kept !== undefined && kept.controller === controller
+        ? kept
+        : (own.current = createDataStore<T, S>(controller));
+    selecting.select = selector ?? (identity as (value: T) => S);
+    selecting.equal = (isEqual ?? Object.is) as (a: S, b: S) => boolean;
+    store = selecting;
+  }
   const value = useSyncExternalStore(store.subscribe, store.read, store.read);
   return writable ? [value, store.set] : value;
+}
+
+/** What `useSyncExternalStore` needs from a cell, plus the write half of the `writable` pair. */
+type DataStore<T, S> = {
+  subscribe: (notify: () => void) => () => void;
+  read: () => S;
+  set: (value: T) => void;
+};
+
+/** A component-owned store: the selector and equality may change per render, and the memoized
+ * slice belongs to that one component, so it cannot be shared. `controller` is the identity that
+ * tells a scope change apart. */
+type SelectingStore<T, S> = DataStore<T, S> & {
+  controller: Scope.DataController<T>;
+  select: (value: T) => S;
+  equal: (a: S, b: S) => boolean;
+};
+
+const rawStores = new WeakMap<object, DataStore<never, unknown>>();
+
+/** The no-selector store, shared by every component reading the same cell in the same scope: its
+ * snapshot is the raw value, so nothing about it is per component. Keyed by the controller because
+ * core memoizes one controller per (scope, cell) — a stable identity for as long as the scope lives,
+ * and the WeakMap lets it go with the scope. Sharing it costs no hook slot per render, where the
+ * component-owned path pays a `useRef` and, before this, a `useMemo` with a fresh deps array. */
+function rawStore<T>(controller: Scope.DataController<T>): DataStore<T, T> {
+  const cached = rawStores.get(controller);
+  if (cached !== undefined) return cached as DataStore<T, T>;
+  const store: DataStore<T, T> = {
+    subscribe: (notify) => controller.watch(notify),
+    read: () => controller.get(),
+    set: (value) => controller.set(value),
+  };
+  rawStores.set(controller, store);
+  return store;
 }
 
 function readDataArgs<T, S>(
@@ -175,25 +221,12 @@ function readDataArgs<T, S>(
   };
 }
 
-function createDataStore<T, S>(
-  controller: Scope.DataController<T>,
-): {
-  select: (value: T) => S;
-  equal: (a: S, b: S) => boolean;
-  subscribe: (notify: () => void) => () => void;
-  read: () => S;
-  set: (value: T) => void;
-} {
+function createDataStore<T, S>(controller: Scope.DataController<T>): SelectingStore<T, S> {
   let memo:
     | { raw: T; slice: S; select: (value: T) => S; equal: (a: S, b: S) => boolean }
     | undefined = undefined;
-  const store: {
-    select: (value: T) => S;
-    equal: (a: S, b: S) => boolean;
-    subscribe: (notify: () => void) => () => void;
-    read: () => S;
-    set: (value: T) => void;
-  } = {
+  const store: SelectingStore<T, S> = {
+    controller,
     select: identity as (value: T) => S,
     equal: Object.is,
     subscribe: (notify: () => void) => controller.watch(notify),
@@ -220,8 +253,7 @@ function createDataStore<T, S>(
  * For writes: a component that only holds a controller subscribes to nothing, so a write-only view
  * never re-renders when the cell changes. Read reactively with {@link useData} instead. */
 export function useController<T>(cell: Data.Cell<T>): Scope.DataController<T> {
-  const scope = useScope();
-  return useMemo(() => scope.controller(cell), [scope, cell]);
+  return useScope().controller(cell);
 }
 
 type Outcome<T> =
