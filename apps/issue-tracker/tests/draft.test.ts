@@ -241,12 +241,16 @@ test("ordinary saves continue while a draft turn holds", async () => {
   });
   heard.serve(buildApp(live));
   const tracked = (async () => {
-    const res = await fetch(`${heard.base}/api/issues/${created.id}/draft`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({}),
-    });
-    return readEvents(await res.text());
+    try {
+      const res = await fetch(`${heard.base}/api/issues/${created.id}/draft`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      return { events: readEvents(await res.text()) };
+    } catch (error: unknown) {
+      return { error };
+    }
   })();
   try {
     await fixture.started();
@@ -254,7 +258,8 @@ test("ordinary saves continue while a draft turn holds", async () => {
     expect(other.title).toBe("Concurrent");
     fixture.release();
     const seen = await tracked;
-    expect(seen.at(-1)).toEqual({ kind: "terminal", status: "done", draft: "Held draft." });
+    if ("error" in seen) throw seen.error;
+    expect(seen.events.at(-1)).toEqual({ kind: "terminal", status: "done", draft: "Held draft." });
     expect(
       parseIssueDetail(await (await fetch(`${heard.base}/api/issues/${created.id}`)).json()),
     ).toEqual(before);
@@ -262,6 +267,7 @@ test("ordinary saves continue while a draft turn holds", async () => {
     fixture.release();
     await live.scope.close();
     await heard.stop();
+    await tracked;
     removeTemp(path);
   }
 });
@@ -307,6 +313,7 @@ test("an HTTP disconnect cancels the model and saves nothing", async () => {
     fixture.release();
     await live.scope.close();
     await heard.stop();
+    await tracked;
     removeTemp(path);
   }
 });
@@ -362,6 +369,7 @@ test("root close with a live caller aborts the model and settles cancelled", asy
     fixture.release();
     await live.scope.close();
     await heard.stop();
+    await tracked;
     removeTemp(path);
   }
 });
@@ -384,13 +392,17 @@ test("overlapping drafts on two issues stay isolated through one live app", asyn
   heard.serve(buildApp(live));
   const firstFlight = new AbortController();
   const tracked = (async () => {
-    const res = await fetch(`${heard.base}/api/issues/${one.id}/draft`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({}),
-      signal: firstFlight.signal,
-    });
-    return readEvents(await res.text());
+    try {
+      const res = await fetch(`${heard.base}/api/issues/${one.id}/draft`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+        signal: firstFlight.signal,
+      });
+      return { events: readEvents(await res.text()) };
+    } catch (error: unknown) {
+      return { error };
+    }
   })();
   try {
     await fixture.started();
@@ -415,7 +427,9 @@ test("overlapping drafts on two issues stay isolated through one live app", asyn
       draft: "Second draft.",
     });
     fixture.release();
-    const firstSeen = await tracked;
+    const first = await tracked;
+    if ("error" in first) throw first.error;
+    const firstSeen = first.events;
     expect(
       firstSeen
         .filter((event) => event.kind === "text")
@@ -433,6 +447,7 @@ test("overlapping drafts on two issues stay isolated through one live app", asyn
     fixture.release();
     await live.scope.close();
     await heard.stop();
+    await tracked;
     removeTemp(path);
   }
 });
