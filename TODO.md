@@ -204,9 +204,11 @@ tickets, then contributors with lead review:
          cold +17 ns, session +16 ns — one extra field on every `Layer` (`exts`) and on every handle (`ready`); t33 moves
          `exts` into a WeakMap keyed by root layer and extracts only the resolve dispatch (handleFor sits at the
          complexity ceiling, 13th warning)._
-   - [ ] **sync follow-up — mutation fell 73.53 → 62.34 with t06 (40 uncovered mutants in the subscribe start: the forced-close
-         `ctx.signal` path, the far-side close while waiting, the zero-keys path).** Verify: three seam tests through `ready`;
-         `sync#mutate` alone ≥ 70.
+   - [ ] **sync/t07 — restore seam coverage after t06 (mutation 62.34).** _Pending core/t35. Lead inspection corrected
+         the earlier diagnosis: forced close, far-side close, and zero keys already have tests and ran under Stryker.
+         Missing coverage is mainly invalid snapshots, protocol cleanup, key conflicts, and source family creation;
+         strengthen the whole-initial-set test too. Brief: `/tmp/sync-t07-brief.md`._ Verify: named public promises
+         through `ready`/the wire, all gates green, and `sync#mutate` alone ≥ 70.
    - [x] **core/t33 — the `resolve` chain + the t32 follow-ups.** _Done: tag `core/t33` (1810c85), writer-built, no fix
          round: `resolveThrough(layer, resolvers)` = the onion on the root handle (registration order, short-circuit,
          `Extension` targets bypass to the registry; sessions keep the plain dispatch — the v1 limit, in the README);

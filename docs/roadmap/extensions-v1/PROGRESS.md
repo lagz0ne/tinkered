@@ -82,3 +82,19 @@ core  isExtension   src/index.ts
 The lead reviews every ticket (diff vs ADR rows, convention, one promise per test, gate re-run, SCIP
 refs, `node scripts/jev/impact.mjs <tag>`, the probe table re-measured), cherry-picks, runs the
 mutation lane alone, tags. Reports end with **Core feedback**.
+
+### sync/t07 follow-up (pending core/t35)
+
+The t06 log (`/tmp/sync-t06-mutate.log`) ran all 21 tests, including forced close, far-side close,
+and zero keys. The earlier TODO attributed the 40 uncovered mutants to those paths in error.
+Restore coverage of the shipped promises: invalid snapshots during readiness, protocol cleanup
+after readiness, conflicting keys, registration of a source family member not already held, and
+waiting for the final initial snapshot. Target: isolated sync mutation ≥ 70, without duplicate tests
+or changing the mutation threshold. No public symbol changes are planned.
+
+```impact sync/t07
+sync  source     src/index.ts tests/sync.test.ts
+sync  subscribe  src/index.ts tests/sync.test.ts
+sync  family     src/index.ts tests/sync.test.ts
+sync  memoryPair src/index.ts tests/sync.test.ts
+```
