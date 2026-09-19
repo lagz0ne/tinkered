@@ -80,44 +80,17 @@ promise is created, even if startup will await it later. Keep close paths safe t
 
 Three ways to build one:
 
-Hono SSE + POST (the full recipe lives in `examples/hono.ts`): one
-`GET /sync?client=<id>` stream down, one `POST /sync?client=<id>` carrying
-the `register` up, routed by client id. `boot()` installs the source
-extension on the scope; each stream reads it back to connect:
+Hono SSE + POST uses one `GET /sync?client=<id>` stream down and one
+`POST /sync?client=<id>` carrying registration up. The
+[issue tracker server](../../apps/issue-tracker/src/server/app.ts) and
+[browser connection](../../apps/issue-tracker/src/client/sync.ts) show the complete owned transport.
 
-```ts
-export function boot(): { scope: Scope.Handle; app: Hono } {
-  const src = source();
-  const scope = createScope({ tags: [sync(counter)], extensions: [src] });
-  return { scope, app: recipe(scope, src) };
-}
-```
-
-```ts
-const transport: Sync.Transport = {
-  send: (message) => {
-    if (open) void emit(`data: ${JSON.stringify(message)}\n\n`);
-  },
-  onMessage: (listener) => {
-    arrivals.add(listener);
-    return () => {
-      arrivals.delete(listener);
-    };
-  },
-  onClose: (listener) => {
-    partings.add(listener);
-    return () => {
-      partings.delete(listener);
-    };
-  },
-  close: () => {
-    if (open === false) return;
-    open = false;
-    for (const part of partings) part();
-  },
-};
-scope.resolve(src).connect(transport);
-```
+The server sends a ready comment before the browser posts registration. Each side queues its
+async sends in order and closes the transport when a send fails. Closing notifies the driver
+once and cancels pending browser requests. Install stream error handling before awaiting
+`scope.ready`, so losing the first snapshot rejects startup instead of leaving the screen loading.
+The stream callback returns the `source.connect(transport)` promise; it settles when the wire
+closes. Forced root shutdown closes the source connections and their stream sessions.
 
 WebSocket (one socket per tab, same four methods):
 
