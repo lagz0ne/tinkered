@@ -64,6 +64,22 @@ itself, so bad config fails at boot, never on a request.
 opens the session per request, `handle(op, { input?, respond? })` answers one endpoint. `honoApp`
 composes the two — it adds no request logic of its own.
 
+The `input` callback is synchronous. Read an async JSON body in an outer Hono handler,
+then pass the value to `handle`; passing `c.req.json()` directly gives the operation's
+parser a promise. Return 400 from the outer handler if the JSON itself is malformed:
+
+```ts
+app.post("/users", async (c) => {
+  let raw: unknown;
+  try {
+    raw = await c.req.json();
+  } catch {
+    return c.json({ error: "invalid JSON" }, 400);
+  }
+  return handle(createUser, { input: () => raw })(c);
+});
+```
+
 Each request runs as an inline operation (`"GET /users/:id"`) whose one dependency is the
 route's operation — so core's spans, one `http request` log line, clock, and signal come for
 free. The session closes gracefully (commit) after the handler; forced (rollback) on client
