@@ -1,3 +1,4 @@
+import { Server } from "node:http";
 import { type ClaudeCode } from "@tinker/harness";
 import type {
   SDKPartialAssistantMessage,
@@ -41,6 +42,7 @@ export async function reservePort(): Promise<DraftHeard> {
   return {
     stop: () =>
       new Promise<void>((resolve) => {
+        if (server instanceof Server) server.closeAllConnections();
         server.close(() => resolve());
       }),
     base: `http://127.0.0.1:${port}`,

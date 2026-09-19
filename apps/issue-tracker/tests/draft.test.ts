@@ -30,12 +30,9 @@ function readEvents(text: string): { kind: string; [key: string]: unknown }[] {
     .map((line) => JSON.parse(line.slice(5).trim()));
 }
 
-function readTerminal(events: { kind: string; [key: string]: unknown }[]) {
-  return events.at(-1);
-}
-
 test("the draft helper is off by default and needs no account", async () => {
-  const booted = await bootScope(tempPath());
+  const path = tempPath();
+  const booted = await bootScope(path);
   const app = buildApp(booted);
   try {
     const capability = await app.request("/api/draft");
@@ -54,6 +51,7 @@ test("the draft helper is off by default and needs no account", async () => {
     expect(detail.activity.length).toBe(1);
   } finally {
     await booted.scope.close({ graceful: true });
+    removeTemp(path);
   }
 });
 
@@ -88,7 +86,7 @@ test("a draft streams text and finishes without saving anything", async () => {
     expect(seen.filter((event) => event.kind === "done")).toEqual([
       { kind: "done", draft: "A short summary." },
     ]);
-    expect(readTerminal(seen)).toEqual({
+    expect(seen.at(-1)).toEqual({
       kind: "terminal",
       status: "done",
       draft: "A short summary.",
@@ -132,7 +130,7 @@ test("an explicit post sends the generated draft and appends once", async () => 
       body: JSON.stringify({}),
     });
     const seen = readEvents(await generated.text());
-    const terminal = readTerminal(seen);
+    const terminal = seen.at(-1);
     if (terminal === undefined || terminal.kind !== "terminal") {
       throw fail("DraftFailed", { reason: "expected a finished draft" });
     }
@@ -146,7 +144,7 @@ test("an explicit post sends the generated draft and appends once", async () => 
     const comment = parseComment(await posted.json());
     expect(comment.text).toBe(terminal.draft);
     const after = await live.detail(created.id);
-    expect({ ...after.issue, updatedAt: 0 }).toEqual({ ...before.issue, updatedAt: 0 });
+    expect(after.issue).toEqual({ ...before.issue, updatedAt: comment.createdAt });
     expect(after.comments).toEqual([...before.comments, comment]);
     expect(after.activity.map((entry) => entry.kind)).toEqual([
       ...before.activity.map((entry) => entry.kind),
@@ -195,7 +193,8 @@ test("a model error result and a thrown model error both fail without a draft", 
 
 test("a draft for a missing issue answers gone and runs no model", async () => {
   const fixture = readDraftServer([{ text: "never used" }]);
-  const booted = await bootScope(tempPath(), {
+  const path = tempPath();
+  const booted = await bootScope(path, {
     draft: { enabled: true, baseUrl: "http://127.0.0.1:1" },
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
@@ -210,6 +209,7 @@ test("a draft for a missing issue answers gone and runs no model", async () => {
     expect(fixture.turnCount()).toBe(0);
   } finally {
     await booted.scope.close({ graceful: true });
+    removeTemp(path);
   }
 });
 
@@ -240,22 +240,21 @@ test("ordinary saves continue while a draft turn holds", async () => {
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
   heard.serve(buildApp(live));
-  const pending = fetch(`${heard.base}/api/issues/${created.id}/draft`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({}),
-  });
-  pending.then(
-    () => undefined,
-    () => undefined,
-  );
+  const tracked = (async () => {
+    const res = await fetch(`${heard.base}/api/issues/${created.id}/draft`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    return readEvents(await res.text());
+  })();
   try {
     await fixture.started();
     const other = await live.save.create({ title: "Concurrent", description: "no block" });
     expect(other.title).toBe("Concurrent");
     fixture.release();
-    const seen = readEvents(await (await pending).text());
-    expect(readTerminal(seen)).toEqual({ kind: "terminal", status: "done", draft: "Held draft." });
+    const seen = await tracked;
+    expect(seen.at(-1)).toEqual({ kind: "terminal", status: "done", draft: "Held draft." });
     expect(
       parseIssueDetail(await (await fetch(`${heard.base}/api/issues/${created.id}`)).json()),
     ).toEqual(before);
@@ -281,28 +280,23 @@ test("an HTTP disconnect cancels the model and saves nothing", async () => {
   });
   heard.serve(buildApp(live));
   const stopper = new AbortController();
-  const pending = fetch(`${heard.base}/api/issues/${created.id}/draft`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({}),
-    signal: stopper.signal,
-  }).then(
-    (res) => res.text().then((text) => ({ text })),
-    (error: unknown) => ({ error }),
-  );
-  pending.then(
-    () => undefined,
-    () => undefined,
-  );
+  const tracked = (async () => {
+    try {
+      const res = await fetch(`${heard.base}/api/issues/${created.id}/draft`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+        signal: stopper.signal,
+      });
+      return { text: await res.text() };
+    } catch (error: unknown) {
+      return { error };
+    }
+  })();
   try {
     await fixture.started();
     stopper.abort();
-    let end: { readonly text: string } | { readonly error: unknown };
-    try {
-      end = await pending;
-    } catch (error: unknown) {
-      end = { error };
-    }
+    const end = await tracked;
     if ("text" in end) throw fail("DraftFailed", { reason: "disconnect settled a body" });
     await fixture.aborted();
     const detail = await live.detail(created.id);
@@ -331,19 +325,19 @@ test("root close with a live caller aborts the model and settles cancelled", asy
   });
   heard.serve(buildApp(live));
   const caller = new AbortController();
-  const pending = fetch(`${heard.base}/api/issues/${created.id}/draft`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({}),
-    signal: caller.signal,
-  }).then(
-    (res) => res.text().then((text) => ({ text })),
-    (error: unknown) => ({ error }),
-  );
-  pending.then(
-    () => undefined,
-    () => undefined,
-  );
+  const tracked = (async () => {
+    try {
+      const res = await fetch(`${heard.base}/api/issues/${created.id}/draft`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+        signal: caller.signal,
+      });
+      return { text: await res.text() };
+    } catch (error: unknown) {
+      return { error };
+    }
+  })();
   try {
     await fixture.started();
     expect(caller.signal.aborted).toBe(false);
@@ -352,8 +346,8 @@ test("root close with a live caller aborts the model and settles cancelled", asy
     const closed = await closing;
     expect(closed.teardownErrors ?? []).toEqual([]);
     expect(closed.status).toBe("cancelled");
-    const end = await pending;
-    if ("text" in end) {
+    const end = await tracked;
+    if ("text" in end && end.text !== undefined) {
       const seen = readEvents(end.text);
       expect(seen.some((event) => event.kind === "done")).toBe(false);
     }
@@ -389,16 +383,15 @@ test("overlapping drafts on two issues stay isolated through one live app", asyn
   });
   heard.serve(buildApp(live));
   const firstFlight = new AbortController();
-  const first = fetch(`${heard.base}/api/issues/${one.id}/draft`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({}),
-    signal: firstFlight.signal,
-  }).then((res) => res.text());
-  first.then(
-    () => undefined,
-    () => undefined,
-  );
+  const tracked = (async () => {
+    const res = await fetch(`${heard.base}/api/issues/${one.id}/draft`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+      signal: firstFlight.signal,
+    });
+    return readEvents(await res.text());
+  })();
   try {
     await fixture.started();
     const secondSeen = readEvents(
@@ -416,20 +409,20 @@ test("overlapping drafts on two issues stay isolated through one live app", asyn
         .map((event) => event.text)
         .join(""),
     ).toBe("Second draft.");
-    expect(readTerminal(secondSeen)).toEqual({
+    expect(secondSeen.at(-1)).toEqual({
       kind: "terminal",
       status: "done",
       draft: "Second draft.",
     });
     fixture.release();
-    const firstSeen = readEvents(await first);
+    const firstSeen = await tracked;
     expect(
       firstSeen
         .filter((event) => event.kind === "text")
         .map((event) => event.text)
         .join(""),
     ).toBe("First held draft.");
-    expect(readTerminal(firstSeen)).toEqual({
+    expect(firstSeen.at(-1)).toEqual({
       kind: "terminal",
       status: "done",
       draft: "First held draft.",
