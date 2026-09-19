@@ -838,3 +838,81 @@ No t04 code is landed; t05 and the temporary preview are still unfinished.
 The resumed lead install recorded the known ignored esbuild build-script
 policy failure in `/tmp/tracker-t04-resumed-lead-install.log`; no policy
 change or provisioning was attempted.
+
+### t04 server wiring review — not accepted
+
+Contributor `4c4b024` limits live harness status to `running`, and `c99f729`
+adds draft composition, routes, and environment opt-in. The lead read both.
+The contributor reported a clean touched-file type check and client build,
+but the lead's actual public Node import failed before starting a server:
+`settleRun` lost `async` while still containing `await`. The full app command
+`./node_modules/.bin/tsc --noEmit`, from its private app directory, exited 1
+with 11 diagnostics. These also identify an input read before declaration
+and an invalid Hono context type. Evidence:
+`/tmp/tracker-t04-resumed-http-before.log` and
+`/tmp/tracker-t04-resumed-tsc-before.log`.
+
+The same writer is correcting these failures, stream headers/error admission,
+abort-listener ownership, and an unused returned preset field. It must run
+the unfiltered type check and the prepared real HTTP proof before reporting.
+The lead's prepared `/tmp/tracker-t04-resumed-http-proof.mjs` and browser
+probe are review aids, not passing proof or durable app tests. No t04 code
+has been landed, and UI/tests remain outstanding.
+
+### t04 server correction independently verified
+
+The lead personally read correction `4fbd07f` and observed these commands
+pass on the writer tree, with no builds running during the proof:
+
+- App `./node_modules/.bin/tsc --noEmit`: exit 0,
+  `/tmp/tracker-t04-resumed-tsc-after.log`.
+- `timeout 60s node --experimental-strip-types /tmp/tracker-t04-resumed-http-proof.mjs /home/paseo/next/tinkered-issue-t04`:
+  exit 0, `/tmp/tracker-t04-resumed-http-after.log` and
+  `/tmp/tracker-t04-resumed-http-result.json`.
+
+The public app entry composed real HTTP, the actual harness adapter with
+a test-only SDK preset, and real get/list tool callbacks. The proof checked
+read-only options and denied unexpected approvals; streamed text and final
+success; SDK error results and thrown errors as failed runs with no success;
+HTTP abort reaching the model; independent text for two issues; ordinary
+saves while a draft waits; and full saved detail/history unchanged until
+explicit comment Post. Root shutdown signalled the model and settled the
+stream while the caller signal stayed live. Reopening the same database
+preserved the exact saved detail. Root close reported cancelled with no
+teardown errors. These are actual partial server checks, not whole t04 gates.
+
+The same sole writer is now implementing the selected-issue draft UI.
+Durable app tests, README, full gates, final lead review and landing remain.
+t05 and the public preview remain unfinished.
+
+### t04 UI checkpoint and next lead handoff
+
+The lead personally read `b10a11d` and `e87719f`. The selected issue now
+mounts `DraftView`; the shared event admission includes the terminal event.
+The contributor's browser attempt initially failed in the lead probe's
+Playwright import, before opening a page. The lead fixed the probe to use
+Playwright's ESM entry; no app change was needed for that test setup issue.
+
+The actual browser probe then passed on the writer tree at 390px:
+`/tmp/tracker-t04-resumed-browser-first.log` and
+`/tmp/tracker-t04-resumed-browser-result.json`. Cancel preserved both the
+exact saved detail/history and typed edit/comment fields. Discard saved
+nothing. Explicit Post used the normal comment route and appeared in a
+second tab. Switching the selected issue signalled the active draft to stop
+and showed no text from the previous issue. No page errors or sideways
+scroll were observed. The lead inspected the phone screenshot at
+`/tmp/tracker-t04-resumed-browser-phone.png`; touch-size polish is still t05.
+
+Source/style work still remains: `DraftView` throws two bare errors, so the
+strict app census failed S05 (`/tmp/tracker-t04-resumed-ui-census.log`). Its
+stream reader also catches malformed frames as empty lines, and does not
+explicitly release the reader lock; the next bounded writer step must use
+managed errors, show a plain failure, abort a failed stream, and release
+the reader. Disable Discard during an in-flight Post so a later completion
+cannot clear a newly started draft. These fixes and public adapter tests
+are still required. The existing 15 app tests are unchanged at this point.
+
+No t04 commits have been cherry-picked or pushed from the writer branch.
+No final t04 report or full gates exist. Continue the same writer, then
+review and land t04, finish t05, and publish a verified temporary preview.
+No preview or lead-owned process is left running at this checkpoint.
