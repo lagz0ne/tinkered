@@ -478,3 +478,39 @@ stdio initialization and EOF/SIGTERM exit. The doc now shows that tested lifetim
 Proof: `/tmp/tracker-t03-mcp-doc-before.log`, `/tmp/tracker-t03-mcp-doc-after.log`.
 This closes a doc defect only; the full tracker slice still needs its saved implementation
 and independent app/browser/process checks.
+
+### t03 saved source review
+
+The first Node CLI/tool declarations now exist. A separate lead process/browser probe
+passed offline help, real stdio initialize/list/create/update/comment/get, browser live
+updates from both CLI and MCP, stale MCP rejection with exact unchanged detail, EOF exit 0,
+SIGTERM exit 130, and web shutdown with a live SSE connection. This is preliminary source
+proof, not final slice acceptance. Log: `/tmp/tracker-t03-first-stdio-browser.log`.
+
+The bad-input check then failed: omitted revision returns only `Error: BadEditInput`
+and code 1. It must enter the operation parse door and show usage/code 2. The saved tests
+also test parser/config helpers and cast JSON instead of reading saved values through the
+public readers. These remain writer fixes before final gates.
+
+Before removing the new pass-through config export and making input/env readers private,
+the lead indexed the app and recorded every caller below. The Node main and tests must
+use the existing exported `api.config({ baseUrl })`; the get operation keeps its input reader.
+The real CLI and MCP behavior tests replace helper tests. No library API change is involved.
+App indexes are explicit; the package-only Jev/SCIP runner does not cover them.
+
+```text
+== issue-tracker
+  definitions
+    baseConfig().  ->  src/tools/issues.ts:50
+    parseGetInput().  ->  src/tools/issues.ts:93
+    readBaseUrl().  ->  src/tools/issues.ts:42
+  references (count  symbol  file)
+        1  baseConfig().  src/index.ts
+        2  baseConfig().  src/tools/main.ts
+        4  baseConfig().  tests/tools.test.ts
+        1  parseGetInput().  src/index.ts
+        1  parseGetInput().  src/tools/issues.ts
+        4  parseGetInput().  tests/tools.test.ts
+        1  readBaseUrl().  src/index.ts
+        2  readBaseUrl().  src/tools/main.ts
+```
