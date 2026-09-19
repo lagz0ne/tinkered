@@ -4,15 +4,12 @@ import { fail, isError } from "../errors.ts";
 import { parseDraftInput, type Draft } from "../shared/draft.ts";
 import { getRemote, listRemote } from "../tools/issues.ts";
 
-/** Deny every permission prompt: the run may call only the two declared read tools. */
 const denyUnexpected = operation({
   label: "denyUnexpected",
   input: claudeCode.approval,
   run: (): ClaudeCode.Decision => ({ behavior: "deny", message: "only issue reads are allowed" }),
 });
 
-/** The triage helper: one frame whose turns read issues through the existing
- * remote get/list tools. The server owns every write; this frame only reads. */
 export const triage = harness({
   label: "triage",
   adapter: claudeCode,
@@ -20,8 +17,6 @@ export const triage = harness({
   tools: [listRemote, getRemote],
 });
 
-/** The SDK guardrails: no built-in tools, no filesystem settings, no outside
- * MCP config; only the frame's two in-process read tools auto-run. */
 export const draftGuardrails = claudeCode.options({
   tools: [],
   allowedTools: ["mcp__triage__list", "mcp__triage__get"],
@@ -34,8 +29,6 @@ function readPrompt(input: { readonly id: string; readonly prompt: string }): st
   return `Read issue ${input.id} with the get tool, then ${ask}. Reply with a short summary or next steps as plain text.`;
 }
 
-/** One draft turn: reads the issue through the frame's tools, answers plain text.
- * A non-success SDK result is a managed DraftFailed, never an empty success. */
 export const draftTurn = triage.turn({
   label: "draft",
   input: parseDraftInput,
@@ -54,24 +47,12 @@ export declare namespace RunDraft {
   };
 }
 
-/** Read a scope close result as one terminal draft outcome: any teardown
- * error makes the run failed, on every status; then any failure or
- * cancellation means the run did not finish. Root shutdown can cancel the
- * child even when the caller's signal is live. */
 function readClosed(end: Scope.Result): Draft.Outcome {
   if (end.teardownErrors !== undefined && end.teardownErrors.length > 0) return "failed";
   if (end.status !== "success") return end.status === "cancelled" ? "cancelled" : "failed";
   return "done";
 }
 
-/** Run one draft turn in its own child session of the owning scope. The
- * caller borrows the owner, watches `notify` for transient text/status, and
- * aborts `signal` to cancel. An already-aborted signal runs nothing and
- * reports cancelled. Otherwise the runner starts a forced close on abort,
- * joins the turn and that same close, removes its watchers, inspects the
- * close result (failure, cancellation, teardown errors), and only then
- * emits and returns the terminal outcome — never by writing into the
- * sealed session. Reads only; it holds no DB transaction and saves nothing. */
 export async function runDraft(
   owner: Scope.Handle,
   input: { readonly id: string; readonly prompt: string },
@@ -86,9 +67,7 @@ export async function runDraft(
     live = next;
   });
   const unStatus = session.controller(triage.status).watch((next) => {
-    if (next === "running" || next === "done" || next === "failed") {
-      notify({ kind: "status", status: next });
-    }
+    if (next === "running") notify({ kind: "status", status: next });
   });
   let closing: Promise<Scope.Result> | undefined;
   const onAbort = (): void => {
@@ -108,17 +87,22 @@ export async function runDraft(
     signal.removeEventListener("abort", onAbort);
   }
   const closed = readClosed(await (closing ?? session.close({ graceful: true })));
-  if (closed === "cancelled") return { status: "cancelled", draft: outcome.draft };
-  if (closed === "failed") return { status: "failed", draft: outcome.draft };
+  if (closed === "cancelled") {
+    notify({ kind: "status", status: "cancelled" });
+    return { status: "cancelled", draft: outcome.draft };
+  }
+  if (closed === "failed") {
+    notify({ kind: "status", status: "failed" });
+    return { status: "failed", draft: outcome.draft };
+  }
   if (thrown !== undefined) throw thrown;
   const status = readOutcome(outcome, closed);
+  notify({ kind: "status", status });
   if (status === "done") notify({ kind: "done", draft: outcome.draft });
   return { status, draft: outcome.draft };
 }
 
-/** Join one turn: its draft text on success, empty text otherwise. A
- * DraftFailed from the turn body is a model failure, not a throwaway. */
-async function settleRun(
+function settleRun(
   session: Scope.Handle,
   input: { readonly id: string; readonly prompt: string },
   signal: AbortSignal,
@@ -133,8 +117,6 @@ async function settleRun(
   }
 }
 
-/** Combine the turn join with the close inspection: a close failure,
- * cancellation, or teardown error overrides an advertised success. */
 function readOutcome(
   outcome: { readonly finished: boolean; readonly draft: string },
   closed: Draft.Outcome,
