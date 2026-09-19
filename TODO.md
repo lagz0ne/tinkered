@@ -23,14 +23,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-| Card                                  | Owner        | Next                                                          | Verify                                                                           |
-| ------------------------------------- | ------------ | ------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| tracker/t05 — Finish and show the app | Tracker lead | Launch one writer from verified t04 with the saved caller map | Reconnect, durable browser proof, mobile checks, final docs and verified preview |
+| Card | Owner | Next | Verify |
+| ---- | ----- | ---- | ------ |
 
 ## Doing
 
-| Card | Owner | Next | Verify |
-| ---- | ----- | ---- | ------ |
+| Card                                  | Owner                                      | Next                                                                         | Verify                                                                                  |
+| ------------------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| tracker/t05 — Finish and show the app | Muse writer ade1b488; tracker lead reviews | Save reconnect/error/mobile fixes, then owned browser proof and final README | All app/repo gates, exact stale-draft safety, shutdown/restart, verified public preview |
 
 ## Review
 

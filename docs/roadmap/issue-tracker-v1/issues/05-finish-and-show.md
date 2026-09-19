@@ -6,7 +6,7 @@ and shutdown behavior for the flows already built. Publish a verified temporary 
 
 **Blocked by:** 04 — Draft a summary with the existing harness.
 
-**Status:** Ready — t04 verified; caller map recorded before implementation.
+**Status:** Doing — sole Muse writer `ade1b488`; private tree `tinkered-issue-t05`, base `ea73244`. Lead owns review and preview.
 
 - [ ] Reconnecting restores current server state; pending/error states are visible and recoverable.
 - [ ] Restart persistence, two-tab updates, a rejected edit, and run cancellation have direct proof.

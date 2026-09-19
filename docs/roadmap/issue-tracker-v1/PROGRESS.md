@@ -1222,3 +1222,19 @@ issue-tracker /TabSync/Connected# src/client/sync.ts src/client/App.tsx
         1  /TabSync/Connected#  src/client/sync.ts
         3  /connectTab().  src/client/main.tsx
 ```
+
+### t04 remote proof and t05 launch
+
+Remote main and tag `tracker/t04` both resolve to
+`ea73244c0612dc0d85f6449ee9809c1cbad3fb66`. The finished t04 writer was
+archived only after its clean app/lock tree matched the landed source.
+Its worktree and branch were then removed. No registered checkout was
+changed.
+
+One t05 writer `ade1b488-b3f8-4c59-a198-004a9bf5551d` now works in
+`/home/paseo/next/tinkered-issue-t05`, branch `tracker/t05-finish`, from
+`ea73244`. Profile discovery found no profiles; provider/model discovery
+confirmed `pi/meta-muse/muse-spark-1.3-contributor`, thinking `max`.
+The same existing Paseo workspace is used. Full brief:
+`/tmp/issue-tracker-t05-brief.md`. Lead owns review, gates, landing, and
+the verified temporary public preview. No preview exists yet.
