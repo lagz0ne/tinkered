@@ -1,4 +1,4 @@
-# Issue tracker (slice t03: CLI and MCP tools)
+# Issue tracker (slice t04: optional triage draft)
 
 Create an issue, open it, edit its title/description, move it through
 Open/In progress/Done, assign Ada/Lin/Sam or nobody, and add comments.
@@ -11,6 +11,31 @@ Edits carry the revision originally opened. A stale save is rejected with
 HTTP 409 and the current saved issue; the local draft is kept so the
 person can reload the other change and try again. Comments append without
 an edit revision.
+
+## Triage draft (optional helper, off by default)
+
+Selecting an issue shows a triage draft box. With the helper off it says
+so and ordinary tracker use needs no account. With the helper on, "Draft
+a summary" streams a short summary or next steps for that issue. Cancel
+stops the run, Discard throws the draft away — neither saves anything.
+"Post draft" appends the generated text as a comment under the chosen
+Ada/Lin/Sam author through the normal comment action.
+
+Turn the helper on for local use:
+
+```bash
+DRAFT_HELPER=1 PUBLIC_BASE_URL=http://127.0.0.1:4311 HOST=127.0.0.1 PORT=4311 DATA_PATH=./data/issues vp run @tinker-issue-tracker#start
+```
+
+`DRAFT_HELPER=1` (or `true`) opts in; without it the helper stays off.
+`PUBLIC_BASE_URL` is the address the helper's read tools call — set it to
+the same server, or omit it to use `http://HOST:PORT`. Model credentials
+stay server-only: never put keys in the browser or client bundle.
+
+The run may call only the existing issue `get`/`list` read tools through
+its in-process server. Built-in tools are disabled, filesystem settings
+are off, outside MCP config is refused, and unexpected permission prompts
+are denied. A credentialed live model run was not verified.
 
 ## Run it
 
