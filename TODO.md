@@ -4,6 +4,20 @@ The live working list. **Goal: drive it to empty.** Each item is checkable and c
 **Verify** — the exact observable proof. Tick `[x]` ONLY after the Verify passes (gate green,
 a failing→passing test, or command output). Never tick on intent. Add/split items freely.
 
+## Core feedback cleanup (user agreed 2026-09-19)
+
+- [x] **Reconcile stale feedback rows.** Check `resolve(tag.all)` against core/t29, the lazy-operation
+      request against the closed core/t30 decision, and the build-count request against existing
+      resource spans. Verify: rows cite the shipped solution; the feedback diff changes only those
+      statuses and descriptions; `vp check` has no errors. Observed: 0 errors, 13 existing warnings
+      (`/tmp/core-feedback-cleanup-check.log`); resource-span seam tests at core/tests/index.test.ts
+      include shared-resource and async-build spans. Stale rows now closed.
+- [ ] **Audit the usage notes.** Check README/TSDoc coverage for stop signals and cleanup, forced-close
+      cell writes, child-session cell copies, tag order, extension readiness, and exporting spans
+      before close. Record what is already covered and what is still missing; fill only small,
+      verified gaps in the public docs. Verify: each closed note points to its doc, behavior agrees
+      with source/tests, and `vp check` has no errors. Keep feature candidates deferred.
+
 ## Externalize examples (ADR 0045)
 
 Move every `packages/*/examples/` into one top-level `@tinker/examples` workspace package so the
