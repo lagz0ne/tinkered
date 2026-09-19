@@ -72,11 +72,13 @@ import { board, grid, IDLE, physics, sameShade, waves, type Shade, type Wave } f
 
 // A press is an OPERATION: typed input, declared deps, runs on every call. Testable as
 // \`scope.run(press, { input: { x, y } })\` then reading the \`waves\` cell. The id is derived from the
-// list, the timestamp from the ambient clock — no counters, no globals.
+// list, the timestamp from the ambient clock — no counters, no globals. The parser is the door:
+// it admits the one shape a press has; anything else becomes core's DataValidationFailed.
 export const press = operation({
   label: "press",
   input: (raw) => {
-    const p = raw as { x: number; y: number };
+    const p = raw as { x?: unknown; y?: unknown };
+    if (typeof p?.x !== "number" || typeof p?.y !== "number") throw new Error("a press is { x, y }");
     return { x: p.x, y: p.y };
   },
   depends: { waves: waves.controller },
@@ -89,6 +91,14 @@ export const press = operation({
     ]);
     return hue;
   },
+});
+
+// Clearing the board is an operation too — no input, one declared dep. From React it is
+// \`useRun(clear)\`; from a test it is \`scope.run(clear)\`. Same code path either way.
+export const clear = operation({
+  label: "clear",
+  depends: { waves: waves.controller },
+  run: ({ waves }) => waves.set([]),
 });
 
 // The look of one tile is a PURE function of (waves, now, physics). No hidden state: hand it a
@@ -227,16 +237,22 @@ export const Tile = memo(function Tile({ x, y, k }: { x: number; y: number; k: n
   },
   {
     name: "App.tsx",
-    content: `import { useData, useResource } from "@tinker/react";
-import { ticker } from "./engine";
+    content: `import { useData, useResource, useRun } from "@tinker/react";
+import { clear, ticker } from "./engine";
 import { waves } from "./state";
 import { Tile } from "./Tile";
 
 function Live() {
   const n = useData(waves, (list) => list.length); // re-renders only when the COUNT changes
+  const run = useRun(clear);
   return (
     <span className="live">
       {n} wave{n === 1 ? "" : "s"} travelling
+      {n > 0 && (
+        <button type="button" className="clear" onClick={() => run.run()}>
+          clear
+        </button>
+      )}
     </span>
   );
 }
@@ -276,7 +292,9 @@ const css = \`
   .wrap { max-width: 900px; }
   h1 { font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -0.02em; }
   .sub { color: #52525b; margin: 0 0 6px; max-width: 70ch; }
-  .live { display: inline-block; font-size: 12px; color: #a1a1aa; margin-bottom: 14px; font-variant-numeric: tabular-nums; }
+  .live { display: inline-flex; align-items: center; gap: 10px; font-size: 12px; color: #a1a1aa; margin-bottom: 14px; font-variant-numeric: tabular-nums; }
+  .clear { font: inherit; font-size: 11px; padding: 2px 8px; border: 1px solid #e4e4e7; border-radius: 999px; background: #fff; color: #52525b; cursor: pointer; }
+  .clear:hover { background: #f4f4f5; }
   .board { display: grid; gap: 5px; touch-action: manipulation; }
   .tile { position: relative; aspect-ratio: 1; border: 0; border-radius: 9px; padding: 0; cursor: pointer;
     background: #f4f4f5; transition: background 90ms linear; display: grid; place-items: center; -webkit-tap-highlight-color: transparent; }
