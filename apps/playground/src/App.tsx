@@ -1,7 +1,17 @@
-import { ScopeProvider, useController, useData } from "@tinker/react";
+import { useData, useRun } from "@tinker/react";
 import { BarChart3, Code2, RotateCcw } from "lucide-react";
-import { lazy, Suspense, useEffect, useRef, useSyncExternalStore } from "react";
+import { lazy, Suspense, useRef, useSyncExternalStore } from "react";
 import type { ReactElement } from "react";
+import {
+  addFile,
+  closeFile,
+  editFile,
+  renameFile,
+  reset,
+  selectFile,
+  setTheme,
+  setView,
+} from "@/actions.ts";
 import { Editor } from "@/components/Editor.tsx";
 import { FileTabs } from "@/components/FileTabs.tsx";
 import { Button } from "@/components/ui/button.tsx";
@@ -18,32 +28,34 @@ import {
   SelectValue,
 } from "@/components/ui/select.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.tsx";
-import { compile } from "@/lib/compile.ts";
-import { DEFAULT_FILES, ENTRY } from "@/lib/files.ts";
 import { previewDocument } from "@/lib/preview.ts";
-import { THEMES, type ThemeId } from "@/lib/themes.ts";
+import { THEMES } from "@/lib/themes.ts";
 import {
   activeCell,
-  createPlaygroundScope,
-  dirtyCell,
+  bundleCell,
   filesCell,
-  persist,
   statusCell,
   themeCell,
   type View,
   viewCell,
-} from "@/store.ts";
+} from "@/state.ts";
+
+// The view. Every component reads exactly the cells it renders (a selector where it wants a
+// slice, an isEqual where "changed" is a policy) and runs operations for what the user does. There
+// is no useEffect here: the effects are resources, started once at the composition root.
 
 // The benchmark pulls in Zustand/Jotai/Legend/Preact — lazy-load so it costs nothing until opened.
 const BenchPage = lazy(() =>
   import("@/bench/BenchPage.tsx").then((m) => ({ default: m.BenchPage })),
 );
 
-function ViewToggle({ view, onSelect }: { view: View; onSelect: (v: View) => void }): ReactElement {
+function ViewToggle(): ReactElement {
+  const view = useData(viewCell);
+  const select = useRun(setView);
   const item = (v: View, label: string, Icon: typeof Code2) => (
     <button
       type="button"
-      onClick={() => onSelect(v)}
+      onClick={() => select.run({ input: v })}
       aria-label={label}
       title={label}
       className={
@@ -79,120 +91,60 @@ function useLayoutDirection(): "horizontal" | "vertical" {
   return mobile ? "vertical" : "horizontal";
 }
 
-/** Reads only the active file's content and the theme: re-renders on a tab switch (doc swap), on
- * a keystroke (its own change echoed back — the editor sees value === doc and does nothing), and
- * on a theme change. Never on status, view, dirty, or the preview's compile cycle. */
+/** Reads the active file's content and the theme. Its own keystrokes do NOT re-render it: the
+ * content it just emitted comes back through the cell, and the isEqual policy treats "the value I
+ * last emitted" as unchanged. A tab switch, a reset, or any other writer still swaps the doc. */
 function EditorPane(): ReactElement {
   const active = useData(activeCell);
+  const theme = useData(themeCell);
+  const emitted = useRef<string | undefined>(undefined);
   const content = useData(
     filesCell,
     (files) => files.find((f) => f.name === active)?.content ?? "",
+    (prev, next) => prev === next || next === emitted.current,
   );
-  const theme = useData(themeCell);
-  const setFiles = useController(filesCell);
-  const setDirty = useController(dirtyCell);
-  const setActiveContent = (next: string) => {
-    setDirty.set(true);
-    setFiles.update((prev) => prev.map((f) => (f.name === active ? { ...f, content: next } : f)));
+  const edit = useRun(editFile);
+  const onChange = (next: string) => {
+    emitted.current = next;
+    edit.run({ input: { name: active, content: next } });
   };
-  return <Editor value={content} onChange={setActiveContent} theme={theme} />;
+  return <Editor value={content} onChange={onChange} theme={theme} />;
 }
 
-/** Owns the iframe. Subscribes to the files ONLY, so a tab or theme switch never recompiles or
- * reloads a running preview; a keystroke does (debounced). Runtime signals land in the status cell. */
+/** The last bundle, as a document. Subscribes to the bundle only: a tab or theme switch never
+ * touches a running preview; a new bundle is a new document. */
 function Preview(): ReactElement {
-  const files = useData(filesCell);
-  const setStatus = useController(statusCell);
-  const iframe = useRef<HTMLIFrameElement>(null);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      void compile(files).then((result) => {
-        if (result.ok) {
-          if (iframe.current) iframe.current.srcdoc = previewDocument(result.code);
-          setStatus.set({ kind: "info", text: "running…" });
-        } else {
-          setStatus.set({ kind: "error", text: result.error });
-        }
-      });
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [files, setStatus]);
-
-  useEffect(() => {
-    const onMessage = (event: MessageEvent) => {
-      const data = event.data as { __pg?: string; text?: string };
-      if (data.__pg === "error")
-        setStatus.set({ kind: "error", text: data.text ?? "runtime error" });
-      else if (data.__pg === "ok") setStatus.set({ kind: "ok", text: "ready" });
-    };
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-  }, [setStatus]);
-
+  const bundle = useData(bundleCell);
   return (
     <iframe
-      ref={iframe}
       title="Live preview"
       sandbox="allow-scripts allow-same-origin"
       className="h-full w-full border-0 bg-white"
+      srcDoc={bundle === undefined ? "" : previewDocument(bundle)}
     />
   );
-}
-
-/** Renders nothing; mirrors the persisted cells to localStorage. The one place that reads all of
- * them, and it costs a null render — the visible tree never pays for it. */
-function Persist(): null {
-  const files = useData(filesCell);
-  const active = useData(activeCell);
-  const theme = useData(themeCell);
-  const dirty = useData(dirtyCell);
-  useEffect(() => persist(files, active, theme, dirty), [files, active, theme, dirty]);
-  return null;
 }
 
 const sameNames = (a: string[], b: string[]): boolean =>
   a.length === b.length && a.every((name, i) => name === b[i]);
 
-/** Subscribes to the file NAMES (selector + isEqual): a keystroke changes a file's content, not its
- * name, so typing never re-renders the tab strip. */
+/** Subscribes to the file NAMES: a keystroke changes a file's content, not its name, so typing
+ * never re-renders the tab strip. */
 function Tabs(): ReactElement {
   const names = useData(filesCell, (files) => files.map((f) => f.name), sameNames);
   const active = useData(activeCell);
-  const setFiles = useController(filesCell);
-  const setActive = useController(activeCell);
-  const setDirty = useController(dirtyCell);
-
-  const addFile = () => {
-    let n = 1;
-    while (names.includes(`Untitled${n}.tsx`)) n++;
-    const name = `Untitled${n}.tsx`;
-    setDirty.set(true);
-    setFiles.update((prev) => [...prev, { name, content: "" }]);
-    setActive.set(name);
-  };
-  const closeFile = (name: string) => {
-    const idx = names.indexOf(name);
-    const next = names.filter((x) => x !== name);
-    setDirty.set(true);
-    setFiles.update((prev) => prev.filter((f) => f.name !== name));
-    if (active === name) setActive.set(next[idx] ?? next[idx - 1] ?? next[0]);
-  };
-  const renameFile = (from: string, to: string) => {
-    if (names.includes(to)) return;
-    setDirty.set(true);
-    setFiles.update((prev) => prev.map((f) => (f.name === from ? { ...f, name: to } : f)));
-    if (active === from) setActive.set(to);
-  };
-
+  const select = useRun(selectFile);
+  const add = useRun(addFile);
+  const close = useRun(closeFile);
+  const rename = useRun(renameFile);
   return (
     <FileTabs
       files={names}
       active={names.includes(active) ? active : names[0]}
-      onSelect={(name) => setActive.set(name)}
-      onAdd={addFile}
-      onClose={closeFile}
-      onRename={renameFile}
+      onSelect={(name) => select.run({ input: name })}
+      onAdd={() => add.run()}
+      onClose={(name) => close.run({ input: name })}
+      onRename={(from, to) => rename.run({ input: { from, to } })}
     />
   );
 }
@@ -205,11 +157,12 @@ function StatusDot(): ReactElement {
       : status.kind === "ok"
         ? "bg-emerald-500"
         : "bg-amber-400";
+  const text = status.ms === undefined ? status.text : `${status.text} · ${status.ms} ms`;
   return (
     <div className="flex items-center gap-1.5 pr-1 text-xs text-muted-foreground">
       <span className={`size-2 rounded-full ${dotColor} transition-colors`} />
       <span className="hidden max-w-[32ch] truncate md:inline" title={status.text}>
-        {status.text}
+        {text}
       </span>
     </div>
   );
@@ -217,9 +170,9 @@ function StatusDot(): ReactElement {
 
 function ThemeSelect(): ReactElement {
   const theme = useData(themeCell);
-  const setTheme = useController(themeCell);
+  const choose = useRun(setTheme);
   return (
-    <Select value={theme} onValueChange={(v) => setTheme.set(v as ThemeId)}>
+    <Select value={theme} onValueChange={(v) => choose.run({ rawInput: v })}>
       <SelectTrigger size="sm" className="h-8">
         <SelectValue />
       </SelectTrigger>
@@ -234,20 +187,13 @@ function ThemeSelect(): ReactElement {
   );
 }
 
-/** Reads nothing: the controllers subscribe to no cell, so this never re-renders. */
+/** Reads nothing, so it never re-renders. */
 function ResetButton(): ReactElement {
-  const setFiles = useController(filesCell);
-  const setActive = useController(activeCell);
-  const setDirty = useController(dirtyCell);
-  const reset = () => {
-    setDirty.set(false);
-    setFiles.set([...DEFAULT_FILES]);
-    setActive.set(ENTRY);
-  };
+  const run = useRun(reset);
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button variant="ghost" size="icon-sm" onClick={reset} aria-label="Reset">
+        <Button variant="ghost" size="icon-sm" onClick={() => run.run()} aria-label="Reset">
           <RotateCcw />
         </Button>
       </TooltipTrigger>
@@ -258,7 +204,6 @@ function ResetButton(): ReactElement {
 
 function BottomBar(): ReactElement {
   const view = useData(viewCell);
-  const setView = useController(viewCell);
   return (
     <div className="flex h-11 shrink-0 items-center gap-3 border-t bg-background/80 px-3 backdrop-blur">
       <span className="hidden text-xs font-semibold tracking-tight text-muted-foreground sm:inline">
@@ -270,7 +215,7 @@ function BottomBar(): ReactElement {
         </div>
       )}
       <div className="ml-auto flex items-center gap-2">
-        <ViewToggle view={view} onSelect={(v) => setView.set(v)} />
+        <ViewToggle />
         {view === "editor" && (
           <>
             <StatusDot />
@@ -301,14 +246,11 @@ function BenchOverlay(): ReactElement | null {
   );
 }
 
-/** The layout reads no cell at all. Each region below subscribes to exactly what it renders, so a
- * tab switch touches the editor and the tabs, a theme change the editor and the select, a
- * keystroke the editor and (debounced) the preview — never the whole tree. */
-function Shell(): ReactElement {
+/** The layout reads no cell at all. */
+export function App(): ReactElement {
   const direction = useLayoutDirection();
   return (
     <div className="flex h-full flex-col">
-      <Persist />
       <div className="relative min-h-0 flex-1">
         <ResizablePanelGroup key={direction} direction={direction} className="h-full">
           <ResizablePanel defaultSize={50} minSize={25}>
@@ -323,13 +265,5 @@ function Shell(): ReactElement {
       </div>
       <BottomBar />
     </div>
-  );
-}
-
-export function App(): ReactElement {
-  return (
-    <ScopeProvider create={createPlaygroundScope}>
-      <Shell />
-    </ScopeProvider>
   );
 }
