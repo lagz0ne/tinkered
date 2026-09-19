@@ -462,3 +462,19 @@ must call the running HTTP authority; only that server owns PGlite and live publ
 Profiles were empty. Provider/model discovery confirmed the direct Muse contributor route with
 max thinking. Active writer: `1fce876f-955e-4f43-b45a-1be85fada3a2`.
 No t03 code has been claimed ready.
+
+## t03 lead review in progress — 2026-09-19
+
+Lead ownership is now `6b8ee55a-f1da-47d1-85f5-54af81262102`, in the same private landing
+and workspace. The existing writer remains the only t03 writer. No t03 app code is claimed ready.
+
+Independent public driver tests passed: CLI 25 and MCP 8, both with the task cache disabled.
+Logs: `/tmp/tracker-t03-lead-cli-tests.log`, `/tmp/tracker-t03-lead-mcp-tests.log`.
+Install still hits the known ignored esbuild build-script policy; no policy or tooling changed.
+
+The MCP README's CLI entry exited 0 with stdin still open. The lead reproduced that exact
+example using the public built packages, then verified an owned lifetime through real
+stdio initialization and EOF/SIGTERM exit. The doc now shows that tested lifetime.
+Proof: `/tmp/tracker-t03-mcp-doc-before.log`, `/tmp/tracker-t03-mcp-doc-after.log`.
+This closes a doc defect only; the full tracker slice still needs its saved implementation
+and independent app/browser/process checks.

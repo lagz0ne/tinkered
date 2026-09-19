@@ -50,11 +50,25 @@ so `mcpServer` sees the `tools` bindings on it. A harness runs
 
 ```ts
 import { command, runMain } from "@tinker/cli";
+import type { Scope } from "@tinker/core";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { mcpServer, tools } from "@tinker/mcp";
 
-function serve(scope: Scope.Handle): Promise<void> {
-  return mcpServer(scope, { name: "coder", version: "1.0.0" }).connect(new StdioServerTransport());
+async function serve(scope: Scope.Handle): Promise<void> {
+  const server = mcpServer(scope, { name: "coder", version: "1.0.0" });
+  const stopped = Promise.withResolvers<void>();
+  const stop = () => stopped.resolve();
+  scope.onClose(stop);
+  process.stdin.once("end", stop);
+  server.server.onclose = stop;
+  try {
+    await server.connect(new StdioServerTransport());
+    if (process.stdin.readableEnded) stop();
+    await stopped.promise;
+  } finally {
+    process.stdin.removeListener("end", stop);
+    await server.close();
+  }
 }
 
 await runMain({
@@ -63,6 +77,11 @@ await runMain({
   scope: { tags: [tools(search), command.entry("mcp", () => serve)] },
 });
 ```
+
+The entry must wait for its serving lifetime. `connect()` only opens the transport;
+returning it alone makes `runMain` close the scope and exit before tool calls arrive.
+Here EOF or a transport close settles the entry; a CLI signal closes the scope and
+settles it too. The `finally` closes the transport in each case.
 
 The CLI mirror: a command is an operation with `command` meta from
 `@tinker/cli`, so one operation can carry both metas and be an MCP tool and a
