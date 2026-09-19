@@ -183,12 +183,15 @@ tickets, then contributors with lead review:
          Client / Wire it: Hono, WebSocket sketch, React note). 34 tests, size 3697 B, mutation 78.32 (up from 68.18).
          Impact chain: neither. Landed twice: the first landing was reset away by a concurrent lead in the shared
          landing worktree — re-landed from a private one. Archived below._
-   - [ ] **sync/t05 — one way, registration by identity: `source(scope)` + `subscribe(scope, transport)`.** Writes out
-         (`set`/`ack`/`reject`, the `sync set` op, the client's optimistic path); `register { keys }` in; a key set per
-         transport; `sync register` inline op; the Hono recipe's POST becomes the registration channel; README and
-         lanes renamed. Verify: seam tests — a client sees only what it registered (two family objects with one label,
-         one per side), a late member registers on creation and gets its initial snapshot at once, an unpublished key
-         closes the transport; 37 lanes green; mutation ≥ 60.
+   - [x] **sync/t05 — one way, registration by identity: `source(scope)` + `subscribe(scope, transport)`.** _Done: tag
+         `sync/t05` (cf01bbb), writer-built, no fix round: the write path deleted (`set`/`ack`/`reject`, the `sync set` op, the
+         optimistic client), `register { keys }` in — a key set per subscriber on the source, a `sync register` inline op
+         with one log line per register, snapshots only for registered keys, a missing member created on the source with
+         its initial value; the client registers bound singletons + held members at connect and each new member on
+         `onMember`; violations close the transport; a local write on a client stays local. 20 seam tests (11 new incl. the
+         Hono recipe with POST as registration), size 3324 B, 37 lanes green, mutation 73.53. Impact chain:
+         a false "source wrong" — the examples moved to `examples/sync/` (outside the package index); blocks list src
+         and tests only from now on._
 6. **`@tinker/ai`** — the LLM layer over the AI SDK (the model is the swappable slot; generateText/streamText as
    ops; tools as operations; `MockLanguageModelV4` as the test seam). Deferred until a driver asks.
 
@@ -196,18 +199,18 @@ Perf follow-up when the sandbox `bench` is available: `op` parity (budgets.md "C
 
 ## Shipped — archived
 
-- **sync v1 (2026-09-19)** — complete: `@tinker/sync` (ADR 0048; tags `sync/t01`…`sync/t04`): a cell is the shared unit
-  (`synced({ key })` meta; `family({ label, initial, parse? })` = a cell with an id, members memoized per id and
-  published whole), the published set is scope config (`sync(cell | family)`), the server is the truth
-  (`syncServer(scope).connect(transport)`: a session per transport, snapshots down, a `set` as inline op
-  `sync set <key>` — parse → last-writer-wins by version → ack/reject → fan out through one watcher per key), the
-  client applies snapshots through the cell's parse and writes optimistically with the last seen version, reverting
-  on reject (`syncClient(scope, transport)`; an `applying` flag is the write origin), and the transport is userland's
-  (`Sync.Transport`; `memoryPair()` is the seam; the Hono SSE + POST recipe is `examples/hono.ts`, proven through
-  `app.request`). Gate: 37 lanes green, 34 seam tests, size 3697 B, runtime import `@tinker/core` only, mutation
-  78.32. Core feedback: a session shadows cell writes (write the truth through the scope handle); `tag.all` is
-  newest-first; `scope.onMount` and a core cell family wait for a second asker. Detail:
-  `docs/roadmap/sync-v1/PROGRESS.md`.
+- **sync v1 (2026-09-19)** — complete, ONE WAY: `@tinker/sync` (ADR 0048 + amendment; tags `sync/t01`…`sync/t05`): a
+  cell is the shared unit (`synced({ key })` meta; `family({ label, initial, parse? })` = a cell with an id, members
+  memoized per id), registration is the client scope's `sync(cell | family)` bindings sent by identity
+  (`register { keys }`; a new member registers the moment it exists), the source is the truth
+  (`source(scope).connect(transport)`: a session per subscriber, a `sync register` inline op answers with the initial
+  snapshots, then every change on a registered key fans out through one watcher per key), the client fills
+  snapshots through the cell's parse (`subscribe(scope, transport)`; local writes stay local in v1), and the transport
+  is userland's (`Sync.Transport`; `memoryPair()` is the seam; the Hono SSE + POST recipe is `examples/sync/hono.ts`,
+  proven through `app.request`). t02–t04 first shipped a two-way LWW design; the user re-cut v1 one way (t05).
+  Gate: 37 lanes green, 20 seam tests, size 3324 B, runtime import `@tinker/core` only, mutation 73.53.
+  Core feedback: a session shadows cell writes; `tag.all` is newest-first; `scope.onMount` (unregister on last
+  watcher) and a core cell family wait for a second asker. Detail: `docs/roadmap/sync-v1/PROGRESS.md`.
 
 - **mcp v1 (2026-09-18)** — complete: `@tinker/mcp` (ADR 0046; tags `mcp/t01`, `harness/t06`, `cli/t04`, `mcp/t02`): a
   tool is an ordinary operation with `tool({ description, schema, name?, respond? })` meta; `tools(op)` binds the list on
