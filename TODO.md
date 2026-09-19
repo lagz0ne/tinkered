@@ -28,9 +28,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-| Card                                | Owner                                       | Next                                                                   | Verify                                                                |
-| ----------------------------------- | ------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| tracker/t04 — Optional triage draft | Muse writer 257f478e; lead 73d730b1 reviews | Types saved in `1f26f41`; finish owned draft stream, screen, and tests | Public adapter seam tests, saved-state safety, checks and lead review |
+| Card                                | Owner                                       | Next                                                                       | Verify                                                                |
+| ----------------------------------- | ------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| tracker/t04 — Optional triage draft | Muse writer 257f478e; lead 73d730b1 reviews | Fix runner cleanup found in `6f23c3b`; then wire routes, screen, and tests | Public adapter seam tests, saved-state safety, checks and lead review |
 
 ## Review
 

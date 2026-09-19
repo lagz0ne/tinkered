@@ -781,3 +781,34 @@ An independent test fixture is ready at `/tmp/tracker-t04-lead-sdk.mjs`.
 Its own smoke run, `/tmp/tracker-t04-lead-sdk-smoke.log`, called the real
 get/list callbacks through the public harness adapter and observed abort.
 This proves the review fixture only; it does not prove the unfinished t04 app.
+
+## t04 runner review checkpoint — 2026-09-19
+
+Contributor commits `7c2299c`, `87aeb6a`, and `6f23c3b` add the read-only
+triage frame, required app lockfile link, and an owned draft runner. The
+lead read all saved source. Nothing from t04 is landed or accepted yet.
+There are still no draft HTTP routes, client UI, or app draft tests.
+
+The frame correctly uses only the existing get/list tools, disables built-in
+tools and filesystem settings, restricts MCP configuration, and denies
+unexpected approvals. A review finding that SDK error results became empty
+successful drafts was corrected in the saved source; public regression proof
+is still required once the app route is wired.
+
+The latest inspected runner (`6f23c3b`) remains in review:
+
+- An unexpected SDK error or root-abort error can escape `settleRun` before
+  watch removal, abort-listener removal, and session close. Cleanup must run
+  through `finally`, with the close result inspected before any rethrow.
+- A cancelled close result can also carry teardown errors. Check those errors
+  for every close status, before classifying cancellation as a clean outcome.
+
+Both findings were sent to the same writer as one bounded correction turn.
+Earlier issues (already-aborted signal, unowned close promise, cast, and
+success advertised before cleanup) were corrected in the inspected source.
+These are source-review observations, not passing app behavior claims.
+
+After the correction, continue with route/config wiring, the draft screen,
+public SDK-preset tests, full gates and personal lead proof before landing.
+The original t04 brief and pre-code caller table still apply. The writer's
+small partial-turn reports are not a final implementation report.
