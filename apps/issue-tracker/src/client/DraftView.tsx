@@ -143,8 +143,19 @@ function RetryView(props: RetryProps) {
   );
 }
 
+async function readCapability(): Promise<"off" | "on" | "failed"> {
+  try {
+    const res = await fetch("/api/draft");
+    if (!res.ok) return "failed";
+    const found = parseDraftCapability(await res.json());
+    return found.enabled ? "on" : "off";
+  } catch {
+    return "failed";
+  }
+}
+
 function DraftView(props: { issueId: string; reload: () => void }) {
-  const [capability, setCapability] = useState<"loading" | "off" | "on">("loading");
+  const [capability, setCapability] = useState<"loading" | "off" | "on" | "failed">("loading");
   const [view, setView] = useState<View>("quiet");
   const [text, setText] = useState("");
   const [draft, setDraft] = useState("");
@@ -156,18 +167,17 @@ function DraftView(props: { issueId: string; reload: () => void }) {
   const comment = useRun(postComment);
   useEffect(() => {
     let alive = true;
-    fetch("/api/draft")
-      .then(async (res) => parseDraftCapability(await res.json()))
-      .then((found) => {
-        if (alive) setCapability(found.enabled ? "on" : "off");
-      })
-      .catch(() => {
-        if (alive) setCapability("off");
-      });
+    readCapability().then((found) => {
+      if (alive) setCapability(found);
+    });
     return () => {
       alive = false;
     };
   }, []);
+  function retryCapability(): void {
+    setCapability("loading");
+    readCapability().then(setCapability);
+  }
   useEffect(
     () => () => {
       runId.current += 1;
@@ -243,6 +253,17 @@ function DraftView(props: { issueId: string; reload: () => void }) {
     }
   }
   if (capability === "loading") return null;
+  if (capability === "failed") {
+    return (
+      <section aria-label="triage draft">
+        <h3>Triage draft</h3>
+        <p role="alert">Could not check the draft helper. Your work is kept.</p>
+        <button type="button" onClick={retryCapability}>
+          Retry
+        </button>
+      </section>
+    );
+  }
   if (capability === "off") {
     return (
       <section aria-label="triage draft">

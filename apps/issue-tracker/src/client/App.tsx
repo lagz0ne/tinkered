@@ -400,6 +400,7 @@ function DetailView(props: { selectedId: string; stamp: number }) {
             {statusName(shown.issue.status)} · {assigneeName(shown.issue)} · rev{" "}
             {shown.issue.revision}
           </p>
+          <p>Saved {new Date(shown.issue.updatedAt).toLocaleString()}</p>
           <p>{shown.issue.description}</p>
           <EditForm saved={shown.issue} reload={reload} />
           <h3>Comments</h3>
@@ -409,7 +410,7 @@ function DetailView(props: { selectedId: string; stamp: number }) {
             <ul aria-label="comments">
               {shown.comments.map((comment) => (
                 <li key={comment.id}>
-                  <strong>{comment.author}</strong>
+                  <strong>{comment.author}</strong> · {new Date(comment.createdAt).toLocaleString()}
                   <p>{comment.text}</p>
                 </li>
               ))}
@@ -420,7 +421,9 @@ function DetailView(props: { selectedId: string; stamp: number }) {
           <h3>Activity</h3>
           <ul aria-label="activity">
             {shown.activity.map((entry) => (
-              <li key={entry.id}>{entry.summary}</li>
+              <li key={entry.id}>
+                {entry.summary} · {new Date(entry.createdAt).toLocaleString()}
+              </li>
             ))}
           </ul>
         </section>

@@ -7,9 +7,20 @@
     <style>
       body {
         font-family: system-ui, sans-serif;
+        font-size: 1rem;
+        line-height: 1.5;
         max-width: 40rem;
         margin: 2rem auto;
         padding: 0 1rem;
+      }
+      main {
+        min-width: 0;
+      }
+      ul {
+        padding-left: 1.25rem;
+      }
+      li {
+        overflow-wrap: anywhere;
       }
       form {
         display: grid;
@@ -20,18 +31,33 @@
         display: grid;
         gap: 0.25rem;
         font-weight: 600;
+        font-size: 1rem;
       }
       input,
-      textarea {
+      textarea,
+      select {
         font: inherit;
+        font-size: 1rem;
         padding: 0.5rem;
+        min-height: 2.75rem;
+        max-width: 100%;
+        box-sizing: border-box;
       }
       button {
         font: inherit;
+        font-size: 1rem;
         padding: 0.5rem 1rem;
+        min-height: 2.75rem;
       }
       [role="alert"] {
         color: #a00;
+      }
+      :focus-visible {
+        outline: 0.1875rem solid #005fcc;
+        outline-offset: 0.125rem;
+      }
+      [aria-pressed="true"] {
+        outline: 0.125rem solid currentColor;
       }
     </style>
   </head>
