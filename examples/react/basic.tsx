@@ -9,7 +9,7 @@ import {
   useRun,
   useResource,
   useSpans,
-} from "../src/index.ts";
+} from "@tinker/react";
 
 const count = data({ label: "count", initial: 0 });
 

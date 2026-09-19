@@ -1,5 +1,5 @@
 import { operation } from "@tinker/core";
-import { command, runMain } from "../src/index.ts";
+import { command, runMain } from "@tinker/cli";
 
 const ping = operation({ label: "ping", run: () => "pong" });
 

@@ -32,7 +32,7 @@ vp run dev
 
 Every operation and resource ctx carries a `clock`. The default is the system clock; a scope can
 be seeded with a controllable one, so time-dependent code is tested with no `Date` mock and no
-fake timers (ADR 0034). Nothing below needs a cast; see `packages/core/examples/basic.ts`.
+fake timers (ADR 0034). Nothing below needs a cast; see `examples/core/basic.ts`.
 
 ```ts
 import { createScope, data, makeTestClock, operation } from "@tinker/core";

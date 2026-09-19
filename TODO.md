@@ -4,6 +4,23 @@ The live working list. **Goal: drive it to empty.** Each item is checkable and c
 **Verify** — the exact observable proof. Tick `[x]` ONLY after the Verify passes (gate green,
 a failing→passing test, or command output). Never tick on intent. Add/split items freely.
 
+## Externalize examples (ADR 0045)
+
+Move every `packages/*/examples/` into one top-level `@tinker/examples` workspace package so the
+examples live in one place (docs, combined concepts) and import the **public** `@tinker/*` surface —
+the consumer path, so a release version-switch flows through them.
+
+- [x] **Create `examples/` package** — package.json (private, `workspace:*` on every `@tinker/*`),
+      tsconfig (jsx + dom + node), vite.config (lint typeAware), added to `pnpm-workspace.yaml`.
+      Verified: `vp install` links all 9 `@tinker/*` (incl. mcp, sync) into `examples/node_modules/@tinker`.
+- [x] **Move + rewrite imports** — each `../src/index.ts` → `@tinker/<pkg>`; folders per concept (9 packages,
+      16 tours incl. harness approvals/tools, mcp basic/serve/cli, sync). Verified: `vp check examples` clean
+      (0 lint/type errors in 17 files); root `vp check` 0 errors (13 pre-existing warnings, none in examples).
+- [x] **Fix consumers** — validate.mjs cast-free grep paths (7 lanes, all count 0), cli smoke-test
+      path/cwd (`examples/cli/main.ts`), README pointers (root, react, harness, mcp), `.prettierignore` for the
+      hand-aligned docs tables. Verified: `vp run cli#test` 25/25 green; `node scripts/validate.mjs` 33/33 lanes PASS.
+- [x] **ADR 0045** records the decision (external consumer of the public surface); index updated.
+
 ## Jev advisory layer (see docs/roadmap/jev-loop/PLAN.md)
 
 Landed: advisory scripts `scripts/jev/{plan-check,preflight,review}.mjs` (judge set proven 11/11;

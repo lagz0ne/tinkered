@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { pgTable, serial, text } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/pglite";
 import { createScope, operation } from "@tinker/core";
-import { drizzleStore } from "../src/index.ts";
+import { drizzleStore } from "@tinker/drizzle";
 
 /** A cast-free tour of the frame: a PGlite store, a table, a session insert, and a root
  * read that sees the committed row. Every value's type is INFERRED — no `as`, no `!`. */

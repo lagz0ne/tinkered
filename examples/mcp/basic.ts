@@ -2,7 +2,7 @@ import { createScope, operation } from "@tinker/core";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { z } from "zod";
-import { mcpServer, tool, tools } from "../src/index.ts";
+import { mcpServer, tool, tools } from "@tinker/mcp";
 
 const searchShape = { q: z.string() };
 const searchSchema = z.object(searchShape);

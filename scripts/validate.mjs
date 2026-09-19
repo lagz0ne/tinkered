@@ -14,7 +14,7 @@ const lanes = [
   ["CRAP ceiling", `node scripts/check-crap.mjs ${process.argv[2] ?? 0.6}`],
   [
     "cast-free examples (0 casts)",
-    `bash -c 'test $(grep -rcE "\\\\bas [A-Za-z{(]|\\\\bas unknown|[a-zA-Z0-9_)\\\\]]!" packages/core/examples | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
+    `bash -c 'test $(grep -rcE "\\\\bas [A-Za-z{(]|\\\\bas unknown|[a-zA-Z0-9_)\\\\]]!" examples/core | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
   ],
   [
     "both entries (pure universal bundle)",
@@ -25,7 +25,7 @@ const lanes = [
   ["http size (<= 10 kB gzip)", `${VP} run --no-cache http#size`],
   [
     "http cast-free examples (0 casts)",
-    `bash -c 'test $(grep -rcE "\\\\bas [A-Za-z{(]|\\\\bas unknown|[a-zA-Z0-9_)\\\\]]!" packages/http/examples | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
+    `bash -c 'test $(grep -rcE "\\\\bas [A-Za-z{(]|\\\\bas unknown|[a-zA-Z0-9_)\\\\]]!" examples/http | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
   ],
   [
     "http pure universal bundle",
@@ -36,7 +36,7 @@ const lanes = [
   ["hono size (<= 10 kB gzip)", `${VP} run --no-cache hono#size`],
   [
     "hono cast-free examples (0 casts)",
-    `bash -c 'test $(grep -rcE "\\\\bas [A-Za-z{(]|\\\\bas unknown|[a-zA-Z0-9_)\\\\]]!" packages/hono/examples | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
+    `bash -c 'test $(grep -rcE "\\\\bas [A-Za-z{(]|\\\\bas unknown|[a-zA-Z0-9_)\\\\]]!" examples/hono | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
   ],
   [
     "hono pure universal bundle",
@@ -47,7 +47,7 @@ const lanes = [
   ["drizzle size (<= 10 kB gzip)", `${VP} run --no-cache drizzle#size`],
   [
     "drizzle cast-free examples (0 casts)",
-    `bash -c 'test $(grep -rcE "\\\\bas [A-Za-z{(]|\\\\bas unknown|[a-zA-Z0-9_)\\\\]]!" packages/drizzle/examples | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
+    `bash -c 'test $(grep -rcE "\\\\bas [A-Za-z{(]|\\\\bas unknown|[a-zA-Z0-9_)\\\\]]!" examples/drizzle | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
   ],
   [
     "drizzle pure universal bundle (no node:, no drizzle-orm at runtime)",
@@ -58,7 +58,7 @@ const lanes = [
   ["cli size (<= 10 kB gzip)", `${VP} run --no-cache cli#size`],
   [
     "cli cast-free examples (0 casts)",
-    `bash -c 'test $(grep -rcE "\\\\bas [A-Za-z{(]|\\\\bas unknown|[a-zA-Z0-9_)\\\\]]!" packages/cli/examples | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
+    `bash -c 'test $(grep -rcE "\\\\bas [A-Za-z{(]|\\\\bas unknown|[a-zA-Z0-9_)\\\\]]!" examples/cli | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
   ],
   [
     "cli pure universal bundle",
@@ -69,7 +69,7 @@ const lanes = [
   ["harness size (<= 10 kB gzip)", `${VP} run --no-cache harness#size`],
   [
     "harness cast-free examples (0 casts)",
-    `bash -c 'test $(grep -rcE "\\bas [A-Za-z{(]|\\bas unknown|[a-zA-Z0-9_)\\]]!" packages/harness/examples | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
+    `bash -c 'test $(grep -rcE "\\bas [A-Za-z{(]|\\bas unknown|[a-zA-Z0-9_)\\]]!" examples/harness | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
   ],
   [
     "harness pure universal bundle (SDKs only behind import(); no zod/MCP at runtime)",
@@ -81,7 +81,7 @@ const lanes = [
   ["mcp size (<= 10 kB gzip)", `${VP} run --no-cache mcp#size`],
   [
     "mcp cast-free examples (0 casts)",
-    `bash -c 'test $(grep -rcE "\\bas [A-Za-z{(]|\\bas unknown|[a-zA-Z0-9_)\\]]!" packages/mcp/examples | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
+    `bash -c 'test $(grep -rcE "\\bas [A-Za-z{(]|\\bas unknown|[a-zA-Z0-9_)\\]]!" examples/mcp | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
   ],
   [
     "mcp pure bundle (runtime imports: @tinker/core + the SDK's server/mcp.js only)",

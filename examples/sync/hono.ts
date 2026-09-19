@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { createScope, data, type Scope } from "@tinker/core";
 import { stream, tinker } from "@tinker/hono";
-import { sync, syncServer, synced, type Sync } from "../src/index.ts";
+import { sync, syncServer, synced, type Sync } from "@tinker/sync";
 
 /** The shared counter both ends publish. */
 const counter = data({ label: "counter", initial: 0, meta: [synced({ key: "counter" })] });

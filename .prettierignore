@@ -1,0 +1,6 @@
+# Files intentionally exempt from format checks.
+# .jev/ is generated advisory state; the docs below are hand-aligned and not oxfmt-shaped.
+.jev/
+docs/decisions/README.md
+docs/glossary.md
+docs/roadmap/core-feedback.md

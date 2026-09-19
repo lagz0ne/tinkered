@@ -1,12 +1,12 @@
 import { createScope } from "@tinker/core";
-import { codex, harness } from "../src/index.ts";
+import { claudeCode, harness } from "@tinker/harness";
 
-/** The real adapter (needs Codex auth — not run by tests): prints `text` while streaming. */
+/** The real adapter (needs Claude Code auth — not run by tests): prints `text` while streaming. */
 export async function tour(): Promise<string> {
-  const coder = harness({ label: "coder", adapter: codex });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
+  const coder = harness({ label: "coder", adapter: claudeCode });
+  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
   const scope = createScope({
-    tags: [codex.options({ workingDirectory: process.cwd(), sandboxMode: "read-only" })],
+    tags: [claudeCode.options({ cwd: process.cwd(), permissionMode: "plan" })],
   });
   const session = scope.createSession();
   session.controller(coder.text).watch((next) => process.stdout.write(next));

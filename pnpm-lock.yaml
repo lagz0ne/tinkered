@@ -396,6 +396,82 @@ importers:
         specifier: 'catalog:'
         version: 0.3.1(@types/node@26.5.1)(@vitest/browser-playwright@4.1.11)(esbuild@0.28.2)(happy-dom@20.14.5)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1)
 
+  examples:
+    dependencies:
+      '@tinker/cli':
+        specifier: workspace:*
+        version: link:../packages/cli
+      '@tinker/core':
+        specifier: workspace:*
+        version: link:../packages/core
+      '@tinker/drizzle':
+        specifier: workspace:*
+        version: link:../packages/drizzle
+      '@tinker/harness':
+        specifier: workspace:*
+        version: link:../packages/harness
+      '@tinker/hono':
+        specifier: workspace:*
+        version: link:../packages/hono
+      '@tinker/http':
+        specifier: workspace:*
+        version: link:../packages/http
+      '@tinker/mcp':
+        specifier: workspace:*
+        version: link:../packages/mcp
+      '@tinker/react':
+        specifier: workspace:*
+        version: link:../packages/react
+      '@tinker/sync':
+        specifier: workspace:*
+        version: link:../packages/sync
+    devDependencies:
+      '@anthropic-ai/claude-agent-sdk':
+        specifier: 'catalog:'
+        version: 0.3.275(@anthropic-ai/sdk@0.126.0(zod@4.6.2))(@modelcontextprotocol/sdk@1.30.0(zod@4.6.2))(zod@4.6.2)
+      '@electric-sql/pglite':
+        specifier: 'catalog:'
+        version: 0.5.8
+      '@modelcontextprotocol/sdk':
+        specifier: 'catalog:'
+        version: 1.30.0(zod@4.6.2)
+      '@openai/codex-sdk':
+        specifier: 'catalog:'
+        version: 0.155.0
+      '@types/node':
+        specifier: ^26.1.1
+        version: 26.5.1
+      '@types/react':
+        specifier: ^19
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19
+        version: 19.3.0(@types/react@19.3.0)
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.2(@electric-sql/pglite@0.5.8)
+      hono:
+        specifier: 'catalog:'
+        version: 4.13.8
+      react:
+        specifier: 'catalog:'
+        version: 19.3.0
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.3.0(react@19.3.0)
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vite:
+        specifier: 'catalog:'
+        version: '@voidzero-dev/vite-plus-core@0.3.1(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1)'
+      vite-plus:
+        specifier: 'catalog:'
+        version: 0.3.1(@types/node@26.5.1)(@vitest/browser-playwright@4.1.11)(esbuild@0.28.2)(happy-dom@20.14.5)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1)
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.2
+
   packages/cli:
     dependencies:
       '@tinker/core':

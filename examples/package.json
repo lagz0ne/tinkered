@@ -1,0 +1,38 @@
+{
+  "name": "@tinker/examples",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Cast-free tours of the public @tinker/* surface — one place for docs and combined concepts.",
+  "type": "module",
+  "scripts": {
+    "check": "vp check"
+  },
+  "dependencies": {
+    "@tinker/cli": "workspace:*",
+    "@tinker/core": "workspace:*",
+    "@tinker/drizzle": "workspace:*",
+    "@tinker/harness": "workspace:*",
+    "@tinker/hono": "workspace:*",
+    "@tinker/http": "workspace:*",
+    "@tinker/mcp": "workspace:*",
+    "@tinker/react": "workspace:*",
+    "@tinker/sync": "workspace:*"
+  },
+  "devDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "catalog:",
+    "@electric-sql/pglite": "catalog:",
+    "@modelcontextprotocol/sdk": "catalog:",
+    "@openai/codex-sdk": "catalog:",
+    "@types/node": "^26.1.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "drizzle-orm": "catalog:",
+    "hono": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "typescript": "^7.0.2",
+    "vite": "catalog:",
+    "vite-plus": "catalog:",
+    "zod": "catalog:"
+  }
+}

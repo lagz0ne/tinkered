@@ -1,5 +1,5 @@
 import { operation, resource } from "@tinker/core";
-import { command, commands, run } from "../src/index.ts";
+import { command, commands, run } from "@tinker/cli";
 
 /** A cast-free tour of the driver: the routing table is scope config, `double`
  * declares itself through `command` meta and binds with `commands(double)`;

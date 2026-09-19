@@ -2,7 +2,7 @@ import { createScope, operation, tag } from "@tinker/core";
 import { tool } from "@tinker/mcp";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import { claudeCode, harness } from "../src/index.ts";
+import { claudeCode, harness } from "@tinker/harness";
 
 /** Which index a session searches: a per-session binding the tool reads. */
 const index = tag<string>({ label: "index", default: "docs" });

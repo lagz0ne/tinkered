@@ -1,5 +1,5 @@
 import { createScope, operation } from "@tinker/core";
-import { backend, httpClient, HttpRequest, HttpResponse, type HttpClient } from "../src/index.ts";
+import { backend, httpClient, HttpRequest, HttpResponse, type HttpClient } from "@tinker/http";
 
 /** A cast-free tour of the frame: a frame, two endpoint operations, and a userland operation
  * that depends on both and hands a fresh token to one call via `tags`. Every value's type is

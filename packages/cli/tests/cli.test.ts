@@ -497,8 +497,8 @@ test("the process smoke test: node runs the example and help exits 0 with usage"
   const child = await new Promise<{ code: number; out: string; err: string }>((resolve, reject) => {
     execFile(
       process.execPath,
-      ["--experimental-strip-types", "examples/main.ts", "help"],
-      { cwd: new URL("..", import.meta.url) },
+      ["--experimental-strip-types", "cli/main.ts", "help"],
+      { cwd: new URL("../../../examples", import.meta.url) },
       (error, stdout, stderr) => {
         if (error && error.code === undefined) reject(error);
         else

@@ -1,4 +1,4 @@
-import { createScope, data, makeTestClock, operation, resource, tag } from "../src/index.ts";
+import { createScope, data, makeTestClock, operation, resource, tag } from "@tinker/core";
 
 /** A cast-free tour of the public API: every value's type is INFERRED — no `as`, no non-null `!`. */
 export async function tour(): Promise<number> {

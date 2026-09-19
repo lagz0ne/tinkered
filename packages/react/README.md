@@ -16,7 +16,7 @@ vp install   # react is a peerDependency (>= 19 — the async path uses use())
 
 ## 60-second example
 
-`examples/basic.tsx` is a cast-free tour. The shape:
+`examples/react/basic.tsx` is a cast-free tour. The shape:
 
 ```tsx
 const count = data({ label: "count", initial: 0 });

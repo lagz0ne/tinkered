@@ -49,7 +49,7 @@ const scope = createScope({
 });
 ```
 
-See `examples/basic.ts` for the fake-`query` tour and `examples/real.ts` for the real adapter.
+See `examples/harness/basic.ts` for the fake-`query` tour and `examples/harness/real.ts` for the real adapter.
 
 ## Codex
 
@@ -88,7 +88,7 @@ const scope = createScope({
 });
 ```
 
-See `examples/codex.ts` for the real adapter.
+See `examples/harness/codex.ts` for the real adapter.
 
 ## Approvals
 

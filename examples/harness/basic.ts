@@ -4,7 +4,7 @@ import type {
   SDKPartialAssistantMessage,
   SDKResultMessage,
 } from "@anthropic-ai/claude-agent-sdk";
-import { claudeCode, harness, type ClaudeCode } from "../src/index.ts";
+import { claudeCode, harness, type ClaudeCode } from "@tinker/harness";
 
 /** One recorded turn: the words streamed one delta at a time, plus the final reply. */
 type Script = { readonly words: readonly string[]; readonly reply: string };

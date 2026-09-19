@@ -43,7 +43,7 @@ const server = mcpServer(scope, { name: "coder", version: "1.0.0" });
 await server.connect(new StdioServerTransport());
 ```
 
-The stdio entry through `@tinker/cli` (`examples/cli.ts`) — the same `search`
+The stdio entry through `@tinker/cli` (`examples/mcp/cli.ts`) — the same `search`
 declaration, then an entry command that receives the scope `runMain` created,
 so `mcpServer` sees the `tools` bindings on it. A harness runs
 `node cli.ts mcp`:

@@ -1,13 +1,5 @@
 import { createScope, data } from "@tinker/core";
-import {
-  family,
-  memoryPair,
-  readSynced,
-  sync,
-  syncClient,
-  syncServer,
-  synced,
-} from "../src/index.ts";
+import { family, memoryPair, readSynced, sync, syncClient, syncServer, synced } from "@tinker/sync";
 
 /** Parse raw input into text at the process edge. A named function, not a method pull. */
 function parseText(raw: unknown): string {

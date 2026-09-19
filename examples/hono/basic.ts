@@ -1,5 +1,5 @@
 import { createScope, operation, tag } from "@tinker/core";
-import { honoApp, route, stream } from "../src/index.ts";
+import { honoApp, route, stream } from "@tinker/hono";
 
 /** A cast-free tour of the driver: a scope at the entrypoint, one session per request,
  * routes bound on the scope and mounted eagerly at boot. The tour returns a string. */

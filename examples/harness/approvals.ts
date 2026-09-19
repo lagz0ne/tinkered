@@ -1,5 +1,5 @@
 import { createScope, operation, tag } from "@tinker/core";
-import { claudeCode, harness, type ClaudeCode } from "../src/index.ts";
+import { claudeCode, harness, type ClaudeCode } from "@tinker/harness";
 
 /** A per-session policy the approval reads: the session decides, not the tool. */
 const policy = tag<"allow" | "deny">({ label: "policy", default: "deny" });
