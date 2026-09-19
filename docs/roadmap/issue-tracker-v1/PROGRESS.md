@@ -730,3 +730,17 @@ Profiles were empty; fresh provider/model discovery confirmed
 pi/meta-muse/muse-spark-1.3-contributor, max thinking. No reviewer agent.
 The complete brief is /tmp/issue-tracker-t04-brief.md. t04 is Doing; no implementation
 or live credentialed run is claimed verified. t05 and public preview remain required.
+
+### t05 recovery regression captured while t04 builds
+
+The independent real-process probe /tmp/tracker-t05-reconnect-lead.mjs reproduced the
+known missing reconnect behavior on the landed t03 app. After five saved edits, a tab
+typed a local title/comment; the server stopped cleanly with live SSE, restarted the same
+database, and accepted a new HTTP edit. The tab showed its dropped-wire alert but never
+showed the new saved title. The 8-second observable browser wait failed:
+/tmp/tracker-t05-reconnect-before.log.
+
+This is before-fix evidence only. The same probe checks retained title/comment and
+baseRevision 5 plus stale-save 409 once recovery works. It owns and cleans up its exact
+child processes, fresh port/database, and Chromium. t05 remains blocked by t04; no fix or
+preview is claimed here. The final repo test suite must preserve this behavior check.
