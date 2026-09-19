@@ -108,6 +108,8 @@ export async function runDraft(
     signal.removeEventListener("abort", onAbort);
   }
   const closed = readClosed(await (closing ?? session.close({ graceful: true })));
+  if (closed === "cancelled") return { status: "cancelled", draft: outcome.draft };
+  if (closed === "failed") return { status: "failed", draft: outcome.draft };
   if (thrown !== undefined) throw thrown;
   const status = readOutcome(outcome, closed);
   if (status === "done") notify({ kind: "done", draft: outcome.draft });
