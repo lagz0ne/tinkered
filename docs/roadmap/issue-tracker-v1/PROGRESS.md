@@ -242,3 +242,21 @@ Type definitions and callers from the explicit baseline app index:
         1  Issues/Issue#  src/server/operations.ts
         3  Issues/Issue#  src/shared/issues.ts
 ```
+
+## t02 early server review — 2026-09-19
+
+The writer is still building the slice. Early source review corrected timestamp columns too small
+for epoch milliseconds, a null-assignee fallback that prevented clearing, and detail reads outside
+the save queue. The first queue fix also published on reads; that was corrected before UI testing
+so a detail GET cannot trigger a list-update/detail-reload loop. These are app composition fixes,
+not new core requests.
+
+The lead ran `/tmp/tracker-t02-http-lead.mjs` against the saved server draft after building its
+public dependencies. It passed: real-clock create, edit/assignment, stale 409 with current saved
+state and unchanged history, revision-free comments, invalid 400 with unchanged detail, explicit
+assignment clearing, and exact detail restoration after closing and reopening the database.
+It also opened an actual t01 database made before the new schema and preserved its existing issue.
+Evidence: `/tmp/tracker-t02-http-draft.log` and `/tmp/tracker-t02-http-lead-result.json`.
+
+This is early server evidence only. Browser behavior, final tests/checks, code review, and landing
+remain open. The old-schema fixture is now migrated; do not claim a later reopen repeats migration.
