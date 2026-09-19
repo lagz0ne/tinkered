@@ -812,3 +812,13 @@ After the correction, continue with route/config wiring, the draft screen,
 public SDK-preset tests, full gates and personal lead proof before landing.
 The original t04 brief and pre-code caller table still apply. The writer's
 small partial-turn reports are not a final implementation report.
+
+The next source review read `d915279`: watch/listener cleanup now runs after
+unexpected turn errors, the close is joined before a rethrow, and teardown
+errors are checked for every close status. These two source issues are
+corrected, but still await app-level proof. One related issue remains:
+`runDraft` unconditionally rethrows the captured error before it uses the
+inspected close outcome. Root shutdown with a live caller signal can
+therefore still escape as an error even when the close result says cancelled.
+The next bounded writer step must classify that close outcome first. The
+app route must also show a normal failed outcome for a provider error.
