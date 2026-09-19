@@ -18,7 +18,7 @@ Package `packages/sync` (`@tinker/sync`), runtime import only `@tinker/core`, on
 | -------- | ----------------------------------------------------------------------------------------------------- | -------- | ------ |
 | sync/t01 | Package: `synced` meta, `family`, `sync` binding tag, `Sync.Message`/`Sync.Transport`, `memoryPair()` | —        | [x]    |
 | sync/t02 | `syncServer(scope).connect(transport)`: session per transport, snapshots, `sync set <key>`, fan-out   | t01      | [x]    |
-| sync/t03 | `syncClient(scope, transport)`: snapshots through parse, optimistic sets, revert on reject            | t02      | [ ]    |
+| sync/t03 | `syncClient(scope, transport)`: snapshots through parse, optimistic sets, revert on reject            | t02      | [x]    |
 | sync/t04 | Validation milestone: lanes, mutation, README recipes (Hono SSE+POST, WebSocket, React), archive      | t03      | [ ]    |
 
 ### Landed
@@ -27,6 +27,7 @@ Package `packages/sync` (`@tinker/sync`), runtime import only `@tinker/core`, on
 | -------- | ------- | ----- | ------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | sync/t01 | 7f25563 | 8     | 1429          | 80.60    | writer-built, no fix round; `family` from `data()` + a Map, nothing from core; impact chain: plan under-declared 3 symbols (corrected below).                          |
 | sync/t02 | b6bd197 | 17    | 2839          | 77.89    | writer-built (one death, one fix round); the truth is written through the scope handle (a session shadows writes); one watcher per key bumps the version and fans out. |
+| sync/t03 | 2a96f01 | 27    | 3697          | 68.18    | writer-built, one fix round (shared `readPublished` registry); `applying` flag = write origin; impact chain: neither.                                                  |
 
 ### Impact blocks (ADR 0047)
 
@@ -49,6 +50,11 @@ sync  onMember    src/index.ts tests/sync.test.ts
 ```
 
 ```impact sync/t03
+sync  syncClient  src/index.ts tests/sync.test.ts examples/basic.ts
+```
+
+```impact sync/t04
+sync  syncServer  src/index.ts tests/sync.test.ts examples/basic.ts examples/hono.ts
 sync  syncClient  src/index.ts tests/sync.test.ts examples/basic.ts
 ```
 

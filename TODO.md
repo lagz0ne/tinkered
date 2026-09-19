@@ -152,8 +152,13 @@ tickets, then contributors with lead review:
          `family.onMember`; `SyncConflict` when two cells claim a key. 9 seam tests (17 total), size 2839 B, 33 lanes green,
          mutation 77.89. Core feedback: a session shadows cell writes (the truth is written through the scope handle);
          `resolve(tag.all)` is newest-first. Impact chain: `onMember` untested → direct test in t03._
-   - [ ] **sync/t03 — `syncClient(scope, transport)`:** snapshots through parse (family members created on arrival),
-         optimistic local writes with `base`, revert on reject.
+   - [x] **sync/t03 — `syncClient(scope, transport)`.** _Done: tag `sync/t03` (2a96f01), writer-built with one fix round
+         (the published-set registry shared by both drivers: `readPublished(scope, make)`). Snapshots written through the
+         cell's parse (family members created on arrival), local writes sent at once with the last seen version, `ack`
+         moves the version, `reject` fills the truth (never re-sent — an `applying` flag around the driver's own `set`
+         tells its write from userland's); a snapshot the parse refuses, an unknown key, or a `set` from the server
+         close the transport; `client.close()` detaches. 10 seam tests (27 total, incl. a direct `onMember` test the
+         impact chain asked for), size 3697 B, 33 lanes green, mutation 68.18. Impact chain: neither._
    - [ ] **sync/t04 — validation milestone:** lanes (37), mutation ≥ 60 alone, README (Hono SSE+POST and WebSocket
          recipes, React usage), cast-free examples, archive here.
 6. **`@tinker/ai`** — the LLM layer over the AI SDK (the model is the swappable slot; generateText/streamText as
