@@ -1026,3 +1026,16 @@ The private lead tree is clean after this note is committed. No lead-owned
 server, browser, preview, gate command, or probe is left running. The next
 lead must continue the same writer and finish t04, t05, and the verified
 temporary preview. The app is not complete.
+
+### t04 resumed lead review — 2026-09-19
+
+The writer report is saved at `/tmp/issue-tracker-t04-report.md`, with writer
+HEAD `9a7906e`. The lead read the remaining source, fixture, tests, README,
+and dependency diff. Source still follows the agreed public composition;
+no library changes or credentialed model call are involved.
+
+Acceptance still needs a passing normal app test command, cleanup for two
+remaining temporary database paths, exact comment timestamp comparison,
+and owned fetch/body outcomes in held tests. The same writer is correcting
+these bounded gaps. The lead has not landed the remaining range or pushed
+t04. Independent final gates follow the saved correction.
