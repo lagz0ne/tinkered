@@ -26,9 +26,10 @@ function readMessage(raw: unknown): Sync.Message {
 }
 
 function readData(event: MessageEvent): Sync.Message {
+  if (typeof event.data !== "string") throw fail("SyncDropped", { reason: "bad snapshot" });
   let raw: unknown;
   try {
-    raw = JSON.parse(event.data as string);
+    raw = JSON.parse(event.data);
   } catch {
     throw fail("SyncDropped", { reason: "bad snapshot" });
   }
@@ -47,8 +48,11 @@ function opened(stream: EventSource): Promise<void> {
 /** Connect one browser tab: the GET opens the server wire first, then the
  * subscribe registers over POST — the register cannot race the stream.
  * The tab scope also carries the HTTP base, so commands reach this server.
- * One owned close path notifies listeners exactly once; a drop after ready
- * is visible through onDrop. Reload retries; reconnect stays t05. */
+ * One owned close path notifies listeners exactly once, installed before
+ * waiting on ready: a stream that ends after registration but before the
+ * first snapshot settles startup instead of hanging on Loading. Pending
+ * sends queue in order and cancel on close; a drop after ready is visible
+ * through onDrop. Reload retries; reconnect stays t05. */
 export async function connectTab(baseUrl: string): Promise<TabSync.Connected> {
   const id = Math.random().toString(36).slice(2);
   const stream = new EventSource(`${baseUrl}/sync?client=${id}`);
@@ -59,23 +63,28 @@ export async function connectTab(baseUrl: string): Promise<TabSync.Connected> {
     throw error;
   }
   const dropped = new Set<() => void>();
+  const flight = new AbortController();
   let closed = false;
+  let tail: Promise<void> = Promise.resolve();
   const fire = (): void => {
     for (const listener of Array.from(dropped)) listener();
   };
   const closeOnce = (): void => {
     if (closed) return;
     closed = true;
+    flight.abort();
     stream.close();
     fire();
   };
-  const post = async (message: Sync.Message): Promise<void> => {
+  stream.onerror = () => closeOnce();
+  const post = async (message: Sync.Message, signal: AbortSignal): Promise<void> => {
     let res: Response;
     try {
       res = await fetch(`${baseUrl}/sync?client=${id}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(message),
+        signal,
       });
     } catch {
       closeOnce();
@@ -86,7 +95,7 @@ export async function connectTab(baseUrl: string): Promise<TabSync.Connected> {
   const transport: Sync.Transport = {
     send: (message) => {
       if (closed) return;
-      post(message).then(settleSend, settleSend);
+      tail = tail.then(() => post(message, flight.signal));
     },
     onMessage: (listener) => {
       stream.onmessage = (event) => {
@@ -119,7 +128,6 @@ export async function connectTab(baseUrl: string): Promise<TabSync.Connected> {
     closeOnce();
     throw error;
   }
-  stream.onerror = () => closeOnce();
   return {
     scope,
     onDrop: (listener) => {
@@ -134,5 +142,3 @@ export async function connectTab(baseUrl: string): Promise<TabSync.Connected> {
     },
   };
 }
-
-function settleSend(): void {}

@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import { operation } from "@tinker/core";
 import { handle, stream, tinker } from "@tinker/hono";
 import type { Sync } from "@tinker/sync";
-import { issueList, parseCreateInput } from "../shared/issues.ts";
-import { createSaver, type Booted } from "./bridge.ts";
+import { issueList } from "../shared/issues.ts";
+import { readCreateInput, type Booted } from "./bridge.ts";
 
 /** One line per message down the event stream. */
 function frame(message: Sync.Message): string {
@@ -28,12 +28,11 @@ function wires(): Map<string, (message: Sync.Message) => void> {
 /** Build the Hono app on the owning root scope. Route operations close over the
  * root: saves run in their own short child session and publish only after the
  * database commit resolves; reads answer the published root cell. */
-export function buildApp(booted: Booted): Hono {
-  const { scope, src } = booted;
-  const save = createSaver(scope);
+export function buildApp(booted: Booted.Composed): Hono {
+  const { scope, src, save } = booted;
   const saveIssue = operation({
     label: "saveIssue",
-    input: parseCreateInput,
+    input: readCreateInput,
     run: (_deps, ctx) => save(ctx.input),
   });
   const readIssues = operation({

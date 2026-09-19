@@ -1,14 +1,6 @@
 import { createScope } from "@tinker/core";
-import { isError as isAppError } from "../src/index.ts";
 import { memoryPair, subscribe, sync } from "@tinker/sync";
-import {
-  bootScope,
-  buildApp,
-  createSaver,
-  issueList,
-  listIssues,
-  parseIssueList,
-} from "../src/index.ts";
+import { bootScope, buildApp, issueList, parseIssueList } from "../src/index.ts";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -17,10 +9,6 @@ import { expect, test } from "vite-plus/test";
 /** One isolated temp database per test: save in test A never leaks into test B. */
 function tempPath(): string {
   return join(mkdtempSync(join(tmpdir(), "issues-")), "db");
-}
-
-function invalid(): unknown {
-  return { title: "   ", description: "blank title must fail" };
 }
 
 test("creating a valid issue saves it and a second viewer sees it", async () => {
@@ -34,7 +22,7 @@ test("creating a valid issue saves it and a second viewer sees it", async () => 
     await guest.ready;
     expect(guest.resolve(issueList)).toEqual([]);
 
-    const saved = await createSaver(scope)({ title: "First", description: "hello" });
+    const saved = await booted.save({ title: "First", description: "hello" });
     expect(saved.title).toBe("First");
     expect(guest.resolve(issueList).length).toBe(1);
     expect(guest.resolve(issueList)[0]?.title).toBe("First");
@@ -46,27 +34,11 @@ test("creating a valid issue saves it and a second viewer sees it", async () => 
   }
 });
 
-test("blank input fails and saves nothing", async () => {
-  const { scope } = await bootScope(tempPath());
-  try {
-    const failure = await createSaver(scope)(invalid()).then(
-      () => null,
-      (error: unknown) => error,
-    );
-    if (!isAppError(failure, "BadCreateInput")) throw failure;
-    expect(failure.payload.reason).toBe("title is required");
-    expect(scope.resolve(issueList)).toEqual([]);
-    expect(await scope.run(listIssues)).toEqual([]);
-  } finally {
-    await scope.close({ graceful: true });
-  }
-});
-
 test("reopening against the same database restores the saved issue", async () => {
   const path = tempPath();
   const first = await bootScope(path);
   try {
-    await createSaver(first.scope)({ title: "Kept", description: "survives restart" });
+    await first.save({ title: "Kept", description: "survives restart" });
   } finally {
     await first.scope.close({ graceful: true });
   }

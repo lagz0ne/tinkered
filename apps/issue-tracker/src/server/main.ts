@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { Scope } from "@tinker/core";
 import { serve } from "@hono/node-server";
 import { bootScope } from "./bridge.ts";
 import { buildApp } from "./app.ts";
@@ -47,9 +48,19 @@ async function serveClient(app: ReturnType<typeof buildApp>): Promise<void> {
   });
 }
 
+/** A normal explicit shutdown exits 0: a forced scope close settles
+ * `cancelled` by design, which is the expected stop — not a failure.
+ * Anything else (failed, teardown errors) exits 1. */
+function readShutdown(result: Scope.Result): number {
+  if (result.status === "failed") return 1;
+  if (result.teardownErrors !== undefined && result.teardownErrors.length > 0) return 1;
+  return 0;
+}
+
 /** Start the app: own the scope, serve the built client plus API and sync.
  * Shutdown is forced: endless SSE streams settle through their own close,
- * so the process never hangs waiting on a live tab. A failed close exits 1. */
+ * so the process never hangs waiting on a live tab. One owned shutdown
+ * promise: the first signal wins, a stop failure still exits the process. */
 async function main(): Promise<number> {
   const booted = await bootScope(readDataPath());
   const app = buildApp(booted);
@@ -58,23 +69,27 @@ async function main(): Promise<number> {
   const port = readPort();
   const server = serve({ fetch: app.fetch, hostname: host, port });
   const stopped = new Promise<number>((resolve) => {
+    let stopping = false;
     const stop = async (): Promise<void> => {
+      if (stopping) return;
+      stopping = true;
       server.close();
       const result = await booted.scope.close();
-      resolve(result.status === "success" ? 0 : 1);
+      resolve(readShutdown(result));
     };
-    process.on("SIGTERM", () => {
-      stop().then(reportSignal, reportSignal);
-    });
-    process.on("SIGINT", () => {
-      stop().then(reportSignal, reportSignal);
-    });
+    const onSignal = (): void => {
+      stop().then(reportStopSettled, reportStopFailed);
+    };
+    process.on("SIGTERM", onSignal);
+    process.on("SIGINT", onSignal);
   });
   return stopped;
 }
 
-function reportSignal(): void {
-  process.exitCode = 1;
+function reportStopSettled(): void {}
+
+function reportStopFailed(error: unknown): void {
+  throw error;
 }
 
 async function entry(): Promise<void> {
