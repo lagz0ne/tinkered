@@ -76,7 +76,6 @@ export async function connectTab(baseUrl: string): Promise<TabSync.Connected> {
     stream.close();
     fire();
   };
-  function settleTail(): void {}
   stream.onerror = () => closeOnce();
   const post = async (message: Sync.Message, signal: AbortSignal): Promise<void> => {
     let res: Response;
@@ -125,13 +124,18 @@ export async function connectTab(baseUrl: string): Promise<TabSync.Connected> {
   });
   async function closeConnection(): Promise<Scope.Result> {
     closeOnce();
-    await tail.then(settleTail, settleTail);
+    await tail;
     return scope.close();
   }
   try {
     await scope.ready;
   } catch (error) {
-    await closeConnection();
+    const cleaned = await closeConnection();
+    if (cleaned.status === "failed" || (cleaned.teardownErrors ?? []).length > 0) {
+      const cleanup = fail("SyncDropped", { reason: "cleanup failed" });
+      cleanup.cause = error;
+      throw cleanup;
+    }
     throw error;
   }
   return {
