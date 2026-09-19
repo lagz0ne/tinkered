@@ -28,14 +28,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-| Card                                  | Owner                                      | Next                                                                          | Verify                                                                                  |
-| ------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| tracker/t05 — Finish and show the app | Muse writer ade1b488; tracker lead reviews | Review final guide, run final lead gates, then land and verify public preview | All app/repo gates, exact stale-draft safety, shutdown/restart, verified public preview |
+| Card | Owner | Next | Verify |
+| ---- | ----- | ---- | ------ |
 
 ## Review
 
-| Card | Owner | Next | Verify |
-| ---- | ----- | ---- | ------ |
+| Card                                  | Owner                                  | Next                                                                                               | Verify                                                           |
+| ------------------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| tracker/t05 — Finish and show the app | Tracker lead; writer ade1b488 finished | All final gates and public browser proof passed; commit acceptance, tag/push, then clean up writer | Verify remote main/tag SHAs and leave the public preview running |
 
 ## Blocked
 

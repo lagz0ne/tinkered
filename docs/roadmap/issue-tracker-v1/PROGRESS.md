@@ -1,15 +1,17 @@
 # Issue tracker v1 — build progress
 
-**Active.** User-approved app direction: a realtime issue tracker that shows easy composition
-and testing of the existing libraries. [Plan](PLAN.md). Create, edit, discussion, CLI, and MCP tools are complete. The optional helper is complete. Reconnect and phone checks pass at the saved checkpoints. Durable browser proof, final guide/gates, and public preview remain.
+**Acceptance passed.** The realtime issue tracker is built and checked: create, edit, comments,
+CLI/MCP tools, optional draft helper, reconnect, and phone use. [Plan](PLAN.md).
+The [public preview](https://p-363cfc8f40e8.preview.tini.works) passed real two-tab browser checks;
+it is temporary (normally eight hours). Final tag/push and writer cleanup remain.
 
-| Ticket      | Delivers                                                            | Blocked by | State |
-| ----------- | ------------------------------------------------------------------- | ---------- | ----- |
-| tracker/t01 | [Create an issue and see it live](issues/01-create-and-see-live.md) | —          | Done  |
-| tracker/t02 | [Edit, assign, and discuss issues](issues/02-edit-and-discuss.md)   | t01        | Done  |
-| tracker/t03 | [Use the same actions from CLI and MCP](issues/03-cli-and-tools.md) | t02        | Done  |
-| tracker/t04 | [Draft a summary with the harness](issues/04-triage-draft.md)       | t03        | Done  |
-| tracker/t05 | [Finish the demo and its test guide](issues/05-finish-and-show.md)  | t04        | Doing |
+| Ticket      | Delivers                                                            | Blocked by | State  |
+| ----------- | ------------------------------------------------------------------- | ---------- | ------ |
+| tracker/t01 | [Create an issue and see it live](issues/01-create-and-see-live.md) | —          | Done   |
+| tracker/t02 | [Edit, assign, and discuss issues](issues/02-edit-and-discuss.md)   | t01        | Done   |
+| tracker/t03 | [Use the same actions from CLI and MCP](issues/03-cli-and-tools.md) | t02        | Done   |
+| tracker/t04 | [Draft a summary with the harness](issues/04-triage-draft.md)       | t03        | Done   |
+| tracker/t05 | [Finish the demo and its test guide](issues/05-finish-and-show.md)  | t04        | Review |
 
 Lead uses `/home/paseo/next/tinkered-sync-land` on `lead/sync-land`. Writers get private Git
 worktrees but stay in Paseo workspace `wks_85042cce8c480929`. One writer per ticket; no writer
@@ -42,7 +44,7 @@ API change needs its own brief, impact block, caller table, review, and relevant
 
 ## Gate and review notes
 
-Pending implementation. Do not claim completion from a writer report alone. Per slice: app tests
+Acceptance requires observed lead results, not a writer report alone. Per slice: app tests
 and build, `vp check`, relevant repo tests/validation, strict style census, public-import/cast review,
 and Core feedback. Add browser proof where the slice changes user behavior. A new app mutation
 lane, if used, must run alone; never rerun all library mutations for unchanged library source.
@@ -1422,3 +1424,113 @@ No lead-owned process remains after the passing browser command.
 The next lead continues the whole task at the user's requested context
 handoff point. The self-contained current briefing is
 /tmp/issue-tracker-t05-final-lead-handoff.md; it supersedes older handoffs.
+
+### t05 final acceptance — 2026-09-19
+
+The lead accepted the final actual source and guide at `2f9db43`, equal to writer
+`5a12482` for `apps/issue-tracker` and `examples/README.md`. Only that last docs
+commit was newly cherry-picked (`5a12482` → `2f9db43`); earlier source was already
+reviewed and staged through `2b831b0`. The README commands, behavior, public-library
+map, and local link targets were checked. All work stayed in the private lead tree.
+No library source changed; no mutation or wall-clock performance claim was made.
+
+Independent lead gates on the final staged app:
+
+| Check                                                         | Observed result                                                                     | Evidence                              |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------- |
+| `vp install`                                                  | Exit 1 solely for the known ignored `esbuild@0.28.2` build policy; policy unchanged | `/tmp/tracker-t05-final-install.log`  |
+| `vp run --no-cache --filter '@tinker-issue-tracker...' build` | Exit 0, all 10 tasks, no cache hits                                                 | `/tmp/tracker-t05-final-build.log`    |
+| App `./node_modules/.bin/tsc --noEmit`                        | Exit 0, full app check                                                              | `/tmp/tracker-t05-final-tsc.log`      |
+| `vp run --no-cache @tinker-issue-tracker#test`                | Exit 0, 25/25 tests                                                                 | `/tmp/tracker-t05-final-tests.log`    |
+| `vp run --no-cache @tinker-issue-tracker#test:browser`        | Exit 0, real process/UI/CLI/restart proof, then 7/7 helper cases                    | `/tmp/tracker-t05-final-browser.log`  |
+| `vp check`                                                    | Exit 0, 0 errors and 13 existing warnings                                           | `/tmp/tracker-t05-final-check.log`    |
+| Strict app style census                                       | Exit 0, OK                                                                          | `/tmp/tracker-t05-final-census.log`   |
+| `node scripts/validate.mjs`                                   | Exit 0, all 37 deterministic lanes                                                  | `/tmp/tracker-t05-final-validate.log` |
+
+The first final check only caught formatting in the lead's TODO edit; targeted
+formatting and the repeated check passed. That earlier result is preserved at
+`/tmp/tracker-t05-final-check-before-todo-format.log`. Writer logs were kept under
+`/tmp/tracker-t05-writer-final-*.log`; the table above records the lead's own runs.
+
+The independent final probe runner also exits 0. Its reconnect case restarts the
+real server and keeps local title/comment/baseRevision 5 while the new saved
+heading is revision 6. The browser's own Save sends revision 5 and gets 409; both
+server exits are 0. Offline create/edit/comment/detail notices are plain, text is
+kept, and online retries succeed. Initial connection and helper-capability HTTP
+503 failures recover through their visible retry buttons. The malformed helper
+stream aborts its held turn and leaves exact saved detail unchanged. Before
+failure artifacts remain separate and unchanged.
+
+Final probe logs use `/tmp/tracker-t05-{reconnect,mobile,startup,capability,errors,malformed}-final.log`.
+The 390px phone screenshot `/tmp/tracker-t05-mobile-final.png` was personally
+inspected: readable fields, all controls at least 44px tall, no horizontal overflow,
+and no browser page errors. Source/public-library and built-client server-marker
+scans found zero violations (`/tmp/tracker-t05-imports-final.log`); test imports
+also use public app/library entries (`/tmp/tracker-t05-final-test-imports.log`).
+
+All ten package indexes were rebuilt, plus the app explicitly from its own cwd:
+`/tmp/tracker-t05-final-package-index.log` and `/tmp/tracker-t05-final-app-index.log`.
+No old exported name was removed or renamed: App, connectTab, and TabSync.Connected
+are retained with changed signatures/fields, so reporting their old names as
+`(none)` would be false. Compared with the committed BEFORE map, App still has
+its main entry caller; reconnect adds App's connectTab callers and the Connected
+close field. Final retained-symbol query:
+
+```text
+scripts/scip.sh refs '(/(App|connectTab)\(\)\.|/TabSync/Connected#)$' issue-tracker
+== issue-tracker
+  definitions
+    /App().  ->  src/client/App.tsx:449
+    /TabSync/Connected#  ->  src/client/sync.ts:10
+    /connectTab().  ->  src/client/sync.ts:56
+  references (count  symbol  file)
+        2  /App().  src/client/main.tsx
+        4  /TabSync/Connected#  src/client/App.tsx
+        1  /TabSync/Connected#  src/client/sync.ts
+        2  /connectTab().  src/client/App.tsx
+        4  /connectTab().  src/client/main.tsx
+```
+
+New close-field query:
+
+```text
+scripts/scip.sh refs '/TabSync/Connected#.*:close\.$' issue-tracker
+== issue-tracker
+  definitions
+    /TabSync/Connected#typeLiteral0:close.  ->  src/client/sync.ts:13
+  references (count  symbol  file)
+        1  /TabSync/Connected#typeLiteral0:close.  src/client/App.tsx
+```
+
+The Jev impact advisory ran with `AI_GATEWAY_API_KEY` unset and
+`JEV_TOKEN_FILE=/dev/null`. It made no model call. Its package-path/plain-name
+matching reports four false missing rows for the app; the explicit app SCIP
+queries above are authoritative. Evidence: `/tmp/tracker-t05-final-impact.log`.
+Core feedback keeps the positive stable-provider reconnect result; the census
+fixture classification is tooling feedback, and the existing CLI public seam
+already supplies in-process argv testing. No new core ticket is needed.
+
+The actual public preview was started from the private app with a fresh temporary
+database and `DRAFT_HELPER=0`:
+[Open the issue tracker](https://p-363cfc8f40e8.preview.tini.works).
+The normal lifetime is eight hours from launch on 2026-09-19 around 21:17 UTC.
+`curl -fsS` fetched real app HTML and confirmed the helper is disabled. The lead
+then drove two real Chromium tabs through that public HTTPS URL: keyboard create,
+status/assignee edits, live comments, reload persistence, a stale browser Save
+with baseRevision 0 rejected as 409, exact saved detail/history unchanged, local
+text retained, and explicit Reload their change. Phone and desktop screenshots
+were personally inspected. All controls meet 44px; no overflow or page errors.
+The fresh demo contains only the safe example “Keep search text after reload”.
+
+Public proof: `/tmp/tracker-t05-public-proof.log`,
+`/tmp/tracker-final-preview-result.json`, and
+`/tmp/tracker-final-preview-{phone,desktop}.png`.
+Launch ownership: `/tmp/tracker-t05-public-launch.log`, preview PID `346306`;
+leave it running through normal expiry. The helper script lacked execute permission,
+so it was run with `sh`; no shared file was changed. A first HTML assertion expected
+an empty root and was corrected to accept the actual Loading placeholder; the real
+browser proof passed without an app change.
+
+The optional helper's credentialed live model was not exercised. Its real browser
+lifecycle cases use the public SDK preset only in test files. The default demo
+needs no external account. Tag/push and writer cleanup are the only remaining steps.
