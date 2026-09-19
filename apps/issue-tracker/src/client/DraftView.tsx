@@ -26,12 +26,25 @@ function readLine(line: string): Draft.Event | null {
   return parseDraftEvent(raw);
 }
 
-async function runStream(
-  issueId: string,
-  prompt: string,
-  stopper: AbortController,
-  apply: (event: Draft.Event) => void,
-): Promise<Draft.Outcome> {
+type Pump = {
+  tail: string;
+  readonly apply: (event: Draft.Event) => void;
+};
+
+function pumpLines(pump: Pump, chunk: string): Draft.Outcome | undefined {
+  const lines = (pump.tail + chunk).split("\n");
+  pump.tail = lines.pop() ?? "";
+  let outcome: Draft.Outcome | undefined;
+  for (const line of lines) {
+    const event = readLine(line);
+    if (event === null) continue;
+    if (event.kind === "terminal") outcome = event.status;
+    else pump.apply(event);
+  }
+  return outcome;
+}
+
+async function readPostedDraft(issueId: string, prompt: string, stopper: AbortController) {
   const res = await fetch(`/api/issues/${issueId}/draft`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -43,28 +56,27 @@ async function runStream(
     throw fail("DraftFailed", { reason: "the draft helper failed" });
   }
   if (res.body === null) throw fail("DraftFailed", { reason: "the draft helper failed" });
-  const reader = res.body.getReader();
+  return res.body.getReader();
+}
+
+async function runStream(
+  issueId: string,
+  prompt: string,
+  stopper: AbortController,
+  apply: (event: Draft.Event) => void,
+): Promise<Draft.Outcome> {
+  const reader = await readPostedDraft(issueId, prompt, stopper);
   const decoder = new TextDecoder();
-  let tail = "";
   let outcome: Draft.Outcome = "failed";
+  const pump: Pump = { tail: "", apply };
   try {
     for (;;) {
       const next = await reader.read();
       if (next.done) break;
-      tail += decoder.decode(next.value, { stream: true });
-      const lines = tail.split("\n");
-      tail = lines.pop() ?? "";
-      for (const line of lines) {
-        const event = readLine(line);
-        if (event === null) continue;
-        if (event.kind === "terminal") {
-          outcome = event.status;
-          continue;
-        }
-        apply(event);
-      }
+      const finished = pumpLines(pump, decoder.decode(next.value, { stream: true }));
+      if (finished !== undefined) outcome = finished;
     }
-    const closing = readLine(tail);
+    const closing = readLine(pump.tail);
     if (closing !== null && closing.kind === "terminal") return closing.status;
     return outcome;
   } finally {
@@ -75,6 +87,74 @@ async function runStream(
 function isAbort(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
 }
+
+type ReadyProps = {
+  readonly shown: string;
+  readonly author: string;
+  readonly setAuthor: (author: string) => void;
+  readonly post: () => void;
+  readonly posting: boolean;
+  readonly discard: () => void;
+};
+
+function ReadyView(props: ReadyProps) {
+  return (
+    <>
+      <p>{props.shown}</p>
+      <label htmlFor="draft-author">
+        Author
+        <select
+          id="draft-author"
+          value={props.author}
+          onChange={(event) => props.setAuthor(event.target.value)}
+        >
+          {assignees.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button type="button" onClick={props.post} disabled={props.posting}>
+        {props.posting ? "Posting…" : "Post draft"}
+      </button>
+      <button type="button" onClick={props.discard} disabled={props.posting}>
+        Discard draft
+      </button>
+    </>
+  );
+}
+
+type RetryProps = {
+  readonly start: () => void;
+  readonly discard: () => void;
+};
+
+function RetryView(props: RetryProps) {
+  return (
+    <>
+      <button type="button" onClick={props.start}>
+        Draft a summary
+      </button>
+      <button type="button" onClick={props.discard}>
+        Discard draft
+      </button>
+    </>
+  );
+}
+
+type Runner = {
+  readonly id: number;
+  readonly stopper: AbortController;
+};
+
+type DraftCells = {
+  readonly setView: (view: View) => void;
+  readonly setText: (text: (seen: string) => string) => void;
+  readonly setDraft: (draft: string) => void;
+  readonly setNotice: (notice: string | null) => void;
+  readonly currentRun: () => number;
+};
 
 function DraftView(props: { issueId: string; reload: () => void }) {
   const [capability, setCapability] = useState<"loading" | "off" | "on">("loading");
@@ -109,6 +189,13 @@ function DraftView(props: { issueId: string; reload: () => void }) {
     },
     [props.issueId],
   );
+  const cells: DraftCells = {
+    setView,
+    setText,
+    setDraft,
+    setNotice,
+    currentRun: () => runId.current,
+  };
   async function start(): Promise<void> {
     const id = runId.current + 1;
     runId.current = id;
@@ -119,32 +206,40 @@ function DraftView(props: { issueId: string; reload: () => void }) {
     setText("");
     setDraft("");
     setNotice(null);
+    const outcome = await startRun(props.issueId, prompt, { id, stopper }, cells);
+    if (runId.current !== id) return;
+    if (flight.current === stopper) flight.current = null;
+    if (outcome === undefined) return;
+    setView(readView(outcome));
+    if (outcome === "failed") setNotice("The draft helper failed. Try again.");
+  }
+  function readView(outcome: Draft.Outcome): View {
+    if (outcome === "done") return "ready";
+    if (outcome === "cancelled") return "cancelled";
+    return "failed";
+  }
+  async function startRun(
+    issueId: string,
+    asked: string,
+    runner: Runner,
+    cells: DraftCells,
+  ): Promise<Draft.Outcome | undefined> {
     try {
-      const outcome = await runStream(props.issueId, prompt, stopper, (event) => {
-        if (runId.current !== id) return;
-        if (event.kind === "text") setText((seen) => seen + event.text);
-        else if (event.kind === "done") setDraft(event.draft);
+      return await runStream(issueId, asked, runner.stopper, (event) => {
+        if (cells.currentRun() !== runner.id) return;
+        if (event.kind === "text") cells.setText((seen) => seen + event.text);
+        else if (event.kind === "done") cells.setDraft(event.draft);
       });
-      if (runId.current !== id) return;
-      if (outcome === "done") {
-        setView("ready");
-      } else if (outcome === "cancelled") {
-        setView("cancelled");
-      } else {
-        setView("failed");
-        setNotice("The draft helper failed. Try again.");
-      }
     } catch (error: unknown) {
-      if (runId.current !== id) return;
-      stopper.abort();
+      if (cells.currentRun() !== runner.id) return undefined;
+      runner.stopper.abort();
       if (isAbort(error)) {
-        setView("cancelled");
-        return;
+        cells.setView("cancelled");
+        return undefined;
       }
-      setView("failed");
-      setNotice(readFailedMessage(error));
-    } finally {
-      if (flight.current === stopper) flight.current = null;
+      cells.setView("failed");
+      cells.setNotice(readFailedMessage(error));
+      return undefined;
     }
   }
   function cancel(): void {
@@ -182,80 +277,91 @@ function DraftView(props: { issueId: string; reload: () => void }) {
   return (
     <section aria-label="triage draft">
       <h3>Triage draft</h3>
-      {view === "quiet" ? (
-        <>
-          <label htmlFor="draft-prompt">
-            What should the helper look at?
-            <input
-              id="draft-prompt"
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              placeholder="Short summary or next steps"
-            />
-          </label>
-          <button type="button" onClick={start}>
-            Draft a summary
-          </button>
-        </>
-      ) : null}
-      {view === "running" ? (
-        <>
-          <p aria-live="polite">{text.length > 0 ? text : "Drafting…"}</p>
-          <button type="button" onClick={cancel}>
-            Cancel draft
-          </button>
-        </>
-      ) : null}
-      {view === "ready" ? (
-        <>
-          <p>{shown}</p>
-          <label htmlFor="draft-author">
-            Author
-            <select
-              id="draft-author"
-              value={author}
-              onChange={(event) => setAuthor(event.target.value)}
-            >
-              {assignees.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button type="button" onClick={post} disabled={comment.isPending}>
-            {comment.isPending ? "Posting…" : "Post draft"}
-          </button>
-          <button type="button" onClick={discard} disabled={comment.isPending}>
-            Discard draft
-          </button>
-        </>
-      ) : null}
-      {view === "cancelled" ? (
-        <>
-          <p>Cancelled.</p>
-          {text.length > 0 ? <p>{text}</p> : null}
-          <button type="button" onClick={start}>
-            Draft a summary
-          </button>
-          <button type="button" onClick={discard}>
-            Discard draft
-          </button>
-        </>
-      ) : null}
-      {view === "failed" ? (
-        <>
-          <button type="button" onClick={start}>
-            Draft a summary
-          </button>
-          <button type="button" onClick={discard}>
-            Discard draft
-          </button>
-        </>
-      ) : null}
+      <DraftBody
+        view={view}
+        text={text}
+        shown={shown}
+        author={author}
+        setAuthor={setAuthor}
+        start={start}
+        cancel={cancel}
+        post={post}
+        posting={comment.isPending}
+        discard={discard}
+        prompt={prompt}
+        setPrompt={setPrompt}
+      />
       {notice !== null ? <p role="alert">{notice}</p> : null}
     </section>
   );
+}
+
+type BodyProps = {
+  readonly view: View;
+  readonly text: string;
+  readonly shown: string;
+  readonly author: string;
+  readonly setAuthor: (author: string) => void;
+  readonly start: () => void;
+  readonly cancel: () => void;
+  readonly post: () => void;
+  readonly posting: boolean;
+  readonly discard: () => void;
+  readonly prompt: string;
+  readonly setPrompt: (prompt: string) => void;
+};
+
+function DraftBody(props: BodyProps) {
+  if (props.view === "quiet") {
+    return (
+      <>
+        <label htmlFor="draft-prompt">
+          What should the helper look at?
+          <input
+            id="draft-prompt"
+            value={props.prompt}
+            onChange={(event) => props.setPrompt(event.target.value)}
+            placeholder="Short summary or next steps"
+          />
+        </label>
+        <button type="button" onClick={props.start}>
+          Draft a summary
+        </button>
+      </>
+    );
+  }
+  if (props.view === "running") {
+    return (
+      <>
+        <p aria-live="polite">{props.text.length > 0 ? props.text : "Drafting…"}</p>
+        <button type="button" onClick={props.cancel}>
+          Cancel draft
+        </button>
+      </>
+    );
+  }
+  if (props.view === "ready") {
+    return (
+      <ReadyView
+        shown={props.shown}
+        author={props.author}
+        setAuthor={props.setAuthor}
+        post={props.post}
+        posting={props.posting}
+        discard={props.discard}
+      />
+    );
+  }
+  if (props.view === "cancelled") {
+    return (
+      <>
+        <p>Cancelled.</p>
+        {props.text.length > 0 ? <p>{props.text}</p> : null}
+        <RetryView start={props.start} discard={props.discard} />
+      </>
+    );
+  }
+  return <RetryView start={props.start} discard={props.discard} />;
 }
 
 export default DraftView;

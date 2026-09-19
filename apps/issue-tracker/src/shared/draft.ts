@@ -17,21 +17,44 @@ import { raise } from "../errors.ts";
 /** Read one streamed draft frame at the browser edge: the four event
  * kinds the server emits, nothing else. */
 export function parseDraftEvent(raw: unknown): Draft.Event {
-  if (typeof raw !== "object" || raw === null) raise("BadDraftInput", { reason: "draft update is unreadable" });
-  if (!("kind" in raw)) raise("BadDraftInput", { reason: "draft update is unreadable" });
-  if (raw.kind === "text" && "text" in raw && typeof raw.text === "string") {
-    return { kind: "text", text: raw.text };
+  if (typeof raw !== "object" || raw === null || !("kind" in raw)) {
+    raise("BadDraftInput", { reason: "draft update is unreadable" });
   }
-  if (raw.kind === "status" && "status" in raw && typeof raw.status === "string") {
-    return { kind: "status", status: raw.status };
-  }
-  if (raw.kind === "done" && "draft" in raw && typeof raw.draft === "string") {
-    return { kind: "done", draft: raw.draft };
-  }
-  if (raw.kind === "terminal" && "status" in raw && "draft" in raw) {
-    return { kind: "terminal", status: readOutcome(raw.status), draft: readTerminalDraft(raw.draft) };
-  }
+  const found = readEventKind(raw);
+  if (found !== undefined) return found;
   raise("BadDraftInput", { reason: "draft update is unreadable" });
+}
+
+function readEventKind(raw: Record<string, unknown>): Draft.Event | undefined {
+  if (raw.kind === "text") return readTextEvent(raw);
+  if (raw.kind === "status") return readStatusEvent(raw);
+  if (raw.kind === "done") return readDoneEvent(raw);
+  if (raw.kind === "terminal") return readTerminalEvent(raw);
+  return undefined;
+}
+
+function readTextEvent(raw: Record<string, unknown>): Draft.Event | undefined {
+  if (!("text" in raw) || typeof raw.text !== "string") return undefined;
+  return { kind: "text", text: raw.text };
+}
+
+function readStatusEvent(raw: Record<string, unknown>): Draft.Event | undefined {
+  if (!("status" in raw) || typeof raw.status !== "string") return undefined;
+  return { kind: "status", status: raw.status };
+}
+
+function readDoneEvent(raw: Record<string, unknown>): Draft.Event | undefined {
+  if (!("draft" in raw) || typeof raw.draft !== "string") return undefined;
+  return { kind: "done", draft: raw.draft };
+}
+
+function readTerminalEvent(raw: Record<string, unknown>): Draft.Event | undefined {
+  if (!("status" in raw) || !("draft" in raw)) return undefined;
+  return {
+    kind: "terminal",
+    status: readOutcome(raw.status),
+    draft: readTerminalDraft(raw.draft),
+  };
 }
 
 function readOutcome(raw: unknown): Draft.Outcome {
@@ -49,7 +72,8 @@ export function parseDraftCapability(raw: unknown): { readonly enabled: boolean 
   if (typeof raw !== "object" || raw === null || !("enabled" in raw)) {
     raise("BadDraftInput", { reason: "draft state is unreadable" });
   }
-  if (typeof raw.enabled !== "boolean") raise("BadDraftInput", { reason: "draft state is unreadable" });
+  if (typeof raw.enabled !== "boolean")
+    raise("BadDraftInput", { reason: "draft state is unreadable" });
   return { enabled: raw.enabled };
 }
 
