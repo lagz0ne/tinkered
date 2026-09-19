@@ -92,6 +92,11 @@ the body finishes or the client cancels, then closes (every other response close
 );
 ```
 
+If a test or shutdown leaves a stream open, use plain `await scope.close()` to force
+shutdown. The writer must respond to `ctx.signal` so it can settle. A graceful close waits
+for the body to end and can wait forever for a live stream; choose forced close from the
+start, since a later call cannot upgrade an in-progress graceful close.
+
 ## Errors
 
 | failure                                                                      | status                                    |

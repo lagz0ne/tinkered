@@ -73,6 +73,11 @@ twice.
 ## Wire it
 
 The transport is four methods: `send`, `onMessage`, `onClose`, `close`.
+A transport may call its `onClose` listeners synchronously inside `close()`. Driver listeners
+must not throw to report a startup failure: build the error value and reject the pending
+startup promise through its saved reject function. Attach a rejection handler when that
+promise is created, even if startup will await it later. Keep close paths safe to call again.
+
 Three ways to build one:
 
 Hono SSE + POST (the full recipe lives in `examples/hono.ts`): one

@@ -12,11 +12,22 @@ a failing→passing test, or command output). Never tick on intent. Add/split it
       statuses and descriptions; `vp check` has no errors. Observed: 0 errors, 13 existing warnings
       (`/tmp/core-feedback-cleanup-check.log`); resource-span seam tests at core/tests/index.test.ts
       include shared-resource and async-build spans. Stale rows now closed.
-- [ ] **Audit the usage notes.** Check README/TSDoc coverage for stop signals and cleanup, forced-close
-      cell writes, child-session cell copies, tag order, extension readiness, and exporting spans
-      before close. Record what is already covered and what is still missing; fill only small,
+- [x] **Audit the usage notes.** Check README/TSDoc coverage for stop signals and cleanup, forced-close
+      cell writes, child-session cell copies, tag order, extension readiness, and span export from
+      driver-owned scopes. Record what is already covered and what is still missing; fill only small,
       verified gaps in the public docs. Verify: each closed note points to its doc, behavior agrees
       with source/tests, and `vp check` has no errors. Keep feature candidates deferred.
+      Observed: linked 14 feedback rows to verified docs or corrected their premise; added small
+      README notes in core, cli, harness, hono, and sync. Extension readiness was already covered.
+      Source audit plus a Node probe confirmed retained spans remain readable after close; the
+      CLI needs `observe.export` because it keeps its scope private. A strict compiler probe
+      accepted `Tag.Binding<Cli.Command>` as `Tag.Binding<Cli.Bound>`; the old widening claim was
+      stale. A Node probe also confirmed nearest-layer, last-binding-first tag order. Refreshed
+      SCIP for all 10 packages. Existing core, cli, harness (Claude and Codex), Hono stream, and
+      sync tests: 332/332 passed across 6 files (`.scip/core-feedback-docs-tests.log`). `vp check`:
+      0 errors, 13 existing warnings (`.scip/core-feedback-docs-check.log`). All 20 new relative
+      doc links resolve; deferred feature rows are unchanged; only Markdown changed; diff check
+      and the changed-file style census passed. Jev calibration and `@tinker/ai` stay deferred.
 
 ## Externalize examples (ADR 0045)
 

@@ -90,6 +90,19 @@ const scope = createScope({
 
 See `examples/harness/codex.ts` for the real adapter.
 
+## Stopping a turn
+
+`await session.close()` forces shutdown and signals the adapter to stop the active turn.
+The frame skips its final status-cell write under abort because the session is already
+closing; use the close result and the `harness turn` log for the outcome.
+`session.close({ graceful: true })` waits for the turn to finish.
+
+For adapter authors, `hooks.signal` is the interrupt. Wire it to the SDK before starting
+work, handle an already-aborted signal, and check again where lazy work actually starts
+(for example, before iterating a lazy stream). Thread cleanup runs after the turn settles;
+it cannot be the only way to stop that turn. See core's
+[resource cleanup](../core/README.md#resource-cleanup) rules.
+
 ## Approvals
 
 Claude's `canUseTool` is answered by an ordinary operation: pass it as `approve` when you build the

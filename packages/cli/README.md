@@ -53,5 +53,12 @@ Tests skip the
 process: `run({ name, version, scope, argv, io })` returns `{ code, stdout,
 stderr }`, and `io.signal` is the stand-in for SIGINT/SIGTERM (abort → 130).
 
+Each operation command opens and closes a fresh session. Include that setup and cleanup
+when measuring frequent, short calls.
+
+To collect spans from `run`, supply `scope.observe.export` in its options before starting
+the driver; `run` owns the scope and returns only its result. See core's
+[observation guide](../core/README.md#observation).
+
 Exit codes: 0 success · 1 failure (message to stderr) · 2 usage (unknown or
 missing command, or the operation's parse failure) · 130 interrupted.
