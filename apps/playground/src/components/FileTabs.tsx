@@ -34,7 +34,6 @@ export function FileTabs({
 
   return (
     <div className="flex min-w-0 items-center gap-1">
-      {/* Scrolls sideways on narrow screens instead of pushing the controls off the bar. */}
       <div
         ref={strip}
         className="relative flex min-w-0 items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"

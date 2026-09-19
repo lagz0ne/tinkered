@@ -1,8 +1,8 @@
 /** Builds the HTML document that runs the user's compiled bundle inside the preview iframe.
  *
- * The iframe is same-origin (so `/vendor/*` loads with no CORS), and an import map points every
+ * The iframe is same-origin (so the vendor bundles load with no CORS), and an import map points every
  * bare specifier at a self-hosted vendor bundle — one shared React, one shared engine. A `<base>`
- * tag makes the absolute `/vendor` paths resolve against this origin even though the document is
+ * tag makes the absolute vendor paths resolve against this origin even though the document is
  * injected via `srcdoc`. Uncaught errors are posted back to the parent for the status line. */
 export function previewDocument(compiledJs: string): string {
   const origin = location.origin;

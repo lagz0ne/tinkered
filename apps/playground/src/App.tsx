@@ -40,11 +40,11 @@ import {
   viewCell,
 } from "@/state.ts";
 
-// The view. Every component reads exactly the cells it renders (a selector where it wants a
-// slice, an isEqual where "changed" is a policy) and runs operations for what the user does. There
-// is no useEffect here: the effects are resources, started once at the composition root.
-
-// The benchmark pulls in Zustand/Jotai/Legend/Preact — lazy-load so it costs nothing until opened.
+/** The benchmark pulls in Zustand/Jotai/Legend/Preact — lazy-loaded so it costs nothing until
+ * opened. (The view as a whole: every component reads exactly the cells it renders — a selector where
+ * it wants a slice, an isEqual where "changed" is a policy — and runs operations for what the user
+ * does. There is no useEffect here: the effects are resources, started once at the composition
+ * root.) */
 const BenchPage = lazy(() =>
   import("@/bench/BenchPage.tsx").then((m) => ({ default: m.BenchPage })),
 );
@@ -132,6 +132,7 @@ const sameNames = (a: string[], b: string[]): boolean =>
  * never re-renders the tab strip. */
 function Tabs(): ReactElement {
   const names = useData(filesCell, (files) => files.map((f) => f.name), sameNames);
+  const [first] = names;
   const active = useData(activeCell);
   const select = useRun(selectFile);
   const add = useRun(addFile);
@@ -140,7 +141,7 @@ function Tabs(): ReactElement {
   return (
     <FileTabs
       files={names}
-      active={names.includes(active) ? active : names[0]}
+      active={names.includes(active) ? active : first}
       onSelect={(name) => select.run({ input: name })}
       onAdd={() => add.run()}
       onClose={(name) => close.run({ input: name })}

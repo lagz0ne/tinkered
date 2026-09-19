@@ -4,10 +4,9 @@ import { DEFAULT_FILES, ENTRY } from "@/lib/files.ts";
 import { THEMES, type ThemeId } from "@/lib/themes.ts";
 import { activeCell, dirtyCell, filesCell, themeCell, type View, viewCell } from "@/state.ts";
 
-// Every user action is an operation: typed input admitted at the door, the cells it touches
-// declared as controller deps, and no React in sight — `scope.run(addFile)` in a test does exactly
-// what the button does.
-
+/** Every user action is an operation: typed input admitted at the door, the cells it touches
+ * declared as controller deps, and no React in sight — `scope.run(addFile)` in a test does exactly
+ * what the button does. `string(op)` is the door for the single-string ones. */
 const string = (operation: string) => (raw: unknown) =>
   typeof raw === "string" ? raw : raise("InvalidInput", { operation, reason: "expected a string" });
 
@@ -70,7 +69,8 @@ export const closeFile = operation({
     const next = names.filter((n) => n !== name);
     dirty.set(true);
     files.update((prev) => prev.filter((f) => f.name !== name));
-    if (active.get() === name) active.set(next[idx] ?? next[idx - 1] ?? next[0]);
+    const [first] = next;
+    if (active.get() === name) active.set(next[idx] ?? next[idx - 1] ?? first);
     return true;
   },
 });

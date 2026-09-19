@@ -12,11 +12,11 @@ import {
   themeCell,
 } from "@/state.ts";
 
-// Every effect the shell has is a resource: built once per scope, its deps declared, its cleanup a
-// `defer` the scope runs on close. Resolving one starts it; nothing is stopped by hand. React
-// never holds an effect of its own.
-
-/** Hydrates the cells from `storage` on build, then mirrors every later change back to it. A
+/** Every effect the shell has is a resource: built once per scope, its deps declared, its cleanup a
+ * `defer` the scope runs on close. Resolving one starts it; nothing is stopped by hand. React never
+ * holds an effect of its own.
+ *
+ * This one hydrates the cells from `storage` on build, then mirrors every later change back to it. A
  * stored session is restored only if the user had edited it; otherwise the current default example
  * wins and only the theme carries over. */
 export const persistence = resource({

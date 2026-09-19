@@ -78,7 +78,8 @@ export const compile = operation({
         plugins: [virtualFs(files)],
         logLevel: "silent",
       });
-      return result.outputFiles[0].text;
+      const [output] = result.outputFiles;
+      return output.text;
     } catch (error) {
       raise("CompileFailed", { message: readMessage(error) });
     }

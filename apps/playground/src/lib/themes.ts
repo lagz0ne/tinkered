@@ -11,6 +11,8 @@ export const THEMES: readonly { id: ThemeId; label: string; extension: Extension
   { id: "one-dark", label: "One Dark", extension: oneDark },
 ];
 
+const [DEFAULT_THEME] = THEMES;
+
 export function themeExtension(id: ThemeId): Extension {
-  return (THEMES.find((t) => t.id === id) ?? THEMES[0]).extension;
+  return (THEMES.find((t) => t.id === id) ?? DEFAULT_THEME).extension;
 }

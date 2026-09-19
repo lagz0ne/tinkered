@@ -6,10 +6,10 @@ import { App } from "@/App.tsx";
 import { bundler, persistence, runtime } from "@/services.ts";
 import "@/globals.css";
 
-// The composition root. The app owns its scope; the services are resources, so resolving them is
-// what starts them — persistence hydrates the cells from storage before the first paint, the
-// runtime starts listening to the preview, the bundler compiles what is open. React gets a scope
-// to read from and operations to run, and nothing else.
+/** The composition root. The app owns its scope; the services are resources, so resolving them is
+ * what starts them — persistence hydrates the cells from storage before the first paint, the
+ * runtime starts listening to the preview, the bundler compiles what is open. React gets a scope
+ * to read from and operations to run, and nothing else. */
 const scope = createScope();
 scope.resolve(persistence);
 scope.resolve(runtime);
