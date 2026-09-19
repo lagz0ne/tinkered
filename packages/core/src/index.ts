@@ -6,6 +6,7 @@ const borrowSym: unique symbol = Symbol("borrow");
 const tagSym: unique symbol = Symbol("tag");
 const edge: unique symbol = Symbol("edge");
 const resourceSym: unique symbol = Symbol("resource");
+const extensionSym: unique symbol = Symbol("extension");
 const presetSym: unique symbol = Symbol("preset");
 
 /** A declared dependency edge: a mode (`controller`, `required`, `optional`, `all`) onto a target. */
@@ -345,6 +346,25 @@ export declare namespace Scope {
     readonly replacement: unknown;
   };
 
+  /** Middleware over the scope's verbs (ADR 0050): each hook is an onion layer with `next`. Only
+   * `start` and `close` are wired in core/t32; a declared `resolve`/`run`/`write` throws `NotSupported`. */
+  export type Extension<T = unknown> = {
+    readonly [extensionSym]: true;
+    readonly label: string;
+    start?(scope: Handle, ctx: Resource.Ctx, next: () => Promise<void>): T | PromiseLike<T>;
+    resolve?(
+      target: Data.Cell<unknown> | Resource.Handle<unknown> | Tag.Handle<unknown>,
+      next: () => unknown,
+    ): unknown;
+    run?(
+      op: Operation.Handle<unknown, unknown>,
+      call: Invocation<unknown>,
+      next: () => unknown,
+    ): unknown;
+    write?(cell: Data.Cell<unknown>, value: unknown, next: () => void): void;
+    close?(options: CloseOptions, next: () => Promise<Result>): Promise<Result>;
+  };
+
   /** Values seeded on a scope at creation. */
   export type Options = {
     tags?: readonly Tag.Binding<unknown>[];
@@ -352,6 +372,8 @@ export declare namespace Scope {
     presets?: readonly Preset[];
     /** The ambient clock for this scope; child sessions inherit it. Default is the system clock. */
     clock?: Clock.Handle;
+    /** Middleware installed on the root scope only (ADR 0050); sessions inherit the resolved values. */
+    extensions?: readonly Extension<unknown>[];
   };
 
   /** How a scope settled: cleanly, by an inside-out failure, or as a cancellation. */
@@ -405,6 +427,9 @@ export declare namespace Scope {
     resolve<T>(edge: Edge<"all", Tag.Handle<T>>): T[];
     resolve<T>(edge: Edge<"optional", Tag.Handle<T>>): Tag.Presence<T>;
     resolve<T>(edge: Edge<"required", Tag.Handle<T>>): T;
+    /** Read what an extension's `start` returned (ADR 0050): available once that extension's start
+     * settled (`NotResolved` before, or when the extension is not installed on this scope). */
+    resolve<T>(ext: Extension<T>): T;
     /** Run an operation now — the everyday call; `controller(op).run(call)` is the long form.
      * Same `CallArgs`/`Invocation` rules as before (ADR 0022). A call carrying `tags` opens a
      * child session for the run (ADR 0038) and is always async: it returns `Promise<Awaited<T>>`
@@ -444,6 +469,9 @@ export declare namespace Scope {
      * ({@link CloseOptions}, ADR 0028). Always resolves to a {@link Result} describing the actual
      * settled state + any teardown errors — never throws (0027). */
     close(opts?: CloseOptions): Promise<Result>;
+    /** Settles when every installed extension's `start` chain settled (ADR 0050). A scope with no
+     * extensions is ready at once (one shared, already-resolved promise). */
+    readonly ready: Promise<void>;
   };
 }
 
@@ -457,6 +485,8 @@ const isTag = (n: unknown): n is Tag.Handle<unknown> =>
   (n as { [tagSym]?: true } | null | undefined)?.[tagSym] === true;
 const isEdge = (n: unknown): n is Edge<string, unknown> =>
   (n as { [edge]?: true } | null | undefined)?.[edge] === true;
+const isExtension = (n: unknown): n is Scope.Extension<unknown> =>
+  (n as { [extensionSym]?: true } | null | undefined)?.[extensionSym] === true;
 const isThenable = (v: unknown): v is PromiseLike<unknown> =>
   !!v &&
   (typeof v === "object" || typeof v === "function") &&
@@ -467,6 +497,32 @@ const edgeTo = <K extends string, N>(kind: K, target: N): Edge<K, N> => ({
   kind,
   target,
 });
+
+/** Declare an extension (stamps the private symbol; the config is the hooks + label). */
+export function extension<T = void>(config: {
+  readonly label: string;
+  readonly start?: (
+    scope: Scope.Handle,
+    ctx: Resource.Ctx,
+    next: () => Promise<void>,
+  ) => T | PromiseLike<T>;
+  readonly resolve?: (
+    target: Data.Cell<unknown> | Resource.Handle<unknown> | Tag.Handle<unknown>,
+    next: () => unknown,
+  ) => unknown;
+  readonly run?: (
+    op: Operation.Handle<unknown, unknown>,
+    call: Scope.Invocation<unknown>,
+    next: () => unknown,
+  ) => unknown;
+  readonly write?: (cell: Data.Cell<unknown>, value: unknown, next: () => void) => void;
+  readonly close?: (
+    options: Scope.CloseOptions,
+    next: () => Promise<Scope.Result>,
+  ) => Promise<Scope.Result>;
+}): Scope.Extension<T> {
+  return { ...config, [extensionSym]: true as const };
+}
 
 /** Admit a raw value through a parser once; parse failures become a registry error. */
 function admit<T>(label: string, parse: Data.Parse<T> | undefined, raw: unknown): T {
@@ -738,6 +794,8 @@ type Layer = {
   obs: Obs;
   clock: Clock.Handle;
   emptyCtx: Resource.Ctx | undefined;
+  /** Extension start values by extension, on the root layer only (ADR 0050). */
+  exts: Map<Scope.Extension<unknown>, { settled: boolean; value: unknown }> | undefined;
 };
 
 /** Late use of a sealed scope fails loudly. */
@@ -1654,8 +1712,101 @@ class EmptyCtx implements Resource.Ctx {
   }
 }
 
+/** Throw `NotSupported` for an extension hook that lands in a later ticket (ADR 0050). */
+function rejectUnwired(ext: Scope.Extension<unknown>): void {
+  if (ext.resolve !== undefined)
+    raise("NotSupported", { label: ext.label, reason: "resolve lands in core/t33" });
+  if (ext.run !== undefined)
+    raise("NotSupported", { label: ext.label, reason: "run lands in core/t34" });
+  if (ext.write !== undefined)
+    raise("NotSupported", { label: ext.label, reason: "write lands in core/t35" });
+}
+
+/** Wrap the structural close in the extensions' `close` onion (ADR 0050): first registered is
+ * outermost; extensions without a `close` hook are skipped when the chain is built. */
+function closeThrough(
+  layer: Layer,
+  closers: readonly Scope.Extension<unknown>[],
+): (opts?: Scope.CloseOptions) => Promise<Scope.Result> {
+  return (opts?: Scope.CloseOptions): Promise<Scope.Result> => {
+    const at = (index: number): Promise<Scope.Result> => {
+      if (index >= closers.length) return closeLayer(layer, !opts?.graceful);
+      const closer = closers[index];
+      if (closer.close === undefined) return closeLayer(layer, !opts?.graceful);
+      return closer.close(opts ?? {}, () => at(index + 1));
+    };
+    return at(0);
+  };
+}
+
+/** Run the extensions' `start` onion (ADR 0050): registration order, first is outermost. Each
+ * start's returned value (awaited) is stored per extension; the records flip `settled` only when
+ * that extension's start settled. A rejected start records the layer failure (so a later close
+ * settles `failed`), force-closes the scope at once, and rejects `ready` with the same error. */
+function runStartChain(
+  layer: Layer,
+  scope: Scope.Handle,
+  exts: readonly Scope.Extension<unknown>[],
+  done: () => void,
+  failed: (error: unknown) => void,
+): void {
+  const at = async (index: number): Promise<void> => {
+    if (index >= exts.length) return;
+    const ext = exts[index];
+    if (ext.start === undefined) return at(index + 1);
+    const value = await ext.start(scope, new ExtensionCtx(layer, ext.label), () => at(index + 1));
+    const rec = layer.exts?.get(ext);
+    if (rec !== undefined) {
+      rec.value = value;
+      rec.settled = true;
+    }
+  };
+  ignoreRejection(
+    at(0).then(done, (error: unknown) => {
+      layer.failure ??= { cause: error };
+      ignoreRejection(closeLayer(layer, true));
+      failed(error);
+    }),
+  );
+}
+
 function emptyCtxFor(owner: Layer): Resource.Ctx {
   return (owner.emptyCtx ??= new EmptyCtx(owner));
+}
+
+/** The receiver an extension's `start` builds through (ADR 0050): `defer` lands in the layer's
+ * defers like `onClose` but receives the settled end; `signal` is the layer's abort signal. One
+ * instance per extension, labelled with the extension. */
+class ExtensionCtx implements Resource.Ctx {
+  readonly obs = OFF_OBS;
+  readonly log = OFF_LOG;
+  readonly clock: Clock.Handle;
+  readonly label: string;
+  private owner: Layer;
+  constructor(owner: Layer, label: string) {
+    this.owner = owner;
+    this.label = label;
+    this.clock = owner.clock;
+  }
+  readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
+    this.owner.defers.push({ fn, resource: undefined });
+  };
+  get signal(): AbortSignal {
+    return signalOf(this.owner);
+  }
+}
+
+/** Read what an extension's `start` returned: the root layer holds one record per installed
+ * extension, so a session walks up (ADR 0050). Unsettled or not installed is `NotResolved`. */
+function resolveExtension(layer: Layer, ext: Scope.Extension<unknown>): unknown {
+  for (let current: Layer | undefined = layer; current !== undefined; current = current.parent) {
+    const rec = current.exts?.get(ext);
+    if (rec !== undefined) {
+      if (!rec.settled) raise("NotResolved", { label: ext.label });
+      return rec.value;
+    }
+  }
+  raise("NotResolved", { label: ext.label });
 }
 
 function buildResource<T>(
@@ -2150,6 +2301,7 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     obs: parent ? parent.obs : makeObs(options?.observe),
     clock: clockFor(parent, options),
     emptyCtx: undefined,
+    exts: undefined,
   };
   if (parent) {
     parent.children.add(layer);
@@ -2204,6 +2356,8 @@ function abortSubtree(root: Layer): void {
 }
 
 const SUCCESS: Scope.Outcome = { status: "success" };
+/** A scope with no extensions is ready at once: one shared, already-resolved promise. */
+const READY: Promise<void> = Promise.resolve();
 const RELEASED: Scope.End = { status: "released" };
 
 /** Drain a layer's `defer`s in reverse registration order (LIFO, ADR 0026), awaiting each before the
@@ -2491,6 +2645,35 @@ async function bodyResult<R>(body: Promise<R>): Promise<R | undefined> {
   }
 }
 
+/** Wrap a plain root handle with the extensions' plumbing (ADR 0050): validate hooks, store one
+ * start-value record per installed extension, override `close` with the close chain, add `ready`,
+ * then kick the start chain with the EXTENDED handle. Cold path only — plain scopes never enter. */
+function extendHandle(
+  layer: Layer,
+  plain: Scope.Handle,
+  exts: readonly Scope.Extension<unknown>[],
+): Scope.Handle {
+  for (const ext of exts) rejectUnwired(ext);
+  const records = new Map<Scope.Extension<unknown>, { settled: boolean; value: unknown }>();
+  for (const ext of exts) records.set(ext, { settled: false, value: undefined });
+  layer.exts = records;
+  const closers = exts.filter((ext) => ext.close !== undefined);
+  let settleReady: () => void = noop;
+  let failReady: (error: unknown) => void = noop;
+  const ready = new Promise<void>((resolveReady, rejectReady) => {
+    settleReady = resolveReady;
+    failReady = rejectReady;
+  });
+  ignoreRejection(ready);
+  const extended: Scope.Handle = {
+    ...plain,
+    close: closers.length ? closeThrough(layer, closers) : plain.close,
+    ready,
+  };
+  runStartChain(layer, extended, exts, settleReady, failReady);
+  return extended;
+}
+
 function handleFor(layer: Layer): Scope.Handle {
   const settled = async (): Promise<void> => {
     while (layer.pending.size) await Promise.all(layer.pending);
@@ -2515,7 +2698,12 @@ function handleFor(layer: Layer): Scope.Handle {
     return controllerOf(target);
   }) as Scope.Handle["controller"];
   const resolve = (<T>(
-    target: Data.Cell<T> | Resource.Handle<T> | Tag.Handle<T> | Edge<string, Tag.Handle<T>>,
+    target:
+      | Data.Cell<T>
+      | Resource.Handle<T>
+      | Tag.Handle<T>
+      | Edge<string, Tag.Handle<T>>
+      | Scope.Extension<unknown>,
   ): unknown => {
     ensureOpen(layer);
     if (isData(target)) return readCell(layer, target);
@@ -2523,6 +2711,7 @@ function handleFor(layer: Layer): Scope.Handle {
       return (controllerOf(target) as Scope.ResourceController<T>).resolve();
     }
     if (isEdge(target)) return resolveEdge(layer, target, undefined);
+    if (isExtension(target)) return resolveExtension(layer, target);
     return tagRequired(layer, target as Tag.Handle<unknown>);
   }) as Scope.Handle["resolve"];
   const run = (<T, I>(op: unknown, call?: Scope.Invocation<I>): unknown => {
@@ -2582,12 +2771,17 @@ function handleFor(layer: Layer): Scope.Handle {
     },
     settled,
     close: (opts?: Scope.CloseOptions) => closeLayer(layer, !opts?.graceful),
+    ready: READY,
   };
 }
 
 /** Create a scope: the root of a layer chain that reads, controls, and runs cells, resources, tags, and operations. */
 export function createScope(options?: Scope.Options): Scope.Handle {
-  return handleFor(makeLayer(undefined, options));
+  const layer = makeLayer(undefined, options);
+  const plain = handleFor(layer);
+  const exts = options?.extensions;
+  if (exts === undefined || exts.length === 0) return plain;
+  return extendHandle(layer, plain, exts);
 }
 
 export { isError };

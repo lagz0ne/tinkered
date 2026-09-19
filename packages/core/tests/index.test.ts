@@ -2,6 +2,7 @@ import { expect, expectTypeOf, test } from "vite-plus/test";
 import {
   createScope,
   data,
+  extension,
   isError,
   makeTestClock,
   type Observe,
@@ -4290,4 +4291,219 @@ test("a tagged call is always async: a sync op resolves through a promise", asyn
   const out: Promise<number> = createScope().run(ping, { tags: [zone("us")] });
   expect(out instanceof Promise).toBe(true);
   expect(await out).toBe(7);
+});
+
+test("a scope with no extensions is ready at once on one shared promise", async () => {
+  const scope = createScope();
+  expect(scope.ready === scope.ready).toBe(true);
+  expect(await scope.ready.then(() => "ready")).toBe("ready");
+  await scope.close();
+});
+
+test("ready waits for an async start", async () => {
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let started = false;
+  const ext = extension({
+    label: "slow",
+    start: async (_scope, _ctx, next) => {
+      await gate;
+      await next();
+      started = true;
+    },
+  });
+  const scope = createScope({ extensions: [ext] });
+  let settled = false;
+  const waiting = scope.ready.then(() => {
+    settled = true;
+  });
+  expect(started).toBe(false);
+  release();
+  await scope.ready;
+  await waiting;
+  expect(started).toBe(true);
+  expect(settled).toBe(true);
+  await scope.close();
+});
+
+test("a rejected start rejects ready and fails the scope", async () => {
+  const boom = new Error("boom-start");
+  const ext = extension({
+    label: "bad",
+    start: () => Promise.reject(boom),
+  });
+  const scope = createScope({ extensions: [ext] });
+  await expect(scope.ready).rejects.toBe(boom);
+  const result = await scope.close();
+  expect(result.status).toBe("failed");
+});
+
+test("start runs as an onion: first registered is outermost", async () => {
+  const order: string[] = [];
+  const a = extension({
+    label: "a",
+    start: async (_scope, _ctx, next) => {
+      order.push("a:before");
+      await next();
+      order.push("a:after");
+    },
+  });
+  const b = extension({
+    label: "b",
+    start: async (_scope, _ctx, next) => {
+      order.push("b:before");
+      await next();
+      order.push("b:after");
+    },
+  });
+  const scope = createScope({ extensions: [a, b] });
+  await scope.ready;
+  expect(order).toEqual(["a:before", "b:before", "b:after", "a:after"]);
+  await scope.close();
+});
+
+test("a start that skips next short-circuits the inner starts", async () => {
+  let innerRan = false;
+  const outer = extension({
+    label: "outer",
+    start: () => Promise.resolve(),
+  });
+  const inner = extension({
+    label: "inner",
+    start: () => {
+      innerRan = true;
+      return Promise.resolve();
+    },
+  });
+  const scope = createScope({ extensions: [outer, inner] });
+  await scope.ready;
+  expect(innerRan).toBe(false);
+  await scope.close();
+});
+
+test("resolve(ext) reads the start value once ready, NotResolved before", async () => {
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const ext = extension<number>({
+    label: "num",
+    start: async (_scope, _ctx, next) => {
+      await gate;
+      await next();
+      return 41;
+    },
+  });
+  const scope = createScope({ extensions: [ext] });
+  try {
+    scope.resolve(ext);
+    throw new Error("unreachable");
+  } catch (e) {
+    if (!isError(e, "NotResolved")) throw e;
+    expect(e.payload.label).toBe("num");
+  }
+  release();
+  await scope.ready;
+  const value: number = scope.resolve(ext);
+  expect(value).toBe(41);
+  await scope.close();
+});
+
+test("a close hook wraps the structural close", async () => {
+  const order: string[] = [];
+  let inner: string | undefined;
+  const ext = extension({
+    label: "wrap",
+    close: async (_opts, next) => {
+      order.push("before");
+      const result = await next();
+      inner = result.status;
+      order.push("after");
+      return result;
+    },
+  });
+  const scope = createScope({ extensions: [ext] });
+  await scope.ready;
+  const result = await scope.close({ graceful: true });
+  expect(result.status).toBe("success");
+  expect(inner).toBe("success");
+  expect(order).toEqual(["before", "after"]);
+});
+
+test("ctx.defer registered in start runs at close with the settled end", async () => {
+  let seen: string | undefined;
+  const ext = extension({
+    label: "deferred",
+    start: (_scope, ctx, next) => {
+      ctx.defer((end) => {
+        seen = end.status;
+      });
+      return next();
+    },
+  });
+  const scope = createScope({ extensions: [ext] });
+  await scope.ready;
+  const result = await scope.close({ graceful: true });
+  expect(result.status).toBe("success");
+  expect(seen).toBe("success");
+});
+
+test("ctx.signal aborts on a forced close", async () => {
+  let aborted = false;
+  const ext = extension({
+    label: "watcher",
+    start: (_scope, ctx, next) => {
+      ctx.signal.addEventListener("abort", () => {
+        aborted = true;
+      });
+      return next();
+    },
+  });
+  const scope = createScope({ extensions: [ext] });
+  await scope.ready;
+  await scope.close();
+  expect(aborted).toBe(true);
+});
+
+test("a declared run hook throws NotSupported at creation", () => {
+  const ext = extension({
+    label: "later",
+    run: (_op, _call, next) => next(),
+  });
+  try {
+    createScope({ extensions: [ext] });
+    throw new Error("unreachable");
+  } catch (e) {
+    if (!isError(e, "NotSupported")) throw e;
+    expect(e.payload.label).toBe("later");
+  }
+});
+
+test("a session after ready has an already-resolved ready", async () => {
+  const ext = extension({
+    label: "base",
+    start: (_scope, _ctx, next) => next(),
+  });
+  const scope = createScope({ extensions: [ext] });
+  await scope.ready;
+  const child = scope.createSession();
+  expect(await child.ready.then(() => "ready")).toBe("ready");
+  await scope.close();
+});
+
+test("resolve of an extension that is not installed throws NotResolved", async () => {
+  const installed = extension({ label: "in", start: (_scope, _ctx, next) => next() });
+  const other = extension({ label: "out", start: (_scope, _ctx, next) => next() });
+  const scope = createScope({ extensions: [installed] });
+  await scope.ready;
+  try {
+    scope.resolve(other);
+    throw new Error("unreachable");
+  } catch (e) {
+    if (!isError(e, "NotResolved")) throw e;
+    expect(e.payload.label).toBe("out");
+  }
+  await scope.close();
 });
