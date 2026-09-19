@@ -40,6 +40,11 @@ const addUser = operation({
 });
 ```
 
+A helper that accepts a transaction can use
+`DrizzleStore.Tx<Awaited<ReturnType<typeof openDatabase>>>` when `openDatabase` is async.
+`Awaited` selects the built database value; `ReturnType` alone still names its promise.
+The [tracker operations](../../apps/issue-tracker/src/server/operations.ts) use this pattern.
+
 The outcome rule: when the owning session (or a graceful scope close) settles `success`,
 the factory returns from the transaction callback — commit. On `failed`, `cancelled`, or
 `released` it raises `Rollback` inside the callback — rollback. Nobody outside ever sees

@@ -1,5 +1,12 @@
 # @tinker/core
 
+## Operation input
+
+Pass outside data with `scope.run(op, { rawInput: value })`. Core runs the operation's
+input reader before its body. Pass an already typed value with
+`scope.run(op, { input: typedValue })`; that path trusts the value and skips parsing.
+Tests of rejected outside input should use `rawInput` or the real HTTP/CLI/tool entry.
+
 ## Extensions
 
 An extension is middleware over the scope's verbs (ADR 0050). Declare it with

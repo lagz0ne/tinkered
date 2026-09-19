@@ -23,14 +23,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-| Card | Owner | Next | Verify |
-| ---- | ----- | ---- | ------ |
+| Card                              | Owner        | Next                                                                                       | Verify                                               |
+| --------------------------------- | ------------ | ------------------------------------------------------------------------------------------ | ---------------------------------------------------- |
+| tracker/t03 — CLI and issue tools | Tracker lead | Build the [shared command slice](docs/roadmap/issue-tracker-v1/issues/03-cli-and-tools.md) | CLI and MCP update the same server and browser state |
 
 ## Doing
 
-| Card                                           | Owner                              | Next                                                                                                             | Verify                                       |
-| ---------------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| tracker/t02 — Edit, assign, and discuss issues | Tracker lead + private contributor | Implement the [edit/detail slice](docs/roadmap/issue-tracker-v1/issues/02-edit-and-discuss.md), then lead review | Shared edits, comments, conflicts, and tests |
+| Card | Owner | Next | Verify |
+| ---- | ----- | ---- | ------ |
 
 ## Review
 
@@ -40,7 +40,6 @@ _None._
 
 | Card                                  | Waiting for | Next                                                                                           | Verify                                                                              |
 | ------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| tracker/t03 — CLI and issue tools     | tracker/t02 | Build the [shared command slice](docs/roadmap/issue-tracker-v1/issues/03-cli-and-tools.md)     | CLI and MCP update the same server and browser state                                |
 | tracker/t04 — Optional triage draft   | tracker/t03 | Build the [harness slice](docs/roadmap/issue-tracker-v1/issues/04-triage-draft.md)             | Stream/cancel a draft; posting uses the normal comment action; offline seam tests   |
 | tracker/t05 — Finish and show the app | tracker/t04 | Complete the [demo and test guide](docs/roadmap/issue-tracker-v1/issues/05-finish-and-show.md) | Full flow, reconnect/shutdown proof, checks, feedback, and verified browser preview |
 
@@ -61,6 +60,7 @@ _None._
 
 | Card                                                              | Evidence                                                                                                                                                                                                                                   |
 | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| tracker/t02 — Edit, assign, and discuss issues                    | Code `1be5dfc`; [lead proof](docs/roadmap/issue-tracker-v1/PROGRESS.md#t02-complete--2026-09-19): 11 app tests, 37 fresh validation lanes, 48 React tests, stale-draft regression, two tabs, reload/restart, and clean shutdown            |
 | tracker/t01 — Create an issue and see it live                     | Code `3490295`; [lead proof](docs/roadmap/issue-tracker-v1/PROGRESS.md#t01-complete--2026-09-19): 3 app tests, 401 library tests, 37 lanes, two tabs, reload/restart, startup-drop error, clean shutdown, and app SCIP                     |
 | authoring/next — Choose and scope the issue tracker               | User chose the app; [plan and five working slices](docs/roadmap/issue-tracker-v1/PROGRESS.md) recorded; public API anchors indexed; doc links and `vp check` passed                                                                        |
 | sync/v1 — Complete sync and confirm the pushed result             | [All seven tickets done](docs/roadmap/sync-v1/PROGRESS.md#completion-check--2026-09-19); remote `sync/t07` = `3a6ae72`; fresh 28 tests and 37 validation lanes passed; recorded mutation 78.06%; optional bench work parked by user choice |

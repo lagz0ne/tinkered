@@ -14,7 +14,7 @@ an edit revision.
 
 ```bash
 vp install
-vp run --filter '@tinker-issue-tracker...' build
+vp run --no-cache --filter '@tinker-issue-tracker...' build
 HOST=127.0.0.1 PORT=4311 DATA_PATH=./data/issues vp run @tinker-issue-tracker#start
 ```
 

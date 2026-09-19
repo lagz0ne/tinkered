@@ -1,13 +1,13 @@
 # Issue tracker v1 — build progress
 
 **Active.** User-approved app direction: a realtime issue tracker that shows easy composition
-and testing of the existing libraries. [Plan](PLAN.md). The create/live slice is complete; editing is next.
+and testing of the existing libraries. [Plan](PLAN.md). Create, edit, and discussion are complete; CLI and tools are next.
 
 | Ticket      | Delivers                                                            | Blocked by | State   |
 | ----------- | ------------------------------------------------------------------- | ---------- | ------- |
 | tracker/t01 | [Create an issue and see it live](issues/01-create-and-see-live.md) | —          | Done    |
-| tracker/t02 | [Edit, assign, and discuss issues](issues/02-edit-and-discuss.md)   | t01        | Doing   |
-| tracker/t03 | [Use the same actions from CLI and MCP](issues/03-cli-and-tools.md) | t02        | Waiting |
+| tracker/t02 | [Edit, assign, and discuss issues](issues/02-edit-and-discuss.md)   | t01        | Done    |
+| tracker/t03 | [Use the same actions from CLI and MCP](issues/03-cli-and-tools.md) | t02        | Ready   |
 | tracker/t04 | [Draft a summary with the harness](issues/04-triage-draft.md)       | t03        | Waiting |
 | tracker/t05 | [Finish the demo and its test guide](issues/05-finish-and-show.md)  | t04        | Waiting |
 
@@ -15,7 +15,7 @@ Lead uses `/home/paseo/next/tinkered-sync-land` on `lead/sync-land`. Writers get
 worktrees but stay in Paseo workspace `wks_85042cce8c480929`. One writer per ticket; no writer
 pushes or runs mutation. The lead reviews the actual diff and browser result, then lands and pushes.
 
-## Active writer
+## Completed t02 writer
 
 `tracker/t02` uses `/home/paseo/next/tinkered-issue-t02`, branch `tracker/t02-edit-discuss`,
 from verified `0050bbc`. All agents remain in workspace `wks_85042cce8c480929`.
@@ -273,3 +273,175 @@ The same review requires an issue-id-owned detail view, snapshot-driven comment 
 timestamps match, and visible refresh errors without losing drafts. The independent process probe
 is `/tmp/tracker-t02-browser-lead.mjs`; it checks edits, conflict/history, comments, clear assignment,
 filtering, switching issues, phone fit, reload, restart, and live-SSE shutdown. No preview exists yet.
+
+## t02 complete — 2026-09-19
+
+Code `1be5dfc` is the reviewed cherry-pick of writer `df4c197`. App source and tests are identical
+to the writer commit. One authority queue owns writes and detail reads. Only successful writes
+publish. Detail uses HTTP after a list snapshot; a family added no value here. Local draft revision
+advances only after its own save or explicit reload-current.
+
+Independent checks by lead `d99c8199-fd3a-4af8-b57d-9728e6f5fc96` in the final private tree:
+
+- Fresh dependency-first build: `vp run --no-cache --filter '@tinker-issue-tracker...' build` —
+  all 8 tasks passed with zero cache hits. `/tmp/tracker-t02-final-build.log`.
+  The guide now uses this observed command because the writer saw stale cached client output.
+- App tests: 11 passed; `/tmp/tracker-t02-final-tests.log`. Strict census: all enforced hits zero;
+  `/tmp/tracker-t02-final-census.log`. `vp check`: zero errors and 13 existing warnings;
+  `/tmp/tracker-t02-final-check.log`. Writer-side baseline errors are not the lead gate evidence.
+- `node scripts/validate.mjs` on the final t02 tree: all 37 lanes passed;
+  `/tmp/tracker-t02-final-validate.log`. This is a fresh t02 run by this lead, not t01 evidence
+  and not a claim from either parent. React: 48 tests passed uncached;
+  `/tmp/tracker-t02-lead-react-tests.log`. Library source did not change; no mutation run.
+- Real HTTP/PGlite probe passed on the final tree: edit, stale 409/current saved state, exact
+  unchanged history after rejection, independent comment, invalid 400, clear assignment, and
+  exact detail restoration after reopen. `/tmp/tracker-t02-final-http.log` and
+  `/tmp/tracker-t02-http-lead-result.json`. Actual t01-schema migration was proven in the early
+  probe; `/tmp/tracker-t02-http-early-result.json` preserves that result. The final run only
+  reopens that already migrated fixture; it does not repeat the old-schema migration claim.
+- Real Chromium, fresh owned process/port/database: two tabs, retained draft/revision under
+  remote edits, stale 409 with unchanged full history, comments while stale, reload-current,
+  clear assignment, status filter, and switching issue drafts. Reload and full process restart
+  restored exact detail/comments/activity. SIGTERM with live SSE exited 0 twice; no page errors.
+  `/tmp/tracker-t02-final-browser.log`, `/tmp/tracker-t02-browser-lead-result.json`.
+  The same probe failed on the old draft revision behavior before the fix:
+  `/tmp/tracker-t02-stale-draft-before.log`. The 390px screenshot was inspected; no sideways scroll.
+- Public-import and built-client inspection found no private library entries, database driver,
+  Node filesystem, MCP, or model SDK in browser assets. Core feedback and its two small doc gaps
+  are recorded in [the feedback table](../core-feedback.md).
+- `vp install` still exits 1 for the pre-existing esbuild build-policy placeholder. No policy edit;
+  installed links, uncached builds, tests, and real processes work.
+
+The app is not complete yet. CLI/MCP, optional harness, recovery, touch targets, and the verified
+public preview remain t03–t05. No preview exists. t03 is ready for its own private contributor.
+
+SCIP: all ten package indexes plus the final explicit app index passed. No library symbols changed.
+Removed `createSaveQueue` has no references:
+
+```text
+== issue-tracker
+  definitions
+  references (count  symbol  file)
+    (none)
+```
+
+Current app definitions and callers match the brief: server authority stays in bridge/routes;
+new detail/edit/comment readers reach shared model, HTTP client, operations, and public entry.
+`IssueConflict.current` adds the expected `errors.ts` reference. UI/types/tests grow with the slice;
+`connectTab` remains in its existing client files. No caller escapes the app.
+
+```text
+== issue-tracker
+  definitions
+    /addComment.  ->  src/server/operations.ts:134
+    /createIssue.  ->  src/server/operations.ts:86
+    /editIssue.  ->  src/server/operations.ts:111
+    /getDetail.  ->  src/client/api.ts:45
+    /getIssues.  ->  src/client/api.ts:53
+    /issueList.  ->  src/shared/issues.ts:307
+    /listIssues.  ->  src/server/operations.ts:184
+    /patchIssue.  ->  src/client/api.ts:25
+    /postComment.  ->  src/client/api.ts:34
+    /postIssue.  ->  src/client/api.ts:17
+    /readDetail.  ->  src/server/operations.ts:156
+    Booted/Composed#  ->  src/server/bridge.ts:22
+    Booted/Save#  ->  src/server/bridge.ts:12
+    Issues/CommentInput#  ->  src/shared/issues.ts:59
+    Issues/Detail#  ->  src/shared/issues.ts:39
+    Issues/EditInput#  ->  src/shared/issues.ts:53
+    Issues/Issue#  ->  src/shared/issues.ts:17
+    bootScope().  ->  src/server/bridge.ts:62
+    buildApp().  ->  src/server/app.ts:52
+    connectTab().  ->  src/client/sync.ts:53
+    createSerial().  ->  src/server/bridge.ts:39
+    parseCommentInput().  ->  src/shared/issues.ts:275
+    parseCreateInput().  ->  src/shared/issues.ts:210
+    parseEditInput().  ->  src/shared/issues.ts:227
+    parseIssue().  ->  src/shared/issues.ts:101
+    parseIssueDetail().  ->  src/shared/issues.ts:198
+  references (count  symbol  file)
+        1  /addComment.  src/index.ts
+        2  /addComment.  src/server/bridge.ts
+        1  /createIssue.  src/index.ts
+        2  /createIssue.  src/server/bridge.ts
+        1  /editIssue.  src/index.ts
+        2  /editIssue.  src/server/bridge.ts
+        2  /getDetail.  src/client/App.tsx
+        3  /issueList.  src/client/App.tsx
+        2  /issueList.  src/client/sync.ts
+        1  /issueList.  src/index.ts
+        2  /issueList.  src/server/app.ts
+        3  /issueList.  src/server/bridge.ts
+        2  /issueList.  src/server/operations.ts
+       15  /issueList.  tests/issues.test.ts
+        1  /listIssues.  src/index.ts
+        2  /listIssues.  src/server/bridge.ts
+        2  /listIssues.  tests/issues.test.ts
+        2  /patchIssue.  src/client/App.tsx
+        2  /postComment.  src/client/App.tsx
+        2  /postIssue.  src/client/App.tsx
+        1  /readDetail.  src/index.ts
+        2  /readDetail.  src/server/bridge.ts
+        5  Booted/Composed#  src/server/app.ts
+        1  Booted/Composed#  src/server/bridge.ts
+        1  Booted/Composed#  src/server/main.ts
+       44  Booted/Composed#  tests/issues.test.ts
+        3  Booted/Save#  src/server/app.ts
+        5  Booted/Save#  src/server/bridge.ts
+       20  Booted/Save#  tests/issues.test.ts
+        1  Issues/CommentInput#  src/client/api.ts
+        1  Issues/CommentInput#  src/server/bridge.ts
+        7  Issues/CommentInput#  src/server/operations.ts
+        4  Issues/CommentInput#  src/shared/issues.ts
+       12  Issues/CommentInput#  tests/issues.test.ts
+       12  Issues/Detail#  src/client/App.tsx
+        2  Issues/Detail#  src/server/bridge.ts
+        4  Issues/Detail#  src/server/operations.ts
+        4  Issues/Detail#  src/shared/issues.ts
+       22  Issues/Detail#  tests/issues.test.ts
+        1  Issues/EditInput#  src/client/api.ts
+        1  Issues/EditInput#  src/server/bridge.ts
+       13  Issues/EditInput#  src/server/operations.ts
+        7  Issues/EditInput#  src/shared/issues.ts
+       21  Issues/EditInput#  tests/issues.test.ts
+       34  Issues/Issue#  src/client/App.tsx
+        1  Issues/Issue#  src/errors.ts
+        2  Issues/Issue#  src/server/bridge.ts
+       38  Issues/Issue#  src/server/operations.ts
+       12  Issues/Issue#  src/shared/issues.ts
+       51  Issues/Issue#  tests/issues.test.ts
+        1  bootScope().  src/index.ts
+        1  bootScope().  src/server/bridge.ts
+        2  bootScope().  src/server/main.ts
+       14  bootScope().  tests/issues.test.ts
+        1  buildApp().  src/index.ts
+        2  buildApp().  src/server/app.ts
+        3  buildApp().  src/server/main.ts
+        4  buildApp().  tests/issues.test.ts
+        3  connectTab().  src/client/main.tsx
+        2  connectTab().  src/client/sync.ts
+        9  createSerial().  src/server/bridge.ts
+        2  parseCommentInput().  src/client/api.ts
+        1  parseCommentInput().  src/index.ts
+        2  parseCommentInput().  src/server/app.ts
+        2  parseCommentInput().  src/server/operations.ts
+        4  parseCommentInput().  src/shared/issues.ts
+        2  parseCreateInput().  src/client/api.ts
+        1  parseCreateInput().  src/index.ts
+        2  parseCreateInput().  src/server/app.ts
+        2  parseCreateInput().  src/server/operations.ts
+        8  parseCreateInput().  src/shared/issues.ts
+        2  parseEditInput().  src/client/api.ts
+        1  parseEditInput().  src/index.ts
+        2  parseEditInput().  src/server/app.ts
+        2  parseEditInput().  src/server/operations.ts
+       11  parseEditInput().  src/shared/issues.ts
+        2  parseIssue().  src/client/App.tsx
+        3  parseIssue().  src/client/api.ts
+        1  parseIssue().  src/index.ts
+        4  parseIssue().  src/server/operations.ts
+       17  parseIssue().  src/shared/issues.ts
+        2  parseIssueDetail().  src/client/api.ts
+        1  parseIssueDetail().  src/index.ts
+        6  parseIssueDetail().  src/shared/issues.ts
+```
