@@ -204,7 +204,17 @@ tickets, then contributors with lead review:
          cold +17 ns, session +16 ns — one extra field on every `Layer` (`exts`) and on every handle (`ready`); t33 moves
          `exts` into a WeakMap keyed by root layer and extracts only the resolve dispatch (handleFor sits at the
          complexity ceiling, 13th warning)._
-   - [ ] **core/t33 — the `resolve` chain.** Verify: probes flat when unhooked; one hooked read test.
+   - [ ] **sync follow-up — mutation fell 73.53 → 62.34 with t06 (40 uncovered mutants in the subscribe start: the forced-close
+         `ctx.signal` path, the far-side close while waiting, the zero-keys path).** Verify: three seam tests through `ready`;
+         `sync#mutate` alone ≥ 70.
+   - [x] **core/t33 — the `resolve` chain + the t32 follow-ups.** _Done: tag `core/t33` (1810c85), writer-built, no fix
+         round: `resolveThrough(layer, resolvers)` = the onion on the root handle (registration order, short-circuit,
+         `Extension` targets bypass to the registry; sessions keep the plain dispatch — the v1 limit, in the README);
+         extension records moved into a module `WeakMap<Layer, …>` (the `Layer` record is back to main's shape); the
+         resolve-dispatch extraction was tried, measured (+6–12 ns on `create`) and reverted — `handleFor` stays t32's
+         exact body. 7 seam tests (core 246), size 22394 B, 37 lanes green, mutation 78.62. Lead A/B
+         (pinned, min of 3, t32 → t33): create 168.6 → 169.3, cold 716.7 → 707.0, session 1623 → 1587, op 101.9 → 100.9 —
+         the cold/session cost of t32 is reclaimed._
    - [ ] **core/t34 — the `run` chain.** Verify: `op` probe flat when unhooked; a refusing middleware short-circuits.
    - [ ] **core/t35 — the `write` chain.** Verify: cell-write probe flat when unhooked; a refusing write leaves the cell.
    - [x] **sync/t06 — `source()` and `subscribe(transport)` as extensions.** _Done: tag `sync/t06` (6409128), writer-built

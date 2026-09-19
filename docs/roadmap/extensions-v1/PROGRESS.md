@@ -23,7 +23,7 @@ extension's `ctx`: `defer` lands in `owner.defers`, `signal` is the layer's); `S
 | tag      | ticket                                                                                                        | blockers | status |
 | -------- | ------------------------------------------------------------------------------------------------------------- | -------- | ------ |
 | core/t32 | `Scope.Extension`, `extensions` option, `start`/`close` chains, `scope.ready`, `resolve(ext)`, `NotSupported` | —        | [x]    |
-| core/t33 | the `resolve` chain (cells, resources, tags) — probes flat when unhooked                                      | t32      | [ ]    |
+| core/t33 | the `resolve` chain (cells, resources, tags) — probes flat when unhooked                                      | t32      | [x]    |
 | core/t34 | the `run` chain (operation calls) — `op` probe flat when unhooked; short-circuit                              | t32      | [ ]    |
 | core/t35 | the `write` chain (cell sets) — probe flat when unhooked; a refused write leaves the cell                     | t32      | [ ]    |
 | sync/t06 | `source()` + `subscribe(transport)` as extensions; readiness = the initial data set; recipe + README          | t32      | [x]    |
@@ -34,6 +34,7 @@ extension's `ctx`: `defer` lands in `owner.defers`, `signal` is the layer's); `S
 | -------- | ------- | ----- | ------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | core/t32 | 66bcea7 | 239   | 22128         | 78.47    | create 176→169, warm 29.2→29.2, op 100.9→101.1, opres 330→327, cold 695→711, session 1617→1633 (pinned, min of 3, A/B alternating) | writer-built, one fix round (handle literal restored; cold-path `extendHandle`). Follow-up in t33: `exts` off the Layer record; extract only the resolve dispatch. |
 | sync/t06 | 6409128 | 21    | 4066          | 62.34    | — (no core change)                                                                                                                 | `source()`/`subscribe(transport)` as extensions; ready = the initial data set; `SyncNotReady`; `fail()` in the registry. Writer-built, one fix round.              |
+| core/t33 | 1810c85 | 246   | 22394         | 78.62    | t32 → t33 (pinned, min of 3): create 168.6→169.3, cold 716.7→707.0, session 1623→1587, op 101.9→100.9                              | `resolveThrough` onion on the root handle; records in a WeakMap off the Layer; the dispatch extraction measured and reverted. Writer-built, no fix round.          |
 
 ### Impact blocks (ADR 0047)
 
@@ -43,6 +44,19 @@ Blocks list `src/` and `tests/` files only (examples live outside the package in
 sync  source     src/index.ts tests/sync.test.ts
 sync  subscribe  src/index.ts tests/sync.test.ts
 sync  fail       src/errors.ts src/index.ts
+```
+
+```impact core/t33
+core  resolveThrough    src/index.ts
+core  resolveExtension  src/index.ts
+core  extendHandle      src/index.ts
+core  rejectUnwired     src/index.ts
+```
+
+```impact core/t34
+core  runThrough    src/index.ts
+core  extendHandle  src/index.ts
+core  rejectUnwired src/index.ts
 ```
 
 ```impact core/t32
