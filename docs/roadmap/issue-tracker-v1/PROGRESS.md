@@ -972,3 +972,26 @@ its final gate step; strict census success is not a full-check success.
 The private-source/public-entry scan and built-browser scan found no private
 library imports, model/database SDK markers, Node filesystem import, or
 server credential/config variable in the client assets.
+
+### t04 saved public-test review — corrections required
+
+The lead read contributor `5c71766` and its eight new public app tests.
+The tests now retain actual SDK tool callbacks and route reads to the live
+app; the earlier closed-seed fixture bug is corrected. The writer reports
+23 tests passing, but the lead has not rerun or accepted this commit.
+
+The same writer received a concrete correction/finalization step:
+
+- Add the required durable active disconnect/cancel and live-caller root
+  shutdown tests. The existing already-aborted test does not prove them.
+- Give each SDK registration a fresh config identity; remove casts, bare
+  fixture errors, unused stored state, and excess test helpers.
+- Prove overlapping issue runs through one app, with cleanup that stops held
+  turns even when an assertion fails.
+- Post the generated value and compare exact saved state plus the one append.
+- Finish the opt-in README, app formatting, full gates, and final report.
+
+The lead's HTTP/browser checks already prove these important lifetime paths
+at the real public seam, but temporary review scripts do not replace the
+missing durable regressions. `5c71766` is not cherry-picked. The source
+through writer `3340060` remains staged privately through lead `51c0a46`.

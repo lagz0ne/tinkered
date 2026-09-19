@@ -28,9 +28,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-| Card                                | Owner                                             | Next                                                                                 | Verify                                                                |
-| ----------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| tracker/t04 — Optional triage draft | Muse writer 257f478e; active tracker lead reviews | Add public draft tests; fix UI error handling/style after browser proof of `e87719f` | Public adapter seam tests, saved-state safety, checks and lead review |
+| Card                                | Owner                                             | Next                                                                      | Verify                                                                |
+| ----------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| tracker/t04 — Optional triage draft | Muse writer 257f478e; active tracker lead reviews | Finish cancel/shutdown tests and fixture review; README/full gates follow | Public adapter seam tests, saved-state safety, checks and lead review |
 
 ## Review
 
