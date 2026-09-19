@@ -27,9 +27,11 @@ function wires(): Map<string, (message: Sync.Message) => void> {
 }
 
 /** The recipe: one Hono app sharing one scope, the stream down, the
- * registration up. One way: nothing is pushed unasked. */
-export function recipe(scope: Scope.Handle): Hono {
-  const origin = source(scope);
+ * registration up. One way: nothing is pushed unasked. The origin scope
+ * installs the source extension at boot; each stream reads it back with
+ * `scope.resolve(src).connect(transport)`. */
+export function recipe(scope: Scope.Handle, src: Scope.Extension<Sync.Source>): Hono {
+  const origin = { connect: (transport: Sync.Transport) => scope.resolve(src).connect(transport) };
   const posts = wires();
   const app = new Hono();
   app.use(tinker(scope));
@@ -83,8 +85,10 @@ export function recipe(scope: Scope.Handle): Hono {
   return app;
 }
 
-/** The source half in one call: a scope holding the counter plus the app. */
+/** The source half in one call: a scope holding the counter plus the app.
+ * `boot` installs the source extension and hands both back. */
 export function boot(): { scope: Scope.Handle; app: Hono } {
-  const scope = createScope({ tags: [sync(counter)] });
-  return { scope, app: recipe(scope) };
+  const src = source();
+  const scope = createScope({ tags: [sync(counter)], extensions: [src] });
+  return { scope, app: recipe(scope, src) };
 }

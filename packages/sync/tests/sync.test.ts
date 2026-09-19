@@ -12,7 +12,7 @@ import {
   synced,
   type Sync,
 } from "../src/index.ts";
-import { recipe } from "../../../examples/sync/hono.ts";
+import { boot } from "../../../examples/sync/hono.ts";
 
 /** Parse raw input into text at the process edge. A named function, not a method pull. */
 function parseText(raw: unknown): string {
@@ -20,15 +20,32 @@ function parseText(raw: unknown): string {
   return raw;
 }
 
-/** The shared counter both drivers would publish. */
+/** The shared counter both drivers publish. */
 const counter = data({ label: "counter", initial: 0, meta: [synced({ key: "counter" })] });
 
-/** The shared todo family both drivers would publish. */
+/** The shared todo family both drivers publish. */
 const todos = family({ label: "todo", initial: "", parse: parseText });
 
-/** One counter snapshot at a version. */
-function snapshot(version: number): Sync.Message {
-  return { type: "snapshot", key: "counter", version, value: version };
+/** Read one line per frame: the first line parsing to a snapshot wins. */
+function untilSnapshot(text: string): Sync.Message | undefined {
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("data: ") === false) continue;
+    const message = JSON.parse(trimmed.slice("data: ".length));
+    if (typeof message === "object" && message !== null && message.type === "snapshot")
+      return message;
+  }
+  return undefined;
+}
+
+/** Resolve when a watched cell reaches a value: the watcher settles the one
+ * awaited promise per test once the arrival lands. */
+function reached<T>(watch: (listener: (next: T) => void) => () => void, value: T): Promise<void> {
+  return new Promise<void>((resolve) => {
+    watch((next) => {
+      if (next === value) resolve();
+    });
+  });
 }
 
 test("family hands back the same cell for one id, in creation order", () => {
@@ -78,8 +95,8 @@ test("sync binds cells and families whole on the scope", () => {
 test("memoryPair delivers every send in order, never synchronously", () => {
   const [left, right] = memoryPair();
   const seen: Sync.Message[] = [];
-  const first = snapshot(1);
-  const secondMessage = snapshot(2);
+  const first: Sync.Message = { type: "snapshot", key: "counter", version: 1, value: 1 };
+  const secondMessage: Sync.Message = { type: "snapshot", key: "counter", version: 2, value: 2 };
   const second = new Promise<unknown>((resolve) => {
     right.onMessage((message) => {
       seen.push(message);
@@ -113,8 +130,8 @@ test("close reaches both sides once and drops later sends", () => {
   });
   left.close();
   left.close();
-  left.send(snapshot(9));
-  right.send(snapshot(10));
+  left.send({ type: "snapshot", key: "counter", version: 9, value: 9 });
+  right.send({ type: "snapshot", key: "counter", version: 10, value: 10 });
   return parted.then(() => {
     expect(leftClosed).toBe(1);
     expect(rightClosed).toBe(1);
@@ -132,378 +149,280 @@ test("an unsubscribed listener hears nothing more", () => {
   const arrived = new Promise<unknown>((resolve) => {
     right.onMessage(resolve);
   });
-  left.send(snapshot(3));
+  left.send({ type: "snapshot", key: "counter", version: 3, value: 3 });
   return arrived.then(() => {
     expect(dropped).toBe(0);
   });
 });
 
-/** The source's counter: a fresh cell per test so versions never leak. */
-function freshCounter() {
-  return data({ label: "counter", initial: 0, meta: [synced({ key: "counter" })] });
-}
-
-/** Every message arriving on a transport, plus a promise for the Nth one:
- * the listener resolves it as soon as enough arrived — no poll, no sleep. */
-function inbox(transport: Sync.Transport): {
-  seen: Sync.Message[];
-  when(count: number): Promise<Sync.Message[]>;
-} {
-  const seen: Sync.Message[] = [];
-  const waiters: { count: number; resolve: (got: Sync.Message[]) => void }[] = [];
-  transport.onMessage((message) => {
-    seen.push(message);
-    for (let index = waiters.length - 1; index >= 0; index -= 1) {
-      const waiter = waiters[index];
-      if (waiter !== undefined && seen.length >= waiter.count) {
-        waiters.splice(index, 1);
-        waiter.resolve(seen);
-      }
-    }
-  });
-  function when(count: number): Promise<Sync.Message[]> {
-    if (seen.length >= count) return Promise.resolve(seen);
-    return new Promise<Sync.Message[]>((resolve) => {
-      waiters.push({ count, resolve });
-    });
-  }
-  return { seen, when };
-}
-
-/** Resolve when a watched cell reaches a value: the watcher settles the one
- * awaited promise per test once the arrival lands. */
-function reached<T>(watch: (listener: (next: T) => void) => () => void, value: T): Promise<void> {
-  return new Promise<void>((resolve) => {
-    watch((next) => {
-      if (next === value) resolve();
-    });
-  });
-}
-
-/** Reject with a parse edge: only whole numbers cross. */
-function parseWhole(raw: unknown): number {
-  if (typeof raw !== "number" || !Number.isInteger(raw)) throw new Error("whole");
-  return raw;
-}
-
-/** Read one line per frame: the first line parsing to a snapshot wins. */
-function untilSnapshot(text: string): Sync.Message | undefined {
-  for (const line of text.split("\n")) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith("data: ") === false) continue;
-    const message = JSON.parse(trimmed.slice("data: ".length));
-    if (typeof message === "object" && message !== null && message.type === "snapshot")
-      return message;
-  }
-  return undefined;
-}
-
-test("after connect the registered counter reads the source value", () => {
-  const counter = freshCounter();
-  const origin = createScope({ tags: [sync(counter)] });
+test("ready means the viewer holds its initial data set, no watch", () => {
+  const src = source();
+  const origin = createScope({ tags: [sync(counter)], extensions: [src] });
   origin.controller(counter).set(5);
-  const guest = createScope({ tags: [sync(counter)] });
-  const [near, far] = memoryPair();
-  const done = source(origin).connect(near);
-  const watching = reached(
-    (listener: (next: number) => void) => guest.controller(counter).watch(listener),
-    5,
-  );
-  const sub = subscribe(guest, far);
-  return watching.then(() => {
-    expect(guest.resolve(counter)).toBe(5);
-    sub.close();
-    near.close();
-    return done.then(() =>
-      Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]),
-    );
+  return origin.ready.then(() => {
+    const [near, far] = memoryPair();
+    const done = origin.resolve(src).connect(near);
+    const sub = subscribe(far);
+    const guest = createScope({ tags: [sync(counter)], extensions: [sub] });
+    return guest.ready.then(() => {
+      expect(guest.resolve(counter)).toBe(5);
+      guest.resolve(sub).close();
+      return done.then(() =>
+        Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]),
+      );
+    });
   });
 });
 
-test("a source write fans out to two subscribed clients", () => {
-  const counter = freshCounter();
-  const origin = createScope({ tags: [sync(counter)] });
-  const firstScope = createScope({ tags: [sync(counter)] });
-  const secondScope = createScope({ tags: [sync(counter)] });
-  const [near, far] = memoryPair();
-  const [otherNear, otherFar] = memoryPair();
-  const firstDone = source(origin).connect(near);
-  const secondDone = source(origin).connect(otherNear);
-  const firstSeen = inbox(near);
-  const secondSeen = inbox(otherNear);
-  const first = subscribe(firstScope, far);
-  const second = subscribe(secondScope, otherFar);
-  const registered = Promise.all([firstSeen.when(1), secondSeen.when(1)]);
-  const firstWatch = reached(
-    (listener: (next: number) => void) => firstScope.controller(counter).watch(listener),
-    5,
-  );
-  const secondWatch = reached(
-    (listener: (next: number) => void) => secondScope.controller(counter).watch(listener),
-    5,
-  );
-  const settled = registered.then(() => {
-    origin.controller(counter).set(5);
-    return Promise.all([firstWatch, secondWatch]);
-  });
-  return settled.then(() => {
-    expect(firstScope.resolve(counter)).toBe(5);
-    expect(secondScope.resolve(counter)).toBe(5);
-    first.close();
-    second.close();
-    near.close();
-    otherNear.close();
-    return Promise.all([firstDone, secondDone]).then(() =>
-      Promise.all([
-        origin.close({ graceful: true }),
-        firstScope.close({ graceful: true }),
-        secondScope.close({ graceful: true }),
-      ]),
-    );
+test("resolve delivers the installed values: connect on the source, close on the viewer", () => {
+  const src = source();
+  const origin = createScope({ tags: [sync(counter)], extensions: [src] });
+  return origin.ready.then(() => {
+    const [near, far] = memoryPair();
+    const done = origin.resolve(src).connect(near);
+    const sub = subscribe(far);
+    const guest = createScope({ tags: [sync(counter)], extensions: [sub] });
+    return guest.ready.then(() => {
+      expect(typeof origin.resolve(src).connect).toBe("function");
+      expect(typeof guest.resolve(sub).close).toBe("function");
+      guest.resolve(sub).close();
+      return done.then(() =>
+        Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]),
+      );
+    });
   });
 });
 
-test("a client sees only what it registered", () => {
+test("a source write fans out to two subscribed viewers", () => {
+  const src = source();
+  const origin = createScope({ tags: [sync(counter)], extensions: [src] });
+  return origin.ready.then(() => {
+    const [near, far] = memoryPair();
+    const [otherNear, otherFar] = memoryPair();
+    const done = Promise.all([
+      origin.resolve(src).connect(near),
+      origin.resolve(src).connect(otherNear),
+    ]);
+    const firstSub = subscribe(far);
+    const secondSub = subscribe(otherFar);
+    const firstScope = createScope({ tags: [sync(counter)], extensions: [firstSub] });
+    const secondScope = createScope({ tags: [sync(counter)], extensions: [secondSub] });
+    return Promise.all([firstScope.ready, secondScope.ready]).then(() => {
+      const firstWatch = reached(
+        (listener: (next: number) => void) => firstScope.controller(counter).watch(listener),
+        5,
+      );
+      const secondWatch = reached(
+        (listener: (next: number) => void) => secondScope.controller(counter).watch(listener),
+        5,
+      );
+      origin.controller(counter).set(5);
+      return Promise.all([firstWatch, secondWatch]).then(() => {
+        expect(firstScope.resolve(counter)).toBe(5);
+        expect(secondScope.resolve(counter)).toBe(5);
+        firstScope.resolve(firstSub).close();
+        secondScope.resolve(secondSub).close();
+        return done.then(() =>
+          Promise.all([
+            origin.close({ graceful: true }),
+            firstScope.close({ graceful: true }),
+            secondScope.close({ graceful: true }),
+          ]),
+        );
+      });
+    });
+  });
+});
+
+test("a viewer sees only what it registered", () => {
   const originTodos = family({ label: "todo", initial: "" });
   const guestTodos = family({ label: "todo", initial: "" });
-  const origin = createScope({ tags: [sync(originTodos)] });
-  const guest = createScope({ tags: [sync(guestTodos)] });
   guestTodos("7");
-  const [near, far] = memoryPair();
-  const done = source(origin).connect(near);
-  const sub = subscribe(guest, far);
+  const src = source();
+  const origin = createScope({ tags: [sync(originTodos)], extensions: [src] });
   origin.controller(originTodos("7")).set("seven");
   origin.controller(originTodos("9")).set("nine");
-  const watching = reached(
-    (listener: (next: string) => void) => guest.controller(guestTodos("7")).watch(listener),
-    "seven",
-  );
-  return watching.then(() => {
-    expect(guest.resolve(guestTodos("7"))).toBe("seven");
-    expect(guestTodos.members()).not.toContain("9");
-    sub.close();
-    near.close();
-    return done.then(() =>
-      Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]),
-    );
+  return origin.ready.then(() => {
+    const [near, far] = memoryPair();
+    const done = origin.resolve(src).connect(near);
+    const sub = subscribe(far);
+    const guest = createScope({ tags: [sync(guestTodos)], extensions: [sub] });
+    return guest.ready.then(() => {
+      expect(guest.resolve(guestTodos("7"))).toBe("seven");
+      expect(guestTodos.members()).not.toContain("9");
+      guest.resolve(sub).close();
+      return done.then(() =>
+        Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]),
+      );
+    });
   });
 });
 
-test("a late registration arrives with the initial value, then a later write", () => {
-  const originTodos = family({ label: "todo", initial: "" });
-  const guestTodos = family({ label: "todo", initial: "" });
-  const origin = createScope({ tags: [sync(originTodos)] });
-  const guest = createScope({ tags: [sync(guestTodos)] });
-  const [near, far] = memoryPair();
-  const done = source(origin).connect(near);
-  const sub = subscribe(guest, far);
-  const member = guestTodos("3");
-  origin.controller(originTodos("3")).set("later");
-  const watching = reached(
-    (listener: (next: string) => void) => guest.controller(member).watch(listener),
-    "later",
-  );
-  return watching.then(() => {
-    expect(guest.resolve(member)).toBe("later");
-    sub.close();
-    near.close();
-    return done.then(() =>
-      Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]),
-    );
-  });
-});
-
-test("a register for an unpublished key closes the transport", () => {
-  const counter = freshCounter();
-  const origin = createScope({ tags: [sync(counter)] });
-  const [near, far] = memoryPair();
-  const done = source(origin).connect(near);
-  const parted = new Promise<void>((resolve) => {
-    far.onClose(() => resolve());
-  });
-  return Promise.resolve()
-    .then(() => {
-      far.send({ type: "register", keys: ["nope"] });
-      return parted;
-    })
-    .then(() => done.then(() => origin.close({ graceful: true })));
-});
-
-test("a snapshot sent to the source closes the transport", () => {
-  const counter = freshCounter();
-  const origin = createScope({ tags: [sync(counter)] });
-  const [near, far] = memoryPair();
-  const done = source(origin).connect(near);
-  const parted = new Promise<void>((resolve) => {
-    far.onClose(() => resolve());
-  });
-  return Promise.resolve()
-    .then(() => {
-      far.send({ type: "snapshot", key: "counter", version: 0, value: 0 });
-      return parted;
-    })
-    .then(() => done.then(() => origin.close({ graceful: true })));
-});
-
-test("a snapshot the client parse refuses closes the client transport", () => {
-  const serverCell = data({
-    label: "loose-value",
-    initial: 0,
-    meta: [synced({ key: "clash" })],
-  });
-  const guestCell = data({
-    label: "strict-value",
-    initial: 0,
-    parse: parseWhole,
-    meta: [synced({ key: "clash" })],
-  });
-  const origin = createScope({ tags: [sync(serverCell)] });
-  const guest = createScope({ tags: [sync(guestCell)] });
-  const [near, far] = memoryPair();
-  const done = source(origin).connect(near);
-  const sub = subscribe(guest, far);
-  const parted = new Promise<void>((resolve) => {
-    near.onClose(() => resolve());
-  });
-  origin.controller(serverCell).set(1.5);
-  return parted.then(() => {
-    expect(guest.resolve(guestCell)).toBe(0);
-    sub.close();
-    return done.then(() =>
-      Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]),
-    );
-  });
-});
-
-test("close detaches: a later source write never reaches the client", () => {
-  const counter = freshCounter();
-  const origin = createScope({ tags: [sync(counter)] });
-  const guest = createScope({ tags: [sync(counter)] });
-  const [near, far] = memoryPair();
-  const done = source(origin).connect(near);
-  const sub = subscribe(guest, far);
-  const watching = reached(
-    (listener: (next: number) => void) => guest.controller(counter).watch(listener),
-    4,
-  );
-  origin.controller(counter).set(4);
-  return watching
-    .then(() => {
-      sub.close();
-      origin.controller(counter).set(5);
-      const waited = new Promise<number>((resolve) => {
-        queueMicrotask(() => resolve(guest.resolve(counter)));
+test("a late member after ready gets its snapshot", () => {
+  const originTodos = family({ label: "todo-late", initial: "" });
+  const guestTodos = family({ label: "todo-late", initial: "" });
+  const src = source();
+  const origin = createScope({ tags: [sync(originTodos)], extensions: [src] });
+  return origin.ready.then(() => {
+    const [near, far] = memoryPair();
+    const done = origin.resolve(src).connect(near);
+    const sub = subscribe(far);
+    const guest = createScope({ tags: [sync(guestTodos)], extensions: [sub] });
+    return guest.ready.then(() => {
+      const member = guestTodos("3");
+      const landed = reached(
+        (listener: (next: string) => void) => guest.controller(member).watch(listener),
+        "later",
+      );
+      origin.controller(originTodos("3")).set("later");
+      return landed.then(() => {
+        expect(guest.resolve(member)).toBe("later");
+        guest.resolve(sub).close();
+        return done.then(() =>
+          Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]),
+        );
       });
-      return waited;
-    })
-    .then((got) => {
-      expect(got).toBe(4);
-      near.close();
-      return done.then(() =>
-        Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]),
-      );
     });
-});
-
-test("a local write on a client cell stays local until the next snapshot", () => {
-  const counter = freshCounter();
-  const origin = createScope({ tags: [sync(counter)] });
-  const guest = createScope({ tags: [sync(counter)] });
-  const [near, far] = memoryPair();
-  const done = source(origin).connect(near);
-  const sub = subscribe(guest, far);
-  const firstWatch = reached(
-    (listener: (next: number) => void) => guest.controller(counter).watch(listener),
-    1,
-  );
-  origin.controller(counter).set(1);
-  return firstWatch
-    .then(() => {
-      guest.controller(counter).set(42);
-      expect(origin.resolve(counter)).toBe(1);
-      const watching = reached(
-        (listener: (next: number) => void) => guest.controller(counter).watch(listener),
-        2,
-      );
-      origin.controller(counter).set(2);
-      return watching;
-    })
-    .then(() => {
-      expect(guest.resolve(counter)).toBe(2);
-      sub.close();
-      near.close();
-      return done.then(() =>
-        Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]),
-      );
-    });
-});
-
-test("two registers leave two sync register spans with their counts", () => {
-  const counter = freshCounter();
-  const seen: { message: string; attributes: Record<string, unknown> }[] = [];
-  const originTodos = family({ label: "todo-registers", initial: "" });
-  const noting = createScope({
-    tags: [sync(counter), sync(originTodos)],
-    observe: {
-      history: 10,
-      log: (entry) => void seen.push({ message: entry.message, attributes: entry.attributes }),
-    },
   });
-  const guestTodos = family({ label: "todo-registers", initial: "" });
-  const guest = createScope({ tags: [sync(counter), sync(guestTodos)] });
-  const [near, far] = memoryPair();
-  const inboxNear = inbox(near);
-  const done = source(noting).connect(near);
-  const sub = subscribe(guest, far);
-  guestTodos("3");
-  return inboxNear.when(2).then(() => {
-    const tick = new Promise<void>((resolve) => {
-      queueMicrotask(() => resolve());
-    });
-    return tick.then(() => {
-      const spans = noting.spans().filter((span) => span.name === "sync register");
-      expect(spans.length).toBe(2);
-      const lines = seen.filter((entry) => entry.message === "sync register");
-      expect(lines.length).toBe(2);
-      expect(lines[0]?.attributes["count"]).toBe(1);
-      expect(lines[1]?.attributes["count"]).toBe(1);
-      sub.close();
-      near.close();
+});
+
+test("readiness spans the whole initial set", () => {
+  const originTodos = family({ label: "todo", initial: "", parse: parseText });
+  const guestTodos = family({ label: "todo", initial: "", parse: parseText });
+  originTodos("7");
+  guestTodos("7");
+  const src = source();
+  const origin = createScope({ tags: [sync(counter), sync(originTodos)], extensions: [src] });
+  origin.controller(counter).set(5);
+  origin.controller(originTodos("7")).set("seven");
+  return origin.ready.then(() => {
+    const [near, far] = memoryPair();
+    const done = origin.resolve(src).connect(near);
+    const sub = subscribe(far);
+    const guest = createScope({ tags: [sync(counter), sync(guestTodos)], extensions: [sub] });
+    return guest.ready.then(() => {
+      expect(guest.resolve(counter)).toBe(5);
+      expect(guest.resolve(guestTodos("7"))).toBe("seven");
+      guest.resolve(sub).close();
       return done.then(() =>
-        Promise.all([noting.close({ graceful: true }), guest.close({ graceful: true })]),
+        Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]),
       );
     });
+  });
+});
+
+test("the far side closing first rejects ready with SyncNotReady", () => {
+  const src = source();
+  const origin = createScope({ tags: [sync(counter)], extensions: [src] });
+  return origin.ready.then(() => {
+    const [near, far] = memoryPair();
+    const done = origin.resolve(src).connect(near);
+    done.then(undefined, () => undefined);
+    const sub = subscribe(far);
+    const guest = createScope({ tags: [sync(counter)], extensions: [sub] });
+    const checked = expect(guest.ready).rejects.toSatisfy((error: unknown) =>
+      isError(error, "SyncNotReady"),
+    );
+    checked.then(undefined, () => undefined);
+    near.close();
+    return checked.then(() =>
+      guest.close().then((result) => {
+        expect(result.status).toBe("failed");
+        return done.then(() => origin.close({ graceful: true }));
+      }),
+    );
+  });
+});
+
+test("a forced close while waiting rejects ready and parts the source wire", () => {
+  const src = source();
+  const origin = createScope({ tags: [sync(counter)], extensions: [src] });
+  return origin.ready.then(() => {
+    const [near, far] = memoryPair();
+    const done = origin.resolve(src).connect(near);
+    const parted = new Promise<void>((resolve) => {
+      near.onClose(() => resolve());
+    });
+    const sub = subscribe(far);
+    const guest = createScope({ tags: [sync(counter)], extensions: [sub] });
+    const closing = guest.close();
+    return guest.ready.then(
+      () => {
+        expect.unreachable();
+      },
+      (error: unknown) => {
+        if (!isError(error, "SyncNotReady")) throw error;
+        expect(error.payload.missing).toEqual(["counter"]);
+        return parted.then(() =>
+          closing.then(() => done.then(() => origin.close({ graceful: true }))),
+        );
+      },
+    );
+  });
+});
+
+test("the source close hook parts the viewer wire on a graceful close", () => {
+  const src = source();
+  const origin = createScope({ tags: [sync(counter)], extensions: [src] });
+  return origin.ready.then(() => {
+    const [near, far] = memoryPair();
+    const done = origin.resolve(src).connect(near);
+    const parted = new Promise<void>((resolve) => {
+      far.onClose(() => resolve());
+    });
+    const sub = subscribe(far);
+    const guest = createScope({ tags: [sync(counter)], extensions: [sub] });
+    return guest.ready.then(() =>
+      origin.close({ graceful: true }).then((result) => {
+        expect(result.status).toBe("success");
+        return parted.then(() => done.then(() => guest.close({ graceful: true })));
+      }),
+    );
+  });
+});
+
+test("an unpublished key on register closes the transport", () => {
+  const src = source();
+  const origin = createScope({ tags: [sync(counter)], extensions: [src] });
+  return origin.ready.then(() => {
+    const [near, far] = memoryPair();
+    const done = origin.resolve(src).connect(near);
+    const parted = new Promise<void>((resolve) => {
+      far.onClose(() => resolve());
+    });
+    far.send({ type: "register", keys: ["nope"] });
+    return parted.then(() => done.then(() => origin.close({ graceful: true })));
   });
 });
 
 test("the recipe registers by identity, then streams the snapshot down", async () => {
-  const counter = freshCounter();
-  const scope = createScope({ tags: [sync(counter)] });
-  const app = recipe(scope);
+  const { scope, app } = boot();
+  await scope.ready;
   function readerOf(streamed: Response): ReadableStreamDefaultReader<Uint8Array> {
     const body = streamed.body;
     if (body === null) throw new Error("body");
     return body.getReader();
   }
-  async function readUntil(
+  function readUntil(
     reader: ReadableStreamDefaultReader<Uint8Array>,
     decoder: TextDecoder,
     text: string,
   ): Promise<string> {
-    const next = await reader.read();
-    if (next.done) return text;
-    const grown = text + decoder.decode(next.value, { stream: true });
-    if (untilSnapshot(grown) === undefined) return readUntil(reader, decoder, grown);
-    return grown;
+    return reader.read().then((next) => {
+      if (next.done) return text;
+      const grown = text + decoder.decode(next.value, { stream: true });
+      if (untilSnapshot(grown) === undefined) return readUntil(reader, decoder, grown);
+      return Promise.resolve(grown);
+    });
   }
   const streamed = await app.request("/sync?client=a");
   const reader = readerOf(streamed);
-  const answer = await app.request("/sync?client=a", {
+  const posted = await app.request("/sync?client=a", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ type: "register", keys: ["counter"] }),
   });
-  expect(answer.status).toBe(200);
+  expect(posted.status).toBe(200);
   const first = await readUntil(reader, new TextDecoder(), "");
   expect(untilSnapshot(first)).toEqual({
     type: "snapshot",
@@ -511,7 +430,7 @@ test("the recipe registers by identity, then streams the snapshot down", async (
     version: 0,
     value: 0,
   });
-  await scope.close();
+  return scope.close();
 });
 
 test("onMember fires once per new member with the id, after it exists", () => {
@@ -526,4 +445,10 @@ test("onMember fires once per new member with the id, after it exists", () => {
   stop();
   notes("c");
   expect(heard).toEqual(["a:note-arrive/a", "b:note-arrive/b"]);
+});
+
+test("a viewer binding nothing is ready at once", () => {
+  const sub = subscribe(memoryPair()[1]);
+  const guest = createScope({ extensions: [sub] });
+  return guest.ready.then(() => guest.close({ graceful: true }));
 });

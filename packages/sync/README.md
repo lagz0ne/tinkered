@@ -1,12 +1,14 @@
 # @tinker/sync
 
 A cell is the shared unit; the source holds the truth; the transport is userland's (ADR 0048, one way).
+Both drivers are core extensions (ADR 0050): the composition root installs them, `ready` waits for the
+initial data set, and `resolve` delivers each value.
 
 ```text
 shared:  const counter = data({ label: "counter", initial: 0, parse, meta: [synced({ key: "counter" })] })
          const todo = family({ label: "todo", initial: "", parse })          todo("7") → a cell
-source:  createScope({ tags: [sync(counter), sync(todo)] }); source(scope).connect(transport)
-viewer:  createScope({ tags: [sync(counter), sync(todo)] }); subscribe(scope, transport)
+source:  const src = source(); createScope({ tags: [sync(counter), sync(todo)], extensions: [src] })
+viewer:  const sub = subscribe(transport); createScope({ tags: [sync(counter)], extensions: [sub] })
 wire:    register ↑ · snapshot ↓         (userland: memoryPair | SSE+POST | WebSocket)
 ```
 
@@ -26,31 +28,47 @@ down, never the whole family.
 
 ## Source
 
-`source(scope)` holds the truth: one session per subscriber. `connect(transport)`
-listens: nothing is pushed unasked. Each `register { keys }` runs `sync register`
-inline in that session (span, one `sync register` log line with the key count):
-a registered key answers at once with its snapshot (current version and value),
-and a changed cell fans out only to the live transports registered for that key.
-A member the source does not hold yet is created there with its initial value.
-A key that is not published, a message in the wrong direction, or an unexpected
-throw inside the op closes the transport, no reply. The promise settles when
-the transport closes.
+`source()` is the source extension: install it with
+`createScope({ tags: [...], extensions: [src] })`, then read it back with
+`scope.resolve(src)` once `await scope.ready`. It holds the truth: one
+session per subscriber. `connect(transport)` listens: nothing is pushed
+unasked. Each `register { keys }` runs `sync register` inline in that
+session (span, one `sync register` log line with the key count): a
+registered key answers at once with its snapshot (current version and
+value), and a changed cell fans out only to the live transports registered
+for that key. A member the source does not hold yet is created there with
+its initial value. A key that is not published, a message in the wrong
+direction, or an unexpected throw inside the op closes the transport, no
+reply. The promise settles when the transport closes. The source start is
+sync, so the origin is ready at once; the source close hook closes every
+live transport first (their sessions resolve), then the scope closes.
 
 ## Subscribe
 
-`subscribe(scope, transport)` drives the other end: at connect it sends one
-`register { keys }` with every bound singleton key and every family member it
-already holds; a member created later (through `onMember`) registers at once.
-Each `snapshot` goes into its cell through the cell's `parse` — an unregistered
-key that is `label/id` of a published family calls `family(id)` first, so the
-member exists before the value lands. Nothing goes up in v1: a userland write
-on a viewer cell stays local until the next snapshot overwrites it.
+`subscribe(transport)` is the viewer extension: install it with
+`createScope({ tags: [...], extensions: [sub] })`, then
+`await scope.ready` — ready means the viewer holds its initial data set:
+the start sends one `register { keys }` with every bound singleton key and
+every family member it already holds, and waits until every key of that
+registration holds its snapshot (a viewer binding nothing is ready at
+once). `scope.resolve(sub)` delivers `{ close }`. A member created later
+(through `onMember`) registers at once; late members are not part of
+readiness. Each `snapshot` goes into its cell through the cell's `parse` —
+an unregistered key that is `label/id` of a published family calls
+`family(id)` first, so the member exists before the value lands. Nothing
+goes up in v1: a userland write on a viewer cell stays local until the
+next snapshot overwrites it.
 
 Anything the viewer cannot place means the two sides disagree on the
 module: a snapshot that fails the parse or names no published key, or any
 non-snapshot message. Each is a protocol violation, so the viewer detaches
-and closes the transport. `close()` detaches and closes the transport
-(idempotent); a close from the far side detaches without closing twice.
+and closes the transport. When the initial set breaks — the transport
+closes or a violation lands before every key arrived, or a forced scope
+close aborts the wait — the start rejects with `SyncNotReady`
+`{ label: "subscribe", missing }` naming the keys still missing: `ready`
+rejects and the scope closes failed. `close()` detaches and closes the
+transport (idempotent); a close from the far side detaches without closing
+twice.
 
 ## Wire it
 
@@ -59,7 +77,16 @@ Three ways to build one:
 
 Hono SSE + POST (the full recipe lives in `examples/hono.ts`): one
 `GET /sync?client=<id>` stream down, one `POST /sync?client=<id>` carrying
-the `register` up, routed by client id.
+the `register` up, routed by client id. `boot()` installs the source
+extension on the scope; each stream reads it back to connect:
+
+```ts
+export function boot(): { scope: Scope.Handle; app: Hono } {
+  const src = source();
+  const scope = createScope({ tags: [sync(counter)], extensions: [src] });
+  return { scope, app: recipe(scope, src) };
+}
+```
 
 ```ts
 const transport: Sync.Transport = {
@@ -84,7 +111,7 @@ const transport: Sync.Transport = {
     for (const part of partings) part();
   },
 };
-source(scope).connect(transport);
+scope.resolve(src).connect(transport);
 ```
 
 WebSocket (one socket per tab, same four methods):
@@ -102,7 +129,9 @@ const transport: Sync.Transport = {
   },
   close: () => ws.close(),
 };
-subscribe(scope, transport);
+const sub = subscribe(transport);
+const guest = createScope({ tags: [sync(counter)], extensions: [sub] });
+await guest.ready;
 ```
 
 React needs nothing new: where `subscribe` runs, `useData(counter)` keeps
@@ -151,8 +180,8 @@ export function family<T>(config: {
 export function readSynced(cell: Data.Cell<unknown>): Sync.Meta;
 export function isFamily(unit: Sync.Published): unit is Sync.Family<unknown>;
 export function memoryPair(): readonly [Sync.Transport, Sync.Transport];
-export function source(scope: Scope.Handle): Sync.Source;
-export function subscribe(scope: Scope.Handle, transport: Sync.Transport): Sync.Subscription;
+export function source(): Scope.Extension<Sync.Source>;
+export function subscribe(transport: Sync.Transport): Scope.Extension<Sync.Subscription>;
 export { isError };
-export type { Errors }; // SyncUndeclared: { label: string }
+export type { Errors }; // SyncUndeclared, SyncConflict, SyncNotReady
 ```
