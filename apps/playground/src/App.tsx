@@ -79,28 +79,33 @@ function useLayoutDirection(): "horizontal" | "vertical" {
   return mobile ? "vertical" : "horizontal";
 }
 
-/** The playground shell — every piece of its state is a `@tinker/core` cell read through hooks. */
-function Shell(): ReactElement {
-  const files = useData(filesCell);
-  const setFiles = useController(filesCell);
+/** Reads only the active file's content and the theme: re-renders on a tab switch (doc swap), on
+ * a keystroke (its own change echoed back — the editor sees value === doc and does nothing), and
+ * on a theme change. Never on status, view, dirty, or the preview's compile cycle. */
+function EditorPane(): ReactElement {
   const active = useData(activeCell);
-  const setActive = useController(activeCell);
+  const content = useData(
+    filesCell,
+    (files) => files.find((f) => f.name === active)?.content ?? "",
+  );
   const theme = useData(themeCell);
-  const setTheme = useController(themeCell);
-  const status = useData(statusCell);
-  const setStatus = useController(statusCell);
-  const view = useData(viewCell);
-  const setView = useController(viewCell);
-  const dirty = useData(dirtyCell);
+  const setFiles = useController(filesCell);
   const setDirty = useController(dirtyCell);
-  const direction = useLayoutDirection();
+  const setActiveContent = (next: string) => {
+    setDirty.set(true);
+    setFiles.update((prev) => prev.map((f) => (f.name === active ? { ...f, content: next } : f)));
+  };
+  return <Editor value={content} onChange={setActiveContent} theme={theme} />;
+}
+
+/** Owns the iframe. Subscribes to the files ONLY, so a tab or theme switch never recompiles or
+ * reloads a running preview; a keystroke does (debounced). Runtime signals land in the status cell. */
+function Preview(): ReactElement {
+  const files = useData(filesCell);
+  const setStatus = useController(statusCell);
   const iframe = useRef<HTMLIFrameElement>(null);
 
-  const activeFile = files.find((f) => f.name === active) ?? files[0];
-
-  // Debounced compile → preview, on any file change.
   useEffect(() => {
-    persist(files, active, theme, dirty);
     const timer = setTimeout(() => {
       void compile(files).then((result) => {
         if (result.ok) {
@@ -112,9 +117,8 @@ function Shell(): ReactElement {
       });
     }, 250);
     return () => clearTimeout(timer);
-  }, [files, active, theme, dirty, setStatus]);
+  }, [files, setStatus]);
 
-  // Runtime signals from the preview iframe.
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       const data = event.data as { __pg?: string; text?: string };
@@ -126,136 +130,198 @@ function Shell(): ReactElement {
     return () => window.removeEventListener("message", onMessage);
   }, [setStatus]);
 
-  const setActiveContent = (content: string) => {
-    setDirty.set(true);
-    setFiles.update((prev) => prev.map((f) => (f.name === active ? { ...f, content } : f)));
-  };
+  return (
+    <iframe
+      ref={iframe}
+      title="Live preview"
+      sandbox="allow-scripts allow-same-origin"
+      className="h-full w-full border-0 bg-white"
+    />
+  );
+}
+
+/** Renders nothing; mirrors the persisted cells to localStorage. The one place that reads all of
+ * them, and it costs a null render — the visible tree never pays for it. */
+function Persist(): null {
+  const files = useData(filesCell);
+  const active = useData(activeCell);
+  const theme = useData(themeCell);
+  const dirty = useData(dirtyCell);
+  useEffect(() => persist(files, active, theme, dirty), [files, active, theme, dirty]);
+  return null;
+}
+
+const sameNames = (a: string[], b: string[]): boolean =>
+  a.length === b.length && a.every((name, i) => name === b[i]);
+
+/** Subscribes to the file NAMES (selector + isEqual): a keystroke changes a file's content, not its
+ * name, so typing never re-renders the tab strip. */
+function Tabs(): ReactElement {
+  const names = useData(filesCell, (files) => files.map((f) => f.name), sameNames);
+  const active = useData(activeCell);
+  const setFiles = useController(filesCell);
+  const setActive = useController(activeCell);
+  const setDirty = useController(dirtyCell);
 
   const addFile = () => {
     let n = 1;
-    while (files.some((f) => f.name === `Untitled${n}.tsx`)) n++;
+    while (names.includes(`Untitled${n}.tsx`)) n++;
     const name = `Untitled${n}.tsx`;
     setDirty.set(true);
     setFiles.update((prev) => [...prev, { name, content: "" }]);
     setActive.set(name);
   };
-
   const closeFile = (name: string) => {
-    const idx = files.findIndex((f) => f.name === name);
-    const next = files.filter((f) => f.name !== name);
+    const idx = names.indexOf(name);
+    const next = names.filter((x) => x !== name);
     setDirty.set(true);
-    setFiles.set(next);
-    if (active === name) setActive.set((next[idx] ?? next[idx - 1] ?? next[0]).name);
+    setFiles.update((prev) => prev.filter((f) => f.name !== name));
+    if (active === name) setActive.set(next[idx] ?? next[idx - 1] ?? next[0]);
   };
-
   const renameFile = (from: string, to: string) => {
-    if (files.some((f) => f.name === to)) return;
+    if (names.includes(to)) return;
     setDirty.set(true);
     setFiles.update((prev) => prev.map((f) => (f.name === from ? { ...f, name: to } : f)));
     if (active === from) setActive.set(to);
   };
 
-  const reset = () => {
-    setDirty.set(false);
-    setFiles.set([...DEFAULT_FILES]);
-    setActive.set(ENTRY);
-  };
+  return (
+    <FileTabs
+      files={names}
+      active={names.includes(active) ? active : names[0]}
+      onSelect={(name) => setActive.set(name)}
+      onAdd={addFile}
+      onClose={closeFile}
+      onRename={renameFile}
+    />
+  );
+}
 
+function StatusDot(): ReactElement {
+  const status = useData(statusCell);
   const dotColor =
     status.kind === "error"
       ? "bg-destructive"
       : status.kind === "ok"
         ? "bg-emerald-500"
         : "bg-amber-400";
+  return (
+    <div className="flex items-center gap-1.5 pr-1 text-xs text-muted-foreground">
+      <span className={`size-2 rounded-full ${dotColor} transition-colors`} />
+      <span className="hidden max-w-[32ch] truncate md:inline" title={status.text}>
+        {status.text}
+      </span>
+    </div>
+  );
+}
 
+function ThemeSelect(): ReactElement {
+  const theme = useData(themeCell);
+  const setTheme = useController(themeCell);
+  return (
+    <Select value={theme} onValueChange={(v) => setTheme.set(v as ThemeId)}>
+      <SelectTrigger size="sm" className="h-8">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {THEMES.map((t) => (
+          <SelectItem key={t.id} value={t.id}>
+            {t.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+/** Reads nothing: the controllers subscribe to no cell, so this never re-renders. */
+function ResetButton(): ReactElement {
+  const setFiles = useController(filesCell);
+  const setActive = useController(activeCell);
+  const setDirty = useController(dirtyCell);
+  const reset = () => {
+    setDirty.set(false);
+    setFiles.set([...DEFAULT_FILES]);
+    setActive.set(ENTRY);
+  };
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button variant="ghost" size="icon-sm" onClick={reset} aria-label="Reset">
+          <RotateCcw />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>Reset to the starter project</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function BottomBar(): ReactElement {
+  const view = useData(viewCell);
+  const setView = useController(viewCell);
+  return (
+    <div className="flex h-11 shrink-0 items-center gap-3 border-t bg-background/80 px-3 backdrop-blur">
+      <span className="hidden text-xs font-semibold tracking-tight text-muted-foreground sm:inline">
+        tinkered
+      </span>
+      {view === "editor" && (
+        <div className="min-w-0 flex-1">
+          <Tabs />
+        </div>
+      )}
+      <div className="ml-auto flex items-center gap-2">
+        <ViewToggle view={view} onSelect={(v) => setView.set(v)} />
+        {view === "editor" && (
+          <>
+            <StatusDot />
+            <ThemeSelect />
+            <ResetButton />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function BenchOverlay(): ReactElement | null {
+  const view = useData(viewCell);
+  if (view !== "bench") return null;
+  return (
+    <div className="absolute inset-0 bg-background">
+      <Suspense
+        fallback={
+          <div className="grid h-full place-items-center text-sm text-muted-foreground">
+            loading benchmark…
+          </div>
+        }
+      >
+        <BenchPage />
+      </Suspense>
+    </div>
+  );
+}
+
+/** The layout reads no cell at all. Each region below subscribes to exactly what it renders, so a
+ * tab switch touches the editor and the tabs, a theme change the editor and the select, a
+ * keystroke the editor and (debounced) the preview — never the whole tree. */
+function Shell(): ReactElement {
+  const direction = useLayoutDirection();
   return (
     <div className="flex h-full flex-col">
-      {/* Editor stays mounted (keeps CodeMirror + iframe state); the bench overlays when selected. */}
+      <Persist />
       <div className="relative min-h-0 flex-1">
         <ResizablePanelGroup key={direction} direction={direction} className="h-full">
           <ResizablePanel defaultSize={50} minSize={25}>
-            <Editor value={activeFile.content} onChange={setActiveContent} theme={theme} />
+            <EditorPane />
           </ResizablePanel>
           <ResizableHandle />
           <ResizablePanel defaultSize={50} minSize={25}>
-            <iframe
-              ref={iframe}
-              title="Live preview"
-              sandbox="allow-scripts allow-same-origin"
-              className="h-full w-full border-0 bg-white"
-            />
+            <Preview />
           </ResizablePanel>
         </ResizablePanelGroup>
-        {view === "bench" && (
-          <div className="absolute inset-0 bg-background">
-            <Suspense
-              fallback={
-                <div className="grid h-full place-items-center text-sm text-muted-foreground">
-                  loading benchmark…
-                </div>
-              }
-            >
-              <BenchPage />
-            </Suspense>
-          </div>
-        )}
+        <BenchOverlay />
       </div>
-
-      {/* All chrome lives in this slim bottom bar. */}
-      <div className="flex h-11 shrink-0 items-center gap-3 border-t bg-background/80 px-3 backdrop-blur">
-        <span className="hidden text-xs font-semibold tracking-tight text-muted-foreground sm:inline">
-          tinkered
-        </span>
-        {view === "editor" && (
-          <div className="min-w-0 flex-1">
-            <FileTabs
-              files={files.map((f) => f.name)}
-              active={activeFile.name}
-              onSelect={(name) => setActive.set(name)}
-              onAdd={addFile}
-              onClose={closeFile}
-              onRename={renameFile}
-            />
-          </div>
-        )}
-
-        <div className="ml-auto flex items-center gap-2">
-          <ViewToggle view={view} onSelect={(v) => setView.set(v)} />
-
-          {view === "editor" && (
-            <>
-              <div className="flex items-center gap-1.5 pr-1 text-xs text-muted-foreground">
-                <span className={`size-2 rounded-full ${dotColor} transition-colors`} />
-                <span className="hidden max-w-[32ch] truncate md:inline" title={status.text}>
-                  {status.text}
-                </span>
-              </div>
-
-              <Select value={theme} onValueChange={(v) => setTheme.set(v as ThemeId)}>
-                <SelectTrigger size="sm" className="h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {THEMES.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon-sm" onClick={reset} aria-label="Reset">
-                    <RotateCcw />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Reset to the starter project</TooltipContent>
-              </Tooltip>
-            </>
-          )}
-        </div>
-      </div>
+      <BottomBar />
     </div>
   );
 }
