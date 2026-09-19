@@ -31,16 +31,23 @@ so a mismatch can never ship.
 src/main.tsx      composition root — creates the scope, resolves the services, renders
 src/state.ts      tags (storage, entry, debounce) and cells (files, active, theme, view, dirty, status, bundle)
 src/actions.ts    operations for every user action: editFile addFile closeFile renameFile selectFile setTheme setView reset
-src/compiler.ts   the `compiler` resource (esbuild-wasm, booted once) and the `compile` operation
-src/services.ts   effect resources: persistence, bundler, runtime — each torn down by `defer`
-src/errors.ts     the error registry (InvalidInput, CompileFailed)
+src/compiler.ts   the `compiler` resource — esbuild-wasm behind a one-call seam `{ bundle(entry, files) }` — and the `compile` operation
+src/services.ts   effect resources: persistence, bundler (debounced on the ambient clock), runtime — each torn down by `defer`
+src/errors.ts     the error registry (InvalidInput, CompileFailed, HarnessInvariant)
 src/App.tsx       the view: components read exactly the cells they render, run operations, hold no effects
-src/lib/files.ts  the default project (the Ripples example) as editor tabs
-src/bench/        the benchmark runners (audited per library) and page
+src/bench/        the benchmark runners (one documented function per audited library) and page
+example/          the default project (Ripples) as real modules — type-checked, loaded into the editor as text
+tests/            the scope-level suite: a Map-backed `storage` tag, a preset `compiler`, a test clock — no React
 ```
 
 Rules of the house, from the ADR: no `useEffect` in the shell; no module-level state; config is a tag
-a test can rebind; a resource's cleanup is a `defer`; a keystroke re-renders nothing but what changed.
+a test can rebind; a resource's cleanup is a `defer`; a resource's value is the smallest shape its
+consumer calls; a keystroke re-renders nothing but what changed. `src/` and `tests/` pass the strict
+style census; `example/` is consumer code in the consumer idiom, like the repo's `examples/`.
+
+```bash
+vp run playground#test                    # 19 tests, all against the scope
+```
 
 ## Deploy
 
