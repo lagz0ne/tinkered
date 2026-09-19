@@ -12,6 +12,19 @@ wire:    snapshot ↓ · set ↑ · ack/reject ↓         (userland: memoryPair
 
 t01 ships the shared half only; the drivers (`syncServer`, `syncClient`) land in t02/t03.
 
+## Server (t02)
+
+`syncServer(scope)` is the truth: one session per connected transport.
+`connect(transport)` sends one `snapshot` per published key (a family goes
+whole: every member now, later members through `onMember`), then listens.
+Each `set` runs `sync set <key>` inline in that session: parse first, then
+last-writer-wins by version — `base === version` applies (the version moves
+in the broadcast watcher, so a userland write fans out the same way), `ack`s,
+and fans the snapshot out; a stale base or a parse failure `reject`s with the
+current truth. A `set` for `label/id` of a published family creates it. Any
+other key, a non-`set` message, or an unexpected throw inside the write
+closes the transport, no log, no reply.
+
 ```ts
 export declare namespace Sync {
   export type Meta = { readonly key: string };
@@ -47,6 +60,7 @@ export declare namespace Sync {
     (id: string): Data.Cell<T>;
     readonly label: string;
     members(): readonly string[];
+    onMember(listener: (id: string) => void): () => void;
   };
   export type Published = Data.Cell<unknown> | Family<unknown>;
 }
@@ -61,6 +75,7 @@ export function family<T>(config: {
 export function readSynced(cell: Data.Cell<unknown>): Sync.Meta;
 export function isFamily(unit: Sync.Published): unit is Sync.Family<unknown>;
 export function memoryPair(): readonly [Sync.Transport, Sync.Transport];
+export function syncServer(scope: Scope.Handle): Sync.Server;
 export { isError };
 export type { Errors }; // SyncUndeclared: { label: string }
 ```

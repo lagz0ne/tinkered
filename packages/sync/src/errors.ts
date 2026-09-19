@@ -1,6 +1,7 @@
 /** Payload type for each sync error. The registry is the only place this package throws. */
 type Payloads = {
   SyncUndeclared: { label: string };
+  SyncConflict: { key: string };
 };
 
 export declare namespace Errors {
