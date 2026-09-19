@@ -14,12 +14,13 @@ Package `packages/sync` (`@tinker/sync`), runtime import only `@tinker/core`, on
 
 ## Order & status
 
-| tag      | ticket                                                                                                | blockers | status |
-| -------- | ----------------------------------------------------------------------------------------------------- | -------- | ------ |
-| sync/t01 | Package: `synced` meta, `family`, `sync` binding tag, `Sync.Message`/`Sync.Transport`, `memoryPair()` | —        | [x]    |
-| sync/t02 | `syncServer(scope).connect(transport)`: session per transport, snapshots, `sync set <key>`, fan-out   | t01      | [x]    |
-| sync/t03 | `syncClient(scope, transport)`: snapshots through parse, optimistic sets, revert on reject            | t02      | [x]    |
-| sync/t04 | Validation milestone: lanes, mutation, README recipes (Hono SSE+POST, WebSocket, React), archive      | t03      | [x]    |
+| tag      | ticket                                                                                                  | blockers | status |
+| -------- | ------------------------------------------------------------------------------------------------------- | -------- | ------ |
+| sync/t01 | Package: `synced` meta, `family`, `sync` binding tag, `Sync.Message`/`Sync.Transport`, `memoryPair()`   | —        | [x]    |
+| sync/t02 | `syncServer(scope).connect(transport)`: session per transport, snapshots, `sync set <key>`, fan-out     | t01      | [x]    |
+| sync/t03 | `syncClient(scope, transport)`: snapshots through parse, optimistic sets, revert on reject              | t02      | [x]    |
+| sync/t04 | Validation milestone: lanes, mutation, README recipes (Hono SSE+POST, WebSocket, React), archive        | t03      | [x]    |
+| sync/t05 | One way, registration by identity: `source` + `subscribe` replace `syncServer`/`syncClient` (amendment) | t04      | [ ]    |
 
 ### Landed
 
@@ -52,6 +53,13 @@ sync  onMember    src/index.ts tests/sync.test.ts
 
 ```impact sync/t03
 sync  syncClient  src/index.ts tests/sync.test.ts examples/basic.ts
+```
+
+```impact sync/t05
+sync  source      src/index.ts tests/sync.test.ts examples/basic.ts examples/hono.ts
+sync  subscribe   src/index.ts tests/sync.test.ts examples/basic.ts
+sync  syncServer  (none)
+sync  syncClient  (none)
 ```
 
 ```impact sync/t04

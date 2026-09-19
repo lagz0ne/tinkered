@@ -134,21 +134,13 @@
 
 ## Sync (`@tinker/sync`)
 
-| term          | meaning                                                                                                                                                                                             |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| synced cell   | A `data` cell carrying `synced({ key })` meta: the same module imported on both sides; its `parse` is the edge for a snapshot from the wire (ADR 0048).                                             |
-| family        | `family({ label, initial, parse?, eq? })`: `(id) => Data.Cell<T>`, memoized per id, each member a synced cell keyed `label/id`. A cell with an id. Published whole (every member the server holds). |
-| published set | The `sync(cell \| family)` bindings on a scope; both drivers read `scope.resolve(sync.all)`.                                                                                                        |
-| sync server   | `syncServer(scope).connect(transport)`: a session per transport; snapshots down; a `set` is an inline op `sync set <key>` — parse, last-writer-wins by version, ack or reject, fan out.             |
-| sync client   | `syncClient(scope, transport)`: writes snapshots into the cells through their parse, sends local changes as `set` with the last seen version, reverts on `reject` (latency compensation).           |
-| transport     | `Sync.Transport = { send, onMessage, onClose, close }` — userland's wire (SSE+POST, WebSocket, postMessage); the package ships only `memoryPair()`, the test seam.                                  |
-| version       | A per-key integer the server increments on each applied write; a `set` carries the `base` it saw; `base !== version` → reject with the current truth.                                               |
-
-## Apps (ADR 0049)
-
-| term             | meaning                                                                                                                                                                  |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| composition root | The one place an app creates its scope and resolves its services (`apps/playground/src/main.tsx`); hydration runs here, before the first paint.                          |
-| action           | A user-facing operation: typed input admitted at the door, the cells it touches as controller deps, no React — `scope.run(addFile)` does what the button does.           |
-| effect resource  | A resource whose value is incidental and whose job is to subscribe, listen, or loop (the bundler, persistence, the iframe listener, a frame loop), torn down by `defer`. |
-| golden example   | The playground shell and its default example: the code that shows how an app on `@tinker/*` should be shaped — every effect a resource, every action an operation.       |
+| term            | meaning |
+| --------------- | ------- |
+| synced cell     | A `data` cell carrying `synced({ key })` meta: the same module imported on both sides; its `parse` is the edge for a snapshot from the wire (ADR 0048). |
+| family          | `family({ label, initial, parse?, eq? })`: `(id) => Data.Cell<T>`, memoized per id, each member a synced cell keyed `label/id`. A cell with an id; `onMember` fires once per new member. |
+| identity        | The key a family member syncs under: `label/id`. Matching between a client and its source is by family and identity. |
+| registration    | The client scope's `sync(cell \| family)` bindings, sent as `register { keys }`: every bound singleton and every member the client holds (new members register the moment they exist). Nothing is pushed unasked. |
+| source          | `source(scope)`: the source extension on a scope — `{ connect(transport) }` opens a session per subscriber, answers each `register` with the initial snapshots (an inline op `sync register`), then fans out every change on a registered key. The scope's cells are the truth. |
+| subscribe       | `subscribe(scope, transport)`: the client extension — registers by identity, writes each `snapshot` into the cell through its parse, `close()` detaches. One way in v1: a local write stays local until the next snapshot. |
+| transport       | `Sync.Transport = { send, onMessage, onClose, close }` — userland's wire (SSE+POST, WebSocket, postMessage); the package ships only `memoryPair()`, the test seam. |
+| version         | A per-key integer the source bumps on each change; rides on every snapshot. |

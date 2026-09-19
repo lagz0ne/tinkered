@@ -1,6 +1,6 @@
 # 0048 Sync: a cell is the shared unit; the server is the truth; the transport is userland's
 
-Date: 2026-09-18. Status: accepted. Refines: 0034 (tiers: driver), 0040 (a server request is an
+Date: 2026-09-18. Status: accepted; **amended 2026-09-19 (one way, registration by identity — see the last section)**. Refines: 0034 (tiers: driver), 0040 (a server request is an
 inline operation — a sync write is one too), 0042/0046 (config on the scope; static facts ride on
 the unit's `meta`), 0006 (the parse is the edge — a snapshot from the wire is raw input).
 
@@ -75,3 +75,28 @@ wire:    snapshot ↓ · set ↑ · ack/reject ↓         (userland: memoryPair
 - **A `syncStore({ cells })` frame owning its own cells** — a second cell kind; the meta rule wins.
 - **Built-in SSE/WebSocket transports** — the user wants the wire configurable; recipes suffice.
 - **`scope.onMount` now** — one asker; the whole-family publish is a real design, not a workaround.
+
+## Amendment 2026-09-19 — v1 is one way; the viewer registers what it looks at
+
+The user's concept, restated: a **source** is a scope with the source extension; each client knows how
+to connect to its source (that is the protocol, userland's transport); depending on the client's
+**registration** the data set is delivered initially and then synced as it changes on the source;
+matching is by **family and identity** (the key `label/id`). Writes from the client are a later version.
+
+- `source(scope)` returns `{ connect(transport) }` (replaces `syncServer`); `subscribe(scope, transport)`
+  returns `{ close() }` (replaces `syncClient`). Decision §4 (writes, LWW, ack/reject) and §5 (optimistic
+  writes, revert) are withdrawn for v1; §1–§3 and §6–§7 stand.
+- The wire has two messages: `register { keys }` (client → source) and `snapshot { key, version, value }`
+  (source → client). `set`/`ack`/`reject` are gone.
+- **Registration is the client's `sync(...)` bindings, by identity:** at connect the client registers every
+  bound singleton key and every family member it already holds; a member created later (`todo("7")`
+  first called, e.g. by `useData`) is registered the moment it exists (`family.onMember`). Nothing is
+  pushed unasked: the source keeps a key set per transport and fans a change out only to the transports
+  registered for that key. A registered member the source does not hold yet is created there with its
+  initial value. This replaces "a family is published whole" (§3).
+- Each `register` runs on the source as an inline operation `sync register` (span, one `sync register`
+  log line with the key count) inside the subscriber's session; a key that is not published, or a
+  message in the wrong direction, closes the transport (protocol violation, as before).
+- A userland write on a client cell stays local in v1 (the next snapshot overwrites it); the README says so.
+- Unregister waits for `scope.onMount` (a member is memoized for the process's life); the core-feedback
+  candidate stands with one asker.

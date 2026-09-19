@@ -153,7 +153,7 @@ tickets, then contributors with lead review:
          `examples/cli.ts` = the stdio entry through `@tinker/cli` (`command.entry("mcp", () => serve)` beside
          `tools(search)`; `node cli.ts help` exits 0), README pass (dual `tool` + `command` meta on one op;
          `readTool`/`answerTool` as the shared readers). Size 1591 B, mutation 80.60. Archived below._
-5. **Sync (`@tinker/sync`)** — **shipped (ADR 0048; archived below)**, user 2026-09-18 (`1A`; a cell with an id is a family member;
+5. **Sync (`@tinker/sync`)** — **shipped two-way, then re-cut one way (ADR 0048 amended 2026-09-19: the viewer registers by identity; `source`/`subscribe`)**, user 2026-09-18 (`1A`; a cell with an id is a family member;
    transport agnostic; hook waits: `B`). Plan: `docs/roadmap/sync-v1/PROGRESS.md`.
    - [x] **sync/t01 — package: `synced` meta, `family`, `sync` binding tag, `Sync.Message` + `Sync.Transport`, `memoryPair()`.**
          _Done: tag `sync/t01` (7f25563), writer-built, no fix round: `@tinker/sync` with `synced`/`sync` tags, `family()` (members
@@ -183,6 +183,12 @@ tickets, then contributors with lead review:
          Client / Wire it: Hono, WebSocket sketch, React note). 34 tests, size 3697 B, mutation 78.32 (up from 68.18).
          Impact chain: neither. Landed twice: the first landing was reset away by a concurrent lead in the shared
          landing worktree — re-landed from a private one. Archived below._
+   - [ ] **sync/t05 — one way, registration by identity: `source(scope)` + `subscribe(scope, transport)`.** Writes out
+         (`set`/`ack`/`reject`, the `sync set` op, the client's optimistic path); `register { keys }` in; a key set per
+         transport; `sync register` inline op; the Hono recipe's POST becomes the registration channel; README and
+         lanes renamed. Verify: seam tests — a client sees only what it registered (two family objects with one label,
+         one per side), a late member registers on creation and gets its initial snapshot at once, an unpublished key
+         closes the transport; 37 lanes green; mutation ≥ 60.
 6. **`@tinker/ai`** — the LLM layer over the AI SDK (the model is the swappable slot; generateText/streamText as
    ops; tools as operations; `MockLanguageModelV4` as the test seam). Deferred until a driver asks.
 
