@@ -31,6 +31,7 @@ Package `packages/sync` (`@tinker/sync`), runtime import only `@tinker/core`, on
 | sync/t03 | 2a96f01 | 27    | 3697          | 68.18    | writer-built, one fix round (shared `readPublished` registry); `applying` flag = write origin; impact chain: neither.                                                                                               |
 | sync/t04 | e290944 | 34    | 3697          | 78.32    | validation milestone: four lanes (37), `examples/hono.ts` SSE+POST recipe with a seam test through `app.request`, six client edge tests, README pass. Writer-built, no fix round.                                   |
 | sync/t05 | cf01bbb | 20    | 3324          | 73.53    | one way: `source` + `subscribe`, `register { keys }`, a key set per subscriber, `sync register` op; the write path deleted; stryker `inPlace` so the recipe test (root examples) loads. Writer-built, no fix round. |
+| sync/t06 | 6409128 | 21    | 4066          | 62.34    | both engines are core extensions (ADR 0050); tracked in `docs/roadmap/extensions-v1/PROGRESS.md`.                                                                                                                   |
 
 ### Impact blocks (ADR 0047)
 

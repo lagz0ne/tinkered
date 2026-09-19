@@ -207,8 +207,14 @@ tickets, then contributors with lead review:
    - [ ] **core/t33 — the `resolve` chain.** Verify: probes flat when unhooked; one hooked read test.
    - [ ] **core/t34 — the `run` chain.** Verify: `op` probe flat when unhooked; a refusing middleware short-circuits.
    - [ ] **core/t35 — the `write` chain.** Verify: cell-write probe flat when unhooked; a refusing write leaves the cell.
-   - [ ] **sync/t06 — `source()` and `subscribe(transport)` as extensions;** `subscribe`'s start resolves when the initial
-         registration's snapshots arrived; `scope.resolve(source).connect`; the Hono recipe and README follow.
+   - [x] **sync/t06 — `source()` and `subscribe(transport)` as extensions.** _Done: tag `sync/t06` (6409128), writer-built
+         with one fix round (error construction back in the registry: `fail(kind, payload)`, `raise` throws it; no cast
+         in src). `createScope({ tags, extensions: [src] })` / `[sub]`; `await scope.ready` = the viewer holds its initial
+         data set (every key of the first registration snapshotted; zero keys → at once); a close or a violation before
+         that rejects `start` with `SyncNotReady { label, missing }` and core closes the scope `failed`; `ctx.signal`
+         stops the wait on a forced close; `scope.resolve(src).connect` / `scope.resolve(sub).close`; close hooks close the
+         wires then `next()`. 21 seam tests, size 4066 B, 37 lanes green, mutation 62.34. Core feedback: 3
+         rows (a failed start's close hook re-enters; sync throws from close listeners; await ready before resolve)._
 7. **`@tinker/ai`** — the LLM layer over the AI SDK (the model is the swappable slot; generateText/streamText as
    ops; tools as operations; `MockLanguageModelV4` as the test seam). Deferred until a driver asks.
 
@@ -224,7 +230,8 @@ Perf follow-up when the sandbox `bench` is available: `op` parity (budgets.md "C
   snapshots, then every change on a registered key fans out through one watcher per key), the client fills
   snapshots through the cell's parse (`subscribe(scope, transport)`; local writes stay local in v1), and the transport
   is userland's (`Sync.Transport`; `memoryPair()` is the seam; the Hono SSE + POST recipe is `examples/sync/hono.ts`,
-  proven through `app.request`). t02–t04 first shipped a two-way LWW design; the user re-cut v1 one way (t05).
+  proven through `app.request`). t02–t04 first shipped a two-way LWW design; the user re-cut v1 one way (t05);
+  t06 made both engines core extensions (ADR 0050): `createScope({ extensions })`, `await scope.ready` = the initial data set.
   Gate: 37 lanes green, 20 seam tests, size 3324 B, runtime import `@tinker/core` only, mutation 73.53.
   Core feedback: a session shadows cell writes; `tag.all` is newest-first; `scope.onMount` (unregister on last
   watcher) and a core cell family wait for a second asker. Detail: `docs/roadmap/sync-v1/PROGRESS.md`.

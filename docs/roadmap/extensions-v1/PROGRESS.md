@@ -26,17 +26,24 @@ extension's `ctx`: `defer` lands in `owner.defers`, `signal` is the layer's); `S
 | core/t33 | the `resolve` chain (cells, resources, tags) — probes flat when unhooked                                      | t32      | [ ]    |
 | core/t34 | the `run` chain (operation calls) — `op` probe flat when unhooked; short-circuit                              | t32      | [ ]    |
 | core/t35 | the `write` chain (cell sets) — probe flat when unhooked; a refused write leaves the cell                     | t32      | [ ]    |
-| sync/t06 | `source()` + `subscribe(transport)` as extensions; readiness = the initial data set; recipe + README          | t32      | [ ]    |
+| sync/t06 | `source()` + `subscribe(transport)` as extensions; readiness = the initial data set; recipe + README          | t32      | [x]    |
 
 ### Landed
 
 | tag      | sha     | tests | size (B gzip) | mutation | probes (before → after)                                                                                                            | notes                                                                                                                                                              |
 | -------- | ------- | ----- | ------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | core/t32 | 66bcea7 | 239   | 22128         | 78.47    | create 176→169, warm 29.2→29.2, op 100.9→101.1, opres 330→327, cold 695→711, session 1617→1633 (pinned, min of 3, A/B alternating) | writer-built, one fix round (handle literal restored; cold-path `extendHandle`). Follow-up in t33: `exts` off the Layer record; extract only the resolve dispatch. |
+| sync/t06 | 6409128 | 21    | 4066          | 62.34    | — (no core change)                                                                                                                 | `source()`/`subscribe(transport)` as extensions; ready = the initial data set; `SyncNotReady`; `fail()` in the registry. Writer-built, one fix round.              |
 
 ### Impact blocks (ADR 0047)
 
 Blocks list `src/` and `tests/` files only (examples live outside the package index).
+
+```impact sync/t06
+sync  source     src/index.ts tests/sync.test.ts
+sync  subscribe  src/index.ts tests/sync.test.ts
+sync  fail       src/errors.ts src/index.ts
+```
 
 ```impact core/t32
 core  createScope   src/index.ts tests/index.test.ts tests/cache.bench.test.ts
