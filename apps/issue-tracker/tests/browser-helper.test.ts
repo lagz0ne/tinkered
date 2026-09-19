@@ -239,6 +239,7 @@ test("a held draft post disables posting controls then saves once", async () => 
       (request) => request.method() === "POST" && request.url().endsWith("/comments"),
     );
     await draft.getByRole("button", { name: "Post draft", exact: true }).click();
+    await heldComment;
     await draft.getByRole("button", { name: /^Posting/ }).waitFor();
     const posting = draft.getByRole("button", { name: /^Posting/ });
     const discarding = draft.getByRole("button", { name: "Discard draft", exact: true });
@@ -246,7 +247,6 @@ test("a held draft post disables posting controls then saves once", async () => 
     assert.equal(await discarding.isEnabled(), false);
     assert.deepEqual(await booted.detail(created.id), before);
     releaseComment();
-    await heldComment;
     await draft.getByRole("button", { name: "Draft a summary", exact: true }).waitFor();
     const after = await booted.detail(created.id);
     assert.equal(after.comments.length, before.comments.length + 1);
@@ -362,9 +362,19 @@ test("shutdown with a live wire and held turn joins cleanly", async () => {
     const closed = await closing;
     assert.deepEqual(closed.teardownErrors ?? [], []);
     assert.equal(closed.status, "cancelled");
-    const end = await held;
-    if ("text" in end && end.text !== undefined) {
-      assert.equal(end.text.includes('"kind":"done"'), false);
+    try {
+      await live.scope.close();
+      await sse.body?.cancel();
+      await heard.stop();
+      const end = await held;
+      if ("text" in end && end.text !== undefined) {
+        assert.equal(end.text.includes('"kind":"done"'), false);
+      }
+    } finally {
+      fixture.release();
+      await live.scope.close();
+      await heard.stop();
+      rmSync(join(path, ".."), { recursive: true, force: true });
     }
     const reopened = await bootScope(path);
     try {
@@ -374,13 +384,8 @@ test("shutdown with a live wire and held turn joins cleanly", async () => {
     }
   } finally {
     fixture.release();
-    await sse.body?.cancel();
-    await held.then(
-      () => undefined,
-      () => undefined,
-    );
-    await heard.stop();
     await live.scope.close();
+    await heard.stop();
     rmSync(join(path, ".."), { recursive: true, force: true });
   }
 });

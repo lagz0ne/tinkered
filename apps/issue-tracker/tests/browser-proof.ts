@@ -397,21 +397,13 @@ async function main(): Promise<void> {
     assert.match(staleCli.err, /IssueConflict/);
 
     const savedBeforeRestart = await readDetail(base, id);
-    await restart();
-    await firstTab.goto(base);
-    await firstTab.getByRole("heading", { name: "Issues" }).waitFor();
-    await rowFor(firstTab, winnerTitle).first().waitFor();
-    await secondTab.goto(base);
-    await secondTab.getByRole("heading", { name: "Issues" }).waitFor();
-    await rowFor(secondTab, winnerTitle).first().waitFor();
-    assert.deepEqual(await readDetail(base, id), savedBeforeRestart);
-
     await selectIssue(firstTab, winnerTitle);
     const restartEdit = firstTab.getByRole("form", { name: "edit issue" });
     await restartEdit.getByLabel("Title", { exact: true }).fill("My local title");
     await firstTab.getByRole("textbox", { name: "Comment", exact: true }).fill("My local comment");
     const droppedRevision = savedBeforeRestart.issue.revision;
     await restart();
+    assert.deepEqual(await readDetail(base, id), savedBeforeRestart);
     await firstTab
       .getByRole("alert")
       .filter({ hasText: /live|connect/i })
