@@ -744,3 +744,21 @@ This is before-fix evidence only. The same probe checks retained title/comment a
 baseRevision 5 plus stale-save 409 once recovery works. It owns and cleans up its exact
 child processes, fresh port/database, and Chromium. t05 remains blocked by t04; no fix or
 preview is claimed here. The final repo test suite must preserve this behavior check.
+
+## t05 mobile and error baseline — 2026-09-19
+
+Lead browser probe on `0181aba` used its own temporary database, port, server,
+and Chromium at 390 × 844. `/tmp/tracker-t05-mobile-lead.mjs` recorded
+`/tmp/tracker-t05-mobile-before.log` and
+`/tmp/tracker-t05-mobile-before-result.json`:
+
+- Selects are 19px tall; common buttons and text inputs are 39px tall.
+  t05 must make touch targets at least 44px tall.
+- Stopping the actual server and submitting a create draft displays
+  `RequestFailed`. t05 must give a useful plain message and retry action.
+- The unsaved create title remains intact. Preserve this behavior.
+- No sideways scroll or browser page errors were observed at this viewport.
+
+The screenshot is `/tmp/tracker-t05-mobile-before.png`. The probe stopped
+only its owned server and browser. This records baseline findings; t05
+remains waiting for reviewed t04.
