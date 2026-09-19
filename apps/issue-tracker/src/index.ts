@@ -1,8 +1,20 @@
 export { fail, isError, raise } from "./errors.ts";
 export type { Errors } from "./errors.ts";
-export { issueList, parseCreateInput, parseIssue, parseIssueList } from "./shared/issues.ts";
+export {
+  assignees,
+  issueList,
+  parseActivity,
+  parseComment,
+  parseCommentInput,
+  parseCreateInput,
+  parseEditInput,
+  parseIssue,
+  parseIssueDetail,
+  parseIssueId,
+  parseIssueList,
+} from "./shared/issues.ts";
 export type { Issues } from "./shared/issues.ts";
-export { createIssue, listIssues } from "./server/operations.ts";
+export { addComment, createIssue, editIssue, listIssues, readDetail } from "./server/operations.ts";
 export { bootScope } from "./server/bridge.ts";
 export type { Booted } from "./server/bridge.ts";
 export { buildApp } from "./server/app.ts";

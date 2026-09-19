@@ -1,8 +1,14 @@
-# Issue tracker (slice t01: create and see it live)
+# Issue tracker (slice t02: edit, assign, and discuss)
 
-Create an issue with a title and description. The server saves it in a real
-database, two browser tabs see it through sync, and it survives reload and
-restart. Open is the only status in this slice.
+Create an issue, open it, edit its title/description, move it through
+Open/In progress/Done, assign Ada/Lin/Sam or nobody, and add comments.
+The server saves everything in a real database, two browser tabs see it
+through sync, and it survives reload and restart.
+
+Edits carry the revision originally opened. A stale save is rejected with
+HTTP 409 and the current saved issue; the local draft is kept so the
+person can reload the other change and try again. Comments append without
+an edit revision.
 
 ## Run it
 

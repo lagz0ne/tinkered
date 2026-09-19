@@ -1,8 +1,15 @@
 import { Hono } from "hono";
 import { operation } from "@tinker/core";
-import { handle, stream, tinker } from "@tinker/hono";
+import { handle, stream, tinker, type HonoScope } from "@tinker/hono";
 import type { Sync } from "@tinker/sync";
-import { issueList, parseCreateInput } from "../shared/issues.ts";
+import {
+  issueList,
+  parseCommentInput,
+  parseCreateInput,
+  parseEditInput,
+  parseIssueId,
+} from "../shared/issues.ts";
+import { isError } from "../errors.ts";
 import type { Booted } from "./bridge.ts";
 
 function frame(message: Sync.Message): string {
@@ -18,23 +25,59 @@ function readPosted(raw: unknown): Sync.Message | undefined {
   return { type: "register", keys };
 }
 
+function onError(error: unknown, c: Parameters<HonoScope.OnError>[1]) {
+  if (isError(error, "IssueNotFound")) return c.text("issue not found", 404);
+  if (isError(error, "IssueConflict")) {
+    return c.json(
+      {
+        message: "someone else saved first — reload and try again",
+        id: error.payload.id,
+        currentRevision: error.payload.currentRevision,
+        current: error.payload.current,
+      },
+      409,
+    );
+  }
+  if (isError(error, "BadCreateInput") || isError(error, "BadEditInput")) {
+    return c.text(error.payload.reason, 400);
+  }
+  if (isError(error, "BadCommentInput")) return c.text(error.payload.reason, 400);
+  return undefined;
+}
+
 /** Build the Hono app on the owning root scope. Route operations close over the
  * root: saves run in their own short child session and publish only after the
- * database commit resolves; reads answer the published root cell. */
+ * database commit resolves; reads answer the published root cell or the
+ * database. A rejected save writes nothing and publishes nothing. */
 export function buildApp(booted: Booted.Composed): Hono {
   const { scope, src, save } = booted;
   const saveIssue = operation({
     label: "saveIssue",
     input: parseCreateInput,
-    run: (_deps, ctx) => save(ctx.input),
+    run: (_deps, ctx) => save.create(ctx.input),
+  });
+  const editSaved = operation({
+    label: "editSaved",
+    input: parseEditInput,
+    run: (_deps, ctx) => save.edit(ctx.input),
+  });
+  const commentSaved = operation({
+    label: "commentSaved",
+    input: parseCommentInput,
+    run: (_deps, ctx) => save.comment(ctx.input),
   });
   const readIssues = operation({
     label: "readIssues",
     run: () => scope.resolve(issueList),
   });
+  const readOne = operation({
+    label: "readOne",
+    input: parseIssueId,
+    run: (_deps, ctx) => booted.detail(ctx.input),
+  });
   const posts = new Map<string, (message: Sync.Message) => void>();
   const app = new Hono();
-  app.use(tinker(scope));
+  app.use(tinker(scope, { onError }));
   app.post("/api/issues", async (c) => {
     let raw: unknown;
     try {
@@ -47,6 +90,38 @@ export function buildApp(booted: Booted.Composed): Hono {
       respond: (issue, res) => res.json(issue, 201),
     })(c);
   });
+  app.patch("/api/issues/:id", async (c) => {
+    const id = c.req.param("id");
+    let raw: unknown;
+    try {
+      raw = await c.req.json();
+    } catch {
+      raw = undefined;
+    }
+    return handle(editSaved, {
+      input: () => (typeof raw === "object" && raw !== null ? { ...raw, id } : { id }),
+      respond: (issue, res) => res.json(issue, 200),
+    })(c);
+  });
+  app.post("/api/issues/:id/comments", async (c) => {
+    const issueId = c.req.param("id");
+    let raw: unknown;
+    try {
+      raw = await c.req.json();
+    } catch {
+      raw = undefined;
+    }
+    return handle(commentSaved, {
+      input: () => (typeof raw === "object" && raw !== null ? { ...raw, issueId } : { issueId }),
+      respond: (comment, res) => res.json(comment, 201),
+    })(c);
+  });
+  app.get("/api/issues/:id", (c) =>
+    handle(readOne, {
+      input: () => c.req.param("id"),
+      respond: (detail, res) => res.json(detail, 200),
+    })(c),
+  );
   app.get(
     "/api/issues",
     handle(readIssues, {

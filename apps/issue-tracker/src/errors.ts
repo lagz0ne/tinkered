@@ -1,7 +1,13 @@
+import type { Issues } from "./shared/issues.ts";
+
 type Payloads = {
   BadIssue: { label: string };
   BadIssueList: { label: string };
   BadCreateInput: { reason: string };
+  BadEditInput: { reason: string };
+  BadCommentInput: { reason: string };
+  IssueNotFound: { id: string };
+  IssueConflict: { id: string; currentRevision: number; current: Issues.Issue };
   SyncDropped: { reason: string };
 };
 
