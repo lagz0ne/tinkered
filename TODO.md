@@ -30,7 +30,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 | Card                                | Owner                                             | Next                                                                      | Verify                                                                |
 | ----------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| tracker/t04 — Optional triage draft | Muse writer 257f478e; active tracker lead reviews | Fix root-cancel outcome in `d915279`; then wire routes, screen, and tests | Public adapter seam tests, saved-state safety, checks and lead review |
+| tracker/t04 — Optional triage draft | Muse writer 257f478e; active tracker lead reviews | Wire server routes/config after reviewed `162853f`; then screen and tests | Public adapter seam tests, saved-state safety, checks and lead review |
 
 ## Review
 

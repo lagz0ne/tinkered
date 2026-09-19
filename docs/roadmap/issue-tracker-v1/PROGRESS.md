@@ -822,3 +822,19 @@ inspected close outcome. Root shutdown with a live caller signal can
 therefore still escape as an error even when the close result says cancelled.
 The next bounded writer step must classify that close outcome first. The
 app route must also show a normal failed outcome for a provider error.
+
+## t04 lead continuation — 2026-09-19
+
+The next lead personally read contributor commit `162853f`. The runner now
+returns an inspected cancelled or failed close outcome before rethrowing an
+unknown turn error. This fixes the remaining source finding; no public app
+behavior is yet proven. The same sole contributor is implementing the server
+composition, HTTP stream, and opt-in configuration as the next bounded step.
+
+The lead also found that the harness status watcher forwards `done` before
+cleanup is inspected. The writer will limit it to live progress and publish
+terminal status only after close. UI and public adapter tests still remain.
+No t04 code is landed; t05 and the temporary preview are still unfinished.
+The resumed lead install recorded the known ignored esbuild build-script
+policy failure in `/tmp/tracker-t04-resumed-lead-install.log`; no policy
+change or provisioning was attempted.
