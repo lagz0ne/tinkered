@@ -1,17 +1,18 @@
 # Issue tracker v1 — build progress
 
-**Acceptance passed.** The realtime issue tracker is built and checked: create, edit, comments,
+**Complete and pushed.** The realtime issue tracker is built and checked: create, edit, comments,
 CLI/MCP tools, optional draft helper, reconnect, and phone use. [Plan](PLAN.md).
 The [public preview](https://p-363cfc8f40e8.preview.tini.works) passed real two-tab browser checks;
-it is temporary (normally eight hours). Final tag/push and writer cleanup remain.
+it is temporary (normally eight hours). All five tickets are Done. Tag/push and writer cleanup
+are verified in the [completion record](#t05-complete--2026-09-19).
 
-| Ticket      | Delivers                                                            | Blocked by | State  |
-| ----------- | ------------------------------------------------------------------- | ---------- | ------ |
-| tracker/t01 | [Create an issue and see it live](issues/01-create-and-see-live.md) | —          | Done   |
-| tracker/t02 | [Edit, assign, and discuss issues](issues/02-edit-and-discuss.md)   | t01        | Done   |
-| tracker/t03 | [Use the same actions from CLI and MCP](issues/03-cli-and-tools.md) | t02        | Done   |
-| tracker/t04 | [Draft a summary with the harness](issues/04-triage-draft.md)       | t03        | Done   |
-| tracker/t05 | [Finish the demo and its test guide](issues/05-finish-and-show.md)  | t04        | Review |
+| Ticket      | Delivers                                                            | Blocked by | State |
+| ----------- | ------------------------------------------------------------------- | ---------- | ----- |
+| tracker/t01 | [Create an issue and see it live](issues/01-create-and-see-live.md) | —          | Done  |
+| tracker/t02 | [Edit, assign, and discuss issues](issues/02-edit-and-discuss.md)   | t01        | Done  |
+| tracker/t03 | [Use the same actions from CLI and MCP](issues/03-cli-and-tools.md) | t02        | Done  |
+| tracker/t04 | [Draft a summary with the harness](issues/04-triage-draft.md)       | t03        | Done  |
+| tracker/t05 | [Finish the demo and its test guide](issues/05-finish-and-show.md)  | t04        | Done  |
 
 Lead uses `/home/paseo/next/tinkered-sync-land` on `lead/sync-land`. Writers get private Git
 worktrees but stay in Paseo workspace `wks_85042cce8c480929`. One writer per ticket; no writer
@@ -1533,4 +1534,38 @@ browser proof passed without an app change.
 
 The optional helper's credentialed live model was not exercised. Its real browser
 lifecycle cases use the public SDK preset only in test files. The default demo
-needs no external account. Tag/push and writer cleanup are the only remaining steps.
+needs no external account. The remaining tag/push and writer cleanup were then completed below.
+
+### t05 complete — 2026-09-19
+
+All five issue-tracker slices are complete. Final source and guide were accepted
+at `2f9db43`; the acceptance record is committed as
+`ab4b0f829711258cf25e479e2bb911fb52b85a76`.
+The lead fetched remote main, confirmed a fast-forward from `6713434`, then
+atomically pushed private `HEAD:main` and annotated tag `tracker/t05`.
+`git ls-remote` independently verified:
+
+```text
+main at acceptance: ab4b0f829711258cf25e479e2bb911fb52b85a76
+tracker/t05 commit: ab4b0f829711258cf25e479e2bb911fb52b85a76
+tracker/t05 tag object: b9f3212cf294124e94558ffd79a776b638f8e771
+```
+
+Evidence: `/tmp/tracker-t05-acceptance-remote.txt`. The final Done notes follow
+that tag on main; no app source changed after the passing gates and public proof.
+Acceptance-document `vp check` also passed with 0 errors and the same 13 warnings
+(`/tmp/tracker-t05-acceptance-check.log`). All 70 local Markdown link targets checked
+exist (`/tmp/tracker-t05-final-doc-links.log`).
+
+Only after the push was verified, the same writer
+`ade1b488-b3f8-4c59-a198-004a9bf5551d` was archived successfully. Its tree was clean
+at `5a124823b28fcab448a44bfd98bc05bb5accb1be`. Its full app and examples changes
+exactly matched the accepted lead tree. The clean worktree
+`/home/paseo/next/tinkered-issue-t05` and branch `tracker/t05-finish` were removed.
+The registered checkout, other leads, and parked lanes were not changed.
+
+[Use the verified public issue tracker](https://p-363cfc8f40e8.preview.tini.works).
+The preview remains running with safe demo data and the optional model helper off.
+It normally expires about eight hours after its 2026-09-19 21:17 UTC launch.
+Public two-tab/reload/conflict and phone/desktop results are recorded in final
+acceptance above. There is no remaining approved tracker work.

@@ -33,9 +33,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Review
 
-| Card                                  | Owner                                  | Next                                                                                               | Verify                                                           |
-| ------------------------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| tracker/t05 — Finish and show the app | Tracker lead; writer ade1b488 finished | All final gates and public browser proof passed; commit acceptance, tag/push, then clean up writer | Verify remote main/tag SHAs and leave the public preview running |
+| Card | Owner | Next | Verify |
+| ---- | ----- | ---- | ------ |
 
 ## Blocked
 
@@ -59,6 +58,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 | Card                                                              | Evidence                                                                                                                                                                                                                                   |
 | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| tracker/t05 — Finish and show the app                             | [Complete and pushed](docs/roadmap/issue-tracker-v1/PROGRESS.md#t05-complete--2026-09-19): tag ab4b0f8, 25 app tests + 7 helper tests + process/browser proof, 37 lanes, SCIP, verified public two-tab preview; writer cleaned up          |
 | tracker/t04 — Optional triage draft                               | Code `db4f674`; [lead proof](docs/roadmap/issue-tracker-v1/PROGRESS.md#t04-complete--2026-09-19): 25 tests, all 37 lanes, read-only tool composition, cancel/discard/Post, shutdown/reopen, malformed-stream safety, and SCIP              |
 | tracker/t03 — CLI and issue tools                                 | Code `3303f5a`; [final proof](docs/roadmap/issue-tracker-v1/PROGRESS.md#t03-complete--2026-09-19): 15 app tests, all 37 lanes, CLI/MCP live browser saves, stale-save safety, EOF/signal shutdown, and SCIP                                |
 | tracker/t02 — Edit, assign, and discuss issues                    | Code `1be5dfc`; [lead proof](docs/roadmap/issue-tracker-v1/PROGRESS.md#t02-complete--2026-09-19): 11 app tests, 37 fresh validation lanes, 48 React tests, stale-draft regression, two tabs, reload/restart, and clean shutdown            |
