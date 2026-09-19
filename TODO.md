@@ -144,8 +144,14 @@ tickets, then contributors with lead review:
          `memoryPair()` (microtask delivery in order; close fires both sides once). 8 seam tests, size 1429 B, 33 lanes green,
          mutation 80.60. First real `impact.mjs` run: PLAN wrong on `readSynced`/`isFamily`/`Sync` — the block
          under-declared the brief's surface (corrected); scanner nit fixed (undeclared exports scan `src/` only)._
-   - [ ] **sync/t02 — `syncServer(scope).connect(transport)`:** a session per transport, snapshots down, `set` as inline op
-         `sync set <key>` (parse → LWW by version → ack/reject → fan out), one `sync set` log line.
+   - [x] **sync/t02 — `syncServer(scope).connect(transport)`.** _Done: tag `sync/t02` (b6bd197), writer-built after one
+         provider death and one fix round (five needless casts, a split read/write path, a polling test helper, an escaping
+         throw). A session per transport; snapshots down (newest binding first); a `set` runs as inline op `sync set <key>`
+         (parse → LWW by version → ack/reject → fan out through ONE watcher per key, which is also where the version moves,
+         so userland writes fan out the same way); unknown key / non-set message / unexpected throw close the transport;
+         `family.onMember`; `SyncConflict` when two cells claim a key. 9 seam tests (17 total), size 2839 B, 33 lanes green,
+         mutation 77.89. Core feedback: a session shadows cell writes (the truth is written through the scope handle);
+         `resolve(tag.all)` is newest-first. Impact chain: `onMember` untested → direct test in t03._
    - [ ] **sync/t03 — `syncClient(scope, transport)`:** snapshots through parse (family members created on arrival),
          optimistic local writes with `base`, revert on reject.
    - [ ] **sync/t04 — validation milestone:** lanes (37), mutation ≥ 60 alone, README (Hono SSE+POST and WebSocket
