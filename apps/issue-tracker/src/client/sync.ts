@@ -5,10 +5,12 @@ import { issueList } from "../shared/issues.ts";
 import { fail, isError } from "../errors.ts";
 
 export declare namespace TabSync {
-  /** One connected tab: its scope plus a watch for a dropped live wire. */
+  /** One connected tab: its scope, a watch for a dropped live wire, and a
+   * closer that stops the wire, joins the queued sends, and closes the scope. */
   export type Connected = {
     readonly scope: Scope.Handle;
     readonly onDrop: (listener: () => void) => () => void;
+    readonly close: () => Promise<Scope.Result>;
   };
 }
 
@@ -49,7 +51,8 @@ function opened(stream: EventSource): Promise<void> {
  * waiting on ready: a stream that ends after registration but before the
  * first snapshot settles startup instead of hanging on Loading. Pending
  * sends queue in order and cancel on close; a drop after ready is visible
- * through onDrop. Reload retries; reconnect stays t05. */
+ * through onDrop. Close stops the wire, joins the queued sends, then closes
+ * the scope; a failed start cleans its own scope before throwing. */
 export async function connectTab(baseUrl: string): Promise<TabSync.Connected> {
   const id = Math.random().toString(36).slice(2);
   const stream = new EventSource(`${baseUrl}/sync?client=${id}`);
@@ -73,6 +76,7 @@ export async function connectTab(baseUrl: string): Promise<TabSync.Connected> {
     stream.close();
     fire();
   };
+  function settleTail(): void {}
   stream.onerror = () => closeOnce();
   const post = async (message: Sync.Message, signal: AbortSignal): Promise<void> => {
     let res: Response;
@@ -119,14 +123,20 @@ export async function connectTab(baseUrl: string): Promise<TabSync.Connected> {
     tags: [sync(issueList), api.config({ baseUrl })],
     extensions: [subscribe(transport)],
   });
+  async function closeConnection(): Promise<Scope.Result> {
+    closeOnce();
+    await tail.then(settleTail, settleTail);
+    return scope.close();
+  }
   try {
     await scope.ready;
   } catch (error) {
-    closeOnce();
+    await closeConnection();
     throw error;
   }
   return {
     scope,
+    close: closeConnection,
     onDrop: (listener) => {
       if (closed) {
         listener();

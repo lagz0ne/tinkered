@@ -3,7 +3,7 @@ import { ScopeProvider, useData, useRun } from "@tinker/react";
 import { isError as isHttpError } from "@tinker/http";
 import { getDetail, patchIssue, postComment, postIssue } from "./api.ts";
 import DraftView from "./DraftView.tsx";
-import type { TabSync } from "./sync.ts";
+import { connectTab, type TabSync } from "./sync.ts";
 import { assignees, issueList, parseIssue, type Issues } from "../shared/issues.ts";
 import { isError } from "../errors.ts";
 
@@ -65,6 +65,8 @@ function IssueForm() {
 
 function readSubmitMessage(error: unknown): string {
   if (isError(error, "BadCreateInput")) return error.payload.reason;
+  const offline = readOfflineMessage(error);
+  if (offline !== null) return offline;
   if (isHttpError(error, "ResponseFailed")) return readHttpMessage(error.payload.response.status);
   if (error instanceof Error && error.message.length > 0) return error.message;
   return "Could not save the issue.";
@@ -74,6 +76,13 @@ function readHttpMessage(status: number): string {
   if (status === 404) return "That issue is gone. Reload the list.";
   if (status === 409) return "Someone else saved first. Reload and try again.";
   return "Could not save. Try again.";
+}
+
+function readOfflineMessage(error: unknown): string | null {
+  if (isHttpError(error, "RequestFailed")) {
+    return "Could not reach the server. Your work is kept — try again.";
+  }
+  return null;
 }
 
 function statusName(status: Issues.Status): string {
@@ -154,6 +163,8 @@ function readEditError(error: unknown): { message: string; conflict: Conflict | 
     };
   }
   if (isError(error, "BadEditInput")) return { message: error.payload.reason, conflict: null };
+  const offline = readOfflineMessage(error);
+  if (offline !== null) return { message: offline, conflict: null };
   if (isHttpError(error, "ResponseFailed")) {
     if (error.payload.response.status === 409) {
       return { message: "Someone else saved first. Reload and try again.", conflict: null };
@@ -343,6 +354,8 @@ function CommentForm(props: { issueId: string; reload: () => void }) {
 
 function readCommentError(error: unknown): string {
   if (isError(error, "BadCommentInput")) return error.payload.reason;
+  const offline = readOfflineMessage(error);
+  if (offline !== null) return offline;
   if (isHttpError(error, "ResponseFailed")) return readHttpMessage(error.payload.response.status);
   if (error instanceof Error && error.message.length > 0) return error.message;
   return "Could not post. Try again.";
@@ -417,6 +430,9 @@ function DetailView(props: { selectedId: string; stamp: number }) {
 }
 
 function readDetailError(error: unknown): string {
+  if (isHttpError(error, "RequestFailed")) {
+    return "Could not reach the server. Showing the last saved detail.";
+  }
   if (isHttpError(error, "ResponseFailed")) {
     if (error.payload.response.status === 404) return "That issue is gone. Reload the list.";
     return "Could not refresh this issue. Showing the last saved detail.";
@@ -425,17 +441,18 @@ function readDetailError(error: unknown): string {
   return "Could not load the issue.";
 }
 
-/** The app shell: the command scope owns the api baseUrl. */
-export function App(props: { connected: TabSync.Connected }) {
-  const [live, setLive] = useState(true);
+/** The app shell: the command scope owns the api baseUrl. A reconnect swaps
+ * the scope on the same tree, so local drafts and their base revisions stay. */
+export function App(props: { initial: TabSync.Connected; baseUrl: string }) {
+  const [connection, setConnection] = useState(props.initial);
   const [filter, setFilter] = useState<Filter>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [stamp, setStamp] = useState(0);
   return (
-    <ScopeProvider scope={props.connected.scope}>
+    <ScopeProvider scope={connection.scope}>
       <main>
         <h1>Issues</h1>
-        <LiveState connected={props.connected} live={live} setLive={setLive} />
+        <LiveState connection={connection} setConnection={setConnection} baseUrl={props.baseUrl} />
         <IssueForm />
         <IssueFilters filter={filter} setFilter={setFilter} />
         <IssueList filter={filter} selectedId={selectedId} select={setSelectedId} />
@@ -453,17 +470,46 @@ export function App(props: { connected: TabSync.Connected }) {
 }
 
 function LiveState(props: {
-  connected: TabSync.Connected;
-  live: boolean;
-  setLive: (live: boolean) => void;
+  connection: TabSync.Connected;
+  setConnection: (connection: TabSync.Connected) => void;
+  baseUrl: string;
 }) {
-  useEffect(
-    () =>
-      props.connected.onDrop(() => {
-        props.setLive(false);
-      }),
-    [props.connected, props.setLive],
+  const [live, setLive] = useState(true);
+  const [pending, setPending] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [closedBadly, setClosedBadly] = useState(false);
+  useEffect(() => props.connection.onDrop(() => setLive(false)), [props.connection]);
+  async function reconnect(): Promise<void> {
+    setPending(true);
+    setFailed(false);
+    let next: TabSync.Connected;
+    try {
+      next = await connectTab(props.baseUrl);
+    } catch {
+      setPending(false);
+      setFailed(true);
+      return;
+    }
+    const old = props.connection;
+    props.setConnection(next);
+    setLive(true);
+    setPending(false);
+    const result = await old.close();
+    if (result.status === "failed" || (result.teardownErrors ?? []).length > 0) {
+      setClosedBadly(true);
+    }
+  }
+  return (
+    <>
+      {live ? null : <p role="alert">Live updates stopped. Your drafts are kept.</p>}
+      {live ? null : (
+        <button type="button" onClick={reconnect} disabled={pending}>
+          Reconnect
+        </button>
+      )}
+      {pending ? <p aria-live="polite">Reconnecting…</p> : null}
+      {failed ? <p role="alert">Still no connection. Try again.</p> : null}
+      {closedBadly ? <p role="alert">The old connection did not close cleanly.</p> : null}
+    </>
   );
-  if (props.live) return null;
-  return <p role="alert">Live updates stopped. Reload to reconnect.</p>;
 }
