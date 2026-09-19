@@ -4,7 +4,7 @@ import { addFile, editFile } from "@/actions.ts";
 import { compiler } from "@/compiler.ts";
 import { bundler } from "@/services.ts";
 import { bundleCell, debounce, statusCell } from "@/state.ts";
-import { fakeEsbuild } from "./fixtures.ts";
+import { fakeCompiler } from "./fixtures.ts";
 
 /** A scope whose compiler is the fake and whose debounce is zero: an edit compiles on the next tick. */
 function readScope(gate?: () => Promise<void>) {
@@ -13,7 +13,7 @@ function readScope(gate?: () => Promise<void>) {
   const scope = createScope({
     clock,
     tags: [debounce(0)],
-    presets: [preset(compiler, async () => fakeEsbuild(seen, gate))],
+    presets: [preset(compiler, async () => fakeCompiler(seen, gate))],
   });
   const writes: (string | undefined)[] = [];
   scope.controller(bundleCell).watch((next) => writes.push(next));

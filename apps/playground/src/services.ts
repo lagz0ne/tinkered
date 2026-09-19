@@ -53,11 +53,15 @@ export const persistence = resource({
   },
 });
 
+/** Why a debounce wait ended early: a newer edit took its place, or the scope closed. */
+const superseded = Symbol("superseded");
+
 /** Compiles the open files into the `bundle` cell: once on build, then debounced on every file
  * change. Runs the `compile` operation through its controller; a stale result (a newer edit
  * already queued) is dropped. An edit that leaves the bundle byte-identical (whitespace, a
- * comment) is "ready" at once — the preview keeps running, nothing reloads. Failures land in
- * `status`, never thrown past the resource. */
+ * comment) is "ready" at once — the preview keeps running, nothing reloads. The debounce is a
+ * `clock.sleep` on the ambient clock: a test clock drives it by `advance`, and closing the scope
+ * aborts it through the signal. Failures land in `status`, never thrown past the resource. */
 export const bundler = resource({
   label: "bundler",
   depends: {
@@ -67,9 +71,9 @@ export const bundler = resource({
     compile: compile.controller,
     debounce: debounce.required,
   },
-  factory: ({ files, bundle, status, compile, debounce }, { defer, clock }) => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
+  factory: ({ files, bundle, status, compile, debounce }, { defer, clock, signal }) => {
     let generation = 0;
+    let pending: AbortController | undefined;
     const build = () => {
       const mine = ++generation;
       const started = clock.currentTimeMillis();
@@ -93,12 +97,22 @@ export const bundler = resource({
       );
     };
     const schedule = () => {
-      clearTimeout(timer);
-      timer = setTimeout(build, debounce);
+      pending?.abort(superseded);
+      const wait = new AbortController();
+      pending = wait;
+      const cancel = AbortSignal.any([wait.signal, signal]);
+      clock.sleep(debounce, cancel).then(
+        () => {
+          if (!cancel.aborted) build();
+        },
+        (reason: unknown) => {
+          if (reason !== superseded && !signal.aborted) throw reason;
+        },
+      );
     };
     build();
     defer(files.watch(schedule));
-    defer(() => clearTimeout(timer));
+    defer(() => pending?.abort(superseded));
     return { schedule };
   },
 });

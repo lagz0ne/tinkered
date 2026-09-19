@@ -4,21 +4,14 @@ import { raise } from "@/errors.ts";
 import type { PlaygroundFile } from "@/lib/files.ts";
 import { entry } from "@/state.ts";
 
-/** esbuild-wasm, booted once per scope and cached: every compile shares the one instance, and
- * the first compile simply waits for the boot. */
-export const compiler = resource({
-  label: "compiler",
-  factory: async () => {
-    await esbuild.initialize({ wasmURL: "/esbuild.wasm" });
-    return esbuild;
-  },
-});
-
-const isFile = (value: unknown): value is PlaygroundFile =>
-  typeof value === "object" &&
-  value !== null &&
-  typeof (value as PlaygroundFile).name === "string" &&
-  typeof (value as PlaygroundFile).content === "string";
+export declare namespace Compiler {
+  /** The seam: the one call the shell makes of its compiler. The real one is esbuild-wasm over a
+   * virtual file system; a test presets a `Map` lookup. A resource's value is its consumer's seam,
+   * so it is the smallest shape the consumer calls — never the whole module behind it. */
+  export type Handle = {
+    bundle(entry: string, files: readonly PlaygroundFile[]): Promise<string>;
+  };
+}
 
 /** Resolves relative imports against the open tabs; bare specifiers stay external (import map). */
 function virtualFs(files: readonly PlaygroundFile[]): esbuild.Plugin {
@@ -57,6 +50,42 @@ const readMessage = (error: unknown): string => {
   return message.replace(/^.*ERROR:\s*/s, "");
 };
 
+/** esbuild-wasm behind the {@link Compiler.Handle} seam, booted once per scope and cached: every
+ * compile shares the one instance, and the first compile simply waits for the boot. */
+export const compiler = resource({
+  label: "compiler",
+  factory: async (): Promise<Compiler.Handle> => {
+    await esbuild.initialize({ wasmURL: "/esbuild.wasm" });
+    return {
+      bundle: async (entry, files) => {
+        try {
+          const result = await esbuild.build({
+            entryPoints: [entry],
+            bundle: true,
+            write: false,
+            format: "esm",
+            platform: "browser",
+            target: "es2020",
+            jsx: "automatic",
+            plugins: [virtualFs(files)],
+            logLevel: "silent",
+          });
+          const [output] = result.outputFiles;
+          return output.text;
+        } catch (error) {
+          raise("CompileFailed", { message: readMessage(error) });
+        }
+      },
+    };
+  },
+});
+
+const isFile = (value: unknown): value is PlaygroundFile =>
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as PlaygroundFile).name === "string" &&
+  typeof (value as PlaygroundFile).content === "string";
+
 /** Bundle the open files from the entry tag into one ESM module. Fails with `CompileFailed`. */
 export const compile = operation({
   label: "compile",
@@ -64,24 +93,6 @@ export const compile = operation({
     Array.isArray(raw) && raw.every(isFile)
       ? (raw as PlaygroundFile[])
       : raise("InvalidInput", { operation: "compile", reason: "expected files" }),
-  depends: { esbuild: compiler, entry: entry.required },
-  run: async ({ esbuild, entry }, { input: files }) => {
-    try {
-      const result = await esbuild.build({
-        entryPoints: [entry],
-        bundle: true,
-        write: false,
-        format: "esm",
-        platform: "browser",
-        target: "es2020",
-        jsx: "automatic",
-        plugins: [virtualFs(files)],
-        logLevel: "silent",
-      });
-      const [output] = result.outputFiles;
-      return output.text;
-    } catch (error) {
-      raise("CompileFailed", { message: readMessage(error) });
-    }
-  },
+  depends: { compiler, entry: entry.required },
+  run: ({ compiler: seam, entry }, { input: files }) => seam.bundle(entry, files),
 });
