@@ -149,9 +149,7 @@ async function readCapability(signal: AbortSignal): Promise<"off" | "on" | "fail
     if (!res.ok) return "failed";
     const found = parseDraftCapability(await res.json());
     return found.enabled ? "on" : "off";
-  } catch (error: unknown) {
-    if (signal.aborted) return "failed";
-    if (error instanceof DOMException && error.name === "AbortError") return "failed";
+  } catch {
     return "failed";
   }
 }

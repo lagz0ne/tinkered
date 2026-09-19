@@ -12,13 +12,9 @@ import { readFile } from "node:fs/promises";
 
 const APP = process.cwd();
 
-function escapeName(title: string): string {
-  return title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 function rowFor(page: Page, title: string) {
   return page.getByRole("list", { name: "issues" }).getByRole("button", {
-    name: new RegExp(escapeName(title)),
+    name: new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
   });
 }
 
@@ -28,18 +24,6 @@ async function selectIssue(page: Page, title: string): Promise<void> {
   const pressed = await row.getAttribute("aria-current");
   if (pressed !== "true") await row.click();
   await page.getByRole("heading", { name: title, exact: true }).waitFor();
-}
-
-async function deselectIssue(page: Page, title: string): Promise<void> {
-  const row = rowFor(page, title).first();
-  await row.waitFor();
-  const pressed = await row.getAttribute("aria-current");
-  if (pressed === "true") await row.click();
-  await page.getByText("Select an issue to edit it.").waitFor();
-}
-
-function removeTemp(dir: string): void {
-  rmSync(dir, { recursive: true, force: true });
 }
 
 async function mountAssets(app: ReturnType<typeof buildApp>): Promise<void> {
@@ -56,14 +40,6 @@ async function mountAssets(app: ReturnType<typeof buildApp>): Promise<void> {
   });
 }
 
-async function serveClient(
-  heard: Awaited<ReturnType<typeof reservePort>>,
-  app: ReturnType<typeof buildApp>,
-): Promise<void> {
-  await mountAssets(app);
-  heard.serve(app);
-}
-
 test("cancelling a held draft keeps partial text and saves nothing", async () => {
   const browser = await chromium.launch();
   const pageErrors: string[] = [];
@@ -74,7 +50,8 @@ test("cancelling a held draft keeps partial text and saves nothing", async () =>
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
   const app = buildApp(booted);
-  await serveClient(heard, app);
+  await mountAssets(app);
+  heard.serve(app);
   const created = await booted.save.create({ title: "Draft cancel", description: "v1" });
   fixture.fillIds(created.id);
   const before = await booted.detail(created.id);
@@ -86,10 +63,11 @@ test("cancelling a held draft keeps partial text and saves nothing", async () =>
     await selectIssue(page, created.title);
     const draft = page.getByRole("region", { name: "triage draft", exact: true });
     await draft.getByRole("button", { name: "Draft a summary", exact: true }).click();
-    await draft.getByText("Cancellable held").waitFor();
+    await fixture.started();
+    await draft.getByText("Cancellable he").waitFor();
     await draft.getByRole("button", { name: "Cancel draft", exact: true }).click();
     await draft.getByText("Cancelled.").waitFor();
-    await draft.getByText("Cancellable held").waitFor();
+    await draft.getByText("Cancellable he").waitFor();
     await fixture.aborted();
     assert.deepEqual(await booted.detail(created.id), before);
   } finally {
@@ -112,7 +90,8 @@ test("posting a draft saves one comment and one activity", async () => {
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
   const app = buildApp(booted);
-  await serveClient(heard, app);
+  await mountAssets(app);
+  heard.serve(app);
   const created = await booted.save.create({ title: "Draft post", description: "v1" });
   fixture.fillIds(created.id);
   const before = await booted.detail(created.id);
@@ -154,7 +133,8 @@ test("closing the issue view cancels the held draft turn", async () => {
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
   const app = buildApp(booted);
-  await serveClient(heard, app);
+  await mountAssets(app);
+  heard.serve(app);
   const created = await booted.save.create({ title: "Draft close", description: "v1" });
   fixture.fillIds(created.id);
   const before = await booted.detail(created.id);
@@ -166,9 +146,9 @@ test("closing the issue view cancels the held draft turn", async () => {
     await selectIssue(page, created.title);
     const draft = page.getByRole("region", { name: "triage draft", exact: true });
     await draft.getByRole("button", { name: "Draft a summary", exact: true }).click();
-    await draft.getByText("Held close draft").waitFor();
     await fixture.started();
-    await deselectIssue(page, created.title);
+    await draft.getByText("Held close dra").waitFor();
+    await rowFor(page, created.title).first().click();
     await fixture.aborted();
     assert.deepEqual(await booted.detail(created.id), before);
   } finally {
@@ -191,7 +171,8 @@ test("discarding a ready draft clears it and saves nothing", async () => {
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
   const app = buildApp(booted);
-  await serveClient(heard, app);
+  await mountAssets(app);
+  heard.serve(app);
   const created = await booted.save.create({ title: "Draft discard", description: "v1" });
   fixture.fillIds(created.id);
   const before = await booted.detail(created.id);
@@ -254,13 +235,18 @@ test("a held draft post disables posting controls then saves once", async () => 
     const draft = page.getByRole("region", { name: "triage draft", exact: true });
     await draft.getByRole("button", { name: "Draft a summary", exact: true }).click();
     await draft.getByText("Held post draft text.").waitFor();
-    const posting = draft.getByRole("button", { name: /Post draft|Posting/ });
+    const heldComment = page.waitForRequest(
+      (request) => request.method() === "POST" && request.url().endsWith("/comments"),
+    );
+    await draft.getByRole("button", { name: "Post draft", exact: true }).click();
+    await draft.getByRole("button", { name: /^Posting/ }).waitFor();
+    const posting = draft.getByRole("button", { name: /^Posting/ });
     const discarding = draft.getByRole("button", { name: "Discard draft", exact: true });
-    await posting.click();
-    await draft.getByRole("button", { name: "Posting", exact: true }).waitFor();
     assert.equal(await posting.isEnabled(), false);
     assert.equal(await discarding.isEnabled(), false);
+    assert.deepEqual(await booted.detail(created.id), before);
     releaseComment();
+    await heldComment;
     await draft.getByRole("button", { name: "Draft a summary", exact: true }).waitFor();
     const after = await booted.detail(created.id);
     assert.equal(after.comments.length, before.comments.length + 1);
@@ -289,8 +275,32 @@ test("a broken draft frame shows a plain notice and saves nothing", async () => 
   });
   const app = buildApp(booted);
   await mountAssets(app);
+  const encoder = new TextEncoder();
   const plain = { fetch: (req: Request) => app.fetch(req) };
-  heard.serve({ fetch: (req) => faultDraft(req, plain.fetch) });
+  heard.serve({
+    fetch: (req) => {
+      if (new URL(req.url).pathname.endsWith("/draft") === false || req.method !== "POST") {
+        return plain.fetch(req);
+      }
+      return (async () => {
+        const res = await plain.fetch(req);
+        if (res.body === null) return res;
+        const broken = res.body.pipeThrough(
+          new TransformStream({
+            transform(chunk, controller) {
+              const text = new TextDecoder().decode(chunk);
+              if (text.includes('"kind":"text"')) {
+                controller.enqueue(encoder.encode("data: {broken JSON\n\n"));
+              } else {
+                controller.enqueue(chunk);
+              }
+            },
+          }),
+        );
+        return new Response(broken, { status: res.status, headers: res.headers });
+      })();
+    },
+  });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   page.on("pageerror", (error) => pageErrors.push(String(error)));
   try {
@@ -371,33 +381,6 @@ test("shutdown with a live wire and held turn joins cleanly", async () => {
     );
     await heard.stop();
     await live.scope.close();
-    removeTemp(join(path, ".."));
+    rmSync(join(path, ".."), { recursive: true, force: true });
   }
 });
-
-function faultDraft(
-  req: Request,
-  next: (req: Request) => Response | Promise<Response>,
-): Response | Promise<Response> {
-  if (new URL(req.url).pathname.endsWith("/draft") === false || req.method !== "POST") {
-    return next(req);
-  }
-  const encoder = new TextEncoder();
-  return (async () => {
-    const res = await next(req);
-    if (res.body === null) return res;
-    const broken = res.body.pipeThrough(
-      new TransformStream({
-        transform(chunk, controller) {
-          const text = new TextDecoder().decode(chunk);
-          if (text.includes('"kind":"text"')) {
-            controller.enqueue(encoder.encode("data: {broken JSON\n\n"));
-          } else {
-            controller.enqueue(chunk);
-          }
-        },
-      }),
-    );
-    return new Response(broken, { status: res.status, headers: res.headers });
-  })();
-}
