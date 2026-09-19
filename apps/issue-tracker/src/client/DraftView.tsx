@@ -143,13 +143,15 @@ function RetryView(props: RetryProps) {
   );
 }
 
-async function readCapability(): Promise<"off" | "on" | "failed"> {
+async function readCapability(signal: AbortSignal): Promise<"off" | "on" | "failed"> {
   try {
-    const res = await fetch("/api/draft");
+    const res = await fetch("/api/draft", { signal });
     if (!res.ok) return "failed";
     const found = parseDraftCapability(await res.json());
     return found.enabled ? "on" : "off";
-  } catch {
+  } catch (error: unknown) {
+    if (signal.aborted) return "failed";
+    if (error instanceof DOMException && error.name === "AbortError") return "failed";
     return "failed";
   }
 }
@@ -167,9 +169,10 @@ function DraftView(props: { issueId: string; reload: () => void }) {
   const flight = useRef<AbortController | null>(null);
   const comment = useRun(postComment);
   useEffect(() => {
+    const stopper = new AbortController();
     let alive = true;
     setCapability("loading");
-    readCapability()
+    readCapability(stopper.signal)
       .then((found) => {
         if (alive) setCapability(found);
       })
@@ -178,6 +181,7 @@ function DraftView(props: { issueId: string; reload: () => void }) {
       });
     return () => {
       alive = false;
+      stopper.abort();
     };
   }, [check]);
   function retryCapability(): void {

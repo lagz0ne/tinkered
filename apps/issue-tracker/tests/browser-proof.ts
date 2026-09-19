@@ -6,14 +6,20 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setImmediate as nextTurn } from "node:timers/promises";
 import { chromium, type Browser, type Page } from "playwright";
+import {
+  bootScope,
+  buildApp,
+  fail,
+  parseIssue,
+  parseIssueDetail,
+  parseIssueList,
+  type Issues,
+} from "../src/index.ts";
 
-type OwnedServer = { readonly child: ChildProcess; readonly ended: Promise<unknown> };
+type Exit = { readonly code: number | null; readonly signal: NodeJS.Signals | null };
+type OwnedServer = { readonly child: ChildProcess; readonly ended: Promise<Exit> };
 
 const APP = process.cwd();
-const A = "Ada";
-const LIN = "Lin";
-const SAM = "Sam";
-const PROOF = "T05 browser proof";
 
 function tempData(): { readonly dir: string; readonly db: string } {
   const dir = mkdtempSync(join(tmpdir(), "tracker-t05-proof-"));
@@ -43,256 +49,344 @@ async function bounded<T>(promise: Promise<T>, label: string): Promise<T> {
   ]);
 }
 
-async function waitOk(base: string, child: ChildProcess): Promise<void> {
-  const deadline = Date.now() + 15000;
-  let stderr = "";
-  child.stderr?.on("data", (chunk) => {
-    stderr += String(chunk);
+function ownServer(port: number, db: string): OwnedServer {
+  const child = spawn(process.execPath, ["--experimental-strip-types", "src/server/main.ts"], {
+    cwd: APP,
+    env: {
+      ...process.env,
+      HOST: "127.0.0.1",
+      PORT: String(port),
+      DATA_PATH: db,
+      DRAFT_HELPER: "0",
+    },
+    stdio: ["ignore", "pipe", "pipe"],
   });
+  child.stdout?.resume();
+  child.stderr?.resume();
+  const ended: Promise<Exit> = new Promise((resolve) => {
+    child.once("exit", (code, signal) => resolve({ code, signal }));
+  });
+  return { child, ended };
+}
+
+async function waitOk(base: string, server: OwnedServer): Promise<void> {
+  let lastError = "";
+  server.child.stderr?.on("data", (chunk) => {
+    lastError += String(chunk);
+  });
+  const deadline = Date.now() + 15000;
   for (;;) {
-    if (child.exitCode !== null) throw new Error(stderr || "server exited early");
+    if (server.child.exitCode !== null) {
+      throw fail("SyncDropped", {
+        reason: lastError === "" ? "server exited early" : lastError,
+      });
+    }
     try {
       if ((await fetch(`${base}/api/issues`)).ok) return;
     } catch {
-      // not up yet
+      await nextTurn();
     }
-    if (Date.now() > deadline) throw new Error("server start timed out");
+    if (Date.now() > deadline) throw fail("SyncDropped", { reason: "server start timed out" });
     await nextTurn();
   }
 }
 
 async function startServer(port: number, db: string): Promise<OwnedServer> {
-  const child = spawn(process.execPath, ["--experimental-strip-types", "src/server/main.ts"], {
-    cwd: APP,
-    env: { ...process.env, HOST: "127.0.0.1", PORT: String(port), DATA_PATH: db },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  child.stdout?.resume();
-  const ended = new Promise<unknown>((resolve) => {
-    child.once("exit", (code, signal) => resolve({ code, signal }));
-  });
-  await waitOk(`http://127.0.0.1:${port}`, child);
-  return { child, ended };
+  const server = ownServer(port, db);
+  try {
+    await waitOk(`http://127.0.0.1:${port}`, server);
+  } catch (error: unknown) {
+    server.child.kill("SIGTERM");
+    await bounded(server.ended, "failed start cleanup timed out");
+    throw error;
+  }
+  return server;
 }
 
 async function stopServer(server: OwnedServer): Promise<void> {
   server.child.kill("SIGTERM");
-  const outcome = (await bounded(server.ended, "server stop timed out")) as {
-    code: number | null;
-  };
+  const outcome = await bounded(server.ended, "server stop timed out");
   assert.equal(outcome.code, 0);
 }
 
-async function saveJson(
-  base: string,
-  path: string,
-  body: unknown,
-  method = "POST",
-): Promise<{ readonly status: number; readonly body: unknown }> {
-  const options: RequestInit =
-    method === "GET"
-      ? {}
-      : {
-          method,
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(body),
-        };
-  const res = await fetch(`${base}${path}`, options);
-  let parsed: unknown = null;
+async function stopServerOrKill(server: OwnedServer): Promise<void> {
+  server.child.kill("SIGTERM");
+  const outcome = await bounded(server.ended, "cleanup timed out").catch(() => {
+    server.child.kill("SIGKILL");
+    return server.ended;
+  });
+  assert.equal(outcome.code, 0);
+}
+
+async function readJson(res: Response): Promise<unknown> {
   try {
-    parsed = await res.json();
+    return await res.json();
   } catch {
-    parsed = null;
+    return null;
   }
-  return { status: res.status, body: parsed };
 }
 
-function readId(body: unknown): string {
-  assert.ok(typeof body === "object" && body !== null && "id" in body);
-  const id = (body as { id: unknown }).id;
-  assert.equal(typeof id, "string");
-  return id as string;
+async function readDetail(base: string, id: string): Promise<Issues.Detail> {
+  const res = await fetch(`${base}/api/issues/${id}`);
+  assert.equal(res.status, 200);
+  return parseIssueDetail(await readJson(res));
 }
 
-function readRevision(body: unknown): number {
-  assert.ok(typeof body === "object" && body !== null && "revision" in body);
-  const revision = (body as { revision: unknown }).revision;
-  assert.equal(typeof revision, "number");
-  return revision as number;
+async function readList(base: string): Promise<readonly Issues.Issue[]> {
+  const res = await fetch(`${base}/api/issues`);
+  assert.equal(res.status, 200);
+  return parseIssueList(await readJson(res));
+}
+
+function runTools(
+  base: string,
+  argv: readonly string[],
+): Promise<Exit & { out: string; err: string }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      process.execPath,
+      ["--experimental-strip-types", "src/tools/main.ts", ...argv],
+      { cwd: APP, env: { ...process.env, BASE_URL: base }, stdio: ["ignore", "pipe", "pipe"] },
+    );
+    let out = "";
+    let err = "";
+    child.stdout?.on("data", (chunk) => {
+      out += String(chunk);
+    });
+    child.stderr?.on("data", (chunk) => {
+      err += String(chunk);
+    });
+    child.once("error", reject);
+    child.once("exit", (code, signal) => resolve({ code, signal, out, err }));
+  });
 }
 
 async function openIssue(page: Page, title: string): Promise<void> {
-  await page
-    .getByRole("button", { name: new RegExp(title) })
-    .first()
-    .click();
-  await page.getByRole("heading", { name: title }).waitFor();
-}
-
-async function failProof(browser: Browser, servers: OwnedServer[], error: unknown): Promise<never> {
-  await browser.close();
-  for (const server of servers) {
-    if (server.child.exitCode === null) {
-      server.child.kill("SIGTERM");
-      await bounded(server.ended, "cleanup timed out").catch(() => server.child.kill("SIGKILL"));
-    }
-  }
-  throw error;
+  await page.getByRole("button", { name: title, exact: true }).click();
+  await page.getByRole("heading", { name: title, exact: true }).waitFor();
 }
 
 async function main(): Promise<void> {
   const { dir, db } = tempData();
   const port = await freePort();
   const base = `http://127.0.0.1:${port}`;
-  const servers: OwnedServer[] = [];
-  const browser = await chromium.launch();
+  let first: OwnedServer | undefined;
+  let second: OwnedServer | undefined;
+  let browser: Browser | undefined;
+  let firstPage: Page | undefined;
+  let secondPage: Page | undefined;
+  let closed = false;
   const pageErrors: string[] = [];
+  async function cleanup(): Promise<void> {
+    if (closed) return;
+    closed = true;
+    const failures: string[] = [];
+    if (firstPage !== undefined) {
+      await firstPage.close().catch((error: unknown) => failures.push(String(error)));
+      firstPage = undefined;
+    }
+    if (secondPage !== undefined) {
+      await secondPage.close().catch((error: unknown) => failures.push(String(error)));
+      secondPage = undefined;
+    }
+    if (browser !== undefined) {
+      await browser.close().catch((error: unknown) => failures.push(String(error)));
+      browser = undefined;
+    }
+    if (first !== undefined) {
+      await stopServerOrKill(first).catch((error: unknown) => failures.push(String(error)));
+      first = undefined;
+    }
+    if (second !== undefined) {
+      await stopServerOrKill(second).catch((error: unknown) => failures.push(String(error)));
+      second = undefined;
+    }
+    removeTemp(dir);
+    assert.deepEqual(failures, []);
+  }
   try {
-    servers.push(await startServer(port, db));
-    const first = await browser.newPage({ viewport: { width: 390, height: 844 } });
-    const second = await browser.newPage({ viewport: { width: 390, height: 844 } });
-    first.on("pageerror", (error) => pageErrors.push(String(error)));
-    second.on("pageerror", (error) => pageErrors.push(String(error)));
-    await first.goto(base);
-    await second.goto(base);
-    await first.getByRole("heading", { name: "Issues" }).waitFor();
-    await second.getByRole("heading", { name: "Issues" }).waitFor();
+    first = await startServer(port, db);
+    browser = await chromium.launch();
+    firstPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    secondPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    const firstTab = firstPage;
+    const secondTab = secondPage;
+    firstTab.on("pageerror", (error) => pageErrors.push(String(error)));
+    secondTab.on("pageerror", (error) => pageErrors.push(String(error)));
+    await firstTab.goto(base);
+    await secondTab.goto(base);
+    await firstTab.getByRole("heading", { name: "Issues" }).waitFor();
+    await secondTab.getByRole("heading", { name: "Issues" }).waitFor();
 
-    const title = `${PROOF} ${Date.now()}`;
-    await first.getByLabel("Title").fill(title);
-    await first.getByLabel("Description").fill("saved once, seen twice");
-    await first.getByRole("button", { name: "Create issue" }).click();
-    await first.getByText(title).waitFor();
-    await second.getByText(title).waitFor();
+    const title = `T05 browser proof ${Date.now()}`;
+    await firstTab.keyboard.press("Tab");
+    await firstTab.getByLabel("Title").fill(title);
+    await firstTab.getByLabel("Description").fill("saved once, seen twice");
+    await firstTab.getByRole("button", { name: "Create issue" }).click();
+    await firstTab.getByRole("button", { name: title, exact: true }).waitFor();
+    await secondTab.getByRole("button", { name: title, exact: true }).waitFor();
 
-    await openIssue(first, title);
-    const edit = first.getByRole("form", { name: "edit issue" });
+    await openIssue(firstTab, title);
+    const edit = firstTab.getByRole("form", { name: "edit issue" });
+    const savedRevisionText = await firstTab
+      .getByRole("button", { name: /Save \(rev/ })
+      .innerText();
+    assert.match(savedRevisionText, /Save \(rev 0\)/);
     await edit.getByLabel("Status").selectOption("in_progress");
-    await edit.getByLabel("Assignee").selectOption(A);
-    await first.getByRole("button", { name: /Save \(rev/ }).click();
-    await first
-      .getByRole("region", { name: "issue detail" })
-      .getByText("In progress · Ada")
-      .waitFor();
-    await second.getByText("In progress").first().waitFor();
+    await edit.getByLabel("Assignee").selectOption("Ada");
+    await firstTab.getByRole("button", { name: /Save \(rev/ }).click();
+    const firstDetail = firstTab.getByRole("region", { name: "issue detail" });
+    await firstDetail.getByText("In progress · Ada").waitFor();
+    const listed = await readList(base);
+    const saved = listed.find((issue) => issue.title === title);
+    assert.ok(saved !== undefined);
+    const id = saved.id;
+    const secondDetail = secondTab.getByRole("region", { name: "issue detail" });
+    await openIssue(secondTab, title);
+    await secondDetail.getByText("In progress · Ada").waitFor();
 
-    await openIssue(second, title);
-    await second.getByRole("textbox", { name: "Comment" }).fill("seen across tabs");
-    await second.getByRole("button", { name: "Add comment" }).click();
-    await second
-      .getByRole("region", { name: "issue detail" })
-      .getByText("seen across tabs")
-      .waitFor();
-    await first
-      .getByRole("region", { name: "issue detail" })
-      .getByText("seen across tabs")
-      .waitFor();
+    await secondTab.getByRole("textbox", { name: "Comment" }).fill("seen across tabs");
+    await secondTab.getByRole("button", { name: "Add comment" }).click();
+    await secondDetail.getByText("seen across tabs").waitFor();
+    await firstDetail.getByText("seen across tabs").waitFor();
 
-    await first.getByRole("textbox", { name: "Comment" }).fill("draft stays local");
-    const secondEdit = second.getByRole("form", { name: "edit issue" });
+    await firstTab.getByRole("textbox", { name: "Comment" }).fill("draft stays local");
+    const secondEdit = secondTab.getByRole("form", { name: "edit issue" });
     await secondEdit.getByLabel("Status").selectOption("done");
-    await second.getByRole("button", { name: /Save \(rev/ }).click();
-    await second.getByRole("region", { name: "issue detail" }).getByText("Done · Ada").waitFor();
+    await secondTab.getByRole("button", { name: /Save \(rev/ }).click();
+    await secondDetail.getByText("Done · Ada").waitFor();
+    await firstDetail.getByText("Done · Ada").waitFor();
     assert.equal(
-      await first.getByRole("textbox", { name: "Comment" }).inputValue(),
+      await firstTab.getByRole("textbox", { name: "Comment" }).inputValue(),
       "draft stays local",
     );
 
-    const targets = await first
+    const targets = await firstTab
       .locator("button,input,select,textarea")
       .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height));
     assert.ok(targets.length > 0);
     assert.ok(targets.every((height) => height >= 44));
     assert.equal(
-      await first.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+      await firstTab.evaluate(() => document.documentElement.scrollWidth > innerWidth),
       false,
     );
 
-    const detail = await (await fetch(`${base}/api/issues`)).json();
-    const id = readId(
-      (detail as unknown[]).find((row) => (row as { title: string }).title === title),
-    );
-    const conflictTitle = `${title} loser draft`;
-    const secondDetail = second.getByRole("region", { name: "issue detail" });
-    await secondDetail.getByText("Done · Ada").waitFor();
-    const firstDetail = first.getByRole("region", { name: "issue detail" });
+    await firstTab.reload();
     await firstDetail.getByText("Done · Ada").waitFor();
-    const loserEdit = second.getByRole("form", { name: "edit issue" });
+    await openIssue(firstTab, title);
+    await openIssue(secondTab, title);
+    const afterReload = await readDetail(base, id);
+    assert.equal(afterReload.issue.status, "done");
+    const conflictTitle = `${title} loser draft`;
+    const winnerTitle = `${title} winner`;
+    const loserEdit = secondTab.getByRole("form", { name: "edit issue" });
+    const winnerEdit = firstTab.getByRole("form", { name: "edit issue" });
     await loserEdit.getByRole("textbox", { name: "Title" }).fill(conflictTitle);
-    await edit.getByRole("textbox", { name: "Title" }).fill(`${title} winner`);
-    await first.getByRole("button", { name: /Save \(rev/ }).click();
-    await firstDetail.getByText(`${title} winner`).waitFor();
-    await secondDetail.getByText(`${title} winner`).waitFor();
-    const beforeLoser = await (await fetch(`${base}/api/issues/${id}`)).json();
-    await second.getByRole("button", { name: /Save \(rev/ }).click();
-    await second.getByText("Someone else saved first").waitFor();
+    await winnerEdit.getByRole("textbox", { name: "Title" }).fill(winnerTitle);
+    const baseRevision = afterReload.issue.revision;
+    await firstTab.getByRole("button", { name: /Save \(rev/ }).click();
+    await firstDetail.getByText(winnerTitle).waitFor();
+    await secondDetail.getByText(winnerTitle).waitFor();
+    const beforeLoser = await readDetail(base, id);
+    assert.equal(beforeLoser.issue.title, winnerTitle);
+    await secondTab.getByRole("button", { name: /Save \(rev/ }).click();
+    await secondTab.getByText("Someone else saved first").waitFor();
     assert.equal(
       await loserEdit.getByRole("textbox", { name: "Title" }).inputValue(),
       conflictTitle,
     );
-    assert.deepEqual(await (await fetch(`${base}/api/issues/${id}`)).json(), beforeLoser);
-    await second.getByRole("button", { name: "Reload their change" }).click();
-    await secondDetail.getByText(`${title} winner`).waitFor();
-    assert.equal(
-      await loserEdit.getByRole("textbox", { name: "Title" }).inputValue(),
-      `${title} winner`,
-    );
+    assert.deepEqual(await readDetail(base, id), beforeLoser);
+    await secondTab.getByRole("button", { name: "Reload their change" }).click();
+    await secondDetail.getByText(winnerTitle).waitFor();
+    assert.equal(await loserEdit.getByRole("textbox", { name: "Title" }).inputValue(), winnerTitle);
 
-    const cliSaved = await saveJson(base, "/api/issues", {
-      title: "CLI saved",
-      description: "via tools",
-    });
-    assert.equal(cliSaved.status, 201);
-    const cliId = readId(cliSaved.body);
-    await first.getByText("CLI saved").waitFor();
-    const cliRevision = readRevision(cliSaved.body);
-    const cliEdited = await saveJson(
-      base,
-      `/api/issues/${cliId}`,
-      { baseRevision: cliRevision, status: "done", assignee: SAM },
-      "PATCH",
-    );
-    assert.equal(cliEdited.status, 200);
-    const cliCommented = await saveJson(base, `/api/issues/${cliId}/comments`, {
-      author: LIN,
-      text: "Shipped",
-    });
-    assert.equal(cliCommented.status, 201);
-    await first.getByText("Shipped").first().waitFor();
+    const created = await runTools(base, [
+      "create",
+      "--title",
+      "CLI saved",
+      "--description",
+      "via CLI",
+    ]);
+    assert.equal(created.code, 0);
+    const made = parseIssue(JSON.parse(created.out));
+    assert.equal(made.title, "CLI saved");
+    await firstTab.getByRole("button", { name: "CLI saved", exact: true }).waitFor();
+    const updated = await runTools(base, [
+      "update",
+      made.id,
+      "--base-revision",
+      String(made.revision),
+      "--status",
+      "done",
+      "--assignee",
+      "Sam",
+    ]);
+    assert.equal(updated.code, 0);
+    const moved = parseIssue(JSON.parse(updated.out));
+    assert.equal(moved.status, "done");
+    await openIssue(firstTab, "CLI saved");
+    const cliDetail = firstTab.getByRole("region", { name: "issue detail" });
+    await cliDetail.getByText("Done · Sam").waitFor();
+    const commented = await runTools(base, [
+      "comment",
+      made.id,
+      "--author",
+      "Lin",
+      "--text",
+      "Shipped",
+    ]);
+    assert.equal(commented.code, 0);
+    await cliDetail.getByText("Shipped").waitFor();
+    const shown = await runTools(base, ["get", made.id]);
+    assert.equal(shown.code, 0);
+    assert.equal(parseIssueDetail(JSON.parse(shown.out)).comments.length, 1);
 
-    await first.reload();
-    await first.getByRole("heading", { name: "Issues" }).waitFor();
-    await first.getByText(`${title} winner`).waitFor();
+    const staleCli = await runTools(base, [
+      "update",
+      made.id,
+      "--base-revision",
+      "0",
+      "--title",
+      "Late",
+    ]);
+    assert.equal(staleCli.code, 1);
+    assert.match(staleCli.err, /IssueConflict/);
 
-    const savedBeforeRestart = await (await fetch(`${base}/api/issues/${id}`)).json();
-    await stopServer(servers.pop() as OwnedServer);
-    servers.push(await startServer(port, db));
-    await first.goto(base);
-    await first.getByRole("heading", { name: "Issues" }).waitFor();
-    await first.getByText(`${title} winner`).waitFor();
-    assert.deepEqual(await (await fetch(`${base}/api/issues/${id}`)).json(), savedBeforeRestart);
+    const savedBeforeRestart = await readDetail(base, id);
+    const running = first as OwnedServer;
+    first = undefined;
+    await stopServer(running);
+    first = await startServer(port, db);
+    await firstTab.goto(base);
+    await firstTab.getByRole("heading", { name: "Issues" }).waitFor();
+    await firstTab.getByRole("button", { name: winnerTitle, exact: true }).waitFor();
+    await secondTab.goto(base);
+    await secondTab.getByRole("heading", { name: "Issues" }).waitFor();
+    await secondTab.getByRole("button", { name: winnerTitle, exact: true }).waitFor();
+    assert.deepEqual(await readDetail(base, id), savedBeforeRestart);
 
-    await openIssue(first, `${title} winner`);
-    const restartEdit = first.getByRole("form", { name: "edit issue" });
+    await openIssue(firstTab, winnerTitle);
+    const restartEdit = firstTab.getByRole("form", { name: "edit issue" });
     await restartEdit.getByLabel("Title", { exact: true }).fill("My local title");
-    await first.getByRole("textbox", { name: "Comment", exact: true }).fill("My local comment");
-    const savedRevision = readRevision((savedBeforeRestart as { issue: unknown }).issue);
-    await stopServer(servers.pop() as OwnedServer);
-    servers.push(await startServer(port, db));
-    await first
+    await firstTab.getByRole("textbox", { name: "Comment", exact: true }).fill("My local comment");
+    const staleRevision = savedBeforeRestart.issue.revision;
+    const stopping = first as OwnedServer;
+    first = undefined;
+    await stopServer(stopping);
+    first = await startServer(port, db);
+    await firstTab
       .getByRole("alert")
       .filter({ hasText: /live|connect/i })
       .waitFor();
-    const afterRestart = await saveJson(
-      base,
-      `/api/issues/${id}`,
-      { baseRevision: savedRevision, title: "Saved after restart" },
-      "PATCH",
-    );
-    assert.equal(afterRestart.status, 200);
-    const reconnect = first.getByRole("button", { name: /^Reconnect$/i });
+    const changed = await fetch(`${base}/api/issues/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ baseRevision: staleRevision, title: "Saved after restart" }),
+    });
+    assert.equal(changed.status, 200);
+    const reconnect = firstTab.getByRole("button", { name: /^Reconnect$/i });
     if ((await reconnect.count()) > 0) await reconnect.click();
-    await first
+    await firstTab
       .getByRole("heading", { name: "Saved after restart", exact: true })
       .waitFor({ timeout: 8000 });
     assert.equal(
@@ -300,27 +394,70 @@ async function main(): Promise<void> {
       "My local title",
     );
     assert.equal(
-      await first.getByRole("textbox", { name: "Comment", exact: true }).inputValue(),
+      await firstTab.getByRole("textbox", { name: "Comment", exact: true }).inputValue(),
       "My local comment",
     );
-    const rejected = await saveJson(
-      base,
-      `/api/issues/${id}`,
-      { baseRevision: savedRevision, title: "Late write" },
-      "PATCH",
+    const beforeStale = await readDetail(base, id);
+    const reply = firstTab.waitForResponse(
+      (response) =>
+        response.request().method() === "PATCH" && response.url().endsWith(`/api/issues/${id}`),
     );
-    assert.equal(rejected.status, 409);
+    await restartEdit.getByRole("button", { name: /Save/ }).click();
+    const rejected = await reply;
+    assert.equal(rejected.status(), 409);
+    assert.deepEqual(await readDetail(base, id), beforeStale);
+    const sent = JSON.parse(String(rejected.request().postData()));
+    assert.equal(sent.baseRevision, staleRevision);
+    assert.equal(sent.baseRevision, baseRevision);
+    await firstTab.getByText("Someone else saved first").waitFor();
+
+    const booted = await bootScope(undefined);
+    const app = buildApp(booted);
+    const heard = await startHeard(app);
+    try {
+      await booted.save.create({ title: "Held shutdown", description: "live wire" });
+      const browserOnly = await browser.newPage();
+      browserOnly.on("pageerror", (error) => pageErrors.push(String(error)));
+      await browserOnly.goto(heard.base);
+      await browserOnly.getByRole("button", { name: "Held shutdown", exact: true }).waitFor();
+      const closing = booted.scope.close();
+      await browserOnly.close();
+      const closed = await closing;
+      assert.deepEqual(closed.teardownErrors ?? [], []);
+    } finally {
+      await heard.stop();
+      await booted.scope.close();
+    }
 
     assert.deepEqual(pageErrors, []);
-    await first.close();
-    await second.close();
-    await browser.close();
-    for (const server of servers.splice(0)) await stopServer(server);
-    removeTemp(dir);
+    await cleanup();
   } catch (error: unknown) {
-    removeTemp(dir);
-    await failProof(browser, servers, error);
+    await cleanup();
+    throw error;
   }
+}
+
+async function startHeard(app: {
+  fetch: (req: Request) => Response | Promise<Response>;
+}): Promise<{ readonly base: string; readonly stop: () => Promise<void> }> {
+  const { Server } = await import("node:http");
+  const { serve } = await import("@hono/node-server");
+  let settle: (port: number) => void = () => undefined;
+  const heard = new Promise<number>((resolve) => {
+    settle = resolve;
+  });
+  const server = serve({ fetch: app.fetch, hostname: "127.0.0.1", port: 0 }, (info) =>
+    settle(info.port),
+  );
+  const port = await heard;
+  return {
+    base: `http://127.0.0.1:${port}`,
+    stop: () =>
+      new Promise<void>((resolve) => {
+        if (server instanceof Server) server.closeAllConnections();
+        server.close(() => resolve());
+      }),
+  };
 }
 
 await main();
