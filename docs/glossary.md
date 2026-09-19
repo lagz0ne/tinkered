@@ -143,3 +143,12 @@
 | sync client   | `syncClient(scope, transport)`: writes snapshots into the cells through their parse, sends local changes as `set` with the last seen version, reverts on `reject` (latency compensation).           |
 | transport     | `Sync.Transport = { send, onMessage, onClose, close }` — userland's wire (SSE+POST, WebSocket, postMessage); the package ships only `memoryPair()`, the test seam.                                  |
 | version       | A per-key integer the server increments on each applied write; a `set` carries the `base` it saw; `base !== version` → reject with the current truth.                                               |
+
+## Apps (ADR 0049)
+
+| term             | meaning                                                                                                                                                                       |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| composition root | The one place an app creates its scope and resolves its services (`apps/playground/src/main.tsx`); hydration runs here, before the first paint.                               |
+| action           | A user-facing operation: typed input admitted at the door, the cells it touches as controller deps, no React — `scope.run(addFile)` does what the button does.               |
+| effect resource  | A resource whose value is incidental and whose job is to subscribe, listen, or loop (the bundler, persistence, the iframe listener, a frame loop), torn down by `defer`.      |
+| golden example   | The playground shell and its default example: the code that shows how an app on `@tinker/*` should be shaped — every effect a resource, every action an operation.           |
