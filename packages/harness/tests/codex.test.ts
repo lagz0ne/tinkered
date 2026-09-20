@@ -476,5 +476,10 @@ test("a reasoning item records the event phase, not an SDK status", async () => 
     "updated",
     "completed",
   ]);
+  expect(session.resolve(coder.items).map((item) => item.kind)).toEqual([
+    "reasoning",
+    "reasoning",
+    "reasoning",
+  ]);
   await scope.close();
 });
