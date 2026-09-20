@@ -1,6 +1,11 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, operation, preset, tag } from "@tinker/core";
-import type { Options, PermissionResult, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import type {
+  Options,
+  PermissionResult,
+  SDKConversationResetMessage,
+  SDKMessage,
+} from "@anthropic-ai/claude-agent-sdk";
 import { claudeCode, harness, isError, type ClaudeCode } from "../src/index.ts";
 import {
   readResult,
@@ -181,3 +186,42 @@ test("without an approve op a canUseTool bound in options still answers", async 
   expect(session.resolve(coder.items).filter((item) => item.kind === "approval")).toEqual([]);
   await scope.close();
 });
+
+test("an unknown message kind still lands in events and the turn resolves", async () => {
+  const reset: SDKConversationResetMessage = {
+    type: "conversation_reset",
+    new_conversation_id: "22222222-2222-4333-8444-555555555555",
+    session_id: "s-1",
+    uuid: "11111111-2222-4333-8444-555555555555",
+  };
+  const coder = harness({ label: "coder", adapter: claudeCode });
+  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const scope = createScope({
+    presets: [
+      preset(claudeCode.sdk, async () => ({
+        ...readToolSdk(),
+        query: () => readResetStream(reset),
+      })),
+    ],
+  });
+  const session = scope.createSession();
+  const result = await session.run(ask, { input: "hello" });
+  expect(result.type).toBe("result");
+  expect(session.resolve(coder.events)).toEqual([
+    readSystemInit(),
+    reset,
+    readToolUse(),
+    readToolResult(),
+    readResult("Hello"),
+  ]);
+  await scope.close();
+});
+
+/** The recorded turn with a `conversation_reset` mid-stream: unknown kinds emit and continue. */
+async function* readResetStream(reset: SDKMessage): AsyncGenerator<SDKMessage> {
+  yield readSystemInit();
+  yield reset;
+  yield readToolUse();
+  yield readToolResult();
+  yield readResult("Hello");
+}
