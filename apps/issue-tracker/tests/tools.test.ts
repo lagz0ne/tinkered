@@ -9,14 +9,14 @@ import { run } from "@tinker/cli";
 import { mcpServer } from "@tinker/mcp";
 import {
   api,
-  bootScope,
-  buildApp,
+  createApp,
   issueCommands,
   issueTools,
   parseComment,
   parseIssue,
   parseIssueDetail,
   parseIssueList,
+  readDetail,
 } from "../src/index.ts";
 
 function tempPath(): string {
@@ -95,8 +95,7 @@ test("help lists the issue commands with no backend", async () => {
 });
 
 test("CLI drives the saved create/list/update/comment/get through real HTTP", async () => {
-  const booted = await bootScope(tempPath());
-  const app = buildApp(booted);
+  const { scope, app } = await createApp({ dataPath: tempPath() });
   const heard = await hear(app);
   const tags = [...issueCommands, ...issueTools, api.config({ baseUrl: heard.base })];
   const options = { name: "issues", version: "0.1.0" };
@@ -125,7 +124,7 @@ test("CLI drives the saved create/list/update/comment/get through real HTTP", as
     const moved = parseIssue(JSON.parse(updated.stdout));
     expect(moved.status).toBe("done");
     expect(moved.revision).toBe(1);
-    const fresh = await booted.detail(made.id);
+    const fresh = await scope.run(readDetail, { input: made.id });
 
     const stale = await run({
       ...options,
@@ -134,7 +133,7 @@ test("CLI drives the saved create/list/update/comment/get through real HTTP", as
     });
     expect(stale.code).toBe(1);
     expect(stale.stderr).toContain("IssueConflict");
-    const kept = await booted.detail(made.id);
+    const kept = await scope.run(readDetail, { input: made.id });
     expect(kept).toEqual(fresh);
     expect(kept.issue.title).toBe("Tool saved");
     expect(kept.issue.revision).toBe(1);
@@ -162,16 +161,15 @@ test("CLI drives the saved create/list/update/comment/get through real HTTP", as
     expect(gone.stderr).toContain("IssueNotFound");
   } finally {
     await heard.stop();
-    await booted.scope.close({ graceful: true });
+    await scope.close({ graceful: true });
   }
 });
 
 test("MCP tools save through the same server and answer conflicts as errors", async () => {
-  const booted = await bootScope(tempPath());
-  const app = buildApp(booted);
+  const { scope, app } = await createApp({ dataPath: tempPath() });
   const heard = await hear(app);
-  const scope = createScope({ tags: [...issueTools, api.config({ baseUrl: heard.base })] });
-  const server = mcpServer(scope, { name: "issues", version: "0.1.0" });
+  const tools = createScope({ tags: [...issueTools, api.config({ baseUrl: heard.base })] });
+  const server = mcpServer(tools, { name: "issues", version: "0.1.0" });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
   const client = new Client({ name: "test", version: "0" });
@@ -206,7 +204,7 @@ test("MCP tools save through the same server and answer conflicts as errors", as
     const moved = parseIssue(JSON.parse(readText(updated)));
     expect(moved.status).toBe("in_progress");
     expect(moved.revision).toBe(1);
-    const fresh = await booted.detail(made.id);
+    const fresh = await scope.run(readDetail, { input: made.id });
 
     const stale = await client.callTool({
       name: "update",
@@ -214,7 +212,7 @@ test("MCP tools save through the same server and answer conflicts as errors", as
     });
     expect(stale.isError).toBe(true);
     expect(readText(stale)).toContain("IssueConflict");
-    const kept = await booted.detail(made.id);
+    const kept = await scope.run(readDetail, { input: made.id });
     expect(kept).toEqual(fresh);
     expect(kept.issue.title).toBe("MCP saved");
     expect(kept.issue.revision).toBe(1);
@@ -242,8 +240,8 @@ test("MCP tools save through the same server and answer conflicts as errors", as
   } finally {
     await client.close();
     await server.close();
-    await scope.close({ graceful: true });
+    await tools.close({ graceful: true });
     await heard.stop();
-    await booted.scope.close({ graceful: true });
+    await scope.close({ graceful: true });
   }
 });

@@ -4,9 +4,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, type Page } from "playwright";
-import { preset } from "@tinker/core";
+import { preset, type Operation, type Scope } from "@tinker/core";
 import { claudeCode } from "@tinker/harness";
-import { bootScope, buildApp } from "../src/index.ts";
+import { createApp, createIssue, publishIssues, readDetail, type AppConfig } from "../src/index.ts";
 import { readDraftServer, reservePort } from "./draft-server.ts";
 import { readFile } from "node:fs/promises";
 
@@ -26,7 +26,17 @@ async function selectIssue(page: Page, title: string): Promise<void> {
   await page.getByRole("heading", { name: title, exact: true }).waitFor();
 }
 
-async function mountAssets(app: ReturnType<typeof buildApp>): Promise<void> {
+async function boot(
+  config: Omit<AppConfig, "dataPath"> & { readonly dataPath?: string },
+): Promise<Awaited<ReturnType<typeof createApp>>> {
+  return createApp({ ...config });
+}
+
+function via<T, I>(scope: Scope.Handle, op: Operation.Handle<T, I>, input: I) {
+  return scope.session((s) => s.run(op, { input }));
+}
+
+async function mountAssets(app: Awaited<ReturnType<typeof createApp>>["app"]): Promise<void> {
   const assets = join(APP, "dist", "client");
   app.get("/", async (c) => c.html(await readFile(join(assets, "index.html"), "utf8")));
   app.get("/assets/:name", async (c) => {
@@ -45,16 +55,21 @@ test("cancelling a held draft keeps partial text and saves nothing", async () =>
   const pageErrors: string[] = [];
   const heard = await reservePort();
   const fixture = readDraftServer([{ text: "Cancellable held draft text.", hold: true }]);
-  const booted = await bootScope(undefined, {
+  const booted = await boot({
+    dataPath: undefined,
     draft: { enabled: true, baseUrl: heard.base },
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
-  const app = buildApp(booted);
+  const app = booted.app;
   await mountAssets(app);
   heard.serve(app);
-  const created = await booted.save.create({ title: "Draft cancel", description: "v1" });
+  const created = await via(booted.scope, createIssue, {
+    title: "Draft cancel",
+    description: "v1",
+  });
+  await booted.scope.run(publishIssues);
   fixture.fillIds(created.id);
-  const before = await booted.detail(created.id);
+  const before = await booted.scope.run(readDetail, { input: created.id });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   page.on("pageerror", (error) => pageErrors.push(String(error)));
   try {
@@ -69,7 +84,7 @@ test("cancelling a held draft keeps partial text and saves nothing", async () =>
     await draft.getByText("Cancelled.").waitFor();
     await draft.getByText("Cancellable he").waitFor();
     await fixture.aborted();
-    assert.deepEqual(await booted.detail(created.id), before);
+    assert.deepEqual(await booted.scope.run(readDetail, { input: created.id }), before);
   } finally {
     fixture.release();
     await page.close();
@@ -85,16 +100,18 @@ test("posting a draft saves one comment and one activity", async () => {
   const pageErrors: string[] = [];
   const heard = await reservePort();
   const fixture = readDraftServer([{ text: "Posted draft text." }]);
-  const booted = await bootScope(undefined, {
+  const booted = await boot({
+    dataPath: undefined,
     draft: { enabled: true, baseUrl: heard.base },
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
-  const app = buildApp(booted);
+  const app = booted.app;
   await mountAssets(app);
   heard.serve(app);
-  const created = await booted.save.create({ title: "Draft post", description: "v1" });
+  const created = await via(booted.scope, createIssue, { title: "Draft post", description: "v1" });
+  await booted.scope.run(publishIssues);
   fixture.fillIds(created.id);
-  const before = await booted.detail(created.id);
+  const before = await booted.scope.run(readDetail, { input: created.id });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   page.on("pageerror", (error) => pageErrors.push(String(error)));
   try {
@@ -107,7 +124,7 @@ test("posting a draft saves one comment and one activity", async () => {
     await draft.getByLabel("Author").selectOption("Lin");
     await draft.getByRole("button", { name: "Post draft", exact: true }).click();
     await draft.getByRole("button", { name: "Draft a summary", exact: true }).waitFor();
-    const after = await booted.detail(created.id);
+    const after = await booted.scope.run(readDetail, { input: created.id });
     assert.equal(after.comments.length, before.comments.length + 1);
     assert.equal(after.comments.at(-1)?.text, "Posted draft text.");
     assert.equal(after.comments.at(-1)?.author, "Lin");
@@ -128,16 +145,18 @@ test("closing the issue view cancels the held draft turn", async () => {
   const pageErrors: string[] = [];
   const heard = await reservePort();
   const fixture = readDraftServer([{ text: "Held close draft text here.", hold: true }]);
-  const booted = await bootScope(undefined, {
+  const booted = await boot({
+    dataPath: undefined,
     draft: { enabled: true, baseUrl: heard.base },
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
-  const app = buildApp(booted);
+  const app = booted.app;
   await mountAssets(app);
   heard.serve(app);
-  const created = await booted.save.create({ title: "Draft close", description: "v1" });
+  const created = await via(booted.scope, createIssue, { title: "Draft close", description: "v1" });
+  await booted.scope.run(publishIssues);
   fixture.fillIds(created.id);
-  const before = await booted.detail(created.id);
+  const before = await booted.scope.run(readDetail, { input: created.id });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   page.on("pageerror", (error) => pageErrors.push(String(error)));
   try {
@@ -150,7 +169,7 @@ test("closing the issue view cancels the held draft turn", async () => {
     await draft.getByText("Held close dra").waitFor();
     await rowFor(page, created.title).first().click();
     await fixture.aborted();
-    assert.deepEqual(await booted.detail(created.id), before);
+    assert.deepEqual(await booted.scope.run(readDetail, { input: created.id }), before);
   } finally {
     fixture.release();
     await page.close();
@@ -166,16 +185,21 @@ test("discarding a ready draft clears it and saves nothing", async () => {
   const pageErrors: string[] = [];
   const heard = await reservePort();
   const fixture = readDraftServer([{ text: "Discarded draft text." }]);
-  const booted = await bootScope(undefined, {
+  const booted = await boot({
+    dataPath: undefined,
     draft: { enabled: true, baseUrl: heard.base },
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
-  const app = buildApp(booted);
+  const app = booted.app;
   await mountAssets(app);
   heard.serve(app);
-  const created = await booted.save.create({ title: "Draft discard", description: "v1" });
+  const created = await via(booted.scope, createIssue, {
+    title: "Draft discard",
+    description: "v1",
+  });
+  await booted.scope.run(publishIssues);
   fixture.fillIds(created.id);
-  const before = await booted.detail(created.id);
+  const before = await booted.scope.run(readDetail, { input: created.id });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   page.on("pageerror", (error) => pageErrors.push(String(error)));
   try {
@@ -187,7 +211,7 @@ test("discarding a ready draft clears it and saves nothing", async () => {
     await draft.getByText("Discarded draft text.").waitFor();
     await draft.getByRole("button", { name: "Discard draft", exact: true }).click();
     await draft.getByRole("button", { name: "Draft a summary", exact: true }).waitFor();
-    assert.deepEqual(await booted.detail(created.id), before);
+    assert.deepEqual(await booted.scope.run(readDetail, { input: created.id }), before);
     assert.equal(fixture.turnCount(), 1);
   } finally {
     fixture.release();
@@ -204,11 +228,12 @@ test("a held draft post disables posting controls then saves once", async () => 
   const pageErrors: string[] = [];
   const heard = await reservePort();
   const fixture = readDraftServer([{ text: "Held post draft text." }]);
-  const booted = await bootScope(undefined, {
+  const booted = await boot({
+    dataPath: undefined,
     draft: { enabled: true, baseUrl: heard.base },
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
-  const app = buildApp(booted);
+  const app = booted.app;
   await mountAssets(app);
   let releaseComment: () => void = () => undefined;
   const gate = new Promise<void>((resolve) => {
@@ -223,9 +248,10 @@ test("a held draft post disables posting controls then saves once", async () => 
       return inner(req);
     },
   });
-  const created = await booted.save.create({ title: "Held post", description: "v1" });
+  const created = await via(booted.scope, createIssue, { title: "Held post", description: "v1" });
+  await booted.scope.run(publishIssues);
   fixture.fillIds(created.id);
-  const before = await booted.detail(created.id);
+  const before = await booted.scope.run(readDetail, { input: created.id });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   page.on("pageerror", (error) => pageErrors.push(String(error)));
   try {
@@ -245,10 +271,10 @@ test("a held draft post disables posting controls then saves once", async () => 
     const discarding = draft.getByRole("button", { name: "Discard draft", exact: true });
     assert.equal(await posting.isEnabled(), false);
     assert.equal(await discarding.isEnabled(), false);
-    assert.deepEqual(await booted.detail(created.id), before);
+    assert.deepEqual(await booted.scope.run(readDetail, { input: created.id }), before);
     releaseComment();
     await draft.getByRole("button", { name: "Draft a summary", exact: true }).waitFor();
-    const after = await booted.detail(created.id);
+    const after = await booted.scope.run(readDetail, { input: created.id });
     assert.equal(after.comments.length, before.comments.length + 1);
     assert.equal(after.comments.at(-1)?.text, "Held post draft text.");
     assert.equal(after.activity.length, before.activity.length + 1);
@@ -269,11 +295,12 @@ test("a broken draft frame shows a plain notice and saves nothing", async () => 
   const pageErrors: string[] = [];
   const heard = await reservePort();
   const fixture = readDraftServer([{ text: "Broken in transit.", hold: true }]);
-  const booted = await bootScope(undefined, {
+  const booted = await boot({
+    dataPath: undefined,
     draft: { enabled: true, baseUrl: heard.base },
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
-  const app = buildApp(booted);
+  const app = booted.app;
   await mountAssets(app);
   const encoder = new TextEncoder();
   const plain = { fetch: (req: Request) => app.fetch(req) };
@@ -304,9 +331,13 @@ test("a broken draft frame shows a plain notice and saves nothing", async () => 
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   page.on("pageerror", (error) => pageErrors.push(String(error)));
   try {
-    const created = await booted.save.create({ title: "Broken draft", description: "v1" });
+    const created = await via(booted.scope, createIssue, {
+      title: "Broken draft",
+      description: "v1",
+    });
+    await booted.scope.run(publishIssues);
     fixture.fillIds(created.id);
-    const before = await booted.detail(created.id);
+    const before = await booted.scope.run(readDetail, { input: created.id });
     await page.goto(heard.base);
     await page.getByRole("heading", { name: "Issues" }).waitFor();
     await selectIssue(page, created.title);
@@ -317,7 +348,7 @@ test("a broken draft frame shows a plain notice and saves nothing", async () => 
     const notice = await draft.getByRole("alert").innerText();
     assert.match(notice, /unreadable|failed/i);
     await fixture.aborted();
-    assert.deepEqual(await booted.detail(created.id), before);
+    assert.deepEqual(await booted.scope.run(readDetail, { input: created.id }), before);
     assert.equal(await draft.getByRole("button", { name: "Post draft", exact: true }).count(), 0);
   } finally {
     fixture.release();
@@ -333,14 +364,19 @@ test("shutdown with a live wire and held turn joins cleanly", async () => {
   const heard = await reservePort();
   const fixture = readDraftServer([{ text: "Never finishes.", hold: true }]);
   const path = join(mkdtempSync(join(tmpdir(), "tracker-t05-shutdown-")), "db");
-  const live = await bootScope(path, {
+  const live = await boot({
+    dataPath: path,
     draft: { enabled: true, baseUrl: heard.base },
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
-  heard.serve(buildApp(live));
-  const created = await live.save.create({ title: "Held shutdown", description: "live wire" });
+  heard.serve(live.app);
+  const created = await via(live.scope, createIssue, {
+    title: "Held shutdown",
+    description: "live wire",
+  });
+  await live.scope.run(publishIssues);
   fixture.fillIds(created.id);
-  const before = await live.detail(created.id);
+  const before = await live.scope.run(readDetail, { input: created.id });
   const sse = await fetch(`${heard.base}/sync?client=shutdown-proof`);
   assert.equal(sse.status, 200);
   const held = (async () => {
@@ -366,9 +402,9 @@ test("shutdown with a live wire and held turn joins cleanly", async () => {
     if ("text" in end && end.text !== undefined) {
       assert.equal(end.text.includes('"kind":"done"'), false);
     }
-    const reopened = await bootScope(path);
+    const reopened = await boot({ dataPath: path });
     try {
-      assert.deepEqual(await reopened.detail(created.id), before);
+      assert.deepEqual(await reopened.scope.run(readDetail, { input: created.id }), before);
     } finally {
       await reopened.scope.close({ graceful: true });
     }
