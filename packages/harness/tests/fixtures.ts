@@ -105,6 +105,15 @@ export function readToolUse(): SDKAssistantMessage {
   };
 }
 
+/** A recorded user message carrying plain text: no tool answer lands in `items`. */
+export function readUserText(text: string): SDKUserMessage {
+  return {
+    type: "user",
+    message: { role: "user", content: text },
+    parent_tool_use_id: null,
+  };
+}
+
 /** A recorded user message carrying the tool's answer. */
 export function readToolResult(): SDKUserMessage {
   return {

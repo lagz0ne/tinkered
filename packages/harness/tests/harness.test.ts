@@ -11,6 +11,7 @@ import {
   readAssistantText,
   readScript,
   readScriptCost,
+  readUserText,
   type Script,
   readToolSdk,
 } from "./fixtures.ts";
@@ -314,5 +315,19 @@ test("a non-init system message leaves the id cell alone", async () => {
   await session.run(ask, { input: "hello" });
   expect(seen).toEqual(["s-1"]);
   expect(session.resolve(coder.id)).toBe("s-1");
+  await scope.close();
+});
+
+test("a user message with plain text adds a tool result item only for tool answers", async () => {
+  const script = readScript("Hello");
+  const mixed: Script = {
+    messages: [script.messages[0], readUserText("just thinking"), ...script.messages.slice(1)],
+  };
+  const { coder, ask, scope } = readSetup([mixed], []);
+  const session = scope.createSession();
+  await session.run(ask, { input: "hello" });
+  expect(session.resolve(coder.items).filter((item) => item.kind === "tool_result")).toEqual([
+    { kind: "tool_result", id: "tu-1", status: "completed", source: script.messages[4] },
+  ]);
   await scope.close();
 });
