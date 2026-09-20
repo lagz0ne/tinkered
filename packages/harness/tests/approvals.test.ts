@@ -187,6 +187,36 @@ test("without an approve op a canUseTool bound in options still answers", async 
   await scope.close();
 });
 
+test("an approve op overrides a canUseTool bound in options", async () => {
+  const bound: PermissionResult[] = [];
+  const approve = operation({
+    label: "approve",
+    input: claudeCode.approval,
+    run: (): PermissionResult => ({ behavior: "deny", message: "frame" }),
+  });
+  const coder = harness({ label: "coder", adapter: claudeCode, approve });
+  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const scope = createScope({
+    tags: [
+      claudeCode.options({
+        canUseTool: async () => {
+          const decision: PermissionResult = { behavior: "allow" };
+          bound.push(decision);
+          return decision;
+        },
+      }),
+    ],
+    presets: [preset(claudeCode.sdk, async () => fakeSdk({ decisions: [] }))],
+  });
+  const session = scope.createSession();
+  await session.run(ask, { input: "hello" });
+  expect(bound).toEqual([]);
+  expect(session.resolve(coder.items).filter((item) => item.kind === "approval")).toEqual([
+    { kind: "approval", id: "tu-1", status: "deny", source: expect.anything() },
+  ]);
+  await scope.close();
+});
+
 test("an unknown message kind still lands in events and the turn resolves", async () => {
   const reset: SDKConversationResetMessage = {
     type: "conversation_reset",
