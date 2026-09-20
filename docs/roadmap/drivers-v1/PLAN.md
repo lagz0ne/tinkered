@@ -25,13 +25,13 @@ Scope.Handle may appear in:  a composition root (main.ts / main.tsx / a test)   
 
 ## Small fixes from the reshape feedback (independent, run in parallel with t01)
 
-| Ticket          | Package | One line                                                                                                                                                                                                                        |
-| --------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| fix/subflow-run | core    | A subflow controller's `run` returns a plain `Promise<Awaited<T>>` so `.then(ok, err)` types without three type arguments (`drafter.ts` `start`).                                                                               |
-| fix/watch-prev  | core    | `controller.watch((next, prev) => …)` hands the previous value.                                                                                                                                                                 |
-| fix/stream-null | http    | `HttpResponse.Handle.stream()` raises a registry error on a bodiless response instead of returning `null` (or a documented `streamOrRaise`). **Done** `6c96adc`: `NoBody { status }`; http mutation alone 70.51 (baseline ~70). |
-| fix/serial-tx   | drizzle | A documented recipe (or a `serial` option) for single-connection stores; today PGlite serializes itself — the recipe says when a queue is needed at all.                                                                        |
-| docs/form-cells | react   | A worked form example in `examples/react`: cells + one save operation + a headless test, the pattern the tracker client now uses.                                                                                               |
+| Ticket          | Package | One line                                                                                                                                                                                                                             |
+| --------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| fix/subflow-run | core    | A subflow controller's `run` returns a plain `Promise<Awaited<T>>` so `.then(ok, err)` types without three type arguments (`drafter.ts` `start`).                                                                                    |
+| fix/watch-prev  | core    | `controller.watch((next, prev) => …)` hands the previous value.                                                                                                                                                                      |
+| fix/stream-null | http    | `HttpResponse.Handle.stream()` raises a registry error on a bodiless response instead of returning `null` (or a documented `streamOrRaise`). **Done** `6c96adc`: `NoBody { status }`; http mutation alone 70.51 (baseline ~70).      |
+| fix/serial-tx   | drizzle | A documented recipe (or a `serial` option) for single-connection stores; today PGlite serializes itself — the recipe says when a queue is needed at all. **Done** `ac99002`: README section, recipe only (PGlite serializes itself). |
+| docs/form-cells | react   | A worked form example in `examples/react`: cells + one save operation + a headless test, the pattern the tracker client now uses. **Done** `239f158`: `examples/react/form.tsx` + headless `form.test.ts`.                           |
 
 ## Gates per ticket
 
