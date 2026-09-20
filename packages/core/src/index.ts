@@ -201,12 +201,14 @@ export declare namespace Scope {
     get(): ResourceValue<T>;
   };
 
-  /** A read/write handle onto one cell. `get` is the read. */
+  /** A read/write handle onto one cell. `get` is the read. The watcher hands the value
+   * before the write beside the next one, so a listener that reacts to "changed to a
+   * different value" never keeps its own copy. A one-argument listener still type-checks. */
   export type DataController<T> = {
     get(): T;
     set(value: T): void;
     update(fn: (previous: T) => T): void;
-    watch(listener: (next: T) => void): () => void;
+    watch(listener: (next: T, prev: T) => void): () => void;
   };
 
   /** How a subflow call is supplied (ADR 0022, 0038): a pre-typed `input` (parse skipped), or a
@@ -245,7 +247,9 @@ export declare namespace Scope {
   /** A callable handle onto one operation — always a function, never a value (ADR 0022). A
    * void-input operation is called `run()`; an input-carrying one must supply `input` or
    * `rawInput`. A call carrying `tags` opens a child session for the run (ADR 0038) and is
-   * always async: it returns `Promise<Awaited<T>>` even when the body is sync. */
+   * always async: it returns `Promise<Awaited<T>>` even when the body is sync. The tagged
+   * overload comes first so a call carrying `tags` types as a promise even though an untagged
+   * shape would also match. */
   export type OperationController<T, I> = {
     run(...call: TaggedCall<I>): Promise<Awaited<T>>;
     run(...call: CallArgs<I>): T;
@@ -710,7 +714,7 @@ type Node = Data.Cell<unknown> | Resource.Handle<unknown>;
 /** One subscription: a wrapper so the same listener subscribed twice keeps two identities. The
  * single per-layer compare lives on the record (`notified`), never here. */
 type Watcher = {
-  fn: (next: unknown) => void;
+  fn: (next: unknown, prev: unknown) => void;
 };
 /** An end-hook (`ctx.defer`) tagged with the resource that registered it (undefined = userland
  * `onClose`), so `release` can drop exactly one resource's hooks without touching others. Kept in
@@ -946,19 +950,23 @@ function flushCell(layer: Layer, target: Data.Cell<unknown>): void {
   }
 }
 
-/** Compare once against this layer's last notified value, then run every watcher in order. */
+/** Compare once against this layer's last notified value, then run every watcher in order,
+ * handing each the value before the write beside the next one. The previous value travels
+ * positionally — no pair allocated per notification — and costs a one-argument listener
+ * nothing: an extra argument passed is an extra argument ignored. */
 function flushOne(layer: Layer, target: Data.Cell<unknown>): void {
   const rec = layer.nodes.get(target);
   const ws = rec?.watchers;
   if (!ws?.size || !rec) return;
   const next = readCell(layer, target);
-  if (!cellEq(target, rec.notified, next)) notifyLayer(rec, ws, next);
+  const prev = rec.notified;
+  if (!cellEq(target, prev, next)) notifyLayer(rec, ws, next, prev);
 }
 
 /** Run one layer's watchers in registration order against the value already read for the layer. */
-function notifyLayer(rec: NodeState, ws: Set<Watcher>, next: unknown): void {
+function notifyLayer(rec: NodeState, ws: Set<Watcher>, next: unknown, prev: unknown): void {
   rec.notified = next;
-  for (const w of ws) w.fn(next);
+  for (const w of ws) w.fn(next, prev);
 }
 
 function cellEq(target: Data.Cell<unknown>, a: unknown, b: unknown): boolean {
@@ -1014,7 +1022,7 @@ function addWatcher(
   layer: Layer,
   target: Data.Cell<unknown>,
   rec: NodeState,
-  fn: (next: unknown) => void,
+  fn: (next: unknown, prev: unknown) => void,
 ): () => void {
   ensureOpen(layer);
   refreshNotified(layer, target, rec);
@@ -1044,8 +1052,8 @@ function dataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataContro
       ensureOpen(layer);
       writeCell(layer, target, fn(get()));
     },
-    watch: (listener: (next: T) => void) =>
-      addWatcher(layer, target, rec, listener as (next: unknown) => void),
+    watch: (listener: (next: T, prev: T) => void) =>
+      addWatcher(layer, target, rec, listener as (next: unknown, prev: unknown) => void),
   };
 }
 
@@ -1843,7 +1851,7 @@ function writeThrough(
           ensureOpen(layer);
           at(fn(plainCtl.get()), 0);
         },
-        watch: (listener: (next: unknown) => void) => plainCtl.watch(listener),
+        watch: (listener: (next: unknown, prev: unknown) => void) => plainCtl.watch(listener),
       };
       cache.set(target, wrapped);
       return wrapped;

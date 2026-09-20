@@ -61,6 +61,22 @@ test("watch fires once per real change, never on an eq-equal write; unsubscribe 
   expect(seen).toEqual([1]);
 });
 
+test("a watcher reads the previous value beside the next", () => {
+  const count = data({ initial: 0 });
+  const c = createScope().controller(count);
+  const seen: Array<readonly [number, number]> = [];
+  const stop = c.watch((next, prev) => {
+    seen.push([prev, next] as const);
+  });
+  c.set(1);
+  c.set(2);
+  stop();
+  expect(seen).toEqual([
+    [0, 1],
+    [1, 2],
+  ]);
+});
+
 test("an invalid write throws DataValidationFailed with a typed payload", () => {
   const nonNegative = (v: unknown): number => {
     if (typeof v !== "number" || v < 0) throw new Error("must be >= 0");
