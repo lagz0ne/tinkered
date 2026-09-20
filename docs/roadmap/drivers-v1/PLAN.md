@@ -199,3 +199,25 @@ browser 7/7 uncached, `pnpm validate` 37/37; jev pre-flight 0 flags (the first s
 alone **79.67** (was ~74 before this ticket: the four new seam tests lifted it over the 75 floor, so `mutation/floor-75`
 part 2 is cli only). Rows replace the `sync` tag and `synced` meta; `connect` returns the session `Result` via
 `createSession` + `close()`; ADR 0051 gained the two-shapes paragraph.
+
+### drivers/t05 — in work (worktree `../tinkered-t05-mcp`, branch `drivers/t05-mcp`)
+
+- `packages/mcp/src/index.ts` 126 → 147: `mcp(wiring)` returns `Scope.Extension<McpServer>` (`start`: `await
+next()`, build the server, one tool per row — today's `mcpServer` body with the `start` scope; per-call
+  sessions stay inside); `expose(op, meta)` builds the `Mcp.Row`. Deleted: `mcpServer(scope, options)`, the
+  `tools` binding tag, `Mcp.Options`. `tool` meta tag, `readTool`, `answerTool` stay exactly as today — harness
+  reads them (its own ticket later).
+- Tracker: `tools/issues.ts` keeps `tool(...)` meta ONLY on `listRemote` + `getRemote` (TSDoc says why);
+  `issueTools` is `readonly Mcp.Row[]`; `issuesMcp` is the installed extension; `serveIssues(scope)` deleted in
+  favor of `serve(server, scope)` in `tools/main.ts` (same EOF/signal settle, same transport close); the `mcp`
+  entry is `command.entry("mcp", () => serveEntry)` with `serveEntry` resolving the extension — the CLI shape
+  t04 changes stays untouched. `src/index.ts` exports `issueTools` + `issuesMcp`, drops `serveIssues`.
+- Tours `examples/mcp/{basic,serve,cli}.ts` re-expressed (extension installed, `ready`, resolve, connect at the
+  root); `cli.ts` matches the tracker entry shape. Cast-free. `scripts/validate.mjs` mcp assertion now names
+  `mcp`/`expose`/`tool`.
+- Tests: mcp 8 → 9 (every promise re-expressed; new: `NotResolved` before `ready`; session-scoping test replaced
+  by a rename + one-session-per-call test — sessions hold no bindings since the `tools` tag is gone). Tracker 42
+  hold with the MCP half through `mcp({ tools: issueTools })` + `resolve`.
+- Known reds owned by the harness ticket (untouched per scope): `packages/harness/tests/tools.test.ts` imports
+  the deleted `mcpServer`/`tools` (1 failing test, 2 `vp check` errors); `vp check` otherwise matches `main`
+  (0 errors of mine, 13 warnings = `main`'s 13).
