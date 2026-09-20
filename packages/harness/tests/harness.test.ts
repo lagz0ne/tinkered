@@ -331,3 +331,15 @@ test("a user message with plain text adds a tool result item only for tool answe
   ]);
   await scope.close();
 });
+
+test("a trailing assistant message with no tool call adds no tool item", async () => {
+  const script = readScript("Hello");
+  const full: Script = { messages: [...script.messages, readAssistantText("done")] };
+  const { coder, ask, scope } = readSetup([full], []);
+  const session = scope.createSession();
+  await session.run(ask, { input: "hello" });
+  expect(session.resolve(coder.items).filter((item) => item.kind === "tool_use")).toEqual([
+    { kind: "tool_use", id: "tu-1", status: "started", source: script.messages[3] },
+  ]);
+  await scope.close();
+});
