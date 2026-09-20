@@ -35,10 +35,14 @@ Proven on labeled cases (2026-09-18, `pilot/side-projects/jev-probe/eval.mjs`):
 | Phase          | Script                                 | What it does                                                                                      | Truth still owned by            |
 | -------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------- |
 | Planning       | `plan-check.mjs <file>`                | neutral anti-goals on a plan/ADR/ticket + glossary (uncalibrated)                                 | the human author                |
-| Implementation | `preflight.mjs [range]`                | contributor self-check on the working-tree diff before reporting                                  | `vp check` / tests / `validate` |
+| Implementation | `preflight.mjs [range]`                | contributor self-check: file judges + per-unit lint on the diff                                   | `vp check` / tests / `validate` |
 | Verification   | `review.mjs [range]`                   | judge set per file + gated route + overclaim                                                      | `scripts/ticket.sh` + lead      |
 | Writing        | `guide.mjs "<logic>" \| <file#symbol>` | which unit should this be (data / resource / operation / tag / glue), target, needs defer         | the author + the one law        |
 | Review / lint  | `lint.mjs [paths]`                     | per declared unit or outermost function: seven anti-goal judges + the unit classifier (see below) | `vp check` / tests / the lead   |
+
+Pre-flight proof (2026-09-20): an untracked `examples/core/jev-proof-tmp.ts` holding a `setInterval`
+with no `defer` — the file judges passed it (✓), the per-unit lint caught it (`effectWithoutDefer 95%`).
+New untracked files are included since that day.
 
 Key: `AI_GATEWAY_API_KEY` (or `JEV_TOKEN_FILE`); never printed. Cost is ~fractions of a cent per
 ticket. Free tier is request-rate capped; paid credits lift it.

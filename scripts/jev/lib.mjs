@@ -63,7 +63,8 @@ export const message = (range) => {
 };
 /** Changed source files in a range, excluding tests/config/generated. */
 export function changedSources(range) {
-  return git(`diff --name-only ${range}`)
+  const untracked = range.includes("..") ? "" : git("ls-files --others --exclude-standard");
+  return (git(`diff --name-only ${range}`) + "\n" + untracked)
     .split("\n")
     .filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$|\.config\.|\/dist\//.test(f))
     .filter(Boolean);

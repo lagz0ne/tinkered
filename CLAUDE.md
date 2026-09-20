@@ -113,7 +113,16 @@ The lead session orchestrates and reviews; implementation is delegated to a Pase
 2. The brief is self-contained: read `.agents/skills/coding-convention/SKILL.md` (incl. Performance),
    exact measure commands (`bench/core-probe.mjs`, `bench/stores-probe.mjs`, `bench/react-vs-zustand.mjs`,
    min of 3), gates (`vp check` 0 errors, tests, census `--strict`, `pnpm validate`; the mutation lane is
-   the reviewer's), and the report format (branch, SHAs, before/after table, what was verified and how).
+   the reviewer's), the Jev toolset below, and the report format (branch, SHAs, before/after table, what
+   was verified and how, the `jev pre-flight` line).
+   **Jev toolset (advisory, free, ~2 s a call — use it while coding, never as a gate):**
+   - choosing a unit: `node scripts/jev/guide.mjs "<logic in words>"` (or `<file#symbol>`) answers
+     data / resource / operation / tag / glue with the target shape; below 60% it says "unclear" — then
+     decide with the one-law table in `docs/best-practices.md`;
+   - before reporting: `node scripts/jev/preflight.mjs` runs the file judges and the per-unit lint
+     (`scripts/jev/lint.mjs`) on your diff; clear the notes you agree with, explain the rest in the
+     report's `jev pre-flight` line. A note is a probability, not a verdict; `vp check`, tests,
+     census, and the lead decide.
 3. The lead reviews the diff for shape (facades, duplicated hot bodies, leaked internals, identity-keyed
    memos), re-measures, requests one fix round, cherry-picks onto `main`, runs the package's mutation lane
    isolated, pushes, then removes the worktree and branch.

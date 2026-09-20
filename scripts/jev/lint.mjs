@@ -6,7 +6,7 @@
 //   --all also judges data/tag declarations, functions under 150 chars, and composition roots
 //   (functions that call createScope) — all skipped by default
 import { execSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { loadKey, ask, pct } from "./lib.mjs";
 import { slice, forJev, LINT, GUIDE } from "./bank.mjs";
 
@@ -20,9 +20,11 @@ const limit = Number(valueOf("--limit") ?? Infinity);
 const jsonOut = valueOf("--json");
 
 function listFiles(specs) {
-  const quoted = specs.map((s) => `'${s}'`).join(" ");
-  const out = execSync(`git ls-files -- ${quoted}`, { encoding: "utf8" });
-  return out.split("\n").filter((f) => f && !/\.test\.tsx?$|\.d\.ts$/.test(f));
+  const direct = specs.filter((s) => existsSync(s));
+  const globs = specs.filter((s) => !existsSync(s));
+  const quoted = globs.map((s) => `'${s}'`).join(" ");
+  const listed = globs.length ? execSync(`git ls-files -- ${quoted}`, { encoding: "utf8" }) : "";
+  return [...direct, ...listed.split("\n")].filter((f) => f && !/\.test\.tsx?$|\.d\.ts$/.test(f));
 }
 
 function questionsFor(kind) {
