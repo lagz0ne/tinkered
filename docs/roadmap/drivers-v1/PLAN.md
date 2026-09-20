@@ -88,13 +88,14 @@ BEFORE (2026-09-20, worktree base `2f5e4da` = main, no code change yet):
 
 AFTER: (filled in when the change lands)
 
-AFTER (2026-09-20, `1e45688` + session-path inline refactor, same method):
+AFTER (2026-09-20, `1e45688` + session-path inline refactor, same method; R3 re-probed
+`session`/`create`/`tagged` at `e2248f8`, `run`/`op` unchanged by R3 — its lookup sits on close only):
 
 | scenario  | run 1  | run 2  | run 3  | min    | vs BEFORE min  |
 | --------- | ------ | ------ | ------ | ------ | -------------- |
-| `session` | 1604.0 | 1544.0 | 1626.0 | 1544.0 | −69 (no move)  |
-| `tagged`  | 1948.0 | 2115.0 | 2014.0 | 1948.0 | −15 (no move)  |
-| `create`  | 169.2  | 168.4  | 169.0  | 168.4  | −1.2 (no move) |
+| `session` | 1612.0 | 1630.0 | 1611.0 | 1611.0 | −2 (no move)   |
+| `tagged`  | 2054.0 | 1942.0 | 2128.0 | 1942.0 | −21 (no move)  |
+| `create`  | 170.5  | 169.2  | 168.9  | 168.9  | −0.7 (no move) |
 | `run`     | 113.3  | 103.1  | 110.5  | 103.1  | −9.5 (no move) |
 | `op`      | 101.3  | 101.3  | 101.2  | 101.2  | +0.2 (noise)   |
 
