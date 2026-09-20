@@ -1696,3 +1696,25 @@ Contributor deviations accepted: the draft stream never rethrows (a failed turn 
 frame, as before); `/sync` settles `connect` with `.then(close, close)` because a forced root close rejects it;
 `onError` split in two to stay under the complexity ceiling. Core feedback recorded: `source().connect()`
 rejects on a forced close with no way to tell "cancelled" from "failed" at the call site.
+
+### reshape/client-a — Doing, 2026-09-20
+
+Design (lead): the tab scope lives as long as the page, so drafts can live in cells (today they survive a
+reconnect only because they sit in React state and the scope is swapped). The sync transport becomes a
+**reconnecting userland transport** created at the root and handed to `subscribe` (ADR 0048 §6: transports are
+userland's; the extension closes it): a drop does not fire `onClose`, it flips a status the UI reads; `reconnect`
+is an operation. Form, filter, selection, notice, detail, and connection state are `data` cells (`state.ts`);
+every user action is an operation (`actions.ts`); "refresh the detail when the selected issue changes on the
+wire" is a scope `resource` resolved at the root (`services.ts`). Components read with `useData` and run with
+`useRun`; no `useState`/`useEffect`/`useRef`. The draft view (`DraftView.tsx`) is the next slice (client-b).
+
+```impact reshape/client-a
+symbol / file                 refs (grep; SCIP does not index apps)
+connectTab, TabSync (removed) src/client/main.tsx (×3), src/client/App.tsx (App props, LiveState)
+App props (initial, baseUrl)  src/client/main.tsx
+DraftView props               src/client/App.tsx (DetailView renders <DraftView issueId reload>) — keep the prop shape this slice
+browser tests                 tests/browser-helper.test.ts, tests/browser-proof.ts: roles/labels/texts listed in the brief must not change
+```
+
+Expected after: `useState|useEffect|useRef` in `src/client/{App.tsx,main.tsx,sync.ts,state.ts,actions.ts,services.ts,connection.ts}` → 0
+(DraftView.tsx still has its hooks until client-b); `connectTab|TabSync` → `(none)`.
