@@ -209,7 +209,6 @@ test("a response reader delivers its reading, not the raw result", async () => {
 });
 
 test("a stream event that is not a text delta adds no text", async () => {
-  const seen: Seen[] = [];
   const script = readScript("Hello");
   const thinking: SDKPartialAssistantMessage = {
     ...(script.messages[1] as SDKPartialAssistantMessage),
@@ -226,7 +225,7 @@ test("a stream event that is not a text delta adds no text", async () => {
   const mixed: Script = {
     messages: [script.messages[0], thinking, other, ...script.messages.slice(1)],
   };
-  const { coder, ask, scope } = readSetup([mixed], seen);
+  const { coder, ask, scope } = readSetup([mixed], []);
   const session = scope.createSession();
   const textSeen: string[] = [];
   session.controller(coder.text).watch((next) => textSeen.push(next));
