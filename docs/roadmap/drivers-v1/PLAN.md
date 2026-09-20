@@ -127,3 +127,40 @@ mutation alone **77.96** (floor 75). Probe (min of 3, in-container): `session` 1
 169.6 → 168.9, `tagged` 1963 → 1942, `run` 112.6 → 103.1, `op` 101.0 → 101.2 — no move.
 `scripts/ticket.sh` was not run verbatim: its `vp run -r mutate` runs every lane concurrently, which the
 isolation rule forbids; its gates were run one by one instead and the tag set by hand.
+
+### drivers/t03 (+t02) — landed 2026-09-20 (`0d17653`)
+
+Five contributor commits, one fix round (no `as` in hono src; a row takes the operation itself, the loader form
+only for lazy cases; a stray warning; `src` lives in `server/sync.ts`; rebase). Lead gates on `main`, exit-code
+gated: 0 errors / 13 warnings, hono 34, sync 28, tracker 42, browser 7/7 uncached; hono mutation alone **77.66**
+(floor 75). `honoApp|routes.all|BoundRoute|tinker(` outside `packages/hono/src` → none. Tracker `createApp` is
+48 lines and builds no Hono; `/sync` is a row whose operation depends on the sync source extension (t01 B).
+`publishAfterCommit` (t02) reads the request method before `next()` and publishes after a successful non-GET
+close; because a mapped 400 still closes `success`, `publishIssues` skips an equal write (core feedback: a
+session hook cannot see the response status).
+
+## drivers/t04 + t05 — impact block (import sites, 2026-09-20)
+
+```impact drivers/t04-t05
+symbol                         today                                   after (ADR 0051)                                          consumers
+cli: run({ scope, argv, io })  creates the scope, routes argv         `cli({ commands })` extension; value = `run(argv, io) → { code, stdout, stderr }`   apps/issue-tracker/tests/tools.test.ts, examples/cli/basic.ts
+cli: runMain(options)          creates scope + process wiring         root glue over the extension value (`createScope` + `ready` + `resolve` + exit)   apps/issue-tracker/src/tools/main.ts, examples/cli/main.ts, examples/mcp/cli.ts
+cli: commands (tag), command(meta) meta+binding                       `command(name, op | () => import(…), { argv, respond })` row; `commands` tag deleted; `command` meta deleted   tracker tools/issues.ts (meta on 5 ops + `commands(op)` bindings), examples/cli/*, cli tests
+cli: command.entry(name, load) entry receives (scope, argv)           entry receives `(argv)` only; the root's closure supplies values (`scope.resolve(mcpExt)`)   tracker tools/main.ts (mcp entry), examples/mcp/cli.ts
+mcp: mcpServer(scope, opts)    takes the scope                        `mcp({ name, version, tools })` extension; value = `McpServer`   tracker tools/issues.ts (serveIssues), tests/tools.test.ts, examples/mcp/{basic,serve,cli}.ts, packages/harness/tests/tools.test.ts
+mcp: tools (tag)               binding                                deleted                                                    same
+mcp: tool (meta tag), readTool, answerTool   meta read by mcp AND harness   `tool(op, { description, schema })` becomes the ROW builder for mcp; the meta tag form stays exported until a harness ticket migrates `readTool` (expand–contract; harness is out of scope here)   packages/harness/src/{index,claude}.ts, examples/harness/tools.ts
+tracker tools/issues.ts        5 ops with `meta: [command(…), tool(…)]` + `issueCommands`/`issueTools` binding arrays   5 plain ops; `issueCommands: Cli.Row[]`, `issueTools: Mcp.Row[]` in the same file   tools/main.ts, tests/tools.test.ts, server/draft.ts (`triage.tools: [listRemote, getRemote]` — harness reads `tool` meta: keep meta on those two ops until the harness ticket, TSDoc why)
+```
+
+## drivers/t06 — impact block (import sites, 2026-09-20)
+
+```impact drivers/t06
+symbol                                  today                                after                                                   consumers
+source()                                extension, reads sync.all + synced meta   `source({ cells })` — rows `[cell, key]` or `[family, label]`; `connect` returns `Promise<Scope.Result>`   tracker server/sync.ts (module `src`), examples/sync/{basic,hono}.ts, sync tests
+subscribe(transport)                    extension, reads sync.all            `subscribe(transport, { cells })`                        tracker client/main.tsx, tests/issues.test.ts, examples/sync/basic.ts
+sync (binding tag), synced (meta tag), readSynced   scope config + meta      deleted                                                  tracker shared/issues.ts (`meta: [synced({ key: "issues" })]`), server/app.ts, client/main.tsx, tests/{issues,client}.test.ts, examples/sync/*
+family(config)                          members carry synced meta            unchanged API; the row `[family, label]` names the key prefix   sync tests, README
+tracker server/routes.ts openWire       `opened.origin.connect(wire).then(close, close)`   `.then((end) => { close(); return end })` — no swallow needed   —
+core-feedback row "connect rejects on forced close"   open                  done                                                    docs/roadmap/core-feedback.md
+```
