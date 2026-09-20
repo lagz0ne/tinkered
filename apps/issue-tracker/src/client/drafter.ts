@@ -97,7 +97,7 @@ export const drafter = resource({
       try {
         landFinished(mine, await readOutcome(owned, mine));
       } catch (error: unknown) {
-        landThrown(mine, error);
+        landThrown(mine, owned, error);
       } finally {
         owned.releaseLock();
         if (reader === owned) reader = null;
@@ -125,12 +125,17 @@ export const drafter = resource({
       if (closing !== null && closing.kind === "terminal") return closing.status;
       return outcome;
     }
-    function landThrown(mine: number, error: unknown): void {
+    function landThrown(
+      mine: number,
+      owned: ReadableStreamDefaultReader<Uint8Array> | null,
+      error: unknown,
+    ): void {
       if (mine !== epoch) return;
       if (isStaleCancel(error)) {
         run.update((prev) => (prev.view === "running" ? { ...prev, view: "cancelled" } : prev));
         return;
       }
+      owned?.cancel().then(undefined, () => undefined);
       run.set(readFailedRun(error));
     }
     function landFinished(mine: number, outcome: Draft.Outcome): void {
@@ -155,7 +160,7 @@ export const drafter = resource({
           try {
             stream = await open.run({ input: { id, prompt } });
           } catch (error: unknown) {
-            landThrown(mine, error);
+            landThrown(mine, null, error);
             return;
           }
           await pump(stream, mine);

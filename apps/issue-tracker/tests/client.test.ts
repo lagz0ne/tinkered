@@ -91,6 +91,27 @@ function readFake(answers: {
   return { fake, seen };
 }
 
+/** A fake SSE body that stays open after its frames: the held turn the broken-frame case
+ * needs. Closing it lands the run. */
+function readHeldStream(frames: readonly string[]): {
+  readonly stream: ReadableStream<Uint8Array>;
+  readonly release: () => void;
+} {
+  const encoder = new TextEncoder();
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      for (const frame of frames) controller.enqueue(encoder.encode(frame));
+      await held;
+      controller.close();
+    },
+  });
+  return { stream, release };
+}
+
 /** A fake SSE body: the frames joined into one byte stream, like the real server writes. */
 function readDraftStream(frames: readonly string[]): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
@@ -328,6 +349,37 @@ test("posting a ready draft saves one comment and quiets the run", async () => {
     expect(comments.length).toBe(1);
     expect(comments[0]?.body).toMatchObject({ issueId: "i1", text: "A draft." });
     expect(scope.resolve(draftRun)).toEqual({ view: "quiet", text: "", draft: "", notice: null });
+  } finally {
+    await scope.close();
+  }
+});
+
+test("a broken frame fails the run, cancels the stream, and saves nothing", async () => {
+  const seen: Seen[] = [];
+  const held = readHeldStream([readFrame("{broken JSON")]);
+  const fake: HttpClient.Backend = (request) => {
+    const url = HttpRequest.toUrl(request);
+    seen.push({ method: request.method, url, body: readJsonBody(request) });
+    if (request.method === "POST" && url.endsWith("/draft")) {
+      return Promise.resolve(HttpResponse.make(request, { status: 200, body: held.stream }));
+    }
+    return Promise.resolve(
+      HttpResponse.make(request, { status: 200, body: JSON.stringify(DETAIL) }),
+    );
+  };
+  const scope = createScope({
+    tags: [api.config({ baseUrl: "http://x" }), sync(issueList), backend(fake), wire(readWire())],
+    extensions: [],
+  });
+  try {
+    scope.resolve(drafter);
+    scope.run(selectIssue, { input: "i1" });
+    await scope.run(beginDraft);
+    const run = scope.resolve(draftRun);
+    expect(run.view).toBe("failed");
+    expect(run.notice).toMatch(/unreadable|failed/i);
+    held.release();
+    expect(seen.filter((s) => s.url.includes("/comments")).length).toBe(0);
   } finally {
     await scope.close();
   }
