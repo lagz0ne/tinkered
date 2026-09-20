@@ -1639,7 +1639,7 @@ Line counts (main `75ae11a` → `07359a7`): server 992 → 927; `app.ts` 403 →
 Fix round (all landed): a rejected async body read is hono's `InputRejected` → 400 (the brief first said
 "propagate", which gave 500 — wrong); publish-after-commit wraps only the three mutating paths (it had
 matched `/api/issues/*`, so a draft start republished the table); `draftStream` left the seam; the draft tag
-binds only when config carries it. Hono mutation lane: see the line below once run.
+binds only when config carries it. Hono mutation lane (alone, `vp run --no-cache hono#mutate`): **79.38** ≥ break 60, level with its ~80 baseline.
 
 Core feedback recorded from the contributor: awaiting `input` unconditionally let a client abort slip in
 before the op started (a sync read must stay on the same tick — `isThenable` guard); no session-commit hook
