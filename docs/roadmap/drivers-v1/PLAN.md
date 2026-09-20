@@ -38,3 +38,21 @@ Scope.Handle may appear in:  a composition root (main.ts / main.tsx / a test)   
 `vp check` 0 errors · the package's `vp run <pkg>#test` · `pnpm validate` 37/37 · the package's mutation lane
 alone · for core tickets the `scripts/ticket.sh` gate and the probe table (before/after, min of 3) · the
 `impact` block in this file before code (ADR 0047) · consumers (tracker, tours) green after migration.
+
+## drivers/t01 — impact block (2026-09-20, grep + SCIP symbol names; core `packages/core/src/index.ts`)
+
+```impact drivers/t01
+symbol / site                                   file:line (at 9557e85)             change
+Scope.Extension (type)                          core index.ts ~330 (namespace Scope)   + `session?(handle, next): Promise<Result>`
+extension() builder                             core index.ts:502                      + `session` in the config type
+Scope.Dependency / Depends                      core index.ts:290-297                  + `Extension<unknown>`; SlotValues maps it to the start value
+buildDeps / resolveDep                          core (grep `function resolveDep`)      deliver an extension's settled value; `NotResolved` before ready
+makeLayer + createSession                       core index.ts:2857-2860                session chain around the child layer's life
+runSession (scope.session(fn))                  core (grep `function runSession`)      same chain
+runTagged (tagged calls open a session)         core index.ts:1423                     same chain
+extendHandle                                    core index.ts:2691                     builds the `session` chain once; no chain → plain `createSession`
+closeLayer                                      core index.ts:2508                     the Result the chain's `next()` resolves with
+bench/core-probe.mjs `session` scenario         bench:51                               before/after, min of 3 — must not move when no extension declares `session`
+packages/sync/src/index.ts source().connect     sync:~230                              (t02/t06) returns the session `Result`
+consumers of Scope.Extension type               sync (source, subscribe), tracker publishAfterCommit (t02), tests
+```
