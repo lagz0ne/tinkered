@@ -6,7 +6,7 @@ import { fetchBackend, HttpRequest } from "../src/index.ts";
 type Echo = { readonly method: string; readonly contentType: string; readonly body: string };
 
 /** A loopback echo server: records method/headers/body, answers "ok". A real transport. */
-function startEcho(seen: Echo[]): Promise<{ origin: string; stop: () => Promise<void> }> {
+function startEcho(seen: Echo[]): Promise<EchoServer> {
   const server = createServer((req, res) => {
     const chunks: Uint8Array[] = [];
     req.on("data", (chunk: Uint8Array) => chunks.push(chunk));
@@ -23,17 +23,22 @@ function startEcho(seen: Echo[]): Promise<{ origin: string; stop: () => Promise<
     server.listen(0, "127.0.0.1", () => {
       const address = server.address();
       if (address === null || typeof address === "string") throw new Error("no port");
-      const origin = `http://127.0.0.1:${address.port}`;
-      resolve({ origin, stop: () => new Promise<void>((done) => server.close(() => done())) });
+      resolve({
+        origin: `http://127.0.0.1:${address.port}`,
+        [Symbol.dispose]: () => server.close(),
+      });
     });
   });
 }
 
+/** What `startEcho` returns: the base URL plus disposal that stops the server. */
+type EchoServer = { readonly origin: string; readonly [Symbol.dispose]: () => void };
+
 test("fetchBackend sends the method, headers, and JSON body to the server", async () => {
   const seen: Echo[] = [];
-  const { origin, stop } = await startEcho(seen);
+  using server = await startEcho(seen);
   const res = await fetchBackend(
-    HttpRequest.post(`${origin}/issues`, {
+    HttpRequest.post(`${server.origin}/issues`, {
       headers: { x: "1" },
       body: HttpRequest.bodyJson({ title: "t" }),
     }),
@@ -44,17 +49,15 @@ test("fetchBackend sends the method, headers, and JSON body to the server", asyn
   expect(seen[0].method).toBe("POST");
   expect(seen[0].contentType).toBe("application/json");
   expect(seen[0].body).toBe('{"title":"t"}');
-  await stop();
 });
 
 test("fetchBackend keeps the record's own content type", async () => {
   const seen: Echo[] = [];
-  const { origin, stop } = await startEcho(seen);
+  using server = await startEcho(seen);
   await fetchBackend(
-    HttpRequest.post(`${origin}/a`, { body: HttpRequest.bodyText("b", "text/x") }),
+    HttpRequest.post(`${server.origin}/a`, { body: HttpRequest.bodyText("b", "text/x") }),
     new AbortController().signal,
   );
   expect(seen[0].contentType).toBe("text/x");
   expect(seen[0].body).toBe("b");
-  await stop();
 });
