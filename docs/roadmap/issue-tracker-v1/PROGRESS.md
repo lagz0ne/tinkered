@@ -1718,3 +1718,52 @@ browser tests                 tests/browser-helper.test.ts, tests/browser-proof.
 
 Expected after: `useState|useEffect|useRef` in `src/client/{App.tsx,main.tsx,sync.ts,state.ts,actions.ts,services.ts,connection.ts}` → 0
 (DraftView.tsx still has its hooks until client-b); `connectTab|TabSync` → `(none)`.
+
+### reshape/client-a — landed 2026-09-20
+
+Fast-forwarded `main` to `63fd727` (eleven contributor commits, one fix round). No package changed, so no
+mutation lane. Lead gates, exit-code gated, in the worktree and again on `main` after `vp run -r build`:
+
+```text
+vp check                                       0 errors, 13 warnings
+vp run @tinker-issue-tracker#test              34 passed (4 files; + tests/client.test.ts: 5 headless client tests over a fake http backend)
+vp run @tinker-issue-tracker#build && vp run --no-cache @tinker-issue-tracker#test:browser   proof + 7 passed
+pnpm validate                                  37/37 PASS
+grep useState|useEffect|useRef src/client (excl. DraftView.tsx)   → 0      grep connectTab|TabSync → (none)
+```
+
+Line counts, client excluding `DraftView.tsx` and `api.ts`: **732 → 1330**. `App.tsx` 518 → 382; `sync.ts` 155 →
+deleted; `main.tsx` 59 → 92; new `state.ts` 155, `actions.ts` 409, `services.ts` 73, `connection.ts` 219.
+
+**The honest reading.** The server slices cut lines (992 → 802) because the library replaced lifetime glue the
+app had hand-rolled. The view slice adds lines because React already owned the effects and the library adds
+names: 11 cells, 12 operations, 2 resources, one reconnecting transport, and typed doors on every action.
+What it buys is the thing the old client could not have at any size: the whole client runs and is tested
+without a DOM (`tests/client.test.ts`), drafts live on the scope and survive a reconnect, and every state has
+one writer. ADR 0049 accepted the same trade for the playground. `docs/best-practices.md` now says so instead
+of promising fewer lines on the view side.
+
+Fix round (landed): `loadDetail` owns its failure (three try/catch copies gone); one `draftOf`, one row-mark pair,
+one generic `readPatch` door; single open path in the transport (a double-drop regression surfaced by the
+uncached browser run and was fixed in `63fd727`); one phased dead page; seam-only exports.
+
+Contributor feedback folded into the doc: rule 13 read as "no hand-rolled lifetime, period" and pushed two
+broken transport designs before the working one; the doc now names the pattern (per-attempt promise inside the
+factory, per-wire queues in closures, `defer` owns the close).
+
+### reshape/client-b — Doing, 2026-09-20
+
+The draft view: `DraftView.tsx` (380 lines, 9 `useState`, 3 `useEffect`, 3 `useRef`, raw `fetch` + `TextDecoder`
+pump). Design: the SSE read goes through the http client (`api.operation` with `response: (res) => res.stream()`);
+a scope resource `drafter` owns the in-flight reader (cancel = `reader.cancel()`, which closes the connection and
+cancels the server turn; `defer` cancels on close; a selection change discards); cells for the run state, prompt,
+author, capability; one operation per button. `<DraftView />` takes no props.
+
+```impact reshape/client-b
+symbol / file                          refs
+DraftView props { issueId, reload }    src/client/App.tsx (SelectedDetail renders it)
+readCapability (client fn), runStream, readPostedDraft, isAbort   src/client/DraftView.tsx only
+browser tests                          tests/browser-helper.test.ts, browser-proof.ts: "triage draft", "Draft a summary", "Cancel draft", "Cancelled.", "Post draft", /^Posting/, "Discard draft", the capability texts
+```
+
+Expected after: `useState|useEffect|useRef` anywhere in `src/client` → 0; `fetch(` in `src/client` → only inside `connection.ts` (the sync POST).
