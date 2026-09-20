@@ -839,7 +839,7 @@ function tapSessionHooks(layer: Layer, closing: Promise<Scope.Result>): Promise<
   const settle = SESSION_SETTLERS.get(layer);
   if (settle === undefined) return closing;
   SESSION_SETTLERS.delete(layer);
-  void closing.then((ended) => settle(ended));
+  ignoreRejection(closing.then((ended) => settle(ended)));
   return closing;
 }
 
