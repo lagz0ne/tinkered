@@ -1569,3 +1569,28 @@ The preview remains running with safe demo data and the optional model helper of
 It normally expires about eight hours after its 2026-09-19 21:17 UTC launch.
 Public two-tab/reload/conflict and phone/desktop results are recorded in final
 acceptance above. There is no remaining approved tracker work.
+
+## tracker/reshape — rebuild the tracker on the three units (Ready, 2026-09-20)
+
+Source: the [usage audit](audit-2026-09-20.md), the [server review](server-review-2026-09-20.md),
+and [docs/best-practices.md](../../best-practices.md). Goal: the same app, same tests green, written
+so that every thing is a `data`, a `resource`, or an `operation`; config is a `tag`; the two roots
+(`server/main.ts`, `client/main.tsx`) are the only places that touch the scope.
+
+Slices (one contributor each, in order):
+
+1. **server/routes** — routes as `route.*` tags + `honoApp(scope, { onError })`; `handle(createIssue)`
+   runs the domain op in the request session; delete the six wrappers in `app.ts`. Fix the three
+   one-liners first: graceful close at SIGTERM, `ready` before the first write, drizzle `logger`.
+2. **server/publish** — `saveQueue` as a scope resource; publish by `controller.update` with the
+   returned row; delete `bridge.ts` and `Booted.Composed`; tests own the scope.
+3. **server/streams** — SSE wire as a session resource; draft as `scope.run(draftTurn, { input, tags })`
+   behind `handle` + `stream`; delete the waiter/queue scaffold.
+4. **client/state** — form, filter, selection, notice cells in `state.ts`; one operation per user action
+   in `actions.ts`; tab connection as a resource; components keep only `useData`/`useRun`/`useResource`.
+
+Gates per slice: `vp check` 0 errors; `vp run @tinker-issue-tracker#test` green; at least one new
+seam test per touched operation of the form `createScope` + `scope.run(op)` + preset; a line-count
+table before/after in the report; a **Core feedback** section. Verify for the card: `useState`,
+`useEffect`, `Scope.Handle` outside the two roots and tests all grep to zero; source lines under
+1,800 (today 2,929).
