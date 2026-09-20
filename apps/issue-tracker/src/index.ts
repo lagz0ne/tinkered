@@ -37,7 +37,8 @@ export {
 } from "./server/operations.ts";
 export { store } from "./server/store.ts";
 export type { Store } from "./server/store.ts";
-export { issueRoutes, src } from "./server/routes.ts";
+export { issueRoutes } from "./server/routes.ts";
+export { src } from "./server/sync.ts";
 export { publishAfterCommit } from "./server/publish.ts";
 export { registerViewer, viewers } from "./server/sync.ts";
 export { createApp } from "./server/app.ts";

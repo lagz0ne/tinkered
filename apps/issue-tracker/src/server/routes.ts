@@ -1,11 +1,10 @@
 import type { Context } from "hono";
 import { operation } from "@tinker/core";
 import { route, stream, type HonoScope } from "@tinker/hono";
-import { source } from "@tinker/sync";
 import { isError } from "../errors.ts";
 import { readCapability, startDraft } from "./draft.ts";
 import { addComment, createIssue, editIssue, readDetail, readIssues } from "./operations.ts";
-import { registerViewer, sseTransport, viewers } from "./sync.ts";
+import { registerViewer, src, sseTransport, viewers } from "./sync.ts";
 
 /** Map a registry failure to its status; anything else falls through to Hono. */
 export function onError(error: unknown, c: Parameters<HonoScope.OnError>[1]) {
@@ -48,10 +47,6 @@ async function readBody(c: Context, extra: Record<string, unknown>): Promise<unk
   const body = await c.req.json();
   return typeof body === "object" && body !== null ? { ...body, ...extra } : extra;
 }
-
-/** The source extension, one identity per process: `createApp` installs this
- * same object and the `/sync` row's op reads its start value as a dependency. */
-export const src = source();
 
 /** Open one wire: the extension-as-dependency from t01 delivers `src`'s start
  * value, so the row needs no scope — `respond` reads the client id. */

@@ -7,7 +7,8 @@ import { api } from "../client/api.ts";
 import { draftGuardrails, draftHelper } from "./draft.ts";
 import { publishIssues } from "./operations.ts";
 import { publishAfterCommit } from "./publish.ts";
-import { issueRoutes, onError, src } from "./routes.ts";
+import { issueRoutes, onError } from "./routes.ts";
+import { src } from "./sync.ts";
 import { store } from "./store.ts";
 
 export type AppConfig = {
