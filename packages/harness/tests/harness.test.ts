@@ -5,7 +5,7 @@ import type {
   SDKMessage,
   SDKPartialAssistantMessage,
 } from "@anthropic-ai/claude-agent-sdk";
-import { claudeCode, harness, type ClaudeCode, type Harness } from "../src/index.ts";
+import { claudeCode, harness, isError, type ClaudeCode, type Harness } from "../src/index.ts";
 import {
   readAssistantText,
   readScript,
@@ -259,5 +259,19 @@ test("the usage cell keeps the result's own cost", async () => {
   const session = scope.createSession();
   await session.run(ask, { input: "hello" });
   expect(session.resolve(coder.usage)?.cost).toBe(0.5);
+  await scope.close();
+});
+
+test("a stream that ends with no result rejects TurnEnded", async () => {
+  const script = readScript("Hello");
+  const cut: Script = { messages: script.messages.slice(0, -1) };
+  const { ask, scope } = readSetup([cut], []);
+  const session = scope.createSession();
+  const outcome = await session.run(ask, { input: "hello" }).then(
+    () => "resolved",
+    (error: unknown) => error,
+  );
+  if (!isError(outcome, "TurnEnded")) throw outcome;
+  expect(outcome.payload.harness).toBe("claudeCode");
   await scope.close();
 });
