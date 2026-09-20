@@ -416,3 +416,22 @@ test("a stream that ends with no completion rejects TurnEnded", async () => {
   expect(session.resolve(coder.usage)).toBe(undefined);
   await scope.close();
 });
+
+test("closing the thread stops the turn signal the SDK sees", async () => {
+  const seen: Seen = { turns: [], clients: [] };
+  const coder = harness({ label: "coder", adapter: codex });
+  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
+  const scope = createScope({
+    presets: [preset(codex.sdk, async () => fakeCodexSdk([readCodexScript()], seen))],
+  });
+  const session = scope.createSession();
+  await session.resolve(coder.thread);
+  await session.run(ask, { input: "hello" });
+  const first = seen.turns[0].turnOptions?.signal;
+  expect(first instanceof AbortSignal).toBe(true);
+  expect(first?.aborted).toBe(false);
+  const end = await session.close();
+  expect(end.status).toBe("cancelled");
+  expect(first?.aborted).toBe(true);
+  await scope.close();
+});
