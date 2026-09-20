@@ -2,7 +2,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { sql } from "drizzle-orm";
 import { bigint, integer, pgTable, text } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/pglite";
-import { drizzleStore } from "@tinker/drizzle";
+import { drizzleStore, type DrizzleStore } from "@tinker/drizzle";
 
 /** One row in the saved issue table. Times are epoch millis (bigint).
  * Slices before t02 saved bare id/title/description rows; the migration
@@ -41,9 +41,8 @@ export declare namespace Store {
   export type Database = ReturnType<typeof openDatabase>;
 }
 
-async function openDatabase(path: string | undefined) {
-  const client = new PGlite(path);
-  const db = drizzle(client);
+async function openDatabase(path: string | undefined, logger: DrizzleStore.Logger) {
+  const db = drizzle(new PGlite(path), { logger });
   await db.execute(
     sql`create table if not exists issues (id text primary key, title text not null, description text not null)`,
   );
@@ -69,9 +68,10 @@ async function openDatabase(path: string | undefined) {
   return db;
 }
 
-/** The frame: config is the PGlite data path (undefined = in-memory). */
+/** The frame: config is the PGlite data path (undefined = in-memory). The logger
+ * tools wire Drizzle's per-statement log lines into the db resource's ctx.log. */
 export const store = drizzleStore({
   label: "issues",
-  open: (path: string | undefined) => openDatabase(path),
+  open: (path: string | undefined, { logger }) => openDatabase(path, logger),
   close: (db) => db.$client.close(),
 });

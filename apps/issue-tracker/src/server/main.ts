@@ -80,7 +80,7 @@ async function main(): Promise<number> {
     process.once("SIGINT", resolve);
   });
   server.close();
-  return readShutdown(await booted.scope.close());
+  return readShutdown(await booted.scope.close({ graceful: true }));
 }
 
 async function entry(): Promise<void> {

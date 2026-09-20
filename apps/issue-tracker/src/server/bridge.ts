@@ -79,8 +79,8 @@ export async function bootScope(
     ? [store.config(dataPath), sync(issueList), draftBase(draft)]
     : [store.config(dataPath), sync(issueList)];
   const scope = createScope({ tags, extensions: [src], presets });
-  await publishList(scope);
   await scope.ready;
+  await publishList(scope);
   const serial = createSerial(scope);
   return { scope, src, save: serial.save, detail: serial.detail, draft };
 }
