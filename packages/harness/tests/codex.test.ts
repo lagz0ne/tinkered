@@ -254,6 +254,7 @@ test("a failed turn rejects with TurnFailed and the harness turn line says faile
   );
   if (!isError(outcome, "TurnFailed")) throw outcome;
   expect(outcome.payload.harness).toBe("codex");
+  expect(outcome.payload.message).toBe("boom");
   expect(statusSeen).toEqual(["running", "failed"]);
   const lines = logs.filter((entry) => entry.message === "harness turn");
   expect(lines.length).toBe(1);
