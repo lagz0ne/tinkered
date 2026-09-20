@@ -105,3 +105,15 @@ Same-process interleaved A/B (`mitata`, alternating `main_session`/`new_session`
 change; the official AFTER table above (same separate-process method as BEFORE) confirms no move.
 A refactor still landed from the scare: the unwrapped path is main's body inline in
 `runSessionWith` again (one root lookup first), the wrapped path lives in `runSessionWrapped`.
+
+### drivers/t01 — landed 2026-09-20 (`d8bea8c`, tag `core/t36`)
+
+Seven contributor commits, one fix round (rebase onto main; rebuild before gating; a cascaded close now
+settles `next()` through a `SESSION_SETTLERS` side table tapped in `closeLayer`). Lead gates on `main`,
+exit-code gated: `vp run -r build && vp check && vp run core#test && vp run core#size` → 0 errors, 273 core
+tests (+13: onion order, close statuses, tagged call, nested session, no-hook path, extension as
+dependency, skip-`next`, throwing hook, cascade forced/graceful); tracker 40 and sync 28 still green; core
+mutation alone **77.96** (floor 75). Probe (min of 3, in-container): `session` 1613 → 1611, `create`
+169.6 → 168.9, `tagged` 1963 → 1942, `run` 112.6 → 103.1, `op` 101.0 → 101.2 — no move.
+`scripts/ticket.sh` was not run verbatim: its `vp run -r mutate` runs every lane concurrently, which the
+isolation rule forbids; its gates were run one by one instead and the tag set by hand.
