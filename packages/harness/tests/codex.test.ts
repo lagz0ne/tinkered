@@ -413,5 +413,6 @@ test("a stream that ends with no completion rejects TurnEnded", async () => {
   );
   if (!isError(outcome, "TurnEnded")) throw outcome;
   expect(outcome.payload.harness).toBe("codex");
+  expect(session.resolve(coder.usage)).toBe(undefined);
   await scope.close();
 });
