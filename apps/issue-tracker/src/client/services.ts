@@ -1,7 +1,14 @@
 import { resource } from "@tinker/core";
 import { issueList, type Issues } from "../shared/issues.ts";
-import { connection, detailNotice, selectedId, type Connection } from "./state.ts";
-import { loadDetail, readDetailError } from "./actions.ts";
+import {
+  connection,
+  markOf,
+  sameMark,
+  selectedId,
+  type Connection,
+  type RowMark,
+} from "./state.ts";
+import { loadDetail } from "./actions.ts";
 import { wire, type WireStatus } from "./connection.ts";
 
 /** Read one wire status as the connection cell the tab renders. */
@@ -41,24 +48,20 @@ export const detailRefresh = resource({
     selected: selectedId.controller,
     list: issueList.controller,
     load: loadDetail,
-    note: detailNotice.controller,
   },
-  factory: ({ selected, list, load, note }, { defer }) => {
-    let seen: SeenMark | null = null;
+  factory: ({ selected, list, load }, { defer }) => {
+    let seen: { readonly id: string; readonly mark: RowMark } | null = null;
     const refresh = (saved: readonly Issues.Issue[]): void => {
       const id = selected.get();
-      const current = readSelected(saved, id);
-      if (id === null || current === null) {
+      if (id === null) {
         seen = null;
         return;
       }
-      const advanced = advanceSeen(seen, id, current);
-      if (advanced === null) return;
-      seen = advanced;
-      load.run({ input: id }).catch((error: unknown) => {
-        if (selected.get() !== id) return;
-        note.set(readDetailError(error));
-      });
+      const mark = markOf(saved, id);
+      if (mark === null) return;
+      if (seen !== null && seen.id === id && sameMark(mark, seen.mark)) return;
+      seen = { id, mark };
+      load.run({ input: id });
     };
     const stopSelection = selected.watch(() => refresh(list.get()));
     const stopList = list.watch(refresh);
@@ -68,24 +71,3 @@ export const detailRefresh = resource({
     return { watching: true };
   },
 });
-
-/** The selected row in the list, or null when nothing is selected or the row is gone. */
-function readSelected(saved: readonly Issues.Issue[], id: string | null): Issues.Issue | null {
-  if (id === null) return null;
-  return (saved.find((issue) => issue.id === id) ?? null) as Issues.Issue | null;
-}
-
-/** One seen row mark: the selection plus the row state its last load answered. */
-type SeenMark = {
-  readonly id: string;
-  readonly revision: number;
-  readonly updatedAt: number;
-};
-
-/** Advance the seen mark: null when the row is unchanged (no load needed). */
-function advanceSeen(seen: SeenMark | null, id: string, current: Issues.Issue): SeenMark | null {
-  const kept = seen !== null && seen.id === id ? seen : null;
-  if (kept !== null && kept.revision === current.revision && kept.updatedAt === current.updatedAt)
-    return null;
-  return { id, revision: current.revision, updatedAt: current.updatedAt };
-}

@@ -159,7 +159,7 @@ test("selecting an issue with a preset detail fills the detail cell and seeds th
     await scope.close();
     presetScope.run(selectIssue, { input: "i1" });
     const found = await presetScope.run(loadDetail, { input: "i1" });
-    expect(found.issue.title).toBe("First");
+    expect(found?.issue.title).toBe("First");
     expect(presetScope.resolve(detail)?.issue.id).toBe("i1");
     expect(presetScope.resolve(editDraft)).toMatchObject({ id: "i1", baseRevision: 0 });
   } finally {

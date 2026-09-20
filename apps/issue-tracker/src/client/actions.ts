@@ -11,10 +11,17 @@ import {
   connection,
   detail,
   detailNotice,
+  draftOf,
   editDraft,
   editNotice,
   filter,
+  isAssignee,
+  isStatus,
+  isString,
+  markOf,
   newIssue,
+  readPatch,
+  sameMark,
   selectedId,
   type Filter,
 } from "./state.ts";
@@ -37,97 +44,17 @@ export type EditPatch = {
   readonly assignee?: string | null;
 };
 
-/** Admit one optional text field: absent stays absent, present must be a string. */
-function readOptionalText(raw: unknown, field: string): string | undefined {
-  if (raw === undefined) return undefined;
-  if (typeof raw !== "string") raise("BadEditInput", { reason: `${field} is unreadable` });
-  return raw;
-}
+/** One patch over the create form: title and description. */
+type NewIssuePatch = { readonly title?: string; readonly description?: string };
 
-/** Admit one optional status field: absent stays absent, present must be known. */
-function readOptionalStatus(raw: unknown): Issues.Status | undefined {
-  if (raw === undefined) return undefined;
-  if (raw === "open" || raw === "in_progress" || raw === "done") return raw;
-  raise("BadEditInput", { reason: "status is unknown" });
-}
-
-/** Admit one optional assignee field: absent stays absent, present is a name or cleared. */
-function readOptionalAssignee(raw: unknown): string | null | undefined {
-  if (raw === undefined) return undefined;
-  if (raw === null || typeof raw === "string") return raw;
-  raise("BadEditInput", { reason: "assignee is unreadable" });
-}
-
-/** Admit a partial issue-draft patch: only the known fields pass, only the set ones apply. */
-function readPatch(raw: unknown): EditPatch {
-  if (!isRecord(raw)) raise("BadEditInput", { reason: "edit is unreadable" });
-  const patch: { -readonly [K in keyof EditPatch]?: EditPatch[K] } = {};
-  const title = readOptionalText(raw.title, "title");
-  if (title !== undefined) patch.title = title;
-  const description = readOptionalText(raw.description, "description");
-  if (description !== undefined) patch.description = description;
-  const status = readOptionalStatus(raw.status);
-  if (status !== undefined) patch.status = status;
-  const assignee = readOptionalAssignee(raw.assignee);
-  if (assignee !== undefined) patch.assignee = assignee;
-  return patch;
-}
-
-/** Admit a partial create-form patch: title and description. */
-function readNewIssuePatch(raw: unknown): {
-  readonly title?: string;
-  readonly description?: string;
-} {
-  if (!isRecord(raw)) raise("BadCreateInput", { reason: "issue is unreadable" });
-  const patch: { title?: string; description?: string } = {};
-  if (raw.title !== undefined) {
-    if (typeof raw.title !== "string") raise("BadCreateInput", { reason: "title is unreadable" });
-    patch.title = raw.title;
-  }
-  if (raw.description !== undefined) {
-    if (typeof raw.description !== "string")
-      raise("BadCreateInput", { reason: "description is unreadable" });
-    patch.description = raw.description;
-  }
-  return patch;
-}
-
-/** Admit a partial comment-draft patch: text and author. */
-function readCommentPatch(raw: unknown): { readonly text?: string; readonly author?: string } {
-  if (!isRecord(raw)) raise("BadCommentInput", { reason: "comment is unreadable" });
-  const patch: { text?: string; author?: string } = {};
-  if (raw.text !== undefined) {
-    if (typeof raw.text !== "string") raise("BadCommentInput", { reason: "text is unreadable" });
-    patch.text = raw.text;
-  }
-  if (raw.author !== undefined) {
-    if (typeof raw.author !== "string")
-      raise("BadCommentInput", { reason: "author is unreadable" });
-    patch.author = raw.author;
-  }
-  return patch;
-}
-
-/** One list-row mark: what a newer snapshot changes when the saved row moves. */
-type RowMark = { readonly revision: number; readonly updatedAt: number };
-
-/** Read one row's mark, or null when the row is not listed. */
-function markOf(saved: readonly Issues.Issue[], id: string): RowMark | null {
-  const current = saved.find((issue) => issue.id === id) ?? null;
-  if (current === null) return null;
-  return { revision: current.revision, updatedAt: current.updatedAt };
-}
-
-/** True when two marks name the same saved row state. */
-function sameMark(a: RowMark, b: RowMark | null): boolean {
-  if (b === null) return false;
-  return a.revision === b.revision && a.updatedAt === b.updatedAt;
-}
+/** One patch over the comment draft: text and author. */
+type CommentPatch = { readonly text?: string; readonly author?: string };
 
 /** Type one create-form field at the door. */
 export const typeNewIssue = operation({
   label: "typeNewIssue",
-  input: readNewIssuePatch,
+  input: (raw) =>
+    readPatch<NewIssuePatch>(raw, { title: isString, description: isString }, "BadCreateInput"),
   depends: { draft: newIssue.controller },
   run: ({ draft }, { input }) => {
     draft.update((prev) => ({ ...prev, ...input }));
@@ -188,9 +115,10 @@ export const selectIssue = operation({
 });
 
 /** Load one saved detail and seed the edit draft when the draft is for another issue or empty.
- * A load that lands after the selection moved writes nothing, and neither does one that lands
- * after a newer list snapshot for the same row: the newer load owns the cells. Without this a
- * slow select-load can overwrite the fresh reload a save or comment just wrote. */
+ * The load owns its failure: a rejected fetch writes the notice and answers null, so callers
+ * just await it. A load that lands after the selection moved writes nothing, and neither does
+ * one that lands after a newer list snapshot for the same row: the newer load owns the cells.
+ * Without this a slow select-load can overwrite the fresh reload a save or comment just wrote. */
 export const loadDetail = operation({
   label: "loadDetail",
   input: (raw) => readString(raw, "loadDetail"),
@@ -204,23 +132,19 @@ export const loadDetail = operation({
   },
   run: async ({ fetch, selected, rows, shown, note, draft }, { input: id }) => {
     const before = markOf(rows.get(), id);
-    const found = await fetch.run({ input: id });
+    let found: Issues.Detail;
+    try {
+      found = await fetch.run({ input: id });
+    } catch (error: unknown) {
+      if (selected.get() === id) note.set(readDetailError(error));
+      return null;
+    }
     if (selected.get() !== id) return found;
     if (before !== null && sameMark(before, markOf(rows.get(), id)) === false) return found;
     shown.set(found);
     note.set(null);
     const current = draft.get();
-    if (current === null || current.id !== id) {
-      draft.set({
-        id,
-        title: found.issue.title,
-        description: found.issue.description,
-        status: found.issue.status,
-        assignee: found.issue.assignee,
-        baseRevision: found.issue.revision,
-        conflict: null,
-      });
-    }
+    if (current === null || current.id !== id) draft.set(draftOf(found.issue));
     return found;
   },
 });
@@ -228,7 +152,12 @@ export const loadDetail = operation({
 /** Type into the edit draft. */
 export const typeEdit = operation({
   label: "typeEdit",
-  input: readPatch,
+  input: (raw) =>
+    readPatch<EditPatch>(
+      raw,
+      { title: isString, description: isString, status: isStatus, assignee: isAssignee },
+      "BadEditInput",
+    ),
   depends: { draft: editDraft.controller },
   run: ({ draft }, { input }) => {
     draft.update((prev) => (prev === null ? prev : { ...prev, ...input }));
@@ -243,10 +172,9 @@ export const saveEdit = operation({
     save: patchIssue,
     draft: editDraft.controller,
     notice: editNotice.controller,
-    detailNote: detailNotice.controller,
     reloadDetail: loadDetail,
   },
-  run: async ({ save, draft, notice, detailNote, reloadDetail }) => {
+  run: async ({ save, draft, notice, reloadDetail }) => {
     const current = draft.get();
     if (current === null) raise("BadEditInput", { reason: "nothing is selected" });
     notice.set(null);
@@ -264,11 +192,7 @@ export const saveEdit = operation({
       draft.update((prev) =>
         prev === null ? prev : { ...prev, baseRevision: updated.revision, conflict: null },
       );
-      try {
-        await reloadDetail.run({ input: current.id });
-      } catch (error: unknown) {
-        detailNote.set(readDetailError(error));
-      }
+      await reloadDetail.run({ input: current.id });
       return updated;
     } catch (error: unknown) {
       const found = readEditError(error);
@@ -294,15 +218,7 @@ export const reloadTheirs = operation({
     const current = draft.get();
     if (current?.conflict === null || current?.conflict === undefined) return;
     const theirs = current.conflict;
-    draft.set({
-      id: theirs.id,
-      title: theirs.title,
-      description: theirs.description,
-      status: theirs.status,
-      assignee: theirs.assignee,
-      baseRevision: theirs.revision,
-      conflict: null,
-    });
+    draft.set(draftOf(theirs));
     notice.set(null);
     await reloadDetail.run({ input: theirs.id });
   },
@@ -311,7 +227,8 @@ export const reloadTheirs = operation({
 /** Type into the comment draft. */
 export const typeComment = operation({
   label: "typeComment",
-  input: readCommentPatch,
+  input: (raw) =>
+    readPatch<CommentPatch>(raw, { text: isString, author: isString }, "BadCommentInput"),
   depends: { text: commentDraft.controller, author: commentAuthor.controller },
   run: ({ text, author }, { input }) => {
     if (input.text !== undefined) text.set(input.text);
@@ -327,11 +244,10 @@ export const submitComment = operation({
     text: commentDraft.controller,
     author: commentAuthor.controller,
     notice: commentNotice.controller,
-    detailNote: detailNotice.controller,
     reloadDetail: loadDetail,
     selected: selectedId.controller,
   },
-  run: async ({ post, text, author, notice, detailNote, reloadDetail, selected }) => {
+  run: async ({ post, text, author, notice, reloadDetail, selected }) => {
     const id = selected.get();
     if (id === null) raise("BadCommentInput", { reason: "nothing is selected" });
     notice.set(null);
@@ -340,11 +256,7 @@ export const submitComment = operation({
         input: { issueId: id, author: author.get(), text: text.get() },
       });
       text.set("");
-      try {
-        await reloadDetail.run({ input: id });
-      } catch (error: unknown) {
-        detailNote.set(readDetailError(error));
-      }
+      await reloadDetail.run({ input: id });
       return saved;
     } catch (error: unknown) {
       notice.set(readCommentError(error));
@@ -353,22 +265,14 @@ export const submitComment = operation({
   },
 });
 
-/** Reload the selected issue's detail. A failed reload keeps the last detail and notes why. */
+/** Reload the selected issue's detail. */
 export const reload = operation({
   label: "reload",
-  depends: {
-    selected: selectedId.controller,
-    reloadDetail: loadDetail,
-    note: detailNotice.controller,
-  },
-  run: async ({ selected, reloadDetail, note }) => {
+  depends: { selected: selectedId.controller, reloadDetail: loadDetail },
+  run: ({ selected, reloadDetail }) => {
     const id = selected.get();
     if (id === null) return;
-    try {
-      await reloadDetail.run({ input: id });
-    } catch (error: unknown) {
-      note.set(readDetailError(error));
-    }
+    return reloadDetail.run({ input: id });
   },
 });
 
