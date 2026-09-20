@@ -173,3 +173,22 @@ test("one declaration serves the MCP driver and the Claude fast path", async () 
   expect(seen.servers[0]?.tools.map((entry) => entry.name)).toContain("search");
   await scope.close({ graceful: true });
 });
+
+test("a named tool registers under its meta name, not the op label", async () => {
+  const seen: Seen = { servers: [], queries: [], results: [] };
+  const named = operation({
+    label: "search",
+    input: parseSearch,
+    meta: [tool({ description: "find things", schema: searchShape, name: "lookup" })],
+    run: (_deps, ctx) => `hit:${(ctx.input as { q: string }).q}`,
+  });
+  const coder = harness({ label: "coder", adapter: claudeCode, tools: [named] });
+  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const scope = createScope({
+    presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))],
+  });
+  await scope.createSession().run(ask, { input: "hello" });
+  expect(seen.servers[0]?.tools.map((entry) => entry.name)).toEqual(["lookup"]);
+  expect(seen.results[0]?.content).toEqual([{ type: "text", text: '"hit:x"' }]);
+  await scope.close();
+});
