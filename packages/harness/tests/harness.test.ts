@@ -6,7 +6,13 @@ import type {
   SDKPartialAssistantMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import { claudeCode, harness, type ClaudeCode, type Harness } from "../src/index.ts";
-import { readAssistantText, readScript, type Script, readToolSdk } from "./fixtures.ts";
+import {
+  readAssistantText,
+  readScript,
+  readScriptCost,
+  type Script,
+  readToolSdk,
+} from "./fixtures.ts";
 
 /** One `query` call a test fake saw: the prompt plus the options it opened with. */
 type Seen = { readonly prompt: string; readonly options: Options | undefined };
@@ -245,5 +251,13 @@ test("an assistant message without a tool call adds no tool item", async () => {
   expect(session.resolve(coder.items).filter((item) => item.kind === "tool_use")).toEqual([
     { kind: "tool_use", id: "tu-1", status: "started", source: script.messages[3] },
   ]);
+  await scope.close();
+});
+
+test("the usage cell keeps the result's own cost", async () => {
+  const { coder, ask, scope } = readSetup([readScriptCost("Hello", 0.5)], []);
+  const session = scope.createSession();
+  await session.run(ask, { input: "hello" });
+  expect(session.resolve(coder.usage)?.cost).toBe(0.5);
   await scope.close();
 });

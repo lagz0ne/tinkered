@@ -174,6 +174,25 @@ export function readResult(text: string): SDKResultMessage {
   };
 }
 
+/** A recorded success result carrying its own cost: the usage cell keeps the dollars. */
+export function readResultCost(text: string, cost: number): SDKResultMessage {
+  return { ...readResult(text), total_cost_usd: cost };
+}
+
+/** A recorded turn with the result's own cost. */
+export function readScriptCost(text: string, cost: number): Script {
+  return {
+    messages: [
+      readSystemInit(),
+      readTextDelta("Hel"),
+      readTextDelta("lo"),
+      readToolUse(),
+      readToolResult(),
+      readResultCost(text, cost),
+    ],
+  };
+}
+
 /** A recorded turn: init, two text deltas, a tool call and its answer, then the result. */
 export function readScript(text: string): Script {
   return {
