@@ -171,6 +171,48 @@ loop body — covered through the params-body test, the surviving shred is the i
 shreds have no distinct observable; `json(parse)` undefined-parse branch — the no-parse reader path is
 tested, the shred is the overload dispatch.
 
+## mutation/floor-75 — harness (2026-09-20, `76.05`, floor 75)
+
+Thirty-one contributor commits, tests only (`packages/harness/tests` + `fixtures.ts`), no `src`
+change. Score 69.01 → **76.05** (one `vp run --no-cache harness#mutate`, EXIT 0). New behaviour tests in
+the existing files (`harness.test.ts`, `codex.test.ts`, `approvals.test.ts`, `tools.test.ts`) plus two
+fixture builders (`readAssistantText`, `readResultCost`/`readScriptCost`, `readCommand` exported and
+taking `"failed"`, `readCodexCut`, `readUserText`).
+
+Tests added (title = the promise): a file change item keeps the SDK's own status through every phase;
+a rewritten agent text restreams whole and only the last text stays final; an empty agent update streams
+nothing and the turn still completes; a stream that ends with no completion rejects TurnEnded; a cut
+Codex stream leaves usage missing; closing the thread aborts the turn signal the SDK sees; a reasoning
+item records the event phase (and keeps its kind in the cells); a failed command item keeps the SDK
+failed status; TurnFailed carries the SDK failure message; non-text stream events add no text; an
+assistant message without a tool call adds no tool item; a trailing assistant message with no tool call
+adds no tool item; plain user text adds a tool result item only for tool answers; the usage cell keeps
+the result's own cost; a stream ending with no result rejects TurnEnded; a cut stream still sets the id
+from the init message; a non-init system message leaves the id cell alone; the id cell only ever takes
+the init session id; the nearer options binding wins every key it sets; a named tool registers under
+its meta name; two tools register under their own names; the frame server wins over a user server bound
+under the frame label; a frame with approve and tools answers the approval and still calls the tool; a
+failed approval rejects the turn, not as TurnFailed; the approval item keeps the request and decision
+as source; a bound canUseTool answers without an approve op (no approval item); an approve op overrides
+a bound canUseTool; unknown message kinds emit to events and the turn resolves.
+
+Survivors left as unobservable (one line each): label/`target`/template literals (`"claudeCode.sdk"`,
+`` `${label}.status` ``, cell/thread labels) — no user reads them; `{}` for `tag`/`resource`/`data`
+declaration objects — construction shape, not behaviour; the abort-listener options object and `once:
+true` shreds — the forced-close tests prove the abort lands, the shreds are listener-registration shape;
+`close: () => { aborter.abort(); }` shreds and the already-aborted pre-checks — the mid-turn close and
+thread-abort tests prove the signal path, the shreds are the wiring shape; `readOpened`/`merge` loop
+shreds (`bindings.length + 1`, reverse-iteration shape, resume-fold `false`) — the nearer-wins and resume
+tests prove the merge, the shreds are iteration shape; Codex per-key option-copy `true` shreds (223–276)
+— the all-keys test proves every key reaches its side, single-key shreds have no distinct observable;
+`fold` initial-literal shreds (`""`, `[]`) — the fold tests prove the accumulation, the shreds are the
+initial value; `readItemStatus` terminal shreds (`mcp_tool_call` name literal, `false` fallthroughs) —
+the file-change/command/reasoning tests prove status mapping, the shreds are bucket-terminal shape;
+`readCalls`/`readToolDeps` empty-frame shreds — the approve-plus-tools test proves the combination, the
+shreds are the branch-terminal shape; the `harness turn` duration literals (`currentTimeMillis() +
+started`) — the done/failed/cancelled log tests prove the line, the shreds are the arithmetic, not the
+promise.
+
 ## drivers/t04 + t05 — impact block (import sites, 2026-09-20)
 
 ```impact drivers/t04-t05
