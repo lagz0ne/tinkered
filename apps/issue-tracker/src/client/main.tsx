@@ -20,11 +20,11 @@ function boot(): void {
   const booted = start(element);
   booted.then(
     () => undefined,
-    () => renderDead(element),
+    () => renderDead(element, "dead"),
   );
 }
 
-async function start(element: ReturnType<typeof createRoot>): Promise<boolean | void> {
+async function start(element: ReturnType<typeof createRoot>): Promise<boolean> {
   const transport = reconnectingTransport(window.location.origin);
   const subscription = subscribe(transport);
   const scope = createScope({
@@ -35,7 +35,7 @@ async function start(element: ReturnType<typeof createRoot>): Promise<boolean | 
     await scope.ready;
   } catch {
     await scope.close();
-    renderDead(element);
+    renderDead(element, "dead");
     return false;
   }
   scope.resolve(liveness);
@@ -45,61 +45,48 @@ async function start(element: ReturnType<typeof createRoot>): Promise<boolean | 
       <ScopedApp scope={scope} />
     </StrictMode>,
   );
+  return true;
 }
+
+/** One dead-page phase: the first failure, the retry in flight, or the retry failed. */
+type DeadPhase = "dead" | "retrying" | "failed";
 
 /** The dead page: static markup between boot attempts — a second scope for its two transient
  * states would outlive its purpose, so the root re-renders the markup itself. */
-function renderDead(element: ReturnType<typeof createRoot>): void {
+function renderDead(element: ReturnType<typeof createRoot>, phase: DeadPhase): void {
   element.render(
     <StrictMode>
       <main>
         <h1>Issues</h1>
         <p role="alert">Could not connect. Your drafts are kept in this tab.</p>
-        <button type="button" onClick={() => renderRetrying(element)}>
-          Reconnect
-        </button>
+        {phase === "retrying" ? (
+          <button type="button" disabled>
+            Reconnect
+          </button>
+        ) : (
+          <button type="button" onClick={() => retry(element)}>
+            Reconnect
+          </button>
+        )}
+        {phase === "retrying" ? <p aria-live="polite">Reconnecting…</p> : null}
+        {phase === "failed" ? <p role="alert">Still no connection. Try again.</p> : null}
       </main>
     </StrictMode>,
   );
+  if (phase === "retrying") {
+    const retried = start(element);
+    retried.then(
+      (recovered) => {
+        if (recovered !== true) renderDead(element, "failed");
+      },
+      () => renderDead(element, "failed"),
+    );
+  }
 }
 
-/** The retrying page: shown while the next boot attempt connects. */
-function renderRetrying(element: ReturnType<typeof createRoot>): void {
-  element.render(
-    <StrictMode>
-      <main>
-        <h1>Issues</h1>
-        <p role="alert">Could not connect. Your drafts are kept in this tab.</p>
-        <button type="button" disabled>
-          Reconnect
-        </button>
-        <p aria-live="polite">Reconnecting…</p>
-      </main>
-    </StrictMode>,
-  );
-  const retried = start(element);
-  retried.then(
-    (recovered) => {
-      if (recovered !== true) renderFailed(element);
-    },
-    () => renderFailed(element),
-  );
-}
-
-/** The failed page: the attempt after the dead page also failed. */
-function renderFailed(element: ReturnType<typeof createRoot>): void {
-  element.render(
-    <StrictMode>
-      <main>
-        <h1>Issues</h1>
-        <p role="alert">Could not connect. Your drafts are kept in this tab.</p>
-        <button type="button" onClick={() => renderRetrying(element)}>
-          Reconnect
-        </button>
-        <p role="alert">Still no connection. Try again.</p>
-      </main>
-    </StrictMode>,
-  );
+/** One more boot attempt behind the retrying markup. */
+function retry(element: ReturnType<typeof createRoot>): void {
+  renderDead(element, "retrying");
 }
 
 boot();

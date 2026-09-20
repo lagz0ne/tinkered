@@ -32,7 +32,7 @@ function readMessage(raw: unknown): Sync.Message {
 }
 
 /** Admit one server-sent frame: a JSON string carrying a snapshot message. */
-export function readData(event: MessageEvent): Sync.Message {
+function readData(event: MessageEvent): Sync.Message {
   if (typeof event.data !== "string") throw fail("SyncDropped", { reason: "bad snapshot" });
   let raw: unknown;
   try {
@@ -49,7 +49,7 @@ export function readData(event: MessageEvent): Sync.Message {
  * without firing `onClose` (so `subscribe` stays attached); the first error before live fires
  * `onClose` once (so `subscribe.start` rejects with `SyncNotReady` and `ready` rejects); `close`
  * (called by `subscribe` on scope close) aborts in-flight POSTs, closes the stream, and fires
- * `onClose`. */
+ * `onClose`. `settled` and `closed` are the only flags. */
 export function reconnectingTransport(baseUrl: string): ReconnectingWire {
   const id = Math.random().toString(36).slice(2);
   const url = `${baseUrl}/sync?client=${id}`;
@@ -63,10 +63,7 @@ export function reconnectingTransport(baseUrl: string): ReconnectingWire {
   let queue: Promise<void> = Promise.resolve();
   let settled = false;
   let closed = false;
-  let notifyOpen: () => void = () => undefined;
-  let gated: Promise<void> = new Promise<void>((resolve) => {
-    notifyOpen = resolve;
-  });
+  let gated: Promise<void> = Promise.resolve();
 
   function flip(next: WireStatus): void {
     status = next;
@@ -88,24 +85,27 @@ export function reconnectingTransport(baseUrl: string): ReconnectingWire {
     if (status === "live" || status === "failed") flip("dropped");
   }
 
-  function open(): EventSource {
+  /** Open one stream: `opened` resolves on open and rejects on the first error. */
+  function open(): { readonly stream: EventSource; readonly opened: Promise<void> } {
     const next = new EventSource(url);
     stream = next;
-    gated = new Promise<void>((resolve) => {
-      notifyOpen = resolve;
+    const opened = new Promise<void>((resolve, reject) => {
+      next.onopen = () => resolve();
+      next.onerror = () => reject(fail("SyncDropped", { reason: "stream failed" }));
     });
-    next.onopen = () => {
-      if (closed || stream !== next) return;
-      settled = true;
-      flip("live");
-      notifyOpen();
-    };
-    next.onerror = () => {
-      if (closed || stream !== next) return;
-      stream = null;
-      next.close();
-      drop();
-    };
+    opened.then(
+      () => {
+        if (closed || stream !== next) return;
+        settled = true;
+        flip("live");
+      },
+      () => {
+        if (closed || stream !== next) return;
+        stream = null;
+        next.close();
+        drop();
+      },
+    );
     next.onmessage = (event) => {
       if (closed || stream !== next) return;
       let message: Sync.Message;
@@ -117,10 +117,11 @@ export function reconnectingTransport(baseUrl: string): ReconnectingWire {
       }
       for (const arrival of Array.from(arrivals)) arrival(message);
     };
-    return next;
+    return { stream: next, opened };
   }
 
-  open();
+  gated = open().opened;
+  gated.then(undefined, () => undefined);
 
   const post = async (message: Sync.Message, signal: AbortSignal): Promise<void> => {
     const received = await tryPost(message, signal);
@@ -146,12 +147,17 @@ export function reconnectingTransport(baseUrl: string): ReconnectingWire {
     }
   };
 
+  /** POST one queued message behind its stream's open; a refused POST drops the wire. */
+  const sendQueued = (message: Sync.Message): void => {
+    if (message.type === "register") lastRegister = message;
+    const gate = gated;
+    queue = queue.then(() => gate.then(() => post(message, flight.signal)));
+  };
+
   return {
     send: (message) => {
       if (closed) return;
-      if (message.type === "register") lastRegister = message;
-      const gate = gated;
-      queue = queue.then(() => gate.then(() => post(message, flight.signal)));
+      sendQueued(message);
     },
     onMessage: (listener) => {
       arrivals.add(listener);
@@ -185,19 +191,15 @@ export function reconnectingTransport(baseUrl: string): ReconnectingWire {
       flip("connecting");
       stream?.close();
       stream = null;
-      const next = open();
-      await new Promise<void>((resolve, reject) => {
-        next.onopen = () => resolve();
-        next.onerror = () => reject(fail("SyncDropped", { reason: "reconnect failed" }));
-      }).catch(() => {
-        if (closed || stream !== next) return;
-        stream = null;
+      const { opened } = open();
+      gated = opened;
+      try {
+        await opened;
+      } catch {
         drop();
         return;
-      });
-      if (closed || stream !== next) return;
-      settled = true;
-      flip("live");
+      }
+      if (closed) return;
       const replay = lastRegister;
       if (replay !== null) queue = queue.then(() => post(replay, flight.signal));
     },

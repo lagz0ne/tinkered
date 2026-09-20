@@ -61,7 +61,7 @@ export const detailRefresh = resource({
       if (mark === null) return;
       if (seen !== null && seen.id === id && sameMark(mark, seen.mark)) return;
       seen = { id, mark };
-      load.run({ input: id });
+      load.run({ input: id }).then(undefined, () => undefined);
     };
     const stopSelection = selected.watch(() => refresh(list.get()));
     const stopList = list.watch(refresh);

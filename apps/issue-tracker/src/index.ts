@@ -44,7 +44,6 @@ export type { AppConfig } from "./server/app.ts";
 export { api, getDetail, getIssues, patchIssue, postComment, postIssue } from "./client/api.ts";
 export {
   loadDetail,
-  readCommentError,
   readConflictBody,
   readDetailError,
   readEditError,
