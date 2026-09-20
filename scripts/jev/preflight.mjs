@@ -5,6 +5,7 @@
 //
 //   node scripts/jev/preflight.mjs [<range>]   (default: HEAD = all changes since last commit)
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { loadKey, ask, changedSources, fileAt, JUDGES, pct } from "./lib.mjs";
 
 const range = process.argv.slice(2).find((a) => !a.startsWith("--")) ?? "HEAD";
@@ -29,9 +30,11 @@ for (const f of files) {
     console.log(`  ⚠ ${f}: ${hits.join(", ")}`);
   } else console.log(`  ✓ ${f}`);
 }
-if (files.length && !range.includes("..")) {
+if (files.length) {
   console.log("");
-  execFileSync("node", ["scripts/jev/lint.mjs", ...files], { stdio: "inherit" });
+  execFileSync("node", ["scripts/jev/lint.mjs", ...files.filter((f) => existsSync(f))], {
+    stdio: "inherit",
+  });
 }
 console.log(
   `\njev pre-flight: ${flags} file flag(s) plus the lint notes above. Not a gate — vp check / tests / validate still decide.`,

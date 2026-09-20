@@ -6,7 +6,7 @@
 //   --all also judges data/tag declarations, functions under 150 chars, and composition roots
 //   (functions that call createScope) — all skipped by default
 import { execSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { loadKey, ask, pct } from "./lib.mjs";
 import { slice, forJev, LINT, GUIDE } from "./bank.mjs";
 
@@ -25,8 +25,10 @@ const limit = Number(valueOf("--limit") ?? Infinity);
 const jsonOut = valueOf("--json");
 
 function listFiles(specs) {
-  const direct = specs.filter((s) => existsSync(s));
-  const globs = specs.filter((s) => !existsSync(s));
+  // A directory argument means its git-tracked sources, like a glob; a file passes through.
+  const isFile = (s) => existsSync(s) && !statSync(s).isDirectory();
+  const direct = specs.filter(isFile);
+  const globs = specs.filter((s) => !isFile(s));
   const quoted = globs.map((s) => `'${s}'`).join(" ");
   const listed = globs.length ? execSync(`git ls-files -- ${quoted}`, { encoding: "utf8" }) : "";
   return [...direct, ...listed.split("\n")].filter((f) => f && !/\.test\.tsx?$|\.d\.ts$/.test(f));

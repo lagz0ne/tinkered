@@ -110,7 +110,9 @@ The lead session orchestrates and reviews; implementation is delegated to a Pase
 
 1. Each contributor works in its own worktree: `git worktree add ../tinkered-<task> -b perf/<task> main`,
    `vp install` there, never touches the main checkout, commits by explicit pathspec, never pushes.
-2. The brief is self-contained: read `.agents/skills/coding-convention/SKILL.md` (incl. Performance),
+2. The brief is `docs/roadmap/contributor-brief.md` (the fixed part: setup, rebuild-before-check, exit-code gate,
+   **jev pre-flight** with every flag fixed or explained, report format) plus the ticket's target and impact block.
+   The brief is self-contained: read `.agents/skills/coding-convention/SKILL.md` (incl. Performance),
    exact measure commands (`bench/core-probe.mjs`, `bench/stores-probe.mjs`, `bench/react-vs-zustand.mjs`,
    min of 3), gates (`vp check` 0 errors, tests, census `--strict`, `pnpm validate`; the mutation lane is
    the reviewer's), the Jev toolset below, and the report format (branch, SHAs, before/after table, what
@@ -123,7 +125,8 @@ The lead session orchestrates and reviews; implementation is delegated to a Pase
      (`scripts/jev/lint.mjs`) on your diff; clear the notes you agree with, explain the rest in the
      report's `jev pre-flight` line. A note is a probability, not a verdict; `vp check`, tests,
      census, and the lead decide.
-3. The lead reviews the diff for shape (facades, duplicated hot bodies, leaked internals, identity-keyed
+3. The lead runs `node scripts/jev/review.mjs main..HEAD` on the branch (advisory: it routes attention, never
+   gates), then reviews the diff for shape (facades, duplicated hot bodies, leaked internals, identity-keyed
    memos), re-measures, requests one fix round, cherry-picks onto `main`, runs the package's mutation lane
    isolated, pushes, then removes the worktree and branch.
 4. **Both sides of the spectrum.** An integration is also a probe of core: every contributor report ends
