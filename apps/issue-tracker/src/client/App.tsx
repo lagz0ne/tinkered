@@ -1,48 +1,73 @@
-import { useEffect, useState } from "react";
 import { ScopeProvider, useData, useRun } from "@tinker/react";
-import { isError as isHttpError } from "@tinker/http";
-import { getDetail, patchIssue, postComment, postIssue } from "./api.ts";
+import { assignees, issueList, type Issues } from "../shared/issues.ts";
+import {
+  reconnect,
+  reload,
+  reloadTheirs,
+  saveEdit,
+  selectIssue,
+  setFilter,
+  submitComment,
+  submitNewIssue,
+  typeNewIssue,
+  typeComment,
+  typeEdit,
+  assigneeName,
+  matches,
+  readCommentError,
+  readDetailError,
+  readSubmitMessage,
+  readStatusOption,
+  statusName,
+} from "./actions.ts";
+import type { Filter } from "./state.ts";
 import DraftView from "./DraftView.tsx";
-import { connectTab, type TabSync } from "./sync.ts";
-import { assignees, issueList, parseIssue, type Issues } from "../shared/issues.ts";
-import { isError } from "../errors.ts";
+import {
+  commentAuthor,
+  commentDraft,
+  commentNotice,
+  connection,
+  detail,
+  detailNotice,
+  editDraft,
+  editNotice,
+  filter,
+  newIssue,
+  selectedId,
+} from "./state.ts";
 
-type Filter = "all" | Issues.Status;
-
-type Conflict = {
-  readonly message: string;
-  readonly current: Issues.Issue;
-};
-
-function isRecord(raw: unknown): raw is Record<string, unknown> {
-  return typeof raw === "object" && raw !== null;
-}
-
+/** The create form: the draft lives in a cell, the save is an operation, and the failure
+ * message reads off the run's error — the draft survives a failed save. */
 function IssueForm() {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const create = useRun(postIssue);
-  const failed = create.isError;
-  const message = failed ? readSubmitMessage(create.error) : null;
-  async function submit(event: React.FormEvent): Promise<void> {
+  const draft = useData(newIssue);
+  const create = useRun(submitNewIssue);
+  const message = create.isError ? readSubmitMessage(create.error) : null;
+  const type = useRun(typeNewIssue);
+  function submit(event: React.FormEvent): void {
     event.preventDefault();
-    if (title.trim().length === 0) return;
-    try {
-      await create.runAsync({ input: { title, description } });
-      setTitle("");
-      setDescription("");
-    } catch {
-      return;
-    }
+    if (draft.title.trim().length === 0) return;
+    create.run();
   }
   return (
-    <form onSubmit={submit} aria-label="create issue">
+    <form
+      onSubmit={submit}
+      aria-label="create issue"
+      onKeyDown={(event) => {
+        if (event.key === "Enter" && event.target instanceof HTMLInputElement) {
+          const form = event.currentTarget;
+          if (form.requestSubmit !== undefined) {
+            event.preventDefault();
+            form.requestSubmit();
+          }
+        }
+      }}
+    >
       <label htmlFor="create-title">
         Title
         <input
           id="create-title"
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
+          value={draft.title}
+          onChange={(event) => type.run({ input: { title: event.target.value } })}
           required
           maxLength={200}
         />
@@ -51,70 +76,37 @@ function IssueForm() {
         Description
         <textarea
           id="create-description"
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
+          value={draft.description}
+          onChange={(event) => type.run({ input: { description: event.target.value } })}
         />
       </label>
-      <button type="submit" disabled={create.isPending || title.trim().length === 0}>
+      <button type="submit" disabled={create.isPending || draft.title.trim().length === 0}>
         {create.isPending ? "Saving…" : "Create issue"}
       </button>
-      {failed ? <p role="alert">{message}</p> : null}
+      {create.isError ? <p role="alert">{message}</p> : null}
     </form>
   );
 }
 
-function readSubmitMessage(error: unknown): string {
-  if (isError(error, "BadCreateInput")) return error.payload.reason;
-  const offline = readOfflineMessage(error);
-  if (offline !== null) return offline;
-  if (isHttpError(error, "ResponseFailed")) return readHttpMessage(error.payload.response.status);
-  if (error instanceof Error && error.message.length > 0) return error.message;
-  return "Could not save the issue.";
-}
+const filterOptions: readonly { readonly value: Filter; readonly label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "open", label: "Open" },
+  { value: "in_progress", label: "In progress" },
+  { value: "done", label: "Done" },
+];
 
-function readHttpMessage(status: number): string {
-  if (status === 404) return "That issue is gone. Reload the list.";
-  if (status === 409) return "Someone else saved first. Reload and try again.";
-  return "Could not save. Try again.";
-}
-
-function readOfflineMessage(error: unknown): string | null {
-  if (isHttpError(error, "RequestFailed")) {
-    return "Could not reach the server. Your work is kept — try again.";
-  }
-  return null;
-}
-
-function statusName(status: Issues.Status): string {
-  if (status === "open") return "Open";
-  if (status === "in_progress") return "In progress";
-  return "Done";
-}
-
-function assigneeName(issue: Issues.Issue): string {
-  return issue.assignee ?? "Unassigned";
-}
-
-function matches(issue: Issues.Issue, filter: Filter): boolean {
-  if (filter === "all") return true;
-  return issue.status === filter;
-}
-
-function IssueFilters(props: { filter: Filter; setFilter: (filter: Filter) => void }) {
-  const options: readonly { value: Filter; label: string }[] = [
-    { value: "all", label: "All" },
-    { value: "open", label: "Open" },
-    { value: "in_progress", label: "In progress" },
-    { value: "done", label: "Done" },
-  ];
+/** The status filter: reads one cell, runs one operation. */
+function IssueFilters() {
+  const shown = useData(filter);
+  const choose = useRun(setFilter);
   return (
     <div role="group" aria-label="filter issues">
-      {options.map((option) => (
+      {filterOptions.map((option) => (
         <button
           key={option.value}
           type="button"
-          aria-pressed={props.filter === option.value}
-          onClick={() => props.setFilter(option.value)}
+          aria-pressed={shown === option.value}
+          onClick={() => choose.run({ input: option.value })}
         >
           {option.label}
         </button>
@@ -123,23 +115,30 @@ function IssueFilters(props: { filter: Filter; setFilter: (filter: Filter) => vo
   );
 }
 
-function IssueList(props: {
-  filter: Filter;
-  selectedId: string | null;
-  select: (id: string | null) => void;
-}) {
-  const issues = useData(issueList);
-  const shown = issues.filter((issue) => matches(issue, props.filter));
-  if (issues.length === 0) return <p>No issues yet. Create the first one.</p>;
-  if (shown.length === 0) return <p>No issues with this status.</p>;
+const sameIssues = (a: readonly Issues.Issue[], b: readonly Issues.Issue[]): boolean => a === b;
+
+/** The saved list, filtered: subscribes to the whole list cell (the rows it renders) and the
+ * filter cell, so a keystroke in a form never touches it. */
+function IssueList() {
+  const shown = useData(filter);
+  const selected = useData(selectedId);
+  const issues = useData(
+    issueList,
+    (list) => list.filter((issue) => matches(issue, shown)),
+    sameIssues,
+  );
+  const choose = useRun(selectIssue);
+  const all = useData(issueList);
+  if (all.length === 0) return <p>No issues yet. Create the first one.</p>;
+  if (issues.length === 0) return <p>No issues with this status.</p>;
   return (
     <ul aria-label="issues">
-      {shown.map((issue) => (
+      {issues.map((issue) => (
         <li key={issue.id}>
           <button
             type="button"
-            aria-current={props.selectedId === issue.id}
-            onClick={() => props.select(props.selectedId === issue.id ? null : issue.id)}
+            aria-current={selected === issue.id}
+            onClick={() => choose.run({ input: selected === issue.id ? null : issue.id })}
           >
             <strong>{issue.title}</strong> · {statusName(issue.status)} · {assigneeName(issue)} ·
             rev {issue.revision}
@@ -150,88 +149,18 @@ function IssueList(props: {
   );
 }
 
-function readStatusOption(value: string): Issues.Status | undefined {
-  if (value === "open" || value === "in_progress" || value === "done") return value;
-  return undefined;
-}
-
-function readEditError(error: unknown): { message: string; conflict: Conflict | null } {
-  if (isError(error, "IssueConflict")) {
-    return {
-      message: "Someone else saved first. Your draft is kept — reload their change, then save.",
-      conflict: { message: "Someone else saved first.", current: error.payload.current },
-    };
-  }
-  if (isError(error, "BadEditInput")) return { message: error.payload.reason, conflict: null };
-  const offline = readOfflineMessage(error);
-  if (offline !== null) return { message: offline, conflict: null };
-  if (isHttpError(error, "ResponseFailed")) {
-    if (error.payload.response.status === 409) {
-      return { message: "Someone else saved first. Reload and try again.", conflict: null };
-    }
-    return { message: readHttpMessage(error.payload.response.status), conflict: null };
-  }
-  if (error instanceof Error && error.message.length > 0) {
-    return { message: error.message, conflict: null };
-  }
-  return { message: "Could not save. Try again.", conflict: null };
-}
-
-function readConflictBody(raw: unknown): { current: Issues.Issue } | null {
-  if (!isRecord(raw) || raw.current === undefined) return null;
-  try {
-    return { current: parseIssue(raw.current) };
-  } catch {
-    return null;
-  }
-}
-
-function EditForm(props: { saved: Issues.Issue; reload: () => void }) {
-  const [title, setTitle] = useState(props.saved.title);
-  const [description, setDescription] = useState(props.saved.description);
-  const [status, setStatus] = useState<Issues.Status>(props.saved.status);
-  const [assignee, setAssignee] = useState<string | null>(props.saved.assignee);
-  const [baseRevision, setBaseRevision] = useState(props.saved.revision);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [conflict, setConflict] = useState<Conflict | null>(null);
-  const edit = useRun(patchIssue);
-  async function submit(event: React.FormEvent): Promise<void> {
+/** The edit form: the draft lives in a cell (seeded by the load), the save is an operation, and
+ * the notice reads off the run's error through the notice cell — a stale save keeps the draft. */
+function EditForm() {
+  const draft = useData(editDraft);
+  const notice = useData(editNotice);
+  const save = useRun(saveEdit);
+  const type = useRun(typeEdit);
+  const theirs = useRun(reloadTheirs);
+  if (draft === null) return null;
+  function submit(event: React.FormEvent): void {
     event.preventDefault();
-    setNotice(null);
-    try {
-      const updated = await edit.runAsync({
-        input: {
-          id: props.saved.id,
-          baseRevision,
-          title,
-          description,
-          status,
-          assignee,
-        },
-      });
-      setBaseRevision(updated.revision);
-      setConflict(null);
-      props.reload();
-    } catch (error: unknown) {
-      const found = readEditError(error);
-      setNotice(found.message);
-      if (found.conflict !== null) setConflict(found.conflict);
-      else {
-        const current = await readStoredConflict(error);
-        if (current !== null) setConflict({ message: found.message, current });
-      }
-    }
-  }
-  function reloadCurrent(): void {
-    if (conflict === null) return;
-    setTitle(conflict.current.title);
-    setDescription(conflict.current.description);
-    setStatus(conflict.current.status);
-    setAssignee(conflict.current.assignee);
-    setBaseRevision(conflict.current.revision);
-    setConflict(null);
-    setNotice(null);
-    props.reload();
+    save.run();
   }
   return (
     <form onSubmit={submit} aria-label="edit issue">
@@ -239,8 +168,8 @@ function EditForm(props: { saved: Issues.Issue; reload: () => void }) {
         Title
         <input
           id="edit-title"
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
+          value={draft.title}
+          onChange={(event) => type.run({ input: { title: event.target.value } })}
           required
           maxLength={200}
         />
@@ -249,18 +178,18 @@ function EditForm(props: { saved: Issues.Issue; reload: () => void }) {
         Description
         <textarea
           id="edit-description"
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
+          value={draft.description}
+          onChange={(event) => type.run({ input: { description: event.target.value } })}
         />
       </label>
       <label htmlFor="edit-status">
         Status
         <select
           id="edit-status"
-          value={status}
+          value={draft.status}
           onChange={(event) => {
             const next = readStatusOption(event.target.value);
-            if (next !== undefined) setStatus(next);
+            if (next !== undefined) type.run({ input: { status: next } });
           }}
         >
           <option value="open">Open</option>
@@ -272,8 +201,10 @@ function EditForm(props: { saved: Issues.Issue; reload: () => void }) {
         Assignee
         <select
           id="edit-assignee"
-          value={assignee ?? ""}
-          onChange={(event) => setAssignee(event.target.value === "" ? null : event.target.value)}
+          value={draft.assignee ?? ""}
+          onChange={(event) =>
+            type.run({ input: { assignee: event.target.value === "" ? null : event.target.value } })
+          }
         >
           <option value="">Unassigned</option>
           {assignees.map((name) => (
@@ -283,12 +214,12 @@ function EditForm(props: { saved: Issues.Issue; reload: () => void }) {
           ))}
         </select>
       </label>
-      <button type="submit" disabled={edit.isPending}>
-        {edit.isPending ? "Saving…" : `Save (rev ${baseRevision})`}
+      <button type="submit" disabled={save.isPending}>
+        {save.isPending ? "Saving…" : `Save (rev ${draft.baseRevision})`}
       </button>
       {notice !== null ? <p role="alert">{notice}</p> : null}
-      {conflict !== null ? (
-        <button type="button" onClick={reloadCurrent}>
+      {draft.conflict !== null ? (
+        <button type="button" onClick={() => theirs.run()}>
           Reload their change
         </button>
       ) : null}
@@ -296,38 +227,26 @@ function EditForm(props: { saved: Issues.Issue; reload: () => void }) {
   );
 }
 
-async function readStoredConflict(error: unknown): Promise<Issues.Issue | null> {
-  if (!isHttpError(error, "ResponseFailed")) return null;
-  if (error.payload.response.status !== 409) return null;
-  const body = readConflictBody(await error.payload.response.json());
-  return body === null ? null : body.current;
-}
-
-function CommentForm(props: { issueId: string; reload: () => void }) {
-  const [author, setAuthor] = useState<string>("Ada");
-  const [text, setText] = useState("");
-  const [notice, setNotice] = useState<string | null>(null);
-  const comment = useRun(postComment);
-  async function submit(event: React.FormEvent): Promise<void> {
+/** The comment form: the draft text and author live in cells; the notice reads off the run. */
+function CommentForm(props: { readonly issueId: string }) {
+  const text = useData(commentDraft);
+  const author = useData(commentAuthor);
+  const notice = useData(commentNotice);
+  const comment = useRun(submitComment);
+  const type = useRun(typeComment);
+  function submit(event: React.FormEvent): void {
     event.preventDefault();
     if (text.trim().length === 0) return;
-    setNotice(null);
-    try {
-      await comment.runAsync({ input: { issueId: props.issueId, author, text } });
-      setText("");
-      props.reload();
-    } catch (error: unknown) {
-      setNotice(readCommentError(error));
-    }
+    comment.run();
   }
   return (
-    <form onSubmit={submit} aria-label="add comment">
+    <form onSubmit={submit} aria-label="add comment" data-issue={props.issueId}>
       <label htmlFor="comment-author">
         Author
         <select
           id="comment-author"
           value={author}
-          onChange={(event) => setAuthor(event.target.value)}
+          onChange={(event) => type.run({ input: { author: event.target.value } })}
         >
           {assignees.map((name) => (
             <option key={name} value={name}>
@@ -341,7 +260,7 @@ function CommentForm(props: { issueId: string; reload: () => void }) {
         <textarea
           id="comment-text"
           value={text}
-          onChange={(event) => setText(event.target.value)}
+          onChange={(event) => type.run({ input: { text: event.target.value } })}
         />
       </label>
       <button type="submit" disabled={comment.isPending || text.trim().length === 0}>
@@ -352,167 +271,124 @@ function CommentForm(props: { issueId: string; reload: () => void }) {
   );
 }
 
-function readCommentError(error: unknown): string {
-  if (isError(error, "BadCommentInput")) return error.payload.reason;
-  const offline = readOfflineMessage(error);
-  if (offline !== null) return offline;
-  if (isHttpError(error, "ResponseFailed")) return readHttpMessage(error.payload.response.status);
-  if (error instanceof Error && error.message.length > 0) return error.message;
-  return "Could not post. Try again.";
+/** The selected issue: reads the detail cell the load filled and the detail notice; the reload
+ * button reruns the load. The draft view keeps its own props contract. */
+function DetailView() {
+  const selected = useData(selectedId);
+  if (selected === null) return <p>Select an issue to edit it.</p>;
+  return <SelectedDetail selected={selected} />;
 }
 
-function DetailView(props: { selectedId: string; stamp: number }) {
-  const [detail, setDetail] = useState<Issues.Detail | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [tick, setTick] = useState(0);
-  const fetchDetail = useRun(getDetail).runAsync;
-  const watched = useData(issueList);
-  const saved = watched.find((issue) => issue.id === props.selectedId) ?? null;
-  useEffect(() => {
-    let alive = true;
-    fetchDetail({ input: props.selectedId })
-      .then((found) => {
-        if (alive) {
-          setDetail(found);
-          setNotice(null);
-        }
-      })
-      .catch((error: unknown) => {
-        if (alive) setNotice(readDetailError(error));
-      });
-    return () => {
-      alive = false;
-    };
-  }, [props.selectedId, props.stamp, tick, saved, fetchDetail]);
-  function reload(): void {
-    setTick((now) => now + 1);
-  }
-  const shown = detail !== null && detail.issue.id === props.selectedId ? detail : null;
+/** The selected issue's detail: the last saved detail plus its notice. */
+function SelectedDetail(props: { readonly selected: string }) {
+  const shown = useData(detail);
+  const notice = useData(detailNotice);
+  const again = useRun(reload);
+  const current = shown !== null && shown.issue.id === props.selected ? shown : null;
+  if (current === null) return <DetailPending notice={notice} />;
   return (
     <>
       {notice !== null ? <p role="alert">{notice}</p> : null}
-      {shown === null ? (
-        <p>Loading detail…</p>
-      ) : (
-        <section aria-label="issue detail">
-          <h2>{shown.issue.title}</h2>
-          <p>
-            {statusName(shown.issue.status)} · {assigneeName(shown.issue)} · rev{" "}
-            {shown.issue.revision}
-          </p>
-          <p>Saved {new Date(shown.issue.updatedAt).toLocaleString()}</p>
-          <p>{shown.issue.description}</p>
-          <EditForm saved={shown.issue} reload={reload} />
-          <h3>Comments</h3>
-          {shown.comments.length === 0 ? (
-            <p>No comments yet.</p>
-          ) : (
-            <ul aria-label="comments">
-              {shown.comments.map((comment) => (
-                <li key={comment.id}>
-                  <strong>{comment.author}</strong> · {new Date(comment.createdAt).toLocaleString()}
-                  <p>{comment.text}</p>
-                </li>
-              ))}
-            </ul>
-          )}
-          <CommentForm issueId={shown.issue.id} reload={reload} />
-          <DraftView issueId={shown.issue.id} reload={reload} />
-          <h3>Activity</h3>
-          <ul aria-label="activity">
-            {shown.activity.map((entry) => (
-              <li key={entry.id}>
-                {entry.summary} · {new Date(entry.createdAt).toLocaleString()}
+      <section aria-label="issue detail">
+        <h2>{current.issue.title}</h2>
+        <p>
+          {statusName(current.issue.status)} · {assigneeName(current.issue)} · rev{" "}
+          {current.issue.revision}
+        </p>
+        <p>Saved {new Date(current.issue.updatedAt).toLocaleString()}</p>
+        <p>{current.issue.description}</p>
+        <EditForm />
+        <h3>Comments</h3>
+        {current.comments.length === 0 ? (
+          <p>No comments yet.</p>
+        ) : (
+          <ul aria-label="comments">
+            {current.comments.map((comment) => (
+              <li key={comment.id}>
+                <strong>{comment.author}</strong> · {new Date(comment.createdAt).toLocaleString()}
+                <p>{comment.text}</p>
               </li>
             ))}
           </ul>
-        </section>
-      )}
+        )}
+        <CommentForm issueId={current.issue.id} />
+        <DraftView issueId={current.issue.id} reload={() => again.run()} />
+        <h3>Activity</h3>
+        <ul aria-label="activity">
+          {current.activity.map((entry) => (
+            <li key={entry.id}>
+              {entry.summary} · {new Date(entry.createdAt).toLocaleString()}
+            </li>
+          ))}
+        </ul>
+      </section>
     </>
   );
 }
 
-function readDetailError(error: unknown): string {
-  if (isHttpError(error, "RequestFailed")) {
-    return "Could not reach the server. Showing the last saved detail.";
-  }
-  if (isHttpError(error, "ResponseFailed")) {
-    if (error.payload.response.status === 404) return "That issue is gone. Reload the list.";
-    return "Could not refresh this issue. Showing the last saved detail.";
-  }
-  if (error instanceof Error && error.message.length > 0) return error.message;
-  return "Could not load the issue.";
+/** The detail before it loads: the notice when the last load failed, else the wait. */
+function DetailPending(props: { readonly notice: string | null }) {
+  if (props.notice === null) return <p>Loading detail…</p>;
+  return (
+    <>
+      <p role="alert">{props.notice}</p>
+      <p>Loading detail…</p>
+    </>
+  );
 }
 
-/** The app shell: the command scope owns the api baseUrl. A reconnect swaps
- * the scope on the same tree, so local drafts and their base revisions stay. */
-export function App(props: { initial: TabSync.Connected; baseUrl: string }) {
-  const [connection, setConnection] = useState(props.initial);
-  const [filter, setFilter] = useState<Filter>("all");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [stamp, setStamp] = useState(0);
+/** The wire as the tab sees it: reads the connection cell, runs the reconnect operation. */
+function LiveState() {
+  const link = useData(connection);
+  const again = useRun(reconnect);
   return (
-    <ScopeProvider scope={connection.scope}>
-      <main>
-        <h1>Issues</h1>
-        <LiveState connection={connection} setConnection={setConnection} baseUrl={props.baseUrl} />
-        <IssueForm />
-        <IssueFilters filter={filter} setFilter={setFilter} />
-        <IssueList filter={filter} selectedId={selectedId} select={setSelectedId} />
-        {selectedId !== null ? (
-          <DetailView key={selectedId} selectedId={selectedId} stamp={stamp} />
-        ) : (
-          <p>Select an issue to edit it.</p>
-        )}
-        <button type="button" onClick={() => setStamp((now) => now + 1)}>
-          Reload
+    <>
+      {link.live ? null : <p role="alert">Live updates stopped. Your drafts are kept.</p>}
+      {link.live ? null : (
+        <button type="button" onClick={() => again.run()} disabled={link.pending}>
+          Reconnect
         </button>
-      </main>
+      )}
+      {link.pending ? <p aria-live="polite">Reconnecting…</p> : null}
+      {link.failed ? <p role="alert">Still no connection. Try again.</p> : null}
+      {link.closedBadly ? <p role="alert">The old connection did not close cleanly.</p> : null}
+    </>
+  );
+}
+
+/** The reload button: reruns the load for the selected issue. */
+function ReloadButton() {
+  const again = useRun(reload);
+  return (
+    <button type="button" onClick={() => again.run()}>
+      Reload
+    </button>
+  );
+}
+
+/** The app shell: the scope comes from the provider at the root; every child reads cells and
+ * runs operations, nothing else. */
+export function App() {
+  return (
+    <main>
+      <h1>Issues</h1>
+      <LiveState />
+      <IssueForm />
+      <IssueFilters />
+      <IssueList />
+      <DetailView />
+      <ReloadButton />
+    </main>
+  );
+}
+
+/** The app with its scope: the composition root owns both; the shell only reads and runs. */
+export function ScopedApp(props: { readonly scope: import("@tinker/core").Scope.Handle }) {
+  return (
+    <ScopeProvider scope={props.scope}>
+      <App />
     </ScopeProvider>
   );
 }
 
-function LiveState(props: {
-  connection: TabSync.Connected;
-  setConnection: (connection: TabSync.Connected) => void;
-  baseUrl: string;
-}) {
-  const [live, setLive] = useState(true);
-  const [pending, setPending] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const [closedBadly, setClosedBadly] = useState(false);
-  useEffect(() => props.connection.onDrop(() => setLive(false)), [props.connection]);
-  async function reconnect(): Promise<void> {
-    setPending(true);
-    setFailed(false);
-    let next: TabSync.Connected;
-    try {
-      next = await connectTab(props.baseUrl);
-    } catch {
-      setPending(false);
-      setFailed(true);
-      return;
-    }
-    const old = props.connection;
-    props.setConnection(next);
-    setLive(true);
-    setPending(false);
-    const result = await old.close();
-    if (result.status === "failed" || (result.teardownErrors ?? []).length > 0) {
-      setClosedBadly(true);
-    }
-  }
-  return (
-    <>
-      {live ? null : <p role="alert">Live updates stopped. Your drafts are kept.</p>}
-      {live ? null : (
-        <button type="button" onClick={reconnect} disabled={pending}>
-          Reconnect
-        </button>
-      )}
-      {pending ? <p aria-live="polite">Reconnecting…</p> : null}
-      {failed ? <p role="alert">Still no connection. Try again.</p> : null}
-      {closedBadly ? <p role="alert">The old connection did not close cleanly.</p> : null}
-    </>
-  );
-}
+export { readCommentError, readDetailError };

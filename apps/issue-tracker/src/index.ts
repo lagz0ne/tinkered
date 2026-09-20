@@ -39,7 +39,41 @@ export { issueRoutes } from "./server/routes.ts";
 export { registerViewer, viewers } from "./server/sync.ts";
 export { createApp } from "./server/app.ts";
 export type { AppConfig } from "./server/app.ts";
-export { api } from "./client/api.ts";
+export { api, getDetail, getIssues, patchIssue, postComment, postIssue } from "./client/api.ts";
+export {
+  loadDetail,
+  readCommentError,
+  readConflictBody,
+  readDetailError,
+  readEditError,
+  readStoredConflict,
+  readSubmitMessage,
+  reconnect,
+  reload,
+  reloadTheirs,
+  saveEdit,
+  selectIssue,
+  setFilter,
+  submitComment,
+  submitNewIssue,
+  typeComment,
+  typeEdit,
+  typeNewIssue,
+} from "./client/actions.ts";
+export { detailRefresh, liveness, wire } from "./client/services.ts";
+export {
+  commentAuthor,
+  commentDraft,
+  commentNotice,
+  connection,
+  detail,
+  detailNotice,
+  editDraft,
+  editNotice,
+  filter,
+  newIssue,
+  selectedId,
+} from "./client/state.ts";
 export {
   commentRemote,
   createRemote,
