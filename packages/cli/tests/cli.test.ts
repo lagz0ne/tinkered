@@ -276,6 +276,7 @@ test("an entry command receives argv only", async () => {
     ["serve", "--port", "8080"],
   );
   expect(result.code).toBe(0);
+  expect(result.stderr).toBe("");
   expect(seen).toEqual(["--port", "8080"]);
 });
 
@@ -322,7 +323,7 @@ test("the command span parents the op span with one cli command log line", async
   expect(line.message).toBe("cli command");
   expect(line.attributes.command).toBe("double");
   expect(line.attributes.code).toBe(0);
-  expect(typeof line.attributes.ms).toBe("number");
+  expect(line.attributes.ms).toBe(0);
   const head = line.span;
   expect(head?.name).toBe("app double");
   expect(head?.attributes.command).toBe("double");
@@ -368,6 +369,7 @@ test("a session-target resource defer sees success on exit 0 and failed on exit 
 
 test("an aborted signal exits 130 and the session-target defer sees cancelled", async () => {
   const ends: string[] = [];
+  const logs: Observe.Log[] = [];
   let started = false;
   const slow = operation({
     label: "slow",
@@ -383,7 +385,7 @@ test("an aborted signal exits 130 and the session-target defer sees cancelled", 
   const ac = new AbortController();
   const { scope, run } = await openScope(
     { name: "app", version: "1.0.0", commands: [command("slow", () => slow)] },
-    { clock },
+    { clock, observe: { history: 20, log: (entry) => logs.push(entry) } },
   );
   const pending = run(["slow"], {
     stdout: () => undefined,
@@ -395,6 +397,9 @@ test("an aborted signal exits 130 and the session-target defer sees cancelled", 
   const result = await pending;
   await scope.close({ graceful: true });
   expect(result.code).toBe(130);
+  expect(logs.some((line) => line.message === "cli command" && line.attributes.code === 130)).toBe(
+    true,
+  );
   expect(ends).toEqual(["cancelled"]);
 });
 
