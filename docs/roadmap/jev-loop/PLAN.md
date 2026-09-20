@@ -32,11 +32,13 @@ Proven on labeled cases (2026-09-18, `pilot/side-projects/jev-probe/eval.mjs`):
 
 ## Where it hooks (advisory scripts in `scripts/jev/`)
 
-| Phase          | Script                  | What it does                                                      | Truth still owned by            |
-| -------------- | ----------------------- | ----------------------------------------------------------------- | ------------------------------- |
-| Planning       | `plan-check.mjs <file>` | neutral anti-goals on a plan/ADR/ticket + glossary (uncalibrated) | the human author                |
-| Implementation | `preflight.mjs [range]` | contributor self-check on the working-tree diff before reporting  | `vp check` / tests / `validate` |
-| Verification   | `review.mjs [range]`    | judge set per file + gated route + overclaim                      | `scripts/ticket.sh` + lead      |
+| Phase          | Script                                 | What it does                                                                                      | Truth still owned by            |
+| -------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------- |
+| Planning       | `plan-check.mjs <file>`                | neutral anti-goals on a plan/ADR/ticket + glossary (uncalibrated)                                 | the human author                |
+| Implementation | `preflight.mjs [range]`                | contributor self-check on the working-tree diff before reporting                                  | `vp check` / tests / `validate` |
+| Verification   | `review.mjs [range]`                   | judge set per file + gated route + overclaim                                                      | `scripts/ticket.sh` + lead      |
+| Writing        | `guide.mjs "<logic>" \| <file#symbol>` | which unit should this be (data / resource / operation / tag / glue), target, needs defer         | the author + the one law        |
+| Review / lint  | `lint.mjs [paths]`                     | per declared unit or outermost function: seven anti-goal judges + the unit classifier (see below) | `vp check` / tests / the lead   |
 
 Key: `AI_GATEWAY_API_KEY` (or `JEV_TOKEN_FILE`); never printed. Cost is ~fractions of a cent per
 ticket. Free tier is request-rate capped; paid credits lift it.
@@ -49,6 +51,89 @@ Landed 2026-09-18 (eval `scripts/jev/evals/impact.mjs`: clean block → neither,
 symbol?") to return **source wrong / plan wrong / both / neither** — catching the "wrong thing
 built correctly" case a normal gate cannot see. SCIP stays the deterministic sensor; Jev only
 judges "should it have". See `TODO.md`.
+
+## lint + guide — the ESLint-shaped bank (2026-09-20, `scripts/jev/bank.mjs`)
+
+**Analogy: ESLint.** A deterministic selector finds one node, a rule asks one narrow question
+about it, code applies the threshold and prints. Jev replaces only the rule's yes/no. It never
+locates, counts, or gates.
+
+- **Selector (`slice`, no model):** every `data` / `resource` / `operation` / `tag` /
+  `extension` declaration, plus each outermost `function` that declares none (a function that
+  declares units is a root or a tour). Brace-matched with strings and comments skipped. Default
+  lint skips `data` / `tag` one-liners and functions under 150 chars (`--all` includes them).
+- **State:** `{ kind, name, source }` of that one unit — the fields the decision depends on,
+  nothing else (TypeSafe: pass the fields, not the record).
+- **Lint judges:** one boolean anti-goal per rule grep cannot see, with a per-question kind
+  filter and threshold (probabilities are not comparable across questions). Rules from
+  `docs/best-practices.md` and the core README: `runForwardsToClosure` (rule 4, operations),
+  `effectWithoutDefer` (rule 8), `stateOutsideCell` (rule 9), `configNotTag` (rule 11),
+  `handRolledLifetime` (rule 13), `stopOnlyInDefer` (README "Resource cleanup"),
+  `ignoresAbortAfterAwait` (README, resources only, threshold 0.7). Greppable smells (the rules'
+  "Smell" column) stay in code, not in Jev.
+- **Guide classifier:** `unit` (choice: the one-law table as criteria; trusted at ≥ 0.6, else
+  "unclear, decide with the table"), `target` (scope / session), `needsDefer` (boolean). Lint
+  also runs `unit` on every judged node: a declared kind that reads like another kind, or a
+  function that reads like a primitive, is a note.
+- **Entry bar (the RuleTester analogue):** every question ships with a labeled bad/clean pair in
+  `evals/fixtures/lint.mjs`; `evals/lint.mjs` requires ≥ 30 points of separation with bad ≥
+  threshold and clean < threshold, and every guide case at ≥ 0.6. A question that drops below
+  leaves the bank.
+
+Eval, 2026-09-20 (17/17 after two rounds of wording; the first round's two misses were a fixture
+that itself broke rule 4 by handing `tx` to a helper, and a negation-heavy abort question):
+
+| question               | bad | clean | separation |
+| ---------------------- | --- | ----- | ---------- |
+| runForwardsToClosure   | 95% | 38%   | 57         |
+| effectWithoutDefer     | 94% | 4%    | 90         |
+| stateOutsideCell       | 88% | 6%    | 82         |
+| configNotTag           | 98% | 14%   | 84         |
+| handRolledLifetime     | 95% | 7%    | 88         |
+| stopOnlyInDefer        | 85% | 9%    | 76         |
+| ignoresAbortAfterAwait | 82% | 25%   | 57         |
+| needsDefer             | 96% | 7%    | 89         |
+| unit (7 cases)         | —   | —     | all ≥ 90%  |
+| target (2 cases)       | —   | —     | both 100%  |
+
+Wording lessons that moved numbers: name the concrete artifacts ("a timer, interval, listener,
+subscription, poll, socket, or connection"); say "is any await followed by … with no check
+between" instead of "without checking"; put the rule's own nouns in the criteria (rule 9's "form
+field, draft, filter, selection, notice" lifted `data` from 74% → 93%); keep `glue` defined by
+what it touches, not by "pure".
+
+Lint run over `examples/` + `apps/issue-tracker/src` (2026-09-20, 39 files, one call per unit,
+same answers recounted after the root filter was added — Jev answers are per unit and independent):
+
+| selector                                                                   | judged | with notes |
+| -------------------------------------------------------------------------- | ------ | ---------- |
+| declared units + functions ≥ 150 chars                                     | 182    | 49         |
+| + composition roots skipped (functions calling `createScope`; the default) | 174    | 41         |
+
+By question (root-filtered): runForwardsToClosure 11, stateOutsideCell 8, handRolledLifetime 8,
+effectWithoutDefer 7, configNotTag 4, stopOnlyInDefer 4, ignoresAbortAfterAwait 1; 23 "reads
+like" notes from the unit classifier.
+
+Worth a look (they match the rules' letter, the lead decides):
+
+- `apps/issue-tracker/src/server/operations.ts`: `editIssue` 86%, `addComment` 74%,
+  `listIssues` 90% forward `tx` / `db` to helpers; those helpers (`loadSaved` 91%,
+  `writeIssue` 94%, `recordActivity` 92%) read like operations. The helper law says helpers
+  take values only and `tx` / `db` stay in the body. `guide.mjs …#loadSaved` → operation 91%.
+- `apps/issue-tracker/src/tools/issues.ts`: the five `*Remote` operations forward 53–80%;
+  `serveIssues` reads like a resource (97%) with effectWithoutDefer 83% / handRolledLifetime 86%.
+- `apps/issue-tracker/src/tools/main.ts#readBaseUrl` reads like a tag (77%; rule 11).
+  `guide.mjs` on it → tag 67%.
+- `apps/issue-tracker/src/server/store.ts#openDatabase` reads like a resource (93%).
+- `apps/issue-tracker/src/client/connection.ts#reconnectingTransport`: 94 / 93 / 94% and
+  resource 100% — the documented rule-13 exception; expected, and the lint says so loudly.
+
+Known noise: the `tour` / `main` roots (now filtered); `examples/core/basic.ts` `store` "reads
+like data" 63% (an in-memory rows array); `stopOnlyInDefer` 52% on operations whose `defer`
+is a rollback (at the threshold; noted, never blocking).
+
+Guide demo: "poll the API every 10 seconds and keep the latest issue list" → resource 99%,
+target scope 83%, needs defer 94%.
 
 ## toolcall chain — tried and removed (2026-09-19)
 
