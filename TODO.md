@@ -28,8 +28,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-| Card | Owner | Next | Verify |
-| ---- | ----- | ---- | ------ |
+| Card                                                          | Owner         | Next                                                                                                                                                                                                                                                                      | Verify                                                                                                                                                                               |
+| ------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| perf/ab-0051 — big-sample A/B of core after the drivers track | lead (Claude) | `/tmp/ab.sh` running: `f92444b` (day start) vs `bf532ef` (main), 10 scenarios × 31 process runs per tree, alternating, `taskset -c 6`, in-container (the `bench` sandbox is not installed here — noted); then min/median/p90 table into `docs/roadmap/core-v1/budgets.md` | Any scenario whose median moved > 5% gets a cause or a ticket; the browser proof passed end to end after the rebuild (`vp run --no-cache @tinker-issue-tracker#test:browser` exit 0) |
 
 ## Review
 
