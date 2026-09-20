@@ -116,10 +116,7 @@ const web = hono({
     }),
     route.post("/sync", deliverRegister, {
       input: async (c) => ({ id: c.req.query("client") ?? "guest", message: await c.req.json() }),
-      respond: (delivery, c) => {
-        delivery;
-        return c.text("ok");
-      },
+      respond: (_delivery, c) => c.text("ok"),
     }),
   ],
 });
