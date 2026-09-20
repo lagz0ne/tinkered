@@ -2,8 +2,9 @@ import { operation } from "@tinker/core";
 import { isError as isHttpError } from "@tinker/http";
 import { issueList, parseIssue, type Issues } from "../shared/issues.ts";
 import { isError, raise } from "../errors.ts";
-import { getDetail, patchIssue, postComment, postIssue } from "./api.ts";
+import { getCapability, getDetail, patchIssue, postComment, postIssue } from "./api.ts";
 import { wire } from "./connection.ts";
+import { drafter } from "./services.ts";
 import {
   commentAuthor,
   commentDraft,
@@ -11,7 +12,11 @@ import {
   connection,
   detail,
   detailNotice,
+  draftAuthor,
+  draftCapability,
   draftOf,
+  draftPrompt,
+  draftRun,
   editDraft,
   editNotice,
   filter,
@@ -273,6 +278,108 @@ export const reload = operation({
     const id = selected.get();
     if (id === null) return;
     return reloadDetail.run({ input: id });
+  },
+});
+
+/** Type the draft prompt: the quiet view's only field. */
+export const typePrompt = operation({
+  label: "typePrompt",
+  input: (raw) => readString(raw, "typePrompt"),
+  depends: { prompt: draftPrompt.controller },
+  run: ({ prompt }, { input }) => {
+    prompt.set(input);
+  },
+});
+
+/** Name the author one draft post carries; the ready view's select writes it. */
+export const setDraftAuthor = operation({
+  label: "setDraftAuthor",
+  input: (raw) => readString(raw, "setDraftAuthor"),
+  depends: { author: draftAuthor.controller },
+  run: ({ author }, { input }) => {
+    author.set(input);
+  },
+});
+
+/** Check the draft helper once: answers on, off, or a plain failed — never throws. */
+export const checkCapability = operation({
+  label: "checkCapability",
+  depends: { check: getCapability, capability: draftCapability.controller },
+  run: async ({ check, capability }) => {
+    capability.set("loading");
+    try {
+      const found = await check.run();
+      capability.set(found.enabled ? "on" : "off");
+      return found;
+    } catch {
+      capability.set("failed");
+      return { enabled: false };
+    }
+  },
+});
+
+/** Start a draft for the selected issue: no selection is a door error. The drafter owns the
+ * stream; the returned promise settles when the run lands. */
+export const beginDraft = operation({
+  label: "beginDraft",
+  depends: {
+    drafts: drafter,
+    selected: selectedId.controller,
+    prompt: draftPrompt.controller,
+  },
+  run: ({ drafts, selected, prompt }) => {
+    const id = selected.get();
+    if (id === null) raise("BadDraftInput", { reason: "nothing is selected" });
+    return drafts.start(id, prompt.get());
+  },
+});
+
+/** Cancel the in-flight draft run; the pump lands the run on `cancelled`. */
+export const cancelDraft = operation({
+  label: "cancelDraft",
+  depends: { drafts: drafter },
+  run: ({ drafts }) => {
+    drafts.cancel();
+  },
+});
+
+/** Discard the draft run back to quiet; the Post button's guard reads the run it clears. */
+export const discardDraft = operation({
+  label: "discardDraft",
+  depends: { drafts: drafter },
+  run: ({ drafts }) => {
+    drafts.discard();
+  },
+});
+
+/** Post the ready draft through the normal comment route, then discard and reload the detail.
+ * A failed post keeps the draft and rethrows like `submitComment`. */
+export const postDraft = operation({
+  label: "postDraft",
+  depends: {
+    post: postComment,
+    run: draftRun.controller,
+    author: draftAuthor.controller,
+    drafts: drafter,
+    selected: selectedId.controller,
+    reloadDetail: loadDetail,
+  },
+  run: async ({ post, run, author, drafts, selected, reloadDetail }) => {
+    const id = selected.get();
+    if (id === null) raise("BadDraftInput", { reason: "nothing is selected" });
+    const text = run.get().draft;
+    try {
+      const saved = await post.run({ input: { issueId: id, author: author.get(), text } });
+      drafts.discard();
+      await reloadDetail.run({ input: id });
+      return saved;
+    } catch (error: unknown) {
+      run.update((prev) => ({
+        ...prev,
+        notice: "Could not post the draft. It is kept — try again.",
+      }));
+      throw error;
+    }
   },
 });
 

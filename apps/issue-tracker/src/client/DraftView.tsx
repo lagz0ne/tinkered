@@ -1,92 +1,15 @@
-import { useEffect, useRef, useState } from "react";
-import { useRun } from "@tinker/react";
-import { postComment } from "./api.ts";
+import { useData, useRun } from "@tinker/react";
 import { assignees } from "../shared/issues.ts";
-import { parseDraftCapability, parseDraftEvent, type Draft } from "../shared/draft.ts";
-import { fail, isError } from "../errors.ts";
-
-type View = "quiet" | "running" | "ready" | "cancelled" | "failed";
-
-function readFailedMessage(error: unknown): string {
-  if (isError(error, "BadDraftInput")) return "That draft update was unreadable. Try again.";
-  if (isError(error, "DraftFailed")) return "The draft helper failed. Try again.";
-  if (isError(error, "IssueNotFound")) return "That issue is gone.";
-  return "The draft helper failed. Try again.";
-}
-
-function readLine(line: string): Draft.Event | null {
-  const text = line.startsWith("data:") ? line.slice(5).trim() : line.trim();
-  if (text.length === 0 || text.startsWith(":")) return null;
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text);
-  } catch {
-    throw fail("BadDraftInput", { reason: "draft update is unreadable" });
-  }
-  return parseDraftEvent(raw);
-}
-
-type Pump = {
-  tail: string;
-  readonly apply: (event: Draft.Event) => void;
-};
-
-function pumpLines(pump: Pump, chunk: string): Draft.Outcome | undefined {
-  const lines = (pump.tail + chunk).split("\n");
-  pump.tail = lines.pop() ?? "";
-  let outcome: Draft.Outcome | undefined;
-  for (const line of lines) {
-    const event = readLine(line);
-    if (event === null) continue;
-    if (event.kind === "terminal") outcome = event.status;
-    else pump.apply(event);
-  }
-  return outcome;
-}
-
-async function readPostedDraft(issueId: string, prompt: string, stopper: AbortController) {
-  const res = await fetch(`/api/issues/${issueId}/draft`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ prompt }),
-    signal: stopper.signal,
-  });
-  if (!res.ok) {
-    if (res.status === 404) throw fail("IssueNotFound", { id: issueId });
-    throw fail("DraftFailed", { reason: "the draft helper failed" });
-  }
-  if (res.body === null) throw fail("DraftFailed", { reason: "the draft helper failed" });
-  return res.body.getReader();
-}
-
-async function runStream(
-  issueId: string,
-  prompt: string,
-  stopper: AbortController,
-  apply: (event: Draft.Event) => void,
-): Promise<Draft.Outcome> {
-  const reader = await readPostedDraft(issueId, prompt, stopper);
-  const decoder = new TextDecoder();
-  let outcome: Draft.Outcome = "failed";
-  const pump: Pump = { tail: "", apply };
-  try {
-    for (;;) {
-      const next = await reader.read();
-      if (next.done) break;
-      const finished = pumpLines(pump, decoder.decode(next.value, { stream: true }));
-      if (finished !== undefined) outcome = finished;
-    }
-    const closing = readLine(pump.tail);
-    if (closing !== null && closing.kind === "terminal") return closing.status;
-    return outcome;
-  } finally {
-    reader.releaseLock();
-  }
-}
-
-function isAbort(error: unknown): boolean {
-  return error instanceof DOMException && error.name === "AbortError";
-}
+import {
+  cancelDraft,
+  checkCapability,
+  discardDraft,
+  postDraft,
+  beginDraft,
+  setDraftAuthor,
+  typePrompt,
+} from "./actions.ts";
+import { draftAuthor, draftCapability, draftPrompt, draftRun } from "./state.ts";
 
 type ReadyProps = {
   readonly shown: string;
@@ -143,174 +66,8 @@ function RetryView(props: RetryProps) {
   );
 }
 
-async function readCapability(signal: AbortSignal): Promise<"off" | "on" | "failed"> {
-  try {
-    const res = await fetch("/api/draft", { signal });
-    if (!res.ok) return "failed";
-    const found = parseDraftCapability(await res.json());
-    return found.enabled ? "on" : "off";
-  } catch {
-    return "failed";
-  }
-}
-
-function DraftView(props: { issueId: string; reload: () => void }) {
-  const [capability, setCapability] = useState<"loading" | "off" | "on" | "failed">("loading");
-  const [check, setCheck] = useState(0);
-  const [view, setView] = useState<View>("quiet");
-  const [text, setText] = useState("");
-  const [draft, setDraft] = useState("");
-  const [prompt, setPrompt] = useState("");
-  const [author, setAuthor] = useState<string>("Ada");
-  const [notice, setNotice] = useState<string | null>(null);
-  const runId = useRef(0);
-  const flight = useRef<AbortController | null>(null);
-  const comment = useRun(postComment);
-  useEffect(() => {
-    const stopper = new AbortController();
-    let alive = true;
-    setCapability("loading");
-    readCapability(stopper.signal)
-      .then((found) => {
-        if (alive) setCapability(found);
-      })
-      .catch(() => {
-        if (alive) setCapability("failed");
-      });
-    return () => {
-      alive = false;
-      stopper.abort();
-    };
-  }, [check]);
-  function retryCapability(): void {
-    setCheck((now) => now + 1);
-  }
-  useEffect(
-    () => () => {
-      runId.current += 1;
-      flight.current?.abort();
-      flight.current = null;
-    },
-    [props.issueId],
-  );
-  async function start(): Promise<void> {
-    const id = runId.current + 1;
-    runId.current = id;
-    flight.current?.abort();
-    const stopper = new AbortController();
-    flight.current = stopper;
-    setView("running");
-    setText("");
-    setDraft("");
-    setNotice(null);
-    const outcome = await startRun(id, stopper);
-    if (runId.current !== id) return;
-    if (flight.current === stopper) flight.current = null;
-    if (outcome === undefined) return;
-    setView(readView(outcome));
-    if (outcome === "failed") setNotice("The draft helper failed. Try again.");
-  }
-  function readView(outcome: Draft.Outcome): View {
-    if (outcome === "done") return "ready";
-    if (outcome === "cancelled") return "cancelled";
-    return "failed";
-  }
-  async function startRun(
-    id: number,
-    stopper: AbortController,
-  ): Promise<Draft.Outcome | undefined> {
-    try {
-      return await runStream(props.issueId, prompt, stopper, (event) => {
-        if (runId.current !== id) return;
-        if (event.kind === "text") setText((seen) => seen + event.text);
-        else if (event.kind === "done") setDraft(event.draft);
-      });
-    } catch (error: unknown) {
-      if (runId.current !== id) return undefined;
-      stopper.abort();
-      if (isAbort(error)) {
-        setView("cancelled");
-        return undefined;
-      }
-      setView("failed");
-      setNotice(readFailedMessage(error));
-      return undefined;
-    }
-  }
-  function cancel(): void {
-    flight.current?.abort();
-  }
-  function discard(): void {
-    runId.current += 1;
-    flight.current?.abort();
-    flight.current = null;
-    setView("quiet");
-    setText("");
-    setDraft("");
-    setNotice(null);
-  }
-  async function post(): Promise<void> {
-    setNotice(null);
-    try {
-      await comment.runAsync({ input: { issueId: props.issueId, author, text: draft } });
-      discard();
-      props.reload();
-    } catch {
-      setNotice("Could not post the draft. It is kept — try again.");
-    }
-  }
-  if (capability === "loading") {
-    return (
-      <section aria-label="triage draft">
-        <h3>Triage draft</h3>
-        <p aria-live="polite">Checking the draft helper…</p>
-      </section>
-    );
-  }
-  if (capability === "failed") {
-    return (
-      <section aria-label="triage draft">
-        <h3>Triage draft</h3>
-        <p role="alert">Could not check the draft helper. Your work is kept.</p>
-        <button type="button" onClick={retryCapability}>
-          Retry
-        </button>
-      </section>
-    );
-  }
-  if (capability === "off") {
-    return (
-      <section aria-label="triage draft">
-        <h3>Triage draft</h3>
-        <p>The draft helper is off. No account is needed for ordinary use.</p>
-      </section>
-    );
-  }
-  const shown = draft.length > 0 ? draft : text;
-  return (
-    <section aria-label="triage draft">
-      <h3>Triage draft</h3>
-      <DraftBody
-        view={view}
-        text={text}
-        shown={shown}
-        author={author}
-        setAuthor={setAuthor}
-        start={start}
-        cancel={cancel}
-        post={post}
-        posting={comment.isPending}
-        discard={discard}
-        prompt={prompt}
-        setPrompt={setPrompt}
-      />
-      {notice !== null ? <p role="alert">{notice}</p> : null}
-    </section>
-  );
-}
-
 type BodyProps = {
-  readonly view: View;
+  readonly view: "quiet" | "running" | "ready" | "cancelled" | "failed";
   readonly text: string;
   readonly shown: string;
   readonly author: string;
@@ -377,4 +134,66 @@ function DraftBody(props: BodyProps) {
   return <RetryView start={props.start} discard={props.discard} />;
 }
 
-export default DraftView;
+/** The triage draft: reads the capability and run cells, runs one operation per control, and
+ * nothing else. The drafter resource owns the in-flight stream; selection changes discard. */
+export default function DraftView() {
+  const capability = useData(draftCapability);
+  const run = useData(draftRun);
+  const prompt = useData(draftPrompt);
+  const author = useData(draftAuthor);
+  const check = useRun(checkCapability);
+  const begin = useRun(beginDraft);
+  const stop = useRun(cancelDraft);
+  const clear = useRun(discardDraft);
+  const post = useRun(postDraft);
+  const type = useRun(typePrompt);
+  const name = useRun(setDraftAuthor);
+  if (capability === "loading") {
+    return (
+      <section aria-label="triage draft">
+        <h3>Triage draft</h3>
+        <p aria-live="polite">Checking the draft helper…</p>
+      </section>
+    );
+  }
+  if (capability === "failed") {
+    return (
+      <section aria-label="triage draft">
+        <h3>Triage draft</h3>
+        <p role="alert">Could not check the draft helper. Your work is kept.</p>
+        <button type="button" onClick={() => check.run()}>
+          Retry
+        </button>
+      </section>
+    );
+  }
+  if (capability === "off") {
+    return (
+      <section aria-label="triage draft">
+        <h3>Triage draft</h3>
+        <p>The draft helper is off. No account is needed for ordinary use.</p>
+      </section>
+    );
+  }
+  const shown = run.draft.length > 0 ? run.draft : run.text;
+  return (
+    <section aria-label="triage draft">
+      <h3>Triage draft</h3>
+      <DraftBody
+        view={run.view}
+        text={run.text}
+        shown={shown}
+        author={author}
+        setAuthor={(next) => name.run({ input: next })}
+        start={() => begin.run()}
+        cancel={() => stop.run()}
+        post={() => post.run()}
+        posting={post.isPending}
+        discard={() => clear.run()}
+        prompt={prompt}
+        setPrompt={(next) => type.run({ input: next })}
+      />
+      {run.notice !== null ? <p role="alert">{run.notice}</p> : null}
+    </section>
+  );
+}

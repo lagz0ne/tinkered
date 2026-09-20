@@ -63,10 +63,38 @@ export const detail = data<Issues.Detail | null>({ label: "detail", initial: nul
 /** The detail notice, or null when the detail is fresh. */
 export const detailNotice = data<string | null>({ label: "detailNotice", initial: null });
 
+/** One in-flight draft run: what the view shows. `notice` is the failure line, or null when
+ * there is nothing to say. The drafter resource owns the lifecycle; a failed post also writes
+ * its notice, never while a run is in flight. */
+export type DraftRun = {
+  readonly view: "quiet" | "running" | "ready" | "cancelled" | "failed";
+  readonly text: string;
+  readonly draft: string;
+  readonly notice: string | null;
+};
+
 /** The wire as the tab sees it. */
 export const connection = data<Connection>({
   label: "connection",
   initial: { live: true, pending: false, failed: false, closedBadly: false },
+});
+
+/** One in-flight draft run. */
+export const draftRun = data<DraftRun>({
+  label: "draftRun",
+  initial: { view: "quiet", text: "", draft: "", notice: null },
+});
+
+/** The draft prompt the prompt field types into. */
+export const draftPrompt = data<string>({ label: "draftPrompt", initial: "" });
+
+/** The author a draft post names; the ready view's select writes it. */
+export const draftAuthor = data<string>({ label: "draftAuthor", initial: "Ada" });
+
+/** Whether the draft helper answers: checked once at boot, retried by hand. */
+export const draftCapability = data<"loading" | "off" | "on" | "failed">({
+  label: "draftCapability",
+  initial: "loading",
 });
 
 /** Seed one edit draft from its saved issue: a fresh draft with no conflict. */

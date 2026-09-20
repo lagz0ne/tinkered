@@ -273,7 +273,6 @@ function DetailView() {
 function SelectedDetail(props: { readonly selected: string }) {
   const shown = useData(detail);
   const notice = useData(detailNotice);
-  const again = useRun(reload);
   const current = shown !== null && shown.issue.id === props.selected ? shown : null;
   if (current === null) return <DetailPending notice={notice} />;
   return (
@@ -302,7 +301,7 @@ function SelectedDetail(props: { readonly selected: string }) {
           </ul>
         )}
         <CommentForm issueId={current.issue.id} />
-        <DraftView issueId={current.issue.id} reload={() => again.run()} />
+        <DraftView />
         <h3>Activity</h3>
         <ul aria-label="activity">
           {current.activity.map((entry) => (

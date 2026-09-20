@@ -12,7 +12,7 @@ export declare namespace Draft {
     | { readonly kind: "terminal"; readonly status: Outcome; readonly draft: string };
 }
 
-import { raise } from "../errors.ts";
+import { fail, raise } from "../errors.ts";
 
 /** Read one streamed draft frame at the browser edge: the four event
  * kinds the server emits, nothing else. */
@@ -65,6 +65,41 @@ function readOutcome(raw: unknown): Draft.Outcome {
 function readTerminalDraft(raw: unknown): string {
   if (typeof raw === "string") return raw;
   raise("BadDraftInput", { reason: "draft update is unreadable" });
+}
+
+/** Read one SSE line at the browser edge: a `data:` frame becomes its event; blanks and
+ * comments read null; anything else must parse as a draft event or the update is unreadable. */
+export function readLine(line: string): Draft.Event | null {
+  const text = line.startsWith("data:") ? line.slice(5).trim() : line.trim();
+  if (text.length === 0 || text.startsWith(":")) return null;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    throw fail("BadDraftInput", { reason: "draft update is unreadable" });
+  }
+  return parseDraftEvent(raw);
+}
+
+/** The streaming pump: the unparsed tail plus the sink for live events. */
+export type Pump = {
+  tail: string;
+  readonly apply: (event: Draft.Event) => void;
+};
+
+/** Pump SSE chunks into events: split on newlines, keep the tail, apply live frames, and answer
+ * the terminal outcome when it lands. */
+export function pumpLines(pump: Pump, chunk: string): Draft.Outcome | undefined {
+  const lines = (pump.tail + chunk).split("\n");
+  pump.tail = lines.pop() ?? "";
+  let outcome: Draft.Outcome | undefined;
+  for (const line of lines) {
+    const event = readLine(line);
+    if (event === null) continue;
+    if (event.kind === "terminal") outcome = event.status;
+    else pump.apply(event);
+  }
+  return outcome;
 }
 
 /** Read the draft capability answer at the browser edge. */
