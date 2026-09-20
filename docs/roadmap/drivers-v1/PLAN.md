@@ -308,3 +308,29 @@ tag), `readTool`, `answerTool`, `Mcp.Tool`, `Mcp.ZodShape`; `tool` meta stays on
 Core feedback recorded by the writer: `command.entry("x", (scope) => …)` parses as a loader (both are bare
 functions) — t04 removes the scope parameter and should brand the loader; the stdio-serve dance is copied three
 times (tracker `main.ts`, two tours) — candidate for a `serveStdio(server)` helper in `@tinker/mcp`.
+
+### drivers/t04 (cli) — in work (worktree `../tinkered-t04-cli-mcp`, branch `drivers/t04-cli-mcp`)
+
+- `packages/cli/src/index.ts` 557 → 439: `cli(wiring)` returns `Scope.Extension<Cli.Run>` (`start`:
+  `await next()`, return `run` — today's `run` body minus scope creation, the loader layer replaced by
+  row memoization); `command(name, op | load, { input, respond, description })` builds a `Cli.Row`
+  (eager handle or loader, memoized on the row — a throw is not cached, so the next selection retries);
+  `command.entry(name, entry)` takes ONLY a direct `Cli.Entry` receiving `(argv)` (the lazy entry form is
+  gone, so a one-parameter function is unambiguous); `runMain(wiring, scope?)` is root glue (install,
+  `ready`, resolve, SIGINT/SIGTERM → abort → forced close, close graceful, `process.exit`). Deleted:
+  `run({ scope, … })`, the `commands` tag, `command(meta)`-as-meta, `readCommand`, `Cli.EntrySource` /
+  `EntryModule`, `Cli.Bound`, `Cli.Module`, `Cli.Meta`, `Cli.Options` (replaced by `Wiring`).
+- Tracker: `tools/issues.ts` drops `command(…)` meta off all five ops (`tool` meta stays on
+  `listRemote`/`getRemote` for the harness); `issueCommands: readonly Cli.Row[]` reuses the `read*Args`
+  readers plus descriptions. `tools/main.ts` is 24 lines of hand glue, NOT `runMain` — the `mcp` entry
+  must `resolve()` the installed MCP extension off the root and `runMain` never hands the root back, so
+  the root installs `[issuesMcp, shell]`, resolves `run`, and owns signals/exit itself. `src/index.ts`
+  already exported `issueCommands`. Tests re-express the CLI half through
+  `createScope({ tags: […], extensions: [cli({ … })] })` + `ready` + `resolve` (every assertion holds).
+- Tours: `examples/cli/basic.ts` (extension + in-process `run`), `examples/cli/main.ts` (`runMain` in one
+  call), `examples/mcp/cli.ts` (same hand glue as the tracker entry, ≤ 30 lines). Cast-free.
+  `scripts/validate.mjs` cli assertion now names `cli`/`command`/`runMain`; CLI smoke still passes.
+- Tests: cli 25 → 20 through the extension (meta/resource rows collapse into `Row`; the lazy-entry and
+  `CommandUndeclared` tests leave with their shapes). New: `resolve` before `ready` → `NotResolved`;
+  loader memoized across two runs on one scope; entry receives argv only.
+- Gates: 0 errors / 13 warnings (= `main`), cli 20, mcp 9, harness 24, tracker 42, `pnpm validate` 37/37.
