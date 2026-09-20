@@ -142,6 +142,24 @@ test("options merge nearest-first and force partial messages", async () => {
   await scope.close();
 });
 
+test("the nearer options binding wins every key it sets", async () => {
+  const seen: Seen[] = [];
+  const coder = harness({ label: "coder", adapter: claudeCode });
+  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const scope = createScope({
+    tags: [claudeCode.options({ model: "a", cwd: "/far", maxTurns: 1 })],
+    presets: [preset(claudeCode.sdk, async () => fakeSdk([readScript("hi")], seen))],
+  });
+  const session = scope.createSession({
+    tags: [claudeCode.options({ model: "b", cwd: "/near" })],
+  });
+  await session.run(ask, { input: "hello" });
+  expect(seen[0].options?.model).toBe("b");
+  expect(seen[0].options?.cwd).toBe("/near");
+  expect(seen[0].options?.maxTurns).toBe(1);
+  await scope.close();
+});
+
 test("a forced close mid-turn rejects the turn and cancels the close", async () => {
   const seen: Seen[] = [];
   let release!: () => void;
