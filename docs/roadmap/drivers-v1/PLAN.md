@@ -191,3 +191,11 @@ viewer still closes the transport`, `a row names the key, not the cell label`.
 - `scripts/validate.mjs`: no edit needed — the sync bundle-export assertion (`m.source && m.subscribe &&
 m.family && m.memoryPair`) names only kept symbols.
 - Core feedback: the `source().connect` row is done (see above).
+
+### drivers/t06 — lead landing 2026-09-20 (`b3567ac`)
+
+Rebased by the lead (docs-only drift), fast-forwarded. Gates on `main`: 0 errors / 13 warnings, sync 30, tracker 42,
+browser 7/7 uncached, `pnpm validate` 37/37; jev pre-flight 0 flags (the first slice to arrive clean). Sync mutation
+alone **79.67** (was ~74 before this ticket: the four new seam tests lifted it over the 75 floor, so `mutation/floor-75`
+part 2 is cli only). Rows replace the `sync` tag and `synced` meta; `connect` returns the session `Result` via
+`createSession` + `close()`; ADR 0051 gained the two-shapes paragraph.

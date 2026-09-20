@@ -70,6 +70,12 @@ hono.start(scope)                         the second hand
       if success: root.run(publishIssues)
 ```
 
+**Two shapes for a driver's session (learned in drivers/t06):** a driver that wraps sessions it does not own
+(publish-after-commit around request sessions) uses the `session` hook; a driver that owns one session per
+caller (sync's `connect`) uses `createSession()` and returns what `close()` resolves — `scope.session(fn)` turns a
+forced close into a rejection and hides the `Result`. A child session cannot ask whether its parent is force-closing;
+sync threads a `forcedClosing` flag from its `close` hook (core feedback, 2026-09-20).
+
 ## Consequences
 
 - Testable at the seam by construction: a test builds one extension with one row on a scope with presets.
