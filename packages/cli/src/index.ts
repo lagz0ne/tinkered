@@ -74,7 +74,14 @@ type EntryRow = Extract<Cli.Row, { readonly entry: Cli.Entry }>;
  * operation. A throw is not cached, so the next selection retries. */
 function memo<T, I>(load: Cli.Load<T, I>): Cli.Load<T, I> {
   let settled: Promise<Operation.Handle<T, I>> | undefined;
-  return () => (settled ??= Promise.resolve(load()));
+  return () => {
+    const running = settled ?? Promise.resolve(load());
+    settled = running;
+    running.then(undefined, () => {
+      if (settled === running) settled = undefined;
+    });
+    return running;
+  };
 }
 
 function commandRow(
@@ -324,9 +331,9 @@ async function runOperation(
   selected: OpRow,
   rest: readonly string[],
 ): Promise<{ readonly code: number; readonly text: string | undefined; readonly failed: unknown }> {
-  const loaded = await selected.load();
   const none = { code: 0, text: undefined, failed: undefined };
   try {
+    const loaded = await selected.load();
     const text = await scope.session((s) =>
       s.run({
         label: `${wiring.name} ${selected.name}`,
