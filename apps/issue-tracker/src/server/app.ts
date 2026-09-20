@@ -65,13 +65,17 @@ export async function createApp(config: AppConfig): Promise<{
   readonly src: Scope.Extension<Sync.Source>;
 }> {
   const src = source();
-  const helper = config.draft ?? { enabled: false, baseUrl: "" };
+  const helper = config.draft ?? { enabled: false };
   const scope = createScope({
     tags: [
       store.config(config.dataPath),
       sync(issueList),
-      draftHelper({ enabled: helper.enabled, baseUrl: helper.baseUrl }),
-      ...(helper.enabled ? [api.config({ baseUrl: helper.baseUrl })] : []),
+      ...(config.draft === undefined
+        ? []
+        : [
+            draftHelper({ enabled: config.draft.enabled, baseUrl: config.draft.baseUrl }),
+            ...(config.draft.enabled ? [api.config({ baseUrl: config.draft.baseUrl })] : []),
+          ]),
       ...issueRoutes,
     ],
     extensions: [src],
@@ -186,8 +190,9 @@ export async function createApp(config: AppConfig): Promise<{
     },
   });
   const outer = new Hono()
-    .use("/api/issues/*", publishAfterCommit)
     .use("/api/issues", publishAfterCommit)
+    .use("/api/issues/:id", publishAfterCommit)
+    .use("/api/issues/:id/comments", publishAfterCommit)
     .route("/", app);
   return { scope, app: outer, src };
 }

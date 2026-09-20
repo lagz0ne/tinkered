@@ -8,6 +8,7 @@ import {
   createApp,
   createIssue,
   fail,
+  issueList,
   parseComment,
   parseIssueDetail,
   readDetail,
@@ -115,7 +116,9 @@ test("a draft streams text and finishes without saving anything", async () => {
       status: "done",
       draft: "A short summary.",
     });
+    const published = live.scope.resolve(issueList);
     expect(await live.scope.run(readDetail, { input: created.id })).toEqual(before);
+    expect(live.scope.resolve(issueList)).toBe(published);
     expect(fixture.toolsCalled.sort()).toEqual(["get", "list"]);
     expect(fixture.decisions).toEqual([
       { behavior: "deny", message: "only issue reads are allowed" },
