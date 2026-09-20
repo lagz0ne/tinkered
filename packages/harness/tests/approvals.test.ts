@@ -1,7 +1,7 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, operation, preset, tag } from "@tinker/core";
 import type { Options, PermissionResult, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
-import { claudeCode, harness, type ClaudeCode } from "../src/index.ts";
+import { claudeCode, harness, isError, type ClaudeCode } from "../src/index.ts";
 import {
   readResult,
   readSystemInit,
@@ -106,5 +106,28 @@ test("the approve op sees the session's own bindings: one session allows, anothe
   await scope.createSession({ tags: [policy("deny")] }).run(ask, { input: "a" });
   await scope.createSession({ tags: [policy("allow")] }).run(ask, { input: "b" });
   expect(seen.decisions.map((decision) => decision.behavior)).toEqual(["deny", "allow"]);
+  await scope.close();
+});
+
+test("a failed approval rejects the turn, and the error is not a TurnFailed", async () => {
+  const seen: Seen = { decisions: [] };
+  const boom = new Error("policy down");
+  const approve = operation({
+    label: "approve",
+    input: claudeCode.approval,
+    run: (): PermissionResult => {
+      throw boom;
+    },
+  });
+  const coder = harness({ label: "coder", adapter: claudeCode, approve });
+  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const scope = createScope({ presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))] });
+  const session = scope.createSession();
+  const outcome = await session.run(ask, { input: "hello" }).then(
+    () => "resolved",
+    (error: unknown) => error,
+  );
+  expect(outcome).toBe(boom);
+  if (isError(outcome, "TurnFailed")) throw new Error("an approval throw reads as TurnFailed");
   await scope.close();
 });
