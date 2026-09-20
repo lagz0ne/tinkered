@@ -204,12 +204,15 @@ export const readIssues = operation({
 
 /** Publish the committed rows to the shared cell. Runs at the root only — after
  * `scope.ready` at boot and after a request session committed — so the sync
- * source fans the committed truth out to every viewer. */
+ * source fans the committed truth out to every viewer. Skips the write when the
+ * saved rows serialize equal to the published ones, so a rejected request that
+ * changed nothing keeps the cell identity (and sends no snapshot). */
 export const publishIssues = operation({
   label: "publishIssues",
   depends: { db: store.db, list: issueList.controller },
   run: async ({ db, list }) => {
-    list.set(await selectAllIssues(db));
+    const fresh = await selectAllIssues(db);
+    if (JSON.stringify(list.get()) !== JSON.stringify(fresh)) list.set(fresh);
   },
 });
 

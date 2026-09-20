@@ -1,5 +1,4 @@
 import { expect, test } from "vite-plus/test";
-import { Hono } from "hono";
 import {
   createScope,
   isError as isCoreError,
@@ -8,7 +7,7 @@ import {
   tag,
   type Observe,
 } from "@tinker/core";
-import { handle, tinker } from "../src/index.ts";
+import { hono, route } from "../src/index.ts";
 
 const tenant = tag<string>({ label: "tenant" });
 const secret = tag<string>({ label: "secret" });
@@ -28,21 +27,21 @@ const getUser = operation({
 
 test("a parse failure answers 400 with the request span ok and the op span failed", async () => {
   const logs: Observe.Log[] = [];
+  let seen: unknown;
+  const web = hono({
+    routes: [route.get("/users/:id", () => getUser, { input: (c) => c.req.param("id") })],
+    onError: (e) => {
+      seen = e;
+      return undefined;
+    },
+  });
   const scope = createScope({
     tags: [tenant("acme")],
     observe: { history: 20, log: (entry) => logs.push(entry) },
+    extensions: [web],
   });
-  let seen: unknown;
-  const app = new Hono()
-    .use(
-      tinker(scope, {
-        onError: (e) => {
-          seen = e;
-          return undefined;
-        },
-      }),
-    )
-    .get("/users/:id", handle(getUser, { input: (c) => c.req.param("id") }));
+  await scope.ready;
+  const app = scope.resolve(web);
   const res = await app.request("/users/abc");
   expect(res.status).toBe(400);
   if (!isCoreError(seen, "DataValidationFailed")) throw seen;
@@ -66,9 +65,13 @@ test("a missing required tag answers 500 with the request span ok", async () => 
     depends: { secret: secret.required },
     run: ({ secret }) => secret,
   });
-  const scope = createScope({ observe: { history: 20, log: (entry) => logs.push(entry) } });
-  const app = new Hono().use(tinker(scope)).get("/secret", handle(readSecret));
-  const res = await app.request("/secret");
+  const web = hono({ routes: [route.get("/secret", () => readSecret)] });
+  const scope = createScope({
+    observe: { history: 20, log: (entry) => logs.push(entry) },
+    extensions: [web],
+  });
+  await scope.ready;
+  const res = await scope.resolve(web).request("/secret");
   expect(res.status).toBe(500);
   const head = scope.spans().find((s) => s.name === "GET /secret");
   expect(head?.status).toBe("ok");
@@ -90,11 +93,14 @@ test("a client abort answers nothing usable but logs one 499 line and cancels th
       return clock.sleep(10_000, signal);
     },
   });
+  const web = hono({ routes: [route.get("/slow", () => slow)] });
   const scope = createScope({
     clock: makeTestClock({ now: 0 }),
     observe: { history: 20, log: (entry) => logs.push(entry) },
+    extensions: [web],
   });
-  const app = new Hono().use(tinker(scope)).get("/slow", handle(slow));
+  await scope.ready;
+  const app = scope.resolve(web);
   const ac = new AbortController();
   const pending = app.request("/slow", { signal: ac.signal });
   ac.abort();
@@ -115,9 +121,14 @@ test("an unmapped error reaches onError with the request span failed and no log 
       throw new Error("kaboom");
     },
   });
-  const scope = createScope({ observe: { history: 20, log: (entry) => logs.push(entry) } });
+  const web = hono({ routes: [route.get("/boom", () => boom)] });
+  const scope = createScope({
+    observe: { history: 20, log: (entry) => logs.push(entry) },
+    extensions: [web],
+  });
+  await scope.ready;
+  const app = scope.resolve(web);
   let seen: unknown;
-  const app = new Hono().use(tinker(scope)).get("/boom", handle(boom));
   app.onError((e, c) => {
     seen = e;
     return c.text("err", 500);
@@ -139,19 +150,20 @@ test("onError answers first: a parse failure becomes 418 while MissingTag keeps 
     depends: { secret: secret.required },
     run: ({ secret }) => secret,
   });
+  const web = hono({
+    routes: [
+      route.get("/users/:id", () => getUser, { input: (c) => c.req.param("id") }),
+      route.get("/secret", () => readSecret),
+    ],
+    onError: (e, c) => (isCoreError(e, "DataValidationFailed") ? c.text("teapot", 418) : undefined),
+  });
   const scope = createScope({
     tags: [tenant("acme")],
     observe: { history: 20, log: (entry) => logs.push(entry) },
+    extensions: [web],
   });
-  const app = new Hono()
-    .use(
-      tinker(scope, {
-        onError: (e, c) =>
-          isCoreError(e, "DataValidationFailed") ? c.text("teapot", 418) : undefined,
-      }),
-    )
-    .get("/users/:id", handle(getUser, { input: (c) => c.req.param("id") }))
-    .get("/secret", handle(readSecret));
+  await scope.ready;
+  const app = scope.resolve(web);
   const teapot = await app.request("/users/abc");
   expect(teapot.status).toBe(418);
   const head = scope.spans().find((s) => s.name === "GET /users/:id");

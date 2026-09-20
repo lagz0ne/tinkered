@@ -525,8 +525,7 @@ test("binding the same cell twice stays ready with one registration key", async 
 });
 
 test("the recipe registers by identity, then streams the snapshot down", async () => {
-  const { scope, app } = boot();
-  await scope.ready;
+  const { scope, app } = await boot();
   function readerOf(streamed: Response): ReadableStreamDefaultReader<Uint8Array> {
     const body = streamed.body;
     if (body === null) throw new Error("body");

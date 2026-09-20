@@ -1,8 +1,8 @@
 import { createScope, operation, tag } from "@tinker/core";
-import { honoApp, route, stream } from "@tinker/hono";
+import { hono, route, stream } from "@tinker/hono";
 
 /** A cast-free tour of the driver: a scope at the entrypoint, one session per request,
- * routes bound on the scope and mounted eagerly at boot. The tour returns a string. */
+ * flat rows handed to the extension and mounted eagerly at boot. The tour returns a string. */
 export async function tour(): Promise<string> {
   const tenant = tag<string>({ label: "tenant" });
 
@@ -22,22 +22,24 @@ export async function tour(): Promise<string> {
 
   const ticks = operation({ label: "ticks", run: () => ["a", "b"] });
 
-  const routeBindings = [
-    route.get("/greet/:name", () => greet, { input: (c) => c.req.param("name") }),
-    route.get("/health", () => health),
-    route.get("/ticks", () => ticks, {
-      respond: (ts, c) =>
-        stream(c, (emit) => {
-          for (const t of ts) emit(t);
-          return Promise.resolve();
-        }),
-    }),
-  ];
-
-  const scope = createScope({ tags: [...routeBindings, tenant("acme")] });
-  const app = await honoApp(scope, {
+  const web = hono({
+    routes: [
+      route.get("/greet/:name", () => greet, { input: (c) => c.req.param("name") }),
+      route.get("/health", () => health),
+      route.get("/ticks", () => ticks, {
+        respond: (ts, c) =>
+          stream(c, (emit) => {
+            for (const t of ts) emit(t);
+            return Promise.resolve();
+          }),
+      }),
+    ],
     tags: (c) => [tenant(c.req.header("x-tenant") ?? "public")],
   });
+
+  const scope = createScope({ tags: [tenant("acme")], extensions: [web] });
+  await scope.ready;
+  const app = scope.resolve(web);
 
   const scoped = await app.request("/greet/ada", { headers: { "x-tenant": "beta" } });
   const fallback = await app.request("/greet/ada");

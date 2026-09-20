@@ -7,9 +7,8 @@ import {
   resource,
   type Clock,
   type Resource,
-  type Scope,
 } from "@tinker/core";
-import { handle, isError, request, stream, tinker } from "../src/index.ts";
+import { hono, isError, request, route, stream } from "../src/index.ts";
 
 /** A session-target resource delivering the request path; its defer records the end status.
  * Ops must READ it (resource deps build lazily on first access) for the defer to exist. */
@@ -27,21 +26,18 @@ function pathResource(ends: string[]): Resource.Handle<string> {
   });
 }
 
-/** A chunks route streaming its value with a TestClock pause between chunks. */
-function streamApp(scope: Scope.Handle, path: Resource.Handle<string>): Hono {
+/** A chunks row streaming its value with a TestClock pause between chunks. */
+function streamRow(path: Resource.Handle<string>) {
   const chunks = operation({ label: "chunks", depends: { path }, run: ({ path }) => [path, "b"] });
-  return new Hono().use(tinker(scope)).get(
-    "/stream",
-    handle(chunks, {
-      respond: (cs, c) =>
-        stream(c, async (emit, { clock, signal }) => {
-          for (const ch of cs) {
-            emit(ch);
-            await clock.sleep(10, signal);
-          }
-        }),
-    }),
-  );
+  return route.get("/stream", () => chunks, {
+    respond: (cs, c) =>
+      stream(c, async (emit, { clock, signal }) => {
+        for (const ch of cs) {
+          emit(ch);
+          await clock.sleep(10, signal);
+        }
+      }),
+  });
 }
 
 /** Read every chunk, advancing the clock past each pause; drain like the core tests. */
@@ -70,20 +66,22 @@ function readerOf(res: Response): ReadableStreamDefaultReader<Uint8Array> {
 test("the body yields each chunk as the clock advances, then ends", async () => {
   const clk = makeTestClock({ now: 0 });
   const chunks = operation({ label: "chunks", run: () => ["a", "b", "c"] });
-  const scope = createScope({ clock: clk });
-  const app = new Hono().use(tinker(scope)).get(
-    "/stream",
-    handle(chunks, {
-      respond: (cs, c) =>
-        stream(c, async (emit, { clock, signal }) => {
-          for (const ch of cs) {
-            emit(ch);
-            await clock.sleep(10, signal);
-          }
-        }),
-    }),
-  );
-  const res = await app.request("/stream");
+  const web = hono({
+    routes: [
+      route.get("/stream", () => chunks, {
+        respond: (cs, c) =>
+          stream(c, async (emit, { clock, signal }) => {
+            for (const ch of cs) {
+              emit(ch);
+              await clock.sleep(10, signal);
+            }
+          }),
+      }),
+    ],
+  });
+  const scope = createScope({ clock: clk, extensions: [web] });
+  await scope.ready;
+  const res = await scope.resolve(web).request("/stream");
   expect(res.status).toBe(200);
   expect(await readAll(readerOf(res), clk)).toEqual(["a", "b", "c"]);
   await scope.close();
@@ -92,9 +90,10 @@ test("the body yields each chunk as the clock advances, then ends", async () => 
 test("a session resource's defer runs only after the last chunk was read", async () => {
   const clk = makeTestClock({ now: 0 });
   const ends: string[] = [];
-  const scope = createScope({ clock: clk });
-  const app = streamApp(scope, pathResource(ends));
-  const res = await app.request("/stream");
+  const web = hono({ routes: [streamRow(pathResource(ends))] });
+  const scope = createScope({ clock: clk, extensions: [web] });
+  await scope.ready;
+  const res = await scope.resolve(web).request("/stream");
   expect(res.status).toBe(200);
   expect(ends).toEqual([]);
   expect(await readAll(readerOf(res), clk)).toEqual(["/stream", "b"]);
@@ -113,21 +112,23 @@ test("cancelling the reader mid-body force-closes the session and stops the writ
     run: ({ path }) => [path, "b", "c"],
   });
   let emitted = 0;
-  const scope = createScope({ clock: clk });
-  const app = new Hono().use(tinker(scope)).get(
-    "/stream",
-    handle(chunks, {
-      respond: (cs, c) =>
-        stream(c, async (emit, { clock, signal }) => {
-          for (const ch of cs) {
-            emitted++;
-            emit(ch);
-            await clock.sleep(10, signal);
-          }
-        }),
-    }),
-  );
-  const res = await app.request("/stream");
+  const web = hono({
+    routes: [
+      route.get("/stream", () => chunks, {
+        respond: (cs, c) =>
+          stream(c, async (emit, { clock, signal }) => {
+            for (const ch of cs) {
+              emitted++;
+              emit(ch);
+              await clock.sleep(10, signal);
+            }
+          }),
+      }),
+    ],
+  });
+  const scope = createScope({ clock: clk, extensions: [web] });
+  await scope.ready;
+  const res = await scope.resolve(web).request("/stream");
   const reader = readerOf(res);
   expect(new TextDecoder().decode((await reader.read()).value)).toBe("/stream");
   await reader.cancel();
@@ -143,19 +144,21 @@ test("a throwing writer errors the body and the session settles failed", async (
   const path = pathResource(ends);
   const clk = makeTestClock({ now: 0 });
   const chunks = operation({ label: "chunks", depends: { path }, run: ({ path }) => [path] });
-  const scope = createScope({ clock: clk });
-  const app = new Hono().use(tinker(scope)).get(
-    "/stream",
-    handle(chunks, {
-      respond: (cs, c) =>
-        stream(c, async (emit, { clock }) => {
-          emit(cs[0] ?? "");
-          await clock.sleep(10);
-          throw boom;
-        }),
-    }),
-  );
-  const res = await app.request("/stream");
+  const web = hono({
+    routes: [
+      route.get("/stream", () => chunks, {
+        respond: (cs, c) =>
+          stream(c, async (emit, { clock }) => {
+            emit(cs[0] ?? "");
+            await clock.sleep(10);
+            throw boom;
+          }),
+      }),
+    ],
+  });
+  const scope = createScope({ clock: clk, extensions: [web] });
+  await scope.ready;
+  const res = await scope.resolve(web).request("/stream");
   expect(res.status).toBe(200);
   expect(ends).toEqual([]);
   const reader = readerOf(res);
@@ -172,13 +175,16 @@ test("a throwing writer errors the body and the session settles failed", async (
   await scope.close();
 });
 
-test("a plain handle route on the same app still commits right after next", async () => {
+test("a plain row on the same app still commits right after the handler", async () => {
   const ends: string[] = [];
   const path = pathResource(ends);
   const ping = operation({ label: "ping", depends: { path }, run: ({ path }) => `pong${path}` });
-  const scope = createScope();
-  const app = streamApp(scope, path).get("/ping", handle(ping));
-  const res = await app.request("/ping");
+  const web = hono({
+    routes: [streamRow(pathResource(ends)), route.get("/ping", () => ping)],
+  });
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const res = await scope.resolve(web).request("/ping");
   expect(res.status).toBe(200);
   expect(await res.json()).toBe("pong/ping");
   expect(ends).toEqual(["success"]);
@@ -217,11 +223,15 @@ test("the request session commits on success, rolls back on abort, fails on an u
       throw new Error("kaboom");
     },
   });
-  const scope = createScope();
-  const app = new Hono()
-    .use(tinker(scope))
-    .get("/ok/:id", handle(get, { input: (c) => c.req.param("id") }))
-    .get("/boom", handle(boom));
+  const web = hono({
+    routes: [
+      route.get("/ok/:id", () => get, { input: (c) => c.req.param("id") }),
+      route.get("/boom", () => boom),
+    ],
+  });
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const app = scope.resolve(web);
   app.onError((e, c) => c.text("err", 500));
   const good = await app.request("/ok/42");
   expect(good.status).toBe(200);
@@ -244,7 +254,7 @@ test("the request session commits on success, rolls back on abort, fails on an u
   await scope.close();
 });
 
-test("stream without tinker raises NoSession to onError", async () => {
+test("stream without the extension's middleware raises NoSession to onError", async () => {
   let seen: unknown;
   const app = new Hono().get("/stream", (c) =>
     stream(c, (emit) => {

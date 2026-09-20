@@ -1,23 +1,27 @@
 # @tinker/hono
 
-A Hono server as a **session-level driver** (ADR 0039, 0040): the entrypoint owns the scope,
-`tinker(scope)` opens one session per request, routes are scope config mounted eagerly at
-boot (ADR 0042).
+A Hono server as a **driver extension** (ADR 0051): the entrypoint installs
+`hono({ routes })` and resolves the app after `ready`; the extension's `start`
+is the only hand that holds the scope. Per request it opens one session, runs
+the route's operation as an inline op (span, one log line, error map), and
+closes graceful — a `stream` row keeps the session open until the body ends.
 
 ```ts
 // main.ts (the entrypoint owns the scope and its close)
 import { serve } from "@hono/node-server";
 import { createScope } from "@tinker/core";
-import { honoApp } from "@tinker/hono";
+import { hono } from "@tinker/hono";
 import { store } from "./store.ts";
-import { routeBindings, tenant } from "./routes.ts";
+import { issueRoutes, tenant } from "./routes.ts";
 
-const scope = createScope({ tags: [...routeBindings, tenant("public")] });
-await scope.resolve(store.db); // warm-up: the read verb is the warm-up
-const app = await honoApp(scope, {
+const web = hono({
+  routes: issueRoutes,
   tags: (c) => [tenant(c.req.header("x-tenant") ?? "public")], // request-derived bindings
 });
-serve({ fetch: app.fetch });
+const scope = createScope({ tags: [tenant("public")], extensions: [web] });
+await scope.ready; // every row's loader ran once; a rejection fails boot, never a request
+await scope.resolve(store.db); // warm-up: the read verb is the warm-up
+serve({ fetch: scope.resolve(web).fetch });
 process.on("SIGTERM", async () => {
   await scope.close({ graceful: true }); // waits for in-flight requests
   process.exit(0);
@@ -25,7 +29,7 @@ process.on("SIGTERM", async () => {
 ```
 
 ```ts
-// routes.ts (bindings: verb plus path, a loader, the request shape — no scope here)
+// routes.ts (rows: verb plus path, a loader, the request shape — no scope here)
 import { operation, tag } from "@tinker/core";
 import { request, route } from "@tinker/hono";
 
@@ -39,7 +43,7 @@ const getUser = operation({
     users.find(tenant, input, { signal, lang: req.headers.get("accept-language") }),
 });
 
-export const routeBindings = [
+export const issueRoutes = [
   route.get("/users/:id", () => import("./getUser.ts").then((m) => m.getUser), {
     input: (c) => c.req.param("id"),
   }),
@@ -48,26 +52,30 @@ export const routeBindings = [
 ```
 
 ```ts
-// a test is an entrypoint: bind routes on the scope, mount eagerly, drive via app.request
-const scope = createScope({ tags: [...routeBindings, tenant("acme")] });
-const app = await honoApp(scope);
-const res = await app.request("/users/42");
+// a test is an entrypoint: one extension with one row, presets, drive via app.request
+const web = hono({
+  routes: [route.get("/users/:id", () => getUser, { input: (c) => c.req.param("id") })],
+});
+const scope = createScope({ tags: [tenant("acme")], extensions: [web] });
+await scope.ready;
+const res = await scope.resolve(web).request("/users/42");
 expect(await res.json()).toEqual({ id: 42 });
 ```
 
-`honoApp(scope)` imports every route at mount — a rejecting loader rejects `honoApp`
-itself, so bad config fails at boot, never on a request.
+Two `hono()` extensions on one scope are two apps: store each extension object
+once (`const web = hono({ routes })`), install it, resolve it — a second call
+is a different identity.
 
 ## Hand mounting
 
-`tinker` plus `handle` stay public for routes mounted by hand: `new Hono().use(tinker(scope))`
-opens the session per request, `handle(op, { input?, respond? })` answers one endpoint. `honoApp`
-composes the two — it adds no request logic of its own.
+`mount` stays for routes that need `stream` directly and cannot be rows yet:
+`hono({ routes, mount: (app) => { … } })` runs after the rows, inside the same
+session middleware, so `stream` sees the request session.
 
-The `input` callback may return a promise: `handle` awaits it, then parses the value
-through the operation's `input`. Pass a JSON body read straight through — a rejected
-body read answers 400 like a parse failure: the request edge could not read what the
-client sent.
+The `input` callback may return a promise: the endpoint awaits it, then parses
+the value through the operation's `input`. Pass a JSON body read straight
+through — a rejected body read answers 400 like a parse failure: the request
+edge could not read what the client sent.
 
 ```ts
 route.post("/users", () => createUser, {
@@ -79,8 +87,8 @@ route.post("/users", () => createUser, {
 Each request runs as an inline operation (`"GET /users/:id"`) whose one dependency is the
 route's operation — so core's spans, one `http request` log line, clock, and signal come for
 free. The session closes gracefully (commit) after the handler; forced (rollback) on client
-abort; a `stream` route closes when the body ends. Without `tinker` upstream, `handle`
-raises `NoSession`.
+abort; a `stream` route closes when the body ends. Outside the extension's
+middleware, `stream` raises `NoSession`.
 
 `emit` is synchronous, so a `Sync.Transport.send` or any `watch` callback may call it directly; a throw means the client went away (ADR 0021: SSE is an adapter over watched cells).
 
@@ -92,18 +100,15 @@ the body finishes or the client cancels, then closes (every other response close
 `ctx.clock`, `ctx.log`, and its span are all available while the request span has ended.
 
 ```ts
-.get(
-  "/ticks",
-  handle(ticks, {
-    respond: (ts, c) =>
-      stream(c, async (emit, { clock, signal }) => {
-        for (const t of ts) {
-          emit(`${t}\n`);
-          await clock.sleep(1000, signal);
-        }
-      }),
-  }),
-);
+route.get("/ticks", () => ticks, {
+  respond: (ts, c) =>
+    stream(c, async (emit, { clock, signal }) => {
+      for (const t of ts) {
+        emit(`${t}\n`);
+        await clock.sleep(1000, signal);
+      }
+    }),
+});
 ```
 
 If a test or shutdown leaves a stream open, use plain `await scope.close()` to force
@@ -121,5 +126,5 @@ start, since a later call cannot upgrade an in-progress graceful close.
 | `MissingTag` / `NoSession`                                                   | 500                                       |
 | anything else                                                                | rethrown to Hono's `onError`, no log line |
 
-`tinker(scope, { onError: (e, c) => Response | undefined })` answers first; `undefined`
+`hono({ onError: (e, c) => Response | undefined })` answers first; `undefined`
 falls through to the table. A mapped failure settles the request span `ok`.

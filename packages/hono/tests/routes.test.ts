@@ -1,7 +1,6 @@
 import { expect, test } from "vite-plus/test";
-import { Hono } from "hono";
 import { createScope, operation, tag, type Observe } from "@tinker/core";
-import { handle, honoApp, route, tinker } from "../src/index.ts";
+import { hono, route } from "../src/index.ts";
 
 /** A tenant tag: bound at the scope, rebound per request from a header. */
 const tenant = tag<string>({ label: "tenant" });
@@ -25,7 +24,7 @@ const createUser = operation({ label: "createUser", run: () => ({ id: 7 }) });
 const ping = operation({ label: "ping", run: () => "pong" });
 
 /** Two counting loaders: each call records one load of its verb. */
-function userTable(loads: { get: number; post: number }) {
+function userRows(loads: { get: number; post: number }) {
   return [
     route.get(
       "/users/:id",
@@ -42,14 +41,16 @@ function userTable(loads: { get: number; post: number }) {
   ];
 }
 
-/** Mount the user table on a scope carrying the tenant binding. */
-function userScope(loads: { get: number; post: number }) {
-  return createScope({ tags: [tenant("public"), ...userTable(loads)] });
+/** Mount the user rows through the extension on a scope carrying the tenant binding. */
+async function userApp(loads: { get: number; post: number }) {
+  const web = hono({ routes: userRows(loads) });
+  const scope = createScope({ tags: [tenant("public")], extensions: [web] });
+  await scope.ready;
+  return { scope, app: scope.resolve(web) };
 }
 
-test("an app built only from scope bindings answers two verbs", async () => {
-  const scope = userScope({ get: 0, post: 0 });
-  const app = await honoApp(scope);
+test("an app built from flat rows answers two verbs", async () => {
+  const { scope, app } = await userApp({ get: 0, post: 0 });
   const got = await app.request("/users/42");
   expect(got.status).toBe(200);
   expect(await got.json()).toEqual({ id: 42, tenant: "public" });
@@ -59,10 +60,9 @@ test("an app built only from scope bindings answers two verbs", async () => {
   await scope.close();
 });
 
-test("every loader runs once at mount and none runs at request time", async () => {
+test("every loader runs once at start and none runs at request time", async () => {
   const loads = { get: 0, post: 0 };
-  const scope = userScope(loads);
-  const app = await honoApp(scope);
+  const { scope, app } = await userApp(loads);
   expect(loads).toEqual({ get: 1, post: 1 });
   await app.request("/users/1");
   await app.request("/users/2");
@@ -71,22 +71,27 @@ test("every loader runs once at mount and none runs at request time", async () =
   await scope.close();
 });
 
-test("a rejecting loader rejects honoApp at boot with the loader error", async () => {
+test("a rejecting loader rejects ready at boot with the loader error", async () => {
   const failure = new Error("bad route");
-  const scope = createScope({ tags: [route.get("/x", () => Promise.reject(failure))] });
-  await expect(honoApp(scope)).rejects.toBe(failure);
+  const web = hono({ routes: [route.get("/x", () => Promise.reject(failure))] });
+  const scope = createScope({ extensions: [web] });
+  await expect(scope.ready).rejects.toBe(failure);
   await scope.close();
 });
 
 test("a mounted app still takes request tags, a request span, and one log line", async () => {
   const logs: Observe.Log[] = [];
-  const scope = createScope({
-    tags: [tenant("acme"), ...userTable({ get: 0, post: 0 })],
-    observe: { history: 20, log: (entry) => logs.push(entry) },
-  });
-  const app = await honoApp(scope, {
+  const web = hono({
+    routes: userRows({ get: 0, post: 0 }),
     tags: (c) => [tenant(c.req.header("x-tenant") ?? "public")],
   });
+  const scope = createScope({
+    tags: [tenant("acme")],
+    observe: { history: 20, log: (entry) => logs.push(entry) },
+    extensions: [web],
+  });
+  await scope.ready;
+  const app = scope.resolve(web);
   const res = await app.request("/users/42", { headers: { "x-tenant": "beta" } });
   expect(await res.json()).toEqual({ id: 42, tenant: "beta" });
   expect(scope.spans().find((s) => s.name === "GET /users/:id")?.kind).toBe("operation");
@@ -94,32 +99,44 @@ test("a mounted app still takes request tags, a request span, and one log line",
   await scope.close();
 });
 
-test("a route bound on a session is not mounted from the parent scope", async () => {
+test("rows are plain data, not scope tags: nothing is mounted without the extension", async () => {
+  const rows = [route.get("/x", () => ping)];
+  expect(rows[0]).toEqual({
+    method: "GET",
+    path: "/x",
+    load: rows[0]?.load,
+    route: { input: undefined, respond: undefined },
+  });
   const scope = createScope({ tags: [tenant("public")] });
-  const child = scope.createSession({ tags: [route.get("/x", () => ping)] });
-  const app = await honoApp(scope);
-  const res = await app.request("/x");
+  const web = hono({ routes: [] });
+  const owned = createScope({ extensions: [web] });
+  await owned.ready;
+  const res = await owned.resolve(web).request("/x");
   expect(res.status).toBe(404);
-  await child.close();
+  await owned.close();
   await scope.close();
 });
 
-test("hand mounting with tinker plus handle still answers", async () => {
-  const scope = createScope();
-  const app = new Hono().use(tinker(scope)).get("/x", handle(ping));
-  const res = await app.request("/x");
+test("one row plus one extension answers without the composition root", async () => {
+  const web = hono({ routes: [route.get("/ping", () => ping)] });
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const res = await scope.resolve(web).request("/ping");
   expect(res.status).toBe(200);
+  expect(await res.json()).toBe("pong");
   await scope.close();
 });
 
 test("mount adds a hand-built route inside the same session middleware", async () => {
-  const scope = createScope();
-  const app = await honoApp(scope, {
+  const web = hono({
+    routes: [],
     mount: (inner) => {
-      inner.get("/extra", handle(ping));
+      inner.get("/extra", (c) => c.json("pong"));
     },
   });
-  const res = await app.request("/extra");
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const res = await scope.resolve(web).request("/extra");
   expect(res.status).toBe(200);
   expect(await res.json()).toBe("pong");
   await scope.close();
@@ -139,15 +156,17 @@ const createNamed = operation({
 });
 
 test("an async input read answers the parsed body; a malformed body takes the error map", async () => {
-  const scope = createScope({
-    tags: [
+  const web = hono({
+    routes: [
       route.post("/named", () => createNamed, {
         input: (c) => c.req.json(),
         respond: (named, c) => c.json(named, 201),
       }),
     ],
   });
-  const app = await honoApp(scope);
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const app = scope.resolve(web);
   const good = await app.request("/named", {
     method: "POST",
     headers: { "content-type": "application/json" },

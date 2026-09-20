@@ -1,10 +1,11 @@
 import type { Context } from "hono";
-import type { Tag } from "@tinker/core";
+import { operation } from "@tinker/core";
 import { route, stream, type HonoScope } from "@tinker/hono";
+import { source } from "@tinker/sync";
 import { isError } from "../errors.ts";
 import { readCapability, startDraft } from "./draft.ts";
 import { addComment, createIssue, editIssue, readDetail, readIssues } from "./operations.ts";
-import { registerViewer } from "./sync.ts";
+import { registerViewer, sseTransport, viewers } from "./sync.ts";
 
 /** Map a registry failure to its status; anything else falls through to Hono. */
 export function onError(error: unknown, c: Parameters<HonoScope.OnError>[1]) {
@@ -48,9 +49,21 @@ async function readBody(c: Context, extra: Record<string, unknown>): Promise<unk
   return typeof body === "object" && body !== null ? { ...body, ...extra } : extra;
 }
 
-/** Every /api route as scope config: the verb plus path, the domain operation,
- * and the request shape. Mounted eagerly by `honoApp` in the composition root. */
-export const issueRoutes: readonly Tag.Binding<HonoScope.BoundRoute>[] = [
+/** The source extension, one identity per process: `createApp` installs this
+ * same object and the `/sync` row's op reads its start value as a dependency. */
+export const src = source();
+
+/** Open one wire: the extension-as-dependency from t01 delivers `src`'s start
+ * value, so the row needs no scope — `respond` reads the client id. */
+const openWire = operation({
+  label: "openWire",
+  depends: { origin: src, wires: viewers },
+  run: ({ origin, wires }) => ({ origin, wires }),
+});
+
+/** Every /api route as flat rows: the verb plus path, the domain operation,
+ * and the request shape. Handed to `hono({ routes })` in the composition root. */
+export const issueRoutes: readonly HonoScope.Row[] = [
   route.post("/api/issues", () => createIssue, {
     input: (c) => readBody(c, {}),
     respond: (issue, c) => c.json(issue, 201),
@@ -83,5 +96,19 @@ export const issueRoutes: readonly Tag.Binding<HonoScope.BoundRoute>[] = [
       message: await c.req.json(),
     }),
     respond: (_v, c) => c.text("ok"),
+  }),
+  route.get("/sync", () => openWire, {
+    respond: (opened, c) => {
+      const id = c.req.query("client") ?? "guest";
+      c.header("Content-Type", "text/event-stream");
+      c.header("Cache-Control", "no-cache");
+      c.header("Connection", "keep-alive");
+      return stream(c, (emit, ctx) => {
+        emit(": ready\n\n");
+        const wire = sseTransport(emit, ctx.signal);
+        const close = opened.wires.open(id, wire.deliver);
+        return opened.origin.connect(wire).then(close, close);
+      });
+    },
   }),
 ];

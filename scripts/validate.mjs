@@ -31,7 +31,7 @@ const lanes = [
     "http pure universal bundle",
     `bash -c 'grep -qE "from \\"node:" packages/http/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/http/dist/index.mjs\\").then(m=>process.exit(m.httpClient?0:1))"'`,
   ],
-  // @tinker/hono (ADR 0039/0040, hono-v1 t04): same promises; `hono` is a peer import, `node:` is not.
+  // @tinker/hono (ADR 0039/0040/0051, drivers t03): same promises; `hono` is a peer import, `node:` is not.
   ["hono tests", `${VP} run --no-cache hono#test`],
   ["hono size (<= 10 kB gzip)", `${VP} run --no-cache hono#size`],
   [
@@ -40,7 +40,7 @@ const lanes = [
   ],
   [
     "hono pure universal bundle",
-    `bash -c 'grep -qE "from \\"node:" packages/hono/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/hono/dist/index.mjs\\").then(m=>process.exit(m.tinker&&m.handle&&m.stream?0:1))"'`,
+    `bash -c 'grep -qE "from \\"node:" packages/hono/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/hono/dist/index.mjs\\").then(m=>process.exit(m.hono&&m.route&&m.stream?0:1))"'`,
   ],
   // @tinker/drizzle (ADR 0041, drizzle-v1 t02): same promises; drizzle-orm is types-only at runtime.
   ["drizzle tests", `${VP} run --no-cache drizzle#test`],

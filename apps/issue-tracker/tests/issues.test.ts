@@ -1,4 +1,5 @@
 import { createScope, type Operation, type Scope } from "@tinker/core";
+import { hono, route } from "@tinker/hono";
 import { memoryPair, subscribe, sync } from "@tinker/sync";
 import {
   addComment,
@@ -11,6 +12,7 @@ import {
   parseIssueList,
   publishIssues,
   readDetail,
+  readIssues,
   store,
 } from "../src/index.ts";
 import { mkdtempSync } from "node:fs";
@@ -110,6 +112,47 @@ test("the HTTP routes save through app.request", async () => {
     const saved = parseIssueList(await list.json());
     expect(saved.length).toBe(1);
     expect(saved[0]?.title).toBe("Via HTTP");
+  } finally {
+    await scope.close({ graceful: true });
+  }
+});
+
+test("one row plus one extension answers a read with no composition root", async () => {
+  const web = hono({ routes: [route.get("/api/issues", () => readIssues)] });
+  const scope = createScope({
+    tags: [store.config(undefined)],
+    extensions: [web],
+  });
+  try {
+    await scope.ready;
+    const res = await scope.resolve(web).request("/api/issues");
+    expect(res.status).toBe(200);
+    expect(parseIssueList(await res.json())).toEqual([]);
+  } finally {
+    await scope.close({ graceful: true });
+  }
+});
+
+test("publishAfterCommit republishes after a POST and keeps the cell on a 400", async () => {
+  const { scope, app } = await boot();
+  try {
+    const before = scope.resolve(issueList);
+    const rejected = await app.request("/api/issues", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: "", description: "x" }),
+    });
+    expect(rejected.status).toBe(400);
+    expect(scope.resolve(issueList)).toBe(before);
+
+    const saved = await app.request("/api/issues", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: "Hooked", description: "via hook" }),
+    });
+    expect(saved.status).toBe(201);
+    expect(scope.resolve(issueList).map((i) => i.title)).toEqual(["Hooked"]);
+    expect(scope.resolve(issueList)).not.toBe(before);
   } finally {
     await scope.close({ graceful: true });
   }
