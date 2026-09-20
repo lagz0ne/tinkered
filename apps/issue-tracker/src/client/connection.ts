@@ -84,6 +84,7 @@ export function reconnectingTransport(baseUrl: string): ReconnectingWire {
 
   function open(): EventSource {
     const next = new EventSource(url);
+    stream = next;
     next.onopen = () => {
       if (closed || stream !== next) return;
       settled = true;
@@ -109,7 +110,7 @@ export function reconnectingTransport(baseUrl: string): ReconnectingWire {
     return next;
   }
 
-  stream = open();
+  open();
 
   const post = async (message: Sync.Message, signal: AbortSignal): Promise<void> => {
     let res: Response;
@@ -165,8 +166,8 @@ export function reconnectingTransport(baseUrl: string): ReconnectingWire {
       if (closed) return;
       flip("connecting");
       stream?.close();
+      stream = null;
       const next = open();
-      stream = next;
       await new Promise<void>((resolve, reject) => {
         next.onopen = () => resolve();
         next.onerror = () => reject(fail("SyncDropped", { reason: "reconnect failed" }));
