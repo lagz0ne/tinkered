@@ -9,7 +9,13 @@ import type {
   TurnOptions,
 } from "@openai/codex-sdk";
 import { codex, harness, isError, type Harness, type OpenAiCodex } from "../src/index.ts";
-import { readCodexCut, readCodexFailure, readCodexScript, type CodexScript } from "./fixtures.ts";
+import {
+  readCodexCut,
+  readCodexFailure,
+  readCodexScript,
+  readCommand,
+  type CodexScript,
+} from "./fixtures.ts";
 
 /** One `runStreamed` call a fake thread saw: the input plus the turn options. */
 type SeenTurn = { readonly input: Input; readonly turnOptions: TurnOptions | undefined };
@@ -481,5 +487,46 @@ test("a reasoning item records the event phase, not an SDK status", async () => 
     "reasoning",
     "reasoning",
   ]);
+  await scope.close();
+});
+
+test("a failed command item keeps the SDK's failed status", async () => {
+  const seen: Seen = { turns: [], clients: [] };
+  const coder = harness({ label: "coder", adapter: codex });
+  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
+  const failed = {
+    ...readCommand("completed"),
+    id: "c-9",
+    status: "failed",
+  } as ThreadItem;
+  const scope = createScope({
+    presets: [
+      preset(codex.sdk, async () =>
+        fakeCodexSdk(
+          [
+            {
+              events: [
+                { type: "item.completed", item: failed },
+                {
+                  type: "turn.completed",
+                  usage: {
+                    input_tokens: 1,
+                    cached_input_tokens: 0,
+                    cache_write_input_tokens: 0,
+                    output_tokens: 1,
+                    reasoning_output_tokens: 0,
+                  },
+                },
+              ],
+            },
+          ],
+          seen,
+        ),
+      ),
+    ],
+  });
+  const session = scope.createSession();
+  await session.run(ask, { input: "hello" });
+  expect(session.resolve(coder.items).map((item) => item.status)).toEqual(["failed"]);
   await scope.close();
 });
