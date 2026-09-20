@@ -37,7 +37,10 @@ import {
 } from "./state.ts";
 
 /** The create form: the draft lives in a cell, the save is an operation, and the failure
- * message reads off the run's error — the draft survives a failed save. */
+ * message reads off the run's error — the draft survives a failed save. The submit reads
+ * nothing from the render: the cell already holds every keystroke (written synchronously in
+ * `onChange`), so even a click that beats the re-render saves the fresh draft. The disabled
+ * button is the empty guard; a blank title is refused at the operation's door. */
 function IssueForm() {
   const draft = useData(newIssue);
   const create = useRun(submitNewIssue);
@@ -45,23 +48,10 @@ function IssueForm() {
   const type = useRun(typeNewIssue);
   function submit(event: React.FormEvent): void {
     event.preventDefault();
-    if (draft.title.trim().length === 0) return;
     create.run();
   }
   return (
-    <form
-      onSubmit={submit}
-      aria-label="create issue"
-      onKeyDown={(event) => {
-        if (event.key === "Enter" && event.target instanceof HTMLInputElement) {
-          const form = event.currentTarget;
-          if (form.requestSubmit !== undefined) {
-            event.preventDefault();
-            form.requestSubmit();
-          }
-        }
-      }}
-    >
+    <form onSubmit={submit} aria-label="create issue">
       <label htmlFor="create-title">
         Title
         <input
@@ -227,7 +217,9 @@ function EditForm() {
   );
 }
 
-/** The comment form: the draft text and author live in cells; the notice reads off the run. */
+/** The comment form: the draft text and author live in cells; the notice reads off the run.
+ * Like the create form, the submit reads nothing from the render — the cells already hold
+ * every keystroke, so a click that beats the re-render still posts the fresh draft. */
 function CommentForm(props: { readonly issueId: string }) {
   const text = useData(commentDraft);
   const author = useData(commentAuthor);
@@ -236,7 +228,6 @@ function CommentForm(props: { readonly issueId: string }) {
   const type = useRun(typeComment);
   function submit(event: React.FormEvent): void {
     event.preventDefault();
-    if (text.trim().length === 0) return;
     comment.run();
   }
   return (
