@@ -8,7 +8,7 @@ non-null `!`.
 | Folder           | Reads                                                                                                                                     |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `core/`          | the whole `@tinker/core` API: data, operation, resource, clock                                                                            |
-| `react/`         | the `@tinker/react` seam: providers, cells, suspending resource                                                                           |
+| `react/`         | the `@tinker/react` seam: providers, cells, suspending resource; `form.tsx` (one-cell draft, `typeDraft` + `saveDraft`)                   |
 | `http/`          | the `@tinker/http` frame: client, endpoints, per-call tags                                                                                |
 | `hono/`          | the `@tinker/hono` driver: scope at the entrypoint, per-request session                                                                   |
 | `drizzle/`       | the `@tinker/drizzle` store on PGlite                                                                                                     |
