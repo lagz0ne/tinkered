@@ -1,6 +1,7 @@
 /** Payload type for each hono error. The registry is the only place this package throws. */
 type Payloads = {
   NoSession: { label: string };
+  InputRejected: { label: string; cause: unknown };
 };
 
 export declare namespace Errors {

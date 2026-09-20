@@ -31,9 +31,8 @@ export declare namespace HonoScope {
     c: Context,
   ) => Response | undefined | Promise<Response | undefined>;
   /** Read the raw input off the request; may return a promise (a JSON body read).
-   * A promise is awaited before the operation runs; a rejection propagates like any
-   * thrown error into `mapError` — a malformed body never reached the operation's
-   * parser, so it is not a 400. */
+   * A promise is awaited before the operation runs; a rejection answers 400 like a
+   * parse failure — the request edge could not read what the client sent. */
   export type Input = (c: Context) => unknown;
   /** How a route answers: parses the request into raw input and writes the value. `I`
    * selects the overload (required `input` when the operation takes one); only `T` is read. */
@@ -247,7 +246,7 @@ export function handle<T, I>(op: Operation.Handle<T, I>, route?: HonoScope.Route
     return session.run({
       label: `${c.req.method} ${c.req.routePath}`,
       depends: { op },
-      run: readRoute(route, c, onError),
+      run: readRoute(route, c, onError, op.label),
     });
   };
   return run;
@@ -266,6 +265,7 @@ function readRoute<T, I>(
   route: HonoScope.Route<I, T> | undefined,
   c: Context,
   onError: HonoScope.OnError | undefined,
+  label: string,
 ): (
   deps: { readonly op: Scope.OperationController<T, I> },
   ctx: Operation.Ctx<void>,
@@ -301,7 +301,7 @@ function readRoute<T, I>(
         const ran =
           readInput !== undefined
             ? isThenable(raw)
-              ? flow.run({ rawInput: await raw })
+              ? flow.run({ rawInput: await readBody(raw, label) })
               : flow.run({ rawInput: raw })
             : runVoid(flow);
         value = await ran;
@@ -319,9 +319,19 @@ function readRoute<T, I>(
   };
 }
 
+/** Read an async body: a rejection is the client's fault, named at the request edge. */
+async function readBody(raw: PromiseLike<unknown>, label: string): Promise<unknown> {
+  try {
+    return await raw;
+  } catch (cause: unknown) {
+    raise("InputRejected", { label, cause });
+  }
+}
+
 /** Map a request failure to a Response. `onError` answers first; the default map answers
- * 400 (input parse), 500 (a missing binding); anything else rethrows to Hono's `onError`.
- * A cancelled request logs 499 then rethrows — Hono ends an aborted request itself. */
+ * 400 (input parse, or the body read itself failing), 500 (a missing binding); anything
+ * else rethrows to Hono's `onError`. A cancelled request logs 499 then rethrows — Hono
+ * ends an aborted request itself. */
 function mapError(
   error: unknown,
   c: Context,
@@ -331,7 +341,8 @@ function mapError(
   const custom = onError ? onError(error, c) : undefined;
   return Promise.resolve(custom).then((response) => {
     if (response) return response;
-    if (isCoreError(error, "DataValidationFailed")) return c.text("bad request", 400);
+    if (isCoreError(error, "DataValidationFailed") || isError(error, "InputRejected"))
+      return c.text("bad request", 400);
     if (signal.aborted || error === signal.reason) return undefined;
     if (isCoreError(error, "MissingTag") || isError(error, "NoSession"))
       return c.text("internal", 500);

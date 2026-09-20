@@ -65,9 +65,9 @@ opens the session per request, `handle(op, { input?, respond? })` answers one en
 composes the two — it adds no request logic of its own.
 
 The `input` callback may return a promise: `handle` awaits it, then parses the value
-through the operation's `input`. Pass a JSON body read straight through — a malformed
-body rejects out of `input` and flows into the same error map as any other throw (it
-never reached the operation's parser, so it is not a 400):
+through the operation's `input`. Pass a JSON body read straight through — a rejected
+body read answers 400 like a parse failure: the request edge could not read what the
+client sent.
 
 ```ts
 route.post("/users", () => createUser, {
@@ -114,6 +114,7 @@ start, since a later call cannot upgrade an in-progress graceful close.
 | failure                                                                      | status                                    |
 | ---------------------------------------------------------------------------- | ----------------------------------------- |
 | the operation's `parse` threw (`DataValidationFailed`, raw error as `cause`) | 400                                       |
+| the async body read failed (`InputRejected`, raw error as `cause`)           | 400                                       |
 | request cancelled (abort)                                                    | 499 (logged, then Hono rejects as before) |
 | `MissingTag` / `NoSession`                                                   | 500                                       |
 | anything else                                                                | rethrown to Hono's `onError`, no log line |

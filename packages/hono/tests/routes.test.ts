@@ -160,6 +160,7 @@ test("an async input read answers the parsed body; a malformed body takes the er
     headers: { "content-type": "application/json" },
     body: "{broken",
   });
-  expect(bad.status).toBe(500);
+  expect(bad.status).toBe(400);
+  expect(await bad.text()).toBe("bad request");
   await scope.close();
 });
