@@ -28,37 +28,27 @@ export function onError(error: unknown, c: Parameters<HonoScope.OnError>[1]) {
   return undefined;
 }
 
-/** Read a JSON body, admitting a missing or malformed one as undefined so the
- * operation's own parser answers the 400 at its door. */
-async function readBody(c: Context): Promise<unknown> {
-  try {
-    return await c.req.json();
-  } catch {
-    return undefined;
-  }
+/** Merge a JSON body over the route's path values. A missing body reads as the
+ * path values alone; a malformed one rejects out of `c.req.json()` and hono
+ * answers 400 at the request edge. */
+async function readBody(c: Context, extra: Record<string, unknown>): Promise<unknown> {
+  const body = await c.req.json();
+  return typeof body === "object" && body !== null ? { ...body, ...extra } : extra;
 }
 
 /** Every /api route as scope config: the verb plus path, the domain operation,
  * and the request shape. Mounted eagerly by `honoApp` in the composition root. */
 export const issueRoutes: readonly Tag.Binding<HonoScope.BoundRoute>[] = [
   route.post("/api/issues", () => createIssue, {
-    input: (c) => c.req.json(),
+    input: (c) => readBody(c, {}),
     respond: (issue, c) => c.json(issue, 201),
   }),
   route.patch("/api/issues/:id", () => editIssue, {
-    input: async (c) => {
-      const body = await readBody(c);
-      const id = c.req.param("id");
-      return typeof body === "object" && body !== null ? { ...body, id } : { id };
-    },
+    input: (c) => readBody(c, { id: c.req.param("id") }),
     respond: (issue, c) => c.json(issue, 200),
   }),
   route.post("/api/issues/:id/comments", () => addComment, {
-    input: async (c) => {
-      const body = await readBody(c);
-      const issueId = c.req.param("id");
-      return typeof body === "object" && body !== null ? { ...body, issueId } : { issueId };
-    },
+    input: (c) => readBody(c, { issueId: c.req.param("id") }),
     respond: (comment, c) => c.json(comment, 201),
   }),
   route.get("/api/issues/:id", () => readDetail, {
