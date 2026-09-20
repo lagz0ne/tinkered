@@ -4,6 +4,7 @@ import type {
   Options,
   SDKMessage,
   SDKPartialAssistantMessage,
+  SDKStatusMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import { claudeCode, harness, isError, type ClaudeCode, type Harness } from "../src/index.ts";
 import {
@@ -291,5 +292,22 @@ test("a stream that ends with no result rejects TurnEnded", async () => {
   );
   if (!isError(outcome, "TurnEnded")) throw outcome;
   expect(outcome.payload.harness).toBe("claudeCode");
+  await scope.close();
+});
+
+test("a non-init system message leaves the id cell alone", async () => {
+  const status: SDKStatusMessage = {
+    type: "system",
+    subtype: "status",
+    status: "compacting",
+    uuid: "11111111-2222-4333-8444-555555555555",
+    session_id: "s-2",
+  };
+  const script = readScript("Hello");
+  const mixed: Script = { messages: [status, ...script.messages] };
+  const { coder, ask, scope } = readSetup([mixed], []);
+  const session = scope.createSession();
+  await session.run(ask, { input: "hello" });
+  expect(session.resolve(coder.id)).toBe("s-1");
   await scope.close();
 });
