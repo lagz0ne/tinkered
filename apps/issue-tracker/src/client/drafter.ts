@@ -158,16 +158,10 @@ export const drafter = resource({
         stop();
         const mine = epoch;
         run.set({ view: "running", text: "", draft: "", notice: null });
-        return (async () => {
-          let stream: ReadableStream<Uint8Array>;
-          try {
-            stream = await open.run({ input: { id, prompt } });
-          } catch (error: unknown) {
-            landThrown(mine, null, error);
-            return;
-          }
-          await pump(stream, mine);
-        })();
+        return open.run({ input: { id, prompt } }).then(
+          (stream) => pump(stream, mine),
+          (error: unknown) => landThrown(mine, null, error),
+        );
       },
       cancel(): void {
         stop();
