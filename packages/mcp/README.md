@@ -50,43 +50,26 @@ await server.connect(new StdioServerTransport());
 ```
 
 The stdio entry through `@tinker/cli` (`examples/mcp/cli.ts`) — the same
-`search` row, then an entry command that resolves the installed extension off
-the scope `runMain` created. A harness runs `node cli.ts mcp`:
+`search` row, then an entry command whose closure resolves the installed
+extension off the root (so the root does its own ≤ 30-line glue instead of
+`runMain`). A harness runs `node cli.ts mcp`:
 
 ```ts
-import type { Scope } from "@tinker/core";
-import { command, runMain } from "@tinker/cli";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { createScope } from "@tinker/core";
+import { cli, command } from "@tinker/cli";
 
-async function serve(server: McpServer, scope: Scope.Handle): Promise<void> {
-  const stopped = Promise.withResolvers<void>();
-  const stop = () => stopped.resolve();
-  scope.onClose(stop);
-  process.stdin.once("end", stop);
-  server.server.onclose = stop;
-  try {
-    await server.connect(new StdioServerTransport());
-    if (process.stdin.readableEnded) stop();
-    await stopped.promise;
-  } finally {
-    process.stdin.removeListener("end", stop);
-    await server.close();
-  }
-}
-
-async function serveEntry(scope: Scope.Handle): Promise<void> {
-  await serve(scope.resolve(searchMcp), scope);
-}
-
-await runMain({
+const shell = cli({
   name: "coder",
   version: "1.0.0",
-  scope: {
-    tags: [command.entry("mcp", () => serveEntry)],
-    extensions: [searchMcp],
-  },
+  commands: [
+    command.entry("mcp", async () =>
+      serve(scope.resolve(searchMcp), { onClose: scope.onClose.bind(scope) }),
+    ),
+  ],
 });
+const scope = createScope({ extensions: [searchMcp, shell] });
+await scope.ready;
+const run = scope.resolve(shell);
 ```
 
 The entry must wait for its serving lifetime. `connect()` only opens the transport;
@@ -94,16 +77,14 @@ returning it alone makes `runMain` close the scope and exit before tool calls ar
 Here EOF or a transport close settles the entry; a CLI signal closes the scope and
 settles it too. The `finally` closes the transport in each case.
 
-The CLI mirror: a command is an operation with `command` meta from
-`@tinker/cli`, so one operation can carry `command` meta for the CLI and a
-separate MCP row can expose it as a tool at once:
+The CLI mirror: a command is a `command(name, op, { input })` row from
+`@tinker/cli`, so one operation can ride a CLI row and a separate MCP row
+at once:
 
 ```ts
-const search = operation({
-  label: "search",
-  input: z.object(searchShape).parse,
-  meta: [command({ description: "search the index", argv: (argv) => argv[0] })],
-  run: (_deps, ctx) => [`hit:${ctx.input.q}`],
+const searchRow = command("search", search, {
+  description: "search the index",
+  input: (argv) => ({ q: argv[0] }),
 });
 const searchTool = expose(search, { description: "search the index", schema: searchShape });
 ```

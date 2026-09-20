@@ -1,5 +1,5 @@
 import { operation } from "@tinker/core";
-import { command, commands } from "@tinker/cli";
+import { command, type Cli } from "@tinker/cli";
 import { isError as isHttpError } from "@tinker/http";
 import { expose, mcp, tool, type Mcp } from "@tinker/mcp";
 import { z } from "zod";
@@ -114,13 +114,10 @@ async function readRemoteError(error: unknown, fallbackId: string): Promise<unkn
 
 /** List the saved issues through the running server. The `tool` meta stays until
  * the harness ticket: the harness reads it off this op, while MCP reads the
- * `issueTools` rows below. */
+ * `issueTools` rows and the CLI reads the `issueCommands` rows below. */
 export const listRemote = operation({
   label: "list",
-  meta: [
-    command({ description: "list the saved issues" }),
-    tool({ description: "list the saved issues", schema: {} }),
-  ],
+  meta: [tool({ description: "list the saved issues", schema: {} })],
   depends: { issues: getIssues },
   run: async ({ issues }) => {
     try {
@@ -135,12 +132,6 @@ export const listRemote = operation({
 export const createRemote = operation({
   label: "create",
   input: parseCreateInput,
-  meta: [
-    command({
-      description: "create one issue: create --title T --description D",
-      argv: readCreateArgs,
-    }),
-  ],
   depends: { saved: postIssue },
   run: async ({ saved }, ctx) => {
     try {
@@ -155,13 +146,6 @@ export const createRemote = operation({
 export const updateRemote = operation({
   label: "update",
   input: parseEditInput,
-  meta: [
-    command({
-      description:
-        "save an edit: update ID --base-revision N [--title T] [--status S] [--assignee A]",
-      argv: readUpdateArgs,
-    }),
-  ],
   depends: { saved: patchIssue },
   run: async ({ saved }, ctx) => {
     try {
@@ -176,12 +160,6 @@ export const updateRemote = operation({
 export const commentRemote = operation({
   label: "comment",
   input: parseCommentInput,
-  meta: [
-    command({
-      description: "append a comment: comment ID --author A --text T",
-      argv: readCommentArgs,
-    }),
-  ],
   depends: { saved: postComment },
   run: async ({ saved }, ctx) => {
     try {
@@ -194,12 +172,11 @@ export const commentRemote = operation({
 
 /** Show one saved issue with its comments, activity, and revision. The `tool` meta
  * stays until the harness ticket: the harness reads it off this op, while MCP
- * reads the `issueTools` rows below. */
+ * reads the `issueTools` rows and the CLI reads the `issueCommands` rows below. */
 export const getRemote = operation({
   label: "get",
   input: parseGetInput,
   meta: [
-    command({ description: "show one saved issue with its detail", argv: readGetArgs }),
     tool({ description: "show one saved issue with comments and activity", schema: getShape }),
   ],
   depends: { detail: getDetail },
@@ -212,13 +189,27 @@ export const getRemote = operation({
   },
 });
 
-/** The CLI routing rows for the issue commands. Help lists them without a backend. */
-export const issueCommands = [
-  commands(listRemote),
-  commands(createRemote),
-  commands(updateRemote),
-  commands(commentRemote),
-  commands(getRemote),
+/** The CLI wiring rows for the issue commands: the operation plus its argv
+ * reader, handed to `cli({ commands })`. Help lists them without a backend. */
+export const issueCommands: readonly Cli.Row[] = [
+  command("list", listRemote, { description: "list the saved issues" }),
+  command("create", createRemote, {
+    description: "create one issue: create --title T --description D",
+    input: readCreateArgs,
+  }),
+  command("update", updateRemote, {
+    description:
+      "save an edit: update ID --base-revision N [--title T] [--status S] [--assignee A]",
+    input: readUpdateArgs,
+  }),
+  command("comment", commentRemote, {
+    description: "append a comment: comment ID --author A --text T",
+    input: readCommentArgs,
+  }),
+  command("get", getRemote, {
+    description: "show one saved issue with its detail",
+    input: readGetArgs,
+  }),
 ];
 
 /** The MCP wiring rows for the same issue actions: the operation plus its tool

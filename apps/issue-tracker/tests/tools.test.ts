@@ -5,7 +5,7 @@ import { expect, test } from "vite-plus/test";
 import { createScope } from "@tinker/core";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { run } from "@tinker/cli";
+import { cli } from "@tinker/cli";
 import { mcp } from "@tinker/mcp";
 import {
   api,
@@ -60,77 +60,99 @@ function readText(answered: object): string {
   return readTextPart(content[0]);
 }
 
-test("missing and blank revisions report command usage", async () => {
-  const base = { name: "issues", version: "0.1.0" };
-  const usage = `${base.name} ${base.version}\n  comment`;
-  const tags = [...issueCommands, api.config({ baseUrl: "http://127.0.0.1:1" })];
-  const missing = await run({ ...base, scope: { tags }, argv: ["update", "x"] });
-  expect(missing.code).toBe(2);
-  expect(missing.stdout).toBe("");
-  expect(missing.stderr).toContain(usage);
-  const blank = await run({
-    ...base,
-    scope: { tags },
-    argv: ["update", "x", "--base-revision", "  "],
+/** Open the CLI extension on the issue commands with the API config bound. */
+async function openCli(baseUrl: string): Promise<{
+  readonly scope: ReturnType<typeof createScope>;
+  readonly run: (
+    argv: readonly string[],
+  ) => Promise<{ readonly code: number; readonly stdout: string; readonly stderr: string }>;
+}> {
+  const ext = cli({ name: "issues", version: "0.1.0", commands: issueCommands });
+  const scope = createScope({
+    tags: [api.config({ baseUrl })],
+    extensions: [ext],
   });
-  expect(blank.code).toBe(2);
-  expect(blank.stdout).toBe("");
-  expect(blank.stderr).toContain(usage);
+  await scope.ready;
+  return { scope, run: scope.resolve(ext) };
+}
+
+test("missing and blank revisions report command usage", async () => {
+  const { scope, run } = await openCli("http://127.0.0.1:1");
+  try {
+    const usage = "issues 0.1.0\n  comment";
+    const missing = await run(["update", "x"]);
+    expect(missing.code).toBe(2);
+    expect(missing.stdout).toBe("");
+    expect(missing.stderr).toContain(usage);
+    const blank = await run(["update", "x", "--base-revision", "  "]);
+    expect(blank.code).toBe(2);
+    expect(blank.stdout).toBe("");
+    expect(blank.stderr).toContain(usage);
+  } finally {
+    await scope.close({ graceful: true });
+  }
 });
 
 test("help lists the issue commands with no backend", async () => {
-  const helped = await run({
-    name: "issues",
-    version: "0.1.0",
-    scope: { tags: [...issueCommands] },
-    argv: ["help"],
-  });
-  expect(helped.code).toBe(0);
-  expect(helped.stdout).toContain("  list");
-  expect(helped.stdout).toContain("  create");
-  expect(helped.stdout).toContain("  update");
-  expect(helped.stdout).toContain("  comment");
-  expect(helped.stdout).toContain("  get");
-  expect(helped.stderr).toBe("");
+  const { scope, run } = await openCli("http://127.0.0.1:1");
+  try {
+    const helped = await run(["help"]);
+    expect(helped.code).toBe(0);
+    expect(helped.stdout).toContain("  list");
+    expect(helped.stdout).toContain("  create");
+    expect(helped.stdout).toContain("  update");
+    expect(helped.stdout).toContain("  comment");
+    expect(helped.stdout).toContain("  get");
+    expect(helped.stderr).toBe("");
+  } finally {
+    await scope.close({ graceful: true });
+  }
 });
 
 test("CLI drives the saved create/list/update/comment/get through real HTTP", async () => {
   const { scope, app } = await createApp({ dataPath: tempPath() });
   const heard = await hear(app);
-  const tags = [...issueCommands, api.config({ baseUrl: heard.base })];
-  const options = { name: "issues", version: "0.1.0" };
+  const cliScope = await openCli(heard.base);
   try {
-    const created = await run({
-      ...options,
-      scope: { tags },
-      argv: ["create", "--title", "Tool saved", "--description", "via CLI"],
-    });
+    const created = await cliScope.run([
+      "create",
+      "--title",
+      "Tool saved",
+      "--description",
+      "via CLI",
+    ]);
     expect(created.code).toBe(0);
     const made = parseIssue(JSON.parse(created.stdout));
     expect(made.title).toBe("Tool saved");
     expect(made.revision).toBe(0);
 
-    const listed = await run({ ...options, scope: { tags }, argv: ["list"] });
+    const listed = await cliScope.run(["list"]);
     expect(listed.code).toBe(0);
     const seen = parseIssueList(JSON.parse(listed.stdout));
     expect(seen.map((issue) => issue.title)).toEqual(["Tool saved"]);
 
-    const updated = await run({
-      ...options,
-      scope: { tags },
-      argv: ["update", made.id, "--base-revision", String(made.revision), "--status", "done"],
-    });
+    const updated = await cliScope.run([
+      "update",
+      made.id,
+      "--base-revision",
+      String(made.revision),
+      "--status",
+      "done",
+    ]);
     expect(updated.code).toBe(0);
     const moved = parseIssue(JSON.parse(updated.stdout));
     expect(moved.status).toBe("done");
     expect(moved.revision).toBe(1);
     const fresh = await scope.run(readDetail, { input: made.id });
 
-    const stale = await run({
-      ...options,
-      scope: { tags },
-      argv: ["update", made.id, "--base-revision", String(made.revision), "--title", "Late"],
-    });
+    const stale = await cliScope.run([
+      "update",
+      made.id,
+      "--base-revision",
+      String(made.revision),
+      "--title",
+      "Late",
+    ]);
     expect(stale.code).toBe(1);
     expect(stale.stderr).toContain("IssueConflict");
     const kept = await scope.run(readDetail, { input: made.id });
@@ -139,27 +161,31 @@ test("CLI drives the saved create/list/update/comment/get through real HTTP", as
     expect(kept.issue.revision).toBe(1);
     expect(kept.activity.map((entry) => entry.kind)).toEqual(["created", "edited"]);
 
-    const commented = await run({
-      ...options,
-      scope: { tags },
-      argv: ["comment", made.id, "--author", "Ada", "--text", "Shipped"],
-    });
+    const commented = await cliScope.run([
+      "comment",
+      made.id,
+      "--author",
+      "Ada",
+      "--text",
+      "Shipped",
+    ]);
     expect(commented.code).toBe(0);
     const posted = parseComment(JSON.parse(commented.stdout));
     expect(posted.author).toBe("Ada");
     expect(posted.text).toBe("Shipped");
 
-    const shown = await run({ ...options, scope: { tags }, argv: ["get", made.id] });
+    const shown = await cliScope.run(["get", made.id]);
     expect(shown.code).toBe(0);
     const detail = parseIssueDetail(JSON.parse(shown.stdout));
     expect(detail.issue.revision).toBe(1);
     expect(detail.comments.map((comment) => comment.text)).toEqual(["Shipped"]);
     expect(detail.activity.map((entry) => entry.kind)).toEqual(["created", "edited", "commented"]);
 
-    const gone = await run({ ...options, scope: { tags }, argv: ["get", "missing-id"] });
+    const gone = await cliScope.run(["get", "missing-id"]);
     expect(gone.code).toBe(1);
     expect(gone.stderr).toContain("IssueNotFound");
   } finally {
+    await cliScope.scope.close({ graceful: true });
     await heard.stop();
     await scope.close({ graceful: true });
   }

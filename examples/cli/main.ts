@@ -12,18 +12,16 @@ const greet = operation({
   run: (_deps, ctx) => `hello ${ctx.input}`,
 });
 
-/** The real entrypoint: the tour's routing table shape, run through the
- * process — argv in, exit code out. The smoke test spawns this file. */
+/** The real entrypoint: the tour's row table, run through the process — argv
+ * in, exit code out. The smoke test spawns this file. */
 await runMain({
   name: "tinker",
   version: "0.0.0",
-  scope: {
-    tags: [
-      command("ping", () => ping),
-      command("greet", () => greet, {
-        input: (argv) => argv[0],
-        respond: (value) => `${value}\n`,
-      }),
-    ],
-  },
+  commands: [
+    command("ping", () => ping),
+    command("greet", () => greet, {
+      input: (argv) => argv[0],
+      respond: (value) => `${value}\n`,
+    }),
+  ],
 });

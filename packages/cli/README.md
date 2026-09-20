@@ -1,12 +1,12 @@
 # @tinker/cli
 
-The entrypoint driver: it owns the scope, routes argv to lazily loaded
-operations bound on the scope, and maps the outcome to stdout and an exit code
-(ADR 0042).
+The CLI driver is an extension (ADR 0051): `cli(wiring)` installs the routing
+rows, `scope.resolve(ext)` is `run(argv, io)`, and `runMain` is the root glue
+over it.
 
 ```ts
 import { operation } from "@tinker/core";
-import { command, commands, runMain } from "@tinker/cli";
+import { cli, command } from "@tinker/cli";
 
 const migrate = operation({
   label: "migrate",
@@ -14,51 +14,46 @@ const migrate = operation({
     if (typeof raw !== "string") throw new Error("bad target");
     return raw;
   },
-  meta: [command({ description: "apply migrations", argv: (argv) => argv[0] })],
   run: (_deps, ctx) => `migrated to ${ctx.input}`,
 });
 
-await runMain({
+const shell = cli({
   name: "app",
   version: "1.0.0",
-  scope: {
-    tags: [
-      commands(migrate),
-      command.entry("serve", () => import("./serve.ts").then((m) => m.serve)),
-    ],
-  },
+  commands: [
+    command("migrate", () => import("./migrate.ts").then((m) => m.migrate), {
+      description: "apply migrations",
+      input: (argv) => argv[0],
+    }),
+    command.entry("serve", (argv) => serveMain(argv)),
+  ],
 });
 ```
 
-A command is an ordinary operation with `command` meta, the same rule
-`@tinker/mcp` sets for tools (ADR 0046): one declaration can be a CLI command
-and an MCP tool. `command(name, load, { input?, respond? })` binds a lazily
-loaded row instead; either way the command runs in a session as an inline op
-(`app migrate` span, one `cli command` log line). The loader runs once, only for the selected
-command — `help` loads nothing. `command.entry` binds a server-style command
-that receives the scope itself. A command may also bind through a resource
-that delivers its operation — built once per scope and
-observable as a `resource` span (ADR 0042, ADR 0044):
+A row is an operation plus its CLI edges (`input` hands raw argv to the
+operation's parse; `respond` writes the value), or an entry run by hand. Either
+way the routing table is flat wiring handed to the extension — no scope tags,
+no meta. `command.entry` takes only a direct entry: it receives `(argv)` and
+reads anything else from its defining module's closure, the root.
 
-```ts
-import { resource } from "@tinker/core";
+The loader runs only for the selected command — `help` loads nothing — and is
+memoized on the row, so a second run on the same table reuses the operation.
+An operation command runs in a session as an inline op (`app migrate` span,
+one `cli command` log line) opened on the `start` scope; `io.signal` (tests)
+force-closes that scope, the same close signals own in `runMain`.
 
-command(
-  "migrate",
-  resource({ label: "app.migrate", factory: () => import("./migrate.ts").then((m) => m.migrate) }),
-);
-```
+Tests skip the process: install the extension, `await scope.ready`, resolve
+`run`, and call `run(["migrate", "v2"], io)` — it returns
+`{ code, stdout, stderr }`. The root outlives a run; close it when done. See
+core's [observation guide](../core/README.md#observation) for spans.
 
-Tests skip the
-process: `run({ name, version, scope, argv, io })` returns `{ code, stdout,
-stderr }`, and `io.signal` is the stand-in for SIGINT/SIGTERM (abort → 130).
-
-Each operation command opens and closes a fresh session. Include that setup and cleanup
-when measuring frequent, short calls.
-
-To collect spans from `run`, supply `scope.observe.export` in its options before starting
-the driver; `run` owns the scope and returns only its result. See core's
-[observation guide](../core/README.md#observation).
+`runMain(wiring, scope?)` is the real entrypoint: install the extension beside
+any extra scope options, `ready`, resolve `run`, wire SIGINT/SIGTERM to an
+abort, close graceful, `process.exit` with the run's code. Never returns. When
+an entry must resolve a sibling extension off the root (the tracker's `mcp`
+entry resolving its MCP server), `runMain` cannot serve — it never hands the
+root back — so the root does the same ≤ 30 lines by hand (see
+`apps/issue-tracker/src/tools/main.ts`).
 
 Exit codes: 0 success · 1 failure (message to stderr) · 2 usage (unknown or
 missing command, or the operation's parse failure) · 130 interrupted.
