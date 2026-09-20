@@ -236,7 +236,7 @@ function readAgentMessage(id: string, text: string): ThreadItem {
 }
 
 /** One recorded command item: `ls`, still running or done with its output. */
-export function readCommand(status: "in_progress" | "completed"): ThreadItem {
+export function readCommand(status: "in_progress" | "completed" | "failed"): ThreadItem {
   if (status === "in_progress")
     return { id: "c-1", type: "command_execution", command: "ls", aggregated_output: "", status };
   return {

@@ -494,11 +494,7 @@ test("a failed command item keeps the SDK's failed status", async () => {
   const seen: Seen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
   const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
-  const failed = {
-    ...readCommand("completed"),
-    id: "c-9",
-    status: "failed",
-  } as ThreadItem;
+  const failed = { ...readCommand("failed"), id: "c-9" };
   const scope = createScope({
     presets: [
       preset(codex.sdk, async () =>
