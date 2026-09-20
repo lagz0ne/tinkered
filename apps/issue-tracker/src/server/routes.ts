@@ -102,7 +102,9 @@ export const issueRoutes: readonly HonoScope.Row[] = [
         emit(": ready\n\n");
         const wire = sseTransport(emit, ctx.signal);
         const close = opened.wires.open(id, wire.deliver);
-        return opened.origin.connect(wire).then(close, close);
+        return opened.origin.connect(wire).then(() => {
+          close();
+        });
       });
     },
   }),

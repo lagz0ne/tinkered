@@ -2,10 +2,12 @@ import { operation, resource, type Resource } from "@tinker/core";
 import type { Stream } from "@tinker/hono";
 import { source, type Sync } from "@tinker/sync";
 import { raise } from "../errors.ts";
+import { issueList } from "../shared/issues.ts";
 
 /** The source extension, one identity per process: `createApp` installs this
- * same object and the `/sync` row's op declares it in `depends`. */
-export const src = source();
+ * same object and the `/sync` row's op declares it in `depends`. The row
+ * names the shared list's key. */
+export const src = source({ cells: [[issueList, "issues"]] });
 
 export declare namespace Viewers {
   /** One connected tab's inbox: open it once per stream, deliver posts into it. */

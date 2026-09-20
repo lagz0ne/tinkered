@@ -1,8 +1,7 @@
 import type { Hono } from "hono";
 import { createScope, type Scope } from "@tinker/core";
 import { hono } from "@tinker/hono";
-import { sync, type Sync } from "@tinker/sync";
-import { issueList } from "../shared/issues.ts";
+import { type Sync } from "@tinker/sync";
 import { api } from "../client/api.ts";
 import { draftGuardrails, draftHelper } from "./draft.ts";
 import { publishIssues } from "./operations.ts";
@@ -30,7 +29,6 @@ export async function createApp(config: AppConfig): Promise<{
   const scope = createScope({
     tags: [
       store.config(config.dataPath),
-      sync(issueList),
       ...(config.draft === undefined
         ? []
         : [

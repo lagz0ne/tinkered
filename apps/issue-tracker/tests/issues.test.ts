@@ -1,6 +1,6 @@
 import { createScope, type Operation, type Scope } from "@tinker/core";
 import { hono, route } from "@tinker/hono";
-import { memoryPair, subscribe, sync } from "@tinker/sync";
+import { memoryPair, subscribe } from "@tinker/sync";
 import {
   addComment,
   createApp,
@@ -51,8 +51,8 @@ test("creating a valid issue saves it and a second viewer sees it", async () => 
   const { scope, src } = await boot();
   const [near, far] = memoryPair();
   const served = scope.resolve(src).connect(near);
-  const sub = subscribe(far);
-  const guest = createScope({ tags: [sync(issueList)], extensions: [sub] });
+  const sub = subscribe(far, { cells: [[issueList, "issues"]] });
+  const guest = createScope({ extensions: [sub] });
   try {
     await guest.ready;
     expect(guest.resolve(issueList)).toEqual([]);
@@ -64,7 +64,7 @@ test("creating a valid issue saves it and a second viewer sees it", async () => 
     expect(guest.resolve(issueList)[0]?.title).toBe("First");
   } finally {
     guest.resolve(sub).close();
-    await served;
+    expect((await served).status).toBe("success");
     await guest.close({ graceful: true });
     await scope.close({ graceful: true });
   }
@@ -287,8 +287,8 @@ test("a stale edit publishes no new snapshot to a live viewer", async () => {
   const { scope, src } = await boot();
   const [near, far] = memoryPair();
   const served = scope.resolve(src).connect(near);
-  const sub = subscribe(far);
-  const guest = createScope({ tags: [sync(issueList)], extensions: [sub] });
+  const sub = subscribe(far, { cells: [[issueList, "issues"]] });
+  const guest = createScope({ extensions: [sub] });
   try {
     await guest.ready;
     const created = await save(scope, createIssue, { title: "Watched", description: "v1" });
@@ -305,7 +305,7 @@ test("a stale edit publishes no new snapshot to a live viewer", async () => {
     expect(guest.resolve(issueList)[0]?.revision).toBe(0);
   } finally {
     guest.resolve(sub).close();
-    await served;
+    expect((await served).status).toBe("success");
     await guest.close({ graceful: true });
     await scope.close({ graceful: true });
   }

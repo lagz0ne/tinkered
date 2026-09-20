@@ -1,5 +1,4 @@
 import { data } from "@tinker/core";
-import { synced } from "@tinker/sync";
 import { raise } from "../errors.ts";
 
 export declare namespace Issues {
@@ -303,10 +302,9 @@ function readNewCommentText(raw: Record<string, unknown>): string {
   return raw.text;
 }
 
-/** The shared truth: every saved issue. Synced so two tabs see the same list. */
+/** The shared truth: every saved issue. The sync wiring row names its key. */
 export const issueList = data({
   label: "issues",
   initial: [] as readonly Issues.Issue[],
   parse: parseIssueList,
-  meta: [synced({ key: "issues" })],
 });

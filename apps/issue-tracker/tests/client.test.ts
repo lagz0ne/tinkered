@@ -1,6 +1,5 @@
 import { createScope, preset } from "@tinker/core";
 import { backend, HttpRequest, HttpResponse, type HttpClient } from "@tinker/http";
-import { sync } from "@tinker/sync";
 import { expect, test } from "vite-plus/test";
 import {
   api,
@@ -15,7 +14,6 @@ import {
   editDraft,
   getDetail,
   isError,
-  issueList,
   loadDetail,
   newIssue,
   patchIssue,
@@ -195,7 +193,7 @@ function readWire(): ReconnectingWire {
 async function bootClient(answers: Parameters<typeof readFake>[0]) {
   const { fake, seen } = readFake(answers);
   const scope = createScope({
-    tags: [api.config({ baseUrl: "http://x" }), sync(issueList), backend(fake), wire(readWire())],
+    tags: [api.config({ baseUrl: "http://x" }), backend(fake), wire(readWire())],
     extensions: [],
   });
   return { scope, seen };
@@ -221,7 +219,6 @@ test("selecting an issue with a preset detail fills the detail cell and seeds th
   const presetScope = createScope({
     tags: [
       api.config({ baseUrl: "http://x" }),
-      sync(issueList),
       backend(readFake({ issue: ISSUE, detail: DETAIL, comment: COMMENT }).fake),
       wire(readWire()),
     ],
@@ -330,7 +327,7 @@ const DRAFT_FRAMES = [
 async function bootDraftClient(answers: Parameters<typeof readFake>[0]) {
   const { fake, seen } = readFake(answers);
   const scope = createScope({
-    tags: [api.config({ baseUrl: "http://x" }), sync(issueList), backend(fake), wire(readWire())],
+    tags: [api.config({ baseUrl: "http://x" }), backend(fake), wire(readWire())],
     extensions: [],
   });
   scope.resolve(drafter);
@@ -391,7 +388,7 @@ test("a broken frame fails the run, cancels the stream, and saves nothing", asyn
     );
   };
   const scope = createScope({
-    tags: [api.config({ baseUrl: "http://x" }), sync(issueList), backend(fake), wire(readWire())],
+    tags: [api.config({ baseUrl: "http://x" }), backend(fake), wire(readWire())],
     extensions: [],
   });
   try {
@@ -430,7 +427,6 @@ test("the client operations are presettable without the network", async () => {
   const scope = createScope({
     tags: [
       api.config({ baseUrl: "http://x" }),
-      sync(issueList),
       backend(readFake({ issue: ISSUE, detail: DETAIL, comment: COMMENT }).fake),
       wire(readWire()),
     ],

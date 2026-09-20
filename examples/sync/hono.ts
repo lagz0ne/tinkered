@@ -108,9 +108,8 @@ const web = hono({
             for (const arrival of arrivals) arrival(message);
           });
           ctx.signal.addEventListener("abort", () => transport.close(), { once: true });
-          return opened.origin.connect(transport).then((end) => {
+          return opened.origin.connect(transport).then(() => {
             opened.posts.delete(id);
-            return end;
           });
         });
       },
