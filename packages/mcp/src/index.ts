@@ -1,5 +1,5 @@
 import type { Operation, Scope, Tag } from "@tinker/core";
-import { isError as isCoreError, tag } from "@tinker/core";
+import { extension, isError as isCoreError, tag } from "@tinker/core";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { ZodTypeAny } from "zod";
@@ -8,14 +8,15 @@ import { isError, raise } from "./errors.ts";
 export { isError };
 export type { Errors } from "./errors.ts";
 
-/** A tool is an operation with description meta: the handler is the operation's
- * `run`, the input its `parse`, the static facts ride on the handle's `meta`,
- * and the list is scope config read by the driver (ADR 0046). */
+/** A tool is an operation plus its description facts: the wiring row names the
+ * operation and carries the facts, the driver registers one MCP tool per row
+ * (ADR 0051). The `tool` meta tag stays exported — harnesses read it off bound
+ * ops until their own ticket. */
 export declare namespace Mcp {
   /** One zod schema per input field: the language the SDK turns into JSON
    * Schema. A plain record of zod types — no `Any`-prefixed alias in src. */
   export type ZodShape = { readonly [key: string]: ZodTypeAny };
-  /** The static facts an operation carries to declare itself a tool. `name`
+  /** The static facts a row carries to advertise its operation as a tool. `name`
    * defaults to the operation's label; `respond` maps the value to a result. */
   export type Tool = {
     readonly description: string;
@@ -23,17 +24,29 @@ export declare namespace Mcp {
     readonly name?: string;
     readonly respond?: (value: unknown) => CallToolResult;
   };
-  /** What the MCP server is called and which version it answers. */
-  export type Options = { readonly name: string; readonly version: string };
+  /** One wiring row: the operation plus its tool facts. Built with `expose`. */
+  export type Row = {
+    readonly op: Operation.Handle<unknown, unknown>;
+    readonly meta: Tool;
+  };
+  /** What the MCP driver serves: its name and version plus the flat tool rows. */
+  export type Wiring = {
+    readonly name: string;
+    readonly version: string;
+    readonly tools: readonly Row[];
+  };
 }
 
 /** The meta tag an operation carries to declare itself a tool:
- * `meta: [tool({ description, schema })]`. Read with `tool.read(op)`. */
+ * `meta: [tool({ description, schema })]`. Harnesses read it until their own
+ * ticket; the MCP driver reads the `expose` rows below, not this tag. */
 export const tool: Tag.Handle<Mcp.Tool> = tag({ label: "mcp.tool" });
 
-/** The binding tag: `tools(op)` on a scope or session; the driver reads
- * `scope.resolve(tools.all)`. */
-export const tools: Tag.Handle<Operation.Handle<unknown, unknown>> = tag({ label: "mcp.tools" });
+/** Name one tool row: the operation plus its description facts. Hand the rows
+ * to `mcp({ tools })` — plain data, not a scope tag. */
+export function expose(op: Operation.Handle<unknown, unknown>, meta: Mcp.Tool): Mcp.Row {
+  return { op, meta };
+}
 
 function textResult(text: string): CallToolResult {
   return { content: [{ type: "text", text }] };
@@ -43,7 +56,7 @@ function failureResult(text: string): CallToolResult {
   return { isError: true, content: [{ type: "text", text }] };
 }
 
-/** Map a tool op's value to a tool result, exactly as the driver answers a call:
+/** Map a tool row's value to a tool result, exactly as the driver answers a call:
  * `respond` wins, the default is one JSON text content, `undefined` answers
  * with no content. Harnesses share it for the in-process path (ADR 0046). */
 export function answerTool(meta: Mcp.Tool, value: unknown): CallToolResult {
@@ -99,28 +112,36 @@ function readCall(
       });
 }
 
-/** Read the tool facts off one tool op: the `tool` meta's facts, shared by the driver and
- * harness adapters (ADR 0046). A bound op without meta cannot be advertised, so this throws
- * `ToolUndeclared` with the op's label. */
+/** Read the tool facts off one tool op: the `tool` meta's facts, read by the
+ * harness adapters until their own ticket (ADR 0046). An op without meta cannot
+ * be advertised, so this throws `ToolUndeclared` with the op's label. */
 export function readTool(op: Operation.Handle<unknown, unknown>): Mcp.Tool {
   const found = tool.read(op);
   if (!found.present) raise("ToolUndeclared", { label: op.label });
   return found.value;
 }
 
-/** The driver: publish every tool bound on the scope as an MCP tool. Returns
- * the SDK's own `McpServer` — the caller connects the transport it wants. */
-export function mcpServer(scope: Scope.Handle, options: Mcp.Options): McpServer {
-  const server = new McpServer({ name: options.name, version: options.version });
-  const bound = scope.resolve(tools.all);
-  for (const op of bound) {
-    const meta = readTool(op);
-    const name = meta.name ?? op.label;
-    server.registerTool(
-      name,
-      { description: meta.description, inputSchema: meta.schema },
-      readCall(scope, name, op, meta),
-    );
-  }
-  return server;
+/** The MCP driver, an extension (ADR 0051): `start` resolves its hand once
+ * (`await next()`, so a second extension's `start` work is visible), then builds
+ * the one `McpServer` — one tool per wiring row, each call answered through the
+ * row's operation. The value is the server. This `start` is the extension's ONE
+ * use of the scope: per call it opens a session from the captured root handle.
+ * Connecting a transport is the root's job. */
+export function mcp(wiring: Mcp.Wiring): Scope.Extension<McpServer> {
+  return extension<McpServer>({
+    label: "mcp",
+    start: async (scope, _ctx, next) => {
+      await next();
+      const server = new McpServer({ name: wiring.name, version: wiring.version });
+      for (const row of wiring.tools) {
+        const name = row.meta.name ?? row.op.label;
+        server.registerTool(
+          name,
+          { description: row.meta.description, inputSchema: row.meta.schema },
+          readCall(scope, name, row.op, row.meta),
+        );
+      }
+      return server;
+    },
+  });
 }
