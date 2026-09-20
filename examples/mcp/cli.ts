@@ -31,7 +31,10 @@ const searchMcp = mcp({
 /** Serve the resolved MCP server over stdio. Holds the owned lifetime: EOF or
  * a transport close settles the entry, and a CLI signal closes the scope to
  * settle it; the transport closes in every case. A harness runs `node cli.ts mcp`. */
-async function serve(server: McpServer, hooks: { readonly onClose: (fn: () => void) => void }): Promise<void> {
+async function serve(
+  server: McpServer,
+  hooks: { readonly onClose: (fn: () => void) => void },
+): Promise<void> {
   let stop: () => void = () => undefined;
   const stopped = new Promise<void>((resolve) => {
     stop = () => resolve();
