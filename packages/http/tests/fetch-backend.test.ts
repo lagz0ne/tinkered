@@ -61,3 +61,34 @@ test("fetchBackend keeps the record's own content type", async () => {
   expect(seen[0].contentType).toBe("text/x");
   expect(seen[0].body).toBe("b");
 });
+
+test("fetchBackend sends no body for a GET record", async () => {
+  const seen: Echo[] = [];
+  using server = await startEcho(seen);
+  const res = await fetchBackend(
+    HttpRequest.get(`${server.origin}/users`),
+    new AbortController().signal,
+  );
+  expect(await res.text()).toBe("ok");
+  expect(seen[0].method).toBe("GET");
+  expect(seen[0].body).toBe("");
+});
+
+test("fetchBackend sends bytes and url-params bodies to the server", async () => {
+  const seen: Echo[] = [];
+  using server = await startEcho(seen);
+  await fetchBackend(
+    HttpRequest.post(`${server.origin}/bytes`, {
+      body: HttpRequest.bodyBytes(new Uint8Array([1, 2])),
+    }),
+    new AbortController().signal,
+  );
+  expect(seen[0].contentType).toBe("application/octet-stream");
+  await fetchBackend(
+    HttpRequest.post(`${server.origin}/form`, {
+      body: HttpRequest.bodyUrlParams({ q: "x" }),
+    }),
+    new AbortController().signal,
+  );
+  expect(seen[1].body).toBe("q=x");
+});
