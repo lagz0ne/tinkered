@@ -1,25 +1,19 @@
-import type { Operation, Resource, Scope, Tag } from "@tinker/core";
-import { createScope, isError as isCoreError, tag } from "@tinker/core";
+import type { Operation, Scope } from "@tinker/core";
+import { createScope, extension, isError as isCoreError } from "@tinker/core";
 import { isError, raise } from "./errors.ts";
 
 export { isError };
 export type { Errors } from "./errors.ts";
 
-/** The routing table and the entrypoint driver: commands are tag bindings on the
- * scope, `run` routes argv to the selected one, `runMain` adds the process. */
+/** The CLI driver is an extension (ADR 0051): `cli(wiring)` installs the routing
+ * rows, `scope.resolve(ext)` is `run(argv, io)`, and `runMain` is the root glue
+ * over it. Commands are flat rows built by `command` — an operation run in a
+ * session as an inline op, or an entry run by hand. */
 export declare namespace Cli {
   /** Load the selected command's operation. A dynamic `import` in practice; an
-   * eager handle is allowed. Runs once per `run` — a process runs one command. */
+   * eager handle is allowed. Memoized on the row: the first selection runs it,
+   * later runs on the same table reuse the operation. */
   export type Load<T, I> = () => Operation.Handle<T, I> | PromiseLike<Operation.Handle<T, I>>;
-  /** A resource that delivers the selected command's operation when the scope
-   * builds it. A lazy module in the house shape: `resource({ label, factory:
-   * () => import("./x.ts").then((m) => m.op) })` — built once per scope, so a
-   * second `run` on the same scope does not re-import, and the build opens a
-   * `resource` span named by the resource's label (the "lazy module is a resource"
-   * half of ADR 0042; the value arrives through `scope.resolve`, ADR 0044). */
-  export type Module<T, I> = Resource.Handle<
-    Operation.Handle<T, I> | PromiseLike<Operation.Handle<T, I>>
-  >;
   /** How a command reads argv and writes stdout. `input` hands raw argv to the
    * operation (its `parse` is the edge); `respond` writes the value. `I`
    * selects the overload (required `input` when the operation takes one). */
@@ -27,50 +21,32 @@ export declare namespace Cli {
     readonly input?: (argv: readonly string[]) => unknown;
     readonly respond?: (value: Awaited<T>) => string;
   };
-  /** A server-style command: receives the scope itself (it is `main`), so it can
-   * mount drivers and resolve resources. No session, no span. */
-  export type Entry = (scope: Scope.Handle, argv: readonly string[]) => void | PromiseLike<void>;
-  /** A resource that delivers an entry command when the scope builds it. */
-  export type EntryModule = Resource.Handle<Entry | PromiseLike<Entry>>;
-  /** One entry source: a loader function, or a resource that delivers the entry. */
-  export type EntrySource = (() => Entry | PromiseLike<Entry>) | EntryModule;
-  /** The static facts an operation carries to declare itself a command. `name`
-   * defaults to the operation's label; `argv` hands raw argv to the operation's
-   * parse (absent, the op runs without input); `respond` writes the value. */
-  export type Meta = {
-    readonly description: string;
-    readonly name?: string;
-    readonly argv?: (argv: readonly string[]) => unknown;
-    readonly respond?: (value: unknown) => string;
-  };
-  /** One row of the routing table: an operation run in a session as an inline op,
-   * or an entry wired by hand. Each row carries one source: `load` (a function,
-   * called once for the selected command) or `module` (a resource handle,
-   * resolved through the scope `run` owns — cached per scope, observable
-   * as a `resource` span). Usage lists the bound names; help loads nothing
-   * either way. */
-  export type Command =
+  /** A server-style command: receives argv only. Anything else it needs comes
+   * from its defining module's closure — the root that built the wiring. */
+  export type Entry = (argv: readonly string[]) => void | PromiseLike<void>;
+  /** One wiring row: an operation run in a session as an inline op, or an entry
+   * run by hand. Usage lists the names (plus descriptions, when given); help
+   * loads nothing either way. */
+  export type Row =
     | {
         readonly name: string;
-        readonly kind: "operation";
         readonly description?: string;
-        readonly route: Route<unknown>;
-        readonly source: Load<unknown, unknown> | Module<unknown, unknown>;
+        readonly load: Load<unknown, unknown>;
+        readonly route: {
+          readonly input?: (argv: readonly string[]) => unknown;
+          readonly respond?: (value: unknown) => string;
+        };
       }
     | {
         readonly name: string;
-        readonly kind: "entry";
-        readonly source: EntrySource;
+        readonly description?: string;
+        readonly entry: Entry;
       };
-  /** One entry of the routing table: a row built by `command(name, …)` or
-   * `command.entry`, or an operation bound directly with `commands(op)` that
-   * declares itself through `command` meta. */
-  export type Bound = Command | Operation.Handle<unknown, unknown>;
-  /** What the binary is called, which version it answers, which scope it builds. */
-  export type Options = {
+  /** What the binary is called, which version it answers, which rows it routes. */
+  export type Wiring = {
     readonly name: string;
     readonly version: string;
-    readonly scope?: Scope.Options;
+    readonly commands: readonly Row[];
   };
   /** Where output goes. `signal` is the tests' stand-in for SIGINT/SIGTERM: abort
    * it and the scope force-closes, the command settles cancelled, code 130. */
@@ -85,170 +61,97 @@ export declare namespace Cli {
     readonly stdout: string;
     readonly stderr: string;
   };
+  /** Run one command by argv and answer the mapped outcome. The root's scope
+   * outlives the run — resolving the extension before `ready` is `NotResolved`. */
+  export type Run = (argv: readonly string[], io?: Io) => Promise<Result>;
 }
 
-/** The routing table: bound commands, read through `commands.all` from the
- * scope `run` creates. A binding is a command row or an operation that declares
- * itself through `command` meta. Usage lists the bound names; help loads nothing. */
-export const commands: Tag.Handle<Cli.Bound> = tag({ label: "cli.command" });
+type OpRow = Extract<Cli.Row, { readonly load: Cli.Load<unknown, unknown> }>;
 
-/** The meta tag an operation carries to declare itself a command:
- * `meta: [command({ description, argv })]`. Read with `command.read(op)`. */
-const commandMeta: Tag.Handle<Cli.Meta> = tag({ label: "cli.command.meta" });
+type EntryRow = Extract<Cli.Row, { readonly entry: Cli.Entry }>;
 
-function commandOp(
+/** Memoize one row's loader: the first selection runs it, later runs reuse the
+ * operation. A throw is not cached, so the next selection retries. */
+function memo<T, I>(load: Cli.Load<T, I>): Cli.Load<T, I> {
+  let settled: Promise<Operation.Handle<T, I>> | undefined;
+  return () => (settled ??= Promise.resolve(load()));
+}
+
+function commandRow(
   name: string,
-  source: Cli.Load<unknown, unknown> | Cli.Module<unknown, unknown>,
-  route?: Cli.Route<unknown>,
-): Tag.Binding<Cli.Bound> {
-  return commands({
+  source: Operation.Handle<unknown, unknown> | Cli.Load<unknown, unknown>,
+  opts?: Cli.Route<unknown> & { readonly description?: string },
+): Cli.Row {
+  const load = typeof source === "function" ? source : () => source;
+  return {
     name,
-    kind: "operation",
-    source,
+    description: opts?.description,
+    load: memo(load),
     route: {
-      input: route?.input,
-      respond: route?.respond as ((value: unknown) => string) | undefined,
+      input: opts?.input,
+      respond: opts?.respond as ((value: unknown) => string) | undefined,
     },
-  });
-}
-
-function isOperationModule(
-  source: Cli.Load<unknown, unknown> | Cli.Module<unknown, unknown>,
-): source is Cli.Module<unknown, unknown> {
-  return typeof source !== "function";
-}
-
-/** Read one operation source either way: a loader function is called, a resource
- * handle is resolved through the scope `run` owns (cached per scope, per the
- * resource's target). A loader is a function, a handle is an object — the
- * `typeof` check is the discriminator, no cast. */
-async function readOperation(
-  scope: Scope.Handle,
-  source: Cli.Load<unknown, unknown> | Cli.Module<unknown, unknown>,
-): Promise<Operation.Handle<unknown, unknown>> {
-  if (isOperationModule(source)) return scope.resolve(source);
-  return source();
-}
-
-/** Read one entry source either way: a loader function is called, a resource
- * handle is resolved through the scope `run` owns. */
-async function readEntry(scope: Scope.Handle, source: Cli.EntrySource): Promise<Cli.Entry> {
-  if (typeof source !== "function") return scope.resolve(source);
-  return source();
+  };
 }
 
 function commandEntry(
   name: string,
-  load: () => Cli.Entry | PromiseLike<Cli.Entry>,
-): Tag.Binding<Cli.Bound>;
-function commandEntry(name: string, module: Cli.EntryModule): Tag.Binding<Cli.Bound>;
-function commandEntry(name: string, source: Cli.EntrySource): Tag.Binding<Cli.Bound> {
-  return commands({ name, kind: "entry", source });
+  entry: Cli.Entry,
+  opts?: { readonly description?: string },
+): Cli.Row {
+  return { name, description: opts?.description, entry };
 }
 
-/** Bind a command: an operation run in a session, lazily loaded when selected.
- * Pass a loader function (called once for the selected command) or a resource
- * that delivers the operation (resolved through the scope `run` owns — cached
- * per scope, observable as a `resource` span). `input` is required when the
- * operation takes one. Pass one meta object to declare the calling operation
- * itself a command: `meta: [command({ description, argv })]` (ADR 0046 §5). */
+/** Bind one wiring row: an operation (or its loader — a dynamic `import` in
+ * practice, an eager handle is allowed) run in a session when selected, or an
+ * entry run by hand. `input` is required when the operation takes one.
+ * `command.entry` takes only a direct entry, so a one-parameter function is
+ * unambiguous — never a loader. */
 export const command: {
-  (meta: Cli.Meta): Tag.Binding<Cli.Meta>;
-  <T>(name: string, load: Cli.Load<T, void>, route?: Cli.Route<T>): Tag.Binding<Cli.Bound>;
-  <T>(name: string, module: Cli.Module<T, void>, route?: Cli.Route<T>): Tag.Binding<Cli.Bound>;
+  <T>(
+    name: string,
+    source: Operation.Handle<T, void> | Cli.Load<T, void>,
+    opts?: Cli.Route<T> & { readonly description?: string },
+  ): Cli.Row;
   <T, I>(
     name: string,
-    load: Cli.Load<T, I>,
-    route: Cli.Route<T> & { readonly input: (argv: readonly string[]) => unknown },
-  ): Tag.Binding<Cli.Bound>;
-  <T, I>(
+    source: Operation.Handle<T, I> | Cli.Load<T, I>,
+    opts: Cli.Route<T> & { readonly input: (argv: readonly string[]) => unknown } & {
+      readonly description?: string;
+    },
+  ): Cli.Row;
+  readonly entry: (
     name: string,
-    module: Cli.Module<T, I>,
-    route: Cli.Route<T> & { readonly input: (argv: readonly string[]) => unknown },
-  ): Tag.Binding<Cli.Bound>;
-  readonly entry: {
-    (name: string, load: () => Cli.Entry | PromiseLike<Cli.Entry>): Tag.Binding<Cli.Bound>;
-    (name: string, module: Cli.EntryModule): Tag.Binding<Cli.Bound>;
-  };
-  readonly read: (unit: Tag.Metaed) => Tag.Presence<Cli.Meta>;
-} = Object.assign(commandDispatch, { entry: commandEntry, read });
+    entry: Cli.Entry,
+    opts?: { readonly description?: string },
+  ) => Cli.Row;
+} = Object.assign(commandRow, { entry: commandEntry });
 
-function commandDispatch(meta: Cli.Meta): Tag.Binding<Cli.Meta>;
-function commandDispatch<T>(
-  name: string,
-  load: Cli.Load<T, void>,
-  route?: Cli.Route<T>,
-): Tag.Binding<Cli.Bound>;
-function commandDispatch<T>(
-  name: string,
-  module: Cli.Module<T, void>,
-  route?: Cli.Route<T>,
-): Tag.Binding<Cli.Bound>;
-function commandDispatch<T, I>(
-  name: string,
-  load: Cli.Load<T, I>,
-  route: Cli.Route<T> & { readonly input: (argv: readonly string[]) => unknown },
-): Tag.Binding<Cli.Bound>;
-function commandDispatch<T, I>(
-  name: string,
-  module: Cli.Module<T, I>,
-  route: Cli.Route<T> & { readonly input: (argv: readonly string[]) => unknown },
-): Tag.Binding<Cli.Bound>;
-function commandDispatch(
-  ...args:
-    | readonly [meta: Cli.Meta]
-    | readonly [
-        name: string,
-        source: Cli.Load<unknown, unknown> | Cli.Module<unknown, unknown>,
-        route?: Cli.Route<unknown>,
-      ]
-): Tag.Binding<Cli.Meta> | Tag.Binding<Cli.Bound> {
-  if (args.length === 1) {
-    const [meta] = args;
-    return commandMeta(meta);
-  }
-  const [name, source, route] = args;
-  return commandOp(name, source, route);
+/** The CLI driver, an extension (ADR 0051): `start` resolves its hand once
+ * (`await next()`, so a second extension's `start` work is visible), then
+ * returns `run`. This `start` is the extension's ONE use of the scope: every
+ * command opens a session from the captured root handle, and `io.signal`
+ * force-closes that root — the old `wireSignal`, moved inside. The root
+ * outlives a run; `runMain` (or the test) closes it. */
+export function cli(wiring: Cli.Wiring): Scope.Extension<Cli.Run> {
+  return extension<Cli.Run>({
+    label: "cli",
+    start: async (scope, _ctx, next) => {
+      await next();
+      return (argv, io) => answer(scope, wiring, argv, io);
+    },
+  });
 }
 
-/** Read the `command` meta off one command op, shared by the table reader. */
-function read(unit: Tag.Metaed): Tag.Presence<Cli.Meta> {
-  return commandMeta.read(unit);
-}
-
-/** Read the command facts off one command op: the `command` meta's facts. A
- * bound op without meta cannot be routed, so this throws `CommandUndeclared`
- * with the op's label. */
-export function readCommand(op: Operation.Handle<unknown, unknown>): Cli.Meta {
-  const found = read(op);
-  if (!found.present) raise("CommandUndeclared", { label: op.label });
-  return found.value;
-}
-
-/** Tell a routing row from an operation handle: rows carry `kind`, the handle
- * carries none — the `in` check is the discriminator, no cast. */
-function isRow(entry: Cli.Bound): entry is Cli.Command {
-  return "kind" in entry;
-}
-
-/** Normalize one routing entry: a row as is, an op into an operation row named
- * by meta (`name` or the op's label) with an eager loader — the op is already
- * in hand. Nothing else downstream changes. */
-function readRow(entry: Cli.Bound): Cli.Command {
-  if (isRow(entry)) return entry;
-  const meta = readCommand(entry);
-  return {
-    name: meta.name ?? entry.label,
-    kind: "operation",
-    description: meta.description,
-    route: { input: meta.argv, respond: meta.respond },
-    source: () => entry,
-  };
+/** Tell an entry row from an operation row: entries carry `entry`, operations
+ * carry `load` — the `in` check is the discriminator, no cast. */
+function isEntry(row: Cli.Row): row is EntryRow {
+  return "entry" in row;
 }
 
 /** Map a command failure to its exit code. Shared by the log line (inside the
- * inline op, where `cancelled` comes from its ctx) and the exit site (in `run`,
- * where it comes from `io.signal`) — one rule, two readers. */
+ * inline op, where `cancelled` comes from its ctx) and the exit site (in the
+ * run, where it comes from `io.signal`) — one rule, two readers. */
 function codeOf(error: unknown, cancelled: boolean): number {
   if (cancelled) return 130;
   if (isCoreError(error, "DataValidationFailed")) return 2;
@@ -259,7 +162,7 @@ const noop = (): void => undefined;
 
 /** Track the abort-time close the scope already owns (close never throws, ADR 0027):
  * the abort listener keeps no awaiter, so attach the shared no-op and never leave an
- * unhandled rejection; `done` still awaits the same close. */
+ * unhandled rejection; the run still awaits the same close through its session. */
 function ignoreRejection(promise: Promise<unknown>): void {
   promise.then(noop, noop);
 }
@@ -272,9 +175,9 @@ function runVoid(flow: Scope.OperationController<unknown, unknown>): unknown {
 
 /** Build the command run: the op as a subflow under the command span, the value
  * through `respond`, exactly one `cli command` log line. A failure logs its mapped
- * code then rethrows — the session settles, `run` maps again with the same rule. */
+ * code then rethrows — the session settles, the run maps again with the same rule. */
 function readRun(
-  selected: Extract<Cli.Command, { readonly kind: "operation" }>,
+  selected: OpRow,
   rest: readonly string[],
 ): (
   deps: { readonly op: Scope.OperationController<unknown, unknown> },
@@ -316,7 +219,7 @@ function readRun(
 }
 
 /** The process pieces `runMain` needs, read off `globalThis` so the bundle keeps
- * no `node:` import; `run` never touches the process. */
+ * no `node:` import; the extension value never touches the process. */
 type Proc = {
   argv: string[];
   exit(code: number): never;
@@ -357,43 +260,35 @@ function wireSignal(scope: Scope.Handle, signal: AbortSignal | undefined): () =>
   };
 }
 
-function usageLine(cmd: Cli.Command): string {
-  if (cmd.kind === "operation" && cmd.description !== undefined)
-    return `  ${cmd.name}  ${cmd.description}`;
-  return `  ${cmd.name}`;
+function usageLine(row: Cli.Row): string {
+  if (row.description !== undefined) return `  ${row.name}  ${row.description}`;
+  return `  ${row.name}`;
 }
 
-function usageText(options: Cli.Options, table: readonly Cli.Command[]): string {
+function usageText(wiring: Cli.Wiring, table: readonly Cli.Row[]): string {
   const names = table.map(usageLine).sort();
-  return [`${options.name} ${options.version}`, ...names].join("\n") + "\n";
+  return [`${wiring.name} ${wiring.version}`, ...names].join("\n") + "\n";
 }
 
-/** Normalize the routing table once: rows as is, bound ops into rows through
- * their `command` meta. An op without meta is a configuration error — this
- * throws `CommandUndeclared` with the op's label. */
-function openTable(scope: Scope.Handle): readonly Cli.Command[] {
-  return scope.resolve(commands.all).map(readRow);
-}
-
-function selectCommand(table: readonly Cli.Command[], head: string): Cli.Command {
+function selectCommand(table: readonly Cli.Row[], head: string): Cli.Row {
   const found = table.find((cmd) => cmd.name === head);
   if (found === undefined)
     raise("UnknownCommand", { name: head, known: table.map((cmd) => cmd.name) });
   return found;
 }
 
-async function answerHead(
+function answerHead(
   collected: Collected,
-  options: Cli.Options,
-  table: readonly Cli.Command[],
+  wiring: Cli.Wiring,
+  table: readonly Cli.Row[],
   head: string,
-): Promise<number | undefined> {
+): number | undefined {
   if (head === "help") {
-    collected.stdout(usageText(options, table));
+    collected.stdout(usageText(wiring, table));
     return 0;
   }
   if (head === "--version") {
-    collected.stdout(`${options.version}\n`);
+    collected.stdout(`${wiring.version}\n`);
     return 0;
   }
   return undefined;
@@ -402,14 +297,12 @@ async function answerHead(
 type Answer = { readonly code: number; readonly failed: unknown };
 
 async function runEntry(
-  scope: Scope.Handle,
   signal: AbortSignal | undefined,
-  selected: Extract<Cli.Command, { readonly kind: "entry" }>,
+  selected: EntryRow,
   rest: readonly string[],
 ): Promise<Answer> {
-  const entry = await readEntry(scope, selected.source);
   try {
-    await entry(scope, rest);
+    await selected.entry(rest);
   } catch (error: unknown) {
     if (signal?.aborted === true) return { code: 130, failed: undefined };
     return { code: 1, failed: error };
@@ -427,16 +320,16 @@ function printError(error: unknown): string {
 async function runOperation(
   scope: Scope.Handle,
   signal: AbortSignal | undefined,
-  label: string,
-  selected: Extract<Cli.Command, { readonly kind: "operation" }>,
+  wiring: Cli.Wiring,
+  selected: OpRow,
   rest: readonly string[],
 ): Promise<{ readonly code: number; readonly text: string | undefined; readonly failed: unknown }> {
-  const loaded = await readOperation(scope, selected.source);
+  const loaded = await selected.load();
   const none = { code: 0, text: undefined, failed: undefined };
   try {
     const text = await scope.session((s) =>
       s.run({
-        label,
+        label: `${wiring.name} ${selected.name}`,
         depends: { op: loaded },
         run: readRun(selected, rest),
       }),
@@ -449,109 +342,98 @@ async function runOperation(
   }
 }
 
-/** Run one command: create the scope, route the first argv word through the bound table,
- * map the outcome to streams and an exit code, close the scope on every path.
- * Missing/`help` answers usage (2/0); unknown answers usage to stderr (2);
- * `--version` answers the version (0); the selected source (loader call or
- * resource resolve) runs only for the selected command. An operation command
- * runs in a session as an inline op (`<name> <command>` span, one `cli command`
- * line): success prints through
- * `respond` (default JSON, nothing for `undefined`) and exits 0, a parse failure
- * prints usage and exits 2, anything else prints and exits 1, an abort exits 130.
- * An entry command receives the scope directly: 0, 1 on throw, 130 on abort. */
-export async function run(
-  options: Cli.Options & { readonly argv: readonly string[]; readonly io?: Cli.Io },
+/** Run one command on the extension's scope: route the first argv word through the
+ * wiring rows, map the outcome to streams and an exit code. Missing/`help` answers
+ * usage (2/0); unknown answers usage to stderr (2); `--version` answers the version
+ * (0); a row's loader runs only for the selected command. An operation command runs
+ * in a session as an inline op (`<name> <command>` span, one `cli command` line):
+ * success prints through `respond` (default JSON, nothing for `undefined`) and exits
+ * 0, a parse failure prints usage and exits 2, anything else prints and exits 1, an
+ * abort exits 130. An entry command receives argv only: 0, 1 on throw, 130 on abort. */
+async function answer(
+  scope: Scope.Handle,
+  wiring: Cli.Wiring,
+  argv: readonly string[],
+  io: Cli.Io | undefined,
 ): Promise<Cli.Result> {
-  const collected = collect(options.io);
-  const scope = createScope(options.scope);
-  const signal = options.io?.signal;
+  const collected = collect(io);
+  const signal = io?.signal;
   const unhook = wireSignal(scope, signal);
   if (signal?.aborted === true) {
     unhook();
-    await scope.close({ graceful: true });
     return { code: 130, stdout: "", stderr: "" };
   }
-  const finish = async (code: number): Promise<Cli.Result> => {
+  const table = wiring.commands;
+  if (argv.length === 0) {
+    collected.stdout(usageText(wiring, table));
     unhook();
-    await scope.close({ graceful: true });
-    return collected.result(code);
-  };
-  let table: readonly Cli.Command[];
-  try {
-    table = openTable(scope);
-  } catch (error: unknown) {
+    return collected.result(2);
+  }
+  const [head, ...rest] = argv;
+  const headed = answerHead(collected, wiring, table, head);
+  if (headed !== undefined) {
     unhook();
-    await scope.close({ graceful: true });
-    throw error;
+    return collected.result(headed);
   }
-  if (options.argv.length === 0) {
-    collected.stdout(usageText(options, table));
-    return finish(2);
-  }
-  const [head, ...rest] = options.argv;
-  const headed = await answerHead(collected, options, table, head);
-  if (headed !== undefined) return finish(headed);
-  const code = await answerSelected(collected, scope, signal, options, table, head, rest);
-  return finish(code);
+  const code = await answerSelected(collected, scope, signal, wiring, table, head, rest);
+  unhook();
+  return collected.result(code);
 }
 
 async function answerSelected(
   collected: Collected,
   scope: Scope.Handle,
   signal: AbortSignal | undefined,
-  options: Cli.Options,
-  table: readonly Cli.Command[],
+  wiring: Cli.Wiring,
+  table: readonly Cli.Row[],
   head: string,
   rest: readonly string[],
 ): Promise<number> {
-  let selected: Cli.Command;
+  let selected: Cli.Row;
   try {
     selected = selectCommand(table, head);
   } catch (error: unknown) {
     if (!isError(error, "UnknownCommand")) throw error;
-    collected.stderr(usageText(options, table));
+    collected.stderr(usageText(wiring, table));
     return 2;
   }
-  if (selected.kind === "entry") {
-    const answered = await runEntry(scope, signal, selected, rest);
+  if (isEntry(selected)) {
+    const answered = await runEntry(signal, selected, rest);
     if (answered.failed !== undefined) collected.stderr(printError(answered.failed));
     return answered.code;
   }
-  const outcome = await runOperation(
-    scope,
-    signal,
-    `${options.name} ${selected.name}`,
-    selected,
-    rest,
-  );
+  const outcome = await runOperation(scope, signal, wiring, selected, rest);
   if (outcome.text !== undefined) collected.stdout(outcome.text);
-  if (outcome.code === 2) collected.stderr(usageText(options, table));
+  if (outcome.code === 2) collected.stderr(usageText(wiring, table));
   if (outcome.failed !== undefined) collected.stderr(printError(outcome.failed));
   return outcome.code;
 }
 
-/** The real entrypoint: `run` plus signals plus `process.exit`. Never returns:
- * SIGINT/SIGTERM abort the run (exit 130); otherwise it exits with `run`'s code. */
-export async function runMain(options: Cli.Options): Promise<never> {
+/** The real entrypoint: root glue over the extension value — install it, `ready`,
+ * resolve `run`, wire SIGINT/SIGTERM to an abort the run turns into a forced close
+ * (exit 130), then close graceful and `process.exit` with the run's code. Extra
+ * scope options (tags, clock, sibling extensions) ride in `scope`. Never returns. */
+export async function runMain(wiring: Cli.Wiring, scope?: Scope.Options): Promise<never> {
   const proc: Proc = globalThis.process;
+  const ext = cli(wiring);
+  const root = createScope({ ...scope, extensions: [...(scope?.extensions ?? []), ext] });
+  await root.ready;
+  const run = root.resolve(ext);
   const controller = new AbortController();
   const abort = (): void => {
     controller.abort();
   };
   proc.on("SIGINT", abort);
   proc.on("SIGTERM", abort);
-  const result = await run({
-    ...options,
-    argv: proc.argv.slice(2),
-    io: {
-      stdout: (s) => {
-        proc.stdout.write(s);
-      },
-      stderr: (s) => {
-        proc.stderr.write(s);
-      },
-      signal: controller.signal,
+  const result = await run(proc.argv.slice(2), {
+    stdout: (s) => {
+      proc.stdout.write(s);
     },
+    stderr: (s) => {
+      proc.stderr.write(s);
+    },
+    signal: controller.signal,
   });
+  await root.close({ graceful: true });
   proc.exit(result.code);
 }

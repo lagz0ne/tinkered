@@ -1,7 +1,15 @@
 import { execFile } from "node:child_process";
 import { expect, test } from "vite-plus/test";
-import { makeTestClock, operation, resource, type Observe, type Scope } from "@tinker/core";
-import { command, commands, isError, run } from "../src/index.ts";
+import {
+  createScope,
+  isError as isCoreError,
+  makeTestClock,
+  operation,
+  resource,
+  type Observe,
+  type Scope,
+} from "@tinker/core";
+import { cli, command, type Cli } from "../src/index.ts";
 
 /** Parse argv[0] into a number; a throw becomes the op's parse failure (exit 2). */
 function parseCount(raw: unknown): number {
@@ -19,26 +27,6 @@ const double = operation({
 
 const ping = operation({ label: "ping", run: () => "pong" });
 
-const metaDouble = operation({
-  label: "double",
-  input: parseCount,
-  meta: [command({ description: "double a number", argv: (argv) => argv[0] })],
-  run: (_deps, ctx) => ctx.input * 2,
-});
-
-const metaDbl = operation({
-  label: "double",
-  input: parseCount,
-  meta: [command({ description: "double a number", name: "dbl", argv: (argv) => argv[0] })],
-  run: (_deps, ctx) => ctx.input * 2,
-});
-
-const metaPing = operation({
-  label: "ping",
-  meta: [command({ description: "answer", respond: (value) => `got ${String(value)}\n` })],
-  run: () => "pong",
-});
-
 const silent = operation({ label: "silent", run: () => undefined });
 
 const broken = operation({
@@ -48,73 +36,38 @@ const broken = operation({
   },
 });
 
+type Opened = { readonly scope: Scope.Handle; readonly run: Cli.Run };
+
+/** Install the wiring on a scope and resolve its run: the root's hand, in hand. */
+async function openScope(
+  wiring: Cli.Wiring,
+  options?: Omit<Scope.Options, "extensions" | "tags">,
+): Promise<Opened> {
+  const ext = cli(wiring);
+  const scope = createScope({ ...options, extensions: [ext] });
+  await scope.ready;
+  return { scope, run: scope.resolve(ext) };
+}
+
+/** Run one argv through the extension and close the root, like today’s `run`. */
+async function answer(
+  wiring: Cli.Wiring,
+  argv: readonly string[],
+  extra?: { readonly io?: Cli.Io; readonly options?: Omit<Scope.Options, "extensions" | "tags"> },
+): Promise<Cli.Result> {
+  const { scope, run } = await openScope(wiring, extra?.options);
+  const result = await run(argv, extra?.io);
+  await scope.close({ graceful: true });
+  return result;
+}
+
 test("help loads nothing and lists the bound names with exit 0", async () => {
   let loads = 0;
-  const table = [
-    command(
-      "double",
-      () => {
-        loads += 1;
-        return double;
-      },
-      { input: (argv) => argv[0] },
-    ),
-    command("ping", () => {
-      loads += 1;
-      return ping;
-    }),
-  ];
-  const result = await run({
-    name: "app",
-    version: "1.2.3",
-    scope: { tags: table },
-    argv: ["help"],
-  });
-  expect(result.code).toBe(0);
-  expect(result.stdout).toBe("app 1.2.3\n  double\n  ping\n");
-  expect(result.stderr).toBe("");
-  expect(loads).toBe(0);
-});
-
-test("a missing command prints usage with exit 2", async () => {
-  const result = await run({
-    name: "app",
-    version: "1.2.3",
-    scope: { tags: [command("ping", () => ping)] },
-    argv: [],
-  });
-  expect(result.code).toBe(2);
-  expect(result.stdout).toBe("app 1.2.3\n  ping\n");
-});
-
-test("an unknown command prints usage to stderr with exit 2 and loads nothing", async () => {
-  let loads = 0;
-  const result = await run({
-    name: "app",
-    version: "1.2.3",
-    scope: {
-      tags: [
-        command("ping", () => {
-          loads += 1;
-          return ping;
-        }),
-      ],
-    },
-    argv: ["nope"],
-  });
-  expect(result.code).toBe(2);
-  expect(result.stdout).toBe("");
-  expect(result.stderr).toBe("app 1.2.3\n  ping\n");
-  expect(loads).toBe(0);
-});
-
-test("the selected command loads once and answers through the default JSON respond", async () => {
-  let loads = 0;
-  const result = await run({
-    name: "app",
-    version: "1.0.0",
-    scope: {
-      tags: [
+  const result = await answer(
+    {
+      name: "app",
+      version: "1.2.3",
+      commands: [
         command(
           "double",
           () => {
@@ -129,109 +82,213 @@ test("the selected command loads once and answers through the default JSON respo
         }),
       ],
     },
-    argv: ["double", "21"],
-  });
+    ["help"],
+  );
+  expect(result.code).toBe(0);
+  expect(result.stdout).toBe("app 1.2.3\n  double\n  ping\n");
+  expect(result.stderr).toBe("");
+  expect(loads).toBe(0);
+});
+
+test("help lists a row description beside the name", async () => {
+  const result = await answer(
+    {
+      name: "app",
+      version: "1.2.3",
+      commands: [
+        command("dbl", () => double, {
+          input: (argv) => argv[0],
+          description: "double a number",
+        }),
+        command("ping", () => ping),
+      ],
+    },
+    ["help"],
+  );
+  expect(result.code).toBe(0);
+  expect(result.stdout).toBe("app 1.2.3\n  dbl  double a number\n  ping\n");
+});
+
+test("a missing command prints usage with exit 2", async () => {
+  const result = await answer(
+    { name: "app", version: "1.2.3", commands: [command("ping", () => ping)] },
+    [],
+  );
+  expect(result.code).toBe(2);
+  expect(result.stdout).toBe("app 1.2.3\n  ping\n");
+});
+
+test("an unknown command prints usage to stderr with exit 2 and loads nothing", async () => {
+  let loads = 0;
+  const result = await answer(
+    {
+      name: "app",
+      version: "1.2.3",
+      commands: [
+        command("ping", () => {
+          loads += 1;
+          return ping;
+        }),
+      ],
+    },
+    ["nope"],
+  );
+  expect(result.code).toBe(2);
+  expect(result.stdout).toBe("");
+  expect(result.stderr).toBe("app 1.2.3\n  ping\n");
+  expect(loads).toBe(0);
+});
+
+test("the selected command loads once and answers through the default JSON respond", async () => {
+  let loads = 0;
+  const result = await answer(
+    {
+      name: "app",
+      version: "1.0.0",
+      commands: [
+        command(
+          "double",
+          () => {
+            loads += 1;
+            return double;
+          },
+          { input: (argv) => argv[0] },
+        ),
+        command("ping", () => {
+          loads += 1;
+          return ping;
+        }),
+      ],
+    },
+    ["double", "21"],
+  );
   expect(result.code).toBe(0);
   expect(result.stdout).toBe("42\n");
   expect(loads).toBe(1);
 });
 
-test("an async loader resolves before the command runs", async () => {
-  const result = await run({
+test("the selected loader runs once across two runs on one scope", async () => {
+  let loads = 0;
+  const { scope, run } = await openScope({
     name: "app",
     version: "1.0.0",
-    scope: { tags: [command("ping", () => Promise.resolve(ping))] },
-    argv: ["ping"],
+    commands: [
+      command(
+        "double",
+        () => {
+          loads += 1;
+          return double;
+        },
+        { input: (argv) => argv[0] },
+      ),
+    ],
   });
+  const first = await run(["double", "21"]);
+  const second = await run(["double", "21"]);
+  await scope.close({ graceful: true });
+  expect(first.stdout).toBe("42\n");
+  expect(second.stdout).toBe("42\n");
+  expect(loads).toBe(1);
+});
+
+test("an eager handle runs without a loader", async () => {
+  const result = await answer(
+    { name: "app", version: "1.0.0", commands: [command("ping", ping)] },
+    ["ping"],
+  );
+  expect(result.code).toBe(0);
+  expect(result.stdout).toBe('"pong"\n');
+});
+
+test("an async loader resolves before the command runs", async () => {
+  const result = await answer(
+    { name: "app", version: "1.0.0", commands: [command("ping", () => Promise.resolve(ping))] },
+    ["ping"],
+  );
   expect(result.code).toBe(0);
   expect(result.stdout).toBe('"pong"\n');
 });
 
 test("an op parse failure prints usage to stderr with exit 2", async () => {
-  const result = await run({
-    name: "app",
-    version: "1.0.0",
-    scope: {
-      tags: [command("double", () => double, { input: (argv) => argv[0] })],
+  const result = await answer(
+    {
+      name: "app",
+      version: "1.0.0",
+      commands: [command("double", () => double, { input: (argv) => argv[0] })],
     },
-    argv: ["double", "abc"],
-  });
+    ["double", "abc"],
+  );
   expect(result.code).toBe(2);
   expect(result.stdout).toBe("");
   expect(result.stderr).toBe("app 1.0.0\n  double\n");
 });
 
 test("a throwing op prints to stderr with exit 1", async () => {
-  const result = await run({
-    name: "app",
-    version: "1.0.0",
-    scope: { tags: [command("broken", () => broken)] },
-    argv: ["broken"],
-  });
+  const result = await answer(
+    { name: "app", version: "1.0.0", commands: [command("broken", () => broken)] },
+    ["broken"],
+  );
   expect(result.code).toBe(1);
   expect(result.stdout).toBe("");
   expect(result.stderr).toContain("boom");
 });
 
 test("a void op prints nothing on success", async () => {
-  const result = await run({
-    name: "app",
-    version: "1.0.0",
-    scope: { tags: [command("silent", () => silent)] },
-    argv: ["silent"],
-  });
+  const result = await answer(
+    { name: "app", version: "1.0.0", commands: [command("silent", () => silent)] },
+    ["silent"],
+  );
   expect(result.code).toBe(0);
   expect(result.stdout).toBe("");
   expect(result.stderr).toBe("");
 });
 
 test("respond overrides the default output", async () => {
-  const result = await run({
-    name: "app",
-    version: "1.0.0",
-    scope: {
-      tags: [
+  const result = await answer(
+    {
+      name: "app",
+      version: "1.0.0",
+      commands: [
         command("double", () => double, { input: (argv) => argv[0], respond: (n) => `n=${n}\n` }),
       ],
     },
-    argv: ["double", "21"],
-  });
+    ["double", "21"],
+  );
   expect(result.code).toBe(0);
   expect(result.stdout).toBe("n=42\n");
 });
 
-test("an entry command receives the scope and resolves a preset resource", async () => {
-  const db = resource({ label: "db", factory: () => "real" });
-  let seen: unknown;
-  const result = await run({
-    name: "app",
-    version: "1.0.0",
-    scope: {
-      tags: [
-        command.entry("serve", () => (scope: Scope.Handle) => {
-          seen = scope.resolve(db);
+test("an entry command receives argv only", async () => {
+  let seen: readonly string[] | undefined;
+  const result = await answer(
+    {
+      name: "app",
+      version: "1.0.0",
+      commands: [
+        command.entry("serve", (argv) => {
+          seen = argv;
         }),
       ],
     },
-    argv: ["serve", "--port", "8080"],
-  });
+    ["serve", "--port", "8080"],
+  );
   expect(result.code).toBe(0);
-  expect(seen).toBe("real");
+  expect(seen).toEqual(["--port", "8080"]);
 });
 
 test("a throwing entry command exits 1", async () => {
-  const result = await run({
-    name: "app",
-    version: "1.0.0",
-    scope: {
-      tags: [
-        command.entry("serve", () => () => {
+  const result = await answer(
+    {
+      name: "app",
+      version: "1.0.0",
+      commands: [
+        command.entry("serve", () => {
           throw new Error("no port");
         }),
       ],
     },
-    argv: ["serve"],
-  });
+    ["serve"],
+  );
   expect(result.code).toBe(1);
   expect(result.stderr).toContain("no port");
 });
@@ -240,20 +297,21 @@ test("the command span parents the op span with one cli command log line", async
   const logs: Observe.Log[] = [];
   const clock = makeTestClock({ now: 1000 });
   const ioChunks: string[] = [];
-  const result = await run({
-    name: "app",
-    version: "1.0.0",
-    scope: {
-      tags: [command("double", () => double, { input: (argv) => argv[0] })],
-      clock,
-      observe: { history: 20, log: (entry) => logs.push(entry) },
+  const result = await answer(
+    {
+      name: "app",
+      version: "1.0.0",
+      commands: [command("double", () => double, { input: (argv) => argv[0] })],
     },
-    io: {
-      stdout: (s) => ioChunks.push(s),
-      stderr: () => undefined,
+    ["double", "21"],
+    {
+      options: { clock, observe: { history: 20, log: (entry) => logs.push(entry) } },
+      io: {
+        stdout: (s) => ioChunks.push(s),
+        stderr: () => undefined,
+      },
     },
-    argv: ["double", "21"],
-  });
+  );
   expect(result.code).toBe(0);
   expect(ioChunks.join("")).toBe("42\n");
   expect(logs.length).toBe(1);
@@ -293,18 +351,13 @@ test("a session-target resource defer sees success on exit 0 and failed on exit 
       throw new Error("bad");
     },
   });
-  const good = await run({
+  const wiring: Cli.Wiring = {
     name: "app",
     version: "1.0.0",
-    scope: { tags: [command("use", () => use), command("fail", () => fail)] },
-    argv: ["use"],
-  });
-  const bad = await run({
-    name: "app",
-    version: "1.0.0",
-    scope: { tags: [command("use", () => use), command("fail", () => fail)] },
-    argv: ["fail"],
-  });
+    commands: [command("use", () => use), command("fail", () => fail)],
+  };
+  const good = await answer(wiring, ["use"]);
+  const bad = await answer(wiring, ["fail"]);
   expect(good.code).toBe(0);
   expect(bad.code).toBe(1);
   expect(ends).toEqual(["success", "failed"]);
@@ -325,172 +378,47 @@ test("an aborted signal exits 130 and the session-target defer sees cancelled", 
   });
   const clock = makeTestClock({ now: 0 });
   const ac = new AbortController();
-  const pending = run({
-    name: "app",
-    version: "1.0.0",
-    scope: { tags: [command("slow", () => slow)], clock },
-    io: { stdout: () => undefined, stderr: () => undefined, signal: ac.signal },
-    argv: ["slow"],
+  const { scope, run } = await openScope(
+    { name: "app", version: "1.0.0", commands: [command("slow", () => slow)] },
+    { clock },
+  );
+  const pending = run(["slow"], {
+    stdout: () => undefined,
+    stderr: () => undefined,
+    signal: ac.signal,
   });
   while (!started) await Promise.resolve();
   ac.abort();
   const result = await pending;
+  await scope.close({ graceful: true });
   expect(result.code).toBe(130);
   expect(ends).toEqual(["cancelled"]);
-});
-
-test("a command bound to a resource runs its operation and builds once", async () => {
-  let builds = 0;
-  const migrate = resource({
-    label: "app.migrate",
-    factory: () => {
-      builds += 1;
-      return double;
-    },
-  });
-  const table = [command("double", migrate, { input: (argv) => argv[0] })];
-  const first = await run({
-    name: "app",
-    version: "1.0.0",
-    scope: { tags: table },
-    argv: ["double", "21"],
-  });
-  expect(first.code).toBe(0);
-  expect(first.stdout).toBe("42\n");
-  expect(builds).toBe(1);
-});
-
-test("a resource-bound command opens a resource span beside the command span", async () => {
-  const seen: string[] = [];
-  const migrate = resource({ label: "app.migrate", factory: () => double });
-  const result = await run({
-    name: "app",
-    version: "1.0.0",
-    scope: {
-      tags: [command("double", migrate, { input: (argv) => argv[0] })],
-      observe: {
-        history: 20,
-        export: (span) => {
-          seen.push(`${span.kind}:${span.name}`);
-        },
-      },
-    },
-    argv: ["double", "21"],
-  });
-  expect(result.code).toBe(0);
-  expect(seen).toContain("resource:app.migrate");
-  expect(seen).toContain("operation:app double");
-});
-
-test("help and an unknown command build no resource-bound module", async () => {
-  let builds = 0;
-  const migrate = resource({
-    label: "app.migrate",
-    factory: () => {
-      builds += 1;
-      return ping;
-    },
-  });
-  const helped = await run({
-    name: "app",
-    version: "1.0.0",
-    scope: { tags: [command("ping", migrate)] },
-    argv: ["help"],
-  });
-  expect(helped.code).toBe(0);
-  const unknown = await run({
-    name: "app",
-    version: "1.0.0",
-    scope: { tags: [command("ping", migrate)] },
-    argv: ["nope"],
-  });
-  expect(unknown.code).toBe(2);
-  expect(builds).toBe(0);
-});
-
-test("an entry command bound to a resource receives the scope", async () => {
-  const db = resource({ label: "db", factory: () => "real" });
-  let seen: unknown;
-  const serve = resource({
-    label: "app.serve",
-    factory: () => (scope: Scope.Handle) => {
-      seen = scope.resolve(db);
-    },
-  });
-  const result = await run({
-    name: "app",
-    version: "1.0.0",
-    scope: { tags: [command.entry("serve", serve)] },
-    argv: ["serve", "--port", "8080"],
-  });
-  expect(result.code).toBe(0);
-  expect(seen).toBe("real");
 });
 
 test("io writers see the same streams the result collects", async () => {
   const seenOut: string[] = [];
   const seenErr: string[] = [];
-  const result = await run({
-    name: "app",
-    version: "1.0.0",
-    scope: { tags: [command("broken", () => broken)] },
-    io: { stdout: (s) => seenOut.push(s), stderr: (s) => seenErr.push(s) },
-    argv: ["broken"],
-  });
+  const result = await answer(
+    { name: "app", version: "1.0.0", commands: [command("broken", () => broken)] },
+    ["broken"],
+    { io: { stdout: (s) => seenOut.push(s), stderr: (s) => seenErr.push(s) } },
+  );
   expect(result.code).toBe(1);
   expect(seenErr.join("")).toBe(result.stderr);
   expect(seenOut.join("")).toBe(result.stdout);
 });
 
-test("a meta-bound op answers argv through its own parse", async () => {
-  const result = await run({
-    name: "app",
-    version: "1.0.0",
-    scope: { tags: [commands(metaDouble)] },
-    argv: ["double", "21"],
-  });
-  expect(result.code).toBe(0);
-  expect(result.stdout).toBe("42\n");
-});
-
-test("help lists the meta name and description beside rows", async () => {
-  const result = await run({
-    name: "app",
-    version: "1.2.3",
-    scope: { tags: [commands(metaDbl), command("ping", () => ping)] },
-    argv: ["help"],
-  });
-  expect(result.code).toBe(0);
-  expect(result.stdout).toBe("app 1.2.3\n  dbl  double a number\n  ping\n");
-});
-
-test("meta respond overrides the default output and no argv runs without input", async () => {
-  const result = await run({
-    name: "app",
-    version: "1.0.0",
-    scope: { tags: [commands(metaPing)] },
-    argv: ["ping"],
-  });
-  expect(result.code).toBe(0);
-  expect(result.stdout).toBe("got pong\n");
-});
-
-test("a meta-bound op parse failure prints usage with exit 2", async () => {
-  const result = await run({
-    name: "app",
-    version: "1.0.0",
-    scope: { tags: [commands(metaDouble)] },
-    argv: ["double", "x"],
-  });
-  expect(result.code).toBe(2);
-  expect(result.stdout).toBe("");
-  expect(result.stderr).toBe("app 1.0.0\n  double  double a number\n");
-});
-
-test("a bound op without command meta rejects CommandUndeclared", async () => {
-  await expect(
-    run({ name: "app", version: "1.0.0", scope: { tags: [commands(ping)] }, argv: ["ping"] }),
-  ).rejects.toSatisfy((error: unknown) => isError(error, "CommandUndeclared"));
+test("resolving run before ready fails with NotResolved", async () => {
+  const ext = cli({ name: "app", version: "1.0.0", commands: [command("ping", ping)] });
+  const scope = createScope({ extensions: [ext] });
+  try {
+    scope.resolve(ext);
+    expect.unreachable();
+  } catch (error: unknown) {
+    if (!isCoreError(error, "NotResolved")) throw error;
+    expect(error.payload.label).toBe("cli");
+  }
+  await scope.close({ graceful: true });
 });
 
 test("the process smoke test: node runs the example and help exits 0 with usage", async () => {
