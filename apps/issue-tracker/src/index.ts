@@ -19,7 +19,6 @@ export type { Draft } from "./shared/draft.ts";
 export {
   draftGuardrails,
   draftHelper,
-  draftStream,
   draftTurn,
   readCapability,
   runDraft,
