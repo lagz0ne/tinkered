@@ -435,3 +435,46 @@ test("closing the thread stops the turn signal the SDK sees", async () => {
   expect(first?.aborted).toBe(true);
   await scope.close();
 });
+
+test("a reasoning item records the event phase, not an SDK status", async () => {
+  const seen: Seen = { turns: [], clients: [] };
+  const coder = harness({ label: "coder", adapter: codex });
+  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
+  const thinking: ThreadItem = { id: "r-1", type: "reasoning", text: "hmm" };
+  const scope = createScope({
+    presets: [
+      preset(codex.sdk, async () =>
+        fakeCodexSdk(
+          [
+            {
+              events: [
+                { type: "item.started", item: thinking },
+                { type: "item.updated", item: thinking },
+                { type: "item.completed", item: thinking },
+                {
+                  type: "turn.completed",
+                  usage: {
+                    input_tokens: 1,
+                    cached_input_tokens: 0,
+                    cache_write_input_tokens: 0,
+                    output_tokens: 1,
+                    reasoning_output_tokens: 1,
+                  },
+                },
+              ],
+            },
+          ],
+          seen,
+        ),
+      ),
+    ],
+  });
+  const session = scope.createSession();
+  await session.run(ask, { input: "hello" });
+  expect(session.resolve(coder.items).map((item) => item.status)).toEqual([
+    "started",
+    "updated",
+    "completed",
+  ]);
+  await scope.close();
+});
