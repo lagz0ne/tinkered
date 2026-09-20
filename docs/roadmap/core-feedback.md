@@ -88,6 +88,7 @@ reviewed; no new core ticket. The live lane is `core/ideas` in [TODO.md](../../T
 | hono `stream`'s `emit` is not safe from a sync `Sync.Transport.send`; the README recipe uses `void emit(...)` (forbidden by convention) so the tracker wrote a 60-line `owned` wrapper. Ask: `emit` serializes, or `stream` exposes a transport-shaped writer. | tracker audit 2026-09-20 (F3) | open — one asker |
 | No serial-execution affordance for a single-connection store (PGlite): every app re-invents a `tail.then` queue. Ask: a `drizzleStore` serial option or a mutex-resource recipe in the drizzle README. | tracker audit 2026-09-20 | open — one asker |
 | No documented form-cell pattern for React; one `data` per field is verbose, so the tracker fell back to 36 `useState`. Ask: a worked form example (cells + one save operation) in `examples/react`. | tracker audit 2026-09-20 | open — docs candidate, no core change |
+| `source().connect(transport)` rejects when the root closes forced, so an SSE writer cannot tell "cancelled, swallow" from a real failure and must `.then(close, close)`. Ask: settle with a `Scope.Result`-style value instead of rejecting on a forced close. | tracker reshape/streams 2026-09-20 | open — one asker |
 
 T05 final writer feedback also checked CLI argv testing: `@tinker/cli` already supplies
 the public in-process seam. The browser proof intentionally starts the real tools child

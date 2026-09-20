@@ -1668,3 +1668,31 @@ errors.ts (+ViewerGone, +DraftOff)  src/errors.ts, src/server/routes.ts (onError
 
 Expected after: `runDraft|draftStream|RunDraft|readWaiter|readRunState|owned\(` → `(none)`;
 `Scope.Handle` in `src/server` → `app.ts` root return type only.
+
+### reshape/streams — landed 2026-09-20
+
+Fast-forwarded `main` to `8e21497` (two contributor commits) plus the lead nit commit `370fd35` (the seam
+drops `sseTransport`; stale TSDoc; one hono README line closing feedback F3). Gates re-run by the lead in
+the worktree AND on `main` after `vp run -r build`:
+
+```text
+vp check                          0 errors, 13 warnings
+vp run @tinker-issue-tracker#test 29 passed   (+ registerViewer 410/400, + startDraft seam test without Hono)
+vp run hono#test                  32 passed   (emit is synchronous; five `await emit` dropped)
+pnpm validate                     37/37 PASS  (with allowBuilds.esbuild: true, reverted)
+grep runDraft|draftStream|RunDraft|readWaiter|readRunState|owned(   → (none)
+grep Scope.Handle apps/issue-tracker/src/server                     → app.ts:26 (root return type) only
+```
+
+Line counts: server 927 → **802** (`app.ts` 198 → 82, `draft.ts` 281 → 119, `routes.ts` 59 → 87, `sync.ts` new 125);
+whole slice from `main@75ae11a`: server 992 → 802. Hono `src/index.ts` 370 → 370 (three lines changed).
+
+Lesson recorded: the main checkout's `packages/*/dist` were stale after the merge, so `vp check` showed 3 type
+errors and 16 tracker tests failed until `vp run -r build`. **Run `vp run -r build` before `vp check`/tests on
+`main` after landing any package change.** The lead's landing chain also let a failing check through
+(`| tail -1` masked the exit code) — a landing must assert on the exit code, not on trimmed output.
+
+Contributor deviations accepted: the draft stream never rethrows (a failed turn ends in a `failed` terminal
+frame, as before); `/sync` settles `connect` with `.then(close, close)` because a forced root close rejects it;
+`onError` split in two to stay under the complexity ceiling. Core feedback recorded: `source().connect()`
+rejects on a forced close with no way to tell "cancelled" from "failed" at the call site.

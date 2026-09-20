@@ -136,7 +136,7 @@ Recorded in [core-feedback.md](roadmap/core-feedback.md), 2026-09-20 rows. When 
 forces glue, write the glue in ONE named place with a TSDoc line that names the gap.
 
 1. A session's cell write does not reach the root cell; there is no "after this session committed" hook.
-2. hono's `route.input` is not awaited, so JSON bodies are read outside `handle`.
-3. hono's `stream` `emit` is not safe from a sync `Transport.send`.
+2. ~~hono's `route.input` is not awaited, so JSON bodies are read outside `handle`.~~ Closed 2026-09-20: `input` may return a promise; a rejected read is `InputRejected` → 400.
+3. ~~hono's `stream` `emit` is not safe from a sync `Transport.send`.~~ Closed 2026-09-20: `emit` is synchronous.
 4. No serial-execution affordance for a single-connection store.
 5. No documented form-cell pattern for React.
