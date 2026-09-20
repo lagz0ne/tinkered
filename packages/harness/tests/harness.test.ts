@@ -307,7 +307,12 @@ test("a non-init system message leaves the id cell alone", async () => {
   const mixed: Script = { messages: [status, ...script.messages] };
   const { coder, ask, scope } = readSetup([mixed], []);
   const session = scope.createSession();
+  const seen: string[] = [];
+  session.controller(coder.id).watch((next) => {
+    if (next !== undefined) seen.push(next);
+  });
   await session.run(ask, { input: "hello" });
+  expect(seen).toEqual(["s-1"]);
   expect(session.resolve(coder.id)).toBe("s-1");
   await scope.close();
 });
