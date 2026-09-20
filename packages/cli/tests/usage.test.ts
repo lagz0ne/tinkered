@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, operation, type Scope } from "@tinker/core";
+import { createScope, operation, type Observe, type Scope } from "@tinker/core";
 import { cli, command, type Cli } from "../src/index.ts";
 
 /** Parse argv[0] into a number; a throw becomes the op's parse failure (exit 2). */
@@ -141,4 +141,57 @@ test("a loader throw is not cached: the next selection retries", async () => {
   expect(third.code).toBe(0);
   expect(third.stdout).toBe("42\n");
   expect(calls).toBe(2);
+});
+
+test("an interrupted op logs code 130 and exits 130", async () => {
+  const logs: Observe.Log[] = [];
+  let started = false;
+  const slow = operation({
+    label: "slow",
+    run: (_deps, { signal }) => {
+      started = true;
+      return new Promise<string>((_resolve, reject) => {
+        signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+      });
+    },
+  });
+  const ac = new AbortController();
+  const ext = cli({ name: "app", version: "1.0.0", commands: [command("slow", () => slow)] });
+  const scope = createScope({
+    extensions: [ext],
+    observe: { history: 20, log: (entry) => logs.push(entry) },
+  });
+  await scope.ready;
+  const pending = scope.resolve(ext)(["slow"], {
+    stdout: () => undefined,
+    stderr: () => undefined,
+    signal: ac.signal,
+  });
+  while (!started) await Promise.resolve();
+  ac.abort();
+  const result = await pending;
+  await scope.close({ graceful: true });
+  expect(result.code).toBe(130);
+  const line = logs.find((entry) => entry.message === "cli command");
+  expect(line?.attributes.code).toBe(130);
+});
+
+test("a validation failure logs code 2 and prints usage", async () => {
+  const logs: Observe.Log[] = [];
+  const ext = cli({
+    name: "app",
+    version: "1.0.0",
+    commands: [command("double", () => double, { input: (argv) => argv[0] })],
+  });
+  const scope = createScope({
+    extensions: [ext],
+    observe: { history: 20, log: (entry) => logs.push(entry) },
+  });
+  await scope.ready;
+  const result = await scope.resolve(ext)(["double", "abc"]);
+  await scope.close({ graceful: true });
+  expect(result.code).toBe(2);
+  expect(result.stderr).toBe("app 1.0.0\n  double\n");
+  const line = logs.find((entry) => entry.message === "cli command");
+  expect(line?.attributes.code).toBe(2);
 });
