@@ -353,3 +353,24 @@ test("the detail and conflict routes answer through app.request", async () => {
     await scope.close({ graceful: true });
   }
 });
+
+test("a register for a gone tab answers gone and a bad message answers bad", async () => {
+  const { scope, app } = await boot();
+  try {
+    const gone = await app.request("/sync?client=nobody", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ type: "register", keys: [] }),
+    });
+    expect(gone.status).toBe(410);
+
+    const bad = await app.request("/sync?client=nobody", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ type: "register", keys: [42] }),
+    });
+    expect(bad.status).toBe(400);
+  } finally {
+    await scope.close({ graceful: true });
+  }
+});

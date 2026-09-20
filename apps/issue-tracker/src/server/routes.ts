@@ -1,12 +1,17 @@
 import type { Context } from "hono";
 import type { Tag } from "@tinker/core";
-import { route, type HonoScope } from "@tinker/hono";
+import { route, stream, type HonoScope } from "@tinker/hono";
 import { isError } from "../errors.ts";
-import { readCapability } from "./draft.ts";
+import { readCapability, startDraft } from "./draft.ts";
 import { addComment, createIssue, editIssue, readDetail, readIssues } from "./operations.ts";
+import { registerViewer } from "./sync.ts";
 
 /** Map a registry failure to its status; anything else falls through to Hono. */
 export function onError(error: unknown, c: Parameters<HonoScope.OnError>[1]) {
+  return readIssueError(error, c) ?? readStreamError(error, c);
+}
+
+function readIssueError(error: unknown, c: Parameters<HonoScope.OnError>[1]) {
   if (isError(error, "IssueNotFound")) return c.text("issue not found", 404);
   if (isError(error, "IssueConflict")) {
     return c.json(
@@ -23,7 +28,14 @@ export function onError(error: unknown, c: Parameters<HonoScope.OnError>[1]) {
     return c.text(error.payload.reason, 400);
   }
   if (isError(error, "BadCommentInput")) return c.text(error.payload.reason, 400);
+  return undefined;
+}
+
+function readStreamError(error: unknown, c: Parameters<HonoScope.OnError>[1]) {
   if (isError(error, "BadDraftInput")) return c.text(error.payload.reason, 400);
+  if (isError(error, "BadRegister")) return c.text("bad", 400);
+  if (isError(error, "ViewerGone")) return c.text("gone", 410);
+  if (isError(error, "DraftOff")) return c.text("draft helper is off", 404);
   if (isError(error, "DraftFailed")) return c.text(error.payload.reason, 502);
   return undefined;
 }
@@ -56,4 +68,20 @@ export const issueRoutes: readonly Tag.Binding<HonoScope.BoundRoute>[] = [
   }),
   route.get("/api/issues", () => readIssues),
   route.get("/api/draft", () => readCapability),
+  route.post("/api/issues/:id/draft", () => startDraft, {
+    input: (c) => readBody(c, { id: c.req.param("id") }),
+    respond: (started, c) => {
+      c.header("Content-Type", "text/event-stream");
+      c.header("Cache-Control", "no-cache");
+      c.header("Connection", "keep-alive");
+      return stream(c, (emit, ctx) => started.stream(emit, ctx.signal));
+    },
+  }),
+  route.post("/sync", () => registerViewer, {
+    input: async (c) => ({
+      id: c.req.query("client") ?? "guest",
+      message: await c.req.json(),
+    }),
+    respond: (_v, c) => c.text("ok"),
+  }),
 ];

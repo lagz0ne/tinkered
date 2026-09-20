@@ -2,17 +2,18 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "vite-plus/test";
-import { createScope, preset, type Operation, type Scope } from "@tinker/core";
+import { preset, type Operation, type Scope } from "@tinker/core";
 import {
   addComment,
   createApp,
   createIssue,
   fail,
   issueList,
+  isError,
   parseComment,
   parseIssueDetail,
   readDetail,
-  runDraft,
+  startDraft,
   type AppConfig,
 } from "../src/index.ts";
 import { claudeCode } from "@tinker/harness";
@@ -242,15 +243,26 @@ test("a draft for a missing issue answers gone and runs no model", async () => {
 
 test("an aborted caller runs no model turn", async () => {
   const fixture = readDraftServer([{ text: "never used" }]);
-  const scope = createScope({ presets: [preset(claudeCode.sdk, async () => fixture.sdk)] });
+  const path = tempPath();
+  const booted = await boot(path, {
+    draft: { enabled: true, baseUrl: "http://127.0.0.1:1" },
+    presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
+  });
+  const app = booted.app;
   try {
     const stopper = new AbortController();
     stopper.abort();
-    const done = await runDraft(scope, { id: "x", prompt: "" }, () => undefined, stopper.signal);
-    expect(done).toEqual({ status: "cancelled", draft: "" });
+    const res = await app.request("/api/issues/missing-id/draft", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+      signal: stopper.signal,
+    });
+    expect([404, 499].includes(res.status)).toBe(true);
     expect(fixture.turnCount()).toBe(0);
   } finally {
-    await scope.close({ graceful: true });
+    await booted.scope.close({ graceful: true });
+    removeTemp(path);
   }
 });
 
@@ -478,6 +490,35 @@ test("overlapping drafts on two issues stay isolated through one live app", asyn
     await live.scope.close();
     await heard.stop();
     await tracked;
+    removeTemp(path);
+  }
+});
+
+test("startDraft runs without Hono: off answers DraftOff, a missing issue answers gone", async () => {
+  const path = tempPath();
+  const booted = await boot(path);
+  const live = await boot(path, { draft: { enabled: true, baseUrl: "http://127.0.0.1:1" } });
+  try {
+    const created = await via(booted.scope, createIssue, { title: "Seam", description: "v1" });
+    try {
+      await booted.scope.session((s) =>
+        s.run(startDraft, { input: { id: created.id, prompt: "" } }),
+      );
+      throw fail("DraftFailed", { reason: "expected DraftOff" });
+    } catch (error: unknown) {
+      if (!isError(error, "DraftOff")) throw error;
+    }
+    try {
+      await live.scope.session((s) =>
+        s.run(startDraft, { input: { id: "missing-id", prompt: "" } }),
+      );
+      throw fail("DraftFailed", { reason: "expected IssueNotFound" });
+    } catch (error: unknown) {
+      if (!isError(error, "IssueNotFound")) throw error;
+    }
+  } finally {
+    await live.scope.close({ graceful: true });
+    await booted.scope.close({ graceful: true });
     removeTemp(path);
   }
 });
