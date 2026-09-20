@@ -183,11 +183,11 @@ core-feedback row "connect rejects on forced close"   open                  done
 - Tours: `examples/sync/basic.ts` + `examples/sync/hono.ts` re-expressed; `hono.ts` drops the `Result` like the
   tracker row. Cast-free.
 - Sync tests 28 → 30: every promise re-expressed through wiring; new: `connect resolves cancelled on a forced
-  root close`, `connect resolves success when the transport closes`, `a row for an unpublished key posted by a
-  viewer still closes the transport`, `a row names the key, not the cell label`.
+root close`, `connect resolves success when the transport closes`, `a row for an unpublished key posted by a
+viewer still closes the transport`, `a row names the key, not the cell label`.
 - Deviation: the routes `respond` drops (not returns) the `Result` — `stream`'s `Write` must resolve `void`,
   so the brief's `.then((end) => { close(); return end; })` would not type; behavior is the brief's (close the
   inbox, body ends cleanly; forced cascade → `cancelled` inside `connect`, swallowed there).
 - `scripts/validate.mjs`: no edit needed — the sync bundle-export assertion (`m.source && m.subscribe &&
-  m.family && m.memoryPair`) names only kept symbols.
+m.family && m.memoryPair`) names only kept symbols.
 - Core feedback: the `source().connect` row is done (see above).
