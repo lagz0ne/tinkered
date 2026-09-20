@@ -6,11 +6,8 @@ import {
   isError,
   isFamily,
   memoryPair,
-  readSynced,
   source,
   subscribe,
-  sync,
-  synced,
   type Sync,
 } from "../src/index.ts";
 import { boot } from "../../../examples/sync/hono.ts";
@@ -22,7 +19,7 @@ function parseText(raw: unknown): string {
 }
 
 /** The shared counter both drivers publish. */
-const counter = data({ label: "counter", initial: 0, meta: [synced({ key: "counter" })] });
+const counter = data({ label: "counter", initial: 0 });
 
 /** The shared todo family both drivers publish. */
 const todos = family({ label: "todo", initial: "", parse: parseText });
@@ -58,23 +55,6 @@ test("family hands back the same cell for one id, in creation order", () => {
   expect(notes.members()).toEqual(["a", "b", "c"]);
 });
 
-test("a member carries its synced key", () => {
-  const member = todos("7");
-  expect(readSynced(member).key).toBe("todo/7");
-  expect(synced.read(member).present).toBe(true);
-});
-
-test("readSynced on a plain cell throws SyncUndeclared", () => {
-  const plain = data({ label: "plain", initial: 0 });
-  try {
-    readSynced(plain);
-    expect.unreachable();
-  } catch (error: unknown) {
-    if (!isError(error, "SyncUndeclared")) throw error;
-    expect(error.payload.label).toBe("plain");
-  }
-});
-
 test("a member reads and writes like an ordinary cell", () => {
   const scope = createScope();
   expect(scope.resolve(todos("1"))).toBe("");
@@ -83,14 +63,9 @@ test("a member reads and writes like an ordinary cell", () => {
   return scope.close({ graceful: true });
 });
 
-test("sync binds cells and families whole on the scope", () => {
-  const scope = createScope({ tags: [sync(counter), sync(todos)] });
-  const bound = scope.resolve(sync.all);
-  expect(bound).toContain(counter);
-  expect(bound).toContain(todos);
+test("isFamily tells a family from a cell", () => {
   expect(isFamily(todos)).toBe(true);
   expect(isFamily(counter)).toBe(false);
-  return scope.close({ graceful: true });
 });
 
 test("memoryPair delivers every send in order, never synchronously", () => {
@@ -157,46 +132,54 @@ test("an unsubscribed listener hears nothing more", () => {
 });
 
 test("ready means the viewer holds its initial data set, no watch", () => {
-  const src = source();
-  const origin = createScope({ tags: [sync(counter)], extensions: [src] });
+  const src = source({ cells: [[counter, "counter"]] });
+  const origin = createScope({ extensions: [src] });
   origin.controller(counter).set(5);
   return origin.ready.then(() => {
     const [near, far] = memoryPair();
     const done = origin.resolve(src).connect(near);
-    const sub = subscribe(far);
-    const guest = createScope({ tags: [sync(counter)], extensions: [sub] });
+    const sub = subscribe(far, { cells: [[counter, "counter"]] });
+    const guest = createScope({ extensions: [sub] });
     return guest.ready.then(() => {
       expect(guest.resolve(counter)).toBe(5);
       guest.resolve(sub).close();
-      return done.then(() =>
-        Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]),
-      );
+      return done.then((end) => {
+        expect(end.status).toBe("success");
+        return Promise.all([
+          origin.close({ graceful: true }),
+          guest.close({ graceful: true }),
+        ]);
+      });
     });
   });
 });
 
 test("resolve delivers the installed values: connect on the source, close on the viewer", () => {
-  const src = source();
-  const origin = createScope({ tags: [sync(counter)], extensions: [src] });
+  const src = source({ cells: [[counter, "counter"]] });
+  const origin = createScope({ extensions: [src] });
   return origin.ready.then(() => {
     const [near, far] = memoryPair();
     const done = origin.resolve(src).connect(near);
-    const sub = subscribe(far);
-    const guest = createScope({ tags: [sync(counter)], extensions: [sub] });
+    const sub = subscribe(far, { cells: [[counter, "counter"]] });
+    const guest = createScope({ extensions: [sub] });
     return guest.ready.then(() => {
       expect(typeof origin.resolve(src).connect).toBe("function");
       expect(typeof guest.resolve(sub).close).toBe("function");
       guest.resolve(sub).close();
-      return done.then(() =>
-        Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]),
-      );
+      return done.then((end) => {
+        expect(end.status).toBe("success");
+        return Promise.all([
+          origin.close({ graceful: true }),
+          guest.close({ graceful: true }),
+        ]);
+      });
     });
   });
 });
 
 test("a source write fans out to two subscribed viewers", () => {
-  const src = source();
-  const origin = createScope({ tags: [sync(counter)], extensions: [src] });
+  const src = source({ cells: [[counter, "counter"]] });
+  const origin = createScope({ extensions: [src] });
   return origin.ready.then(() => {
     const [near, far] = memoryPair();
     const [otherNear, otherFar] = memoryPair();
@@ -204,10 +187,10 @@ test("a source write fans out to two subscribed viewers", () => {
       origin.resolve(src).connect(near),
       origin.resolve(src).connect(otherNear),
     ]);
-    const firstSub = subscribe(far);
-    const secondSub = subscribe(otherFar);
-    const firstScope = createScope({ tags: [sync(counter)], extensions: [firstSub] });
-    const secondScope = createScope({ tags: [sync(counter)], extensions: [secondSub] });
+    const firstSub = subscribe(far, { cells: [[counter, "counter"]] });
+    const secondSub = subscribe(otherFar, { cells: [[counter, "counter"]] });
+    const firstScope = createScope({ extensions: [firstSub] });
+    const secondScope = createScope({ extensions: [secondSub] });
     return Promise.all([firstScope.ready, secondScope.ready]).then(() => {
       const firstWatch = reached(
         (listener: (next: number) => void) => firstScope.controller(counter).watch(listener),
@@ -239,15 +222,15 @@ test("a viewer sees only what it registered", () => {
   const originTodos = family({ label: "todo", initial: "" });
   const guestTodos = family({ label: "todo", initial: "" });
   guestTodos("7");
-  const src = source();
-  const origin = createScope({ tags: [sync(originTodos)], extensions: [src] });
+  const src = source({ cells: [[originTodos, "todo"]] });
+  const origin = createScope({ extensions: [src] });
   origin.controller(originTodos("7")).set("seven");
   origin.controller(originTodos("9")).set("nine");
   return origin.ready.then(() => {
     const [near, far] = memoryPair();
     const done = origin.resolve(src).connect(near);
-    const sub = subscribe(far);
-    const guest = createScope({ tags: [sync(guestTodos)], extensions: [sub] });
+    const sub = subscribe(far, { cells: [[guestTodos, "todo"]] });
+    const guest = createScope({ extensions: [sub] });
     return guest.ready.then(() => {
       expect(guest.resolve(guestTodos("7"))).toBe("seven");
       expect(guestTodos.members()).not.toContain("9");
@@ -262,13 +245,13 @@ test("a viewer sees only what it registered", () => {
 test("a late member after ready gets its snapshot", () => {
   const originTodos = family({ label: "todo-late", initial: "" });
   const guestTodos = family({ label: "todo-late", initial: "" });
-  const src = source();
-  const origin = createScope({ tags: [sync(originTodos)], extensions: [src] });
+  const src = source({ cells: [[originTodos, "todo-late"]] });
+  const origin = createScope({ extensions: [src] });
   return origin.ready.then(() => {
     const [near, far] = memoryPair();
     const done = origin.resolve(src).connect(near);
-    const sub = subscribe(far);
-    const guest = createScope({ tags: [sync(guestTodos)], extensions: [sub] });
+    const sub = subscribe(far, { cells: [[guestTodos, "todo-late"]] });
+    const guest = createScope({ extensions: [sub] });
     return guest.ready.then(() => {
       const member = guestTodos("3");
       const landed = reached(
@@ -288,11 +271,12 @@ test("a late member after ready gets its snapshot", () => {
 });
 
 test("readiness spans the whole initial set", async () => {
+  const staged = data({ label: "staged", initial: 0 });
   const stagedTodos = family({ label: "todo-t07-stage", initial: "", parse: parseText });
   stagedTodos("7");
   const [near, far] = memoryPair();
-  const sub = subscribe(far);
-  const guest = createScope({ tags: [sync(counter), sync(stagedTodos)], extensions: [sub] });
+  const sub = subscribe(far, { cells: [[staged, "counter"], [stagedTodos, "todo-t07-stage"]] });
+  const guest = createScope({ extensions: [sub] });
   let finished = false;
   const outcome = guest.ready.then(() => {
     finished = true;
@@ -302,20 +286,20 @@ test("readiness spans the whole initial set", async () => {
   expect(finished).toBe(false);
   near.send({ type: "snapshot", key: "todo-t07-stage/7", version: 0, value: "seven" });
   await outcome;
-  expect(guest.resolve(counter)).toBe(5);
+  expect(guest.resolve(staged)).toBe(5);
   expect(guest.resolve(stagedTodos("7"))).toBe("seven");
   guest.resolve(sub).close();
   await guest.close({ graceful: true });
 });
 
 test("the far side closing first rejects ready with SyncNotReady", async () => {
-  const src = source();
-  const origin = createScope({ tags: [sync(counter)], extensions: [src] });
+  const src = source({ cells: [[counter, "counter"]] });
+  const origin = createScope({ extensions: [src] });
   await origin.ready;
   const [near, far] = memoryPair();
   const done = origin.resolve(src).connect(near);
-  const sub = subscribe(far);
-  const guest = createScope({ tags: [sync(counter)], extensions: [sub] });
+  const sub = subscribe(far, { cells: [[counter, "counter"]] });
+  const guest = createScope({ extensions: [sub] });
   const checked = guest.ready.then(
     () => {
       expect.unreachable();
@@ -330,21 +314,22 @@ test("the far side closing first rejects ready with SyncNotReady", async () => {
   await checked;
   const result = await guest.close();
   expect(result.status).toBe("failed");
-  await done;
+  const end = await done;
+  expect(end.status).toBe("success");
   await origin.close({ graceful: true });
 });
 
 test("a forced close while waiting rejects ready and parts the source wire", () => {
-  const src = source();
-  const origin = createScope({ tags: [sync(counter)], extensions: [src] });
+  const src = source({ cells: [[counter, "counter"]] });
+  const origin = createScope({ extensions: [src] });
   return origin.ready.then(() => {
     const [near, far] = memoryPair();
     const done = origin.resolve(src).connect(near);
     const parted = new Promise<void>((resolve) => {
       near.onClose(() => resolve());
     });
-    const sub = subscribe(far);
-    const guest = createScope({ tags: [sync(counter)], extensions: [sub] });
+    const sub = subscribe(far, { cells: [[counter, "counter"]] });
+    const guest = createScope({ extensions: [sub] });
     const closing = guest.close();
     return guest.ready.then(
       () => {
@@ -362,28 +347,33 @@ test("a forced close while waiting rejects ready and parts the source wire", () 
 });
 
 test("the source close hook parts the viewer wire on a graceful close", () => {
-  const src = source();
-  const origin = createScope({ tags: [sync(counter)], extensions: [src] });
+  const src = source({ cells: [[counter, "counter"]] });
+  const origin = createScope({ extensions: [src] });
   return origin.ready.then(() => {
     const [near, far] = memoryPair();
     const done = origin.resolve(src).connect(near);
     const parted = new Promise<void>((resolve) => {
       far.onClose(() => resolve());
     });
-    const sub = subscribe(far);
-    const guest = createScope({ tags: [sync(counter)], extensions: [sub] });
+    const sub = subscribe(far, { cells: [[counter, "counter"]] });
+    const guest = createScope({ extensions: [sub] });
     return guest.ready.then(() =>
       origin.close({ graceful: true }).then((result) => {
         expect(result.status).toBe("success");
-        return parted.then(() => done.then(() => guest.close({ graceful: true })));
+        return parted.then(() =>
+          done.then((end) => {
+            expect(end.status).toBe("success");
+            return guest.close({ graceful: true });
+          }),
+        );
       }),
     );
   });
 });
 
 test("an unpublished key on register closes the transport", () => {
-  const src = source();
-  const origin = createScope({ tags: [sync(counter)], extensions: [src] });
+  const src = source({ cells: [[counter, "counter"]] });
+  const origin = createScope({ extensions: [src] });
   return origin.ready.then(() => {
     const [near, far] = memoryPair();
     const done = origin.resolve(src).connect(near);
@@ -391,8 +381,36 @@ test("an unpublished key on register closes the transport", () => {
       far.onClose(() => resolve());
     });
     far.send({ type: "register", keys: ["nope"] });
-    return parted.then(() => done.then(() => origin.close({ graceful: true })));
+    return parted.then(() =>
+      done.then((end) => {
+        expect(end.status).toBe("success");
+        return origin.close({ graceful: true });
+      }),
+    );
   });
+});
+
+test("a row for an unpublished key posted by a viewer still closes the transport", async () => {
+  const watched = family({ label: "todo-t07-viewer", initial: "" });
+  const held = family({ label: "todo-t07-held", initial: "" });
+  const src = source({ cells: [[held, "todo-t07-held"]] });
+  const origin = createScope({ extensions: [src] });
+  await origin.ready;
+  const [near, far] = memoryPair();
+  const done = origin.resolve(src).connect(near);
+  const parted = new Promise<void>((resolve) => {
+    near.onClose(() => resolve());
+  });
+  const sub = subscribe(far, { cells: [[watched, "todo-t07-viewer"]] });
+  const guest = createScope({ extensions: [sub] });
+  await guest.ready;
+  expect(guest.resolve(watched("7"))).toBe("");
+  far.send({ type: "register", keys: ["todo-t07-viewer/7"] });
+  await parted;
+  const end = await done;
+  expect(end.status).toBe("success");
+  guest.resolve(sub).close();
+  await Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]);
 });
 
 test.each([{ kind: "unpublished key" }, { kind: "parse rejects" }, { kind: "wrong direction" }])(
@@ -405,14 +423,13 @@ test.each([{ kind: "unpublished key" }, { kind: "parse rejects" }, { kind: "wron
         if (typeof raw !== "number") throw new Error("bad value");
         return raw;
       },
-      meta: [synced({ key: "t07-strict" })],
     });
     const [near, far] = memoryPair();
     const parted = new Promise<void>((resolve) => {
       near.onClose(() => resolve());
     });
-    const sub = subscribe(far);
-    const guest = createScope({ tags: [sync(counter), sync(strict)], extensions: [sub] });
+    const sub = subscribe(far, { cells: [[counter, "counter"], [strict, "t07-strict"]] });
+    const guest = createScope({ extensions: [sub] });
     const checked = guest.ready.then(
       () => {
         expect.unreachable();
@@ -442,13 +459,13 @@ test("after ready a bad snapshot closes the wire and drops later snapshots", asy
   const originTodos = family({ label: "todo-t07-after", initial: "" });
   const guestTodos = family({ label: "todo-t07-after", initial: "" });
   guestTodos("7");
-  const src = source();
-  const origin = createScope({ tags: [sync(originTodos)], extensions: [src] });
+  const src = source({ cells: [[originTodos, "todo-t07-after"]] });
+  const origin = createScope({ extensions: [src] });
   await origin.ready;
   const [near, far] = memoryPair();
   const done = origin.resolve(src).connect(near);
-  const sub = subscribe(far);
-  const guest = createScope({ tags: [sync(guestTodos)], extensions: [sub] });
+  const sub = subscribe(far, { cells: [[guestTodos, "todo-t07-after"]] });
+  const guest = createScope({ extensions: [sub] });
   await guest.ready;
   expect(guest.resolve(guestTodos("7"))).toBe("");
   const parted = new Promise<void>((resolve) => {
@@ -470,13 +487,13 @@ test("a source member the origin never held arrives with the source value", asyn
   const memberId = "a/b";
   guestTodos(memberId);
   expect(originTodos.members()).toEqual([]);
-  const src = source();
-  const origin = createScope({ tags: [sync(originTodos)], extensions: [src] });
+  const src = source({ cells: [[originTodos, "todo-t07-made"]] });
+  const origin = createScope({ extensions: [src] });
   await origin.ready;
   const [near, far] = memoryPair();
   const done = origin.resolve(src).connect(near);
-  const sub = subscribe(far);
-  const guest = createScope({ tags: [sync(guestTodos)], extensions: [sub] });
+  const sub = subscribe(far, { cells: [[guestTodos, "todo-t07-made"]] });
+  const guest = createScope({ extensions: [sub] });
   await guest.ready;
   expect(guest.resolve(guestTodos(memberId))).toBe("src-init");
   expect(originTodos.members()).toEqual([memberId]);
@@ -486,10 +503,15 @@ test("a source member the origin never held arrives with the source value", asyn
 });
 
 test("two cells under one key reject startup with SyncConflict", async () => {
-  const firstCell = data({ label: "t07-dup-a", initial: 0, meta: [synced({ key: "t07-dup" })] });
-  const secondCell = data({ label: "t07-dup-b", initial: 1, meta: [synced({ key: "t07-dup" })] });
-  const src = source();
-  const origin = createScope({ tags: [sync(firstCell), sync(secondCell)], extensions: [src] });
+  const firstCell = data({ label: "t07-dup-a", initial: 0 });
+  const secondCell = data({ label: "t07-dup-b", initial: 1 });
+  const src = source({
+    cells: [
+      [firstCell, "t07-dup"],
+      [secondCell, "t07-dup"],
+    ],
+  });
+  const origin = createScope({ extensions: [src] });
   await origin.ready.then(
     () => {
       expect.unreachable();
@@ -503,8 +525,8 @@ test("two cells under one key reject startup with SyncConflict", async () => {
 });
 
 test("binding the same cell twice stays ready with one registration key", async () => {
-  const src = source();
-  const origin = createScope({ tags: [sync(counter)], extensions: [src] });
+  const src = source({ cells: [[counter, "counter"]] });
+  const origin = createScope({ extensions: [src] });
   origin.controller(counter).set(5);
   await origin.ready;
   const [near, far] = memoryPair();
@@ -513,8 +535,8 @@ test("binding the same cell twice stays ready with one registration key", async 
     seen.push(message);
   });
   const done = origin.resolve(src).connect(near);
-  const sub = subscribe(far);
-  const guest = createScope({ tags: [sync(counter), sync(counter)], extensions: [sub] });
+  const sub = subscribe(far, { cells: [[counter, "counter"]] });
+  const guest = createScope({ extensions: [sub] });
   await guest.ready;
   expect(guest.resolve(counter)).toBe(5);
   const registers = seen.filter((message): boolean => message.type === "register");
@@ -522,6 +544,50 @@ test("binding the same cell twice stays ready with one registration key", async 
   guest.resolve(sub).close();
   await done;
   await Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]);
+});
+
+test("a row names the key, not the cell label", async () => {
+  const renamed = data({ label: "renamed-cell", initial: 0 });
+  const watched = data({ label: "watched-cell", initial: 0 });
+  const src = source({ cells: [[renamed, "shared"]] });
+  const origin = createScope({ extensions: [src] });
+  origin.controller(renamed).set(4);
+  await origin.ready;
+  const [near, far] = memoryPair();
+  const done = origin.resolve(src).connect(near);
+  const sub = subscribe(far, { cells: [[watched, "shared"]] });
+  const guest = createScope({ extensions: [sub] });
+  await guest.ready;
+  expect(guest.resolve(watched)).toBe(4);
+  guest.resolve(sub).close();
+  await done;
+  await Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]);
+});
+
+test("connect resolves success when the transport closes", async () => {
+  const src = source({ cells: [[counter, "counter"]] });
+  const origin = createScope({ extensions: [src] });
+  await origin.ready;
+  const [near, far] = memoryPair();
+  const done = origin.resolve(src).connect(near);
+  near.close();
+  const end = await done;
+  expect(end.status).toBe("success");
+  far.close();
+  await origin.close({ graceful: true });
+});
+
+test("connect resolves cancelled on a forced root close", async () => {
+  const src = source({ cells: [[counter, "counter"]] });
+  const origin = createScope({ extensions: [src] });
+  await origin.ready;
+  const [near, far] = memoryPair();
+  const done = origin.resolve(src).connect(near);
+  const ended = await origin.close();
+  expect(ended.status).toBe("cancelled");
+  const end = await done;
+  expect(end.status).toBe("cancelled");
+  far.close();
 });
 
 test("the recipe registers by identity, then streams the snapshot down", async () => {
@@ -576,7 +642,7 @@ test("onMember fires once per new member with the id, after it exists", () => {
 });
 
 test("a viewer binding nothing is ready at once", () => {
-  const sub = subscribe(memoryPair()[1]);
+  const sub = subscribe(memoryPair()[1], { cells: [] });
   const guest = createScope({ extensions: [sub] });
   return guest.ready.then(() => guest.close({ graceful: true }));
 });

@@ -1,10 +1,10 @@
 import type { Hono } from "hono";
 import { createScope, data, operation, resource, type Scope } from "@tinker/core";
 import { hono, route, stream } from "@tinker/hono";
-import { source, sync, synced, type Sync } from "@tinker/sync";
+import { source, type Sync } from "@tinker/sync";
 
-/** The shared counter both ends publish. */
-const counter = data({ label: "counter", initial: 0, meta: [synced({ key: "counter" })] });
+/** The shared counter both ends publish: a plain cell, named by the row. */
+const counter = data({ label: "counter", initial: 0 });
 
 /** One line per message down the event stream. */
 function frame(message: Sync.Message): string {
@@ -36,7 +36,7 @@ const posts = resource({
 
 /** The source extension, one identity per process: `boot` installs this same
  * object and the `/sync` row's op declares it in `depends`. */
-const src = source();
+const src = source({ cells: [[counter, "counter"]] });
 
 /** Open one wire: the extension-as-dependency delivers `src`'s start value,
  * so the row needs no scope — `respond` reads the client id. */
@@ -108,8 +108,9 @@ const web = hono({
             for (const arrival of arrivals) arrival(message);
           });
           ctx.signal.addEventListener("abort", () => transport.close(), { once: true });
-          return opened.origin.connect(transport).then(() => {
+          return opened.origin.connect(transport).then((end) => {
             opened.posts.delete(id);
+            return end;
           });
         });
       },
@@ -121,10 +122,10 @@ const web = hono({
   ],
 });
 
-/** The source half in one call: a scope holding the counter plus the app.
+/** The source half in one call: a scope holding the source extension plus the app.
  * `boot` installs the source extension, awaits `ready`, and hands both back. */
 export async function boot(): Promise<{ scope: Scope.Handle; app: Hono }> {
-  const scope = createScope({ tags: [sync(counter)], extensions: [src, web] });
+  const scope = createScope({ extensions: [src, web] });
   await scope.ready;
   return { scope, app: scope.resolve(web) };
 }

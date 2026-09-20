@@ -1,18 +1,25 @@
-import type { Data, Scope, Tag } from "@tinker/core";
-import { data, extension, isError as isCoreError, tag } from "@tinker/core";
+import type { Data, Scope } from "@tinker/core";
+import { data, extension, isError as isCoreError } from "@tinker/core";
 import { fail, isError, raise, type Errors } from "./errors.ts";
 
 export { isError };
 export type { Errors } from "./errors.ts";
 
 /** A cell is the shared unit; the source holds the truth; the transport is
- * userland's (ADR 0048, one way). This package holds the `synced` meta, the
- * `family` member factory, the `sync` binding tag, the message protocol with
- * its `Transport` and the in-memory pair, plus the source driver and the
- * subscribe driver. */
+ * userland's (ADR 0048, one way). This package holds the `family` member
+ * factory, the message protocol with its `Transport` and the in-memory pair,
+ * plus the source driver and the subscribe driver. Both drivers read the flat
+ * wiring rows handed to their constructors, never scope tags or meta
+ * (ADR 0051 §3: drivers read no meta). */
 export declare namespace Sync {
-  /** The static facts a cell carries to declare itself synced. */
-  export type Meta = { readonly key: string };
+  /** One published unit: a cell under its key, or a family under its label.
+   * A family row publishes its members under `${label}/${id}`, the row's
+   * label — not the family's own. */
+  export type Row =
+    | readonly [cell: Data.Cell<unknown>, key: string]
+    | readonly [family: Family<unknown>, label: string];
+  /** The flat table a driver extension receives: every unit it publishes. */
+  export type Wiring = { readonly cells: readonly Row[] };
   /** The wire protocol, one way: the viewer registers the keys it shows and
    * the source answers each key with a snapshot, then fans out later writes
    * on registered keys only. */
@@ -43,26 +50,19 @@ export declare namespace Sync {
   /** One published unit on the scope. */
   export type Published = Data.Cell<unknown> | Family<unknown>;
   /** The source extension: one session per subscriber; the scope's cells are
-   * the truth. */
-  export type Source = { connect(transport: Transport): Promise<void> };
+   * the truth. `connect` resolves with the session's close `Result` — success
+   * once the transport parts, cancelled when a forced root close fells it —
+   * never rejects (ADR 0027). */
+  export type Source = { connect(transport: Transport): Promise<Scope.Result> };
   /** The client extension's handle: detach the listeners and close the
    * transport. */
   export type Subscription = { close(): void };
 }
 
-/** The meta tag a cell carries to declare itself synced:
- * `meta: [synced({ key: "counter" })]`. Read with `readSynced`. */
-export const synced: Tag.Handle<Sync.Meta> = tag({ label: "sync.synced" });
-
-/** The binding tag: `sync(cell | family)` on the scope; the drivers read
- * `scope.resolve(sync.all)`. A family registers by identity: only the
- * members the viewer holds go down. */
-export const sync: Tag.Handle<Sync.Published> = tag({ label: "sync.published" });
-
 /** A cell with an id: members memoized per id in this process, each an
- * ordinary cell carrying `synced` meta under `<label>/<id>`; `members()`
- * lists the ids in creation order; `onMember` fires once per new member,
- * after it is created. */
+ * ordinary cell labelled `<label>/<id>`; `members()` lists the ids in
+ * creation order; `onMember` fires once per new member, after it is created.
+ * The publish key comes from the wiring row, not from the member. */
 export function family<T>(config: {
   label: string;
   initial: T;
@@ -79,7 +79,6 @@ export function family<T>(config: {
       initial: config.initial,
       parse: config.parse,
       eq: config.eq,
-      meta: [synced({ key: `${config.label}/${id}` })],
     });
     found.set(id, cell);
     for (const arrival of arrivals) arrival(id);
@@ -98,27 +97,18 @@ export function family<T>(config: {
   return Object.assign(member, { label: config.label, members, onMember });
 }
 
-/** Read the synced facts off one cell: a member's key. A cell without
- * `synced` meta cannot be published, so this throws `SyncUndeclared` with the
- * cell's label. */
-export function readSynced(cell: Data.Cell<unknown>): Sync.Meta {
-  const found = synced.read(cell);
-  if (!found.present) raise("SyncUndeclared", { label: cell.label });
-  return found.value;
-}
-
 /** A family is a function; a cell is an object: the smallest stable shape
  * that tells one published unit from the other. */
 export function isFamily(unit: Sync.Published): unit is Sync.Family<unknown> {
   return typeof unit === "function";
 }
 
-/** The published set of one scope by key: singletons now,
- * family members now and on arrival, and a lookup that creates a member for
- * a `label/id` key of a published family. `make` builds one entry per key;
- * a second cell under a known key raises `SyncConflict`. */
+/** The published set of one wiring by key: singletons now, family members
+ * now and on arrival, and a lookup that creates a member for a `label/id`
+ * key of a published family. `make` builds one entry per key; a second cell
+ * under a known key raises `SyncConflict`. */
 function readPublished<E extends { cell: Data.Cell<unknown> }>(
-  scope: Scope.Handle,
+  wiring: Sync.Wiring,
   make: (key: string, cell: Data.Cell<unknown>) => E,
 ): { entries: Map<string, E>; entryFor(key: string): E | undefined; stop(): void } {
   type Gate = { make: (id: string) => Data.Cell<unknown>; label: string };
@@ -152,9 +142,9 @@ function readPublished<E extends { cell: Data.Cell<unknown> }>(
     return register(key, cell);
   }
   const arrivals: Array<() => void> = [];
-  for (const unit of scope.resolve(sync.all)) {
+  for (const [unit, name] of wiring.cells) {
     if (isFamily(unit)) {
-      const label = unit.label;
+      const label = name;
       const makeMember = (id: string): Data.Cell<unknown> => unit(id);
       gates.push({ make: makeMember, label });
       for (const id of unit.members()) register(`${label}/${id}`, makeMember(id));
@@ -164,7 +154,7 @@ function readPublished<E extends { cell: Data.Cell<unknown> }>(
         }),
       );
     } else {
-      register(readSynced(unit).key, unit);
+      register(name, unit);
     }
   }
   function stop(): void {
@@ -174,7 +164,7 @@ function readPublished<E extends { cell: Data.Cell<unknown> }>(
 }
 
 /** The source driver, an extension: `start` builds the registry and
- * watchers from the scope, `close` drops every live transport (their
+ * watchers from the wiring rows, `close` drops every live transport (their
  * sessions resolve), and `connect` listens from then on (ADR 0050). The
  * scope's cells are the truth (ADR 0048, one way). The transport carries a
  * key set: each `register` runs one inline operation `sync register` that
@@ -183,9 +173,16 @@ function readPublished<E extends { cell: Data.Cell<unknown> }>(
  * message in the wrong direction, or an unexpected throw inside the op is
  * a protocol violation: the transport closes with no reply. Reads go
  * through the scope handle the driver holds, since a session shadows its
- * own writes. */
-export function source(): Scope.Extension<Sync.Source> {
+ * own writes. Each `connect` opens its own session with `createSession`
+ * and returns that session's close `Result`, never a rejection: a parted
+ * transport closes its session graceful (`success`) — a viewer leaving, a
+ * violation, or a graceful shutdown parts the wire cleanly — while a
+ * forced root close fells the session first (`forcedClosing`, set in the
+ * close hook before the structural close aborts the subtree), so the
+ * forced session close resolves `cancelled`. */
+export function source(wiring: Sync.Wiring): Scope.Extension<Sync.Source> {
   let closeSource: () => void = () => undefined;
+  let forcedClosing = false;
   return extension<Sync.Source>({
     label: "sync.source",
     start: async (scope, _ctx, next) => {
@@ -209,7 +206,7 @@ export function source(): Scope.Extension<Sync.Source> {
           if (keys.has(key)) transport.send(out);
         }
       }
-      const published = readPublished(scope, (key, cell) => {
+      const published = readPublished(wiring, (key, cell) => {
         const entry: Entry = { cell, version: 0 };
         scope.controller(cell).watch(() => {
           entry.version += 1;
@@ -217,55 +214,57 @@ export function source(): Scope.Extension<Sync.Source> {
         });
         return entry;
       });
-      function connect(transport: Sync.Transport): Promise<void> {
-        return scope.session((session) => {
-          const keys = new Set<string>();
-          live.set(transport, keys);
-          const stopMessages = transport.onMessage((message) => {
-            if (message.type !== "register") {
-              transport.close();
-              return;
-            }
-            const wanted = message.keys;
-            try {
-              session.run({
-                label: "sync register",
-                run: (_deps, ctx) => {
-                  const begin = ctx.clock.currentTimeMillis();
-                  for (const key of wanted) {
-                    const entry = published.entryFor(key);
-                    if (entry === undefined) {
-                      transport.close();
-                      return;
-                    }
-                    keys.add(key);
-                    transport.send(snapshot(key, entry));
+      function connect(transport: Sync.Transport): Promise<Scope.Result> {
+        const session = scope.createSession();
+        const keys = new Set<string>();
+        live.set(transport, keys);
+        const stopMessages = transport.onMessage((message) => {
+          if (message.type !== "register") {
+            transport.close();
+            return;
+          }
+          const wanted = message.keys;
+          try {
+            session.run({
+              label: "sync register",
+              run: (_deps, ctx) => {
+                const begin = ctx.clock.currentTimeMillis();
+                for (const key of wanted) {
+                  const entry = published.entryFor(key);
+                  if (entry === undefined) {
+                    transport.close();
+                    return;
                   }
-                  ctx.log("sync register", {
-                    count: wanted.length,
-                    ms: ctx.clock.currentTimeMillis() - begin,
-                  });
-                },
-              });
-            } catch {
-              transport.close();
-            }
-          });
-          const parted = new Promise<void>((resolve) => {
-            transport.onClose(() => {
-              resolve();
+                  keys.add(key);
+                  transport.send(snapshot(key, entry));
+                }
+                ctx.log("sync register", {
+                  count: wanted.length,
+                  ms: ctx.clock.currentTimeMillis() - begin,
+                });
+              },
             });
+          } catch {
+            transport.close();
+          }
+        });
+        const parted = new Promise<void>((resolve) => {
+          transport.onClose(() => {
+            resolve();
           });
-          return parted.then(() => {
-            stopMessages();
-            live.delete(transport);
-          });
+        });
+        return parted.then(() => {
+          stopMessages();
+          live.delete(transport);
+          if (forcedClosing) return session.close();
+          return session.close({ graceful: true });
         });
       }
       await next();
       return { connect };
     },
-    close: (_options, next) => {
+    close: (options, next) => {
+      forcedClosing = options.graceful !== true;
       closeSource();
       return next();
     },
@@ -285,7 +284,10 @@ export function source(): Scope.Extension<Sync.Source> {
  * keys still missing), so `ready` rejects and the scope closes failed.
  * `close()` detaches and closes (idempotent); a far-side close detaches
  * without closing twice. */
-export function subscribe(transport: Sync.Transport): Scope.Extension<Sync.Subscription> {
+export function subscribe(
+  transport: Sync.Transport,
+  wiring: Sync.Wiring,
+): Scope.Extension<Sync.Subscription> {
   let closeClient: () => void = () => undefined;
   return extension<Sync.Subscription>({
     label: "sync.subscribe",
@@ -293,7 +295,7 @@ export function subscribe(transport: Sync.Transport): Scope.Extension<Sync.Subsc
       let shut = false;
       let stopMessages: () => void = () => undefined;
       let stopParted: () => void = () => undefined;
-      const published = readPublished(scope, (_key, cell) => ({ cell }));
+      const published = readPublished(wiring, (_key, cell) => ({ cell }));
       const stops: Array<() => void> = [];
       const first: string[] = [];
       for (const key of published.entries.keys()) first.push(key);
@@ -369,9 +371,9 @@ export function subscribe(transport: Sync.Transport): Scope.Extension<Sync.Subsc
         transport.close();
       };
       transport.send({ type: "register", keys: first });
-      for (const unit of scope.resolve(sync.all)) {
+      for (const [unit, name] of wiring.cells) {
         if (isFamily(unit)) {
-          const label = unit.label;
+          const label = name;
           stops.push(
             unit.onMember((id) => {
               joined(`${label}/${id}`);

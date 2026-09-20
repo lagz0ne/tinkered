@@ -1,8 +1,7 @@
-/** SyncUndeclared: { label: string }; SyncConflict: { key: string };
+/** SyncConflict: { key: string };
  * SyncNotReady: { label: string; missing: readonly string[] } — the labels
  * still missing when a subscribe start broke. */
 type Payloads = {
-  SyncUndeclared: { label: string };
   SyncConflict: { key: string };
   SyncNotReady: { label: string; missing: readonly string[] };
 };
