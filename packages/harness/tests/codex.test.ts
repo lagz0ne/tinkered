@@ -9,7 +9,7 @@ import type {
   TurnOptions,
 } from "@openai/codex-sdk";
 import { codex, harness, isError, type Harness, type OpenAiCodex } from "../src/index.ts";
-import { readCodexFailure, readCodexScript, type CodexScript } from "./fixtures.ts";
+import { readCodexCut, readCodexFailure, readCodexScript, type CodexScript } from "./fixtures.ts";
 
 /** One `runStreamed` call a fake thread saw: the input plus the turn options. */
 type SeenTurn = { readonly input: Input; readonly turnOptions: TurnOptions | undefined };
@@ -397,4 +397,21 @@ test("an empty agent update streams nothing and the turn still completes", async
   ]);
   expect(done.text).toBe("Hello");
   expect(done.items.map((item) => item.status)).toEqual(["started", "completed"]);
+});
+
+test("a stream that ends with no completion rejects TurnEnded", async () => {
+  const seen: Seen = { turns: [], clients: [] };
+  const coder = harness({ label: "coder", adapter: codex });
+  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
+  const scope = createScope({
+    presets: [preset(codex.sdk, async () => fakeCodexSdk([readCodexCut()], seen))],
+  });
+  const session = scope.createSession();
+  const outcome = await session.run(ask, { input: "hello" }).then(
+    () => "resolved",
+    (error: unknown) => error,
+  );
+  if (!isError(outcome, "TurnEnded")) throw outcome;
+  expect(outcome.payload.harness).toBe("codex");
+  await scope.close();
 });

@@ -268,6 +268,17 @@ export function readCodexFailure(): CodexScript {
   };
 }
 
+/** A recorded Codex turn that ends with no completion: usage stays missing. */
+export function readCodexCut(): CodexScript {
+  return {
+    events: [
+      { type: "thread.started", thread_id: "t-1" },
+      { type: "turn.started" },
+      { type: "item.completed", item: readAgentMessage("m-1", "Hello") },
+    ],
+  };
+}
+
 /** The two tool members of the Claude seam for a fake that never registers tools: `tool` keeps
  * the definition, `createSdkMcpServer` returns a stdio config (a legit `McpServerConfig`). */
 export function readToolSdk(): Pick<ClaudeCode.Sdk, "tool" | "createSdkMcpServer"> {
