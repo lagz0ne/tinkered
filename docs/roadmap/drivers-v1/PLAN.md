@@ -56,3 +56,20 @@ bench/core-probe.mjs `session` scenario         bench:51                        
 packages/sync/src/index.ts source().connect     sync:~230                              (t02/t06) returns the session `Result`
 consumers of Scope.Extension type               sync (source, subscribe), tracker publishAfterCommit (t02), tests
 ```
+
+## drivers/t03 — impact block (2026-09-20, import sites of `@tinker/hono`)
+
+```impact drivers/t03
+symbol                  today                                        after (ADR 0051)                                   consumers to migrate
+honoApp(scope, opts)    mounts routes.all + mount slot                deleted; `hono(wiring)` extension, value = Hono app   apps/issue-tracker/src/server/app.ts, examples/hono/basic.ts, packages/hono/tests/routes.test.ts, README
+tinker(scope, opts)     public middleware                             internal to the extension                          examples/sync/hono.ts (uses tinker+stream directly → row with `respond: stream`), tracker app.ts
+handle(op, route)       public endpoint builder                       internal                                           packages/hono/tests/{errors,stream,hono,routes}.test.ts, README
+route.<verb>(path, load, opts) → Tag.Binding<BoundRoute>   scope tag  route.<verb>(path, op | loader, opts) → plain Row   tracker routes.ts (issueRoutes), examples/hono, hono tests
+routes (tag), HonoScope.BoundRoute/Load           scope-config vocabulary   deleted                                     tracker routes.ts (type import), hono tests
+HonoScope.Options.mount                            hand-mounted extras       stays: `hono({ mount })` for streaming routes that need `stream` (best-practices rule 6 exception)   tracker app.ts (/sync GET)
+stream(c, write)        public                                        public, unchanged                                  tracker routes.ts, draft.ts, sync.ts; examples/sync/hono.ts
+request (tag)           public                                        public, unchanged                                  —
+tracker /sync GET       closes over `origin = scope.resolve(src)`     `openWire` operation with `depends: { origin: src }` (t01 B) and `respond: (wire, c) => stream(c, …)`; no mount needed if that lands cleanly   tracker app.ts, sync.ts
+```
+
+Expected after: `honoApp|tinker\(|handle\(` outside `packages/hono/src` → `(none)`; `Scope.Handle` in `packages/hono/src` → the extension's `start` parameter only; tracker `createApp` builds no `Hono` itself.
