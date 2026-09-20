@@ -261,3 +261,21 @@ test("the frame server wins over a user server bound under the frame label", asy
   expect(seen.servers[0]?.name).toBe("coder");
   await scope.close();
 });
+
+test("two tools register under their own names", async () => {
+  const seen: Seen = { servers: [], queries: [], results: [] };
+  const lookup = operation({
+    label: "lookup",
+    input: parseSearch,
+    meta: [tool({ description: "find things", schema: searchShape })],
+    run: (_deps, ctx) => `hit:${(ctx.input as { q: string }).q}`,
+  });
+  const coder = harness({ label: "coder", adapter: claudeCode, tools: [search, lookup] });
+  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const scope = createScope({
+    presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))],
+  });
+  await scope.createSession().run(ask, { input: "hello" });
+  expect(seen.servers[0]?.tools.map((entry) => entry.name).sort()).toEqual(["lookup", "search"]);
+  await scope.close();
+});
