@@ -139,6 +139,53 @@ is a rollback (at the threshold; noted, never blocking).
 Guide demo: "poll the API every 10 seconds and keep the latest issue list" → resource 99%,
 target scope 83%, needs defer 94%.
 
+## React: the component kind + five rules (2026-09-20)
+
+**Analogy: eslint-plugin-react-hooks** — the component is the node. The slicer now marks a
+capitalised function (or `const Name = (…) => {`) in a `.tsx` file as `component` and a
+`use*` function as `hook`; a component that calls `createScope` is a root and is skipped.
+Grep keeps rule 9's smells (`useState` / `useRef` / `useEffect`) and rule 2's
+`Scope.Handle` props; Jev gets the five things grep cannot see:
+
+| rule                   | asks (kind: component)                                                                  | from                          |
+| ---------------------- | --------------------------------------------------------------------------------------- | ----------------------------- |
+| readsMoreThanRendered  | reads a whole list from a cell and picks one item by id / key / index, with no selector | rule 10                       |
+| subscribesToWriteOnly  | subscribes with `useData` to a cell whose value never renders (setter only)             | README: `useController`       |
+| runDuringRender        | calls `run` / `set` / `update` in the render body, outside any handler                  | README: operations imperative |
+| domainLogicInRender    | decides a conflict / merge / validity itself instead of rendering a notice cell         | derivation pattern            |
+| effectOwnedByComponent | starts a fetch, timer, listener, socket, or stream itself                               | rule 8                        |
+
+The guide gained `view` ("a component: reads cells with `useData`, runs operations with
+`useRun`, renders"); the lint expects a component to read like a `view` — which removed the
+earlier false "LiveState reads like a resource" note.
+
+Eval, 2026-09-20 (24/24; `readsMoreThanRendered` took one rewording):
+
+| question               | bad | clean    | separation |
+| ---------------------- | --- | -------- | ---------- |
+| readsMoreThanRendered  | 92% | 43% / 3% | 49         |
+| subscribesToWriteOnly  | 94% | 11%      | 83         |
+| runDuringRender        | 95% | 19%      | 76         |
+| domainLogicInRender    | 93% | 5%       | 88         |
+| effectOwnedByComponent | 95% | 5%       | 90         |
+| unit → view (2 cases)  | —   | —        | 97%, 100%  |
+
+Lesson: the first wording ("one item or one field") flagged every form that reads a two-field
+draft and renders both fields (`IssueForm` 71%, `DraftForm` 78%). Rule 10 is about lists in a
+detail view, so the question now says "a whole list … one item by id, key, or index", and the
+form draft is the second clean fixture (an eval pair may carry several `clean*` fixtures; the
+worst one sets the separation).
+
+Run over `apps/issue-tracker/src/client/*.tsx` + `examples/react/*.tsx` (at `419be02`):
+
+| wording                     | judged | with notes | of which components                                                                           |
+| --------------------------- | ------ | ---------- | --------------------------------------------------------------------------------------------- |
+| first ("one item or field") | 28     | 8          | 6 × readsMoreThanRendered, mostly forms                                                       |
+| narrowed (landed)           | 28     | 3          | `DraftView` subscribesToWriteOnly 51% (at threshold; it reads four cells and hands them down) |
+
+The other two notes are `main.tsx` `boot` / `renderDead` (plain functions in the client's
+entry file, seen in the first run too).
+
 ## toolcall chain — tried and removed (2026-09-19)
 
 A `scripts/jev/toolcall.mjs` wrapper (frame → before/gate → after/trim) was built to keep tool

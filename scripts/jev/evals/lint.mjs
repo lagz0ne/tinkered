@@ -4,7 +4,13 @@
 //   run:  node scripts/jev/evals/lint.mjs
 import { loadKey, ask, pct } from "../lib.mjs";
 import { LINT, GUIDE } from "../bank.mjs";
-import { JUDGE_CASES, UNIT_CASES, TARGET_CASES, DEFER_CASES } from "./fixtures/lint.mjs";
+import {
+  JUDGE_CASES,
+  REACT_CASES,
+  UNIT_CASES,
+  TARGET_CASES,
+  DEFER_CASES,
+} from "./fixtures/lint.mjs";
 
 const FLOOR = 0.3;
 if (!loadKey()) process.exit(0);
@@ -16,13 +22,18 @@ const row = (ok, line) => {
   console.log(`  ${ok ? "✓" : "✗"} ${line}`);
 };
 
+// A pair is one bad fixture and every clean* fixture; the worst clean sets the separation.
 async function judgePair(id, cases) {
   const j = LINT[id];
   const bad = (await ask(cases.bad, { [id]: j.q }))[id].probability;
-  const clean = (await ask(cases.clean, { [id]: j.q }))[id].probability;
+  const cleans = [];
+  for (const key of Object.keys(cases).filter((k) => k.startsWith("clean"))) {
+    cleans.push((await ask(cases[key], { [id]: j.q }))[id].probability);
+  }
+  const clean = Math.max(...cleans);
   const sep = bad - clean;
   const ok = sep >= FLOOR && bad >= j.threshold && clean < j.threshold;
-  row(ok, `${id}: bad ${pct(bad)}, clean ${pct(clean)}, separation ${pct(sep)}`);
+  row(ok, `${id}: bad ${pct(bad)}, clean ${cleans.map(pct).join("/")}, separation ${pct(sep)}`);
 }
 
 async function choiceCase(id, c) {
@@ -38,6 +49,9 @@ async function choiceCase(id, c) {
 
 console.log("judges (bad vs clean, floor 30 points)");
 for (const [id, cases] of Object.entries(JUDGE_CASES)) await judgePair(id, cases);
+
+console.log("\nreact judges (bad vs clean, floor 30 points)");
+for (const [id, cases] of Object.entries(REACT_CASES)) await judgePair(id, cases);
 
 console.log("\nguide: unit (floor 0.6)");
 for (const c of UNIT_CASES) await choiceCase("unit", c);

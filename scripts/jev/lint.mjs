@@ -10,7 +10,12 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { loadKey, ask, pct } from "./lib.mjs";
 import { slice, forJev, LINT, GUIDE } from "./bank.mjs";
 
-const DEFAULT = ["examples/*.ts", "apps/issue-tracker/src/*.ts", "apps/issue-tracker/src/*.tsx"];
+const DEFAULT = [
+  "examples/*.ts",
+  "examples/*.tsx",
+  "apps/issue-tracker/src/*.ts",
+  "apps/issue-tracker/src/*.tsx",
+];
 const VALUED = new Set(["--limit", "--json"]);
 const args = process.argv.slice(2);
 const valueOf = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
@@ -39,12 +44,15 @@ function flagsOf(answers) {
     .map(([id]) => `${id} ${pct(answers[id].probability)}`);
 }
 
+// What each sliced kind should read like: helpers and hooks as glue, components as a view.
+const EXPECTED = { function: "glue", hook: "glue", component: "view" };
+
 function readsAs(kind, answer) {
   const c = answer.choice;
   const conf = answer.probabilities?.[c] ?? 0;
-  if (conf < GUIDE.unit.minConfidence) return null;
-  if (kind === "function") return c === "glue" ? null : `reads like a ${c} (${pct(conf)})`;
-  return c === kind ? null : `declared ${kind}, reads like ${c} (${pct(conf)})`;
+  if (conf < GUIDE.unit.minConfidence || c === (EXPECTED[kind] ?? kind)) return null;
+  if (kind in EXPECTED) return `reads like a ${c} (${pct(conf)})`;
+  return `declared ${kind}, reads like ${c} (${pct(conf)})`;
 }
 
 function printUnit(u, flags, reads) {
@@ -56,7 +64,7 @@ function printUnit(u, flags, reads) {
 // Skipped by default: data/tag one-liners and tiny functions (type guards, predicates).
 const MIN_FUNCTION = 150;
 // A function that calls createScope is a composition root (rule 1), not a primitive candidate.
-const isRoot = (u) => u.kind === "function" && u.source.includes("createScope(");
+const isRoot = (u) => u.kind in EXPECTED && u.source.includes("createScope(");
 const smallFunction = (u) => u.kind === "function" && u.source.length < MIN_FUNCTION;
 const oneLiner = (u) => u.kind === "data" || u.kind === "tag";
 const wanted = (u) => all || !(isRoot(u) || smallFunction(u) || oneLiner(u));
@@ -67,7 +75,7 @@ const report = [];
 console.log(`jev lint (advisory) — ${files.length} file(s)\n`);
 for (const file of files) {
   if (report.length >= limit) break;
-  const units = slice(readFileSync(file, "utf8")).filter(wanted);
+  const units = slice(readFileSync(file, "utf8"), file).filter(wanted);
   if (units.length === 0) continue;
   console.log(file);
   for (const u of units) {

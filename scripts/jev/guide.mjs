@@ -16,7 +16,7 @@ if (!arg) {
 function stateFor(spec) {
   const m = /^(.+\.tsx?)#(\w+)$/.exec(spec);
   if (!m) return { description: spec };
-  const u = slice(readFileSync(m[1], "utf8")).find((x) => x.name === m[2]);
+  const u = slice(readFileSync(m[1], "utf8"), m[1]).find((x) => x.name === m[2]);
   if (!u) throw new Error(`guide: no unit or function named ${m[2]} in ${m[1]}`);
   return forJev(u);
 }

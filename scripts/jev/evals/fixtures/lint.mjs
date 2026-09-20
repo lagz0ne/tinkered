@@ -237,6 +237,191 @@ const cache = resource({
   },
 };
 
+// React judges: components cut to the tracker's shapes (kind "component").
+export const REACT_CASES = {
+  readsMoreThanRendered: {
+    bad: unit(
+      "component",
+      "IssueTitle",
+      `
+function IssueTitle({ id }: { id: string }) {
+  const issues = useData(issueList);
+  const issue = issues.find((i) => i.id === id);
+  return <h2>{issue?.title ?? "…"}</h2>;
+}`,
+    ),
+    clean: unit(
+      "component",
+      "IssueTitle",
+      `
+function IssueTitle({ id }: { id: string }) {
+  const title = useData(issueList, (list) => list.find((i) => i.id === id)?.title ?? "…");
+  return <h2>{title}</h2>;
+}`,
+    ),
+    clean2: unit(
+      "component",
+      "IssueForm",
+      `
+function IssueForm() {
+  const draft = useData(newIssue);
+  const type = useRun(typeNewIssue);
+  return (
+    <form>
+      <input value={draft.title} onChange={(e) => type.run({ input: { title: e.target.value } })} />
+      <textarea
+        value={draft.description}
+        onChange={(e) => type.run({ input: { description: e.target.value } })}
+      />
+    </form>
+  );
+}`,
+    ),
+  },
+  subscribesToWriteOnly: {
+    bad: unit(
+      "component",
+      "ClearDraft",
+      `
+function ClearDraft() {
+  const [, setDraft] = useData(commentDraft, { writable: true });
+  return (
+    <button type="button" onClick={() => setDraft("")}>
+      Clear
+    </button>
+  );
+}`,
+    ),
+    clean: unit(
+      "component",
+      "ClearDraft",
+      `
+function ClearDraft() {
+  const draft = useController(commentDraft);
+  return (
+    <button type="button" onClick={() => draft.set("")}>
+      Clear
+    </button>
+  );
+}`,
+    ),
+  },
+  runDuringRender: {
+    bad: unit(
+      "component",
+      "DetailPane",
+      `
+function DetailPane({ id }: { id: string }) {
+  const load = useRun(loadDetail);
+  load.run({ input: id });
+  const shown = useData(detail);
+  return <pre>{JSON.stringify(shown)}</pre>;
+}`,
+    ),
+    clean: unit(
+      "component",
+      "DetailPane",
+      `
+function DetailPane({ id }: { id: string }) {
+  const load = useRun(loadDetail);
+  const shown = useData(detail);
+  return (
+    <div>
+      <button type="button" onClick={() => load.run({ input: id })}>
+        Load
+      </button>
+      <pre>{JSON.stringify(shown)}</pre>
+    </div>
+  );
+}`,
+    ),
+  },
+  domainLogicInRender: {
+    bad: unit(
+      "component",
+      "EditForm",
+      `
+function EditForm() {
+  const draft = useData(editDraft);
+  const issues = useData(issueList);
+  const saved = issues.find((i) => i.id === draft?.id);
+  const conflict = saved !== undefined && draft !== null && saved.revision !== draft.baseRevision;
+  const save = useRun(saveEdit);
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!conflict) save.run({ input: draft });
+      }}
+    >
+      {conflict ? <p role="alert">Someone else saved this issue. Reload before saving.</p> : null}
+      <button type="submit" disabled={conflict}>
+        Save
+      </button>
+    </form>
+  );
+}`,
+    ),
+    clean: unit(
+      "component",
+      "EditForm",
+      `
+function EditForm() {
+  const draft = useData(editDraft);
+  const notice = useData(editNotice);
+  const save = useRun(saveEdit);
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        save.run({ input: draft });
+      }}
+    >
+      {notice ? <p role="alert">{notice.text}</p> : null}
+      <button type="submit" disabled={save.isPending}>
+        Save
+      </button>
+    </form>
+  );
+}`,
+    ),
+  },
+  effectOwnedByComponent: {
+    bad: unit(
+      "component",
+      "ReloadButton",
+      `
+function ReloadButton() {
+  const list = useController(issueList);
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        const res = await fetch("/api/issues");
+        list.set(await res.json());
+      }}
+    >
+      Reload
+    </button>
+  );
+}`,
+    ),
+    clean: unit(
+      "component",
+      "ReloadButton",
+      `
+function ReloadButton() {
+  const reload = useRun(reloadIssues);
+  return (
+    <button type="button" onClick={() => reload.run()} disabled={reload.isPending}>
+      Reload
+    </button>
+  );
+}`,
+    ),
+  },
+};
+
 export const UNIT_CASES = [
   { expect: "data", state: { description: "the title the user is typing in the new-issue form" } },
   {
@@ -256,6 +441,13 @@ export const UNIT_CASES = [
     state: { description: "compute the next revision number from the saved issue and the edit" },
   },
   { expect: "resource", state: JUDGE_CASES.effectWithoutDefer.clean },
+  {
+    expect: "view",
+    state: {
+      description: "show the open issues as a list and let the user click one to select it",
+    },
+  },
+  { expect: "view", state: REACT_CASES.readsMoreThanRendered.clean },
   {
     expect: "glue",
     state: unit(
