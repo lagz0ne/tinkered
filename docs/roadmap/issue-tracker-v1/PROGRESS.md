@@ -1617,3 +1617,30 @@ HonoScope.Route.input   packages/hono/src/index.ts (type + readRoute), packages/
 
 Expected after: `bootScope`, `buildApp`, `Booted` refs print `(none)`; `createApp` is referenced from
 `src/index.ts`, `src/server/main.ts`, and the four test files.
+
+### reshape/server — landed 2026-09-20
+
+Fast-forwarded `main` to `07359a7` (ten commits, contributor `muse-spark-1.3-contributor`, one fix
+round). Lead re-ran every gate in the worktree before landing:
+
+```text
+vp check                          0 errors, 13 warnings (same 13 as main)
+vp run @tinker-issue-tracker#test 27 passed (3 files)      + seam test (no Hono) + concurrent-edit race (200/409)
+vp run hono#test                  32 passed (4 files)      + async input 400 + mount slot
+pnpm validate                     37/37 PASS (needs `allowBuilds.esbuild: true`; main's placeholder value
+                                  "set this to true or false" fails the install step on a clean checkout — repo quirk, not this slice)
+grep bootScope|buildApp|Booted|createSerial|saveNow|publishList  → (none) in apps, examples, packages
+grep Scope.Handle apps/issue-tracker/src/server            → app.ts:63 (root return type), draft.ts ×5 (slice streams)
+```
+
+Line counts (main `75ae11a` → `07359a7`): server 992 → 927; `app.ts` 403 → 198; `bridge.ts` 97 → deleted;
+`routes.ts` new 59; `draft.ts` 127 → 281 (stream scaffold moved here; next slice); hono `src/index.ts` 333 → 370.
+
+Fix round (all landed): a rejected async body read is hono's `InputRejected` → 400 (the brief first said
+"propagate", which gave 500 — wrong); publish-after-commit wraps only the three mutating paths (it had
+matched `/api/issues/*`, so a draft start republished the table); `draftStream` left the seam; the draft tag
+binds only when config carries it. Hono mutation lane: see the line below once run.
+
+Core feedback recorded from the contributor: awaiting `input` unconditionally let a client abort slip in
+before the op started (a sync read must stay on the same tick — `isThenable` guard); no session-commit hook
+(publish lives in a root middleware); `c.req.param` types loosen the body-reader signature.
