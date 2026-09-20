@@ -15,7 +15,7 @@ non-null `!`.
 | `cli/`           | the `@tinker/cli` driver (`basic.ts`) and a real entrypoint (`main.ts`)                                                                   |
 | `harness/`       | the `@tinker/harness` frame: `basic.ts` (fake `query`), `real.ts` / `codex.ts` (real adapters), `approvals.ts` / `tools.ts`               |
 | `mcp/`           | the `@tinker/mcp` driver: `basic.ts` (in-memory client), `serve.ts` (stdio), `cli.ts` (entry through `@tinker/cli`)                       |
-| `sync/`          | the `@tinker/sync` pair: `source` / `subscribe` over `memoryPair`, a family of cells; `hono.ts` serves the pair over an event stream      |
+| `sync/`          | the `@tinker/sync` pair: `source(wiring)` / `subscribe(transport, wiring)` over `memoryPair`, a family of cells; `hono.ts` serves the pair over an event stream |
 | `issue-tracker/` | the runnable [`apps/issue-tracker`](../apps/issue-tracker/README.md): real issues over HTTP, sync, CLI, MCP, and an optional triage draft |
 
 Combine concepts by importing several packages in one file — that is the point of keeping them here

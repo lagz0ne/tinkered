@@ -166,3 +166,28 @@ family(config)                          members carry synced meta            unc
 tracker server/routes.ts openWire       `opened.origin.connect(wire).then(close, close)`   `.then((end) => { close(); return end })` — no swallow needed   —
 core-feedback row "connect rejects on forced close"   open                  done                                                    docs/roadmap/core-feedback.md
 ```
+
+### drivers/t06 — landed 2026-09-20 (worktree `../tinkered-t06-sync`, branch `drivers/t06-sync`)
+
+- `packages/sync/src/index.ts` 478 → 480: `source({ cells })` / `subscribe(transport, { cells })` read
+  flat `Sync.Row` rows (`[cell, key]` / `[family, label]`, the row names the key — family members carry no
+  meta); `readPublished(wiring, …)` builds the registry from the rows; `connect` returns the session's close
+  `Result` via a per-subscriber `scope.createSession()` handle + `session.close()` (graceful `success` on part,
+  forced `cancelled` when the close hook fells the session first — a forced session close rejects as a promise,
+  so the `session(fn)` hook shape cannot surface it; the handle is the honest shape). Deleted: `sync` / `synced`
+  tags, `readSynced`, `Sync.Meta`, `SyncUndeclared`. `isFamily` stays public (the row discriminator).
+- Tracker: `shared/issues.ts` loses `meta`; `server/sync.ts` is `source({ cells: [[issueList, "issues"]] })`;
+  `server/app.ts` drops the `sync` tag; `server/routes.ts` `/sync` drops the `Result` (the stream writer
+  resolves void, `close()` then runs); `client/main.tsx` is `subscribe(transport, { cells: … })`;
+  `tests/issues.test.ts` + `tests/client.test.ts` re-expressed (served asserts `success`).
+- Tours: `examples/sync/basic.ts` + `examples/sync/hono.ts` re-expressed; `hono.ts` drops the `Result` like the
+  tracker row. Cast-free.
+- Sync tests 28 → 30: every promise re-expressed through wiring; new: `connect resolves cancelled on a forced
+  root close`, `connect resolves success when the transport closes`, `a row for an unpublished key posted by a
+  viewer still closes the transport`, `a row names the key, not the cell label`.
+- Deviation: the routes `respond` drops (not returns) the `Result` — `stream`'s `Write` must resolve `void`,
+  so the brief's `.then((end) => { close(); return end; })` would not type; behavior is the brief's (close the
+  inbox, body ends cleanly; forced cascade → `cancelled` inside `connect`, swallowed there).
+- `scripts/validate.mjs`: no edit needed — the sync bundle-export assertion (`m.source && m.subscribe &&
+  m.family && m.memoryPair`) names only kept symbols.
+- Core feedback: the `source().connect` row is done (see above).

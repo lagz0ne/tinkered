@@ -145,10 +145,7 @@ test("ready means the viewer holds its initial data set, no watch", () => {
       guest.resolve(sub).close();
       return done.then((end) => {
         expect(end.status).toBe("success");
-        return Promise.all([
-          origin.close({ graceful: true }),
-          guest.close({ graceful: true }),
-        ]);
+        return Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]);
       });
     });
   });
@@ -168,10 +165,7 @@ test("resolve delivers the installed values: connect on the source, close on the
       guest.resolve(sub).close();
       return done.then((end) => {
         expect(end.status).toBe("success");
-        return Promise.all([
-          origin.close({ graceful: true }),
-          guest.close({ graceful: true }),
-        ]);
+        return Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]);
       });
     });
   });
@@ -275,7 +269,12 @@ test("readiness spans the whole initial set", async () => {
   const stagedTodos = family({ label: "todo-t07-stage", initial: "", parse: parseText });
   stagedTodos("7");
   const [near, far] = memoryPair();
-  const sub = subscribe(far, { cells: [[staged, "counter"], [stagedTodos, "todo-t07-stage"]] });
+  const sub = subscribe(far, {
+    cells: [
+      [staged, "counter"],
+      [stagedTodos, "todo-t07-stage"],
+    ],
+  });
   const guest = createScope({ extensions: [sub] });
   let finished = false;
   const outcome = guest.ready.then(() => {
@@ -428,7 +427,12 @@ test.each([{ kind: "unpublished key" }, { kind: "parse rejects" }, { kind: "wron
     const parted = new Promise<void>((resolve) => {
       near.onClose(() => resolve());
     });
-    const sub = subscribe(far, { cells: [[counter, "counter"], [strict, "t07-strict"]] });
+    const sub = subscribe(far, {
+      cells: [
+        [counter, "counter"],
+        [strict, "t07-strict"],
+      ],
+    });
     const guest = createScope({ extensions: [sub] });
     const checked = guest.ready.then(
       () => {
