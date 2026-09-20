@@ -58,5 +58,35 @@ request session, not per call inside a transactional flow.
 
 Test recipe: PGlite (in-memory Postgres) through `drizzle-orm/pglite`, a dev dependency.
 `open` creates the client plus schema (`db.execute(sql\`create table …\`)`), `close` closes
-the client. PGlite is single-connection — never hold two transactions open at once in a
-test; sequential sessions are fine.
+the client. PGlite is single-connection: two transactions held open at once serialize (the
+second waits), so overlapping sessions are honest in tests too.
+
+## Single-connection stores (PGlite)
+
+Two request sessions can each open `store.tx` at once. PGlite serializes the two
+transactions itself — the second waits for the first — so a revision check inside the
+transaction sees the first commit. **No app-level queue is needed**: the tracker's
+"two concurrent edits on one revision settle exactly one winner" test
+(`apps/issue-tracker/tests/issues.test.ts`) fires two PATCHes at one revision and expects
+exactly one 200 and one 409.
+
+A queue IS needed only for a store that _rejects_ a second concurrent transaction instead
+of waiting. Serialize transaction entries in a scope resource the write operations depend on:
+
+```ts
+const noop = (): void => undefined;
+/** One transaction at a time: a write waits its turn, then runs. */
+const serial = resource({
+  label: "serial",
+  factory: () => {
+    let tail: Promise<void> = Promise.resolve();
+    return <T>(work: () => Promise<T>): Promise<T> => {
+      const run = tail.then(work);
+      tail = run.then(noop, noop);
+      return run;
+    };
+  },
+});
+depends: { db: store.db, takeTurn: serial },
+run: ({ db, takeTurn }, ctx) => takeTurn(() => db.transaction((tx) => writeEdit(tx, ctx.input))),
+```
