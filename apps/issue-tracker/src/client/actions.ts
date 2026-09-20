@@ -1,6 +1,6 @@
 import { operation } from "@tinker/core";
 import { isError as isHttpError } from "@tinker/http";
-import { parseIssue, type Issues } from "../shared/issues.ts";
+import { issueList, parseIssue, type Issues } from "../shared/issues.ts";
 import { isError, raise } from "../errors.ts";
 import { getDetail, patchIssue, postComment, postIssue } from "./api.ts";
 import { wire } from "./connection.ts";
@@ -108,6 +108,22 @@ function readCommentPatch(raw: unknown): { readonly text?: string; readonly auth
   return patch;
 }
 
+/** One list-row mark: what a newer snapshot changes when the saved row moves. */
+type RowMark = { readonly revision: number; readonly updatedAt: number };
+
+/** Read one row's mark, or null when the row is not listed. */
+function markOf(saved: readonly Issues.Issue[], id: string): RowMark | null {
+  const current = saved.find((issue) => issue.id === id) ?? null;
+  if (current === null) return null;
+  return { revision: current.revision, updatedAt: current.updatedAt };
+}
+
+/** True when two marks name the same saved row state. */
+function sameMark(a: RowMark, b: RowMark | null): boolean {
+  if (b === null) return false;
+  return a.revision === b.revision && a.updatedAt === b.updatedAt;
+}
+
 /** Type one create-form field at the door. */
 export const typeNewIssue = operation({
   label: "typeNewIssue",
@@ -172,20 +188,25 @@ export const selectIssue = operation({
 });
 
 /** Load one saved detail and seed the edit draft when the draft is for another issue or empty.
- * A load that lands after the selection moved writes nothing: the newer load owns the cells. */
+ * A load that lands after the selection moved writes nothing, and neither does one that lands
+ * after a newer list snapshot for the same row: the newer load owns the cells. Without this a
+ * slow select-load can overwrite the fresh reload a save or comment just wrote. */
 export const loadDetail = operation({
   label: "loadDetail",
   input: (raw) => readString(raw, "loadDetail"),
   depends: {
     fetch: getDetail,
     selected: selectedId.controller,
+    rows: issueList.controller,
     shown: detail.controller,
     note: detailNotice.controller,
     draft: editDraft.controller,
   },
-  run: async ({ fetch, selected, shown, note, draft }, { input: id }) => {
+  run: async ({ fetch, selected, rows, shown, note, draft }, { input: id }) => {
+    const before = markOf(rows.get(), id);
     const found = await fetch.run({ input: id });
     if (selected.get() !== id) return found;
+    if (before !== null && sameMark(before, markOf(rows.get(), id)) === false) return found;
     shown.set(found);
     note.set(null);
     const current = draft.get();
