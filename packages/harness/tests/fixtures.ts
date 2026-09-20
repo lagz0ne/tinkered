@@ -117,6 +117,43 @@ export function readToolResult(): SDKUserMessage {
   };
 }
 
+/** A recorded assistant message with no tool call: no tool item lands in `items`. */
+export function readAssistantText(text: string): SDKAssistantMessage {
+  return {
+    type: "assistant",
+    message: {
+      id: "msg-2",
+      type: "message",
+      role: "assistant",
+      model: "m",
+      content: [{ type: "text", text, citations: null }],
+      stop_reason: null,
+      stop_sequence: null,
+      usage: {
+        input_tokens: 1,
+        output_tokens: 1,
+        cache_creation_input_tokens: 0,
+        cache_read_input_tokens: 0,
+        cache_creation: null,
+        fallback_credit: null,
+        inference_geo: null,
+        iterations: null,
+        output_tokens_details: null,
+        server_tool_use: null,
+        service_tier: null,
+        speed: null,
+      },
+      container: null,
+      context_management: null,
+      diagnostics: null,
+      stop_details: null,
+    },
+    parent_tool_use_id: null,
+    uuid,
+    session_id: sessionId,
+  };
+}
+
 /** A recorded success result: the fixture text, 10/2/5 usage, cost 0.01, id `s-1`. */
 export function readResult(text: string): SDKResultMessage {
   return {
