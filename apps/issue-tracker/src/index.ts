@@ -16,12 +16,30 @@ export {
 export type { Issues } from "./shared/issues.ts";
 export { parseDraftId, parseDraftInput } from "./shared/draft.ts";
 export type { Draft } from "./shared/draft.ts";
-export { draftGuardrails, draftTurn, runDraft, triage } from "./server/draft.ts";
+export {
+  draftGuardrails,
+  draftHelper,
+  draftStream,
+  draftTurn,
+  readCapability,
+  runDraft,
+  triage,
+} from "./server/draft.ts";
 export type { RunDraft } from "./server/draft.ts";
-export { addComment, createIssue, editIssue, listIssues, readDetail } from "./server/operations.ts";
-export { bootScope } from "./server/bridge.ts";
-export type { Booted } from "./server/bridge.ts";
-export { buildApp } from "./server/app.ts";
+export {
+  addComment,
+  createIssue,
+  editIssue,
+  listIssues,
+  publishIssues,
+  readDetail,
+  readIssues,
+} from "./server/operations.ts";
+export { store } from "./server/store.ts";
+export type { Store } from "./server/store.ts";
+export { issueRoutes } from "./server/routes.ts";
+export { createApp } from "./server/app.ts";
+export type { AppConfig } from "./server/app.ts";
 export { api } from "./client/api.ts";
 export {
   commentRemote,

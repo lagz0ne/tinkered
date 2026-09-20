@@ -1,9 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { Hono } from "hono";
 import type { Scope } from "@tinker/core";
 import { serve } from "@hono/node-server";
-import { bootScope } from "./bridge.ts";
-import { buildApp } from "./app.ts";
+import { createApp } from "./app.ts";
 
 function readHost(): string {
   return process.env.HOST ?? "127.0.0.1";
@@ -36,7 +36,7 @@ function readPublicBase(): string | undefined {
   return `http://${readHost()}:${readPort()}`;
 }
 
-async function serveClient(app: ReturnType<typeof buildApp>): Promise<void> {
+async function serveClient(app: Hono): Promise<void> {
   const dir = join(process.cwd(), "dist", "client");
   app.get("/", async (c) => {
     try {
@@ -68,9 +68,10 @@ function readShutdown(result: Scope.Result): number {
   return 0;
 }
 
+/** The server entrypoint: the composition root lives in `createApp`; this only
+ * reads the environment, serves the app, and closes graceful on a signal. */
 async function main(): Promise<number> {
-  const booted = await bootScope(readDataPath(), readDraftOptIn());
-  const app = buildApp(booted);
+  const { scope, app } = await createApp({ dataPath: readDataPath(), ...readDraftOptIn() });
   await serveClient(app);
   const host = readHost();
   const port = readPort();
@@ -80,7 +81,7 @@ async function main(): Promise<number> {
     process.once("SIGINT", resolve);
   });
   server.close();
-  return readShutdown(await booted.scope.close({ graceful: true }));
+  return readShutdown(await scope.close({ graceful: true }));
 }
 
 async function entry(): Promise<void> {

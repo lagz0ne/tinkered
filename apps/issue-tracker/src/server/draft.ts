@@ -1,8 +1,25 @@
-import { operation, type Scope } from "@tinker/core";
+import type { Context } from "hono";
+import { operation, tag, type Scope } from "@tinker/core";
+import { stream } from "@tinker/hono";
 import { claudeCode, harness, type ClaudeCode } from "@tinker/harness";
 import { fail, isError } from "../errors.ts";
 import { parseDraftInput, type Draft } from "../shared/draft.ts";
 import { getRemote, listRemote } from "../tools/issues.ts";
+import { readDetail } from "./operations.ts";
+
+/** Draft helper config: off unless the root binds it on. Read by
+ * `readCapability` and by the draft route; slice 3 replaces the rest. */
+export const draftHelper = tag<{
+  readonly enabled: boolean;
+  readonly baseUrl: string | undefined;
+}>({ label: "draftHelper", default: { enabled: false, baseUrl: undefined } });
+
+/** Read whether the draft helper is on: what the client shows or hides. */
+export const readCapability = operation({
+  label: "readCapability",
+  depends: { draft: draftHelper },
+  run: ({ draft }) => ({ enabled: draft.enabled }),
+});
 
 const denyUnexpected = operation({
   label: "denyUnexpected",
@@ -124,4 +141,145 @@ function readOutcome(
   if (closed !== "done") return closed;
   if (outcome.finished) return "done";
   return "failed";
+}
+
+type DraftContext = Context;
+
+function draftFrame(event: { readonly kind: string; readonly [key: string]: unknown }): string {
+  return `data: ${JSON.stringify(event)}\n\n`;
+}
+
+/** Answer the draft stream for one issue. Slice 3 replaces this with a tagged call;
+ * until then the composition root passes its own scope straight in. */
+export function draftStream(
+  scope: Scope.Handle,
+  draft: { readonly enabled: boolean },
+  c: DraftContext,
+  id: string,
+): Response | Promise<Response> {
+  if (draft.enabled === false) return c.text("draft helper is off", 404);
+  return draftOpened(scope, c, id);
+}
+
+async function draftOpened(
+  scope: Scope.Handle,
+  c: DraftContext,
+  id: string,
+): Promise<Response> {
+  let raw: unknown;
+  try {
+    raw = await c.req.json();
+  } catch {
+    raw = undefined;
+  }
+  const input = parseDraftInput(typeof raw === "object" && raw !== null ? { ...raw, id } : { id });
+  try {
+    await scope.run(readDetail, { input: input.id });
+  } catch (error: unknown) {
+    if (isError(error, "IssueNotFound")) return c.text("that issue is gone", 404);
+    throw error;
+  }
+  if (c.req.raw.signal.aborted) return new Response("cancelled", { status: 499 });
+  c.header("Content-Type", "text/event-stream");
+  c.header("Cache-Control", "no-cache");
+  c.header("Connection", "keep-alive");
+  return stream(c, async (emit, ctx) => {
+    const queue: string[] = [];
+    const waiter = readWaiter();
+    const aborter = new AbortController();
+    const onAbort = (): void => {
+      aborter.abort(ctx.signal.reason);
+    };
+    if (ctx.signal.aborted) aborter.abort(ctx.signal.reason);
+    else ctx.signal.addEventListener("abort", onAbort);
+    const rawAbort = (): void => {
+      aborter.abort(c.req.raw.signal.reason);
+    };
+    if (c.req.raw.signal.aborted) aborter.abort(c.req.raw.signal.reason);
+    else c.req.raw.signal.addEventListener("abort", rawAbort);
+    const finished = readRunState(scope, input, queue, waiter, aborter);
+    const pump = (async (): Promise<void> => {
+      for (;;) {
+        while (queue.length > 0) {
+          const next = queue.shift();
+          if (next === undefined) break;
+          try {
+            await emit(next);
+          } catch {
+            aborter.abort();
+            return;
+          }
+        }
+        if (finished.settled) return;
+        await waiter.sleep();
+      }
+    })();
+    let done: RunDraft.Done;
+    try {
+      done = await finished.value;
+    } finally {
+      ctx.signal.removeEventListener("abort", onAbort);
+      c.req.raw.signal.removeEventListener("abort", rawAbort);
+      waiter.wake();
+      await pump;
+    }
+    try {
+      await emit(draftFrame({ kind: "terminal", status: done.status, draft: done.draft }));
+    } catch {
+      return;
+    }
+  });
+}
+
+type Waiter = { readonly sleep: () => Promise<void>; readonly wake: () => void };
+
+type RunState = { settled: boolean; readonly value: Promise<RunDraft.Done> };
+
+function readRunState(
+  scope: Scope.Handle,
+  input: { readonly id: string; readonly prompt: string },
+  queue: string[],
+  waiter: Waiter,
+  aborter: AbortController,
+): RunState {
+  const state: RunState = {
+    settled: false,
+    value: runDraft(
+      scope,
+      input,
+      (event) => {
+        queue.push(draftFrame(event));
+        waiter.wake();
+      },
+      aborter.signal,
+    ).then(
+      (done) => {
+        state.settled = true;
+        waiter.wake();
+        return done;
+      },
+      (error: unknown) => {
+        state.settled = true;
+        waiter.wake();
+        throw error;
+      },
+    ),
+  };
+  return state;
+}
+
+function readWaiter(): Waiter {
+  let wake: () => void = () => undefined;
+  const sleep = (): Promise<void> =>
+    new Promise<void>((resolve) => {
+      wake = resolve;
+    });
+  return {
+    sleep,
+    wake: () => {
+      const next = wake;
+      wake = () => undefined;
+      next();
+    },
+  };
 }

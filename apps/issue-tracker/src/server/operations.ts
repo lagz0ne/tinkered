@@ -17,6 +17,14 @@ import { raise } from "../errors.ts";
 import { activityRows, commentRows, issueRows, store, type Store } from "./store.ts";
 
 type Tx = DrizzleStore.Tx<Awaited<Store.Database>>;
+type Db = Awaited<Store.Database>;
+
+/** Read every saved row, oldest first: the one select both the root list read
+ * and the publish-after-commit share. */
+async function selectAllIssues(db: Db): Promise<readonly Issues.Issue[]> {
+  const rows = await db.select().from(issueRows).orderBy(asc(issueRows.createdAt));
+  return rows.map((row) => parseIssue({ ...row }));
+}
 
 async function loadSaved(tx: Tx, id: string): Promise<Issues.Issue> {
   const rows = await tx.select().from(issueRows).where(eq(issueRows.id, id));
@@ -184,9 +192,24 @@ export const readDetail = operation({
 export const listIssues = operation({
   label: "listIssues",
   depends: { db: store.db },
-  run: async ({ db }) => {
-    const rows = await db.select().from(issueRows).orderBy(asc(issueRows.createdAt));
-    return rows.map((row) => parseIssue({ ...row }));
+  run: ({ db }) => selectAllIssues(db),
+});
+
+/** Read the published list: what a request answers without touching the table. */
+export const readIssues = operation({
+  label: "readIssues",
+  depends: { issues: issueList },
+  run: ({ issues }) => issues,
+});
+
+/** Publish the committed rows to the shared cell. Runs at the root only — after
+ * `scope.ready` at boot and after a request session committed — so the sync
+ * source fans the committed truth out to every viewer. */
+export const publishIssues = operation({
+  label: "publishIssues",
+  depends: { db: store.db, list: issueList.controller },
+  run: async ({ db, list }) => {
+    list.set(await selectAllIssues(db));
   },
 });
 
