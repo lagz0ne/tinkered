@@ -195,3 +195,42 @@ test("a validation failure logs code 2 and prints usage", async () => {
   const line = logs.find((entry) => entry.message === "cli command");
   expect(line?.attributes.code).toBe(2);
 });
+
+test("an already-aborted signal exits 130 with empty streams", async () => {
+  const ac = new AbortController();
+  ac.abort();
+  const { scope, run } = await openScope({
+    name: "app",
+    version: "1.0.0",
+    commands: [command("ping", () => ping)],
+  });
+  const result = await run(["ping"], {
+    stdout: () => undefined,
+    stderr: () => undefined,
+    signal: ac.signal,
+  });
+  await scope.close({ graceful: true });
+  expect(result.code).toBe(130);
+  expect(result.stdout).toBe("");
+  expect(result.stderr).toBe("");
+});
+
+test("an aborted entry command exits 130", async () => {
+  const ac = new AbortController();
+  const { scope, run } = await openScope({
+    name: "app",
+    version: "1.0.0",
+    commands: [
+      command.entry("serve", () => {
+        ac.abort();
+      }),
+    ],
+  });
+  const result = await run(["serve"], {
+    stdout: () => undefined,
+    stderr: () => undefined,
+    signal: ac.signal,
+  });
+  await scope.close({ graceful: true });
+  expect(result.code).toBe(130);
+});
