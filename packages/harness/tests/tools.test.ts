@@ -3,7 +3,12 @@ import { createScope, operation, preset, tag } from "@tinker/core";
 import { expose, isError, mcp, readTool, tool } from "@tinker/mcp";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import type { McpServerConfig, Options, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import type {
+  McpServerConfig,
+  Options,
+  PermissionResult,
+  SDKMessage,
+} from "@anthropic-ai/claude-agent-sdk";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { claudeCode, harness, type ClaudeCode } from "../src/index.ts";
@@ -173,6 +178,56 @@ test("one declaration serves the MCP driver and the Claude fast path", async () 
   expect(seen.servers[0]?.tools.map((entry) => entry.name)).toContain("search");
   await scope.close({ graceful: true });
 });
+
+test("a frame with approve and tools answers the approval and still calls the tool", async () => {
+  const seen: Seen = { servers: [], queries: [], results: [] };
+  const decisions: PermissionResult[] = [];
+  const approve = operation({
+    label: "approve",
+    input: claudeCode.approval,
+    run: (): PermissionResult => ({ behavior: "allow" }),
+  });
+  const coder = harness({ label: "coder", adapter: claudeCode, approve, tools: [search] });
+  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const scope = createScope({
+    observe: { history: 20 },
+    presets: [
+      preset(claudeCode.sdk, async (): Promise<ClaudeCode.Sdk> => ({
+        ...fakeSdk(seen),
+        query: ({ options }: { prompt: string; options?: Options }) =>
+          readApproving(options, seen, decisions),
+      })),
+    ],
+  });
+  const session = scope.createSession();
+  await session.run(ask, { input: "hello" });
+  expect(decisions).toEqual([{ behavior: "allow" }]);
+  expect(seen.results[0]?.content).toEqual([{ type: "text", text: '"hit:x"' }]);
+  const spans = scope.spans();
+  const turn = spans.find((span) => span.name === "coder.ask");
+  expect(spans.find((span) => span.name === "approve")?.parentId).toBe(turn?.id);
+  expect(spans.find((span) => span.name === "search")?.parentId).toBe(turn?.id);
+  await scope.close();
+});
+
+/** The recorded turn with the approval answered through `canUseTool` first. */
+async function* readApproving(
+  options: Options | undefined,
+  seen: Seen,
+  decisions: PermissionResult[],
+): AsyncGenerator<SDKMessage> {
+  const ask = options?.canUseTool;
+  if (ask !== undefined) {
+    const signal = options?.abortController?.signal ?? new AbortController().signal;
+    const decision = await ask(
+      "Bash",
+      { command: "ls" },
+      { signal, toolUseID: "tu-1", requestId: "r-1" },
+    );
+    if (decision !== null) decisions.push(decision);
+  }
+  yield* readStream(options, seen);
+}
 
 test("a named tool registers under its meta name, not the op label", async () => {
   const seen: Seen = { servers: [], queries: [], results: [] };
