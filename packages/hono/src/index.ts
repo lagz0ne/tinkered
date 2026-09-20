@@ -95,11 +95,12 @@ export function tinker(scope: Scope.Handle, options?: HonoScope.Options): Middle
 }
 
 /** One `emit` call enqueues one chunk: strings are UTF-8 encoded, bytes pass through.
- * It resolves once enqueued; the producer does no extra backpressure wait (a v1
+ * It is synchronous, so a sync `watch` callback can push straight into the body (ADR 0021:
+ * SSE is an adapter over watched cells). The producer does no backpressure wait (a v1
  * simplification). Failing to enqueue throws the enqueue error to the writer. */
 export declare namespace Stream {
   /** Write one body chunk into the streaming response. */
-  export type Emit = (chunk: string | Uint8Array) => Promise<void>;
+  export type Emit = (chunk: string | Uint8Array) => void;
   /** The body producer: runs as its own inline operation, so it reads `ctx` (signal,
    * clock, log, its span) while the request span has already ended with the headers. */
   export type Write = (emit: Emit, ctx: Operation.Ctx<void>) => Promise<void>;
@@ -134,7 +135,6 @@ export function stream(c: Context, write: Stream.Write): Response {
     start(controller) {
       const emit: Stream.Emit = (chunk) => {
         controller.enqueue(typeof chunk === "string" ? encoder.encode(chunk) : chunk);
-        return Promise.resolve();
       };
       const running = session.run({
         label,

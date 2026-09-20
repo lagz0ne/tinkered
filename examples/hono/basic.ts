@@ -27,8 +27,9 @@ export async function tour(): Promise<string> {
     route.get("/health", () => health),
     route.get("/ticks", () => ticks, {
       respond: (ts, c) =>
-        stream(c, async (emit) => {
-          for (const t of ts) await emit(t);
+        stream(c, (emit) => {
+          for (const t of ts) emit(t);
+          return Promise.resolve();
         }),
     }),
   ];

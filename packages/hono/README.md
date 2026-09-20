@@ -96,7 +96,7 @@ the body finishes or the client cancels, then closes (every other response close
     respond: (ts, c) =>
       stream(c, async (emit, { clock, signal }) => {
         for (const t of ts) {
-          await emit(`${t}\n`);
+          emit(`${t}\n`);
           await clock.sleep(1000, signal);
         }
       }),

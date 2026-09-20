@@ -43,7 +43,7 @@ export function recipe(scope: Scope.Handle, src: Scope.Extension<Sync.Source>): 
       const partings = new Set<() => void>();
       const transport: Sync.Transport = {
         send: (message) => {
-          if (open) void emit(frame(message));
+          if (open) emit(frame(message));
         },
         onMessage: (listener) => {
           arrivals.add(listener);

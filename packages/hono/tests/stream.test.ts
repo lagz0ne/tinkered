@@ -36,7 +36,7 @@ function streamApp(scope: Scope.Handle, path: Resource.Handle<string>): Hono {
       respond: (cs, c) =>
         stream(c, async (emit, { clock, signal }) => {
           for (const ch of cs) {
-            await emit(ch);
+            emit(ch);
             await clock.sleep(10, signal);
           }
         }),
@@ -77,7 +77,7 @@ test("the body yields each chunk as the clock advances, then ends", async () => 
       respond: (cs, c) =>
         stream(c, async (emit, { clock, signal }) => {
           for (const ch of cs) {
-            await emit(ch);
+            emit(ch);
             await clock.sleep(10, signal);
           }
         }),
@@ -121,7 +121,7 @@ test("cancelling the reader mid-body force-closes the session and stops the writ
         stream(c, async (emit, { clock, signal }) => {
           for (const ch of cs) {
             emitted++;
-            await emit(ch);
+            emit(ch);
             await clock.sleep(10, signal);
           }
         }),
@@ -149,7 +149,7 @@ test("a throwing writer errors the body and the session settles failed", async (
     handle(chunks, {
       respond: (cs, c) =>
         stream(c, async (emit, { clock }) => {
-          await emit(cs[0] ?? "");
+          emit(cs[0] ?? "");
           await clock.sleep(10);
           throw boom;
         }),
@@ -247,8 +247,9 @@ test("the request session commits on success, rolls back on abort, fails on an u
 test("stream without tinker raises NoSession to onError", async () => {
   let seen: unknown;
   const app = new Hono().get("/stream", (c) =>
-    stream(c, async (emit) => {
-      await emit("a");
+    stream(c, (emit) => {
+      emit("a");
+      return Promise.resolve();
     }),
   );
   app.onError((e, c) => {
