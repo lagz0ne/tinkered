@@ -14,6 +14,9 @@ type Payloads = {
     reason: "StatusCode" | "Decode" | "EmptyBody";
     cause?: unknown;
   };
+  NoBody: {
+    status: number;
+  };
 };
 
 export declare namespace Errors {

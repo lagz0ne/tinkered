@@ -140,6 +140,7 @@ createScope({ tags: [backend(fake), github.config({ baseUrl: "https://api" })] }
 
 `RequestFailed { request, reason: "Transport" | "Encode" | "InvalidUrl", cause? }` and
 `ResponseFailed { request, response, reason: "StatusCode" | "Decode" | "EmptyBody", cause? }`.
+A bodiless response raises `NoBody { status }` on `stream()` — `stream()` never returns `null`.
 Narrow with `isError(e, "RequestFailed")` by control flow, then read `payload.reason`. A forced
 close while a request is in flight rethrows the signal's reason untouched — a cancel is a clean
 end, not a `RequestFailed`.

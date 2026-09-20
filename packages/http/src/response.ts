@@ -17,7 +17,7 @@ export declare namespace HttpResponse {
     json<T>(parse: HttpResponse.Parse<T>): Promise<T>;
     arrayBuffer(): Promise<ArrayBuffer>;
     formData(): Promise<FormData>;
-    stream(): ReadableStream<Uint8Array> | null;
+    stream(): ReadableStream<Uint8Array>;
   };
   /** A body parser for `json(parse)`: validates raw JSON into a trusted value at the process edge. */
   export type Parse<T> = Data.Parse<T>;
@@ -54,7 +54,8 @@ function readHeaders(headers: Headers): globalThis.Record<string, string> {
 
 /** Wrap a web `Response` as a handle: the readers delegate, `source` is the response itself. An
  * empty body reads as `ResponseFailed/EmptyBody` on `json()`; invalid JSON or a throwing `parse`
- * reads as `ResponseFailed/Decode` carrying the `cause`. */
+ * reads as `ResponseFailed/Decode` carrying the `cause`; a missing body raises `NoBody` on
+ * `stream()`. */
 export function fromWeb(
   request: HttpRequest.Record,
   response: globalThis.Response,
@@ -86,7 +87,11 @@ export function fromWeb(
     json: <T>(parse?: HttpResponse.Parse<T>): Promise<T> => readJson(parse),
     arrayBuffer: () => response.arrayBuffer(),
     formData: () => response.formData(),
-    stream: () => response.body,
+    stream: () => {
+      const body = response.body;
+      if (body === null) raise("NoBody", { status });
+      return body;
+    },
   };
   return handle;
 }

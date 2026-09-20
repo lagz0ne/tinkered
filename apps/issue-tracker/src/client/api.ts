@@ -1,5 +1,4 @@
 import { HttpRequest, httpClient } from "@tinker/http";
-import { raise } from "../errors.ts";
 import {
   parseComment,
   parseCommentInput,
@@ -50,8 +49,9 @@ export const getCapability = api.operation({
   response: (res) => res.json(parseDraftCapability),
 });
 
-/** Open a draft SSE stream through HTTP: the drafter resource pumps it; a missing body
- * means the helper failed. The client's status filter rejects errors as `ResponseFailed`. */
+/** Open a draft SSE stream through HTTP: the drafter resource pumps it; a missing body raises
+ * `NoBody`, which the drafter reads as the helper failing. The client's status filter rejects
+ * errors as `ResponseFailed`. */
 export const openDraft = api.operation({
   label: "openDraft",
   input: parseDraftInput,
@@ -59,11 +59,7 @@ export const openDraft = api.operation({
     HttpRequest.post(`/api/issues/${input.id}/draft`, {
       body: HttpRequest.bodyJson({ prompt: input.prompt }),
     }),
-  response: (res) => {
-    const body = res.stream();
-    if (body === null) raise("DraftFailed", { reason: "the draft helper failed" });
-    return body;
-  },
+  response: (res) => res.stream(),
 });
 
 /** Read one saved detail through HTTP: the issue plus comments and activity. */

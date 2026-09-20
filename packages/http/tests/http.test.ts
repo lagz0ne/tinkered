@@ -212,3 +212,22 @@ test("fromWeb delegates readers to the web response and json guards the edges", 
     expect(error.payload.cause).toBe(boom);
   }
 });
+
+test("streaming a bodiless response rejects NoBody with the status", async () => {
+  const nodata = github.operation({
+    label: "nodata",
+    request: () => HttpRequest.get("https://api/empty"),
+    response: (res) => res.stream(),
+  });
+  const empty: HttpClient.Backend = async (request) =>
+    HttpResponse.make(request, { status: 204, body: null });
+  const scope = createScope({ tags: [backend(empty)] });
+  try {
+    await scope.run(nodata);
+    expect.unreachable();
+  } catch (error) {
+    if (!isHttpError(error, "NoBody")) throw error;
+    expect(error.payload.status).toBe(204);
+  }
+  await scope.close();
+});
