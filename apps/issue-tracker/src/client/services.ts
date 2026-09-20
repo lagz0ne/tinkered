@@ -42,7 +42,10 @@ export const liveness = resource({
 export const capability = resource({
   label: "capability",
   depends: { check: checkCapability },
-  factory: ({ check }) => check.run(),
+  factory: ({ check }) => {
+    check.run().then(undefined, () => undefined);
+    return { checking: true };
+  },
 });
 
 /** Reload the detail when the selection moves or the selected row changes on the wire: a
