@@ -378,3 +378,23 @@ test("a rewritten agent text restreams whole and only the last text stays final"
     throw new Error("result changed shape");
   expect(done.result.finalResponse).toBe("bye");
 });
+
+test("an empty agent update streams nothing and the turn still completes", async () => {
+  const message = (text: string): ThreadItem => ({ id: "m-1", type: "agent_message", text });
+  const done = await readCells([
+    { type: "item.started", item: message("") },
+    { type: "item.completed", item: message("Hello") },
+    {
+      type: "turn.completed",
+      usage: {
+        input_tokens: 1,
+        cached_input_tokens: 0,
+        cache_write_input_tokens: 0,
+        output_tokens: 1,
+        reasoning_output_tokens: 0,
+      },
+    },
+  ]);
+  expect(done.text).toBe("Hello");
+  expect(done.items.map((item) => item.status)).toEqual(["started", "completed"]);
+});
