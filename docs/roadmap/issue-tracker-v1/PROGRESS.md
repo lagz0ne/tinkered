@@ -1594,3 +1594,26 @@ seam test per touched operation of the form `createScope` + `scope.run(op)` + pr
 table before/after in the report; a **Core feedback** section. Verify for the card: `useState`,
 `useEffect`, `Scope.Handle` outside the two roots and tests all grep to zero; source lines under
 1,800 (today 2,929).
+
+### reshape/server — slices 1 + 2 merged (Doing, 2026-09-20)
+
+Lead decision: slices 1 and 2 run as one contributor task, because two facts remove the reason
+they were split. (a) PGlite serializes transactions itself (ADR 0041: "two transactions held open
+at once serialize"), so the hand queue in `bridge.ts` is not needed once every save runs in its own
+request session. (b) `tinker`'s `finally` awaits the graceful session close, which awaits the
+commit, so an **outer** Hono middleware's code after `await next()` runs after commit: that is the
+one honest place for publish-after-commit with today's primitives (core gap F2 stays recorded).
+
+Blast radius of the public symbols this slice removes or moves (grep; SCIP does not index apps):
+
+```impact reshape/server
+symbol            files
+bootScope         src/index.ts, src/server/main.ts, tests/issues.test.ts (18 refs incl. buildApp), tests/draft.test.ts (28), tests/tools.test.ts (6), tests/browser-helper.test.ts (17)
+buildApp          src/index.ts, src/server/main.ts, tests/issues.test.ts, tests/draft.test.ts, tests/browser-helper.test.ts
+Booted.*          src/server/bridge.ts, src/server/app.ts, src/index.ts
+runDraft          src/server/draft.ts, src/server/app.ts, src/index.ts, tests/draft.test.ts  (kept in this slice; slice 3)
+HonoScope.Route.input   packages/hono/src/index.ts (type + readRoute), packages/hono/README.md; consumers: examples/hono/basic.ts, apps/issue-tracker
+```
+
+Expected after: `bootScope`, `buildApp`, `Booted` refs print `(none)`; `createApp` is referenced from
+`src/index.ts`, `src/server/main.ts`, and the four test files.

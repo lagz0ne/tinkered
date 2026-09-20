@@ -23,14 +23,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-| Card                                                                 | Owner         | Next                                                                                                                                                                              | Verify                                                                                                            |
-| -------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| tracker/reshape — Rebuild the tracker on data / resource / operation | lead (Claude) | Brief one contributor per slice, starting with [server/routes](docs/roadmap/issue-tracker-v1/PROGRESS.md#trackerreshape--rebuild-the-tracker-on-the-three-units-ready-2026-09-20) | `useState`, `useEffect`, `Scope.Handle` outside the two roots grep to zero; tests green; source under 1,800 lines |
+| Card | Owner | Next | Verify |
+| ---- | ----- | ---- | ------ |
 
 ## Doing
 
-| Card | Owner | Next | Verify |
-| ---- | ----- | ---- | ------ |
+| Card                                                                 | Owner                                                                                   | Next                                                                                                                                                                                                                                                           | Verify                                                                                                                                                                    |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| tracker/reshape — Rebuild the tracker on data / resource / operation | lead (Claude); contributor `muse-spark-1.3-contributor` in `../tinkered-reshape-server` | Slice server (1+2 merged, [note](docs/roadmap/issue-tracker-v1/PROGRESS.md#reshapeserver--slices-1--2-merged-doing-2026-09-20)): routes as tags, `handle(op)` direct, publish after commit via outer middleware, delete `bridge.ts`; then streams, then client | `Scope.Handle` outside roots and tests greps to zero on the server; tests green; `bootScope`/`buildApp`/`Booted` refs `(none)`; server source lines down, table in report |
 
 ## Review
 
