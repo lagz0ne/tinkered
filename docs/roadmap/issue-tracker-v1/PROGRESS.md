@@ -1644,3 +1644,27 @@ binds only when config carries it. Hono mutation lane (alone, `vp run --no-cache
 Core feedback recorded from the contributor: awaiting `input` unconditionally let a client abort slip in
 before the op started (a sync read must stay on the same tick — `isThenable` guard); no session-commit hook
 (publish lives in a root middleware); `c.req.param` types loosen the body-reader signature.
+
+### reshape/streams — Doing, 2026-09-20
+
+Design (lead, from ADR 0021 "streaming is push via `data`; SSE is an adapter that watches a cell"):
+the SSE writer is a sync sink fed by `watch` callbacks, so hono's `Stream.Emit` becomes synchronous
+(`(chunk) => void`, enqueue or throw). The draft becomes one operation, `startDraft`, run by `handle`
+in the request session (its deps deliver the session's `triage.text`/`triage.status` controllers and the
+`draftTurn` subflow); `respond` streams through `stream(c, …)`; `draftGuardrails` binds at the root.
+The sync POST becomes an operation over a scope resource (`viewers`); the GET wire is one named
+adapter, `sseTransport(emit, signal)`. `runDraft`, `draftStream`, the waiter/queue/`owned` scaffold go.
+
+```impact reshape/streams
+symbol / call                       files (grep; SCIP does not index apps)
+Stream.Emit (async → sync)          packages/hono/src/index.ts; packages/hono/tests/stream.test.ts (5 `await emit`);
+                                    packages/hono/README.md (1); examples/hono/basic.ts (1); examples/sync/hono.ts (1, the `void emit`);
+                                    apps/issue-tracker/src/server/app.ts (2); apps/issue-tracker/src/server/draft.ts (2)
+runDraft (removed)                  src/server/draft.ts, src/index.ts, tests/draft.test.ts:249
+draftStream (removed)               src/server/draft.ts, src/server/app.ts
+RunDraft namespace (removed)        src/server/draft.ts, src/index.ts
+errors.ts (+ViewerGone, +DraftOff)  src/errors.ts, src/server/routes.ts (onError)
+```
+
+Expected after: `runDraft|draftStream|RunDraft|readWaiter|readRunState|owned\(` → `(none)`;
+`Scope.Handle` in `src/server` → `app.ts` root return type only.
