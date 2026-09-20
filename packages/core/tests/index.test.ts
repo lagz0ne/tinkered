@@ -5164,3 +5164,37 @@ test("a throwing session hook rejects the session with its error", async () => {
   await expect(scope.session(() => 1)).rejects.toBe(boom);
   await scope.close();
 });
+
+test("a session felled by a forced parent close still settles next() as cancelled", async () => {
+  const seen: string[] = [];
+  const spy = extension({
+    label: "spy",
+    session: async (_handle, next) => {
+      const ended = await next();
+      seen.push(ended.status);
+      return ended;
+    },
+  });
+  const scope = createScope({ extensions: [spy] });
+  await scope.ready;
+  scope.createSession();
+  await scope.close();
+  expect(seen).toEqual(["cancelled"]);
+});
+
+test("a session felled by a graceful parent close still settles next() as success", async () => {
+  const seen: string[] = [];
+  const spy = extension({
+    label: "spy",
+    session: async (_handle, next) => {
+      const ended = await next();
+      seen.push(ended.status);
+      return ended;
+    },
+  });
+  const scope = createScope({ extensions: [spy] });
+  await scope.ready;
+  scope.createSession();
+  await scope.close({ graceful: true });
+  expect(seen).toEqual(["success"]);
+});

@@ -355,7 +355,9 @@ export declare namespace Scope {
    * sixth hook: it wraps a session's whole life — registration order, first is outermost.
    * `next()` resolves with the session's close `Result` (whatever `closeLayer` produced; never
    * rejects, ADR 0027). Code before `await next()` runs right after the child layer exists,
-   * before any work in it; code after runs after the close settled. Root-only in v1: installed on
+   * before any work in it; code after runs after the close settled. `next()` is an observation
+   * point, not a gate: the session runs and closes regardless of whether a hook calls it. Each
+   * level's return is that level's result, like `close` (the onion may transform it). Root-only in v1: installed on
    * the root, applies to every session created under that root, including a session created under
    * a session. A hook that does not call `next()` is an observer only: the session's own close
    * still runs regardless (`next()` is the observation point, not a gate). Hooks must not throw:
@@ -822,6 +824,24 @@ const EXTENSIONS = new WeakMap<Layer, Map<Scope.Extension<unknown>, ExtRec>>();
  * extensions that declare the hook, stored once per root layer by `extendHandle` — the same side-table
  * shape as `EXTENSIONS` (core/t33). No entry means no hook: session creation takes today's path. */
 const SESSIONS = new WeakMap<Layer, readonly Scope.Extension<unknown>[]>();
+
+/** Settlers for wrapped bare sessions' `next()` (ADR 0051, drivers/t01 R3): `wrapSession` registers
+ * its `next()` resolver here; `closeLayer` settles it when the layer's close resolves — so a session
+ * closed by its parent's cascade settles its hooks exactly like an explicit close. One lookup on the
+ * cold close path, nothing on create; the entry is deleted at settle, and a never-closed layer's
+ * entry dies with the layer (WeakMap). */
+const SESSION_SETTLERS = new WeakMap<Layer, (ended: Scope.Result) => void>();
+
+/** Settle a wrapped bare session's `next()` with its close `Result`: attach once (the entry is
+ * deleted), so repeat closes cost one lookup. `closeLayer` never rejects (ADR 0027) and a stored
+ * resolver cannot throw, so the tap needs no rejection guard. */
+function tapSessionHooks(layer: Layer, closing: Promise<Scope.Result>): Promise<Scope.Result> {
+  const settle = SESSION_SETTLERS.get(layer);
+  if (settle === undefined) return closing;
+  SESSION_SETTLERS.delete(layer);
+  void closing.then((ended) => settle(ended));
+  return closing;
+}
 
 /** Wrap a session's whole life in the extensions' `session` onion (ADR 0051): registration order,
  * first is outermost. `run` is the session's own life — run the body, force-close, keep the body's
@@ -2579,7 +2599,7 @@ function fastClose(layer: Layer, force: boolean): Promise<Scope.Result> {
 
 function closeLayer(layer: Layer, force = true): Promise<Scope.Result> {
   if (!layer.closing) {
-    if (canFastClose(layer)) return fastClose(layer, force);
+    if (canFastClose(layer)) return tapSessionHooks(layer, fastClose(layer, force));
     layer.closed = true;
     layer.closing = startClose(layer, force);
   }
@@ -2593,7 +2613,7 @@ function closeLayer(layer: Layer, force = true): Promise<Scope.Result> {
   if (closeWouldReenter(layer)) {
     return Promise.resolve(buildResult(bestEffort(layer), layer, undefined));
   }
-  return layer.closing;
+  return tapSessionHooks(layer, layer.closing);
 }
 
 /** Build the `close()` Result from the settled outcome, the layer's abort reason (for a cancel), and
@@ -2838,11 +2858,11 @@ function withSessionCreate(
 }
 
 /** A bare session wrapped in the `session` chain: the onion starts NOW (before-code runs right after
- * the child layer exists, before any work in it); `next()` settles when THIS handle's `close` runs
- * the structural close — `close()` joins the teardown first, then reports the chain's outcome
- * (hook returns win, hook throws propagate, like `close`). A session felled by its parent's close
- * cascade (never closed through this handle) leaves hooks awaiting `next()`: prefer `session(fn)`
- * for work the parent may cancel (v1 limit). */
+ * the child layer exists, before any work in it); `next()` settles with the structural close's
+ * `Result` however the session closes — through this handle's `close`, or felled by its parent's
+ * close cascade (`closeLayer` settles the registered resolver via the side table). `close()` joins
+ * the teardown first, then reports the chain's outcome (hook returns win, hook throws propagate,
+ * like `close`). */
 function wrapSession(
   parent: Layer,
   options: Scope.Options | undefined,
@@ -2856,6 +2876,7 @@ function wrapSession(
   const nextPromise = new Promise<Scope.Result>((resolveNext) => {
     settleNext = resolveNext;
   });
+  SESSION_SETTLERS.set(child, settleNext);
   const base = withSessionCreate(plain, child, sessions);
   const outcome = sessionThrough(sessions, base, () =>
     nextPromise.then((ended) => ({ result: undefined, ended })),
@@ -2864,10 +2885,7 @@ function wrapSession(
   wrapped = {
     ...base,
     close: (opts?: Scope.CloseOptions) =>
-      closeLayer(child, !opts?.graceful).then((ended) => {
-        settleNext(ended);
-        return outcome.then(({ ended: chained }) => chained);
-      }),
+      closeLayer(child, !opts?.graceful).then(() => outcome.then(({ ended: chained }) => chained)),
   };
   return wrapped;
 }
