@@ -285,7 +285,7 @@ test("the usage cell keeps the result's own cost", async () => {
 test("a stream that ends with no result rejects TurnEnded", async () => {
   const script = readScript("Hello");
   const cut: Script = { messages: script.messages.slice(0, -1) };
-  const { ask, scope } = readSetup([cut], []);
+  const { coder, ask, scope } = readSetup([cut], []);
   const session = scope.createSession();
   const outcome = await session.run(ask, { input: "hello" }).then(
     () => "resolved",
@@ -293,6 +293,7 @@ test("a stream that ends with no result rejects TurnEnded", async () => {
   );
   if (!isError(outcome, "TurnEnded")) throw outcome;
   expect(outcome.payload.harness).toBe("claudeCode");
+  expect(session.resolve(coder.id)).toBe("s-1");
   await scope.close();
 });
 
