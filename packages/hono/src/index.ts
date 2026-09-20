@@ -20,6 +20,10 @@ export declare namespace HonoScope {
   export type Options = {
     readonly tags?: (c: Context) => readonly Tag.Binding<unknown>[];
     readonly onError?: OnError;
+    /** Hand-mounted extras: routes that need `stream` or `handle` directly and cannot
+     * be route bindings yet. Runs after the bound rows, inside the same session
+     * middleware, so `handle` and `stream` see the request session. */
+    readonly mount?: (app: Hono) => void;
   };
   /** Answer a request failure: return a Response to use it, `undefined` for the default map. */
   export type OnError = (
@@ -217,6 +221,7 @@ export async function honoApp(scope: Scope.Handle, options?: HonoScope.Options):
     const row = table[index];
     app.on(row.method, row.path, handle(op, row.route));
   });
+  options?.mount?.(app);
   return app;
 }
 

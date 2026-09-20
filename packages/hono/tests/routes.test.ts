@@ -112,6 +112,19 @@ test("hand mounting with tinker plus handle still answers", async () => {
   await scope.close();
 });
 
+test("mount adds a hand-built route inside the same session middleware", async () => {
+  const scope = createScope();
+  const app = await honoApp(scope, {
+    mount: (inner) => {
+      inner.get("/extra", handle(ping));
+    },
+  });
+  const res = await app.request("/extra");
+  expect(res.status).toBe(200);
+  expect(await res.json()).toBe("pong");
+  await scope.close();
+});
+
 /** Parse a named body at the door: an object with a string name. */
 function parseNamed(raw: unknown): string {
   if (typeof raw !== "object" || raw === null) throw new Error("bad body");
