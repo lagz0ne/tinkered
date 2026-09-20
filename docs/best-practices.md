@@ -82,7 +82,7 @@ await scope.close({ graceful: true });
 
 ## The issue tracker, classified
 
-What each thing in `apps/issue-tracker` should be. Today's shape in the last column.
+What each thing in `apps/issue-tracker` is, after the 2026-09-20 reshape (`a098dc3`). The last column is what the audit found before it.
 
 | Thing                                    | Unit                         | Owner                   | Today                                              |
 | ---------------------------------------- | ---------------------------- | ----------------------- | -------------------------------------------------- |
@@ -128,7 +128,8 @@ apps/issue-tracker/src/
 ```
 
 Deleted: `server/bridge.ts`, the six wrappers in `app.ts`, the draft stream scaffold, the
-`owned` transport wrapper, every `useState`. Estimated size: roughly half of today's 2.9k source lines.
+`owned` transport wrapper, every `useState`. Measured after the reshape: server 992 → 802 lines, client 1169 → 1941,
+source 2.9k → 3.6k, tests 2.2k → 2.8k. The server shrank; the view grew into named, headless-tested units.
 
 ## Known gaps in the library (do not paper over them silently)
 

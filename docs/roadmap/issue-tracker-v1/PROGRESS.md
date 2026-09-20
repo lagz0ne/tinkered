@@ -1767,3 +1767,35 @@ browser tests                          tests/browser-helper.test.ts, browser-pro
 ```
 
 Expected after: `useState|useEffect|useRef` anywhere in `src/client` → 0; `fetch(` in `src/client` → only inside `connection.ts` (the sync POST).
+
+### reshape/client-b — landed 2026-09-20; tracker/reshape Done
+
+Fast-forwarded `main` to `a098dc3` (nine contributor commits, one fix round: the fake backend's complexity, the
+capability check as a resource, seam exports trimmed, one notice constant). The contributor first reported the
+lint error as "old, in core"; the lead's check on clean `main` showed 0 errors, and the error was in the new test
+file — corrected in the fix round. Lead gates, exit-code gated, in the worktree and on `main` after `vp run -r build`:
+
+```text
+vp check                                       0 errors, 13 warnings
+vp run @tinker-issue-tracker#test              40 passed (4 files; tests/client.test.ts now 11 headless client tests incl. 6 for the draft flow)
+vp run @tinker-issue-tracker#build && vp run --no-cache @tinker-issue-tracker#test:browser   proof + 7 passed
+pnpm validate                                  37/37 PASS
+grep useState|useEffect|useRef apps/issue-tracker/src   → 0
+grep Scope.Handle apps/issue-tracker/src                → server/app.ts:25 (createApp return), client/App.tsx:375 (ScopedApp prop, root wrapper), tools/issues.ts:237 (serveIssues, driver entry — accepted)
+grep fetch( apps/issue-tracker/src/client               → connection.ts only (the sync POST)
+```
+
+**Whole reshape, `f92444b` → `a098dc3` (41 commits, four slices, four contributors, four fix rounds):**
+
+| Area                            | Before | After | Note                                                                                 |
+| ------------------------------- | ------ | ----- | ------------------------------------------------------------------------------------ |
+| `src/server`                    | 992    | 802   | bridge, wrappers, queue, waiter, `owned` gone; routes are tags; publish after commit |
+| `src/client`                    | 1169   | 1941  | 15 cells, 19 operations, 4 resources, one reconnecting transport; zero React state   |
+| `src/shared`+errors+index+tools | 768    | 865   | SSE line helpers moved to shared; three registry errors added                        |
+| `src` total                     | 2929   | 3608  |                                                                                      |
+| `tests`                         | 2162   | 2806  | + seam tests: ops without Hono, concurrent-edit race, 11 headless client tests       |
+| hono `src/index.ts`             | 333    | 370   | async `input` → 400 `InputRejected`; `mount` slot; synchronous `emit`                |
+
+The card's verify condition holds. The "fewer lines" goal held on the server and failed on the client, and
+`docs/best-practices.md` says so; the goals that held everywhere are one writer per state and a seam test for every
+operation. The next reshape brief should budget lines per slice up front.
