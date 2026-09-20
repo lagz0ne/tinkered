@@ -221,3 +221,18 @@ next()`, build the server, one tool per row — today's `mcpServer` body with th
 - Known reds owned by the harness ticket (untouched per scope): `packages/harness/tests/tools.test.ts` imports
   the deleted `mcpServer`/`tools` (1 failing test, 2 `vp check` errors); `vp check` otherwise matches `main`
   (0 errors of mine, 13 warnings = `main`'s 13).
+
+### drivers/t05 (mcp) — landed 2026-09-20 (`20e7531`)
+
+Five commits, one fix round the lead owed: the brief forbade `packages/harness/**` although the impact block
+lists `packages/harness/tests/tools.test.ts` as a consumer of `mcpServer`/`tools`, so the first branch was red
+there and committed with `--no-verify`. Rule from here: **every file in the impact block is inside the brief's
+"touch" list, tests included; no `--no-verify`, ever.** Fixed by re-expressing that test through
+`mcp({ tools: [expose(search, readTool(search))] })` — the harness promise ("one declaration serves both paths")
+holds literally. Lead gates on `main`: 0 errors / 13 warnings, mcp 9, harness 24, cli 25, tracker 42,
+`pnpm validate` 37/37; jev pre-flight run by the writer (every flag explained); mcp mutation alone **82.86**.
+Harness lane still ~70 (pre-existing; `mutation/floor-75` owns it). Kept for the harness ticket: `tool` (meta
+tag), `readTool`, `answerTool`, `Mcp.Tool`, `Mcp.ZodShape`; `tool` meta stays on `listRemote`/`getRemote` only.
+Core feedback recorded by the writer: `command.entry("x", (scope) => …)` parses as a loader (both are bare
+functions) — t04 removes the scope parameter and should brand the loader; the stdio-serve dance is copied three
+times (tracker `main.ts`, two tours) — candidate for a `serveStdio(server)` helper in `@tinker/mcp`.
