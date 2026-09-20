@@ -161,11 +161,7 @@ export function draftStream(
   return draftOpened(scope, c, id);
 }
 
-async function draftOpened(
-  scope: Scope.Handle,
-  c: DraftContext,
-  id: string,
-): Promise<Response> {
+async function draftOpened(scope: Scope.Handle, c: DraftContext, id: string): Promise<Response> {
   let raw: unknown;
   try {
     raw = await c.req.json();

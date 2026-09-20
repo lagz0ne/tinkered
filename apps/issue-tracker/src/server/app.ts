@@ -1,4 +1,4 @@
-import { Hono, type MiddlewareHandler } from "hono";
+import { Hono, type Context, type Next } from "hono";
 import { createScope, type Scope } from "@tinker/core";
 import { honoApp, stream } from "@tinker/hono";
 import { source, sync, type Sync } from "@tinker/sync";
@@ -84,7 +84,7 @@ export async function createApp(config: AppConfig): Promise<{
    * A rejected save answers 4xx/5xx and publishes nothing. Core has no
    * session-commit hook yet (core-feedback 2026-09-20); this root-owned closure
    * is the one place allowed to hold the scope. */
-  const publishAfterCommit: MiddlewareHandler = async (c, next) => {
+  const publishAfterCommit = async (c: Context, next: Next): Promise<void> => {
     await next();
     if (c.req.method !== "GET" && c.res.status < 300) await scope.run(publishIssues);
   };
@@ -92,9 +92,7 @@ export async function createApp(config: AppConfig): Promise<{
   const app = await honoApp(scope, {
     onError,
     mount: (inner) => {
-      inner.post("/api/issues/:id/draft", (c) =>
-        draftStream(scope, helper, c, c.req.param("id")),
-      );
+      inner.post("/api/issues/:id/draft", (c) => draftStream(scope, helper, c, c.req.param("id")));
       inner.get("/sync", (c) => {
         const id = c.req.query("client") ?? "guest";
         c.header("Content-Type", "text/event-stream");
