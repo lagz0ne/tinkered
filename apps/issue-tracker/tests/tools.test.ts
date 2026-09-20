@@ -6,7 +6,7 @@ import { createScope } from "@tinker/core";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { run } from "@tinker/cli";
-import { mcpServer } from "@tinker/mcp";
+import { mcp } from "@tinker/mcp";
 import {
   api,
   createApp,
@@ -63,7 +63,7 @@ function readText(answered: object): string {
 test("missing and blank revisions report command usage", async () => {
   const base = { name: "issues", version: "0.1.0" };
   const usage = `${base.name} ${base.version}\n  comment`;
-  const tags = [...issueCommands, ...issueTools, api.config({ baseUrl: "http://127.0.0.1:1" })];
+  const tags = [...issueCommands, api.config({ baseUrl: "http://127.0.0.1:1" })];
   const missing = await run({ ...base, scope: { tags }, argv: ["update", "x"] });
   expect(missing.code).toBe(2);
   expect(missing.stdout).toBe("");
@@ -82,7 +82,7 @@ test("help lists the issue commands with no backend", async () => {
   const helped = await run({
     name: "issues",
     version: "0.1.0",
-    scope: { tags: [...issueCommands, ...issueTools] },
+    scope: { tags: [...issueCommands] },
     argv: ["help"],
   });
   expect(helped.code).toBe(0);
@@ -97,7 +97,7 @@ test("help lists the issue commands with no backend", async () => {
 test("CLI drives the saved create/list/update/comment/get through real HTTP", async () => {
   const { scope, app } = await createApp({ dataPath: tempPath() });
   const heard = await hear(app);
-  const tags = [...issueCommands, ...issueTools, api.config({ baseUrl: heard.base })];
+  const tags = [...issueCommands, api.config({ baseUrl: heard.base })];
   const options = { name: "issues", version: "0.1.0" };
   try {
     const created = await run({
@@ -168,8 +168,13 @@ test("CLI drives the saved create/list/update/comment/get through real HTTP", as
 test("MCP tools save through the same server and answer conflicts as errors", async () => {
   const { scope, app } = await createApp({ dataPath: tempPath() });
   const heard = await hear(app);
-  const tools = createScope({ tags: [...issueTools, api.config({ baseUrl: heard.base })] });
-  const server = mcpServer(tools, { name: "issues", version: "0.1.0" });
+  const ext = mcp({ name: "issues", version: "0.1.0", tools: issueTools });
+  const tools = createScope({
+    tags: [api.config({ baseUrl: heard.base })],
+    extensions: [ext],
+  });
+  await tools.ready;
+  const server = tools.resolve(ext);
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
   const client = new Client({ name: "test", version: "0" });

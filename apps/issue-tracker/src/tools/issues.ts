@@ -1,8 +1,7 @@
-import { operation, type Scope } from "@tinker/core";
+import { operation } from "@tinker/core";
 import { command, commands } from "@tinker/cli";
 import { isError as isHttpError } from "@tinker/http";
-import { mcpServer, tool, tools } from "@tinker/mcp";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { expose, mcp, tool, type Mcp } from "@tinker/mcp";
 import { z } from "zod";
 import { getDetail, getIssues, patchIssue, postComment, postIssue } from "../client/api.ts";
 import { fail, type Errors } from "../errors.ts";
@@ -113,7 +112,9 @@ async function readRemoteError(error: unknown, fallbackId: string): Promise<unkn
   return error;
 }
 
-/** List the saved issues through the running server. */
+/** List the saved issues through the running server. The `tool` meta stays until
+ * the harness ticket: the harness reads it off this op, while MCP reads the
+ * `issueTools` rows below. */
 export const listRemote = operation({
   label: "list",
   meta: [
@@ -139,7 +140,6 @@ export const createRemote = operation({
       description: "create one issue: create --title T --description D",
       argv: readCreateArgs,
     }),
-    tool({ description: "create one issue", schema: createShape }),
   ],
   depends: { saved: postIssue },
   run: async ({ saved }, ctx) => {
@@ -161,7 +161,6 @@ export const updateRemote = operation({
         "save an edit: update ID --base-revision N [--title T] [--status S] [--assignee A]",
       argv: readUpdateArgs,
     }),
-    tool({ description: "save an edit guarded by the opened revision", schema: updateShape }),
   ],
   depends: { saved: patchIssue },
   run: async ({ saved }, ctx) => {
@@ -182,7 +181,6 @@ export const commentRemote = operation({
       description: "append a comment: comment ID --author A --text T",
       argv: readCommentArgs,
     }),
-    tool({ description: "append a comment without an edit revision", schema: commentShape }),
   ],
   depends: { saved: postComment },
   run: async ({ saved }, ctx) => {
@@ -194,7 +192,9 @@ export const commentRemote = operation({
   },
 });
 
-/** Show one saved issue with its comments, activity, and revision. */
+/** Show one saved issue with its comments, activity, and revision. The `tool` meta
+ * stays until the harness ticket: the harness reads it off this op, while MCP
+ * reads the `issueTools` rows below. */
 export const getRemote = operation({
   label: "get",
   input: parseGetInput,
@@ -221,34 +221,26 @@ export const issueCommands = [
   commands(getRemote),
 ];
 
-/** The MCP tool bindings for the same issue actions. */
-export const issueTools = [
-  tools(listRemote),
-  tools(createRemote),
-  tools(updateRemote),
-  tools(commentRemote),
-  tools(getRemote),
+/** The MCP wiring rows for the same issue actions: the operation plus its tool
+ * facts, handed to `mcp({ tools })`. The MCP driver reads these rows; the
+ * harness reads the `tool` meta still on `listRemote` and `getRemote`. */
+export const issueTools: readonly Mcp.Row[] = [
+  expose(listRemote, { description: "list the saved issues", schema: {} }),
+  expose(createRemote, { description: "create one issue", schema: createShape }),
+  expose(updateRemote, {
+    description: "save an edit guarded by the opened revision",
+    schema: updateShape,
+  }),
+  expose(commentRemote, {
+    description: "append a comment without an edit revision",
+    schema: commentShape,
+  }),
+  expose(getRemote, {
+    description: "show one saved issue with comments and activity",
+    schema: getShape,
+  }),
 ];
 
-/** Serve the issue tools over MCP stdio. Owns the serving lifetime exactly like
- * the MCP README entry: EOF or a transport close settles the entry, and a CLI
- * signal closes the scope to settle it; the transport closes in every case
- * while the CLI driver closes the scope it owns. */
-export async function serveIssues(scope: Scope.Handle): Promise<void> {
-  const server = mcpServer(scope, { name: "issues", version: "0.1.0" });
-  let stop: () => void = () => undefined;
-  const stopped = new Promise<void>((resolve) => {
-    stop = () => resolve();
-  });
-  scope.onClose(stop);
-  process.stdin.once("end", stop);
-  server.server.onclose = stop;
-  try {
-    await server.connect(new StdioServerTransport());
-    if (process.stdin.readableEnded) stop();
-    await stopped;
-  } finally {
-    process.stdin.removeListener("end", stop);
-    await server.close();
-  }
-}
+/** The issue MCP driver: installed on the scope `runMain` creates, resolved in
+ * the `mcp` entry command. */
+export const issuesMcp = mcp({ name: "issues", version: "0.1.0", tools: issueTools });

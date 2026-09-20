@@ -90,7 +90,7 @@ export {
   getRemote,
   issueCommands,
   issueTools,
+  issuesMcp,
   listRemote,
-  serveIssues,
   updateRemote,
 } from "./tools/issues.ts";
