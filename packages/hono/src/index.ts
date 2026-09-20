@@ -83,13 +83,11 @@ export function hono(wiring: HonoScope.Wiring): Scope.Extension<Hono> {
     label: "hono",
     start: async (scope, _ctx, next) => {
       await next();
-      const table = wiring.routes;
-      const loaded = await Promise.all(table.map((row) => Promise.resolve(row.load())));
+      const mounted = await Promise.all(
+        wiring.routes.map(async (row) => ({ row, op: await row.load() })),
+      );
       const app = new Hono().use(serveRequests(scope, wiring));
-      loaded.forEach((op, index) => {
-        const row = table[index] as HonoScope.Row;
-        app.on(row.method, row.path, answerRoute(op, row.route));
-      });
+      for (const { row, op } of mounted) app.on(row.method, row.path, answerRoute(op, row.route));
       wiring.mount?.(app);
       return app;
     },
