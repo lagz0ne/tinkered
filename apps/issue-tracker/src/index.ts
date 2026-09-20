@@ -1,3 +1,4 @@
+export { wire } from "./client/connection.ts";
 export { fail, isError, raise } from "./errors.ts";
 export type { Errors } from "./errors.ts";
 export {
@@ -60,7 +61,7 @@ export {
   typeEdit,
   typeNewIssue,
 } from "./client/actions.ts";
-export { detailRefresh, liveness, wire } from "./client/services.ts";
+export { detailRefresh, liveness } from "./client/services.ts";
 export {
   commentAuthor,
   commentDraft,

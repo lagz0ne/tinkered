@@ -1,3 +1,4 @@
+import { tag } from "@tinker/core";
 import type { Sync } from "@tinker/sync";
 import { fail } from "../errors.ts";
 
@@ -183,3 +184,6 @@ export function reconnectingTransport(baseUrl: string): ReconnectingWire {
     },
   };
 }
+
+/** The tab's wire: bound once at the composition root, rebound in a test. */
+export const wire = tag<ReconnectingWire>({ label: "wire" });

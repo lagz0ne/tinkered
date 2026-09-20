@@ -3,7 +3,7 @@ import { isError as isHttpError } from "@tinker/http";
 import { parseIssue, type Issues } from "../shared/issues.ts";
 import { isError, raise } from "../errors.ts";
 import { getDetail, patchIssue, postComment, postIssue } from "./api.ts";
-import { wire } from "./services.ts";
+import { wire } from "./connection.ts";
 import {
   commentAuthor,
   commentDraft,

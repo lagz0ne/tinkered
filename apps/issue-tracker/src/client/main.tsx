@@ -4,8 +4,8 @@ import { createScope } from "@tinker/core";
 import { subscribe, sync } from "@tinker/sync";
 import { api } from "./api.ts";
 import { ScopedApp } from "./App.tsx";
-import { reconnectingTransport } from "./connection.ts";
-import { detailRefresh, liveness, wire } from "./services.ts";
+import { reconnectingTransport, wire } from "./connection.ts";
+import { detailRefresh, liveness } from "./services.ts";
 import { issueList } from "../shared/issues.ts";
 
 /** The composition root: the only place that creates or touches the scope. The transport starts

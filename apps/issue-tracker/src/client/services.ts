@@ -1,4 +1,4 @@
-import { resource, tag } from "@tinker/core";
+import { resource } from "@tinker/core";
 import { issueList, type Issues } from "../shared/issues.ts";
 import {
   connection,
@@ -9,10 +9,7 @@ import {
   type Connection,
 } from "./state.ts";
 import { loadDetail, readDetailError } from "./actions.ts";
-import type { ReconnectingWire, WireStatus } from "./connection.ts";
-
-/** The tab's wire: bound once at the composition root, rebound in a test. */
-export const wire = tag<ReconnectingWire>({ label: "wire" });
+import { wire, type WireStatus } from "./connection.ts";
 
 /** Read one wire status as the connection cell the tab renders. */
 function readConnection(status: WireStatus): Connection {
