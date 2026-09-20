@@ -102,7 +102,7 @@ between" instead of "without checking"; put the rule's own nouns in the criteria
 field, draft, filter, selection, notice" lifted `data` from 74% → 93%); keep `glue` defined by
 what it touches, not by "pure".
 
-Lint run over `examples/` + `apps/issue-tracker/src` (2026-09-20, 39 files, one call per unit,
+Lint run over `examples/` + `apps/issue-tracker/src` (2026-09-20 at `ab6b4dd`, 39 files, one call per unit,
 same answers recounted after the root filter was added — Jev answers are per unit and independent):
 
 | selector                                                                   | judged | with notes |
