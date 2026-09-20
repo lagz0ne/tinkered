@@ -14,14 +14,18 @@ function readBaseUrl(): string {
 /** Serve the resolved issue MCP server over stdio. Owns the serving lifetime:
  * the entry holds it until EOF or a transport close, and a CLI signal closes
  * the scope to settle it; the transport closes in every case while the CLI
- * driver closes the scope it owns. Takes the server, not the scope — the
- * extension's `start` already holds the scope's hand (ADR 0051). */
-async function serve(server: McpServer, scope: Scope.Handle): Promise<void> {
+ * driver closes the scope it owns. Takes the server plus the scope's close
+ * hook — a function value, never the handle (the extension's `start` already
+ * holds the scope's hand, ADR 0051). */
+async function serve(
+  server: McpServer,
+  hooks: { readonly onClose: Scope.Handle["onClose"] },
+): Promise<void> {
   let stop: () => void = () => undefined;
   const stopped = new Promise<void>((resolve) => {
     stop = () => resolve();
   });
-  scope.onClose(stop);
+  hooks.onClose(stop);
   process.stdin.once("end", stop);
   server.server.onclose = stop;
   try {
@@ -37,7 +41,7 @@ async function serve(server: McpServer, scope: Scope.Handle): Promise<void> {
 /** The `mcp` entry command: resolve the issue MCP driver off the scope `runMain`
  * created, then serve it over stdio. Keeps the CLI shape t04 changes later. */
 async function serveEntry(scope: Scope.Handle): Promise<void> {
-  await serve(scope.resolve(issuesMcp), scope);
+  await serve(scope.resolve(issuesMcp), { onClose: scope.onClose.bind(scope) });
 }
 
 await runMain({

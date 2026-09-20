@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, operation, preset, tag } from "@tinker/core";
-import { isError, mcpServer, tool, tools } from "@tinker/mcp";
+import { expose, isError, mcp, readTool, tool } from "@tinker/mcp";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { McpServerConfig, Options, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
@@ -156,12 +156,14 @@ test("one declaration serves the MCP driver and the Claude fast path", async () 
   const seen: Seen = { servers: [], queries: [], results: [] };
   const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
   const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ext = mcp({ name: "coder", version: "0", tools: [expose(search, readTool(search))] });
   const scope = createScope({
-    tags: [tools(search)],
+    extensions: [ext],
     presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))],
   });
+  await scope.ready;
+  const server = scope.resolve(ext);
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  const server = mcpServer(scope, { name: "coder", version: "0" });
   await server.connect(serverTransport);
   const client = new Client({ name: "test", version: "0" });
   await client.connect(clientTransport);
