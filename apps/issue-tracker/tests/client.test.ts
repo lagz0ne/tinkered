@@ -35,60 +35,83 @@ import {
 
 type Seen = { readonly method: string; readonly url: string; readonly body: unknown };
 
-/** A fake HTTP transport: answers creates, edits, comments, and the detail read from canned
- * values the test sets. The client behaviour — cells written, operations run — is what is
- * asserted, never the fake itself. */
-function readFake(answers: {
+/** The canned answers the fake serves: creates, edits, comments, the detail read, plus the
+ * draft stream frames and capability answer the draft tests set. */
+type Answers = {
   readonly issue: Record<string, unknown>;
   readonly detail: Record<string, unknown>;
   readonly comment: Record<string, unknown>;
   readonly failPatch?: { readonly status: number; readonly body: unknown };
   readonly draft?: { readonly frames: readonly string[] };
   readonly capability?: { readonly status: number; readonly body: unknown };
-}): { readonly fake: HttpClient.Backend; readonly seen: Seen[] } {
+};
+
+/** One fake route: a matcher plus its one-line answer. */
+type Route = {
+  readonly match: (method: string, url: string) => boolean;
+  readonly answer: (request: HttpRequest.Record) => HttpResponse.Handle;
+};
+
+/** A fake HTTP transport: answers creates, edits, comments, and the detail read from canned
+ * values the test sets. The client behaviour — cells written, operations run — is what is
+ * asserted, never the fake itself. */
+function readFake(answers: Answers): { readonly fake: HttpClient.Backend; readonly seen: Seen[] } {
   const seen: Seen[] = [];
+  const routes = readRoutes(answers);
+  const fallback = (request: HttpRequest.Record): HttpResponse.Handle =>
+    HttpResponse.make(request, { status: 200, body: JSON.stringify(answers.detail) });
   const fake: HttpClient.Backend = (request) => {
     const url = HttpRequest.toUrl(request);
     seen.push({ method: request.method, url, body: readJsonBody(request) });
-    if (request.method === "GET" && url.endsWith("/api/draft")) {
-      const found = answers.capability ?? { status: 200, body: { enabled: true } };
-      return Promise.resolve(
-        HttpResponse.make(request, { status: found.status, body: JSON.stringify(found.body) }),
-      );
-    }
-    if (request.method === "POST" && url.endsWith("/draft") && answers.draft !== undefined) {
-      return Promise.resolve(
-        HttpResponse.make(request, { status: 200, body: readDraftStream(answers.draft.frames) }),
-      );
-    }
-    if (request.method === "POST" && url.endsWith("/api/issues")) {
-      return Promise.resolve(
-        HttpResponse.make(request, { status: 201, body: JSON.stringify(answers.issue) }),
-      );
-    }
-    if (request.method === "PATCH") {
-      if (answers.failPatch !== undefined) {
-        return Promise.resolve(
-          HttpResponse.make(request, {
-            status: answers.failPatch.status,
-            body: JSON.stringify(answers.failPatch.body),
-          }),
-        );
-      }
-      return Promise.resolve(
-        HttpResponse.make(request, { status: 200, body: JSON.stringify(answers.issue) }),
-      );
-    }
-    if (request.method === "POST" && url.includes("/comments")) {
-      return Promise.resolve(
-        HttpResponse.make(request, { status: 201, body: JSON.stringify(answers.comment) }),
-      );
-    }
-    return Promise.resolve(
-      HttpResponse.make(request, { status: 200, body: JSON.stringify(answers.detail) }),
-    );
+    const route = routes.find((candidate) => candidate.match(request.method, url));
+    return Promise.resolve(route === undefined ? fallback(request) : route.answer(request));
   };
   return { fake, seen };
+}
+
+/** The fake's route table: capability, draft stream, creates, edits, comments — in match
+ * order, with the detail read as the fallback. */
+function readRoutes(answers: Answers): readonly Route[] {
+  const capability: { readonly status: number; readonly body: unknown } = answers.capability ?? {
+    status: 200,
+    body: { enabled: true },
+  };
+  const draft: { readonly frames: readonly string[] } = answers.draft ?? { frames: [] };
+  const patch: { readonly status: number; readonly body: unknown } = answers.failPatch ?? {
+    status: 200,
+    body: answers.issue,
+  };
+  return [
+    {
+      match: (method, url) => method === "GET" && url.endsWith("/api/draft"),
+      answer: (request) =>
+        HttpResponse.make(request, {
+          status: capability.status,
+          body: JSON.stringify(capability.body),
+        }),
+    },
+    {
+      match: (method, url) =>
+        answers.draft !== undefined && method === "POST" && url.endsWith("/draft"),
+      answer: (request) =>
+        HttpResponse.make(request, { status: 200, body: readDraftStream(draft.frames) }),
+    },
+    {
+      match: (method, url) => method === "POST" && url.endsWith("/api/issues"),
+      answer: (request) =>
+        HttpResponse.make(request, { status: 201, body: JSON.stringify(answers.issue) }),
+    },
+    {
+      match: (method) => method === "PATCH",
+      answer: (request) =>
+        HttpResponse.make(request, { status: patch.status, body: JSON.stringify(patch.body) }),
+    },
+    {
+      match: (method, url) => method === "POST" && url.includes("/comments"),
+      answer: (request) =>
+        HttpResponse.make(request, { status: 201, body: JSON.stringify(answers.comment) }),
+    },
+  ];
 }
 
 /** A fake SSE body that stays open after its frames: the held turn the broken-frame case
