@@ -96,6 +96,10 @@ const lanes = [
     `bash -c 'test $(grep -rcE "\\bas [A-Za-z{(]|\\bas unknown|[a-zA-Z0-9_)\\]]!" examples/sync | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
   ],
   [
+    "two hands (ADR 0051: Scope.Handle only at a root, in a driver src, or a test)",
+    "scripts/two-hands.sh",
+  ],
+  [
     "sync pure bundle (runtime import: @tinker/core only)",
     `bash -c 'grep -oE "from \\"[^\\"]+\\"" packages/sync/dist/index.mjs | sort -u | grep -v "from \\"@tinker/core\\"" | grep -q . && exit 1 || node --input-type=module -e "import(\\"./packages/sync/dist/index.mjs\\").then(m=>process.exit(m.source&&m.subscribe&&m.family&&m.memoryPair?0:1))"'`,
   ],
@@ -119,7 +123,7 @@ for (const [name, cmd] of lanes) {
   }
 }
 console.log(
-  `\nMutation lanes: run \`${VP} run --no-cache core#mutate\` and \`${VP} run --no-cache http#mutate\` and \`${VP} run --no-cache hono#mutate\` and \`${VP} run --no-cache drizzle#mutate\` and \`${VP} run --no-cache cli#mutate\` and \`${VP} run --no-cache harness#mutate\` and \`${VP} run --no-cache mcp#mutate\` and \`${VP} run --no-cache sync#mutate\` ALONE (break >= 75 (user, 2026-09-20); core ~78%, http ~70%, hono ~80%, drizzle ~96%, cli ~72%, harness ~70%, mcp ~81%, sync ~74%).`,
+  `\nMutation lanes: run \`${VP} run --no-cache core#mutate\` and \`${VP} run --no-cache http#mutate\` and \`${VP} run --no-cache hono#mutate\` and \`${VP} run --no-cache drizzle#mutate\` and \`${VP} run --no-cache cli#mutate\` and \`${VP} run --no-cache harness#mutate\` and \`${VP} run --no-cache mcp#mutate\` and \`${VP} run --no-cache sync#mutate\` ALONE (break >= 75; measured alone 2026-09-20: core 77.96, http 90.77, hono 77.66, drizzle ~96, cli 79.77, harness 76.05, mcp 82.86, sync 79.67).`,
 );
 console.log(
   `Timing lanes:  run via \`bench -- ${strip} bench/<lane>.mjs\` in a clean worktree (not in-container).`,

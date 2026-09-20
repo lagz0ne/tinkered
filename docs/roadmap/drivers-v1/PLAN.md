@@ -342,3 +342,22 @@ times (tracker `main.ts`, two tours) — candidate for a `serveStdio(server)` he
 - `src` bugs found and fixed (each with the test that proves it): (1) a throwing row loader escaped `run` as a rejected promise instead of exit 1 — `runOperation` now loads inside the try, so a loader throw maps to code 1 with the message on stderr; (2) the row memo cached the rejected load, so a failed first selection never retried despite the TSDoc promise — `memo` now clears the cached promise on rejection, retries on next selection, still reuses the settled success.
 - Unobservable survivors (no seam test; one line each): `runMain` block + all its option/process mutants — needs a process, `runMain` never returns; pre-start abort `wireSignal` NoCoverage (`signal.aborted` at wire time / `ignoreRejection(scope.close())`) — covered by the already-aborted seam test's outcome but the internal close call is not user-visible; abort-listener cleanup (`removeEventListener`, `{ once: true }`, `unhook()` call sites) — listener identity, no user-visible difference; log internals (`ms` arithmetic, `"cli command"` name, `command:` attribute, `codeOf` internals `if(true)→2`, `&&` vs `||`, `error === reason`) — the code value is asserted where promised (0/2/130), the rest are log attributes the README does not promise; `UnknownCommand` payload shape (`{}`, `known` mapping) — caught inside `answerSelected`, never leaves the seam; `isError` internals in `errors.ts` — discriminator shape, the throw/rethrow path is what the seam sees; entry-abort `failed: undefined` vs error print — abort wins by design, no stderr either way.
 - Gates: `vp run -r build && vp check && vp run cli#test` → EXIT 0 (0 errors / 13 warnings = main), tracker issues+tools 20/20, `vp run --no-cache cli#mutate` → 79.77 ≥ 75. jev pre-flight: 0 file flags; no flags on the new test file; t04 source notes reviewed in t04.
+
+### drivers/t04 (cli) — landed 2026-09-20 (`5f037fd`) · drivers/t07 — done by the lead
+
+t04: five contributor commits plus the cli mutation lift on the same branch (two real bugs found by survivors: a
+throwing row loader escaped `run` as a rejection instead of exit 1 + stderr; a failed load was cached against the
+docs' "not cached, retries"). Lead fix on the branch: the cli smoke test resolved `examples/` three directories up,
+which inside a Stryker sandbox is nowhere — the cli dry run had been failing since the examples moved to the repo
+root (74c6b36), so "cli ~72" was a stale number; the test now walks up to `pnpm-workspace.yaml`, and
+`**/.stryker-tmp/**` is excluded from test discovery. Gates on `main`: 0 errors / 13 warnings, cli 30, mcp 9,
+harness 48, tracker 42, `pnpm validate` 37/37; cli mutation alone **79.77** (70.36 before the lift). Held on the
+branch until the lane cleared 75 — the floor rule applied to a landing for the first time.
+
+t07: `scripts/two-hands.sh` — `Scope.Handle` may appear only in a file that calls `createScope` (a root), a
+driver package's `src`, `core`/`react` `src`, or a test; proven to fail on a planted leak; wired as validate
+lane 38. `docs/best-practices.md` rules 2 and 6 rewritten to ADR 0051; glossary driver headers updated;
+`scripts/validate.mjs` mutation note now carries the measured-alone scores.
+
+**Floor, measured alone on `main` today:** core 77.96 · http 90.77 · hono 77.66 · drizzle ~96 · cli 79.77 ·
+harness 76.05 · mcp 82.86 · sync 79.67. Every lane ≥ 75.
