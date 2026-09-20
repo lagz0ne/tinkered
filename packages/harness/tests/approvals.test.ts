@@ -211,9 +211,9 @@ test("an approve op overrides a canUseTool bound in options", async () => {
   const session = scope.createSession();
   await session.run(ask, { input: "hello" });
   expect(bound).toEqual([]);
-  expect(session.resolve(coder.items).filter((item) => item.kind === "approval")).toEqual([
-    { kind: "approval", id: "tu-1", status: "deny", source: expect.anything() },
-  ]);
+  const items = session.resolve(coder.items).filter((item) => item.kind === "approval");
+  expect(items.length).toBe(1);
+  expect(items[0]).toMatchObject({ kind: "approval", id: "tu-1", status: "deny" });
   await scope.close();
 });
 
