@@ -23,8 +23,8 @@ import {
   typeEdit,
   typeNewIssue,
   wire,
+  type ReconnectingWire,
 } from "../src/index.ts";
-import type { ReconnectingWire } from "../src/client/connection.ts";
 
 type Seen = { readonly method: string; readonly url: string; readonly body: unknown };
 

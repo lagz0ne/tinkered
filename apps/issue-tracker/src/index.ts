@@ -1,4 +1,5 @@
 export { wire } from "./client/connection.ts";
+export type { ReconnectingWire, WireStatus } from "./client/connection.ts";
 export { fail, isError, raise } from "./errors.ts";
 export type { Errors } from "./errors.ts";
 export {

@@ -17,7 +17,11 @@ function boot(): void {
   const root = document.getElementById("root");
   if (root === null) return;
   const element = createRoot(root);
-  void start(element);
+  const booted = start(element);
+  booted.then(
+    () => undefined,
+    () => renderDead(element),
+  );
 }
 
 async function start(element: ReturnType<typeof createRoot>): Promise<boolean | void> {
@@ -73,9 +77,13 @@ function renderRetrying(element: ReturnType<typeof createRoot>): void {
       </main>
     </StrictMode>,
   );
-  void start(element).then((recovered) => {
-    if (recovered !== true) renderFailed(element);
-  });
+  const retried = start(element);
+  retried.then(
+    (recovered) => {
+      if (recovered !== true) renderFailed(element);
+    },
+    () => renderFailed(element),
+  );
 }
 
 /** The failed page: the attempt after the dead page also failed. */
