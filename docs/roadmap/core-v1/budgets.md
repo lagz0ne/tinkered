@@ -77,3 +77,31 @@ census rows are gates (`pnpm validate` runs `bench/promises.mjs` and `bench/heap
   clean worktree; report median/p95. Not run in-container (host-noise). The heap lane is a memory delta
   and runs in-container (recorded above); its authoritative value also comes from `bench`.
 - **Historical baseline:** t01 = 401 B gzip.
+
+## Big-sample A/B after the drivers track (2026-09-20)
+
+`f92444b` (this morning: before the `session` hook, extension-as-dependency, `watch(next, prev)`, and the
+four driver extensions) vs `bf532ef` (`main` after ADR 0051 landed). `bench/core-probe.mjs`, one scenario per
+process, **31 process runs per tree per scenario, interleaved A B A B on `taskset -c 6`**, in-container (the
+`bench` sandbox wrapper is not installed on this box, so absolutes are indicative; the alternation cancels the
+drift). ns/iter; Δ is B against A.
+
+| scenario  | n   | A min  | A med  | A p90  | B min  | B med  | B p90  | Δ med | Δ min |
+| --------- | --- | ------ | ------ | ------ | ------ | ------ | ------ | ----- | ----- |
+| op        | 31  | 99.3   | 101.7  | 102.7  | 91.6   | 101.4  | 102.6  | −0.3% | −7.8% |
+| run       | 31  | 111.8  | 113.0  | 114.0  | 111.1  | 112.8  | 114.3  | −0.2% | −0.6% |
+| opres     | 31  | 309.5  | 330.8  | 333.9  | 308.0  | 329.4  | 341.4  | −0.4% | −0.5% |
+| inline    | 31  | 193.1  | 200.4  | 202.5  | 190.9  | 200.0  | 202.1  | −0.2% | −1.1% |
+| session   | 31  | 1585.0 | 1631.0 | 1690.0 | 1560.0 | 1615.0 | 1658.0 | −1.0% | −1.6% |
+| tagged    | 31  | 1948.0 | 2016.0 | 2072.0 | 1945.0 | 2015.0 | 2131.0 | −0.0% | −0.2% |
+| create    | 31  | 167.7  | 168.2  | 168.9  | 167.5  | 168.3  | 169.9  | +0.1% | −0.1% |
+| cold      | 31  | 700.0  | 712.1  | 728.6  | 693.4  | 710.1  | 729.4  | −0.3% | −0.9% |
+| warm      | 31  | 28.6   | 29.0   | 29.8   | 28.6   | 29.2   | 29.8   | +0.7% | +0.0% |
+| lifecycle | 31  | 863.8  | 878.1  | 911.6  | 867.0  | 894.9  | 927.5  | +1.9% | +0.4% |
+
+Reading: every median within ±2%, well inside each scenario's own p90 spread — the `session` chain, the
+`SESSIONS`/`SESSION_SETTLERS` side tables, and the `watch` `prev` argument cost nothing measurable when no
+extension declares a hook, as ADR 0050 §5 requires. `session` itself is 1% faster (the t01 inline of the
+unwrapped path). The one `op` min outlier (91.6) is the known bimodal host floor (t27 note above), not a change.
+Raw data: `/tmp/ab.csv` at the time of writing; the runner is `/tmp/ab.sh` (10 lines; worth moving under
+`bench/` if a second big-sample run is wanted).
