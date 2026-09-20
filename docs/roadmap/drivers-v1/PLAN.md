@@ -73,3 +73,17 @@ tracker /sync GET       closes over `origin = scope.resolve(src)`     `openWire`
 ```
 
 Expected after: `honoApp|tinker\(|handle\(` outside `packages/hono/src` → `(none)`; `Scope.Handle` in `packages/hono/src` → the extension's `start` parameter only; tracker `createApp` builds no `Hono` itself.
+
+## drivers/t01 — probe table (min ns/iter, `taskset -c 2 node --expose-gc bench/core-probe.mjs <scenario>`, min of 3)
+
+BEFORE (2026-09-20, worktree base `2f5e4da` = main, no code change yet):
+
+| scenario  | run 1  | run 2  | run 3  | min    |
+| --------- | ------ | ------ | ------ | ------ |
+| `session` | 1613.0 | 1701.0 | 1625.0 | 1613.0 |
+| `tagged`  | 2125.0 | 2090.0 | 1963.0 | 1963.0 |
+| `create`  | 176.5  | 169.6  | 170.8  | 169.6  |
+| `run`     | 113.0  | 112.6  | 112.6  | 112.6  |
+| `op`      | 101.0  | 101.5  | 102.0  | 101.0  |
+
+AFTER: (filled in when the change lands)
