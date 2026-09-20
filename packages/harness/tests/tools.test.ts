@@ -247,3 +247,17 @@ test("a named tool registers under its meta name, not the op label", async () =>
   expect(seen.results[0]?.content).toEqual([{ type: "text", text: '"hit:x"' }]);
   await scope.close();
 });
+
+test("the frame server wins over a user server bound under the frame label", async () => {
+  const seen: Seen = { servers: [], queries: [], results: [] };
+  const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
+  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const scope = createScope({
+    tags: [claudeCode.options({ mcpServers: { coder: { command: "mine" } } })],
+    presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))],
+  });
+  await scope.createSession().run(ask, { input: "hello" });
+  expect(seen.queries[0]?.mcpServers?.coder).toEqual({ type: "stdio", command: "fake" });
+  expect(seen.servers[0]?.name).toBe("coder");
+  await scope.close();
+});
