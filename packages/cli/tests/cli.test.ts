@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { expect, test } from "vite-plus/test";
 import {
@@ -421,12 +424,20 @@ test("resolving run before ready fails with NotResolved", async () => {
   await scope.close({ graceful: true });
 });
 
+/** The repo root: the nearest ancestor holding `pnpm-workspace.yaml`. Stryker copies this file
+ * into a sandbox two levels deeper, so a fixed `../../..` would miss the examples there. */
+function workspaceRoot(): string {
+  let dir = dirname(fileURLToPath(import.meta.url));
+  while (!existsSync(join(dir, "pnpm-workspace.yaml"))) dir = dirname(dir);
+  return dir;
+}
+
 test("the process smoke test: node runs the example and help exits 0 with usage", async () => {
   const child = await new Promise<{ code: number; out: string; err: string }>((resolve, reject) => {
     execFile(
       process.execPath,
       ["--experimental-strip-types", "cli/main.ts", "help"],
-      { cwd: new URL("../../../examples", import.meta.url) },
+      { cwd: join(workspaceRoot(), "examples") },
       (error, stdout, stderr) => {
         if (error && error.code === undefined) reject(error);
         else

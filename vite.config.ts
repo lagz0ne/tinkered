@@ -17,6 +17,6 @@ export default defineConfig({
     cache: true,
   },
   test: {
-    exclude: ["**/node_modules/**", "**/dist/**", ".claude/**"],
+    exclude: ["**/node_modules/**", "**/dist/**", "**/.stryker-tmp/**", ".claude/**"],
   },
 });
