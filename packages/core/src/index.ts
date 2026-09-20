@@ -292,12 +292,14 @@ export declare namespace Scope {
     | Operation.Handle<unknown, unknown>
     | Resource.Handle<unknown>
     | Tag.Handle<any>
+    | Extension<unknown>
     | Edge<"controller", Data.Cell<unknown> | Operation.Handle<unknown, unknown>>
     | Edge<"required" | "optional" | "all", Tag.Handle<any>>;
   export type Depends = Readonly<Record<string, Dependency>>;
 
   /** Maps one declared dependency to the value delivered in `deps` — exact, no casts in userland.
-   * A bare operation is a subflow (a callable controller); a bare resource is its built instance. */
+   * A bare operation is a subflow (a callable controller); a bare resource is its built instance;
+   * a bare extension is its settled start value (ADR 0051: what `scope.resolve(ext)` returns). */
   export type SlotValue<D> =
     D extends Edge<"controller", infer N>
       ? N extends Data.Cell<infer T>
@@ -319,7 +321,9 @@ export declare namespace Scope {
                   ? OperationController<T, I>
                   : D extends Resource.Handle<infer T>
                     ? Awaited<T>
-                    : never;
+                    : D extends Extension<infer T>
+                      ? T
+                      : never;
   export type SlotValues<D extends Depends> = { [K in keyof D]: SlotValue<D[K]> };
 
   /** True when a declared dependency is an async resource (its factory returns a promise, or it is
@@ -347,7 +351,17 @@ export declare namespace Scope {
   };
 
   /** Middleware over the scope's verbs (ADR 0050): each hook is an onion layer with `next`. All
-   * hooks are wired; sessions keep the plain dispatch (the v1 limit). */
+   * hooks are wired; sessions keep the plain dispatch (the v1 limit). `session` (ADR 0051) is the
+   * sixth hook: it wraps a session's whole life — registration order, first is outermost.
+   * `next()` resolves with the session's close `Result` (whatever `closeLayer` produced; never
+   * rejects, ADR 0027). Code before `await next()` runs right after the child layer exists,
+   * before any work in it; code after runs after the close settled. Root-only in v1: installed on
+   * the root, applies to every session created under that root, including a session created under
+   * a session. A hook that does not call `next()` is an observer only: the session's own close
+   * still runs regardless (`next()` is the observation point, not a gate). Hooks must not throw:
+   * a throw skips the remaining inner hooks and, if `next()` was never called, the hook's own
+   * rejection stands in for the close `Result` — the session's close still ran, but the thrown
+   * error is what the caller sees (record a span; do not branch on the error). */
   export type Extension<T = unknown> = {
     readonly [extensionSym]: true;
     readonly label: string;
@@ -363,6 +377,7 @@ export declare namespace Scope {
     ): unknown;
     write?(cell: Data.Cell<unknown>, value: unknown, next: () => void): void;
     close?(options: CloseOptions, next: () => Promise<Result>): Promise<Result>;
+    session?(handle: Handle, next: () => Promise<Result>): Promise<Result>;
   };
 
   /** Values seeded on a scope at creation. */
@@ -518,6 +533,10 @@ export function extension<T = void>(config: {
   readonly write?: (cell: Data.Cell<unknown>, value: unknown, next: () => void) => void;
   readonly close?: (
     options: Scope.CloseOptions,
+    next: () => Promise<Scope.Result>,
+  ) => Promise<Scope.Result>;
+  readonly session?: (
+    handle: Scope.Handle,
     next: () => Promise<Scope.Result>,
   ) => Promise<Scope.Result>;
 }): Scope.Extension<T> {
@@ -796,10 +815,41 @@ type Layer = {
   emptyCtx: Resource.Ctx | undefined;
 };
 
-/** Extension start-value records, off the Layer record (ADR 0050, core/t33): written once by
- * `extendHandle` for root layers with extensions, so the plain Layer keeps main's shape. */
 type ExtRec = { settled: boolean; value: unknown };
 const EXTENSIONS = new WeakMap<Layer, Map<Scope.Extension<unknown>, ExtRec>>();
+
+/** Extension `session` chains, off the Layer record (ADR 0051, drivers/t01): the filtered list of
+ * extensions that declare the hook, stored once per root layer by `extendHandle` — the same side-table
+ * shape as `EXTENSIONS` (core/t33). No entry means no hook: session creation takes today's path. */
+const SESSIONS = new WeakMap<Layer, readonly Scope.Extension<unknown>[]>();
+
+/** Wrap a session's whole life in the extensions' `session` onion (ADR 0051): registration order,
+ * first is outermost. `run` is the session's own life — run the body, force-close, map the close
+ * `Result` back to resolve/reject — so `next()` resolves with whatever `closeLayer` produced (never
+ * rejects, ADR 0027). Code before `await next()` runs right after the child layer exists, before any
+ * work in it; code after runs after the close settled. A hook that skips `next()` observes only:
+ * the session still closes (the chain keeps the result of the inner `run`), only the skipping hook's
+ * own return is dropped. A throwing hook rejects the session with its error (hooks must not throw). */
+function sessionThrough(
+  sessions: readonly Scope.Extension<unknown>[],
+  child: Layer,
+  handle: Scope.Handle,
+  run: () => Promise<{ result: unknown; ended: Scope.Result }>,
+): Promise<{ result: unknown; ended: Scope.Result }> {
+  const at = (index: number): Promise<{ result: unknown; ended: Scope.Result }> => {
+    if (index >= sessions.length) return run();
+    const { session: hook } = sessions[index] as {
+      session?: (handle: Scope.Handle, next: () => Promise<Scope.Result>) => Promise<Scope.Result>;
+    };
+    if (hook === undefined) return at(index + 1);
+    /** One close `Result` per session, shared by every `next()` in the chain: the session closes
+     * exactly once even when several hooks call `next()`. */
+    let shared: Promise<Scope.Result> | undefined;
+    const next = (): Promise<Scope.Result> => (shared ??= at(index + 1).then(({ ended }) => ended));
+    return hook(handle, next).then((outcome) => ({ result: undefined, ended: outcome }));
+  };
+  return at(0);
+}
 
 /** Late use of a sealed scope fails loudly. */
 function ensureOpen(layer: Layer): void {
@@ -990,6 +1040,7 @@ function resolveDep(
   if (isTag(dep)) return tagRequired(layer, dep);
   if (isOperation(dep)) return operationController(layer, dep, parent);
   if (isResource(dep)) return resourceSlot(layer, dep, parent);
+  if (isExtension(dep)) return resolveExtension(layer, dep);
   raise("InvalidDependency", { label: "unknown", reason: "unknown dependency" });
 }
 
@@ -2623,15 +2674,46 @@ function settleSession(
 
 /** Run `body` in a child session of `parent`, then force-close it — `runSession` with the
  * body receiving the child layer directly (no handle→layer registry; ADR 0038). The public
- * `session()` passes `(child, handle) => fn(handle)`; a tagged call passes its own runner. */
+ * `session()` passes `(child, handle) => fn(handle)`; a tagged call passes its own runner. When the
+ * root installed `session` hooks (ADR 0051), the whole life runs inside their onion: `next()`
+ * resolves with the close `Result`. No hooks means no wrapper — today's path, one map lookup. */
 async function runSessionWith<R>(
   parent: Layer,
   options: Scope.Options | undefined,
   body: (child: Layer, handle: Scope.Handle) => R | PromiseLike<R>,
 ): Promise<R> {
   ensureOpen(parent);
+  const sessions = sessionsFor(parent);
   const child = makeLayer(parent, options);
-  const started = runBodyWith(child, body);
+  /** The handle the hooks receive: built eagerly only when wrapped (a plain `handleFor` per session
+   * is what an unwrapped session costs today); `runBodyWith` builds its own for the body. */
+  if (sessions === undefined) return runSessionLife(child, body);
+  const handle = handleFor(child);
+  const wrapped = await sessionThrough(sessions, child, handle, () =>
+    runSessionEnded(child, (c) => runBodyWith(c, body)),
+  );
+  settleSessionEnded(wrapped.ended);
+  return wrapped.result as R;
+}
+
+/** Find the root's `session` chain for a session created under `parent` (extensions are root-only,
+ * ADR 0050): walk up to the root, one map lookup there. Undefined when no extension declares the
+ * hook — the chain is stored only then. */
+function sessionsFor(parent: Layer): readonly Scope.Extension<unknown>[] | undefined {
+  let root = parent;
+  while (root.parent !== undefined) root = root.parent;
+  return SESSIONS.get(root);
+}
+
+/** A session's own life: run the body, force-close, keep the body's value beside the close `Result`.
+ * `close()` never throws (ADR 0027/0028); the `Result` decides resolve/reject in
+ * {@link settleSessionEnded}. The self-close is FORCED — the body is done, so any still-running
+ * owned work is aborted rather than awaited; the body's own outcome decides success/cancelled. */
+async function runSessionEnded<R>(
+  child: Layer,
+  start: (child: Layer) => Promise<R>,
+): Promise<{ result: unknown; ended: Scope.Result }> {
+  const started = start(child);
   child.body = started;
   child.bodyEnd = started.then(
     (): Scope.Outcome => (child.aborted ? { status: "cancelled" } : SUCCESS),
@@ -2639,17 +2721,28 @@ async function runSessionWith<R>(
       isCancel(child, cause) ? { status: "cancelled" } : { status: "failed", error: cause },
   );
   const result = await bodyResult(started);
-  /** `close()` never throws (ADR 0027/0028); it resolves to the actual settled `Result`. A session is
-   * promise-style, so map that Result back to resolve/reject: a real failure or cancellation rejects
-   * (with the cause / abort reason), a clean run resolves the body value; teardown errors aggregate
-   * into `TeardownFailed` either way. The self-close is FORCED — the body is done, so any still-running
-   * owned work is aborted rather than awaited; the body's own outcome decides success/cancelled. */
   const ended = await closeLayer(child, true);
+  return { result, ended };
+}
+
+/** Map a session's close `Result` back to promise semantics: a real failure or cancellation rejects
+ * (with the cause / abort reason), a clean run resolves the body value; teardown errors aggregate
+ * into `TeardownFailed` either way (ADR 0017). */
+function settleSessionEnded(ended: Scope.Result): void {
   const teardownCauses = ended.teardownErrors ? [...ended.teardownErrors] : undefined;
   if (ended.status === "failed") settleSession(true, ended.error, teardownCauses);
   else if (ended.status === "cancelled") settleSession(true, ended.reason, teardownCauses);
   else settleSession(false, undefined, teardownCauses);
-  return result as R;
+}
+
+/** An unwrapped session's life: today's path, byte for byte — start the body, close, settle. */
+async function runSessionLife<R>(
+  child: Layer,
+  body: (child: Layer, handle: Scope.Handle) => R | PromiseLike<R>,
+): Promise<R> {
+  const wrapped = await runSessionEnded(child, (c) => runBodyWith(c, body));
+  settleSessionEnded(wrapped.ended);
+  return wrapped.result as R;
 }
 
 async function runSession<R>(
@@ -2700,6 +2793,8 @@ function extendHandle(
   const resolvers = exts.filter((ext) => ext.resolve !== undefined);
   const runners = exts.filter((ext) => ext.run !== undefined);
   const writers = exts.filter((ext) => ext.write !== undefined);
+  const sessions = exts.filter((ext) => ext.session !== undefined);
+  if (sessions.length > 0) SESSIONS.set(layer, sessions);
   let settleReady: () => void = noop;
   let failReady: (error: unknown) => void = noop;
   const ready = new Promise<void>((resolveReady, rejectReady) => {
