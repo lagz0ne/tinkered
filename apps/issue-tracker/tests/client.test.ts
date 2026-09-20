@@ -4,8 +4,14 @@ import { sync } from "@tinker/sync";
 import { expect, test } from "vite-plus/test";
 import {
   api,
+  beginDraft,
+  checkCapability,
   commentDraft,
   detail,
+  discardDraft,
+  draftCapability,
+  draftRun,
+  drafter,
   editDraft,
   getDetail,
   isError,
@@ -14,6 +20,7 @@ import {
   newIssue,
   patchIssue,
   postComment,
+  postDraft,
   postIssue,
   saveEdit,
   selectIssue,
@@ -36,11 +43,24 @@ function readFake(answers: {
   readonly detail: Record<string, unknown>;
   readonly comment: Record<string, unknown>;
   readonly failPatch?: { readonly status: number; readonly body: unknown };
+  readonly draft?: { readonly frames: readonly string[] };
+  readonly capability?: { readonly status: number; readonly body: unknown };
 }): { readonly fake: HttpClient.Backend; readonly seen: Seen[] } {
   const seen: Seen[] = [];
   const fake: HttpClient.Backend = (request) => {
     const url = HttpRequest.toUrl(request);
     seen.push({ method: request.method, url, body: readJsonBody(request) });
+    if (request.method === "GET" && url.endsWith("/api/draft")) {
+      const found = answers.capability ?? { status: 200, body: { enabled: true } };
+      return Promise.resolve(
+        HttpResponse.make(request, { status: found.status, body: JSON.stringify(found.body) }),
+      );
+    }
+    if (request.method === "POST" && url.endsWith("/draft") && answers.draft !== undefined) {
+      return Promise.resolve(
+        HttpResponse.make(request, { status: 200, body: readDraftStream(answers.draft.frames) }),
+      );
+    }
     if (request.method === "POST" && url.endsWith("/api/issues")) {
       return Promise.resolve(
         HttpResponse.make(request, { status: 201, body: JSON.stringify(answers.issue) }),
@@ -69,6 +89,23 @@ function readFake(answers: {
     );
   };
   return { fake, seen };
+}
+
+/** A fake SSE body: the frames joined into one byte stream, like the real server writes. */
+function readDraftStream(frames: readonly string[]): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  const bytes = frames.map((frame) => encoder.encode(frame));
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const chunk of bytes) controller.enqueue(chunk);
+      controller.close();
+    },
+  });
+}
+
+/** One `data:` SSE frame for one draft event. */
+function readFrame(event: unknown): string {
+  return `data: ${JSON.stringify(event)}\n\n`;
 }
 
 function readJsonBody(request: HttpRequest.Record): unknown {
@@ -202,6 +239,113 @@ test("posting a comment clears the draft text", async () => {
     await scope.run(submitComment);
     expect(scope.resolve(commentDraft)).toBe("");
     expect(seen.filter((s) => s.url.includes("/comments")).length).toBe(1);
+  } finally {
+    await scope.close();
+  }
+});
+
+test("checking the helper writes off when it answers disabled", async () => {
+  const { scope } = await bootClient({
+    issue: ISSUE,
+    detail: DETAIL,
+    comment: COMMENT,
+    capability: { status: 200, body: { enabled: false } },
+  });
+  try {
+    expect(scope.resolve(draftCapability)).toBe("loading");
+    await scope.run(checkCapability);
+    expect(scope.resolve(draftCapability)).toBe("off");
+  } finally {
+    await scope.close();
+  }
+});
+
+test("checking the helper writes failed when it answers an error", async () => {
+  const { scope } = await bootClient({
+    issue: ISSUE,
+    detail: DETAIL,
+    comment: COMMENT,
+    capability: { status: 500, body: { message: "down" } },
+  });
+  try {
+    await scope.run(checkCapability);
+    expect(scope.resolve(draftCapability)).toBe("failed");
+  } finally {
+    await scope.close();
+  }
+});
+
+const DRAFT_FRAMES = [
+  readFrame({ kind: "status", status: "running" }),
+  readFrame({ kind: "text", text: "A " }),
+  readFrame({ kind: "text", text: "draft." }),
+  readFrame({ kind: "done", draft: "A draft." }),
+  readFrame({ kind: "terminal", status: "done", draft: "A draft." }),
+];
+
+async function bootDraftClient(answers: Parameters<typeof readFake>[0]) {
+  const { fake, seen } = readFake(answers);
+  const scope = createScope({
+    tags: [api.config({ baseUrl: "http://x" }), sync(issueList), backend(fake), wire(readWire())],
+    extensions: [],
+  });
+  scope.resolve(drafter);
+  scope.run(selectIssue, { input: "i1" });
+  return { scope, seen };
+}
+
+test("starting a draft streams text into the run cell until ready", async () => {
+  const { scope, seen } = await bootDraftClient({
+    issue: ISSUE,
+    detail: DETAIL,
+    comment: COMMENT,
+    draft: { frames: DRAFT_FRAMES },
+  });
+  try {
+    await scope.run(beginDraft);
+    const run = scope.resolve(draftRun);
+    expect(run.view).toBe("ready");
+    expect(run.text).toBe("A draft.");
+    expect(run.draft).toBe("A draft.");
+    expect(seen.filter((s) => s.url.endsWith("/draft")).length).toBe(1);
+  } finally {
+    await scope.close();
+  }
+});
+
+test("posting a ready draft saves one comment and quiets the run", async () => {
+  const { scope, seen } = await bootDraftClient({
+    issue: ISSUE,
+    detail: DETAIL,
+    comment: COMMENT,
+    draft: { frames: DRAFT_FRAMES },
+  });
+  try {
+    await scope.run(beginDraft);
+    expect(scope.resolve(draftRun).draft).toBe("A draft.");
+    await scope.run(postDraft);
+    const comments = seen.filter((s) => s.url.includes("/comments"));
+    expect(comments.length).toBe(1);
+    expect(comments[0]?.body).toMatchObject({ issueId: "i1", text: "A draft." });
+    expect(scope.resolve(draftRun)).toEqual({ view: "quiet", text: "", draft: "", notice: null });
+  } finally {
+    await scope.close();
+  }
+});
+
+test("discarding a run quiets the cell without posting", async () => {
+  const { scope, seen } = await bootDraftClient({
+    issue: ISSUE,
+    detail: DETAIL,
+    comment: COMMENT,
+    draft: { frames: DRAFT_FRAMES },
+  });
+  try {
+    await scope.run(beginDraft);
+    expect(scope.resolve(draftRun).view).toBe("ready");
+    scope.run(discardDraft);
+    expect(scope.resolve(draftRun)).toEqual({ view: "quiet", text: "", draft: "", notice: null });
+    expect(seen.filter((s) => s.url.includes("/comments")).length).toBe(0);
   } finally {
     await scope.close();
   }
