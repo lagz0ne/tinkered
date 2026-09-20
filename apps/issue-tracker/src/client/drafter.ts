@@ -37,6 +37,9 @@ function isStaleCancel(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
 }
 
+/** The helper-failed notice: the one truth every failed landing writes. */
+const HELPER_FAILED = "The draft helper failed. Try again.";
+
 /** Read a thrown stream failure as the failed run the cell keeps: a gone issue names itself,
  * a broken frame says so, everything else is the helper failing. */
 function readFailedRun(error: unknown): DraftRun {
@@ -50,15 +53,15 @@ function readFailedRun(error: unknown): DraftRun {
   ) {
     return { view: "failed", text: "", draft: "", notice: readFailedMessage(error) };
   }
-  return { view: "failed", text: "", draft: "", notice: "The draft helper failed. Try again." };
+  return { view: "failed", text: "", draft: "", notice: HELPER_FAILED };
 }
 
 /** Read the failed run's failure as the plain message the view shows. */
 function readFailedMessage(error: unknown): string {
   if (isError(error, "BadDraftInput")) return "That draft update was unreadable. Try again.";
-  if (isError(error, "DraftFailed")) return "The draft helper failed. Try again.";
+  if (isError(error, "DraftFailed")) return HELPER_FAILED;
   if (isError(error, "IssueNotFound")) return "That issue is gone.";
-  return "The draft helper failed. Try again.";
+  return HELPER_FAILED;
 }
 
 /** The quiet run: what discard resets the cell to. */
@@ -144,7 +147,7 @@ export const drafter = resource({
         run.update((prev) => ({
           ...prev,
           view: "failed",
-          notice: prev.notice ?? "The draft helper failed. Try again.",
+          notice: prev.notice ?? HELPER_FAILED,
         }));
         return;
       }
