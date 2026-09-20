@@ -153,3 +153,12 @@
 | hook chain      | The per-verb onion built once at creation from the extensions that declare that hook; registration order, first is outermost; a verb with no middleware keeps its direct call (pays nothing). |
 | ready           | `scope.ready`: a promise settled when every `start` chain settled; a rejected start rejects it and force-closes the scope (`failed`). No extensions → already resolved. |
 | extension value | What a `start` chain returned, read with `scope.resolve(ext)` once ready (`NotResolved` before). `source()` → `{ connect }`, `subscribe(transport)` → `{ close }`. |
+
+## Drivers as extensions (core + drivers, ADR 0051)
+
+| term         | meaning                                                                                                                                                              |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| two hands    | The only two places a `Scope.Handle` may appear: the composition root that called `createScope`, and an extension's `start`. Everything else declares `depends`.       |
+| driver       | Still the role (ADR 0034): an integration that maps outside work onto sessions. Under ADR 0051 every driver is an extension; its `start` is its one use of the scope. |
+| wiring       | The flat table a driver extension receives: rows of plain data naming a unit and the driver's edges (`route.post(path, op, { input, respond })`). Not tags, not meta. |
+| session hook | `Extension.session(handle, next)`: the onion around a session's life; `next()` resolves with the close `Result`, so code after it runs after the commit.              |
