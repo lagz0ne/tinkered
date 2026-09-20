@@ -16,9 +16,8 @@ export {
   parseIssueList,
 } from "./shared/issues.ts";
 export type { Issues } from "./shared/issues.ts";
-export { parseDraftId, parseDraftInput, pumpLines, readLine } from "./shared/draft.ts";
+export { parseDraftId, parseDraftInput } from "./shared/draft.ts";
 export type { Draft } from "./shared/draft.ts";
-export type { Pump } from "./shared/draft.ts";
 export {
   draftGuardrails,
   draftHelper,
@@ -42,19 +41,9 @@ export { issueRoutes } from "./server/routes.ts";
 export { registerViewer, viewers } from "./server/sync.ts";
 export { createApp } from "./server/app.ts";
 export type { AppConfig } from "./server/app.ts";
-export {
-  api,
-  getCapability,
-  getDetail,
-  getIssues,
-  openDraft,
-  patchIssue,
-  postComment,
-  postIssue,
-} from "./client/api.ts";
+export { api, getDetail, getIssues, patchIssue, postComment, postIssue } from "./client/api.ts";
 export {
   beginDraft,
-  cancelDraft,
   checkCapability,
   discardDraft,
   loadDetail,
@@ -69,18 +58,15 @@ export {
   reloadTheirs,
   saveEdit,
   selectIssue,
-  setDraftAuthor,
   setFilter,
   submitComment,
   submitNewIssue,
   typeComment,
   typeEdit,
   typeNewIssue,
-  typePrompt,
 } from "./client/actions.ts";
-export { capability, detailRefresh, liveness } from "./client/services.ts";
+export { detailRefresh, liveness } from "./client/services.ts";
 export { drafter } from "./client/drafter.ts";
-export type { Drafter } from "./client/drafter.ts";
 export {
   commentAuthor,
   commentDraft,
@@ -88,9 +74,7 @@ export {
   connection,
   detail,
   detailNotice,
-  draftAuthor,
   draftCapability,
-  draftPrompt,
   draftRun,
   editDraft,
   editNotice,
@@ -98,7 +82,6 @@ export {
   newIssue,
   selectedId,
 } from "./client/state.ts";
-export type { DraftRun } from "./client/state.ts";
 export {
   commentRemote,
   createRemote,
