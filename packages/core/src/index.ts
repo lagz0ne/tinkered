@@ -824,29 +824,50 @@ const EXTENSIONS = new WeakMap<Layer, Map<Scope.Extension<unknown>, ExtRec>>();
 const SESSIONS = new WeakMap<Layer, readonly Scope.Extension<unknown>[]>();
 
 /** Wrap a session's whole life in the extensions' `session` onion (ADR 0051): registration order,
- * first is outermost. `run` is the session's own life — run the body, force-close, map the close
- * `Result` back to resolve/reject — so `next()` resolves with whatever `closeLayer` produced (never
+ * first is outermost. `run` is the session's own life — run the body, force-close, keep the body's
+ * value beside the close `Result` — so `next()` resolves with whatever `closeLayer` produced (never
  * rejects, ADR 0027). Code before `await next()` runs right after the child layer exists, before any
- * work in it; code after runs after the close settled. A hook that skips `next()` observes only:
- * the session still closes (the chain keeps the result of the inner `run`), only the skipping hook's
- * own return is dropped. A throwing hook rejects the session with its error (hooks must not throw). */
+ * work in it; code after runs after the close settled. Each level reports the hook's own return as
+ * its `ended` (the onion may transform it, like `close`); the body's `result` threads through from
+ * the innermost `run`. A hook that skips `next()` observes only: the session's own life still runs
+ * (`ensure`), only the skipping hook's `result` is the body's, not a substitute. A throwing hook
+ * rejects the session with its error — hooks must not throw; when both the hook and the life fail,
+ * the hook's error wins. The life runs at most once per session no matter how many hooks call
+ * `next()` (`ensure` memo). */
 function sessionThrough(
   sessions: readonly Scope.Extension<unknown>[],
-  child: Layer,
   handle: Scope.Handle,
   run: () => Promise<{ result: unknown; ended: Scope.Result }>,
 ): Promise<{ result: unknown; ended: Scope.Result }> {
+  let life: Promise<{ result: unknown; ended: Scope.Result }> | undefined;
+  const ensure = (): Promise<{ result: unknown; ended: Scope.Result }> => (life ??= run());
   const at = (index: number): Promise<{ result: unknown; ended: Scope.Result }> => {
-    if (index >= sessions.length) return run();
+    if (index >= sessions.length) return ensure();
     const { session: hook } = sessions[index] as {
       session?: (handle: Scope.Handle, next: () => Promise<Scope.Result>) => Promise<Scope.Result>;
     };
     if (hook === undefined) return at(index + 1);
-    /** One close `Result` per session, shared by every `next()` in the chain: the session closes
-     * exactly once even when several hooks call `next()`. */
-    let shared: Promise<Scope.Result> | undefined;
-    const next = (): Promise<Scope.Result> => (shared ??= at(index + 1).then(({ ended }) => ended));
-    return hook(handle, next).then((outcome) => ({ result: undefined, ended: outcome }));
+    /** The inner life this hook observes: memoized so calling `next()` twice still runs the
+     * session once, and so a hook that skips `next()` leaves `inner` unset for `ensure` below. */
+    let inner: Promise<{ result: unknown; ended: Scope.Result }> | undefined;
+    const next = (): Promise<Scope.Result> => (inner ??= at(index + 1)).then(({ ended }) => ended);
+    let outcome: Promise<Scope.Result>;
+    try {
+      outcome = hook(handle, next);
+    } catch (error) {
+      const done = inner ?? ensure();
+      ignoreRejection(done);
+      return done.then(() => {
+        throw error;
+      });
+    }
+    return outcome.then(
+      (ended) => (inner ?? ensure()).then(({ result }) => ({ result, ended })),
+      (hookError: unknown) => {
+        ignoreRejection(inner ?? ensure());
+        throw hookError;
+      },
+    );
   };
   return at(0);
 }
@@ -2685,12 +2706,13 @@ async function runSessionWith<R>(
   ensureOpen(parent);
   const sessions = sessionsFor(parent);
   const child = makeLayer(parent, options);
-  /** The handle the hooks receive: built eagerly only when wrapped (a plain `handleFor` per session
-   * is what an unwrapped session costs today); `runBodyWith` builds its own for the body. */
+  /** The handle the hooks and the body receive: built eagerly only when wrapped (a plain `handleFor`
+   * per session is what an unwrapped session costs today). Its `createSession` is wrapped too, so a
+   * session created under a session is wrapped as well. */
   if (sessions === undefined) return runSessionLife(child, body);
-  const handle = handleFor(child);
-  const wrapped = await sessionThrough(sessions, child, handle, () =>
-    runSessionEnded(child, (c) => runBodyWith(c, body)),
+  const handle = withSessionCreate(handleFor(child), child, sessions);
+  const wrapped = await sessionThrough(sessions, handle, () =>
+    runSessionEnded(child, (c) => runBodyWithTo(c, handle, body)),
   );
   settleSessionEnded(wrapped.ended);
   return wrapped.result as R;
@@ -2768,6 +2790,69 @@ function runBodyWith<R>(
   }
 }
 
+/** {@link runBodyWith} with a prebuilt handle — the wrapped session path hands the body the same
+ * handle the hooks received (whose `createSession` stays wrapped). */
+function runBodyWithTo<R>(
+  child: Layer,
+  handle: Scope.Handle,
+  fn: (child: Layer, handle: Scope.Handle) => R | PromiseLike<R>,
+): Promise<R> {
+  try {
+    return Promise.resolve(fn(child, handle));
+  } catch (error) {
+    return Promise.reject(error);
+  }
+}
+
+/** A handle whose `createSession` wraps every child in the root's `session` chain (ADR 0051): the
+ * one override sessions carry — `resolve`/`run`/`controller` stay the plain dispatch (v1 limit).
+ * Only built when hooks exist; the unwrapped path never enters. */
+function withSessionCreate(
+  plain: Scope.Handle,
+  layer: Layer,
+  sessions: readonly Scope.Extension<unknown>[],
+): Scope.Handle {
+  return {
+    ...plain,
+    createSession: (options?: Scope.Options) => wrapSession(layer, options, sessions),
+  };
+}
+
+/** A bare session wrapped in the `session` chain: the onion starts NOW (before-code runs right after
+ * the child layer exists, before any work in it); `next()` settles when THIS handle's `close` runs
+ * the structural close — `close()` joins the teardown first, then reports the chain's outcome
+ * (hook returns win, hook throws propagate, like `close`). A session felled by its parent's close
+ * cascade (never closed through this handle) leaves hooks awaiting `next()`: prefer `session(fn)`
+ * for work the parent may cancel (v1 limit). */
+function wrapSession(
+  parent: Layer,
+  options: Scope.Options | undefined,
+  sessions: readonly Scope.Extension<unknown>[],
+): Scope.Handle {
+  ensureOpen(parent);
+  const child = makeLayer(parent, options);
+  const plain = handleFor(child);
+  let wrapped: Scope.Handle;
+  let settleNext: (ended: Scope.Result) => void = noop as (ended: Scope.Result) => void;
+  const nextPromise = new Promise<Scope.Result>((resolveNext) => {
+    settleNext = resolveNext;
+  });
+  const base = withSessionCreate(plain, child, sessions);
+  const outcome = sessionThrough(sessions, base, () =>
+    nextPromise.then((ended) => ({ result: undefined, ended })),
+  );
+  ignoreRejection(outcome);
+  wrapped = {
+    ...base,
+    close: (opts?: Scope.CloseOptions) =>
+      closeLayer(child, !opts?.graceful).then((ended) => {
+        settleNext(ended);
+        return outcome.then(({ ended: chained }) => chained);
+      }),
+  };
+  return wrapped;
+}
+
 /** The session body's value, or undefined if it rejected — the body's end (success/failed/cancelled)
  * is classified authoritatively by `startClose` via `classifyBody` (ADR 0026). */
 async function bodyResult<R>(body: Promise<R>): Promise<R | undefined> {
@@ -2810,6 +2895,8 @@ function extendHandle(
   if (resolvers.length > 0) extended.resolve = resolveThrough(layer, resolvers);
   if (runners.length > 0) extended.run = runThrough(layer, runners, plain);
   if (writers.length > 0) extended.controller = writeThrough(layer, writers, plain);
+  if (sessions.length > 0)
+    extended.createSession = (options?: Scope.Options) => wrapSession(layer, options, sessions);
   runStartChain(layer, extended, exts, settleReady, failReady);
   return extended;
 }

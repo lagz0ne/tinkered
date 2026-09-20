@@ -4935,3 +4935,232 @@ test("an op writing through a depends controller edge is not wrapped (v1 limit)"
   expect(scope.controller(cell).get()).toBe(5);
   await scope.close();
 });
+
+test("two session hooks nest in registration order and both see success", async () => {
+  const order: string[] = [];
+  const seen: string[] = [];
+  const track = (label: string) =>
+    extension({
+      label,
+      session: async (_handle, next) => {
+        order.push(`${label}:before`);
+        const ended = await next();
+        seen.push(ended.status);
+        order.push(`${label}:after`);
+        return ended;
+      },
+    });
+  const scope = createScope({ extensions: [track("a"), track("b")] });
+  await scope.ready;
+  await scope.session(() => 1);
+  expect(order).toEqual(["a:before", "b:before", "b:after", "a:after"]);
+  expect(seen).toEqual(["success", "success"]);
+  await scope.close();
+});
+
+test("createSession plus an explicit close runs the chain: graceful success, forced cancelled", async () => {
+  const seen: string[] = [];
+  const spy = extension({
+    label: "spy",
+    session: async (_handle, next) => {
+      const ended = await next();
+      seen.push(ended.status);
+      return ended;
+    },
+  });
+  const scope = createScope({ extensions: [spy] });
+  await scope.ready;
+  const graceful = scope.createSession();
+  await graceful.close({ graceful: true });
+  const forced = scope.createSession();
+  await forced.close();
+  expect(seen).toEqual(["success", "cancelled"]);
+  await scope.close();
+});
+
+test("session(fn) reports the close Result: success, a failed run, a forced close", async () => {
+  const seen: string[] = [];
+  const spy = extension({
+    label: "spy",
+    session: async (_handle, next) => {
+      const ended = await next();
+      seen.push(ended.status);
+      return ended;
+    },
+  });
+  const scope = createScope({ extensions: [spy] });
+  await scope.ready;
+  await scope.session(() => 1);
+  const boom = new Error("session-boom");
+  const failing = operation({
+    label: "failing",
+    run: () => Promise.reject(boom),
+  });
+  await scope.session((s) => s.run(failing)).catch(() => undefined);
+  const poke = operation({
+    label: "poke",
+    run: (_deps, { signal }) =>
+      new Promise<void>((resolve) => {
+        signal.addEventListener("abort", () => resolve(), { once: true });
+      }),
+  });
+  const parked = scope.session((s) => s.run(poke));
+  await scope.close();
+  await parked.catch(() => undefined);
+  expect(seen).toEqual(["success", "failed", "cancelled"]);
+  await scope.close();
+});
+
+test("a tagged call runs the session chain once", async () => {
+  const zone = tag<string>({ label: "zone", default: "base" });
+  const read = operation({ label: "read", depends: { zone }, run: ({ zone }) => zone });
+  let calls = 0;
+  const seen: string[] = [];
+  const spy = extension({
+    label: "spy",
+    session: async (_handle, next) => {
+      calls += 1;
+      const ended = await next();
+      seen.push(ended.status);
+      return ended;
+    },
+  });
+  const scope = createScope({ extensions: [spy] });
+  await scope.ready;
+  expect(await scope.run(read, { tags: [zone("us")] })).toBe("us");
+  expect(calls).toBe(1);
+  expect(seen).toEqual(["success"]);
+  await scope.close();
+});
+
+test("a session created under a session is wrapped", async () => {
+  const order: string[] = [];
+  const spy = extension({
+    label: "spy",
+    session: async (_handle, next) => {
+      order.push("before");
+      const ended = await next();
+      order.push("after");
+      return ended;
+    },
+  });
+  const scope = createScope({ extensions: [spy] });
+  await scope.ready;
+  await scope.session(async (outer) => {
+    const inner = outer.createSession();
+    await inner.close({ graceful: true });
+  });
+  expect(order).toEqual(["before", "before", "after", "after"]);
+  await scope.close();
+});
+
+test("a scope with no session hook runs sessions as before", async () => {
+  const plain = createScope();
+  expect(await plain.session(() => 1)).toBe(1);
+  const child = plain.createSession();
+  await child.close({ graceful: true });
+  const zone = tag<string>({ label: "zone", default: "base" });
+  const read = operation({ label: "read", depends: { zone }, run: ({ zone }) => zone });
+  expect(await plain.run(read, { tags: [zone("us")] })).toBe("us");
+  await plain.close();
+});
+
+test("an operation depending on an extension receives the start value after ready", async () => {
+  const ext = extension<{ connect(): number }>({
+    label: "driver",
+    start: async (_scope, _ctx, next) => {
+      await next();
+      return { connect: () => 7 };
+    },
+  });
+  const use = operation({
+    label: "use",
+    depends: { origin: ext },
+    run: ({ origin }) => origin.connect(),
+  });
+  const scope = createScope({ extensions: [ext] });
+  await scope.ready;
+  expect(scope.run(use)).toBe(7);
+  await scope.close();
+});
+
+test("running an operation on a pending extension dependency raises NotResolved", async () => {
+  const gate = deferred();
+  const ext = extension<{ connect(): number }>({
+    label: "driver",
+    start: async (_scope, _ctx, next) => {
+      await gate.promise;
+      await next();
+      return { connect: () => 7 };
+    },
+  });
+  const use = operation({
+    label: "use",
+    depends: { origin: ext },
+    run: ({ origin }) => origin.connect(),
+  });
+  const scope = createScope({ extensions: [ext] });
+  try {
+    scope.run(use);
+    throw new Error("unreachable");
+  } catch (e) {
+    if (!isError(e, "NotResolved")) throw e;
+    expect(e.payload.label).toBe("driver");
+  }
+  gate.resolve();
+  await scope.ready;
+  expect(scope.run(use)).toBe(7);
+  await scope.close();
+});
+
+test("an extension dependency types as the start value with no cast", async () => {
+  const ext = extension<{ connect(): void }>({
+    label: "typed",
+    start: (_scope, _ctx, next) => next().then(() => ({ connect: () => undefined })),
+  });
+  const use = operation({
+    label: "use",
+    depends: { origin: ext },
+    run: ({ origin }) => {
+      expectTypeOf(origin).toEqualTypeOf<{ connect(): void }>();
+      return 1;
+    },
+  });
+  const scope = createScope({ extensions: [ext] });
+  await scope.ready;
+  expect(scope.run(use)).toBe(1);
+  await scope.close();
+});
+
+test("a session hook that skips next still lets the session run and close", async () => {
+  const seen: string[] = [];
+  const skim = extension({
+    label: "skim",
+    session: async (_handle, next) => {
+      const ended = await next();
+      seen.push(ended.status);
+      return ended;
+    },
+  });
+  const skip = extension({
+    label: "skip",
+    session: async () => ({ status: "success" }) as const,
+  });
+  const scope = createScope({ extensions: [skim, skip] });
+  await scope.ready;
+  expect(await scope.session(() => 41)).toBe(41);
+  expect(seen).toEqual(["success"]);
+  await scope.close();
+});
+
+test("a throwing session hook rejects the session with its error", async () => {
+  const boom = new Error("hook-boom");
+  const bad = extension({
+    label: "bad",
+    session: () => Promise.reject(boom),
+  });
+  const scope = createScope({ extensions: [bad] });
+  await scope.ready;
+  await expect(scope.session(() => 1)).rejects.toBe(boom);
+  await scope.close();
+});
