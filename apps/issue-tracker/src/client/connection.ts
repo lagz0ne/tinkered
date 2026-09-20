@@ -74,6 +74,8 @@ export function reconnectingTransport(baseUrl: string): ReconnectingWire {
     for (const parting of Array.from(partings)) parting();
   }
 
+  /** A stream error before the first open fails the boot: `subscribe` rejects `ready` and the
+   * dead page renders. Any later error only flips the status; `subscribe` stays attached. */
   function drop(): void {
     if (closed) return;
     if (settled === false) {
@@ -82,16 +84,18 @@ export function reconnectingTransport(baseUrl: string): ReconnectingWire {
       fireClose();
       return;
     }
-    if (status === "live" || status === "failed") flip("dropped");
+    flip("dropped");
   }
 
-  /** Open one stream: `opened` resolves on open and rejects on the first error. */
+  /** Open one stream: `opened` resolves on open and rejects on the first error. Later errors
+   * ride the live `onerror` handler, so one rejected `opened` means exactly one drop. */
   function open(): { readonly stream: EventSource; readonly opened: Promise<void> } {
     const next = new EventSource(url);
     stream = next;
+    let failOpen: (error: unknown) => void = () => undefined;
     const opened = new Promise<void>((resolve, reject) => {
+      failOpen = reject;
       next.onopen = () => resolve();
-      next.onerror = () => reject(fail("SyncDropped", { reason: "stream failed" }));
     });
     opened.then(
       () => {
@@ -106,6 +110,11 @@ export function reconnectingTransport(baseUrl: string): ReconnectingWire {
         drop();
       },
     );
+    next.onerror = () => {
+      if (closed || stream !== next) return;
+      if (settled === false) failOpen(fail("SyncDropped", { reason: "stream failed" }));
+      else drop();
+    };
     next.onmessage = (event) => {
       if (closed || stream !== next) return;
       let message: Sync.Message;
