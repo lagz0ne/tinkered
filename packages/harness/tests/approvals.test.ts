@@ -158,3 +158,26 @@ test("the approval item keeps the request and the decision as its source", async
   expect(seen.decisions).toEqual([{ behavior: "allow", updatedInput: { command: "ls -l" } }]);
   await scope.close();
 });
+
+test("without an approve op a canUseTool bound in options still answers", async () => {
+  const bound: PermissionResult[] = [];
+  const coder = harness({ label: "coder", adapter: claudeCode });
+  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const scope = createScope({
+    tags: [
+      claudeCode.options({
+        canUseTool: async () => {
+          const decision: PermissionResult = { behavior: "allow" };
+          bound.push(decision);
+          return decision;
+        },
+      }),
+    ],
+    presets: [preset(claudeCode.sdk, async () => fakeSdk({ decisions: [] }))],
+  });
+  const session = scope.createSession();
+  await session.run(ask, { input: "hello" });
+  expect(bound).toEqual([{ behavior: "allow" }]);
+  expect(session.resolve(coder.items).filter((item) => item.kind === "approval")).toEqual([]);
+  await scope.close();
+});
