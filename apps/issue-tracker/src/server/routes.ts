@@ -64,24 +64,24 @@ const openWire = operation({
 /** Every /api route as flat rows: the verb plus path, the domain operation,
  * and the request shape. Handed to `hono({ routes })` in the composition root. */
 export const issueRoutes: readonly HonoScope.Row[] = [
-  route.post("/api/issues", () => createIssue, {
+  route.post("/api/issues", createIssue, {
     input: (c) => readBody(c, {}),
     respond: (issue, c) => c.json(issue, 201),
   }),
-  route.patch("/api/issues/:id", () => editIssue, {
+  route.patch("/api/issues/:id", editIssue, {
     input: (c) => readBody(c, { id: c.req.param("id") }),
     respond: (issue, c) => c.json(issue, 200),
   }),
-  route.post("/api/issues/:id/comments", () => addComment, {
+  route.post("/api/issues/:id/comments", addComment, {
     input: (c) => readBody(c, { issueId: c.req.param("id") }),
     respond: (comment, c) => c.json(comment, 201),
   }),
-  route.get("/api/issues/:id", () => readDetail, {
+  route.get("/api/issues/:id", readDetail, {
     input: (c) => c.req.param("id"),
   }),
-  route.get("/api/issues", () => readIssues),
-  route.get("/api/draft", () => readCapability),
-  route.post("/api/issues/:id/draft", () => startDraft, {
+  route.get("/api/issues", readIssues),
+  route.get("/api/draft", readCapability),
+  route.post("/api/issues/:id/draft", startDraft, {
     input: (c) => readBody(c, { id: c.req.param("id") }),
     respond: (started, c) => {
       c.header("Content-Type", "text/event-stream");
@@ -90,14 +90,14 @@ export const issueRoutes: readonly HonoScope.Row[] = [
       return stream(c, (emit, ctx) => started.stream(emit, ctx.signal));
     },
   }),
-  route.post("/sync", () => registerViewer, {
+  route.post("/sync", registerViewer, {
     input: async (c) => ({
       id: c.req.query("client") ?? "guest",
       message: await c.req.json(),
     }),
     respond: (_v, c) => c.text("ok"),
   }),
-  route.get("/sync", () => openWire, {
+  route.get("/sync", openWire, {
     respond: (opened, c) => {
       const id = c.req.query("client") ?? "guest";
       c.header("Content-Type", "text/event-stream");

@@ -100,7 +100,7 @@ test("a mounted app still takes request tags, a request span, and one log line",
 });
 
 test("rows are plain data, not scope tags: nothing is mounted without the extension", async () => {
-  const rows = [route.get("/x", () => ping)];
+  const rows = [route.get("/x", ping)];
   expect(rows[0]).toEqual({
     method: "GET",
     path: "/x",
@@ -118,7 +118,7 @@ test("rows are plain data, not scope tags: nothing is mounted without the extens
 });
 
 test("one row plus one extension answers without the composition root", async () => {
-  const web = hono({ routes: [route.get("/ping", () => ping)] });
+  const web = hono({ routes: [route.get("/ping", ping)] });
   const scope = createScope({ extensions: [web] });
   await scope.ready;
   const res = await scope.resolve(web).request("/ping");
@@ -158,7 +158,7 @@ const createNamed = operation({
 test("an async input read answers the parsed body; a malformed body takes the error map", async () => {
   const web = hono({
     routes: [
-      route.post("/named", () => createNamed, {
+      route.post("/named", createNamed, {
         input: (c) => c.req.json(),
         respond: (named, c) => c.json(named, 201),
       }),

@@ -118,7 +118,7 @@ test("the HTTP routes save through app.request", async () => {
 });
 
 test("one row plus one extension answers a read with no composition root", async () => {
-  const web = hono({ routes: [route.get("/api/issues", () => readIssues)] });
+  const web = hono({ routes: [route.get("/api/issues", readIssues)] });
   const scope = createScope({
     tags: [store.config(undefined)],
     extensions: [web],

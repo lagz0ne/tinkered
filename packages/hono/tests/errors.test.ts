@@ -29,7 +29,7 @@ test("a parse failure answers 400 with the request span ok and the op span faile
   const logs: Observe.Log[] = [];
   let seen: unknown;
   const web = hono({
-    routes: [route.get("/users/:id", () => getUser, { input: (c) => c.req.param("id") })],
+    routes: [route.get("/users/:id", getUser, { input: (c) => c.req.param("id") })],
     onError: (e) => {
       seen = e;
       return undefined;
@@ -65,7 +65,7 @@ test("a missing required tag answers 500 with the request span ok", async () => 
     depends: { secret: secret.required },
     run: ({ secret }) => secret,
   });
-  const web = hono({ routes: [route.get("/secret", () => readSecret)] });
+  const web = hono({ routes: [route.get("/secret", readSecret)] });
   const scope = createScope({
     observe: { history: 20, log: (entry) => logs.push(entry) },
     extensions: [web],
@@ -93,7 +93,7 @@ test("a client abort answers nothing usable but logs one 499 line and cancels th
       return clock.sleep(10_000, signal);
     },
   });
-  const web = hono({ routes: [route.get("/slow", () => slow)] });
+  const web = hono({ routes: [route.get("/slow", slow)] });
   const scope = createScope({
     clock: makeTestClock({ now: 0 }),
     observe: { history: 20, log: (entry) => logs.push(entry) },
@@ -121,7 +121,7 @@ test("an unmapped error reaches onError with the request span failed and no log 
       throw new Error("kaboom");
     },
   });
-  const web = hono({ routes: [route.get("/boom", () => boom)] });
+  const web = hono({ routes: [route.get("/boom", boom)] });
   const scope = createScope({
     observe: { history: 20, log: (entry) => logs.push(entry) },
     extensions: [web],
@@ -152,8 +152,8 @@ test("onError answers first: a parse failure becomes 418 while MissingTag keeps 
   });
   const web = hono({
     routes: [
-      route.get("/users/:id", () => getUser, { input: (c) => c.req.param("id") }),
-      route.get("/secret", () => readSecret),
+      route.get("/users/:id", getUser, { input: (c) => c.req.param("id") }),
+      route.get("/secret", readSecret),
     ],
     onError: (e, c) => (isCoreError(e, "DataValidationFailed") ? c.text("teapot", 418) : undefined),
   });

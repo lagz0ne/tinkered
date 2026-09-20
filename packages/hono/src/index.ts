@@ -192,13 +192,18 @@ export function stream(c: Context, write: Stream.Write): Response {
   return c.body(readable);
 }
 
-/** One verb's builder: the path, the loader, the request shape. `input` is required
- * when the operation takes one. Every loader runs once at `start`. */
+/** One verb's builder: the path, the operation (or a loader for the lazy case),
+ * the request shape. `input` is required when the operation takes one. A loader
+ * runs once at `start`. */
 type Verb = {
-  <T>(path: string, load: HonoScope.Load<T, void>, opts?: HonoScope.Route<void, T>): HonoScope.Row;
+  <T>(
+    path: string,
+    load: Operation.Handle<T, void> | HonoScope.Load<T, void>,
+    opts?: HonoScope.Route<void, T>,
+  ): HonoScope.Row;
   <T, I>(
     path: string,
-    load: HonoScope.Load<T, I>,
+    load: Operation.Handle<T, I> | HonoScope.Load<T, I>,
     opts: HonoScope.Route<I, T> & { readonly input: HonoScope.Input },
   ): HonoScope.Row;
 };
@@ -206,7 +211,7 @@ type Verb = {
 function verb(method: HonoScope.Method): Verb {
   const bind = (
     path: string,
-    load: HonoScope.Load<unknown, unknown>,
+    load: Operation.Handle<unknown, unknown> | HonoScope.Load<unknown, unknown>,
     opts?: {
       readonly input?: HonoScope.Input;
       readonly respond?: HonoScope.Respond<unknown>;
@@ -214,15 +219,15 @@ function verb(method: HonoScope.Method): Verb {
   ): HonoScope.Row => ({
     method,
     path,
-    load,
+    load: typeof load === "function" ? load : () => load,
     route: { input: opts?.input, respond: opts?.respond },
   });
   return bind as Verb;
 }
 
-/** Name a route row: `route.get(path, load, opts?)` and friends, one per verb. Each
- * returns a plain row; the extension mounts every row handed to it. The loader may
- * be an eager handle or a function returning one. */
+/** Name a route row: `route.get(path, op, opts?)` and friends, one per verb. Each
+ * returns a plain row; the extension mounts every row handed to it. A loader
+ * function is the lazy case (a dynamic `import`); an eager handle is the norm. */
 export const route: Record<"get" | "post" | "put" | "patch" | "delete", Verb> = {
   get: verb("GET"),
   post: verb("POST"),

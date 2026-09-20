@@ -24,9 +24,9 @@ export async function tour(): Promise<string> {
 
   const web = hono({
     routes: [
-      route.get("/greet/:name", () => greet, { input: (c) => c.req.param("name") }),
-      route.get("/health", () => health),
-      route.get("/ticks", () => ticks, {
+      route.get("/greet/:name", greet, { input: (c) => c.req.param("name") }),
+      route.get("/health", health),
+      route.get("/ticks", ticks, {
         respond: (ts, c) =>
           stream(c, (emit) => {
             for (const t of ts) emit(t);

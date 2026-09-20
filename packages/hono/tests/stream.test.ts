@@ -29,7 +29,7 @@ function pathResource(ends: string[]): Resource.Handle<string> {
 /** A chunks row streaming its value with a TestClock pause between chunks. */
 function streamRow(path: Resource.Handle<string>) {
   const chunks = operation({ label: "chunks", depends: { path }, run: ({ path }) => [path, "b"] });
-  return route.get("/stream", () => chunks, {
+  return route.get("/stream", chunks, {
     respond: (cs, c) =>
       stream(c, async (emit, { clock, signal }) => {
         for (const ch of cs) {
@@ -68,7 +68,7 @@ test("the body yields each chunk as the clock advances, then ends", async () => 
   const chunks = operation({ label: "chunks", run: () => ["a", "b", "c"] });
   const web = hono({
     routes: [
-      route.get("/stream", () => chunks, {
+      route.get("/stream", chunks, {
         respond: (cs, c) =>
           stream(c, async (emit, { clock, signal }) => {
             for (const ch of cs) {
@@ -114,7 +114,7 @@ test("cancelling the reader mid-body force-closes the session and stops the writ
   let emitted = 0;
   const web = hono({
     routes: [
-      route.get("/stream", () => chunks, {
+      route.get("/stream", chunks, {
         respond: (cs, c) =>
           stream(c, async (emit, { clock, signal }) => {
             for (const ch of cs) {
@@ -146,7 +146,7 @@ test("a throwing writer errors the body and the session settles failed", async (
   const chunks = operation({ label: "chunks", depends: { path }, run: ({ path }) => [path] });
   const web = hono({
     routes: [
-      route.get("/stream", () => chunks, {
+      route.get("/stream", chunks, {
         respond: (cs, c) =>
           stream(c, async (emit, { clock }) => {
             emit(cs[0] ?? "");
@@ -180,7 +180,7 @@ test("a plain row on the same app still commits right after the handler", async 
   const path = pathResource(ends);
   const ping = operation({ label: "ping", depends: { path }, run: ({ path }) => `pong${path}` });
   const web = hono({
-    routes: [streamRow(pathResource(ends)), route.get("/ping", () => ping)],
+    routes: [streamRow(pathResource(ends)), route.get("/ping", ping)],
   });
   const scope = createScope({ extensions: [web] });
   await scope.ready;
@@ -225,8 +225,8 @@ test("the request session commits on success, rolls back on abort, fails on an u
   });
   const web = hono({
     routes: [
-      route.get("/ok/:id", () => get, { input: (c) => c.req.param("id") }),
-      route.get("/boom", () => boom),
+      route.get("/ok/:id", get, { input: (c) => c.req.param("id") }),
+      route.get("/boom", boom),
     ],
   });
   const scope = createScope({ extensions: [web] });

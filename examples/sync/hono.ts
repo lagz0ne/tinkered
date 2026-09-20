@@ -71,7 +71,7 @@ const deliverRegister = operation({
  * unasked. The stream goes down, the registration comes up. */
 const web = hono({
   routes: [
-    route.get("/sync", () => openWire, {
+    route.get("/sync", openWire, {
       respond: (opened, c) => {
         const id = c.req.query("client") ?? "guest";
         c.header("Content-Type", "text/event-stream");
@@ -114,7 +114,7 @@ const web = hono({
         });
       },
     }),
-    route.post("/sync", () => deliverRegister, {
+    route.post("/sync", deliverRegister, {
       input: async (c) => ({ id: c.req.query("client") ?? "guest", message: await c.req.json() }),
       respond: (delivery, c) => {
         delivery;
