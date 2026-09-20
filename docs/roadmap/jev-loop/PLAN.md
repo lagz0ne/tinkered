@@ -212,3 +212,23 @@ PLAN (lead) → build implement + protect anti-goal sets (once per ticket)
       green → land, next ticket
       red   → feedback → contributor (cap ~3, then escalate to human)
 ```
+
+## Trial on the drivers/t03 landing (2026-09-20, lead)
+
+Ran the three advisory tools on the hono-as-extension landing (`419be02..0d17653`):
+
+- `review.mjs`: 1 flag in 9 files — `apps/issue-tracker/src/index.ts` leakedInternal 71%. **Signal**: the
+  barrel exports `src`, `viewers`, `drafter`, `wire`, `publishAfterCommit` — internals a test needed; the
+  two-hands/docs ticket (drivers/t07) trims the seam. Route hint "correctness 79%" matched the lead's own focus.
+- `lint.mjs` (38 units, 17 notes): mostly noise on this code shape. False-positive classes to label for
+  `jev/calibrate`: `runForwardsToClosure` fires when a `run` calls a value helper with a delivered dep
+  (`loadSaved(tx, id)`, `selectAllIssues(db)`) — allowed by best-practices rule 4/7; "reads like a resource"
+  fires on driver internals that ARE the lifetime machinery (`stream`, the session middleware, a drizzle
+  frame's `open`); `configNotTag` fired on `readCapability`, whose dep IS a tag. One real hit:
+  `startDraft`'s stream closure unwatches in `finally` rather than `ctx.defer` (effectWithoutDefer 81%) —
+  fold into the next tracker touch.
+- `impact.mjs`: 138 "discrepancies" — a format mismatch, not a finding. The parser reads `scripts/scip.sh refs`
+  shaped lines (`symbol -> file:line`, `N symbol file`); the drivers-v1 blocks are prose tables, and apps are
+  not SCIP-indexed. **Rule from here:** an `impact` block that Jev should read uses the refs format
+  verbatim; prose blast-radius tables get a different fence (`blast`).
+- `lint.mjs` crashes with EISDIR when given a directory; pass files (`git ls-files <dir>`).

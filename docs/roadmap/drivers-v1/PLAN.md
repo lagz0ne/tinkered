@@ -3,6 +3,8 @@
 Decided 2026-09-20 with the user (grill, 2 rounds). Decision: `docs/decisions/0051-*.md`. Terms: glossary
 "Drivers as extensions". Consumers that prove each ticket: `apps/issue-tracker` and the tours in `examples/`.
 
+Blast-radius tables in this file use prose columns and are for the lead; `node scripts/jev/impact.mjs` needs the `scripts/scip.sh refs` line format (see the jev-loop plan, 2026-09-20 trial).
+
 Rule the whole track enforces, as a grep gate at the end:
 
 ```text
