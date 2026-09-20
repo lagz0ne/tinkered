@@ -7,7 +7,7 @@ import { getRemote, listRemote } from "../tools/issues.ts";
 import { readDetail } from "./operations.ts";
 
 /** Draft helper config: off unless the root binds it on. Read by
- * `readCapability` and by the draft route; slice 3 replaces the rest. */
+ * `readCapability` and by `startDraft`; a test rebinds it on. */
 export const draftHelper = tag<{
   readonly enabled: boolean;
   readonly baseUrl: string | undefined;

@@ -82,6 +82,8 @@ free. The session closes gracefully (commit) after the handler; forced (rollback
 abort; a `stream` route closes when the body ends. Without `tinker` upstream, `handle`
 raises `NoSession`.
 
+`emit` is synchronous, so a `Sync.Transport.send` or any `watch` callback may call it directly; a throw means the client went away (ADR 0021: SSE is an adapter over watched cells).
+
 ## Streaming
 
 A route that streams answers with `stream(c, write)`: the request session stays open until

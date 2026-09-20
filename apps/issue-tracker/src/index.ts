@@ -36,7 +36,7 @@ export {
 export { store } from "./server/store.ts";
 export type { Store } from "./server/store.ts";
 export { issueRoutes } from "./server/routes.ts";
-export { registerViewer, sseTransport, viewers } from "./server/sync.ts";
+export { registerViewer, viewers } from "./server/sync.ts";
 export { createApp } from "./server/app.ts";
 export type { AppConfig } from "./server/app.ts";
 export { api } from "./client/api.ts";
