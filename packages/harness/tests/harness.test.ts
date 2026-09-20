@@ -1,6 +1,10 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, preset, type Observe } from "@tinker/core";
-import type { Options, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import type {
+  Options,
+  SDKMessage,
+  SDKPartialAssistantMessage,
+} from "@anthropic-ai/claude-agent-sdk";
 import { claudeCode, harness, type ClaudeCode, type Harness } from "../src/index.ts";
 import { readScript, type Script, readToolSdk } from "./fixtures.ts";
 
@@ -201,5 +205,32 @@ test("a response reader delivers its reading, not the raw result", async () => {
   const session = scope.createSession();
   const result: string = await session.run(ask, { input: "hello" });
   expect(result).toBe("Hello");
+  await scope.close();
+});
+
+test("a stream event that is not a text delta adds no text", async () => {
+  const seen: Seen[] = [];
+  const script = readScript("Hello");
+  const thinking: SDKPartialAssistantMessage = {
+    ...(script.messages[1] as SDKPartialAssistantMessage),
+    event: { type: "message_stop" },
+  };
+  const other: SDKPartialAssistantMessage = {
+    ...(script.messages[1] as SDKPartialAssistantMessage),
+    event: {
+      type: "content_block_delta",
+      index: 0,
+      delta: { type: "signature_delta", signature: "x" },
+    },
+  };
+  const mixed: Script = {
+    messages: [script.messages[0], thinking, other, ...script.messages.slice(1)],
+  };
+  const { coder, ask, scope } = readSetup([mixed], seen);
+  const session = scope.createSession();
+  const textSeen: string[] = [];
+  session.controller(coder.text).watch((next) => textSeen.push(next));
+  await session.run(ask, { input: "hello" });
+  expect(textSeen).toEqual(["Hel", "Hello"]);
   await scope.close();
 });
