@@ -4,6 +4,7 @@ import type {
   CodexOptions,
   Input,
   ThreadEvent,
+  ThreadItem,
   ThreadOptions,
   TurnOptions,
 } from "@openai/codex-sdk";
@@ -313,4 +314,66 @@ test("with observe, the turn span carries the adapter and one harness turn line 
   expect(lines[0].attributes.status).toBe("done");
   expect(lines[0].attributes.harness).toBe("coder");
   await scope.close();
+});
+
+/** Run one turn over `events` and read the ambient cells back. */
+async function readCells(events: readonly ThreadEvent[]): Promise<{
+  result: unknown;
+  items: readonly Harness.Item[];
+  text: string;
+}> {
+  const seen: Seen = { turns: [], clients: [] };
+  const coder = harness({ label: "coder", adapter: codex });
+  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
+  const scope = createScope({
+    presets: [preset(codex.sdk, async () => fakeCodexSdk([{ events }], seen))],
+  });
+  const session = scope.createSession();
+  const result = await session.run(ask, { input: "hello" });
+  const items = session.resolve(coder.items);
+  const text = session.resolve(coder.text);
+  await scope.close();
+  return { result, items, text };
+}
+
+test("a file change item keeps the SDK's own status through every phase", async () => {
+  const started: ThreadItem = { id: "f-1", type: "file_change", changes: [], status: "failed" };
+  const done = await readCells([
+    { type: "item.started", item: started },
+    { type: "item.completed", item: { ...started, status: "completed" } },
+    {
+      type: "turn.completed",
+      usage: {
+        input_tokens: 1,
+        cached_input_tokens: 0,
+        cache_write_input_tokens: 0,
+        output_tokens: 1,
+        reasoning_output_tokens: 0,
+      },
+    },
+  ]);
+  expect(done.items.map((item) => item.status)).toEqual(["failed", "completed"]);
+});
+
+test("a rewritten agent text restreams whole and only the last text stays final", async () => {
+  const message = (text: string): ThreadItem => ({ id: "m-1", type: "agent_message", text });
+  const done = await readCells([
+    { type: "item.updated", item: message("Hel") },
+    { type: "item.updated", item: message("bye") },
+    { type: "item.completed", item: message("bye") },
+    {
+      type: "turn.completed",
+      usage: {
+        input_tokens: 1,
+        cached_input_tokens: 0,
+        cache_write_input_tokens: 0,
+        output_tokens: 1,
+        reasoning_output_tokens: 0,
+      },
+    },
+  ]);
+  expect(done.text).toBe("Helbye");
+  if (typeof done.result !== "object" || done.result === null || !("finalResponse" in done.result))
+    throw new Error("result changed shape");
+  expect(done.result.finalResponse).toBe("bye");
 });
