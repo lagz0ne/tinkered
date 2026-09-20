@@ -2697,7 +2697,8 @@ function settleSession(
  * body receiving the child layer directly (no handle→layer registry; ADR 0038). The public
  * `session()` passes `(child, handle) => fn(handle)`; a tagged call passes its own runner. When the
  * root installed `session` hooks (ADR 0051), the whole life runs inside their onion: `next()`
- * resolves with the close `Result`. No hooks means no wrapper — today's path, one map lookup. */
+ * resolves with the close `Result`. No hooks means no wrapper — main's body below, inline, after one
+ * root lookup. */
 async function runSessionWith<R>(
   parent: Layer,
   options: Scope.Options | undefined,
@@ -2705,11 +2706,39 @@ async function runSessionWith<R>(
 ): Promise<R> {
   ensureOpen(parent);
   const sessions = sessionsFor(parent);
+  if (sessions !== undefined) return runSessionWrapped(parent, options, body, sessions);
   const child = makeLayer(parent, options);
-  /** The handle the hooks and the body receive: built eagerly only when wrapped (a plain `handleFor`
-   * per session is what an unwrapped session costs today). Its `createSession` is wrapped too, so a
-   * session created under a session is wrapped as well. */
-  if (sessions === undefined) return runSessionLife(child, body);
+  const started = runBodyWith(child, body);
+  child.body = started;
+  child.bodyEnd = started.then(
+    (): Scope.Outcome => (child.aborted ? { status: "cancelled" } : SUCCESS),
+    (cause: unknown): Scope.Outcome =>
+      isCancel(child, cause) ? { status: "cancelled" } : { status: "failed", error: cause },
+  );
+  const result = await bodyResult(started);
+  /** `close()` never throws (ADR 0027/0028); it resolves to the actual settled `Result`. A session is
+   * promise-style, so map that Result back to resolve/reject: a real failure or cancellation rejects
+   * (with the cause / abort reason), a clean run resolves the body value; teardown errors aggregate
+   * into `TeardownFailed` either way. The self-close is FORCED — the body is done, so any still-running
+   * owned work is aborted rather than awaited; the body's own outcome decides success/cancelled. */
+  const ended = await closeLayer(child, true);
+  const teardownCauses = ended.teardownErrors ? [...ended.teardownErrors] : undefined;
+  if (ended.status === "failed") settleSession(true, ended.error, teardownCauses);
+  else if (ended.status === "cancelled") settleSession(true, ended.reason, teardownCauses);
+  else settleSession(false, undefined, teardownCauses);
+  return result as R;
+}
+
+/** A session under a root that installed `session` hooks: the whole life inside their onion. Cold
+ * path only — the hooks' handles are built eagerly here, never on the unwrapped path above. The
+ * body receives the same handle the hooks do, so a session created under a session stays wrapped. */
+async function runSessionWrapped<R>(
+  parent: Layer,
+  options: Scope.Options | undefined,
+  body: (child: Layer, handle: Scope.Handle) => R | PromiseLike<R>,
+  sessions: readonly Scope.Extension<unknown>[],
+): Promise<R> {
+  const child = makeLayer(parent, options);
   const handle = withSessionCreate(handleFor(child), child, sessions);
   const wrapped = await sessionThrough(sessions, handle, () =>
     runSessionEnded(child, (c) => runBodyWithTo(c, handle, body)),
@@ -2755,16 +2784,6 @@ function settleSessionEnded(ended: Scope.Result): void {
   if (ended.status === "failed") settleSession(true, ended.error, teardownCauses);
   else if (ended.status === "cancelled") settleSession(true, ended.reason, teardownCauses);
   else settleSession(false, undefined, teardownCauses);
-}
-
-/** An unwrapped session's life: today's path, byte for byte — start the body, close, settle. */
-async function runSessionLife<R>(
-  child: Layer,
-  body: (child: Layer, handle: Scope.Handle) => R | PromiseLike<R>,
-): Promise<R> {
-  const wrapped = await runSessionEnded(child, (c) => runBodyWith(c, body));
-  settleSessionEnded(wrapped.ended);
-  return wrapped.result as R;
 }
 
 async function runSession<R>(

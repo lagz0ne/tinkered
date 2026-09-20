@@ -87,3 +87,20 @@ BEFORE (2026-09-20, worktree base `2f5e4da` = main, no code change yet):
 | `op`      | 101.0  | 101.5  | 102.0  | 101.0  |
 
 AFTER: (filled in when the change lands)
+
+AFTER (2026-09-20, `1e45688` + session-path inline refactor, same method):
+
+| scenario  | run 1  | run 2  | run 3  | min    | vs BEFORE min  |
+| --------- | ------ | ------ | ------ | ------ | -------------- |
+| `session` | 1604.0 | 1544.0 | 1626.0 | 1544.0 | −69 (no move)  |
+| `tagged`  | 1948.0 | 2115.0 | 2014.0 | 1948.0 | −15 (no move)  |
+| `create`  | 169.2  | 168.4  | 169.0  | 168.4  | −1.2 (no move) |
+| `run`     | 113.3  | 103.1  | 110.5  | 103.1  | −9.5 (no move) |
+| `op`      | 101.3  | 101.3  | 101.2  | 101.2  | +0.2 (noise)   |
+
+Scare during the ticket: the first AFTER run showed `session` min 1748 vs BEFORE 1613 (+135).
+Same-process interleaved A/B (`mitata`, alternating `main_session`/`new_session`: 1606/1641,
+1648/1661, 1640/1694 — new at or below main every run) proved it was process/box noise, not the
+change; the official AFTER table above (same separate-process method as BEFORE) confirms no move.
+A refactor still landed from the scare: the unwrapped path is main's body inline in
+`runSessionWith` again (one root lookup first), the wrapped path lives in `runSessionWrapped`.
