@@ -141,6 +141,36 @@ gated: 0 errors / 13 warnings, hono 34, sync 28, tracker 42, browser 7/7 uncache
 close; because a mapped 400 still closes `success`, `publishIssues` skips an equal write (core feedback: a
 session hook cannot see the response status).
 
+## mutation/floor-75 — http (2026-09-20, `90.77`, floor 75)
+
+Seven contributor commits, tests only (`packages/http/tests`), no `src` change. Score 70.51 → **90.77**
+(one `vp run --no-cache http#mutate`, EXIT 0). New files: `fetch-backend.test.ts` (loopback echo server,
+a real transport — no mocks), `transient.test.ts`, `config-merge.test.ts`, `accept.test.ts`,
+`bodies.test.ts`, `status.test.ts`.
+
+Tests added (title = the promise): fetchBackend sends the method, headers, and JSON body to the server;
+fetchBackend keeps the record's own content type; fetchBackend sends no body for a GET record;
+fetchBackend sends bytes and url-params bodies to the server; a 408 retries and a 429 retries, but a 404
+arrives without a retry; a 500 retries through to success; the retry budget runs out (three transient
+statuses deliver the last one); a rejected status throws ResponseFailed and skips the body reader;
+nearer config headers win per key and the request's own headers win over config; a nearer config baseUrl
+wins and one binding without headers still merges; header keys merge case-insensitively with the nearer
+binding winning; the accept shorthand sets the header and an explicit accept wins; modify sets the accept
+header after the merge without moving the other keys; a custom accept header reaches the record the
+endpoint builds; builders default their content types and carry the value; a body option rides along and
+an explicit builder body wins; query params keep their pairs and the fragment stays at the end; response
+bodies read through every reader; response headers lowercase their keys and a custom source rides along;
+filterStatusOk accepts the 2xx edges and matchStatus dispatches every class.
+
+Survivors left as unobservable (one line each): label/template literals (`"http.backend"`,
+`` `${label}.config` ``, `` `${label}.client` ``, span names) — no user reads them; `{}` for `tag`/`resource`
+declaration objects — construction shape, not behaviour; `noRetry = { times: 0 }` and default-arg
+`"text/plain"`/`"application/octet-stream"` literals — equivalent under the tested defaults; `readFetchParams`
+loop body — covered through the params-body test, the surviving shred is the iteration shape; response
+`readBucket` terminal branches (3xx/4xx/5xx miss, klass fallthrough) — killed in combination, single-branch
+shreds have no distinct observable; `json(parse)` undefined-parse branch — the no-parse reader path is
+tested, the shred is the overload dispatch.
+
 ## drivers/t04 + t05 — impact block (import sites, 2026-09-20)
 
 ```impact drivers/t04-t05
