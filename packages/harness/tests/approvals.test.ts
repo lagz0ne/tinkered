@@ -131,3 +131,30 @@ test("a failed approval rejects the turn, and the error is not a TurnFailed", as
   if (isError(outcome, "TurnFailed")) throw new Error("an approval throw reads as TurnFailed");
   await scope.close();
 });
+
+test("the approval item keeps the request and the decision as its source", async () => {
+  const seen: Seen = { decisions: [] };
+  const approve = operation({
+    label: "approve",
+    input: claudeCode.approval,
+    run: (): PermissionResult => ({ behavior: "allow", updatedInput: { command: "ls -l" } }),
+  });
+  const coder = harness({ label: "coder", adapter: claudeCode, approve });
+  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const scope = createScope({ presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))] });
+  const session = scope.createSession();
+  await session.run(ask, { input: "hello" });
+  const items = session.resolve(coder.items);
+  if (
+    typeof items[0].source !== "object" ||
+    items[0].source === null ||
+    !("result" in items[0].source)
+  )
+    throw new Error("approval item changed shape");
+  expect(items[0].source.result).toEqual({
+    behavior: "allow",
+    updatedInput: { command: "ls -l" },
+  });
+  expect(seen.decisions).toEqual([{ behavior: "allow", updatedInput: { command: "ls -l" } }]);
+  await scope.close();
+});
