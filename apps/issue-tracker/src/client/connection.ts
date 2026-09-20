@@ -43,11 +43,13 @@ export function readData(event: MessageEvent): Sync.Message {
   return readMessage(raw);
 }
 
-/** Open the tab's wire: one `EventSource` at a time; `send` POSTs queued in order (the last
- * register is remembered and replayed on reconnect); a stream error flips to dropped without
- * firing `onClose` (so `subscribe` stays attached); the first error before live fires `onClose`
- * once (so `subscribe.start` rejects with `SyncNotReady` and `ready` rejects); `close` (called
- * by `subscribe` on scope close) aborts in-flight POSTs, closes the stream, and fires `onClose`. */
+/** Open the tab's wire: one `EventSource` at a time; `send` POSTs queued in order behind
+ * the stream's open (the register cannot race the inbox, as the old `await opened(stream)` did);
+ * the last register is remembered and replayed on reconnect; a stream error flips to dropped
+ * without firing `onClose` (so `subscribe` stays attached); the first error before live fires
+ * `onClose` once (so `subscribe.start` rejects with `SyncNotReady` and `ready` rejects); `close`
+ * (called by `subscribe` on scope close) aborts in-flight POSTs, closes the stream, and fires
+ * `onClose`. */
 export function reconnectingTransport(baseUrl: string): ReconnectingWire {
   const id = Math.random().toString(36).slice(2);
   const url = `${baseUrl}/sync?client=${id}`;
@@ -61,6 +63,10 @@ export function reconnectingTransport(baseUrl: string): ReconnectingWire {
   let queue: Promise<void> = Promise.resolve();
   let settled = false;
   let closed = false;
+  let notifyOpen: () => void = () => undefined;
+  let gated: Promise<void> = new Promise<void>((resolve) => {
+    notifyOpen = resolve;
+  });
 
   function flip(next: WireStatus): void {
     status = next;
@@ -85,10 +91,14 @@ export function reconnectingTransport(baseUrl: string): ReconnectingWire {
   function open(): EventSource {
     const next = new EventSource(url);
     stream = next;
+    gated = new Promise<void>((resolve) => {
+      notifyOpen = resolve;
+    });
     next.onopen = () => {
       if (closed || stream !== next) return;
       settled = true;
       flip("live");
+      notifyOpen();
     };
     next.onerror = () => {
       if (closed || stream !== next) return;
@@ -113,27 +123,35 @@ export function reconnectingTransport(baseUrl: string): ReconnectingWire {
   open();
 
   const post = async (message: Sync.Message, signal: AbortSignal): Promise<void> => {
-    let res: Response;
+    const received = await tryPost(message, signal);
+    if (received !== undefined && received.ok === false) drop();
+  };
+
+  /** POST one message; undefined when the wire closed first or the send itself failed. */
+  const tryPost = async (
+    message: Sync.Message,
+    signal: AbortSignal,
+  ): Promise<Response | undefined> => {
+    if (closed || signal.aborted) return undefined;
     try {
-      res = await fetch(url, {
+      return await fetch(url, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(message),
         signal,
       });
     } catch {
-      if (closed || signal.aborted) return;
-      drop();
-      return;
+      if (closed === false && signal.aborted === false) drop();
+      return undefined;
     }
-    if (!res.ok && closed === false && signal.aborted === false) drop();
   };
 
   return {
     send: (message) => {
       if (closed) return;
       if (message.type === "register") lastRegister = message;
-      queue = queue.then(() => post(message, flight.signal));
+      const gate = gated;
+      queue = queue.then(() => gate.then(() => post(message, flight.signal)));
     },
     onMessage: (listener) => {
       arrivals.add(listener);
