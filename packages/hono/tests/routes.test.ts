@@ -111,3 +111,42 @@ test("hand mounting with tinker plus handle still answers", async () => {
   expect(res.status).toBe(200);
   await scope.close();
 });
+
+/** Parse a named body at the door: an object with a string name. */
+function parseNamed(raw: unknown): string {
+  if (typeof raw !== "object" || raw === null) throw new Error("bad body");
+  if (!("name" in raw) || typeof raw.name !== "string") throw new Error("bad body");
+  return raw.name;
+}
+
+const createNamed = operation({
+  label: "createNamed",
+  input: parseNamed,
+  run: (_deps, ctx) => ({ name: ctx.input }),
+});
+
+test("an async input read answers the parsed body; a malformed body takes the error map", async () => {
+  const scope = createScope({
+    tags: [
+      route.post("/named", () => createNamed, {
+        input: (c) => c.req.json(),
+        respond: (named, c) => c.json(named, 201),
+      }),
+    ],
+  });
+  const app = await honoApp(scope);
+  const good = await app.request("/named", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: "ada" }),
+  });
+  expect(good.status).toBe(201);
+  expect(await good.json()).toEqual({ name: "ada" });
+  const bad = await app.request("/named", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{broken",
+  });
+  expect(bad.status).toBe(500);
+  await scope.close();
+});

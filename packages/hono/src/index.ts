@@ -26,10 +26,15 @@ export declare namespace HonoScope {
     error: unknown,
     c: Context,
   ) => Response | undefined | Promise<Response | undefined>;
+  /** Read the raw input off the request; may return a promise (a JSON body read).
+   * A promise is awaited before the operation runs; a rejection propagates like any
+   * thrown error into `mapError` — a malformed body never reached the operation's
+   * parser, so it is not a 400. */
+  export type Input = (c: Context) => unknown;
   /** How a route answers: parses the request into raw input and writes the value. `I`
    * selects the overload (required `input` when the operation takes one); only `T` is read. */
   export type Route<_I, T> = {
-    readonly input?: (c: Context) => unknown;
+    readonly input?: Input;
     readonly respond?: Respond<T>;
   };
   /** Write the operation's value as a Response (default `c.json(value)`). */
@@ -46,7 +51,7 @@ export declare namespace HonoScope {
     readonly path: string;
     readonly load: Load<unknown, unknown>;
     readonly route: {
-      readonly input?: (c: Context) => unknown;
+      readonly input?: Input;
       readonly respond?: Respond<unknown>;
     };
   };
@@ -173,7 +178,7 @@ type Verb = {
   <T, I>(
     path: string,
     load: HonoScope.Load<T, I>,
-    opts: HonoScope.Route<I, T> & { readonly input: (c: Context) => unknown },
+    opts: HonoScope.Route<I, T> & { readonly input: HonoScope.Input },
   ): Tag.Binding<HonoScope.BoundRoute>;
 };
 
@@ -182,7 +187,7 @@ function verb(method: HonoScope.Method): Verb {
     path: string,
     load: HonoScope.Load<unknown, unknown>,
     opts?: {
-      readonly input?: (c: Context) => unknown;
+      readonly input?: HonoScope.Input;
       readonly respond?: HonoScope.Respond<unknown>;
     },
   ): Tag.Binding<HonoScope.BoundRoute> =>
@@ -227,7 +232,7 @@ export function handle<T>(
 ): Endpoint;
 export function handle<T, I>(
   op: Operation.Handle<T, I>,
-  route: HonoScope.Route<I, T> & { readonly input: (c: Context) => unknown },
+  route: HonoScope.Route<I, T> & { readonly input: HonoScope.Input },
 ): Endpoint;
 export function handle<T, I>(op: Operation.Handle<T, I>, route?: HonoScope.Route<I, T>): Endpoint {
   const run = (c: Context): Promise<Response> => {
@@ -287,7 +292,13 @@ function readRoute<T, I>(
     const answer = async (): Promise<Response> => {
       let value: Awaited<T>;
       try {
-        const ran = readInput !== undefined ? flow.run({ rawInput: readInput(c) }) : runVoid(flow);
+        const raw = readInput !== undefined ? readInput(c) : undefined;
+        const ran =
+          readInput !== undefined
+            ? isThenable(raw)
+              ? flow.run({ rawInput: await raw })
+              : flow.run({ rawInput: raw })
+            : runVoid(flow);
         value = await ran;
       } catch (error: unknown) {
         const mapped = await mapError(error, c, onError, ctx.signal);
@@ -324,6 +335,16 @@ function mapError(
 }
 
 const noop = (): void => undefined;
+
+/** Await only when the input read returned a promise: a sync read must stay on the
+ * same tick so a client abort still force-closes the running operation. */
+function isThenable(raw: unknown): raw is PromiseLike<unknown> {
+  return (
+    raw !== null &&
+    (typeof raw === "object" || typeof raw === "function") &&
+    typeof (raw as { then?: unknown }).then === "function"
+  );
+}
 
 /** Track the abort-time close the session already owns (close never throws, ADR 0027):
  * the abort listener keeps no awaiter, so attach the shared no-op and never leave an
