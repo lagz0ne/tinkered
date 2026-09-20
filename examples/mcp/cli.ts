@@ -1,9 +1,10 @@
 import { operation } from "@tinker/core";
 import type { Scope } from "@tinker/core";
 import { command, runMain } from "@tinker/cli";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { mcpServer, tool, tools } from "@tinker/mcp";
+import { expose, mcp } from "@tinker/mcp";
 
 const searchShape = { q: z.string() };
 const searchSchema = z.object(searchShape);
@@ -17,16 +18,21 @@ function parseSearch(raw: unknown): { q: string } {
 const search = operation({
   label: "search",
   input: parseSearch,
-  meta: [tool({ description: "search the index", schema: searchShape })],
   run: (_deps, ctx) => [`hit:${ctx.input.q}`],
 });
 
-/** Publish every tool bound on the entrypoint scope, then serve stdio. Holds
- * the owned lifetime: EOF or a transport close settles the entry, and a CLI
- * signal closes the scope to settle it; the transport closes in every case.
- * A harness runs `node cli.ts mcp`. */
-async function serve(scope: Scope.Handle): Promise<void> {
-  const server = mcpServer(scope, { name: "coder", version: "1.0.0" });
+/** The search MCP driver: installed on the scope `runMain` creates, resolved
+ * in the `mcp` entry below. */
+const searchMcp = mcp({
+  name: "coder",
+  version: "1.0.0",
+  tools: [expose(search, { description: "search the index", schema: searchShape })],
+});
+
+/** Serve the resolved MCP server over stdio. Holds the owned lifetime: EOF or
+ * a transport close settles the entry, and a CLI signal closes the scope to
+ * settle it; the transport closes in every case. A harness runs `node cli.ts mcp`. */
+async function serve(server: McpServer, scope: Scope.Handle): Promise<void> {
   let stop: () => void = () => undefined;
   const stopped = new Promise<void>((resolve) => {
     stop = () => resolve();
@@ -44,11 +50,19 @@ async function serve(scope: Scope.Handle): Promise<void> {
   }
 }
 
-/** The stdio entry through the CLI driver: the entry command receives the
- * scope `runMain` created, so `mcpServer` sees the `tools` bindings on it.
- * Not run by tests. */
+/** The `mcp` entry command: resolve the search driver off the scope `runMain`
+ * created, then serve it over stdio. Keeps the CLI shape t04 changes later. */
+async function serveEntry(scope: Scope.Handle): Promise<void> {
+  await serve(scope.resolve(searchMcp), scope);
+}
+
+/** The stdio entry through the CLI driver: `runMain` installs the extension
+ * before the entry resolves it. Not run by tests. */
 await runMain({
   name: "coder",
   version: "1.0.0",
-  scope: { tags: [tools(search), command.entry("mcp", () => serve)] },
+  scope: {
+    tags: [command.entry("mcp", () => serveEntry)],
+    extensions: [searchMcp],
+  },
 });

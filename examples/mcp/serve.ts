@@ -1,7 +1,7 @@
 import { createScope, operation } from "@tinker/core";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { mcpServer, tool, tools } from "@tinker/mcp";
+import { expose, mcp } from "@tinker/mcp";
 
 const searchShape = { q: z.string() };
 const searchSchema = z.object(searchShape);
@@ -15,12 +15,18 @@ function parseSearch(raw: unknown): { q: string } {
 const search = operation({
   label: "search",
   input: parseSearch,
-  meta: [tool({ description: "search the index", schema: searchShape })],
   run: (_deps, ctx) => [`hit:${ctx.input.q}`],
 });
 
-/** The stdio process recipe: own the scope, publish every bound tool, connect
- * stdio. A harness points its MCP config at this file. Not run by tests. */
-const scope = createScope({ tags: [tools(search)] });
-const server = mcpServer(scope, { name: "coder", version: "1.0.0" });
+/** The stdio process recipe: own the scope, install the driver, resolve the
+ * server once ready, connect stdio. A harness points its MCP config at this
+ * file. Not run by tests. */
+const ext = mcp({
+  name: "coder",
+  version: "1.0.0",
+  tools: [expose(search, { description: "search the index", schema: searchShape })],
+});
+const scope = createScope({ extensions: [ext] });
+await scope.ready;
+const server = scope.resolve(ext);
 await server.connect(new StdioServerTransport());

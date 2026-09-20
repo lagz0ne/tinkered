@@ -85,7 +85,7 @@ const lanes = [
   ],
   [
     "mcp pure bundle (runtime imports: @tinker/core + the SDK's server/mcp.js only)",
-    `bash -c 'grep -qE "from \\"(node:|zod)" packages/mcp/dist/index.mjs && exit 1; grep -E "from \\"@modelcontextprotocol/sdk/" packages/mcp/dist/index.mjs | grep -v "server/mcp.js" | grep -q . && exit 1 || node --input-type=module -e "import(\\"./packages/mcp/dist/index.mjs\\").then(m=>process.exit(m.mcpServer&&m.tool&&m.tools&&m.readTool&&m.answerTool?0:1))"'`,
+    `bash -c 'grep -qE "from \\"(node:|zod)" packages/mcp/dist/index.mjs && exit 1; grep -E "from \\"@modelcontextprotocol/sdk/" packages/mcp/dist/index.mjs | grep -v "server/mcp.js" | grep -q . && exit 1 || node --input-type=module -e "import(\\"./packages/mcp/dist/index.mjs\\").then(m=>process.exit(m.mcp&&m.expose&&m.tool&&m.readTool&&m.answerTool?0:1))"'`,
   ],
   // @tinker/sync (ADR 0048, sync-v1 t05): same promises; the transport is
   // userland's, so dist imports only @tinker/core at runtime.

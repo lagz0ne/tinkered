@@ -2,7 +2,7 @@ import { createScope, operation } from "@tinker/core";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { z } from "zod";
-import { mcpServer, tool, tools } from "@tinker/mcp";
+import { expose, mcp } from "@tinker/mcp";
 
 const searchShape = { q: z.string() };
 const searchSchema = z.object(searchShape);
@@ -16,7 +16,6 @@ function parseSearch(raw: unknown): { q: string } {
 const search = operation({
   label: "search",
   input: parseSearch,
-  meta: [tool({ description: "search the index", schema: searchShape })],
   run: (_deps, ctx) => [`hit:${ctx.input.q}`],
 });
 
@@ -37,13 +36,19 @@ function readFirstText(answered: object): string {
   return readTextPart(content[0]);
 }
 
-/** A cast-free tour of the driver: a tool is an operation with description
- * meta, the list is scope config, `mcpServer` publishes it, and a harness
- * reaches it over MCP — here through the SDK's in-memory pair. Answers the
+/** A cast-free tour of the driver: a tool is an operation plus its row facts,
+ * `mcp({ tools })` is the extension, and a harness reaches it over MCP — here
+ * through the SDK's in-memory pair against the resolved server. Answers the
  * listed names and the first call's text. */
 export async function tour(): Promise<string> {
-  const scope = createScope({ tags: [tools(search)] });
-  const server = mcpServer(scope, { name: "coder", version: "1.0.0" });
+  const ext = mcp({
+    name: "coder",
+    version: "1.0.0",
+    tools: [expose(search, { description: "search the index", schema: searchShape })],
+  });
+  const scope = createScope({ extensions: [ext] });
+  await scope.ready;
+  const server = scope.resolve(ext);
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
   const client = new Client({ name: "tour", version: "0" });

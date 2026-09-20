@@ -1,24 +1,24 @@
 # @tinker/mcp
 
-A tool is an operation with description meta; harnesses reach it over MCP
-through a driver (ADR 0046).
+A tool is an operation plus its description facts; harnesses reach it over MCP
+through a driver (ADR 0046, ADR 0051).
 
 ```text
-operation({ label: "search", input: z.object(schema).parse, meta: [tool({ … })], depends, run })
-scope: tags: [tools(search), tools(migrate)]                       ← config on the scope
-mcpServer(scope, { name: "coder", version })  →  McpServer        ← the driver; tools.all off the scope
+operation({ label: "search", input: z.object(schema).parse, depends, run })   ← a plain op, no meta
+expose(search, { description, schema })                ← one wiring row: the op + its tool facts
+scope = createScope({ extensions: [mcp({ name, version, tools: rows })] })    ← the driver
+await scope.ready; server = scope.resolve(ext) → McpServer                   ← start registers one tool per row
    call → session → inline op `mcp search` → the op (subflow) → answerTool(meta, value) | isError
 harness: mcpServers: { coder: { command: "node", args: ["tools.ts"] } }   ← every harness, Paseo too
 ```
 
-Declare a tool — an ordinary operation whose handle carries the static facts.
-`Mcp.Tool` is `description` plus the zod shape, with optional `name` (defaults
-to the operation label) and optional `respond` (defaults to one JSON text
-content):
+Declare a tool row — an ordinary operation plus its static facts. `Mcp.Tool`
+is `description` plus the zod shape, with optional `name` (defaults to the
+operation label) and optional `respond` (defaults to one JSON text content):
 
 ```ts
 import { operation } from "@tinker/core";
-import { tool } from "@tinker/mcp";
+import { expose, mcp } from "@tinker/mcp";
 import { z } from "zod";
 
 const schema = { q: z.string() };
@@ -26,36 +26,40 @@ const schema = { q: z.string() };
 const search = operation({
   label: "search",
   input: z.object(schema).parse,
-  meta: [tool({ description: "search the index", schema })],
   run: (_deps, ctx) => [`hit:${ctx.input.q}`],
+});
+
+const ext = mcp({
+  name: "coder",
+  version: "1.0.0",
+  tools: [expose(search, { description: "search the index", schema })],
 });
 ```
 
-Bind the list on the scope, publish it, connect the transport you want:
+Install the extension, resolve the server once ready, connect the transport
+you want:
 
 ```ts
 import { createScope } from "@tinker/core";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { mcpServer, tools } from "@tinker/mcp";
 
-const scope = createScope({ tags: [tools(search)] });
-const server = mcpServer(scope, { name: "coder", version: "1.0.0" });
+const scope = createScope({ extensions: [ext] });
+await scope.ready;
+const server = scope.resolve(ext);
 await server.connect(new StdioServerTransport());
 ```
 
-The stdio entry through `@tinker/cli` (`examples/mcp/cli.ts`) — the same `search`
-declaration, then an entry command that receives the scope `runMain` created,
-so `mcpServer` sees the `tools` bindings on it. A harness runs
-`node cli.ts mcp`:
+The stdio entry through `@tinker/cli` (`examples/mcp/cli.ts`) — the same
+`search` row, then an entry command that resolves the installed extension off
+the scope `runMain` created. A harness runs `node cli.ts mcp`:
 
 ```ts
-import { command, runMain } from "@tinker/cli";
 import type { Scope } from "@tinker/core";
+import { command, runMain } from "@tinker/cli";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { mcpServer, tools } from "@tinker/mcp";
 
-async function serve(scope: Scope.Handle): Promise<void> {
-  const server = mcpServer(scope, { name: "coder", version: "1.0.0" });
+async function serve(server: McpServer, scope: Scope.Handle): Promise<void> {
   const stopped = Promise.withResolvers<void>();
   const stop = () => stopped.resolve();
   scope.onClose(stop);
@@ -71,10 +75,17 @@ async function serve(scope: Scope.Handle): Promise<void> {
   }
 }
 
+async function serveEntry(scope: Scope.Handle): Promise<void> {
+  await serve(scope.resolve(searchMcp), scope);
+}
+
 await runMain({
   name: "coder",
   version: "1.0.0",
-  scope: { tags: [tools(search), command.entry("mcp", () => serve)] },
+  scope: {
+    tags: [command.entry("mcp", () => serveEntry)],
+    extensions: [searchMcp],
+  },
 });
 ```
 
@@ -84,20 +95,23 @@ Here EOF or a transport close settles the entry; a CLI signal closes the scope a
 settles it too. The `finally` closes the transport in each case.
 
 The CLI mirror: a command is an operation with `command` meta from
-`@tinker/cli`, so one operation can carry both metas and be an MCP tool and a
-CLI command at once:
+`@tinker/cli`, so one operation can carry `command` meta for the CLI and a
+separate MCP row can expose it as a tool at once:
 
 ```ts
-meta: [
-  tool({ description: "search the index", schema: searchShape }),
-  command({ description: "search the index", argv: (argv) => argv[0] }),
-],
-run: (_deps, ctx) => [`hit:${ctx.input.q}`],
+const search = operation({
+  label: "search",
+  input: z.object(searchShape).parse,
+  meta: [command({ description: "search the index", argv: (argv) => argv[0] })],
+  run: (_deps, ctx) => [`hit:${ctx.input.q}`],
+});
+const searchTool = expose(search, { description: "search the index", schema: searchShape });
 ```
 
-Harness adapters share the readers: `readTool(op)` reads the `tool` facts off
-one bound op, and `answerTool(meta, value)` maps a value to a tool result
-exactly the way the driver answers a call.
+Harness adapters share the readers: `readTool(op)` reads the `tool` meta off
+an op that still carries it (kept for harnesses until their own ticket), and
+`answerTool(meta, value)` maps a value to a tool result exactly the way the
+driver answers a call.
 
 Each call runs as a session with an inline operation `mcp search` (span, one
 `mcp tool` log line, the operation as its subflow). The value goes back
@@ -130,5 +144,6 @@ await client.listTools();
 await client.callTool({ name: "search", arguments: { q: "owls" } });
 ```
 
-The MCP SDK and zod are peers, never bundled. A bound op without `tool` meta
-cannot be advertised: `mcpServer` throws `ToolUndeclared` with its label.
+The MCP SDK and zod are peers, never bundled. The `tool` meta tag stays
+exported for harnesses: `tool({ description, schema })` on an op is read by
+`readTool` until the harness ticket migrates it.
