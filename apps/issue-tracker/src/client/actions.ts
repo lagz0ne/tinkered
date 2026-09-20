@@ -4,7 +4,7 @@ import { issueList, parseIssue, type Issues } from "../shared/issues.ts";
 import { isError, raise } from "../errors.ts";
 import { getCapability, getDetail, patchIssue, postComment, postIssue } from "./api.ts";
 import { wire } from "./connection.ts";
-import { drafter } from "./services.ts";
+import { drafter } from "./drafter.ts";
 import {
   commentAuthor,
   commentDraft,

@@ -6,7 +6,8 @@ import { checkCapability } from "./actions.ts";
 import { api } from "./api.ts";
 import { ScopedApp } from "./App.tsx";
 import { reconnectingTransport, wire } from "./connection.ts";
-import { detailRefresh, drafter, liveness } from "./services.ts";
+import { detailRefresh, liveness } from "./services.ts";
+import { drafter } from "./drafter.ts";
 import { issueList } from "../shared/issues.ts";
 
 /** The composition root: the only place that creates or touches the scope. The transport starts
