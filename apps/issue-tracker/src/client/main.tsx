@@ -2,11 +2,10 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createScope } from "@tinker/core";
 import { subscribe, sync } from "@tinker/sync";
-import { checkCapability } from "./actions.ts";
 import { api } from "./api.ts";
 import { ScopedApp } from "./App.tsx";
 import { reconnectingTransport, wire } from "./connection.ts";
-import { detailRefresh, liveness } from "./services.ts";
+import { capability, detailRefresh, liveness } from "./services.ts";
 import { drafter } from "./drafter.ts";
 import { issueList } from "../shared/issues.ts";
 
@@ -43,7 +42,7 @@ async function start(element: ReturnType<typeof createRoot>): Promise<boolean> {
   scope.resolve(liveness);
   scope.resolve(detailRefresh);
   scope.resolve(drafter);
-  scope.run(checkCapability).then(undefined, () => undefined);
+  scope.resolve(capability);
   element.render(
     <StrictMode>
       <ScopedApp scope={scope} />

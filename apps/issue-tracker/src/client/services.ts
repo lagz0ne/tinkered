@@ -8,7 +8,7 @@ import {
   type Connection,
   type RowMark,
 } from "./state.ts";
-import { loadDetail } from "./actions.ts";
+import { checkCapability, loadDetail } from "./actions.ts";
 import { wire, type WireStatus } from "./connection.ts";
 
 /** Read one wire status as the connection cell the tab renders. */
@@ -35,6 +35,14 @@ export const liveness = resource({
     defer(stopStatus);
     return { watching: true };
   },
+});
+
+/** Check the draft helper once at boot: the capability cell answers on, off, or failed.
+ * The scope owns the returned promise; the view reruns `checkCapability` by hand on Retry. */
+export const capability = resource({
+  label: "capability",
+  depends: { check: checkCapability },
+  factory: ({ check }) => check.run(),
 });
 
 /** Reload the detail when the selection moves or the selected row changes on the wire: a

@@ -78,7 +78,7 @@ export {
   typeNewIssue,
   typePrompt,
 } from "./client/actions.ts";
-export { detailRefresh, liveness } from "./client/services.ts";
+export { capability, detailRefresh, liveness } from "./client/services.ts";
 export { drafter } from "./client/drafter.ts";
 export type { Drafter } from "./client/drafter.ts";
 export {
