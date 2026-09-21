@@ -193,3 +193,40 @@ test("settled stays pending until an operation's async cleanup finishes", async 
   expect(settled).toBe(true);
   expect(order).toEqual(["cleanup-done"]);
 });
+
+test("a wrapped session body that throws sync still drains cleanups then reports the cause", async () => {
+  const cause = new Error("wrapped-sync-boom");
+  const cleanup = new Error("wrapped-cleanup-boom");
+  const seen: string[] = [];
+  const spy = extension({
+    label: "spy",
+    session: async (_handle, next) => next(),
+  });
+  const leaky = resource({
+    label: "leaky",
+    target: "session",
+    factory: (_deps, { defer }) => {
+      defer(() => {
+        throw cleanup;
+      });
+      defer((end) => void seen.push(end.status));
+      return 1;
+    },
+  });
+  const scope = createScope({ extensions: [spy] });
+  await scope.ready;
+  const thrown = await scope
+    .session((s) => {
+      s.resolve(leaky);
+      throw cause;
+    })
+    .then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+  if (!isError(thrown, "TeardownFailed")) throw thrown;
+  expect(thrown.payload.causes).toContain(cause);
+  expect(thrown.payload.causes).toContain(cleanup);
+  expect(seen).toEqual(["failed"]);
+  await scope.close();
+});
