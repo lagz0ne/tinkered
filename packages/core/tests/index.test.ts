@@ -5297,21 +5297,21 @@ test("running an operation on a pending extension dependency raises NotResolved"
 });
 
 test("an operation depending on an extension reads the start value", async () => {
-  const ext = extension<{ connect(): void }>({
-    label: "typed",
-    start: (_scope, _ctx, next) => next().then(() => ({ connect: () => undefined })),
+  const ext = extension<{ connect(): number }>({
+    label: "driver",
+    start: (_scope, _ctx, next) => next().then(() => ({ connect: () => 7 })),
   });
   const use = operation({
     label: "use",
     depends: { origin: ext },
     run: ({ origin }) => {
-      expectTypeOf(origin).toEqualTypeOf<{ connect(): void }>();
-      return 1;
+      expectTypeOf(origin).toEqualTypeOf<{ connect(): number }>();
+      return origin.connect();
     },
   });
   const scope = createScope({ extensions: [ext] });
   await scope.ready;
-  expect(scope.run(use)).toBe(1);
+  expect(scope.run(use)).toBe(7);
   await scope.close();
 });
 
