@@ -59,14 +59,26 @@ test("an endpoint resolves input, sends the built request, and reads the body", 
 
 test("an endpoint without a response reader delivers the raw handle", async () => {
   const seen: HttpRequest.Record[] = [];
+  const marker = { marker: true };
   const raw = github.operation({
     label: "raw",
     request: () => HttpRequest.get("https://api/users"),
   });
-  const scope = createScope({ tags: [backend(recording("hi", seen))] });
+  const headed: HttpClient.Backend = async (request) => {
+    seen.push(request);
+    return HttpResponse.make(request, {
+      status: 200,
+      body: "hi",
+      headers: { "X-Up": "1" },
+      source: marker,
+    });
+  };
+  const scope = createScope({ tags: [backend(headed)] });
   const res = await scope.run(raw);
   expect(res.status).toBe(200);
   expect(await res.text()).toBe("hi");
+  expect(res.headers["x-up"]).toBe("1");
+  expect(res.source).toBe(marker);
   await scope.close();
 });
 
