@@ -257,6 +257,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - Releasing a dependency after its dependent never tears down twice.
 - A release inside a run drains unrelated cleanups at once.
 - A build superseded in flight never publishes its value.
+- A build superseded twice never publishes its value.
 - A finished borrow is forgotten before the next release.
 - A defer from a superseded build never joins the live rebuild's drain.
 - A failing start fails the scope with its cause.

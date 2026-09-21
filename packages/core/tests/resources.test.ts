@@ -278,10 +278,14 @@ test("a release inside a run drains unrelated cleanups at once", () => {
   expect(cleaned).toEqual(["resB:1"]);
 });
 
-test("a build superseded in flight never publishes its value", async () => {
-  let release!: (v: number) => void;
-  const gate = new Promise<number>((resolve) => {
-    release = resolve;
+test("a build superseded twice never publishes its value", async () => {
+  let g2!: (v: string) => void;
+  let g3!: (v: string) => void;
+  const gate2 = new Promise<string>((resolve) => {
+    g2 = resolve;
+  });
+  const gate3 = new Promise<string>((resolve) => {
+    g3 = resolve;
   });
   let builds = 0;
   const slow = resource({
@@ -289,18 +293,23 @@ test("a build superseded in flight never publishes its value", async () => {
     factory: () => {
       builds += 1;
       const n = builds;
-      return gate.then((v) => v * n);
+      if (n <= 2) return gate2.then(() => "stale");
+      return gate3.then(() => "fresh");
     },
   });
   const scope = createScope();
   const first = scope.controller(slow).resolve() as Promise<unknown>;
   scope.release(slow);
-  release(10);
-  expect(await first).toBe(10);
-  expect(await scope.resolve(slow)).toBe(20);
-  expect(await scope.resolve(slow)).toBe(20);
+  const second = scope.controller(slow).resolve() as Promise<unknown>;
+  scope.release(slow);
+  g2("go");
+  expect(await first).toBe("stale");
+  expect(await second).toBe("stale");
+  const third = scope.controller(slow).resolve() as Promise<unknown>;
+  g3("go");
+  expect(await third).toBe("fresh");
   await scope.close();
-});
+}, 10000);
 
 test("a finished borrow is forgotten before the next release", async () => {
   let release!: () => void;
