@@ -37,17 +37,17 @@ function readTitles() {
 const isProseLine = (raw) =>
   !raw.startsWith("#") && !raw.trim().startsWith("|--") && !raw.trim().startsWith("| -");
 
-/** The sentence-ish chunks of one line: table cells split, bullets stripped, 40+ chars kept. */
+/** The sentence-ish chunks of one line: table cells split, bullets stripped, 20+ chars kept. */
 function chunksOf(raw) {
   const cells = raw.startsWith("|") ? raw.split("|").map((c) => c.trim()) : [raw.trim()];
   return cells
     .flatMap((cell) => cell.split(/(?<=[.;])\s+(?=[A-Z`])/))
     .map((sentence) => sentence.replace(/^[-*]\s+/, "").trim())
-    .filter((s) => s.length >= 40);
+    .filter((s) => s.length >= 20);
 }
 
 /** README lines that could carry a promise: prose, bullets, and table cells outside code
- * fences and headings, one candidate per sentence-ish chunk of 40+ chars. */
+ * fences and headings, one candidate per sentence-ish chunk of 20+ chars. */
 function readPromises() {
   const out = [];
   let fence = false;
@@ -84,15 +84,30 @@ function candidates(title, promises) {
     .map((c) => c.p);
 }
 
+/** A title and a README line that say the same thing: equal ignoring case, backticks,
+ * and trailing punctuation. An exact promise needs no judge. */
+function exactLine(title, lines) {
+  const norm = (s) =>
+    s
+      .toLowerCase()
+      .replace(/`/g, "")
+      .replace(/[.;:!?]+$/, "")
+      .trim();
+  const want = norm(title);
+  return lines.find((line) => norm(line) === want);
+}
+
 if (!loadKey()) process.exit(0);
 const titles = readTitles();
 const promises = readPromises();
-console.log(
-  `jev promises (advisory) — ${pkg}: ${titles.length} test titles, ${promises.length} README candidates\n`,
-);
-const report = [];
-for (const { file, title } of titles) {
-  const options = candidates(title, promises);
+
+/** An exact README line answers at once: no Jev call, full confidence. */
+function exactAnswer(hit) {
+  return { gap: false, unsure: false, choice: "exact", confidence: 1, line: hit };
+}
+
+/** Ask Jev which candidate promises the title. */
+async function judgedAnswer(title, options) {
   const criteria = Object.fromEntries(options.map((o, i) => [`L${i + 1}`, o]));
   criteria.none = "no candidate states this behaviour as a promise to the user";
   const q = {
@@ -105,23 +120,45 @@ for (const { file, title } of titles) {
   const a = options.length
     ? (await ask({ test: title, candidates: options }, q)).pick
     : { choice: "none", probabilities: { none: 1 } };
+  return pickAnswer(a, criteria);
+}
+
+/** A Jev pick becomes a gap only when `none` wins at or above the floor. */
+function pickAnswer(a, criteria) {
   const conf = a.probabilities?.[a.choice] ?? 0;
   const none = a.choice === "none";
   const gap = none && conf >= FLOOR;
-  const unsure = none && !gap;
-  report.push({
-    file,
-    title,
+  return {
     gap,
-    unsure,
+    unsure: none && !gap,
     choice: a.choice,
     confidence: conf,
     line: none ? null : criteria[a.choice],
-  });
-  const mark = gap ? "⚠" : unsure ? "?" : "✓";
-  const tail = none
-    ? `  — no README line (${pct(conf)}${unsure ? ", unsure" : ""})`
-    : `  ← ${criteria[a.choice].slice(0, 70)}… (${pct(conf)})`;
+  };
+}
+
+/** The title's answer: an exact line wins outright, else Jev picks. */
+async function answerTitle(title, promises, hit) {
+  if (hit) return exactAnswer(hit);
+  return judgedAnswer(title, candidates(title, promises));
+}
+
+/** The printed tail: the matched line, or the no-line note. */
+function answerTail(answered) {
+  if (answered.line) return `  ← ${answered.line.slice(0, 70)}… (${pct(answered.confidence)})`;
+  const qualifier = answered.unsure ? ", unsure" : "";
+  return `  — no README line (${pct(answered.confidence)}${qualifier})`;
+}
+console.log(
+  `jev promises (advisory) — ${pkg}: ${titles.length} test titles, ${promises.length} README candidates\n`,
+);
+const report = [];
+for (const { file, title } of titles) {
+  const hit = exactLine(title, promises);
+  const answered = await answerTitle(title, promises, hit);
+  report.push({ file, title, ...answered });
+  const mark = answered.gap ? "⚠" : answered.unsure ? "?" : "✓";
+  const tail = answerTail(answered);
   console.log(`  ${mark} ${title}${tail}`);
 }
 const gaps = report.filter((r) => r.gap);
