@@ -195,8 +195,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   thenable resolves to its awaited value.
 - Concurrent resolves share one in-flight build; later resolves keep the same settled instance and promise.
 - A resource that resolves itself fails with `CircularResource` naming the resource.
-- `get` before `resolve` fails with `NotResolved` naming the resource; through a closed owner it fails with
-  `Disposed` instead of a stale value, and a resolve through a closed owner builds nothing.
+- `get` before `resolve` fails with `NotResolved` naming the resource; through a closed owner it fails
+  with `Disposed`, and a resolve through a closed owner builds nothing.
 - A scope-target resource is one instance shared across sessions, with one shared sticky rejection.
 - A session-target resource builds once per session, distinct across sessions; a child session's own
   instance survives its parent's release.
@@ -208,7 +208,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A rejected build is sticky: re-resolve returns the same rejection with no new build, until a release —
   of it or of a dependency — lets it rebuild fresh.
 - Releasing a resource runs its cleanup; a re-resolve builds a new instance. A sync borrower never delays
-  that cleanup. Releasing a data cell resets it to its initial and notifies watchers.
+  it. Releasing a data cell resets it to its initial and notifies watchers.
 - Release drops only the resource's cleanup, never a shared `onClose` hook.
 - A release whose owner is already closing fails with `Disposed`.
 - A rejecting release cleanup surfaces as secondary: the outcome keeps its status, the error lands in
@@ -223,10 +223,10 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   dependency alive through their cleanups; teardown runs borrower-first.
 - A build superseded while in flight leaves the rebuilt instance alive: its late cleanup never drops the
   replacement.
-- A release nested inside a release cleanup never hangs close, nor does a session cleanup that closes the
+- A release nested inside a release cleanup never hangs close, nor does a session cleanup closing the
   root; closing another scope from a cleanup still awaits its real teardown.
 - A resource preset replaces the built instance, builds once per owner, sees the resolved deps, resolves
-  async factories, and runs its own cleanup at owner close while the real factory never runs.
+  async factories, and runs its own cleanup at owner close; the real factory never runs.
 
 ### Operations
 
@@ -240,12 +240,11 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - `settled` stays pending until owned work finishes.
 - An operation preset replaces the run for a direct call, a downstream subflow, and an inline config.
 - An inline run resolves deps, delivers the full context, and shares nothing between runs; with no call,
-  deps resolve and `ctx.input` is void. A tagged inline run sees the call's tags, and a preset resource
-  arrives through the deps it names.
+  `ctx.input` is void. A tagged inline run sees the call's tags; a preset arrives through its deps.
 - A tagged call binds the whole flow: the run, a subflow, and a nested subflow all read the call's tags, and
   a tagged call is always async even for a sync operation.
-- A tagged run builds session resources in the flow and leaves scope resources at the root; an untagged
-  run builds session resources at the root and opens no session; the tagged session closes with the run.
+- A tagged run builds session resources in the flow, scope resources at the root; an untagged run builds
+  session resources at the root and opens no session; the tagged session closes with the run.
 - An operation reads the scope's clock; a resource factory does too (see Clock).
 - An operation's context exposes no borrow or drain internals.
 - An operation defer sees the run's own end: `success` on return, `failed` on throw, `cancelled` under a
@@ -269,8 +268,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   returns the same result.
 - A failed start rejects `ready` with its cause and fails the scope.
 - A scope with no extensions is ready at once on one shared promise; a session after ready is ready.
-- `scope.resolve` reads a cell's current value with no subscription, builds a resource once like its
-  controller, and reads a tag's nearest binding, default, or throws `MissingTag`.
+- `scope.resolve` reads a cell's current value with no subscription, builds a resource once, and reads a
+  tag's nearest binding, default, or throws `MissingTag`.
 - `scope.run` shares the controller path: same lookup, same CallArgs rules, stable controller identity.
 - A close hook wraps the structural close and sees its result.
 - `session(fn)` commits on return and rolls back on throw, closes the child itself, and passes the error
@@ -286,7 +285,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   an ancestor abort still rolls its own resources back.
 - A failure already known before the cascade rolls back the remaining children.
 - A reused error object counts as the later session's own body failure; a child's own throw wins over a
-  manual close of the same cause, and a manual close never demotes the parent's own body failure.
+  manual close of the same cause, which never demotes the parent's own body failure.
 - `settled` inside `session(fn)` drains owned work without waiting on the body.
 - A teardown hook may return its own `close` without hanging; concurrent closes join the one real teardown
   and share its error.
