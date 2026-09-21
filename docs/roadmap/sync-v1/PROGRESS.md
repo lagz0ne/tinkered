@@ -92,5 +92,5 @@ sync  syncClient  src/index.ts tests/sync.test.ts examples/basic.ts
 ## Review loop
 
 The lead reviews every ticket (diff vs ADR rows, convention, one promise per test, gate re-run, SCIP
-refs, `node scripts/jev/impact.mjs <tag>`), cherry-picks, runs the mutation lane alone, tags. Reports
+refs, `node tools/jev/impact.mjs <tag>`), cherry-picks, runs the mutation lane alone, tags. Reports
 end with **Core feedback**.

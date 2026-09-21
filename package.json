@@ -13,7 +13,6 @@
     "@happy-dom/global-registrator": "catalog:",
     "@inferdi/inferdi": "catalog:",
     "@preact/signals-react": "^3.12.0",
-    "ai": "catalog:",
     "effect": "catalog:",
     "jotai": "^3.0.0",
     "legend2": "npm:@legendapp/state@2.1.15",

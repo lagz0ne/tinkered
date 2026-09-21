@@ -43,7 +43,7 @@ cases above false ones by 30 points or more, 90% of the time.
 
 ## The judges
 
-Generated from the code by `node scripts/jev/explain.mjs --md` — regenerate after editing `bank.mjs` or `lib.mjs`.
+Generated from the code by `node tools/jev/explain.mjs --md` — regenerate after editing `bank.mjs` or `lib.mjs`.
 
 ### file judges — review.mjs / preflight.mjs, one call per changed source file
 

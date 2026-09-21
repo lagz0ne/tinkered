@@ -1,7 +1,7 @@
 // Eval for the lint + guide bank. Each judge must separate its bad fixture from its clean one
 // by >= 30 points with bad >= threshold and clean < threshold; each guide case must pick the
 // expected option at >= its confidence floor. Exit 0 always — an eval, not a gate.
-//   run:  node scripts/jev/evals/lint.mjs
+//   run:  node tools/jev/evals/lint.mjs
 import { loadKey, ask, pct } from "../lib.mjs";
 import { LINT, GUIDE } from "../bank.mjs";
 import {

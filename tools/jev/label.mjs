@@ -2,9 +2,9 @@
 // A case is a judge, a label, and the exact Jev state the judge saw — stored inline so the
 // bank survives history rewrites. The workflow feeds it: a pre-flight flag the writer FIXED is
 // a `true` case, one the writer EXPLAINED is a `false` case; a lead's fix-round nit that maps to
-// a judge is a `true` case. `scripts/jev/calibrate.mjs` reads the bank.
+// a judge is a `true` case. `tools/jev/calibrate.mjs` reads the bank.
 //
-//   node scripts/jev/label.mjs <judge> <true|false> <file>[#<unit>] [--ref <sha>] [--why "<text>"] [--by <ticket>]
+//   node tools/jev/label.mjs <judge> <true|false> <file>[#<unit>] [--ref <sha>] [--why "<text>"] [--by <ticket>]
 //   <judge> is a file judge (lib.mjs JUDGES: state = { file, code }) or a unit judge (bank.mjs
 //   LINT: state = the sliced unit named after `#`). `--ref` reads the file at that commit.
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
@@ -23,7 +23,7 @@ const [judge, labelWord, target] = args.filter(
 );
 if (!judge || !["true", "false"].includes(labelWord ?? "") || !target) {
   console.error(
-    'usage: node scripts/jev/label.mjs <judge> <true|false> <file>[#<unit>] [--ref <sha>] [--why "<text>"] [--by <ticket>]',
+    'usage: node tools/jev/label.mjs <judge> <true|false> <file>[#<unit>] [--ref <sha>] [--why "<text>"] [--by <ticket>]',
   );
   process.exit(1);
 }

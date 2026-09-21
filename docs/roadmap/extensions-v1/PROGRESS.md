@@ -83,7 +83,7 @@ core  isExtension   src/index.ts
 ## Review loop
 
 The lead reviews every ticket (diff vs ADR rows, convention, one promise per test, gate re-run, SCIP
-refs, `node scripts/jev/impact.mjs <tag>`, the probe table re-measured), cherry-picks, runs the
+refs, `node tools/jev/impact.mjs <tag>`, the probe table re-measured), cherry-picks, runs the
 mutation lane alone, tags. Reports end with **Core feedback**.
 
 ### sync/t07 follow-up (done)
@@ -231,7 +231,7 @@ New symbols (`scripts/scip.sh refs 'writeThrough|extendHandle'`):
     (none)
 ```
 
-`node scripts/jev/impact.mjs core/t35 HEAD~1..HEAD` on the code landing: neither,
+`node tools/jev/impact.mjs core/t35 HEAD~1..HEAD` on the code landing: neither,
 zero discrepancies. Definitions above are the review's anchors (ADR 0047).
 
 ### sync/t07 lead review (2026-09-19)

@@ -29,18 +29,18 @@ cd ../tinkered-<task> && vp install && git checkout -- pnpm-workspace.yaml && vp
    `vp run -r build && vp check && vp run <pkg>#test && <every consumer's tests>; echo EXIT $?` → must be 0,
    `vp check` at 0 errors and no more warnings than `main`.
 2. **jev pre-flight** (advisory, generic — it never gates, you never tune it):
-   `node scripts/jev/preflight.mjs main..HEAD`. For every flag write one line: `fixed <how>` or
+   `node tools/jev/preflight.mjs main..HEAD`. For every flag write one line: `fixed <how>` or
    `explained <why it is not a defect here>`. A flag you cannot explain is a fix. A `~` hit is a
    calibrated-noisy judge: read it, no line owed. The tool is generic by design: do not add rules or
-   special cases to `scripts/jev/**` for your ticket.
+   special cases to `tools/jev/**` for your ticket.
    **Then label what you decided** — this is how the judges get calibrated, and it takes one line per flag:
-   `node scripts/jev/label.mjs <judge> true <file>#<unit> --by <ticket> --why "<what you fixed>"` for a
+   `node tools/jev/label.mjs <judge> true <file>#<unit> --by <ticket> --why "<what you fixed>"` for a
    fixed flag, `… false …` for an explained one (file judges take `<file>` alone). Commit
-   `scripts/jev/cases.jsonl` with your ticket.
+   `tools/jev/cases.jsonl` with your ticket.
 3. **Test quality and promise gap** when you added or changed tests in a package:
-   `node scripts/jev/tests.mjs <pkg>` — every `⚠` is a test to delete, merge, or explain (the convention:
+   `node tools/jev/tests.mjs <pkg>` — every `⚠` is a test to delete, merge, or explain (the convention:
    over-testing is a defect; a helper tested alone, many causes in one test, a type guarantee asserted, a
-   negative twin, two tests for one promise). Then `node scripts/jev/promises.mjs <pkg>` — every `⚠` is a
+   negative twin, two tests for one promise). Then `node tools/jev/promises.mjs <pkg>` — every `⚠` is a
    test title the README never promises: write the README line, or say why that title is not a promise.
    Label what you decided on both (`label.mjs`), as in step 2.
 4. **Blast radius**: the greps the ticket names (old symbols → `(none)`; `Scope.Handle` only where ADR 0051

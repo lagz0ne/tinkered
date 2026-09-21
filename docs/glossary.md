@@ -124,7 +124,7 @@
 | tools     | The binding tag: `tools(op)` on a scope or session; a driver reads the table with `scope.resolve(tools.all)`.                                                                                                                                          |
 | mcpServer | The driver: `mcpServer(scope, { name, version })` returns the MCP SDK's own `McpServer` with every bound tool registered; each call is a session running an inline op `mcp <name>` with the tool as its subflow; the harness gets `mcpServers` config. |
 
-## Jev advisory layer (`scripts/jev/`)
+## Jev advisory layer (`tools/jev/`)
 
 | term           | meaning                                                                                                                                                                                                                                                                          |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

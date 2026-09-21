@@ -1,17 +1,15 @@
 // Contributor self-check BEFORE reporting (ADR: docs/roadmap/jev-loop/PLAN.md).
 // Same proven judge set as review, run on your working-tree diff so you clear or explain the
-// lead's usual nits first, then the per-unit lint (scripts/jev/lint.mjs) on the same files. ADVISORY — never blocks your commit; exits 0. Report the flags and
+// lead's usual nits first, then the per-unit lint (tools/jev/lint.mjs) on the same files. ADVISORY — never blocks your commit; exits 0. Report the flags and
 // your resolutions in the "jev pre-flight" line of your contributor report.
 //
-//   node scripts/jev/preflight.mjs [<range>]   (default: HEAD = all changes since last commit)
+//   node tools/jev/preflight.mjs [<range>]   (default: HEAD = all changes since last commit)
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 
-/** Per-judge status from `scripts/jev/calibrate.mjs`; a `noisy` judge prints as `~` (a note, not a flag). */
-const CALIBRATION = existsSync("scripts/jev/calibration.json")
-  ? JSON.parse(readFileSync("scripts/jev/calibration.json", "utf8"))
-  : {};
-import { loadKey, ask, changedSources, fileAt, JUDGES, pct } from "./lib.mjs";
+/** Per-judge status from `tools/jev/calibrate.mjs`; a `noisy` judge prints as `~` (a note, not a flag). */
+const CALIBRATION = readCalibration();
+import { loadKey, ask, changedSources, fileAt, JUDGES, pct, readCalibration } from "./lib.mjs";
 
 const range = process.argv.slice(2).find((a) => !a.startsWith("--")) ?? "HEAD";
 if (!loadKey()) process.exit(0);
@@ -40,11 +38,11 @@ for (const f of files) {
 }
 if (files.length) {
   console.log("");
-  execFileSync("node", ["scripts/jev/lint.mjs", ...files.filter((f) => existsSync(f))], {
+  execFileSync("node", ["tools/jev/lint.mjs", ...files.filter((f) => existsSync(f))], {
     stdio: "inherit",
   });
 }
 console.log(
-  `\njev pre-flight: ${flags} file flag(s) plus the lint notes above. A ~ hit is a calibrated-noisy judge: read it, no line owed. Every other flag: fixed or explained, then label it (scripts/jev/label.mjs). Not a gate.`,
+  `\njev pre-flight: ${flags} file flag(s) plus the lint notes above. A ~ hit is a calibrated-noisy judge: read it, no line owed. Every other flag: fixed or explained, then label it (tools/jev/label.mjs). Not a gate.`,
 );
 process.exit(0);

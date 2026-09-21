@@ -1,9 +1,9 @@
-// Calibrate every judge against the labeled bank (scripts/jev/cases.jsonl) plus the seed
-// fixtures, and write scripts/jev/calibration.json: per judge, the numbers and a status that
+// Calibrate every judge against the labeled bank (tools/jev/cases.jsonl) plus the seed
+// fixtures, and write tools/jev/calibration.json: per judge, the numbers and a status that
 // lint/preflight read to decide whether a hit is a FLAG (writer must fix or explain) or a NOTE
 // (printed, not required). Exit 0 always — this is an eval, not a gate.
 //
-//   node scripts/jev/calibrate.mjs [--judge <id>] [--dry]   (--dry: numbers only, no file write)
+//   node tools/jev/calibrate.mjs [--judge <id>] [--dry]   (--dry: numbers only, no file write)
 //
 // Status per judge:
 //   proven      ≥ 2 true and ≥ 2 false cases, median(true) − median(false) ≥ 0.30, and ≥ 90% of
@@ -11,11 +11,12 @@
 //   provisional fewer cases than that (fixtures only, or one side thin) — a hit is a flag, marked ~
 //   noisy       enough cases but the separation or the ordering fails — a hit is a note
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { loadKey, ask, pct, JUDGES, BANK } from "./lib.mjs";
+import { join } from "node:path";
+import { loadKey, ask, pct, JUDGES, BANK, HERE } from "./lib.mjs";
 import { LINT, TESTS, TEST_PAIR } from "./bank.mjs";
 import { JUDGE_CASES, REACT_CASES } from "./evals/fixtures/lint.mjs";
 
-const OUT = "scripts/jev/calibration.json";
+const OUT = join(HERE, "calibration.json");
 const args = process.argv.slice(2);
 const only = args.includes("--judge") ? args[args.indexOf("--judge") + 1] : undefined;
 const dry = args.includes("--dry");

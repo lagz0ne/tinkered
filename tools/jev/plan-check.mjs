@@ -3,7 +3,7 @@
 // design is delegated. Judge-mode booleans. These are NOT yet calibrated on labeled cases, so
 // treat every flag as "look here", never as truth. ADVISORY — exits 0.
 //
-//   node scripts/jev/plan-check.mjs <plan-file.md>
+//   node tools/jev/plan-check.mjs <plan-file.md>
 import { readFileSync } from "node:fs";
 import { loadKey, ask, pct } from "./lib.mjs";
 

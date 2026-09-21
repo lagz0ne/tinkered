@@ -1,19 +1,17 @@
 // Jev lint (advisory): one call per declared unit or outermost function — the anti-goal judges
 // that apply to its kind plus the unit classifier. Prints flags; never gates; exits 0.
 //
-//   node scripts/jev/lint.mjs [paths…] [--all] [--limit N] [--json out.json]
+//   node tools/jev/lint.mjs [paths…] [--all] [--limit N] [--json out.json]
 //   default paths: examples/ and apps/issue-tracker/src (git-tracked .ts/.tsx, no tests)
 //   --all also judges data/tag declarations, functions under 150 chars, and composition roots
 //   (functions that call createScope) — all skipped by default
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { loadKey, ask, pct } from "./lib.mjs";
+import { loadKey, ask, pct, readCalibration } from "./lib.mjs";
 import { slice, forJev, LINT, GUIDE } from "./bank.mjs";
 
-/** Per-judge status from `scripts/jev/calibrate.mjs`: a `noisy` judge prints as a note (`~`), never as a flag. */
-const CALIBRATION = existsSync("scripts/jev/calibration.json")
-  ? JSON.parse(readFileSync("scripts/jev/calibration.json", "utf8"))
-  : {};
+/** Per-judge status from `tools/jev/calibrate.mjs`: a `noisy` judge prints as a note (`~`), never as a flag. */
+const CALIBRATION = readCalibration();
 const isNoisy = (id) => CALIBRATION[id]?.status === "noisy";
 
 const DEFAULT = [

@@ -5,7 +5,7 @@
 // discrepancy; a fixed mapping turns the answer into a verdict (plan wrong / source
 // wrong / unclear -> human). ADVISORY ONLY — always exits 0, never a gate.
 //
-//   node scripts/jev/impact.mjs <tag> [range] [--goal "<text>"] [--block <file>]
+//   node tools/jev/impact.mjs <tag> [range] [--goal "<text>"] [--block <file>]
 //   range defaults to <tag>~1..<tag> (or HEAD~1..HEAD when the tag does not exist).
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -266,7 +266,7 @@ function indexPkg(pkg) {
 
 function printUsage() {
   console.error(
-    'usage: node scripts/jev/impact.mjs <tag> [range] [--goal "<text>"] [--block <file>]',
+    'usage: node tools/jev/impact.mjs <tag> [range] [--goal "<text>"] [--block <file>]',
   );
 }
 

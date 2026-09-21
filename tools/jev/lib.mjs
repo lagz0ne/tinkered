@@ -7,6 +7,8 @@
 // bad thing present?") because a literal model is strong at narrow yes/no and weak at broad,
 // multi-hop, numeric, or date judgments.
 import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 import { experimental_evaluate as evaluate } from "ai";
 
@@ -150,5 +152,15 @@ export const OVERCLAIM = {
 };
 
 /** The labeled-case bank `label.mjs` appends to and `calibrate.mjs` reads. */
-export const BANK = "scripts/jev/cases.jsonl";
+/** This package's own directory: its bank and calibration live here, whatever the cwd. */
+export const HERE = dirname(fileURLToPath(import.meta.url));
+export const BANK = join(HERE, "cases.jsonl");
+/** The per-judge calibration written by `calibrate.mjs`; `{}` until the first run. */
+export function readCalibration() {
+  try {
+    return JSON.parse(readFileSync(join(HERE, "calibration.json"), "utf8"));
+  } catch {
+    return {};
+  }
+}
 export const pct = (p) => `${(p * 100).toFixed(0)}%`;

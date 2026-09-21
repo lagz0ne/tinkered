@@ -4,7 +4,7 @@
 // promises this behaviour?" with `none` as an option. A `none` is a gap to write, not a defect.
 // Exit 0 always.
 //
-//   node scripts/jev/promises.mjs <pkg> [--json out.json] [--top N] [--floor P]
+//   node tools/jev/promises.mjs <pkg> [--json out.json] [--top N] [--floor P]
 //   N candidates per title (default 6); a `none` below confidence P (default 0.7) prints as unsure, not a gap
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -13,7 +13,7 @@ import { loadKey, ask, pct } from "./lib.mjs";
 const args = process.argv.slice(2);
 const pkg = args.find((a) => !a.startsWith("--"));
 if (!pkg) {
-  console.error("usage: node scripts/jev/promises.mjs <pkg> [--json out.json] [--top N]");
+  console.error("usage: node tools/jev/promises.mjs <pkg> [--json out.json] [--top N]");
   process.exit(1);
 }
 const opt = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);

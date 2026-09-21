@@ -64,7 +64,7 @@ Three fixed uses (skipping one is a review finding):
    `refs` table for every touched symbol — the blast radius — and the contributor edits from that
    table, not from grep or compiler errors alone. The same table is committed as the ticket's ` ```impact <tag> `
    block in the track's `PROGRESS.md` before the code (ADR 0047); in review the lead runs
-   `node scripts/jev/impact.mjs <tag>` (advisory) beside `refs`.
+   `node tools/jev/impact.mjs <tag>` (advisory) beside `refs`.
 2. **Lead review of every ticket:** re-run `scripts/scip.sh index`, then `refs` on the OLD symbols (must
    print `(none)`) and on the NEW ones (files must match the expectation from the brief). Paste both
    in the review note.
@@ -118,20 +118,20 @@ The lead session orchestrates and reviews; implementation is delegated to a Pase
    the reviewer's), the Jev toolset below, and the report format (branch, SHAs, before/after table, what
    was verified and how, the `jev pre-flight` line).
    **Jev toolset (advisory, free, ~2 s a call — use it while coding, never as a gate):**
-   - choosing a unit: `node scripts/jev/guide.mjs "<logic in words>"` (or `<file#symbol>`) answers
+   - choosing a unit: `node tools/jev/guide.mjs "<logic in words>"` (or `<file#symbol>`) answers
      data / resource / operation / tag / glue with the target shape; below 60% it says "unclear" — then
      decide with the one-law table in `docs/best-practices.md`;
-   - before reporting: `node scripts/jev/preflight.mjs` runs the file judges and the per-unit lint
-     (`scripts/jev/lint.mjs`) on your diff; clear the notes you agree with, explain the rest in the
+   - before reporting: `node tools/jev/preflight.mjs` runs the file judges and the per-unit lint
+     (`tools/jev/lint.mjs`) on your diff; clear the notes you agree with, explain the rest in the
      report's `jev pre-flight` line. A note is a probability, not a verdict; `vp check`, tests,
      census, and the lead decide.
-3. The lead runs `node scripts/jev/review.mjs main..HEAD` on the branch (advisory: it routes attention, never
-   gates), labels each fix-round nit that a judge covers (`scripts/jev/label.mjs <judge> true …`), then reviews the diff for shape (facades, duplicated hot bodies, leaked internals, identity-keyed
+3. The lead runs `node tools/jev/review.mjs main..HEAD` on the branch (advisory: it routes attention, never
+   gates), labels each fix-round nit that a judge covers (`tools/jev/label.mjs <judge> true …`), then reviews the diff for shape (facades, duplicated hot bodies, leaked internals, identity-keyed
    memos), re-measures, requests one fix round, cherry-picks onto `main`, runs the package's mutation lane
    isolated, pushes, then removes the worktree and branch.
-4. **Calibration is part of landing.** The bank `scripts/jev/cases.jsonl` grows from every fixed/explained
-   flag and every fix-round nit. When it gained ten or more cases since `scripts/jev/calibration.json` was
-   written, the lead runs `node scripts/jev/calibrate.mjs` and commits the result: a `noisy` judge demotes
+4. **Calibration is part of landing.** The bank `tools/jev/cases.jsonl` grows from every fixed/explained
+   flag and every fix-round nit. When it gained ten or more cases since `tools/jev/calibration.json` was
+   written, the lead runs `node tools/jev/calibrate.mjs` and commits the result: a `noisy` judge demotes
    to a note in lint/preflight, a `proven` one stays a flag. Never gate on a judge that is not `proven`.
 5. **Both sides of the spectrum.** An integration is also a probe of core: every contributor report ends
    with a **Core feedback** section (friction, a workaround, a missing affordance, a rule that felt wrong),

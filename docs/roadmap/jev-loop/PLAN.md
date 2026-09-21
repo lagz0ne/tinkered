@@ -30,7 +30,7 @@ Proven on labeled cases (2026-09-18, `pilot/side-projects/jev-probe/eval.mjs`):
   so the confidence gate turns a wrong answer into a safe "unclear → human". Never trust route for
   perf; send perf to a structural tool.
 
-## Where it hooks (advisory scripts in `scripts/jev/`)
+## Where it hooks (advisory scripts in `tools/jev/`)
 
 | Phase          | Script                                 | What it does                                                                                      | Truth still owned by            |
 | -------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------- |
@@ -47,16 +47,16 @@ New untracked files are included since that day.
 Key: `AI_GATEWAY_API_KEY` (or `JEV_TOKEN_FILE`); never printed. Cost is ~fractions of a cent per
 ticket. Free tier is request-rate capped; paid credits lift it.
 
-## protect-node-0: the SCIP + Jev impact chain — landed (ADR 0047, `scripts/jev/impact.mjs`)
+## protect-node-0: the SCIP + Jev impact chain — landed (ADR 0047, `tools/jev/impact.mjs`)
 
-Landed 2026-09-18 (eval `scripts/jev/evals/impact.mjs`: clean block → neither, no model call; under-scoped block → plan wrong at 82–87% once the file's diff hunk rides in the state). Decided (ADR 0047: an `impact` block per ticket in `PROGRESS.md`; one boolean per discrepancy; a fixed mapping to source/plan wrong). The idea: cross the plan's
+Landed 2026-09-18 (eval `tools/jev/evals/impact.mjs`: clean block → neither, no model call; under-scoped block → plan wrong at 82–87% once the file's diff hunk rides in the state). Decided (ADR 0047: an `impact` block per ticket in `PROGRESS.md`; one boolean per discrepancy; a fixed mapping to source/plan wrong). The idea: cross the plan's
 **expected** blast radius (the Anchors/refs table the brief already requires) against SCIP's
 **actual** refs of the changed symbols; Jev judges each discrepancy ("does the goal require this
 symbol?") to return **source wrong / plan wrong / both / neither** — catching the "wrong thing
 built correctly" case a normal gate cannot see. SCIP stays the deterministic sensor; Jev only
 judges "should it have". See `TODO.md`.
 
-## lint + guide — the ESLint-shaped bank (2026-09-20, `scripts/jev/bank.mjs`)
+## lint + guide — the ESLint-shaped bank (2026-09-20, `tools/jev/bank.mjs`)
 
 **Analogy: ESLint.** A deterministic selector finds one node, a rule asks one narrow question
 about it, code applies the threshold and prints. Jev replaces only the rule's yes/no. It never
@@ -188,7 +188,7 @@ entry file, seen in the first run too).
 
 ## toolcall chain — tried and removed (2026-09-19)
 
-A `scripts/jev/toolcall.mjs` wrapper (frame → before/gate → after/trim) was built to keep tool
+A `tools/jev/toolcall.mjs` wrapper (frame → before/gate → after/trim) was built to keep tool
 calls on-objective and prune raw output out of the context, then removed. The durable findings,
 proven on labeled cases (2026-09-18):
 
@@ -235,18 +235,18 @@ Ran the three advisory tools on the hono-as-extension landing (`419be02..0d17653
 
 ## Calibration and the promise gap are in the workflow (2026-09-21)
 
-- `scripts/jev/label.mjs <judge> <true|false> <file>[#<unit>] [--ref] [--by] [--why]` appends a labeled case
-  (the exact Jev state, inline) to `scripts/jev/cases.jsonl`. Writers label every pre-flight flag they fixed
+- `tools/jev/label.mjs <judge> <true|false> <file>[#<unit>] [--ref] [--by] [--why]` appends a labeled case
+  (the exact Jev state, inline) to `tools/jev/cases.jsonl`. Writers label every pre-flight flag they fixed
   (true) or explained (false); the lead labels fix-round nits (true). Seeded with 13 cases from the
   2026-09-20 fix rounds and explained flags.
-- `scripts/jev/calibrate.mjs` asks each judge about every case (bank + the seed fixture pairs) and writes
-  `scripts/jev/calibration.json`: `proven` (≥ 2 each side, median gap ≥ 30 points, ≥ 90% of pairs ordered),
+- `tools/jev/calibrate.mjs` asks each judge about every case (bank + the seed fixture pairs) and writes
+  `tools/jev/calibration.json`: `proven` (≥ 2 each side, median gap ≥ 30 points, ≥ 90% of pairs ordered),
   `provisional` (thin), `noisy`. `lint.mjs`/`preflight.mjs` print a noisy judge's hit as `~` (a note, no
   fixed/explained line owed). First run on real cases: `configNotTag` proven; `runForwardsToClosure`,
   `effectWithoutDefer`, `handRolledLifetime` **noisy** (the hand-written fixture pairs had passed them all —
   that is what the bank is for); nine judges provisional on fixtures alone. The three noisy judges match
   the "driver internals read like…" noise seen on 2026-09-20; rewording them is the next calibrate step.
-- `scripts/jev/promises.mjs <pkg> [--floor 0.7]`: for every `test("…")` title, deterministic narrowing to
+- `tools/jev/promises.mjs <pkg> [--floor 0.7]`: for every `test("…")` title, deterministic narrowing to
   the README lines sharing stems, then one Jev pick with `none`; a confident `none` is a promise gap. First
   run on harness: 20/48 confident gaps, 10 unsure. Of the four gaps the floor-75 writer reported, two are
   real and two were already in the README (line 113) — the tool caught a writer overclaim on its first
@@ -276,7 +276,7 @@ Ran the three advisory tools on the hono-as-extension landing (`419be02..0d17653
 - a trailing assistant message with no tool call adds no tool item
 - a named tool registers under its meta name, not the op label
 
-## Test quality (2026-09-21): `scripts/jev/tests.mjs <pkg | file…>`
+## Test quality (2026-09-21): `tools/jev/tests.mjs <pkg | file…>`
 
 The convention's "over-testing is a defect" rules, split the usual way. Deterministic: a private `../src/*`
 import, `vi.mock/fn/spyOn`, `setTimeout`, `.only/.skip`, `isError` inside `expect`, internals asserted
@@ -343,12 +343,12 @@ verdicts labeled → next `calibrate.mjs` run should demote two more judges.
 API (`require("typescript")` fails), so `ts-morph`/`typescript-estree` are out; `@babel/parser` is present only
 as Vite's transitive dependency. **Recommendation: add `oxc-parser` as a root dev dependency** — the same
 Rust parser family as the Oxlint `vp check` runs, full TS syntax, standard ESTree output, fastest of the set —
-and put all extraction in one `scripts/jev/extract.mjs`: units (kind, label, `depends` keys, body), tests
+and put all extraction in one `tools/jev/extract.mjs`: units (kind, label, `depends` keys, body), tests
 (title, causes = top-level subject-producing calls, assertions as subject/matcher/argument, `if … throw`
 narrowings, awaited calls), exports and imports; SCIP stays for cross-file refs. Judges then see structured
 facts, not prose; the regex rules (`expectThenNarrow`, `toBeThenToEqual`, helper counts, private imports)
 become exact. Fallback if a native binding is unwelcome: `@babel/parser` declared as a dev dependency.
 **Card:** `jev/ast-extraction`, awaiting the dependency decision.
 
-Docs: `scripts/jev/README.md` (plain words per tool and per judge; the judge table is generated by
-`scripts/jev/explain.mjs --md`).
+Docs: `tools/jev/README.md` (plain words per tool and per judge; the judge table is generated by
+`tools/jev/explain.mjs --md`).

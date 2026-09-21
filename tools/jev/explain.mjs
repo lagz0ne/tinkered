@@ -2,15 +2,13 @@
 // asked, what a `true` means, what a `false` means, and its calibration status. The README
 // explains the tools; this prints the questions so the two cannot drift apart. Exit 0.
 //
-//   node scripts/jev/explain.mjs [--md]      (--md: a markdown table for the README)
+//   node tools/jev/explain.mjs [--md]      (--md: a markdown table for the README)
 import { existsSync, readFileSync } from "node:fs";
-import { JUDGES } from "./lib.mjs";
+import { JUDGES, readCalibration } from "./lib.mjs";
 import { LINT, GUIDE, TESTS, TEST_PAIR } from "./bank.mjs";
 
 const md = process.argv.includes("--md");
-const status = existsSync("scripts/jev/calibration.json")
-  ? JSON.parse(readFileSync("scripts/jev/calibration.json", "utf8"))
-  : {};
+const status = readCalibration();
 
 const GROUPS = [
   ["file judges — review.mjs / preflight.mjs, one call per changed source file", JUDGES],

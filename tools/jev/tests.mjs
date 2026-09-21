@@ -5,24 +5,22 @@
 // twin) and one pairwise judge on title-similar tests in the same file (re-proves the same
 // promise). A ⚠ is a delete-or-merge candidate to act on or explain; never a gate. Exit 0.
 //
-//   node scripts/jev/tests.mjs <pkg | file…> [--json out.json] [--pairs N]   (N pairs per file, default 8)
+//   node tools/jev/tests.mjs <pkg | file…> [--json out.json] [--pairs N]   (N pairs per file, default 8)
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { loadKey, ask, pct } from "./lib.mjs";
+import { loadKey, ask, pct, readCalibration } from "./lib.mjs";
 import { TESTS, TEST_PAIR, sliceTests } from "./bank.mjs";
 
 const args = process.argv.slice(2);
 const targets = args.filter((a, i) => !a.startsWith("--") && !args[i - 1]?.startsWith("--"));
 if (targets.length === 0) {
-  console.error("usage: node scripts/jev/tests.mjs <pkg | file…> [--json out.json] [--pairs N]");
+  console.error("usage: node tools/jev/tests.mjs <pkg | file…> [--json out.json] [--pairs N]");
   process.exit(1);
 }
 const opt = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
 const PAIRS = Number(opt("--pairs", 8));
 const jsonOut = opt("--json");
-const CALIBRATION = existsSync("scripts/jev/calibration.json")
-  ? JSON.parse(readFileSync("scripts/jev/calibration.json", "utf8"))
-  : {};
+const CALIBRATION = readCalibration();
 const mark = (id) => (CALIBRATION[id]?.status === "noisy" ? "~" : "");
 
 /** A package name expands to its test files; a path passes through. */

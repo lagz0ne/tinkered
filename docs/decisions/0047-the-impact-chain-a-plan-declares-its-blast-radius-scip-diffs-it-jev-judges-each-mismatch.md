@@ -36,7 +36,7 @@ refs` prints — a regex never matches the full symbol string, so the script sea
    reference it. `(none)` means the symbol must have no definition left (a
    removal). The formatter leaves fences alone, so the block never re-pads.
 
-2. **SCIP is the sensor.** `scripts/jev/impact.mjs <tag> [range]` indexes the block's packages,
+2. **SCIP is the sensor.** `tools/jev/impact.mjs <tag> [range]` indexes the block's packages,
    runs `refs` per line, and set-diffs per symbol: **unexpected** files (actual minus expected),
    **missing** files (expected minus actual), plus **undeclared public changes** (an `export` added
    or renamed in the range's diff that no line's regex covers). Deterministic; no model yet.

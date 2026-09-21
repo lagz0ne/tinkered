@@ -1192,7 +1192,7 @@ New-name table:
         3  /triage.  src/server/draft.ts
 ```
 
-`env -u AI_GATEWAY_API_KEY JEV_TOKEN_FILE=/dev/null node scripts/jev/impact.mjs tracker/t04 4b0c609..HEAD`
+`env -u AI_GATEWAY_API_KEY JEV_TOKEN_FILE=/dev/null node tools/jev/impact.mjs tracker/t04 4b0c609..HEAD`
 ran advisory-only, without credentials or a model request. Its
 package-relative path/name handling reports missing app symbols; direct
 app refs above prove those definitions/callers exist. Full output is

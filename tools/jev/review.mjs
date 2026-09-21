@@ -4,7 +4,7 @@
 // --strict is passed (for experiments; never wire --strict into a gate). It routes the lead's
 // attention; scripts/ticket.sh + the human are the only pass/fail.
 //
-//   node scripts/jev/review.mjs [<range>] [--strict]
+//   node tools/jev/review.mjs [<range>] [--strict]
 //   range defaults to HEAD~1..HEAD; use "--staged" or "main..HEAD" etc.
 import {
   loadKey,

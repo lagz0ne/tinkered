@@ -1,15 +1,15 @@
 // Jev guide (advisory): which @tinker/core unit should this logic be? Takes plain words or one
 // unit/function from a file. Never gates; exits 0.
 //
-//   node scripts/jev/guide.mjs "poll the API every 10s and keep the latest list"
-//   node scripts/jev/guide.mjs apps/issue-tracker/src/client/connection.ts#reconnectingTransport
+//   node tools/jev/guide.mjs "poll the API every 10s and keep the latest list"
+//   node tools/jev/guide.mjs apps/issue-tracker/src/client/connection.ts#reconnectingTransport
 import { readFileSync } from "node:fs";
 import { loadKey, ask, pct } from "./lib.mjs";
 import { slice, forJev, GUIDE, SHAPE } from "./bank.mjs";
 
 const arg = process.argv.slice(2).find((a) => !a.startsWith("--"));
 if (!arg) {
-  console.error('usage: node scripts/jev/guide.mjs "<logic in words>" | <file.ts#symbol>');
+  console.error('usage: node tools/jev/guide.mjs "<logic in words>" | <file.ts#symbol>');
   process.exit(0);
 }
 

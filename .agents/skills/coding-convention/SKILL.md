@@ -199,12 +199,12 @@ Formatting and lint are the machine's job. Run, in order:
 vp check
 vp test
 bash .agents/skills/coding-convention/scripts/style-census.sh <dir...> --strict
-node scripts/jev/preflight.mjs   # advisory: anti-goal judges + per-unit lint on your diff
+node tools/jev/preflight.mjs   # advisory: anti-goal judges + per-unit lint on your diff
 ```
 
 Fix every strict hit. Jev notes are look-here hints, not failures: clear the ones you agree
 with, explain the rest in the report's `jev pre-flight` line. Unsure which unit a piece of
-logic should be? Ask before writing it: `node scripts/jev/guide.mjs "<logic in words>"`. Then end the handoff with this standalone line, no
+logic should be? Ask before writing it: `node tools/jev/guide.mjs "<logic in words>"`. Then end the handoff with this standalone line, no
 bullet, quote, or code formatting:
 
 Style census: OK

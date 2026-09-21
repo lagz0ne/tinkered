@@ -1,0 +1,25 @@
+{
+  "name": "@tinker/jev",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Advisory judges over the codebase (TypeSafe's Jev): pre-flight, review, lint, test quality, promise gap, calibration. Never a gate.",
+  "type": "module",
+  "scripts": {
+    "preflight": "node preflight.mjs",
+    "review": "node review.mjs",
+    "lint": "node lint.mjs",
+    "tests": "node tests.mjs",
+    "promises": "node promises.mjs",
+    "impact": "node impact.mjs",
+    "guide": "node guide.mjs",
+    "plan-check": "node plan-check.mjs",
+    "label": "node label.mjs",
+    "calibrate": "node calibrate.mjs",
+    "explain": "node explain.mjs",
+    "eval": "node evals/lint.mjs && node evals/impact.mjs"
+  },
+  "dependencies": {
+    "ai": "catalog:",
+    "oxc-parser": "^0.117.0"
+  }
+}
