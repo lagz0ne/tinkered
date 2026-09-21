@@ -177,6 +177,10 @@ never a Jev call.
   `check` uses to read a node, applied to code instead of yaml.
 - `src-dir` is walked recursively for every `*.ts` file, skipping
   `*.test.ts` and `*.d.ts`; each file is parsed once with `oxc-parser`.
+- A unit is one `const x = data|resource|operation|tag({ … })`, read for
+  its `kind`, `label`, `depends`, `target`, and (`operation`/`resource`
+  only) its `run`/`factory` body text. A unit without a literal `label`
+  is never extracted — the diff cannot name it.
 - Five checks, in this order, every line blocking:
 
 ```text
