@@ -376,3 +376,27 @@ Where the lead still spent time: two `main` moves mid-landing (the shared checko
 `../tinkered-land`), and one case-bank conflict (append-only JSONL: resolve as a union by id).
 Deleting the http lift's superficial tests cost the lane 5.6 points and stayed above the floor: the
 convention and the floor did not collide on http.
+
+## Two core cards (2026-09-21), and what they said about the tools
+
+| card                   | launch→report | fix rounds | result                                                                                |
+| ---------------------- | ------------- | ---------- | ------------------------------------------------------------------------------------- |
+| docs/core-promises     | ~60 min       | 0          | `## Promises` appendix, 105 lines, 8 groups; confident gaps 148 → 6                   |
+| tests/core-many-causes | ~65 min       | 0          | 273 → 287 tests, one cause each; flags 28 → 15 explained; core lane 78.27 (was 78.21) |
+
+Five tooled cards in a day, zero fix rounds. Findings the writers handed back (all recorded as labels or below):
+
+- **`promises.mjs` bugs:** `chunksOf` drops README lines under 40 chars, so a short exact line (`A cascade re-runs no
+operation.`) reads as a gap; the pick question crashed twice with "did not select a highest-probability option"
+  (a tie — needs a fallback to `none` at low confidence). Both are tool fixes, card `jev/promises-fixes`.
+- **Test-title bugs found by writing promises:** titles that say what does not happen, "still"/"as before" titles,
+  a title naming internals (`the settlement reducer handles a primitive body cause`), one vacuous assertion
+  (`expect(true).toBe(true)` in the nested-tree overflow test). Card `tests/core-titles`.
+- **Judge shapes the core writer called wrong** (labeled false, so calibration will weigh them): `helperAlone` on
+  `tag.read`/`parse` tests (those ARE the public seam for static meta and for admission); `negativeTwin` on tests
+  that assert a promised absence as a value (deep-chain budgets, "never publishes"); `reprovesSamePromise` on
+  pairs that differ by path (declared op vs inline config; child vs grandchild depth).
+- **Type-level tests:** kept, with a runtime half added — the convention's "do not test what types guarantee"
+  targets literals construction already proves, not an inferred generic across a seam (ADR 0044, 0050/0051).
+- The case bank hit its second append conflict in a day: resolve as a union by id (a helper for it belongs in
+  `label.mjs`; card `jev/promises-fixes` carries it).
