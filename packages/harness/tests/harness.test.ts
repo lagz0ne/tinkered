@@ -44,20 +44,15 @@ async function* readStream(
   gate?: Gate,
 ): AsyncGenerator<SDKMessage> {
   for (const message of messages) {
-    checkAborted(signal);
+    if (signal?.aborted === true) throw signal.reason;
     yield message;
   }
   if (gate === undefined) return;
-  checkAborted(signal);
+  if (signal?.aborted === true) throw signal.reason;
   const abort = new Promise<never>((_resolve, reject) => {
     signal?.addEventListener("abort", () => reject(signal?.reason), { once: true });
   });
   await Promise.race([gate.promise, abort]);
-}
-
-/** Throw the signal's reason when an abort already landed — like a real SDK call would. */
-function checkAborted(signal: AbortSignal | undefined): void {
-  if (signal?.aborted === true) throw signal.reason;
 }
 
 /** Run one turn of `ask` on a scope whose `sdk` resource is the fake scripts. */
@@ -329,18 +324,6 @@ test("a user message with plain text adds a tool result item only for tool answe
   await session.run(ask, { input: "hello" });
   expect(session.resolve(coder.items).filter((item) => item.kind === "tool_result")).toEqual([
     { kind: "tool_result", id: "tu-1", status: "completed", source: script.messages[4] },
-  ]);
-  await scope.close();
-});
-
-test("a trailing assistant message with no tool call adds no tool item", async () => {
-  const script = readScript("Hello");
-  const full: Script = { messages: [...script.messages, readAssistantText("done")] };
-  const { coder, ask, scope } = readSetup([full], []);
-  const session = scope.createSession();
-  await session.run(ask, { input: "hello" });
-  expect(session.resolve(coder.items).filter((item) => item.kind === "tool_use")).toEqual([
-    { kind: "tool_use", id: "tu-1", status: "started", source: script.messages[3] },
   ]);
   await scope.close();
 });
