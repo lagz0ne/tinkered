@@ -1,16 +1,14 @@
-// Impact chain for the lead review (ADR 0047:
-// docs/decisions/0047-the-impact-chain-a-plan-declares-its-blast-radius-scip-diffs-it-jev-judges-each-mismatch.md).
+// Impact diff for the lead review (ADR 0047, narrowed by ADR 0054: plain code only).
 // Compares the plan's declared blast radius (the ```impact <tag> block in the track's
-// PROGRESS.md) against SCIP's actual refs per symbol, then asks Jev ONE boolean per
-// discrepancy; a fixed mapping turns the answer into a verdict (plan wrong / source
-// wrong / unclear -> human). ADVISORY ONLY — always exits 0, never a gate.
+// PROGRESS.md) against SCIP's actual refs per symbol and prints every discrepancy —
+// a file the plan named or the code touched, not both. The lead decides which side is
+// wrong; no model call. ADVISORY ONLY — always exits 0, never a gate.
 //
-//   node tools/jev/impact.mjs <tag> [range] [--goal "<text>"] [--block <file>]
+//   node tools/jev/impact.mjs <tag> [range] [--block <file>]
 //   range defaults to <tag>~1..<tag> (or HEAD~1..HEAD when the tag does not exist).
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { execFileSync, execSync } from "node:child_process";
-import { loadKey, ask, message, fileAt, pct } from "./lib.mjs";
 
 function progressFiles() {
   try {
@@ -161,71 +159,6 @@ function findDiscrepancies(lines, actuals, undeclared) {
   return out;
 }
 
-/** Fixed mapping from the Jev boolean to a verdict (ADR 0047 table). */
-function mapVerdict(kind, p) {
-  if (p > 0.4 && p < 0.6) return { verdict: "unclear → human", side: "unclear" };
-  const yes = p >= 0.5;
-  if (kind === "unexpected")
-    return yes
-      ? { verdict: "PLAN wrong (under-scoped)", side: "plan" }
-      : { verdict: "SOURCE wrong (over-built)", side: "source" };
-  if (kind === "missing")
-    return yes
-      ? { verdict: "SOURCE wrong (under-built)", side: "source" }
-      : { verdict: "PLAN wrong (over-scoped)", side: "plan" };
-  return yes
-    ? { verdict: "PLAN wrong", side: "plan" }
-    : { verdict: "SOURCE wrong", side: "source" };
-}
-
-/** Evidence for one discrepancy: the range's diff for the file, or the file's
- *  content at the range's right side when the diff is empty (a `missing` file). */
-function evidence(range, d) {
-  try {
-    const hunk = execFileSync("git", ["diff", range, "--", `packages/${d.pkg}/${d.file}`], {
-      encoding: "utf8",
-      maxBuffer: 4 * 1024 * 1024,
-    }).slice(0, 4000);
-    if (hunk.trim()) return hunk;
-  } catch {
-    /* fall through to fileAt */
-  }
-  return fileAt(range, `packages/${d.pkg}/${d.file}`).slice(0, 2000);
-}
-
-/** One Jev boolean per discrepancy; the verdict itself is never the model's. */
-async function judge(goal, range, d) {
-  const fresh = d.kind === "undeclared";
-  const q = {
-    type: "boolean",
-    instructions: fresh
-      ? `Does achieving the goal require a new public symbol named \`${d.symbol}\`?`
-      : `Does achieving the goal require the symbol \`${d.symbol}\` to be referenced in the file \`${d.file}\`?`,
-    criteria: fresh
-      ? {
-          true: "the goal needs this new public symbol",
-          false: "the goal is complete without this new public symbol",
-        }
-      : {
-          true: "the goal needs this symbol used or defined in this file",
-          false: "the goal is complete without this symbol in this file",
-        },
-  };
-  const hunk = evidence(range, d);
-  const answers = await ask({ goal, symbol: d.symbol, file: d.file, kind: d.kind, hunk }, { q });
-  const p = answers.q.probability;
-  return { ...d, prob: p, ...mapVerdict(d.kind, p) };
-}
-
-function verdictOf(results) {
-  const sides = new Set(results.map((r) => r.side));
-  if (sides.has("unclear")) return "unclear → human";
-  if (sides.has("plan") && sides.has("source")) return "both";
-  if (sides.has("plan")) return "plan wrong";
-  if (sides.has("source")) return "source wrong";
-  return "neither";
-}
-
 function takeFlag(args, i, out, key) {
   if (args[i] === `--${key}`) {
     out[key] = args[i + 1] ?? "";
@@ -235,16 +168,16 @@ function takeFlag(args, i, out, key) {
 }
 
 function parseArgs(args) {
-  const out = { goal: "", block: "" };
+  const out = { block: "" };
   const positional = [];
   for (let i = 0; i < args.length; i++) {
-    const skip = takeFlag(args, i, out, "goal") || takeFlag(args, i, out, "block");
+    const skip = takeFlag(args, i, out, "block");
     if (skip) i += skip - 1;
     else if (!args[i].startsWith("--")) positional.push(args[i]);
   }
   const tag = positional[0] ?? "";
   const rangeArg = positional[1] ?? "";
-  return { tag, rangeArg, goalArg: out.goal, blockFile: out.block };
+  return { tag, rangeArg, blockFile: out.block };
 }
 
 function tagExists(tag) {
@@ -265,32 +198,29 @@ function indexPkg(pkg) {
 }
 
 function printUsage() {
-  console.error(
-    'usage: node tools/jev/impact.mjs <tag> [range] [--goal "<text>"] [--block <file>]',
-  );
+  console.error("usage: node tools/jev/impact.mjs <tag> [range] [--block <file>]");
 }
 
-function resolveRun(tag, rangeArg, goalArg, blockFile) {
+function resolveRun(tag, rangeArg, blockFile) {
   if (!tag) return { error: true };
   const lines = readBlock(tag, blockFile);
   if (!lines) return { empty: true };
   const range = rangeArg || (tagExists(tag) ? `${tag}~1..${tag}` : "HEAD~1..HEAD");
-  return { lines, range, goal: goalArg || message(range) };
+  return { lines, range };
 }
 
 function reportClean(tag, lines) {
   lines.forEach((l) => console.log(`  ✓ ${l.symbol}: as planned`));
-  console.log(`jev impact ${tag}: neither (0 discrepancies). Advisory — never a gate.`);
+  console.log(`impact ${tag}: as planned (0 discrepancies). Advisory — never a gate.`);
 }
 
-async function reportJudged(tag, goal, range, discs) {
-  const results = [];
-  for (const d of discs) results.push(await judge(goal, range, d));
-  results.forEach((r) =>
-    console.log(`  ⚠ ${r.symbol} ${r.kind} ${r.file} → ${r.verdict} (Jev ${pct(r.prob)})`),
-  );
+/** One line per discrepancy: `unexpected` (the code touched a file the plan did not name),
+ *  `missing` (the plan named a file the code never touched), `undeclared` (a new public
+ *  symbol outside the block). The lead reads the diff and decides which side is wrong. */
+function reportDiscrepancies(tag, discs) {
+  discs.forEach((d) => console.log(`  ⚠ ${d.symbol} ${d.kind} ${d.file}`));
   console.log(
-    `jev impact ${tag}: ${verdictOf(results)} (${discs.length} discrepancies). Advisory — never a gate.`,
+    `impact ${tag}: ${discs.length} discrepancies — plan or source, the lead decides. Advisory — never a gate.`,
   );
 }
 
@@ -302,9 +232,9 @@ function collect(lines, range) {
   return findDiscrepancies(lines, actuals, undeclared);
 }
 
-async function main() {
-  const { tag, rangeArg, goalArg, blockFile } = parseArgs(process.argv.slice(2));
-  const run = resolveRun(tag, rangeArg, goalArg, blockFile);
+function main() {
+  const { tag, rangeArg, blockFile } = parseArgs(process.argv.slice(2));
+  const run = resolveRun(tag, rangeArg, blockFile);
   if (run.error) {
     printUsage();
     process.exit(0);
@@ -318,16 +248,13 @@ async function main() {
     reportClean(tag, run.lines);
     process.exit(0);
   }
-  if (!loadKey()) {
-    discs.forEach((d) => console.log(`  ⚠ ${d.symbol} ${d.kind} ${d.file}`));
-    console.log("no key — verdicts skipped");
-    process.exit(0);
-  }
-  await reportJudged(tag, run.goal, run.range, discs);
+  reportDiscrepancies(tag, discs);
   process.exit(0);
 }
 
-main().catch((e) => {
-  console.error(`jev impact: ${e?.message ?? e} — advisory only`);
+try {
+  main();
+} catch (e) {
+  console.error(`impact: ${e?.message ?? e} — advisory only`);
   process.exit(0);
-});
+}

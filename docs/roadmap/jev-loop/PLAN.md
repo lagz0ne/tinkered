@@ -34,7 +34,6 @@ Proven on labeled cases (2026-09-18, `pilot/side-projects/jev-probe/eval.mjs`):
 
 | Phase          | Script                        | What it does                                                                                   | Truth still owned by            |
 | -------------- | ----------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------- |
-| Planning       | `plan-check.mjs <file>`       | defect questions on a plan/ADR/ticket + glossary (uncalibrated)                                | the human author                |
 | Implementation | `preflight.mjs [range]`       | contributor self-check: file judges + per-unit lint on the diff                                | `vp check` / tests / `validate` |
 | Verification   | `review.mjs [range]`          | judge set per file + gated route + overclaim                                                   | `scripts/ticket.sh` + lead      |
 | Writing        | `blueprint suggest "<logic>"` | which unit should this be (data / resource / operation / tag / glue), target, needs defer      | the author + the one law        |

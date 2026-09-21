@@ -261,63 +261,24 @@ export const TESTS = {
     q: {
       type: "boolean",
       instructions:
-        "Does this test exercise a builder, guard, reader, or helper by itself — constructing a value and asserting its fields — instead of a behaviour that uses it through the public seam?",
+        "Is the subject of this test a helper's own output — a builder's record, a guard's boolean, a reader's parse — asserted with no behaviour around it? The seam is the package entry (`src/index.ts`): a test that calls an exported function or resolves a scope through the entry and asserts what comes back is AT the seam, even when the input is an inline literal. Only a test that imports a private module, or builds a value with a helper and then asserts that helper's fields, is a helper tested alone.",
       criteria: {
-        true: "the test's subject is a helper's own output (a built record, a guard's boolean, a reader's parse) with no behaviour around it",
+        true: "the test imports a private module, or builds a value with a helper and asserts that helper's own fields, with no exported behaviour in between",
         false:
-          "the test runs a behaviour a user could trigger and asserts its outcome; helpers are only on the way",
+          "the test calls an exported function or runs a scope through the package entry and asserts the outcome; helpers, fixtures, and inline literals are only on the way",
       },
     },
   },
-  manyCauses: {
+  titleVague: {
     threshold: 0.5,
     q: {
       type: "boolean",
       instructions:
-        "Does this test bundle two or more unrelated causes — separate inputs whose outcomes do not depend on each other — so that it names more than one promise?",
+        "Does the title fail to name the outcome the body's decisive assertion checks — a vague verb (works, handles, supports, correctly), a mechanism instead of a result, or a claim the body never asserts?",
       criteria: {
-        true: "several independent set-ups each with their own assertions, joined only by the test body",
-        false: "one cause and one decisive outcome, possibly checked by several short assertions",
-      },
-    },
-  },
-  typeGuarantee: {
-    threshold: 0.5,
-    q: {
-      type: "boolean",
-      instructions:
-        "Does this test assert something the TypeScript types already guarantee — a literal discriminant right after constructing that variant, a field equal to the argument that set it, a return type's shape?",
-      criteria: {
-        true: "an assertion that cannot fail once the code compiles",
-        false: "every assertion checks a runtime outcome the types leave open",
-      },
-    },
-  },
-  negativeTwin: {
-    threshold: 0.5,
-    q: {
-      type: "boolean",
-      instructions:
-        "Does this test prove only the absence of an unrelated failure or the falsity of a guard (a negative twin), adding nothing a positive test did not already prove?",
-      criteria: {
-        true: "the decisive assertion is that some other error did not happen or that a guard returns false",
-        false: "the decisive assertion is a promised value, state, or event",
-      },
-    },
-  },
-};
-
-/** Pairwise: do two tests in one file prove the same shipped promise from a second angle? */
-export const TEST_PAIR = {
-  reprovesSamePromise: {
-    threshold: 0.5,
-    q: {
-      type: "boolean",
-      instructions:
-        "Do these two tests prove the same shipped promise — the second merely checking it again from another angle (count then contents, toBe then toEqual, positive then negative), so that deleting one loses no promise?",
-      criteria: {
-        true: "one promise, two tests; deleting either keeps every promise covered",
-        false: "each test names a promise the other does not",
+        true: "a reader cannot tell from the title alone what value, state, error, or exit the body proves, or the title claims something the assertions do not check",
+        false:
+          "the title states the cause and the checked outcome in plain words, and the decisive assertion checks exactly that",
       },
     },
   },

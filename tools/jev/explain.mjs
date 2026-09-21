@@ -5,7 +5,7 @@
 //   node tools/jev/explain.mjs [--md]      (--md: a markdown table for the README)
 import { existsSync, readFileSync } from "node:fs";
 import { JUDGES, readCalibration } from "./lib.mjs";
-import { LINT, GUIDE, TESTS, TEST_PAIR, SURVIVORS } from "./bank.mjs";
+import { LINT, GUIDE, TESTS, SURVIVORS } from "./bank.mjs";
 
 const md = process.argv.includes("--md");
 const status = readCalibration();
@@ -17,7 +17,6 @@ const GROUPS = [
     LINT,
   ],
   ["test judges — tests.mjs, one call per test", TESTS],
-  ["test pair judge — tests.mjs, one call per title-similar pair in a file", TEST_PAIR],
   ["survivor judge — survivors.mjs, one call per surviving mutant", SURVIVORS],
 ];
 

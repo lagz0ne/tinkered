@@ -147,8 +147,9 @@ questions: `node tools/jev/explain.mjs`.
   one line, then labeled: `node tools/jev/label.mjs <judge> true|false <file>[#<unit|title>]`. A `~` hit is a
   judge calibration found noisy: read it, no line owed.
 - **Lead, at review:** `review.mjs`, and a label for each nit a judge covers.
-- **Lead, every ~10 new cases:** `node tools/jev/calibrate.mjs`, commit `calibration.json`. Calibration
-  re-asks every judge about every labeled case and grades it `proven`, `provisional`, or `noisy`. Only a
+- **Lead, at every landing that adds labels:** `node tools/jev/calibrate.mjs`, commit `calibration.json`
+  (ADR 0054). Calibration re-asks every judge about every labeled case and grades it `proven`,
+  `provisional`, or `noisy`. A judge `noisy` on ten or more cases is reworded once, then retired. Only a
   `proven` judge could ever block — none does today.
 - **Rules:** no per-ticket rule in `tools/jev`. If plain code can check it, plain code checks it; Jev gets
   only what code cannot see.

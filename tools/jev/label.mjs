@@ -60,7 +60,6 @@ if (args.includes("--merge")) {
 import {
   LINT,
   TESTS,
-  TEST_PAIR,
   SURVIVORS,
   slice,
   sliceTests,
@@ -84,7 +83,7 @@ if (!judge || !["true", "false"].includes(labelWord ?? "") || !target) {
   process.exit(1);
 }
 const isUnitJudge = judge in LINT;
-const isTestJudge = judge in TESTS || judge in TEST_PAIR;
+const isTestJudge = judge in TESTS;
 const isSurvivorJudge = judge in SURVIVORS;
 if (!isUnitJudge && !isTestJudge && !isSurvivorJudge && !(judge in JUDGES)) {
   console.error(
@@ -98,24 +97,21 @@ const code = ref
   ? execFileSync("git", ["show", `${ref}:${file}`], { encoding: "utf8" })
   : readFileSync(file, "utf8");
 
-/** A test judge's state: the test whose title starts with the `#` part (a pair judge takes `a|b` titles). */
+/** A test judge's state: the test whose title starts with the `#` part, in the same shape
+ * `tests.mjs` sends (title, causes, asserts, narrows, body). */
 function readTestState() {
-  const tests = sliceTests(code);
-  const pick = (prefix) => tests.find((t) => t.title.startsWith(prefix));
-  if (judge in TEST_PAIR) {
-    const [a, b] = (unitName ?? "").split("|").map((p) => pick(p.trim()));
-    if (!a || !b) {
-      console.error(`label: ${judge} needs ${file}#<title a>|<title b>`);
-      process.exit(1);
-    }
-    return { a: { title: a.title, body: a.body }, b: { title: b.title, body: b.body } };
-  }
-  const t = pick(unitName ?? "");
+  const t = sliceTests(code).find((test) => test.title.startsWith(unitName ?? ""));
   if (!t) {
     console.error(`label: no test titled "${unitName}…" in ${file}`);
     process.exit(1);
   }
-  return { title: t.title, body: t.body };
+  return {
+    title: t.title,
+    causes: t.causes,
+    asserts: t.asserts.map((a) => `${a.subject}${a.not ? ".not" : ""}.${a.matcher}(${a.arg})`),
+    narrows: t.narrows,
+    body: t.body,
+  };
 }
 
 /** The state the judge sees: a unit judge gets the sliced unit; a test judge the test; a survivor judge the sliced survivor; a file judge the file. */

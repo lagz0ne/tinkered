@@ -11,12 +11,11 @@
     "tests": "node tests.mjs",
     "promises": "node promises.mjs",
     "impact": "node impact.mjs",
-    "plan-check": "node plan-check.mjs",
     "label": "node label.mjs",
     "calibrate": "node calibrate.mjs",
     "survivors": "node survivors.mjs",
     "explain": "node explain.mjs",
-    "eval": "node evals/lint.mjs && node evals/impact.mjs"
+    "eval": "node evals/lint.mjs"
   },
   "dependencies": {
     "ai": "catalog:",

@@ -188,5 +188,15 @@
     "separation": -0.24,
     "ordered": 0,
     "at": "2026-09-21"
+  },
+  "titleVague": {
+    "status": "noisy",
+    "trues": 2,
+    "falses": 2,
+    "medianTrue": 0.71,
+    "medianFalse": 0.55,
+    "separation": 0.16,
+    "ordered": 1,
+    "at": "2026-09-21"
   }
 }

@@ -10,7 +10,7 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadKey, ask, pct, readCalibration } from "./lib.mjs";
-import { TESTS, TEST_PAIR } from "./bank.mjs";
+import { TESTS } from "./bank.mjs";
 import { tests as extractTests, helpers, imports } from "./extract.mjs";
 
 const args = process.argv.slice(2);
@@ -20,7 +20,6 @@ if (targets.length === 0) {
   process.exit(1);
 }
 const opt = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
-const PAIRS = Number(opt("--pairs", 8));
 const jsonOut = opt("--json");
 const CALIBRATION = readCalibration();
 const mark = (id) => (CALIBRATION[id]?.status === "noisy" ? "~" : "");
@@ -89,18 +88,6 @@ const stems = (s) =>
       .map((w) => w.replace(/(ies|es|s|ed|ing)$/, "")),
   );
 
-/** The most title-similar pairs in one file, up to PAIRS, for the pairwise judge. */
-function similarPairs(tests) {
-  const scored = [];
-  for (let i = 0; i < tests.length; i++)
-    for (let j = i + 1; j < tests.length; j++) {
-      const a = stems(tests[i].title);
-      const shared = [...stems(tests[j].title)].filter((w) => a.has(w)).length;
-      if (shared >= 2) scored.push({ a: tests[i], b: tests[j], shared });
-    }
-  return scored.sort((x, y) => y.shared - x.shared).slice(0, PAIRS);
-}
-
 async function judgeTest(t) {
   const facts = {
     title: t.title,
@@ -118,17 +105,6 @@ async function judgeTest(t) {
     .map(([id]) => `${mark(id)}${id} ${pct(answers[id].probability)}`);
 }
 
-async function judgePair(p) {
-  const id = "reprovesSamePromise";
-  const a = (
-    await ask(
-      { a: { title: p.a.title, body: p.a.body }, b: { title: p.b.title, body: p.b.body } },
-      { [id]: TEST_PAIR[id].q },
-    )
-  )[id];
-  return a.probability >= TEST_PAIR[id].threshold ? `${mark(id)}${id} ${pct(a.probability)}` : null;
-}
-
 if (!loadKey()) process.exit(0);
 const report = [];
 for (const file of targets.flatMap(readFiles)) {
@@ -142,12 +118,6 @@ for (const file of targets.flatMap(readFiles)) {
     console.log(
       `  ${notes.length ? "⚠" : "✓"} L${t.line} ${t.title}${notes.length ? `  — ${notes.join(", ")}` : ""}`,
     );
-  }
-  for (const p of similarPairs(tests)) {
-    const hit = await judgePair(p);
-    if (!hit) continue;
-    report.push({ file, line: p.a.line, title: `${p.a.title} ↔ ${p.b.title}`, notes: [hit] });
-    console.log(`  ⚠ L${p.a.line} ↔ L${p.b.line}  ${hit}: "${p.a.title}" / "${p.b.title}"`);
   }
 }
 const flagged = report.filter((r) => r.notes.some((n) => !n.startsWith("~"))).length;
