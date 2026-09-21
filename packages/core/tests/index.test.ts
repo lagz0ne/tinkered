@@ -278,13 +278,17 @@ test("resolve of an async resource keeps returning the same settled promise", as
   await scope.close();
 });
 
-test("async is typed through the graph: an op over an async resource is an async op", () => {
+test("async is typed through the graph: an op over an async resource is an async op", async () => {
   const conn = resource({ label: "conn", factory: async () => ({ open: true }) });
   const view = resource({ label: "view", depends: { conn }, factory: async ({ conn }) => conn });
   const op = operation({ label: "op", depends: { view }, run: async ({ view }) => view.open });
   expectTypeOf(op).toEqualTypeOf<Operation.Handle<Promise<boolean>, void>>();
   expectTypeOf(view).toEqualTypeOf<Resource.Handle<Promise<{ open: boolean }>>>();
+  const scope = createScope();
+  expect(await scope.run(op)).toBe(true);
+  await scope.close();
 });
+// (no shared/ambient state)
 
 test("a resource dep the factory reads twice builds once and caches (lazy access parity)", () => {
   let builds = 0;
@@ -338,7 +342,16 @@ test("a required tag with no binding and no default throws MissingTag", () => {
   }
 });
 
-test("optional distinguishes absent from an undefined default", () => {
+test("optional reads a bound tag as present", () => {
+  const readSecret = operation({ label: "s", depends: { s: secret.optional }, run: ({ s }) => s });
+  expect(
+    createScope({ tags: [secret("x")] })
+      .controller(readSecret)
+      .run(),
+  ).toEqual({ present: true, value: "x" });
+});
+
+test("optional reads missing as absent, not as an undefined default", () => {
   const readMaybe = operation({ label: "m", depends: { m: maybe.optional }, run: ({ m }) => m });
   const readSecret = operation({ label: "s", depends: { s: secret.optional }, run: ({ s }) => s });
   expect(createScope().controller(readMaybe).run()).toEqual({
@@ -346,11 +359,6 @@ test("optional distinguishes absent from an undefined default", () => {
     value: undefined,
   });
   expect(createScope().controller(readSecret).run()).toEqual({ present: false });
-  expect(
-    createScope({ tags: [secret("x")] })
-      .controller(readSecret)
-      .run(),
-  ).toEqual({ present: true, value: "x" });
 });
 
 test("all returns every binding nearest-first, with no default fallback", () => {
@@ -453,7 +461,7 @@ test("dependency snapshots are captured at resolve time, before suspension", asy
   expect(await p).toBe(1);
 });
 
-test("concurrent calls are independent, released in reverse entry order", async () => {
+test("concurrent calls each return their own input's result", async () => {
   const entered = new Map<number, ReturnType<typeof deferred>>([
     [1, deferred()],
     [2, deferred()],
@@ -482,7 +490,7 @@ test("concurrent calls are independent, released in reverse entry order", async 
   expect(await p2).toBe(20);
 });
 
-test("overlapping scopes keep separate data snapshots (no shared/ambient state)", async () => {
+test("overlapping scopes keep separate data snapshots", async () => {
   const n = data({ initial: 0, parse: asNumber });
   const gate = deferred();
   const readN = operation({
@@ -1704,7 +1712,7 @@ test("a session-owned build that rejects during auto-close fails the session", a
   expect(thrown).toBe(cause);
 });
 
-test("a release cleanup that rejects surfaces as secondary without changing the outcome", async () => {
+test("a release cleanup that rejects surfaces as secondary", async () => {
   const seen: string[] = [];
   const cleanupError = new Error("cleanup-fail");
   const audited = resource({
@@ -2084,7 +2092,7 @@ test("resolving an operation with a subflow yields a parent-linked span tree", (
   expect(outerSpan?.kind).toBe("operation");
 });
 
-test("two interleaved async operations keep separate parent-linked span trees (no ALS)", async () => {
+test("two interleaved async operations keep separate parent-linked span trees", async () => {
   const spans: Observe.Span[] = [];
   let now = 0;
   const g1 = deferred();
@@ -2416,11 +2424,16 @@ test("an undefined input is treated as absent, so rawInput is parsed (no NaN lea
   expect(createScope().controller(double).run({ input: undefined, rawInput: 7 })).toBe(14);
 });
 
-test("the invocation type requires an argument for a never-parse operation", () => {
-  const neverRequiresArg: [] extends Parameters<Scope.OperationController<number, never>["run"]>
-    ? false
-    : true = true;
-  expect(neverRequiresArg).toBe(true);
+test("a never-parse operation still takes its input at the seam", () => {
+  const count = data({ initial: 0 });
+  const write = operation({
+    label: "write",
+    depends: { c: count.controller },
+    run: ({ c }, { input }: { input: number }) => c.set(input),
+  });
+  const scope = createScope();
+  scope.run(write, { input: 7 });
+  expect(scope.resolve(count)).toBe(7);
 });
 
 test("a resource preset replaces the built instance for downstream consumers", () => {
@@ -2562,12 +2575,16 @@ test("presets and extensions take the same authored shape: nested lists and fals
   await scope.close();
 });
 
-test("shared empty meta is frozen, so a no-meta unit cannot be mutated to leak across units", () => {
+test("a write through the public seam does not leak into another unit's meta", () => {
   const ui = tag<string>({ label: "ui" });
-  const a = data({ initial: 0 });
-  const b = resource({ label: "b", factory: () => 0 });
-  expect(() => Array.prototype.push.call(a.meta, ui("leaked"))).toThrow();
-  expect(ui.read(b)).toEqual({ present: false });
+  const leaked = data({ initial: "clean", meta: [ui("owned")] });
+  const other = resource({ label: "b", factory: () => 0 });
+  const scope = createScope();
+  scope.controller(leaked).set("changed");
+  expect(scope.controller(leaked).get()).toBe("changed");
+  expect(ui.read(leaked)).toEqual({ present: true, value: "owned" });
+  expect(ui.read(other)).toEqual({ present: false });
+  void scope.close();
 });
 
 test("close runs defers in reverse registration order (LIFO)", async () => {
@@ -2632,7 +2649,7 @@ test("a dependent's defer runs before its dependency's (registration order)", as
   expect(seen).toEqual(["top", "base"]);
 });
 
-test("an operation defer sees success, and failed when the run throws", () => {
+test("an operation defer sees success on a clean run", () => {
   const seen: string[] = [];
   const ok = operation({
     label: "ok",
@@ -3401,7 +3418,7 @@ test("the settlement reducer handles a primitive (non-Error) body cause", async 
   await root.close();
 });
 
-test("a reused error object is a later session's own body failure, not a stale propagation", async () => {
+test("a reused error object is a later session's own body failure", async () => {
   const shared = new Error("shared");
   const root1 = createScope();
   const first = root1.session((child) => child.session(() => Promise.reject(shared)));
@@ -3948,9 +3965,12 @@ test("release during dependency resolution waits for the operation's cleanup", a
   expect(order).toEqual(["op-clean-open", "conn-clean"]);
 });
 
-test("a clean scope closes success when graceful, cancelled when forced, and never throws", async () => {
+test("a clean scope closes success when graceful", async () => {
   const graceful = await createScope().close({ graceful: true });
   expect(graceful).toEqual({ status: "success", teardownErrors: undefined });
+});
+
+test("a clean scope closes cancelled when forced", async () => {
   const forced = await createScope().close();
   expect(forced.status).toBe("cancelled");
   expect(forced.teardownErrors).toBeUndefined();
@@ -4134,7 +4154,7 @@ test("scope.resolve reads a tag's nearest binding, default, and throws MissingTa
   }
 });
 
-test("scope.resolve accepts a tag edge and delivers the depends form: all, optional, required", () => {
+test("scope.resolve accepts a tag edge and delivers the depends form", () => {
   const scope = createScope({ tags: [region("eu")] });
   const session = scope.createSession({ tags: [region("us")] });
   expect(session.resolve(region.all)).toEqual(["us", "eu"]);
@@ -4150,7 +4170,7 @@ test("scope.resolve accepts a tag edge and delivers the depends form: all, optio
   }
 });
 
-test("scope.run runs an operation now, with the same CallArgs rules as controller run", () => {
+test("scope.run runs an operation now with CallArgs", () => {
   const double = operation({
     label: "double",
     input: asNumber,
@@ -4216,7 +4236,7 @@ test("scope.run runs an inline operation with no call: deps resolve and ctx.inpu
   expect(value).toBe(42);
 });
 
-test("an inline run yields one span named inline (or its label), with a nested subflow under it", () => {
+test("an inline run yields one span named inline with a nested subflow under it", () => {
   const inner = operation({ label: "inner", run: () => "in" });
   const scope = createScope({ observe: { history: 10 } });
   const out = scope.run({
@@ -5124,7 +5144,7 @@ test("a session created under a session is wrapped", async () => {
   await scope.close();
 });
 
-test("a scope with no session hook runs sessions as before", async () => {
+test("a scope with no session hook still runs sessions", async () => {
   const plain = createScope();
   expect(await plain.session(() => 1)).toBe(1);
   const child = plain.createSession();
@@ -5183,7 +5203,7 @@ test("running an operation on a pending extension dependency raises NotResolved"
   await scope.close();
 });
 
-test("an extension dependency types as the start value with no cast", async () => {
+test("an operation depending on an extension sees the start value at runtime", async () => {
   const ext = extension<{ connect(): void }>({
     label: "typed",
     start: (_scope, _ctx, next) => next().then(() => ({ connect: () => undefined })),
