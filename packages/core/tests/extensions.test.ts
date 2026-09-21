@@ -162,3 +162,41 @@ test("a forced close with a close hook still settles cancelled", async () => {
   expect(result.status).toBe("cancelled");
   expect(seen).toEqual(["cancelled"]);
 });
+
+test("a close chain runs past an extension with no close hook", async () => {
+  const order: string[] = [];
+  const plain = extension({ label: "plain" });
+  const closer = extension({
+    label: "closer",
+    close: async (_opts, next) => {
+      order.push("before");
+      const result = await next();
+      order.push("after");
+      return result;
+    },
+  });
+  const scope = createScope({ extensions: [plain, closer] });
+  await scope.ready;
+  await scope.close({ graceful: true });
+  expect(order).toEqual(["before", "after"]);
+});
+
+test("a resolve chain runs past an extension with no resolve hook", async () => {
+  const cell = data({ initial: 5, parse: asNumber });
+  const order: string[] = [];
+  const plain = extension({ label: "plain" });
+  const wrap = extension({
+    label: "wrap",
+    resolve: (target, next) => {
+      order.push("before");
+      const value = next();
+      order.push("after");
+      return value;
+    },
+  });
+  const scope = createScope({ extensions: [plain, wrap] });
+  await scope.ready;
+  expect(scope.resolve(cell)).toBe(5);
+  expect(order).toEqual(["before", "after"]);
+  await scope.close();
+});

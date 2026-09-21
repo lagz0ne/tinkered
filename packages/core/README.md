@@ -423,3 +423,5 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - Two close hooks nest in registration order.
 - A scope with no close hooks closes straight through.
 - A forced close with a close hook still settles cancelled.
+- A close chain runs past an extension with no close hook.
+- A resolve chain runs past an extension with no resolve hook.
