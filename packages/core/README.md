@@ -165,8 +165,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A watcher sees each next value beside its previous one.
 - A write that fails `parse` throws `DataValidationFailed` naming the cell, and the value stays.
 - A watcher fires once per real change: an equal write fires nothing, and stopping ends it.
-- A watcher measures against the value at subscribe time: one that joins while dirty fires when the value
-  returns, one that joins clean fires on the next change.
+- A watcher measures against the value at subscribe time: joining dirty fires when the value returns,
+  joining clean fires on the next change.
 - The same listener subscribed twice fires twice; each stop ends one subscription.
 - An operation can write a cell over time; watchers see each write.
 - Two scopes keep separate data: a write in one never shows in the other.
@@ -174,8 +174,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 
 ### Tags
 
-- A tag reads the nearest binding, in an operation or through the scope seam, or its default; with neither
-  it throws `MissingTag` naming the tag.
+- A tag reads the nearest binding, in an operation or through the seam, or its default; with neither it
+  throws `MissingTag` naming the tag.
 - Resolving a tag edge delivers its form: `all` lists nearest-first, `optional` reports presence,
   `required` reads or throws.
 - `optional` tells absent apart from an undefined default: the default reads present, the missing reads
@@ -189,40 +189,37 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 
 - A scope resource builds once; every resolve shares the one instance.
 - A resource factory sees its owner's current deps.
-- A depended-on resource builds before the body runs, whether or not the body reads it; reading it twice
-  builds once.
-- An async dependency arrives as its value: the body reads it without awaiting; an async factory's
-  thenable resolves to its awaited value.
+- A depended-on resource builds before the body runs, read or not; reading it twice builds once.
+- An async dependency arrives as its value, read without awaiting; an async factory's thenable resolves
+  to its awaited value.
 - Concurrent resolves share one in-flight build; later resolves keep the same settled instance and promise.
 - A resource that resolves itself fails with `CircularResource` naming the resource.
 - `get` before `resolve` fails with `NotResolved` naming the resource; through a closed owner it fails
-  with `Disposed`, and a resolve through a closed owner builds nothing.
+  with `Disposed`, and a resolve then builds nothing.
 - A scope-target resource is one instance shared across sessions, with one shared sticky rejection.
-- A session-target resource builds once per session, distinct across sessions; a child session's own
-  instance survives its parent's release.
+- A session-target resource builds once per session, distinct across sessions; a child's own instance
+  survives its parent's release.
 - A scope resource that needs a session-only tag fails with `MissingTag`.
 - A build in flight when released never publishes — even when the release starts inside its own factory;
   the next resolve rebuilds.
-- An old build settling late never drops its replacement, and its late rejection never detaches the
+- An old build settling late never drops its replacement; its late rejection never detaches the
   replacement's edges.
-- A rejected build is sticky: re-resolve returns the same rejection with no new build, until a release —
-  of it or of a dependency — lets it rebuild fresh.
+- A rejected build is sticky: re-resolve returns the same rejection with no new build, until a release
+  of it or of a dependency lets it rebuild fresh.
 - Releasing a resource runs its cleanup; a re-resolve builds a new instance. A sync borrower never delays
   it. Releasing a data cell resets it to its initial and notifies watchers.
 - Release drops only the resource's cleanup, never a shared `onClose` hook.
 - A release whose owner is already closing fails with `Disposed`.
-- A rejecting release cleanup surfaces as secondary: the outcome keeps its status, the error lands in
-  teardown errors.
+- A rejecting release cleanup surfaces as secondary: the status stands, the error lands in teardown errors.
 - Release cascades down: the dependent rebuilds, exactly once across diamonds, while upstream stays built;
   dependents tear down first, and the cascade re-runs no operation.
-- A throwing cleanup mid-cascade still drops every dependent's cache; a throwing watcher during release still
-  runs the cleanups.
+- A throwing cleanup mid-cascade still drops every dependent's cache; a throwing watcher still runs
+  the cleanups.
 - Releasing a scope resource cascades into each session's dependents; an uninvolved session keeps its
-  instance, a closed or closing session is skipped while the others still release.
+  instance, a closed or closing one is skipped while the others still release.
 - A release waits for a borrower: a running cross-owner operation keeps the resource and its scope
   dependency alive through their cleanups; teardown runs borrower-first.
-- A build superseded while in flight leaves the rebuilt instance alive: its late cleanup never drops the
-  replacement.
+- A build superseded in flight leaves the rebuilt instance alive: its late cleanup never drops it.
 - A release nested inside a release cleanup never hangs close, nor does a session cleanup closing the
   root; closing another scope from a cleanup still awaits its real teardown.
 - A resource preset replaces the built instance, builds once per owner, sees the resolved deps, resolves
@@ -241,14 +238,14 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - An operation preset replaces the run for a direct call, a downstream subflow, and an inline config.
 - An inline run resolves deps, delivers the full context, and shares nothing between runs; with no call,
   `ctx.input` is void. A tagged inline run sees the call's tags; a preset arrives through its deps.
-- A tagged call binds the whole flow: the run, a subflow, and a nested subflow all read the call's tags, and
-  a tagged call is always async even for a sync operation.
+- A tagged call binds the whole flow: run, subflow, and nested subflow all read the call's tags, and a
+  tagged call is always async even for a sync operation.
 - A tagged run builds session resources in the flow, scope resources at the root; an untagged run builds
   session resources at the root and opens no session; the tagged session closes with the run.
 - An operation reads the scope's clock; a resource factory does too (see Clock).
 - An operation's context exposes no borrow or drain internals.
-- An operation defer sees the run's own end: `success` on return, `failed` on throw, `cancelled` under a
-  forced close.
+- An operation defer sees the run's own end: `success` on return, `failed` on throw, `cancelled` under
+  a forced close.
 - A rejected promise with an `undefined` cause keeps that cause; a primitive body cause still settles the
   session.
 - A preset is scoped to its scope: another scope still builds the real value.
@@ -259,10 +256,9 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A nearer shadow wins for descendants below it, and the parent keeps its own value.
 - A watcher on the parent still sees the parent's later writes after a child shadows.
 - A closed scope's held controller reads the initial value back; late writes fail with `Disposed`.
-- Close runs children first, then `onClose` hooks and resource cleanups latest-first; a dependent's cleanup
-  runs before its dependency's.
-- A throwing hook or cleanup never stops the rest: every cause lands in the teardown errors, in execution
-  order.
+- Close runs children first, then `onClose` hooks and cleanups latest-first; a dependent's cleanup runs
+  before its dependency's.
+- A throwing hook or cleanup never stops the rest: every cause lands in teardown errors, in order.
 - Close is idempotent: hooks run once, a re-entering close tears down once, closing again re-reports.
 - A clean scope closes `success` when graceful, `cancelled` when forced, and never throws; a second close
   returns the same result.
@@ -275,30 +271,30 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - `session(fn)` commits on return and rolls back on throw, closes the child itself, and passes the error
   on; a throwing outcome hook keeps the outcome and aggregates its error.
 - Failed owned work fails the session with its cause; a body failure still wins for caller and hooks.
-- A failure in a nested session bubbles to the caller and rolls back the leaf; a parent collecting while a
-  descendant runs keeps its real failure and its cleanup error.
+- A failure in a nested session bubbles to the caller and rolls back the leaf; a collecting parent keeps
+  a running descendant's real failure and its cleanup error.
 - Closing a parent while a session runs joins the body: success commits, failure rolls back.
 - A session-owned build that rejects while the session closes still fails the session with its cause.
-- A session that finished before any cancel keeps its success, a settled body result survives a later
-  interrupt, and a cancelled session rejects rather than resolving undefined.
+- A session that finished before any cancel keeps its success; a settled result survives a later
+  interrupt; a cancelled session rejects rather than resolving undefined.
 - A graceful close still rolls back children of an already-failed scope; a child closing graceful after
   an ancestor abort still rolls its own resources back.
 - A failure already known before the cascade rolls back the remaining children.
 - A reused error object counts as the later session's own body failure; a child's own throw wins over a
   manual close of the same cause, which never demotes the parent's own body failure.
 - `settled` inside `session(fn)` drains owned work without waiting on the body.
-- A teardown hook may return its own `close` without hanging; concurrent closes join the one real teardown
+- A teardown hook may return its own `close` without hanging; concurrent closes join the one teardown
   and share its error.
-- A close whose owned work waits on a child's hook still completes; a cleanup closing another scope still
-  awaits that scope's real teardown and reports its error.
-- A forced close aborts in-flight work: a parked operation stops, a sleep rejects, the run's defer sees
+- A close whose owned work waits on a child's hook still completes; closing another scope from a cleanup
+  still awaits its real teardown and reports its error.
+- A forced close aborts in-flight work: a parked op stops, a sleep rejects, the run's defer sees
   `cancelled`, and close settles `cancelled`.
 
 ### Clock
 
 - An operation and a resource factory read the scope's clock.
-- The default clock reads real wall time; a test clock starts where built, moves on advance, jumps on set,
-  and keeps precise nanos; a child session reads its parent scope's clock.
+- The default clock reads real wall time; a test clock starts where built, moves on advance, jumps on
+  set, and keeps precise nanos; a child session reads its parent's clock.
 - A test-clock sleep resolves only after virtual time passes it; a zero sleep resolves at once.
 - An aborted sleep rejects with the signal's reason, on both clocks.
 
@@ -307,8 +303,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - With observation off, the context carries no span and nothing is retained.
 - With observation on, values and instances keep their identity: measuring changes nothing.
 - A subflow nests its span under its caller; two interleaved async operations keep separate trees.
-- A failed parse still closes and exports its operation span as failed; an async resource build opens and
-  closes one balanced span.
+- A failed parse still closes and exports its span as failed; an async resource build opens and closes
+  one balanced span.
 - Each caller of a shared resource links its own `used` edge; the resource builds once.
 - A throwing exporter, a rejecting async exporter, a throwing logger, and a hostile thenable never fail
   the operation and never leak a rejection.
