@@ -1,0 +1,30 @@
+- tag:
+    name: dbPath
+    promise: the db path; rebound in tests
+    why: the only environment choice the store has
+- resource:
+    name: db
+    depends: [dbPath]
+    promise: one client per scope; closed by defer
+    why: one connection for the process
+- resource:
+    name: tx
+    depends: [db]
+    target: session
+    promise: one transaction per session; commit on close
+    why: the request commit is the save; no manual commit
+- data:
+    name: issueList
+    promise: the saved issues; one writer
+    why: the view reads it; saveIssue is the only writer
+- operation:
+    name: saveIssue
+    depends: [tx, issueList]
+    promise: given input, one saved issue lands in issueList
+    why: >-
+      writes go through tx so the commit is the
+      save; issueList is updated here so the
+      view never re-lists
+    work: >-
+      parse input; insert in tx;
+      update issueList with the returned row
