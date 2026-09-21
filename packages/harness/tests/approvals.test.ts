@@ -230,7 +230,13 @@ test("an unknown message kind still lands in events and the turn resolves", asyn
     presets: [
       preset(claudeCode.sdk, async () => ({
         ...readToolSdk(),
-        query: () => readResetStream(reset),
+        query: async function* () {
+          yield readSystemInit();
+          yield reset;
+          yield readToolUse();
+          yield readToolResult();
+          yield readResult("Hello");
+        },
       })),
     ],
   });
@@ -246,12 +252,3 @@ test("an unknown message kind still lands in events and the turn resolves", asyn
   ]);
   await scope.close();
 });
-
-/** The recorded turn with a `conversation_reset` mid-stream: unknown kinds emit and continue. */
-async function* readResetStream(reset: SDKMessage): AsyncGenerator<SDKMessage> {
-  yield readSystemInit();
-  yield reset;
-  yield readToolUse();
-  yield readToolResult();
-  yield readResult("Hello");
-}
