@@ -1,15 +1,18 @@
+import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { expect, test } from "vite-plus/test";
 import { createScope, type Scope } from "@tinker/core";
 import { cli, type Cli } from "@tinker/cli";
 import { commands, readBlueprint, readUnits, verifyChecks } from "../src/index.ts";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const blueprintYaml = join(here, "..", "blueprint.yaml");
-const srcDir = join(here, "..", "src");
+/** The golden pair is the committed file and source, found through the repo root: under a
+ * mutation run this test file lives in a sandbox whose `src` is instrumented, and the pair
+ * must be the real one — the code under test is the sandbox's, the data is the repo's. */
+const repo = execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" }).trim();
+const blueprintYaml = join(repo, "packages", "blueprint", "blueprint.yaml");
+const srcDir = join(repo, "packages", "blueprint", "src");
 
 /** Run the wiring in-process and close the root, like the real cli `run` (`check.test.ts`'s
  * `answer`). `verify` depends on nothing, so no tags or presets are ever needed. */
