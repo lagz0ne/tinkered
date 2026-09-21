@@ -18,6 +18,14 @@ export declare namespace HttpResponse {
     arrayBuffer(): Promise<ArrayBuffer>;
     formData(): Promise<FormData>;
     stream(): ReadableStream<Uint8Array>;
+    /** Server-sent events from the body: WHATWG rules, generic (no `[DONE]` knowledge). */
+    sse(): AsyncIterable<HttpResponse.SseEvent>;
+  };
+  /** One server-sent event: `data` is the joined data lines; `event` and `id` when sent. */
+  export type SseEvent = {
+    readonly data: string;
+    readonly event?: string;
+    readonly id?: string;
   };
   /** A body parser for `json(parse)`: validates raw JSON into a trusted value at the process edge. */
   export type Parse<T> = Data.Parse<T>;
@@ -92,6 +100,9 @@ export function fromWeb(
       if (body === null) raise("NoBody", { status });
       return body;
     },
+    sse: async function* () {
+      yield* readSse(handle.stream());
+    },
   };
   return handle;
 }
@@ -116,6 +127,106 @@ function readMakeBody(
 ): string | Uint8Array | ReadableStream<Uint8Array> | null {
   if (body === undefined || body === null) return null;
   return body;
+}
+
+type SseFields = {
+  data: string[];
+  event: string | undefined;
+  id: string | undefined;
+};
+
+/** The field and value of one event-stream line: one optional space after the colon is
+ * dropped; a line without a colon is a field with an empty value. */
+function readSseField(line: string): { field: string; value: string } {
+  const colon = line.indexOf(":");
+  if (colon === -1) return { field: line, value: "" };
+  const value = line.slice(colon + 1);
+  return { field: line.slice(0, colon), value: value.startsWith(" ") ? value.slice(1) : value };
+}
+
+/** One event-stream field folded into the pending state: `data` appends, `event` and `id`
+ * set, any other field ignored. */
+function readSseFieldInto(state: SseFields, field: string, value: string): void {
+  if (field === "data") state.data.push(value);
+  else if (field === "event") state.event = value;
+  else if (field === "id") state.id = value;
+}
+
+/** One event-stream line folded into the pending fields: a blank line dispatches the pending
+ * event when it has data, a comment is skipped, any other line folds its field in. */
+function readSseLine(state: SseFields, line: string): HttpResponse.SseEvent | undefined {
+  if (line === "") return dispatchSse(state);
+  if (line.startsWith(":")) return undefined;
+  const { field, value } = readSseField(line);
+  readSseFieldInto(state, field, value);
+  return undefined;
+}
+
+/** The pending fields as one event, or undefined when no data arrived: always resets. */
+function dispatchSse(state: SseFields): HttpResponse.SseEvent | undefined {
+  const event = state.event;
+  const id = state.id;
+  const data = state.data.length === 0 ? undefined : state.data.join("\n");
+  state.data = [];
+  state.event = undefined;
+  state.id = undefined;
+  if (data === undefined) return undefined;
+  const out: { data: string; event?: string; id?: string } = { data };
+  if (event !== undefined) out.event = event;
+  if (id !== undefined) out.id = id;
+  return out;
+}
+
+/** Complete lines from the decoded chunks so far, keeping the unfinished tail buffered. */
+function readSseLines(buffer: string): { lines: string[]; rest: string } {
+  const lines = buffer.split(/\r\n|\r|\n/);
+  const rest = lines.pop() ?? "";
+  return { lines, rest };
+}
+
+/** Server-sent events from a byte stream: UTF-8 decoded, split on `\n`, `\r\n`, or `\r`,
+ * with the unfinished line kept between chunks and a pending event dispatched at the end. */
+async function* readSse(stream: ReadableStream<Uint8Array>): AsyncGenerator<HttpResponse.SseEvent> {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  const state: SseFields = { data: [], event: undefined, id: undefined };
+  let buffer = "";
+  try {
+    while (true) {
+      const next = await reader.read();
+      if (next.done) break;
+      buffer += decoder.decode(next.value, { stream: true });
+      const split = readSseLines(buffer);
+      buffer = split.rest;
+      yield* readSseEvents(state, split.lines);
+    }
+    yield* readSseEnd(state, buffer + decoder.decode());
+  } finally {
+    await reader.cancel();
+    reader.releaseLock();
+  }
+}
+
+/** The events dispatched by a batch of complete lines. */
+function* readSseEvents(
+  state: SseFields,
+  lines: readonly string[],
+): Generator<HttpResponse.SseEvent> {
+  for (const line of lines) {
+    const event = readSseLine(state, line);
+    if (event !== undefined) yield event;
+  }
+}
+
+/** The events left when the stream ends: the unfinished tail as one last line, then the
+ * pending fields when they hold data. */
+function* readSseEnd(state: SseFields, tail: string): Generator<HttpResponse.SseEvent> {
+  if (tail !== "") {
+    const event = readSseLine(state, tail);
+    if (event !== undefined) yield event;
+  }
+  const last = dispatchSse(state);
+  if (last !== undefined) yield last;
 }
 
 /** The response constructors plus the status readers: `HttpResponse.fromWeb(...)`,
