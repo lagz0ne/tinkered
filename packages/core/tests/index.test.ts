@@ -3470,7 +3470,7 @@ test("the settlement reducer handles a primitive (non-Error) body cause", async 
   await root.close();
 });
 
-test("a reused error object is a later session's own body failure", async () => {
+test("a reused error object is a later session's own failure", async () => {
   const shared = new Error("shared");
   const root1 = createScope();
   const first = root1.session((child) => child.session(() => Promise.reject(shared)));
@@ -3502,6 +3502,26 @@ test("a reused error object is a later session's own body failure", async () => 
   );
   await root2.close();
   expect.soft(await caught).toBe(shared);
+});
+
+test("a later session's teardown records its own body failure", async () => {
+  const shared = new Error("shared");
+  const seen: Scope.End[] = [];
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    factory: (_deps, { defer }) => {
+      defer((end) => void seen.push(end));
+      return 1;
+    },
+  });
+  const root = createScope();
+  const done = root.session(async (child) => {
+    child.resolve(tx);
+    throw shared;
+  });
+  await expect(done).rejects.toBe(shared);
+  await root.close();
   expect(seen).toEqual([{ status: "failed", error: shared }]);
 });
 
@@ -3735,7 +3755,7 @@ test("release keeps a scope dependency alive until a child resource's async clea
   expect(order).toEqual(["tx-clean-open", "conn-clean"]);
 });
 
-test("release keeps a borrowed resource alive until the operation's async cleanup finishes", async () => {
+test("release keeps a borrowed resource alive until async cleanup finishes", async () => {
   const gate = deferred();
   const order: string[] = [];
   const conn = resource({
@@ -3807,7 +3827,7 @@ test("release waits for a child borrower even when its resource has no defer", a
   expect(order).toEqual(["use-open", "conn-clean"]);
 });
 
-test("release keeps a borrowed resource alive through a synchronously throwing op's async cleanup", async () => {
+test("release keeps a borrowed resource alive when the op throws first", async () => {
   const gate = deferred();
   const cause = new Error("op failed");
   const order: string[] = [];
@@ -4017,7 +4037,7 @@ test("release during dependency resolution waits for the operation's cleanup", a
   expect(order).toEqual(["op-clean-open", "conn-clean"]);
 });
 
-test("a clean scope closes success when graceful", async () => {
+test("a clean scope closes success when graceful and never throws", async () => {
   const graceful = await createScope().close({ graceful: true });
   expect(graceful).toEqual({ status: "success", teardownErrors: undefined });
 });
@@ -4206,12 +4226,16 @@ test("scope.resolve reads a tag's nearest binding, default, and throws MissingTa
   }
 });
 
-test("scope.resolve accepts a tag edge and delivers the depends form", () => {
+test("scope.resolve delivers all and optional through a tag edge", () => {
   const scope = createScope({ tags: [region("eu")] });
   const session = scope.createSession({ tags: [region("us")] });
   expect(session.resolve(region.all)).toEqual(["us", "eu"]);
   expect(scope.resolve(maybe.optional)).toEqual({ present: true, value: undefined });
   expect(scope.resolve(secret.optional)).toEqual({ present: false });
+});
+
+test("scope.resolve delivers required through a tag edge, throwing MissingTag when absent", () => {
+  const scope = createScope({ tags: [region("eu")] });
   expect(scope.resolve(region.required)).toBe("eu");
   try {
     scope.resolve(secret.required);
@@ -4222,16 +4246,19 @@ test("scope.resolve accepts a tag edge and delivers the depends form", () => {
   }
 });
 
-test("scope.run runs an operation now with CallArgs", () => {
+test("scope.run runs an operation now with rawInput", () => {
   const double = operation({
     label: "double",
     input: asNumber,
     depends: { n: data({ initial: 0, parse: asNumber }) },
     run: ({ n }, { input }) => n + input,
   });
-  const scope = createScope();
-  expect(scope.run(double, { rawInput: 3 })).toBe(3);
+  expect(createScope().run(double, { rawInput: 3 })).toBe(3);
+});
+
+test("scope.run runs an operation with no call args", () => {
   const stamp = operation({ label: "stamp", run: () => 7 });
+  const scope = createScope();
   expect(scope.run(stamp)).toBe(7);
   expect(scope.run(stamp)).toBe(7);
 });
@@ -4288,7 +4315,7 @@ test("scope.run runs an inline operation with no call: deps resolve and ctx.inpu
   expect(value).toBe(42);
 });
 
-test("an inline run yields one span named inline with a nested subflow under it", () => {
+test("a labelled inline run yields its name with a nested subflow under it", () => {
   const inner = operation({ label: "inner", run: () => "in" });
   const scope = createScope({ observe: { history: 10 } });
   const out = scope.run({
@@ -4304,6 +4331,9 @@ test("an inline run yields one span named inline with a nested subflow under it"
   expect(job?.kind).toBe("operation");
   expect(job?.status).toBe("ok");
   expect(leaf?.parentId).toBe(job?.id);
+});
+
+test("an unlabeled inline run yields one span named inline", () => {
   const plain = createScope({ observe: { history: 10 } });
   plain.run({ run: () => "x" });
   const only = plain.spans();
@@ -5030,9 +5060,15 @@ test("resource and operation controllers from the extended handle stay plain", a
   await scope.ready;
   const res = resource({ label: "res", factory: () => 7 });
   expect(scope.controller(res).resolve()).toBe(7);
-  const op = operation({ label: "op", run: () => "ran" });
-  expect(scope.controller(op).run()).toBe("ran");
   expect(writes).toBe(0);
+  await scope.close();
+});
+
+test("an operation controller from the extended handle stays plain", async () => {
+  const op = operation({ label: "op", run: () => "ran" });
+  const scope = createScope({ extensions: [] });
+  await scope.ready;
+  expect(scope.controller(op).run()).toBe("ran");
   await scope.close();
 });
 
@@ -5196,11 +5232,16 @@ test("a session created under a session is wrapped", async () => {
   await scope.close();
 });
 
-test("a scope with no session hook still runs sessions", async () => {
+test("a scope with no session hook still runs session bodies", async () => {
   const plain = createScope();
   expect(await plain.session(() => 1)).toBe(1);
   const child = plain.createSession();
   await child.close({ graceful: true });
+  await plain.close();
+});
+
+test("a scope with no session hook still runs tagged calls", async () => {
+  const plain = createScope();
   const zone = tag<string>({ label: "zone", default: "base" });
   const read = operation({ label: "read", depends: { zone }, run: ({ zone }) => zone });
   expect(await plain.run(read, { tags: [zone("us")] })).toBe("us");
@@ -5255,7 +5296,7 @@ test("running an operation on a pending extension dependency raises NotResolved"
   await scope.close();
 });
 
-test("an operation depending on an extension sees the start value at runtime", async () => {
+test("an operation depending on an extension reads the start value", async () => {
   const ext = extension<{ connect(): void }>({
     label: "typed",
     start: (_scope, _ctx, next) => next().then(() => ({ connect: () => undefined })),
