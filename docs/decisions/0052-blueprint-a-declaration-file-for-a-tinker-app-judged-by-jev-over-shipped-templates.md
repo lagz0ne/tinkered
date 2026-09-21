@@ -84,6 +84,15 @@ one line.
    exits 1 on a plain-code failure or a hit from a template whose evals pass; every other hit
    prints with `~` and never sets the exit code.
 
+   *Amended 2026-09-21, after the first real run.* With 2 bad + 2 clean cases per template — the
+   template author's own — every template graded `proven`, and the ADR's own example
+   (`examples/tracker.yaml`) then failed `check` with seven blocking hits at 50–57%. So:
+   `enough` is 5 bad and 5 clean; `evals/golden.yaml` (the ADR example, a known-clean design)
+   adds every applicable node as a clean case for every template, and one golden hit makes the
+   grade `noisy`; a `status: proven` is set by hand, only after cases labeled against real
+   designs reach that bar. The seed cases are a floor, not a proof; every shipped template is
+   `provisional` until then.
+
 6. **The binary is a tinker app.** `packages/blueprint` (`@tinker/blueprint`, bin `blueprint`)
    is built on `@tinker/core` + `@tinker/cli` and imports nothing from `tools/jev`. The corpus
    and the judge are resources; `check`, `explain`, `suggest` are operations; the Jev engine is a
