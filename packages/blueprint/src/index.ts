@@ -412,9 +412,15 @@ function walk(dir: string): readonly Blueprint.Unit[] {
   );
 }
 
+/** Every argv entry that is neither a flag nor `--key-file`'s value, in order — the root
+ * reads the key before the row sees argv, so the path must not read as a positional. */
+function positionals(argv: readonly string[]): readonly string[] {
+  return argv.filter((arg, i) => !arg.startsWith("--") && argv[i - 1] !== "--key-file");
+}
+
 /** The two non-flag argv entries `verify` takes: the blueprint file, then the source dir. */
 function verifyArgs(argv: readonly string[]): { readonly file: string; readonly dir: string } {
-  const [file, dir] = argv.filter((arg) => !arg.startsWith("--"));
+  const [file, dir] = positionals(argv);
   return { file: file ?? "", dir: dir ?? "" };
 }
 
@@ -571,7 +577,7 @@ function suggestLines(result: {
 
 /** The first argv entry that is not a flag and is not `--key-file`'s value. */
 function fileArg(argv: readonly string[]): string | undefined {
-  return argv.find((arg, i) => !arg.startsWith("--") && argv[i - 1] !== "--key-file");
+  return positionals(argv)[0];
 }
 
 /** The binary: every command runs on the same root options, so the entrypoint binds the key once

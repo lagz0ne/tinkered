@@ -267,3 +267,9 @@ test("the same body template proven blocks: exit 1, the line on stderr without ~
     rmSync(dir, { recursive: true });
   }
 });
+
+test("verify skips --key-file's value when locating the file and dir arguments", async () => {
+  const result = await answer(["verify", "--key-file", "/nonexistent/key", blueprintYaml, srcDir]);
+  expect(result.code).toBe(0);
+  expect(result.stdout.startsWith("ok: 12 nodes, 12 units, 0 findings")).toBe(true);
+});
