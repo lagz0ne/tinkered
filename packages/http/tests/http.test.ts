@@ -165,13 +165,14 @@ test("a forced close while the backend parks on the signal rejects with the abor
     new Promise<HttpResponse.Handle>((_resolve, reject) => {
       signal.addEventListener("abort", () => reject(signal.reason), { once: true });
     });
-  const scope = createScope({ tags: [backend(parking)] });
+  const scope = createScope({ observe: { history: 20 }, tags: [backend(parking)] });
   const call = operation({
     label: "call",
     depends: { send: github.send },
     run: ({ send }) => send.run({ input: HttpRequest.get("https://api/users") }),
   });
   const running = scope.run(call);
+  await Promise.resolve();
   const closing = scope.close();
   const outcome = await running.then(
     () => "resolved",

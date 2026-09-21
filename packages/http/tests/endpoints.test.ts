@@ -416,22 +416,24 @@ test("an empty body rejects ResponseFailed/EmptyBody", async () => {
   await hollow.close();
 });
 
-test("presetting the client swaps the transport", async () => {
+test("presetting the attempt swaps the transport", async () => {
   const seen: HttpRequest.Record[] = [];
   const recorded: HttpRequest.Record[] = [];
-  const fake: HttpClient.Backend = async (request) => {
-    recorded.push(request);
-    return HttpResponse.make(request, { status: 200, body: '[{"name":"fake"}]' });
-  };
-  const fakeExecute: HttpClient.Handle["execute"] = (request, ctx) => fake(request, ctx.signal);
-  const clientScope = createScope({
+  const attemptScope = createScope({
     tags: [backend(recording("[]", seen)), github.config({ baseUrl: "https://api" })],
-    presets: [preset(github.client, () => ({ label: "fake", execute: fakeExecute }))],
+    presets: [
+      preset(github.attempt, ({ request }: { request: HttpRequest.Record }) => {
+        recorded.push(request);
+        return Promise.resolve(
+          HttpResponse.make(request, { status: 200, body: '[{"name":"fake"}]' }),
+        );
+      }),
+    ],
   });
-  expect(await clientScope.run(listRepos, { input: "octocat" })).toEqual(["fake"]);
+  expect(await attemptScope.run(listRepos, { input: "octocat" })).toEqual(["fake"]);
   expect(seen.length).toBe(0);
   expect(recorded.length).toBe(1);
-  await clientScope.close();
+  await attemptScope.close();
 });
 
 test("presetting the endpoint short-circuits the transport", async () => {
@@ -451,6 +453,7 @@ test("a forced close while an endpoint is parked aborts the run and settles canc
       signal.addEventListener("abort", () => reject(signal.reason), { once: true });
     });
   const scope = createScope({
+    observe: { history: 20 },
     tags: [backend(parking), github.config({ baseUrl: "https://api" })],
   });
   const ends: Scope.End[] = [];
@@ -466,6 +469,7 @@ test("a forced close while an endpoint is parked aborts the run and settles canc
     },
   });
   const running = scope.run(watching, { input: "octocat" });
+  await Promise.resolve();
   const closing = scope.close();
   const outcome = await running.then(
     () => "resolved",

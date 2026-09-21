@@ -40,7 +40,7 @@ const listRepos = operation({
 
 const url = "https://api/users/octocat/repos?per_page=100";
 
-test("a request opens one child span with method, url, and status", async () => {
+test("a request opens one attempt span with method, url, and status", async () => {
   const seen: HttpRequest.Record[] = [];
   const scope = createScope({
     observe: { history: 20 },
@@ -50,9 +50,10 @@ test("a request opens one child span with method, url, and status", async () => 
   const spans = scope.spans();
   const op = spans.find((span) => span.name === "github.listRepos");
   expect(op?.kind).toBe("operation");
-  const child = spans.find((span) => span.parentId === op?.id && span.kind === "manual");
-  expect(child?.name).toBe(`http GET ${url}`);
-  expect(child?.kind).toBe("manual");
+  const send = spans.find((span) => span.parentId === op?.id && span.name === "github.send");
+  expect(send?.kind).toBe("operation");
+  const child = spans.find((span) => span.parentId === send?.id && span.name === "github.attempt");
+  expect(child?.kind).toBe("operation");
   expect(child?.status).toBe("ok");
   expect(child?.attributes).toEqual({ method: "GET", url, status: 200, attempt: 1 });
   await scope.close();
@@ -77,13 +78,14 @@ test("a backend failure marks the child failed and logs one line", async () => {
   }
   const spans = scope.spans();
   const op = spans.find((span) => span.name === "github.listRepos");
-  const child = spans.find((span) => span.parentId === op?.id && span.kind === "manual");
+  const send = spans.find((span) => span.parentId === op?.id && span.name === "github.send");
+  const child = spans.find((span) => span.parentId === send?.id && span.name === "github.attempt");
   expect(child?.status).toBe("failed");
   expect(logs.length).toBe(1);
   expect(logs[0].message).toBe("http request failed");
   expect(logs[0].attributes.method).toBe("GET");
   expect(logs[0].attributes.url).toBe(url);
-  expect(logs[0].span?.id).toBe(op?.id);
+  expect(logs[0].span?.id).toBe(child?.id);
   await scope.close();
 });
 
@@ -106,7 +108,8 @@ test("a rejected status marks the child failed and logs nothing", async () => {
     if (!isHttpError(error, "ResponseFailed")) throw error;
     expect(error.payload.reason).toBe("StatusCode");
   }
-  const child = scope.spans().find((span) => span.kind === "manual");
+  const child = scope.spans().find((span) => span.name === "strict.attempt");
+  expect(child?.kind).toBe("operation");
   expect(child?.status).toBe("failed");
   expect(child?.attributes.status).toBe(404);
   expect(logs.length).toBe(0);
@@ -134,6 +137,7 @@ test("a forced close while parked rejects with the abort reason, logs nothing, c
     tags: [backend(parking), github.config({ baseUrl: "https://api" })],
   });
   const running = scope.run(listRepos, { input: "octocat" });
+  await Promise.resolve();
   const closing = scope.close();
   const outcome = await running.then(
     () => "resolved",
@@ -144,6 +148,6 @@ test("a forced close while parked rejects with the abort reason, logs nothing, c
   if (result.status !== "cancelled") throw result;
   expect(outcome).toBe(result.reason);
   expect(logs.length).toBe(0);
-  const child = scope.spans().find((span) => span.kind === "manual");
+  const child = scope.spans().find((span) => span.name === "github.attempt");
   expect(child?.status).toBe("failed");
 });

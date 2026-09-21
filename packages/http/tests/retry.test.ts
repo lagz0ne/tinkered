@@ -87,7 +87,7 @@ test("two failures then success waits 1s then 2s and leaves one span per attempt
   clock.advance(2000);
   expect(await running).toBe("[]");
   expect(calls).toBe(3);
-  const kids = scope.spans().filter((span) => span.kind === "manual");
+  const kids = scope.spans().filter((span) => span.name === "flaky.attempt");
   expect(kids.map((span) => span.attributes.attempt)).toEqual([1, 2, 3]);
   expect(kids.map((span) => span.status)).toEqual(["failed", "failed", "ok"]);
   await scope.close();
@@ -106,7 +106,7 @@ test("a 503 then a 200 resolves after one retry and the 503 span stays ok", asyn
   });
   expect(await scope.run(retryingText)).toBe("back");
   expect(calls).toBe(2);
-  const kids = scope.spans().filter((span) => span.kind === "manual");
+  const kids = scope.spans().filter((span) => span.name === "retrying.attempt");
   expect(kids.length).toBe(2);
   expect(kids[0].status).toBe("ok");
   expect(kids[0].attributes.status).toBe(503);
@@ -144,9 +144,14 @@ test("closing during backoff rejects with the abort reason and makes no further 
     (error: unknown) => error,
   );
   const result = await closing;
-  expect(result.status).toBe("cancelled");
-  if (result.status !== "cancelled") throw result;
-  expect(outcome).toBe(result.reason);
+  // The first attempt already failed real work (`boom`) before the close parked the
+  // retry on the clock: reality wins over the abort, so the scope settles `failed`
+  // with the recorded failure (ADR 0028) — but the run itself still surfaces the
+  // abort reason, never a wrapped Transport.
+  expect(result.status).toBe("failed");
+  if (result.status !== "failed") throw result;
+  expect(result.error).toBe(boom);
+  expect(outcome).not.toBe(boom);
   if (outcome instanceof Error && isHttpError(outcome, "RequestFailed")) throw outcome;
   expect(calls).toBe(1);
 });

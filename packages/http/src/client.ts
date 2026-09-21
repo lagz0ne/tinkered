@@ -151,11 +151,12 @@ export function applyConfig(
 }
 
 /** Build the frame: a `config` tag labelled `${label}.config` (no default: absent means no
- * bindings, `.all` reads `[]`), a `client` resource labelled `${label}.client` (`target:
- * "session"`, `depends: { send: backend }` — the bare tag delivers its value — so deps resolve
- * at the requesting layer and a session-bound `backend` is seen), whose factory closes over the
- * frame's `filterStatus` predicate (default accept all) and `retry` policy (default never retry)
- * and returns the `Handle`. The handle is a tiny object, so one build per session costs nothing. */
+ * bindings, `.all` reads `[]`), plus the `send` and `attempt` operations. `send` merges config,
+ * validates the URL once, and retries transient failures by running `attempt` as a subflow —
+ * so a caller's trace reads `caller > send > attempt` with no span code anywhere (ADR 0058).
+ * `attempt` depends on the bare `backend` tag, so deps resolve at the requesting layer and a
+ * session-bound `backend` is seen. Both close over the frame's `filterStatus` predicate
+ * (default accept all) and `retry` policy (default never retry). */
 export function httpClient(config: {
   label: string;
   retry?: HttpClient.Retry;
