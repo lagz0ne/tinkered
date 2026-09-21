@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "vite-plus/test";
 import { createScope } from "@tinker/core";
-import { backend, HttpResponse, type HttpClient } from "@tinker/http";
+import { backend, HttpResponse, type HttpClient, type HttpRequest } from "@tinker/http";
 import { cli } from "@tinker/cli";
 import { askCommand, tinkerer } from "../src/index.ts";
 
@@ -58,5 +58,31 @@ test("an unknown command exits with a usage code", async () => {
     stderr: () => undefined,
   });
   expect(result.code).toBe(2);
+  await scope.close();
+});
+
+test("ask joins the prompt words with spaces and drops --flags", async () => {
+  const seen: HttpRequest.Record[] = [];
+  const record: HttpClient.Backend = async (request) => {
+    seen.push(request);
+    return HttpResponse.make(request, { status: 200, body: answer });
+  };
+  const ext = cli({ name: "tinkerer", version: "0.0.0", commands: [askCommand(coder)] });
+  const scope = createScope({
+    tags: [backend(record), coder.config({ model: "m", baseUrl: "https://api" })],
+    extensions: [ext],
+  });
+  await scope.ready;
+  await scope.resolve(ext)(["ask", "read", "--mode", "the", "readme"], {
+    stdout: () => undefined,
+    stderr: () => undefined,
+  });
+  const body = seen[0]?.body;
+  if (body === undefined || body.kind !== "text") throw new Error("expected a JSON body");
+  const parsed = JSON.parse(body.text) as { messages: { role: string; content: string }[] };
+  expect(parsed.messages[parsed.messages.length - 1]).toEqual({
+    role: "user",
+    content: "read the readme",
+  });
   await scope.close();
 });
