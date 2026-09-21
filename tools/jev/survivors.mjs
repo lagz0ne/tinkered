@@ -50,6 +50,9 @@ for (const s of survivors) {
   rows.push({ ...s, probability });
 }
 
+/** One line per row: a multi-line span collapses to its first 60 characters. */
+const short = (s) => s.replace(/\s+/g, " ").trim().slice(0, 60);
+
 const byFile = new Map();
 for (const r of [...rows].sort((a, b) => b.probability - a.probability).slice(0, top)) {
   if (!byFile.has(r.file)) byFile.set(r.file, []);
@@ -61,7 +64,7 @@ for (const [file, rs] of byFile) {
     const flag = r.probability >= threshold ? "⚠" : "·";
     const cov = r.status === "NoCoverage" ? "∅ " : "";
     console.log(
-      `  ${mark(ID)}${flag} L${r.line} ${cov}${r.mutator} in ${r.unit.kind}#${r.unit.name}  \`${r.before}\` → \`${r.after}\`  ${ID} ${pct(r.probability)}`,
+      `  ${mark(ID)}${flag} L${r.line} ${cov}${r.mutator} in ${r.unit.kind}#${r.unit.name}  \`${short(r.before)}\` → \`${short(r.after)}\`  ${ID} ${pct(r.probability)}`,
     );
   }
 }
