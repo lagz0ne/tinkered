@@ -226,10 +226,6 @@ test("the frame filterStatus rejects a bad status before the response reader run
     },
   });
   const loose = httpClient({ label: "loose" });
-  const looseRepos = loose.operation({
-    label: "repos",
-    request: () => HttpRequest.get("https://api/repos"),
-  });
   const scope = createScope({
     tags: [backend(recording("nope", seen, 404)), strict.config({}), loose.config({})],
   });
@@ -243,6 +239,18 @@ test("the frame filterStatus rejects a bad status before the response reader run
     expect(await error.payload.response.text()).toBe("nope");
   }
   expect(readerCalls).toBe(0);
+  await scope.close();
+});
+
+test("without filterStatus a bad status arrives raw", async () => {
+  const loose = httpClient({ label: "loose" });
+  const looseRepos = loose.operation({
+    label: "repos",
+    request: () => HttpRequest.get("https://api/repos"),
+  });
+  const scope = createScope({
+    tags: [backend(recording("nope", [], 404)), loose.config({})],
+  });
   const raw = await scope.run(looseRepos);
   expect(raw.status).toBe(404);
   await scope.close();
