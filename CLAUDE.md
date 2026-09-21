@@ -106,34 +106,35 @@ Keep only recent results in Done; older detail belongs in `docs/roadmap/archive/
 ## Contributor workflow (delegated implementation)
 
 The lead session orchestrates and reviews; implementation is delegated to a Paseo contributor agent
-(`pi` / `meta-muse/muse-spark-1.3-contributor`, thinking `max`), one agent per task:
+(`pi` / `meta-muse/muse-spark-1.3-contributor`, thinking `max`), one agent per task, **one package per
+agent** (long sessions die on provider drops; a step on disk is never lost):
 
-1. Each contributor works in its own worktree: `git worktree add ../tinkered-<task> -b perf/<task> main`,
-   `vp install` there, never touches the main checkout, commits by explicit pathspec, never pushes.
-2. The brief is `docs/roadmap/contributor-brief.md` (the fixed part: setup, rebuild-before-check, exit-code gate,
-   **jev pre-flight** with every flag fixed or explained, report format) plus the ticket's target and impact block.
-   The brief is self-contained: read `.agents/skills/coding-convention/SKILL.md` (incl. Performance),
-   exact measure commands (`bench/core-probe.mjs`, `bench/stores-probe.mjs`, `bench/react-vs-zustand.mjs`,
-   min of 3), gates (`vp check` 0 errors, tests, census `--strict`, `pnpm validate`; the mutation lane is
-   the reviewer's), the Jev toolset below, and the report format (branch, SHAs, before/after table, what
-   was verified and how, the `jev pre-flight` line).
-   **Jev toolset (advisory, free, ~2 s a call — use it while coding, never as a gate):**
-   - choosing a unit: `node tools/jev/guide.mjs "<logic in words>"` (or `<file#symbol>`) answers
-     data / resource / operation / tag / glue with the target shape; below 60% it says "unclear" — then
-     decide with the one-law table in `docs/best-practices.md`;
-   - before reporting: `node tools/jev/preflight.mjs` runs the file judges and the per-unit lint
-     (`tools/jev/lint.mjs`) on your diff; clear the notes you agree with, explain the rest in the
-     report's `jev pre-flight` line. A note is a probability, not a verdict; `vp check`, tests,
-     census, and the lead decide.
-3. The lead runs `node tools/jev/review.mjs main..HEAD` on the branch (advisory: it routes attention, never
-   gates), labels each fix-round nit that a judge covers (`tools/jev/label.mjs <judge> true …`), then reviews the diff for shape (facades, duplicated hot bodies, leaked internals, identity-keyed
-   memos), re-measures, requests one fix round, cherry-picks onto `main`, runs the package's mutation lane
-   isolated, pushes, then removes the worktree and branch.
-4. **Calibration is part of landing.** The bank `tools/jev/cases.jsonl` grows from every fixed/explained
-   flag and every fix-round nit. When it gained ten or more cases since `tools/jev/calibration.json` was
-   written, the lead runs `node tools/jev/calibrate.mjs` and commits the result: a `noisy` judge demotes
-   to a note in lint/preflight, a `proven` one stays a flag. Never gate on a judge that is not `proven`.
-5. **Both sides of the spectrum.** An integration is also a probe of core: every contributor report ends
-   with a **Core feedback** section (friction, a workaround, a missing affordance, a rule that felt wrong),
-   and the lead records candidates in `docs/roadmap/core-feedback.md`. A candidate becomes a core ticket
-   after a second integration asks for it, or at once when the workaround is dishonest (core/t28).
+1. Each contributor works in its own worktree: `git worktree add ../tinkered-<task> -b <track>/<task> main`,
+   `vp install` there, never touches the main checkout, commits by explicit pathspec after every green step,
+   never pushes, never `--no-verify`.
+2. The brief is `docs/roadmap/contributor-brief.md` (the fixed part) plus the ticket's target and its
+   `impact` block. Every file the impact block names is touchable, tests included. The writer finishes
+   verification before the reviewer sees the work: `vp run -r build` first, the exit-code gate chain, then
+   the jev steps below, then the report in the brief's format ending with **Core feedback** (a failing
+   snippet, not prose).
+3. The lead: `node tools/jev/review.mjs main..HEAD` (advisory, routes attention), reads the diff for shape,
+   labels each fix-round nit a judge covers, requests one fix round, re-runs every gate by exit code,
+   fast-forwards `main`, runs the touched package's mutation lane **alone** (floor 75), pushes, removes the
+   worktree and branch.
+4. **Both sides of the spectrum.** Every report ends with **Core feedback**; the lead records candidates in
+   `docs/roadmap/core-feedback.md`. A candidate becomes a core ticket after a second asker, or at once when
+   the workaround is dishonest.
+
+## Jev (advisory judges) — `tools/jev`, a workspace package
+
+Jev answers one narrow question at a time about one extracted thing; extraction is ours (`extract.mjs`, on
+oxc-parser). Never a gate. Plain words per tool and per judge: `tools/jev/README.md`; the live question bank:
+`node tools/jev/explain.mjs`.
+
+- **Writer, before reporting:** `node tools/jev/preflight.mjs main..HEAD`; on touched packages
+  `node tools/jev/tests.mjs <pkg>` and `node tools/jev/promises.mjs <pkg>`. Every non-`~` hit is fixed or
+  explained in one line, then labeled: `node tools/jev/label.mjs <judge> true|false <file>[#<unit|title>]`.
+- **Lead, at review:** `review.mjs`, and a label for each nit a judge covers.
+- **Lead, every ~10 new cases:** `node tools/jev/calibrate.mjs`, commit `calibration.json`. `noisy` judges print
+  as `~` notes; only `proven` judges may ever gate — none does today.
+- **Rules:** no per-ticket rule in `tools/jev`; deterministic first, Jev for the residue; a `~` owes no line.

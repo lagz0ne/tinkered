@@ -3,8 +3,10 @@
 Jev is a model that answers one narrow question at a time: a yes/no with a probability, or a pick from a
 short list. It never writes text, never locates anything, and never counts. Every tool here has two
 halves: **extraction** (our code finds the thing to ask about: a unit, a test, a file, a README line) and
-**the question** (Jev answers about that one thing). Extraction is deterministic; today it is regex over
-source text, and moving it to a real parser is the open card `jev/ast-extraction`.
+**the question** (Jev answers about that one thing). Extraction is deterministic and parser-based
+(`extract.mjs` on oxc-parser): units with kind, label, and dependency keys; tests with title, causes,
+assertions, and narrowings; helpers; imports; exports. The README splitting in `promises.mjs` is text-based,
+since a README has no AST.
 
 Everything is **advisory**. Nothing here exits non-zero on a finding. The truth stays `vp check`, the tests,
 the mutation lanes, SCIP, and the lead. A `~` in any output marks a judge that calibration found noisy:
