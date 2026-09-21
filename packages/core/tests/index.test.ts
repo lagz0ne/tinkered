@@ -29,7 +29,7 @@ test("reads a cell's initial value through the scope seam", () => {
   expect(createScope().controller(count).get()).toBe(1);
 });
 
-test("parse transforms + validates the initial, and the read type is inferred", () => {
+test("parse transforms the initial before the first read", () => {
   const trimmed = (v: unknown): string => {
     if (typeof v !== "string") throw new Error("not a string");
     return v.trim();
@@ -351,7 +351,7 @@ test("optional reads a bound tag as present", () => {
   ).toEqual({ present: true, value: "x" });
 });
 
-test("optional reads missing as absent, not as an undefined default", () => {
+test("optional reads a missing tag as absent", () => {
   const readMaybe = operation({ label: "m", depends: { m: maybe.optional }, run: ({ m }) => m });
   const readSecret = operation({ label: "s", depends: { s: secret.optional }, run: ({ s }) => s });
   expect(createScope().controller(readMaybe).run()).toEqual({
@@ -463,7 +463,7 @@ test("dependency snapshots are captured at resolve time, before suspension", asy
   expect(await p).toBe(1);
 });
 
-test("concurrent calls do not share results", async () => {
+test("concurrent calls each keep their own input", async () => {
   const entered = new Map<number, ReturnType<typeof deferred>>([
     [1, deferred()],
     [2, deferred()],
@@ -517,7 +517,7 @@ test("concurrent calls finish in release order, not entry order", async () => {
   expect(order).toEqual([2, 1]);
 });
 
-test("overlapping scopes each read their own write", async () => {
+test("two scopes read back their own writes", async () => {
   const n = data({ initial: 0, parse: asNumber });
   const gate = deferred();
   const readN = operation({
@@ -2526,7 +2526,7 @@ test("a resource preset receives the resolved deps, delivered untyped (narrow at
   expect(scope.resolve(conn)).toBe(141);
 });
 
-test("a unit carries static tag meta, readable off its handle via tag.read", () => {
+test("tag.read finds a unit's own binding", () => {
   const ui = tag<string>({ label: "ui" });
   const group = tag<string>({ label: "group", default: "misc" });
   const port = data({ initial: 8080, parse: asNumber, meta: [ui("slider")] });
@@ -2534,13 +2534,13 @@ test("a unit carries static tag meta, readable off its handle via tag.read", () 
   expect(group.read(port)).toEqual({ present: true, value: "misc" });
 });
 
-test("tag.read on a unit without that tag reads as absent", () => {
+test("tag.read misses a tag the unit never bound", () => {
   const other = tag<string>({ label: "other" });
   const port = data({ initial: 8080, parse: asNumber });
   expect(other.read(port)).toEqual({ present: false });
 });
 
-test("meta attaches to operations, resources, and tags alike", () => {
+test("every unit kind carries its own meta", () => {
   const ui = tag<string>({ label: "ui" });
   const op = operation({ label: "op", run: () => 1, meta: [ui("button")] });
   const res = resource({ label: "res", factory: () => 1, meta: [ui("panel")] });
@@ -2557,7 +2557,7 @@ test("meta is static and never affects resolution", () => {
   expect(createScope().controller(read).run()).toBe(5);
 });
 
-test("a unit with no meta reads as empty", () => {
+test("a bare unit's meta list is empty", () => {
   expect(operation({ label: "bare", run: () => 0 }).meta).toEqual([]);
 });
 
@@ -2571,7 +2571,7 @@ test("meta is authored as a binding, nothing, or a nested list, and reads flat i
   expect(ui.read(port)).toEqual({ present: true, value: "dial" });
 });
 
-test("a lone binding is one meta entry; an all-nothing list reads as empty", () => {
+test("one binding is one entry; all-nothing reads as empty", () => {
   const ui = tag<string>({ label: "ui" });
   const single = operation({ label: "single", run: () => 1, meta: ui("button") });
   const nothing = resource({ label: "nothing", factory: () => 1, meta: [null, [undefined, []]] });
@@ -2719,7 +2719,7 @@ test("an operation defer sees failed when the run throws", () => {
   expect(seen).toEqual(["failed"]);
 });
 
-test("an operation ctx exposes no borrow or drain internals", () => {
+test("an operation ctx hides borrow and drain", () => {
   const probe = operation({
     label: "probe",
     run: (_deps, ctx) => "registeredDefers" in ctx,
@@ -3470,7 +3470,7 @@ test("the settlement reducer handles a primitive (non-Error) body cause", async 
   await root.close();
 });
 
-test("a reused error object is a later session's own failure", async () => {
+test("a later session throwing a reused error fails with it", async () => {
   const shared = new Error("shared");
   const root1 = createScope();
   const first = root1.session((child) => child.session(() => Promise.reject(shared)));
@@ -4274,7 +4274,7 @@ test("scope.run shares the controller path: one record lookup, stable controller
   expect(runs).toBe(2);
 });
 
-test("scope.run runs an inline operation with deps, a param, and the full ctx", () => {
+test("scope.run runs an inline operation with deps and ctx", () => {
   const count = data({ initial: 3, parse: asNumber });
   const store = resource({ label: "store", factory: () => ({ id: "built" }) });
   const zone = tag<string>({ label: "zone", default: "base" });
