@@ -51,6 +51,20 @@ const scope = createScope({
 
 See `examples/harness/basic.ts` for the fake-`query` tour and `examples/harness/real.ts` for the real adapter.
 
+## Turns
+
+Each turn opens one SDK call on the merged options — nearer bindings win per key, and
+`includePartialMessages: true` is forced on — then folds the message stream into the result
+and the ambient cells: text deltas stream into `text`, tool calls and answers land in `items`,
+the result's own usage and cost land in `usage`, the session id lands in `id`, and every
+message lands in `events` raw, including kinds the frame does not otherwise read, which never
+stop the turn. Only text deltas move `text`; any other stream event streams nothing. Only tool
+calls add tool items and only tool answers add tool results, so a plain or trailing assistant
+message adds nothing. The `id` cell moves only on the init message and the result; any other
+system message leaves it alone. A stream that ends with no result rejects with `TurnEnded`.
+Continuity is by session id: the session's `resume` binding opens the first turn on it, and
+each later turn resumes the last session id, so one thread is one conversation.
+
 ## Codex
 
 The same frame on the Codex SDK: options are the SDK's own `CodexOptions & ThreadOptions`
