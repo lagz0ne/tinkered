@@ -188,7 +188,9 @@ export function readBlueprint(text: string): Blueprint.Graph {
  * template) finding starts with `~`. */
 export function findingLine(finding: Blueprint.Finding): string {
   const prefix = finding.blocking ? "" : "~";
-  return `${prefix}${finding.check}  ${finding.node}  ${finding.detail}`;
+  const pct =
+    finding.probability === undefined ? "" : ` (${Math.round(finding.probability * 100)}%)`;
+  return `${prefix}${finding.check}  ${finding.node}  ${finding.detail}${pct}`;
 }
 
 /** One finding per repeated name; `node` is the name. */
@@ -414,7 +416,7 @@ function choiceFinding(
     source: template.id,
     check: template.id,
     node,
-    detail: `reads as ${answer.choice} (${Math.round(confidence * 100)}%)`,
+    detail: `reads as ${answer.choice}`,
     probability: confidence,
     blocking: template.status === "proven",
   };

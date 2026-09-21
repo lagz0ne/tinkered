@@ -70,7 +70,7 @@ test("a provisional hit prints with ~ and the run exits 0", async () => {
     });
     expect(result.code).toBe(0);
     expect(result.stdout).toBe(
-      "~probe  saveIssue  the work has its own steps\nok: 1 nodes, 1 findings\n",
+      "~probe  saveIssue  the work has its own steps (90%)\nok: 1 nodes, 1 findings\n",
     );
     expect(result.stderr).toBe("");
   } finally {
