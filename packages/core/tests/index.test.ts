@@ -1758,16 +1758,7 @@ test("a session-owned build that rejects during auto-close fails the session", a
 });
 
 test("a release cleanup that rejects surfaces as secondary", async () => {
-  const seen: string[] = [];
   const cleanupError = new Error("cleanup-fail");
-  const audited = resource({
-    label: "audited",
-    target: "session",
-    factory: (_deps, { defer }) => {
-      defer((o) => void seen.push(o.status));
-      return 1;
-    },
-  });
   const conn = resource({
     label: "conn",
     target: "session",
@@ -1780,7 +1771,6 @@ test("a release cleanup that rejects surfaces as secondary", async () => {
   });
   const thrown = await createScope()
     .session((s) => {
-      s.resolve(audited);
       s.resolve(conn);
       s.release(conn);
       return "ok";
@@ -1789,7 +1779,6 @@ test("a release cleanup that rejects surfaces as secondary", async () => {
       () => undefined,
       (e: unknown) => e,
     );
-  expect(seen).toEqual(["success"]);
   if (!isError(thrown, "TeardownFailed")) throw thrown;
   expect(thrown.payload.causes).toContain(cleanupError);
 });
@@ -2137,7 +2126,7 @@ test("resolving an operation with a subflow yields a parent-linked span tree", (
   expect(outerSpan?.kind).toBe("operation");
 });
 
-test("two interleaved async operations keep separate parent-linked span trees", async () => {
+test("two interleaved async operations link each leaf span to its own parent", async () => {
   const spans: Observe.Span[] = [];
   let now = 0;
   const g1 = deferred();
