@@ -148,6 +148,30 @@ const box = session.controller(coder.inbox);
 box.update((list) => [...list, steer("go")]);
 ```
 
+## Persist
+
+Save a conversation to a JSONL file and resume it.
+`persist({ frame, file })` is an extension: install
+it with `createScope({ extensions: [...] })`, then
+each session it seeds `messages` from the file and
+appends every new message.
+
+- A turn's messages are appended to the file one
+  JSON line each.
+- A session seeds its messages from an existing
+  file and appends only what is new.
+- `restore(file)` reads a JSONL file into messages;
+  a missing file reads as an empty transcript.
+- Two files under one scope keep two transcripts
+  apart.
+
+```ts
+const scope = createScope({
+  tags: [coder.config({ model, baseUrl })],
+  extensions: [persist({ frame: coder, file })],
+});
+```
+
 ## Errors
 
 `StreamEnded { label }` — the stream ended
