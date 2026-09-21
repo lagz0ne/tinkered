@@ -23,15 +23,15 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-| Card                                                                             | Owner         | Next                                                                                                    | Verify                                        |
-| -------------------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| docs/core-promises — the README states half of what core's tests prove (151/272) | lead (Claude) | Decide the home first (README sections vs a promises appendix), then one contributor per README section | `promises.mjs core` confident gaps → under 20 |
+| Card | Owner | Next | Verify |
+| ---- | ----- | ---- | ------ |
 
 ## Doing
 
-| Card                                                                       | Owner                                                                        | Next                                                                                                                                                         | Verify                                                                                   |
-| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| tests/core-many-causes — the 31 core test flags: split, delete, or explain | lead (Claude); contributor in `../tinkered-core-tests` (launched ~03:50 UTC) | `tests.mjs core`: 18 manyCauses, 4 typeGuarantee, 4 helperAlone, 4 negativeTwin, 3 pairs, 1 `Object.isFrozen`; act on each, label each; core lane alone ≥ 75 | flags gone or explained; 270 → N tests each naming one promise; core mutation alone ≥ 75 |
+| Card                                                                                                           | Owner                                                                           | Next                                                                                                                                                         | Verify                                                                                   |
+| -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| docs/core-promises — a `Promises` appendix in the core README, one line per seam-test promise, grouped by unit | lead (Claude); contributor in `../tinkered-core-promises` (launched ~03:55 UTC) | Decision (user, 2026-09-21): an appendix, not prose — 151 gaps do not fit the sections; `promises.mjs core` is the check                                     | `promises.mjs core` confident gaps → under 20; README-only diff                          |
+| tests/core-many-causes — the 31 core test flags: split, delete, or explain                                     | lead (Claude); contributor in `../tinkered-core-tests` (launched ~03:50 UTC)    | `tests.mjs core`: 18 manyCauses, 4 typeGuarantee, 4 helperAlone, 4 negativeTwin, 3 pairs, 1 `Object.isFrozen`; act on each, label each; core lane alone ≥ 75 | flags gone or explained; 270 → N tests each naming one promise; core mutation alone ≥ 75 |
 
 ## Review
 
