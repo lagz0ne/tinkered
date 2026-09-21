@@ -23,15 +23,15 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-| Card                                                                             | Owner         | Next                                                                                                    | Verify                                                                     |
-| -------------------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| tests/core-many-causes — read the 18 core `manyCauses` hits; split or explain    | lead (Claude) | After the cleanup card; one contributor; label every verdict                                            | Each hit split into one-cause tests or explained; core mutation alone ≥ 75 |
-| docs/core-promises — the README states half of what core's tests prove (151/272) | lead (Claude) | Decide the home first (README sections vs a promises appendix), then one contributor per README section | `promises.mjs core` confident gaps → under 20                              |
+| Card                                                                             | Owner         | Next                                                                                                    | Verify                                        |
+| -------------------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| docs/core-promises — the README states half of what core's tests prove (151/272) | lead (Claude) | Decide the home first (README sections vs a promises appendix), then one contributor per README section | `promises.mjs core` confident gaps → under 20 |
 
 ## Doing
 
-| Card | Owner | Next | Verify |
-| ---- | ----- | ---- | ------ |
+| Card                                                                       | Owner                                                                        | Next                                                                                                                                                         | Verify                                                                                   |
+| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| tests/core-many-causes — the 31 core test flags: split, delete, or explain | lead (Claude); contributor in `../tinkered-core-tests` (launched ~03:50 UTC) | `tests.mjs core`: 18 manyCauses, 4 typeGuarantee, 4 helperAlone, 4 negativeTwin, 3 pairs, 1 `Object.isFrozen`; act on each, label each; core lane alone ≥ 75 | flags gone or explained; 270 → N tests each naming one promise; core mutation alone ≥ 75 |
 
 ## Review
 
