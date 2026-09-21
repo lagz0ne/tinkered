@@ -30,6 +30,7 @@ catalog:
   vite-plus: 0.3.1
   zustand: ^5.0.15
   ai: ^7.0.105
+  yaml: ^2.9.1
 overrides:
   vite@*: "catalog:"
 peerDependencyRules:

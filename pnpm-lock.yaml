@@ -215,6 +215,9 @@ catalogs:
     vite-plus:
       specifier: 0.3.1
       version: 0.3.1
+    yaml:
+      specifier: ^2.9.1
+      version: 2.9.1
     zod:
       specifier: ^4.0.0
       version: 4.6.2
@@ -560,7 +563,7 @@ importers:
         specifier: workspace:*
         version: link:../core
       yaml:
-        specifier: ^2.9.1
+        specifier: 'catalog:'
         version: 2.9.1
       zod:
         specifier: 'catalog:'
