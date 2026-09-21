@@ -13,7 +13,7 @@ cd ../tinkered-<task> && vp install && git checkout -- pnpm-workspace.yaml && vp
 ```
 
 - Work only in that worktree. Never touch the main checkout. Never push. Never run a mutation lane (the lead
-  runs each lane alone at landing; the floor is 75; core 85).
+  runs each lane alone at landing; the floor is 75; core and react 85).
 - `vp run -r build` before every `vp check` or test run: apps import the packages' built `dist`; a stale dist
   shows phantom type errors and failing app tests.
 - Never call a red check "pre-existing" without running the same check on `main` (`git stash`-free: use the
