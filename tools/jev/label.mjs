@@ -7,10 +7,56 @@
 //   node tools/jev/label.mjs <judge> <true|false> <file>[#<unit>] [--ref <sha>] [--why "<text>"] [--by <ticket>]
 //   <judge> is a file judge (lib.mjs JUDGES: state = { file, code }) or a unit judge (bank.mjs
 //   LINT: state = the sliced unit named after `#`). `--ref` reads the file at that commit.
-import { appendFileSync, existsSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { BANK, JUDGES } from "./lib.mjs";
+
+//   node tools/jev/label.mjs --merge
+// Merges a conflicted bank: drops git conflict markers, keeps one line per `id` in
+// first-seen order, rewrites the file. Two branches appending labels at once is the
+// usual cause; appends never overlap, so first-seen wins and nothing is lost.
+const args = process.argv.slice(2);
+
+/** A conflict marker line git leaves in the file. */
+const isMarker = (line) =>
+  line.startsWith("<<<<<<< ") || line === "=======" || line.startsWith(">>>>>>> ");
+
+/** The bank's rows: marker lines dropped, bad lines skipped, first id wins. */
+function unionRows(text) {
+  const seen = new Set();
+  const rows = [];
+  let skipped = 0;
+  for (const line of text.split("\n")) {
+    if (!line.trim() || isMarker(line)) continue;
+    let row;
+    try {
+      row = JSON.parse(line);
+    } catch {
+      skipped++;
+      continue;
+    }
+    if (typeof row.id !== "string" || seen.has(row.id)) continue;
+    seen.add(row.id);
+    rows.push(line);
+  }
+  return { rows, skipped };
+}
+
+/** Merge the bank at `path` and print the count. */
+function mergeBank(path) {
+  const { rows, skipped } = unionRows(readFileSync(path, "utf8"));
+  writeFileSync(path, rows.join("\n") + "\n");
+  const note = skipped ? ` (${skipped} bad lines dropped)` : "";
+  console.log(`label: merged ${rows.length} cases${note} → ${path}`);
+}
+
+if (args.includes("--merge")) {
+  const bank = process.env.JEV_BANK ?? BANK;
+  mergeBank(bank);
+  process.exit(0);
+}
+
 import {
   LINT,
   TESTS,
@@ -24,7 +70,6 @@ import {
 } from "./bank.mjs";
 import { join } from "node:path";
 
-const args = process.argv.slice(2);
 const flag = (name) => {
   const i = args.indexOf(name);
   return i === -1 ? undefined : args[i + 1];
