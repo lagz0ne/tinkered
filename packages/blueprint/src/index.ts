@@ -13,11 +13,13 @@ import {
   gradeTemplate,
   median,
   parseCheckInput,
+  parseSuggestInput,
   readBlueprint,
   readCorpus,
   readEval,
   readTemplate,
   runCheck,
+  templateQuestion,
   type Blueprint,
 } from "./blueprint.ts";
 import { raise } from "./errors.ts";
@@ -148,7 +150,7 @@ function wait(ms: number, signal: AbortSignal): Promise<void> {
  * then throw. Any other error throws as-is. */
 async function askGateway(
   model: EvaluationModel,
-  state: Blueprint.NodeState | Blueprint.PairState,
+  state: Blueprint.NodeState | Blueprint.PairState | Blueprint.WordsState,
   questions: Readonly<Record<string, Blueprint.Question>>,
   signal: AbortSignal,
 ): Promise<Readonly<Record<string, Blueprint.Answer>>> {
@@ -198,8 +200,11 @@ function verbatim(template: Blueprint.Template): string {
   } else {
     lines.push(`kind: choice`, `minConfidence: ${template.minConfidence}`);
     if (template.compare !== undefined) lines.push(`compare: ${template.compare}`);
-    for (const [option, meaning] of Object.entries(template.choices))
+    for (const [option, meaning] of Object.entries(template.choices)) {
       lines.push(`${option}: ${meaning}`);
+      const shape = template.shapes?.[option];
+      if (shape !== undefined) lines.push(`shape.${option}: ${shape}`);
+    }
   }
   return lines.join("\n");
 }
@@ -216,8 +221,11 @@ function markdown(template: Blueprint.Template): string {
     lines.push(`  true: ${template.true}`, `  false: ${template.false}`);
   } else {
     if (template.compare !== undefined) lines.push(`  compare: ${template.compare}`);
-    for (const [option, meaning] of Object.entries(template.choices))
+    for (const [option, meaning] of Object.entries(template.choices)) {
       lines.push(`  ${option}: ${meaning}`);
+      const shape = template.shapes?.[option];
+      if (shape !== undefined) lines.push(`  shape.${option}: ${shape}`);
+    }
   }
   return lines.join("\n");
 }
@@ -313,6 +321,118 @@ function evalsLines(grades: readonly Blueprint.Grade[]): string {
   return `${grades.map((grade) => gradeLine(grade, idWidth)).join("\n")}\n`;
 }
 
+/** One choice template by id off the loaded corpus. Throws `NoTemplate` when the
+ * corpus does not carry it — an invariant of the shipped corpus, only reachable
+ * with `corpusPath` rebound to a folder missing `unitFits` or `target`. */
+function choiceTemplateById(
+  corpus: Blueprint.Corpus,
+  id: string,
+): Blueprint.Template & { readonly kind: "choice" } {
+  const found = corpus.templates.find((template) => template.id === id);
+  if (found === undefined || found.kind !== "choice")
+    raise("NoTemplate", { id }, `blueprint: suggest needs the "${id}" template`);
+  return found;
+}
+
+/** A choice answer's own confidence: its pick's share of `probabilities`, 0 when absent. */
+function confidenceOf(answer: Blueprint.Answer): number {
+  return answer.type === "choice" ? (answer.probabilities?.[answer.choice] ?? 0) : 0;
+}
+
+/** The operation: input `{ words }`, depends `{ corpus, judge }` — asks `unitFits` once;
+ * on a confident `resource` pick, asks `target` once more. Returns the two raw answers
+ * beside each template's `minConfidence` (`respond` needs it to tell confident from
+ * unclear) and, on a confident pick, the shape text for it. */
+export const suggest: Operation.Handle<
+  Promise<{
+    readonly unit: Blueprint.Answer;
+    readonly unitMinConfidence: number;
+    readonly target?: Blueprint.Answer;
+    readonly targetMinConfidence?: number;
+    readonly shape?: string;
+  }>,
+  { readonly words: string }
+> = operation({
+  label: "suggest",
+  input: parseSuggestInput,
+  depends: { corpus, judge },
+  run: async ({ corpus, judge }, ctx) => {
+    const state: Blueprint.WordsState = { description: ctx.input.words };
+    const unitFits = choiceTemplateById(corpus, "unitFits");
+    const unitAnswers = await judge.ask(
+      state,
+      { unitFits: templateQuestion(unitFits) },
+      ctx.signal,
+    );
+    const unit = unitAnswers.unitFits;
+    const confident = confidenceOf(unit) >= unitFits.minConfidence;
+    const shape = confident && unit.type === "choice" ? unitFits.shapes?.[unit.choice] : undefined;
+    if (!confident || unit.type !== "choice" || unit.choice !== "resource")
+      return { unit, unitMinConfidence: unitFits.minConfidence, shape };
+    const target = choiceTemplateById(corpus, "target");
+    const targetAnswers = await judge.ask(state, { target: templateQuestion(target) }, ctx.signal);
+    return {
+      unit,
+      unitMinConfidence: unitFits.minConfidence,
+      target: targetAnswers.target,
+      targetMinConfidence: target.minConfidence,
+      shape,
+    };
+  },
+});
+
+/** Every column starts at this width: `"unit:".padEnd(9)` reads `"unit:    "`. */
+const LABEL_WIDTH = 9;
+
+function labeled(label: string, value: string): string {
+  return `${`${label}:`.padEnd(LABEL_WIDTH)}${value}`;
+}
+
+/** The picked choice's probabilities, widest share first: `resource 78%, operation 15%`. */
+function distribution(answer: Blueprint.Answer): string {
+  if (answer.type !== "choice") return "";
+  return Object.entries(answer.probabilities ?? {})
+    .sort((a, b) => b[1] - a[1])
+    .map(([choice, p]) => `${choice} ${pct(p)}`)
+    .join(", ");
+}
+
+/** `resource (78%)` at or above `minConfidence`, else `unclear (resource only 55%) —
+ * decide with the one law`. */
+function unitPickText(answer: Blueprint.Answer, minConfidence: number): string {
+  if (answer.type !== "choice") return "";
+  const confidence = confidenceOf(answer);
+  return confidence >= minConfidence
+    ? `${answer.choice} (${pct(confidence)})`
+    : `unclear (${answer.choice} only ${pct(confidence)}) — decide with the one law`;
+}
+
+/** `scope (81%)` at or above `minConfidence`, else `unclear (session only 52%)`. */
+function targetPickText(answer: Blueprint.Answer, minConfidence: number): string {
+  if (answer.type !== "choice") return "";
+  const confidence = confidenceOf(answer);
+  return confidence >= minConfidence
+    ? `${answer.choice} (${pct(confidence)})`
+    : `unclear (${answer.choice} only ${pct(confidence)})`;
+}
+
+/** `unit:`/`shape:`/`target:`/`all:`, one per line — `shape:` and `target:` only when
+ * `suggest` returned them. */
+function suggestLines(result: {
+  readonly unit: Blueprint.Answer;
+  readonly unitMinConfidence: number;
+  readonly target?: Blueprint.Answer;
+  readonly targetMinConfidence?: number;
+  readonly shape?: string;
+}): string {
+  const lines = [labeled("unit", unitPickText(result.unit, result.unitMinConfidence))];
+  if (result.shape !== undefined) lines.push(labeled("shape", result.shape));
+  if (result.target !== undefined && result.targetMinConfidence !== undefined)
+    lines.push(labeled("target", targetPickText(result.target, result.targetMinConfidence)));
+  lines.push(labeled("all", distribution(result.unit)));
+  return `${lines.join("\n")}\n`;
+}
+
 /** The first argv entry that is not a flag and is not `--key-file`'s value. */
 function fileArg(argv: readonly string[]): string | undefined {
   return argv.find((arg, i) => !arg.startsWith("--") && argv[i - 1] !== "--key-file");
@@ -341,5 +461,10 @@ export const commands: Cli.Row[] = [
   command("evals", () => evals, {
     description: "grade every template against its evals with the judge (needs a key)",
     respond: evalsLines,
+  }),
+  command("suggest", () => suggest, {
+    description: "which unit fits a sentence, with the shape to write (needs a key)",
+    input: (argv) => ({ words: argv.join(" ") }),
+    respond: suggestLines,
   }),
 ];

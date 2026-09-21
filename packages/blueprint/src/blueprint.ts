@@ -60,6 +60,9 @@ export declare namespace Blueprint {
         readonly choices: Readonly<Record<string, string>>;
         readonly minConfidence: number;
         readonly compare?: CompareField;
+        /** The target shape per choice, printed by `explain` and `suggest`. When
+         * present, its keys must equal `choices`'s keys (checked at load). */
+        readonly shapes?: Readonly<Record<string, string>>;
       }
   );
   /** The loaded corpus: every template, sorted by id, plus a reader per kind. */
@@ -79,6 +82,8 @@ export declare namespace Blueprint {
   };
   /** What the judge sees for a pair template. */
   export type PairState = { readonly a: NodeState; readonly b: NodeState };
+  /** What the judge sees for `suggest`: a sentence, not a node. */
+  export type WordsState = { readonly description: string };
   /** One answer: a boolean's probability, or a choice with its confidence. */
   export type Answer =
     | { readonly type: "boolean"; readonly probability: number }
@@ -102,7 +107,7 @@ export declare namespace Blueprint {
   /** The judge: asks every question in one call about one state. */
   export type Judge = {
     readonly ask: (
-      state: NodeState | PairState,
+      state: NodeState | PairState | WordsState,
       questions: Readonly<Record<string, Question>>,
       signal: AbortSignal,
     ) => Promise<Readonly<Record<string, Answer>>>;
@@ -303,6 +308,19 @@ export function parseCheckInput(raw: unknown): {
 /** What the cli row hands `check`: the file text beside the `--json` flag. */
 const checkCall = z.object({ text: z.string(), json: z.boolean().default(false) });
 
+/** What the cli row hands `suggest`: the words to classify. */
+const suggestCall = z.object({ words: z.string() });
+
+/** Parse `suggest`'s raw input into its typed input: the words, rejected empty
+ * (after trim) with `NoWords` — the input admits it as the operation's parse
+ * failure, which the cli maps to exit 2. */
+export function parseSuggestInput(raw: unknown): { readonly words: string } {
+  const call = suggestCall.safeParse(raw);
+  if (!call.success || call.data.words.trim() === "")
+    raise("NoWords", {}, "blueprint: suggest needs words");
+  return { words: call.data.words };
+}
+
 /** Every kind a template may apply to. */
 const nodeKind = z.enum(["data", "resource", "operation", "tag"]);
 
@@ -347,9 +365,25 @@ const choiceTemplate = z.strictObject({
   choices: z.record(z.string(), z.string().min(1)),
   minConfidence: z.number().default(0.6),
   compare: compareField.optional(),
+  shapes: z.record(z.string(), z.string().min(1)).optional(),
 });
 
-const templateFile = z.discriminatedUnion("kind", [booleanTemplate, choiceTemplate]);
+/** `shapes`, when present, must name exactly the same options as `choices` —
+ * a shape for an option the question never offers, or a missing shape, is a
+ * template-authoring mistake caught at load, same as an unknown `needs`. */
+const templateFile = z
+  .discriminatedUnion("kind", [booleanTemplate, choiceTemplate])
+  .superRefine((template, ctx) => {
+    if (template.kind !== "choice" || template.shapes === undefined) return;
+    const choiceKeys = Object.keys(template.choices).sort();
+    const shapeKeys = Object.keys(template.shapes).sort();
+    if (choiceKeys.join(",") !== shapeKeys.join(","))
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["shapes"],
+        message: "shapes keys must equal choices keys",
+      });
+  });
 
 /** Read one template file (yaml text) into a template. A yaml or schema failure
  * throws `InvalidTemplate` with the file name and the issues; the message names
@@ -414,7 +448,7 @@ export function readEval(text: string, file: string): Blueprint.Eval {
 }
 
 /** One template as a question, straight from its fields. */
-function templateQuestion(template: Blueprint.Template): Blueprint.Question {
+export function templateQuestion(template: Blueprint.Template): Blueprint.Question {
   return template.kind === "boolean"
     ? {
         type: "boolean",

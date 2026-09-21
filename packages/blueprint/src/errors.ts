@@ -6,6 +6,8 @@ type Payloads = {
   BlueprintRejected: { findings: readonly string[] };
   NoKey: Record<string, never>;
   JevUnavailable: Record<string, never>;
+  NoWords: Record<string, never>;
+  NoTemplate: { id: string };
 };
 
 export declare namespace Errors {

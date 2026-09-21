@@ -21,3 +21,19 @@ choices:
   tag: >-
     an environment choice, bound at
     the root and rebound in tests
+shapes:
+  data: >-
+    const x = data({ label: "x", initial });
+    // written by an operation or a driver;
+    read with watch / useData
+  resource: >-
+    const x = resource({ label: "x", target, depends,
+    factory: (deps, { defer, signal }) => { …;
+    defer(() => stop()); return api; } })
+  operation: >-
+    const x = operation({ label: "x", input: shape.parse,
+    depends, run: async (deps, ctx) => { … } })
+  tag: >-
+    const x = tag<Config>({ label: "x" });
+    // bound at the root:
+    createScope({ tags: [x(value)] })

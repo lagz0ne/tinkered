@@ -1,165 +1,245 @@
 # @tinker/blueprint
 
-A blueprint is a YAML declaration file for a tinker app.
-It names the units, their kinds, and their links, plus one promise per node.
-`blueprint check` runs the plain checks over one file,
-then judges every node and pair with Jev over the
-shipped question templates.
+A blueprint is a YAML declaration file for a tinker app: a `.d.ts` for the
+app — a TypeScript declaration file that names things, their kinds, and
+their links, with no bodies — plus one promise sentence per node. It names
+every unit, its kind, and its links, before any code exists. `blueprint`
+judges a blueprint file with Jev over question templates shipped in the
+package, and suggests which unit a sentence fits before you write the node.
+
+## The agent loop
+
+Write the blueprint before the code: `suggest` for a sentence you are
+unsure about, write the file, `check` it, fix the text `check` flagged,
+`check` again, then write the code the file describes.
+
+**1. `suggest` — which unit fits a sentence.**
+
+```bash
+node packages/blueprint/dist/main.mjs \
+  suggest "poll the API every 10s and keep the latest list"
+```
+
+```text
+unit:    resource (98%)
+shape:   const x = resource({ label: "x", target,
+  depends, factory: (deps, { defer, signal }) => {
+  …; defer(() => stop()); return api; } })
+target:  scope (83%)
+all:     resource 98%, data 2%, tag 0%, operation 0%
+```
+
+**2. Write the file**, one node per unit, in the shape `suggest` named:
+
+```yaml
+- tag:
+    name: pollUrl
+    promise: the API URL; rebound in tests
+    why: the only environment choice the poll needs
+- resource:
+    name: latest
+    depends: [pollUrl]
+    promise: the latest list, refreshed every 10s
+    why: the view reads the freshest list
+      without polling itself
+```
+
+**3. `check` it:**
+
+```bash
+AI_GATEWAY_API_KEY=… node \
+  packages/blueprint/dist/main.mjs check poll.yaml
+```
+
+```text
+~effectWithoutDefer  latest  a timer, watch,
+  listener, or stream is started and its stop
+  is manual or missing (55%)
+~needsDefer  latest  it holds something that
+  must be released, and neither promise nor
+  work says it is released (55%)
+ok: 2 nodes, 2 findings
+```
+
+**4. Fix the text** — name the release `check` asked for, in `promise`:
+
+```diff
+-    promise: the latest list, refreshed every 10s
++    promise: the latest list, refreshed every 10s;
++      the poll stops on defer
+```
+
+**5. `check` again:**
+
+```text
+ok: 2 nodes, 0 findings
+```
+
+**6. Write the code** the file describes: one `resource("latest", …)` with
+a `defer(() => stop())` in its factory, depending on the `pollUrl` tag.
 
 ## The file format
 
 - A blueprint is a YAML list of nodes.
-- The kind is the key: `data`, `resource`, `operation`, or `tag`.
-- Each node carries `name`, `promise`, and `why`.
+- The kind is the key: `data`, `resource`, `operation`, or `tag`. A name is
+  a node; `depends` names nodes exactly.
+- Each node carries `name`, `promise`, and `why`; `why` is required — a
+  missing or borrowed reason is how a redundant or misused unit shows
+  itself.
 - `depends` names nodes exactly; it defaults to `[]`.
 - `work` says what the unit does in one line, where it helps.
-- `target` lives on `resource` only; it is `scope` or `session.
-- It defaults to `scope`.
-- A name holds letters, digits, and `_`.
-- A dot in a name is an error.
+- `target` lives on `resource` only: `scope` or `session`; it defaults to
+  `scope`.
+- A name holds letters, digits, and `_`. A dot in a name is an error.
 - Unknown keys are an error: a typo is a typo.
-- Nodes keep file order.
-- `uses` reads what a node names;
-  `usedBy` reads what names it.
-- A name nothing has, or a dangling
-  `depends` entry, reads as no
-  nodes — `uses`/`usedBy` never
-  throw.
+- Nodes keep file order. `uses` reads what a node names; `usedBy` reads
+  what names it. A name nothing has, or a dangling `depends` entry, reads
+  as no nodes — `uses`/`usedBy` never throw.
+
+The ADR's own example (`docs/decisions/0052-*.md`):
 
 ```yaml
 - tag:
     name: dbPath
     promise: the db path; rebound in tests
-    why: the only environment choice
-      the store has
+    why: the only environment choice the store has
 - resource:
     name: db
     depends: [dbPath]
     promise: one client per scope
-    why: one connection
-      for the process
+    why: one connection for the process
 - data:
     name: issueList
     promise: the saved issues; one writer
-    why: the view reads it; saveIssue
-      is the only writer
+    why: the view reads it; saveIssue is the only writer
 - operation:
     name: saveIssue
     depends: [db, issueList]
-    promise: one saved issue lands
-      in issueList
-    why: writes go through db so
-      the view never re-lists
+    promise: one saved issue lands in issueList
+    why: writes go through db so the view never re-lists
     work: insert in db; update issueList
+```
+
+## check
+
+- The key: `AI_GATEWAY_API_KEY`, or `--key-file <path>`. Never printed.
+  With no key, `check` fails `NoKey`.
+- The file argument is the first argv entry that is not a flag and is not
+  `--key-file`'s value.
+- `--json` prints the report as one JSON object and nothing else.
+- Plain output is one line per finding, then a summary line:
+
+```text
+dataNoWriter   issueList  no operation
+  or resource depends on it
+~unitFits      saveIssue  reads as
+  resource (72%)
+ok: 5 nodes, 2 findings
+```
+
+- A **boolean** template hits at or above its `threshold`. A **choice**
+  template hits when the pick differs from the node's `compare` field, at
+  or above `minConfidence`; below `minConfidence`, or a pick that matches
+  `compare`, makes no finding. A pair template's `node` prints as
+  `"a, b"`, in file order — in plain output and in `--json`.
+- **`~`** marks a hit from a template that is not `proven`: it prints, it
+  never sets the exit code.
+- A hit blocks (sets the exit code) when its template is `proven`, or it
+  is a plain check — `unknownDepends`, `duplicateName`, `dataNoWriter` —
+  which always blocks.
+- **Exit 0** — clean, or every finding is `~` (this is what the shipped
+  corpus answers for the ADR example when the judge says no to
+  everything).
+- **Exit 1** — a plain check failed, a `proven` template hit, or no key.
+- **Exit 2** — the file is not a blueprint: a non-blueprint yaml file, or
+  a schema failure, prints usage.
+
+## explain, evals
+
+- `explain` prints every template verbatim, one block per template, a
+  blank line between; `explain --md` prints the same as a markdown list.
+  A choice template's shape (see "The corpus" below) prints as
+  `shape.<option>: <text>`, right after that option's meaning:
+
+```text
+resource: something that subscribes, listens, polls,
+  connects, opens, or streams; built once; cleanup is defer
+shape.resource: const x = resource({ label: "x", target,
+  depends, factory: (deps, { defer, signal }) => { …;
+  defer(() => stop()); return api; } })
+```
+
+- `evals` grades every shipped template against its evals with the judge
+  — the same code path `vp test` runs when a key is present (it skips the
+  whole file otherwise). With no key, the cli row fails `NoKey`, same as
+  `check`. `✓` proven, `~` provisional, `✗` noisy, then the numbers
+  behind the grade, ending with the golden hits (`hits/cases`):
+
+```text
+✓ runForwardsToClosure  proven  bad 5
+  (med 88%)  clean 7 (med 12%)  sep
+  76%  ordered 100%  golden 0/2
+~ whyDuplicate  provisional  bad 2
+  (med 70%)  clean 4 (med 40%)  sep
+  30%  ordered 75%  golden 0/10
+✗ needsDefer  noisy  bad 5 (med 55%)
+  clean 7 (med 60%)  sep -5%
+  ordered 25%  golden 1/2 (tx)
 ```
 
 ## The corpus
 
-- A template is one YAML file
-  in `corpus/`: `id`, `scope`,
-  `applies`, `needs`, `ask`,
-  plus `true` / `false`
-  (boolean) or `choices`
-  (choice).
-- A choice template may carry
-  `compare`: the node field its
-  pick is measured against.
-  `unitFits` compares `kind`;
-  `target` compares `target`.
-- `scope` is `node` or `pair.
-- `applies` names node kinds;
-  `needs` names state fields
-  the question reads: `kind`,
-  `name`, `promise`, `why`,
-  `depends`, `work`, `target`,
-  `uses`, `usedBy`.
-- An `applies` entry outside
-  the four kinds, or a `needs`
-  entry outside the nine fields,
-  fails the load with
-  `InvalidTemplate`.
-- The corpus loads every `*.yaml`
-  once per scope, sorted by id.
-- `corpusPath` names the folder:
-  the shipped `corpus/` by default;
-  a test rebinds it to a fixture.
-- A template's status starts
-  `provisional`; evals flip it to
-  `proven` once it grades that way
-  (see "What is proven" below).
-- The 17 seeds:
-  - **unitFits** — which unit fits:
-    data, resource, operation, tag.
-  - **target** — one copy per scope
-    or one per session.
-  - **needsDefer** — something must be
-    released at close.
-  - **runForwardsToClosure** — work hands
-    the job to what depends misses.
-  - **effectWithoutDefer** — a started
-    thing is stopped by hand.
-  - **stateOutsideCell** — shared state
-    with no data node.
-  - **configNotTag** — an environment
-    choice no tag delivers.
-  - **handRolledLifetime** — a waiting
-    line the scope should own.
-  - **stopOnlyInDefer** — running work
-    stops only at close.
-  - **scopeInsideUnit** — work calls
-    the scope (rule 5).
-  - **parseNotAtDoor** — input parsed
-    past the door (rule 12).
-  - **manualSession** — a session opened
-    by hand (rule 14).
-  - **publishTwice** — re-list after
-    a save (rule 15).
-  - **hiddenNode** — an effect or state
-    with no node.
-  - **dataManyWriters** — two writers
-    for one data node.
-  - **whyUnfulfilled** — why names what
-    no dep fulfils, or repeats promise.
-  - **whyDuplicate** — two nodes share
-    one why (pair scope).
+- A template is one YAML file in `corpus/`: `id`, `scope` (`node` or
+  `pair`), `applies` (node kinds), `needs` (state fields: `kind`, `name`,
+  `promise`, `why`, `depends`, `work`, `target`, `uses`, `usedBy`),
+  `status` (`provisional` or `proven`), `ask`, plus `true`/`false`
+  (`kind: boolean`) or `choices` (`kind: choice`).
+- `check` asks a `node`-scope template once per node its `applies` names.
+  It asks a `pair`-scope template once per unordered pair of nodes whose
+  kinds both match `applies` — three tag nodes make three pairs.
+- A choice template may carry `compare` (the node field its pick is
+  measured against — `unitFits` compares `kind`, `target` compares
+  `target`) and `shapes` (one target-shape string per choice, printed by
+  `explain` and by `suggest`). `shapes`'s keys must equal `choices`'s
+  keys, else the load fails `InvalidTemplate`.
+- An `applies` entry outside the four kinds, or a `needs` entry outside
+  the nine fields, fails the load with `InvalidTemplate`.
+- The corpus loads every `*.yaml` once per scope, sorted by id. A node-scope
+  template sits under `forKind(kind)`; a pair-scope template sits under
+  `pairs` and never in a `forKind` list.
+- `corpusPath` names the folder: the shipped `corpus/` by default; a test
+  rebinds `corpusPath` to a fixture folder — `check`/`explain` then load
+  that folder's templates instead of the shipped ones.
+- To add a template: write a new `corpus/<id>.yaml` with the fields
+  above, then a matching `evals/<id>/{bad,clean}/*.yaml` pair (below). A
+  new template's `status` starts `provisional`.
 
-## explain
+### `suggest`
 
-- `explain` prints every template
-  verbatim: one block per template,
-  a blank line between.
-- `explain --md` prints the same
-  as a markdown list: one
-  `- **id** — ask` item, then
-  indented lines for applies /
-  needs / status / true / false
-  or choices.
-
-```bash
-node packages/blueprint/dist/main.mjs \
-  explain
-node packages/blueprint/dist/main.mjs \
-  explain --md
-```
+- `suggest "<words>"` asks `unitFits` once about the sentence; on a
+  confident `resource` pick, it asks `target` once more. Empty words fail
+  `NoWords` (exit 2, a parse failure).
+- `unit:`/`target:` print `<pick> (<pct>)` at or above the template's
+  `minConfidence`, else `unclear (<pick> only <pct>) — decide with the
+one law` (`unit:`) or `unclear (<pick> only <pct>)` (`target:`).
+- `shape:` prints the picked unit's shape text, only on a confident pick.
+  `target:` prints only for a confident `resource` pick.
+- `all:` lists every choice's share, widest first.
+- A confident `resource` pick prints all four lines — `unit:`, `shape:`,
+  `target:`, `all:` — as the "The agent loop" example above shows.
 
 ## Evals
 
-- Every template ships with evals under
-  `evals/<id>/{bad,clean}/*.yaml` — at
-  least 2 bad and 2 clean files each.
-- One eval file: `target` (a node name,
-  or `[a, b]` for a pair template),
-  `expect` (a boolean, or the option
-  name a choice template should pick),
-  and `blueprint` (the same node list
-  a blueprint file holds).
-- A `bad` file shows one distinct way
-  the template's defect appears; a
-  `clean` file is a near-miss with
-  no defect.
-- `readEval` parses one file,
-  `.strict()`; a bad file fails with
-  `InvalidEval` (file, issues).
+- Every template ships with evals under `evals/<id>/{bad,clean}/*.yaml`
+  — at least 2 bad and 2 clean files each, 5 and 5 before a status can
+  read `proven`.
+- One eval file: `target` (a node name, or `[a, b]` for a pair template),
+  `expect` (a boolean, or the option name a choice template should
+  pick), and `blueprint` (the same node list a blueprint file holds).
+- A `bad` file shows one distinct way the template's defect appears; a
+  `clean` file is a near-miss with no defect.
+- `readEval` parses one file, strict; a bad file fails with `InvalidEval`
+  (file, issues).
 
 ```yaml
 # evals/runForwardsToClosure/bad/forwards.yaml
@@ -179,251 +259,86 @@ blueprint:
         and return what it returns
 ```
 
-## The grade
-
-- `gradeTemplate` asks the judge about
-  every eval's target with only that
-  template's question, then scores
-  each case:
-  - **boolean** — the answer's
-    probability.
-  - **choice** — a choice template
-    grades on `1 - probabilities
-[declaredKind]`, where
-    `declaredKind` is the node's own
-    `compare` field; `0` when
-    `probabilities` is absent.
-  - A case scores `0` when the
-    judge's answer is missing for
-    that template id.
-- `bad` cases should score high,
-  `clean` cases low. With at least
-  5 of each:
-  - **sep** — `median(bad) -
-median(clean)`; `median` sorts its
-    values numerically, never
-    lexicographically, before
-    taking the middle one.
-  - **ordered** — the share of
-    (bad, clean) pairs where bad
-    outranks clean.
-- **The golden design** —
-  `evals/golden.yaml`, a copy of
-  `examples/tracker.yaml`. Every
-  node it applies to (pair templates:
-  every matching unordered pair)
-  becomes one more clean case, folded
-  into `clean` for `sep`/`ordered`.
-  A golden case that would have been
-  a real finding is a **hit**; hits
-  are named in `goldenHits`.
-- **proven** — at least 5 bad and 5
-  clean cases, sep ≥ 0.30, ordered
-  ≥ 0.90, and no golden hit at all.
-- **noisy** — a golden hit exists
-  (whatever the case count: a hit on
-  the golden design outranks all), or
-  enough cases on each side but the
+- **The grade** (`gradeTemplate`): asks the judge about every eval's
+  target with only that template's question, then scores each case — a
+  boolean's own probability, or a choice's `1 - probabilities
+[declaredKind]` (0 when the judge's answer is missing). `bad` cases
+  should score high, `clean` cases low.
+- **sep** — `median(bad) - median(clean)`; `median` sorts its values
+  numerically, never lexicographically, before taking the middle one.
+  **ordered** — the share of
+  (bad, clean) pairs where bad outranks clean.
+- **The golden design** — `evals/golden.yaml`, a copy of
+  `examples/tracker.yaml`. Every node (or, for a pair template, every
+  matching unordered pair) it applies to becomes one more clean case,
+  folded into `clean` for `sep`/`ordered`; a golden case that would have
+  been a real finding is a **hit**, named in `goldenHits`.
+- **proven** — at least 5 bad and 5 clean cases, sep ≥ 0.30, ordered ≥
+  0.90, and no golden hit at all.
+- **noisy** — a golden hit exists (whatever the case count — a hit on
+  the golden design outranks all), or enough cases on each side but the
   bar is missed.
-- **provisional** — no golden hit and
-  fewer than 5 cases on a side (golden
-  cases count toward the total).
-- The test's bar: a corpus file
-  saying `status: proven` must grade
-  `proven`. A `provisional` file that
-  grades `proven` prints as "could be
-  proven"; a `noisy` grade on a
-  `provisional` file prints as
-  "noisy". Neither fails the run.
-- A status flips to `proven` by
-  hand, after 5 bad and 5 clean
-  cases graded `proven` with the
-  golden set clean.
-- The seed cases are the template
-  author's own; they are a floor,
-  not a proof.
+- **provisional** — no golden hit and fewer than 5 cases on a side
+  (golden cases count toward the total).
+- A status flips from `provisional` to `proven` **by hand**, after 5 bad
+  and 5 clean cases grade `proven` with the golden set clean — the seed
+  cases are the template author's own; they are a floor, not a proof.
 
-## evals
+### What is proven
 
-- `evals` grades every shipped
-  template against its evals with
-  the judge — the same code path
-  `vp test` runs when a key is
-  present (it skips the whole file
-  otherwise). With no key, the cli
-  row fails `NoKey`, same as `check`.
-- `✓` proven, `~` provisional,
-  `✗` noisy, then the numbers behind
-  the grade, ending with the golden
-  hits (`hits/cases`):
+Graded against the shipped evals with a real key (`vp run
+blueprint#test`); the date is when this table was last pasted. Nothing
+is `proven` yet: every seed ships with 2 bad and 2 clean cases, below
+the 5-a-side floor, and two templates already hit the golden design once
+(`examples/tracker.yaml`) — the reason the floor moved from 2 to 5 and
+gained the golden veto.
 
-```text
-✓ runForwardsToClosure  proven  bad 5
-  (med 88%)  clean 7 (med 12%)  sep
-  76%  ordered 100%  golden 0/2
-~ whyDuplicate  provisional  bad 2
-  (med 70%)  clean 4 (med 40%)  sep
-  30%  ordered 75%  golden 0/10
-✗ needsDefer  noisy  bad 5 (med 55%)
-  clean 7 (med 60%)  sep -5%
-  ordered 25%  golden 1/2 (tx)
-```
+2026-09-21 — every seed `provisional`, except the two the golden design
+vetoed (`noisy`: a golden hit always reads `noisy`, whatever the case
+count):
 
-```bash
-AI_GATEWAY_API_KEY=… node \
-  packages/blueprint/dist/main.mjs \
-  evals
-```
-
-## The three plain checks
-
-- **unknownDepends** — a `depends` entry names no node.
-  One finding per missing name per node.
-- **duplicateName** — two nodes share a `name`.
-  One finding per repeated name.
-- **dataNoWriter** — a `data` node that no `operation` or
-  `resource` names in `depends`.
-  The file cannot tell a read from a write.
-  Any dependent operation or resource counts as a writer.
-
-## Running check
-
-- The key: `AI_GATEWAY_API_KEY`,
-  or `--key-file <path>`.
-  Never printed.
-- The file argument is the first
-  argv entry that is not a flag
-  and is not `--key-file`'s value.
-- With no key, `check` fails
-  `NoKey`; `explain` still answers
-  (it never asks the judge).
-- `--json` prints the report as
-  one JSON object and nothing else.
-- Plain output is one line per
-  finding, then a summary line:
-
-```text
-dataNoWriter   issueList  no operation
-  or resource depends on it
-~unitFits      saveIssue  reads as
-  resource (72%)
-~whyDuplicate  db, tx     same why
-  as tx (81%)
-ok: 5 nodes, 3 findings
-```
-
-- `~` marks a `provisional` template:
-  it prints, it never sets the
-  exit code.
-
-## How a hit is decided
-
-- **boolean** — the answer's
-  probability is at or above
-  the template's `threshold`.
-- **choice** — the pick differs
-  from the node's `compare` field,
-  at or above `minConfidence`.
-  Below `minConfidence`, or a pick
-  that matches `compare`: no finding.
-  A choice hit prints `reads as
-<pick>` with the pick's own
-  confidence as the percent.
-- A hit blocks (`blocking: true`)
-  when its template is `proven`,
-  or it is a plain check (always
-  blocking).
-
-## Exit codes
-
-- **0** — clean, or every finding
-  is `~` (provisional). Prints
-  `ok: N nodes, M findings`.
-- **1** — a plain check failed,
-  or a `proven` template hit.
-  Prints the finding lines on stderr.
-- **1** — no key. Prints
-  `blueprint: no key (set
-AI_GATEWAY_API_KEY or
---key-file <path>)`.
-- **2** — the file is not a blueprint.
-  A yaml or schema failure prints usage.
+- **configNotTag** — sep 0.65, ordered 1.00, golden 0/3
+- **dataManyWriters** — sep 0.67, ordered 1.00, golden 0/1
+- **effectWithoutDefer** — sep 0.90, ordered 1.00, golden 0/3
+- **handRolledLifetime** — sep 0.76, ordered 1.00, golden 0/3
+- **hiddenNode** — sep 0.59, ordered 1.00, golden 0/3
+- **manualSession** — sep 0.87, ordered 1.00, golden 0/1
+- **needsDefer** — sep 0.71, ordered 1.00, golden 0/2
+- **parseNotAtDoor** — sep 0.77, ordered 1.00, golden 0/1
+- **publishTwice** — sep 0.86, ordered 1.00, golden 0/1
+- **runForwardsToClosure** — sep 0.77, ordered 1.00, golden 0/1
+- **scopeInsideUnit** — sep 0.83, ordered 1.00, golden 0/3
+- **stateOutsideCell** — sep 0.67, ordered 1.00, golden 0/3
+- **stopOnlyInDefer** — `noisy`: sep 0.62, ordered 1.00, golden 2/2
+  (db, tx)
+- **target** — sep 0.88, ordered 1.00, golden 0/2
+- **unitFits** — sep 0.72, ordered 1.00, golden 0/5
+- **whyDuplicate** — `noisy`: sep 0.61, ordered 1.00, golden 2/10
+  (tx/saveIssue, issueList/saveIssue)
+- **whyUnfulfilled** — sep 0.42, ordered 1.00, golden 0/5
 
 ## Errors
 
-- **InvalidBlueprint** — the text is not yaml
-  or a node breaks the schema.
-  Carries the zod issues.
-- **BlueprintRejected** — a plain check
-  or a `proven` template blocked.
-  Carries the finding lines; the message
-  holds one line per finding.
-- **InvalidEval** — an eval file is not
-  yaml, breaks the schema, names a
-  `target` no node in its own blueprint
-  has, or (a pair template) is missing
-  its second name. Carries the file
-  and the issues.
-- **NoKey** — `check` or `evals` ran
-  with no `AI_GATEWAY_API_KEY` and no
-  `--key-file`.
+- **InvalidBlueprint** — the text is not yaml, or a node breaks the
+  schema (an unknown key, a missing `why`, a dotted name). Carries the
+  zod issues.
+- **InvalidTemplate** — a corpus file is not yaml, breaks the schema, or
+  a choice template's `shapes` names a key `choices` does not. Carries
+  the file and the issues; the message names both.
+- **InvalidEval** — an eval file is not yaml, breaks the schema, names a
+  `target` no node in its own blueprint has, or (a pair template) is
+  missing its second name. Carries the file and the issues.
+- **BlueprintRejected** — a plain check or a `proven` template blocked.
+  Carries the finding lines; the message holds one line per finding.
+- **NoKey** — `check`, `evals`, or `suggest` ran with no
+  `AI_GATEWAY_API_KEY` and no `--key-file`.
+- **JevUnavailable** — the judge gave up after five rate-limit retries.
+- **NoWords** — `suggest` ran with empty words.
+- **NoTemplate** — `suggest` needs `unitFits` or `target` in the loaded
+  corpus; only reachable with `corpusPath` rebound to a folder missing
+  one of the shipped seeds.
 
-## What is proven
-
-Graded against the shipped evals with a
-real key (`vp run blueprint#test`); the
-date is when this table was last pasted.
-Nothing is `proven` yet: every seed ships
-with 2 bad and 2 clean cases, below the
-5-a-side floor, and two templates already
-hit the golden design once (`examples/
-tracker.yaml`) — the reason the floor
-moved from 2 to 5 and gained the golden
-veto. A `proven` status is earned by
-hand, later, with more cases.
-
-2026-09-21 — every seed `provisional`,
-except the two the golden design vetoed
-(`noisy`: a golden hit always reads
-`noisy`, whatever the case count):
-
-- **configNotTag** — sep 0.65, ordered
-  1.00, golden 0/3
-- **dataManyWriters** — sep 0.67, ordered
-  1.00, golden 0/1
-- **effectWithoutDefer** — sep 0.90,
-  ordered 1.00, golden 0/3
-- **handRolledLifetime** — sep 0.76,
-  ordered 1.00, golden 0/3
-- **hiddenNode** — sep 0.59, ordered
-  1.00, golden 0/3
-- **manualSession** — sep 0.87, ordered
-  1.00, golden 0/1
-- **needsDefer** — sep 0.71, ordered
-  1.00, golden 0/2
-- **parseNotAtDoor** — sep 0.77, ordered
-  1.00, golden 0/1
-- **publishTwice** — sep 0.86, ordered
-  1.00, golden 0/1
-- **runForwardsToClosure** — sep 0.77,
-  ordered 1.00, golden 0/1
-- **scopeInsideUnit** — sep 0.83,
-  ordered 1.00, golden 0/3
-- **stateOutsideCell** — sep 0.67,
-  ordered 1.00, golden 0/3
-- **stopOnlyInDefer** — `noisy`: sep 0.62,
-  ordered 1.00, golden 2/2 (db, tx)
-- **target** — sep 0.88, ordered 1.00,
-  golden 0/2
-- **unitFits** — sep 0.72, ordered
-  1.00, golden 0/5
-- **whyDuplicate** — `noisy`: sep 0.61,
-  ordered 1.00, golden 2/10 (tx/saveIssue,
-  issueList/saveIssue)
-- **whyUnfulfilled** — sep 0.42,
-  ordered 1.00, golden 0/5
-
-## Run it
+## Running check
 
 ```bash
 AI_GATEWAY_API_KEY=… node \
