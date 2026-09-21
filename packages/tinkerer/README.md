@@ -31,7 +31,8 @@ const scope = createScope({
   ],
 });
 const session = scope.createSession();
-session.controller(coder.text).watch((next, prev) => write(next.slice(prev.length)));
+const text = session.controller(coder.text);
+text.watch((next, prev) => write(next.slice(prev.length)));
 const reply = await session.run(coder.turn, {
   input: "Say hi.",
 });
@@ -64,7 +65,7 @@ await scope.close();
 - Name a row with `tool(op, meta)` (an mcp
   `expose` row fits too; `respond` is ignored).
 - The wire name is `meta.name ?? op.label`.
-- Two rows with one name fail the build
+- Two rows with one wire name fail construction
   with `DuplicateTool`.
 - The request lists each row as a function
   tool with its JSON schema.
@@ -73,13 +74,17 @@ await scope.close();
   its result.
 - An unknown tool answers not-found;
   the loop keeps going.
-- Bad JSON args answer with the parse message.
+- A tool call whose arguments are not JSON answers
+  the model with an error result; the tool never runs.
 - A reply cut by the token limit fails
   every call without running it.
 - A throwing tool answers failed; the loop
   keeps going.
-- Calls run side by side unless a row says
-  `sequential`; results keep model order.
+- Without a sequential row a reply's calls run at
+  once; a `sequential` row runs them one at a time.
+  Results keep the model's order either way.
+- A tool's non-string value reaches the model as
+  JSON; `undefined` as an empty string.
 - `read` returns a window of lines and
   refuses a path outside `cwd`.
 

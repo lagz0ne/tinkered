@@ -293,3 +293,166 @@ test("settings are seeded from the tags at turn start and read at the step", asy
   expect(readBody(seen)["reasoning_effort"]).toBe("low");
   await scope.close();
 });
+
+/** One streamed reply asking for `calls`, each `{ name, args }`, then `[DONE]`. */
+function askingFor(calls: readonly { name: string; args: string }[]): string {
+  const pieces = calls.map((call, index) =>
+    JSON.stringify({
+      choices: [
+        {
+          delta: {
+            tool_calls: [
+              {
+                index,
+                id: `call_${index}`,
+                type: "function",
+                function: { name: call.name, arguments: call.args },
+              },
+            ],
+          },
+          finish_reason: null,
+        },
+      ],
+    }),
+  );
+  const end = JSON.stringify({ choices: [{ delta: {}, finish_reason: "tool_calls" }] });
+  return [...pieces, end].map((data) => `data: ${data}\n\n`).join("") + "data: [DONE]\n\n";
+}
+
+/** The tool messages of a transcript, in order. */
+function toolMessages(transcript: readonly Tinkerer.Message[]): string[] {
+  return transcript.flatMap((message) => (message.role === "tool" ? [message.content] : []));
+}
+
+test("two rows with one wire name fail construction with DuplicateTool", () => {
+  const twin = operation({ label: "read", run: () => "" });
+  try {
+    tinkerer({
+      label: "twins",
+      tools: [readTool, tool(twin, { description: "again", schema: {} })],
+    });
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "DuplicateTool")) throw error;
+    expect(error.payload).toEqual({ label: "twins", name: "read" });
+  }
+});
+
+test("a tool call whose arguments are not JSON answers the model with an error result", async () => {
+  let runs = 0;
+  const counting = operation({
+    label: "read",
+    input: readPath,
+    run: () => {
+      runs += 1;
+      return "hit";
+    },
+  });
+  const frame = tinkerer({
+    label: "badjson",
+    tools: [tool(counting, { description: "counts", schema: {} })],
+  });
+  const seen: HttpRequest.Record[] = [];
+  const scope = createScope({
+    tags: [
+      backend(scripted(seen, [askingFor([{ name: "read", args: "{not json" }]), answer])),
+      frame.config({ model: "m", baseUrl: "https://api" }),
+    ],
+  });
+  const session = scope.createSession();
+  await session.run(frame.turn, { input: "go" });
+  const [content] = toolMessages(session.resolve(frame.messages));
+  expect(content?.startsWith("Tool read: arguments are not JSON: ")).toBe(true);
+  expect(runs).toBe(0);
+  await scope.close();
+});
+
+test("a sequential row runs a reply's calls one at a time and results keep the model's order", async () => {
+  const order: string[] = [];
+  const slow = operation({
+    label: "slow",
+    input: readPath,
+    run: async (_deps, { clock }) => {
+      order.push("slow:start");
+      await clock.sleep(5);
+      order.push("slow:end");
+      return { took: "long" };
+    },
+  });
+  const fast = operation({
+    label: "fast",
+    input: readPath,
+    run: () => {
+      order.push("fast");
+      return undefined;
+    },
+  });
+  const frame = tinkerer({
+    label: "ordered",
+    tools: [
+      tool(slow, { description: "slow", schema: {}, sequential: true }),
+      tool(fast, { description: "fast", schema: {} }),
+    ],
+  });
+  const seen: HttpRequest.Record[] = [];
+  const reply = askingFor([
+    { name: "slow", args: '{"path":"a"}' },
+    { name: "fast", args: '{"path":"b"}' },
+  ]);
+  const scope = createScope({
+    tags: [
+      backend(scripted(seen, [reply, answer])),
+      frame.config({ model: "m", baseUrl: "https://api" }),
+    ],
+  });
+  const session = scope.createSession();
+  await session.run(frame.turn, { input: "go" });
+  expect(order).toEqual(["slow:start", "slow:end", "fast"]);
+  expect(toolMessages(session.resolve(frame.messages))).toEqual(['{"took":"long"}', ""]);
+  await scope.close();
+});
+
+test("without a sequential row a reply's calls run at once", async () => {
+  const order: string[] = [];
+  const slow = operation({
+    label: "slow",
+    input: readPath,
+    run: async (_deps, { clock }) => {
+      order.push("slow:start");
+      await clock.sleep(5);
+      order.push("slow:end");
+      return "slow";
+    },
+  });
+  const fast = operation({
+    label: "fast",
+    input: readPath,
+    run: () => {
+      order.push("fast");
+      return "fast";
+    },
+  });
+  const frame = tinkerer({
+    label: "parallel",
+    tools: [
+      tool(slow, { description: "slow", schema: {} }),
+      tool(fast, { description: "fast", schema: {} }),
+    ],
+  });
+  const seen: HttpRequest.Record[] = [];
+  const reply = askingFor([
+    { name: "slow", args: '{"path":"a"}' },
+    { name: "fast", args: '{"path":"b"}' },
+  ]);
+  const scope = createScope({
+    tags: [
+      backend(scripted(seen, [reply, answer])),
+      frame.config({ model: "m", baseUrl: "https://api" }),
+    ],
+  });
+  const session = scope.createSession();
+  await session.run(frame.turn, { input: "go" });
+  expect(order).toEqual(["slow:start", "fast", "slow:end"]);
+  expect(toolMessages(session.resolve(frame.messages))).toEqual(["slow", "fast"]);
+  await scope.close();
+});
