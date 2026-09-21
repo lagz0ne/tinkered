@@ -1,0 +1,40 @@
+{
+  "files": {
+    "src/index.ts": {
+      "language": "typescript",
+      "source": "import { watch } from \"./watch\";\n\nexport function retry(input, limit) {\n  let attempt = 0;\n  for (;;) {\n    try {\n      return send(input);\n    } catch (e) {\n      attempt += 1;\n      if (attempt < limit) continue;\n      throw e;\n    }\n  }\n}\n\nexport const saveIssue = operation({\n  label: \"saveIssue\",\n  input: parseEditInput,\n  depends: { tx: store.tx },\n  run: async ({ tx }, { input }) => {\n    const rows = await tx.select().from(issueRows);\n    return rows[0];\n  },\n});\n\nexport function total(xs) {\n  let sum = 0;\n  for (const x of xs) sum += x;\n  return sum;\n}\n",
+      "mutants": [
+        {
+          "id": "1",
+          "mutatorName": "ConditionalExpression",
+          "replacement": "attempt <= limit",
+          "location": {
+            "start": { "line": 10, "column": 11 },
+            "end": { "line": 10, "column": 26 }
+          },
+          "status": "Survived"
+        },
+        {
+          "id": "2",
+          "mutatorName": "StringLiteral",
+          "replacement": "\"\"",
+          "location": {
+            "start": { "line": 17, "column": 10 },
+            "end": { "line": 17, "column": 21 }
+          },
+          "status": "Survived"
+        },
+        {
+          "id": "3",
+          "mutatorName": "ArithmeticOperator",
+          "replacement": "-",
+          "location": {
+            "start": { "line": 29, "column": 27 },
+            "end": { "line": 29, "column": 28 }
+          },
+          "status": "Killed"
+        }
+      ]
+    }
+  }
+}

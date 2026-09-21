@@ -3,7 +3,7 @@
 // expected option at >= its confidence floor. Exit 0 always — an eval, not a gate.
 //   run:  node tools/jev/evals/lint.mjs
 import { loadKey, ask, pct } from "../lib.mjs";
-import { LINT, GUIDE } from "../bank.mjs";
+import { LINT, GUIDE, SURVIVORS } from "../bank.mjs";
 import {
   JUDGE_CASES,
   REACT_CASES,
@@ -11,6 +11,7 @@ import {
   TARGET_CASES,
   DEFER_CASES,
 } from "./fixtures/lint.mjs";
+import { SURVIVOR_CASES } from "./fixtures/survivors.mjs";
 
 const FLOOR = 0.3;
 if (!loadKey()) process.exit(0);
@@ -23,8 +24,8 @@ const row = (ok, line) => {
 };
 
 // A pair is one bad fixture and every clean* fixture; the worst clean sets the separation.
-async function judgePair(id, cases) {
-  const j = LINT[id];
+async function judgePair(id, cases, bank = LINT) {
+  const j = bank[id];
   const bad = (await ask(cases.bad, { [id]: j.q }))[id].probability;
   const cleans = [];
   for (const key of Object.keys(cases).filter((k) => k.startsWith("clean"))) {
@@ -70,6 +71,9 @@ console.log("\nguide: needsDefer");
     `bad ${pct(bad)}, clean ${pct(clean)}, separation ${pct(bad - clean)}`,
   );
 }
+
+console.log("\nsurvivor judge (bad vs clean, floor 30 points)");
+for (const [id, cases] of Object.entries(SURVIVOR_CASES)) await judgePair(id, cases, SURVIVORS);
 
 console.log(`\nlint eval: ${pass}/${total} cases as expected`);
 process.exit(0);
