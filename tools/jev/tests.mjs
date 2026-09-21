@@ -1,7 +1,8 @@
 // Test quality (advisory): the convention's "over-testing is a defect" rules, applied to a
-// package's test files. Deterministic first — private imports, mocks, sleeps, `.only`/`.skip`,
-// `isError` inside `expect`, internals asserted, helper count/size, an `expect` re-narrowed by
-// an `if` — then four Jev judges per test (helper alone, many causes, type guarantee, negative
+// package's test files. Deterministic first, on parsed facts (extract.mjs) — private imports,
+// mocks, sleeps, `.only`/`.skip`, `isError` inside `expect`, internals asserted, helper count/size,
+// an `expect` re-narrowed by the same `if`, `toBe` then `toEqual` on one subject — then four Jev
+// judges per test, each seeing the test's title, causes, assertions, narrowings, and body (helper alone, many causes, type guarantee, negative
 // twin) and one pairwise judge on title-similar tests in the same file (re-proves the same
 // promise). A ⚠ is a delete-or-merge candidate to act on or explain; never a gate. Exit 0.
 //
@@ -9,7 +10,8 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadKey, ask, pct, readCalibration } from "./lib.mjs";
-import { TESTS, TEST_PAIR, sliceTests } from "./bank.mjs";
+import { TESTS, TEST_PAIR } from "./bank.mjs";
+import { tests as extractTests, helpers, imports } from "./extract.mjs";
 
 const args = process.argv.slice(2);
 const targets = args.filter((a, i) => !a.startsWith("--") && !args[i - 1]?.startsWith("--"));
@@ -33,52 +35,42 @@ function readFiles(target) {
   return [target];
 }
 
-// ---------- deterministic: file-level ----------
-const FILE_RULES = [
-  [/^import .* from "\.\.\/src\/(?!index\.ts")/m, "privateImport"],
-  [/\bvi\.(mock|fn|spyOn)\(/, "mock"],
-  [/\bsetTimeout\(/, "sleep"],
-  [/\.(only|skip)\(/, "onlyOrSkip"],
-];
+// ---------- deterministic: on extracted facts, not regex ----------
 
-/** Top-level helpers: count and the longest, against "≤ 3 per file, each under 20 lines". */
-function helperNotes(src) {
-  const helpers = [...src.matchAll(/^(?:async )?function \w+[^\n]*\{/gm)];
+/** File-level: a private `../src/*` import, mocks, sleeps, `.only`/`.skip`, helpers over 3 or 20 lines. */
+function fileNotes(src, file) {
   const notes = [];
-  if (helpers.length > 3) notes.push(`helpers ${helpers.length} > 3`);
-  for (const h of helpers) {
-    const end = src.indexOf("\n}", h.index);
-    const lines = src.slice(h.index, end).split("\n").length;
-    if (lines > 20) notes.push(`helper ${h[0].match(/function (\w+)/)[1]} ${lines} lines > 20`);
+  if (
+    imports(src, file).some((i) => i.source.startsWith("../src/") && i.source !== "../src/index.ts")
+  )
+    notes.push("privateImport");
+  if (/\bvi\.(mock|fn|spyOn)\(/.test(src)) notes.push("mock");
+  if (/\bsetTimeout\(/.test(src)) notes.push("sleep");
+  if (/\b(test|it|describe)\.(only|skip)\(/.test(src)) notes.push("onlyOrSkip");
+  const hs = helpers(src, file);
+  if (hs.length > 3) notes.push(`helpers ${hs.length} > 3`);
+  for (const h of hs) if (h.lines > 20) notes.push(`helper ${h.name} ${h.lines} lines > 20`);
+  return notes;
+}
+
+const INTERNAL_SUBJECT =
+  /Object\.isFrozen\(|\.prototype\b|\.constructor\b|^(?:e|err|error|thrown|caught|failure)\.message$/;
+const INTERNAL_MATCHER = /^toHaveBeenCalled|^toBeInstanceOf$/;
+
+/** Per test, from its extracted assertions and narrowings. */
+function testNotes(t) {
+  const notes = new Set();
+  for (const a of t.asserts) {
+    if (a.subject.startsWith("isError(")) notes.add("isErrorInExpect");
+    if (INTERNAL_SUBJECT.test(a.subject) || INTERNAL_MATCHER.test(a.matcher))
+      notes.add("assertsInternals");
+    if (a.matcher === "toBe" && t.narrows.includes(`${a.subject} !== ${a.arg}`))
+      notes.add("expectThenNarrow");
   }
-  return notes;
-}
-
-function fileNotes(src) {
-  return [...FILE_RULES.filter(([re]) => re.test(src)).map(([, id]) => id), ...helperNotes(src)];
-}
-
-// ---------- deterministic: per test ----------
-const TEST_RULES = [
-  [/expect\(\s*isError\(/, "isErrorInExpect"],
-  [
-    /Object\.isFrozen|\.prototype\b|\.constructor\b|toBeInstanceOf\(Error\)|\b(?:e|err|error|thrown|caught|failure)\.message\)\.toBe\(|toHaveBeenCalled/,
-    "assertsInternals",
-  ],
-  [/expect\(([\w.]+)\)\.toBe\(("[^"]+")\);\s*if \(\1 !== \2\)/, "expectThenNarrow"],
-];
-
-/** The same subject asserted with `toBe` and again with `toEqual`: one promise, two angles. */
-function toBeThenToEqual(body) {
-  const subjects = (re) => new Set([...body.matchAll(re)].map((m) => m[1]));
-  const be = subjects(/expect\(([^)]+)\)\.toBe\(/g);
-  return [...subjects(/expect\(([^)]+)\)\.toEqual\(/g)].some((s) => be.has(s));
-}
-
-function testNotes(body) {
-  const notes = TEST_RULES.filter(([re]) => re.test(body)).map(([, id]) => id);
-  if (toBeThenToEqual(body)) notes.push("toBeThenToEqual");
-  return notes;
+  const be = new Set(t.asserts.filter((a) => a.matcher === "toBe").map((a) => a.subject));
+  if (t.asserts.some((a) => a.matcher === "toEqual" && be.has(a.subject)))
+    notes.add("toBeThenToEqual");
+  return [...notes];
 }
 
 // ---------- jev ----------
@@ -110,8 +102,15 @@ function similarPairs(tests) {
 }
 
 async function judgeTest(t) {
+  const facts = {
+    title: t.title,
+    causes: t.causes,
+    asserts: t.asserts.map((a) => `${a.subject}${a.not ? ".not" : ""}.${a.matcher}(${a.arg})`),
+    narrows: t.narrows,
+    body: t.body,
+  };
   const answers = await ask(
-    { title: t.title, body: t.body },
+    facts,
     Object.fromEntries(Object.entries(TESTS).map(([id, j]) => [id, j.q])),
   );
   return Object.entries(TESTS)
@@ -134,11 +133,11 @@ if (!loadKey()) process.exit(0);
 const report = [];
 for (const file of targets.flatMap(readFiles)) {
   const src = readFileSync(file, "utf8");
-  const tests = sliceTests(src);
-  const fnotes = fileNotes(src);
+  const tests = extractTests(src, file);
+  const fnotes = fileNotes(src, file);
   console.log(`${file}${fnotes.length ? `  ⚠ ${fnotes.join(", ")}` : ""}`);
   for (const t of tests) {
-    const notes = [...testNotes(t.body), ...(await judgeTest(t))];
+    const notes = [...testNotes(t), ...(await judgeTest(t))];
     report.push({ file, line: t.line, title: t.title, notes });
     console.log(
       `  ${notes.length ? "⚠" : "✓"} L${t.line} ${t.title}${notes.length ? `  — ${notes.join(", ")}` : ""}`,

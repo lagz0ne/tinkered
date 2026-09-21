@@ -8,111 +8,13 @@
 // of separation. Advisory: vp check / tests / mutate / the lead still decide.
 
 // ---------- slicer (deterministic: Jev never locates or counts) ----------
-const QUOTES = new Set(['"', "'", "`"]);
-const COMMENT = new Set(["/", "*"]);
-const DEPTH = { "(": 1, "[": 1, "{": 1, ")": -1, "]": -1, "}": -1 };
+// On a real parser since 2026-09-21 (`extract.mjs`, oxc-parser); these keep the old names.
+import { units as extractUnits, tests as extractTests } from "./extract.mjs";
 
-function skipString(src, i) {
-  const quote = src[i];
-  let j = i + 1;
-  while (j < src.length && src[j] !== quote) j += src[j] === "\\" ? 2 : 1;
-  return j + 1;
-}
-
-function skipComment(src, i) {
-  const line = src[i + 1] === "/";
-  const end = line ? src.indexOf("\n", i) : src.indexOf("*/", i + 2);
-  if (end < 0) return src.length;
-  return line ? end + 1 : end + 2;
-}
-
-/** Index just past the bracket that closes the opener at `i`; strings and comments skipped. */
-export function walk(src, i) {
-  let depth = 0;
-  for (let j = i; j < src.length;) {
-    const ch = src[j];
-    if (QUOTES.has(ch)) {
-      j = skipString(src, j);
-      continue;
-    }
-    if (ch === "/" && COMMENT.has(src[j + 1])) {
-      j = skipComment(src, j);
-      continue;
-    }
-    depth += DEPTH[ch] ?? 0;
-    if (depth === 0) return j + 1;
-    j++;
-  }
-  return src.length;
-}
-
-const UNIT =
-  /(?:export\s+)?(?:const|let)\s+(\w+)\s*=\s*(data|resource|operation|tag|extension)\s*(?:<[\s\S]*?>)?\s*\(/g;
-const FN = /(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*\(/g;
-const ARROW =
-  /(?:export\s+)?const\s+([A-Z]\w*)\s*=\s*(?:\([^)]*\)|[A-Za-z_]\w*)\s*(?::\s*[^=>{]+)?=>\s*/g;
-
-/** A capitalised function in a .tsx file is a component; a use* function is a hook. */
-function kindOf(name, file) {
-  if (file.endsWith(".tsx") && /^[A-Z]/.test(name)) return "component";
-  if (/^use[A-Z]/.test(name)) return "hook";
-  return "function";
-}
-
-const lineOf = (src, at) => src.slice(0, at).split("\n").length;
-const unit = (src, kind, name, start, end) => ({
-  kind,
-  name,
-  line: lineOf(src, start),
-  start,
-  end,
-  source: src.slice(start, end),
-});
-
-function fromCall(src, m) {
-  const open = m.index + m[0].length - 1;
-  return unit(src, m[2], m[1], m.index, walk(src, open));
-}
-
-function fromFunction(src, m, file) {
-  const params = walk(src, m.index + m[0].length - 1);
-  const body = src.indexOf("{", params);
-  return body < 0 ? null : unit(src, kindOf(m[1], file), m[1], m.index, walk(src, body));
-}
-
-/** An arrow component: `const Name = (props) => {` or `=> (`; expression bodies are skipped. */
-function fromArrow(src, m) {
-  const at = m.index + m[0].length;
-  if (src[at] !== "{" && src[at] !== "(") return null;
-  return unit(src, "component", m[1], m.index, walk(src, at));
-}
-
-const byStart = (a, b) => a.start - b.start;
-const encloses = (outer, inner) => inner.start > outer.start && inner.end <= outer.end;
-
-function outermost(units) {
-  const kept = [];
-  let end = -1;
-  for (const u of units.sort(byStart)) {
-    if (u.start >= end) {
-      kept.push(u);
-      end = u.end;
-    }
-  }
-  return kept;
-}
-
-/** Every declared unit plus each outermost function that declares none (a function that
+/** Every declared unit plus each top-level function that declares none (a function that
  *  declares units is a composition root or a tour, not a primitive candidate). */
-export function slice(src, file = "") {
-  const declared = [...src.matchAll(UNIT)].map((m) => fromCall(src, m));
-  const arrows = file.endsWith(".tsx")
-    ? [...src.matchAll(ARROW)].map((m) => fromArrow(src, m))
-    : [];
-  const fns = outermost(
-    [...[...src.matchAll(FN)].map((m) => fromFunction(src, m, file)), ...arrows].filter(Boolean),
-  ).filter((f) => !declared.some((u) => encloses(f, u)));
-  return [...declared, ...fns].sort(byStart);
+export function slice(src, file = "a.ts") {
+  return extractUnits(src, file);
 }
 
 /** The fields the decision depends on — nothing else rides into the state. */
@@ -420,20 +322,7 @@ export const TEST_PAIR = {
   },
 };
 
-/** Each `test("…", …)` / `it("…", …)` block: its title and body, by brace matching from the callback. */
-export function sliceTests(src) {
-  const out = [];
-  for (const m of src.matchAll(/^[ \t]*(?:test|it)\(\s*"([^"]+)"/gm)) {
-    const open = src.indexOf("{", src.indexOf("=>", m.index));
-    if (open === -1) continue;
-    let depth = 0;
-    let end = open;
-    for (; end < src.length; end++) {
-      if (src[end] === "{") depth++;
-      else if (src[end] === "}" && --depth === 0) break;
-    }
-    const line = src.slice(0, m.index).split("\n").length;
-    out.push({ title: m[1], body: src.slice(open, end + 1), line });
-  }
-  return out;
+/** Each `test("…", …)` / `it("…", …)` call: title, body, line, and its causes/asserts/narrows. */
+export function sliceTests(src, file = "a.test.ts") {
+  return extractTests(src, file);
 }
