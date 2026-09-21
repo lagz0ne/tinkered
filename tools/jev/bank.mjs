@@ -331,7 +331,8 @@ export function sliceTests(src, file = "a.test.ts") {
 // ---------- survivors: one anti-goal judge per surviving mutant (survivors.mjs) ----------
 export const SURVIVORS = {
   survivorMatters: {
-    threshold: 0.5,
+    // 0.7 from the first 10 labels (2026-09-21): false cases reached 76%, true cases start at 81%.
+    threshold: 0.7,
     q: {
       type: "boolean",
       instructions:
