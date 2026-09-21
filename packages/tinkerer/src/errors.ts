@@ -10,6 +10,14 @@ type Payloads = {
   EmptyPrompt: {
     label: string;
   };
+  DuplicateTool: {
+    label: string;
+    name: string;
+  };
+  PathOutsideCwd: {
+    label: string;
+    path: string;
+  };
 };
 
 export declare namespace Errors {
