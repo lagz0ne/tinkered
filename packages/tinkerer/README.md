@@ -124,6 +124,29 @@ Each shipped tool reads the `cwd` tag.
   `settings`; mode always goes with
   the next call.
 
+## Inbox
+
+Talk to a running turn through the `inbox` cell.
+Push an entry with `steer(content, patch?)` or
+`queue(content, patch?)`; `patch` may carry a
+`mode` or `options` that patches `settings` when
+the entry is consumed.
+
+- A queued entry continues the turn when the
+  model would stop.
+- A queued entry patches the settings the next
+  step reads.
+- No pending entry ends the turn after one step.
+- A steer interrupts the step in flight, keeps
+  the partial text as an assistant message, and
+  re-enters as a user message.
+- A steer carrying a mode patches the settings
+  before the next step.
+
+```ts
+session.controller(coder.inbox).update((list) => [...list, steer("focus on tests")]);
+```
+
 ## Errors
 
 `StreamEnded { label }` — the stream ended

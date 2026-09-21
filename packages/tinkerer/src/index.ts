@@ -99,6 +99,16 @@ export declare namespace Tinkerer {
       readonly max_completion_tokens?: number;
     };
   };
+  /** What a step's model/options come from: the provider fields on `settings.options`. */
+  export type Options = Settings["options"];
+  /** One pending user entry. `queue` waits until the model would stop; `steer` interrupts the
+   * step in flight. `mode` and `options` patch `settings` when the entry is consumed. */
+  export type Entry = {
+    readonly kind: "queue" | "steer";
+    readonly content: string;
+    readonly mode?: Mode;
+    readonly options?: Partial<Options>;
+  };
   export type Frame = {
     readonly label: string;
     readonly config: Tag.Handle<Partial<Config>>;
@@ -110,8 +120,28 @@ export declare namespace Tinkerer {
     readonly turn: Operation.Handle<Promise<Reply>, string>;
     readonly mode: Tag.Handle<Mode>;
     readonly settings: Data.Cell<Settings | undefined>;
+    readonly inbox: Data.Cell<readonly Entry[]>;
     readonly tools: readonly Tool[];
   };
+}
+
+/** The empty inbox: one frozen array shared as the initial value. */
+const noEntries: readonly Tinkerer.Entry[] = Object.freeze([]);
+
+/** A steer entry: interrupts the step in flight, delivered before the next step. */
+export function steer(
+  content: string,
+  patch?: Omit<Tinkerer.Entry, "kind" | "content">,
+): Tinkerer.Entry {
+  return { kind: "steer", content, ...patch };
+}
+
+/** A queue entry: waits until the model would stop, then continues the turn. */
+export function queue(
+  content: string,
+  patch?: Omit<Tinkerer.Entry, "kind" | "content">,
+): Tinkerer.Entry {
+  return { kind: "queue", content, ...patch };
 }
 
 /** Name one tool row: the operation plus its tool facts. */
@@ -170,6 +200,7 @@ export function tinkerer(config: { label: string; tools?: Many<Tinkerer.Tool> })
     label: `${label}.settings`,
     initial: undefined,
   });
+  const inbox = data<readonly Tinkerer.Entry[]>({ label: `${label}.inbox`, initial: noEntries });
   const http = httpClient({ label: `${label}.http` });
   const step = http.operation({
     label: "step",
@@ -193,6 +224,7 @@ export function tinkerer(config: { label: string; tools?: Many<Tinkerer.Tool> })
       text: text.controller,
       usage: usage.controller,
       settings: settings.controller,
+      inbox: inbox.controller,
       ...toolDeps,
     },
     run: async (deps, ctx) => {
@@ -203,24 +235,7 @@ export function tinkerer(config: { label: string; tools?: Many<Tinkerer.Tool> })
       seedSettings(deps.settings, deps.mode, seen);
       try {
         openTurn(deps, prompt);
-        for (;;) {
-          deps.text.set("");
-          const current = readSettings(deps.settings, label);
-          const events = await deps.step.run({
-            input: {
-              url: `${seen.baseUrl}/chat/completions`,
-              headers: { "content-type": "application/json", ...merged.headers },
-              body: stepBody(current, deps.messages.get(), rows),
-            },
-          });
-          const folded = await foldStep(events, deps);
-          const assistant = pushAssistant(deps.messages, deps.text.get(), folded.calls);
-          if (folded.calls.length === 0) {
-            if (folded.finish === undefined) raise("StreamEnded", { label });
-            return closeTurn(deps, ctx, prompt, folded.finish, assistant);
-          }
-          await runCalls(deps, ctx, rows, folded.calls, folded.finish);
-        }
+        return await runLoop(deps, ctx, { label, seen, merged, rows });
       } catch (error) {
         if (!ctx.signal.aborted) deps.status.set("failed");
         throw error;
@@ -238,6 +253,7 @@ export function tinkerer(config: { label: string; tools?: Many<Tinkerer.Tool> })
     turn,
     mode,
     settings,
+    inbox,
     tools: rows,
   };
 }
@@ -411,19 +427,32 @@ function toolParameters(schema: Tinkerer.Tool["meta"]["schema"]): Record<string,
 
 type AccruedCall = { readonly id: string; readonly name: string; readonly args: string };
 
-type FoldedStep = { readonly finish: string | undefined; readonly calls: readonly AccruedCall[] };
+type FoldedStep = {
+  readonly finish: string | undefined;
+  readonly calls: readonly AccruedCall[];
+  readonly steered: boolean;
+};
 
 async function foldStep(
   events: AsyncIterable<HttpResponse.SseEvent>,
   deps: Pick<TurnCells, "text" | "usage">,
+  inbox: Scope.DataController<readonly Tinkerer.Entry[]>,
 ): Promise<FoldedStep> {
   const parts = new Map<number, { id: string; name: string; args: string }>();
   let finish: string | undefined;
   for await (const event of events) {
-    if (event.data === "[DONE]") continue;
-    finish = foldChunk(JSON.parse(event.data) as Tinkerer.Chunk, deps, parts, finish);
+    if (event.data !== "[DONE]")
+      finish = foldChunk(JSON.parse(event.data) as Tinkerer.Chunk, deps, parts, finish);
+    if (steerPending(inbox)) return { finish, calls: [...parts.values()], steered: true };
   }
-  return { finish, calls: [...parts.values()] };
+  return { finish, calls: [...parts.values()], steered: false };
+}
+
+/** Whether the inbox holds a steer entry: read between stream events, so leaving the loop (and
+ * its `return`, which cancels the stream) always happens with the generator suspended at a yield,
+ * never mid-read. */
+function steerPending(inbox: Scope.DataController<readonly Tinkerer.Entry[]>): boolean {
+  return inbox.get().some((entry) => entry.kind === "steer");
 }
 
 function foldChunk(
@@ -641,6 +670,105 @@ function closeTurn(
   const done = deps.usage.get();
   ctx.log("tinkerer turn", { finish, input: prompt, output: done.output });
   return { message, usage: done, finish };
+}
+
+/** What the loop reads once per turn: the endpoint address and the tool rows. */
+type TurnConfig = {
+  readonly label: string;
+  readonly seen: RequiredConfig;
+  readonly merged: MergedConfig;
+  readonly rows: readonly Tinkerer.Tool[];
+};
+
+/** Everything the loop reads and writes: the ambient cells, the inbox, the step, the tool slots. */
+type LoopDeps = TurnCells & {
+  readonly settings: Scope.DataController<Tinkerer.Settings | undefined>;
+  readonly inbox: Scope.DataController<readonly Tinkerer.Entry[]>;
+  readonly step: Scope.OperationController<
+    Promise<AsyncIterable<HttpResponse.SseEvent>>,
+    Tinkerer.StepInput
+  >;
+} & ToolSlots;
+
+/** The ReAct loop: step, fold (racing a steer), then tool calls or a stop. A steer interrupts the
+ * step and re-enters as a user message; queued entries continue the turn when the model would stop. */
+async function runLoop(
+  deps: LoopDeps,
+  ctx: Operation.Ctx<string>,
+  cfg: TurnConfig,
+): Promise<Tinkerer.Reply> {
+  for (;;) {
+    drainInbox(deps, steerOnly);
+    deps.text.set("");
+    const settings = readSettings(deps.settings, cfg.label);
+    const events = await deps.step.run({
+      input: readStepInput(cfg, settings, deps.messages.get()),
+    });
+    const folded = await foldStep(events, deps, deps.inbox);
+    if (folded.steered) {
+      keepPartial(deps.messages, deps.text.get());
+      continue;
+    }
+    const assistant = pushAssistant(deps.messages, deps.text.get(), folded.calls);
+    if (folded.calls.length === 0) {
+      if (drainInbox(deps, steerAndQueue)) continue;
+      if (folded.finish === undefined) raise("StreamEnded", { label: cfg.label });
+      return closeTurn(deps, ctx, cfg.label, folded.finish, assistant);
+    }
+    await runCalls(deps, ctx, cfg.rows, folded.calls, folded.finish);
+  }
+}
+
+const steerOnly: ReadonlySet<Tinkerer.Entry["kind"]> = new Set(["steer"]);
+const steerAndQueue: ReadonlySet<Tinkerer.Entry["kind"]> = new Set(["steer", "queue"]);
+
+function readStepInput(
+  cfg: TurnConfig,
+  settings: Tinkerer.Settings,
+  transcript: readonly Tinkerer.Message[],
+): Tinkerer.StepInput {
+  return {
+    url: `${cfg.seen.baseUrl}/chat/completions`,
+    headers: { "content-type": "application/json", ...cfg.merged.headers },
+    body: stepBody(settings, transcript, cfg.rows),
+  };
+}
+
+/** A steered step keeps its streamed text as an assistant message (partial tool calls dropped);
+ * an empty text adds nothing, so an untouched transcript stays clean. */
+function keepPartial(
+  messages: Scope.DataController<readonly Tinkerer.Message[]>,
+  text: string,
+): void {
+  if (text.length > 0) messages.update((list) => [...list, { role: "assistant", content: text }]);
+}
+
+/** Take the inbox entries of the wanted kinds, inject each as a user message, patch settings from
+ * each; the remaining kinds stay queued. Returns whether any entry was consumed. */
+function drainInbox(deps: LoopDeps, keep: ReadonlySet<Tinkerer.Entry["kind"]>): boolean {
+  const taken = deps.inbox.get().filter((entry) => keep.has(entry.kind));
+  if (taken.length === 0) return false;
+  deps.inbox.update((list) => list.filter((entry) => !keep.has(entry.kind)));
+  for (const entry of taken) injectEntry(deps, entry);
+  return true;
+}
+
+function injectEntry(deps: LoopDeps, entry: Tinkerer.Entry): void {
+  deps.messages.update((list) => [...list, { role: "user", content: entry.content }]);
+  patchSettings(deps.settings, entry);
+}
+
+function patchSettings(
+  settings: Scope.DataController<Tinkerer.Settings | undefined>,
+  entry: Tinkerer.Entry,
+): void {
+  if (entry.mode === undefined && entry.options === undefined) return;
+  const current = settings.get();
+  if (current === undefined) return;
+  settings.set({
+    mode: entry.mode ?? current.mode,
+    options: { ...current.options, ...entry.options },
+  });
 }
 
 export { isError };
