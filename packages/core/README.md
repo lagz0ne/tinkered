@@ -214,8 +214,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A rejecting release cleanup surfaces as secondary: the outcome keeps its status and the error lands in the
   teardown errors.
 - Release cascades down: the dependent rebuilds, exactly once across diamonds, while upstream stays built;
-  dependents tear down first.
-- A cascade re-runs no operation.
+  dependents tear down first, and the cascade re-runs no operation.
 - A throwing cleanup mid-cascade still drops every dependent's cache; a throwing watcher during release still
   runs the cleanups.
 - Releasing a scope resource cascades into each session's dependents; an uninvolved session keeps its
