@@ -312,6 +312,10 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   still awaits its real teardown and reports its error.
 - A forced close aborts in-flight work: a parked op stops, a sleep rejects, the run's defer sees
   `cancelled`, and close settles `cancelled`.
+- A close re-entered during a failing teardown reports the failure.
+- A close re-entered during a clean forced teardown reports cancelled.
+- A forced close with a cleanup still settles cancelled.
+- `settled` stays pending until an operation's async cleanup finishes.
 - A session hook that throws before next still lets the body run and rethrows the hook error.
 - Two session hooks see each ordered end in turn.
 - A body that rejects inside session fails the close with its cause.
