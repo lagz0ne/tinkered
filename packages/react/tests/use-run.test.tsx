@@ -337,7 +337,7 @@ test("a run with only onSettled reports failure without onError", async () => {
   await scope.close();
 });
 
-test("a run with empty options settles without callbacks", async () => {
+test("a run with empty options resolves runAsync without callbacks", async () => {
   const scope = createScope();
   const inc = operation({
     label: "inc-bare",
@@ -345,25 +345,21 @@ test("a run with empty options settles without callbacks", async () => {
     run: (_deps, { input }) => Promise.resolve(input + 1),
   });
 
-  function Bare({ call }: { call: Scope.ProvideInput<number> }): React.ReactElement {
+  let runAsync: Resolver | undefined;
+  function Bare(): React.ReactElement {
     const run = useRun(inc, {});
-    return (
-      <div>
-        <button type="button" onClick={() => run.run(call)}>
-          go
-        </button>
-        <p>bare:{run.status === "success" ? String(run.data) : run.status}</p>
-      </div>
-    );
+    runAsync = run.runAsync;
+    return <p>bare:{run.status === "success" ? String(run.data) : run.status}</p>;
   }
 
   const screen = await render(
     <ScopeProvider scope={scope}>
-      <Bare call={{ rawInput: "5" }} />
+      <Bare />
     </ScopeProvider>,
   );
+  if (!runAsync) throw new Error("runAsync was not bound");
 
-  await screen.getByRole("button").click();
+  await expect(runAsync({ rawInput: "5" })).resolves.toBe(6);
   await expect.element(screen.getByText("bare:6")).toBeVisible();
 
   await scope.close();
