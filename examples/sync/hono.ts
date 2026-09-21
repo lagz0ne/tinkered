@@ -2,6 +2,7 @@ import type { Hono } from "hono";
 import { createScope, data, operation, resource, type Scope } from "@tinker/core";
 import { hono, route, stream } from "@tinker/hono";
 import { source, type Sync } from "@tinker/sync";
+import { z } from "zod";
 
 /** The shared counter both ends publish: a plain cell, named by the row. */
 const counter = data({ label: "counter", initial: 0 });
@@ -12,14 +13,7 @@ function frame(message: Sync.Message): string {
 }
 
 /** A posted register: the keys the viewer shows. Anything else is refused. */
-function readPosted(raw: unknown): Sync.Message | undefined {
-  if (typeof raw !== "object" || raw === null) return undefined;
-  if (!("type" in raw) || raw.type !== "register") return undefined;
-  if (!("keys" in raw) || Array.isArray(raw.keys) === false) return undefined;
-  const keys = raw.keys.filter((key): key is string => typeof key === "string");
-  if (keys.length !== raw.keys.length) return undefined;
-  return { type: "register", keys };
-}
+const registerSchema = z.object({ type: z.literal("register"), keys: z.array(z.string()) });
 
 /** One live wire per browser tab, keyed by the `client` query value: a scope
  * resource, so the composition root owns it and `defer` clears it on close. */
@@ -46,19 +40,12 @@ const openWire = operation({
   run: ({ origin, posts }) => ({ origin, posts }),
 });
 
-/** Parse one posted register at the door: the client id plus its message. */
-function parseDelivery(raw: unknown): { readonly id: string; readonly message: Sync.Message } {
-  if (typeof raw !== "object" || raw === null) throw new Error("bad delivery");
-  if (!("id" in raw) || typeof raw.id !== "string") throw new Error("bad delivery");
-  if (!("message" in raw)) throw new Error("bad delivery");
-  const message = readPosted(raw.message);
-  if (message === undefined) throw new Error("bad delivery");
-  return { id: raw.id, message };
-}
+/** One posted delivery at the door: the client id plus its register. */
+const deliverySchema = z.object({ id: z.string(), message: registerSchema });
 
 const deliverRegister = operation({
   label: "deliverRegister",
-  input: parseDelivery,
+  input: deliverySchema,
   depends: { posts },
   run: ({ posts }, ctx) => {
     const send = posts.get(ctx.input.id);

@@ -1,5 +1,6 @@
 import { createScope, operation } from "@tinker/core";
 import { backend, httpClient, HttpRequest, HttpResponse, type HttpClient } from "@tinker/http";
+import { z } from "zod";
 
 /** A cast-free tour of the frame: a frame, two endpoint operations, and a userland operation
  * that depends on both and hands a fresh token to one call via `tags`. Every value's type is
@@ -13,27 +14,22 @@ export async function tour(): Promise<string> {
     return Promise.resolve(HttpResponse.make(request, { status: 200, body: '"ok"' }));
   };
 
-  const parseName = (raw: unknown): string => {
-    if (typeof raw !== "string") throw new Error("bad name");
-    return raw;
-  };
-
   const listRepos = github.operation({
     label: "listRepos",
-    input: parseName,
+    input: z.string(),
     request: (user) => HttpRequest.get(`/users/${user}/repos`),
     response: (res) => res.text(),
   });
 
   const createIssue = github.operation({
     label: "createIssue",
-    input: parseName,
+    input: z.string(),
     request: (title) => HttpRequest.post("/issues", { body: HttpRequest.bodyJson({ title }) }),
   });
 
   const onboard = operation({
     label: "onboard",
-    input: parseName,
+    input: z.string(),
     depends: { repos: listRepos, issue: createIssue },
     run: async ({ repos, issue }, ctx) => {
       const names = await repos.run({ input: ctx.input });

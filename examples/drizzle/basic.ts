@@ -4,6 +4,7 @@ import { pgTable, serial, text } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/pglite";
 import { createScope, operation } from "@tinker/core";
 import { drizzleStore } from "@tinker/drizzle";
+import { z } from "zod";
 
 /** A cast-free tour of the frame: a PGlite store, a table, a session insert, and a root
  * read that sees the committed row. Every value's type is INFERRED — no `as`, no `!`. */
@@ -21,13 +22,9 @@ export async function tour(): Promise<string> {
     },
     close: (db) => db.$client.close(),
   });
-  const parseName = (raw: unknown): string => {
-    if (typeof raw !== "string") throw new Error("bad name");
-    return raw;
-  };
   const addUser = operation({
     label: "addUser",
-    input: parseName,
+    input: z.string(),
     depends: { tx: store.tx },
     run: ({ tx }, ctx) => tx.insert(users).values({ name: ctx.input }),
   });

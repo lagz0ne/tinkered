@@ -1,22 +1,16 @@
 import { createScope } from "@tinker/core";
 import { operation } from "@tinker/core";
 import { cli, command } from "@tinker/cli";
+import { z } from "zod";
 
 /** A cast-free tour of the driver: the flat row table hands operations to
  * `cli({ commands })` — `double` eager, `ping` behind a loader — and the root
  * resolves `run` off the extension and answers in-process. Returns the codes,
  * the answer, and the count. */
 export async function tour(): Promise<string> {
-  const parseCount = (raw: unknown): number => {
-    if (typeof raw !== "string") throw new Error("bad count");
-    const count = Number(raw);
-    if (Number.isNaN(count)) throw new Error("bad count");
-    return count;
-  };
-
   const double = operation({
     label: "double",
-    input: parseCount,
+    input: z.coerce.number(),
     run: (_deps, ctx) => ctx.input * 2,
   });
 

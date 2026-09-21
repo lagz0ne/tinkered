@@ -6,17 +6,10 @@ import { z } from "zod";
 import { expose, mcp } from "@tinker/mcp";
 
 const searchShape = { q: z.string() };
-const searchSchema = z.object(searchShape);
-
-/** Parse through the object built from the raw shape: the op edge and the
- * declaration share one source. A named function, not a method pull. */
-function parseSearch(raw: unknown): { q: string } {
-  return searchSchema.parse(raw);
-}
 
 const search = operation({
   label: "search",
-  input: parseSearch,
+  input: z.object(searchShape),
   run: (_deps, ctx) => [`hit:${ctx.input.q}`],
 });
 

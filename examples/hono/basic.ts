@@ -1,19 +1,15 @@
 import { createScope, operation, tag } from "@tinker/core";
 import { hono, route, stream } from "@tinker/hono";
+import { z } from "zod";
 
 /** A cast-free tour of the driver: a scope at the entrypoint, one session per request,
  * flat rows handed to the extension and mounted eagerly at boot. The tour returns a string. */
 export async function tour(): Promise<string> {
   const tenant = tag<string>({ label: "tenant" });
 
-  const parseName = (raw: unknown): string => {
-    if (typeof raw !== "string") throw new Error("bad name");
-    return raw;
-  };
-
   const greet = operation({
     label: "greet",
-    input: parseName,
+    input: z.string(),
     depends: { tenant },
     run: ({ tenant }, ctx) => `hello ${ctx.input} from ${tenant}`,
   });

@@ -1,14 +1,12 @@
 import { operation } from "@tinker/core";
 import { command, runMain } from "@tinker/cli";
+import { z } from "zod";
 
 const ping = operation({ label: "ping", run: () => "pong" });
 
 const greet = operation({
   label: "greet",
-  input: (raw: unknown) => {
-    if (typeof raw !== "string") throw new Error("bad name");
-    return raw;
-  },
+  input: z.string(),
   run: (_deps, ctx) => `hello ${ctx.input}`,
 });
 
