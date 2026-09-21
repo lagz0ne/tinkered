@@ -41,15 +41,6 @@ function fakeSdk(seen: Seen): ClaudeCode.Sdk {
   };
 }
 
-/** The op edge and the declaration share one source: parse through the object built from the
- * raw shape (the shape `@tinker/mcp`'s tests declare the same way). */
-function parseWith<T>(schema: { parse: (raw: unknown) => T }): (raw: unknown) => T {
-  function parse(raw: unknown): T {
-    return schema.parse(raw);
-  }
-  return parse;
-}
-
 /** The recorded turn: init, the simulated model call of the LAST registered server's first tool
  * (each session's thread registers its own) when a `coder` server is present, then the tool
  * use, its result, and the turn result. */
@@ -67,7 +58,7 @@ async function* readStream(options: Options | undefined, seen: Seen): AsyncGener
 const index = tag<string>({ label: "index", default: "base" });
 
 const searchShape = { q: z.string() };
-const parseSearch = parseWith(z.object(searchShape));
+const parseSearch = (raw: unknown): { q: string } => z.object(searchShape).parse(raw);
 
 /** One declaration for every harness: a plain-value op with `tool` meta — the same shape
  * `@tinker/mcp`'s tests declare. The MCP driver and the Claude fast path map the value. */
