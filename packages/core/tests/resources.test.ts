@@ -468,3 +468,27 @@ test("concurrent resolves share one tracked build", async () => {
   expect(await third).toBe("v-2");
   await scope.close();
 });
+
+test("releasing a diamond leg then the root still tears down the other leg", () => {
+  const cleaned: string[] = [];
+  const hook =
+    (label: string) =>
+    (_deps: never, { defer }: any) => {
+      defer(() => void cleaned.push(label));
+      return { v: label };
+    };
+  const d = resource({ label: "d", factory: hook("d") as never });
+  const l = resource({ label: "l", depends: { d }, factory: hook("l") as never });
+  const r = resource({ label: "r", depends: { d }, factory: hook("r") as never });
+  const top = resource({
+    label: "top",
+    depends: { l, r },
+    factory: hook("top") as never,
+  });
+  const scope = createScope();
+  scope.resolve(top);
+  scope.release(l);
+  expect(cleaned).toEqual(["top", "l"]);
+  scope.release(d);
+  expect(cleaned).toEqual(["top", "l", "r", "d"]);
+});

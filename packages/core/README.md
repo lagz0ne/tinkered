@@ -248,6 +248,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A factory that declares no ctx fails its defer with `Disposed`.
 - A factory that declares no ctx still reads its abort signal.
 - A resource context hands the same abort signal on every read.
+- Releasing a diamond leg then the root still tears down the other leg.
 - Releasing one resource leaves another resource's cleanup in place.
 - Releasing a mid-chain resource tears down each dependent once in order.
 - A resource cleanup that rejects asynchronously lands in teardown errors.
