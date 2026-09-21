@@ -1,8 +1,8 @@
 # @tinker/tinkerer
 
 Our own ReAct loop on core (ADR 0053).
-The frame: one config tag, one step, four
-cells, one turn. No tools yet (t02).
+The frame: one config tag, one mode tag,
+one step, five cells, one turn, tool rows.
 
 ```text
 tinkerer({ label: "coder" })
@@ -57,6 +57,46 @@ await scope.close();
 - A forced close during a turn rejects the turn and
   writes no failed status.
 
+## Tools
+
+- Name a row with `tool(op, meta)` (an mcp
+  `expose` row fits too; `respond` is ignored).
+- The wire name is `meta.name ?? op.label`.
+- Two rows with one name fail the build
+  with `DuplicateTool`.
+- The request lists each row as a function
+  tool with its JSON schema.
+- A reply with a tool call runs the tool
+  as a subflow; the next step carries
+  its result.
+- An unknown tool answers not-found;
+  the loop keeps going.
+- Bad JSON args answer with the parse message.
+- A reply cut by the token limit fails
+  every call without running it.
+- A throwing tool answers failed; the loop
+  keeps going.
+- Calls run side by side unless a row says
+  `sequential`; results keep model order.
+- `read` returns a window of lines and
+  refuses a path outside `cwd`.
+
+## Mode
+
+- Three values, weakest first: `read-only`,
+  `workspace-write`, `full-access`.
+- Each row names the least mode it needs
+  (`meta.mode`, default `read-only`).
+- A read-only mode blocks a workspace-write
+  tool and tells the model why.
+- Bind the `mode` tag in a session;
+  full-access lets the same tool run.
+- Turn start seeds the `settings` cell from
+  the tags: mode plus model and options.
+- Every step and every tool call reads
+  `settings`; mode always goes with
+  the next call.
+
 ## Errors
 
 `StreamEnded { label }` — the stream ended
@@ -65,6 +105,10 @@ with no `finish_reason` seen.
 `baseUrl` missing after the merge.
 `EmptyPrompt { label }` — the turn got
 an empty prompt, so no request went out.
+`DuplicateTool { label, name }` — two rows
+share one wire name at construction.
+`PathOutsideCwd { label, path }` — `read`
+was asked for a path outside `cwd`.
 
 ## Test recipe
 
