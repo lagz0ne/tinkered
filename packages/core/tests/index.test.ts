@@ -2702,6 +2702,12 @@ test("an operation defer sees success on a clean run", () => {
       return 1;
     },
   });
+  createScope().controller(ok).run();
+  expect(seen).toEqual(["success"]);
+});
+
+test("an operation defer sees failed when the run throws", () => {
+  const seen: string[] = [];
   const bad = operation({
     label: "bad",
     run: (_deps, { defer }) => {
@@ -2709,9 +2715,8 @@ test("an operation defer sees success on a clean run", () => {
       throw new Error("boom");
     },
   });
-  createScope().controller(ok).run();
   expect(() => createScope().controller(bad).run()).toThrow();
-  expect(seen).toEqual(["success", "failed"]);
+  expect(seen).toEqual(["failed"]);
 });
 
 test("an operation ctx exposes no borrow or drain internals", () => {
@@ -2834,7 +2839,7 @@ test("a throwing defer is aggregated as TeardownFailed and does not stop other d
   expect(result.teardownErrors).toContain(boom);
 });
 
-test("closing a scope with thousands of defers does not overflow", async () => {
+test("closing a scope with thousands of defers settles cancelled with no teardown errors", async () => {
   const scope = createScope();
   for (let i = 0; i < 5000; i++) {
     const r = resource({
@@ -2846,8 +2851,9 @@ test("closing a scope with thousands of defers does not overflow", async () => {
     });
     scope.resolve(r);
   }
-  await scope.close();
-  expect(true).toBe(true);
+  const result = await scope.close();
+  expect(result.status).toBe("cancelled");
+  expect(result.teardownErrors).toBeUndefined();
 });
 
 test("an interrupted session resource sees cancelled, not success", async () => {
@@ -2872,8 +2878,9 @@ test("closing a deeply nested scope tree does not overflow", async () => {
   const root = createScope();
   let leaf = root;
   for (let i = 0; i < 3000; i++) leaf = leaf.createSession();
-  await root.close();
-  expect(true).toBe(true);
+  const result = await root.close();
+  expect(result.status).toBe("cancelled");
+  expect(result.teardownErrors).toBeUndefined();
   // 3000-deep async close cascade: generous timeout so coverage-instrumented runs (mutation) don't
   // flake on the default 5s; the assertion here is "no stack overflow", not wall-clock speed.
 }, 30000);
@@ -2932,9 +2939,10 @@ test("close aborts children created by a still-running nested body", async () =>
   const closing = closeBoundary();
   await Promise.resolve();
   gate.resolve();
-  await closing;
+  const closeResult = (await closing) as Scope.Result;
   await rejected;
-  expect(true).toBe(true);
+  expect(closeResult.status).toBe("cancelled");
+  expect(closeResult.teardownErrors).toBeUndefined();
 });
 
 test("a settled body result survives a later interrupt", async () => {
