@@ -462,9 +462,13 @@ test("get on a rejected build returns its rejection", async () => {
 });
 
 test("concurrent resolves share one tracked build", async () => {
-  let release!: (v: string) => void;
-  const gate = new Promise<string>((resolve) => {
-    release = resolve;
+  let g1!: (v: string) => void;
+  let g2!: (v: string) => void;
+  const gate1 = new Promise<string>((resolve) => {
+    g1 = resolve;
+  });
+  const gate2 = new Promise<string>((resolve) => {
+    g2 = resolve;
   });
   let builds = 0;
   const slow = resource({
@@ -472,17 +476,18 @@ test("concurrent resolves share one tracked build", async () => {
     factory: () => {
       builds += 1;
       const n = builds;
-      return gate.then((v) => `${v}-${n}`);
+      return (n === 1 ? gate1 : gate2).then((v) => `${v}-${n}`);
     },
   });
   const scope = createScope();
   const first = scope.controller(slow).resolve() as Promise<unknown>;
   scope.release(slow);
   const second = scope.controller(slow).resolve() as Promise<unknown>;
-  release("v");
+  g1("v");
   expect(await first).toBe("v-1");
-  expect(await second).toBe("v-2");
   const third = scope.controller(slow).resolve() as Promise<unknown>;
+  g2("v");
+  expect(await second).toBe("v-2");
   expect(await third).toBe("v-2");
   await scope.close();
 });
