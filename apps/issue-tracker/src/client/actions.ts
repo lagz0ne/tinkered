@@ -1,6 +1,6 @@
 import { operation } from "@tinker/core";
 import { isError as isHttpError } from "@tinker/http";
-import { issueList, parseIssue, type Issues } from "../shared/issues.ts";
+import { issueList, type Issues } from "../shared/issues.ts";
 import { isError, raise } from "../errors.ts";
 import { getCapability, getDetail, patchIssue, postComment, postIssue } from "./api.ts";
 import { wire } from "./connection.ts";
@@ -35,10 +35,6 @@ import {
 function readString(raw: unknown, action: string): string {
   if (typeof raw !== "string") raise("BadDraftInput", { reason: `${action} needs a string` });
   return raw;
-}
-
-function isRecord(raw: unknown): raw is Record<string, unknown> {
-  return typeof raw === "object" && raw !== null;
 }
 
 /** One patch over the edit draft: only the fields the caller set. */
@@ -202,7 +198,7 @@ export const saveEdit = operation({
     } catch (error: unknown) {
       const found = readEditError(error);
       notice.set(found.message);
-      const currentSaved = found.current ?? (await readStoredConflict(error));
+      const currentSaved = found.current;
       if (currentSaved !== null) {
         draft.update((prev) => (prev === null ? prev : { ...prev, conflict: currentSaved }));
       }
@@ -424,33 +420,12 @@ export function readEditError(error: unknown): {
   const offline = readOfflineMessage(error);
   if (offline !== null) return { message: offline, current: null };
   if (isHttpError(error, "ResponseFailed")) {
-    if (error.payload.response.status === 409) {
-      return { message: "Someone else saved first. Reload and try again.", current: null };
-    }
     return { message: readHttpMessage(error.payload.response.status), current: null };
   }
   if (error instanceof Error && error.message.length > 0) {
     return { message: error.message, current: null };
   }
   return { message: "Could not save. Try again.", current: null };
-}
-
-/** Read a 409 body as its current saved issue, or null when it carries none. */
-export function readConflictBody(raw: unknown): { readonly current: Issues.Issue } | null {
-  if (!isRecord(raw) || raw.current === undefined) return null;
-  try {
-    return { current: parseIssue(raw.current) };
-  } catch {
-    return null;
-  }
-}
-
-/** Read the conflicting current issue stored on a 409 response, if the body carries one. */
-export async function readStoredConflict(error: unknown): Promise<Issues.Issue | null> {
-  if (!isHttpError(error, "ResponseFailed")) return null;
-  if (error.payload.response.status !== 409) return null;
-  const body = readConflictBody(await error.payload.response.json());
-  return body === null ? null : body.current;
 }
 
 /** Read the comment failure as the plain message the form shows. */

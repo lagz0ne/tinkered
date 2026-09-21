@@ -1,4 +1,5 @@
 import { HttpRequest, httpClient } from "@tinker/http";
+import { fail, raise, type Errors } from "../errors.ts";
 import {
   parseComment,
   parseCommentInput,
@@ -11,8 +12,33 @@ import {
 } from "../shared/issues.ts";
 import { parseDraftCapability, parseDraftInput } from "../shared/draft.ts";
 
-/** The browser's command frame: saves through HTTP; the server owns the saved state. */
-export const api = httpClient({ label: "issues", filterStatus: (status) => status < 300 });
+/** The browser's command frame: saves through HTTP; the server owns the saved state. A 409
+ * passes the filter so `patchIssue` can read its body as the conflict. */
+export const api = httpClient({
+  label: "issues",
+  filterStatus: (status) => status < 300 || status === 409,
+});
+
+function isRecord(raw: unknown): raw is Record<string, unknown> {
+  return typeof raw === "object" && raw !== null;
+}
+
+/** Read a 409 body as the `IssueConflict` the server raised (`id`, `currentRevision`,
+ * `current`), built but not thrown: `json(parse)` wraps a throwing parser as a decode failure, so
+ * the endpoint throws it after the read. A body without a readable issue is a `BadIssue`. */
+function parseConflict(raw: unknown): Errors.Of<"IssueConflict"> {
+  if (!isRecord(raw)) raise("BadIssue", { label: "conflict" });
+  if (typeof raw.id !== "string" || typeof raw.currentRevision !== "number") {
+    raise("BadIssue", { label: "conflict" });
+  }
+  const conflict = fail("IssueConflict", {
+    id: raw.id,
+    currentRevision: raw.currentRevision,
+    current: parseIssue(raw.current),
+  });
+  conflict.message = `IssueConflict: someone else saved first — current revision ${raw.currentRevision}`;
+  return conflict;
+}
 
 /** Save one issue through HTTP; the server owns the saved state. */
 export const postIssue = api.operation({
@@ -22,13 +48,18 @@ export const postIssue = api.operation({
   response: (res) => res.json(parseIssue),
 });
 
-/** Save an edit through HTTP; a stale revision is rejected without saving. */
+/** Save an edit through HTTP; a stale revision is rejected without saving: the server's 409
+ * body is raised here as `IssueConflict` carrying the current saved issue, so every caller —
+ * the browser, the CLI, a preset — speaks one error. */
 export const patchIssue = api.operation({
   label: "patchIssue",
   input: parseEditInput,
   request: (input) =>
     HttpRequest.patch(`/api/issues/${input.id}`, { body: HttpRequest.bodyJson(input) }),
-  response: (res) => res.json(parseIssue),
+  response: async (res) => {
+    if (res.status !== 409) return res.json(parseIssue);
+    throw await res.json(parseConflict);
+  },
 });
 
 /** Append a comment through HTTP; no edit revision is needed. */

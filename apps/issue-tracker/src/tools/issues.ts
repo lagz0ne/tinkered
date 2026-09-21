@@ -4,12 +4,11 @@ import { isError as isHttpError } from "@tinker/http";
 import { expose, mcp, tool, type Mcp } from "@tinker/mcp";
 import { z } from "zod";
 import { getDetail, getIssues, patchIssue, postComment, postIssue } from "../client/api.ts";
-import { fail, type Errors } from "../errors.ts";
+import { fail } from "../errors.ts";
 import {
   parseCommentInput,
   parseCreateInput,
   parseEditInput,
-  parseIssue,
   parseIssueId,
 } from "../shared/issues.ts";
 
@@ -78,31 +77,9 @@ function isRecord(raw: unknown): raw is Record<string, unknown> {
   return typeof raw === "object" && raw !== null;
 }
 
-function readConflicted(raw: unknown): Errors.Of<"IssueConflict"> | undefined {
-  if (!isRecord(raw)) return undefined;
-  if (typeof raw.id !== "string") return undefined;
-  if (typeof raw.currentRevision !== "number") return undefined;
-  try {
-    const current = parseIssue(raw.current);
-    const conflict = fail("IssueConflict", {
-      id: raw.id,
-      currentRevision: raw.currentRevision,
-      current,
-    });
-    conflict.message = `IssueConflict: someone else saved first — current revision ${raw.currentRevision}`;
-    return conflict;
-  } catch {
-    return undefined;
-  }
-}
-
-async function readRemoteError(error: unknown, fallbackId: string): Promise<unknown> {
+function readRemoteError(error: unknown, fallbackId: string): unknown {
   if (!isHttpError(error, "ResponseFailed")) return error;
   const status = error.payload.response.status;
-  if (status === 409) {
-    const conflicted = readConflicted(await error.payload.response.json());
-    if (conflicted !== undefined) return conflicted;
-  }
   if (status === 404) {
     const missing = fail("IssueNotFound", { id: fallbackId });
     missing.message = `IssueNotFound: ${fallbackId} is gone`;
@@ -123,7 +100,7 @@ export const listRemote = operation({
     try {
       return await issues.run();
     } catch (error: unknown) {
-      throw await readRemoteError(error, "issues");
+      throw readRemoteError(error, "issues");
     }
   },
 });
@@ -137,7 +114,7 @@ export const createRemote = operation({
     try {
       return await saved.run({ input: ctx.input });
     } catch (error: unknown) {
-      throw await readRemoteError(error, "issues");
+      throw readRemoteError(error, "issues");
     }
   },
 });
@@ -151,7 +128,7 @@ export const updateRemote = operation({
     try {
       return await saved.run({ input: ctx.input });
     } catch (error: unknown) {
-      throw await readRemoteError(error, ctx.input.id);
+      throw readRemoteError(error, ctx.input.id);
     }
   },
 });
@@ -165,7 +142,7 @@ export const commentRemote = operation({
     try {
       return await saved.run({ input: ctx.input });
     } catch (error: unknown) {
-      throw await readRemoteError(error, ctx.input.issueId);
+      throw readRemoteError(error, ctx.input.issueId);
     }
   },
 });
@@ -184,7 +161,7 @@ export const getRemote = operation({
     try {
       return await detail.run({ input: ctx.input });
     } catch (error: unknown) {
-      throw await readRemoteError(error, ctx.input);
+      throw readRemoteError(error, ctx.input);
     }
   },
 });

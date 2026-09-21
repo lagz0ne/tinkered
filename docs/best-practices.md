@@ -77,8 +77,15 @@ expect(all.map((i) => i.title)).toEqual(["First"]);
 await scope.close({ graceful: true });
 ```
 
-`preset(node, replacement)` swaps an edge for one test: a fake `api` backend, a fixed clock via
-`makeTestClock`, a fake harness `query`. The operation under test does not change.
+`preset(node, replacement)` swaps an edge for one test: an endpoint operation (`postIssue`), a
+fixed clock via `makeTestClock`, a fake harness `query`. The operation under test does not change.
+
+Preset the node the app owns, not the transport under it. An app test never binds a fake on the
+`backend` tag: that is `@tinker/http`'s own seam, and a route table matched by method and URL is
+a second server. The node itself must speak every outcome a test wants to preset — a 409 is
+raised as `IssueConflict` by `patchIssue`, so a preset rejects with the same error the graph
+handles (2026-09-21, `tracker/preset-seam`). Each test builds its own scope and counts calls in
+its own closure; a shared boot helper hides which edges a test needs.
 
 ## The issue tracker, classified
 

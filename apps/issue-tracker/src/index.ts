@@ -44,17 +44,24 @@ export { describeError, jsonLines } from "./server/observe.ts";
 export { registerViewer, viewers } from "./server/sync.ts";
 export { createApp } from "./server/app.ts";
 export type { AppConfig } from "./server/app.ts";
-export { api, getDetail, getIssues, patchIssue, postComment, postIssue } from "./client/api.ts";
+export {
+  api,
+  getCapability,
+  getDetail,
+  getIssues,
+  openDraft,
+  patchIssue,
+  postComment,
+  postIssue,
+} from "./client/api.ts";
 export {
   beginDraft,
   checkCapability,
   discardDraft,
   loadDetail,
   postDraft,
-  readConflictBody,
   readDetailError,
   readEditError,
-  readStoredConflict,
   readSubmitMessage,
   reconnect,
   reload,
