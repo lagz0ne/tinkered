@@ -29,7 +29,7 @@ edge that must land first. Every ticket ends with the Jev loop below -- the writ
 decides each flag before reporting, so a review round is about shape, never about findings the
 tools already print.
 
-- **graph/t02a** -- [ ] `http`: finish the package
+- **graph/t02a** -- [x] `http`: finish the package
   Blocked by: none (the base is on `graph/t02-http`).
   Delivers: `vp run http#test` green on the new shape.
   - [ ] `endpoints.test.ts`: the client-preset test targets `attempt`
@@ -40,7 +40,7 @@ tools already print.
   - [ ] `retry.test.ts`: one `attempt` span per try, backoff on the
         test clock, abort during backoff makes no further call.
   - [ ] no `.operation(` or `.client` left in `packages/http`.
-- **graph/t02b** -- [ ] the consumers
+- **graph/t02b** -- [x] the consumers
   Blocked by: t02a.
   Delivers: `vp check` clean and every consumer's tests green.
   - [ ] `apps/issue-tracker/src/client/api.ts` (7 endpoints), `drafter.ts`,
@@ -103,3 +103,18 @@ does, either the step deserves to be an operation, or the helper belongs inside 
 ### Landed
 
 One line per ticket: tag -- sha -- tests -- size (B gzip) -- mutation -- Jev flags before/after.
+
+- **graph/t02a + t02b** -- see the landing sha --
+  http 65 tests, tinkerer 51, tracker 47, full
+  suite green -- 85.01 mutation alone -- http's
+  own Jev notes 5 -> 4; `check-graph` 6 -> 4
+  violations (http cleared both rules).
+  Writer-built (pi meta-muse) from a lead base,
+  one review round. The review found one real
+  defect the writer had decided was test-only:
+  a subflow throws core's `Disposed` while
+  `ctx.signal.aborted` is still false, and the
+  catch reported `RequestFailed/Transport` --
+  blaming a network nobody touched. Fixed in
+  production code with a test pinning it; the
+  close-ordering question went to core feedback.
