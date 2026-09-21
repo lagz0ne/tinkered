@@ -189,6 +189,30 @@ New sections are lists, one term per item (vertical layout,
   bar (bad ≥ 50%, clean < 50%, gap ≥ 30) may set the exit
   code; the rest print `~`.
 
+## Authoring: the graph and its trace (ADR 0058)
+
+- **the rule** — A step worth seeing in a trace is
+  an operation; a helper inside one step is a plain
+  function. The test: would I want this step in a
+  trace, or to preset it?
+- **a frame supplies units** — `httpClient({ label })`
+  exposes `send` and `attempt` to depend on. It
+  never builds the author's operation, so `depends`
+  and `run` stay on the page.
+- **the graph produces the trace** — core opens a
+  span per operation and nests by subflow, gated on
+  `observing`. Work in a plain function gets none of
+  it, which is why three packages hand-rolled spans.
+- **span-tree test** — One test per package that
+  runs a real flow and asserts the shape of
+  `scope.spans()`. It fails when a step slips back
+  into a plain function; the advisory judges only
+  point.
+- **one mechanism per idea** — Per-call config is
+  `tags` on the run (ADR 0038). A merge helper lives
+  inside the unit that needs it, never at the call
+  site.
+
 ## Authoring: factories and units (ADR 0057)
 
 - **unit** — An `operation`, `resource`, data cell,
