@@ -6,8 +6,16 @@ import type {
   SDKSystemMessage,
   SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
-import type { ClaudeCode } from "../src/index.ts";
-import type { ThreadEvent, ThreadItem, Usage } from "@openai/codex-sdk";
+import type { ClaudeCode, OpenAiCodex } from "../src/index.ts";
+import type {
+  CodexOptions,
+  Input,
+  ThreadEvent,
+  ThreadItem,
+  ThreadOptions,
+  TurnOptions,
+  Usage,
+} from "@openai/codex-sdk";
 
 /** One recorded turn: the messages a fake `query` yields for it. */
 export type Script = { readonly messages: readonly SDKMessage[] };
@@ -300,4 +308,74 @@ export function readToolSdk(): Pick<ClaudeCode.Sdk, "tool" | "createSdkMcpServer
     }),
     createSdkMcpServer: () => ({ type: "stdio", command: "fake" }),
   };
+}
+
+/** One `runStreamed` call a fake Codex thread saw: the input plus the turn options. */
+export type CodexTurn = { readonly input: Input; readonly turnOptions: TurnOptions | undefined };
+
+/** One `Codex` construction a fake saw: which constructor call plus its thread calls. */
+export type CodexClient = {
+  readonly options: CodexOptions | undefined;
+  readonly started: ThreadOptions[];
+  readonly resumed: { readonly id: string; readonly options: ThreadOptions | undefined }[];
+};
+
+/** What one Codex test owns: every turn the fake threads saw plus every `Codex` construction. */
+export type CodexSeen = { turns: CodexTurn[]; clients: CodexClient[] };
+
+/** A parked Codex stream's release: the test resolves it after the close under test settles. */
+export type CodexGate = { readonly promise: Promise<void> };
+
+/** A fake Codex thread: yields the next script's events, checking the turn signal before each one. */
+function readCodexThread(
+  scripts: CodexScript[],
+  seen: CodexSeen,
+  gate?: CodexGate,
+): OpenAiCodex.Thread {
+  return {
+    runStreamed: async (input, turnOptions) => {
+      seen.turns.push({ input, turnOptions });
+      const script = scripts.shift();
+      return { events: readCodexEvents(script?.events ?? [], turnOptions?.signal, gate) };
+    },
+  };
+}
+
+/** A fake Codex SDK module: constructions land in the test's `seen.clients`. */
+export function readCodexSdk(scripts: CodexScript[], seen: CodexSeen, gates?: CodexGate[]) {
+  return {
+    Codex: class {
+      client: CodexClient;
+      constructor(options?: CodexOptions) {
+        this.client = { options, started: [], resumed: [] };
+        seen.clients.push(this.client);
+      }
+      startThread(options?: ThreadOptions) {
+        this.client.started.push(options ?? {});
+        return readCodexThread(scripts, seen, gates?.shift());
+      }
+      resumeThread(id: string, options?: ThreadOptions) {
+        this.client.resumed.push({ id, options });
+        return readCodexThread(scripts, seen, gates?.shift());
+      }
+    },
+  };
+}
+
+/** Yield recorded Codex events, then park on `gate` while given; an abort rejects first. */
+async function* readCodexEvents(
+  events: readonly ThreadEvent[],
+  signal: AbortSignal | undefined,
+  gate?: CodexGate,
+): AsyncGenerator<ThreadEvent> {
+  for (const event of events) {
+    if (signal?.aborted === true) throw signal.reason;
+    yield event;
+  }
+  if (gate === undefined) return;
+  if (signal?.aborted === true) throw signal.reason;
+  const abort = new Promise<never>((_resolve, reject) => {
+    signal?.addEventListener("abort", () => reject(signal?.reason), { once: true });
+  });
+  await Promise.race([gate.promise, abort]);
 }

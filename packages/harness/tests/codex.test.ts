@@ -1,95 +1,23 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, preset, type Observe } from "@tinker/core";
-import type {
-  CodexOptions,
-  Input,
-  ThreadEvent,
-  ThreadItem,
-  ThreadOptions,
-  TurnOptions,
-} from "@openai/codex-sdk";
-import { codex, harness, isError, type Harness, type OpenAiCodex } from "../src/index.ts";
+import type { ThreadEvent, ThreadItem } from "@openai/codex-sdk";
+import { codex, harness, isError, type Harness } from "../src/index.ts";
 import {
   readCodexCut,
   readCodexFailure,
   readCodexScript,
+  readCodexSdk,
   readCommand,
-  type CodexScript,
+  type CodexSeen,
 } from "./fixtures.ts";
 
-/** One `runStreamed` call a fake thread saw: the input plus the turn options. */
-type SeenTurn = { readonly input: Input; readonly turnOptions: TurnOptions | undefined };
-
-/** One `Codex` construction a fake saw: which constructor call plus its thread calls. */
-type SeenClient = {
-  readonly options: CodexOptions | undefined;
-  readonly started: ThreadOptions[];
-  readonly resumed: { readonly id: string; readonly options: ThreadOptions | undefined }[];
-};
-
-/** What one test owns: every turn the fake threads saw plus every `Codex` construction. */
-type Seen = { turns: SeenTurn[]; clients: SeenClient[] };
-
-/** A parked stream's release: the test resolves it after the close under test settles. */
-type Gate = { readonly promise: Promise<void> };
-
-/** A fake thread: yields the next script's events, checking the turn signal before each one. */
-function fakeThread(scripts: CodexScript[], seen: Seen, gate?: Gate): OpenAiCodex.Thread {
-  return {
-    runStreamed: async (input, turnOptions) => {
-      seen.turns.push({ input, turnOptions });
-      const script = scripts.shift();
-      return { events: readEvents(script?.events ?? [], turnOptions?.signal, gate) };
-    },
-  };
-}
-
-/** A fake SDK module: constructions land in the test's `seen.clients`. */
-function fakeCodexSdk(scripts: CodexScript[], seen: Seen, gates?: Gate[]) {
-  return {
-    Codex: class {
-      client: SeenClient;
-      constructor(options?: CodexOptions) {
-        this.client = { options, started: [], resumed: [] };
-        seen.clients.push(this.client);
-      }
-      startThread(options?: ThreadOptions) {
-        this.client.started.push(options ?? {});
-        return fakeThread(scripts, seen, gates?.shift());
-      }
-      resumeThread(id: string, options?: ThreadOptions) {
-        this.client.resumed.push({ id, options });
-        return fakeThread(scripts, seen, gates?.shift());
-      }
-    },
-  };
-}
-
-/** Yield recorded events, then park on `gate` while given; an abort rejects first. */
-async function* readEvents(
-  events: readonly ThreadEvent[],
-  signal: AbortSignal | undefined,
-  gate?: Gate,
-): AsyncGenerator<ThreadEvent> {
-  for (const event of events) {
-    if (signal?.aborted === true) throw signal.reason;
-    yield event;
-  }
-  if (gate === undefined) return;
-  if (signal?.aborted === true) throw signal.reason;
-  const abort = new Promise<never>((_resolve, reject) => {
-    signal?.addEventListener("abort", () => reject(signal?.reason), { once: true });
-  });
-  await Promise.race([gate.promise, abort]);
-}
-
 test("a turn folds the event stream into the result and the ambient cells", async () => {
-  const seen: Seen = { turns: [], clients: [] };
+  const seen: CodexSeen = { turns: [], clients: [] };
   const script = readCodexScript();
   const coder = harness({ label: "coder", adapter: codex });
   const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
   const scope = createScope({
-    presets: [preset(codex.sdk, async () => fakeCodexSdk([script], seen))],
+    presets: [preset(codex.sdk, async () => readCodexSdk([script], seen))],
   });
   const session = scope.createSession();
   const statusSeen: Harness.Status[] = [];
@@ -137,12 +65,12 @@ test("a turn folds the event stream into the result and the ambient cells", asyn
 });
 
 test("options split into the constructor's keys and the thread's keys", async () => {
-  const seen: Seen = { turns: [], clients: [] };
+  const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
   const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
   const scope = createScope({
     tags: [codex.options({ apiKey: "k", model: "a", workingDirectory: "/x" })],
-    presets: [preset(codex.sdk, async () => fakeCodexSdk([readCodexScript()], seen))],
+    presets: [preset(codex.sdk, async () => readCodexSdk([readCodexScript()], seen))],
   });
   const session = scope.createSession({ tags: [codex.options({ model: "b" })] });
   await session.run(ask, { input: "hello" });
@@ -153,7 +81,7 @@ test("options split into the constructor's keys and the thread's keys", async ()
 });
 
 test("every option key reaches its SDK side: the constructor's six, the thread's eleven", async () => {
-  const seen: Seen = { turns: [], clients: [] };
+  const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
   const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
   const scope = createScope({
@@ -178,7 +106,7 @@ test("every option key reaches its SDK side: the constructor's six, the thread's
         additionalDirectories: ["/d"],
       }),
     ],
-    presets: [preset(codex.sdk, async () => fakeCodexSdk([readCodexScript()], seen))],
+    presets: [preset(codex.sdk, async () => readCodexSdk([readCodexScript()], seen))],
   });
   await scope.createSession().run(ask, { input: "hello" });
   expect(seen.clients[0].options).toEqual({
@@ -208,11 +136,11 @@ test("every option key reaches its SDK side: the constructor's six, the thread's
 });
 
 test("a resume binding resumes the thread id", async () => {
-  const seen: Seen = { turns: [], clients: [] };
+  const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
   const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
   const scope = createScope({
-    presets: [preset(codex.sdk, async () => fakeCodexSdk([readCodexScript()], seen))],
+    presets: [preset(codex.sdk, async () => readCodexSdk([readCodexScript()], seen))],
   });
   const session = scope.createSession({ tags: [coder.resume("t-9")] });
   await session.run(ask, { input: "hello" });
@@ -224,12 +152,12 @@ test("a resume binding resumes the thread id", async () => {
 });
 
 test("two turns in one session use one thread", async () => {
-  const seen: Seen = { turns: [], clients: [] };
+  const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
   const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
   const scope = createScope({
     presets: [
-      preset(codex.sdk, async () => fakeCodexSdk([readCodexScript(), readCodexScript()], seen)),
+      preset(codex.sdk, async () => readCodexSdk([readCodexScript(), readCodexScript()], seen)),
     ],
   });
   const session = scope.createSession();
@@ -243,13 +171,13 @@ test("two turns in one session use one thread", async () => {
 });
 
 test("a failed turn rejects with TurnFailed and the harness turn line says failed", async () => {
-  const seen: Seen = { turns: [], clients: [] };
+  const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
   const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
   const logs: Observe.Log[] = [];
   const scope = createScope({
     observe: { history: 20, log: (entry) => logs.push(entry) },
-    presets: [preset(codex.sdk, async () => fakeCodexSdk([readCodexFailure()], seen))],
+    presets: [preset(codex.sdk, async () => readCodexSdk([readCodexFailure()], seen))],
   });
   const session = scope.createSession();
   const statusSeen: Harness.Status[] = [];
@@ -269,7 +197,7 @@ test("a failed turn rejects with TurnFailed and the harness turn line says faile
 });
 
 test("a forced close mid-turn rejects the turn and cancels the close", async () => {
-  const seen: Seen = { turns: [], clients: [] };
+  const seen: CodexSeen = { turns: [], clients: [] };
   let release!: () => void;
   const gate = {
     promise: new Promise<void>((resolve) => {
@@ -281,7 +209,7 @@ test("a forced close mid-turn rejects the turn and cancels the close", async () 
   const logs: Observe.Log[] = [];
   const scope = createScope({
     observe: { history: 20, log: (entry) => logs.push(entry) },
-    presets: [preset(codex.sdk, async () => fakeCodexSdk([], seen, [gate]))],
+    presets: [preset(codex.sdk, async () => readCodexSdk([], seen, [gate]))],
   });
   const session = scope.createSession();
   await session.resolve(coder.thread);
@@ -304,13 +232,13 @@ test("a forced close mid-turn rejects the turn and cancels the close", async () 
 });
 
 test("with observe, the turn span carries the adapter and one harness turn line logs done", async () => {
-  const seen: Seen = { turns: [], clients: [] };
+  const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
   const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
   const logs: Observe.Log[] = [];
   const scope = createScope({
     observe: { history: 20, log: (entry) => logs.push(entry) },
-    presets: [preset(codex.sdk, async () => fakeCodexSdk([readCodexScript()], seen))],
+    presets: [preset(codex.sdk, async () => readCodexSdk([readCodexScript()], seen))],
   });
   const session = scope.createSession();
   await session.run(ask, { input: "hello" });
@@ -329,11 +257,11 @@ async function readCells(events: readonly ThreadEvent[]): Promise<{
   items: readonly Harness.Item[];
   text: string;
 }> {
-  const seen: Seen = { turns: [], clients: [] };
+  const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
   const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
   const scope = createScope({
-    presets: [preset(codex.sdk, async () => fakeCodexSdk([{ events }], seen))],
+    presets: [preset(codex.sdk, async () => readCodexSdk([{ events }], seen))],
   });
   const session = scope.createSession();
   const result = await session.run(ask, { input: "hello" });
@@ -406,11 +334,11 @@ test("an empty agent update streams nothing and the turn still completes", async
 });
 
 test("a stream that ends with no completion rejects TurnEnded", async () => {
-  const seen: Seen = { turns: [], clients: [] };
+  const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
   const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
   const scope = createScope({
-    presets: [preset(codex.sdk, async () => fakeCodexSdk([readCodexCut()], seen))],
+    presets: [preset(codex.sdk, async () => readCodexSdk([readCodexCut()], seen))],
   });
   const session = scope.createSession();
   const outcome = await session.run(ask, { input: "hello" }).then(
@@ -424,11 +352,11 @@ test("a stream that ends with no completion rejects TurnEnded", async () => {
 });
 
 test("closing the thread stops the turn signal the SDK sees", async () => {
-  const seen: Seen = { turns: [], clients: [] };
+  const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
   const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
   const scope = createScope({
-    presets: [preset(codex.sdk, async () => fakeCodexSdk([readCodexScript()], seen))],
+    presets: [preset(codex.sdk, async () => readCodexSdk([readCodexScript()], seen))],
   });
   const session = scope.createSession();
   await session.resolve(coder.thread);
@@ -443,14 +371,14 @@ test("closing the thread stops the turn signal the SDK sees", async () => {
 });
 
 test("a reasoning item records the event phase, not an SDK status", async () => {
-  const seen: Seen = { turns: [], clients: [] };
+  const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
   const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
   const thinking: ThreadItem = { id: "r-1", type: "reasoning", text: "hmm" };
   const scope = createScope({
     presets: [
       preset(codex.sdk, async () =>
-        fakeCodexSdk(
+        readCodexSdk(
           [
             {
               events: [
@@ -491,14 +419,14 @@ test("a reasoning item records the event phase, not an SDK status", async () => 
 });
 
 test("a failed command item keeps the SDK's failed status", async () => {
-  const seen: Seen = { turns: [], clients: [] };
+  const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
   const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
   const failed = { ...readCommand("failed"), id: "c-9" };
   const scope = createScope({
     presets: [
       preset(codex.sdk, async () =>
-        fakeCodexSdk(
+        readCodexSdk(
           [
             {
               events: [
