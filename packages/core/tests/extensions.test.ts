@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, extension } from "../src/index.ts";
+import { createScope, data, extension, operation } from "../src/index.ts";
 
 const asNumber = (v: unknown): number => {
   if (typeof v !== "number") throw new Error("not a number");
@@ -97,4 +97,51 @@ test("a session chain is installed only when a hook exists", async () => {
   await wrapped.ready;
   expect(await wrapped.session(() => 6)).toBe(6);
   await wrapped.close();
+});
+
+test("three run hooks nest in registration order", async () => {
+  const order: string[] = [];
+  const op = operation({ label: "op", run: () => 1 });
+  const hook = (label: string) =>
+    extension({
+      label,
+      run: (_op, _call, next) => {
+        order.push(`${label}:before`);
+        const out = next();
+        order.push(`${label}:after`);
+        return out;
+      },
+    });
+  const scope = createScope({ extensions: [hook("a"), hook("b"), hook("c")] });
+  await scope.ready;
+  scope.run(op);
+  expect(order).toEqual(["a:before", "b:before", "c:before", "c:after", "b:after", "a:after"]);
+  await scope.close();
+});
+
+test("two close hooks nest in registration order", async () => {
+  const order: string[] = [];
+  const hook = (label: string) =>
+    extension({
+      label,
+      close: async (_opts, next) => {
+        order.push(`${label}:before`);
+        const result = await next();
+        order.push(`${label}:after`);
+        return result;
+      },
+    });
+  const scope = createScope({ extensions: [hook("a"), hook("b")] });
+  await scope.ready;
+  await scope.close({ graceful: true });
+  expect(order).toEqual(["a:before", "b:before", "b:after", "a:after"]);
+});
+
+test("a scope with no close hooks closes straight through", async () => {
+  const scope = createScope({ extensions: [extension({ label: "plain" })] });
+  await scope.ready;
+  expect((await scope.close({ graceful: true })).status).toBe("success");
+  const forced = createScope({ extensions: [extension({ label: "plain" })] });
+  await forced.ready;
+  expect((await forced.close()).status).toBe("cancelled");
 });
