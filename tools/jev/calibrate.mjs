@@ -13,8 +13,9 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadKey, ask, pct, JUDGES, BANK, HERE } from "./lib.mjs";
-import { LINT, TESTS, TEST_PAIR } from "./bank.mjs";
+import { LINT, TESTS, TEST_PAIR, SURVIVORS } from "./bank.mjs";
 import { JUDGE_CASES, REACT_CASES } from "./evals/fixtures/lint.mjs";
+import { SURVIVOR_CASES } from "./evals/fixtures/survivors.mjs";
 
 const OUT = join(HERE, "calibration.json");
 const args = process.argv.slice(2);
@@ -28,7 +29,11 @@ const MIN_ORDERED = 0.9;
 function readCases() {
   const cases = {};
   const add = (judge, label, state, where) => (cases[judge] ??= []).push({ label, state, where });
-  for (const [judge, pair] of Object.entries({ ...JUDGE_CASES, ...REACT_CASES })) {
+  for (const [judge, pair] of Object.entries({
+    ...JUDGE_CASES,
+    ...REACT_CASES,
+    ...SURVIVOR_CASES,
+  })) {
     add(judge, true, pair.bad, "fixture:bad");
     for (const k of Object.keys(pair).filter((k) => k.startsWith("clean")))
       add(judge, false, pair[k], `fixture:${k}`);
@@ -74,7 +79,8 @@ function readStatus(trues, falses) {
 
 /** Ask the judge about every case; return the numbers and the status. */
 async function calibrate(judge, cases) {
-  const q = (LINT[judge] ?? TESTS[judge] ?? TEST_PAIR[judge] ?? JUDGES[judge]).q;
+  const q = (LINT[judge] ?? TESTS[judge] ?? TEST_PAIR[judge] ?? SURVIVORS[judge] ?? JUDGES[judge])
+    .q;
   const trues = [];
   const falses = [];
   for (const c of cases) {

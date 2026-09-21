@@ -11,7 +11,18 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { BANK, JUDGES } from "./lib.mjs";
-import { LINT, TESTS, TEST_PAIR, slice, sliceTests, forJev } from "./bank.mjs";
+import {
+  LINT,
+  TESTS,
+  TEST_PAIR,
+  SURVIVORS,
+  slice,
+  sliceTests,
+  sliceSurvivors,
+  forJev,
+  forSurvivorJev,
+} from "./bank.mjs";
+import { join } from "node:path";
 
 const args = process.argv.slice(2);
 const flag = (name) => {
@@ -29,9 +40,10 @@ if (!judge || !["true", "false"].includes(labelWord ?? "") || !target) {
 }
 const isUnitJudge = judge in LINT;
 const isTestJudge = judge in TESTS || judge in TEST_PAIR;
-if (!isUnitJudge && !isTestJudge && !(judge in JUDGES)) {
+const isSurvivorJudge = judge in SURVIVORS;
+if (!isUnitJudge && !isTestJudge && !isSurvivorJudge && !(judge in JUDGES)) {
   console.error(
-    `label: unknown judge ${judge}; file judges: ${Object.keys(JUDGES).join(", ")}; unit judges: ${Object.keys(LINT).join(", ")}`,
+    `label: unknown judge ${judge}; file judges: ${Object.keys(JUDGES).join(", ")}; unit judges: ${Object.keys(LINT).join(", ")}; survivor judges: ${Object.keys(SURVIVORS).join(", ")}`,
   );
   process.exit(1);
 }
@@ -61,8 +73,9 @@ function readTestState() {
   return { title: t.title, body: t.body };
 }
 
-/** The state the judge sees: a unit judge gets the sliced unit; a test judge the test; a file judge the file. */
+/** The state the judge sees: a unit judge gets the sliced unit; a test judge the test; a survivor judge the sliced survivor; a file judge the file. */
 function readState() {
+  if (isSurvivorJudge) return readSurvivorState();
   if (isTestJudge) return readTestState();
   if (!isUnitJudge) return { file, code };
   if (!unitName) {
@@ -75,6 +88,20 @@ function readState() {
     process.exit(1);
   }
   return forJev(unit);
+}
+
+/** A survivor judge's state: the survivor with this mutant id from the package report. Target is `<file>#<mutantId>` where `<file>` is the printed path (`packages/<pkg>/…`). */
+function readSurvivorState() {
+  const [pkg] = file.split("/").slice(1, 2);
+  const report = JSON.parse(
+    readFileSync(join("packages", pkg, "reports/mutation/mutation.json"), "utf8"),
+  );
+  const hit = sliceSurvivors(report, `packages/${pkg}`).find((s) => s.id === target);
+  if (!hit) {
+    console.error(`label: no survivor ${target} in packages/${pkg}/reports/mutation/mutation.json`);
+    process.exit(1);
+  }
+  return forSurvivorJev(hit);
 }
 
 const state = readState();
