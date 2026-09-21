@@ -1,0 +1,32 @@
+{
+  "id": "chatcmpl-01a0c2b7-cb46-71b2-b5be-e6f975113265",
+  "choices": [
+    {
+      "finish_reason": "tool_calls",
+      "index": 0,
+      "message": {
+        "content": "I'll read README.md for you.",
+        "refusal": null,
+        "tool_calls": [
+          {
+            "id": "call_e15363e7-7ba7-4c13-911c-a175361d8f09",
+            "type": "function",
+            "function": { "name": "read", "arguments": "{\"path\":\"README.md\"}" }
+          }
+        ],
+        "role": "assistant"
+      },
+      "logprobs": null
+    }
+  ],
+  "created": 1789973220,
+  "model": "muse-spark-1.3-contributor",
+  "object": "chat.completion",
+  "usage": {
+    "completion_tokens": 268,
+    "prompt_tokens": 556,
+    "total_tokens": 824,
+    "completion_tokens_details": { "reasoning_tokens": 203 },
+    "prompt_tokens_details": { "cached_tokens": 0 }
+  }
+}
