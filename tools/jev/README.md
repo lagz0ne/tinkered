@@ -96,3 +96,24 @@ Generated from the code by `node tools/jev/explain.mjs --md` — regenerate afte
 | judge             | status | the question Jev is asked                                                                                                                                                                                                          | `true` means                                                                                                                                                       | `false` means                                                                                                                                                           |
 | ----------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `survivorMatters` | proven | This mutant survived every test: inside the unit shown, the code `before` became `after` and no test failed. Would a user of this package observe a wrong result, a missed error, a wrong count, or a leak if this change shipped? | the change alters a value, a branch, an error code, an ordering, or a cleanup a caller can observe — a boundary, a returned field, a thrown code, a defer, a limit | the change touches only a message or label string, a log line, an expression with the same result, unreachable or dead code, or a speed-only path with the same outcome |
+
+### guide — the unit classifier lint.mjs uses; for words, blueprint suggest
+
+**`unit`** — Which @tinker/core unit fits this code or description?
+
+- `data`: a piece of state kept and read over time — a form field, a draft, a filter, a selection, a notice, a list — written by operations or a driver
+- `resource`: something that subscribes, listens, polls, connects, opens, or streams; built once per owner; needs cleanup
+- `operation`: something a user, request, CLI, or tool asks for; runs once per call with typed input; may have effects
+- `tag`: an environment choice — a URL, path, flag, or setting — bound at the root and rebound in tests
+- `glue`: a plain function that takes values in and returns a value, keeps no state and starts no effect; or wiring at the composition root
+- `view`: a React component: reads cells with useData, runs operations with useRun, renders; owns no state and no effect
+
+**`target`** — For a resource: one instance for the whole scope, or one per session?
+
+- `scope`: one shared instance for the process: a database, a server, a cache, a pool, a wire
+- `session`: one per request, tab, call, or turn: a transaction, a request context, per-call state
+
+**`needsDefer`** — Does this start or hold something that must be stopped, closed, or rolled back when its owner closes?
+
+- `true`: a connection, timer, listener, transaction, or buffer must be released at close
+- `false`: it computes or reads values only; nothing to release

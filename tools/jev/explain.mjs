@@ -46,8 +46,8 @@ for (const [title, bank] of GROUPS) {
 
 console.log(
   md
-    ? `\n### guide — guide.mjs, one pick per unit or description\n`
-    : `\n== guide — guide.mjs, one pick per unit or description\n`,
+    ? `\n### guide — the unit classifier lint.mjs uses; for words, blueprint suggest\n`
+    : `\n== guide — the unit classifier lint.mjs uses; for words, blueprint suggest\n`,
 );
 for (const [id, g] of Object.entries(GUIDE)) {
   const q = g.q;
