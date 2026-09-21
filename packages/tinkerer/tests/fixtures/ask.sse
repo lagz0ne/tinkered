@@ -1,0 +1,10 @@
+data: {"id":"chatcmpl-01a0c37b-95b3-7289-9abe-c73d72c2b9e1","choices":[{"delta":{"content":"I'll read README.md for you.","role":"assistant"},"finish_reason":null,"index":0}],"created":1789986051,"model":"muse-spark-1.3-contributor","object":"chat.completion.chunk"}
+
+data: {"id":"chatcmpl-01a0c37b-95b3-7289-9abe-c73d72c2b9e1","choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_01a0c37b9cbe701e9136fc698fbf76a5","type":"function","function":{"name":"read","arguments":""}}]},"finish_reason":null,"index":0}],"created":1789986051,"model":"muse-spark-1.3-contributor","object":"chat.completion.chunk"}
+
+data: {"id":"chatcmpl-01a0c37b-95b3-7289-9abe-c73d72c2b9e1","choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"path\":\"README.md\"}"}}]},"finish_reason":null,"index":0}],"created":1789986051,"model":"muse-spark-1.3-contributor","object":"chat.completion.chunk"}
+
+data: {"id":"chatcmpl-01a0c37b-95b3-7289-9abe-c73d72c2b9e1","choices":[{"delta":{},"finish_reason":"tool_calls","index":0}],"created":1789986051,"model":"muse-spark-1.3-contributor","object":"chat.completion.chunk","usage":{"completion_tokens":179,"prompt_tokens":556,"total_tokens":735,"completion_tokens_details":{"reasoning_tokens":114},"prompt_tokens_details":{"cached_tokens":0}}}
+
+data: [DONE]
+
