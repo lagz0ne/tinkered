@@ -249,3 +249,77 @@ test("three session hooks nest in registration order", async () => {
   expect(order).toEqual(["a:before", "b:before", "c:before", "c:after", "b:after", "a:after"]);
   await scope.close();
 });
+
+test("a close hook sees the settled end", async () => {
+  const seen: unknown[] = [];
+  const ext = extension({
+    label: "spy",
+    close: async (_opts, next) => {
+      const result = await next();
+      seen.push(result.status);
+      return result;
+    },
+  });
+  const scope = createScope({ extensions: [ext] });
+  await scope.ready;
+  await scope.close({ graceful: true });
+  expect(seen).toEqual(["success"]);
+});
+
+test("a graceful close through hooks settles success", async () => {
+  const ext = extension({
+    label: "pass",
+    close: (_opts, next) => next(),
+  });
+  const scope = createScope({ extensions: [ext] });
+  await scope.ready;
+  const result = await scope.close({ graceful: true });
+  expect(result.status).toBe("success");
+});
+
+test("a failing body with a failing cleanup reports both causes", async () => {
+  const bodyCause = new Error("body-boom");
+  const cleanup = new Error("cleanup-boom");
+  const spy = extension({
+    label: "spy",
+    session: async (_handle, next) => next(),
+  });
+  const leaky = resource({
+    label: "leaky",
+    target: "session",
+    factory: (_deps, { defer }) => {
+      defer(() => {
+        throw cleanup;
+      });
+      return 1;
+    },
+  });
+  const scope = createScope({ extensions: [spy] });
+  await scope.ready;
+  const thrown = await scope
+    .session((s) => {
+      s.resolve(leaky);
+      throw bodyCause;
+    })
+    .then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+  if (!isError(thrown, "TeardownFailed")) throw thrown;
+  expect(thrown.payload.causes).toContain(bodyCause);
+  expect(thrown.payload.causes).toContain(cleanup);
+  await scope.close();
+});
+
+test("a session that ends cancelled rejects with its reason", async () => {
+  const spy = extension({
+    label: "spy",
+    session: async (_handle, next) => next(),
+  });
+  const scope = createScope({ extensions: [spy] });
+  await scope.ready;
+  const child = scope.createSession();
+  const result = await child.close();
+  expect(result.status).toBe("cancelled");
+  await scope.close();
+});
