@@ -99,3 +99,12 @@ test("sibling spans carry distinct ids in call order", () => {
   scope.run(second);
   expect(more[1].id).toBe(more[0].id + 1);
 });
+
+test("a run retains its span in history", () => {
+  const op = operation({ label: "op", run: () => 1 });
+  const scope = createScope({ observe: { history: 10 } });
+  scope.run(op);
+  const spans = scope.spans();
+  expect(spans.length).toBe(1);
+  expect(spans[0].status).toBe("ok");
+});

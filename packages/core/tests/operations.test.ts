@@ -66,11 +66,11 @@ test("a session body rejected with a primitive keeps its cause under close", asy
   const root = createScope();
   const running = root.session(() => gate);
   const closing = root.close();
-  release("primitive-boom");
+  release(null);
   const thrown = await running.then(
     () => undefined,
     (error: unknown) => error,
   );
-  expect(thrown).toBe("primitive-boom");
+  expect(thrown).toBe(null);
   await closing;
 });
