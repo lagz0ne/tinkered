@@ -53,16 +53,16 @@ const lanes = [
     "drizzle pure universal bundle (no node:, no drizzle-orm at runtime)",
     `bash -c 'grep -qE "from \\"node:|drizzle-orm" packages/drizzle/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/drizzle/dist/index.mjs\\").then(m=>process.exit(m.drizzleStore?0:1))"'`,
   ],
-  // @tinker/cli (ADR 0042, cli-v1 t02): same promises; `run` never touches the process, so dist stays pure.
-  ["cli tests", `${VP} run --no-cache cli#test`],
-  ["cli size (<= 10 kB gzip)", `${VP} run --no-cache cli#size`],
+  // @tinker/process (ADR 0056): same promises; only `main` touches the process, so dist stays pure.
+  ["process tests", `${VP} run --no-cache process#test`],
+  ["process size (<= 10 kB gzip)", `${VP} run --no-cache process#size`],
   [
-    "cli cast-free examples (0 casts)",
-    `bash -c 'test $(grep -rcE "\\\\bas [A-Za-z{(]|\\\\bas unknown|[a-zA-Z0-9_)\\\\]]!" examples/cli | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
+    "process cast-free examples (0 casts)",
+    `bash -c 'test $(grep -rcE "\\\\bas [A-Za-z{(]|\\\\bas unknown|[a-zA-Z0-9_)\\\\]]!" examples/process-cli | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
   ],
   [
-    "cli pure universal bundle",
-    `bash -c 'grep -qE "from \\"node:" packages/cli/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/cli/dist/index.mjs\\").then(m=>process.exit(m.cli&&m.command&&m.runMain?0:1))"'`,
+    "process pure universal bundle",
+    `bash -c 'grep -qE "from \\"node:" packages/process/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/process/dist/index.mjs\\").then(m=>process.exit(m.command&&m.run&&m.main?0:1))"'`,
   ],
   // @tinker/blueprint (ADR 0052, blueprint-v1 t01/t05): the size promise; zod, yaml,
   // and @tinker/* stay out of dist at runtime; the binary ships its corpus and evals.
@@ -131,7 +131,7 @@ for (const [name, cmd] of lanes) {
   }
 }
 console.log(
-  `\nMutation lanes: run \`${VP} run --no-cache core#mutate\` and \`${VP} run --no-cache http#mutate\` and \`${VP} run --no-cache hono#mutate\` and \`${VP} run --no-cache drizzle#mutate\` and \`${VP} run --no-cache cli#mutate\` and \`${VP} run --no-cache harness#mutate\` and \`${VP} run --no-cache mcp#mutate\` and \`${VP} run --no-cache sync#mutate\` ALONE (break >= 75, core and react >= 85; measured alone 2026-09-21: core 86.07, react 93.16; 2026-09-20: http 90.77, hono 77.66, drizzle ~96, cli 79.77, harness 76.05, mcp 82.86, sync 79.67).`,
+  `\nMutation lanes: run \`${VP} run --no-cache core#mutate\` and \`${VP} run --no-cache http#mutate\` and \`${VP} run --no-cache hono#mutate\` and \`${VP} run --no-cache drizzle#mutate\` and \`${VP} run --no-cache process#mutate\` and \`${VP} run --no-cache harness#mutate\` and \`${VP} run --no-cache mcp#mutate\` and \`${VP} run --no-cache sync#mutate\` ALONE (break >= 75, core and react >= 85; measured alone 2026-09-21: core 86.07, react 93.16; 2026-09-20: http 90.77, hono 77.66, drizzle ~96, process 83.43, harness 76.05, mcp 82.86, sync 79.67).`,
 );
 console.log(
   `Timing lanes:  run via \`bench -- ${strip} bench/<lane>.mjs\` in a clean worktree (not in-container).`,

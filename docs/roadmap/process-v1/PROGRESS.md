@@ -69,22 +69,22 @@ Each ticket blocks the next one.
   process edge under a faked `globalThis.process`.
   `examples/process/app.ts`: an operation command, a
   streaming command, a server command.
-- **process/t02** — [ ]
+- **process/t02** — [x]
   Migrate `packages/blueprint` (its binary is the
   driver's best case: four commands, usage, help,
   exit codes). `main.ts` binds the key; `commands`
   become routes. Delete its `@tinker/cli` dep.
-- **process/t03** — [ ]
+- **process/t03** — [x]
   Migrate `apps/issue-tracker`: the `mcp` entry
   becomes a command whose entry options install the
   MCP extension — the 24 lines of hand-rolled root
   glue go.
-- **process/t04** — [ ]
+- **process/t04** — [x]
   Migrate `packages/tinkerer` (`askCommand` → a
   streaming `ask` command that watches `text` and
   writes through the `io` tag) and the examples
   (`examples/cli/**`, `examples/mcp/cli.ts`).
-- **process/t05** — [ ]
+- **process/t05** — [x]
   Delete `packages/cli`; drop its lanes from
   `scripts/validate.mjs` and add the process lanes;
   drop the dead deps from `sync` and `mcp`.
@@ -100,3 +100,34 @@ Each ticket blocks the next one.
 ### Landed
 
 One line per ticket: tag — sha — tests — size (B gzip) — mutation — notes.
+
+- **process/t01** — `e4e213e` — 22 tests —
+  2646 (cap 10240) — 83.43 alone — the package.
+  Nine cases proven before the ADR was written.
+- **process/t02** — `867a32c` — blueprint 72 passed,
+  1 skipped (same as main) — 14856 — 77.63 alone —
+  writer-built (pi meta-muse), no fix round. Every
+  test title and `expect()` byte-identical; the
+  lead captured the baseline from `main` first.
+- **process/t03** — `5877353` — tracker 46 passed —
+  lead-built. The 24 lines of root glue go: the
+  `mcp` command installs the MCP driver plus a
+  stdio extension whose `start` resolves the server
+  and connects the transport, and waits on a
+  `stopping` cell or its signal. Real stdio session
+  (initialize, tools/list, EOF) exits 0; SIGINT
+  exits 0. Usage text is now `usage: <name>
+<command>` with descriptions — one assertion
+  moved.
+- **process/t04 + t05** — see the landing sha —
+  tinkerer 51 tests, process 23 — lead-built.
+  `ask` streams through `io`, and a test counts the
+  writes: the thing the old `command.entry` could
+  never assert. `examples/cli` → `examples/process-cli`;
+  the mcp stdio example serves from an extension.
+  `packages/cli` deleted, its four validate lanes
+  swapped for process lanes, its spawn smoke test
+  moved into `@tinker/process` so the coverage
+  survived. t05 could not wait for its own ticket:
+  t04 moved the example that the cli package's own
+  test spawned.
