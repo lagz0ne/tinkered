@@ -47,6 +47,15 @@ await scope.close();
 - A stream with no finish fails the turn.
 - A nearer config binding wins per key.
 - A missing model fails fast, no request.
+- A missing baseUrl fails with MissingConfig naming the key.
+- The request carries every provider field the config
+  names and asks for usage.
+- A config without system starts the transcript with
+  the user prompt.
+- An empty raw prompt fails validation with EmptyPrompt
+  as the cause; no request is sent.
+- A forced close during a turn rejects the turn and
+  writes no failed status.
 
 ## Errors
 

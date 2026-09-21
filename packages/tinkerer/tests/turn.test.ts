@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "vite-plus/test";
-import { createScope } from "@tinker/core";
+import { createScope, isError as isCoreError } from "@tinker/core";
 import { backend, HttpResponse, type HttpClient, type HttpRequest } from "@tinker/http";
 import { isError, tinkerer, type Tinkerer } from "../src/index.ts";
 
@@ -152,5 +152,98 @@ test("a missing model fails the turn with MissingConfig before any request", asy
   if (!isError(failure, "MissingConfig")) throw failure;
   expect(failure.payload).toEqual({ label: "coder", key: "model" });
   expect(seen).toHaveLength(0);
+  await scope.close();
+});
+
+test("the request carries every provider field the config names and asks for usage", async () => {
+  const seen: HttpRequest.Record[] = [];
+  const scope = createScope({
+    tags: [
+      backend(recording(seen)),
+      coder.config({
+        model: "m",
+        baseUrl: "https://api",
+        reasoning_effort: "high",
+        max_completion_tokens: 64,
+        headers: { authorization: "Bearer x", "x-trace": "1" },
+      }),
+    ],
+  });
+  await scope
+    .createSession({
+      tags: [coder.config({ reasoning_effort: "low", headers: { "x-trace": "2" } })],
+    })
+    .run(coder.turn, { input: "hi" });
+  const body = readBody(seen);
+  expect(body["reasoning_effort"]).toBe("low");
+  expect(body["max_completion_tokens"]).toBe(64);
+  expect(body["stream_options"]).toEqual({ include_usage: true });
+  expect(seen[0]?.headers["content-type"]).toBe("application/json");
+  expect(seen[0]?.headers["authorization"]).toBe("Bearer x");
+  expect(seen[0]?.headers["x-trace"]).toBe("2");
+  await scope.close();
+});
+
+test("a config without system starts the transcript with the user prompt", async () => {
+  const seen: HttpRequest.Record[] = [];
+  const scope = createScope({
+    tags: [backend(recording(seen)), coder.config({ model: "m", baseUrl: "https://api" })],
+  });
+  await scope.createSession().run(coder.turn, { input: "hi" });
+  const body = readBody(seen);
+  expect(body["messages"]).toEqual([{ role: "user", content: "hi" }]);
+  expect(body["reasoning_effort"]).toBeUndefined();
+  await scope.close();
+});
+
+test("a missing baseUrl fails the turn with MissingConfig naming the key", async () => {
+  const seen: HttpRequest.Record[] = [];
+  const scope = createScope({ tags: [backend(recording(seen)), coder.config({ model: "m" })] });
+  try {
+    await scope.createSession().run(coder.turn, { input: "hi" });
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "MissingConfig")) throw error;
+    expect(error.payload).toEqual({ label: "coder", key: "baseUrl" });
+  }
+  expect(seen).toHaveLength(0);
+  await scope.close();
+});
+
+test("an empty raw prompt fails validation with EmptyPrompt as the cause, no request sent", async () => {
+  const seen: HttpRequest.Record[] = [];
+  const scope = scopeConfig(seen);
+  try {
+    await scope.createSession().run(coder.turn, { rawInput: "" });
+    expect.unreachable();
+  } catch (error) {
+    if (!isCoreError(error, "DataValidationFailed")) throw error;
+    const cause = error.payload.cause;
+    if (!isError(cause, "EmptyPrompt")) throw error;
+    expect(cause.payload.label).toBe("coder");
+  }
+  expect(seen).toHaveLength(0);
+  await scope.close();
+});
+
+test("a forced close during a turn rejects the turn and writes no failed status", async () => {
+  const hanging: HttpClient.Backend = (_request, signal) =>
+    new Promise((_resolve, reject) => {
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+    });
+  const scope = createScope({
+    tags: [backend(hanging), coder.config({ model: "m", baseUrl: "https://api" })],
+  });
+  const session = scope.createSession();
+  const seenStatus: Tinkerer.Status[] = [];
+  session.controller(coder.status).watch((next) => seenStatus.push(next));
+  const turn = session.run(coder.turn, { input: "hi" });
+  const settled = turn.then(
+    () => "resolved",
+    () => "rejected",
+  );
+  await session.close();
+  expect(await settled).toBe("rejected");
+  expect(seenStatus).toEqual(["running"]);
   await scope.close();
 });
