@@ -206,7 +206,7 @@ One line per ticket: tag — sha — tests — size (B gzip) — mutation — no
 
 ## v1.1 — verify (ADR 0055)
 
-- **blueprint/t06** — [ ]
+- **blueprint/t06** — [x]
   `src/extract.ts` (oxc-parser): per declared unit
   `kind`, `label`, depends values as identifier
   roots, `target`, `body` text of `run`/`factory`.
@@ -222,6 +222,26 @@ One line per ticket: tag — sha — tests — size (B gzip) — mutation — no
   Eval schema gains `source:`; ≥ 2 bad + 2 clean;
   the golden pair's nodes are the clean cases.
   README: the loop's last step.
+
+### Landed (v1.1)
+
+- **blueprint/t06** — 73 tests — 14779 — 77.95 —
+  writer-built (claude/sonnet-5), no fix round.
+  `src/extract.ts` (oxc-parser through the catalog),
+  `verify` with the five plain checks, the golden
+  pair `packages/blueprint/blueprint.yaml` (11 nodes,
+  `verify` prints `ok: 11 nodes, 11 units,
+0 findings`; real `check` on it: 10 `~` lines).
+  Lead: the golden-pair test finds the pair through
+  the repo root — under Stryker the sandbox's `src`
+  is instrumented, so `readUnits` saw no labels and
+  the dry run failed; a stale `.stryker-tmp` copy
+  then made vitest run the sandbox's test file too
+  (`rm -rf .stryker-tmp` after every lane).
+  Core feedback: `@tinker/cli` has no helper for
+  "every non-flag positional, in order" — every
+  two-argument command filters argv by hand
+  (first asker).
 
 ## v1 complete (2026-09-21)
 
