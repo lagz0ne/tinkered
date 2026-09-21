@@ -58,7 +58,9 @@ options }` — our `mode` plus the provider's own request fields. Seeded from th
    `read-only`: `read`. `workspace-write`: `read`, `edit`, `write` under `cwd`; no `bash`.
    `full-access`: all four. A blocked call returns an error result to the model; the loop
    never stops on it. A human-in-the-loop `gate` op is a later ticket, at the same check
-   point.
+   point. (Shipped in tinkerer/t07: `gate((request) => decision)`, a slot
+   operation run as a subflow before each tool call — it may read a cell or ask
+   a human.)
 7. **Persist is an extension on the `session` hook.** Core hooks wrap the root handle only
    (`run`/`write` skip sessions, subflows, and dep-controller writes — core/t35). A write
    flows down, never up (`writeCell` → `flushCell`), so the extension `watch`es `messages`

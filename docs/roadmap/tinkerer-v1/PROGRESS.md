@@ -221,6 +221,15 @@ One line per ticket: tag — sha — tests — size (B gzip) — mutation — no
   `ask "…"` printed the answer, code 0. Also
   formatted a pre-existing unformatted blueprint ADR
   so `vp check` is green on main.
+- **tinkerer/t07** — `5007d2a` — the gate (ADR
+  0053's deferred human-in-the-loop slot):
+  `gate((request) => decision)` runs as a subflow
+  before each tool, after the mode check; a block
+  answers the model and the tool never runs. Being
+  an operation, it may read a cell or ask a human.
+  Four seam tests; 80.31 alone. Real endpoint: the
+  gate declined a `write` in a full-access session,
+  no file written, the model said why.
 
 ### Impact blocks (ADR 0047)
 
