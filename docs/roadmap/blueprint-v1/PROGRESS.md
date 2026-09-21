@@ -204,6 +204,25 @@ One line per ticket: tag — sha — tests — size (B gzip) — mutation — no
   Core feedback: the unit-classifier note is still
   unlabelable — third asker (card jev/label-unit).
 
+## v1.1 — verify (ADR 0055)
+
+- **blueprint/t06** — [ ]
+  `src/extract.ts` (oxc-parser): per declared unit
+  `kind`, `label`, depends values as identifier
+  roots, `target`, `body` text of `run`/`factory`.
+  `verify <file> <dir>`: the five plain checks,
+  same line format and exit codes as `check`.
+  `packages/blueprint/blueprint.yaml`: every unit
+  in `src`, `verify` on the pair prints nothing
+  (a test, no key).
+- **blueprint/t07** — [ ]
+  `body` as a state field; `check` skips templates
+  that need it, `verify` asks them.
+  `corpus/bodyStraysFromWork.yaml` (provisional).
+  Eval schema gains `source:`; ≥ 2 bad + 2 clean;
+  the golden pair's nodes are the clean cases.
+  README: the loop's last step.
+
 ## v1 complete (2026-09-21)
 
 Five tickets, one day. What ships in `@tinker/blueprint`:

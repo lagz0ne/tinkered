@@ -219,3 +219,16 @@ New sections are lists, one term per item (vertical layout,
 - **persist** — An extension on the `session` hook that
   `watch`es the transcript on the session's own handle and
   appends JSONL per session; seeds the cell on resume.
+- **verify** — `blueprint verify <file> <src>`: the
+  file against the code (ADR 0055). Plain checks
+  first (`missingUnit`, `undeclaredUnit`,
+  `kindMismatch`, `dependsMismatch`,
+  `targetMismatch`), then the templates that need
+  `body`.
+- **link by label** — a node named `x` is the unit
+  whose `label` is `"x"`. The only link; no registry.
+- **golden pair** — a blueprint and the code it
+  describes, known to agree: `packages/blueprint/
+  blueprint.yaml` and `packages/blueprint/src`.
+  `verify` on it prints nothing; its nodes are the
+  clean cases for every `body` template.
