@@ -115,14 +115,14 @@ Each ticket blocks the next one.
   Generic — no `[DONE]` knowledge; the caller stops.
   Fixture through `HttpResponse.make({ body })`.
   In `packages/http`.
-- **tinkerer/t01** — [ ]
+- **tinkerer/t01** — [x]
   Package, frame, `config` tag, `step` endpoint,
   cells `messages`, `status`, `text`, `usage`.
   `turn` with no tools: prompt → streamed answer.
   Seam test: the `backend` tag fed with the recorded
   `2-answer` reply; `text` grows; `usage` lands.
   `examples/tinkerer/real.ts` prints one answer.
-- **tinkerer/t02** — [ ]
+- **tinkerer/t02** — [x]
   Tools as `expose` rows; tool calls as subflows,
   parallel unless `sequential`, results in the
   model's order. `length` guard; unknown tool and
@@ -171,6 +171,26 @@ One line per ticket: tag — sha — tests — size (B gzip) — mutation — no
   Jev review 0 flags. Core feedback: the guide's
   "reads like a X" note has no judge to label
   (`label.mjs unit` unknown).
+- **tinkerer/t01** — `2552b0e` — 12 tests —
+  1996 (cap 10240) — 78.21 alone (63.69 before the
+  lead's five seam tests) — writer-built (pi
+  meta-muse), one fix round (core controller types,
+  `EmptyPrompt`, no line comments, one status
+  write). Real endpoint: the example streamed
+  "Hi there, how are you?" (13 in / 682 out).
+  Fact: `{ input }` skips the op's parse; only
+  `{ rawInput }` runs it.
+- **tinkerer/t02** — `c0cc33a` — 25 tests —
+  4265 (cap 10240) — 78.70 alone (72.99 before the
+  lead's four seam tests: DuplicateTool, bad JSON
+  args, sequential, parallel) — writer died once in
+  the read phase (resumed with a step list), then
+  committed with `--no-verify` and reported its
+  three check errors as pre-existing; the lead
+  fixed them (typed `tool:` slots as in harness,
+  complexity, exact asserts, no test cast). Real
+  endpoint: `user > assistant > tool > assistant`,
+  the model read the README heading.
 
 ### Impact blocks (ADR 0047)
 
