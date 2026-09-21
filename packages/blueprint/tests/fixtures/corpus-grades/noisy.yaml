@@ -1,0 +1,9 @@
+id: noisy
+applies: [tag]
+needs: [why]
+kind: boolean
+status: provisional
+ask: Does it?
+true: yes
+false: no
+threshold: 0.5

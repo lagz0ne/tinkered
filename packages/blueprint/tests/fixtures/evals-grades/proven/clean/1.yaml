@@ -1,0 +1,8 @@
+target: op
+expect: false
+blueprint:
+  - operation:
+      name: op
+      promise: CLEAN case 1
+      why: w
+      work: w

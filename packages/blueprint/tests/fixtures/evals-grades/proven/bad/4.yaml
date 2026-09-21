@@ -1,0 +1,8 @@
+target: op
+expect: true
+blueprint:
+  - operation:
+      name: op
+      promise: BAD case 4
+      why: w
+      work: w

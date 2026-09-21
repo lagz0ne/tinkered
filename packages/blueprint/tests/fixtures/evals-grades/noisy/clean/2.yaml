@@ -1,0 +1,7 @@
+target: tg
+expect: false
+blueprint:
+  - tag:
+      name: tg
+      promise: CLEAN case 2
+      why: w

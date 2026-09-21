@@ -11,6 +11,7 @@ import {
   findingLine,
   goldenCasesOf,
   gradeTemplate,
+  median,
   parseCheckInput,
   readBlueprint,
   readCorpus,
@@ -24,7 +25,9 @@ import { raise } from "./errors.ts";
 export { isError } from "./blueprint.ts";
 export type { Errors } from "./blueprint.ts";
 export {
+  goldenCasesOf,
   gradeTemplate,
+  median,
   plainChecks,
   readBlueprint,
   readCorpus,
@@ -291,22 +294,14 @@ function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
-/** The middle value, sorted ascending; `NaN` with nothing to average. */
-function medianOf(values: readonly number[]): number {
-  const sorted = [...values].sort((a, b) => a - b);
-  if (sorted.length === 0) return NaN;
-  const mid = sorted.length >> 1;
-  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
-}
-
 /** One grade as a line: `✓` proven, `~` provisional, `✗` noisy, then the numbers behind it,
  * including how many of the golden design's cases it hit. */
 function gradeLine(grade: Blueprint.Grade, idWidth: number): string {
   const mark = grade.status === "proven" ? "✓" : grade.status === "noisy" ? "✗" : "~";
   return (
     `${mark} ${grade.id.padEnd(idWidth)}  ${grade.status.padEnd(11)}` +
-    `  bad ${grade.bad.length} (med ${pct(medianOf(grade.bad))})` +
-    `  clean ${grade.clean.length} (med ${pct(medianOf(grade.clean))})` +
+    `  bad ${grade.bad.length} (med ${pct(median(grade.bad))})` +
+    `  clean ${grade.clean.length} (med ${pct(median(grade.clean))})` +
     `  sep ${pct(grade.sep)}  ordered ${pct(grade.ordered)}` +
     `  golden ${grade.goldenHits.length}/${grade.goldenTotal}`
   );

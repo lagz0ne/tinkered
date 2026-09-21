@@ -144,6 +144,30 @@ test("a choice equal to the compared field makes no finding", async () => {
   }
 });
 
+test("a choice hit prints the pick, its confidence, and blocks per template status", async () => {
+  const path = writeTemp(oneResource);
+  try {
+    const result = await answer(["check", path], {
+      tags: [corpusPath(provisionalCorpus)],
+      presets: [
+        preset(judge, () =>
+          fake({
+            pick: {
+              type: "choice",
+              choice: "operation",
+              probabilities: { operation: 0.75, resource: 0.1 },
+            },
+          }),
+        ),
+      ],
+    });
+    expect(result.code).toBe(0);
+    expect(result.stdout).toBe("~pick  db  reads as operation (75%)\nok: 1 nodes, 1 findings\n");
+  } finally {
+    rmSync(dirname(path), { recursive: true });
+  }
+});
+
 test("the judge sees the node with its neighbours", async () => {
   const seen: Blueprint.NodeState[] = [];
   const recording: Blueprint.Judge = {
@@ -327,6 +351,23 @@ test("a pair template is asked only about pairs whose kinds it applies to, named
     expect(value.report.findings.map((finding) => finding.node)).toEqual(["first, second"]);
   } finally {
     await scope.close({ graceful: true });
+  }
+});
+
+test("check names a pair 'a, b' in --json output", async () => {
+  const path = writeTemp(twoOpsOneTag);
+  try {
+    const result = await answer(["check", path, "--json"], {
+      tags: [corpusPath(join(here, "fixtures", "corpus-pair-ops"))],
+      presets: [preset(judge, () => fake({ twin: { type: "boolean", probability: 1 } }))],
+    });
+    expect(result.code).toBe(0);
+    const report = JSON.parse(result.stdout);
+    expect(report.findings.map((finding: Blueprint.Finding) => finding.node)).toEqual([
+      "first, second",
+    ]);
+  } finally {
+    rmSync(dirname(path), { recursive: true });
   }
 });
 

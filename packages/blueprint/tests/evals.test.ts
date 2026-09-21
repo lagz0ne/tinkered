@@ -2,16 +2,21 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
 import { createScope, preset } from "@tinker/core";
+import { cli } from "@tinker/cli";
 import {
+  commands,
   corpus,
   corpusPath,
   engine,
   evals,
   evalsPath,
   evalSet,
+  goldenCasesOf,
   gradeTemplate,
   isError,
   judge,
+  median,
+  readBlueprint,
   readEval,
   type Blueprint,
 } from "../src/index.ts";
@@ -104,7 +109,7 @@ const signal = new AbortController().signal;
 test("readEval parses the ADR's eval-file example", () => {
   const parsed = readEval(exampleEval, "forwards.yaml");
   expect(parsed.file).toBe("forwards.yaml");
-  expect(parsed.target).toBe("saveIssue");
+  expect(parsed.target).toEqual(["saveIssue"]);
   expect(parsed.expect).toBe(true);
   expect(parsed.graph.nodes.map((node) => node.name)).toEqual(["tx", "saveIssue"]);
 });
@@ -117,6 +122,72 @@ test("an eval file missing expect fails InvalidEval", () => {
     if (!isError(error, "InvalidEval")) throw error;
     expect(error.payload.file).toBe("bad.yaml");
   }
+});
+
+test("readEval rejects a three-name target with InvalidEval", () => {
+  try {
+    readEval("target: [a, b, c]\nexpect: true\nblueprint: []\n", "bad.yaml");
+    expect.unreachable("must throw");
+  } catch (error: unknown) {
+    if (!isError(error, "InvalidEval")) throw error;
+    expect(error.payload.file).toBe("bad.yaml");
+  }
+});
+
+test("gradeTemplate fails InvalidEval when a target names no node in its own blueprint", async () => {
+  const missing = readEval(
+    "target: missing\nexpect: true\nblueprint:\n  - operation:\n      name: op\n      promise: p\n      why: w\n",
+    "missing-node.yaml",
+  );
+  try {
+    await gradeTemplate(
+      probeTemplate,
+      { bad: [missing], clean: [], golden: [] },
+      fakeJudge(),
+      signal,
+    );
+    expect.unreachable("must throw");
+  } catch (error: unknown) {
+    if (!isError(error, "InvalidEval")) throw error;
+    expect(error.payload.file).toBe("missing-node.yaml");
+  }
+});
+
+test("gradeTemplate fails InvalidEval when a pair target has only one name", async () => {
+  const onlyOneName = readEval(
+    "target: solo\nexpect: true\nblueprint:\n  - tag:\n      name: solo\n      promise: p\n      why: w\n  - tag:\n      name: other\n      promise: p\n      why: w\n",
+    "one-name.yaml",
+  );
+  const pairTemplate: Blueprint.Template = {
+    id: "pair",
+    scope: "pair",
+    applies: ["tag"],
+    needs: [],
+    status: "provisional",
+    ask: "?",
+    kind: "boolean",
+    true: "t",
+    false: "f",
+    threshold: 0.5,
+  };
+  try {
+    await gradeTemplate(
+      pairTemplate,
+      { bad: [onlyOneName], clean: [], golden: [] },
+      fakeJudge(),
+      signal,
+    );
+    expect.unreachable("must throw");
+  } catch (error: unknown) {
+    if (!isError(error, "InvalidEval")) throw error;
+    expect(error.payload.file).toBe("one-name.yaml");
+  }
+});
+
+test("median sorts numerically before finding the middle, not lexicographically", () => {
+  expect(median([])).toBeNaN();
+  expect(median([10, 2, 1])).toBe(2);
+  expect(median([1, 2, 3, 4])).toBe(2.5);
 });
 
 /** Five distinct cases each, so `enough` (≥ 5 a side) is met without repeating one case object. */
@@ -156,6 +227,28 @@ test("gradeTemplate grades provisional with fewer than five cases on a side", as
   expect(grade.status).toBe("provisional");
 });
 
+test("gradeTemplate grades provisional when only one side reaches five cases", async () => {
+  const grade = await gradeTemplate(
+    probeTemplate,
+    { bad: fiveBad, clean: [booleanEval("CLEAN", 1), booleanEval("CLEAN", 2)], golden: [] },
+    fakeJudge(),
+    signal,
+  );
+  expect(grade.status).toBe("provisional");
+});
+
+test("gradeTemplate scores 0 when the judge's answer is missing for that template id", async () => {
+  const answersNothing: Blueprint.Judge = { ask: async () => ({}) };
+  const grade = await gradeTemplate(
+    probeTemplate,
+    { bad: [booleanEval("BAD", 1)], clean: [booleanEval("CLEAN", 1)], golden: [] },
+    answersNothing,
+    signal,
+  );
+  expect(grade.bad).toEqual([0]);
+  expect(grade.clean).toEqual([0]);
+});
+
 test("gradeTemplate grades noisy when the judge's answers are reversed", async () => {
   const grade = await gradeTemplate(
     probeTemplate,
@@ -163,6 +256,25 @@ test("gradeTemplate grades noisy when the judge's answers are reversed", async (
     fakeJudge(true),
     signal,
   );
+  expect(grade.status).toBe("noisy");
+});
+
+test("gradeTemplate's ordered share kills the ordering arithmetic: one clean case outranking a bad one drops ordered below the bar", async () => {
+  const oneCleanScoresHigh: Blueprint.Judge = {
+    ask: async (state, questions) => {
+      const [id] = Object.entries(questions)[0];
+      const promise = "promise" in state ? state.promise : "";
+      const probability = promise.includes("BAD") ? 0.9 : promise.includes("case 4") ? 0.95 : 0.1;
+      return { [id]: { type: "boolean", probability } };
+    },
+  };
+  const grade = await gradeTemplate(
+    probeTemplate,
+    { bad: fiveBad, clean: fiveClean, golden: [] },
+    oneCleanScoresHigh,
+    signal,
+  );
+  expect(grade.ordered).toBeCloseTo(0.8);
   expect(grade.status).toBe("noisy");
 });
 
@@ -202,15 +314,85 @@ test("a choice template grades on 1 - probabilities[declaredKind]", async () => 
   expect(grade.status).toBe("proven");
 });
 
+test("goldenCasesOf yields every matching unordered pair, in file order, and none for a kind it does not apply to", () => {
+  const golden = readBlueprint(
+    "- tag:\n    name: a\n    promise: p\n    why: w\n" +
+      "- tag:\n    name: b\n    promise: p\n    why: w\n" +
+      "- resource:\n    name: r\n    promise: p\n    why: w\n" +
+      "- tag:\n    name: c\n    promise: p\n    why: w\n",
+  );
+  const pairTemplate: Blueprint.Template = {
+    id: "pair",
+    scope: "pair",
+    applies: ["tag"],
+    needs: [],
+    status: "provisional",
+    ask: "?",
+    kind: "boolean",
+    true: "t",
+    false: "f",
+    threshold: 0.5,
+  };
+  const cases = goldenCasesOf(pairTemplate, golden, "golden.yaml");
+  expect(cases.map((c) => c.target)).toEqual([
+    ["a", "b"],
+    ["a", "c"],
+    ["b", "c"],
+  ]);
+  expect(cases.every((c) => c.expect === false)).toBe(true);
+  expect(cases.every((c) => c.file === "golden.yaml")).toBe(true);
+});
+
 test("evalSet attaches golden cases from evals/golden.yaml to every template it applies to", async () => {
   const scope = createScope({
     tags: [corpusPath(provisionalCorpus), evalsPath(join(here, "fixtures", "evals-golden"))],
   });
   try {
     const set = scope.resolve(evalSet);
-    expect(set.get("probe")?.golden.map((c) => c.target)).toEqual(["g3", "g4"]);
-    expect(set.get("pick")?.golden.map((c) => c.target)).toEqual(["g1", "g2", "g3", "g4"]);
+    expect(set.get("probe")?.golden.map((c) => c.target[0])).toEqual(["g3", "g4"]);
+    expect(set.get("probe")?.golden.map((c) => c.expect)).toEqual([false, false]);
+    expect(set.get("pick")?.golden.map((c) => c.target[0])).toEqual(["g1", "g2", "g3", "g4"]);
+    expect(set.get("pick")?.golden.map((c) => c.expect)).toEqual([
+      "tag",
+      "resource",
+      "operation",
+      "operation",
+    ]);
     expect(set.get("pair")?.golden).toHaveLength(6);
+  } finally {
+    await scope.close({ graceful: true });
+  }
+});
+
+test("evals through the cli prints exactly the expected line for proven, provisional, and a golden hit", async () => {
+  const gradesJudge: Blueprint.Judge = {
+    ask: async (state, questions) => {
+      const [id] = Object.entries(questions)[0];
+      const promise = "promise" in state ? state.promise : "";
+      const probability = promise.includes("BAD") || promise.includes("GOLDENHIT") ? 1 : 0;
+      return { [id]: { type: "boolean", probability } };
+    },
+  };
+  const ext = cli({ name: "blueprint", version: "0.0.0", commands });
+  const scope = createScope({
+    extensions: [ext],
+    tags: [
+      corpusPath(join(here, "fixtures", "corpus-grades")),
+      evalsPath(join(here, "fixtures", "evals-grades")),
+    ],
+    presets: [preset(judge, () => gradesJudge)],
+  });
+  await scope.ready;
+  try {
+    const result = await scope.resolve(ext)(["evals"]);
+    expect(result.stdout).toBe(
+      [
+        "✗ noisy        noisy        bad 2 (med 100%)  clean 3 (med 0%)  sep 100%  ordered 67%  golden 1/1",
+        "✓ proven       proven       bad 5 (med 100%)  clean 5 (med 0%)  sep 100%  ordered 100%  golden 0/0",
+        "~ provisional  provisional  bad 2 (med 100%)  clean 2 (med 0%)  sep 100%  ordered 100%  golden 0/0",
+        "",
+      ].join("\n"),
+    );
   } finally {
     await scope.close({ graceful: true });
   }

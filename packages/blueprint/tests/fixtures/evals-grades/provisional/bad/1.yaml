@@ -1,0 +1,8 @@
+target: res
+expect: true
+blueprint:
+  - resource:
+      name: res
+      promise: BAD case 1
+      why: w
+      work: w

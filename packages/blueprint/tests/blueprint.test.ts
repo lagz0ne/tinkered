@@ -74,6 +74,14 @@ test("unknownDepends produces one finding line", () => {
   ]);
 });
 
+test("uses answers no nodes for a name nothing has, and skips a dangling dependency", () => {
+  const graph = readBlueprint(
+    "- operation:\n    name: saveIssue\n    depends: [issueLst]\n    promise: p\n    why: w\n",
+  );
+  expect(graph.uses("nonexistent")).toEqual([]);
+  expect(graph.uses("saveIssue")).toEqual([]);
+});
+
 test("duplicateName produces one finding per repeated name", () => {
   const graph = readBlueprint(
     "- tag:\n    name: dbPath\n    promise: p\n    why: w\n- tag:\n    name: dbPath\n    promise: q\n    why: x\n",

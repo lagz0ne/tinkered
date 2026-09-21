@@ -36,6 +36,9 @@ export declare namespace Blueprint {
     | "target"
     | "uses"
     | "usedBy";
+  /** The two node fields a choice template's pick may be compared against — the only
+   * `StateField`s that are themselves a single string value. */
+  export type CompareField = "kind" | "target";
   /** One loaded template. A `choice` template's `compare` names the field its pick is
    * measured against; a template with no `compare` never produces a choice finding. */
   export type Template = {
@@ -56,7 +59,7 @@ export declare namespace Blueprint {
         readonly kind: "choice";
         readonly choices: Readonly<Record<string, string>>;
         readonly minConfidence: number;
-        readonly compare?: StateField;
+        readonly compare?: CompareField;
       }
   );
   /** The loaded corpus: every template, sorted by id, plus a reader per kind. */
@@ -120,10 +123,10 @@ export declare namespace Blueprint {
     readonly findings: readonly Finding[];
   };
   /** One eval file: a small blueprint plus what the judge should say about one
-   * node (`target` names it) or one pair (`target` names both). */
+   * node (`target` holds its one name) or one pair (`target` holds both names). */
   export type Eval = {
     readonly file: string;
-    readonly target: string | readonly [string, string];
+    readonly target: readonly string[];
     readonly expect: boolean | string;
     readonly graph: Graph;
   };
@@ -329,6 +332,10 @@ const booleanTemplate = z.strictObject({
   threshold: z.number().default(0.5),
 });
 
+/** The two node fields a choice template's `compare` may name — the only `stateField`
+ * values that are themselves a single string, so a pick can be measured against them. */
+const compareField = z.enum(["kind", "target"]);
+
 const choiceTemplate = z.strictObject({
   id: z.string().min(1),
   scope: z.enum(["node", "pair"]).default("node"),
@@ -339,7 +346,7 @@ const choiceTemplate = z.strictObject({
   kind: z.literal("choice"),
   choices: z.record(z.string(), z.string().min(1)),
   minConfidence: z.number().default(0.6),
-  compare: stateField.optional(),
+  compare: compareField.optional(),
 });
 
 const templateFile = z.discriminatedUnion("kind", [booleanTemplate, choiceTemplate]);
@@ -400,7 +407,7 @@ export function readEval(text: string, file: string): Blueprint.Eval {
   }
   return {
     file,
-    target: result.data.target,
+    target: Array.isArray(result.data.target) ? result.data.target : [result.data.target],
     expect: result.data.expect,
     graph: graphFrom(result.data.blueprint.map(readNode)),
   };
@@ -425,8 +432,12 @@ function questionsOf(
 }
 
 /** The field a choice template's pick is measured against, or `undefined` (no `compare`,
- * or a boolean template — it never compares). */
-function compareValueOf(template: Blueprint.Template, state: Blueprint.NodeState): unknown {
+ * or a boolean template — it never compares). `compare` only ever names `kind` or `target`
+ * (`CompareField`), so the read is always a single string, never a cast. */
+function compareValueOf(
+  template: Blueprint.Template,
+  state: Blueprint.NodeState,
+): string | undefined {
   if (template.kind !== "choice" || template.compare === undefined) return undefined;
   return state[template.compare];
 }
@@ -567,47 +578,53 @@ export async function runCheck(
   return { nodes: graph.nodes.length, findings };
 }
 
+/** One name off an eval's `target`, at `index`. Throws `InvalidEval` when the name is
+ * missing (too few names) or names no node in the eval's own blueprint. */
+function findTarget(evalCase: Blueprint.Eval, index: number): Blueprint.Node {
+  const called = evalCase.target[index];
+  if (called === undefined)
+    raise(
+      "InvalidEval",
+      { file: evalCase.file, issues: [`target: needs a name at index ${index}`] },
+      `${evalCase.file}: target: needs a name at index ${index}`,
+    );
+  const node = evalCase.graph.nodes.find((candidate) => candidate.name === called);
+  if (node === undefined)
+    raise(
+      "InvalidEval",
+      { file: evalCase.file, issues: [`target "${called}": no such node`] },
+      `${evalCase.file}: target "${called}": no such node`,
+    );
+  return node;
+}
+
 /** One eval's state, as the judge sees it: `target`'s node (or, for a pair template, both
  * nodes), each with its one-hop neighbours. Throws `InvalidEval` when `target` names no node. */
 function evalStateOf(
   template: Blueprint.Template,
   evalCase: Blueprint.Eval,
 ): Blueprint.NodeState | Blueprint.PairState {
-  const find = (called: string): Blueprint.Node => {
-    const node = evalCase.graph.nodes.find((candidate) => candidate.name === called);
-    if (node === undefined)
-      raise(
-        "InvalidEval",
-        { file: evalCase.file, issues: [`target "${called}": no such node`] },
-        `${evalCase.file}: target "${called}": no such node`,
-      );
-    return node;
-  };
-  if (template.scope === "pair") {
-    const [a, b] = evalCase.target as readonly [string, string];
-    return { a: nodeStateOf(evalCase.graph, find(a)), b: nodeStateOf(evalCase.graph, find(b)) };
-  }
-  return nodeStateOf(evalCase.graph, find(evalCase.target as string));
+  if (template.scope === "pair")
+    return {
+      a: nodeStateOf(evalCase.graph, findTarget(evalCase, 0)),
+      b: nodeStateOf(evalCase.graph, findTarget(evalCase, 1)),
+    };
+  return nodeStateOf(evalCase.graph, findTarget(evalCase, 0));
 }
 
 /** A boolean's probability, or a choice's `1 - probabilities[declared]` (0 when `probabilities`
  * is absent) — `declared` is the value `compare` names on the target node. */
-function pOf(answer: Blueprint.Answer | undefined, declared: unknown): number {
+function pOf(answer: Blueprint.Answer | undefined, declared: string | undefined): number {
   if (answer === undefined) return 0;
   if (answer.type === "boolean") return answer.probability;
   if (answer.probabilities === undefined) return 0;
-  return 1 - (answer.probabilities[declared as string] ?? 0);
+  return 1 - (answer.probabilities[declared ?? ""] ?? 0);
 }
 
 /** One eval case's node label, as `check`'s findings print it: the node name, or
- * `"a, b"` for a pair template. */
-function evalNodeOf(
-  template: Blueprint.Template,
-  state: Blueprint.NodeState | Blueprint.PairState,
-): string {
-  return template.scope === "pair"
-    ? `${(state as Blueprint.PairState).a.name}, ${(state as Blueprint.PairState).b.name}`
-    : (state as Blueprint.NodeState).name;
+ * `"a, b"` for a pair template — discriminated by shape (`"a" in state`), not `template.scope`. */
+function evalNodeOf(state: Blueprint.NodeState | Blueprint.PairState): string {
+  return "a" in state ? `${state.a.name}, ${state.b.name}` : state.name;
 }
 
 /** One eval case's score (`pOf`) and whether it would have produced a real finding
@@ -623,17 +640,17 @@ async function scoreEval(
   const state = evalStateOf(template, evalCase);
   const answers = await judge.ask(state, { [template.id]: question }, signal);
   const answer = answers[template.id];
-  const compareValue = compareValueOf(template, state as Blueprint.NodeState);
-  const node = evalNodeOf(template, state);
+  const declared = "a" in state ? undefined : compareValueOf(template, state);
+  const node = evalNodeOf(state);
   return {
-    p: pOf(answer, compareValue),
-    hit: templateFinding(template, answer, node, compareValue) !== undefined,
+    p: pOf(answer, declared),
+    hit: templateFinding(template, answer, node, declared) !== undefined,
     node,
   };
 }
 
 /** The middle value, sorted ascending; `NaN` with nothing to average. */
-function median(values: readonly number[]): number {
+export function median(values: readonly number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
   if (sorted.length === 0) return NaN;
   const mid = sorted.length >> 1;
@@ -722,7 +739,7 @@ export function goldenCasesOf(
   }
   return matching.map((node) => ({
     file,
-    target: node.name,
+    target: [node.name],
     expect: template.kind === "choice" ? node.kind : false,
     graph: golden,
   }));

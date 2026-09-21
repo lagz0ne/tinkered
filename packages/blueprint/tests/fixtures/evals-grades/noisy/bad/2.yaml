@@ -1,0 +1,7 @@
+target: tg
+expect: true
+blueprint:
+  - tag:
+      name: tg
+      promise: BAD case 2
+      why: w
