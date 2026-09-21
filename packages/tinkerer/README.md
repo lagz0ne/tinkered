@@ -144,7 +144,8 @@ the entry is consumed.
   before the next step.
 
 ```ts
-session.controller(coder.inbox).update((list) => [...list, steer("focus on tests")]);
+const box = session.controller(coder.inbox);
+box.update((list) => [...list, steer("go")]);
 ```
 
 ## Errors
