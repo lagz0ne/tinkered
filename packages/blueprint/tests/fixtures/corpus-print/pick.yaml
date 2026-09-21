@@ -1,0 +1,8 @@
+id: pick
+applies: [data]
+kind: choice
+status: provisional
+ask: Which one?
+choices:
+  data: a value
+  tag: a setting

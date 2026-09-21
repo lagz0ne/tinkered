@@ -251,7 +251,7 @@ const choiceTemplate = z.strictObject({
   minConfidence: z.number().default(0.6),
 });
 
-const templateFile = z.union([booleanTemplate, choiceTemplate]);
+const templateFile = z.discriminatedUnion("kind", [booleanTemplate, choiceTemplate]);
 
 /** Read one template file (yaml text) into a template. A yaml or schema failure
  * throws `InvalidTemplate` with the file name and the issues; the message names

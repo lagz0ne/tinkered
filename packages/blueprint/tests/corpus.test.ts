@@ -3,7 +3,7 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
 import { createScope } from "@tinker/core";
-import { cli, type Cli } from "@tinker/cli";
+import { cli } from "@tinker/cli";
 import { commands, corpus, corpusPath, explain, isError } from "../src/index.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -23,18 +23,6 @@ async function loadFixture(name: string) {
   const scope = createScope({ tags: [corpusPath(join(here, "fixtures", name))] });
   try {
     return scope.resolve(corpus);
-  } finally {
-    await scope.close({ graceful: true });
-  }
-}
-
-/** Run the wiring in-process and close the root, like today’s cli `run`. */
-async function answer(argv: readonly string[]): Promise<Cli.Result> {
-  const ext = cli({ name: "blueprint", version: "0.0.0", commands });
-  const scope = createScope({ extensions: [ext] });
-  await scope.ready;
-  try {
-    return await scope.resolve(ext)(argv);
   } finally {
     await scope.close({ graceful: true });
   }
@@ -121,15 +109,113 @@ test("explain answers every template beside the flag", async () => {
   }
 });
 
-test("explain prints each id once", async () => {
-  const result = await answer(["explain"]);
-  expect(result.code).toBe(0);
-  for (const id of ["runForwardsToClosure", "unitFits", "whyDuplicate"])
-    expect(result.stdout.match(new RegExp(`^id: ${id}$`, "m"))).not.toBeNull();
+test("a template's omitted fields read as their defaults", async () => {
+  const loaded = await loadFixture("corpus-print");
+  expect(loaded.templates).toEqual([
+    {
+      id: "pick",
+      scope: "node",
+      applies: ["data"],
+      needs: [],
+      status: "provisional",
+      ask: "Which one?",
+      kind: "choice",
+      choices: { data: "a value", tag: "a setting" },
+      minConfidence: 0.6,
+    },
+    {
+      id: "probe",
+      scope: "pair",
+      applies: ["operation"],
+      needs: ["work"],
+      status: "proven",
+      ask: "Is it so?",
+      kind: "boolean",
+      true: "yes it is",
+      false: "no it is not",
+      threshold: 0.7,
+    },
+  ]);
 });
 
-test("explain with md starts each item with a bold id", async () => {
-  const result = await answer(["explain", "--md"]);
-  expect(result.code).toBe(0);
-  expect(result.stdout).toContain("- **runForwardsToClosure**");
+test("explain prints a template as its file's fields, one per line", async () => {
+  const ext = cli({ name: "blueprint", version: "0.0.0", commands });
+  const scope = createScope({
+    extensions: [ext],
+    tags: [corpusPath(join(here, "fixtures", "corpus-print"))],
+  });
+  await scope.ready;
+  try {
+    const result = await scope.resolve(ext)(["explain"]);
+    expect(result.stdout).toBe(
+      [
+        "id: pick",
+        "scope: node",
+        "applies: data",
+        "needs: ",
+        "status: provisional",
+        "ask: Which one?",
+        "kind: choice",
+        "minConfidence: 0.6",
+        "data: a value",
+        "tag: a setting",
+        "",
+        "id: probe",
+        "scope: pair",
+        "applies: operation",
+        "needs: work",
+        "status: proven",
+        "ask: Is it so?",
+        "kind: boolean",
+        "threshold: 0.7",
+        "true: yes it is",
+        "false: no it is not",
+        "",
+      ].join("\n"),
+    );
+  } finally {
+    await scope.close({ graceful: true });
+  }
+});
+
+test("explain --md prints a template as one list item with indented fields", async () => {
+  const ext = cli({ name: "blueprint", version: "0.0.0", commands });
+  const scope = createScope({
+    extensions: [ext],
+    tags: [corpusPath(join(here, "fixtures", "corpus-print"))],
+  });
+  await scope.ready;
+  try {
+    const result = await scope.resolve(ext)(["explain", "--md"]);
+    expect(result.stdout).toBe(
+      [
+        "- **pick** — Which one?",
+        "  applies: data",
+        "  needs: ",
+        "  status: provisional",
+        "  data: a value",
+        "  tag: a setting",
+        "",
+        "- **probe** — Is it so?",
+        "  applies: operation",
+        "  needs: work",
+        "  status: proven",
+        "  true: yes it is",
+        "  false: no it is not",
+        "",
+      ].join("\n"),
+    );
+  } finally {
+    await scope.close({ graceful: true });
+  }
+});
+
+test("an InvalidTemplate message names the file and the issue path", async () => {
+  try {
+    await loadFixture("corpus-bad");
+    expect.unreachable("the build must fail");
+  } catch (error: unknown) {
+    if (!isError(error, "InvalidTemplate")) throw error;
+    expect(error.message).toMatch(/^badNeeds\.yaml: needs\.0: /);
+  }
 });

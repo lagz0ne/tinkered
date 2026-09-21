@@ -1,0 +1,10 @@
+id: probe
+scope: pair
+applies: [operation]
+needs: [work]
+kind: boolean
+status: proven
+threshold: 0.7
+ask: Is it so?
+true: yes it is
+false: no it is not
