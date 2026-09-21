@@ -305,7 +305,12 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - The default clock reads real wall time; a test clock starts where built, moves on advance, jumps on
   set, and keeps precise nanos; a child session reads its parent's clock.
 - A test-clock sleep resolves only after virtual time passes it; a zero sleep resolves at once.
+- A sleep with an already-aborted signal rejects with the abort reason, on both clocks.
 - An aborted sleep rejects with the signal's reason, on both clocks.
+- The system clock's nanos advance with wall time after a sleep.
+- A system-clock sleep with no signal resolves.
+- A system-clock sleep with a live signal resolves.
+- Due test-clock sleeps wake earliest-first.
 
 ### Observation
 
