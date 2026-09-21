@@ -145,3 +145,20 @@ test("a scope with no close hooks closes straight through", async () => {
   await forced.ready;
   expect((await forced.close()).status).toBe("cancelled");
 });
+
+test("a forced close with a close hook still settles cancelled", async () => {
+  const seen: string[] = [];
+  const hook = extension({
+    label: "spy",
+    close: async (_opts, next) => {
+      const result = await next();
+      seen.push(result.status);
+      return result;
+    },
+  });
+  const scope = createScope({ extensions: [hook] });
+  await scope.ready;
+  const result = await scope.close();
+  expect(result.status).toBe("cancelled");
+  expect(seen).toEqual(["cancelled"]);
+});
