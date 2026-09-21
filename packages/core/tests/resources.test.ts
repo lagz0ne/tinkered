@@ -1,5 +1,13 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, extension, isError, operation, resource } from "../src/index.ts";
+import {
+  createScope,
+  data,
+  extension,
+  isError,
+  operation,
+  resource,
+  type Resource,
+} from "../src/index.ts";
 
 const asNumber = (v: unknown): number => {
   if (typeof v !== "number") throw new Error("not a number");
@@ -501,4 +509,47 @@ test("releasing a diamond leg then the root still tears down the other leg", () 
   expect(cleaned).toEqual(["top", "l"]);
   scope.release(d);
   expect(cleaned).toEqual(["top", "l", "r", "d"]);
+});
+
+test("a resource factory may return a non-promise thenable", async () => {
+  const slow = resource({
+    label: "slow",
+    factory: () => ({ then: (resolve: (v: string) => void) => resolve("thenable") }) as never,
+  });
+  const scope = createScope();
+  expect(await scope.resolve(slow)).toBe("thenable");
+  await scope.close();
+});
+
+test("a build that releases itself still rebuilds on the next resolve", async () => {
+  let release!: (v: string) => void;
+  const gate = new Promise<string>((resolve) => {
+    release = resolve;
+  });
+  let builds = 0;
+  let scope!: ReturnType<typeof createScope>;
+  let linked!: Resource.Handle<unknown>;
+  const trig = resource({
+    label: "trig",
+    factory: () => {
+      scope.release(linked);
+      return 1;
+    },
+  });
+  linked = resource({
+    label: "linked",
+    depends: { trig },
+    factory: ({ trig: t }) => {
+      builds += 1;
+      const n = builds;
+      return gate.then(() => `b${n}:${t}`);
+    },
+  });
+  scope = createScope();
+  const first = scope.controller(linked).resolve() as Promise<unknown>;
+  const second = scope.controller(linked).resolve() as Promise<unknown>;
+  release("go");
+  expect(await first).toBe("b1:1");
+  expect(await second).toBe("b2:1");
+  await scope.close();
 });

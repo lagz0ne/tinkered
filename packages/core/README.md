@@ -265,6 +265,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A rejection from a superseded build never goes sticky.
 - Get on a rejected build returns its rejection.
 - Concurrent resolves share one tracked build.
+- A build that releases itself still rebuilds on the next resolve.
 
 ### Operations
 
