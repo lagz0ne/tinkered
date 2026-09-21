@@ -413,3 +413,31 @@ test("a cleanup that closes another scope sees its real result", async () => {
   expect(order).toEqual(["other-clean"]);
   expect(seen).toBe("cancelled");
 });
+
+test("a wrapped session cut by a forced close rejects", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const spy = extension({
+    label: "spy",
+    session: async (_handle, next) => next(),
+  });
+  const scope = createScope({ extensions: [spy] });
+  await scope.ready;
+  const running = scope.session(() => gate);
+  const closing = scope.close();
+  release();
+  let rejected = false;
+  let value: unknown = "unset";
+  await running.then(
+    () => undefined,
+    (error: unknown) => {
+      rejected = true;
+      value = error;
+    },
+  );
+  expect(rejected).toBe(true);
+  expect(value).toBeDefined();
+  await closing;
+});
