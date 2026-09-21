@@ -82,7 +82,7 @@ test("needs naming body fails the build with InvalidTemplate", async () => {
     throw new Error("must throw");
   } catch (error: unknown) {
     if (!isError(error, "InvalidTemplate")) throw error;
-    expect(JSON.stringify(error.payload.issues)).toContain("body");
+    expect(JSON.stringify(error.payload.issues)).toContain('["needs",0]');
   } finally {
     await scope.close({ graceful: true });
   }
@@ -97,7 +97,7 @@ test("applies naming view fails the build with InvalidTemplate", async () => {
     throw new Error("must throw");
   } catch (error: unknown) {
     if (!isError(error, "InvalidTemplate")) throw error;
-    expect(JSON.stringify(error.payload.issues)).toContain("view");
+    expect(JSON.stringify(error.payload.issues)).toContain('["applies",0]');
   } finally {
     await scope.close({ graceful: true });
   }

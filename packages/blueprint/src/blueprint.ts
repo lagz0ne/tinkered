@@ -1,8 +1,8 @@
 import * as yaml from "yaml";
 import { z } from "zod";
-import { isError, raise } from "./errors.ts";
+import { raise } from "./errors.ts";
 
-export { isError };
+export { isError } from "./errors.ts";
 export type { Errors } from "./errors.ts";
 
 /** One parsed blueprint node. `kind` is the YAML key; `depends` is always an array. */
@@ -210,8 +210,11 @@ export function parseGraph(raw: unknown): Blueprint.Graph {
   return readBlueprint(raw);
 }
 
+/** Every kind a template may apply to. */
+const nodeKind = z.enum(["data", "resource", "operation", "tag"]);
+
 /** Every field a template may read: the node's own fields plus the edge readers. */
-const stateFields: readonly string[] = [
+const stateField = z.enum([
   "kind",
   "name",
   "promise",
@@ -221,16 +224,13 @@ const stateFields: readonly string[] = [
   "target",
   "uses",
   "usedBy",
-];
-
-/** Every kind a template may apply to. */
-const nodeKinds: readonly string[] = ["data", "resource", "operation", "tag"];
+]);
 
 const booleanTemplate = z.strictObject({
   id: z.string().min(1),
   scope: z.enum(["node", "pair"]).default("node"),
-  applies: z.array(z.string()).min(1),
-  needs: z.array(z.string()).default([]),
+  applies: z.array(nodeKind).min(1),
+  needs: z.array(stateField).default([]),
   status: z.enum(["provisional", "proven"]),
   ask: z.string().min(1),
   kind: z.literal("boolean"),
@@ -242,8 +242,8 @@ const booleanTemplate = z.strictObject({
 const choiceTemplate = z.strictObject({
   id: z.string().min(1),
   scope: z.enum(["node", "pair"]).default("node"),
-  applies: z.array(z.string()).min(1),
-  needs: z.array(z.string()).default([]),
+  applies: z.array(nodeKind).min(1),
+  needs: z.array(stateField).default([]),
   status: z.enum(["provisional", "proven"]),
   ask: z.string().min(1),
   kind: z.literal("choice"),
@@ -252,50 +252,6 @@ const choiceTemplate = z.strictObject({
 });
 
 const templateFile = z.union([booleanTemplate, choiceTemplate]);
-
-type TemplateFile = z.infer<typeof templateFile>;
-
-/** Name every unknown `applies` entry and every `needs` entry outside the list. */
-function templateIssues(parsed: TemplateFile): readonly unknown[] {
-  const badApplies = parsed.applies.filter((kind) => !nodeKinds.includes(kind));
-  const badNeeds = parsed.needs.filter((field) => !stateFields.includes(field));
-  const issues: unknown[] = [];
-  for (const kind of badApplies) issues.push(`applies: unknown kind "${kind}"`);
-  for (const field of badNeeds) issues.push(`needs: unknown field "${field}"`);
-  return issues;
-}
-
-/** Read one parsed template file into a template: `scope` defaults to `node`,
- * `threshold` to 0.5, `minConfidence` to 0.6. An unknown `applies` or `needs`
- * entry throws `InvalidTemplate` and names the entry. */
-function readParsed(parsed: TemplateFile): Blueprint.Template {
-  const issues = templateIssues(parsed);
-  if (issues.length > 0) raise("InvalidTemplate", { file: parsed.id, issues });
-  if (parsed.kind === "boolean")
-    return {
-      id: parsed.id,
-      scope: parsed.scope,
-      applies: parsed.applies as readonly Blueprint.Node["kind"][],
-      needs: parsed.needs as readonly Blueprint.StateField[],
-      status: parsed.status,
-      ask: parsed.ask,
-      kind: "boolean",
-      true: parsed.true,
-      false: parsed.false,
-      threshold: parsed.threshold,
-    };
-  return {
-    id: parsed.id,
-    scope: parsed.scope,
-    applies: parsed.applies as readonly Blueprint.Node["kind"][],
-    needs: parsed.needs as readonly Blueprint.StateField[],
-    status: parsed.status,
-    ask: parsed.ask,
-    kind: "choice",
-    choices: parsed.choices,
-    minConfidence: parsed.minConfidence,
-  };
-}
 
 /** Read one template file (yaml text) into a template. A yaml or schema failure
  * throws `InvalidTemplate` with the file name and the issues. */
@@ -308,13 +264,7 @@ export function readTemplate(text: string, file: string): Blueprint.Template {
   }
   const result = templateFile.safeParse(parsed);
   if (!result.success) raise("InvalidTemplate", { file, issues: result.error.issues });
-  try {
-    return readParsed(result.data);
-  } catch (error: unknown) {
-    if (isError(error, "InvalidTemplate"))
-      raise("InvalidTemplate", { file, issues: error.payload.issues });
-    throw error;
-  }
+  return result.data;
 }
 
 /** Read the loaded templates into a corpus: sorted by id, node-scope templates

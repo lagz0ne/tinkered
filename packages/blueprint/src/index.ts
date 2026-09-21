@@ -50,8 +50,14 @@ function verbatim(template: Blueprint.Template): string {
     `ask: ${template.ask}`,
   ];
   if (template.kind === "boolean") {
-    lines.push(`true: ${template.true}`, `false: ${template.false}`);
+    lines.push(
+      `kind: boolean`,
+      `threshold: ${template.threshold}`,
+      `true: ${template.true}`,
+      `false: ${template.false}`,
+    );
   } else {
+    lines.push(`kind: choice`, `minConfidence: ${template.minConfidence}`);
     for (const [option, meaning] of Object.entries(template.choices))
       lines.push(`${option}: ${meaning}`);
   }
@@ -75,10 +81,11 @@ function markdown(template: Blueprint.Template): string {
   return lines.join("\n");
 }
 
-/** Parse the raw argv into `explain` input: `--md` selects the markdown list. */
-function parseExplain(raw: unknown): { md: boolean } {
-  if (!Array.isArray(raw)) raise("InvalidBlueprint", { text: "", issues: [raw] });
-  return { md: raw.includes("--md") };
+/** Read the call input into the flag: anything without a true `md` reads as false. */
+function parseMd(raw: unknown): { md: boolean } {
+  return {
+    md: typeof raw === "object" && raw !== null && "md" in raw && raw.md === true,
+  };
 }
 
 /** The operation: input `{ md: boolean }`, depends `{ corpus }`, returns the templates
@@ -88,7 +95,7 @@ export const explain: Operation.Handle<
   { md: boolean }
 > = operation({
   label: "explain",
-  input: parseExplain,
+  input: parseMd,
   depends: { corpus },
   run: ({ corpus }, ctx) => ({ md: ctx.input.md, templates: corpus.templates }),
 });
@@ -125,7 +132,7 @@ export const commands: Cli.Row[] = [
   }),
   command("explain", () => explain, {
     description: "print every template verbatim, or as a markdown list with --md",
-    input: (argv) => argv,
+    input: (argv) => ({ md: argv.includes("--md") }),
     respond: (report) =>
       report.md
         ? `${report.templates.map(markdown).join("\n\n")}\n`
