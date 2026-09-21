@@ -323,3 +323,21 @@ test("a session that ends cancelled rejects with its reason", async () => {
   expect(result.status).toBe("cancelled");
   await scope.close();
 });
+
+test("session hooks wrap sessions nested two deep", async () => {
+  const order: string[] = [];
+  const spy = extension({
+    label: "spy",
+    session: async (_handle, next) => {
+      order.push("before");
+      const ended = await next();
+      order.push("after");
+      return ended;
+    },
+  });
+  const scope = createScope({ extensions: [spy] });
+  await scope.ready;
+  await scope.session((s) => s.session(() => 1));
+  expect(order).toEqual(["before", "before", "after", "after"]);
+  await scope.close();
+});

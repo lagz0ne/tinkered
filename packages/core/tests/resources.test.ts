@@ -370,6 +370,10 @@ test("a failing start fails the scope with its cause", async () => {
     (error: unknown) => error,
   );
   expect(thrown).toBe(cause);
+  const result = await scope.close();
+  expect(result.status).toBe("failed");
+  if (result.status !== "failed") expect.unreachable();
+  expect(result.error).toBe(cause);
   await scope.close();
 });
 
@@ -395,4 +399,72 @@ test("a forced close aborts a nested grandchild session", async () => {
   grand.resolve(probe);
   await scope.close();
   expect(aborted).toBe(true);
+});
+
+test("a rejection from a superseded build never goes sticky", async () => {
+  let release!: (v: number) => void;
+  const gate = new Promise<number>((resolve) => {
+    release = resolve;
+  });
+  const boom = new Error("stale-boom");
+  let builds = 0;
+  const flaky = resource({
+    label: "flaky",
+    factory: () => {
+      builds += 1;
+      const n = builds;
+      return gate.then((v) => {
+        if (n === 1) throw boom;
+        return v * n;
+      });
+    },
+  });
+  const scope = createScope();
+  const first = scope.controller(flaky).resolve() as Promise<unknown>;
+  scope.release(flaky);
+  release(10);
+  await expect(first).rejects.toBe(boom);
+  expect(await scope.resolve(flaky)).toBe(20);
+  await scope.close();
+});
+
+test("get on a rejected build returns its rejection", async () => {
+  const cause = new Error("build-boom");
+  const bad = resource({
+    label: "bad",
+    factory: () => Promise.reject(cause),
+  });
+  const scope = createScope();
+  await scope.resolve(bad).then(
+    () => undefined,
+    () => undefined,
+  );
+  await expect(scope.controller(bad).get()).rejects.toBe(cause);
+  await scope.close();
+});
+
+test("concurrent resolves share one tracked build", async () => {
+  let release!: (v: string) => void;
+  const gate = new Promise<string>((resolve) => {
+    release = resolve;
+  });
+  let builds = 0;
+  const slow = resource({
+    label: "slow",
+    factory: () => {
+      builds += 1;
+      const n = builds;
+      return gate.then((v) => `${v}-${n}`);
+    },
+  });
+  const scope = createScope();
+  const first = scope.controller(slow).resolve() as Promise<unknown>;
+  scope.release(slow);
+  const second = scope.controller(slow).resolve() as Promise<unknown>;
+  release("v");
+  expect(await first).toBe("v-1");
+  expect(await second).toBe("v-2");
+  const third = scope.controller(slow).resolve() as Promise<unknown>;
+  expect(await third).toBe("v-2");
+  await scope.close();
 });
