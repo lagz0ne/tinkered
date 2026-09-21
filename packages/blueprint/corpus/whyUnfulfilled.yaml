@@ -2,7 +2,7 @@ id: whyUnfulfilled
 applies: [data, resource, operation, tag]
 needs: [why, promise, depends, uses]
 kind: boolean
-status: provisional
+status: proven
 ask: >-
   Does why either repeat promise instead
   of giving a reason, or name a reason

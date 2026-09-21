@@ -3,7 +3,7 @@ id: manualSession
 applies: [operation]
 needs: [work]
 kind: boolean
-status: provisional
+status: proven
 ask: >-
   Does work open or close a session
   by hand instead of a tagged call

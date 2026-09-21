@@ -2,7 +2,7 @@ id: stopOnlyInDefer
 applies: [resource]
 needs: [work]
 kind: boolean
-status: provisional
+status: proven
 ask: >-
   Is running work stopped only at close,
   with no way to stop it sooner, so

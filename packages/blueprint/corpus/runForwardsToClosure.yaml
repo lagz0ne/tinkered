@@ -2,7 +2,7 @@ id: runForwardsToClosure
 applies: [operation]
 needs: [work, depends]
 kind: boolean
-status: provisional
+status: proven
 ask: >-
   Does work hand the whole job to one thing
   that depends does not name?

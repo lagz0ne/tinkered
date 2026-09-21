@@ -2,7 +2,7 @@ id: needsDefer
 applies: [resource]
 needs: [promise, work]
 kind: boolean
-status: provisional
+status: proven
 ask: >-
   Does work start or hold something that
   must be released at close — a connection,

@@ -2,7 +2,7 @@ id: configNotTag
 applies: [resource, operation]
 needs: [work, depends]
 kind: boolean
-status: provisional
+status: proven
 ask: >-
   Does work read an environment choice —
   a path, a flag, a URL, a setting —

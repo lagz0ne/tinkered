@@ -3,7 +3,7 @@ id: publishTwice
 applies: [operation]
 needs: [work, depends]
 kind: boolean
-status: provisional
+status: proven
 ask: >-
   Does work re-list or re-read after
   a save instead of updating the cell

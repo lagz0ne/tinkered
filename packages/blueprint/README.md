@@ -79,8 +79,10 @@ shipped question templates.
 - `corpusPath` names the folder:
   the shipped `corpus/` by default;
   a test rebinds it to a fixture.
-- Every seed is `provisional`;
-  evals (t04) flip it to `proven`.
+- A template's status starts
+  `provisional`; evals flip it to
+  `proven` once it grades that way
+  (see "What is proven" below).
 - The 17 seeds:
   - **unitFits** — which unit fits:
     data, resource, operation, tag.
@@ -334,7 +336,25 @@ Graded against the shipped evals with a
 real key (`vp run blueprint#test`); the
 date is when this table was last pasted.
 
-- (filled in after the real run)
+2026-09-21 — every seed graded `proven`:
+
+- **configNotTag** — sep 0.64, ordered 1.00
+- **dataManyWriters** — sep 0.65, ordered 1.00
+- **effectWithoutDefer** — sep 0.91, ordered 1.00
+- **handRolledLifetime** — sep 0.66, ordered 1.00
+- **hiddenNode** — sep 0.72, ordered 1.00
+- **manualSession** — sep 0.87, ordered 1.00
+- **needsDefer** — sep 0.72, ordered 1.00
+- **parseNotAtDoor** — sep 0.73, ordered 1.00
+- **publishTwice** — sep 0.86, ordered 1.00
+- **runForwardsToClosure** — sep 0.73, ordered 1.00
+- **scopeInsideUnit** — sep 0.84, ordered 1.00
+- **stateOutsideCell** — sep 0.60, ordered 1.00
+- **stopOnlyInDefer** — sep 0.85, ordered 1.00
+- **target** — sep 0.93, ordered 1.00
+- **unitFits** — sep 0.72, ordered 1.00
+- **whyDuplicate** — sep 0.66, ordered 1.00
+- **whyUnfulfilled** — sep 0.52, ordered 1.00
 
 ## Run it
 

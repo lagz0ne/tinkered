@@ -2,7 +2,7 @@ id: target
 applies: [resource]
 needs: [promise, why, work]
 kind: choice
-status: provisional
+status: proven
 compare: target
 ask: >-
   One copy for the whole scope,

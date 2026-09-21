@@ -2,7 +2,7 @@ id: hiddenNode
 applies: [resource, operation]
 needs: [work, depends]
 kind: boolean
-status: provisional
+status: proven
 ask: >-
   Does work start an effect or keep
   state that no node in the file names?

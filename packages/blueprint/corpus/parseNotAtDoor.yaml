@@ -3,7 +3,7 @@ id: parseNotAtDoor
 applies: [operation]
 needs: [work]
 kind: boolean
-status: provisional
+status: proven
 ask: >-
   Does the work parse or check its input
   somewhere other than its input parse —

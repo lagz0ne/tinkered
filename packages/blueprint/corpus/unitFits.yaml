@@ -2,7 +2,7 @@ id: unitFits
 applies: [data, resource, operation, tag]
 needs: [promise, why, work]
 kind: choice
-status: provisional
+status: proven
 compare: kind
 ask: >-
   Which unit fits this node:
