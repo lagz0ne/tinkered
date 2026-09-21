@@ -1,4 +1,4 @@
-import { createServer } from "node:http";
+import { createServer, type Server } from "node:http";
 import { expect, test } from "vite-plus/test";
 import { fetchBackend, HttpRequest } from "../src/index.ts";
 
@@ -8,15 +8,22 @@ type Echo = { readonly method: string; readonly contentType: string; readonly bo
 /** A loopback echo server: records method/headers/body, answers "ok". A real transport. */
 function startEcho(seen: Echo[]): Promise<EchoServer> {
   const server = createServer((req, res) => {
-    readBody(req).then((body) => {
+    const chunks: Uint8Array[] = [];
+    req.on("data", (chunk: Uint8Array) => chunks.push(chunk));
+    req.on("end", () => {
       seen.push({
         method: req.method ?? "",
         contentType: String(req.headers["content-type"] ?? ""),
-        body,
+        body: Buffer.concat(chunks).toString(),
       });
       res.end("ok");
     });
   });
+  return listenLoopback(server);
+}
+
+/** Listen on a loopback port: the origin plus disposal that stops the server. */
+function listenLoopback(server: Server): Promise<EchoServer> {
   return new Promise((resolve) => {
     server.listen(0, "127.0.0.1", () => {
       const address = server.address();
@@ -24,17 +31,6 @@ function startEcho(seen: Echo[]): Promise<EchoServer> {
       const origin = `http://127.0.0.1:${address.port}`;
       resolve({ origin, [Symbol.dispose]: () => server.close() });
     });
-  });
-}
-
-/** Read a request's body as text. */
-function readBody(req: {
-  on(event: string, listener: (chunk: Uint8Array) => void): void;
-}): Promise<string> {
-  return new Promise((resolve) => {
-    const chunks: Uint8Array[] = [];
-    req.on("data", (chunk: Uint8Array) => chunks.push(chunk));
-    req.on("end", () => resolve(Buffer.concat(chunks).toString()));
   });
 }
 
