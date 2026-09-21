@@ -226,3 +226,27 @@ test("a child update builds on its parent's latest write", () => {
   expect(child.controller(count).get()).toBe(6);
   expect(scope.controller(count).get()).toBe(5);
 });
+
+test("releasing a dependency after its dependent never tears down twice", () => {
+  const cleaned: string[] = [];
+  const base = resource({
+    label: "base",
+    factory: (_deps, { defer }) => {
+      defer(() => void cleaned.push("base"));
+      return { v: 1 };
+    },
+  });
+  const top = resource({
+    label: "top",
+    depends: { base },
+    factory: ({ base: b }, { defer }) => {
+      defer(() => void cleaned.push("top"));
+      return { v: (b as { v: number }).v };
+    },
+  });
+  const scope = createScope();
+  scope.resolve(top);
+  scope.release(top);
+  scope.release(base);
+  expect(cleaned).toEqual(["top", "base"]);
+});
