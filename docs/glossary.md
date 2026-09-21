@@ -96,11 +96,11 @@
 | `db query`    | The one log line per statement: Drizzle's logger bound to the `db` resource's `ctx.log`, `{ sql }` only — params are data and never logged.                                                                                                                   |
 | core feedback | The section every integration report ends with; candidates live in `docs/roadmap/core-feedback.md` and become core tickets when a second integration asks or the workaround is dishonest.                                                                     |
 
-## CLI driver (`@tinker/cli`) — since ADR 0051 a driver extension: `cli({ name, version, commands })`, value = `run(argv, io)`; `command(name, op | loader, { input?, respond?, description? })` and `command.entry(name, (argv) => …)` return rows; `runMain(wiring, scope?)` is root glue; the `commands` tag, `command` meta, and `run({ scope })` are gone
+## CLI driver (`@tinker/cli`) — RETIRED by ADR 0056, replaced by `@tinker/process`. Until ADR 0051 it was a driver extension: `cli({ name, version, commands })`, value = `run(argv, io)`; `command(name, op | loader, { input?, respond?, description? })` and `command.entry(name, (argv) => …)` return rows; `runMain(wiring, scope?)` is root glue; the `commands` tag, `command` meta, and `run({ scope })` are gone
 
 | term              | meaning                                                                                                                                                                                                                                                                                                                                              |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| entrypoint driver | A driver that IS `main`: it creates the scope from `Scope.Options`, runs the work, and closes the scope (graceful on completion, forced on a signal). `runMain` is one; a test's `run` is the same without process wiring (ADR 0042).                                                                                                                |
+| entrypoint driver | RETIRED by ADR 0056: no driver creates a scope. The app owns the root; a driver receives one. The entrypoint is `@tinker/process` — the process is tags, a command is an operation, routing runs outside any scope. A test's `run` is the same without process wiring (ADR 0042).                                                                                                                |
 | command binding   | `command(name, load, { input?, respond? })`: a tag binding on the scope — the routing table entry that maps `argv[0]` to a lazily loaded operation. `command.entry(name, load)` loads an entrypoint function that receives the scope handle.                                                                                                         |
 | command meta      | `command({ description, argv?, respond?, name? })`: the meta tag an operation carries to declare itself a command (ADR 0046 §5, mirror of `@tinker/mcp`'s `tool`); `commands(op)` binds the op on the scope; `run` reads `command.read(op)` (`readCommand` throws `CommandUndeclared` when absent). One op can carry both `tool` and `command` meta. |
 | loading policy    | Follows the process: a CLI loads only the selected command (usage loads nothing); a server imports every route at mount and warms pools at boot via `scope.resolve`. Frames are cheap to import: driver imports live inside `open`/loaders.                                                                                                          |
@@ -188,6 +188,33 @@ New sections are lists, one term per item (vertical layout,
   `evals/<id>/{bad,clean}/`. A template whose evals pass the
   bar (bad ≥ 50%, clean < 50%, gap ≥ 30) may set the exit
   code; the rest print `~`.
+
+## Process entrypoint (`@tinker/process`, ADR 0056)
+
+New sections are lists, one term per item.
+
+- **process tags** — `argv`, `env`, `io`: what the
+  process gives a run, bound once at the root and
+  unchanged during it. No `signal` tag: every
+  operation already has `ctx.signal`.
+- **command** — An operation that answers an exit
+  code. What it needs it declares. `command(name,
+  op, { input?, respond? })` is the sugar for a
+  plain operation (ADR 0042's rule survives).
+- **route** — `{ name, description?, entry }`:
+  `entry(rest)` answers the operation plus the
+  root options for those args. Runs outside any
+  scope, so `help` builds no root.
+- **execute** — The one place a root exists for a
+  command: build it from the entry's options plus
+  the process tags, run the operation, close,
+  answer the code.
+- **run** — The seam: `run(shell, argv, io?,
+  signal?)` answers `{ code, stdout, stderr }` and
+  touches no process.
+- **main** — The process edge and the only side
+  effect: argv in, SIGINT and SIGTERM to one
+  abort, exit with the code.
 
 ## Tinkerer (`@tinker/tinkerer`, ADR 0053)
 

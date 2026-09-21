@@ -1,0 +1,381 @@
+import { expect, test } from "vite-plus/test";
+import { extension, operation, tag } from "@tinker/core";
+import { argv, command, env, execute, io, isError, main, run, type Process } from "../src/index.ts";
+
+/** Collects what a no-process run wrote. */
+const seenWrite: string[] = [];
+
+/** A binary over the given routes. */
+function shell(commands: readonly Process.Route[]): Process.Shell {
+  return { name: "tk", version: "1.2.3", commands };
+}
+
+/** An operation that doubles a number parsed from argv. */
+const double = operation({
+  label: "double",
+  input: (raw: unknown) => {
+    const n = Number(raw);
+    if (!Number.isFinite(n)) throw new Error("need a number");
+    return n;
+  },
+  run: (_deps, ctx) => ctx.input * 2,
+});
+
+/** A command that answers its own code and writes through the io tag as it goes. */
+const three = operation({
+  label: "three",
+  depends: { io: io.required },
+  run: ({ io: out }) => {
+    out.write("one ");
+    out.write("two ");
+    return 3;
+  },
+});
+
+/** A one-shot that never answers until the signal fires — a model call that hangs. */
+const hang = operation({
+  label: "hang",
+  run: (_deps, ctx) =>
+    new Promise<number>((_resolve, reject) => {
+      ctx.signal.addEventListener("abort", () => reject(ctx.signal.reason), { once: true });
+    }),
+});
+
+/** A server: returns its own code when the signal fires — SIGINT is its normal stop. */
+const serve = operation({
+  label: "serve",
+  run: (_deps, ctx) =>
+    new Promise<number>((resolve) => {
+      ctx.signal.addEventListener("abort", () => resolve(0), { once: true });
+    }),
+});
+
+/** A signal that aborts after `ms`, on a real timer so the loop stays alive. */
+function later(ms: number): AbortSignal {
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(new Error("SIGINT")), ms);
+  return controller.signal;
+}
+
+test("help lists the routes sorted with their descriptions and loads nothing", async () => {
+  let loads = 0;
+  const table = shell([
+    command(
+      "zeta",
+      () => {
+        loads += 1;
+        return double;
+      },
+      { description: "last" },
+    ),
+    command("alpha", double, { description: "first" }),
+  ]);
+  const result = await run(table, ["help"]);
+  expect(result).toEqual({
+    code: 0,
+    stdout: "usage: tk <command>\n  alpha  first\n  zeta  last\n",
+    stderr: "",
+  });
+  expect((await run(table, [])).code).toBe(0);
+  expect(loads).toBe(0);
+});
+
+test("--version answers the version with exit 0", async () => {
+  expect(await run(shell([]), ["--version"])).toEqual({ code: 0, stdout: "1.2.3\n", stderr: "" });
+});
+
+test("an unknown command prints usage to stderr with exit 2 and loads nothing", async () => {
+  let loads = 0;
+  const table = shell([command("d", () => ((loads += 1), double))]);
+  const result = await run(table, ["nope"]);
+  expect(result.code).toBe(2);
+  expect(result.stderr).toBe("usage: tk <command>\n  d\n");
+  expect(loads).toBe(0);
+});
+
+test("a command over an operation parses argv through its own input and answers one JSON line", async () => {
+  const result = await run(shell([command("double", double, { input: (a) => a[0] })]), [
+    "double",
+    "21",
+  ]);
+  expect(result).toEqual({ code: 0, stdout: "42\n", stderr: "" });
+});
+
+test("respond overrides the default output and a void operation prints nothing", async () => {
+  const table = shell([
+    command("double", double, { input: (a) => a[0], respond: (n) => `= ${n}\n` }),
+    command("quiet", operation({ label: "quiet", run: () => undefined })),
+  ]);
+  expect((await run(table, ["double", "4"])).stdout).toBe("= 8\n");
+  expect(await run(table, ["quiet"])).toEqual({ code: 0, stdout: "", stderr: "" });
+});
+
+test("an operation's parse failure prints usage to stderr with exit 2", async () => {
+  const result = await run(shell([command("double", double, { input: (a) => a[0] })]), [
+    "double",
+    "x",
+  ]);
+  expect(result.code).toBe(2);
+  expect(result.stderr).toBe("usage: tk <command>\n  double\n");
+});
+
+test("a throwing operation prints its error to stderr with exit 1", async () => {
+  const boom = operation({
+    label: "boom",
+    run: (): number => {
+      throw new Error("boom");
+    },
+  });
+  const result = await run(shell([command("boom", boom)]), ["boom"]);
+  expect(result).toEqual({ code: 1, stdout: "", stderr: "Error: boom\n" });
+});
+
+test("a throwing loader is the run's failure with exit 1 and the next run retries it", async () => {
+  let calls = 0;
+  const table = shell([
+    command(
+      "flaky",
+      () => {
+        calls += 1;
+        if (calls === 1) return Promise.reject(new Error("no module"));
+        return double;
+      },
+      { input: (a) => a[0] },
+    ),
+  ]);
+  const first = await run(table, ["flaky", "2"]);
+  expect(first).toEqual({ code: 1, stdout: "", stderr: "Error: no module\n" });
+  expect((await run(table, ["flaky", "2"])).stdout).toBe("4\n");
+  expect(calls).toBe(2);
+});
+
+test("the selected loader runs once across two runs", async () => {
+  let loads = 0;
+  const table = shell([command("d", () => ((loads += 1), double), { input: (a) => a[0] })]);
+  await run(table, ["d", "1"]);
+  await run(table, ["d", "1"]);
+  expect(loads).toBe(1);
+});
+
+test("a command answers its own exit code and its io writes are collected in order", async () => {
+  const seen: string[] = [];
+  const table = shell([{ name: "three", entry: () => ({ op: three }) }]);
+  const result = await run(table, ["three"], { write: (s) => seen.push(s) });
+  expect(result).toEqual({ code: 3, stdout: "one two ", stderr: "" });
+  expect(seen).toEqual(["one ", "two "]);
+});
+
+test("an entry's own options bind tags and extensions on that command's root only", async () => {
+  const flavor = tag<string>({ label: "flavor" });
+  const seen: string[] = [];
+  const spy = extension({
+    label: "spy",
+    start: (_scope, _ctx, next) => {
+      seen.push("started");
+      return next();
+    },
+  });
+  const tell = operation({
+    label: "tell",
+    depends: { flavor: flavor.optional, io: io.required },
+    run: ({ flavor: f, io: out }) => {
+      out.write(f.present ? f.value : "none");
+      return 0;
+    },
+  });
+  const table = shell([
+    { name: "plain", entry: () => ({ op: tell }) },
+    {
+      name: "spiced",
+      entry: () => ({ op: tell, options: { tags: [flavor("mint")], extensions: [spy] } }),
+    },
+  ]);
+  expect((await run(table, ["plain"])).stdout).toBe("none");
+  expect(seen).toEqual([]);
+  expect((await run(table, ["spiced"])).stdout).toBe("mint");
+  expect(seen).toEqual(["started"]);
+});
+
+test("the argv and env tags carry the rest of argv and the process environment", async () => {
+  process.env["TK_PROBE"] = "yes";
+  const show = operation({
+    label: "show",
+    depends: { argv: argv.required, env: env.required, io: io.required },
+    run: ({ argv: a, env: e, io: out }) => {
+      out.write(`${a.join("+")} ${e["TK_PROBE"] ?? "?"}`);
+      return 0;
+    },
+  });
+  const result = await run(shell([{ name: "show", entry: () => ({ op: show }) }]), [
+    "show",
+    "a",
+    "--b",
+  ]);
+  expect(result.stdout).toBe("a+--b yes");
+});
+
+test("an abort force-closes the root and a cancelled one-shot exits 130", async () => {
+  const started = Date.now();
+  const result = await run(
+    shell([{ name: "hang", entry: () => ({ op: hang }) }]),
+    ["hang"],
+    undefined,
+    later(20),
+  );
+  expect(result).toEqual({ code: 130, stdout: "", stderr: "" });
+  expect(Date.now() - started).toBeLessThan(2000);
+});
+
+test("a server that returns on the signal exits with its own code, not 130", async () => {
+  const result = await run(
+    shell([{ name: "serve", entry: () => ({ op: serve }) }]),
+    ["serve"],
+    undefined,
+    later(20),
+  );
+  expect(result.code).toBe(0);
+});
+
+test("an already-aborted signal exits 130 with empty streams and no root", async () => {
+  let roots = 0;
+  const spy = extension({
+    label: "spy",
+    start: (_s, _c, next) => {
+      roots += 1;
+      return next();
+    },
+  });
+  const controller = new AbortController();
+  controller.abort();
+  const code = await execute(
+    { op: three, options: { extensions: [spy] } },
+    [],
+    { write: () => undefined, error: () => undefined },
+    { signal: controller.signal },
+  );
+  expect(code).toBe(130);
+  expect(roots).toBe(0);
+});
+
+test("a throwing run leaves the next run unaffected", async () => {
+  const boom = operation({
+    label: "boom",
+    run: (): number => {
+      throw new Error("boom");
+    },
+  });
+  const table = shell([command("boom", boom), command("double", double, { input: (a) => a[0] })]);
+  expect((await run(table, ["boom"])).code).toBe(1);
+  expect(await run(table, ["double", "5"])).toEqual({ code: 0, stdout: "10\n", stderr: "" });
+});
+
+/** The process, faked at the boundary the package already reads through `globalThis`. */
+type FakeProc = {
+  argv: string[];
+  env: Record<string, string | undefined>;
+  exit(code: number): never;
+  on(event: string, listener: () => void): unknown;
+  stdout: { write(s: string): unknown };
+  stderr: { write(s: string): unknown };
+};
+
+/** Swap `globalThis.process` for one run, restore it after; answer what `main` did. */
+async function underFakeProcess(
+  argv: readonly string[],
+  body: (shell: Process.Shell) => Promise<never>,
+  table: Process.Shell,
+): Promise<{ code: number; out: string; err: string; events: string[] }> {
+  const real = (globalThis as { process?: unknown }).process;
+  const out: string[] = [];
+  const err: string[] = [];
+  const events: string[] = [];
+  let code = -1;
+  const exited = new Error("exited");
+  const fake: FakeProc = {
+    argv: ["node", "tk", ...argv],
+    env: { TK_FAKE: "1" },
+    exit: (n: number): never => {
+      code = n;
+      throw exited;
+    },
+    on: (event: string) => events.push(event),
+    stdout: { write: (s: string) => out.push(s) },
+    stderr: { write: (s: string) => err.push(s) },
+  };
+  (globalThis as { process?: unknown }).process = fake;
+  try {
+    await body(table);
+  } catch (error: unknown) {
+    if (error !== exited) throw error;
+  } finally {
+    (globalThis as { process?: unknown }).process = real;
+  }
+  return { code, out: out.join(""), err: err.join(""), events };
+}
+
+test("main reads argv off the process, writes to its streams, wires both signals, and exits with the code", async () => {
+  const table = shell([command("double", double, { input: (a) => a[0] })]);
+  const ran = await underFakeProcess(["double", "8"], (s) => main(s), table);
+  expect(ran).toEqual({ code: 0, out: "16\n", err: "", events: ["SIGINT", "SIGTERM"] });
+});
+
+test("main passes explicit args through instead of the process argv", async () => {
+  const table = shell([command("double", double, { input: (a) => a[0] })]);
+  const ran = await underFakeProcess(["double", "8"], (s) => main(s, ["double", "1"]), table);
+  expect(ran.out).toBe("2\n");
+});
+
+test("main exits 2 on an unknown command and prints usage to the process stderr", async () => {
+  const ran = await underFakeProcess(["nope"], (s) => main(s), shell([command("d", double)]));
+  expect(ran.code).toBe(2);
+  expect(ran.err).toBe("usage: tk <command>\n  d\n");
+});
+
+test("main without a process raises NoProcess, which isError narrows and rejects other kinds", async () => {
+  const real = (globalThis as { process?: unknown }).process;
+  (globalThis as { process?: unknown }).process = undefined;
+  try {
+    await main(shell([]));
+    expect.unreachable();
+  } catch (error: unknown) {
+    if (!isError(error, "NoProcess")) throw error;
+    expect(error.payload.reason.length).toBeGreaterThan(0);
+    expect(isError(new Error("plain"), "NoProcess")).toBe(false);
+  } finally {
+    (globalThis as { process?: unknown }).process = real;
+  }
+});
+
+test("a command that throws a non-Error prints it as JSON with exit 1", async () => {
+  const odd = operation({
+    label: "odd",
+    run: (): number => {
+      throw { why: "odd" };
+    },
+  });
+  const result = await run(shell([command("odd", odd)]), ["odd"]);
+  expect(result).toEqual({ code: 1, stdout: "", stderr: '{"why":"odd"}\n' });
+});
+
+test("the env tag reads an empty record when there is no process", async () => {
+  const real = (globalThis as { process?: unknown }).process;
+  (globalThis as { process?: unknown }).process = undefined;
+  const show = operation({
+    label: "show",
+    depends: { env: env.required, io: io.required },
+    run: ({ env: e, io: out }) => {
+      out.write(JSON.stringify(e));
+      return 0;
+    },
+  });
+  try {
+    const code = await execute({ op: show }, [], {
+      write: (s) => void seenWrite.push(s),
+      error: () => undefined,
+    });
+    expect(code).toBe(0);
+    expect(seenWrite.join("")).toBe("{}");
+  } finally {
+    (globalThis as { process?: unknown }).process = real;
+  }
+});

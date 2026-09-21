@@ -15,6 +15,7 @@
     "@tinker/hono": "workspace:*",
     "@tinker/http": "workspace:*",
     "@tinker/mcp": "workspace:*",
+    "@tinker/process": "workspace:*",
     "@tinker/react": "workspace:*",
     "@tinker/sync": "workspace:*",
     "@tinker/tinkerer": "workspace:*"
