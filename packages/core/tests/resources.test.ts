@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, isError, operation, resource } from "../src/index.ts";
+import { createScope, data, extension, isError, operation, resource } from "../src/index.ts";
 
 const asNumber = (v: unknown): number => {
   if (typeof v !== "number") throw new Error("not a number");
@@ -249,4 +249,150 @@ test("releasing a dependency after its dependent never tears down twice", () => 
   scope.release(top);
   scope.release(base);
   expect(cleaned).toEqual(["top", "base"]);
+});
+
+test("a release inside a run drains unrelated cleanups at once", () => {
+  const cleaned: string[] = [];
+  const count = data({ initial: 1, parse: asNumber });
+  const resA = resource({ label: "resA", factory: () => ({ n: 1 }) });
+  const resB = resource({
+    label: "resB",
+    depends: { count },
+    factory: ({ count: n }, { defer }) => {
+      defer(() => void cleaned.push(`resB:${n}`));
+      return { n };
+    },
+  });
+  const scope = createScope();
+  scope.resolve(resB);
+  const probe = operation({
+    label: "probe",
+    depends: { count, c: count.controller, resA },
+    run: ({ count: n }) => {
+      scope.release(count);
+      return `${n}:${cleaned.length}`;
+    },
+  });
+  expect(scope.run(probe)).toBe("1:1");
+  expect(cleaned).toEqual(["resB:1"]);
+});
+
+test("a build superseded in flight never publishes its value", async () => {
+  let release!: (v: number) => void;
+  const gate = new Promise<number>((resolve) => {
+    release = resolve;
+  });
+  let builds = 0;
+  const slow = resource({
+    label: "slow",
+    factory: () => {
+      builds += 1;
+      const n = builds;
+      return gate.then((v) => v * n);
+    },
+  });
+  const scope = createScope();
+  const first = scope.controller(slow).resolve() as Promise<unknown>;
+  scope.release(slow);
+  release(10);
+  expect(await first).toBe(10);
+  expect(await scope.resolve(slow)).toBe(20);
+  expect(await scope.resolve(slow)).toBe(20);
+  await scope.close();
+});
+
+test("a finished borrow is forgotten before the next release", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const order: string[] = [];
+  const res = resource({
+    label: "res",
+    factory: (_deps, { defer }) => {
+      defer(() => void order.push("res-clean"));
+      return 1;
+    },
+  });
+  const op = operation({
+    label: "op",
+    depends: { res },
+    run: async ({ res: n }) => {
+      await gate;
+      order.push(`op:${n}`);
+      return n;
+    },
+  });
+  const scope = createScope();
+  const running = scope.run(op) as Promise<unknown>;
+  release();
+  expect(await running).toBe(1);
+  scope.release(res);
+  expect(order).toEqual(["op:1", "res-clean"]);
+  await scope.close();
+  expect(order).toEqual(["op:1", "res-clean"]);
+});
+
+test("a defer from a superseded build never joins the live rebuild's drain", async () => {
+  let release!: (v: number) => void;
+  const gate = new Promise<number>((resolve) => {
+    release = resolve;
+  });
+  const seen: string[] = [];
+  const slow = resource({
+    label: "slow",
+    factory: (_deps, ctx) =>
+      gate.then((n) => {
+        ctx.defer((end) => void seen.push(`late:${end.status}`));
+        return n;
+      }),
+  });
+  const scope = createScope();
+  const first = scope.controller(slow).resolve() as Promise<unknown>;
+  scope.release(slow);
+  release(7);
+  expect(await first).toBe(7);
+  for (let i = 0; i < 10; i++) await Promise.resolve();
+  expect(seen).toEqual(["late:released"]);
+  await scope.close();
+  expect(seen).toEqual(["late:released"]);
+});
+
+test("a failing start fails the scope with its cause", async () => {
+  const cause = new Error("start-boom");
+  const ext = extension({
+    label: "bad",
+    start: () => Promise.reject(cause),
+  });
+  const scope = createScope({ extensions: [ext] });
+  const thrown = await scope.ready.then(
+    () => undefined,
+    (error: unknown) => error,
+  );
+  expect(thrown).toBe(cause);
+  await scope.close();
+});
+
+test("a forced close aborts a nested grandchild session", async () => {
+  let aborted = false;
+  const scope = createScope();
+  const child = scope.createSession();
+  const grand = child.createSession();
+  const probe = resource({
+    label: "probe",
+    target: "session",
+    factory: (_deps, ctx) => {
+      ctx.signal.addEventListener(
+        "abort",
+        () => {
+          aborted = true;
+        },
+        { once: true },
+      );
+      return 1;
+    },
+  });
+  grand.resolve(probe);
+  await scope.close();
+  expect(aborted).toBe(true);
 });
