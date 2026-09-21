@@ -265,7 +265,11 @@ test("a new inline selector after a parent re-render shows its output and still 
   await scope.close();
 });
 
-function SliceSwapped({ equal }: { equal: (x: { a: number }, y: { a: number }) => boolean }): React.ReactElement {
+function SliceSwapped({
+  equal,
+}: {
+  equal: (x: { a: number }, y: { a: number }) => boolean;
+}): React.ReactElement {
   const slice = useData(sbox, pickS, equal);
   return <p>swapped:{slice.a}</p>;
 }

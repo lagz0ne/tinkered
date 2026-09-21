@@ -270,7 +270,11 @@ function Flags({
   );
 }
 
-function SettledOnly({ op, call, events }: {
+function SettledOnly({
+  op,
+  call,
+  events,
+}: {
   op: Operation.Handle<Promise<number>, number>;
   call: Scope.ProvideInput<number>;
   events: string[];
@@ -282,7 +286,9 @@ function SettledOnly({ op, call, events }: {
   const sflags = [run.isSuccess, run.isError].map(Number).join("");
   return (
     <div>
-      <button type="button" onClick={() => run.run(call)}>go</button>
+      <button type="button" onClick={() => run.run(call)}>
+        go
+      </button>
       <p>sflags:{sflags}</p>
     </div>
   );

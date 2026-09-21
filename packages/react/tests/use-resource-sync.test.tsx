@@ -46,7 +46,11 @@ test("reading through a new scope builds in the new scope", async () => {
     );
   }
 
-  function ShowScoped({ handle }: { handle: Resource.Handle<{ value: number }> }): React.ReactElement {
+  function ShowScoped({
+    handle,
+  }: {
+    handle: Resource.Handle<{ value: number }>;
+  }): React.ReactElement {
     return <p>svalue:{useResource(handle).value}</p>;
   }
 
