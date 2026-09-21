@@ -35,3 +35,23 @@ test("a write chain that skips still refuses when the writer denies", async () =
   expect(scope.controller(cell).get()).toBe(1);
   await scope.close();
 });
+
+test("three write hooks nest in registration order", async () => {
+  const cell = data({ initial: 0, parse: asNumber });
+  const order: string[] = [];
+  const hook = (label: string) =>
+    extension({
+      label,
+      write: (_cell, _value, next) => {
+        order.push(`${label}:before`);
+        next();
+        order.push(`${label}:after`);
+      },
+    });
+  const scope = createScope({ extensions: [hook("a"), hook("b"), hook("c")] });
+  await scope.ready;
+  scope.controller(cell).set(1);
+  expect(order).toEqual(["a:before", "b:before", "c:before", "c:after", "b:after", "a:after"]);
+  expect(scope.controller(cell).get()).toBe(1);
+  await scope.close();
+});

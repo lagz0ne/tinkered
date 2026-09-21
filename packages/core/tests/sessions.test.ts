@@ -230,3 +230,22 @@ test("a wrapped session body that throws sync still drains cleanups then reports
   expect(seen).toEqual(["failed"]);
   await scope.close();
 });
+
+test("three session hooks nest in registration order", async () => {
+  const order: string[] = [];
+  const hook = (label: string) =>
+    extension({
+      label,
+      session: async (_handle, next) => {
+        order.push(`${label}:before`);
+        const ended = await next();
+        order.push(`${label}:after`);
+        return ended;
+      },
+    });
+  const scope = createScope({ extensions: [hook("a"), hook("b"), hook("c")] });
+  await scope.ready;
+  await scope.session(() => 1);
+  expect(order).toEqual(["a:before", "b:before", "c:before", "c:after", "b:after", "a:after"]);
+  await scope.close();
+});
