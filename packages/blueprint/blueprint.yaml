@@ -1,0 +1,115 @@
+- tag:
+    name: engine
+    promise: >-
+      which model and key the judge uses;
+      a test never binds it
+    why: the one environment choice the judge needs
+- tag:
+    name: corpusPath
+    promise: >-
+      the folder of templates; the shipped
+      one by default; a test rebinds it to
+      a fixture
+    why: the corpus resource reads templates from a path, not a literal list
+- tag:
+    name: evalsPath
+    promise: >-
+      the folder of evals; the shipped one
+      by default; a test rebinds it to a
+      fixture
+    why: the evalSet resource reads evals from a path, not a literal list
+- resource:
+    name: corpus
+    depends: [corpusPath]
+    promise: >-
+      every template loaded once per scope;
+      a template naming a field the node
+      schema lacks fails the load
+    why: questions are data, loaded once, never code
+    work: >-
+      read every *.yaml under corpusPath;
+      parse each into a template; sort by id
+- resource:
+    name: judge
+    depends: [engine]
+    promise: one Jev client per scope; asks, never writes
+    why: one client, one key, one retry rule
+    work: >-
+      evaluate({ state, questions }) through
+      the gateway; retry on 429
+- resource:
+    name: evalSet
+    depends: [evalsPath, corpus]
+    promise: >-
+      every template's bad/clean/golden eval
+      cases, read once per scope
+    why: >-
+      grading needs the same cases every run;
+      corpus is the id list the folder is
+      checked against
+    work: >-
+      read evalsPath/<id>/{bad,clean}/*.yaml
+      per corpus id; fold golden.yaml's cases
+      into every template that applies to it
+- operation:
+    name: check
+    depends: [corpus, judge]
+    promise: >-
+      for one blueprint file, one result
+      line per plain check and per (node,
+      template) pair; exit 1 only on a
+      plain failure or a proven hit
+    why: >-
+      the corpus gives the questions, the
+      judge the answers; check only wires
+      them per node
+    work: >-
+      parse the file; plain checks; per
+      node ask every applicable template;
+      block on a plain finding or a proven
+      hit
+- operation:
+    name: explain
+    depends: [corpus]
+    promise: >-
+      prints every template verbatim; --md
+      prints the README table
+    why: the questions must be readable without a key
+    work: >-
+      print each template's fields, or as a
+      markdown list with --md
+- operation:
+    name: suggest
+    depends: [corpus, judge]
+    promise: >-
+      for a sentence, which unit fits, with
+      the shape to write
+    why: the first question an agent new to the library asks
+    work: >-
+      ask unitFits once; on a confident
+      resource pick, ask target once more
+- operation:
+    name: evals
+    depends: [corpus, judge, evalSet]
+    promise: >-
+      grades every shipped template against
+      its evals; the numbers behind
+      proven/provisional/noisy
+    why: a status is earned by a real bar, not claimed by the template author
+    work: >-
+      score every template's bad/clean/golden
+      cases with the judge; grade each
+- operation:
+    name: verify
+    promise: >-
+      for one blueprint file and one source
+      dir, one result line per plain diff
+      between a node and its code unit;
+      exit 1 on any finding
+    why: >-
+      a node's work line can drift from its
+      code the day after check passes;
+      verify catches the drift with no key
+    work: >-
+      diff every node against the unit of
+      its label: kind, depends, target
