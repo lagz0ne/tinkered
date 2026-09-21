@@ -1,4 +1,5 @@
 import {
+  isError as isCoreError,
   operation as operationCore,
   tag,
   type Operation,
@@ -216,12 +217,20 @@ async function runSend(
       if (retriesStatus(received.status, n, tries)) continue;
       return received;
     } catch (error) {
-      if (ctx.signal.aborted) throw ctx.signal.reason;
-      if (isError(error, "ResponseFailed")) throw error;
+      if (propagates(error, ctx)) throw ctx.signal.aborted ? ctx.signal.reason : error;
       if (n < tries) continue;
       raise("RequestFailed", { request, reason: "Transport", cause: error });
     }
   }
+}
+
+/** Errors that end the send exactly as they are, instead of buying another try: the caller
+ * aborted, the scope closed before the backend was reached (core's `Disposed` — a cancellation,
+ * never a transport failure that blames a network nobody touched), or the status was rejected. */
+function propagates(error: unknown, ctx: Operation.Ctx<HttpRequest.Record>): boolean {
+  if (ctx.signal.aborted) return true;
+  if (isCoreError(error, "Disposed")) return true;
+  return isError(error, "ResponseFailed");
 }
 
 /** The frame's default status policy: accept every status. */

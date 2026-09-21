@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, operation } from "@tinker/core";
+import { createScope, isError as isCoreError, operation } from "@tinker/core";
 import {
   backend,
   httpClient,
@@ -206,4 +206,28 @@ test("streaming a bodiless response rejects NoBody with the status", async () =>
     expect(error.payload.status).toBe(204);
   }
   await scope.close();
+});
+
+test("a close in the same tick surfaces Disposed, never a transport failure", async () => {
+  const parked = backend(
+    (_request, signal) =>
+      new Promise<HttpResponse.Handle>((_resolve, reject) => {
+        signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+      }),
+  );
+  const call = operation({
+    label: "call",
+    depends: { send: github.send },
+    run: ({ send }) => send.run({ input: HttpRequest.get("https://api/users") }),
+  });
+  const scope = createScope({ tags: [parked] });
+  const running = scope.run(call);
+  void scope.close();
+  try {
+    await running;
+    expect.unreachable();
+  } catch (error) {
+    if (!isCoreError(error, "Disposed")) throw error;
+    expect(isHttpError(error, "RequestFailed")).toBe(false);
+  }
 });

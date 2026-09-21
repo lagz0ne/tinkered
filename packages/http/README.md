@@ -146,6 +146,8 @@ delivers the stream.
 
 `RequestFailed { request, reason: "Transport" | "Encode" | "InvalidUrl", cause? }` and
 `ResponseFailed { request, response, reason: "StatusCode" | "Decode" | "EmptyBody", cause? }`.
+A scope closed before an attempt reaches the backend rejects with core's `Disposed`, never a
+wrapped `RequestFailed/Transport` — the network was not touched, so nothing blames it.
 A bodiless response raises `NoBody { status }` on `stream()` **and `sse()`** — `stream()`
 never returns `null`.
 Narrow with `isError(e, "RequestFailed")` by control flow, then read `payload.reason`. A forced
