@@ -68,8 +68,14 @@ Package `packages/tinkerer` (`@tinker/tinkerer`), built on `@tinker/core`, `@tin
 - operation:
     name: turn
     depends:
-      [step, messages, settings, inbox,
-       status, text, usage, tools]
+      - step
+      - messages
+      - settings
+      - inbox
+      - status
+      - text
+      - usage
+      - tools
     promise: >-
       prompt in; steps and tool calls until a reply
       has no tool call; the final message out

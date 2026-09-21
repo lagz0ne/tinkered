@@ -45,7 +45,7 @@ tinkerer({ label, tools })            own frame
 3. **The transcript is the wire shape.** `messages` holds chat-completions message objects
    as sent and received. No converted union (ADR 0043's rule: keep the API's own types).
 4. **Settings are a session cell; tags are only the defaults.** `settings = { mode,
-   options }` — our `mode` plus the provider's own request fields. Seeded from the `mode`
+options }` — our `mode` plus the provider's own request fields. Seeded from the `mode`
    and `config` tags at turn start; read at **every** step and every tool call; written
    only inside the session, so a change never leaks up (copy-on-write, ADR 0038).
 5. **The inbox has two kinds.** An entry is `{ kind, content, mode?, options? }`. `queue`
