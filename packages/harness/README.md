@@ -70,7 +70,14 @@ each later turn resumes the last session id, so one thread is one conversation.
 The same frame on the Codex SDK: options are the SDK's own `CodexOptions & ThreadOptions`
 (split at thread start — the `Codex` constructor takes its six keys, `startThread` the rest),
 turns carry the SDK's input plus its per-turn output schema, and results are the SDK's turns.
-Continuity is by thread id (`resumeThread` on the session's `resume` binding):
+Continuity is by thread id (`resumeThread` on the session's `resume` binding). Each turn folds
+the event stream into the result and the ambient cells. Agent text streams into `text` as it
+grows — Codex reports the whole text so far, so a rewrite restreams whole and only the last
+text stays final, while an empty update streams nothing. Each item lands in `items` with the
+SDK's own status where it carries one (`command_execution`, `file_change`, `mcp_tool_call`)
+and the event phase (`started`, `updated`, `completed`) otherwise. Usage lands in `usage` with
+no cost. A failed turn rejects with `TurnFailed` carrying the SDK's message; a stream that
+ends with no completion rejects with `TurnEnded`.
 
 ```ts
 import { createScope } from "@tinker/core";
