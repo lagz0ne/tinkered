@@ -822,7 +822,7 @@ errors are checked for every close status. These two source issues are
 corrected, but still await app-level proof. One related issue remains:
 `runDraft` unconditionally rethrows the captured error before it uses the
 inspected close outcome. Root shutdown with a live caller signal can
-therefore still escape as an error even when the close result says cancelled.
+so still escape as an error even when the close result says cancelled.
 The next bounded writer step must classify that close outcome first. The
 app route must also show a normal failed outcome for a provider error.
 

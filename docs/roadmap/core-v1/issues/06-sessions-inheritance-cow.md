@@ -7,6 +7,6 @@
 **Status:** ready-for-agent
 
 - [ ] child inherits parent data + tags
-- [ ] parent write visible pre-shadow; decoupled post-shadow
+- [ ] parent write visible pre-shadow; separate post-shadow
 - [ ] warm read does not re-walk the ancestor chain (read-cache probe / bench lane)
 - [ ] creating a nearer shadow invalidates the cached effective cell for descendants

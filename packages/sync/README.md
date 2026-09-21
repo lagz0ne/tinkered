@@ -68,7 +68,7 @@ closes or a violation lands before every key arrived, or a forced scope
 close aborts the wait — the start rejects with `SyncNotReady`
 `{ label: "subscribe", missing }` naming the keys still missing: `ready`
 rejects and the scope closes failed. `close()` detaches and closes the
-transport (idempotent); a close from the far side detaches without closing
+transport (safe to repeat); a close from the far side detaches without closing
 twice.
 
 ## Wire it

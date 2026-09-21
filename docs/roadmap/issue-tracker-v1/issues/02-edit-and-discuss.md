@@ -10,7 +10,7 @@ see each saved change. Unsaved drafts remain local.
 
 - [x] Detail and list remain consistent after edits, comments, and status changes.
 - [x] Selected details use sync family identities where they simplify subscriptions.
-- [x] A stale concurrent edit is reported clearly rather than silently losing a person's change;
+- [x] A stale concurrent edit is reported, never silently losing a person's change;
       define a small revision check for saved edits, while comments append independently.
 - [x] A rejected edit changes neither saved history nor published state.
 - [x] Public-seam and browser tests cover distinct promises; tests need no sleeps or mocks.

@@ -53,7 +53,7 @@ Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its 
 | core/t31 | A resource dep is its value; deps build before the body; async typed through the graph; lazy Proxy gone (ADR 0044) | —          | [x] fa7282f, 227 tests, mutation 78.51, opres −95 ns |
 
 Parallelizable once upstream lands: 04‖05, 15 alongside 12→13→14, 17 early off 05.
-Family (keyed collections) is out of v1 (needs its own semantics ADR).
+Family (keyed collections) is out of v1 (needs its own ADR for the rules).
 
 ## Teardown / lifetime redesign (LT1–LT4)
 

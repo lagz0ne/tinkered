@@ -1,8 +1,8 @@
 # Contributor brief — the fixed part
 
-Every ticket brief starts with this file plus the ticket's own target, impact block, and tests. The point is
-that the **writer finishes verification before the reviewer sees the work**: gates by exit code, the jev
-pre-flight cleared or explained, and a report the lead can check line by line.
+Every ticket brief starts with this file plus the ticket's own target, impact block, and tests. The point:
+the **writer finishes verification before the reviewer sees the work** — gates by exit code, every Jev flag
+fixed or explained, and a report the lead can check line by line.
 
 ## Setup
 
@@ -28,22 +28,23 @@ cd ../tinkered-<task> && vp install && git checkout -- pnpm-workspace.yaml && vp
 1. **Exit-code gate**, one chain, pasted with its `EXIT` line:
    `vp run -r build && vp check && vp run <pkg>#test && <every consumer's tests>; echo EXIT $?` → must be 0,
    `vp check` at 0 errors and no more warnings than `main`.
-2. **jev pre-flight** (advisory, generic — it never gates, you never tune it):
+2. **Jev pre-flight** (advisory: it points, it never blocks; you never tune it):
    `node tools/jev/preflight.mjs main..HEAD`. For every flag write one line: `fixed <how>` or
-   `explained <why it is not a defect here>`. A flag you cannot explain is a fix. A `~` hit is a
-   calibrated-noisy judge: read it, no line owed. The tool is generic by design: do not add rules or
-   special cases to `tools/jev/**` for your ticket.
-   **Then label what you decided** — this is how the judges get calibrated, and it takes one line per flag:
+   `explained <why it is not a defect here>`. A flag you cannot explain is a fix. A `~` hit is a judge
+   calibration found noisy: read it, no line owed. Do not add rules or special cases to `tools/jev/**`
+   for your ticket.
+   **Then label what you decided** — one line per flag; this is how the judges get calibrated:
    `node tools/jev/label.mjs <judge> true <file>#<unit> --by <ticket> --why "<what you fixed>"` for a
    fixed flag, `… false …` for an explained one (file judges take `<file>` alone). Commit
    `tools/jev/cases.jsonl` with your ticket.
 3. **Test quality and promise gap** when you added or changed tests in a package:
-   `node tools/jev/tests.mjs <pkg>` — every `⚠` is a test to delete, merge, or explain (the convention:
-   over-testing is a defect; a helper tested alone, many causes in one test, a type guarantee asserted, a
-   negative twin, two tests for one promise). Then `node tools/jev/promises.mjs <pkg>` — every `⚠` is a
-   test title the README never promises: write the README line, or say why that title is not a promise.
+   `node tools/jev/tests.mjs <pkg>` — every `⚠` is a test to delete, merge, or explain. The convention
+   says over-testing is a defect: a helper tested alone, many causes in one test, a type guarantee
+   asserted, a negative twin, two tests for one promise. Then `node tools/jev/promises.mjs <pkg>` — every
+   `⚠` is a test title the README never promises: write the README line, or say why that title is not a
+   promise.
    Label what you decided on both (`label.mjs`), as in step 2.
-4. **Blast radius**: the greps the ticket names (old symbols → `(none)`; `Scope.Handle` only where ADR 0051
+4. **Blast radius** (the files a change may reach): the greps the ticket names (old symbols → `(none)`; `Scope.Handle` only where ADR 0051
    allows) and the before/after line table.
 5. `pnpm validate` → 38/38.
 
@@ -51,6 +52,6 @@ cd ../tinkered-<task> && vp install && git checkout -- pnpm-workspace.yaml && vp
 
 Branch · SHAs one line each · line table · the gate chain output (trimmed) with `EXIT 0` · the **jev
 pre-flight** lines (flag → fixed/explained, each labeled) · the **test quality** and **promise gap** lines for touched packages · tests added (title = the promise) · deviations from the brief
-with reasons · **Core feedback**: friction, a workaround you had to write, a missing affordance with the API
+with reasons · **Core feedback**: friction, a workaround you had to write, a missing feature with the API
 and the call site, a rule in `docs/best-practices.md` that felt wrong. A feedback row ships with a failing
 snippet, not prose.

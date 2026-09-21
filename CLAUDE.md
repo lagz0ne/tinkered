@@ -21,10 +21,19 @@ release. Add a tool name to select part of the graph. For example, run
 
 - [ ] Run `vp install` after pulling remote changes and before getting started.
 - [ ] Run `vp check` and `vp test` to format, lint, type check and test changes.
+- [ ] Run `vp run prose` after editing any `.md` (it also runs on commit). The rule and the word
+      list: `docs/writing-style.md`.
 - [ ] Check if there are `vite.config.ts` tasks or `package.json` scripts necessary for validation, run via `vp run <script>`.
 - [ ] If setup, runtime, or package-manager behavior looks wrong, run `vp env doctor` and include its output when asking for help.
 
 <!--VITE PLUS END-->
+
+## Writing style (every `.md`)
+
+A word is jargon when it has no `docs/glossary.md` row and a plainer word says the same thing — cut
+it. Define a term once where it first appears; use the words the tool prints; say what a thing does,
+not what it is like. `scripts/prose-lint.mjs` flags the known offenders (`docs/writing-style.md`) and
+blocks a commit that stages one.
 
 ## Elaboration workflow
 
@@ -33,10 +42,10 @@ When a request is a plan, design, decision, or "how does X work":
 
 0. **Find the analogy first.** Before inventing a model from scratch, look for an
    established precedent the problem is already shaped like (POSIX signals, a DB
-   transaction, a filesystem, an HTTP semantic, a well-known library's API). Name
+   transaction, a filesystem, an HTTP rule, a well-known library's API). Name
    it, borrow its vocabulary and its solved trade-offs, then note where ours is
-   _simpler_. Guessing a bespoke model invites edge cases the precedent already
-   settled — e.g. "close is a graceful-vs-forced shutdown (POSIX), not a wished
+   _simpler_. Guessing our own model invites edge cases the precedent already
+   settled — for example, "close is a graceful-vs-forced shutdown (POSIX), not a wished
    outcome" (ADR 0028) dissolved nine rounds of ad-hoc failure-precedence bugs.
 1. `grill-with-docs` — interview one question at a time; write ADRs in
    `docs/decisions/` and terms in `docs/glossary.md` as decisions land.
@@ -105,36 +114,39 @@ Keep only recent results in Done; older detail belongs in `docs/roadmap/archive/
 
 ## Contributor workflow (delegated implementation)
 
-The lead session orchestrates and reviews; implementation is delegated to a Paseo contributor agent
-(`pi` / `meta-muse/muse-spark-1.3-contributor`, thinking `max`), one agent per task, **one package per
-agent** (long sessions die on provider drops; a step on disk is never lost):
+The lead plans and reviews. A Paseo contributor agent (`pi` / `meta-muse/muse-spark-1.3-contributor`,
+thinking `max`) writes the code: one agent per task, **one package per agent** (long sessions die when the
+provider drops; a step already on disk is never lost).
 
 1. Each contributor works in its own worktree: `git worktree add ../tinkered-<task> -b <track>/<task> main`,
-   `vp install` there, never touches the main checkout, commits by explicit pathspec after every green step,
-   never pushes, never `--no-verify`.
+   `vp install` there. It never touches the main checkout, commits by explicit pathspec after every green
+   step, never pushes, never uses `--no-verify`.
 2. The brief is `docs/roadmap/contributor-brief.md` (the fixed part) plus the ticket's target and its
-   `impact` block. Every file the impact block names is touchable, tests included. The writer finishes
-   verification before the reviewer sees the work: `vp run -r build` first, the exit-code gate chain, then
-   the jev steps below, then the report in the brief's format ending with **Core feedback** (a failing
-   snippet, not prose).
-3. The lead: `node tools/jev/review.mjs main..HEAD` (advisory, routes attention), reads the diff for shape,
-   labels each fix-round nit a judge covers, requests one fix round, re-runs every gate by exit code,
+   `impact` block. Every file the impact block names may be edited, tests included. The writer verifies
+   before the lead reads: `vp run -r build`, then the gate chain (by exit code), then the Jev steps below,
+   then the report in the brief's format, ending with **Core feedback** (a failing snippet, not prose).
+3. The lead: runs `node tools/jev/review.mjs main..HEAD` (a hint where to read first), reads the diff,
+   labels each fix-round nit a judge covers, asks for one fix round, re-runs every gate by exit code,
    fast-forwards `main`, runs the touched package's mutation lane **alone** (floor 75), pushes, removes the
    worktree and branch.
-4. **Both sides of the spectrum.** Every report ends with **Core feedback**; the lead records candidates in
+4. **Feedback flows back to core.** Every report ends with **Core feedback**; the lead records candidates in
    `docs/roadmap/core-feedback.md`. A candidate becomes a core ticket after a second asker, or at once when
    the workaround is dishonest.
 
 ## Jev (advisory judges) — `tools/jev`, a workspace package
 
-Jev answers one narrow question at a time about one extracted thing; extraction is ours (`extract.mjs`, on
-oxc-parser). Never a gate. Plain words per tool and per judge: `tools/jev/README.md`; the live question bank:
-`node tools/jev/explain.mjs`.
+Jev is a model that answers one narrow yes/no question about one thing our own code picked out
+(`extract.mjs`, on oxc-parser). Advisory means: it points, it never blocks. Nothing in `tools/jev` exits
+non-zero on a finding. What each tool and judge asks, in plain words: `tools/jev/README.md`; the live
+questions: `node tools/jev/explain.mjs`.
 
 - **Writer, before reporting:** `node tools/jev/preflight.mjs main..HEAD`; on touched packages
-  `node tools/jev/tests.mjs <pkg>` and `node tools/jev/promises.mjs <pkg>`. Every non-`~` hit is fixed or
-  explained in one line, then labeled: `node tools/jev/label.mjs <judge> true|false <file>[#<unit|title>]`.
+  `node tools/jev/tests.mjs <pkg>` and `node tools/jev/promises.mjs <pkg>`. Every hit is fixed or explained in
+  one line, then labeled: `node tools/jev/label.mjs <judge> true|false <file>[#<unit|title>]`. A `~` hit is a
+  judge calibration found noisy: read it, no line owed.
 - **Lead, at review:** `review.mjs`, and a label for each nit a judge covers.
-- **Lead, every ~10 new cases:** `node tools/jev/calibrate.mjs`, commit `calibration.json`. `noisy` judges print
-  as `~` notes; only `proven` judges may ever gate — none does today.
-- **Rules:** no per-ticket rule in `tools/jev`; deterministic first, Jev for the residue; a `~` owes no line.
+- **Lead, every ~10 new cases:** `node tools/jev/calibrate.mjs`, commit `calibration.json`. Calibration
+  re-asks every judge about every labeled case and grades it `proven`, `provisional`, or `noisy`. Only a
+  `proven` judge could ever block — none does today.
+- **Rules:** no per-ticket rule in `tools/jev`. If plain code can check it, plain code checks it; Jev gets
+  only what code cannot see.

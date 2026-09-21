@@ -7,6 +7,7 @@
     "ready": "vp check && vp run -r test && vp run -r mutate && vp run -r build",
     "build": "vp run -r build",
     "validate": "node scripts/validate.mjs",
+    "prose": "node scripts/prose-lint.mjs",
     "dev": "vp run website#dev",
     "prepare": "vp config"
   },

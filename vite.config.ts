@@ -3,6 +3,7 @@ import { defineConfig } from "vite-plus";
 export default defineConfig({
   staged: {
     "*": "vp check --fix",
+    "*.md": "node scripts/prose-lint.mjs",
   },
   fmt: {},
   lint: {

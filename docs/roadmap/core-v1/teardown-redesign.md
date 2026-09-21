@@ -165,7 +165,7 @@ lt2 (release + cross-owner + borrow) — SCOPE DECISION after a 14-round drift:
   one needs async-context tracking (AsyncLocalStorage), which this design deliberately avoids. Since
   awaiting your OWN scope's full close from within its own teardown is circular by construction (the
   callback is part of the close it awaits), we keep the correct external behavior and treat this as a
-  documented footgun — revisit in lt4 if an ALS-free discriminator emerges.
+  documented trap — revisit in lt4 if an ALS-free discriminator emerges.
 
 - Combined review r2 (lazy + close→Result), two P2s, both fixed:
   - r1: a superseded (paused async) build's first lazy dep read registered a stale release edge, so
@@ -289,7 +289,7 @@ lt3 REDESIGN — `close()` is a shutdown MODE, not a wished outcome (ADR 0028, s
 - The settlement reducer is REALITY-ONLY: failed (body threw / owned-work rejected / descendant really
   failed, bubbled) > cancelled (this layer's body was interrupted) > success. This DELETES the whole
   wish/severity machinery — `inheritedEnd`, `moreSevere`, `severity`, `endedCancelled`,
-  `chooseOutcome`'s wish branch, `closeLayer`'s r13 more-severe merge, `deriveOutcome`'s wish plumbing
+  `chooseOutcome`'s wish branch, `closeLayer`'s r13 more-severe merge, `deriveOutcome`'s wish wiring
   — the class of bugs vanishes by construction. `abortSubtree`→`sweepSubtree(root, force)` (mark swept
   always, abort only when forced). Cancellation is a SESSION concept (an interrupted body); a bare
   scope's forced close is `success` unless real work failed.
@@ -367,7 +367,7 @@ onClose-interleaving, sibling-LIFO, cancel-masks-failure, and cancelled-session-
 
 The deferred edges above are consolidated as accepted v1 boundaries in
 **ADR 0029 (teardown v1: accepted limitations)** — no escalation, own-owned-work-after-cascade,
-async self-reentry footgun, cooperative-cancellation precondition, unspecified teardown ORDER,
+async self-reentry trap, cooperative-cancellation precondition, unspecified teardown ORDER,
 adversarial userland objects, async dep-cycle-after-await. Each preserves the headline guarantees;
 promote any to a fix if a real (non-adversarial) case hits it.
 

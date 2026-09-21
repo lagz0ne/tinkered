@@ -8,7 +8,7 @@ The live state stays in [TODO.md](../../TODO.md). This is the evidence behind th
 1. **Close a core proposal based on a false premise.** Failed extension startup calls
    structural cleanup directly. It runs `ctx.defer`, but does not automatically enter the
    extension `close` hook chain. A later explicit `scope.close()` does enter that chain.
-   The proposed rule to skip the failing extension's close hook therefore does not fix the
+   The proposed rule to skip the failing extension's close hook so does not fix the
    reported automatic path. Source inspection and public-entry probes agree (below).
    This does not make sync's guard against repeated transport shutdown unnecessary.
 2. **Two React deferrals were missing from the live board.** The React track still defers its
@@ -48,10 +48,10 @@ describe one request from sync, not two independent integrations.
 | Candidate                                        | Review and next step                                                                                                                                                                                               |
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Reuse a parent session's built resource          | Still first asker: Drizzle savepoints. `ownerOf` selects the current session for session-target resources. Wait for a second caller or a concrete savepoint requirement that cannot be represented honestly.       |
-| One resource publishes a record of cells         | Harness uses explicit controller dependencies for its cells. This works; the request is ergonomic. Wait for another integration with the same need.                                                                |
+| One resource publishes a record of cells         | Harness uses explicit controller dependencies for its cells. This works; the request is about convenience. Wait for another integration with the same need.                                                        |
 | Run a tag-selected operation as a nested subflow | Harness still builds approval/tool dependencies when constructing the frame. Its dynamic-tag limitation remains; no second request is recorded.                                                                    |
 | Public resource/operation type guards            | `isResource` and `isOperation` are private. CLI already uses the row's `kind` field to distinguish its union. Revisit when a real caller cannot express the distinction cleanly.                                   |
-| Per-tool session cost                            | MCP still creates a session per call. No new bottleneck was measured. Use the off-host runner before proposing an optimization; keep the session's ownership semantics.                                            |
+| Per-tool session cost                            | MCP still creates a session per call. No new bottleneck was measured. Use the off-host runner before proposing an optimization; keep the session's ownership rules.                                                |
 | Core cell family                                 | Sync implements a family with a Map and ordinary data cells. React can consume the returned cell without a core family primitive. No second core requirement is recorded.                                          |
 | First/last watcher hook and unregister           | Requested identities already register, including late family members through `family.onMember`. Last-watcher unregister is still absent. Correct the old whole-family claim; keep this single sync request parked. |
 | Skip a failing extension's close hook            | **Closed: false premise.** Automatic failed-start cleanup already bypasses that hook chain. See the probe below.                                                                                                   |

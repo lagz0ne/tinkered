@@ -1,6 +1,6 @@
 # 12: Single-node release
 
-**What to build:** `release()` on a node — data reset (to inherited/initial) and resource cleanup with a fresh generation, so a late success/failure from the released generation cannot affect its replacement. (ADR 0014; frontend affordance)
+**What to build:** `release()` on a node — data reset (to inherited/initial) and resource cleanup with a fresh generation, so a late success/failure from the released generation cannot affect its replacement. (ADR 0014; a frontend feature)
 
 **Blocked by:** 09, 10
 

@@ -47,7 +47,7 @@ When the user uses a term that conflicts with the existing language in `CONTEXT.
 
 ### Sharpen fuzzy language
 
-When the user uses vague or overloaded terms, propose a precise canonical term. "You're saying 'account': do you mean the Customer or the User? Those are different things."
+When the user uses vague or overloaded terms, propose one precise term and use it everywhere. "You're saying 'account': do you mean the Customer or the User? Those are different things."
 
 ### Discuss concrete scenarios
 

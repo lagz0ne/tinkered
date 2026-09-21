@@ -183,7 +183,7 @@ hot path is anything a request pays: create a scope, build a resource, run an op
    source directly.
 
 10. **A perf change ships with** the probe numbers before/after, `vp check` and
-    `vp test` green, a seam test for every changed semantic, and a learnings entry.
+    `vp test` green, a seam test for every changed behavior, and a learnings entry.
 
 Review checklist for a perf diff: getter in a literal? defineProperty? eager
 collection or controller that most callers never use? repeated map lookups on the

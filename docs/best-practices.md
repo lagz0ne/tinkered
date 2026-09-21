@@ -139,5 +139,5 @@ forces glue, write the glue in ONE named place with a TSDoc line that names the 
 1. A session's cell write does not reach the root cell; there is no "after this session committed" hook.
 2. ~~hono's `route.input` is not awaited, so JSON bodies are read outside `handle`.~~ Closed 2026-09-20: `input` may return a promise; a rejected read is `InputRejected` → 400.
 3. ~~hono's `stream` `emit` is not safe from a sync `Transport.send`.~~ Closed 2026-09-20: `emit` is synchronous.
-4. No serial-execution affordance for a single-connection store.
+4. No built-in way to run one call at a time on a single-connection store.
 5. No documented form-cell pattern for React.

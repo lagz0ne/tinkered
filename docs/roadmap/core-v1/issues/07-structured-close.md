@@ -1,6 +1,6 @@
 # 07: Structured close + `onClose`
 
-**What to build:** `close(outcome)` that closes children first, joins owned pending work, runs `onOutcome` then `cleanup` (LIFO, collect-and-continue), runs userland `onClose`, seals the layer (late acts fail with a `Disposed` registry error), and is idempotent (a second close awaits the first). Concurrent sessions stay isolated. (ADRs 0011, 0017)
+**What to build:** `close(outcome)` that closes children first, joins owned pending work, runs `onOutcome` then `cleanup` (LIFO, collect-and-continue), runs userland `onClose`, seals the layer (late acts fail with a `Disposed` registry error), and is safe to call twice (a second close awaits the first). Concurrent sessions stay isolated. (ADRs 0011, 0017)
 
 **Blocked by:** 05, 06
 
