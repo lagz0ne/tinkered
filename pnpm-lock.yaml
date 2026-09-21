@@ -507,6 +507,9 @@ importers:
       '@tinker/sync':
         specifier: workspace:*
         version: link:../packages/sync
+      '@tinker/tinkerer':
+        specifier: workspace:*
+        version: link:../packages/tinkerer
     devDependencies:
       '@anthropic-ai/claude-agent-sdk':
         specifier: 'catalog:'

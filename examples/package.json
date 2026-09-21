@@ -16,7 +16,8 @@
     "@tinker/http": "workspace:*",
     "@tinker/mcp": "workspace:*",
     "@tinker/react": "workspace:*",
-    "@tinker/sync": "workspace:*"
+    "@tinker/sync": "workspace:*",
+    "@tinker/tinkerer": "workspace:*"
   },
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "catalog:",
