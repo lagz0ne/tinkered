@@ -12,6 +12,10 @@ const answer = readFileSync(new URL("./fixtures/answer.sse", import.meta.url));
 const lines = ["line one", "line two", "line three"];
 const toolId = "call_01a0c37b9cbe701e9136fc698fbf76a5";
 
+/** The recorded second-step reply, in full. */
+const replyText =
+  "In `README.md`:\n\n```md\n# tinkered\n\nA tiny engine. Scope, session, operation, resource, data cell.\n```";
+
 /** A backend that answers `bodies[n]` to the n-th request, then repeats the last. */
 function scripted(seen: HttpRequest.Record[], bodies: (string | Uint8Array)[]): HttpClient.Backend {
   return async (request) => {
@@ -27,6 +31,13 @@ function readBody(seen: HttpRequest.Record[], index = 0): Record<string, unknown
   const body = seen[index]?.body;
   if (body === undefined || body.kind !== "text") throw new Error("tinkerer: expected a JSON body");
   return JSON.parse(body.text) as Record<string, unknown>;
+}
+
+/** The smallest parse a counting tool needs: an object with a string `path`. */
+function readPath(raw: unknown): { path: string } {
+  if (typeof raw !== "object" || raw === null || !("path" in raw) || typeof raw.path !== "string")
+    throw new Error("expected { path }");
+  return { path: raw.path };
 }
 
 /** A temp dir whose README.md holds the three lines. */
@@ -58,9 +69,7 @@ test("a reply with a tool call runs the tool as a subflow and the next step carr
   const scope = toolScope(seen, readmeDir());
   const session = scope.createSession();
   const reply = await session.run(coder.turn, { input: "read it" });
-  const replyText = readFileSync(new URL("./fixtures/answer.sse", import.meta.url), "utf8");
-  expect(replyText.length).toBeGreaterThan(0);
-  expect(reply.message.content).toContain("README.md");
+  expect(reply.message.content).toBe(replyText);
   expect(seen).toHaveLength(2);
   const carried = readBody(seen, 1)["messages"] as readonly Tinkerer.Message[];
   expect(carried[carried.length - 2]).toEqual({
@@ -121,7 +130,7 @@ test("a tool the frame does not know answers the model with a not-found result",
     tool_call_id: toolId,
     content: "Tool read not found",
   });
-  expect(reply.message.content).toContain("README.md");
+  expect(reply.message.content).toBe(replyText);
   await scope.close();
 });
 
@@ -197,7 +206,7 @@ test("a reply cut by the token limit fails every tool call without running it", 
   let runs = 0;
   const counting = operation({
     label: "read",
-    input: (raw: unknown) => raw as { path: string },
+    input: readPath,
     run: () => {
       runs += 1;
       return Promise.resolve("hit");
@@ -252,7 +261,7 @@ test("a tool that throws answers the model with a failed result and the loop con
     tool_call_id: toolId,
     content: "Tool read failed: boom",
   });
-  expect(reply.message.content).toContain("README.md");
+  expect(reply.message.content).toBe(replyText);
   await scope.close();
 });
 

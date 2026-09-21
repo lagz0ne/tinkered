@@ -43,17 +43,20 @@ export declare namespace Tinkerer {
     readonly headers: Readonly<Record<string, string>>;
     readonly body: Record<string, unknown>;
   };
+  /** One streamed piece of a tool call: the first piece for an `index` carries `id` and the
+   * name, later pieces only more of `function.arguments`. */
+  export type ToolCallDelta = {
+    readonly index: number;
+    readonly id?: string;
+    readonly type?: string;
+    readonly function?: { readonly name?: string; readonly arguments?: string };
+  };
   /** One streamed chunk, as far as the loop reads it. */
   export type Chunk = {
     readonly choices?: readonly {
       readonly delta?: {
         readonly content?: string | null;
-        readonly tool_calls?: readonly {
-          readonly index: number;
-          readonly id?: string;
-          readonly type?: string;
-          readonly function?: { readonly name?: string; readonly arguments?: string };
-        }[];
+        readonly tool_calls?: readonly ToolCallDelta[];
       };
       readonly finish_reason?: string | null;
     }[];
@@ -150,7 +153,7 @@ export function tinkerer(config: { label: string; tools?: Many<Tinkerer.Tool> })
       }),
     response: (res) => res.sse(),
   });
-  const toolDeps = Object.fromEntries(rows.map((row) => [`tool:${rowName(row)}`, row.op]));
+  const toolDeps = readToolDeps(rows);
   const turn = operation({
     label: `${label}.turn`,
     input: readPrompt(label),
@@ -210,6 +213,19 @@ export function tinkerer(config: { label: string; tools?: Many<Tinkerer.Tool> })
     settings,
     tools: rows,
   };
+}
+
+/** The `depends` slots of the frame's tools, one per row under `tool:<name>`, spread into the
+ * turn's own `depends` so each tool op is a subflow of the turn. */
+type ToolDeps = Record<`tool:${string}`, Operation.Handle<unknown, unknown>>;
+
+/** The controllers those slots deliver, read back by the same keys. */
+type ToolSlots = Record<`tool:${string}`, Scope.OperationController<unknown, unknown>>;
+
+function readToolDeps(rows: readonly Tinkerer.Tool[]): ToolDeps {
+  const deps: ToolDeps = {};
+  for (const row of rows) deps[`tool:${rowName(row)}`] = row.op;
+  return deps;
 }
 
 function rowName(row: Tinkerer.Tool): string {
@@ -390,33 +406,31 @@ function foldChunk(
   finish: string | undefined,
 ): string | undefined {
   const head = chunk.choices?.[0];
-  appendDelta(deps.text, head?.delta?.content);
-  for (const entry of head?.delta?.tool_calls ?? []) accrueCall(parts, entry);
+  if (head?.delta !== undefined) foldDelta(head.delta, deps.text, parts);
   recordUsage(deps.usage, chunk.usage);
   const reason = head?.finish_reason;
   return typeof reason === "string" ? reason : finish;
 }
 
+/** One delta: its text goes to `text`, its tool-call pieces accrue by index. */
+function foldDelta(
+  delta: NonNullable<NonNullable<Tinkerer.Chunk["choices"]>[number]["delta"]>,
+  text: Scope.DataController<string>,
+  parts: Map<number, { id: string; name: string; args: string }>,
+): void {
+  appendDelta(text, delta.content);
+  for (const entry of delta.tool_calls ?? []) accrueCall(parts, entry);
+}
+
 function accrueCall(
   parts: Map<number, { id: string; name: string; args: string }>,
-  entry: NonNullable<
-    NonNullable<NonNullable<Tinkerer.Chunk["choices"]>[number]["delta"]>["tool_calls"]
-  >[number],
+  entry: Tinkerer.ToolCallDelta,
 ): void {
-  const piece = entry.function?.arguments ?? "";
-  const seen = parts.get(entry.index);
-  if (seen === undefined) {
-    parts.set(entry.index, {
-      id: entry.id ?? "",
-      name: entry.function?.name ?? "",
-      args: piece,
-    });
-    return;
-  }
+  const seen = parts.get(entry.index) ?? { id: "", name: "", args: "" };
   parts.set(entry.index, {
     id: entry.id ?? seen.id,
     name: entry.function?.name ?? seen.name,
-    args: seen.args + piece,
+    args: seen.args + (entry.function?.arguments ?? ""),
   });
 }
 
@@ -469,7 +483,7 @@ type CallDeps = {
 };
 
 async function runCalls(
-  deps: CallDeps & Record<string, Scope.OperationController<unknown, unknown>>,
+  deps: CallDeps & ToolSlots,
   ctx: Operation.Ctx<string>,
   rows: readonly Tinkerer.Tool[],
   calls: readonly AccruedCall[],
@@ -495,7 +509,7 @@ async function runInOrder(
 }
 
 function settleCall(
-  deps: CallDeps & Record<string, Scope.OperationController<unknown, unknown>>,
+  deps: CallDeps & ToolSlots,
   ctx: Operation.Ctx<string>,
   row: Tinkerer.Tool | undefined,
   call: AccruedCall,
@@ -527,7 +541,7 @@ function settleCall(
 }
 
 async function runRow(
-  deps: CallDeps & Record<string, Scope.OperationController<unknown, unknown>>,
+  deps: CallDeps & ToolSlots,
   ctx: Operation.Ctx<string>,
   row: Tinkerer.Tool,
   call: AccruedCall,
