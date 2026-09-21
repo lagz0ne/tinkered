@@ -379,6 +379,8 @@ test("a tag binding is validated by parse", () => {
       return v;
     },
   });
+  const scope = createScope({ tags: [port(8080)] });
+  expect(scope.resolve(port)).toBe(8080);
   try {
     port(-1);
     expect.unreachable();
