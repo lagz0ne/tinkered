@@ -26,13 +26,15 @@ const scope = createScope({
     coder.config({
       model: "muse-spark",
       baseUrl: "https://api.meta.ai/v1",
-      headers: { authorization: `B ${key}` },
+      headers: { authorization: `Bearer ${key}` },
     }),
   ],
 });
 const session = scope.createSession();
-session.controller(coder.text).watch((next, prev) => write(next.slice(9)));
-const reply = await session.run(coder.turn, { input: "Say hi." });
+session.controller(coder.text).watch((next, prev) => write(next.slice(prev.length)));
+const reply = await session.run(coder.turn, {
+  input: "Say hi.",
+});
 await scope.close();
 ```
 
@@ -125,5 +127,7 @@ const fake: HttpClient.Backend = async (request) => {
     body: answer,
   });
 };
-createScope({ tags: [backend(fake), coder.config({ model, baseUrl })] });
+createScope({
+  tags: [backend(fake), coder.config({ model, baseUrl })],
+});
 ```
