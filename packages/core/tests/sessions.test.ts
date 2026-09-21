@@ -391,3 +391,25 @@ test("an operation that finishes after abort still sees cancelled", async () => 
   expect(result.status).toBe("cancelled");
   expect(end).toBe("cancelled");
 });
+
+test("a cleanup that closes another scope sees its real result", async () => {
+  const order: string[] = [];
+  const other = createScope();
+  const probe = resource({
+    label: "probe",
+    factory: (_deps, { defer }) => {
+      defer(() => void order.push("other-clean"));
+      return 1;
+    },
+  });
+  other.resolve(probe);
+  let seen: string | undefined;
+  const scope = createScope();
+  scope.onClose(async () => {
+    seen = (await other.close()).status;
+  });
+  const result = await scope.close();
+  expect(result.status).toBe("cancelled");
+  expect(order).toEqual(["other-clean"]);
+  expect(seen).toBe("cancelled");
+});
