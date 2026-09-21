@@ -290,3 +290,26 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   awaits that scope's real teardown and reports its error.
 - A forced close aborts in-flight work: a parked operation stops, a sleep rejects, the run's defer sees
   `cancelled`, and close settles `cancelled`.
+
+### Clock
+
+- An operation and a resource factory read the scope's clock.
+- The default clock reads the real wall time; a test clock starts where built, moves on advance, and jumps on
+  set.
+- The test clock keeps precise nanos under truncated millis.
+- A test-clock sleep resolves only after virtual time passes it; a zero sleep resolves at once.
+- An aborted sleep rejects with the signal's reason, on both clocks.
+
+### Observation
+
+- With observation off, the context carries no span and nothing is retained.
+- With observation on, returned values and resource instances keep their identity: measuring changes nothing.
+- A subflow nests its span under its caller; two interleaved async operations keep separate trees.
+- A failed parse still closes and exports its operation span as failed; an async resource build opens and
+  closes one balanced span.
+- Each caller of a shared resource links its own `used` edge; the resource builds once.
+- A throwing exporter, a rejecting async exporter, a throwing logger, and a hostile thenable never fail the
+  operation and never leak a rejection.
+- A child span never calls a non-promise thenable's `then`.
+- An inline run yields one span named `inline`, or its label, with the subflow nested under it; running the
+  same inline config twice yields two spans and two bodies.
