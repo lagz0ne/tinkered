@@ -166,7 +166,7 @@ that maps the value to a result — default one JSON text content). Pass tool op
 `harness({ tools })`, and the turn op depends on them: the call runs as a **subflow** of the
 turn (its span nests under the turn's, it sees the session's bindings). Each op registers
 under its `tool` meta name, defaulting to the op's label. A bound op without
-`tool` meta throws `ToolUndeclared` at construction.
+`tool` meta throws `ToolUndeclared` at construction, naming the op's label.
 
 The in-process path is Claude's zero-process fast path: the adapter registers one in-process
 MCP server named after the frame (built once per thread, beside any `mcpServers` you bound —
