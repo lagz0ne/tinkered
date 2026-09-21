@@ -133,18 +133,18 @@ Each ticket blocks the next one.
   `bash`, `edit`, `write`; `workspace-write` (paths
   under cwd, no bash) and `full-access`.
   Seam tests in a temp dir.
-- **tinkerer/t04** — [ ]
+- **tinkerer/t04** — [x]
   `inbox`: `queue` after the answer would land;
   `steer` aborts the step in flight (the loop
   watches the cell), running tools get `aborted`
   results, partial text kept, partial tool calls
   dropped, `settings` patched. Test with a backend
   that hangs until aborted.
-- **tinkerer/t05** — [ ]
+- **tinkerer/t05** — [x]
   `persist(dir)` extension on the `session` hook:
   JSONL per session; `resume(file)` seeds
   `messages`. Test through `createScope({ extensions })`.
-- **tinkerer/t06** — [ ]
+- **tinkerer/t06** — [x]
   `@tinker/cli` command `tinkerer ask "<prompt>"`
   (`--cwd`, `--mode`); README; `files`, size lane;
   mutation alone ≥ 75; validate lanes.
@@ -201,6 +201,26 @@ One line per ticket: tag — sha — tests — size (B gzip) — mutation — no
   full-access. Fact: a mutant can write outside the
   temp dir (once left /tmp/escape.txt) — an escape
   test targets a fresh dir it also asserts empty.
+- **tinkerer/t04** — `f937143` — inbox: queue and
+  steer, six seam tests, mutation 79.19 alone —
+  lead-built. The fold breaks between stream events
+  on a pending steer (a mid-read async-generator
+  `return()` deadlocks). Real endpoint: a queued
+  follow-up answered "Hello" then "Bonjour" in one
+  run.
+- **tinkerer/t05** — `8172607` — persist extension:
+  JSONL per file, resume seeds `messages`, `restore`
+  reader; four seam tests; 79.50 alone — lead-built.
+  On the session hook, watch the session handle (a
+  write flows down), seed from the file, append the
+  rest.
+- **tinkerer/t06** — `6462a3f` — `askCommand`: a
+  `@tinker/cli` row over `frame.turn`; four seam
+  tests; 80.10 alone — lead-built. Config is scope
+  level (the root binds `cwd`/`mode`). Real endpoint:
+  `ask "…"` printed the answer, code 0. Also
+  formatted a pre-existing unformatted blueprint ADR
+  so `vp check` is green on main.
 
 ### Impact blocks (ADR 0047)
 
