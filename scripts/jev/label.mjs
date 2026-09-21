@@ -11,7 +11,7 @@ import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { BANK, JUDGES } from "./lib.mjs";
-import { LINT, slice, forJev } from "./bank.mjs";
+import { LINT, TESTS, TEST_PAIR, slice, sliceTests, forJev } from "./bank.mjs";
 
 const args = process.argv.slice(2);
 const flag = (name) => {
@@ -28,7 +28,8 @@ if (!judge || !["true", "false"].includes(labelWord ?? "") || !target) {
   process.exit(1);
 }
 const isUnitJudge = judge in LINT;
-if (!isUnitJudge && !(judge in JUDGES)) {
+const isTestJudge = judge in TESTS || judge in TEST_PAIR;
+if (!isUnitJudge && !isTestJudge && !(judge in JUDGES)) {
   console.error(
     `label: unknown judge ${judge}; file judges: ${Object.keys(JUDGES).join(", ")}; unit judges: ${Object.keys(LINT).join(", ")}`,
   );
@@ -40,8 +41,29 @@ const code = ref
   ? execFileSync("git", ["show", `${ref}:${file}`], { encoding: "utf8" })
   : readFileSync(file, "utf8");
 
-/** The state the judge sees: a unit judge gets the sliced unit; a file judge gets the file. */
+/** A test judge's state: the test whose title starts with the `#` part (a pair judge takes `a|b` titles). */
+function readTestState() {
+  const tests = sliceTests(code);
+  const pick = (prefix) => tests.find((t) => t.title.startsWith(prefix));
+  if (judge in TEST_PAIR) {
+    const [a, b] = (unitName ?? "").split("|").map((p) => pick(p.trim()));
+    if (!a || !b) {
+      console.error(`label: ${judge} needs ${file}#<title a>|<title b>`);
+      process.exit(1);
+    }
+    return { a: { title: a.title, body: a.body }, b: { title: b.title, body: b.body } };
+  }
+  const t = pick(unitName ?? "");
+  if (!t) {
+    console.error(`label: no test titled "${unitName}…" in ${file}`);
+    process.exit(1);
+  }
+  return { title: t.title, body: t.body };
+}
+
+/** The state the judge sees: a unit judge gets the sliced unit; a test judge the test; a file judge the file. */
 function readState() {
+  if (isTestJudge) return readTestState();
   if (!isUnitJudge) return { file, code };
   if (!unitName) {
     console.error(`label: ${judge} is a unit judge; name the unit as ${file}#<name>`);

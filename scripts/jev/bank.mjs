@@ -348,3 +348,92 @@ export const SHAPE = {
   glue: "a helper over plain values only — never a scope, session, controller, or tx — or delete it",
   view: "function X() { const v = useData(cell, select?); const op = useRun(operation); return <… onClick={() => op.run({ input })} />; }",
 };
+
+// ---------- tests: the convention's "over-testing is a defect" rules a grep cannot see ----------
+// State per test: { title, body }. Pairwise state: { a: { title, body }, b: { title, body } }.
+// Rule text: .agents/skills/coding-convention/SKILL.md "Tests".
+export const TESTS = {
+  helperAlone: {
+    threshold: 0.5,
+    q: {
+      type: "boolean",
+      instructions:
+        "Does this test exercise a builder, guard, reader, or helper by itself — constructing a value and asserting its fields — instead of a behaviour that uses it through the public seam?",
+      criteria: {
+        true: "the test's subject is a helper's own output (a built record, a guard's boolean, a reader's parse) with no behaviour around it",
+        false:
+          "the test runs a behaviour a user could trigger and asserts its outcome; helpers are only on the way",
+      },
+    },
+  },
+  manyCauses: {
+    threshold: 0.5,
+    q: {
+      type: "boolean",
+      instructions:
+        "Does this test bundle two or more unrelated causes — separate inputs whose outcomes do not depend on each other — so that it names more than one promise?",
+      criteria: {
+        true: "several independent set-ups each with their own assertions, joined only by the test body",
+        false: "one cause and one decisive outcome, possibly checked by several short assertions",
+      },
+    },
+  },
+  typeGuarantee: {
+    threshold: 0.5,
+    q: {
+      type: "boolean",
+      instructions:
+        "Does this test assert something the TypeScript types already guarantee — a literal discriminant right after constructing that variant, a field equal to the argument that set it, a return type's shape?",
+      criteria: {
+        true: "an assertion that cannot fail once the code compiles",
+        false: "every assertion checks a runtime outcome the types leave open",
+      },
+    },
+  },
+  negativeTwin: {
+    threshold: 0.5,
+    q: {
+      type: "boolean",
+      instructions:
+        "Does this test prove only the absence of an unrelated failure or the falsity of a guard (a negative twin), adding nothing a positive test did not already prove?",
+      criteria: {
+        true: "the decisive assertion is that some other error did not happen or that a guard returns false",
+        false: "the decisive assertion is a promised value, state, or event",
+      },
+    },
+  },
+};
+
+/** Pairwise: do two tests in one file prove the same shipped promise from a second angle? */
+export const TEST_PAIR = {
+  reprovesSamePromise: {
+    threshold: 0.5,
+    q: {
+      type: "boolean",
+      instructions:
+        "Do these two tests prove the same shipped promise — the second merely checking it again from another angle (count then contents, toBe then toEqual, positive then negative), so that deleting one loses no promise?",
+      criteria: {
+        true: "one promise, two tests; deleting either keeps every promise covered",
+        false: "each test names a promise the other does not",
+      },
+    },
+  },
+};
+
+/** Each `test("…", …)` / `it("…", …)` block: its title and body, by brace matching from the callback. */
+export function sliceTests(src) {
+  const out = [];
+  for (const m of src.matchAll(/^[ \t]*(?:test|it)\(\s*"([^"]+)"/gm)) {
+    const open = src.indexOf("{", src.indexOf("=>", m.index));
+    if (open === -1) continue;
+    let depth = 0;
+    let end = open;
+    for (; end < src.length; end++) {
+      if (src[end] === "{") depth++;
+      else if (src[end] === "}" && --depth === 0) break;
+    }
+    const line = src.slice(0, m.index).split("\n").length;
+    out.push({ title: m[1], body: src.slice(open, end + 1), line });
+  }
+  return out;
+}

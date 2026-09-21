@@ -37,9 +37,12 @@ cd ../tinkered-<task> && vp install && git checkout -- pnpm-workspace.yaml && vp
    `node scripts/jev/label.mjs <judge> true <file>#<unit> --by <ticket> --why "<what you fixed>"` for a
    fixed flag, `… false …` for an explained one (file judges take `<file>` alone). Commit
    `scripts/jev/cases.jsonl` with your ticket.
-3. **Promise gap** when you added or changed tests in a package:
-   `node scripts/jev/promises.mjs <pkg>`. Every `⚠` is a test title the README never promises: write the
-   README line, or say in the report why that title is not a promise to the user.
+3. **Test quality and promise gap** when you added or changed tests in a package:
+   `node scripts/jev/tests.mjs <pkg>` — every `⚠` is a test to delete, merge, or explain (the convention:
+   over-testing is a defect; a helper tested alone, many causes in one test, a type guarantee asserted, a
+   negative twin, two tests for one promise). Then `node scripts/jev/promises.mjs <pkg>` — every `⚠` is a
+   test title the README never promises: write the README line, or say why that title is not a promise.
+   Label what you decided on both (`label.mjs`), as in step 2.
 4. **Blast radius**: the greps the ticket names (old symbols → `(none)`; `Scope.Handle` only where ADR 0051
    allows) and the before/after line table.
 5. `pnpm validate` → 38/38.
@@ -47,7 +50,7 @@ cd ../tinkered-<task> && vp install && git checkout -- pnpm-workspace.yaml && vp
 ## Report (final message)
 
 Branch · SHAs one line each · line table · the gate chain output (trimmed) with `EXIT 0` · the **jev
-pre-flight** lines (flag → fixed/explained, each labeled) · the **promise gap** lines for touched packages · tests added (title = the promise) · deviations from the brief
+pre-flight** lines (flag → fixed/explained, each labeled) · the **test quality** and **promise gap** lines for touched packages · tests added (title = the promise) · deviations from the brief
 with reasons · **Core feedback**: friction, a workaround you had to write, a missing affordance with the API
 and the call site, a rule in `docs/best-practices.md` that felt wrong. A feedback row ships with a failing
 snippet, not prose.

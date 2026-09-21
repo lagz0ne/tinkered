@@ -275,3 +275,27 @@ Ran the three advisory tools on the hono-as-extension landing (`419be02..0d17653
 - a user message with plain text adds a tool result item only for tool answers
 - a trailing assistant message with no tool call adds no tool item
 - a named tool registers under its meta name, not the op label
+
+## Test quality (2026-09-21): `scripts/jev/tests.mjs <pkg | file…>`
+
+The convention's "over-testing is a defect" rules, split the usual way. Deterministic: a private `../src/*`
+import, `vi.mock/fn/spyOn`, `setTimeout`, `.only/.skip`, `isError` inside `expect`, internals asserted
+(`Object.isFrozen`, prototypes, `error.message`, `toHaveBeenCalled`), helpers > 3 or > 20 lines, an `expect`
+re-narrowed by the same `if`, `toBe` then `toEqual` on one subject. Jev, per test `{ title, body }`:
+`helperAlone`, `manyCauses`, `typeGuarantee`, `negativeTwin`; pairwise on title-similar tests in one file:
+`reprovesSamePromise`. All labelable (`label.mjs <judge> <bool> <file>#<title prefix>`; a pair takes
+`#<a>|<b>`) and calibrated by `calibrate.mjs` like every other judge.
+
+First run: **http 24/48 entries flagged**, almost all in the files the floor-75 lift added (`bodies`,
+`accept`, `status`, parts of `endpoints`): helper-alone builders and readers, three to four causes per
+test — the shape the convention's mutation-score rule warns about. The pre-existing files (`config-merge`,
+`transient`, `retry`, most of `observe`) pass. **harness 3/49**: one negative twin ("…and the error is not a
+TurnFailed"), one redundant pair (assistant message without a tool call / trailing assistant message
+without a tool call), one `error.message` assertion. Two deterministic rules were tightened on the trial:
+a promised log line's `message` field is not an error message, and a shared `tests/fixtures.ts` is not a
+private module. Eight verified cases labeled.
+
+Tension to decide, not paper over: deleting or merging the flagged http tests may drop the http lane
+below the 75 floor — the convention says a survivor no user can observe is NOT to be tested, and the floor
+says 75. If they conflict on http, the floor is the number to revisit for that package, with the reason
+written down; the tests are not the place to give.

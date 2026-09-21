@@ -12,7 +12,7 @@
 //   noisy       enough cases but the separation or the ordering fails — a hit is a note
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { loadKey, ask, pct, JUDGES, BANK } from "./lib.mjs";
-import { LINT } from "./bank.mjs";
+import { LINT, TESTS, TEST_PAIR } from "./bank.mjs";
 import { JUDGE_CASES, REACT_CASES } from "./evals/fixtures/lint.mjs";
 
 const OUT = "scripts/jev/calibration.json";
@@ -73,7 +73,7 @@ function readStatus(trues, falses) {
 
 /** Ask the judge about every case; return the numbers and the status. */
 async function calibrate(judge, cases) {
-  const q = (LINT[judge] ?? JUDGES[judge]).q;
+  const q = (LINT[judge] ?? TESTS[judge] ?? TEST_PAIR[judge] ?? JUDGES[judge]).q;
   const trues = [];
   const falses = [];
   for (const c of cases) {
