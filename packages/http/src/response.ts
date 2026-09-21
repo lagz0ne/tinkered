@@ -177,10 +177,12 @@ function dispatchSse(state: SseFields): HttpResponse.SseEvent | undefined {
   return out;
 }
 
-/** Complete lines from the decoded chunks so far, keeping the unfinished tail buffered. */
+/** Complete lines from the decoded chunks so far, keeping the unfinished tail buffered. A
+ * trailing `\r` stays buffered: it may be half of a `\r\n` split across chunks. */
 function readSseLines(buffer: string): { lines: string[]; rest: string } {
-  const lines = buffer.split(/\r\n|\r|\n/);
-  const rest = lines.pop() ?? "";
+  const held = buffer.endsWith("\r") ? "\r" : "";
+  const lines = buffer.slice(0, buffer.length - held.length).split(/\r\n|\r|\n/);
+  const rest = (lines.pop() ?? "") + held;
   return { lines, rest };
 }
 

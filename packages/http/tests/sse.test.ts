@@ -54,6 +54,20 @@ test("sse() joins an event split across chunks", async () => {
   expect(events).toEqual([{ data: "hello" }]);
 });
 
+test("sse() keeps a CRLF split across chunks as one line end", async () => {
+  const request = HttpRequest.get("/x");
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode("data: a\r"));
+      controller.enqueue(encoder.encode("\ndata: b\r\n\r\n"));
+      controller.close();
+    },
+  });
+  const events = await readEvents(HttpResponse.make(request, { status: 200, body }));
+  expect(events).toEqual([{ data: "a\nb" }]);
+});
+
 test("sse() on a bodiless response raises NoBody", async () => {
   const request = HttpRequest.get("/x");
   const response = HttpResponse.make(request, { status: 204 });

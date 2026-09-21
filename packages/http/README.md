@@ -139,8 +139,9 @@ createScope({ tags: [backend(fake), github.config({ baseUrl: "https://api" })] }
 ## Server-sent events
 
 `sse()` yields one event per blank-line block with data lines joined by newline; carries
-`event` and `id` and skips comment lines; joins an event split across chunks; an endpoint
-reader may return `sse()` and the operation delivers the stream.
+`event` and `id` and skips comment lines; joins an event split across chunks; keeps a CRLF
+split across chunks as one line end; an endpoint reader may return `sse()` and the operation
+delivers the stream.
 
 ## Errors
 
