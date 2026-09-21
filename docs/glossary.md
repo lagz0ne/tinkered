@@ -188,3 +188,34 @@ New sections are lists, one term per item (vertical layout,
   `evals/<id>/{bad,clean}/`. A template whose evals pass the
   bar (bad ≥ 50%, clean < 50%, gap ≥ 30) may set the exit
   code; the rest print `~`.
+
+## Tinkerer (`@tinker/tinkerer`, ADR 0053)
+
+- **tinkerer** — Our own agent loop on core: a frame
+  `tinkerer({ label, tools })` whose turn calls a chat
+  model, runs the tool calls it asks for as subflows,
+  and repeats until a reply has no tool call. The
+  `harness` row stays the SDK-owned loop; this one is ours.
+- **step** — One model call: an `@tinker/http` endpoint
+  (`POST /chat/completions`, read with `res.sse()`).
+  One span per step.
+- **transcript** — The `messages` cell: chat-completions
+  message objects as sent and received (the wire shape).
+  One conversation per session.
+- **settings** — The session cell `{ mode, options }`: our
+  `mode` plus the provider's own request fields (model,
+  reasoning effort, token cap). Seeded from the `mode` and
+  `config` tags at turn start; read at every step and
+  every tool call; written only inside the session.
+- **mode** — The policy string on `settings`, Codex's
+  `approvalPolicy` shape: `read-only` (read),
+  `workspace-write` (read, edit, write under `cwd`),
+  `full-access` (all four, bash included). A blocked call
+  returns an error result to the model.
+- **inbox** — The cell of pending user entries
+  `{ kind, content, mode?, options? }`. `queue` waits
+  until the model would stop; `steer` aborts the step in
+  flight, then patches `settings` before the next step.
+- **persist** — An extension on the `session` hook that
+  `watch`es the transcript on the session's own handle and
+  appends JSONL per session; seeds the cell on resume.
