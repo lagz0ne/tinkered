@@ -11,12 +11,12 @@ const trackerPath = join(here, "..", "examples", "tracker.yaml");
 
 test("the ADR example parses to 5 nodes in file order with edges both ways", () => {
   const graph = readBlueprint(readFileSync(trackerPath, "utf8"));
-  expect(graph.nodes.map((node) => node.name)).toEqual([
-    "dbPath",
-    "db",
-    "tx",
-    "issueList",
-    "saveIssue",
+  expect(graph.nodes.map((node) => [node.kind, node.name, node.target])).toEqual([
+    ["tag", "dbPath", undefined],
+    ["resource", "db", "scope"],
+    ["resource", "tx", "session"],
+    ["data", "issueList", undefined],
+    ["operation", "saveIssue", undefined],
   ]);
   expect(graph.uses("saveIssue").map((node) => node.name)).toEqual(["tx", "issueList"]);
   expect(graph.usedBy("db").map((node) => node.name)).toEqual(["tx"]);

@@ -1,0 +1,9 @@
+id: twin
+scope: pair
+applies: [operation]
+needs: [why]
+kind: boolean
+status: provisional
+ask: Do the two operations carry the same why?
+true: the two whys say the same thing
+false: each why names its own reason

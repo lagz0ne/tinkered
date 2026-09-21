@@ -265,10 +265,13 @@ export function parseCheckInput(raw: unknown): {
   readonly graph: Blueprint.Graph;
   readonly json: boolean;
 } {
-  if (typeof raw !== "object" || raw === null || !("text" in raw) || typeof raw.text !== "string")
-    raise("InvalidBlueprint", { text: "", issues: [raw] });
-  return { graph: parseGraph(raw.text), json: "json" in raw && raw.json === true };
+  const call = checkCall.safeParse(raw);
+  if (!call.success) raise("InvalidBlueprint", { text: "", issues: call.error.issues });
+  return { graph: parseGraph(call.data.text), json: call.data.json };
 }
+
+/** What the cli row hands `check`: the file text beside the `--json` flag. */
+const checkCall = z.object({ text: z.string(), json: z.boolean().default(false) });
 
 /** Every kind a template may apply to. */
 const nodeKind = z.enum(["data", "resource", "operation", "tag"]);
@@ -362,27 +365,11 @@ function questionsOf(
   return Object.fromEntries(templates.map((template) => [template.id, templateQuestion(template)]));
 }
 
-/** One field reader per {@link Blueprint.StateField} — a lookup, not a branch, so a choice
- * template's `compare` costs one call regardless of which field it names. */
-const FIELD_READERS: {
-  readonly [K in Blueprint.StateField]: (state: Blueprint.NodeState) => unknown;
-} = {
-  kind: (state) => state.kind,
-  name: (state) => state.name,
-  promise: (state) => state.promise,
-  why: (state) => state.why,
-  depends: (state) => state.depends,
-  work: (state) => state.work,
-  target: (state) => state.target,
-  uses: (state) => state.uses,
-  usedBy: (state) => state.usedBy,
-};
-
 /** The field a choice template's pick is measured against, or `undefined` (no `compare`,
  * or a boolean template — it never compares). */
 function compareValueOf(template: Blueprint.Template, state: Blueprint.NodeState): unknown {
   if (template.kind !== "choice" || template.compare === undefined) return undefined;
-  return FIELD_READERS[template.compare](state);
+  return state[template.compare];
 }
 
 /** A boolean template's finding, or `undefined` below `threshold`. */

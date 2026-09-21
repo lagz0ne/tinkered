@@ -3,9 +3,17 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
-import { createScope, preset, type Scope } from "@tinker/core";
+import { createScope, isError as isCoreError, preset, type Scope } from "@tinker/core";
 import { cli, type Cli } from "@tinker/cli";
-import { check, commands, corpusPath, judge, readBlueprint, type Blueprint } from "../src/index.ts";
+import {
+  check,
+  commands,
+  corpusPath,
+  isError,
+  judge,
+  readBlueprint,
+  type Blueprint,
+} from "../src/index.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const trackerPath = join(here, "..", "examples", "tracker.yaml");
@@ -56,6 +64,10 @@ const oneResource = "- resource:\n    name: db\n    promise: p\n    why: w\n";
 /** A resource used by an operation — the neighbour edges `uses`/`usedBy` read. */
 const linkedPair =
   "- resource:\n    name: db\n    promise: p\n    why: w\n- operation:\n    name: op\n    depends: [db]\n    promise: p\n    why: w\n    work: uses db\n";
+
+/** Two operations and a tag — one operation pair for a pair template that applies to operations. */
+const twoOpsOneTag =
+  "- operation:\n    name: first\n    promise: p\n    why: w\n- tag:\n    name: t\n    promise: p\n    why: w\n- operation:\n    name: second\n    promise: p\n    why: w\n";
 
 /** Three tag nodes — three unordered pairs for the pair-scope template. */
 const threeTags =
@@ -147,7 +159,9 @@ test("the judge sees the node with its neighbours", async () => {
   try {
     await scope.run(check, { input: { graph: readBlueprint(linkedPair), json: false } });
     const opState = seen.find((state) => state.name === "op");
+    const dbState = seen.find((state) => state.name === "db");
     expect(opState?.uses.map((node) => node.name)).toEqual(["db"]);
+    expect(dbState?.usedBy.map((node) => node.name)).toEqual(["op"]);
   } finally {
     await scope.close({ graceful: true });
   }
@@ -248,6 +262,86 @@ test("the shipped corpus and a judge answering no to everything finds nothing fo
     const graph = readBlueprint(readFileSync(trackerPath, "utf8"));
     const result = await scope.run(check, { input: { graph, json: false } });
     expect(result.report).toEqual({ nodes: 5, findings: [] });
+  } finally {
+    await scope.close({ graceful: true });
+  }
+});
+
+test("the judge is asked each template as its own question, keyed by id", async () => {
+  const seen: Readonly<Record<string, Blueprint.Question>>[] = [];
+  const recording: Blueprint.Judge = {
+    ask: async (state, questions) => {
+      if ("kind" in state) seen.push(questions);
+      return Object.fromEntries(Object.keys(questions).map((id) => [id, no]));
+    },
+  };
+  const scope = createScope({
+    tags: [corpusPath(provisionalCorpus)],
+    presets: [preset(judge, () => recording)],
+  });
+  try {
+    await scope.run(check, { input: { graph: readBlueprint(oneOperation), json: false } });
+    expect(seen).toEqual([
+      {
+        pick: {
+          type: "choice",
+          instructions: "Which unit fits this node?",
+          criteria: {
+            data: "a value read over time",
+            resource: "something that subscribes or connects",
+            operation: "something asked for once per call",
+            tag: "an environment choice",
+          },
+        },
+        probe: {
+          type: "boolean",
+          instructions: "Does the work do its own steps?",
+          criteria: { true: "the work has its own steps", false: "the work hands the job away" },
+        },
+      },
+    ]);
+  } finally {
+    await scope.close({ graceful: true });
+  }
+});
+
+test("a pair template is asked only about pairs whose kinds it applies to, named a, b", async () => {
+  const seen: string[] = [];
+  const recording: Blueprint.Judge = {
+    ask: async (state, questions) => {
+      if ("a" in state) seen.push(`${state.a.name}, ${state.b.name}`);
+      return Object.fromEntries(
+        Object.keys(questions).map((id) => [id, { type: "boolean", probability: 1 }]),
+      );
+    },
+  };
+  const scope = createScope({
+    tags: [corpusPath(join(here, "fixtures", "corpus-pair-ops"))],
+    presets: [preset(judge, () => recording)],
+  });
+  try {
+    const value = await scope.run(check, {
+      input: { graph: readBlueprint(twoOpsOneTag), json: false },
+    });
+    expect(seen).toEqual(["first, second"]);
+    expect(value.report.findings.map((finding) => finding.node)).toEqual(["first, second"]);
+  } finally {
+    await scope.close({ graceful: true });
+  }
+});
+
+test("check rejects a call without the file text as its parse failure", async () => {
+  const scope = createScope({
+    tags: [corpusPath(provisionalCorpus)],
+    presets: [preset(judge, () => fake({}))],
+  });
+  try {
+    await scope.run(check, { rawInput: { json: true } });
+    expect.unreachable("the parse must fail");
+  } catch (error: unknown) {
+    if (!isCoreError(error, "DataValidationFailed")) throw error;
+    if (!isError(error.payload.cause, "InvalidBlueprint")) throw error;
+    expect(error.payload.cause.payload.issues).toHaveLength(1);
   } finally {
     await scope.close({ graceful: true });
   }

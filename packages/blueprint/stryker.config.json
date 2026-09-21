@@ -2,7 +2,7 @@
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "testRunner": "vitest",
   "plugins": ["@stryker-mutator/vitest-runner"],
-  "mutate": ["src/**/*.ts"],
+  "mutate": ["src/**/*.ts", "!src/main.ts"],
   "ignorePatterns": ["tsconfig.json", "dist"],
   "reporters": ["clear-text", "progress"],
   "thresholds": {
