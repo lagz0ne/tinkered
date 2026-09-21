@@ -356,6 +356,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A session that ends cancelled rejects with its reason.
 - Session hooks wrap sessions nested two deep.
 - A wrapped session cut by a forced close rejects.
+- A clean body with a failing cleanup still reports the cleanup.
 - An operation that finishes after abort still sees cancelled.
 - A cleanup that closes another scope sees its real result.
 

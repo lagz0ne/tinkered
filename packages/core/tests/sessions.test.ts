@@ -441,3 +441,35 @@ test("a wrapped session cut by a forced close rejects", async () => {
   expect(value).toBeDefined();
   await closing;
 });
+
+test("a clean body with a failing cleanup still reports the cleanup", async () => {
+  const cleanup = new Error("cleanup-boom");
+  const spy = extension({
+    label: "spy",
+    session: async (_handle, next) => next(),
+  });
+  const leaky = resource({
+    label: "leaky",
+    target: "session",
+    factory: (_deps, { defer }) => {
+      defer(() => {
+        throw cleanup;
+      });
+      return 1;
+    },
+  });
+  const scope = createScope({ extensions: [spy] });
+  await scope.ready;
+  const thrown = await scope
+    .session((s) => {
+      s.resolve(leaky);
+      return 7;
+    })
+    .then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+  if (!isError(thrown, "TeardownFailed")) throw thrown;
+  expect(thrown.payload.causes).toEqual([cleanup]);
+  await scope.close();
+});
