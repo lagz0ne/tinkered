@@ -100,8 +100,7 @@ test("a failing teardown inside session still reports the body failure", async (
       (error: unknown) => error,
     );
   if (!isError(thrown, "TeardownFailed")) throw thrown;
-  expect(thrown.payload.causes).toContain(bodyCause);
-  expect(thrown.payload.causes).toContain(cleanup);
+  expect(thrown.payload.causes).toEqual([bodyCause, cleanup]);
 });
 
 test("a close re-entered during a failing teardown reports the failure", async () => {
@@ -225,8 +224,7 @@ test("a wrapped session body that throws sync still drains cleanups then reports
       (error: unknown) => error,
     );
   if (!isError(thrown, "TeardownFailed")) throw thrown;
-  expect(thrown.payload.causes).toContain(cause);
-  expect(thrown.payload.causes).toContain(cleanup);
+  expect(thrown.payload.causes).toEqual([cause, cleanup]);
   expect(seen).toEqual(["failed"]);
   await scope.close();
 });
@@ -306,8 +304,7 @@ test("a failing body with a failing cleanup reports both causes", async () => {
       (error: unknown) => error,
     );
   if (!isError(thrown, "TeardownFailed")) throw thrown;
-  expect(thrown.payload.causes).toContain(bodyCause);
-  expect(thrown.payload.causes).toContain(cleanup);
+  expect(thrown.payload.causes).toEqual([bodyCause, cleanup]);
   await scope.close();
 });
 
@@ -340,4 +337,32 @@ test("session hooks wrap sessions nested two deep", async () => {
   await scope.session((s) => s.session(() => 1));
   expect(order).toEqual(["before", "before", "after", "after"]);
   await scope.close();
+});
+
+test("a close re-entered from an async cleanup is still acknowledged", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let inner: unknown;
+  const probe = resource({
+    label: "probe",
+    factory: (_deps, { defer }) => {
+      defer(() =>
+        gate.then(() => {
+          inner = scope.close();
+        }),
+      );
+      return 1;
+    },
+  });
+  const scope = createScope();
+  scope.resolve(probe);
+  const closing = scope.close();
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  release();
+  const result = await closing;
+  expect(result.status).toBe("cancelled");
+  const innerResult = (await inner) as { status: string };
+  expect(innerResult.status).toBe("cancelled");
 });

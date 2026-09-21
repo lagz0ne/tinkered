@@ -42,9 +42,10 @@ test("a throwing operation defer is aggregated as TeardownFailed", async () => {
   });
   const scope = createScope();
   scope.run(op);
+  scope.onClose(() => undefined);
   const result = await scope.close();
   expect(seen).toEqual(["kept"]);
-  expect(result.teardownErrors).toContain(boom);
+  expect(result.teardownErrors).toEqual([boom]);
 });
 
 test("releasing a cell cascades into a resource behind its controller edge", () => {
@@ -206,7 +207,7 @@ test("a resource cleanup that rejects asynchronously lands in teardown errors", 
   scope.resolve(r);
   const result = await scope.close();
   expect(seen).toEqual(["kept"]);
-  expect(result.teardownErrors).toContain(boom);
+  expect(result.teardownErrors).toEqual([boom]);
 });
 
 test("a child session reads its parent's latest write", () => {
