@@ -259,7 +259,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - Close runs children first, then `onClose` hooks and cleanups latest-first — a later `onClose` before
   an earlier resource cleanup; a dependent's cleanup before its dependency's.
 - A throwing hook or cleanup never stops the rest: every cause lands in teardown errors, in order.
-- Close is idempotent: hooks run once, a re-entering close tears down once, closing again re-reports.
+- Close is safe to repeat: hooks run once, a re-entering close tears down once, closing again re-reports.
 - A clean scope closes `success` when graceful, `cancelled` when forced, and never throws; a second close
   returns the same result.
 - A failed start rejects `ready` with its cause and fails the scope.
