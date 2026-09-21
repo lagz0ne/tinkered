@@ -232,3 +232,26 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   sees the resolved deps, resolves an async factory to its awaited value, and runs its own cleanup at owner
   close while the real factory never runs.
 - A preset is scoped to its scope: another scope still builds the real value.
+
+### Operations
+
+- An operation runs on every run; calls are never memoized and concurrent calls stay independent.
+- A dependency snapshot is captured before the body suspends: a later write never leaks into a running call.
+- A read-mode dep delivers the current value; a write-mode dep hands the caller a controller that writes.
+- An operation composes through its controller, or through a bare dependency delivered as a callable subflow;
+  a void-input operation is always a callable subflow, never a value.
+- An async operation runs to its awaited value.
+- A rejecting operation rejects with its cause, and `settled` still drains when it finishes.
+- An operation preset replaces the run for a direct call and for a downstream subflow.
+- An inline run resolves deps, delivers the full context, and shares nothing between runs; a tagged inline run
+  sees the call's tags.
+- A tagged call binds the whole flow: the run, a subflow, and a nested subflow all read the call's tags, and
+  a tagged call is always async even for a sync operation.
+- A tagged run builds session resources in the flow and leaves scope resources at the root; an untagged run
+  builds session resources at the root and opens no session; the tagged run's session closes when the run
+  settles, with the run's own outcome.
+- An operation reads the scope's clock.
+- An operation's context exposes no borrow or drain internals.
+- An operation defer sees the run's own end: `success` on return, `failed` on throw.
+- A rejected promise with an `undefined` cause keeps that cause; a primitive body cause still settles the
+  session.
