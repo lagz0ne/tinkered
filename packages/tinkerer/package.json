@@ -33,12 +33,14 @@
     "prepublishOnly": "vp run build"
   },
   "dependencies": {
+    "@tinker/cli": "workspace:*",
     "@tinker/core": "workspace:*",
     "@tinker/http": "workspace:*"
   },
   "devDependencies": {
     "@stryker-mutator/core": "catalog:",
     "@stryker-mutator/vitest-runner": "catalog:",
+    "@tinker/cli": "workspace:*",
     "@tinker/core": "workspace:*",
     "@tinker/http": "workspace:*",
     "@types/node": "^26.1.1",

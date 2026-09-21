@@ -901,6 +901,9 @@ importers:
 
   packages/tinkerer:
     dependencies:
+      '@tinker/cli':
+        specifier: workspace:*
+        version: link:../cli
       '@tinker/core':
         specifier: workspace:*
         version: link:../core

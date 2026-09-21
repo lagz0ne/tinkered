@@ -172,6 +172,31 @@ const scope = createScope({
 });
 ```
 
+## CLI
+
+`askCommand(frame)` is a `@tinker/cli` row: `<app>
+ask "<prompt>"` runs one turn and prints the answer.
+Model, base URL, key, `cwd`, and `mode` are the
+scope's config, bound by the composition root; the
+row reuses the same `turn` operation.
+
+- `ask` runs one turn and prints the answer with
+  exit code 0.
+- `ask` with no prompt exits with a usage code.
+- An unknown command exits with a usage code.
+
+```ts
+const shell = cli({
+  name: "tinkerer",
+  version: "0.0.0",
+  commands: [askCommand(coder)],
+});
+```
+
+The composition root binds config and runs it with
+`runMain`, or by hand when it also reads `--cwd`
+and `--mode` into the `cwd` and `mode` tags.
+
 ## Errors
 
 `StreamEnded { label }` — the stream ended
