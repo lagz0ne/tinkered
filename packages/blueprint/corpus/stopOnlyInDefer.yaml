@@ -1,0 +1,16 @@
+id: stopOnlyInDefer
+applies: [resource]
+needs: [work]
+kind: boolean
+status: provisional
+ask: >-
+  Is running work stopped only at close,
+  with no way to stop it sooner, so
+  a forced close waits on work that
+  only close would stop?
+true: >-
+  the only stop for running work
+  happens at close
+false: >-
+  running work can be stopped sooner,
+  or there is no running work

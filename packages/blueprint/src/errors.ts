@@ -1,6 +1,7 @@
 /** Payload type for each blueprint error. The registry is the only place this package throws. */
 type Payloads = {
   InvalidBlueprint: { text: string; issues: readonly unknown[] };
+  InvalidTemplate: { file: string; issues: readonly unknown[] };
   BlueprintRejected: { findings: readonly string[] };
 };
 

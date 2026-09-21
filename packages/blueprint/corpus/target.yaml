@@ -1,0 +1,17 @@
+id: target
+applies: [resource]
+needs: [promise, why, work]
+kind: choice
+status: provisional
+ask: >-
+  One copy for the whole scope,
+  or one per session?
+choices:
+  scope: >-
+    one shared copy for the process:
+    a database, a server, a cache,
+    a pool, a wire
+  session: >-
+    one per request, tab, call, or turn:
+    a transaction, a request context,
+    per-call state

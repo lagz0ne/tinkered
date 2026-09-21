@@ -1,0 +1,14 @@
+id: whyDuplicate
+scope: pair
+applies: [data, resource, operation, tag]
+needs: [why, promise]
+kind: boolean
+status: provisional
+ask: >-
+  Do the two nodes carry the same why,
+  so one of them is redundant?
+true: >-
+  the two whys say the same thing;
+  one node can go
+false: >-
+  each why names its own reason

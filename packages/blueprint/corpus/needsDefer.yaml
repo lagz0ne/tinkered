@@ -1,0 +1,16 @@
+id: needsDefer
+applies: [resource]
+needs: [work]
+kind: boolean
+status: provisional
+ask: >-
+  Does this start or hold something that
+  must be stopped, closed, or rolled back
+  when its owner closes?
+true: >-
+  a connection, timer, listener,
+  transaction, or buffer must be
+  released at close
+false: >-
+  it computes or reads values only;
+  nothing to release

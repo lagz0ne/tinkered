@@ -1,0 +1,14 @@
+id: hiddenNode
+applies: [resource, operation]
+needs: [work, depends]
+kind: boolean
+status: provisional
+ask: >-
+  Does work start an effect or keep
+  state that no node in the file names?
+true: >-
+  the work starts or keeps something
+  with no node of its own
+false: >-
+  every effect and every kept value
+  has its own node in the file

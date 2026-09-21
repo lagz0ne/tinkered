@@ -1,0 +1,16 @@
+id: configNotTag
+applies: [resource, operation]
+needs: [work, depends]
+kind: boolean
+status: provisional
+ask: >-
+  Does work read an environment choice —
+  a path, a flag, a URL, a setting —
+  that no tag in depends delivers?
+true: >-
+  an environment value comes from
+  the surroundings or a fixed value,
+  not from a tag in depends
+false: >-
+  environment values arrive through
+  a tag in depends, or none are used

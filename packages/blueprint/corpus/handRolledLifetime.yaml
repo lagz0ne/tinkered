@@ -1,0 +1,16 @@
+id: handRolledLifetime
+applies: [resource, operation]
+needs: [work]
+kind: boolean
+status: provisional
+ask: >-
+  Does work keep its own waiting line —
+  one call waiting on the last, in arrival
+  order — where a resource with defer
+  or the scope should own the order?
+true: >-
+  the work chains one call after another
+  by hand, in arrival order
+false: >-
+  the order goes through the scope,
+  or the work keeps no waiting line

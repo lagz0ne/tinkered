@@ -1,0 +1,20 @@
+id: effectWithoutDefer
+applies: [resource, operation]
+needs: [work]
+kind: boolean
+status: provisional
+ask: >-
+  Does work start something that keeps
+  running after it returns — a timer,
+  a watch, a listener, a poll, a socket,
+  a stream — and stop it by hand
+  instead of a defer hook?
+true: >-
+  a timer, watch, listener, or stream
+  is started and its stop is manual
+  or missing
+false: >-
+  every started thing is stopped from
+  a defer hook, nothing keeps running,
+  or the work itself is the open
+  and close of one session

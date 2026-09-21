@@ -1,0 +1,15 @@
+id: whyUnfulfilled
+applies: [data, resource, operation, tag]
+needs: [why, depends, uses]
+kind: boolean
+status: provisional
+ask: >-
+  Does why name a reason that no node
+  in uses fulfils — or restate promise
+  instead of giving a reason?
+true: >-
+  why names nothing the deps fulfil,
+  or repeats the promise
+false: >-
+  why names a reason that a dep
+  in depends fulfils

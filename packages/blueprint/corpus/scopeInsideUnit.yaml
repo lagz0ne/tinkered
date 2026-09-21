@@ -1,0 +1,16 @@
+# rule 5
+id: scopeInsideUnit
+applies: [resource, operation]
+needs: [work, depends]
+kind: boolean
+status: provisional
+ask: >-
+  Does work call the scope itself —
+  resolve, run, controller, session —
+  instead of naming a dep in depends?
+true: >-
+  the work reaches for the scope
+  to build, run, or open something
+false: >-
+  values come from depends; the scope
+  is touched only at the root or in tests

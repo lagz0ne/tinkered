@@ -1,0 +1,17 @@
+id: stateOutsideCell
+applies: [resource, operation]
+needs: [work, usedBy]
+kind: boolean
+status: provisional
+ask: >-
+  Does work keep something other nodes
+  read over time — a selection, a filter,
+  a draft, a status, a list — with no
+  data node for it?
+true: >-
+  shared state lives in the work itself,
+  with no data node holding it
+false: >-
+  shared state lives in a data node,
+  or the kept values are private notes
+  behind this node's own steps

@@ -1,0 +1,22 @@
+id: unitFits
+applies: [data, resource, operation, tag]
+needs: [promise, why, work]
+kind: choice
+status: provisional
+ask: >-
+  Which unit fits this node:
+  data, resource, operation, or tag?
+choices:
+  data: >-
+    a value read over time,
+    written by an operation
+  resource: >-
+    something that subscribes, listens,
+    polls, connects, opens, or streams;
+    built once; cleanup is defer
+  operation: >-
+    something asked for once per call,
+    with typed input; may have effects
+  tag: >-
+    an environment choice, bound at
+    the root and rebound in tests

@@ -1,0 +1,16 @@
+# rule 14
+id: manualSession
+applies: [operation]
+needs: [work]
+kind: boolean
+status: provisional
+ask: >-
+  Does work open or close a session
+  by hand instead of a tagged call
+  opening it?
+true: >-
+  the work opens a session by hand
+  or closes one by hand
+false: >-
+  a tagged call opens the session;
+  the graceful close commits it

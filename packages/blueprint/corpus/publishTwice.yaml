@@ -1,0 +1,16 @@
+# rule 15
+id: publishTwice
+applies: [operation]
+needs: [work, depends]
+kind: boolean
+status: provisional
+ask: >-
+  Does work re-list or re-read after
+  a save instead of updating the cell
+  with the returned value?
+true: >-
+  the work reads the list again
+  after the save
+false: >-
+  the work updates the cell with
+  the returned value, once, in one place

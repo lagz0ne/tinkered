@@ -1,0 +1,16 @@
+# rule 12
+id: parseNotAtDoor
+applies: [operation]
+needs: [work]
+kind: boolean
+status: provisional
+ask: >-
+  Does the work parse or check its input
+  somewhere other than its input parse —
+  a second check inside the steps?
+true: >-
+  input is parsed or checked again
+  inside the work
+false: >-
+  the input parse admits the input once,
+  at the door; the work reads typed facts

@@ -1,0 +1,14 @@
+id: runForwardsToClosure
+applies: [operation]
+needs: [work, depends]
+kind: boolean
+status: provisional
+ask: >-
+  Does work hand the whole job to one thing
+  that depends does not name?
+true: >-
+  the whole work is one call to something
+  missing from depends
+false: >-
+  work has its own steps, or only uses
+  what depends names
