@@ -64,6 +64,9 @@ const lanes = [
     "cli pure universal bundle",
     `bash -c 'grep -qE "from \\"node:" packages/cli/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/cli/dist/index.mjs\\").then(m=>process.exit(m.cli&&m.command&&m.runMain?0:1))"'`,
   ],
+  // @tinker/blueprint (ADR 0052, blueprint-v1 t01): the size promise; zod, yaml,
+  // and @tinker/* stay out of dist at runtime.
+  ["blueprint size (<= 10 kB gzip)", `${VP} run --no-cache blueprint#size`],
   // @tinker/harness (ADR 0043, harness-v1 t05): same promises; the SDKs, zod, and the MCP SDK never reach dist at runtime.
   ["harness tests", `${VP} run --no-cache harness#test`],
   ["harness size (<= 10 kB gzip)", `${VP} run --no-cache harness#size`],
