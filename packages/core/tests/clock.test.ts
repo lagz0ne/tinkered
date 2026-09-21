@@ -89,3 +89,42 @@ test("due test-clock sleeps wake earliest-first", async () => {
   await Promise.all([late, early]);
   expect(seen).toEqual(["early", "late"]);
 });
+
+test("a system-clock sleep cleans its timer after an abort", async () => {
+  const ac = new AbortController();
+  const cause = new Error("halt-now");
+  const nap = operation({
+    label: "nap",
+    run: (_deps, { clock }) =>
+      clock.sleep(60_000, ac.signal).then(
+        () => "woke",
+        (error: unknown) => error,
+      ),
+  });
+  const scope = createScope();
+  const pending = scope.controller(nap).run() as Promise<unknown>;
+  ac.abort(cause);
+  expect(await pending).toBe(cause);
+  await scope.close();
+});
+
+test("a test-clock sleep set into the past wakes at once", async () => {
+  const clock = makeTestClock({ now: 1000 });
+  const seen: number[] = [];
+  const scope = createScope({ clock });
+  const nap = scope
+    .controller(
+      operation({
+        label: "nap",
+        run: (_deps, { clock: tick }) =>
+          tick.sleep(500).then(() => {
+            seen.push(tick.currentTimeMillis());
+            return "woke";
+          }),
+      }),
+    )
+    .run() as Promise<unknown>;
+  clock.setTime(2000);
+  expect(await nap).toBe("woke");
+  expect(seen).toEqual([2000]);
+});
