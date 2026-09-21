@@ -126,7 +126,7 @@ for (const [name, cmd] of lanes) {
   }
 }
 console.log(
-  `\nMutation lanes: run \`${VP} run --no-cache core#mutate\` and \`${VP} run --no-cache http#mutate\` and \`${VP} run --no-cache hono#mutate\` and \`${VP} run --no-cache drizzle#mutate\` and \`${VP} run --no-cache cli#mutate\` and \`${VP} run --no-cache harness#mutate\` and \`${VP} run --no-cache mcp#mutate\` and \`${VP} run --no-cache sync#mutate\` ALONE (break >= 75; measured alone 2026-09-20: core 77.96, http 90.77, hono 77.66, drizzle ~96, cli 79.77, harness 76.05, mcp 82.86, sync 79.67).`,
+  `\nMutation lanes: run \`${VP} run --no-cache core#mutate\` and \`${VP} run --no-cache http#mutate\` and \`${VP} run --no-cache hono#mutate\` and \`${VP} run --no-cache drizzle#mutate\` and \`${VP} run --no-cache cli#mutate\` and \`${VP} run --no-cache harness#mutate\` and \`${VP} run --no-cache mcp#mutate\` and \`${VP} run --no-cache sync#mutate\` ALONE (break >= 75, core >= 85; measured alone 2026-09-21: core 86.07; 2026-09-20: http 90.77, hono 77.66, drizzle ~96, cli 79.77, harness 76.05, mcp 82.86, sync 79.67).`,
 );
 console.log(
   `Timing lanes:  run via \`bench -- ${strip} bench/<lane>.mjs\` in a clean worktree (not in-container).`,

@@ -129,7 +129,7 @@ provider drops; a step already on disk is never lost).
    then the report in the brief's format, ending with **Core feedback** (a failing snippet, not prose).
 3. The lead: runs `node tools/jev/review.mjs main..HEAD` (a hint where to read first), reads the diff,
    labels each fix-round nit a judge covers, asks for one fix round, re-runs every gate by exit code,
-   fast-forwards `main`, runs the touched package's mutation lane **alone** (floor 75), pushes, removes the
+   fast-forwards `main`, runs the touched package's mutation lane **alone** (floor 75; core 85), pushes, removes the
    worktree and branch.
 4. **Feedback flows back to core.** Every report ends with **Core feedback**; the lead records candidates in
    `docs/roadmap/core-feedback.md`. A candidate becomes a core ticket after a second asker, or at once when
