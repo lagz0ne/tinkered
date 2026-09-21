@@ -215,7 +215,7 @@ One line per ticket: tag — sha — tests — size (B gzip) — mutation — no
   `packages/blueprint/blueprint.yaml`: every unit
   in `src`, `verify` on the pair prints nothing
   (a test, no key).
-- **blueprint/t07** — [ ]
+- **blueprint/t07** — [x]
   `body` as a state field; `check` skips templates
   that need it, `verify` asks them.
   `corpus/bodyStraysFromWork.yaml` (provisional).
@@ -242,6 +242,36 @@ One line per ticket: tag — sha — tests — size (B gzip) — mutation — no
   "every non-flag positional, in order" — every
   two-argument command filters argv by hand
   (first asker).
+- **blueprint/t07** — 81 tests — 16216 — 77.17 —
+  writer-built (claude/sonnet-5), no fix round.
+  `body` in the state; `verify` asks the templates
+  that need it (a `bodyJudge` resource that is
+  `undefined` with no key, so `verify` works
+  without one); `corpus/bodyStraysFromWork.yaml`;
+  evals with `source:`; the golden pair's bodies
+  are its clean cases. Writer caught a real gateway
+  reject (`body: undefined` in the state) only by
+  running the real grade.
+  Lead: `verify --key-file <path> file dir` read the
+  key path as the file — one `positionals` reader
+  for both rows now (the cli feedback row, proven).
+  Real grade: bad 3 (med 87%), clean 14 (med 60%),
+  sep 27%, golden 7/12 → `noisy`. Real `verify` on
+  the golden pair with the key: 8 `~` lines at
+  50–84%, exit 0. Next corpus job: split the ask
+  (a step `work` names with no code / an effect the
+  body has that `work` never says) and thicken the
+  golden `work` lines.
+  Core feedback: a cli `respond` cannot write to
+  stderr on a code-0 outcome (first asker).
+
+## v1.1 complete (2026-09-21)
+
+`verify <file> <src>`: node ↔ unit by label, five
+plain checks, then the body templates with a key.
+The binary verifies itself: 12 nodes, 12 units,
+0 plain findings. Open: the body template's wording
+(`noisy`), `blueprint/devtool` (Parked).
 
 ## v1 complete (2026-09-21)
 
