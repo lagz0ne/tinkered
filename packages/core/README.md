@@ -220,8 +220,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   runs the cleanups.
 - Releasing a scope resource cascades into each session's dependents; an uninvolved session keeps its
   instance, a closed or closing session is skipped while the others still release.
-- A release waits for a borrower: a running cross-owner operation holds the resource and its scope
-  dependency open through their cleanups; teardown runs borrower-first.
+- A release waits for a borrower: a running cross-owner operation keeps the resource and its scope
+  dependency alive through their cleanups; teardown runs borrower-first.
 - A build superseded while in flight leaves the rebuilt instance alive: its late cleanup never drops the
   replacement.
 - A release nested inside a release cleanup never hangs close, nor does a session cleanup that closes the
