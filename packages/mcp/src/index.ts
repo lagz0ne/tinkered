@@ -1,5 +1,5 @@
-import type { Operation, Scope, Tag } from "@tinker/core";
-import { extension, isError as isCoreError, tag } from "@tinker/core";
+import type { Many, Operation, Scope, Tag } from "@tinker/core";
+import { extension, isError as isCoreError, readMany, tag } from "@tinker/core";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { ZodTypeAny } from "zod";
@@ -33,7 +33,7 @@ export declare namespace Mcp {
   export type Wiring = {
     readonly name: string;
     readonly version: string;
-    readonly tools: readonly Row[];
+    readonly tools: Many<Row>;
   };
 }
 
@@ -133,7 +133,7 @@ export function mcp(wiring: Mcp.Wiring): Scope.Extension<McpServer> {
     start: async (scope, _ctx, next) => {
       await next();
       const server = new McpServer({ name: wiring.name, version: wiring.version });
-      for (const row of wiring.tools) {
+      for (const row of readMany(wiring.tools)) {
         const name = row.meta.name ?? row.op.label;
         server.registerTool(
           name,

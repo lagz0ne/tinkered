@@ -93,6 +93,28 @@ test("listTools lists every row with its description and schema keys", async () 
   await scope.close({ graceful: true });
 });
 
+test("tools take nested lists and false: every reachable row is registered", async () => {
+  const flags = { migrations: false };
+  const migrate = operation({
+    label: "migrate",
+    input: parseMigrate,
+    run: (_deps, ctx) => `migrated:${ctx.input.target}`,
+  });
+  const ext = mcp({
+    name: "coder",
+    version: "1.0.0",
+    tools: [
+      [null, [expose(search, { description: "search the index", schema: searchShape })]],
+      flags.migrations && expose(migrate, { description: "run migrations", schema: migrateShape }),
+    ],
+  });
+  const scope = createScope({ extensions: [ext] });
+  const client = await linkClient(scope, ext);
+  const listed = await client.listTools();
+  expect(listed.tools.map((entry) => entry.name)).toEqual(["search"]);
+  await scope.close({ graceful: true });
+});
+
 test("callTool runs the op under an mcp span and answers one JSON text with one log line", async () => {
   const logs: Observe.Log[] = [];
   const exported: string[] = [];

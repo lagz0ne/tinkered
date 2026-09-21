@@ -212,6 +212,32 @@ test("a source write fans out to two subscribed viewers", () => {
   });
 });
 
+test("cells take nested lists and false: a row is a pair, a list of pairs is opened", () => {
+  const flags = { todos: false };
+  const src = source({ cells: [null, [[counter, "counter"]], flags.todos && [todos, "todo"]] });
+  const origin = createScope({ extensions: [src] });
+  return origin.ready.then(() => {
+    const [near, far] = memoryPair();
+    const done = origin.resolve(src).connect(near);
+    const sub = subscribe(far, { cells: [[[counter, "counter"]]] });
+    const guest = createScope({ extensions: [sub] });
+    return guest.ready.then(() => {
+      const watch = reached(
+        (listener: (next: number) => void) => guest.controller(counter).watch(listener),
+        3,
+      );
+      origin.controller(counter).set(3);
+      return watch.then(() => {
+        expect(guest.resolve(counter)).toBe(3);
+        guest.resolve(sub).close();
+        return done.then(() =>
+          Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]),
+        );
+      });
+    });
+  });
+});
+
 test("a viewer sees only what it registered", () => {
   const originTodos = family({ label: "todo", initial: "" });
   const guestTodos = family({ label: "todo", initial: "" });

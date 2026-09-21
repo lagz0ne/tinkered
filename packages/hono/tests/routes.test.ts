@@ -60,6 +60,24 @@ test("an app built from flat rows answers two verbs", async () => {
   await scope.close();
 });
 
+test("routes take nested lists and false: every reachable row is mounted", async () => {
+  const flags = { admin: false };
+  const web = hono({
+    routes: [
+      route.get("/ping", ping),
+      [null, [route.post("/users", createUser)]],
+      flags.admin && route.get("/admin", ping),
+    ],
+  });
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const app = scope.resolve(web);
+  expect((await app.request("/ping")).status).toBe(200);
+  expect((await app.request("/users", { method: "POST" })).status).toBe(200);
+  expect((await app.request("/admin")).status).toBe(404);
+  await scope.close();
+});
+
 test("every loader runs once at start and none runs at request time", async () => {
   const loads = { get: 0, post: 0 };
   const { scope, app } = await userApp(loads);

@@ -279,3 +279,26 @@ test("two tools register under their own names", async () => {
   expect(seen.servers[0]?.tools.map((entry) => entry.name).sort()).toEqual(["lookup", "search"]);
   await scope.close();
 });
+
+test("tools take nested lists and false: every reachable tool registers", async () => {
+  const seen: Seen = { servers: [], queries: [], results: [] };
+  const flags = { lookup: false };
+  const lookup = operation({
+    label: "lookup",
+    input: parseSearch,
+    meta: [tool({ description: "find things", schema: searchShape })],
+    run: (_deps, ctx) => `hit:${(ctx.input as { q: string }).q}`,
+  });
+  const coder = harness({
+    label: "coder",
+    adapter: claudeCode,
+    tools: [null, [search], flags.lookup && lookup],
+  });
+  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const scope = createScope({
+    presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))],
+  });
+  await scope.createSession().run(ask, { input: "hello" });
+  expect(seen.servers[0]?.tools.map((entry) => entry.name)).toEqual(["search"]);
+  await scope.close();
+});

@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
 import type { Context, MiddlewareHandler as Middleware } from "hono";
-import type { Operation, Scope, Tag } from "@tinker/core";
-import { extension, isError as isCoreError, tag } from "@tinker/core";
+import type { Many, Operation, Scope, Tag } from "@tinker/core";
+import { extension, isError as isCoreError, readMany, tag } from "@tinker/core";
 import { isError, raise } from "./errors.ts";
 
 /** A Hono route endpoint: takes the context, answers the response. */
@@ -52,7 +52,7 @@ export declare namespace HonoScope {
   /** Wiring for {@link hono}: the flat row table plus request-derived tag
    * bindings, first-hand errors, and hand-mounted extras. */
   export type Wiring = {
-    readonly routes: readonly Row[];
+    readonly routes: Many<Row>;
     readonly onError?: OnError;
     readonly tags?: (c: Context) => Tag.Bindings;
     /** Hand-mounted extras: routes that need `stream` directly and cannot
@@ -84,7 +84,7 @@ export function hono(wiring: HonoScope.Wiring): Scope.Extension<Hono> {
     start: async (scope, _ctx, next) => {
       await next();
       const mounted = await Promise.all(
-        wiring.routes.map(async (row) => ({ row, op: await row.load() })),
+        readMany(wiring.routes).map(async (row) => ({ row, op: await row.load() })),
       );
       const app = new Hono().use(serveRequests(scope, wiring));
       for (const { row, op } of mounted) app.on(row.method, row.path, answerRoute(op, row.route));

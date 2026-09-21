@@ -2540,6 +2540,28 @@ test("a call's tags take the authored shape: a single binding opens the session,
   expect(scope.run(read, { tags: false })).toBe("base");
 });
 
+test("presets and extensions take the same authored shape: nested lists and false are read flat", async () => {
+  const count = data({ initial: 1 });
+  const flags = { debug: false };
+  const seen: string[] = [];
+  const mark = (label: string): Scope.Extension<void> =>
+    extension({
+      label,
+      start: (_scope, _ctx, next) => {
+        seen.push(label);
+        return next();
+      },
+    });
+  const scope = createScope({
+    presets: [null, [preset(count, 5), flags.debug && preset(count, 9)]],
+    extensions: [mark("a"), [undefined, [mark("b")]], flags.debug && mark("never")],
+  });
+  await scope.ready;
+  expect(scope.resolve(count)).toBe(5);
+  expect(seen).toEqual(["a", "b"]);
+  await scope.close();
+});
+
 test("shared empty meta is frozen, so a no-meta unit cannot be mutated to leak across units", () => {
   const ui = tag<string>({ label: "ui" });
   const a = data({ initial: 0 });

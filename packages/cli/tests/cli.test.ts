@@ -112,6 +112,24 @@ test("help lists a row description beside the name", async () => {
   expect(result.stdout).toBe("app 1.2.3\n  dbl  double a number\n  ping\n");
 });
 
+test("commands take nested lists and false, read flat in order", async () => {
+  const flags = { extra: false };
+  const result = await answer(
+    {
+      name: "app",
+      version: "1.2.3",
+      commands: [
+        command("ping", () => ping),
+        [null, [command("dbl", () => double, { input: (argv) => argv[0] })]],
+        flags.extra && command("never", () => ping),
+      ],
+    },
+    ["help"],
+  );
+  expect(result.code).toBe(0);
+  expect(result.stdout).toBe("app 1.2.3\n  dbl\n  ping\n");
+});
+
 test("a missing command prints usage with exit 2", async () => {
   const result = await answer(
     { name: "app", version: "1.2.3", commands: [command("ping", () => ping)] },

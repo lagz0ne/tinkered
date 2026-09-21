@@ -1,5 +1,5 @@
-import type { Data, Scope } from "@tinker/core";
-import { data, extension, isError as isCoreError } from "@tinker/core";
+import type { Data, Many, Scope } from "@tinker/core";
+import { data, extension, isError as isCoreError, readMany } from "@tinker/core";
 import { fail, isError, raise, type Errors } from "./errors.ts";
 
 export { isError };
@@ -18,8 +18,8 @@ export declare namespace Sync {
   export type Row =
     | readonly [cell: Data.Cell<unknown>, key: string]
     | readonly [family: Family<unknown>, label: string];
-  /** The flat table a driver extension receives: every unit it publishes. */
-  export type Wiring = { readonly cells: readonly Row[] };
+  /** The table a driver extension receives: every unit it publishes, as a {@link Many} of rows. */
+  export type Wiring = { readonly cells: Many<Row> };
   /** The wire protocol, one way: the viewer registers the keys it shows and
    * the source answers each key with a snapshot, then fans out later writes
    * on registered keys only. */
@@ -97,6 +97,12 @@ export function family<T>(config: {
   return Object.assign(member, { label: config.label, members, onMember });
 }
 
+/** A row is a pair whose second half is its key or label: the smallest stable shape that
+ * tells one row from a nested list of rows when `cells` is read. */
+function isRow(value: Sync.Row | readonly Many<Sync.Row>[]): value is Sync.Row {
+  return typeof value[1] === "string";
+}
+
 /** A family is a function; a cell is an object: the smallest stable shape
  * that tells one published unit from the other. */
 export function isFamily(unit: Sync.Published): unit is Sync.Family<unknown> {
@@ -108,7 +114,7 @@ export function isFamily(unit: Sync.Published): unit is Sync.Family<unknown> {
  * key of a published family. `make` builds one entry per key; a second cell
  * under a known key raises `SyncConflict`. */
 function readPublished<E extends { cell: Data.Cell<unknown> }>(
-  wiring: Sync.Wiring,
+  cells: readonly Sync.Row[],
   make: (key: string, cell: Data.Cell<unknown>) => E,
 ): { entries: Map<string, E>; entryFor(key: string): E | undefined; stop(): void } {
   type Gate = { make: (id: string) => Data.Cell<unknown>; label: string };
@@ -142,7 +148,7 @@ function readPublished<E extends { cell: Data.Cell<unknown> }>(
     return register(key, cell);
   }
   const arrivals: Array<() => void> = [];
-  for (const [unit, name] of wiring.cells) {
+  for (const [unit, name] of cells) {
     if (isFamily(unit)) {
       const label = name;
       const makeMember = (id: string): Data.Cell<unknown> => unit(id);
@@ -181,6 +187,7 @@ function readPublished<E extends { cell: Data.Cell<unknown> }>(
  * close hook before the structural close aborts the subtree), so the
  * forced session close resolves `cancelled`. */
 export function source(wiring: Sync.Wiring): Scope.Extension<Sync.Source> {
+  const cells = readMany(wiring.cells, isRow);
   let closeSource: () => void = () => undefined;
   let forcedClosing = false;
   return extension<Sync.Source>({
@@ -206,7 +213,7 @@ export function source(wiring: Sync.Wiring): Scope.Extension<Sync.Source> {
           if (keys.has(key)) transport.send(out);
         }
       }
-      const published = readPublished(wiring, (key, cell) => {
+      const published = readPublished(cells, (key, cell) => {
         const entry: Entry = { cell, version: 0 };
         scope.controller(cell).watch(() => {
           entry.version += 1;
@@ -288,6 +295,7 @@ export function subscribe(
   transport: Sync.Transport,
   wiring: Sync.Wiring,
 ): Scope.Extension<Sync.Subscription> {
+  const cells = readMany(wiring.cells, isRow);
   let closeClient: () => void = () => undefined;
   return extension<Sync.Subscription>({
     label: "sync.subscribe",
@@ -295,7 +303,7 @@ export function subscribe(
       let shut = false;
       let stopMessages: () => void = () => undefined;
       let stopParted: () => void = () => undefined;
-      const published = readPublished(wiring, (_key, cell) => ({ cell }));
+      const published = readPublished(cells, (_key, cell) => ({ cell }));
       const stops: Array<() => void> = [];
       const first: string[] = [];
       for (const key of published.entries.keys()) first.push(key);
@@ -371,7 +379,7 @@ export function subscribe(
         transport.close();
       };
       transport.send({ type: "register", keys: first });
-      for (const [unit, name] of wiring.cells) {
+      for (const [unit, name] of cells) {
         if (isFamily(unit)) {
           const label = name;
           stops.push(

@@ -16,6 +16,14 @@ export type Edge<K extends string, Target> = {
   readonly target: Target;
 };
 
+/** A list as authored (the `clsx` / ESLint flat-config shape): one item, nothing
+ * (`null`/`undefined`/`false` — so `cond && item` reads as one), or a list of those to any depth.
+ * Every list a config takes — `tags`, `meta`, `presets`, `extensions`, a driver's rows — is one,
+ * read once and flat where it lands (see {@link readMany}), so optional and grouped items need no
+ * spread: `tags: [request(raw), audit && trace(true), shared]`. Only `false`, never `0`/`""`: a
+ * `count && x` slip stays a type error. */
+export type Many<T> = T | null | undefined | false | readonly Many<T>[];
+
 export declare namespace Data {
   /** Validates raw input into a trusted value once, at the process edge. */
   export type Parse<T> = (raw: unknown) => T;
@@ -43,13 +51,9 @@ export declare namespace Tag {
   /** One value bound to a tag, seeded on a scope. `Handle<any>` is the callable-variance escape hatch. */
   export type Binding<T> = { readonly tag: Handle<any>; readonly value: T };
 
-  /** Bindings as authored (the `clsx` / ESLint flat-config shape): one binding, nothing
-   * (`null`/`undefined`/`false` — so `cond && binding` reads as one), or a list of those to any
-   * depth. Read once where they land — a unit's `meta`, a scope's `tags`, a call's `tags` — into
-   * a flat list, so a config composes optional and grouped bindings without spreads:
-   * `tags: [request(raw), audit && trace(true), shared]`. Only `false`, never `0`/`""`: a
-   * `count && x` slip stays a type error. */
-  export type Bindings = Binding<unknown> | null | undefined | false | readonly Bindings[];
+  /** Bindings as authored: a unit's `meta`, a scope's `tags`, a call's `tags` — a {@link Many}
+   * of bindings, read once and flat where it lands. */
+  export type Bindings = Many<Binding<unknown>>;
 
   /** Any unit carrying static metadata bindings (data/operation/resource/tag). */
   export type Metaed = { readonly meta: readonly Binding<unknown>[] };
@@ -399,11 +403,11 @@ export declare namespace Scope {
   export type Options = {
     tags?: Tag.Bindings;
     observe?: Observe.Config;
-    presets?: readonly Preset[];
+    presets?: Many<Preset>;
     /** The ambient clock for this scope; child sessions inherit it. Default is the system clock. */
     clock?: Clock.Handle;
     /** Middleware installed on the root scope only (ADR 0050); sessions inherit the resolved values. */
-    extensions?: readonly Extension<unknown>[];
+    extensions?: Many<Extension<unknown>>;
   };
 
   /** How a scope settled: cleanly, by an inside-out failure, or as a cancellation. */
@@ -568,38 +572,46 @@ function admit<T>(label: string, parse: Data.Parse<T> | undefined, raw: unknown)
   }
 }
 
-/** The shared, frozen empty meta for units declared without any — immutable so no caller can
- * reach past the `readonly` type and leak a binding across every no-meta unit. */
-const NO_META: readonly Tag.Binding<unknown>[] = Object.freeze([]);
+/** The shared, frozen empty list every no-item read returns — one per process, immutable so no
+ * caller can reach past the `readonly` type and leak an item into every other empty read. */
+const NO_ITEMS: readonly never[] = Object.freeze([]);
 
-/** The "nothing" cases of an authored binding — skipped wherever bindings are read. */
-function isNoBinding(input: Tag.Bindings): input is null | undefined | false {
+/** The "nothing" cases of an authored list — skipped wherever a {@link Many} is read. */
+function isNothing(input: Many<unknown>): input is null | undefined | false {
   return input === undefined || input === null || input === false;
 }
 
-/** The one discriminator over authored bindings: a list, or a single binding. Named because
- * `Array.isArray` alone does not narrow a `readonly` list. */
-function isBindingList(input: Tag.Bindings): input is readonly Tag.Bindings[] {
-  return Array.isArray(input);
+/** The default item discriminator for {@link readMany}: an item is whatever is not a list.
+ * Named because `Array.isArray` alone does not narrow a `readonly` list. */
+function isNotList<T>(value: T | readonly Many<T>[]): value is T {
+  return !Array.isArray(value);
 }
 
-/** Flatten authored bindings (a binding, nothing, or a nested list) into `out`, in order. */
-function pushBindings(out: Tag.Binding<unknown>[], input: Tag.Bindings): void {
-  if (isNoBinding(input)) return;
-  if (isBindingList(input)) {
-    for (const item of input) pushBindings(out, item);
+function pushMany<T>(
+  out: T[],
+  input: Many<T>,
+  isItem: (value: T | readonly Many<T>[]) => value is T,
+): void {
+  if (isNothing(input)) return;
+  if (isItem(input)) {
+    out.push(input);
     return;
   }
-  out.push(input);
+  for (const item of input) pushMany(out, item, isItem);
 }
 
-/** Read authored bindings into the flat list a unit's `meta` carries (or a layer seeds from):
- * the shared frozen empty when nothing was bound, else a fresh list the reader owns. */
-function readBindings(input: Tag.Bindings): readonly Tag.Binding<unknown>[] {
-  if (isNoBinding(input)) return NO_META;
-  const out: Tag.Binding<unknown>[] = [];
-  pushBindings(out, input);
-  return out.length === 0 ? NO_META : out;
+/** Read a {@link Many} into a flat list, in authored order — nothing skipped, lists opened to
+ * any depth. `isItem` tells an item from a list when the items are themselves arrays (a sync
+ * row is a tuple); by default an item is whatever is not an array. The seam every config list
+ * is read at, in core and in a driver alike. */
+export function readMany<T>(
+  input: Many<T>,
+  isItem: (value: T | readonly Many<T>[]) => value is T = isNotList,
+): readonly T[] {
+  if (isNothing(input)) return NO_ITEMS;
+  const out: T[] = [];
+  pushMany(out, input, isItem);
+  return out.length === 0 ? NO_ITEMS : out;
 }
 
 /** Read a tag's static value off a unit's `meta`: the nearest matching binding, else the tag's
@@ -628,7 +640,7 @@ export function data<T>(config: {
     initial: admit(label, config.parse, config.initial),
     parse: config.parse,
     eq: config.eq ?? Object.is,
-    meta: readBindings(config.meta),
+    meta: readMany(config.meta),
   } as Data.Cell<T>;
   return Object.assign(base, { controller: edgeTo("controller", base) });
 }
@@ -654,7 +666,7 @@ export function tag<T>(config: {
     def: config.default,
     parse,
     eq: config.eq ?? Object.is,
-    meta: readBindings(config.meta),
+    meta: readMany(config.meta),
     read: (unit: Tag.Metaed): Tag.Presence<T> => metaFind(unit, handle),
   }) as Tag.Handle<T>;
   return Object.assign(handle, {
@@ -682,7 +694,7 @@ export function operation<
     input: config.input,
     depends: config.depends ?? {},
     run: config.run as Operation.Handle<R, I>["run"],
-    meta: readBindings(config.meta),
+    meta: readMany(config.meta),
   } as Operation.Handle<R, I>;
   return Object.assign(base, {
     controller: edgeTo("controller", base),
@@ -724,7 +736,7 @@ export function resource<
     target: config.target ?? "scope",
     depends: config.depends ?? {},
     factory: config.factory as Resource.Handle<T>["factory"],
-    meta: readBindings(config.meta),
+    meta: readMany(config.meta),
   } as Resource.Handle<T>;
 }
 
@@ -1553,8 +1565,8 @@ class OperationCtx<I> implements Operation.Ctx<I> {
  * for an empty binding list); a single binding or a non-empty list counts as tagged. */
 function hasCallTags(call: Scope.Invocation<unknown> | undefined): boolean {
   const tags = call?.tags;
-  if (isNoBinding(tags)) return false;
-  return !isBindingList(tags) || tags.length !== 0;
+  if (isNothing(tags)) return false;
+  return isNotList(tags) || tags.length !== 0;
 }
 
 /** Run `target` in a child session bound with the call's tags (ADR 0038) — sugar over
@@ -2425,7 +2437,7 @@ function collectBorrowers(
 /** Seed a layer's tag map from the authored bindings: nothing (or only nothing, however
  * nested) leaves the map unallocated; otherwise every binding lands in authored order. */
 function seedTags(input: Tag.Bindings): Map<Tag.Handle<unknown>, unknown[]> | undefined {
-  const bindings = readBindings(input);
+  const bindings = readMany(input);
   if (bindings.length === 0) return undefined;
   const tags = new Map<Tag.Handle<unknown>, unknown[]>();
   for (const binding of bindings) {
@@ -2436,13 +2448,13 @@ function seedTags(input: Tag.Bindings): Map<Tag.Handle<unknown>, unknown[]> | un
   return tags;
 }
 
-function seedPresets(seeds: readonly Scope.Preset[] | undefined): {
+function seedPresets(seeds: Many<Scope.Preset>): {
   nodes: Map<object, NodeState>;
   presets: Map<unknown, unknown> | undefined;
 } {
   const nodes = new Map<object, NodeState>();
   let presets: Map<unknown, unknown> | undefined;
-  for (const p of seeds ?? []) {
+  for (const p of readMany(seeds)) {
     const node = p.node;
     if (isData(node)) {
       const s = new NodeState();
@@ -3152,8 +3164,8 @@ function handleFor(layer: Layer): Scope.Handle {
 export function createScope(options?: Scope.Options): Scope.Handle {
   const layer = makeLayer(undefined, options);
   const plain = handleFor(layer);
-  const exts = options?.extensions;
-  if (exts === undefined || exts.length === 0) return plain;
+  const exts = readMany(options?.extensions);
+  if (exts.length === 0) return plain;
   return extendHandle(layer, plain, exts);
 }
 

@@ -4,7 +4,9 @@ import {
   operation,
   resource,
   tag,
+  readMany,
   type Data,
+  type Many,
   type Operation,
   type Resource,
   type Scope,
@@ -161,10 +163,6 @@ const noItems: readonly Harness.Item[] = Object.freeze([]);
 /** The shared frozen empty event list — every frame's `events` cell starts here. */
 const noEvents: readonly unknown[] = Object.freeze([]);
 
-/** The shared frozen empty tool list — a frame built without `tools`. `never` fits every
- * `readonly Tool<C>[]`, including the `never` list a `never`-calls adapter takes. */
-const noTools: readonly never[] = Object.freeze([]);
-
 /** The `depends` slots of a frame's tools, one per tool under `tool:<name>`: a record the turn
  * op spreads into its own `depends`, so each tool's operation is a subflow of the turn. The
  * value is whatever the op returns — the adapter maps it at the edge. */
@@ -230,7 +228,7 @@ export function harness<O, T, R, C extends Harness.Calls>(config: {
   label: string;
   adapter: Harness.Adapter<O, T, R, C>;
   approve?: Harness.ApproveOp<C>;
-  tools?: readonly Harness.Tool<C>[];
+  tools?: Many<Harness.Tool<C>>;
   meta?: Tag.Bindings;
 }): Harness.Frame<O, T, R, C> {
   const adapter = config.adapter;
@@ -289,7 +287,7 @@ export function harness<O, T, R, C extends Harness.Calls>(config: {
   };
   return {
     ...frameBase,
-    turn: readTurnOperation(frameBase, status, text, config.approve, config.tools ?? noTools),
+    turn: readTurnOperation(frameBase, status, text, config.approve, readMany(config.tools)),
   };
 }
 

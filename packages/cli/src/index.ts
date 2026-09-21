@@ -1,5 +1,5 @@
-import type { Operation, Scope } from "@tinker/core";
-import { createScope, extension, isError as isCoreError } from "@tinker/core";
+import type { Many, Operation, Scope } from "@tinker/core";
+import { createScope, extension, isError as isCoreError, readMany } from "@tinker/core";
 import { isError, raise } from "./errors.ts";
 
 export { isError };
@@ -46,7 +46,7 @@ export declare namespace Cli {
   export type Wiring = {
     readonly name: string;
     readonly version: string;
-    readonly commands: readonly Row[];
+    readonly commands: Many<Row>;
   };
   /** Where output goes. `signal` is the tests' stand-in for SIGINT/SIGTERM: abort
    * it and the scope force-closes, the command settles cancelled, code 130. */
@@ -141,11 +141,12 @@ export const command: {
  * force-closes that root — the old `wireSignal`, moved inside. The root
  * outlives a run; `runMain` (or the test) closes it. */
 export function cli(wiring: Cli.Wiring): Scope.Extension<Cli.Run> {
+  const table = readMany(wiring.commands);
   return extension<Cli.Run>({
     label: "cli",
     start: async (scope, _ctx, next) => {
       await next();
-      return (argv, io) => answer(scope, wiring, argv, io);
+      return (argv, io) => answer(scope, wiring, table, argv, io);
     },
   });
 }
@@ -360,6 +361,7 @@ async function runOperation(
 async function answer(
   scope: Scope.Handle,
   wiring: Cli.Wiring,
+  table: readonly Cli.Row[],
   argv: readonly string[],
   io: Cli.Io | undefined,
 ): Promise<Cli.Result> {
@@ -370,7 +372,6 @@ async function answer(
     unhook();
     return { code: 130, stdout: "", stderr: "" };
   }
-  const table = wiring.commands;
   if (argv.length === 0) {
     collected.stdout(usageText(wiring, table));
     unhook();
@@ -423,7 +424,7 @@ async function answerSelected(
 export async function runMain(wiring: Cli.Wiring, scope?: Scope.Options): Promise<never> {
   const proc: Proc = globalThis.process;
   const ext = cli(wiring);
-  const root = createScope({ ...scope, extensions: [...(scope?.extensions ?? []), ext] });
+  const root = createScope({ ...scope, extensions: [scope?.extensions, ext] });
   await root.ready;
   const run = root.resolve(ext);
   const controller = new AbortController();

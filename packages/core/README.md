@@ -123,20 +123,23 @@ within each layer. For example, bindings `[region("first"), region("last")]` are
 A custom binding builder names the value types it can return in `Tag.Binding<T>`. A binding
 with a narrower value type can be assigned to one with a wider union of value types.
 
-Everywhere bindings are authored — a unit's `meta`, a scope's or session's `tags`, a call's
-`tags` — the shape is `Tag.Bindings`: one binding, nothing (`null`, `undefined`, or `false`), or
-a list of those to any depth. Core flattens it once, in authored order, so a config composes optional
-and grouped bindings without a spread:
+Every list a config takes is a `Many<T>`: one item, nothing (`null`, `undefined`, or `false`),
+or a list of those to any depth. That covers a unit's `meta`, a scope's or session's `tags`, a
+call's `tags`, `presets`, `extensions`, and every driver's rows (`routes`, `tools`, `commands`,
+`cells`). Core reads it once, flat, in authored order, so optional and grouped items need no
+spread:
 
 ```ts
 const shared = [group("net"), audit && trace(true)]; // only `false` is "nothing", never 0 or ""
 const port = data({ initial: 8080, meta: [ui("slider"), shared] });
 scope.run(op, { tags: zone("us") }); // a single binding is a tagged call
 scope.createSession({ tags: [request(raw), wiring.tags?.(c)] }); // an absent group is skipped
+createScope({ extensions: [scope?.extensions, ext] }); // same for extensions and presets
 ```
 
 A call whose `tags` is nothing, or a list that flattens to nothing, is an untagged call: it runs
-inline and opens no session.
+inline and opens no session. A driver reads its rows with `readMany(rows)` at its seam; when the
+rows are themselves arrays (sync's `[cell, key]` pairs) it passes the row discriminator.
 
 ## Observation
 
