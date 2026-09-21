@@ -124,6 +124,37 @@ Each shipped tool reads the `cwd` tag.
   `settings`; mode always goes with
   the next call.
 
+## Gate
+
+A gate decides each tool call before it runs. Pass
+`gate((request) => decision)` on the frame; a
+`decision` is `{ allow: true }` or
+`{ allow: false, reason }`. The gate is an ordinary
+operation, so it may read a cell, apply a policy, or
+ask a human through a driver.
+
+- A blocking gate answers the model with a declined
+  result and the tool never runs.
+- An allowing gate lets the tool run.
+- The gate receives the tool name, the parsed
+  arguments, the mode, and the wire call.
+- A gate may read a cell to decide, so a policy or a
+  human can drive it.
+
+```ts
+const guard = gate((r) => {
+  if (r.name === "bash") {
+    return { allow: false, reason: "no" };
+  }
+  return { allow: true };
+});
+const coder = tinkerer({
+  label: "coder",
+  tools: shippedTools,
+  gate: guard,
+});
+```
+
 ## Inbox
 
 Talk to a running turn through the `inbox` cell.
@@ -184,6 +215,8 @@ row reuses the same `turn` operation.
   exit code 0.
 - `ask` with no prompt exits with a usage code.
 - An unknown command exits with a usage code.
+- `ask` joins the prompt words with spaces and
+  drops `--flags`.
 
 ```ts
 const shell = cli({

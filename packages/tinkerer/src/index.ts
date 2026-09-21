@@ -91,6 +91,21 @@ export declare namespace Tinkerer {
       readonly sequential?: boolean;
     };
   };
+  /** A gate's answer: allow the tool call, or block it with a reason the model sees. */
+  export type Decision =
+    | { readonly allow: true }
+    | { readonly allow: false; readonly reason: string };
+  /** What a gate decides about: the tool's wire name, its parsed arguments, the current mode, and
+   * the raw wire call. A gate is an ordinary operation, so it may read cells, ask a human through a
+   * driver, or apply a policy — the frame only runs it and reads its `Decision` (ADR 0053). */
+  export type GateRequest = {
+    readonly name: string;
+    readonly args: unknown;
+    readonly mode: Mode;
+    readonly call: ToolCall;
+  };
+  /** The gate slot: an operation from a request to a decision. */
+  export type Gate = Operation.Handle<Decision | Promise<Decision>, GateRequest>;
   /** The live per-call values: our mode plus the provider's own request fields.
    * Seeded from the tags at turn start, read at every step and every tool call. */
   export type Settings = {
@@ -146,6 +161,19 @@ export function queue(
   return { kind: "queue", content, ...patch };
 }
 
+/** Build a gate from a decision function: `tinkerer({ label, tools, gate: gate((request) => …) })`.
+ * The frame always calls it with a built request, so its parse never runs — one trusted pass at
+ * that internal edge types the input as a {@link Tinkerer.GateRequest}. */
+export function gate(
+  decide: (request: Tinkerer.GateRequest) => Tinkerer.Decision | Promise<Tinkerer.Decision>,
+): Tinkerer.Gate {
+  return operation({
+    label: "gate",
+    input: (raw: unknown): Tinkerer.GateRequest => raw as Tinkerer.GateRequest,
+    run: (_deps, ctx) => decide(ctx.input),
+  });
+}
+
 /** Name one tool row: the operation plus its tool facts. */
 export function tool(
   op: Operation.Handle<unknown, unknown>,
@@ -185,7 +213,11 @@ export const bashTool: Tinkerer.Tool = tool(bash, {
 /** The four shipped rows, pi's set: `tinkerer({ label, tools: shippedTools })`. */
 export const shippedTools: readonly Tinkerer.Tool[] = [readTool, editTool, writeTool, bashTool];
 
-export function tinkerer(config: { label: string; tools?: Many<Tinkerer.Tool> }): Tinkerer.Frame {
+export function tinkerer(config: {
+  label: string;
+  tools?: Many<Tinkerer.Tool>;
+  gate?: Tinkerer.Gate;
+}): Tinkerer.Frame {
   const { label } = config;
   const rows = readMany(config.tools);
   checkDuplicateTools(label, rows);
@@ -214,6 +246,7 @@ export function tinkerer(config: { label: string; tools?: Many<Tinkerer.Tool> })
     response: (res) => res.sse(),
   });
   const toolDeps = readToolDeps(rows);
+  const gateDeps: { gate?: Tinkerer.Gate } = config.gate === undefined ? {} : { gate: config.gate };
   const turn = operation({
     label: `${label}.turn`,
     input: readPrompt(label),
@@ -228,6 +261,7 @@ export function tinkerer(config: { label: string; tools?: Many<Tinkerer.Tool> })
       settings: settings.controller,
       inbox: inbox.controller,
       ...toolDeps,
+      ...gateDeps,
     },
     run: async (deps, ctx) => {
       const prompt = ctx.input;
@@ -535,13 +569,21 @@ const modeRank: Record<Tinkerer.Mode, number> = {
   "full-access": 2,
 };
 
+/** The optional gate controller, delivered as a subflow when the frame carries a gate. */
+type GateSlot = {
+  readonly gate?: Scope.OperationController<
+    Tinkerer.Decision | Promise<Tinkerer.Decision>,
+    Tinkerer.GateRequest
+  >;
+};
+
 type CallDeps = {
   readonly settings: Scope.DataController<Tinkerer.Settings | undefined>;
   readonly messages: Scope.DataController<readonly Tinkerer.Message[]>;
 };
 
 async function runCalls(
-  deps: CallDeps & ToolSlots,
+  deps: CallDeps & ToolSlots & GateSlot,
   ctx: Operation.Ctx<string>,
   rows: readonly Tinkerer.Tool[],
   calls: readonly AccruedCall[],
@@ -567,7 +609,7 @@ async function runInOrder(
 }
 
 function settleCall(
-  deps: CallDeps & ToolSlots,
+  deps: CallDeps & ToolSlots & GateSlot,
   ctx: Operation.Ctx<string>,
   row: Tinkerer.Tool | undefined,
   call: AccruedCall,
@@ -599,18 +641,48 @@ function settleCall(
 }
 
 async function runRow(
-  deps: CallDeps & ToolSlots,
+  deps: CallDeps & ToolSlots & GateSlot,
   ctx: Operation.Ctx<string>,
   row: Tinkerer.Tool,
   call: AccruedCall,
   raw: unknown,
 ): Promise<string> {
+  const declined = await askGate(deps, ctx, call, raw);
+  if (declined !== undefined) return declined;
   try {
     const value = await deps[`tool:${rowName(row)}`].run({ rawInput: raw });
     return logTool(ctx, call, true, readValue(value));
   } catch (error) {
     return logTool(ctx, call, false, `Tool ${call.name} failed: ${readFailure(error)}`);
   }
+}
+
+/** Run the gate (when present) for one call: its `Decision` allows or blocks. A block answers the
+ * model with `Tool <name> was declined: <reason>` and the tool never runs; one `tinkerer gate` log
+ * line either way. Returns the block result, or `undefined` when there is no gate or it allowed. */
+async function askGate(
+  deps: CallDeps & GateSlot,
+  ctx: Operation.Ctx<string>,
+  call: AccruedCall,
+  raw: unknown,
+): Promise<string | undefined> {
+  const gate = deps.gate;
+  if (gate === undefined) return undefined;
+  const decision = await gate.run({
+    input: gateRequest(call, raw, readMode((deps as CallDeps).settings)),
+  });
+  ctx.log("tinkerer gate", { name: call.name, allow: decision.allow });
+  if (decision.allow) return undefined;
+  return `Tool ${call.name} was declined: ${decision.reason}`;
+}
+
+function gateRequest(call: AccruedCall, raw: unknown, mode: Tinkerer.Mode): Tinkerer.GateRequest {
+  return {
+    name: call.name,
+    args: raw,
+    mode,
+    call: { id: call.id, type: "function", function: { name: call.name, arguments: call.args } },
+  };
 }
 
 function lengthResult(call: AccruedCall): string {
