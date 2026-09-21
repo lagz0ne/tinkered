@@ -10,13 +10,13 @@
     "at": "2026-09-21"
   },
   "effectWithoutDefer": {
-    "status": "noisy",
+    "status": "proven",
     "trues": 2,
-    "falses": 2,
-    "medianTrue": 0.87,
-    "medianFalse": 0.45,
-    "separation": 0.42,
-    "ordered": 0.75,
+    "falses": 4,
+    "medianTrue": 0.81,
+    "medianFalse": 0.22,
+    "separation": 0.59,
+    "ordered": 1,
     "at": "2026-09-21"
   },
   "stateOutsideCell": {

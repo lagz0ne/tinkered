@@ -44,10 +44,11 @@ export const LINT = {
     q: {
       type: "boolean",
       instructions:
-        "Does this code start ongoing work — a timer, interval, listener, subscription, poll, socket, or connection — and leave its stop outside any ctx.defer hook?",
+        "Does this start something that keeps running after it returns — a timer, interval, watch, listener, subscription, poll, socket, stream, or connection — and stop it by hand (a returned close method, a finally block, a manual flag) instead of a ctx.defer hook? A function whose body only opens a session, wires one abort listener for it, and closes it in its own finally is the session owner itself, not a missed defer.",
       criteria: {
-        true: "ongoing work is started and its stop is a returned close method, a manual flag, or missing",
-        false: "each started thing is stopped from a ctx.defer hook, or nothing ongoing is started",
+        true: "a timer, watch, listener, subscription, or stream is started and its stop is manual or missing",
+        false:
+          "every started thing is stopped from a ctx.defer hook, nothing keeps running, or the function's own body is the open-and-close of one session",
       },
     },
   },
