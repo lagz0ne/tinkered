@@ -12,8 +12,8 @@
 //   noisy       enough cases but the separation or the ordering fails — a hit is a note
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { loadKey, ask, pct, JUDGES, BANK, HERE } from "./lib.mjs";
-import { LINT, TESTS, SURVIVORS } from "./bank.mjs";
+import { loadKey, ask, pct, BANK, HERE } from "./lib.mjs";
+import { judgeOf } from "./bank.mjs";
 import { JUDGE_CASES, REACT_CASES } from "./evals/fixtures/lint.mjs";
 import { SURVIVOR_CASES } from "./evals/fixtures/survivors.mjs";
 
@@ -79,7 +79,7 @@ function readStatus(trues, falses) {
 
 /** Ask the judge about every case; return the numbers and the status. */
 async function calibrate(judge, cases) {
-  const q = (LINT[judge] ?? TESTS[judge] ?? SURVIVORS[judge] ?? JUDGES[judge]).q;
+  const q = judgeOf(judge).q;
   const trues = [];
   const falses = [];
   for (const c of cases) {
@@ -96,7 +96,7 @@ const result = { ...previous };
 console.log("jev calibrate — median(true) − median(false), pairs ordered; floor 30 points / 90%\n");
 for (const [judge, cases] of Object.entries(all)) {
   if (only && judge !== only) continue;
-  if (!(LINT[judge] ?? TESTS[judge] ?? SURVIVORS[judge] ?? JUDGES[judge])) {
+  if (!judgeOf(judge)) {
     console.log(
       `  · ${judge.padEnd(24)} retired     ${cases.length} labeled cases kept in the bank`,
     );

@@ -10,6 +10,7 @@
 // ---------- slicer (deterministic: Jev never locates or counts) ----------
 // On a real parser since 2026-09-21 (`extract.mjs`, oxc-parser); these keep the old names.
 import { units as extractUnits, tests as extractTests } from "./extract.mjs";
+import { JUDGES } from "./lib.mjs";
 
 /** Every declared unit plus each top-level function that declares none (a function that
  *  declares units is a composition root or a tour, not a primitive candidate). */
@@ -359,3 +360,14 @@ export const forSurvivorJev = ({ file, unit, line, mutator, before, after, sourc
   after,
   source,
 });
+
+// ---------- every bank in one place ----------
+/** The judge banks by name. `label.mjs`, `calibrate.mjs`, and the evals look a judge up here, so a new bank
+ *  is one entry, not one more `??` in each lookup. `JUDGES` (file judges) lives in lib.mjs. */
+export const BANKS = { JUDGES, LINT, TESTS, SURVIVORS };
+
+/** The judge with this id from whichever bank holds it, or undefined. */
+export function judgeOf(id) {
+  for (const bank of Object.values(BANKS)) if (id in bank) return bank[id];
+  return undefined;
+}

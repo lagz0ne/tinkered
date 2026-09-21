@@ -10,7 +10,7 @@
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { BANK, JUDGES } from "./lib.mjs";
+import { BANK } from "./lib.mjs";
 
 //   node tools/jev/label.mjs --merge
 // Merges a conflicted bank: drops git conflict markers, keeps one line per `id` in
@@ -58,6 +58,8 @@ if (args.includes("--merge")) {
 }
 
 import {
+  BANKS,
+  judgeOf,
   LINT,
   TESTS,
   SURVIVORS,
@@ -85,10 +87,11 @@ if (!judge || !["true", "false"].includes(labelWord ?? "") || !target) {
 const isUnitJudge = judge in LINT;
 const isTestJudge = judge in TESTS;
 const isSurvivorJudge = judge in SURVIVORS;
-if (!isUnitJudge && !isTestJudge && !isSurvivorJudge && !(judge in JUDGES)) {
-  console.error(
-    `label: unknown judge ${judge}; file judges: ${Object.keys(JUDGES).join(", ")}; unit judges: ${Object.keys(LINT).join(", ")}; survivor judges: ${Object.keys(SURVIVORS).join(", ")}`,
-  );
+if (!judgeOf(judge)) {
+  const known = Object.entries(BANKS)
+    .map(([bank, judges]) => `${bank}: ${Object.keys(judges).join(", ")}`)
+    .join("; ");
+  console.error(`label: unknown judge ${judge}; ${known}`);
   process.exit(1);
 }
 const [file, unitName] = target.split("#");
