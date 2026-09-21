@@ -65,7 +65,7 @@ tools already print.
   Blocked by: t04.
   Neither package's shape changes -- both already declare their operations
   the right way round. They are on `check-graph`'s list only because the
-  graph is not *asserted* to produce the trace. One test each, copied from
+  graph is not _asserted_ to produce the trace. One test each, copied from
   `packages/http/tests/span-tree.test.ts`:
   - [ ] `blueprint`: `check` over a fixture blueprint shows its own span
         and the judge subflow beneath it.
