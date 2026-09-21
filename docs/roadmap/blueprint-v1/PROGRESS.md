@@ -78,7 +78,7 @@ nothing from `tools/jev`.
 
 Each ticket blocks the next one.
 
-- **blueprint/t01** — [ ]
+- **blueprint/t01** — [x]
   Package + node schema (zod, one object per kind;
   `name` without dots; `promise` and `why` required;
   `target` on resource, default `scope`).
@@ -126,7 +126,14 @@ Each ticket blocks the next one.
 
 One line per ticket: tag — sha — tests — size (B gzip) — mutation — notes.
 
-- (none yet)
+- **blueprint/t01** — see the landing sha in `git log` —
+  13 tests — 2726 (index + main + chunk) — 80.84 —
+  writer-built (pi muse-spark), one fix round
+  (a module `let` kept the file text for `respond`;
+  now `check` returns `{ nodes, findings }`).
+  Lead fix: the size lane summed the dist chunks
+  (the entry alone measured a 140 B stub).
+  Core feedback: `respond` cannot set the exit code.
 
 ### Impact blocks (ADR 0047)
 
