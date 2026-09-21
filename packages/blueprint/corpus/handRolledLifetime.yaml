@@ -2,7 +2,7 @@ id: handRolledLifetime
 applies: [resource, operation]
 needs: [work]
 kind: boolean
-status: proven
+status: provisional
 ask: >-
   Does work keep its own waiting line —
   one call waiting on the last, in arrival

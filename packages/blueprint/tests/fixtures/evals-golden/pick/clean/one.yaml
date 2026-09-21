@@ -1,0 +1,7 @@
+target: thing
+expect: data
+blueprint:
+  - data:
+      name: thing
+      promise: a value read over time
+      why: w

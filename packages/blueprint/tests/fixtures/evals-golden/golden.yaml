@@ -1,0 +1,16 @@
+- tag:
+    name: g1
+    promise: p
+    why: w
+- resource:
+    name: g2
+    promise: p
+    why: w
+- operation:
+    name: g3
+    promise: p
+    why: w
+- operation:
+    name: g4
+    promise: p
+    why: w

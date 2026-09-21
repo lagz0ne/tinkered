@@ -9,8 +9,10 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   findingLine,
+  goldenCasesOf,
   gradeTemplate,
   parseCheckInput,
+  readBlueprint,
   readCorpus,
   readEval,
   readTemplate,
@@ -69,26 +71,46 @@ function readEvalFiles(folder: string): readonly Blueprint.Eval[] {
     .map((file) => readEval(readFileSync(join(folder, file), "utf8"), join(folder, file)));
 }
 
+/** `evalsPath/golden.yaml`, parsed as a plain blueprint (not an eval file) — a known-clean
+ * design every template also grades against. `undefined` when the folder ships none. */
+function readGolden(dir: string): Blueprint.Graph | undefined {
+  const file = join(dir, "golden.yaml");
+  return existsSync(file) ? readBlueprint(readFileSync(file, "utf8")) : undefined;
+}
+
 /** The eval-set resource: reads `evalsPath/<id>/{bad,clean}/*.yaml` once per scope into a
- * map keyed by template id. A bad eval file fails the build with `InvalidEval`. */
+ * map keyed by template id, plus `golden.yaml`'s cases for every template it applies to
+ * (ADR 0052 decision 5, amended). A bad eval file fails the build with `InvalidEval`. */
 export const evalSet: Resource.Handle<
   ReadonlyMap<
     string,
-    { readonly bad: readonly Blueprint.Eval[]; readonly clean: readonly Blueprint.Eval[] }
+    {
+      readonly bad: readonly Blueprint.Eval[];
+      readonly clean: readonly Blueprint.Eval[];
+      readonly golden: readonly Blueprint.Eval[];
+    }
   >
 > = resource({
   label: "evalSet",
-  depends: { dir: evalsPath },
-  factory: ({ dir }) => {
+  depends: { dir: evalsPath, corpus },
+  factory: ({ dir, corpus }) => {
+    const golden = readGolden(dir);
     const ids = readdirSync(dir, { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
       .sort();
     return new Map(
-      ids.map((id) => [
-        id,
-        { bad: readEvalFiles(join(dir, id, "bad")), clean: readEvalFiles(join(dir, id, "clean")) },
-      ]),
+      ids.map((id) => {
+        const template = corpus.templates.find((candidate) => candidate.id === id);
+        return [
+          id,
+          {
+            bad: readEvalFiles(join(dir, id, "bad")),
+            clean: readEvalFiles(join(dir, id, "clean")),
+            golden: template && golden ? goldenCasesOf(template, golden, "golden.yaml") : [],
+          },
+        ];
+      }),
     );
   },
 });
@@ -257,7 +279,7 @@ export const evals: Operation.Handle<Promise<readonly Blueprint.Grade[]>, void> 
   run: async ({ corpus, judge, evalSet }, ctx) => {
     const grades: Blueprint.Grade[] = [];
     for (const template of corpus.templates) {
-      const set = evalSet.get(template.id) ?? { bad: [], clean: [] };
+      const set = evalSet.get(template.id) ?? { bad: [], clean: [], golden: [] };
       grades.push(await gradeTemplate(template, set, judge, ctx.signal));
     }
     return grades;
@@ -277,14 +299,16 @@ function medianOf(values: readonly number[]): number {
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
-/** One grade as a line: `✓` proven, `~` provisional, `✗` noisy, then the numbers behind it. */
+/** One grade as a line: `✓` proven, `~` provisional, `✗` noisy, then the numbers behind it,
+ * including how many of the golden design's cases it hit. */
 function gradeLine(grade: Blueprint.Grade, idWidth: number): string {
   const mark = grade.status === "proven" ? "✓" : grade.status === "noisy" ? "✗" : "~";
   return (
     `${mark} ${grade.id.padEnd(idWidth)}  ${grade.status.padEnd(11)}` +
     `  bad ${grade.bad.length} (med ${pct(medianOf(grade.bad))})` +
     `  clean ${grade.clean.length} (med ${pct(medianOf(grade.clean))})` +
-    `  sep ${pct(grade.sep)}  ordered ${pct(grade.ordered)}`
+    `  sep ${pct(grade.sep)}  ordered ${pct(grade.ordered)}` +
+    `  golden ${grade.goldenHits.length}/${grade.goldenTotal}`
   );
 }
 

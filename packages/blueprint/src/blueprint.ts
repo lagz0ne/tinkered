@@ -128,7 +128,10 @@ export declare namespace Blueprint {
     readonly graph: Graph;
   };
   /** One template's grade against its evals: `bad`/`clean` are the per-case
-   * numbers `gradeTemplate` scored (a probability, or a choice's `1 - probabilities[declared]`). */
+   * numbers `gradeTemplate` scored (a probability, or a choice's `1 - probabilities[declared]`);
+   * `clean` includes the golden cases built from `evals/golden.yaml`. `goldenHits` names every
+   * golden node (or pair) that scored as a real finding would — any hit forces `noisy`, never
+   * `proven`, regardless of `sep`/`ordered`. `goldenTotal` is how many golden cases were asked. */
   export type Grade = {
     readonly id: string;
     readonly status: "proven" | "provisional" | "noisy";
@@ -136,6 +139,8 @@ export declare namespace Blueprint {
     readonly clean: readonly number[];
     readonly sep: number;
     readonly ordered: number;
+    readonly goldenHits: readonly string[];
+    readonly goldenTotal: number;
   };
 }
 
@@ -585,23 +590,46 @@ function evalStateOf(
   return nodeStateOf(evalCase.graph, find(evalCase.target as string));
 }
 
-/** One eval case's score: a boolean's probability, or a choice's `1 - probabilities[declared]`
- * (0 when `probabilities` is absent) — `declared` is the field `compare` names on the target node. */
+/** A boolean's probability, or a choice's `1 - probabilities[declared]` (0 when `probabilities`
+ * is absent) — `declared` is the value `compare` names on the target node. */
+function pOf(answer: Blueprint.Answer | undefined, declared: unknown): number {
+  if (answer === undefined) return 0;
+  if (answer.type === "boolean") return answer.probability;
+  if (answer.probabilities === undefined) return 0;
+  return 1 - (answer.probabilities[declared as string] ?? 0);
+}
+
+/** One eval case's node label, as `check`'s findings print it: the node name, or
+ * `"a, b"` for a pair template. */
+function evalNodeOf(
+  template: Blueprint.Template,
+  state: Blueprint.NodeState | Blueprint.PairState,
+): string {
+  return template.scope === "pair"
+    ? `${(state as Blueprint.PairState).a.name}, ${(state as Blueprint.PairState).b.name}`
+    : (state as Blueprint.NodeState).name;
+}
+
+/** One eval case's score (`pOf`) and whether it would have produced a real finding
+ * (the same rule {@link runCheck} blocks on) — a golden case that hits names the design
+ * this template would have flagged, so a grade never calls that "proven". */
 async function scoreEval(
   template: Blueprint.Template,
   question: Blueprint.Question,
   evalCase: Blueprint.Eval,
   judge: Blueprint.Judge,
   signal: AbortSignal,
-): Promise<number> {
+): Promise<{ readonly p: number; readonly hit: boolean; readonly node: string }> {
   const state = evalStateOf(template, evalCase);
   const answers = await judge.ask(state, { [template.id]: question }, signal);
   const answer = answers[template.id];
-  if (answer === undefined) return 0;
-  if (answer.type === "boolean") return answer.probability;
-  if (answer.probabilities === undefined) return 0;
-  const declared = compareValueOf(template, state as Blueprint.NodeState);
-  return 1 - (answer.probabilities[declared as string] ?? 0);
+  const compareValue = compareValueOf(template, state as Blueprint.NodeState);
+  const node = evalNodeOf(template, state);
+  return {
+    p: pOf(answer, compareValue),
+    hit: templateFinding(template, answer, node, compareValue) !== undefined,
+    node,
+  };
 }
 
 /** The middle value, sorted ascending; `NaN` with nothing to average. */
@@ -620,32 +648,81 @@ function orderedShare(bad: readonly number[], clean: readonly number[]): number 
   return pairs === 0 ? 0 : ordered / pairs;
 }
 
-/** The grade for one template's `bad`/`clean` scores — `tools/jev/calibrate.mjs`'s bar, copied:
- * fewer than 2 cases on either side is `provisional`; enough cases, separation ≥ 0.30 and
- * ordering ≥ 0.90 is `proven`; enough cases otherwise is `noisy`. */
-function gradeFrom(id: string, bad: readonly number[], clean: readonly number[]): Blueprint.Grade {
-  const enough = bad.length >= 2 && clean.length >= 2;
+/** The grade for one template's `bad`/`clean` scores plus its golden hits — `tools/jev/calibrate.mjs`'s
+ * bar, copied, with one more veto (ADR 0052 decision 5, amended): fewer than 5 cases on either side
+ * is `provisional`; enough cases, separation ≥ 0.30, ordering ≥ 0.90, and no golden hit is `proven`;
+ * enough cases otherwise, or any golden hit at all, is `noisy` — a hit on the golden design outranks
+ * a clean bar, because the seed cases are the template author's own and the golden design is not. */
+function gradeFrom(
+  id: string,
+  bad: readonly number[],
+  clean: readonly number[],
+  goldenHits: readonly string[],
+  goldenTotal: number,
+): Blueprint.Grade {
+  const enough = bad.length >= 5 && clean.length >= 5;
   const sep = median(bad) - median(clean);
   const ordered = orderedShare(bad, clean);
-  const status = !enough ? "provisional" : sep >= 0.3 && ordered >= 0.9 ? "proven" : "noisy";
-  return { id, status, bad, clean, sep, ordered };
+  const passesBar = sep >= 0.3 && ordered >= 0.9;
+  const status = !enough ? "provisional" : goldenHits.length > 0 || !passesBar ? "noisy" : "proven";
+  return { id, status, bad, clean, sep, ordered, goldenHits, goldenTotal };
 }
 
-/** Grade one template against its evals with the judge (ADR 0052 decision 5): every bad
- * case should score high, every clean case low. Pure over its inputs — no file read, no
- * corpus lookup. */
+/** Grade one template against its evals with the judge (ADR 0052 decision 5, amended): every
+ * bad case should score high, every clean case low — `golden` (built from `evals/golden.yaml`,
+ * a known-clean design) is folded into the clean pool for `sep`/`ordered`, and separately checked
+ * for a hit. Pure over its inputs — no file read, no corpus lookup. */
 export async function gradeTemplate(
   template: Blueprint.Template,
-  evals: { readonly bad: readonly Blueprint.Eval[]; readonly clean: readonly Blueprint.Eval[] },
+  evals: {
+    readonly bad: readonly Blueprint.Eval[];
+    readonly clean: readonly Blueprint.Eval[];
+    readonly golden: readonly Blueprint.Eval[];
+  },
   judge: Blueprint.Judge,
   signal: AbortSignal,
 ): Promise<Blueprint.Grade> {
   const question = templateQuestion(template);
   const bad: number[] = [];
   for (const evalCase of evals.bad)
-    bad.push(await scoreEval(template, question, evalCase, judge, signal));
+    bad.push((await scoreEval(template, question, evalCase, judge, signal)).p);
   const clean: number[] = [];
   for (const evalCase of evals.clean)
-    clean.push(await scoreEval(template, question, evalCase, judge, signal));
-  return gradeFrom(template.id, bad, clean);
+    clean.push((await scoreEval(template, question, evalCase, judge, signal)).p);
+  const goldenHits: string[] = [];
+  for (const evalCase of evals.golden) {
+    const scored = await scoreEval(template, question, evalCase, judge, signal);
+    clean.push(scored.p);
+    if (scored.hit) goldenHits.push(scored.node);
+  }
+  return gradeFrom(template.id, bad, clean, goldenHits, evals.golden.length);
+}
+
+/** Every golden case a template asks about: one per node whose kind is in `applies` (node
+ * scope), or one per unordered pair of matching nodes (pair scope). `expect` is a placeholder —
+ * grading never reads it; only `target` and `graph` feed {@link evalStateOf}. */
+export function goldenCasesOf(
+  template: Blueprint.Template,
+  golden: Blueprint.Graph,
+  file: string,
+): readonly Blueprint.Eval[] {
+  const matching = golden.nodes.filter((node) => template.applies.includes(node.kind));
+  if (template.scope === "pair") {
+    const pairs: Blueprint.Eval[] = [];
+    for (let i = 0; i < matching.length; i++)
+      for (let j = i + 1; j < matching.length; j++)
+        pairs.push({
+          file,
+          target: [matching[i].name, matching[j].name],
+          expect: false,
+          graph: golden,
+        });
+    return pairs;
+  }
+  return matching.map((node) => ({
+    file,
+    target: node.name,
+    expect: template.kind === "choice" ? node.kind : false,
+    graph: golden,
+  }));
 }

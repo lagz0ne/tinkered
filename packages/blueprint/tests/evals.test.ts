@@ -119,30 +119,37 @@ test("an eval file missing expect fails InvalidEval", () => {
   }
 });
 
-test("gradeTemplate grades proven with clear separation over at least two cases each side", async () => {
+/** Five distinct cases each, so `enough` (≥ 5 a side) is met without repeating one case object. */
+const fiveBad = [0, 1, 2, 3, 4].map((n) => booleanEval("BAD", n));
+const fiveClean = [0, 1, 2, 3, 4].map((n) => booleanEval("CLEAN", n));
+
+test("gradeTemplate grades proven with clear separation over at least five cases each side, golden cases clean", async () => {
   const grade = await gradeTemplate(
     probeTemplate,
-    {
-      bad: [booleanEval("BAD", 1), booleanEval("BAD", 2)],
-      clean: [booleanEval("CLEAN", 1), booleanEval("CLEAN", 2)],
-    },
+    { bad: fiveBad, clean: fiveClean, golden: [booleanEval("CLEAN", 99)] },
     fakeJudge(),
     signal,
   );
   expect(grade).toEqual({
     id: "probe",
     status: "proven",
-    bad: [0.9, 0.9],
-    clean: [0.1, 0.1],
+    bad: [0.9, 0.9, 0.9, 0.9, 0.9],
+    clean: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1],
     sep: 0.8,
     ordered: 1,
+    goldenHits: [],
+    goldenTotal: 1,
   });
 });
 
-test("gradeTemplate grades provisional with only one bad case", async () => {
+test("gradeTemplate grades provisional with fewer than five cases on a side", async () => {
   const grade = await gradeTemplate(
     probeTemplate,
-    { bad: [booleanEval("BAD", 1)], clean: [booleanEval("CLEAN", 1), booleanEval("CLEAN", 2)] },
+    {
+      bad: [booleanEval("BAD", 1), booleanEval("BAD", 2)],
+      clean: [booleanEval("CLEAN", 1), booleanEval("CLEAN", 2)],
+      golden: [],
+    },
     fakeJudge(),
     signal,
   );
@@ -152,22 +159,40 @@ test("gradeTemplate grades provisional with only one bad case", async () => {
 test("gradeTemplate grades noisy when the judge's answers are reversed", async () => {
   const grade = await gradeTemplate(
     probeTemplate,
-    {
-      bad: [booleanEval("BAD", 1), booleanEval("BAD", 2)],
-      clean: [booleanEval("CLEAN", 1), booleanEval("CLEAN", 2)],
-    },
+    { bad: fiveBad, clean: fiveClean, golden: [] },
     fakeJudge(true),
     signal,
   );
   expect(grade.status).toBe("noisy");
 });
 
+test("gradeTemplate grades noisy when a golden case hits, naming it, even with a clean bar otherwise", async () => {
+  const goldenCase = booleanEval("CLEAN", 99);
+  const hitsGolden: Blueprint.Judge = {
+    ask: async (state, questions) => {
+      const [id] = Object.entries(questions)[0];
+      const promise = "promise" in state ? state.promise : "";
+      const probability = promise.includes("case 99") ? 0.6 : promise.includes("BAD") ? 0.9 : 0.1;
+      return { [id]: { type: "boolean", probability } };
+    },
+  };
+  const grade = await gradeTemplate(
+    probeTemplate,
+    { bad: fiveBad, clean: fiveClean, golden: [goldenCase] },
+    hitsGolden,
+    signal,
+  );
+  expect(grade.status).toBe("noisy");
+  expect(grade.goldenHits).toEqual(["op"]);
+});
+
 test("a choice template grades on 1 - probabilities[declaredKind]", async () => {
   const grade = await gradeTemplate(
     pickTemplate,
     {
-      bad: [choiceEval("badOne", "resource"), choiceEval("badTwo", "resource")],
-      clean: [choiceEval("cleanOne", "data"), choiceEval("cleanTwo", "data")],
+      bad: [0, 1, 2, 3, 4].map((n) => choiceEval(`bad${n}`, "resource")),
+      clean: [0, 1, 2, 3, 4].map((n) => choiceEval(`clean${n}`, "data")),
+      golden: [],
     },
     fakeJudge(),
     signal,
@@ -175,6 +200,20 @@ test("a choice template grades on 1 - probabilities[declaredKind]", async () => 
   for (const value of grade.bad) expect(value).toBeCloseTo(0.9);
   for (const value of grade.clean) expect(value).toBeCloseTo(0.1);
   expect(grade.status).toBe("proven");
+});
+
+test("evalSet attaches golden cases from evals/golden.yaml to every template it applies to", async () => {
+  const scope = createScope({
+    tags: [corpusPath(provisionalCorpus), evalsPath(join(here, "fixtures", "evals-golden"))],
+  });
+  try {
+    const set = scope.resolve(evalSet);
+    expect(set.get("probe")?.golden.map((c) => c.target)).toEqual(["g3", "g4"]);
+    expect(set.get("pick")?.golden.map((c) => c.target)).toEqual(["g1", "g2", "g3", "g4"]);
+    expect(set.get("pair")?.golden).toHaveLength(6);
+  } finally {
+    await scope.close({ graceful: true });
+  }
 });
 
 test("evals returns one grade per template in the fixture corpus", async () => {
@@ -223,7 +262,7 @@ test.skipIf(!process.env.AI_GATEWAY_API_KEY)(
         grades
           .map(
             (grade) =>
-              `${grade.id.padEnd(24)} ${grade.status.padEnd(11)} sep ${grade.sep.toFixed(2)} ordered ${grade.ordered.toFixed(2)}`,
+              `${grade.id.padEnd(24)} ${grade.status.padEnd(11)} sep ${grade.sep.toFixed(2)} ordered ${grade.ordered.toFixed(2)} golden ${grade.goldenHits.length}/${grade.goldenTotal}${grade.goldenHits.length ? ` (${grade.goldenHits.join(", ")})` : ""}`,
           )
           .join("\n"),
       );

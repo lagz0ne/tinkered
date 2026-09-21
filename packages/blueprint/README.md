@@ -191,18 +191,33 @@ blueprint:
     `probabilities` is absent.
 - `bad` cases should score high,
   `clean` cases low. With at least
-  2 of each:
+  5 of each:
   - **sep** — `median(bad) -
 median(clean)`.
   - **ordered** — the share of
     (bad, clean) pairs where bad
     outranks clean.
-- **proven** — sep ≥ 0.30 and
-  ordered ≥ 0.90.
+- **The golden design** —
+  `evals/golden.yaml`, a copy of
+  `examples/tracker.yaml`. Every
+  node it applies to (pair templates:
+  every matching unordered pair)
+  becomes one more clean case, folded
+  into `clean` for `sep`/`ordered`.
+  A golden case that would have been
+  a real finding is a **hit**; hits
+  are named in `goldenHits`.
+- **proven** — at least 5 bad and 5
+  clean cases, sep ≥ 0.30, ordered
+  ≥ 0.90, and no golden hit at all.
 - **noisy** — enough cases on each
-  side, but the bar is missed.
-- **provisional** — fewer than 2
-  cases on a side.
+  side, but the bar is missed, or a
+  golden hit exists (even with a
+  clean bar otherwise: a hit on the
+  golden design outranks it).
+- **provisional** — fewer than 5
+  cases on a side (golden cases
+  count toward the total).
 - The test's bar: a corpus file
   saying `status: proven` must grade
   `proven`. A `provisional` file that
@@ -210,6 +225,13 @@ median(clean)`.
   proven"; a `noisy` grade on a
   `provisional` file prints as
   "noisy". Neither fails the run.
+- A status flips to `proven` by
+  hand, after 5 bad and 5 clean
+  cases graded `proven` with the
+  golden set clean.
+- The seed cases are the template
+  author's own; they are a floor,
+  not a proof.
 
 ## evals
 
@@ -221,19 +243,20 @@ median(clean)`.
   otherwise). With no key, the cli
   row fails `NoKey`, same as `check`.
 - `✓` proven, `~` provisional,
-  `✗` noisy, then the numbers
-  behind the grade:
+  `✗` noisy, then the numbers behind
+  the grade, ending with the golden
+  hits (`hits/cases`):
 
 ```text
-✓ runForwardsToClosure  proven  bad 3
-  (med 88%)  clean 3 (med 12%)  sep
-  76%  ordered 100%
+✓ runForwardsToClosure  proven  bad 5
+  (med 88%)  clean 7 (med 12%)  sep
+  76%  ordered 100%  golden 0/2
 ~ whyDuplicate  provisional  bad 2
-  (med 70%)  clean 2 (med 40%)  sep
-  30%  ordered 75%
-✗ needsDefer  noisy  bad 2 (med 55%)
-  clean 2 (med 60%)  sep -5%
-  ordered 25%
+  (med 70%)  clean 4 (med 40%)  sep
+  30%  ordered 75%  golden 0/10
+✗ needsDefer  noisy  bad 5 (med 55%)
+  clean 7 (med 60%)  sep -5%
+  ordered 25%  golden 1/2 (tx)
 ```
 
 ```bash
@@ -335,26 +358,52 @@ AI_GATEWAY_API_KEY or
 Graded against the shipped evals with a
 real key (`vp run blueprint#test`); the
 date is when this table was last pasted.
+Nothing is `proven` yet: every seed ships
+with 2 bad and 2 clean cases, below the
+5-a-side floor, and two templates already
+hit the golden design once (`examples/
+tracker.yaml`) — the reason the floor
+moved from 2 to 5 and gained the golden
+veto. A `proven` status is earned by
+hand, later, with more cases.
 
-2026-09-21 — every seed graded `proven`:
+2026-09-21 — every seed `provisional`:
 
-- **configNotTag** — sep 0.64, ordered 1.00
-- **dataManyWriters** — sep 0.65, ordered 1.00
-- **effectWithoutDefer** — sep 0.91, ordered 1.00
-- **handRolledLifetime** — sep 0.66, ordered 1.00
-- **hiddenNode** — sep 0.72, ordered 1.00
-- **manualSession** — sep 0.87, ordered 1.00
-- **needsDefer** — sep 0.72, ordered 1.00
-- **parseNotAtDoor** — sep 0.73, ordered 1.00
-- **publishTwice** — sep 0.86, ordered 1.00
-- **runForwardsToClosure** — sep 0.73, ordered 1.00
-- **scopeInsideUnit** — sep 0.84, ordered 1.00
-- **stateOutsideCell** — sep 0.60, ordered 1.00
-- **stopOnlyInDefer** — sep 0.85, ordered 1.00
-- **target** — sep 0.93, ordered 1.00
-- **unitFits** — sep 0.72, ordered 1.00
-- **whyDuplicate** — sep 0.66, ordered 1.00
-- **whyUnfulfilled** — sep 0.52, ordered 1.00
+- **configNotTag** — sep 0.65, ordered
+  1.00, golden 0/3
+- **dataManyWriters** — sep 0.67, ordered
+  1.00, golden 0/1
+- **effectWithoutDefer** — sep 0.90,
+  ordered 1.00, golden 0/3
+- **handRolledLifetime** — sep 0.76,
+  ordered 1.00, golden 0/3
+- **hiddenNode** — sep 0.59, ordered
+  1.00, golden 0/3
+- **manualSession** — sep 0.87, ordered
+  1.00, golden 0/1
+- **needsDefer** — sep 0.71, ordered
+  1.00, golden 0/2
+- **parseNotAtDoor** — sep 0.77, ordered
+  1.00, golden 0/1
+- **publishTwice** — sep 0.86, ordered
+  1.00, golden 0/1
+- **runForwardsToClosure** — sep 0.77,
+  ordered 1.00, golden 0/1
+- **scopeInsideUnit** — sep 0.83,
+  ordered 1.00, golden 0/3
+- **stateOutsideCell** — sep 0.67,
+  ordered 1.00, golden 0/3
+- **stopOnlyInDefer** — sep 0.62,
+  ordered 1.00, golden 2/2 (db, tx)
+- **target** — sep 0.88, ordered 1.00,
+  golden 0/2
+- **unitFits** — sep 0.72, ordered
+  1.00, golden 0/5
+- **whyDuplicate** — sep 0.61, ordered
+  1.00, golden 2/10 (tx/saveIssue,
+  issueList/saveIssue)
+- **whyUnfulfilled** — sep 0.42,
+  ordered 1.00, golden 0/5
 
 ## Run it
 

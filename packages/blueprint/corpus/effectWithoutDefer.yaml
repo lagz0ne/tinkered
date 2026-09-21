@@ -2,7 +2,7 @@ id: effectWithoutDefer
 applies: [resource, operation]
 needs: [work]
 kind: boolean
-status: proven
+status: provisional
 ask: >-
   Does work start something that keeps
   running after it returns — a timer,

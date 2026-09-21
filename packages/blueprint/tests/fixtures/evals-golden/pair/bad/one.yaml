@@ -1,0 +1,11 @@
+target: [a, b]
+expect: true
+blueprint:
+  - tag:
+      name: a
+      promise: p
+      why: the same reason twice
+  - tag:
+      name: b
+      promise: p
+      why: the same reason twice

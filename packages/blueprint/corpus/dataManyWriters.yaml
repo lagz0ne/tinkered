@@ -2,7 +2,7 @@ id: dataManyWriters
 applies: [data]
 needs: [usedBy]
 kind: boolean
-status: proven
+status: provisional
 ask: >-
   Do more than one of the nodes in usedBy
   write it — two writers for one data node?

@@ -1,0 +1,8 @@
+target: op
+expect: false
+blueprint:
+  - operation:
+      name: op
+      promise: p
+      why: w
+      work: parses input and returns the result

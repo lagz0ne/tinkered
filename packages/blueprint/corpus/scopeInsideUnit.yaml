@@ -3,7 +3,7 @@ id: scopeInsideUnit
 applies: [resource, operation]
 needs: [work, depends]
 kind: boolean
-status: proven
+status: provisional
 ask: >-
   Does work call the scope itself —
   resolve, run, controller, session —

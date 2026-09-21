@@ -2,7 +2,7 @@ id: stateOutsideCell
 applies: [resource, operation]
 needs: [work, usedBy]
 kind: boolean
-status: proven
+status: provisional
 ask: >-
   Does work keep something other nodes
   read over time — a selection, a filter,

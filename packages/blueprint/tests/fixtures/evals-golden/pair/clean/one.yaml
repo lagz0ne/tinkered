@@ -1,0 +1,11 @@
+target: [a, b]
+expect: false
+blueprint:
+  - tag:
+      name: a
+      promise: p
+      why: reason one
+  - tag:
+      name: b
+      promise: p
+      why: reason two

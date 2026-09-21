@@ -3,7 +3,7 @@ scope: pair
 applies: [data, resource, operation, tag]
 needs: [why, promise]
 kind: boolean
-status: proven
+status: provisional
 ask: >-
   Do the two nodes carry the same why,
   so one of them is redundant?
