@@ -11,7 +11,8 @@ package, and suggests which unit a sentence fits before you write the node.
 
 Write the blueprint before the code: `suggest` for a sentence you are
 unsure about, write the file, `check` it, fix the text `check` flagged,
-`check` again, then write the code the file describes.
+`check` again, write the code the file describes, then `verify` it stayed
+true.
 
 **1. `suggest` — which unit fits a sentence.**
 
@@ -77,6 +78,17 @@ ok: 2 nodes, 0 findings
 
 **6. Write the code** the file describes: one `resource("latest", …)` with
 a `defer(() => stop())` in its factory, depending on the `pollUrl` tag.
+
+**7. `verify` it stayed true** — no key needed:
+
+```bash
+node packages/blueprint/dist/main.mjs \
+  verify poll.yaml src
+```
+
+```text
+ok: 2 nodes, 2 units, 0 findings
+```
 
 ## The file format
 
@@ -153,6 +165,67 @@ ok: 5 nodes, 2 findings
 - **Exit 1** — a plain check failed, a `proven` template hit, or no key.
 - **Exit 2** — the file is not a blueprint: a non-blueprint yaml file, or
   a schema failure, prints usage.
+
+## verify
+
+`verify <file.yaml> <src-dir>` diffs a blueprint file against the code
+that should implement it (ADR 0055). It needs no key: five plain checks,
+never a Jev call.
+
+- A node named `x` is linked to the unit whose `label` is `"x"`
+  (`data`/`resource`/`operation`/`tag({ label: "x" })`) — the same rule
+  `check` uses to read a node, applied to code instead of yaml.
+- `src-dir` is walked recursively for every `*.ts` file, skipping
+  `*.test.ts` and `*.d.ts`; each file is parsed once with `oxc-parser`.
+- Five checks, in this order, every line blocking:
+
+```text
+missingUnit      draftTitle   no unit
+  labeled "draftTitle"
+undeclaredUnit   issueList    data labeled
+  "issueList" at src/cells.ts:12 has no node
+kindMismatch     saveIssue    the file says
+  operation; src/ops.ts:40 declares a resource
+dependsMismatch  saveIssue    the file names
+  [tx, issueList]; the code names
+  [tx, issueList, clock]
+targetMismatch   tx           the file says
+  session; src/store.ts:18 declares scope
+ok: 5 nodes, 6 units, 5 findings
+```
+
+- **missingUnit** — a node with no unit of that label.
+- **undeclaredUnit** — a unit with no node of that label; named by
+  `file:line`. A plain function or glue code is never a unit.
+- **kindMismatch** — the node's kind differs from the unit's.
+- **dependsMismatch** — the node's `depends` set differs from the
+  unit's, compared as sets (order is not a promise), both sides sorted
+  in the line. A `depends` value's identifier root resolves to a
+  variable's own unit, when the source set has one; a value that names
+  no unit — a frame's part, such as `store.tx` — reads as its own text,
+  which never equals a label.
+- **targetMismatch** — a `resource` node's `target` differs from the
+  unit's (`resource`-only; absent reads as `scope` on both sides).
+- `--json` prints the report — `{ nodes, units, findings }` — and
+  nothing else.
+- **Exit 0** — every check passed.
+- **Exit 1** — a plain check failed (every finding here blocks; there
+  is no `~`).
+- **Exit 2** — the yaml file is not a blueprint, or the dir holds no
+  `*.ts` file (`NoSource`).
+
+**The golden pair** — `packages/blueprint/blueprint.yaml` describes
+every unit in `packages/blueprint/src` (ADR 0055 §5):
+
+```bash
+node packages/blueprint/dist/main.mjs \
+  verify packages/blueprint/blueprint.yaml \
+  packages/blueprint/src
+```
+
+```text
+ok: 11 nodes, 11 units, 0 findings
+```
 
 ## explain, evals
 
@@ -337,6 +410,8 @@ count):
 - **NoTemplate** — `suggest` needs `unitFits` or `target` in the loaded
   corpus; only reachable with `corpusPath` rebound to a folder missing
   one of the shipped seeds.
+- **NoSource** — `verify`'s source dir held no `*.ts` file. Carries the
+  dir.
 
 ## Running check
 
