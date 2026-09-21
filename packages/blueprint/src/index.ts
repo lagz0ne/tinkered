@@ -637,4 +637,3 @@ export function shell(options: Scope.Options = {}): Process.Shell {
     ],
   };
 }
->>>>>>> b783679 (blueprint/t07: body as a state field, bodyStraysFromWork, evals with source:)

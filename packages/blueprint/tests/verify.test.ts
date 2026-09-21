@@ -17,7 +17,6 @@ import {
 } from "../src/index.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
->>>>>>> b783679 (blueprint/t07: body as a state field, bodyStraysFromWork, evals with source:)
 
 /** The golden pair is the committed file and source, found through the repo root: under a
  * mutation run this test file lives in a sandbox whose `src` is instrumented, and the pair
@@ -29,7 +28,6 @@ const srcDir = join(repo, "packages", "blueprint", "src");
 /** Run the shell in-process: argv in, exit code and streams out (`check.test.ts`'s
  * `answer`). `verify` depends on `corpus` and `bodyJudge`; a test that skips `tags`/`presets`
  * gets the shipped corpus and no engine — the "no key" path. */
->>>>>>> b783679 (blueprint/t07: body as a state field, bodyStraysFromWork, evals with source:)
 async function answer(
   argv: readonly string[],
   options?: Omit<Scope.Options, "extensions">,
