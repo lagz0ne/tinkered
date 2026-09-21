@@ -85,11 +85,11 @@ export const LINT = {
     q: {
       type: "boolean",
       instructions:
-        "Does this code manage when work is done or stopped by hand — a done or closed boolean, a promise tail or waiter, a queue of pending callers, or a map of senders — where a scope's signal, defer, ready, or close would do?",
+        "Does this keep a hand-rolled pending queue — a variable holding a promise that each new caller appends to with .then, so calls run one at a time in arrival order — where the scope should own the ordering instead (a resource factory with defer, ctx.signal, scope.ready, or a declared save queue)? The signature alone can name it: a helper that takes a scope handle and returns queued save and detail callers keeps a pending queue. A plain value registry (a Map whose entries are added and removed by key), a reconnecting transport's per-attempt promises and per-wire listener sets, and library or driver internals (the scope, the test clock, a stream or session adapter) are not a pending queue.",
       criteria: {
-        true: "manual flags, promise chains, queues, or maps decide when work is done or stopped",
+        true: "the source keeps a pending queue: a promise tail with chained .then, or a helper returning queued save and detail callers off a scope handle",
         false:
-          "cancellation goes through ctx.signal, cleanup through defer, waiting through ready or close, or there is no lifetime to manage",
+          "no pending queue appears: ordering goes through the scope, or the source only keeps a keyed registry, a transport retry, or driver internals",
       },
     },
   },

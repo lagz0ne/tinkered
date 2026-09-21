@@ -40,13 +40,13 @@
     "at": "2026-09-21"
   },
   "handRolledLifetime": {
-    "status": "noisy",
-    "trues": 2,
-    "falses": 2,
-    "medianTrue": 0.54,
-    "medianFalse": 0.5,
-    "separation": 0.04,
-    "ordered": 0.75,
+    "status": "proven",
+    "trues": 3,
+    "falses": 4,
+    "medianTrue": 0.8,
+    "medianFalse": 0.04,
+    "separation": 0.76,
+    "ordered": 0.92,
     "at": "2026-09-21"
   },
   "stopOnlyInDefer": {
