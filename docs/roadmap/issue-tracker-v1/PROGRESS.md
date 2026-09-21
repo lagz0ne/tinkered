@@ -1862,3 +1862,26 @@ readConflicted         src/tools/issues.ts:81         issues.ts → (none); 404 
 bootClient             tests/client.test.ts:193       ×7 → (none)
 readFake / readRoutes  tests/client.test.ts:56,72     ×16 / ×8 → (none)
 ```
+
+### tracker/preset-seam — landed 2026-09-21
+
+The lead wrote this one directly (four `src` files, one test file, one doc). Gates, by exit code:
+
+```text
+vp check                                          0 errors
+vp run @tinker-issue-tracker#test                 46 passed (5 files; −1: the "presettable" test, now every test)
+vp run --no-cache @tinker-issue-tracker#test:browser   proof + 7 passed (the real 409 → "Reload their change" path)
+tools.test.ts on the old api.ts                   × 2 (stderr `ResponseFailed: StatusCode (status 409)`, expected `IssueConflict`) — fails without the fix
+grep 'backend(' apps/issue-tracker/tests          0
+jev preflight                                     gateway 503 at 06:57 UTC, not run (advisory)
+```
+
+SCIP after (`.scip/issue-tracker.scip`): `readStoredConflict`, `readConflictBody`, `readConflicted`,
+`bootClient`, `readFake`, `readRoutes` → `(none)`; `patchIssue` → actions.ts, tools/issues.ts, index.ts,
+tests/client.test.ts (unchanged callers); `parseConflict` → api.ts only; `getCapability`/`openDraft` now
+exported from `src/index.ts` for the presets.
+
+Why the seam moved: a preset replaces the node, so a test can only preset what the node speaks. The 409
+body was read twice below `patchIssue`; it is read once, inside it. A throwing parser inside `res.json`
+is wrapped as `ResponseFailed/Decode`, so `parseConflict` builds the error and the endpoint throws it
+after the read. Rule recorded in `docs/best-practices.md` under the seam test recipe.
