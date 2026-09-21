@@ -39,6 +39,43 @@ test("suspense:false renders pending then success without a Suspense boundary", 
   await scope.close();
 });
 
+function Flags<T>({
+  label,
+  handle,
+}: {
+  label: string;
+  handle: Resource.Handle<T>;
+}): React.ReactElement {
+  const q = useResource(handle, { suspense: false });
+  const flags = [q.isPending, q.isSuccess, q.isError].map(Number).join("");
+  return (
+    <p>
+      {label}:{flags}
+    </p>
+  );
+}
+
+test("a query reports its status through one flag at a time", async () => {
+  const scope = createScope();
+  const gate = deferred<number>();
+  const slow = resource({ label: "slow-flags", factory: () => gate.promise });
+  const fail = resource({ label: "fail-flags", factory: () => Promise.reject(new Error("nope")) });
+
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <Flags label="slow" handle={slow} />
+      <Flags label="fail" handle={fail} />
+    </ScopeProvider>,
+  );
+
+  await expect.element(screen.getByText("slow:100")).toBeVisible();
+  await expect.element(screen.getByText("fail:001")).toBeVisible();
+  gate.resolve(1);
+  await expect.element(screen.getByText("slow:010")).toBeVisible();
+
+  await scope.close();
+});
+
 test("suspense:false reports a synchronous build as success at once", async () => {
   const scope = createScope();
   const quick = resource({ label: "quick", factory: () => 7 });
