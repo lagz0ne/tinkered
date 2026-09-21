@@ -173,8 +173,10 @@ New sections are lists, one term per item (vertical layout,
   before its code exists: the `.d.ts` of the app.
   Parsed by zod at the door.
 - **node** — One entry of a blueprint: a kind (`data`,
-  `resource`, `operation`, `tag`), a `name`, its `depends`,
-  one `promise` sentence, and its `work` in one line.
+  `resource`, `operation`, `tag`), a `name` (no dots),
+  its `depends` (exact node names), one `promise`
+  sentence, one `why` sentence (required), and its
+  `work` in one line.
 - **template** — One shipped question: `id`, `applies` (kinds),
   `needs` (node fields), `ask`, `true`, `false`.
   Jev answers it about one node and its one-hop neighbours.

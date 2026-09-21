@@ -18,26 +18,45 @@ one line.
 
 ## Decision
 
-1. **A blueprint is a YAML list of nodes.** The kind is the key; `name` is a field. Zod parses
-   every node at the door (ADR 0006); the parsed node is the only state a question ever sees.
+1. **A blueprint is a YAML list of nodes.** The kind is the key; `name` is a field. A name is a
+   node; a dot in a name is an error; `depends` names nodes exactly. A bundled library unit (a
+   frame such as drizzle's `store`) is written as its parts: the blueprint shows the intention and
+   the wiring, not the library. Every node carries `promise` (what it guarantees) and `why` (why
+   it exists and why it needs its `depends`); `why` is required, because a missing or borrowed
+   reason is how a redundant or misused unit shows itself. Zod parses every node at the door
+   (ADR 0006); the parsed node is the only state a question ever sees.
 
    ```yaml
    - tag:
-       name: store.config
+       name: dbPath
        promise: the db path; rebound in tests
+       why: the only environment choice the store has
    - resource:
-       name: store
-       depends: [store.config]
-       promise: one db per scope; closed by defer
-       work: open PGlite at the path; defer(close)
+       name: db
+       depends: [dbPath]
+       promise: one client per scope; closed by defer
+       why: one connection for the process
+   - resource:
+       name: tx
+       depends: [db]
+       target: session
+       promise: one transaction per session; commit on close
+       why: the request commit is the save; no manual commit
    - data:
        name: issueList
-       promise: saved issues; written only by saveIssue
+       promise: the saved issues; one writer
+       why: the view reads it; saveIssue is the only writer
    - operation:
        name: saveIssue
-       depends: [store.tx, issueList]
+       depends: [tx, issueList]
        promise: given input, one saved issue lands in issueList
-       work: parse input; insert in tx; update issueList with the returned row
+       why: >-
+         writes go through tx so the commit is the
+         save; issueList is updated here so the
+         view never re-lists
+       work: >-
+         parse input; insert in tx;
+         update issueList with the returned row
    ```
 
 2. **The corpus is a set of question templates, shipped inside the package.** One YAML file per
@@ -51,8 +70,10 @@ one line.
 3. **Every template ships; the result list is wide.** Unit fits, one promise, target
    (scope/session), needs defer, every pitfall from `tools/jev/bank.mjs`'s unit judges and
    `docs/best-practices.md` rules 3–15 that a design can show, a hidden node (work that starts an
-   effect or keeps state with no node of its own), one writer per `data`. Mismatches are filtered
-   later by evals and labels, not by shipping fewer questions.
+   effect or keeps state with no node of its own), one writer per `data`, and two on `why`: does
+   `why` name a reason that a dep in `depends` fulfils (a borrowed or empty reason marks misuse),
+   and do two nodes carry the same `why` (a redundant unit). Mismatches are filtered later by
+   evals and labels, not by shipping fewer questions.
 
 4. **Plain code checks first, in the same list.** Unknown `depends` name, duplicate `name`, a
    `data` node with zero writers. These cost no call and never carry a percent.
@@ -77,6 +98,8 @@ one line.
   repo until `suggest` lands, then is removed (a repo tool, not a public symbol; no SCIP table owed).
 - Checking code against a blueprint (integrity) is a later decision; the zod schema and the
   parsed node tree are what make it cheap.
+- The file is the source of a picture: flat nodes, exact edges, `why` on every node. A devtool
+  extension that draws and edits the graph is a parked card, not part of v1.
 
 ## Alternatives rejected
 
@@ -87,3 +110,8 @@ one line.
   already separates state from question.
 - A project-local corpus overlay with a `learn` command: two truths for one question set; add only
   when a second project asks.
+- Dotted names or a `frame` node kind for bundled library units: the blueprint would point at a
+  library instead of showing the wiring; one more kind can be added later without changing flat
+  files.
+- `why` as optional: an optional reason is the first field an agent skips, and it is the field
+  that shows a redundant or misused unit.

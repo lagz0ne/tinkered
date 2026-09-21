@@ -20,11 +20,13 @@ nothing from `tools/jev`.
     promise: >-
       which model and key the judge uses;
       rebound in tests
+    why: the one environment choice of the judge
 - tag:
     name: corpusPath
     promise: >-
       the folder of templates; the shipped one
       by default; rebound in tests
+    why: tests point it at a fixture corpus
 - resource:
     name: corpus
     depends: [corpusPath]
@@ -32,6 +34,7 @@ nothing from `tools/jev`.
       every template loaded once per scope;
       a template naming a field the node schema
       lacks fails the load
+    why: questions are data, loaded once, never code
     work: >-
       read corpus/*.yaml; zod-parse each;
       check applies and needs against the schema
@@ -39,6 +42,7 @@ nothing from `tools/jev`.
     name: judge
     depends: [engine]
     promise: one Jev client per scope; asks, never writes
+    why: one client, one key, one retry rule
     work: evaluate({ state, questions }); retry on 429
 - operation:
     name: check
@@ -47,6 +51,9 @@ nothing from `tools/jev`.
       for one blueprint file, one result line per
       plain check and per (node, template) pair;
       exit 1 only on a plain failure or a proven hit
+    why: >-
+      the corpus gives the questions, the judge
+      the answers; check only wires them per node
     work: >-
       parse the file; plain checks; per node build
       state (node, uses, usedBy); ask every
@@ -57,12 +64,14 @@ nothing from `tools/jev`.
     promise: >-
       prints every template verbatim;
       --md prints the README table
+    why: the questions must be readable without a key
 - operation:
     name: suggest
     depends: [corpus, judge]
     promise: >-
       for a sentence, which unit fits,
       with the shape to write
+    why: the first question an agent new to the library asks
 ```
 
 ## Order & status
@@ -70,7 +79,9 @@ nothing from `tools/jev`.
 Each ticket blocks the next one.
 
 - **blueprint/t01** — [ ]
-  Package + node schema (zod, one object per kind).
+  Package + node schema (zod, one object per kind;
+  `name` without dots; `promise` and `why` required;
+  `target` on resource, default `scope`).
   `readBlueprint`: yaml → nodes with `uses` / `usedBy`.
   Plain checks: unknown `depends`, duplicate `name`,
   `data` with zero writers.
@@ -81,7 +92,8 @@ Each ticket blocks the next one.
   Seed templates: `GUIDE` (unit, target, needsDefer),
   the unit judges of `tools/jev/bank.mjs`,
   best-practices rules 3–15 that a design shows,
-  hidden node, one writer per data.
+  hidden node, one writer per data,
+  `why` fulfilled by a dep, same `why` on two nodes.
   `explain` (`--md`).
 - **blueprint/t03** — [ ]
   `engine` tag + `judge` resource
