@@ -362,6 +362,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   short-circuits: inner starts never run, the refused body never runs.
 - `update(fn)` runs through the write chain with the computed value; the wrapped cell controller is cached
   per cell.
+- A write chain skips an extension with no write hook.
+- A write chain that skips still refuses when the writer denies.
 - Resource and operation controllers from the extended handle stay plain: reads and runs bypass the write
   chain untouched.
 - A tagged call runs the session chain once; a session under a session is wrapped; with no session hook,
