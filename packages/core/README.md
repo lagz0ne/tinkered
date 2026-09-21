@@ -182,6 +182,10 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A data preset replaces the cell for the whole scope; reads see it.
 - `isError` rejects a plain error with no kind.
 - `isError` rejects a real error of the wrong kind.
+- An empty nested meta list reads frozen.
+- A data controller get reads the latest write.
+- A scope with empty tag bindings reads defaults.
+- An operation depending on a non-unit fails with `InvalidDependency`.
 
 ### Tags
 
@@ -247,6 +251,18 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - Releasing one resource leaves another resource's cleanup in place.
 - Releasing a mid-chain resource tears down each dependent once in order.
 - A resource cleanup that rejects asynchronously lands in teardown errors.
+- A child session reads its parent's latest write.
+- A child update builds on its parent's latest write.
+- Releasing a dependency after its dependent never tears down twice.
+- A release inside a run drains unrelated cleanups at once.
+- A build superseded in flight never publishes its value.
+- A finished borrow is forgotten before the next release.
+- A defer from a superseded build never joins the live rebuild's drain.
+- A failing start fails the scope with its cause.
+- A forced close aborts a nested grandchild session.
+- A rejection from a superseded build never goes sticky.
+- Get on a rejected build returns its rejection.
+- Concurrent resolves share one tracked build.
 
 ### Operations
 
@@ -255,6 +271,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A tagged call replays raw input inside the child session.
 - A tagged call with no input still reads the call tags.
 - An operation writes through a data controller edge.
+- A sync run retains its span in history before run returns.
+- A session body rejected with a primitive keeps its cause under close.
 - A dependency snapshot is captured before the body suspends: a later write never leaks in.
 - A read-mode dep delivers the current value; a write-mode dep hands the caller a controller that writes.
 - An operation composes through its controller, or through a bare dep delivered as a callable subflow;
@@ -326,6 +344,13 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A session body that throws sync rejects the session with its cause.
 - A cancelled session rejects with its reason.
 - A failing teardown inside session still reports the body failure alongside the cleanup error.
+- A wrapped session body that throws sync still drains cleanups then reports the cause.
+- Three session hooks nest in registration order.
+- A close hook sees the settled end.
+- A graceful close through hooks settles success.
+- A failing body with a failing cleanup reports both causes.
+- A session that ends cancelled rejects with its reason.
+- Session hooks wrap sessions nested two deep.
 
 ### Clock
 
@@ -339,6 +364,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A system-clock sleep with no signal resolves.
 - A system-clock sleep with a live signal resolves.
 - Due test-clock sleeps wake earliest-first.
+- A system-clock sleep cleans its timer after an abort.
+- A test-clock sleep set into the past wakes at once.
 
 ### Observation
 
@@ -382,3 +409,11 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A session felled by a forced parent close settles the hook chain as `cancelled`; under a graceful close it
   settles as `success`.
 - `session(fn)` reports the close end through the chain: success, a failed run, a forced close.
+- Three write hooks nest in registration order.
+- Three resolve hooks nest in registration order.
+- A scope with no resolve hooks reads straight through.
+- A session chain is installed only when a hook exists.
+- Three run hooks nest in registration order.
+- Two close hooks nest in registration order.
+- A scope with no close hooks closes straight through.
+- A forced close with a close hook still settles cancelled.
