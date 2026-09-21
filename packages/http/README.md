@@ -7,29 +7,28 @@ user fills in. Nothing in it runs until an operation resolves.
 httpClient({ label: "github" })   // the frame
 ├── backend            (shared tag)             slot: how a request is sent; default fetchBackend
 ├── github.config      (tag, one per client)    slot: baseUrl, headers — scope, session, or per call
-├── github.client      (resource, one per session) depends { backend }; execute(request, ctx): sends
-└── github.operation({ label, input?, request, response? })   // the composition unit
+├── github.send        (operation)              merges config, validates the URL, retries via attempt
+└── github.attempt     (operation)              one send through the backend; the swappable seam
 ```
 
-## Endpoints: pure operations on the frame
+## Operations: declared by the author, on `send`
 
-An endpoint is a pure request builder plus an optional body reader. The operation is labelled
+The author declares the operation; `send` merges config and retries. The operation is labelled
 `github.listRepos` (frame label as prefix); a userland operation depends on it as a subflow.
-`request` is a pure function of the parsed input; `response` reads the body once at the
-process edge and is optional — when omitted the operation delivers the raw handle.
+Per-call config is `tags` on the run, never a helper. An endpoint with no `response` reader
+just returns the handle.
 
 ```ts
-const listRepos = github.operation({
-  label: "listRepos",
+const listRepos = operation({
+  label: "github.listRepos",
   input: parseUser,
-  request: (user) => HttpRequest.get(`/users/${user}/repos`),
-  response: (res) => res.json(parseRepos),
-});
-
-const createIssue = github.operation({
-  label: "createIssue",
-  input: parseIssue, // { title: string }
-  request: ({ title }) => HttpRequest.post("/issues", { body: HttpRequest.bodyJson({ title }) }),
+  depends: { send: github.send },
+  run: async ({ send }, ctx) => {
+    const res = await send.run({
+      input: HttpRequest.get(`/users/${ctx.input}/repos`),
+    });
+    return res.json(parseRepos);
+  },
 });
 
 // a composing operation: depends on the resource that owns the token and on the endpoint,
@@ -58,18 +57,18 @@ retried, and an aborted signal never retries. Backoff sleeps on the caller's `ct
 const github = httpClient({ label: "github", retry: { times: 2, delay: (n) => n * 1000 } });
 ```
 
-## Observation: one child span per attempt
+## Observation: one attempt span per try
 
-Every request opens one child span under the calling operation's span, named
-`http GET https://api/users/octocat/repos`, with attributes `method`, `url`, `status`, and
-`attempt`. It settles `ok` when the backend answered and `failed` when it did not or when the
-status was rejected. A transport failure also writes one log line, `http request failed`, with
-the method and url. Nothing is recorded when observation is off.
+Every try is one `attempt` subflow, so the trace reads `caller > send > attempt` with no span
+code anywhere. Each attempt span carries `method`, `url`, `attempt`, and `status`. It settles
+`ok` when the backend answered and `failed` when it did not or when the status was rejected.
+A transport failure also writes one log line, `http request failed`, with the method and url.
+Nothing is recorded when observation is off.
 
 ## Status: a frame slot plus response-level readers
 
-`httpClient({ label, filterStatus })` rejects a bad status inside `execute`, before the caller
-sees the response and before any endpoint `response` reader runs: a rejected status raises
+`httpClient({ label, filterStatus })` rejects a bad status inside `attempt`, before the caller
+sees the response and before any body reader runs: a rejected status raises
 `ResponseFailed/StatusCode` carrying `request` and `response` (the body stays readable by a
 catch handler). Default accept all.
 
@@ -77,20 +76,20 @@ catch handler). Default accept all.
 const github = httpClient({ label: "github", filterStatus: (status) => status < 300 });
 ```
 
-Inside a `response` reader, `HttpResponse.filterStatus(res, accept)` does the same per call,
+Inside a body reader, `HttpResponse.filterStatus(res, accept)` does the same per call,
 `HttpResponse.filterStatusOk(res)` is the 2xx form, and `HttpResponse.matchStatus(res, cases)`
 dispatches by status — an exact status beats its class bucket (`"2xx"`/`"3xx"`/`"4xx"`/`"5xx"`),
 anything unmatched falls to `orElse`:
 
 ```ts
-response: (res) =>
-  HttpResponse.matchStatus(res, {
-    404: () => null,
-    "2xx": (ok) => ok.json(parseRepo),
-    orElse: (other) => {
-      throw HttpResponse.filterStatusOk(other);
-    },
-  }),
+const res = await send.run({ input: HttpRequest.get("/api/repo") });
+return HttpResponse.matchStatus(res, {
+  404: () => null,
+  "2xx": (ok) => ok.json(parseRepo),
+  orElse: (other) => {
+    throw HttpResponse.filterStatusOk(other);
+  },
+});
 ```
 
 ## Config: one tag, three levels, same merge rule
@@ -118,10 +117,10 @@ scope.run(listRepos, {
 });
 ```
 
-A call with `tags` opens a child session for that run (ADR 0038, always a promise). The client
-is `target: "session"`, so it is built in that session and its `backend` dep resolves there
-(ADR 0018): a session-bound or call-bound `backend` is seen by that flow, while the root scope
-keeps its own.
+A call with `tags` opens a child session for that run (ADR 0038, always a promise). `attempt`
+depends on the bare `backend` tag, so deps resolve at the requesting layer (ADR 0018):
+a session-bound or call-bound `backend` is seen by that flow, while the root scope keeps its own.
+Preset `attempt` to swap the transport in tests.
 
 ## Test recipe: a closure backend
 
@@ -140,7 +139,7 @@ createScope({ tags: [backend(fake), github.config({ baseUrl: "https://api" })] }
 
 `sse()` yields one event per blank-line block with data lines joined by newline; carries
 `event` and `id` and skips comment lines; joins an event split across chunks; dispatches a pending event when the stream ends without a blank line; keeps a CRLF
-split across chunks as one line end; an endpoint reader may return `sse()` and the operation
+split across chunks as one line end; a body reader may return `sse()` and the operation
 delivers the stream.
 
 ## Errors
