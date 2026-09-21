@@ -1,0 +1,19 @@
+{
+  "worktree": {
+    "setup": ["\"$HOME/.local/vp/bin/vp\" install", "\"$HOME/.local/vp/bin/vp\" run -r build"]
+  },
+  "scripts": {
+    "check": {
+      "command": "\"$HOME/.local/vp/bin/vp\" check"
+    },
+    "test": {
+      "command": "\"$HOME/.local/vp/bin/vp\" run -r test"
+    },
+    "build": {
+      "command": "\"$HOME/.local/vp/bin/vp\" run -r build"
+    },
+    "ready": {
+      "command": "\"$HOME/.local/vp/bin/vp\" run ready"
+    }
+  }
+}
