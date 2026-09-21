@@ -359,6 +359,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A clean body with a failing cleanup still reports the cleanup.
 - An operation that finishes after abort still sees cancelled.
 - A cleanup that closes another scope sees its real result.
+- An idle scope's close still reports an operation cleanup that threw.
 
 ### Clock
 

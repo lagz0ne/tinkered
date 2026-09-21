@@ -2661,14 +2661,15 @@ async function closeChildren(layer: Layer, force: boolean): Promise<void> {
 }
 
 /** Whether a scope has nothing to tear down, so `close` can settle synchronously (see {@link fastClose}):
- * no children, no in-flight owned work, no deferred cleanups, no running body, no recorded failure, and
- * no build in progress (whose not-yet-tracked work a synchronous close would miss). */
+ * no children, no in-flight owned work, no deferred cleanups, no teardown error already collected (an
+ * operation's cleanup that threw at its own end must still reach `teardownErrors`), no running body, no
+ * recorded failure, and no build in progress (whose not-yet-tracked work a synchronous close would miss). */
 function canFastClose(layer: Layer): boolean {
   return (
     buildDepth === 0 &&
     layer.children.size === 0 &&
     layer.pending.size === 0 &&
-    layer.defers.length === 0 &&
+    layer.defers.length + layer.secondary.length === 0 &&
     layer.body === undefined &&
     layer.failure === undefined &&
     layer.descendantFailure === undefined &&

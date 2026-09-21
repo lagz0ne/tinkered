@@ -473,3 +473,21 @@ test("a clean body with a failing cleanup still reports the cleanup", async () =
   expect(thrown.payload.causes).toEqual([cleanup]);
   await scope.close();
 });
+
+test("an idle scope's close still reports an operation cleanup that threw", async () => {
+  const boom = new Error("cleanup-boom");
+  const op = operation({
+    label: "op",
+    run: (_deps, ctx) => {
+      ctx.defer(() => {
+        throw boom;
+      });
+      return 1;
+    },
+  });
+  const scope = createScope();
+  expect(scope.run(op)).toBe(1);
+  const result = await scope.close();
+  expect(result.status).toBe("cancelled");
+  expect(result.teardownErrors).toEqual([boom]);
+});
