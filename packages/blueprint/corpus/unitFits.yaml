@@ -9,18 +9,22 @@ ask: >-
   data, resource, operation, or tag?
 choices:
   data: >-
-    a value read over time,
-    written by an operation
+    a piece of state kept and read over
+    time — a form field, a draft, a filter,
+    a selection, a notice, a list — written
+    by operations or a driver
   resource: >-
     something that subscribes, listens,
     polls, connects, opens, or streams;
-    built once; cleanup is defer
+    built once per owner; needs cleanup
   operation: >-
-    something asked for once per call,
-    with typed input; may have effects
+    something a user, request, CLI, or tool
+    asks for; runs once per call with typed
+    input; may have effects
   tag: >-
-    an environment choice, bound at
-    the root and rebound in tests
+    an environment choice — a URL, path,
+    flag, or setting — bound at the root
+    and rebound in tests
 shapes:
   data: >-
     const x = data({ label: "x", initial });
