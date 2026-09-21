@@ -16,6 +16,9 @@ It names the units, their kinds, and their links, plus one promise per node.
 - A name holds letters, digits, and `_`.
 - A dot in a name is an error.
 - Unknown keys are an error: a typo is a typo.
+- Nodes keep file order.
+- `uses` reads what a node names;
+  `usedBy` reads what names it.
 
 ```yaml
 - tag:
@@ -70,6 +73,15 @@ dataNoWriter    issueList  no operation
 
 - **2** — the file is not a blueprint.
   A yaml or schema failure prints usage.
+
+## Errors
+
+- **InvalidBlueprint** — the text is not yaml
+  or a node breaks the schema.
+  Carries the zod issues.
+- **BlueprintRejected** — a plain check blocked.
+  Carries the finding lines; the message
+  holds one line per finding.
 
 ## Run it
 

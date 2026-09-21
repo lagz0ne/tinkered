@@ -9,10 +9,8 @@ import { check, commands, isError, plainChecks, readBlueprint } from "../src/ind
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-/** The ADR example off disk: one reader, used by the parse and cli tests. */
-function readTracker(): string {
-  return readFileSync(join(here, "..", "examples", "tracker.yaml"), "utf8");
-}
+/** The ADR example off disk. */
+const trackerPath = join(here, "..", "examples", "tracker.yaml");
 
 /** Run `check` in a scope with the file text as input, like the cli row does. */
 async function runCheck(text: string) {
@@ -45,7 +43,7 @@ function writeTemp(text: string): string {
 }
 
 test("the ADR example parses to 5 nodes in file order with edges both ways", () => {
-  const graph = readBlueprint(readTracker());
+  const graph = readBlueprint(readFileSync(trackerPath, "utf8"));
   expect(graph.nodes.map((node) => node.name)).toEqual([
     "dbPath",
     "db",
@@ -135,7 +133,7 @@ test("dataNoWriter produces one finding per data node with no writer", () => {
 });
 
 test("a clean blueprint returns no findings", async () => {
-  expect(await runCheck(readTracker())).toEqual([]);
+  expect(await runCheck(readFileSync(trackerPath, "utf8"))).toEqual([]);
 });
 
 test("a blocking finding throws BlueprintRejected and the message holds the line", async () => {
@@ -169,7 +167,7 @@ test("a breaking file answers exit 1 with the line on stderr", async () => {
 });
 
 test("a clean file answers ok with exit 0", async () => {
-  const result = await answer(["check", join(here, "..", "examples", "tracker.yaml")]);
+  const result = await answer(["check", trackerPath]);
   expect(result.code).toBe(0);
   expect(result.stdout).toBe("ok: 5 nodes\n");
 });
