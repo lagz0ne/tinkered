@@ -166,10 +166,23 @@
 
 ## Blueprint (`@tinker/blueprint`, ADR 0052)
 
-| term      | meaning                                                                                                                                                                                       |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| blueprint | A YAML list of nodes describing a tinker app before its code exists: the `.d.ts` of the app. Parsed by zod at the door.                                                                       |
-| node      | One entry of a blueprint: a kind (`data`, `resource`, `operation`, `tag`), a `name`, its `depends`, one `promise` sentence, and its `work` in one line.                                        |
-| template  | One shipped question: `id`, `applies` (kinds), `needs` (node fields), `ask`, `true`, `false`. Jev answers it about one node and its one-hop neighbours. Never holds string holes.              |
-| corpus    | The folder of templates inside the package (`packages/blueprint/corpus/`). The only source of questions; grows by commit.                                                                     |
-| eval      | A small blueprint with `target` and `expect` under `evals/<id>/{bad,clean}/`. A template whose evals pass the bar (bad ≥ 50%, clean < 50%, gap ≥ 30) may set the exit code; the rest print `~`. |
+New sections are lists, one term per item (vertical layout,
+`docs/writing-style.md`).
+
+- **blueprint** — A YAML list of nodes describing a tinker app
+  before its code exists: the `.d.ts` of the app.
+  Parsed by zod at the door.
+- **node** — One entry of a blueprint: a kind (`data`,
+  `resource`, `operation`, `tag`), a `name`, its `depends`,
+  one `promise` sentence, and its `work` in one line.
+- **template** — One shipped question: `id`, `applies` (kinds),
+  `needs` (node fields), `ask`, `true`, `false`.
+  Jev answers it about one node and its one-hop neighbours.
+  Never holds string holes.
+- **corpus** — The folder of templates inside the package
+  (`packages/blueprint/corpus/`). The only source of
+  questions; grows by commit.
+- **eval** — A small blueprint with `target` and `expect` under
+  `evals/<id>/{bad,clean}/`. A template whose evals pass the
+  bar (bad ≥ 50%, clean < 50%, gap ≥ 30) may set the exit
+  code; the rest print `~`.

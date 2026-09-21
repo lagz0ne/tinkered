@@ -33,7 +33,9 @@ release. Add a tool name to select part of the graph. For example, run
 A word is jargon when it has no `docs/glossary.md` row and a plainer word says the same thing — cut
 it. Define a term once where it first appears; use the words the tool prints; say what a thing does,
 not what it is like. `scripts/prose-lint.mjs` flags the known offenders (`docs/writing-style.md`) and
-blocks a commit that stages one.
+blocks a commit that stages one. The reader is on a phone: one fact per line, lists over tables, code
+fences under 60 characters, diagrams top to bottom (`docs/writing-style.md` → "Vertical layout";
+`node scripts/prose-lint.mjs --wide` reports the wide rows).
 
 ## Elaboration workflow
 

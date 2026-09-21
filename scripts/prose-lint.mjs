@@ -5,6 +5,8 @@
 //   node scripts/prose-lint.mjs [file…]   lint the files (default: every tracked .md that is not
 //                                          frozen: docs/decisions, docs/roadmap/archive, research)
 //   node scripts/prose-lint.mjs --md      print the rule table for docs/writing-style.md
+//   node scripts/prose-lint.mjs --wide    per file: table rows over 100 chars, fenced lines over
+//                                          60 (phones never scroll sideways); reports, never fails
 //
 // Exit 1 on any hit. Add a rule only with a plain twin in the `say` column.
 import { execSync } from "node:child_process";
@@ -112,6 +114,23 @@ function lint(file) {
   return hits;
 }
 
+/** A table row (not the `| --- |` divider) that a phone cannot wrap. */
+const isWideRow = (line) =>
+  /^\s*\|/.test(line) && !/^\s*\|[\s|:-]*$/.test(line) && line.length > 100;
+
+/** Wide table rows and wide fenced lines: the two things a phone cannot wrap. */
+function wide(file) {
+  let fence = false;
+  let rows = 0;
+  let code = 0;
+  for (const line of readFileSync(resolve(ROOT, file), "utf8").split("\n")) {
+    if (/^[ \t]*(`{3,}|~{3,})/.test(line)) fence = !fence;
+    else if (fence) code += Number(line.length > 60);
+    else rows += Number(isWideRow(line));
+  }
+  return rows || code ? `${file}: ${rows} wide table row(s), ${code} wide fenced line(s)` : null;
+}
+
 /** Every tracked .md that is not frozen; a symlink (AGENTS.md → CLAUDE.md) is its target, once. */
 function trackedDocs() {
   return execSync("git ls-files '*.md'", { encoding: "utf8", cwd: ROOT })
@@ -125,9 +144,19 @@ if (args[0] === "--md") {
   for (const [re, say] of RULES) console.log(`| \`${re}\` | ${say} |`);
   process.exit(0);
 }
+const wideMode = args[0] === "--wide";
+if (wideMode) args.shift();
 const files = (args.length ? args.map(inRepo) : trackedDocs()).filter(
   (f) => f.endsWith(".md") && !FROZEN.test(f),
 );
+if (wideMode) {
+  const lines = files.map(wide).filter(Boolean);
+  for (const l of lines) console.log(l);
+  console.log(
+    `prose-lint --wide: ${lines.length} of ${files.length} file(s) have wide rows or lines`,
+  );
+  process.exit(0);
+}
 const hits = files.flatMap(lint);
 for (const h of hits) console.log(h);
 console.log(`prose-lint: ${hits.length} hit(s) in ${files.length} file(s)`);

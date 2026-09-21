@@ -13,6 +13,33 @@ Three habits that keep a paragraph short without losing meaning:
 3. **Say what it does, not what it is like.** "Plain code finds every mismatch" beats "SCIP is the
    deterministic sensor". A metaphor is fine once it is named as one (an analogy header).
 
+## Vertical layout (the reader is on a phone)
+
+A phone shows about 40 characters per line and never scrolls sideways. Prose wraps; tables and
+code fences do not. So:
+
+1. **One fact per line, top to bottom.** A list, not a table, whenever a cell would hold more
+   than a few words. Key first in bold, a dash, then the value; extra facts go on indented lines
+   under it:
+
+   ```md
+   - **blueprint/t01** — blocked by: none
+     Package + node schema + plain checks.
+     Verify: `blueprint check` prints one line per plain check.
+   ```
+
+2. **A table only when it is narrow:** at most 3 columns, every cell at most 20 characters — a
+   lookup, not prose. Anything wider becomes a list.
+3. **Code fences at most 60 characters per line.** Break a long command with `\`; break a long
+   YAML or JSON value onto the next line.
+4. **Diagrams flow top to bottom**, never left to right past 40 columns. Bigger than 6 nodes goes
+   to Diashort (`https://diashort.tini.works`), one link.
+5. **Short paragraphs:** at most 3 sentences. A heading beats a bold run-on.
+
+`node scripts/prose-lint.mjs --wide` prints, per file, the table rows over 100 characters and the
+fenced lines over 60. It reports; it does not fail. A new doc has zero of both. An old doc loses
+its wide tables when it is next touched (card `docs/vertical` on the board).
+
 ## The lint
 
 `scripts/prose-lint.mjs` flags the words below in every tracked `.md`. Fenced code, inline code, and
@@ -23,6 +50,7 @@ and on demand:
 vp run prose                       # every tracked .md
 node scripts/prose-lint.mjs a.md   # one file
 node scripts/prose-lint.mjs --md   # print the table below
+node scripts/prose-lint.mjs --wide # wide rows and fenced lines, per file
 ```
 
 Frozen paths are not linted: `docs/decisions/` (a decision changes only by a new decision),
