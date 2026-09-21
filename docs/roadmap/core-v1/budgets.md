@@ -18,7 +18,7 @@ this work and a suitable runner is available; the recipe and budgets below remai
 
 | lane                | budget                          | t19 measurement                          | how                                           |
 | ------------------- | ------------------------------- | ---------------------------------------- | --------------------------------------------- |
-| bundle size (gzip)  | ≤20 kB preferred / 30 kB max    | **15,137 B**                             | `vp run core#size` → `scripts/check-size.mjs` |
+| bundle size (gzip)  | ≤10 kB preferred / 15 kB max    | **8,056 B** (2026-09-21, minified)       | `vp run core#size` → `scripts/check-size.mjs` |
 | promises — sync     | **0**                           | **0**                                    | `bench/promises.mjs` (async_hooks census)     |
 | promises — async    | ≤10 (representative toggle)     | **5**                                    | `bench/promises.mjs`                          |
 | live heap / request | a few KB (~hand-wired DI)       | **3,871 B**                              | `bench/heap.mjs` (`--expose-gc`)              |
@@ -77,6 +77,10 @@ census rows are gates (`pnpm validate` runs `bench/promises.mjs` and `bench/heap
   clean worktree; report median/p95. Not run in-container (host-noise). The heap lane is a memory delta
   and runs in-container (recorded above); its authoritative value also comes from `bench`.
 - **Historical baseline:** t01 = 401 B gzip.
+- **2026-09-21:** the build ships minified (`minify: true`, `sourcemap: true` in
+  `packages/core/vite.config.ts`). Before that, TSDoc rode along in `dist/index.mjs`:
+  25,901 B gzip with comments, 10,630 B without, 8,056 B minified. The cap moved
+  30,720 → 15,360 B; TSDoc still ships in `dist/index.d.mts`.
 
 ## Big-sample A/B after the drivers track (2026-09-20)
 

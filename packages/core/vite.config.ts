@@ -7,6 +7,8 @@ export default defineConfig({
       generator: "tsgo",
     },
     exports: true,
+    minify: true,
+    sourcemap: true,
   },
   lint: {
     options: {
