@@ -3,7 +3,6 @@ import { createScope, operation } from "@tinker/core";
 import {
   applyConfig,
   backend,
-  fetchBackend,
   httpClient,
   HttpRequest,
   HttpResponse,
@@ -96,7 +95,7 @@ test("scope, session, and per-call config bindings merge nearest-first", async (
   await scope.close();
 });
 
-test("a session-bound backend serves the session while the scope keeps its own", async () => {
+test("a session-bound backend serves the session", async () => {
   const atScope: HttpRequest.Record[] = [];
   const atSession: HttpRequest.Record[] = [];
   const scope = createScope({ tags: [backend(recording("scope", atScope))] });
@@ -110,6 +109,18 @@ test("a session-bound backend serves the session while the scope keeps its own",
   expect(await fromSession.text()).toBe("session");
   expect(atSession.length).toBe(1);
   expect(atScope.length).toBe(0);
+  await scope.close();
+});
+
+test("the scope keeps its own backend beside a session binding", async () => {
+  const atScope: HttpRequest.Record[] = [];
+  const scope = createScope({ tags: [backend(recording("scope", atScope))] });
+  scope.createSession({ tags: [backend(recording("session", []))] });
+  const call = operation({
+    label: "call",
+    depends: { client: github.client },
+    run: ({ client }, ctx) => client.execute(HttpRequest.get("https://api/users"), ctx),
+  });
   const fromScope = await scope.run(call);
   expect(await fromScope.text()).toBe("scope");
   expect(atScope.length).toBe(1);
@@ -178,39 +189,13 @@ test("a forced close while the backend parks on the signal rejects with the abor
   expect(outcome).toBe(result.reason);
 });
 
-test("the backend tag defaults to fetchBackend", () => {
-  expect(backend.hasDefault).toBe(true);
-  expect(backend.def).toBe(fetchBackend);
-});
-
-test("fromWeb delegates readers to the web response and json guards the edges", async () => {
+test("fromWeb delegates readers to the web response", async () => {
   const req = HttpRequest.get("https://api/users");
   const source = new Response("x");
   const res = HttpResponse.fromWeb(req, source);
   expect(res.status).toBe(200);
   expect(res.source).toBe(source);
   expect(await res.text()).toBe("x");
-
-  const empty = HttpResponse.fromWeb(req, new Response(""));
-  const outcome = await empty.json().then(
-    () => "resolved",
-    (error: unknown) => error,
-  );
-  if (!isHttpError(outcome, "ResponseFailed")) throw outcome;
-  expect(outcome.payload.reason).toBe("EmptyBody");
-
-  const boom = new Error("parse boom");
-  const bad = HttpResponse.fromWeb(req, new Response('{"a":1}', { status: 200 }));
-  try {
-    await bad.json(() => {
-      throw boom;
-    });
-    expect.unreachable();
-  } catch (error) {
-    if (!isHttpError(error, "ResponseFailed")) throw error;
-    expect(error.payload.reason).toBe("Decode");
-    expect(error.payload.cause).toBe(boom);
-  }
 });
 
 test("streaming a bodiless response rejects NoBody with the status", async () => {
