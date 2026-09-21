@@ -255,3 +255,38 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - An operation defer sees the run's own end: `success` on return, `failed` on throw.
 - A rejected promise with an `undefined` cause keeps that cause; a primitive body cause still settles the
   session.
+
+### Scopes, sessions, and close
+
+- A child session reads its parent's cells and tags until it writes its own; the write stays local.
+- A nearer shadow wins for descendants below it, and the parent keeps its own value.
+- A watcher on the parent still sees the parent's later writes after a child shadows.
+- A closed scope's held controller reads the initial value back; late writes fail with `Disposed`.
+- Close runs children first, then `onClose` hooks and resource cleanups latest-first; a dependent's cleanup
+  runs before its dependency's.
+- A throwing hook or cleanup never stops the rest: every cause lands in the teardown errors, in execution
+  order.
+- Close is idempotent: hooks run once, a re-entering close tears down once, and closing again re-reports the
+  same result.
+- A clean scope closes `success` when graceful, `cancelled` when forced, and never throws; a second close
+  returns the same result.
+- A failed start rejects `ready` with its cause and fails the scope.
+- `session(fn)` commits on return and rolls back on throw, closes the child itself, and passes the error to
+  the caller; a throwing outcome hook keeps the outcome and aggregates its error.
+- Failed owned work fails the session with its cause; a body failure still wins over owned-work noise for the
+  caller and the hooks.
+- A failure in a nested session bubbles to the caller and rolls back the leaf; a parent collecting while a
+  child runs keeps the child's real failure and its cleanup error.
+- Closing a parent while a session runs joins the body: success commits, failure rolls back.
+- A session that finished before any cancel keeps its success; a settled body result survives a later
+  interrupt; a cancelled session rejects rather than resolving undefined.
+- A graceful close still rolls back children when the scope already failed; a child closing graceful after an
+  ancestor abort still rolls its own resources back.
+- A failure already known before the cascade rolls back the remaining children.
+- `settled` inside `session(fn)` drains owned work without waiting on the body.
+- A teardown hook may return its own `close` without hanging; concurrent closes join the one real teardown
+  and share its error.
+- A close whose owned work waits on a child's hook still completes; a cleanup closing another scope still
+  awaits that scope's real teardown and reports its error.
+- A forced close aborts in-flight work: a parked operation stops, a sleep rejects, the run's defer sees
+  `cancelled`, and close settles `cancelled`.
