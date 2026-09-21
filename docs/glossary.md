@@ -163,3 +163,13 @@
 | driver       | Still the role (ADR 0034): an integration that maps outside work onto sessions. Under ADR 0051 every driver is an extension; its `start` is its one use of the scope. |
 | wiring       | The flat table a driver extension receives: rows of plain data naming a unit and the driver's edges (`route.post(path, op, { input, respond })`). Not tags, not meta. |
 | session hook | `Extension.session(handle, next)`: the onion around a session's life; `next()` resolves with the close `Result`, so code after it runs after the commit.              |
+
+## Blueprint (`@tinker/blueprint`, ADR 0052)
+
+| term      | meaning                                                                                                                                                                                       |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| blueprint | A YAML list of nodes describing a tinker app before its code exists: the `.d.ts` of the app. Parsed by zod at the door.                                                                       |
+| node      | One entry of a blueprint: a kind (`data`, `resource`, `operation`, `tag`), a `name`, its `depends`, one `promise` sentence, and its `work` in one line.                                        |
+| template  | One shipped question: `id`, `applies` (kinds), `needs` (node fields), `ask`, `true`, `false`. Jev answers it about one node and its one-hop neighbours. Never holds string holes.              |
+| corpus    | The folder of templates inside the package (`packages/blueprint/corpus/`). The only source of questions; grows by commit.                                                                     |
+| eval      | A small blueprint with `target` and `expect` under `evals/<id>/{bad,clean}/`. A template whose evals pass the bar (bad ≥ 50%, clean < 50%, gap ≥ 30) may set the exit code; the rest print `~`. |
