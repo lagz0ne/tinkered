@@ -1,7 +1,7 @@
 {
   "name": "@tinker/blueprint",
   "version": "0.0.0",
-  "description": "Tinkered blueprint: a YAML declaration file for a tinker app — parsed nodes, plain checks, and a check command (ADR 0052).",
+  "description": "blueprint: the binary that checks a tinker app's YAML declaration file against Jev over shipped question templates, and suggests which unit a sentence fits.",
   "homepage": "https://github.com/author/library#readme",
   "bugs": {
     "url": "https://github.com/author/library/issues"
@@ -11,6 +11,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/author/library.git"
+  },
+  "bin": {
+    "blueprint": "./dist/main.mjs"
   },
   "files": [
     "dist",
@@ -52,5 +55,8 @@
     "typescript": "^7.0.2",
     "vite": "catalog:",
     "vite-plus": "catalog:"
+  },
+  "engines": {
+    "node": ">=22.18.0"
   }
 }
