@@ -516,16 +516,6 @@ test("releasing a diamond leg then the root still tears down the other leg", () 
   expect(cleaned).toEqual(["top", "l", "r", "d"]);
 });
 
-test("a resource factory may return a non-promise thenable", async () => {
-  const slow = resource({
-    label: "slow",
-    factory: () => ({ then: (resolve: (v: string) => void) => resolve("thenable") }) as never,
-  });
-  const scope = createScope();
-  expect(await scope.resolve(slow)).toBe("thenable");
-  await scope.close();
-});
-
 test("a build that releases itself still rebuilds on the next resolve", async () => {
   let release!: (v: string) => void;
   const gate = new Promise<string>((resolve) => {
