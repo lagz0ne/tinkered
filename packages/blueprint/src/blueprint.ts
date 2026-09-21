@@ -254,16 +254,20 @@ const choiceTemplate = z.strictObject({
 const templateFile = z.union([booleanTemplate, choiceTemplate]);
 
 /** Read one template file (yaml text) into a template. A yaml or schema failure
- * throws `InvalidTemplate` with the file name and the issues. */
+ * throws `InvalidTemplate` with the file name and the issues; the message names
+ * the file and, per issue, the path and what zod said — that is what stderr shows. */
 export function readTemplate(text: string, file: string): Blueprint.Template {
   let parsed: unknown;
   try {
     parsed = yaml.parse(text);
   } catch (error: unknown) {
-    raise("InvalidTemplate", { file, issues: [error] });
+    raise("InvalidTemplate", { file, issues: [error] }, `${file}: ${String(error)}`);
   }
   const result = templateFile.safeParse(parsed);
-  if (!result.success) raise("InvalidTemplate", { file, issues: result.error.issues });
+  if (!result.success) {
+    const lines = result.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`);
+    raise("InvalidTemplate", { file, issues: result.error.issues }, `${file}: ${lines.join("; ")}`);
+  }
   return result.data;
 }
 
