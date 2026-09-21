@@ -112,7 +112,7 @@ Each ticket blocks the next one.
   Each template carries `status: proven | provisional`.
   The test fails when a `proven` template misses the bar
   (bad ≥ 50%, clean < 50%, gap ≥ 30).
-- **blueprint/t05** — [ ]
+- **blueprint/t05** — [x]
   `suggest "<words>"`.
   Remove `tools/jev/guide.mjs` and the `GUIDE` bank.
   README (agent loop: write → check → fix → code).
@@ -189,6 +189,30 @@ One line per ticket: tag — sha — tests — size (B gzip) — mutation — no
   Core feedback: `label.mjs` cannot record a verdict
   on the GUIDE unit-classifier note ("reads like an
   operation") — second asker after t03.
+- **blueprint/t05** — 62 tests — 11823 — 77.22 —
+  writer-built (claude/sonnet-5), no fix round.
+  `suggest "<words>"`, README rewritten as the agent
+  loop, `bin` + `files` + shebang, two validate lanes
+  (41/41), `tools/jev/guide.mjs` retired (`GUIDE`
+  stays: `lint.mjs` uses it).
+  Lead: `unitFits` choices got the GUIDE examples
+  back — "a form draft the user edits before saving"
+  read `unclear (operation 44%)`, now `data (92%)`;
+  jev README judge table regenerated.
+  Real `suggest`: "poll the API every 10s…" →
+  resource 96%, target scope.
+  Core feedback: the unit-classifier note is still
+  unlabelable — third asker (card jev/label-unit).
+
+## v1 complete (2026-09-21)
+
+Five tickets, one day. What ships in `@tinker/blueprint`:
+`suggest`, `check` (plain checks + 17 templates),
+`explain`, `evals`; corpus and evals inside the
+package; everything `provisional` until 5+5 labeled
+cases and a clean golden set say otherwise.
+Open: `blueprint/devtool` (Parked), `jev/label-unit`
+(Ready), the two `noisy` templates' wording.
 
 ### Impact blocks (ADR 0047)
 
