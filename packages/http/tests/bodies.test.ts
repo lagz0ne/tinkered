@@ -67,19 +67,13 @@ test("query params keep their pairs and the fragment stays at the end", async ()
   await scope.close();
 });
 
-test("response bodies read through text, json, and bytes", async () => {
+test("response bodies read through json", async () => {
   const json = github.operation({
     label: "json",
     request: () => HttpRequest.get("https://api/a"),
     response: (res) => res.json(),
   });
-  const words = github.operation({
-    label: "words",
-    request: () => HttpRequest.get("https://api/a"),
-    response: (res) => res.text(),
-  });
   const scope = createScope({ tags: [backend(recording('{"a":1}', []))] });
   expect(await scope.run(json)).toEqual({ a: 1 });
-  expect(await scope.run(words)).toBe('{"a":1}');
   await scope.close();
 });

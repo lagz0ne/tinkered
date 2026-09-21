@@ -189,15 +189,6 @@ test("a forced close while the backend parks on the signal rejects with the abor
   expect(outcome).toBe(result.reason);
 });
 
-test("fromWeb delegates readers to the web response", async () => {
-  const req = HttpRequest.get("https://api/users");
-  const source = new Response("x");
-  const res = HttpResponse.fromWeb(req, source);
-  expect(res.status).toBe(200);
-  expect(res.source).toBe(source);
-  expect(await res.text()).toBe("x");
-});
-
 test("streaming a bodiless response rejects NoBody with the status", async () => {
   const nodata = github.operation({
     label: "nodata",

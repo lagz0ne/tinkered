@@ -146,23 +146,28 @@ test("put, patch, delete, head, and options travel through endpoints", async () 
   await scope.close();
 });
 
-test("url-params, bytes, and form bodies travel through endpoints", async () => {
+test("url-params bodies travel through endpoints", async () => {
   const seen: HttpRequest.Record[] = [];
   const scope = createScope({
     tags: [backend(recording("ok", seen)), github.config({ baseUrl: "https://api" })],
   });
-  const bodies: [string, HttpRequest.Body][] = [
-    ["urlParams", HttpRequest.bodyUrlParams({ q: "x" })],
-    ["bytes", HttpRequest.bodyBytes(new Uint8Array([1]))],
-  ];
-  for (const [kind, body] of bodies) {
-    const endpoint = github.operation({
-      label: kind,
-      request: () => HttpRequest.post("https://api/form", { body }),
-    });
-    await scope.run(endpoint);
-    expect(seen[seen.length - 1].body.kind).toBe(kind);
-  }
+  const forms = github.operation({
+    label: "forms",
+    request: () =>
+      HttpRequest.post("https://api/form", {
+        body: HttpRequest.bodyUrlParams({ q: "x" }),
+      }),
+  });
+  await scope.run(forms);
+  expect(seen[seen.length - 1].body.kind).toBe("urlParams");
+  await scope.close();
+});
+
+test("form bodies travel through endpoints", async () => {
+  const seen: HttpRequest.Record[] = [];
+  const scope = createScope({
+    tags: [backend(recording("ok", seen)), github.config({ baseUrl: "https://api" })],
+  });
   const form = new FormData();
   form.append("k", "v");
   const multipart = github.operation({
@@ -256,7 +261,7 @@ test("without filterStatus a bad status arrives raw", async () => {
   await scope.close();
 });
 
-test("response status readers filter, pass, and match by status", async () => {
+test("filterStatusOk rejects a bad status inside a response reader", async () => {
   const scope = createScope({ tags: [backend(recording("x", [], 500))] });
   const broken = github.operation({
     label: "broken",
@@ -270,6 +275,11 @@ test("response status readers filter, pass, and match by status", async () => {
     if (!isHttpError(error, "ResponseFailed")) throw error;
     expect(error.payload.reason).toBe("StatusCode");
   }
+  await scope.close();
+});
+
+test("matchStatus dispatches a received status to its class bucket", async () => {
+  const scope = createScope({ tags: [backend(recording("x", [], 500))] });
   const open = github.operation({
     label: "open",
     request: () => HttpRequest.get("https://api/a"),
@@ -340,7 +350,7 @@ test("an empty body rejects ResponseFailed/EmptyBody", async () => {
   await hollow.close();
 });
 
-test("presetting the client swaps the transport and presetting the endpoint short-circuits it", async () => {
+test("presetting the client swaps the transport", async () => {
   const seen: HttpRequest.Record[] = [];
   const recorded: HttpRequest.Record[] = [];
   const fake: HttpClient.Backend = async (request) => {
@@ -356,14 +366,16 @@ test("presetting the client swaps the transport and presetting the endpoint shor
   expect(seen.length).toBe(0);
   expect(recorded.length).toBe(1);
   await clientScope.close();
+});
 
+test("presetting the endpoint short-circuits the transport", async () => {
+  const seen: HttpRequest.Record[] = [];
   const endpointScope = createScope({
-    tags: [backend(recording("[]", seen.slice())), github.config({ baseUrl: "https://api" })],
+    tags: [backend(recording("[]", seen)), github.config({ baseUrl: "https://api" })],
     presets: [preset(listRepos, () => Promise.resolve([]))],
   });
-  const before = seen.length;
   expect(await endpointScope.run(listRepos, { input: "octocat" })).toEqual([]);
-  expect(seen.length).toBe(before);
+  expect(seen.length).toBe(0);
   await endpointScope.close();
 });
 

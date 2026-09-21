@@ -21,10 +21,8 @@ function startEcho(seen: Echo[]): Promise<EchoServer> {
     server.listen(0, "127.0.0.1", () => {
       const address = server.address();
       if (address === null || typeof address === "string") throw new Error("no port");
-      resolve({
-        origin: `http://127.0.0.1:${address.port}`,
-        [Symbol.dispose]: () => server.close(),
-      });
+      const origin = `http://127.0.0.1:${address.port}`;
+      resolve({ origin, [Symbol.dispose]: () => server.close() });
     });
   });
 }
