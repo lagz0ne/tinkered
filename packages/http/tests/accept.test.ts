@@ -17,7 +17,7 @@ test("acceptJson sets the accept header the backend sees", async () => {
   const call = operation({
     label: "github.call",
     depends: { send: github.send },
-    run: ({ send }, ctx) => send.run({ input: HttpRequest.get("/a", { acceptJson: true }) }),
+    run: ({ send }) => send.run({ input: HttpRequest.get("/a", { acceptJson: true }) }),
   });
   const scope = createScope({
     tags: [backend(recording("ok", seen)), github.config({ baseUrl: "https://api" })],

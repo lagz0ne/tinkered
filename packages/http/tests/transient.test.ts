@@ -30,7 +30,7 @@ test("a 408 retries and a 429 retries, but a 404 arrives without a retry", async
   const raw = operation({
     label: "retrying.raw",
     depends: { send: retrying.send },
-    run: ({ send }, ctx) => send.run({ input: HttpRequest.get("https://api/missing") }),
+    run: ({ send }) => send.run({ input: HttpRequest.get("https://api/missing") }),
   });
   const scope = createScope({ clock: makeTestClock({ now: 0 }), tags: [backend(backendByCall)] });
   const res = await scope.run(raw);
@@ -71,7 +71,7 @@ test("the retry budget runs out: three transient statuses deliver the last one",
   const raw = operation({
     label: "retrying.raw",
     depends: { send: retrying.send },
-    run: ({ send }, ctx) => send.run({ input: HttpRequest.get("https://api/down") }),
+    run: ({ send }) => send.run({ input: HttpRequest.get("https://api/down") }),
   });
   const scope = createScope({ clock: makeTestClock({ now: 0 }), tags: [backend(down)] });
   const res = await scope.run(raw);

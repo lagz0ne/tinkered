@@ -38,7 +38,7 @@ const retryingText = operation({
 const retryingRaw = operation({
   label: "retrying.raw",
   depends: { send: retrying.send },
-  run: ({ send }, ctx) => send.run({ input: HttpRequest.get("https://api/missing") }),
+  run: ({ send }) => send.run({ input: HttpRequest.get("https://api/missing") }),
 });
 
 const plainText = operation({

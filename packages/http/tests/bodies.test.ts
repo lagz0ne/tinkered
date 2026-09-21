@@ -40,7 +40,7 @@ test("a body option rides along and an explicit builder body wins", async () => 
   const send = operation({
     label: "github.send",
     depends: { send: github.send },
-    run: ({ send }, ctx) =>
+    run: ({ send }) =>
       send.run({
         input: HttpRequest.post("/a", { body: HttpRequest.bodyText("opt") }),
       }),

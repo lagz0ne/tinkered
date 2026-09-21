@@ -18,7 +18,7 @@ test("nearer config headers win per key and the request's own headers win over c
   const callChild = operation({
     label: "github.raw",
     depends: { send: github.send },
-    run: ({ send }, ctx) =>
+    run: ({ send }) =>
       send.run({
         input: HttpRequest.get("https://api/a", { headers: { x: "req", y: "req" } }),
       }),
@@ -43,7 +43,7 @@ test("a nearer config baseUrl wins and one binding without headers still merges"
   const callChild = operation({
     label: "child.raw",
     depends: { send: child.send },
-    run: ({ send }, ctx) => send.run({ input: HttpRequest.get("/a") }),
+    run: ({ send }) => send.run({ input: HttpRequest.get("/a") }),
   });
   const scope = createScope({
     tags: [
@@ -66,7 +66,7 @@ test("header keys merge case-insensitively with the nearer binding winning", asy
   const callChild = operation({
     label: "child.raw",
     depends: { send: child.send },
-    run: ({ send }, ctx) => send.run({ input: HttpRequest.get("https://api/a") }),
+    run: ({ send }) => send.run({ input: HttpRequest.get("https://api/a") }),
   });
   const scope = createScope({
     tags: [backend(recording("[]", seen)), child.config({ headers: { "X-Token": "far" } })],

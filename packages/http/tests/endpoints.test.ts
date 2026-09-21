@@ -70,7 +70,7 @@ test("an endpoint without a response reader delivers the raw handle", async () =
   const raw = operation({
     label: "github.raw",
     depends: { send: github.send },
-    run: ({ send }, ctx) => send.run({ input: HttpRequest.get("https://api/users") }),
+    run: ({ send }) => send.run({ input: HttpRequest.get("https://api/users") }),
   });
   const headed: HttpClient.Backend = async (request) => {
     seen.push(request);
@@ -155,7 +155,7 @@ test("put, patch, delete, head, and options travel through endpoints", async () 
     const endpoint = operation({
       label: `${github.label}.${verb}`,
       depends: { send: github.send },
-      run: ({ send }, ctx) => send.run({ input: record }),
+      run: ({ send }) => send.run({ input: record }),
     });
     await scope.run(endpoint);
     expect(seen[seen.length - 1].method).toBe(verb);
@@ -224,7 +224,7 @@ test("modify, appendUrl, and setHeader derive the record the backend sees", asyn
   const viaModify = operation({
     label: "github.viaModify",
     depends: { send: github.send },
-    run: ({ send }, ctx) => send.run({ input: derived }),
+    run: ({ send }) => send.run({ input: derived }),
   });
   await scope.run(viaModify);
   const sent = seen[seen.length - 1];
@@ -245,7 +245,7 @@ test("setUrlParams replaces the pairs the backend sees", async () => {
   const viaParams = operation({
     label: "github.viaParams",
     depends: { send: github.send },
-    run: ({ send }, ctx) => send.run({ input: replaced }),
+    run: ({ send }) => send.run({ input: replaced }),
   });
   await scope.run(viaParams);
   expect(HttpRequest.toUrl(seen[seen.length - 1])).toBe("https://api/a?p=2");
@@ -289,7 +289,7 @@ test("without filterStatus a bad status arrives raw", async () => {
   const looseRepos = operation({
     label: "loose.repos",
     depends: { send: loose.send },
-    run: ({ send }, ctx) => send.run({ input: HttpRequest.get("https://api/repos") }),
+    run: ({ send }) => send.run({ input: HttpRequest.get("https://api/repos") }),
   });
   const scope = createScope({
     tags: [backend(recording("nope", [], 404)), loose.config({})],

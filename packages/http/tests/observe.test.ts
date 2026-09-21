@@ -95,7 +95,7 @@ test("a rejected status marks the child failed and logs nothing", async () => {
   const strictRepos = operation({
     label: "strict.repos",
     depends: { send: strict.send },
-    run: ({ send }, ctx) => send.run({ input: HttpRequest.get("https://api/repos") }),
+    run: ({ send }) => send.run({ input: HttpRequest.get("https://api/repos") }),
   });
   const logs: Observe.Log[] = [];
   const scope = createScope({
