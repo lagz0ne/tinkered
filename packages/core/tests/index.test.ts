@@ -2508,6 +2508,36 @@ test("meta is static and never affects resolution; no meta reads as empty", () =
   expect(operation({ label: "bare", run: () => 0 }).meta).toEqual([]);
 });
 
+test("meta is authored as a binding, nothing, or a nested list, and reads flat in order", () => {
+  const ui = tag<string>({ label: "ui" });
+  const group = tag<string>({ label: "group" });
+  const shared = [group("net"), null];
+  const port = data({ initial: 1, meta: [undefined, ui("slider"), [shared, [ui("dial")]]] });
+  const single = operation({ label: "single", run: () => 1, meta: ui("button") });
+  const nothing = resource({ label: "nothing", factory: () => 1, meta: [null, [undefined, []]] });
+  expect(port.meta).toEqual([ui("slider"), group("net"), ui("dial")]);
+  expect(ui.read(port)).toEqual({ present: true, value: "dial" });
+  expect(ui.read(single)).toEqual({ present: true, value: "button" });
+  expect(nothing.meta).toEqual([]);
+});
+
+test("scope and session tags take the same authored shape: a binding, nothing, or a nested list", () => {
+  const region = tag<string>({ label: "region" });
+  const scope = createScope({ tags: region("eu") });
+  const session = scope.createSession({ tags: [null, [region("us"), undefined]] });
+  expect(scope.resolve(region.required)).toBe("eu");
+  expect(session.resolve(region.all)).toEqual(["us", "eu"]);
+});
+
+test("a call's tags take the authored shape: a single binding opens the session, a nested nothing does not", async () => {
+  const zone = tag<string>({ label: "zone", default: "base" });
+  const read = operation({ label: "read", depends: { zone }, run: ({ zone }) => zone });
+  const scope = createScope();
+  expect(await scope.run(read, { tags: zone("us") })).toBe("us");
+  expect(await scope.run(read, { tags: [null, [zone("eu"), undefined]] })).toBe("eu");
+  expect(scope.run(read, { tags: undefined })).toBe("base");
+});
+
 test("shared empty meta is frozen, so a no-meta unit cannot be mutated to leak across units", () => {
   const ui = tag<string>({ label: "ui" });
   const a = data({ initial: 0 });

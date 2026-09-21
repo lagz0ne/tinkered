@@ -16,7 +16,11 @@ tags; reusing tags keeps the primitive count small and stays typed.
 Static metadata on every unit — `data`, `operation`, `resource`, and a **tag itself** — is a list
 of **tag bindings**, fixed at definition and read off the handle. It never affects resolution.
 
-- **Attach:** every factory config takes `meta?: readonly Tag.Binding<unknown>[]`.
+- **Attach:** every factory config takes `meta?: Tag.Bindings`. (Amended 2026-09-21: was
+  `readonly Tag.Binding<unknown>[]`. `Tag.Bindings` is the authored shape — one binding,
+  nothing (`null`/`undefined`), or a list of those to any depth, the `clsx` / ESLint flat-config
+  precedent — flattened once at definition, so optional and grouped bindings need no spread:
+  `meta: [ui("slider"), dev ? debug(true) : null, shared]`. The handle still carries the flat list.)
 
   ```ts
   const ui = tag<string>({ label: "ui" });

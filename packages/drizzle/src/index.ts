@@ -49,7 +49,7 @@ export function drizzleStore<Config, DB extends DrizzleStore.Transactional>(conf
   label: string;
   open: (config: Config, tools: DrizzleStore.Tools) => DB | PromiseLike<DB>;
   close?: (db: DB) => void | PromiseLike<void>;
-  meta?: readonly Tag.Binding<unknown>[];
+  meta?: Tag.Bindings;
 }): DrizzleStore.Frame<Config, DB> {
   const openDb = config.open;
   const closeDb = config.close;

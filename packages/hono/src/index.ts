@@ -54,7 +54,7 @@ export declare namespace HonoScope {
   export type Wiring = {
     readonly routes: readonly Row[];
     readonly onError?: OnError;
-    readonly tags?: (c: Context) => readonly Tag.Binding<unknown>[];
+    readonly tags?: (c: Context) => Tag.Bindings;
     /** Hand-mounted extras: routes that need `stream` directly and cannot
      * be rows yet. Runs after the rows, inside the same session middleware,
      * so `stream` sees the request session. */
@@ -101,7 +101,7 @@ function serveRequests(scope: Scope.Handle, wiring: HonoScope.Wiring): Middlewar
   return createMiddleware<SessionEnv>(async (c, next) => {
     const raw = c.req.raw;
     const session = scope.createSession({
-      tags: [request(raw), ...(wiring.tags?.(c) ?? [])],
+      tags: [request(raw), wiring.tags?.(c)],
     });
     c.set("tinker.session", session);
     c.set("tinker.onError", wiring.onError);

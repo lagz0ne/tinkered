@@ -24,7 +24,7 @@ with a single **invocation object**. It is always a function; there is no value 
 type Invocation<I> = {
   readonly input?: I; // pre-typed; parse is skipped
   readonly rawInput?: unknown; // raw; run through the operation's input parse
-  readonly tags?: readonly Tag.Binding<unknown>[]; // ambient bindings for this call
+  readonly tags?: Tag.Bindings; // ambient bindings for this call (amended 2026-09-21, see 0023: a binding, nothing, or a nested list)
 };
 resolve(call): T;
 ```

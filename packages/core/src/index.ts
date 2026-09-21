@@ -43,6 +43,12 @@ export declare namespace Tag {
   /** One value bound to a tag, seeded on a scope. `Handle<any>` is the callable-variance escape hatch. */
   export type Binding<T> = { readonly tag: Handle<any>; readonly value: T };
 
+  /** Bindings as authored (the `clsx` / ESLint flat-config shape): one binding, nothing
+   * (`null`/`undefined`), or a list of those to any depth. Read once where they land — a unit's
+   * `meta`, a scope's `tags`, a call's `tags` — into a flat list, so a config composes optional
+   * and grouped bindings without spreads: `meta: [ui("slider"), dev ? debug(true) : null, shared]`. */
+  export type Bindings = Binding<unknown> | null | undefined | readonly Bindings[];
+
   /** Any unit carrying static metadata bindings (data/operation/resource/tag). */
   export type Metaed = { readonly meta: readonly Binding<unknown>[] };
 
@@ -218,7 +224,7 @@ export declare namespace Scope {
   export type Invocation<I> = {
     readonly input?: I;
     readonly rawInput?: unknown;
-    readonly tags?: readonly Tag.Binding<unknown>[];
+    readonly tags?: Tag.Bindings;
   };
 
   /** An invocation that carries an input — exactly one of `input` or `rawInput`, never both and
@@ -227,12 +233,12 @@ export declare namespace Scope {
     | {
         readonly input: I;
         readonly rawInput?: never;
-        readonly tags?: readonly Tag.Binding<unknown>[];
+        readonly tags?: Tag.Bindings;
       }
     | {
         readonly input?: never;
         readonly rawInput: unknown;
-        readonly tags?: readonly Tag.Binding<unknown>[];
+        readonly tags?: Tag.Bindings;
       };
 
   /** The `run` argument list for input `I`: a genuinely void input is callable with no
@@ -259,8 +265,9 @@ export declare namespace Scope {
    * with them for that run (ADR 0038): the run's own tag reads, its subflows, and session-target
    * resources built for the flow see them through the layer chain. Scope-target resources are
    * unchanged. A call carrying `tags` always returns a promise — a session closes
-   * asynchronously, so no sync fast path is offered. */
-  export type Bindings = readonly Tag.Binding<unknown>[];
+   * asynchronously, so no sync fast path is offered. The authored shape is `Tag.Bindings` minus
+   * a bare nothing: `tags: undefined` is an untagged call, not a tagged one. */
+  export type Bindings = Exclude<Tag.Bindings, null | undefined>;
 
   /** A call that carries `tags`: always async (ADR 0038). For a void input the call object
    * holds only `tags`; otherwise it holds the run's `input` (or `rawInput`) plus `tags`. */
@@ -388,7 +395,7 @@ export declare namespace Scope {
 
   /** Values seeded on a scope at creation. */
   export type Options = {
-    tags?: readonly Tag.Binding<unknown>[];
+    tags?: Tag.Bindings;
     observe?: Observe.Config;
     presets?: readonly Preset[];
     /** The ambient clock for this scope; child sessions inherit it. Default is the system clock. */
@@ -563,6 +570,31 @@ function admit<T>(label: string, parse: Data.Parse<T> | undefined, raw: unknown)
  * reach past the `readonly` type and leak a binding across every no-meta unit. */
 const NO_META: readonly Tag.Binding<unknown>[] = Object.freeze([]);
 
+/** The one discriminator over authored bindings: a list, or a single binding. Named because
+ * `Array.isArray` alone does not narrow a `readonly` list. */
+function isBindingList(input: Tag.Bindings): input is readonly Tag.Bindings[] {
+  return Array.isArray(input);
+}
+
+/** Flatten authored bindings (a binding, nothing, or a nested list) into `out`, in order. */
+function pushBindings(out: Tag.Binding<unknown>[], input: Tag.Bindings): void {
+  if (input === undefined || input === null) return;
+  if (isBindingList(input)) {
+    for (const item of input) pushBindings(out, item);
+    return;
+  }
+  out.push(input);
+}
+
+/** Read authored bindings into the flat list a unit's `meta` carries (or a layer seeds from):
+ * the shared frozen empty when nothing was bound, else a fresh list the reader owns. */
+function readBindings(input: Tag.Bindings): readonly Tag.Binding<unknown>[] {
+  if (input === undefined || input === null) return NO_META;
+  const out: Tag.Binding<unknown>[] = [];
+  pushBindings(out, input);
+  return out.length === 0 ? NO_META : out;
+}
+
 /** Read a tag's static value off a unit's `meta`: the nearest matching binding, else the tag's
  * default, else absent. Static (no scope chain) — this is definition-time metadata. */
 function metaFind<T>(unit: Tag.Metaed, target: Tag.Handle<T>): Tag.Presence<T> {
@@ -580,7 +612,7 @@ export function data<T>(config: {
   initial: T;
   parse?: Data.Parse<T>;
   eq?: (a: T, b: T) => boolean;
-  meta?: readonly Tag.Binding<unknown>[];
+  meta?: Tag.Bindings;
 }): Data.Cell<T> {
   const label = config.label ?? "anon";
   const base = {
@@ -589,7 +621,7 @@ export function data<T>(config: {
     initial: admit(label, config.parse, config.initial),
     parse: config.parse,
     eq: config.eq ?? Object.is,
-    meta: config.meta ?? NO_META,
+    meta: readBindings(config.meta),
   } as Data.Cell<T>;
   return Object.assign(base, { controller: edgeTo("controller", base) });
 }
@@ -600,7 +632,7 @@ export function tag<T>(config: {
   default?: T;
   parse?: Data.Parse<T>;
   eq?: (a: T, b: T) => boolean;
-  meta?: readonly Tag.Binding<unknown>[];
+  meta?: Tag.Bindings;
 }): Tag.Handle<T> {
   const parse = config.parse;
   const label = config.label;
@@ -615,7 +647,7 @@ export function tag<T>(config: {
     def: config.default,
     parse,
     eq: config.eq ?? Object.is,
-    meta: config.meta ?? NO_META,
+    meta: readBindings(config.meta),
     read: (unit: Tag.Metaed): Tag.Presence<T> => metaFind(unit, handle),
   }) as Tag.Handle<T>;
   return Object.assign(handle, {
@@ -635,7 +667,7 @@ export function operation<
   input?: Data.Parse<I>;
   depends?: D;
   run: (deps: Scope.SlotValues<D>, ctx: Operation.Ctx<I>) => R & Scope.AsyncBody<D>;
-  meta?: readonly Tag.Binding<unknown>[];
+  meta?: Tag.Bindings;
 }): Operation.Handle<R, I> {
   const base = {
     [operationSym]: true,
@@ -643,7 +675,7 @@ export function operation<
     input: config.input,
     depends: config.depends ?? {},
     run: config.run as Operation.Handle<R, I>["run"],
-    meta: config.meta ?? NO_META,
+    meta: readBindings(config.meta),
   } as Operation.Handle<R, I>;
   return Object.assign(base, {
     controller: edgeTo("controller", base),
@@ -677,7 +709,7 @@ export function resource<
   target?: "scope" | "session";
   depends?: D;
   factory: (deps: Scope.SlotValues<D>, ctx: Resource.Ctx) => T & Scope.AsyncBody<D>;
-  meta?: readonly Tag.Binding<unknown>[];
+  meta?: Tag.Bindings;
 }): Resource.Handle<T> {
   return {
     [resourceSym]: true,
@@ -685,7 +717,7 @@ export function resource<
     target: config.target ?? "scope",
     depends: config.depends ?? {},
     factory: config.factory as Resource.Handle<T>["factory"],
-    meta: config.meta ?? NO_META,
+    meta: readBindings(config.meta),
   } as Resource.Handle<T>;
 }
 
@@ -1510,10 +1542,12 @@ class OperationCtx<I> implements Operation.Ctx<I> {
 
 /** True when a call carries tag bindings (ADR 0038): one optional `tags` read, no chain.
  * A tagged call opens a child session for the run; anything else takes the untagged body
- * inline below. `tags: []` counts as untagged (no session for an empty binding list). */
+ * inline below. Nothing (`undefined`/`null`) and `tags: []` count as untagged (no session for
+ * an empty binding list); a single binding or a non-empty list counts as tagged. */
 function hasCallTags(call: Scope.Invocation<unknown> | undefined): boolean {
   const tags = call?.tags;
-  return tags !== undefined && tags.length !== 0;
+  if (tags === undefined || tags === null) return false;
+  return !isBindingList(tags) || tags.length !== 0;
 }
 
 /** Run `target` in a child session bound with the call's tags (ADR 0038) — sugar over
@@ -2381,10 +2415,11 @@ function collectBorrowers(
   return out;
 }
 
-function seedTags(
-  bindings: readonly Tag.Binding<unknown>[] | undefined,
-): Map<Tag.Handle<unknown>, unknown[]> | undefined {
-  if (!bindings || bindings.length === 0) return undefined;
+/** Seed a layer's tag map from the authored bindings: nothing (or only nothing, however
+ * nested) leaves the map unallocated; otherwise every binding lands in authored order. */
+function seedTags(input: Tag.Bindings): Map<Tag.Handle<unknown>, unknown[]> | undefined {
+  const bindings = readBindings(input);
+  if (bindings.length === 0) return undefined;
   const tags = new Map<Tag.Handle<unknown>, unknown[]>();
   for (const binding of bindings) {
     const list = tags.get(binding.tag) ?? [];

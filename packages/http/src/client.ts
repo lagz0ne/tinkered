@@ -184,7 +184,7 @@ export function httpClient(config: {
   label: string;
   retry?: HttpClient.Retry;
   filterStatus?: (status: number) => boolean;
-  meta?: readonly Tag.Binding<unknown>[];
+  meta?: Tag.Bindings;
 }): HttpClient.Frame {
   const accept = config.filterStatus ?? acceptAll;
   const retry = config.retry ?? noRetry;

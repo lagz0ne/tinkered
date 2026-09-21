@@ -231,7 +231,7 @@ export function harness<O, T, R, C extends Harness.Calls>(config: {
   adapter: Harness.Adapter<O, T, R, C>;
   approve?: Harness.ApproveOp<C>;
   tools?: readonly Harness.Tool<C>[];
-  meta?: readonly Tag.Binding<unknown>[];
+  meta?: Tag.Bindings;
 }): Harness.Frame<O, T, R, C> {
   const adapter = config.adapter;
   const status = data<Harness.Status>({ label: `${config.label}.status`, initial: "idle" });
