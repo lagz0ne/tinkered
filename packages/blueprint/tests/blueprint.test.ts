@@ -18,7 +18,7 @@ function readTracker(): string {
 async function runCheck(text: string) {
   const scope = createScope();
   try {
-    return await scope.run(check, { rawInput: text });
+    return scope.run(check, { rawInput: text });
   } finally {
     await scope.close({ graceful: true });
   }
