@@ -12,8 +12,14 @@ git worktree add ../tinkered-<task> -b <track>/<task> main
 cd ../tinkered-<task> && vp install && git checkout -- pnpm-workspace.yaml && vp run -r build
 ```
 
-- Work only in that worktree. Never touch the main checkout. Never push. Never run a mutation lane (the lead
-  runs each lane alone at landing; the floor is 75; core and react 85).
+- Work only in that worktree. Never touch the main checkout. Never push. Never run a full mutation lane (the
+  lead runs each lane alone at landing; the floor is 75; core and react 85).
+- **A mutation-lift ticket has one proof per target: the per-line kill check.** For each surviving mutant the
+  ticket names, after the test is green run
+  `cd packages/<pkg> && npx stryker run --mutate "src/<file>:<line>-<line>" --reporters clear-text`
+  (under a minute; it prints one `[Killed]` / `[Survived]` per mutant on that line and exits 1 while one
+  survives — that exit code is the answer, not a gate). Report `[Killed]` per row; a row without it is not
+  covered. Two lifts of 60 rows without this check left 47 mutants alive behind "covered" claims; with it, 46 of 46 died.
 - `vp run -r build` before every `vp check` or test run: apps import the packages' built `dist`; a stale dist
   shows phantom type errors and failing app tests.
 - Never call a red check "pre-existing" without running the same check on `main` (`git stash`-free: use the
