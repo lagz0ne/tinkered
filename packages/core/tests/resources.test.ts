@@ -553,3 +553,42 @@ test("a build that releases itself still rebuilds on the next resolve", async ()
   expect(await second).toBe("b2:1");
   await scope.close();
 });
+
+test("a release waits for every borrower, not just the first done", async () => {
+  let release1!: () => void;
+  let release2!: () => void;
+  const gate1 = new Promise<void>((resolve) => {
+    release1 = resolve;
+  });
+  const gate2 = new Promise<void>((resolve) => {
+    release2 = resolve;
+  });
+  const cleaned: string[] = [];
+  const res = resource({
+    label: "res",
+    factory: (_deps, { defer }) => {
+      defer(() => void cleaned.push("res-clean"));
+      return 1;
+    },
+  });
+  const borrower = (label: string, gate: Promise<void>) =>
+    operation({
+      label,
+      depends: { res },
+      run: async ({ res: n }) => {
+        await gate;
+        return `${label}:${n}`;
+      },
+    });
+  const scope = createScope();
+  const first = scope.run(borrower("one", gate1)) as Promise<unknown>;
+  const second = scope.run(borrower("two", gate2)) as Promise<unknown>;
+  release1();
+  expect(await first).toBe("one:1");
+  scope.release(res);
+  expect(cleaned).toEqual([]);
+  release2();
+  expect(await second).toBe("two:1");
+  await scope.close();
+  expect(cleaned).toEqual(["res-clean"]);
+});
