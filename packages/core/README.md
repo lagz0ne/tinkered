@@ -180,6 +180,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - An operation can write a cell over time; watchers see each write.
 - Two scopes keep separate data: a write in one never shows in the other.
 - A data preset replaces the cell for the whole scope; reads see it.
+- `isError` rejects a plain error with no kind.
+- `isError` rejects a real error of the wrong kind.
 
 ### Tags
 
@@ -237,6 +239,10 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 ### Operations
 
 - An operation runs on every run; calls are never memoized and concurrent calls stay independent.
+- A tagged call replays typed input inside the child session.
+- A tagged call replays raw input inside the child session.
+- A tagged call with no input still reads the call tags.
+- An operation writes through a data controller edge.
 - A dependency snapshot is captured before the body suspends: a later write never leaks in.
 - A read-mode dep delivers the current value; a write-mode dep hands the caller a controller that writes.
 - An operation composes through its controller, or through a bare dep delivered as a callable subflow;
