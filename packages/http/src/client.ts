@@ -1,10 +1,8 @@
 import {
   operation as operationCore,
-  resource,
   tag,
-  type Data,
   type Operation,
-  type Resource,
+  type Scope,
   type Tag,
 } from "@tinker/core";
 import { isError, raise } from "./errors.ts";
@@ -31,45 +29,23 @@ export declare namespace HttpClient {
   /** The caller's receiver an `execute` sends through: the signal aborts on close, the rest is
    * the caller's own observation, logging, and clock (as on `Operation.Ctx`). */
   export type Ctx = Pick<Operation.Ctx<unknown>, "signal" | "obs" | "log" | "clock">;
-  /** A built client: one method, `execute`, over an already-configured request (absolute URL,
-   * merged headers) with the caller's ctx. */
-  export type Handle = {
-    readonly label: string;
-    execute(request: HttpRequest.Record, ctx: Ctx): Promise<HttpResponse.Handle>;
+  /** One send: the already-merged request, its absolute URL, and which try this is. The `send`
+   * operation builds it; nothing else does, so it carries no parse (see core's Operation input). */
+  export type Attempt = {
+    readonly request: HttpRequest.Record;
+    readonly url: string;
+    readonly attempt: number;
+    readonly tries: number;
   };
-  /** An endpoint: a pure request builder plus an optional body reader. `request` is a pure
-   * function of the parsed input; `response` reads the body once at the process edge
-   * (`res.json(parse)`, ADR 0006) and is optional — when omitted the operation delivers the raw
-   * `HttpResponse.Handle`. Declares no other `depends`: anything dynamic (a token, a tenant
-   * base URL) is composed in a userland operation that depends on the endpoint and passes it
-   * via per-call `tags` or a session binding, so every endpoint stays presettable and pure. */
-  export type Endpoint<I, T> = {
-    label: string;
-    input?: Data.Parse<I>;
-    request: (input: I) => HttpRequest.Record;
-    response?: (response: HttpResponse.Handle) => T | PromiseLike<T>;
-  };
-  /** The `operation` method on a frame: one overload per response shape — an endpoint with a
-   * `response` reader delivers its value, one without delivers the raw handle. */
-  export type OperationFn = {
-    <I = void, T = HttpResponse.Handle>(
-      endpoint: Endpoint<I, T> & {
-        response: (response: HttpResponse.Handle) => T | PromiseLike<T>;
-      },
-    ): Operation.Handle<Promise<T>, I>;
-    <I = void>(
-      endpoint: Endpoint<I, HttpResponse.Handle>,
-    ): Operation.Handle<Promise<HttpResponse.Handle>, I>;
-  };
-  /** The frame `httpClient` returns: its label, its per-client `config` tag, its `client`
-   * resource, and `operation` — the composition unit — which turns an endpoint into an ordinary
-   * operation labelled `${frame.label}.${endpoint.label}`. A userland operation depends on the
-   * endpoint as a subflow and hands a per-call value (a fresh token) through `tags`. */
+  /** The frame `httpClient` returns: its label, its per-client `config` tag, and two operations
+   * to depend on. `send` merges config, validates the URL once, and retries transient failures by
+   * running `attempt` as a subflow — so a caller's trace reads `caller > send > attempt` with no
+   * span code anywhere (ADR 0058). A per-call value (a fresh token) rides on the run's `tags`. */
   export type Frame = {
     readonly label: string;
     readonly config: Tag.Handle<Config>;
-    readonly client: Resource.Handle<Handle>;
-    readonly operation: OperationFn;
+    readonly send: Operation.Handle<Promise<HttpResponse.Handle>, HttpRequest.Record>;
+    readonly attempt: Operation.Handle<Promise<HttpResponse.Handle>, Attempt>;
   };
 }
 
@@ -192,21 +168,59 @@ export function httpClient(config: {
     label: `${config.label}.config`,
     meta: config.meta,
   });
-  const frameLabel = config.label;
-  const client: Resource.Handle<HttpClient.Handle> = resource({
-    label: `${config.label}.client`,
-    target: "session",
-    depends: { send: backend },
-    factory: ({ send }) => ({
-      label: config.label,
-      execute: (request, ctx) => execute(send, request, ctx, accept, retry),
-    }),
+
+  /** One send through the backend. Its own span carries the method, url, attempt, and status,
+   * so the retry is visible without any span code (ADR 0058). */
+  const attempt: Operation.Handle<Promise<HttpResponse.Handle>, HttpClient.Attempt> = operationCore(
+    {
+      label: `${config.label}.attempt`,
+      depends: { send: backend },
+      meta: config.meta,
+      run: async ({ send }, ctx) => sendOnce(send, ctx.input, ctx, accept),
+    },
+  );
+
+  /** Merge the config bindings nearest-first, validate the URL once, then run `attempt` as a
+   * subflow until it delivers or the tries run out. */
+  const send: Operation.Handle<Promise<HttpResponse.Handle>, HttpRequest.Record> = operationCore({
+    label: `${config.label}.send`,
+    depends: { attempt, config: configTag.all },
+    meta: config.meta,
+    run: (deps, ctx) =>
+      runSend(deps.attempt, applyConfig(ctx.input, mergeConfig(deps.config)), ctx, retry),
   });
-  const frameBase = { label: frameLabel, config: configTag, client };
-  return {
-    ...frameBase,
-    operation: readEndpointOperation(frameBase),
-  };
+
+  return { label: config.label, config: configTag, send, attempt };
+}
+
+/** The retry loop: each try is one `attempt` subflow, so each gets its own nested span. A
+ * transient status or a rejected backend tries again until `retry.times + 1` is spent. */
+async function runSend(
+  attempt: Scope.OperationController<Promise<HttpResponse.Handle>, HttpClient.Attempt>,
+  request: HttpRequest.Record,
+  ctx: Operation.Ctx<HttpRequest.Record>,
+  retry: HttpClient.Retry,
+): Promise<HttpResponse.Handle> {
+  const url = HttpRequest.toUrl(request);
+  try {
+    new URL(url);
+  } catch (cause) {
+    raise("RequestFailed", { request, reason: "InvalidUrl", cause });
+  }
+  const tries = retry.times + 1;
+  for (let n = 1; ; n += 1) {
+    await waitBeforeRetry(ctx, retry, n);
+    try {
+      const received = await attempt.run({ input: { request, url, attempt: n, tries } });
+      if (retriesStatus(received.status, n, tries)) continue;
+      return received;
+    } catch (error) {
+      if (ctx.signal.aborted) throw ctx.signal.reason;
+      if (isError(error, "ResponseFailed")) throw error;
+      if (n < tries) continue;
+      raise("RequestFailed", { request, reason: "Transport", cause: error });
+    }
+  }
 }
 
 /** The frame's default status policy: accept every status. */
@@ -220,77 +234,6 @@ const noRetry: HttpClient.Retry = { times: 0 };
 /** Transient in v1 (fixed policy, not configurable): 408, 429, or 5xx — worth another attempt. */
 function isTransientStatus(status: number): boolean {
   return status === 408 || status === 429 || status >= 500;
-}
-
-/** Bind the frame's `operation` method: one overload per response shape, closing over the
- * frame's label, config tag, and client resource. */
-function readEndpointOperation(frame: Omit<HttpClient.Frame, "operation">): HttpClient.OperationFn {
-  function operation<I = void, T = HttpResponse.Handle>(
-    endpoint: HttpClient.Endpoint<I, T> & {
-      response: (response: HttpResponse.Handle) => T | PromiseLike<T>;
-    },
-  ): Operation.Handle<Promise<T>, I>;
-  function operation<I = void>(
-    endpoint: HttpClient.Endpoint<I, HttpResponse.Handle>,
-  ): Operation.Handle<Promise<HttpResponse.Handle>, I>;
-  function operation(
-    endpoint: HttpClient.Endpoint<unknown, unknown>,
-  ): Operation.Handle<Promise<unknown>, unknown> {
-    const read = endpoint.response;
-    return operationCore({
-      label: `${frame.label}.${endpoint.label}`,
-      input: endpoint.input,
-      depends: { client: frame.client, config: frame.config.all },
-      run: async ({ client, config }, ctx) => {
-        const request = applyConfig(endpoint.request(ctx.input), mergeConfig(config));
-        const received = await client.execute(request, ctx);
-        if (read !== undefined) return read(received);
-        return received;
-      },
-    });
-  }
-  return operation;
-}
-
-/** Send an already-configured request through `send`, retrying transient failures: validate the
- * final URL once (failure → `RequestFailed/InvalidUrl` with `cause`); then loop up to
- * `retry.times + 1` attempts — `waitBeforeRetry` sleeps `ctx.clock` before every retry (an abort
- * during the wait rejects with the signal reason, no further call); each attempt is one `sendOnce`
- * in its own child span. A backend rejection logs one `http request failed` line and retries while
- * attempts remain, else becomes `RequestFailed/Transport` with the last cause — except when
- * `ctx.signal` aborted: the signal's reason is rethrown untouched (a cancel is a clean end,
- * ADR 0028). A received transient status with attempts remaining retries too; otherwise the
- * frame's `filterStatus` predicate runs BEFORE the caller sees the response (a rejected status
- * raises `ResponseFailed/StatusCode` carrying `request` and `response`, the body staying readable
- * by a catch handler). With `times: 0` the loop runs once and allocates nothing beyond today's
- * single send. */
-async function execute(
-  send: HttpClient.Backend,
-  request: HttpRequest.Record,
-  ctx: HttpClient.Ctx,
-  accept: (status: number) => boolean,
-  retry: HttpClient.Retry,
-): Promise<HttpResponse.Handle> {
-  const url = HttpRequest.toUrl(request);
-  try {
-    new URL(url);
-  } catch (cause) {
-    raise("RequestFailed", { request, reason: "InvalidUrl", cause });
-  }
-  const tries = retry.times + 1;
-  for (let attempt = 1; ; attempt += 1) {
-    await waitBeforeRetry(ctx, retry, attempt);
-    try {
-      const received = await sendOnce(send, request, url, ctx, accept, attempt, tries);
-      if (retriesStatus(received.status, attempt, tries)) continue;
-      return received;
-    } catch (error) {
-      if (ctx.signal.aborted) throw ctx.signal.reason;
-      if (isError(error, "ResponseFailed")) throw error;
-      if (attempt < tries) continue;
-      raise("RequestFailed", { request, reason: "Transport", cause: error });
-    }
-  }
 }
 
 /** Sleep `retry.delay` for the 1-based wait number on `ctx.clock` before a retry (`delay(1)` is the
@@ -317,32 +260,29 @@ function retriesStatus(status: number, attempt: number, tries: number): boolean 
  * the span, so a rejected status settles it `"failed"`. */
 async function sendOnce(
   send: HttpClient.Backend,
-  request: HttpRequest.Record,
-  url: string,
-  ctx: HttpClient.Ctx,
+  call: HttpClient.Attempt,
+  ctx: Operation.Ctx<HttpClient.Attempt>,
   accept: (status: number) => boolean,
-  attempt: number,
-  tries: number,
 ): Promise<HttpResponse.Handle> {
-  return ctx.obs.child(`http ${request.method} ${url}`, async (span) => {
-    if (span !== undefined) {
-      span.attributes.method = request.method;
-      span.attributes.url = url;
-      span.attributes.attempt = attempt;
-    }
-    let delivered: HttpResponse.Handle;
-    try {
-      delivered = await send(request, ctx.signal);
-    } catch (error) {
-      if (ctx.signal.aborted) throw ctx.signal.reason;
-      ctx.log("http request failed", { method: request.method, url });
-      throw error;
-    }
-    if (span !== undefined) span.attributes.status = delivered.status;
-    if (retriesStatus(delivered.status, attempt, tries)) return delivered;
-    if (!accept(delivered.status)) {
-      raise("ResponseFailed", { request, response: delivered, reason: "StatusCode" });
-    }
-    return delivered;
-  });
+  const { request, url, attempt, tries } = call;
+  const span = ctx.obs.span;
+  if (span !== undefined) {
+    span.attributes.method = request.method;
+    span.attributes.url = url;
+    span.attributes.attempt = attempt;
+  }
+  let delivered: HttpResponse.Handle;
+  try {
+    delivered = await send(request, ctx.signal);
+  } catch (error) {
+    if (ctx.signal.aborted) throw ctx.signal.reason;
+    ctx.log("http request failed", { method: request.method, url });
+    throw error;
+  }
+  if (span !== undefined) span.attributes.status = delivered.status;
+  if (retriesStatus(delivered.status, attempt, tries)) return delivered;
+  if (!accept(delivered.status)) {
+    raise("ResponseFailed", { request, response: delivered, reason: "StatusCode" });
+  }
+  return delivered;
 }
