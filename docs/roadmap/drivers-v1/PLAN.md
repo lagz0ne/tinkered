@@ -361,3 +361,10 @@ lane 38. `docs/best-practices.md` rules 2 and 6 rewritten to ADR 0051; glossary 
 
 **Floor, measured alone on `main` today:** core 77.96 · http 90.77 · hono 77.66 · drizzle ~96 · cli 79.77 ·
 harness 76.05 · mcp 82.86 · sync 79.67. Every lane ≥ 75.
+
+### Lanes after `Tag.Bindings` / `Many<T>` (user's commits 7b9b322…6ceda11, measured alone 2026-09-21)
+
+core **78.21** (was 77.96) · hono **77.95** (77.66) · mcp **82.86** (82.86) · sync **79.03** (79.67) · harness **75.95**
+(76.05, after the test cleanup). Every lane ≥ 75; the nested-bindings flattening added tests in each package
+and moved no lane by more than 0.7. `Many<T>` also unblocks drivers/t08 (`meta` removal): every config list now
+reads through one `readMany`, so removing `meta` is one field on five unit kinds plus the harness's `tool` read.
