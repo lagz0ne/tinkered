@@ -5,7 +5,7 @@ export default defineConfig({
     entry: ["src/index.ts", "src/main.ts"],
     deps: {
       resolveDepSubpath: true,
-      neverBundle: ["@tinker/core", "@tinker/cli", "zod", "yaml"],
+      neverBundle: ["@tinker/core", "@tinker/cli", "zod", "yaml", "ai"],
     },
     dts: {
       generator: "tsgo",

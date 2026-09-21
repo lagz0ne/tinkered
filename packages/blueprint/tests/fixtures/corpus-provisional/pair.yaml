@@ -1,0 +1,10 @@
+id: pair
+scope: pair
+applies: [data, resource, operation, tag]
+needs: [why]
+kind: boolean
+status: provisional
+ask: Do the two nodes carry the same why?
+true: the two whys say the same thing
+false: each why names its own reason
+threshold: 0.5

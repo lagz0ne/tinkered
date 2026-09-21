@@ -36,7 +36,8 @@ export declare namespace Blueprint {
     | "target"
     | "uses"
     | "usedBy";
-  /** One loaded template. */
+  /** One loaded template. A `choice` template's `compare` names the field its pick is
+   * measured against; a template with no `compare` never produces a choice finding. */
   export type Template = {
     readonly id: string;
     readonly scope: "node" | "pair";
@@ -55,6 +56,7 @@ export declare namespace Blueprint {
         readonly kind: "choice";
         readonly choices: Readonly<Record<string, string>>;
         readonly minConfidence: number;
+        readonly compare?: StateField;
       }
   );
   /** The loaded corpus: every template, sorted by id, plus a reader per kind. */
@@ -65,12 +67,52 @@ export declare namespace Blueprint {
     /** The pair-scope templates. */
     readonly pairs: readonly Template[];
   };
-  /** One plain-check result. `blocking` is always true in t01. */
+  /** The Jev engine: which model, which key. Bound at the root; a test never binds it. */
+  export type Engine = { readonly model: string; readonly apiKey: string };
+  /** What the judge sees for one node: the node, plus its one-hop neighbours. */
+  export type NodeState = Node & {
+    readonly uses: readonly Node[];
+    readonly usedBy: readonly Node[];
+  };
+  /** What the judge sees for a pair template. */
+  export type PairState = { readonly a: NodeState; readonly b: NodeState };
+  /** One answer: a boolean's probability, or a choice with its confidence. */
+  export type Answer =
+    | { readonly type: "boolean"; readonly probability: number }
+    | {
+        readonly type: "choice";
+        readonly choice: string;
+        readonly probabilities?: Readonly<Record<string, number>>;
+      };
+  /** One question, as the engine takes it. */
+  export type Question =
+    | {
+        readonly type: "boolean";
+        readonly instructions: string;
+        readonly criteria: { readonly true: string; readonly false: string };
+      }
+    | {
+        readonly type: "choice";
+        readonly instructions: string;
+        readonly criteria: Readonly<Record<string, string>>;
+      };
+  /** The judge: asks every question in one call about one state. */
+  export type Judge = {
+    readonly ask: (
+      state: NodeState | PairState,
+      questions: Readonly<Record<string, Question>>,
+      signal: AbortSignal,
+    ) => Promise<Readonly<Record<string, Answer>>>;
+  };
+  /** One result line. `source` is `"plain"` or a template id. `blocking` is true for a plain
+   * finding or a hit from a `proven` template. */
   export type Finding = {
-    readonly check: "unknownDepends" | "duplicateName" | "dataNoWriter";
+    readonly source: string;
+    readonly check: string;
     readonly node: string;
     readonly detail: string;
-    readonly blocking: true;
+    readonly probability?: number;
+    readonly blocking: boolean;
   };
   /** What `check` answers: how many nodes it read and every finding. */
   export type Report = {
@@ -142,9 +184,11 @@ export function readBlueprint(text: string): Blueprint.Graph {
   };
 }
 
-/** One finding line: what `check` prints, one per line. */
+/** One finding line: what `check` prints, one per line. A non-blocking (provisional
+ * template) finding starts with `~`. */
 export function findingLine(finding: Blueprint.Finding): string {
-  return `${finding.check}  ${finding.node}  ${finding.detail}`;
+  const prefix = finding.blocking ? "" : "~";
+  return `${prefix}${finding.check}  ${finding.node}  ${finding.detail}`;
 }
 
 /** One finding per repeated name; `node` is the name. */
@@ -157,6 +201,7 @@ function duplicateNames(nodes: readonly Blueprint.Node[]): readonly Blueprint.Fi
     if ((counts.get(node.name) ?? 0) < 2 || seen.has(node.name)) continue;
     seen.add(node.name);
     found.push({
+      source: "plain",
       check: "duplicateName",
       node: node.name,
       detail: `the name "${node.name}" names ${counts.get(node.name)} nodes`,
@@ -173,6 +218,7 @@ function unknownNames(nodes: readonly Blueprint.Node[]): readonly Blueprint.Find
     node.depends
       .filter((dep) => !known.has(dep))
       .map((dep) => ({
+        source: "plain" as const,
         check: "unknownDepends",
         node: node.name,
         detail: `depends on "${dep}": no such node`,
@@ -190,6 +236,7 @@ function unwrittenData(graph: Blueprint.Graph): readonly Blueprint.Finding[] {
         node.kind === "data" && !graph.usedBy(node.name).some((user) => user.kind !== "data"),
     )
     .map((node) => ({
+      source: "plain" as const,
       check: "dataNoWriter",
       node: node.name,
       detail: "no operation or resource depends on it",
@@ -208,6 +255,17 @@ export function plainChecks(graph: Blueprint.Graph): readonly Blueprint.Finding[
 export function parseGraph(raw: unknown): Blueprint.Graph {
   if (typeof raw !== "string") raise("InvalidBlueprint", { text: "", issues: [raw] });
   return readBlueprint(raw);
+}
+
+/** Parse `check`'s raw input (the cli's `{ text, json }`) into its typed input: the
+ * graph (via {@link parseGraph}) beside the flag `respond` needs later. */
+export function parseCheckInput(raw: unknown): {
+  readonly graph: Blueprint.Graph;
+  readonly json: boolean;
+} {
+  if (typeof raw !== "object" || raw === null || !("text" in raw) || typeof raw.text !== "string")
+    raise("InvalidBlueprint", { text: "", issues: [raw] });
+  return { graph: parseGraph(raw.text), json: "json" in raw && raw.json === true };
 }
 
 /** Every kind a template may apply to. */
@@ -249,6 +307,7 @@ const choiceTemplate = z.strictObject({
   kind: z.literal("choice"),
   choices: z.record(z.string(), z.string().min(1)),
   minConfidence: z.number().default(0.6),
+  compare: stateField.optional(),
 });
 
 const templateFile = z.discriminatedUnion("kind", [booleanTemplate, choiceTemplate]);
@@ -281,4 +340,181 @@ export function readCorpus(loaded: readonly Blueprint.Template[]): Blueprint.Cor
       templates.filter((item) => item.scope === "node" && item.applies.includes(kind)),
     pairs: templates.filter((item) => item.scope === "pair"),
   };
+}
+
+/** One template as a question, straight from its fields. */
+function templateQuestion(template: Blueprint.Template): Blueprint.Question {
+  return template.kind === "boolean"
+    ? {
+        type: "boolean",
+        instructions: template.ask,
+        criteria: { true: template.true, false: template.false },
+      }
+    : { type: "choice", instructions: template.ask, criteria: template.choices };
+}
+
+/** One `judge.ask` questions map, keyed by template id. */
+function questionsOf(
+  templates: readonly Blueprint.Template[],
+): Readonly<Record<string, Blueprint.Question>> {
+  return Object.fromEntries(templates.map((template) => [template.id, templateQuestion(template)]));
+}
+
+/** One field reader per {@link Blueprint.StateField} — a lookup, not a branch, so a choice
+ * template's `compare` costs one call regardless of which field it names. */
+const FIELD_READERS: {
+  readonly [K in Blueprint.StateField]: (state: Blueprint.NodeState) => unknown;
+} = {
+  kind: (state) => state.kind,
+  name: (state) => state.name,
+  promise: (state) => state.promise,
+  why: (state) => state.why,
+  depends: (state) => state.depends,
+  work: (state) => state.work,
+  target: (state) => state.target,
+  uses: (state) => state.uses,
+  usedBy: (state) => state.usedBy,
+};
+
+/** The field a choice template's pick is measured against, or `undefined` (no `compare`,
+ * or a boolean template — it never compares). */
+function compareValueOf(template: Blueprint.Template, state: Blueprint.NodeState): unknown {
+  if (template.kind !== "choice" || template.compare === undefined) return undefined;
+  return FIELD_READERS[template.compare](state);
+}
+
+/** A boolean template's finding, or `undefined` below `threshold`. */
+function booleanFinding(
+  template: Blueprint.Template & { readonly kind: "boolean" },
+  answer: Blueprint.Answer,
+  node: string,
+): Blueprint.Finding | undefined {
+  if (answer.type !== "boolean" || answer.probability < template.threshold) return undefined;
+  return {
+    source: template.id,
+    check: template.id,
+    node,
+    detail: template.true,
+    probability: answer.probability,
+    blocking: template.status === "proven",
+  };
+}
+
+/** A choice template's finding: the pick differs from `compareValue`, at or above `minConfidence`. */
+function choiceFinding(
+  template: Blueprint.Template & { readonly kind: "choice" },
+  answer: Blueprint.Answer,
+  node: string,
+  compareValue: unknown,
+): Blueprint.Finding | undefined {
+  if (answer.type !== "choice") return undefined;
+  const confidence = answer.probabilities?.[answer.choice] ?? 0;
+  if (confidence < template.minConfidence || answer.choice === compareValue) return undefined;
+  return {
+    source: template.id,
+    check: template.id,
+    node,
+    detail: `reads as ${answer.choice} (${Math.round(confidence * 100)}%)`,
+    probability: confidence,
+    blocking: template.status === "proven",
+  };
+}
+
+/** One template's finding from its answer, or `undefined` when it does not hit
+ * (tools/jev/lint.mjs hit rules): {@link booleanFinding} or {@link choiceFinding}. */
+function templateFinding(
+  template: Blueprint.Template,
+  answer: Blueprint.Answer | undefined,
+  node: string,
+  compareValue: unknown,
+): Blueprint.Finding | undefined {
+  if (answer === undefined) return undefined;
+  return template.kind === "boolean"
+    ? booleanFinding(template, answer, node)
+    : choiceFinding(template, answer, node, compareValue);
+}
+
+/** One node plus its one-hop neighbours, as the judge sees it. */
+function nodeStateOf(graph: Blueprint.Graph, node: Blueprint.Node): Blueprint.NodeState {
+  return { ...node, uses: graph.uses(node.name), usedBy: graph.usedBy(node.name) };
+}
+
+/** Every unordered pair of nodes, in file order (`nodes[i]` before `nodes[j]`, `i < j`). */
+function pairsOf(
+  nodes: readonly Blueprint.Node[],
+): readonly (readonly [Blueprint.Node, Blueprint.Node])[] {
+  const pairs: (readonly [Blueprint.Node, Blueprint.Node])[] = [];
+  for (let i = 0; i < nodes.length; i++)
+    for (let j = i + 1; j < nodes.length; j++) pairs.push([nodes[i], nodes[j]]);
+  return pairs;
+}
+
+/** One `judge.ask` per node: every `forKind` template, keyed by id, against the node's state. */
+async function nodeFindings(
+  graph: Blueprint.Graph,
+  corpus: Blueprint.Corpus,
+  judge: Blueprint.Judge,
+  signal: AbortSignal,
+): Promise<readonly Blueprint.Finding[]> {
+  const findings: Blueprint.Finding[] = [];
+  for (const node of graph.nodes) {
+    const templates = corpus.forKind(node.kind);
+    if (templates.length === 0) continue;
+    const state = nodeStateOf(graph, node);
+    const answers = await judge.ask(state, questionsOf(templates), signal);
+    for (const template of templates) {
+      const finding = templateFinding(
+        template,
+        answers[template.id],
+        node.name,
+        compareValueOf(template, state),
+      );
+      if (finding) findings.push(finding);
+    }
+  }
+  return findings;
+}
+
+/** One `judge.ask` per unordered pair whose two kinds both match a pair template's `applies`. */
+async function pairFindings(
+  graph: Blueprint.Graph,
+  corpus: Blueprint.Corpus,
+  judge: Blueprint.Judge,
+  signal: AbortSignal,
+): Promise<readonly Blueprint.Finding[]> {
+  const findings: Blueprint.Finding[] = [];
+  for (const [a, b] of pairsOf(graph.nodes)) {
+    const applicable = corpus.pairs.filter(
+      (template) => template.applies.includes(a.kind) && template.applies.includes(b.kind),
+    );
+    if (applicable.length === 0) continue;
+    const state: Blueprint.PairState = { a: nodeStateOf(graph, a), b: nodeStateOf(graph, b) };
+    const answers = await judge.ask(state, questionsOf(applicable), signal);
+    for (const template of applicable) {
+      const finding = templateFinding(
+        template,
+        answers[template.id],
+        `${a.name}, ${b.name}`,
+        undefined,
+      );
+      if (finding) findings.push(finding);
+    }
+  }
+  return findings;
+}
+
+/** `check`'s core: plain checks, then one `judge.ask` per node, then one `judge.ask` per matching
+ * pair. `blocking` never throws here — the caller decides what a blocking finding means. */
+export async function runCheck(
+  graph: Blueprint.Graph,
+  corpus: Blueprint.Corpus,
+  judge: Blueprint.Judge,
+  signal: AbortSignal,
+): Promise<Blueprint.Report> {
+  const findings = [
+    ...plainChecks(graph),
+    ...(await nodeFindings(graph, corpus, judge, signal)),
+    ...(await pairFindings(graph, corpus, judge, signal)),
+  ];
+  return { nodes: graph.nodes.length, findings };
 }

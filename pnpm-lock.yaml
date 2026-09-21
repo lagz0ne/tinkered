@@ -565,6 +565,9 @@ importers:
       '@tinker/core':
         specifier: workspace:*
         version: link:../core
+      ai:
+        specifier: 'catalog:'
+        version: 7.0.105(zod@4.6.2)
       yaml:
         specifier: 'catalog:'
         version: 2.9.1

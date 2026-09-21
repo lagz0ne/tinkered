@@ -3,6 +3,7 @@ applies: [resource]
 needs: [promise, why, work]
 kind: choice
 status: provisional
+compare: target
 ask: >-
   One copy for the whole scope,
   or one per session?

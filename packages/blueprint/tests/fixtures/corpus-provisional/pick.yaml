@@ -1,0 +1,12 @@
+id: pick
+applies: [data, resource, operation, tag]
+kind: choice
+status: provisional
+compare: kind
+ask: Which unit fits this node?
+choices:
+  data: a value read over time
+  resource: something that subscribes or connects
+  operation: something asked for once per call
+  tag: an environment choice
+minConfidence: 0.6

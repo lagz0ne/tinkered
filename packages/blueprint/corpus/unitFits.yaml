@@ -3,6 +3,7 @@ applies: [data, resource, operation, tag]
 needs: [promise, why, work]
 kind: choice
 status: provisional
+compare: kind
 ask: >-
   Which unit fits this node:
   data, resource, operation, or tag?

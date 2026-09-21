@@ -2,7 +2,9 @@
 
 A blueprint is a YAML declaration file for a tinker app.
 It names the units, their kinds, and their links, plus one promise per node.
-`blueprint check` runs the plain checks over one file.
+`blueprint check` runs the plain checks over one file,
+then judges every node and pair with Jev over the
+shipped question templates.
 
 ## The file format
 
@@ -55,6 +57,11 @@ It names the units, their kinds, and their links, plus one promise per node.
   plus `true` / `false`
   (boolean) or `choices`
   (choice).
+- A choice template may carry
+  `compare`: the node field its
+  pick is measured against.
+  `unitFits` compares `kind`;
+  `target` compares `target`.
 - `scope` is `node` or `pair.
 - `applies` names node kinds;
   `needs` names state fields
@@ -140,21 +147,63 @@ node packages/blueprint/dist/main.mjs \
   The file cannot tell a read from a write.
   Any dependent operation or resource counts as a writer.
 
-## Exit codes
+## Running check
 
-- **0** — clean; prints `ok: N nodes`.
-  `check` answers the report: the node
-  count beside the findings.
-- **1** — a plain check failed.
-  Prints one finding line per failure:
+- The key: `AI_GATEWAY_API_KEY`,
+  or `--key-file <path>`.
+  Never printed.
+- The file argument is the first
+  argv entry that is not a flag
+  and is not `--key-file`'s value.
+- With no key, `check` fails
+  `NoKey`; `explain` still answers
+  (it never asks the judge).
+- `--json` prints the report as
+  one JSON object and nothing else.
+- Plain output is one line per
+  finding, then a summary line:
 
 ```text
-unknownDepends  saveIssue  depends
-  on "issueLst": no such node
-dataNoWriter    issueList  no operation
+dataNoWriter   issueList  no operation
   or resource depends on it
+~unitFits      saveIssue  reads as
+  resource (72%)
+~whyDuplicate  db, tx     same why
+  as tx (81%)
+ok: 5 nodes, 3 findings
 ```
 
+- `~` marks a `provisional` template:
+  it prints, it never sets the
+  exit code.
+
+## How a hit is decided
+
+- **boolean** — the answer's
+  probability is at or above
+  the template's `threshold`.
+- **choice** — the pick differs
+  from the node's `compare` field,
+  at or above `minConfidence`.
+  Below `minConfidence`, or a pick
+  that matches `compare`: no finding.
+- A hit blocks (`blocking: true`)
+  when its template is `proven`,
+  or it is a plain check (always
+  blocking).
+
+## Exit codes
+
+- **0** — clean, or every finding
+  is `~` (provisional). Prints
+  `ok: N nodes, M findings`.
+- **1** — a plain check failed,
+  or a `proven` template hit.
+  Prints the finding lines on stderr.
+- **1** — no key. Prints
+  `blueprint: no key (set
+AI_GATEWAY_API_KEY or
+--key-file <path>)`.
 - **2** — the file is not a blueprint.
   A yaml or schema failure prints usage.
 
@@ -163,13 +212,23 @@ dataNoWriter    issueList  no operation
 - **InvalidBlueprint** — the text is not yaml
   or a node breaks the schema.
   Carries the zod issues.
-- **BlueprintRejected** — a plain check blocked.
+- **BlueprintRejected** — a plain check
+  or a `proven` template blocked.
   Carries the finding lines; the message
   holds one line per finding.
+- **NoKey** — `check` ran with no
+  `AI_GATEWAY_API_KEY` and no
+  `--key-file`.
 
 ## Run it
 
 ```bash
-node packages/blueprint/dist/main.mjs \
+AI_GATEWAY_API_KEY=… node \
+  packages/blueprint/dist/main.mjs \
   check examples/tracker.yaml
+node packages/blueprint/dist/main.mjs \
+  check --key-file ~/.key \
+  examples/tracker.yaml
+node packages/blueprint/dist/main.mjs \
+  check --json examples/tracker.yaml
 ```

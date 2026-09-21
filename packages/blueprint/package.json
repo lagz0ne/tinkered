@@ -37,6 +37,7 @@
   "dependencies": {
     "@tinker/cli": "workspace:*",
     "@tinker/core": "workspace:*",
+    "ai": "catalog:",
     "yaml": "catalog:",
     "zod": "catalog:"
   },
