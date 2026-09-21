@@ -3,6 +3,10 @@ type Payloads = {
   StreamEnded: {
     label: string;
   };
+  MissingConfig: {
+    label: string;
+    key: string;
+  };
 };
 
 export declare namespace Errors {
