@@ -1820,3 +1820,22 @@ startDraft.stream(emit, ctx)          src/server/routes.ts:85 (was `ctx.signal`,
 publishAfterCommit                    src/server/app.ts:39, src/index.ts:42
 main.ts entry/serve                   no importers
 ```
+
+### tracker/observe — landed 2026-09-21 (`67530a9`)
+
+The lead wrote this one directly (six server files, three test files). Gates, by exit code, on `main`:
+
+```text
+vp check                                          0 errors
+vp run @tinker-issue-tracker#test                 47 passed (5 files; +5: publish failure after commit, draft failed line, observe.test.ts ×4)
+vp run @tinker-issue-tracker#build && vp run --no-cache @tinker-issue-tracker#test:browser   proof + 7 passed
+publish test on the old publish.ts                × expected 500 to be 201 (fails without the fix)
+real boot (PORT=4399)                             listening line; POST 201 + `http request` line; GET missing → failed `readDetail` span + 404 line; second boot on the same port → `boot failed` EADDRINUSE, exit 1
+jev preflight                                     `leakedInternal` on index.ts labeled false (the seam exports); draft.ts/main.ts hits pre-date the change
+jev tests observe.test.ts                         helperAlone + manyCauses ×2 labeled false
+```
+
+What swaps: `createApp({ observe })` takes any `Observe.Config` (core's `log` + `export`). `jsonLines` is the
+no-dependency default; an OpenTelemetry-shaped backend is another function returning the same shape. Not done, on
+purpose: every ok span is not written by the default (that is a trace, and stdout is not a tracing backend); no
+`unhandledRejection` handler (Node's default crash is loud, and the scope owns every promise the app starts).
