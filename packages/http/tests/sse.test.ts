@@ -68,6 +68,12 @@ test("sse() keeps a CRLF split across chunks as one line end", async () => {
   expect(events).toEqual([{ data: "a\nb" }]);
 });
 
+test("sse() dispatches a pending event when the stream ends without a blank line", async () => {
+  const request = HttpRequest.get("/x");
+  const events = await readEvents(HttpResponse.make(request, { status: 200, body: "data: x" }));
+  expect(events).toEqual([{ data: "x" }]);
+});
+
 test("sse() on a bodiless response raises NoBody", async () => {
   const request = HttpRequest.get("/x");
   const response = HttpResponse.make(request, { status: 204 });
