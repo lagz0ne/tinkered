@@ -24,35 +24,67 @@ or to preset it?
 
 ## Order & status
 
-- **graph/t01** -- [ ]
-  Core: one log line per operation (label, ms,
-  outcome), gated on `obs.observing` exactly as
-  the span is. `bench` before and after in a
-  sandbox; `op` must stay within +2 ns.
-  Packages keep their domain attributes and drop
-  their hand-derived `ms`.
-- **graph/t02** -- [ ]
-  `http`: `send` and `attempt` become operations;
-  the endpoint builder goes. Config merges inside
-  `send`; per-call config stays `tags` on the run.
-  Delete the hand-rolled `obs.child`. Span-tree
-  test asserts listRepos > send > attempt x2.
-  Consumers in the same commit: blueprint,
-  tracker, tinkerer, examples.
-- **graph/t03** -- [ ]
-  `harness`: the turn builder goes; the author
-  declares the turn operation depending on
-  `coder.thread` and the cells. `request` -> `send`,
-  `response` -> `respond` where the shape survives.
+Tracer-bullet tickets: each cuts a complete path and is verifiable on its own. **Blocked by** is the
+edge that must land first. Every ticket ends with the Jev loop below -- the writer runs it and
+decides each flag before reporting, so a review round is about shape, never about findings the
+tools already print.
+
+- **graph/t02a** -- [ ] `http`: finish the package
+  Blocked by: none (the base is on `graph/t02-http`).
+  Delivers: `vp run http#test` green on the new shape.
+  - [ ] `endpoints.test.ts`: the client-preset test targets `attempt`
+        (the `client` resource is gone); the forced-close test settles
+        `cancelled` again.
+  - [ ] `observe.test.ts`: assert `github.attempt` spans, not the old
+        hand-rolled `http GET <url>` name.
+  - [ ] `retry.test.ts`: one `attempt` span per try, backoff on the
+        test clock, abort during backoff makes no further call.
+  - [ ] no `.operation(` or `.client` left in `packages/http`.
+- **graph/t02b** -- [ ] the consumers
+  Blocked by: t02a.
+  Delivers: `vp check` clean and every consumer's tests green.
+  - [ ] `apps/issue-tracker/src/client/api.ts` (7 endpoints), `drafter.ts`,
+        `tests/client.test.ts`.
+  - [ ] `packages/tinkerer/src/index.ts` (the `step` endpoint).
+  - [ ] `examples/http/basic.ts`, and any harness example the change reaches.
+  - [ ] one span-tree test in the tracker: a real request shows
+        `caller > api.send > api.attempt`.
+- **graph/t01** -- [ ] core's gated log line
+  Blocked by: nothing, but held: `bench` is not on PATH in this container,
+  so the +2 ns budget cannot be measured here. Start it where `bench` runs.
+- **graph/t03** -- [ ] `harness`
+  Blocked by: t02b (same pattern, proven once).
+  The turn builder goes; the author declares the turn operation on
+  `coder.thread` and the cells. `request` -> `send`, `response` -> `respond`.
   Span-tree test over the recorded fixtures.
-- **graph/t04** -- [ ]
-  `process`: `command`'s sugar becomes a declared
-  operation the author writes; the route keeps its
-  row shape. Span-tree test over one command.
-- **graph/t05** -- [ ]
-  Re-run the Jev census; record the fall per
-  package. Any unit still flagged is fixed or
-  explained in one line.
+- **graph/t04** -- [ ] `process`
+  Blocked by: t03.
+  `command`'s sugar becomes a declared operation; the route keeps its row
+  shape. Span-tree test over one command.
+- **graph/t05** -- [ ] re-run the census
+  Blocked by: t04. Record the flag count per package, before and after.
+
+## The Jev loop every ticket ends with
+
+Run these, decide every hit, then report. A hit fixed or explained in one line is not a review
+round; an unexplained hit is.
+
+```bash
+# file judges + per-unit lint
+node tools/jev/preflight.mjs main..HEAD
+# the unit judges, incl. runForwardsToClosure
+node tools/jev/lint.mjs <changed src paths>
+# over-testing
+node tools/jev/tests.mjs <pkg>
+# a test title with no README line
+node tools/jev/promises.mjs <pkg>
+# record each decision
+node tools/jev/label.mjs <judge> true|false \
+  <file>[#<unit>] --by graph/<t> --why "<one line>"
+```
+
+The bar this track exists for: **`runForwardsToClosure` must not appear on a unit you wrote.** If it
+does, either the step deserves to be an operation, or the helper belongs inside `run`.
 
 ## Separate card
 
