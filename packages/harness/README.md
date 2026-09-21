@@ -58,7 +58,9 @@ Each turn opens one SDK call on the merged options — nearer bindings win per k
 and the ambient cells: text deltas stream into `text`, tool calls and answers land in `items`,
 the result's own usage and cost land in `usage`, the session id lands in `id`, and every
 message lands in `events` raw, including kinds the frame does not otherwise read, which never
-stop the turn. Only text deltas move `text`; any other stream event streams nothing. Only tool
+stop the turn. A turn's `response` reader maps the result before the turn delivers it, instead
+of the raw SDK result. With `observe`, the turn span carries the adapter label and one
+`harness turn` line logs the outcome (`done`, `failed`, or `cancelled`). Only text deltas move `text`; any other stream event streams nothing. Only tool
 calls add tool items and only tool answers add tool results, so a plain or trailing assistant
 message adds nothing. The `id` cell moves only on the init message and the result; any other
 system message leaves it alone. A stream that ends with no result rejects with `TurnEnded`.
@@ -167,7 +169,8 @@ under its `tool` meta name, defaulting to the op's label. A bound op without
 `tool` meta throws `ToolUndeclared` at construction.
 
 The in-process path is Claude's zero-process fast path: the adapter registers one in-process
-MCP server named after the frame (built once per thread, beside any `mcpServers` you bound),
+MCP server named after the frame (built once per thread, beside any `mcpServers` you bound —
+under the frame's own label the frame's server wins),
 one SDK tool per tool op, and maps the value with `answerTool` exactly as the driver does.
 The model needs `allowedTools: ["mcp__coder__search"]` (or an `approve` op) to call it
 without a prompt. With both `approve` and `tools`, one turn answers the approval and still
