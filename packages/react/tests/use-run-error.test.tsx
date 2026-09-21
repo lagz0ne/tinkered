@@ -133,6 +133,49 @@ test("reset from an error clears status, data, and error", async () => {
   await scope.close();
 });
 
+test("a run from before reset never overwrites a newer run that settled after it", async () => {
+  last = undefined;
+  const scope = createScope();
+  const gateA = deferred<number>();
+  const gateB = deferred<number>();
+  const raced = operation({
+    label: "raced-reset",
+    input: (raw) => Number(raw),
+    run: (_deps, { input }) => (input === 1 ? gateA.promise : gateB.promise).then(() => input),
+  });
+
+  let ctl: Ctl | undefined;
+  const ui = (
+    <ScopeProvider scope={scope}>
+      <Exposer
+        op={raced}
+        bind={(c) => {
+          ctl = c;
+        }}
+      />
+    </ScopeProvider>
+  );
+  const screen = await render(ui);
+  if (!ctl) throw new Error("ctl was not bound");
+
+  const runA = ctl.run({ rawInput: "1" });
+  await expect.element(screen.getByText("status:pending")).toBeVisible();
+  ctl.reset();
+  await expect.element(screen.getByText("status:idle")).toBeVisible();
+  const runB = ctl.run({ rawInput: "2" });
+  gateB.resolve(2);
+  await runB;
+  await expect.element(screen.getByText("status:success")).toBeVisible();
+  expect(last).toEqual({ status: "success", data: 2, error: undefined });
+
+  gateA.resolve(1);
+  await runA;
+  await screen.rerender(ui);
+  expect(last).toEqual({ status: "success", data: 2, error: undefined });
+
+  await scope.close();
+});
+
 test("reset during a pending run drops the late result: state stays idle", async () => {
   last = undefined;
   const scope = createScope();

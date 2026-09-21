@@ -1,5 +1,6 @@
 import type { Resource } from "@tinker/core";
 import { createScope, resource } from "@tinker/core";
+import { useState } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
 import { ScopeProvider, useResource } from "../src/index.ts";
@@ -76,6 +77,37 @@ test("a query reports its status through one flag at a time", async () => {
   await scope.close();
 });
 
+test("a refetch drops the settled build: pending shows, never stale data", async () => {
+  const scope = createScope();
+  const gateA = deferred<number>();
+  const gateB = deferred<number>();
+  let build = 0;
+  const raced = resource({
+    label: "raced-query",
+    factory: () => {
+      build += 1;
+      return build === 1 ? gateA.promise : gateB.promise;
+    },
+  });
+
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <Local handle={raced} />
+    </ScopeProvider>,
+  );
+
+  await expect.element(screen.getByText("status:pending")).toBeVisible();
+  gateA.resolve(1);
+  await expect.element(screen.getByText("data:1")).toBeVisible();
+  await screen.getByRole("button", { name: "refetch" }).click();
+  await expect.element(screen.getByText("status:pending")).toBeVisible();
+  await expect.element(screen.getByText("data:-")).toBeVisible();
+  gateB.resolve(2);
+  await expect.element(screen.getByText("data:2")).toBeVisible();
+
+  await scope.close();
+});
+
 test("suspense:false reports a synchronous build as success at once", async () => {
   const scope = createScope();
   const quick = resource({ label: "quick", factory: () => 7 });
@@ -88,6 +120,67 @@ test("suspense:false reports a synchronous build as success at once", async () =
 
   await expect.element(screen.getByText("status:success")).toBeVisible();
   await expect.element(screen.getByText("data:7")).toBeVisible();
+
+  await scope.close();
+});
+
+test("a refetch after switching handles rebuilds the current one fresh", async () => {
+  const scope = createScope();
+  let builds = 0;
+  const mk = (label: string): Resource.Handle<Promise<number>> =>
+    resource({ label, factory: () => Promise.resolve((builds += 1)) });
+  const one = mk("rh-one");
+  const two = mk("rh-two");
+
+  function Switcher(): React.ReactElement {
+    const [handle, setHandle] = useState(one);
+    return (
+      <div>
+        <button type="button" onClick={() => setHandle(two)}>
+          switch
+        </button>
+        <Local handle={handle} />
+      </div>
+    );
+  }
+
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <Switcher />
+    </ScopeProvider>,
+  );
+
+  await expect.element(screen.getByText("data:1")).toBeVisible();
+  await screen.getByRole("button", { name: "switch" }).click();
+  await expect.element(screen.getByText("data:2")).toBeVisible();
+  await screen.getByRole("button", { name: "refetch" }).click();
+  await expect.element(screen.getByText("data:3")).toBeVisible();
+  expect(builds).toBe(3);
+
+  await scope.close();
+});
+
+test("a second refetch builds a third generation", async () => {
+  const scope = createScope();
+  let builds = 0;
+  const counted = resource({
+    label: "counted-refetch",
+    factory: () => Promise.resolve((builds += 1)),
+  });
+
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <Local handle={counted} />
+    </ScopeProvider>,
+  );
+
+  await expect.element(screen.getByText("status:success")).toBeVisible();
+  await expect.element(screen.getByText("data:1")).toBeVisible();
+  await screen.getByRole("button", { name: "refetch" }).click();
+  await expect.element(screen.getByText("data:2")).toBeVisible();
+  await screen.getByRole("button", { name: "refetch" }).click();
+  await expect.element(screen.getByText("data:3")).toBeVisible();
+  expect(builds).toBe(3);
 
   await scope.close();
 });

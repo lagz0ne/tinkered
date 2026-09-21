@@ -1,6 +1,6 @@
 import type { Resource } from "@tinker/core";
 import { createScope, data, resource } from "@tinker/core";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
 import { ScopeProvider, useController, useData, useRelease, useResource } from "../src/index.ts";
@@ -81,6 +81,50 @@ test("retry: releasing a failed resource + resetting the boundary rebuilds it gr
   await expect.element(screen.getByText("v:42")).toBeVisible();
 
   await scope.close();
+});
+
+test("releasing through a new scope reverts the new scope's cell", async () => {
+  const scopeA = createScope();
+  const scopeB = createScope();
+  const flag = data({ label: "flag", initial: "start" });
+  scopeA.controller(flag).set("aaa");
+  scopeB.controller(flag).set("bbb");
+
+  function Switcher(): React.ReactElement {
+    const [scope, setScope] = useState(scopeA);
+    return (
+      <ScopeProvider scope={scope}>
+        <button type="button" onClick={() => setScope(scopeB)}>
+          switch
+        </button>
+        <Inner />
+      </ScopeProvider>
+    );
+  }
+
+  function Inner(): React.ReactElement {
+    const release = useRelease();
+    return (
+      <div>
+        <button type="button" onClick={() => release(flag)}>
+          rel
+        </button>
+        <p>flag:{useData(flag)}</p>
+      </div>
+    );
+  }
+
+  const screen = await render(<Switcher />);
+
+  await expect.element(screen.getByText("flag:aaa")).toBeVisible();
+  await screen.getByRole("button", { name: "switch" }).click();
+  await expect.element(screen.getByText("flag:bbb")).toBeVisible();
+  await screen.getByRole("button", { name: "rel" }).click();
+  await expect.element(screen.getByText("flag:start")).toBeVisible();
+  expect(scopeA.controller(flag).get()).toBe("aaa");
+
+  await scopeA.close();
+  await scopeB.close();
 });
 
 test("releasing a data cell reverts it to its initial value and notifies readers", async () => {

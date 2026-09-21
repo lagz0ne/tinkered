@@ -34,6 +34,95 @@ function SliceObj({ onRender }: { onRender: () => void }): React.ReactElement {
   return <p>obj-a:{slice.a}</p>;
 }
 
+const optsBox = data({ label: "optsBox", initial: { a: 1, b: 1 } });
+
+function SliceOpts({ onRender }: { onRender: () => void }): React.ReactElement {
+  const slice = useData(optsBox, (v) => ({ a: v.a }), { isEqual: (x, y) => x.a === y.a });
+  onRender();
+  return <p>opts-a:{slice.a}</p>;
+}
+
+test("a selector with an options object applies its isEqual", async () => {
+  const scope = createScope();
+  let renders = 0;
+
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <SliceOpts
+        onRender={() => {
+          renders += 1;
+        }}
+      />
+    </ScopeProvider>,
+  );
+
+  await expect.element(screen.getByText("opts-a:1")).toBeVisible();
+  const afterMount = renders;
+
+  scope.controller(optsBox).update((v) => ({ ...v, b: 5 }));
+  await expect.element(screen.getByText("opts-a:1")).toBeVisible();
+  expect(renders).toBe(afterMount);
+
+  scope.controller(optsBox).update((v) => ({ ...v, a: 2 }));
+  await expect.element(screen.getByText("opts-a:2")).toBeVisible();
+  expect(renders).toBeGreaterThan(afterMount);
+
+  await scope.close();
+});
+
+const aeBox = data({ label: "aeBox", initial: { a: 1, b: 1 } });
+
+function AlwaysEqual({ onRender }: { onRender: () => void }): React.ReactElement {
+  const value = useData(aeBox, { isEqual: () => true });
+  onRender();
+  return <p>ae-a:{value.a}</p>;
+}
+
+test("an isEqual of always-true never re-renders on cell updates", async () => {
+  const scope = createScope();
+  let renders = 0;
+
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <AlwaysEqual
+        onRender={() => {
+          renders += 1;
+        }}
+      />
+    </ScopeProvider>,
+  );
+
+  await expect.element(screen.getByText("ae-a:1")).toBeVisible();
+  const afterMount = renders;
+
+  scope.controller(aeBox).update((v) => ({ ...v, a: 2 }));
+  await expect.element(screen.getByText("ae-a:1")).toBeVisible();
+  expect(renders).toBe(afterMount);
+
+  await scope.close();
+});
+
+test("useData with only isEqual reads the raw value", async () => {
+  const scope = createScope();
+  const count = data({ label: "count-eq", initial: 4 });
+
+  function Raw(): React.ReactElement {
+    return <p>raw:{useData(count, { isEqual: Object.is })}</p>;
+  }
+
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <Raw />
+    </ScopeProvider>,
+  );
+
+  await expect.element(screen.getByText("raw:4")).toBeVisible();
+  scope.controller(count).set(9);
+  await expect.element(screen.getByText("raw:9")).toBeVisible();
+
+  await scope.close();
+});
+
 test("re-renders only when the selected slice changes", async () => {
   const scope = createScope();
   let renders = 0;
@@ -60,6 +149,50 @@ test("re-renders only when the selected slice changes", async () => {
   scope.controller(box).update((v) => ({ ...v, a: 2 }));
   await expect.element(screen.getByText("a:2")).toBeVisible();
   expect(renders).toBeGreaterThan(afterMount);
+
+  await scope.close();
+});
+
+const keptBox = data({ label: "keptBox", initial: { a: 1, b: 1 } });
+const pickKept = (v: { a: number; b: number }): { a: number } => ({ a: v.a });
+const alwaysTrue = (): boolean => true;
+
+function SliceKept({ onSeen }: { onSeen: (slice: object) => void }): React.ReactElement {
+  const slice = useData(keptBox, pickKept, alwaysTrue);
+  onSeen(slice);
+  return <p>kept:{slice.a}</p>;
+}
+
+test("a kept slice survives a raw change and two parent re-renders", async () => {
+  const scope = createScope();
+  const seen: object[] = [];
+
+  function Parent(): React.ReactElement {
+    const [n, setN] = useState(0);
+    return (
+      <button type="button" onClick={() => setN((x) => x + 1)}>
+        bump {n}
+        <SliceKept onSeen={(slice) => seen.push(slice)} />
+      </button>
+    );
+  }
+
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <Parent />
+    </ScopeProvider>,
+  );
+
+  await expect.element(screen.getByText("kept:1")).toBeVisible();
+  scope.controller(keptBox).update((v) => ({ ...v, b: 2 }));
+  await expect.element(screen.getByText("kept:1")).toBeVisible();
+  await screen.getByRole("button").click();
+  await expect.element(screen.getByText("bump 1")).toBeVisible();
+  await screen.getByRole("button").click();
+  await expect.element(screen.getByText("bump 2")).toBeVisible();
+
+  expect(seen.length).toBeGreaterThan(2);
+  expect(seen[seen.length - 1]).toBe(seen[0]);
 
   await scope.close();
 });
@@ -128,6 +261,44 @@ test("a new inline selector after a parent re-render shows its output and still 
 
   scope.controller(box).update((v) => ({ ...v, b: 10 }));
   await expect.element(screen.getByText("picked:10")).toBeVisible();
+
+  await scope.close();
+});
+
+const swapBox = data({ label: "swapBox", initial: { a: 1, b: 1 } });
+const pickAStable = (v: { a: number; b: number }): { a: number } => ({ a: v.a });
+
+function SliceSwapped({ equal }: { equal: (x: { a: number }, y: { a: number }) => boolean }): React.ReactElement {
+  const slice = useData(swapBox, pickAStable, equal);
+  return <p>swapped:{slice.a}</p>;
+}
+
+test("a swapped-in isEqual applies from the next render", async () => {
+  const scope = createScope();
+  const always = alwaysTrue;
+  const never = (): boolean => false;
+
+  function Parent(): React.ReactElement {
+    const [equal, setEqual] = useState<() => boolean>(() => always);
+    return (
+      <button type="button" onClick={() => setEqual(() => never)}>
+        swap
+        <SliceSwapped equal={equal} />
+      </button>
+    );
+  }
+
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <Parent />
+    </ScopeProvider>,
+  );
+
+  await expect.element(screen.getByText("swapped:1")).toBeVisible();
+  scope.controller(swapBox).update((v) => ({ ...v, a: 2 }));
+  await expect.element(screen.getByText("swapped:1")).toBeVisible();
+  await screen.getByRole("button").click();
+  await expect.element(screen.getByText("swapped:2")).toBeVisible();
 
   await scope.close();
 });

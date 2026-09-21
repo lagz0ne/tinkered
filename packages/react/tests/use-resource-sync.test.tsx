@@ -1,4 +1,5 @@
 import { createScope, resource } from "@tinker/core";
+import { useState } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { expect, test } from "vite-plus/test";
@@ -21,6 +22,44 @@ function Capture(): React.ReactElement {
   captured = useResource(store);
   return <p>ok</p>;
 }
+
+test("reading through a new scope builds in the new scope", async () => {
+  const scopeA = createScope();
+  const scopeB = createScope();
+  let builds = 0;
+  const counted = resource({
+    label: "counted-scope",
+    factory: () => {
+      builds += 1;
+      return { value: builds };
+    },
+  });
+
+  function Switcher(): React.ReactElement {
+    const [scope, setScope] = useState(scopeA);
+    return (
+      <button type="button" onClick={() => setScope(scopeB)}>
+        <ScopeProvider scope={scope}>
+          <ShowScoped handle={counted} />
+        </ScopeProvider>
+      </button>
+    );
+  }
+
+  function ShowScoped({ handle }: { handle: Resource.Handle<{ value: number }> }): React.ReactElement {
+    return <p>svalue:{useResource(handle).value}</p>;
+  }
+
+  const screen = await render(<Switcher />);
+
+  await expect.element(screen.getByText("svalue:1")).toBeVisible();
+  await screen.getByRole("button").click();
+  await expect.element(screen.getByText("svalue:2")).toBeVisible();
+  expect(builds).toBe(2);
+
+  await scopeA.close();
+  await scopeB.close();
+});
 
 test("builds synchronously: the value commits on the first flushed render, no suspend", async () => {
   const scope = createScope();

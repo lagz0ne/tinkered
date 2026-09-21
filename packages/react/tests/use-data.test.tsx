@@ -12,6 +12,37 @@ function Count(): React.ReactElement {
   return <p>count:{useData(count)}</p>;
 }
 
+test("reading through a new scope shows the new scope's value", async () => {
+  const scopeA = createScope();
+  const scopeB = createScope();
+  scopeA.controller(count).set(1);
+  scopeB.controller(count).set(2);
+
+  function Selected(): React.ReactElement {
+    return <p>sel:{useData(count, (v) => v)}</p>;
+  }
+
+  function Switcher(): React.ReactElement {
+    const [scope, setScope] = useState(scopeA);
+    return (
+      <button type="button" onClick={() => setScope(scopeB)}>
+        <ScopeProvider scope={scope}>
+          <Selected />
+        </ScopeProvider>
+      </button>
+    );
+  }
+
+  const screen = await render(<Switcher />);
+
+  await expect.element(screen.getByText("sel:1")).toBeVisible();
+  await screen.getByRole("button").click();
+  await expect.element(screen.getByText("sel:2")).toBeVisible();
+
+  await scopeA.close();
+  await scopeB.close();
+});
+
 test("reads a cell and re-renders when it is set externally", async () => {
   const scope = createScope();
 

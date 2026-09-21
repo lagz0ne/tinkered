@@ -1,5 +1,6 @@
 import type { Operation, Scope } from "@tinker/core";
 import { createScope, operation } from "@tinker/core";
+import { useState } from "react";
 import { expect, test } from "vite-plus/test";
 import { render } from "vitest-browser-react";
 import { ScopeProvider, useRun } from "../src/index.ts";
@@ -37,6 +38,86 @@ function Exposer({
   bind(run.runAsync);
   return <p>data:{run.status === "success" ? String(run.data) : run.status}</p>;
 }
+
+test("switching the operation runs the new one, not the stale one", async () => {
+  const scope = createScope();
+  const plusOne = operation({
+    label: "plusOne",
+    input: (raw) => Number(raw),
+    run: (_deps, { input }) => Promise.resolve(input + 1),
+  });
+  const timesTen = operation({
+    label: "timesTen",
+    input: (raw) => Number(raw),
+    run: (_deps, { input }) => Promise.resolve(input * 10),
+  });
+
+  function Switcher(): React.ReactElement {
+    const [op, setOp] = useState(plusOne);
+    const run = useRun(op);
+    return (
+      <div>
+        <button type="button" onClick={() => setOp(timesTen as never)}>
+          switch
+        </button>
+        <button type="button" onClick={() => run.run({ rawInput: "5" })}>
+          go
+        </button>
+        <p>opdata:{run.status === "success" ? String(run.data) : run.status}</p>
+      </div>
+    );
+  }
+
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <Switcher />
+    </ScopeProvider>,
+  );
+
+  await screen.getByRole("button", { name: "switch" }).click();
+  await screen.getByRole("button", { name: "go" }).click();
+  await expect.element(screen.getByText("opdata:50")).toBeVisible();
+
+  await scope.close();
+});
+
+test("switching the operation rebinds runAsync to the new one", async () => {
+  const scope = createScope();
+  const plusOne = operation({
+    label: "plusOneAsync",
+    input: (raw) => Number(raw),
+    run: (_deps, { input }) => Promise.resolve(input + 1),
+  });
+  const timesTen = operation({
+    label: "timesTenAsync",
+    input: (raw) => Number(raw),
+    run: (_deps, { input }) => Promise.resolve(input * 10),
+  });
+
+  let runAsync: Resolver | undefined;
+  function Switcher(): React.ReactElement {
+    const [op, setOp] = useState(plusOne);
+    const run = useRun(op);
+    runAsync = run.runAsync;
+    return (
+      <button type="button" onClick={() => setOp(timesTen as never)}>
+        switch
+      </button>
+    );
+  }
+
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <Switcher />
+    </ScopeProvider>,
+  );
+  if (!runAsync) throw new Error("runAsync was not bound");
+
+  await screen.getByRole("button", { name: "switch" }).click();
+  await expect(runAsync({ rawInput: "5" })).resolves.toBe(50);
+
+  await scope.close();
+});
 
 test("runs an operation imperatively: idle -> pending -> success, with rawInput parsed", async () => {
   const scope = createScope();
@@ -188,6 +269,105 @@ function Flags({
     </div>
   );
 }
+
+function SettledOnly({
+  op,
+  call,
+  events,
+}: {
+  op: Operation.Handle<Promise<number>, number>;
+  call: Scope.ProvideInput<number>;
+  events: string[];
+}): React.ReactElement {
+  const run = useRun(op, {
+    onSettled: (data, error, variables) =>
+      void events.push(`settled:${String(data)}:${String(error)}:${String(variables.rawInput)}`),
+  });
+  return (
+    <div>
+      <button type="button" onClick={() => run.run(call)}>
+        go
+      </button>
+      <p>sflags:{[run.isSuccess, run.isError].map(Number).join("")}</p>
+    </div>
+  );
+}
+
+test("a run with only onSettled reports success without onSuccess", async () => {
+  const scope = createScope();
+  const events: string[] = [];
+  const inc = operation({
+    label: "inc-settled",
+    input: (raw) => Number(raw),
+    run: (_deps, { input }) => Promise.resolve(input + 1),
+  });
+
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <SettledOnly op={inc} call={{ rawInput: "5" }} events={events} />
+    </ScopeProvider>,
+  );
+
+  await screen.getByRole("button").click();
+  await expect.element(screen.getByText("sflags:10")).toBeVisible();
+  expect(events).toEqual(["settled:6:undefined:5"]);
+
+  await scope.close();
+});
+
+test("a run with only onSettled reports failure without onError", async () => {
+  const scope = createScope();
+  const events: string[] = [];
+  const failing = operation({
+    label: "failing-settled",
+    input: (raw) => Number(raw),
+    run: (_deps, { input }) => Promise.reject(new Error(`bad ${input}`)),
+  });
+
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <SettledOnly op={failing} call={{ rawInput: "7" }} events={events} />
+    </ScopeProvider>,
+  );
+
+  await screen.getByRole("button").click();
+  await expect.element(screen.getByText("sflags:01")).toBeVisible();
+  expect(events).toEqual(["settled:undefined:Error: bad 7:7"]);
+
+  await scope.close();
+});
+
+test("a run with empty options settles without callbacks", async () => {
+  const scope = createScope();
+  const inc = operation({
+    label: "inc-bare",
+    input: (raw) => Number(raw),
+    run: (_deps, { input }) => Promise.resolve(input + 1),
+  });
+
+  function Bare({ call }: { call: Scope.ProvideInput<number> }): React.ReactElement {
+    const run = useRun(inc, {});
+    return (
+      <div>
+        <button type="button" onClick={() => run.run(call)}>
+          go
+        </button>
+        <p>bare:{run.status === "success" ? String(run.data) : run.status}</p>
+      </div>
+    );
+  }
+
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <Bare call={{ rawInput: "5" }} />
+    </ScopeProvider>,
+  );
+
+  await screen.getByRole("button").click();
+  await expect.element(screen.getByText("bare:6")).toBeVisible();
+
+  await scope.close();
+});
 
 test("status flags and variables follow the latest call, and the option callbacks fire with it", async () => {
   const scope = createScope();
