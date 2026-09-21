@@ -1,6 +1,10 @@
+import type { Data } from "./index.ts";
+
 /** Payload type for each core error. The registry is the only place core throws. */
 type Payloads = {
   DataValidationFailed: { label: string; cause: unknown };
+  SchemaRejected: { issues: readonly Data.SchemaIssue[] };
+  SchemaAsync: { vendor: string };
   InvalidDependency: { label: string; reason: string };
   MissingTag: { label: string };
   Disposed: { reason: string };

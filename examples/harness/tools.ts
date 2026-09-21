@@ -13,7 +13,7 @@ const searchShape = { q: z.string() };
  * inside the turn; the same declaration serves the MCP driver. */
 const search = operation({
   label: "search",
-  input: (raw: unknown) => z.object(searchShape).parse(raw),
+  input: z.object(searchShape),
   depends: { index },
   meta: [tool({ description: "find a phrase in the current index", schema: searchShape })],
   run: ({ index }, ctx): CallToolResult => ({

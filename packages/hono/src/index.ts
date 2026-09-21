@@ -242,12 +242,7 @@ function defaultRespond<T>(value: Awaited<T>, c: Context): Response {
 }
 
 /** Run a route's operation in the request session and answer. No session → `NoSession`. */
-function answerRoute<T>(op: Operation.Handle<T, void>, route: HonoScope.Route<void, T>): Endpoint;
-function answerRoute<T, I>(
-  op: Operation.Handle<T, I>,
-  route: HonoScope.Route<I, T> & { readonly input: HonoScope.Input },
-): Endpoint;
-function answerRoute<T, I>(op: Operation.Handle<T, I>, route?: HonoScope.Route<I, T>): Endpoint {
+function answerRoute<T, I>(op: Operation.Handle<T, I>, route: HonoScope.Route<I, T>): Endpoint {
   const run = (c: Context): Promise<Response> => {
     const session = (c as Context<SessionEnv>).get("tinker.session");
     if (!session) raise("NoSession", { label: op.label });
@@ -271,7 +266,7 @@ function runVoid<T, I>(flow: Scope.OperationController<T, I>): T {
  * a Response (400/500, request span `ok`) and rethrows the rest — the unmapped
  * path is Hono's, so it writes no log line (Hono's `onError` decides that status). */
 function readRoute<T, I>(
-  route: HonoScope.Route<I, T> | undefined,
+  route: HonoScope.Route<I, T>,
   c: Context,
   onError: HonoScope.OnError | undefined,
   label: string,
@@ -301,8 +296,8 @@ function readRoute<T, I>(
       });
       return response;
     };
-    const respond: HonoScope.Respond<T> = route?.respond ?? defaultRespond;
-    const readInput = route?.input;
+    const respond: HonoScope.Respond<T> = route.respond ?? defaultRespond;
+    const readInput = route.input;
     const answer = async (): Promise<Response> => {
       let value: Awaited<T>;
       try {

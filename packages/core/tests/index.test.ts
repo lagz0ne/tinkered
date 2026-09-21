@@ -1,6 +1,7 @@
 import { expect, expectTypeOf, test } from "vite-plus/test";
 import {
   createScope,
+  type Data,
   data,
   extension,
   isError,
@@ -14,6 +15,7 @@ import {
   type Scope,
   tag,
 } from "../src/index.ts";
+import { z } from "zod";
 
 const asNumber = (v: unknown): number => {
   if (typeof v !== "number") throw new Error("not a number");
@@ -90,6 +92,48 @@ test("an invalid write throws DataValidationFailed with a typed payload", () => 
   } catch (error) {
     if (!isError(error, "DataValidationFailed")) throw error;
     expect(error.payload.label).toBe("count");
+  }
+});
+
+test("a zod schema is a parser as-is: the cell's type is inferred and a bad write carries the issues", () => {
+  const count = data({ label: "count", initial: 0, parse: z.number().min(0) });
+  expectTypeOf(count).toEqualTypeOf<Data.Cell<number>>();
+  const c = createScope().controller(count);
+  try {
+    c.set(-1);
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "DataValidationFailed")) throw error;
+    expect(error.payload.label).toBe("count");
+    if (!isError(error.payload.cause, "SchemaRejected")) throw error;
+    expect(error.payload.cause.payload.issues.length).toBe(1);
+  }
+  expect(c.get()).toBe(0);
+});
+
+test("an operation's input takes a zod schema and delivers the schema's output", () => {
+  const double = operation({
+    label: "double",
+    input: z.object({ n: z.coerce.number() }),
+    run: (_deps, { input }) => input.n * 2,
+  });
+  expectTypeOf(double).toEqualTypeOf<Operation.Handle<number, { n: number }>>();
+  expect(createScope().run(double, { rawInput: { n: "21" } })).toBe(42);
+});
+
+test("an async schema is refused at the edge with SchemaAsync naming the vendor", () => {
+  const slow = operation({
+    label: "slow",
+    input: z.number().refine(async () => true),
+    run: (_deps, { input }) => input,
+  });
+  try {
+    createScope().run(slow, { rawInput: 1 });
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "DataValidationFailed")) throw error;
+    if (!isError(error.payload.cause, "SchemaAsync")) throw error;
+    expect(error.payload.cause.payload.vendor).toBe("zod");
   }
 });
 

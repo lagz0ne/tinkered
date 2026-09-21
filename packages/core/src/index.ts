@@ -25,8 +25,30 @@ export type Edge<K extends string, Target> = {
 export type Many<T> = T | null | undefined | false | readonly Many<T>[];
 
 export declare namespace Data {
-  /** Validates raw input into a trusted value once, at the process edge. */
-  export type Parse<T> = (raw: unknown) => T;
+  /** Validates raw input into a trusted value once, at the process edge: a function that returns
+   * the value or throws, or any {@link Schema} (zod, valibot, arktype) passed as-is. */
+  export type Parse<T> = ((raw: unknown) => T) | Schema<T>;
+
+  /** The Standard Schema contract (`~standard`, version 1) every schema library speaks. Only the
+   * sync result is admitted: an edge parses before it runs, so a promise result is refused. */
+  export type Schema<T> = {
+    readonly "~standard": {
+      readonly version: 1;
+      readonly vendor: string;
+      readonly validate: (value: unknown) => SchemaResult<T> | Promise<SchemaResult<T>>;
+    };
+  };
+
+  /** What a schema's `validate` answers: the value, or the issues that refused it. */
+  export type SchemaResult<T> =
+    | { readonly value: T; readonly issues?: undefined }
+    | { readonly issues: readonly SchemaIssue[] };
+
+  /** One reason a schema refused a value. */
+  export type SchemaIssue = {
+    readonly message: string;
+    readonly path?: readonly (PropertyKey | { readonly key: PropertyKey })[] | undefined;
+  };
 
   /** A reactive value cell — the only reactive unit. */
   export type Cell<T> = {
@@ -562,11 +584,23 @@ export function extension<T = void>(config: {
   return { ...config, [extensionSym]: true as const };
 }
 
+/** Run a parser on a raw value: a function's return, or a schema's validated value. A schema's
+ * issues raise `SchemaRejected { issues }`; a schema that answers with a promise raises
+ * `SchemaAsync { vendor }`, since every edge parses before it runs. */
+export function parse<T>(parser: Data.Parse<T>, raw: unknown): T {
+  if (typeof parser === "function") return parser(raw);
+  const standard = parser["~standard"];
+  const result = standard.validate(raw);
+  if (result instanceof Promise) raise("SchemaAsync", { vendor: standard.vendor });
+  if (result.issues) raise("SchemaRejected", { issues: result.issues });
+  return result.value;
+}
+
 /** Admit a raw value through a parser once; parse failures become a registry error. */
-function admit<T>(label: string, parse: Data.Parse<T> | undefined, raw: unknown): T {
-  if (!parse) return raw as T;
+function admit<T>(label: string, parser: Data.Parse<T> | undefined, raw: unknown): T {
+  if (!parser) return raw as T;
   try {
-    return parse(raw);
+    return parse(parser, raw);
   } catch (cause) {
     raise("DataValidationFailed", { label, cause });
   }
@@ -653,18 +687,18 @@ export function tag<T>(config: {
   eq?: (a: T, b: T) => boolean;
   meta?: Tag.Bindings;
 }): Tag.Handle<T> {
-  const parse = config.parse;
+  const parser = config.parse;
   const label = config.label;
   const bind = (value: T): Tag.Binding<T> => ({
     tag: handle,
-    value: admit(label, parse, value),
+    value: admit(label, parser, value),
   });
   const handle = Object.assign(bind, {
     [tagSym]: true as const,
     label,
     hasDefault: "default" in config,
     def: config.default,
-    parse,
+    parse: parser,
     eq: config.eq ?? Object.is,
     meta: readMany(config.meta),
     read: (unit: Tag.Metaed): Tag.Presence<T> => metaFind(unit, handle),

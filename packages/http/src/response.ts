@@ -1,4 +1,4 @@
-import type { Data } from "@tinker/core";
+import { parse as runParse, type Data } from "@tinker/core";
 import { raise } from "./errors.ts";
 import type { HttpRequest } from "./request.ts";
 
@@ -73,7 +73,7 @@ export function fromWeb(
     }
     if (!parse) return raw as T;
     try {
-      return parse(raw);
+      return runParse(parse, raw);
     } catch (cause) {
       raise("ResponseFailed", { request, response: handle, reason: "Decode", cause });
     }
