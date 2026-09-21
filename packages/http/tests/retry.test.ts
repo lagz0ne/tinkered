@@ -16,22 +16,22 @@ const plain = httpClient({ label: "plain" });
 const flakyText = operation({
   label: "flaky.text",
   depends: { send: flaky.send },
-  run: async ({ send }, ctx) => {
+  run: async ({ send }) => {
     const received = await send.run({
       input: HttpRequest.get("https://api/repos"),
     });
-    return ((res) => res.text())(received);
+    return received.text();
   },
 });
 
 const retryingText = operation({
   label: "retrying.text",
   depends: { send: retrying.send },
-  run: async ({ send }, ctx) => {
+  run: async ({ send }) => {
     const received = await send.run({
       input: HttpRequest.get("https://api/repos"),
     });
-    return ((res) => res.text())(received);
+    return received.text();
   },
 });
 
@@ -44,11 +44,11 @@ const retryingRaw = operation({
 const plainText = operation({
   label: "plain.text",
   depends: { send: plain.send },
-  run: async ({ send }, ctx) => {
+  run: async ({ send }) => {
     const received = await send.run({
       input: HttpRequest.get("https://api/repos"),
     });
-    return ((res) => res.text())(received);
+    return received.text();
   },
 });
 

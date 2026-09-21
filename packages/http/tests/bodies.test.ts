@@ -17,11 +17,11 @@ test("text and bytes bodies arrive with their content types", async () => {
   const send = operation({
     label: "github.send",
     depends: { send: github.send },
-    run: async ({ send }, ctx) => {
+    run: async ({ send }) => {
       const received = await send.run({
         input: HttpRequest.post("/a", { body: HttpRequest.bodyBytes(new Uint8Array([7])) }),
       });
-      return ((res) => res.text())(received);
+      return received.text();
     },
   });
   const scope = createScope({
@@ -60,16 +60,15 @@ test("query params keep their pairs and the fragment stays at the end", async ()
   const send = operation({
     label: "github.send",
     depends: { send: github.send },
-    run: ({ send }, ctx) =>
+    run: ({ send }) =>
       send.run({
-        input: (() =>
-          HttpRequest.get("/a", {
-            urlParams: [
-              ["p", "1"],
-              ["p", "2"],
-            ],
-            hash: "frag",
-          }))(ctx.input),
+        input: HttpRequest.get("/a", {
+          urlParams: [
+            ["p", "1"],
+            ["p", "2"],
+          ],
+          hash: "frag",
+        }),
       }),
   });
   const scope = createScope({
@@ -84,11 +83,11 @@ test("response bodies read through json", async () => {
   const json = operation({
     label: "github.json",
     depends: { send: github.send },
-    run: async ({ send }, ctx) => {
+    run: async ({ send }) => {
       const received = await send.run({
         input: HttpRequest.get("https://api/a"),
       });
-      return ((res) => res.json())(received);
+      return received.json();
     },
   });
   const scope = createScope({ tags: [backend(recording('{"a":1}', []))] });

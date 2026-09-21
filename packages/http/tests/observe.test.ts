@@ -31,10 +31,11 @@ const listRepos = operation({
   depends: { send: github.send },
   run: async ({ send }, ctx) => {
     const received = await send.run({
-      input: ((user) =>
-        HttpRequest.get(`/users/${user}/repos`, { urlParams: { per_page: "100" } }))(ctx.input),
+      input: HttpRequest.get(`/users/${ctx.input}/repos`, {
+        urlParams: { per_page: "100" },
+      }),
     });
-    return ((res) => res.text())(received);
+    return received.text();
   },
 });
 

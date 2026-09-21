@@ -91,11 +91,11 @@ test("an endpoint reader may return sse() and the operation delivers the recorde
   const stream = operation({
     label: "chat.stream",
     depends: { send: chat.send },
-    run: async ({ send }, ctx) => {
+    run: async ({ send }) => {
       const received = await send.run({
         input: HttpRequest.post("https://api/chat", { body: HttpRequest.bodyText("{}") }),
       });
-      return ((res) => res.sse())(received);
+      return received.sse();
     },
   });
   const fake: HttpClient.Backend = async (request) =>

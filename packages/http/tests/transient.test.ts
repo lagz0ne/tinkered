@@ -49,11 +49,11 @@ test("a 500 retries through to success and a 501 does too", async () => {
   const text = operation({
     label: "retrying.text",
     depends: { send: retrying.send },
-    run: async ({ send }, ctx) => {
+    run: async ({ send }) => {
       const received = await send.run({
         input: HttpRequest.get("https://api/repos"),
       });
-      return ((res) => res.text())(received);
+      return received.text();
     },
   });
   const scope = createScope({ clock: makeTestClock({ now: 0 }), tags: [backend(wobbly)] });
@@ -87,14 +87,12 @@ test("a rejected status throws ResponseFailed and skips the body reader", async 
   const guarded = operation({
     label: "strict.guarded",
     depends: { send: strict.send },
-    run: async ({ send }, ctx) => {
+    run: async ({ send }) => {
       const received = await send.run({
         input: HttpRequest.get("https://api/repos"),
       });
-      return ((res) => {
-        readerCalls += 1;
-        return res.text();
-      })(received);
+      readerCalls += 1;
+      return received.text();
     },
   });
   const scope = createScope({

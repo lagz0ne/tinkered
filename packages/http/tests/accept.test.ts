@@ -32,13 +32,12 @@ test("an explicit accept wins over acceptJson and modify keeps the other headers
   const call = operation({
     label: "github.call",
     depends: { send: github.send },
-    run: ({ send }, ctx) =>
+    run: ({ send }) =>
       send.run({
-        input: (() =>
-          HttpRequest.modify(
-            HttpRequest.get("/a", { headers: { x: "1" }, accept: "text/x", acceptJson: true }),
-            { headers: { y: "2" } },
-          ))(ctx.input),
+        input: HttpRequest.modify(
+          HttpRequest.get("/a", { headers: { x: "1" }, accept: "text/x", acceptJson: true }),
+          { headers: { y: "2" } },
+        ),
       }),
   });
   const scope = createScope({

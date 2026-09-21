@@ -188,11 +188,11 @@ test("streaming a bodiless response rejects NoBody with the status", async () =>
   const nodata = operation({
     label: "github.nodata",
     depends: { send: github.send },
-    run: async ({ send }, ctx) => {
+    run: async ({ send }) => {
       const received = await send.run({
         input: HttpRequest.get("https://api/empty"),
       });
-      return ((res) => res.stream())(received);
+      return received.stream();
     },
   });
   const empty: HttpClient.Backend = async (request) =>
