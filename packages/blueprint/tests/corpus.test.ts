@@ -28,9 +28,10 @@ async function loadFixture(name: string) {
   }
 }
 
-test("the shipped corpus holds 17 templates sorted by id", async () => {
+test("the shipped corpus holds 18 templates sorted by id", async () => {
   const loaded = await loadShipped();
   expect(loaded.templates.map((template) => template.id)).toEqual([
+    "bodyStraysFromWork",
     "configNotTag",
     "dataManyWriters",
     "effectWithoutDefer",
@@ -63,7 +64,7 @@ test("one fixture template loads through a rebound corpusPath", async () => {
   expect(loaded.templates.map((template) => template.id)).toEqual(["probeCheck"]);
 });
 
-test("needs naming body fails the build with InvalidTemplate", async () => {
+test("needs naming an unknown field fails the build with InvalidTemplate", async () => {
   const scope = createScope({ tags: [corpusPath(join(here, "fixtures", "corpus-bad"))] });
   try {
     scope.resolve(corpus);
@@ -91,6 +92,17 @@ test("applies naming view fails the build with InvalidTemplate", async () => {
   }
 });
 
+test("forKind answers a body template only with { body: true }", async () => {
+  const loaded = await loadShipped();
+  expect(loaded.forKind("operation").map((template) => template.id)).not.toContain(
+    "bodyStraysFromWork",
+  );
+  expect(loaded.forKind("operation", { body: true }).map((template) => template.id)).toEqual([
+    "bodyStraysFromWork",
+  ]);
+  expect(loaded.forKind("data", { body: true })).toEqual([]);
+});
+
 test("a pair template sits in pairs and in no forKind list", async () => {
   const loaded = await loadShipped();
   expect(loaded.pairs.map((template) => template.id)).toEqual(["whyDuplicate"]);
@@ -103,7 +115,7 @@ test("explain answers every template beside the flag", async () => {
   try {
     const report = scope.run(explain, { input: { md: false } });
     expect(report.md).toBe(false);
-    expect(report.templates).toHaveLength(17);
+    expect(report.templates).toHaveLength(18);
   } finally {
     await scope.close({ graceful: true });
   }

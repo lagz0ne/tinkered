@@ -1,6 +1,6 @@
 id: badNeeds
 applies: [operation]
-needs: [body]
+needs: [notAField]
 kind: boolean
 status: provisional
 ask: >-

@@ -1,0 +1,9 @@
+id: probeBody
+applies: [operation]
+needs: [work, body]
+kind: boolean
+status: provisional
+ask: Does the body match the work?
+true: the body does something work does not say
+false: the body does exactly what work says
+threshold: 0.5

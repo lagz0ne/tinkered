@@ -1,0 +1,24 @@
+target: saveIssue
+expect: true
+blueprint:
+  - resource:
+      name: cell
+      promise: one cell; the view reads it
+      why: the view never re-lists
+  - operation:
+      name: saveIssue
+      depends: [cell]
+      promise: one saved issue lands in cell
+      why: writes go through cell so the view never re-lists
+      work: >-
+        insert the row; update the cell
+        with the returned row
+source: |
+  export const saveIssue = operation({
+    label: "saveIssue",
+    depends: { cell },
+    run: async (deps, ctx) => {
+      await insert(ctx.input);
+      return deps.cell.query();
+    },
+  });

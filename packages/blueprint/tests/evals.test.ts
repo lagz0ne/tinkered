@@ -54,6 +54,20 @@ const probeTemplate: Blueprint.Template = {
   threshold: 0.5,
 };
 
+/** A `body`-needing template — what a `source:` eval case (below) grades. */
+const probeBodyTemplate: Blueprint.Template = {
+  id: "probeBody",
+  scope: "node",
+  applies: ["operation"],
+  needs: ["work", "body"],
+  status: "provisional",
+  ask: "Does the body do something work does not say?",
+  kind: "boolean",
+  true: "the body does something work does not say",
+  false: "the body does exactly what work says",
+  threshold: 0.5,
+};
+
 const pickTemplate: Blueprint.Template = {
   id: "pick",
   scope: "node",
@@ -181,6 +195,51 @@ test("gradeTemplate fails InvalidEval when a pair target has only one name", asy
   } catch (error: unknown) {
     if (!isError(error, "InvalidEval")) throw error;
     expect(error.payload.file).toBe("one-name.yaml");
+  }
+});
+
+test("gradeTemplate sees the source-extracted body for a body template's eval", async () => {
+  const evalCase = readEval(
+    "target: op\nexpect: true\nblueprint:\n  - operation:\n" +
+      "      name: op\n      promise: p\n      why: w\n      work: w\n" +
+      'source: |\n  export const op = operation({ label: "op", run: () => doWork() });\n',
+    "case.yaml",
+  );
+  const seen: (string | undefined)[] = [];
+  const recording: Blueprint.Judge = {
+    ask: async (state, questions) => {
+      if ("kind" in state) seen.push(state.body);
+      const [id] = Object.keys(questions);
+      return { [id]: { type: "boolean", probability: 0 } };
+    },
+  };
+  await gradeTemplate(
+    probeBodyTemplate,
+    { bad: [evalCase], clean: [], golden: [] },
+    recording,
+    signal,
+  );
+  expect(seen).toEqual(["() => doWork()"]);
+});
+
+test("gradeTemplate fails InvalidEval when source names no unit labeled target", async () => {
+  const evalCase = readEval(
+    "target: op\nexpect: true\nblueprint:\n  - operation:\n" +
+      "      name: op\n      promise: p\n      why: w\n      work: w\n" +
+      'source: |\n  export const other = operation({ label: "other", run: () => {} });\n',
+    "case.yaml",
+  );
+  try {
+    await gradeTemplate(
+      probeBodyTemplate,
+      { bad: [evalCase], clean: [], golden: [] },
+      fakeJudge(),
+      signal,
+    );
+    expect.unreachable("must throw");
+  } catch (error: unknown) {
+    if (!isError(error, "InvalidEval")) throw error;
+    expect(error.payload.file).toBe("case.yaml");
   }
 });
 

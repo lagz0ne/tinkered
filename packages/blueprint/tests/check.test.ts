@@ -364,6 +364,26 @@ test("check names a pair 'a, b' in --json output", async () => {
   }
 });
 
+test("check never asks a template whose needs include body", async () => {
+  const seen: string[] = [];
+  const counting: Blueprint.Judge = {
+    ask: async (_state, questions) => {
+      seen.push(...Object.keys(questions));
+      return Object.fromEntries(Object.keys(questions).map((id) => [id, no]));
+    },
+  };
+  const scope = createScope({
+    tags: [corpusPath(join(here, "fixtures", "corpus-body-mix"))],
+    presets: [preset(judge, () => counting)],
+  });
+  try {
+    await scope.run(check, { input: { graph: readBlueprint(oneOperation), json: false } });
+    expect(seen).toEqual(["probe"]);
+  } finally {
+    await scope.close({ graceful: true });
+  }
+});
+
 test("check rejects a call without the file text as its parse failure", async () => {
   const scope = createScope({
     tags: [corpusPath(provisionalCorpus)],

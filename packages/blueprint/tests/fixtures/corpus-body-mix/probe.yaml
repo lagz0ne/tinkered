@@ -1,0 +1,9 @@
+id: probe
+applies: [operation]
+needs: [work]
+kind: boolean
+status: provisional
+ask: Does the work do its own steps?
+true: the work has its own steps
+false: the work hands the job away
+threshold: 0.5

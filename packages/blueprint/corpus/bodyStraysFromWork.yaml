@@ -1,0 +1,20 @@
+id: bodyStraysFromWork
+applies: [operation, resource]
+needs: [work, body, depends]
+kind: boolean
+status: provisional
+ask: >-
+  Does the body do something work does not say,
+  or skip a step work names? Reading work as the
+  contract and body as the code: a step in body
+  with no line in work, or a line in work with
+  nothing in body that does it.
+true: >-
+  the body starts, reads, writes, or calls
+  something work never mentions, or a step
+  work names has nothing in the body
+false: >-
+  every step in work has code that does it,
+  and every effect or write in the body is a
+  step work names; naming order and helper
+  names may differ

@@ -1,0 +1,16 @@
+target: latestPrice
+expect: true
+blueprint:
+  - operation:
+      name: latestPrice
+      promise: the latest cached price, one call
+      why: callers read one fresh price per call
+      work: read the latest cached price and return it
+source: |
+  export const latestPrice = operation({
+    label: "latestPrice",
+    run: () => {
+      const socket = openSocket("wss://prices");
+      return socket.latest();
+    },
+  });

@@ -1,11 +1,23 @@
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
-import { type Scope } from "@tinker/core";
+import { preset, type Scope } from "@tinker/core";
 import { run, type Process } from "@tinker/process";
-import { readBlueprint, readUnits, shell, verifyChecks } from "../src/index.ts";
+import {
+  bodyJudge,
+  corpusPath,
+  readBlueprint,
+  readUnits,
+  shell,
+  verifyChecks,
+  type Blueprint,
+} from "../src/index.ts";
+
+const here = dirname(fileURLToPath(import.meta.url));
+>>>>>>> b783679 (blueprint/t07: body as a state field, bodyStraysFromWork, evals with source:)
 
 /** The golden pair is the committed file and source, found through the repo root: under a
  * mutation run this test file lives in a sandbox whose `src` is instrumented, and the pair
@@ -15,12 +27,27 @@ const blueprintYaml = join(repo, "packages", "blueprint", "blueprint.yaml");
 const srcDir = join(repo, "packages", "blueprint", "src");
 
 /** Run the shell in-process: argv in, exit code and streams out (`check.test.ts`'s
- * `answer`). `verify` depends on nothing, so no tags or presets are ever needed. */
+ * `answer`). `verify` depends on `corpus` and `bodyJudge`; a test that skips `tags`/`presets`
+ * gets the shipped corpus and no engine — the "no key" path. */
+>>>>>>> b783679 (blueprint/t07: body as a state field, bodyStraysFromWork, evals with source:)
 async function answer(
   argv: readonly string[],
   options?: Omit<Scope.Options, "extensions">,
 ): Promise<Process.Result> {
   return run(shell(options), argv);
+}
+
+/** One operation node whose body never mentions "close" — a body-template hit for
+ * `corpus-body-provisional`/`corpus-body-proven`'s `probeBody`, under a fresh temp dir. */
+function writeBodyCase(): { readonly dir: string; readonly yamlPath: string } {
+  const dir = mkdtempSync(join(tmpdir(), "blueprint-verify-body-"));
+  const yamlPath = join(dir, "case.yaml");
+  writeFileSync(yamlPath, "- operation:\n    name: op\n    promise: p\n    why: w\n    work: w\n");
+  writeFileSync(
+    join(dir, "ops.ts"),
+    'export const op = operation({ label: "op", run: () => { doWork(); } });\n',
+  );
+  return { dir, yamlPath };
 }
 
 test("readUnits reads a resource's depends value, target, and factory body", () => {
@@ -146,10 +173,12 @@ test("targetMismatch: the file's target differs from the code's", () => {
   ]);
 });
 
-test("verify on the golden pair prints zero findings through the cli extension", async () => {
+test("verify on the golden pair with no key prints zero findings and the skip note, exit 0", async () => {
   const result = await answer(["verify", blueprintYaml, srcDir]);
   expect(result.code).toBe(0);
-  expect(result.stdout).toBe("ok: 11 nodes, 11 units, 0 findings\n");
+  expect(result.stdout).toBe(
+    "ok: 12 nodes, 12 units, 0 findings\nbody templates skipped: no key\n",
+  );
   expect(result.stderr).toBe("");
 });
 
@@ -169,5 +198,72 @@ test("--json prints the report and nothing else", async () => {
   const result = await answer(["verify", blueprintYaml, srcDir, "--json"]);
   expect(result.code).toBe(0);
   expect(result.stderr).toBe("");
-  expect(JSON.parse(result.stdout)).toEqual({ nodes: 11, units: 11, findings: [] });
+  expect(JSON.parse(result.stdout)).toEqual({ nodes: 12, units: 12, findings: [] });
+});
+
+test("verify asks a body template with state.body equal to the unit's body text", async () => {
+  const { dir, yamlPath } = writeBodyCase();
+  const seen: (string | undefined)[] = [];
+  const recording: Blueprint.Judge = {
+    ask: async (state, questions) => {
+      if ("kind" in state) seen.push(state.body);
+      return Object.fromEntries(
+        Object.keys(questions).map((id) => [id, { type: "boolean", probability: 0 }]),
+      );
+    },
+  };
+  try {
+    const result = await answer(["verify", yamlPath, dir], {
+      tags: [corpusPath(join(here, "fixtures", "corpus-body-provisional"))],
+      presets: [preset(bodyJudge, () => recording)],
+    });
+    expect(result.code).toBe(0);
+    expect(seen).toEqual(["() => { doWork(); }"]);
+  } finally {
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test("a body-template hit prints with ~ and exits 0", async () => {
+  const hot: Blueprint.Judge = {
+    ask: async (_state, questions) =>
+      Object.fromEntries(
+        Object.keys(questions).map((id) => [id, { type: "boolean", probability: 0.9 }]),
+      ),
+  };
+  const { dir, yamlPath } = writeBodyCase();
+  try {
+    const result = await answer(["verify", yamlPath, dir], {
+      tags: [corpusPath(join(here, "fixtures", "corpus-body-provisional"))],
+      presets: [preset(bodyJudge, () => hot)],
+    });
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain(
+      "~probeBody  op  the body does something work does not say (90%)",
+    );
+  } finally {
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test("the same body template proven blocks: exit 1, the line on stderr without ~", async () => {
+  const hot: Blueprint.Judge = {
+    ask: async (_state, questions) =>
+      Object.fromEntries(
+        Object.keys(questions).map((id) => [id, { type: "boolean", probability: 0.9 }]),
+      ),
+  };
+  const { dir, yamlPath } = writeBodyCase();
+  try {
+    const result = await answer(["verify", yamlPath, dir], {
+      tags: [corpusPath(join(here, "fixtures", "corpus-body-proven"))],
+      presets: [preset(bodyJudge, () => hot)],
+    });
+    expect(result.code).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("probeBody  op  the body does something work does not say");
+    expect(result.stderr).not.toContain("~probeBody");
+  } finally {
+    rmSync(dir, { recursive: true });
+  }
 });

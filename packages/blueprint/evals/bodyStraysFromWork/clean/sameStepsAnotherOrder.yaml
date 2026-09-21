@@ -1,0 +1,22 @@
+target: saveIssue
+expect: false
+blueprint:
+  - operation:
+      name: saveIssue
+      depends: [tx, issueList]
+      promise: given input, one saved issue lands in issueList
+      why: writes go through tx so the commit is the save
+      work: >-
+        update issueList with the returned row;
+        insert in tx; parse input
+source: |
+  export const saveIssue = operation({
+    label: "saveIssue",
+    depends: { tx, issueList },
+    run: (deps, ctx) => {
+      const parsed = parseInput(ctx.input);
+      const row = deps.tx.insert(parsed);
+      deps.issueList.update((list) => [...list, row]);
+      return row;
+    },
+  });

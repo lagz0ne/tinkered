@@ -1,6 +1,7 @@
 import * as yaml from "yaml";
 import { z } from "zod";
 import { raise } from "./errors.ts";
+import { readUnits } from "./extract.ts";
 
 export { isError } from "./errors.ts";
 export type { Errors } from "./errors.ts";
@@ -40,7 +41,8 @@ export declare namespace Blueprint {
     /** The source text of `run` / `factory`; `data` and `tag` units carry none. */
     readonly body?: string;
   };
-  /** A node field, or a neighbour list, a template may read. */
+  /** A node field, or a neighbour list, a template may read. `body` is the linked unit's
+   * `run`/`factory` text (ADR 0055 §4) — `check` never asks a template that needs it. */
   export type StateField =
     | "kind"
     | "name"
@@ -50,7 +52,8 @@ export declare namespace Blueprint {
     | "work"
     | "target"
     | "uses"
-    | "usedBy";
+    | "usedBy"
+    | "body";
   /** The two node fields a choice template's pick may be compared against — the only
    * `StateField`s that are themselves a single string value. */
   export type CompareField = "kind" | "target";
@@ -83,17 +86,25 @@ export declare namespace Blueprint {
   /** The loaded corpus: every template, sorted by id, plus a reader per kind. */
   export type Corpus = {
     readonly templates: readonly Template[];
-    /** The node-scope templates that apply to `kind`. */
-    readonly forKind: (kind: Node["kind"]) => readonly Template[];
+    /** The node-scope templates that apply to `kind`: those that do not need `body` (what
+     * `check` asks) by default, or those that do with `{ body: true }` (what `verify` asks —
+     * ADR 0055 §4). */
+    readonly forKind: (
+      kind: Node["kind"],
+      options?: { readonly body: boolean },
+    ) => readonly Template[];
     /** The pair-scope templates. */
     readonly pairs: readonly Template[];
   };
   /** The Jev engine: which model, which key. Bound at the root; a test never binds it. */
   export type Engine = { readonly model: string; readonly apiKey: string };
-  /** What the judge sees for one node: the node, plus its one-hop neighbours. */
+  /** What the judge sees for one node: the node, plus its one-hop neighbours, plus `body`
+   * (the linked unit's `run`/`factory` text) when a `verify` call or a `source:` eval carries
+   * one — absent for every `check` call, which never links code. */
   export type NodeState = Node & {
     readonly uses: readonly Node[];
     readonly usedBy: readonly Node[];
+    readonly body?: string;
   };
   /** What the judge sees for a pair template. */
   export type PairState = { readonly a: NodeState; readonly b: NodeState };
@@ -149,12 +160,17 @@ export declare namespace Blueprint {
     readonly findings: readonly Finding[];
   };
   /** One eval file: a small blueprint plus what the judge should say about one
-   * node (`target` holds its one name) or one pair (`target` holds both names). */
+   * node (`target` holds its one name) or one pair (`target` holds both names).
+   * `source` (a TypeScript snippet) grades a `body` template on the body of the unit in
+   * `source` labeled `target[0]` (ADR 0055 §5); `body`, set only by {@link goldenCasesOf}
+   * for the package's own golden pair, is the already-resolved text and skips that lookup. */
   export type Eval = {
     readonly file: string;
     readonly target: readonly string[];
     readonly expect: boolean | string;
     readonly graph: Graph;
+    readonly source?: string;
+    readonly body?: string;
   };
   /** One template's grade against its evals: `bad`/`clean` are the per-case
    * numbers `gradeTemplate` scored (a probability, or a choice's `1 - probabilities[declared]`);
@@ -507,6 +523,7 @@ const stateField = z.enum([
   "target",
   "uses",
   "usedBy",
+  "body",
 ]);
 
 const booleanTemplate = z.strictObject({
@@ -576,13 +593,21 @@ export function readTemplate(text: string, file: string): Blueprint.Template {
 }
 
 /** Read the loaded templates into a corpus: sorted by id, node-scope templates
- * per kind, pair-scope templates under `pairs`. */
+ * per kind (split on whether they need `body`, ADR 0055 §4), pair-scope templates under
+ * `pairs`. */
 export function readCorpus(loaded: readonly Blueprint.Template[]): Blueprint.Corpus {
   const templates = [...loaded].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return {
     templates,
-    forKind: (kind) =>
-      templates.filter((item) => item.scope === "node" && item.applies.includes(kind)),
+    forKind: (kind, options) => {
+      const body = options?.body ?? false;
+      return templates.filter(
+        (item) =>
+          item.scope === "node" &&
+          item.applies.includes(kind) &&
+          item.needs.includes("body") === body,
+      );
+    },
     pairs: templates.filter((item) => item.scope === "pair"),
   };
 }
@@ -594,6 +619,7 @@ const evalFile = z.strictObject({
   target: z.union([name, z.tuple([name, name])]),
   expect: z.union([z.boolean(), z.string()]),
   blueprint: entries,
+  source: z.string().optional(),
 });
 
 /** Read one eval file (yaml text) into an eval. A yaml or schema failure
@@ -616,6 +642,7 @@ export function readEval(text: string, file: string): Blueprint.Eval {
     target: Array.isArray(result.data.target) ? result.data.target : [result.data.target],
     expect: result.data.expect,
     graph: graphFrom(result.data.blueprint.map(readNode)),
+    source: result.data.source,
   };
 }
 
@@ -699,9 +726,17 @@ function templateFinding(
     : choiceFinding(template, answer, node, compareValue);
 }
 
-/** One node plus its one-hop neighbours, as the judge sees it. */
-function nodeStateOf(graph: Blueprint.Graph, node: Blueprint.Node): Blueprint.NodeState {
-  return { ...node, uses: graph.uses(node.name), usedBy: graph.usedBy(node.name) };
+/** One node plus its one-hop neighbours, as the judge sees it; `body` rides along when the
+ * caller has one (a `verify` call or a `source:` eval — `check` never passes one). The key
+ * itself is omitted, not set to `undefined`, when there is none — the gateway rejects a
+ * literal `undefined` in the state it serializes to JSON. */
+function nodeStateOf(
+  graph: Blueprint.Graph,
+  node: Blueprint.Node,
+  body?: string,
+): Blueprint.NodeState {
+  const base = { ...node, uses: graph.uses(node.name), usedBy: graph.usedBy(node.name) };
+  return body === undefined ? base : { ...base, body };
 }
 
 /** Every unordered pair of nodes, in file order (`nodes[i]` before `nodes[j]`, `i < j`). */
@@ -768,6 +803,35 @@ async function pairFindings(
   return findings;
 }
 
+/** One `judge.ask` per node with an applicable `body` template (ADR 0055 §4): state is the
+ * node plus `body` from the unit linked by label — `undefined` when the node has no unit or
+ * the unit carries none, same as any other missing state field. */
+export async function bodyFindings(
+  graph: Blueprint.Graph,
+  units: readonly Blueprint.Unit[],
+  corpus: Blueprint.Corpus,
+  judge: Blueprint.Judge,
+  signal: AbortSignal,
+): Promise<readonly Blueprint.Finding[]> {
+  const findings: Blueprint.Finding[] = [];
+  for (const node of graph.nodes) {
+    const templates = corpus.forKind(node.kind, { body: true });
+    if (templates.length === 0) continue;
+    const state = nodeStateOf(graph, node, unitFor(units, node.name)?.body);
+    const answers = await judge.ask(state, questionsOf(templates), signal);
+    for (const template of templates) {
+      const finding = templateFinding(
+        template,
+        answers[template.id],
+        node.name,
+        compareValueOf(template, state),
+      );
+      if (finding) findings.push(finding);
+    }
+  }
+  return findings;
+}
+
 /** `check`'s core: plain checks, then one `judge.ask` per node, then one `judge.ask` per matching
  * pair. `blocking` never throws here — the caller decides what a blocking finding means. */
 export async function runCheck(
@@ -804,8 +868,28 @@ function findTarget(evalCase: Blueprint.Eval, index: number): Blueprint.Node {
   return node;
 }
 
+/** The body an eval case carries for its target: `body` when already resolved (a golden case
+ * built by {@link goldenCasesOf}), else the body of the unit in `source` labeled `name` — through
+ * `readUnits`, the same extractor `verify` uses. Throws `InvalidEval` when `source` names no
+ * such unit; `undefined` with neither. */
+function evalBodyOf(evalCase: Blueprint.Eval, name: string): string | undefined {
+  if (evalCase.body !== undefined) return evalCase.body;
+  if (evalCase.source === undefined) return undefined;
+  const unit = readUnits(evalCase.source, evalCase.file).find(
+    (candidate) => candidate.label === name,
+  );
+  if (unit === undefined)
+    raise(
+      "InvalidEval",
+      { file: evalCase.file, issues: [`source: no unit labeled "${name}"`] },
+      `${evalCase.file}: source: no unit labeled "${name}"`,
+    );
+  return unit.body;
+}
+
 /** One eval's state, as the judge sees it: `target`'s node (or, for a pair template, both
- * nodes), each with its one-hop neighbours. Throws `InvalidEval` when `target` names no node. */
+ * nodes), each with its one-hop neighbours, plus `body` for a node-scope case that carries one
+ * (ADR 0055 §5). Throws `InvalidEval` when `target` names no node, or `source` names no unit. */
 function evalStateOf(
   template: Blueprint.Template,
   evalCase: Blueprint.Eval,
@@ -815,7 +899,8 @@ function evalStateOf(
       a: nodeStateOf(evalCase.graph, findTarget(evalCase, 0)),
       b: nodeStateOf(evalCase.graph, findTarget(evalCase, 1)),
     };
-  return nodeStateOf(evalCase.graph, findTarget(evalCase, 0));
+  const node = findTarget(evalCase, 0);
+  return nodeStateOf(evalCase.graph, node, evalBodyOf(evalCase, node.name));
 }
 
 /** A boolean's probability, or a choice's `1 - probabilities[declared]` (0 when `probabilities`
@@ -924,11 +1009,14 @@ export async function gradeTemplate(
 
 /** Every golden case a template asks about: one per node whose kind is in `applies` (node
  * scope), or one per unordered pair of matching nodes (pair scope). `expect` is a placeholder —
- * grading never reads it; only `target` and `graph` feed {@link evalStateOf}. */
+ * grading never reads it; only `target`, `graph`, and (node scope) `body` feed {@link
+ * evalStateOf}. `units` (ADR 0055 §5: the package's own golden pair) resolves each node-scope
+ * case's `body` by label; omitted, or a node with no matching unit, carries none. */
 export function goldenCasesOf(
   template: Blueprint.Template,
   golden: Blueprint.Graph,
   file: string,
+  units: readonly Blueprint.Unit[] = [],
 ): readonly Blueprint.Eval[] {
   const matching = golden.nodes.filter((node) => template.applies.includes(node.kind));
   if (template.scope === "pair") {
@@ -948,5 +1036,6 @@ export function goldenCasesOf(
     target: [node.name],
     expect: template.kind === "choice" ? node.kind : false,
     graph: golden,
+    body: unitFor(units, node.name)?.body,
   }));
 }

@@ -38,6 +38,18 @@
       evaluate({ state, questions }) through
       the gateway; retry on 429
 - resource:
+    name: bodyJudge
+    depends: [engine]
+    promise: >-
+      a Jev client when engine is bound,
+      undefined otherwise; never fails NoKey
+    why: >-
+      verify stays useful with no key; a
+      resource carries no optional edge, so
+      this is verify's own way to make the
+      engine optional
+    work: judgeFrom(engine) when bound, else undefined
+- resource:
     name: evalSet
     depends: [evalsPath, corpus]
     promise: >-
@@ -101,15 +113,20 @@
       cases with the judge; grade each
 - operation:
     name: verify
+    depends: [corpus, bodyJudge]
     promise: >-
       for one blueprint file and one source
       dir, one result line per plain diff
-      between a node and its code unit;
-      exit 1 on any finding
+      between a node and its code unit, plus
+      one per (node, body template) pair
+      when bodyJudge is present; exit 1 on
+      any blocking finding
     why: >-
       a node's work line can drift from its
       code the day after check passes;
-      verify catches the drift with no key
+      verify catches the drift with no key,
+      and the body with one when bound
     work: >-
       diff every node against the unit of
-      its label: kind, depends, target
+      its label: kind, depends, target; ask
+      every applicable body template per node

@@ -16,6 +16,7 @@ import {
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import {
+  bodyFindings,
   findingLine,
   goldenCasesOf,
   gradeTemplate,
@@ -96,9 +97,24 @@ function readGolden(dir: string): Blueprint.Graph | undefined {
   return existsSync(file) ? readBlueprint(readFileSync(file, "utf8")) : undefined;
 }
 
+/** The package's own golden pair (ADR 0055 §5): `blueprint.yaml` and `src/`, resolved next to
+ * this module, as the `verify` cli row resolves them from argv. `undefined` when either is
+ * missing — the shipped `dist` build carries no `src` (`package.json`'s `files`), so an
+ * installed package grades a `body` template with no golden pair. */
+function readOwnPair():
+  | { readonly graph: Blueprint.Graph; readonly units: readonly Blueprint.Unit[] }
+  | undefined {
+  const file = new URL("../blueprint.yaml", import.meta.url).pathname;
+  const dir = new URL("../src/", import.meta.url).pathname;
+  if (!existsSync(file) || !existsSync(dir)) return undefined;
+  return { graph: readBlueprint(readFileSync(file, "utf8")), units: walk(dir) };
+}
+
 /** The eval-set resource: reads `evalsPath/<id>/{bad,clean}/*.yaml` once per scope into a
- * map keyed by template id, plus `golden.yaml`'s cases for every template it applies to
- * (ADR 0052 decision 5, amended). A bad eval file fails the build with `InvalidEval`. */
+ * map keyed by template id, plus golden cases for every template it applies to (ADR 0052
+ * decision 5, amended): `golden.yaml`'s for every template, and, for a `body` template only,
+ * the package's own golden pair's (ADR 0055 §5 — `goldenCasesOf` resolves each case's `body`
+ * from `ownPair.units`). A bad eval file fails the build with `InvalidEval`. */
 export const evalSet: Resource.Handle<
   ReadonlyMap<
     string,
@@ -113,6 +129,8 @@ export const evalSet: Resource.Handle<
   depends: { dir: evalsPath, corpus },
   factory: ({ dir, corpus }) => {
     const golden = readGolden(dir);
+    const needsBody = corpus.templates.some((template) => template.needs.includes("body"));
+    const ownPair = needsBody ? readOwnPair() : undefined;
     const ids = readdirSync(dir, { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
@@ -120,12 +138,18 @@ export const evalSet: Resource.Handle<
     return new Map(
       ids.map((id) => {
         const template = corpus.templates.find((candidate) => candidate.id === id);
+        const needsBodyGolden = template !== undefined && template.needs.includes("body");
         return [
           id,
           {
             bad: readEvalFiles(join(dir, id, "bad")),
             clean: readEvalFiles(join(dir, id, "clean")),
-            golden: template && golden ? goldenCasesOf(template, golden, "golden.yaml") : [],
+            golden: [
+              ...(template && golden ? goldenCasesOf(template, golden, "golden.yaml") : []),
+              ...(template && needsBodyGolden && ownPair
+                ? goldenCasesOf(template, ownPair.graph, "blueprint.yaml", ownPair.units)
+                : []),
+            ],
           },
         ];
       }),
@@ -179,6 +203,12 @@ async function askGateway(
   raise("JevUnavailable", {}, "blueprint: gave up after rate-limit retries");
 }
 
+/** One Jev client over a bound engine — `judge`'s factory, and `bodyJudge`'s below. */
+function judgeFrom(engineValue: Blueprint.Engine): Blueprint.Judge {
+  const model = createGateway({ apiKey: engineValue.apiKey }).evaluationModel(engineValue.model);
+  return { ask: (state, questions, signal) => askGateway(model, state, questions, signal) };
+}
+
 /** One Jev client per scope. With no engine bound, the build fails `NoKey`. */
 export const judge: Resource.Handle<Blueprint.Judge> = resource({
   label: "judge",
@@ -186,11 +216,18 @@ export const judge: Resource.Handle<Blueprint.Judge> = resource({
   factory: ({ engine: bound }) => {
     if (!bound.present)
       raise("NoKey", {}, "blueprint: no key (set AI_GATEWAY_API_KEY or --key-file <path>)");
-    const model = createGateway({ apiKey: bound.value.apiKey }).evaluationModel(bound.value.model);
-    return {
-      ask: (state, questions, signal) => askGateway(model, state, questions, signal),
-    };
+    return judgeFrom(bound.value);
   },
+});
+
+/** The Jev client `verify` asks `body` templates with, `undefined` with no engine bound — unlike
+ * `judge`, this never fails `NoKey`: `verify` stays useful with no key (ADR 0055 §4). A
+ * resource carries no `.optional` edge, so this is `verify`'s own way to make the engine
+ * optional; a test presets it directly with a fake. */
+export const bodyJudge: Resource.Handle<Blueprint.Judge | undefined> = resource({
+  label: "bodyJudge",
+  depends: { engine: engine.optional },
+  factory: ({ engine: bound }) => (bound.present ? judgeFrom(bound.value) : undefined),
 });
 
 /** One template block, verbatim: the id line, then each field on its own line. */
@@ -295,11 +332,19 @@ function checkLines(report: Blueprint.Report): string {
   return `${lines.join("\n")}\n`;
 }
 
-/** The operation: input `{ graph, units, json }`, depends on nothing — a plain diff between a
- * blueprint file and the code's declared units (ADR 0055 §2, §3). Throws `BlueprintRejected`
- * when any finding blocks; every plain finding does. */
+/** The operation: input `{ graph, units, json }`, depends `{ corpus, bodyJudge }` — a plain diff
+ * between a blueprint file and the code's declared units (ADR 0055 §2, §3), plus one
+ * `judge.ask` per node for every applicable `body` template when `bodyJudge` is present (§4).
+ * `verify` never depends on `judge`: that resource fails `NoKey` with none, but `verify` stays
+ * useful without a key, skipping the body templates instead. Throws `BlueprintRejected` when
+ * any finding blocks: every plain finding does; a body-template hit blocks only past `proven`
+ * (as `check`). */
 export const verify: Operation.Handle<
-  { readonly json: boolean; readonly report: Blueprint.VerifyReport },
+  Promise<{
+    readonly json: boolean;
+    readonly report: Blueprint.VerifyReport;
+    readonly bodySkipped: boolean;
+  }>,
   {
     readonly graph: Blueprint.Graph;
     readonly units: readonly Blueprint.Unit[];
@@ -308,8 +353,14 @@ export const verify: Operation.Handle<
 > = operation({
   label: "verify",
   input: parseVerifyInput,
-  run: (_deps, ctx) => {
-    const findings = verifyChecks(ctx.input.graph, ctx.input.units);
+  depends: { corpus, bodyJudge },
+  run: async ({ corpus, bodyJudge }, ctx) => {
+    const plain = verifyChecks(ctx.input.graph, ctx.input.units);
+    const body =
+      bodyJudge === undefined
+        ? []
+        : await bodyFindings(ctx.input.graph, ctx.input.units, corpus, bodyJudge, ctx.signal);
+    const findings = [...plain, ...body];
     const report: Blueprint.VerifyReport = {
       nodes: ctx.input.graph.nodes.length,
       units: ctx.input.units.length,
@@ -321,15 +372,18 @@ export const verify: Operation.Handle<
         { findings: findings.map(findingLine) },
         findings.map(findingLine).join("\n"),
       );
-    return { json: ctx.input.json, report };
+    return { json: ctx.input.json, report, bodySkipped: bodyJudge === undefined };
   },
 });
 
-/** One line per finding, then `ok: N nodes, M units, K findings`. */
-function verifyLines(report: Blueprint.VerifyReport): string {
+/** One line per finding, then `ok: N nodes, M units, K findings`, then — with no engine bound —
+ * `body templates skipped: no key` (`@tinker/cli`'s `Cli.Row` has no stderr channel for a
+ * code-0 command, only for a thrown error or usage — see the report's deviations). */
+function verifyLines(report: Blueprint.VerifyReport, bodySkipped: boolean): string {
   const lines = [
     ...report.findings.map(findingLine),
     `ok: ${report.nodes} nodes, ${report.units} units, ${report.findings.length} findings`,
+    ...(bodySkipped ? ["body templates skipped: no key"] : []),
   ];
   return `${lines.join("\n")}\n`;
 }
@@ -560,7 +614,7 @@ export function shell(options: Scope.Options = {}): Process.Shell {
       }),
       command("verify", () => verify, {
         description:
-          "diff a blueprint file's nodes against the code's declared units (no key needed)",
+          "diff a blueprint file's nodes against the code's declared units, plus body templates with a key",
         input: (argv) => {
           const { file, dir } = verifyArgs(argv);
           return {
@@ -570,9 +624,11 @@ export function shell(options: Scope.Options = {}): Process.Shell {
             json: argv.includes("--json"),
           };
         },
-        respond: ({ json, report }) => (json ? `${JSON.stringify(report)}\n` : verifyLines(report)),
+        respond: ({ json, report, bodySkipped }) =>
+          json ? `${JSON.stringify(report)}\n` : verifyLines(report, bodySkipped),
         options,
       }),
     ],
   };
 }
+>>>>>>> b783679 (blueprint/t07: body as a state field, bodyStraysFromWork, evals with source:)

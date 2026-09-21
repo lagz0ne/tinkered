@@ -169,8 +169,10 @@ ok: 5 nodes, 2 findings
 ## verify
 
 `verify <file.yaml> <src-dir>` diffs a blueprint file against the code
-that should implement it (ADR 0055). It needs no key: five plain checks,
-never a Jev call.
+that should implement it (ADR 0055): five plain checks, always; one
+`judge.ask` per node for every template that needs `body`, only with a
+key. It needs no key — the plain checks alone are useful without one,
+unlike `check`.
 
 - A node named `x` is linked to the unit whose `label` is `"x"`
   (`data`/`resource`/`operation`/`tag({ label: "x" })`) — the same rule
@@ -212,11 +214,35 @@ ok: 5 nodes, 6 units, 5 findings
   unit's (`resource`-only; absent reads as `scope` on both sides).
 - `--json` prints the report — `{ nodes, units, findings }` — and
   nothing else.
-- **Exit 0** — every check passed.
-- **Exit 1** — a plain check failed (every finding here blocks; there
-  is no `~`).
+- **Exit 0** — every plain check passed and no body-template hit is
+  `proven` (a `~` hit still prints).
+- **Exit 1** — a plain check failed (always blocks; there is no `~`),
+  or a body-template hit is `proven`.
 - **Exit 2** — the yaml file is not a blueprint, or the dir holds no
   `*.ts` file (`NoSource`).
+
+**With a key**, `verify` also asks every template whose `needs`
+includes `body` — one `judge.ask` per node that has a body (operations
+and resources); `check` never asks these (`corpus.forKind(kind, {
+body: true })` versus `check`'s default `{ body: false }`). `state.body`
+is the unit's `run`/`factory` text, linked by label as above:
+
+```bash
+node packages/blueprint/dist/main.mjs \
+  verify --key-file ~/.key blueprint.yaml src
+```
+
+```text
+~bodyStraysFromWork  saveIssue  the body
+  starts, reads, writes, or calls something
+  work never mentions, or a step work names
+  has nothing in the body (61%)
+ok: 5 nodes, 6 units, 1 findings
+```
+
+**With no key**, the plain lines print as above, then one more line:
+`body templates skipped: no key` (`@tinker/cli` has no stderr channel
+for a code-0 command — see the ticket report's deviations).
 
 **The golden pair** — `packages/blueprint/blueprint.yaml` describes
 every unit in `packages/blueprint/src` (ADR 0055 §5):
@@ -228,7 +254,8 @@ node packages/blueprint/dist/main.mjs \
 ```
 
 ```text
-ok: 11 nodes, 11 units, 0 findings
+ok: 12 nodes, 12 units, 0 findings
+body templates skipped: no key
 ```
 
 ## explain, evals
@@ -268,9 +295,9 @@ shape.resource: const x = resource({ label: "x", target,
 
 - A template is one YAML file in `corpus/`: `id`, `scope` (`node` or
   `pair`), `applies` (node kinds), `needs` (state fields: `kind`, `name`,
-  `promise`, `why`, `depends`, `work`, `target`, `uses`, `usedBy`),
-  `status` (`provisional` or `proven`), `ask`, plus `true`/`false`
-  (`kind: boolean`) or `choices` (`kind: choice`).
+  `promise`, `why`, `depends`, `work`, `target`, `uses`, `usedBy`,
+  `body`), `status` (`provisional` or `proven`), `ask`, plus
+  `true`/`false` (`kind: boolean`) or `choices` (`kind: choice`).
 - `check` asks a `node`-scope template once per node its `applies` names.
   It asks a `pair`-scope template once per unordered pair of nodes whose
   kinds both match `applies` — three tag nodes make three pairs.
@@ -280,10 +307,13 @@ shape.resource: const x = resource({ label: "x", target,
   `explain` and by `suggest`). `shapes`'s keys must equal `choices`'s
   keys, else the load fails `InvalidTemplate`.
 - An `applies` entry outside the four kinds, or a `needs` entry outside
-  the nine fields, fails the load with `InvalidTemplate`.
+  the ten fields, fails the load with `InvalidTemplate`.
 - The corpus loads every `*.yaml` once per scope, sorted by id. A node-scope
   template sits under `forKind(kind)`; a pair-scope template sits under
   `pairs` and never in a `forKind` list.
+- **Templates that need `body`** sit under `forKind(kind, { body: true
+})`, never under the plain `forKind(kind)` `check` asks — `body` is
+  code, and `check` has none (ADR 0055 §4; `verify`, above).
 - `corpusPath` names the folder: the shipped `corpus/` by default; a test
   rebinds `corpusPath` to a fixture folder — `check`/`explain` then load
   that folder's templates instead of the shipped ones.
@@ -312,7 +342,11 @@ one law` (`unit:`) or `unclear (<pick> only <pct>)` (`target:`).
   read `proven`.
 - One eval file: `target` (a node name, or `[a, b]` for a pair template),
   `expect` (a boolean, or the option name a choice template should
-  pick), and `blueprint` (the same node list a blueprint file holds).
+  pick), `blueprint` (the same node list a blueprint file holds), and,
+  for a `body` template, `source` (a TypeScript snippet). The grade's
+  state is the target node plus `body` — the `run`/`factory` text of
+  `source`'s unit labeled `target`, through `readUnits` (ADR 0055 §5); a
+  `source` naming no such unit fails `InvalidEval`.
 - A `bad` file shows one distinct way the template's defect appears; a
   `clean` file is a near-miss with no defect.
 - `readEval` parses one file, strict; a bad file fails with `InvalidEval`
@@ -349,7 +383,10 @@ blueprint:
   `examples/tracker.yaml`. Every node (or, for a pair template, every
   matching unordered pair) it applies to becomes one more clean case,
   folded into `clean` for `sep`/`ordered`; a golden case that would have
-  been a real finding is a **hit**, named in `goldenHits`.
+  been a real finding is a **hit**, named in `goldenHits`. A `body`
+  template's golden cases add a second source: the package's own golden
+  pair (`blueprint.yaml` × `src`, ADR 0055 §5) — the `tracker.yaml` copy
+  names no real code, so only the package's own pair can grade `body`.
 - **proven** — at least 5 bad and 5 clean cases, sep ≥ 0.30, ordered ≥
   0.90, and no golden hit at all.
 - **noisy** — a golden hit exists (whatever the case count — a hit on
@@ -374,6 +411,8 @@ gained the golden veto.
 vetoed (`noisy`: a golden hit always reads `noisy`, whatever the case
 count):
 
+- **bodyStraysFromWork** — `noisy`: sep 0.27, ordered 0.90, golden
+  7/12 (corpus, judge, evalSet, check, explain, evals, verify)
 - **configNotTag** — sep 0.65, ordered 1.00, golden 0/3
 - **dataManyWriters** — sep 0.67, ordered 1.00, golden 0/1
 - **effectWithoutDefer** — sep 0.90, ordered 1.00, golden 0/3

@@ -1,0 +1,19 @@
+target: poll
+expect: false
+blueprint:
+  - resource:
+      name: poll
+      promise: the latest reading, refreshed every 10s
+      why: the view reads the freshest value without polling itself
+      work: >-
+        fetch the reading every 10s; keep the
+        latest; stop the timer on close
+source: |
+  export const poll = resource({
+    label: "poll",
+    factory: (deps, { defer }) => {
+      const timer = setInterval(refreshLatest, 10000);
+      defer(() => clearInterval(timer));
+      return latest;
+    },
+  });
