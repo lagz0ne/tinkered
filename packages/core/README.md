@@ -7,6 +7,23 @@ input reader before its body. Pass an already typed value with
 `scope.run(op, { input: typedValue })`; that path trusts the value and skips parsing.
 Tests of rejected outside input should use `rawInput` or the real HTTP/CLI/tool entry.
 
+An operation needs no `input` reader when its caller builds the value. The slot it fills
+names the type, and that annotation types `ctx.input` — no reader, no cast:
+
+```ts
+const guard: Tinkerer.Gate = operation({
+  label: "guard",
+  depends: { allowed },
+  run: (_deps, ctx) => ({
+    allow: ctx.input.mode !== "read-only",
+  }),
+});
+```
+
+`rawInput` belongs to an operation that parses: it is the process edge. Handing `rawInput`
+to an operation with no reader leaves `ctx.input` `undefined` — there is nothing to parse
+it with. A frame that builds the value calls `{ input }`.
+
 Every `parse` slot (`data`, `tag`, an operation's `input`) takes one of two shapes:
 
 - a function `(raw: unknown) => T` that returns the value or throws;
