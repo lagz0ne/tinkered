@@ -32,13 +32,13 @@ Proven on labeled cases (2026-09-18, `pilot/side-projects/jev-probe/eval.mjs`):
 
 ## Where it hooks (advisory scripts in `tools/jev/`)
 
-| Phase          | Script                                 | What it does                                                                                   | Truth still owned by            |
-| -------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------- |
-| Planning       | `plan-check.mjs <file>`                | defect questions on a plan/ADR/ticket + glossary (uncalibrated)                                | the human author                |
-| Implementation | `preflight.mjs [range]`                | contributor self-check: file judges + per-unit lint on the diff                                | `vp check` / tests / `validate` |
-| Verification   | `review.mjs [range]`                   | judge set per file + gated route + overclaim                                                   | `scripts/ticket.sh` + lead      |
-| Writing        | `guide.mjs "<logic>" \| <file#symbol>` | which unit should this be (data / resource / operation / tag / glue), target, needs defer      | the author + the one law        |
-| Review / lint  | `lint.mjs [paths]`                     | per declared unit or outermost function: seven defect judges + the unit classifier (see below) | `vp check` / tests / the lead   |
+| Phase          | Script                        | What it does                                                                                   | Truth still owned by            |
+| -------------- | ----------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------- |
+| Planning       | `plan-check.mjs <file>`       | defect questions on a plan/ADR/ticket + glossary (uncalibrated)                                | the human author                |
+| Implementation | `preflight.mjs [range]`       | contributor self-check: file judges + per-unit lint on the diff                                | `vp check` / tests / `validate` |
+| Verification   | `review.mjs [range]`          | judge set per file + gated route + overclaim                                                   | `scripts/ticket.sh` + lead      |
+| Writing        | `blueprint suggest "<logic>"` | which unit should this be (data / resource / operation / tag / glue), target, needs defer      | the author + the one law        |
+| Review / lint  | `lint.mjs [paths]`            | per declared unit or outermost function: seven defect judges + the unit classifier (see below) | `vp check` / tests / the lead   |
 
 Pre-flight proof (2026-09-20): an untracked `examples/core/jev-proof-tmp.ts` holding a `setInterval`
 with no `defer` — the file judges passed it (✓), the per-unit lint caught it (`effectWithoutDefer 95%`).

@@ -11,7 +11,6 @@
     "tests": "node tests.mjs",
     "promises": "node promises.mjs",
     "impact": "node impact.mjs",
-    "guide": "node guide.mjs",
     "plan-check": "node plan-check.mjs",
     "label": "node label.mjs",
     "calibrate": "node calibrate.mjs",
