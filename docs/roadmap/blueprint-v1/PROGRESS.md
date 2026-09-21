@@ -48,13 +48,13 @@ nothing from `tools/jev`.
 
 ## Order & status
 
-| tag           | ticket                                                                                                                                                                                                                                 | blockers | status |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------ |
-| blueprint/t01 | Package + node schema (zod, one object per kind) + `readBlueprint` (yaml → nodes with `uses`/`usedBy`) + plain checks (unknown `depends`, duplicate `name`, `data` with zero writers) + `cli` wiring for `check` (plain results only)      | —        | [ ]    |
+| tag           | ticket                                                                                                                                                                                                                                                                            | blockers | status |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------ |
+| blueprint/t01 | Package + node schema (zod, one object per kind) + `readBlueprint` (yaml → nodes with `uses`/`usedBy`) + plain checks (unknown `depends`, duplicate `name`, `data` with zero writers) + `cli` wiring for `check` (plain results only)                                             | —        | [ ]    |
 | blueprint/t02 | Template schema + `corpus` resource (load fails on unknown `applies`/`needs`) + seed templates: `GUIDE` (unit, target, needsDefer), the unit judges of `tools/jev/bank.mjs`, best-practices rules 3–15 that a design shows, hidden node, one writer per data + `explain` (`--md`) | t01      | [ ]    |
-| blueprint/t03 | `engine` tag + `judge` resource (`ai` evaluate, 429 backoff) + `check` asks every applicable template per node; result list with `~` for a template not `proven`; exit code; seam tests with a `preset` judge                              | t02      | [ ]    |
-| blueprint/t04 | Evals: `evals/<id>/{bad,clean}/*.yaml` + a test that runs them when a key is present and skips when not; each template carries `status: proven \| provisional`; the test fails when a `proven` template misses the bar (bad ≥ 50%, clean < 50%, gap ≥ 30) | t03      | [ ]    |
-| blueprint/t05 | `suggest "<words>"`; remove `tools/jev/guide.mjs` and the `GUIDE` bank; README (agent loop: write → check → fix → code); `bin`, `files`, size lane; mutation alone ≥ 75; validate lanes                                                | t04      | [ ]    |
+| blueprint/t03 | `engine` tag + `judge` resource (`ai` evaluate, 429 backoff) + `check` asks every applicable template per node; result list with `~` for a template not `proven`; exit code; seam tests with a `preset` judge                                                                     | t02      | [ ]    |
+| blueprint/t04 | Evals: `evals/<id>/{bad,clean}/*.yaml` + a test that runs them when a key is present and skips when not; each template carries `status: proven \| provisional`; the test fails when a `proven` template misses the bar (bad ≥ 50%, clean < 50%, gap ≥ 30)                         | t03      | [ ]    |
+| blueprint/t05 | `suggest "<words>"`; remove `tools/jev/guide.mjs` and the `GUIDE` bank; README (agent loop: write → check → fix → code); `bin`, `files`, size lane; mutation alone ≥ 75; validate lanes                                                                                           | t04      | [ ]    |
 
 ## Ticket rules
 
