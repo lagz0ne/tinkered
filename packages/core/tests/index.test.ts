@@ -463,7 +463,7 @@ test("dependency snapshots are captured at resolve time, before suspension", asy
   expect(await p).toBe(1);
 });
 
-test("concurrent calls each return their own input's result", async () => {
+test("concurrent calls do not share results", async () => {
   const entered = new Map<number, ReturnType<typeof deferred>>([
     [1, deferred()],
     [2, deferred()],
@@ -492,7 +492,32 @@ test("concurrent calls each return their own input's result", async () => {
   expect(await p2).toBe(20);
 });
 
-test("overlapping scopes keep separate data snapshots", async () => {
+test("concurrent calls finish in release order, not entry order", async () => {
+  const order: number[] = [];
+  const release = new Map<number, ReturnType<typeof deferred>>([
+    [1, deferred()],
+    [2, deferred()],
+  ]);
+  const echo = operation({
+    label: "echo",
+    input: asNumber,
+    run: async (_deps, { input }) => {
+      await release.get(input)!.promise;
+      order.push(input);
+      return input * 10;
+    },
+  });
+  const scope = createScope();
+  const p1 = scope.run(echo, { rawInput: 1 });
+  const p2 = scope.run(echo, { rawInput: 2 });
+  release.get(2)!.resolve();
+  await p2;
+  release.get(1)!.resolve();
+  await p1;
+  expect(order).toEqual([2, 1]);
+});
+
+test("overlapping scopes each read their own write", async () => {
   const n = data({ initial: 0, parse: asNumber });
   const gate = deferred();
   const readN = operation({
@@ -512,6 +537,24 @@ test("overlapping scopes keep separate data snapshots", async () => {
   gate.resolve();
   expect(await pb).toBe(2);
   expect(await pa).toBe(1);
+});
+
+test("a read in flight still sees the snapshot from before a later write", async () => {
+  const n = data({ initial: 0, parse: asNumber });
+  const gate = deferred();
+  const readN = operation({
+    label: "readN",
+    depends: { n },
+    run: async ({ n }) => {
+      await gate.promise;
+      return n;
+    },
+  });
+  const scope = createScope();
+  const p = scope.run(readN);
+  scope.controller(n).set(99);
+  gate.resolve();
+  expect(await p).toBe(0);
 });
 
 test("settled reports work as pending until it finishes", async () => {
