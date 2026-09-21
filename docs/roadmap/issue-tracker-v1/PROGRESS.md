@@ -1839,3 +1839,26 @@ What swaps: `createApp({ observe })` takes any `Observe.Config` (core's `log` + 
 no-dependency default; an OpenTelemetry-shaped backend is another function returning the same shape. Not done, on
 purpose: every ok span is not written by the default (that is a trace, and stdout is not a tracing backend); no
 `unhandledRejection` handler (Node's default crash is loud, and the scope owns every promise the app starts).
+
+### tracker/preset-seam — Doing, 2026-09-21
+
+`tests/client.test.ts` carried a fake HTTP server on the `backend` tag (`readFake` + `readRoutes`, ~90
+lines, a route table matched by method and URL). The seam we own is the endpoint node: `preset(postIssue,
+…)` swaps one edge and the test reads the cells (ADR 0015, ADR 0035 "swap the endpoint itself"). Decision
+(user, 2026-09-21): preset the node; each test builds its own scope and counts calls in its own closure;
+no shared boot helper. The one hold-out — the stale-save test needs a 409 body — showed the mapping
+409 → `IssueConflict` was written twice downstream of `patchIssue` (browser `readStoredConflict`, CLI
+`readConflicted`). It moves into `patchIssue` once, so a preset can reject with what the graph speaks.
+
+SCIP app index (`scip-typescript index` in `apps/issue-tracker`, output `.scip/issue-tracker.scip`):
+
+```impact tracker/preset-seam
+symbol                 defined                        refs before → after
+patchIssue             src/client/api.ts:26           actions.ts, tools/issues.ts, index.ts, tests/client.test.ts → same; response maps 409
+api (filterStatus)     src/client/api.ts:15           unchanged callers; accepts 409
+readStoredConflict     src/client/actions.ts:449      actions.ts ×4, index.ts → (none)
+readConflictBody       src/client/actions.ts:439      actions.ts ×4, index.ts → (none); parser lives beside patchIssue
+readConflicted         src/tools/issues.ts:81         issues.ts → (none); 404 branch stays
+bootClient             tests/client.test.ts:193       ×7 → (none)
+readFake / readRoutes  tests/client.test.ts:56,72     ×16 / ×8 → (none)
+```
