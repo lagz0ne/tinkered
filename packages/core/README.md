@@ -207,8 +207,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   replacement's edges nor fails a session holding the replacement.
 - A rejected build is sticky: re-resolve returns the same rejection with no new build, until a release —
   of it or of a dependency — lets it rebuild fresh.
-- Releasing a resource runs its cleanup; a re-resolve builds a new instance. Releasing a data cell resets it
-  to its initial and notifies watchers.
+- Releasing a resource runs its cleanup; a re-resolve builds a new instance. A sync borrower never delays
+  that cleanup. Releasing a data cell resets it to its initial and notifies watchers.
 - Release drops only the resource's cleanup, never a shared `onClose` hook.
 - A release whose owner is already closing fails with `Disposed`.
 - A rejecting release cleanup surfaces as secondary: the outcome keeps its status and the error lands in the
@@ -240,6 +240,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   a void-input operation is always a callable subflow, never a value.
 - An async operation runs to its awaited value.
 - A rejecting operation rejects with its cause, and `settled` still drains when it finishes.
+- `settled` stays pending until owned work finishes.
 - An operation preset replaces the run for a direct call, a downstream subflow, and an inline config.
 - An inline run resolves deps, delivers the full context, and shares nothing between runs; a tagged inline
   run sees the call's tags, and an inline config still receives a preset resource through its deps.
@@ -282,11 +283,14 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A failure in a nested session bubbles to the caller and rolls back the leaf; a parent collecting while a
   child runs keeps the child's real failure and its cleanup error.
 - Closing a parent while a session runs joins the body: success commits, failure rolls back.
+- A session-owned build that rejects while the session closes still fails the session with its cause.
 - A session that finished before any cancel keeps its success, a settled body result survives a later
   interrupt, and a cancelled session rejects rather than resolving undefined.
 - A graceful close still rolls back children when the scope already failed; a child closing graceful after an
   ancestor abort still rolls its own resources back.
 - A failure already known before the cascade rolls back the remaining children.
+- A reused error object counts as the later session's own body failure, and a child's own throw wins over an
+  earlier close of the same cause.
 - `settled` inside `session(fn)` drains owned work without waiting on the body.
 - A teardown hook may return its own `close` without hanging; concurrent closes join the one real teardown
   and share its error.
@@ -299,7 +303,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 
 - An operation and a resource factory read the scope's clock.
 - The default clock reads real wall time; a test clock starts where built, moves on advance, jumps on set,
-  and keeps precise nanos under truncated millis.
+  and keeps precise nanos under truncated millis; a child session reads its parent scope's clock.
 - A test-clock sleep resolves only after virtual time passes it; a zero sleep resolves at once.
 - An aborted sleep rejects with the signal's reason, on both clocks.
 
@@ -321,10 +325,11 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 
 - An operation depending on an extension receives the start value after ready; on a still-pending extension
   it raises `NotResolved` naming the extension.
-- Resolving an extension that is not installed throws `NotResolved` naming it; `resolve(ext)` bypasses the
-  resolve chain.
+- Resolving an extension that is not installed throws `NotResolved` naming it; `resolve(ext)` reads the
+  extension's own start value, bypassing the resolve chain.
 - A run hook sees every call, including an inline config, and passes the call through unchanged; a tagged
-  call still opens its child session under the hook.
+  call still opens its child session under the hook. A start that skips `next` short-circuits the inner
+  starts; a run hook that skips `next` refuses the call and the body never runs.
 - `update(fn)` runs through the write chain with the computed value; the wrapped cell controller is cached
   per cell.
 - Resource and operation controllers from the extended handle stay plain: reads and runs bypass the write
