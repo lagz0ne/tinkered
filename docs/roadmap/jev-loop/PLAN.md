@@ -364,3 +364,15 @@ floor-75 http/harness needed three launches (provider drops) and ~4 h wall clock
 | tests/floor-75-cleanup | see below      |              |            |        |       |
 | docs/harness-promises  | see below      |              |            |        |       |
 | jev/reword-noisy       | see below      |              |            |        |       |
+
+### Speed reading (2026-09-21, three cards)
+
+All three landed with **zero fix rounds** (yesterday: one per slice, every slice). The two list-shaped cards
+took 13 and 18 minutes launch→report; the judgment card (test cleanup) took 58 — still under yesterday's
+40–90 min band, and it rewrote 23 files. What the writers said helped: a re-runnable check that says
+"done" (`tests.mjs` / `promises.mjs` / `calibrate.mjs`), the extracted facts per test (causes/asserts/narrows)
+which made delete-vs-merge decisions "faster than reading the file", and the fixed/explained/label rhythm.
+Where the lead still spent time: two `main` moves mid-landing (the shared checkout is the user's; land from
+`../tinkered-land`), and one case-bank conflict (append-only JSONL: resolve as a union by id).
+Deleting the http lift's superficial tests cost the lane 5.6 points and stayed above the floor: the
+convention and the floor did not collide on http.
