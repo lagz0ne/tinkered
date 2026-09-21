@@ -189,6 +189,32 @@ New sections are lists, one term per item (vertical layout,
   bar (bad ≥ 50%, clean < 50%, gap ≥ 30) may set the exit
   code; the rest print `~`.
 
+## Authoring: factories and units (ADR 0057)
+
+- **unit** — An `operation`, `resource`, data cell,
+  or `tag`. Its identity is its cache key: core
+  keys builds, cell state, controllers, and presets
+  on the handle itself.
+- **declared once** — A unit is built where its
+  module is evaluated. A unit minted per call, per
+  request, or in a loop defeats every cache and
+  silently loses cell writes — a component defined
+  inside render.
+- **construction-time factory** — A factory that
+  returns a unit (a frame: `tinkerer({ label })`,
+  `httpClient({ label })`). A composition root or a
+  frame calls it once. It may never be called in a
+  userland loop.
+- **row** — Plain data naming a unit
+  (`{ op, meta }`, an inbox entry, a route). It
+  carries no identity, so a factory that returns
+  one (`expose`, `tool`, `steer`, `queue`) is free
+  to call anywhere.
+- **narrowing builder** — A builder whose parameter
+  accepts less than the slot it fills, so the raw
+  unit can do what the builder forbids. Deleted on
+  sight; `tinkerer`'s `gate()` was one.
+
 ## Process entrypoint (`@tinker/process`, ADR 0056)
 
 New sections are lists, one term per item.

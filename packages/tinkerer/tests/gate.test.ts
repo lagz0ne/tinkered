@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { expect, test } from "vite-plus/test";
 import { createScope, data } from "@tinker/core";
 import { backend, HttpResponse, type HttpClient, type HttpRequest } from "@tinker/http";
-import { gate, tinkerer, tool, type Tinkerer } from "../src/index.ts";
+import { tinkerer, tool, type Tinkerer } from "../src/index.ts";
 import { operation } from "@tinker/core";
 
 const answer = readFileSync(new URL("./fixtures/answer.sse", import.meta.url));
@@ -54,12 +54,29 @@ function countingTool(runs: { n: number }): Tinkerer.Tool {
   return tool(op, { description: "acts", schema: {} });
 }
 
+/** Three gates, each a declared operation: the slot takes a unit, so the unit fills it (ADR 0057). */
+const blocking: Tinkerer.Gate = operation({
+  label: "blocking",
+  run: () => ({ allow: false, reason: "not now" }),
+});
+
+const allowing: Tinkerer.Gate = operation({ label: "allowing", run: () => ({ allow: true }) });
+
+let heard: Tinkerer.GateRequest | undefined;
+const watching: Tinkerer.Gate = operation({
+  label: "watching",
+  run: (_deps, ctx) => {
+    heard = ctx.input;
+    return { allow: true };
+  },
+});
+
 test("a blocking gate answers the model with a declined result and the tool never runs", async () => {
   const runs = { n: 0 };
   const coder = tinkerer({
     label: "coder",
     tools: [countingTool(runs)],
-    gate: gate(() => ({ allow: false, reason: "not now" })),
+    gate: blocking,
   });
   const seen: HttpRequest.Record[] = [];
   const scope = createScope({
@@ -80,7 +97,7 @@ test("an allowing gate lets the tool run", async () => {
   const coder = tinkerer({
     label: "coder",
     tools: [countingTool(runs)],
-    gate: gate(() => ({ allow: true })),
+    gate: allowing,
   });
   const seen: HttpRequest.Record[] = [];
   const scope = createScope({
@@ -98,14 +115,10 @@ test("an allowing gate lets the tool run", async () => {
 
 test("the gate receives the tool name, the parsed arguments, the mode, and the wire call", async () => {
   const runs = { n: 0 };
-  let seen: Tinkerer.GateRequest | undefined;
   const coder = tinkerer({
     label: "coder",
     tools: [countingTool(runs)],
-    gate: gate((request) => {
-      seen = request;
-      return { allow: true };
-    }),
+    gate: watching,
   });
   const scope = createScope({
     tags: [
@@ -115,10 +128,10 @@ test("the gate receives the tool name, the parsed arguments, the mode, and the w
     ],
   });
   await scope.createSession().run(coder.turn, { input: "go" });
-  expect(seen?.name).toBe("act");
-  expect(seen?.args).toEqual({ path: "x" });
-  expect(seen?.mode).toBe("full-access");
-  expect(seen?.call).toEqual({
+  expect(heard?.name).toBe("act");
+  expect(heard?.args).toEqual({ path: "x" });
+  expect(heard?.mode).toBe("full-access");
+  expect(heard?.call).toEqual({
     id: "call_0",
     type: "function",
     function: { name: "act", arguments: '{"path":"x"}' },

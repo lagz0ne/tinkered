@@ -126,12 +126,13 @@ Each shipped tool reads the `cwd` tag.
 
 ## Gate
 
-A gate decides each tool call before it runs. Pass
-`gate((request) => decision)` on the frame; a
-`decision` is `{ allow: true }` or
-`{ allow: false, reason }`. The gate is an ordinary
-operation, so it may read a cell, apply a policy, or
-ask a human through a driver.
+A gate decides each tool call before it runs. The
+slot takes an operation, so an operation fills it
+(ADR 0057): declare one whose `ctx.input` is the
+request and whose value is the decision. Because
+it is an ordinary operation it may declare
+`depends` — read a cell, apply a policy, or ask a
+human through a driver.
 
 - A blocking gate answers the model with a declined
   result and the tool never runs.
@@ -142,11 +143,14 @@ ask a human through a driver.
   human can drive it.
 
 ```ts
-const guard = gate((r) => {
-  if (r.name === "bash") {
-    return { allow: false, reason: "no" };
-  }
-  return { allow: true };
+const guard: Tinkerer.Gate = operation({
+  label: "guard",
+  run: (_deps, ctx) => {
+    if (ctx.input.name === "bash") {
+      return { allow: false, reason: "no" };
+    }
+    return { allow: true };
+  },
 });
 const coder = tinkerer({
   label: "coder",
@@ -154,6 +158,9 @@ const coder = tinkerer({
   gate: guard,
 });
 ```
+
+The slot's type names the input, so `ctx.input` is
+typed with no parse and no cast.
 
 ## Inbox
 

@@ -161,19 +161,6 @@ export function queue(
   return { kind: "queue", content, ...patch };
 }
 
-/** Build a gate from a decision function: `tinkerer({ label, tools, gate: gate((request) => …) })`.
- * The frame always calls it with a built request, so its parse never runs — one trusted pass at
- * that internal edge types the input as a {@link Tinkerer.GateRequest}. */
-export function gate(
-  decide: (request: Tinkerer.GateRequest) => Tinkerer.Decision | Promise<Tinkerer.Decision>,
-): Tinkerer.Gate {
-  return operation({
-    label: "gate",
-    input: (raw: unknown): Tinkerer.GateRequest => raw as Tinkerer.GateRequest,
-    run: (_deps, ctx) => decide(ctx.input),
-  });
-}
-
 /** Name one tool row: the operation plus its tool facts. */
 export function tool(
   op: Operation.Handle<unknown, unknown>,
