@@ -162,14 +162,16 @@ is the handler, its `input` parse is the edge, and `tool.read(op)` gives any dri
 the facts (description, zod raw shape, name defaulting to the op's label, an optional `respond`
 that maps the value to a result — default one JSON text content). Pass tool ops in
 `harness({ tools })`, and the turn op depends on them: the call runs as a **subflow** of the
-turn (its span nests under the turn's, it sees the session's bindings). A bound op without
+turn (its span nests under the turn's, it sees the session's bindings). Each op registers
+under its `tool` meta name, defaulting to the op's label. A bound op without
 `tool` meta throws `ToolUndeclared` at construction.
 
 The in-process path is Claude's zero-process fast path: the adapter registers one in-process
 MCP server named after the frame (built once per thread, beside any `mcpServers` you bound),
 one SDK tool per tool op, and maps the value with `answerTool` exactly as the driver does.
 The model needs `allowedTools: ["mcp__coder__search"]` (or an `approve` op) to call it
-without a prompt. Codex has no in-process tools (MCP servers are config for an external
+without a prompt. With both `approve` and `tools`, one turn answers the approval and still
+calls the tool. Codex has no in-process tools (MCP servers are config for an external
 process), so `tools` is a compile error for the `codex` adapter.
 
 ```ts
