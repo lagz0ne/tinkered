@@ -151,3 +151,36 @@ When a driver creates its own scope and returns only its result (as the CLI does
 `observe.export` in the scope options before starting it. The callback receives each span
 as it ends, including spans that finish during close; save those spans outside the driver.
 Export works without retained history.
+
+## Promises
+
+This appendix states each behaviour the seam tests pin, one line per promise, grouped by unit.
+`node tools/jev/promises.mjs core` is its check: every seam-test title names a line below.
+Titles that name no user-facing guarantee (type checks, budgets, past-bug regressions) carry no line.
+
+### Data
+
+- A cell reads its initial value through `parse`, so the first read is already the typed value.
+- `set` and `update` show on the next read.
+- A watcher sees each next value beside its previous one.
+- A write that fails `parse` throws `DataValidationFailed` naming the cell, and the value stays.
+- A watcher fires once per real change: an equal write fires nothing, and stopping ends it.
+- A watcher measures against the value at subscribe time: one that joins while dirty fires when the value
+  returns, one that joins clean fires on the next change.
+- The same listener subscribed twice fires twice; each stop ends one subscription.
+- An operation can write a cell over time; watchers see each write.
+- Two scopes keep separate data: a write in one never shows in the other.
+- A data preset replaces the cell for the whole scope; reads see it.
+
+### Tags
+
+- A tag reads the nearest binding, in an operation or through the scope seam, or its default when unbound;
+  with neither it throws `MissingTag` naming the tag.
+- Resolving a tag edge delivers its form: `all` lists nearest-first, `optional` reports presence,
+  `required` reads or throws.
+- `optional` tells absent apart from an undefined default: a default reads present, a missing binding reads
+  absent.
+- A tag binding runs through `parse`; a bad value throws `DataValidationFailed` naming the tag.
+- A unit carries static tag meta, readable off its handle.
+- Meta never affects resolution; no meta reads as empty.
+- The shared empty meta is frozen: pushing to one unit's meta cannot leak into others.
