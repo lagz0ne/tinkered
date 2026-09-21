@@ -184,10 +184,10 @@ export function tinkerer(config: { label: string; tools?: Many<Tinkerer.Tool> })
             },
           });
           const folded = await foldStep(events, deps);
-          pushAssistant(deps.messages, deps.text.get(), folded.calls);
+          const assistant = pushAssistant(deps.messages, deps.text.get(), folded.calls);
           if (folded.calls.length === 0) {
             if (folded.finish === undefined) raise("StreamEnded", { label });
-            return closeTurn(deps, ctx, prompt, folded.finish);
+            return closeTurn(deps, ctx, prompt, folded.finish, assistant);
           }
           await runCalls(deps, ctx, rows, folded.calls, folded.finish);
         }
@@ -440,8 +440,8 @@ function pushAssistant(
   messages: Scope.DataController<readonly Tinkerer.Message[]>,
   text: string,
   calls: readonly AccruedCall[],
-): void {
-  const answered: Tinkerer.Message =
+): Extract<Tinkerer.Message, { role: "assistant" }> {
+  const answered: Extract<Tinkerer.Message, { role: "assistant" }> =
     calls.length === 0
       ? { role: "assistant", content: text }
       : {
@@ -454,6 +454,7 @@ function pushAssistant(
           })),
         };
   messages.update((list) => [...list, answered]);
+  return answered;
 }
 
 const modeRank: Record<Tinkerer.Mode, number> = {
@@ -593,16 +594,12 @@ function closeTurn(
   ctx: Operation.Ctx<string>,
   prompt: string,
   finish: string,
+  message: Extract<Tinkerer.Message, { role: "assistant" }>,
 ): Tinkerer.Reply {
-  const answered: Extract<Tinkerer.Message, { role: "assistant" }> = {
-    role: "assistant",
-    content: deps.text.get(),
-  };
-  deps.messages.update((list) => [...list, answered]);
   deps.status.set("done");
   const done = deps.usage.get();
   ctx.log("tinkerer turn", { finish, input: prompt, output: done.output });
-  return { message: answered, usage: done, finish };
+  return { message, usage: done, finish };
 }
 
 export { isError };
