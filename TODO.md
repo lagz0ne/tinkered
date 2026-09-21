@@ -23,8 +23,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-| Card | Owner | Next | Verify |
-| ---- | ----- | ---- | ------ |
+| Card                                                                                      | Owner         | Next                                                                                                                                                     | Verify                                                                                                   |
+| ----------------------------------------------------------------------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| jev/promises-fixes — short README lines dropped; tie crash in the pick; bank-merge helper | lead (Claude) | `chunksOf` floor 40 → 20 chars or exact-match first; catch the tie and fall back to `none` at low confidence; `label.mjs --merge` unions two banks by id | `promises.mjs core` flags no exact-match line; no crash on core; a bank conflict resolves by one command |
+| tests/core-titles — retitle the vague core tests and fix the vacuous assertion            | lead (Claude) | From the promises writer's list: "what does not happen", "still"/"as before", internals in a title, `expect(true).toBe(true)`                            | Titles name the promise; `promises.mjs core` gaps drop further; core lane ≥ 75                           |
 
 ## Doing
 
