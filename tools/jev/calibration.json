@@ -1,12 +1,12 @@
 {
   "runForwardsToClosure": {
-    "status": "noisy",
+    "status": "proven",
     "trues": 3,
     "falses": 3,
-    "medianTrue": 0.86,
-    "medianFalse": 0.57,
-    "separation": 0.29,
-    "ordered": 0.78,
+    "medianTrue": 0.94,
+    "medianFalse": 0.03,
+    "separation": 0.91,
+    "ordered": 1,
     "at": "2026-09-21"
   },
   "effectWithoutDefer": {

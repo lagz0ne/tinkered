@@ -30,11 +30,11 @@ export const LINT = {
     q: {
       type: "boolean",
       instructions:
-        "Does the operation's run body hand its ctx, deps, controller, transaction, or database to a function declared outside the operation, which then does the real work?",
+        "Is this operation's run body a pass-through — a single call that hands the work to a function, method, or closure that is NOT listed in the operation's depends?",
       criteria: {
-        true: "run forwards ctx, deps, a controller, tx, or db to an outside function that does the job",
+        true: "the whole run is one call to an outside function, method, or closure missing from depends, usually receiving ctx or ctx.input",
         false:
-          "run does its own reads and writes with its declared deps; any helper it calls takes only plain values",
+          "run has its own multi-step body, or its only outside call is to a dep listed in depends; helpers take plain values or a dep delivered by depends",
       },
     },
   },
