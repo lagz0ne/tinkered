@@ -165,8 +165,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A watcher sees each next value beside its previous one.
 - A write that fails `parse` throws `DataValidationFailed` naming the cell, and the value stays.
 - A watcher fires once per real change: an equal write fires nothing, and stopping ends it.
-- A watcher measures against the value at subscribe time: joining dirty fires when the value returns,
-  joining clean fires on the next change.
+- A watcher measures against the value at subscribe time: one joining after a write fires when the value
+  returns to it; one joining after the return fires on the next change.
 - The same listener subscribed twice fires twice; each stop ends one subscription.
 - An operation can write a cell over time; watchers see each write.
 - Two scopes keep separate data: a write in one never shows in the other.
@@ -256,8 +256,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A nearer shadow wins for descendants below it, and the parent keeps its own value.
 - A watcher on the parent still sees the parent's later writes after a child shadows.
 - A closed scope's held controller reads the initial value back; late writes fail with `Disposed`.
-- Close runs children first, then `onClose` hooks and cleanups latest-first; a dependent's cleanup runs
-  before its dependency's.
+- Close runs children first, then `onClose` hooks and cleanups latest-first — a later `onClose` before
+  an earlier resource cleanup; a dependent's cleanup before its dependency's.
 - A throwing hook or cleanup never stops the rest: every cause lands in teardown errors, in order.
 - Close is idempotent: hooks run once, a re-entering close tears down once, closing again re-reports.
 - A clean scope closes `success` when graceful, `cancelled` when forced, and never throws; a second close
