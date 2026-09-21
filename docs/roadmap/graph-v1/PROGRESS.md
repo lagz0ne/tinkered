@@ -61,6 +61,17 @@ tools already print.
   Blocked by: t03.
   `command`'s sugar becomes a declared operation; the route keeps its row
   shape. Span-tree test over one command.
+- **graph/t04b** -- [ ] `blueprint` and `tinkerer` ship span-tree tests
+  Blocked by: t04.
+  Neither package's shape changes -- both already declare their operations
+  the right way round. They are on `check-graph`'s list only because the
+  graph is not *asserted* to produce the trace. One test each, copied from
+  `packages/http/tests/span-tree.test.ts`:
+  - [ ] `blueprint`: `check` over a fixture blueprint shows its own span
+        and the judge subflow beneath it.
+  - [ ] `tinkerer`: one turn over the recorded reply shows
+        `coder.turn > coder.step`, and with a tool call the tool operation
+        nested beneath.
 - **graph/t05** -- [ ] re-run the census
   Blocked by: t04. Record the flag count per package, before and after.
 
