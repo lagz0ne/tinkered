@@ -101,7 +101,7 @@ Each ticket blocks the next one.
   `check` asks every applicable template per node.
   Result list with `~` for a template not `proven`.
   Exit code. Seam tests with a `preset` judge.
-- **blueprint/t04** — [ ]
+- **blueprint/t04** — [x]
   First: reword `needsDefer` as a defect question
   ("holds something and promise/work never say it
   is released at close") and make `whyUnfulfilled`
@@ -169,6 +169,26 @@ One line per ticket: tag — sha — tests — size (B gzip) — mutation — no
   Core feedback: `Operation.Handle<T>` vs
   `Operation.Handle<Promise<T>>` for an async `run`
   compiles either way and mistypes `scope.run`.
+- **blueprint/t04** — 57 tests — 10368 — 78.18 —
+  writer-built (claude/sonnet-5), two rounds.
+  Round 1 was a design change (ADR 0052 §5 amended):
+  with 2+2 seed cases every template graded `proven`
+  and the ADR's own example failed `check` with
+  seven blocking hits at 50–57%. Now `enough` is
+  5+5, `evals/golden.yaml` (the example) is a clean
+  set for every template, one golden hit reads
+  `noisy` whatever the case count, and `proven` is
+  set by hand. Round 2: cast-free `target`/`compare`,
+  `median` deduped, seam tests (68.82 → 78.18).
+  Lead: golden veto before the case count; size cap
+  20 kB (a binary, not a library).
+  Real grade table (README "What is proven"):
+  15 provisional, 2 noisy (`stopOnlyInDefer` 2/2,
+  `whyDuplicate` 2/10 golden hits).
+  Real `check` on the example: 5 `~` lines, exit 0.
+  Core feedback: `label.mjs` cannot record a verdict
+  on the GUIDE unit-classifier note ("reads like an
+  operation") — second asker after t03.
 
 ### Impact blocks (ADR 0047)
 
