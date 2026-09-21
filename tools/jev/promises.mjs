@@ -8,7 +8,7 @@
 //   N candidates per title (default 6); a `none` below confidence P (default 0.7) prints as unsure, not a gap
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { loadKey, ask, pct } from "./lib.mjs";
+import { loadKey, ask, pct, resolvePick } from "./lib.mjs";
 
 const args = process.argv.slice(2);
 const pkg = args.find((a) => !a.startsWith("--"));
@@ -106,7 +106,7 @@ function exactAnswer(hit) {
   return { gap: false, unsure: false, choice: "exact", confidence: 1, line: hit };
 }
 
-/** Ask Jev which candidate promises the title. */
+/** Ask Jev which candidate promises the title; a tie reads as unsure, never a gap. */
 async function judgedAnswer(title, options) {
   const criteria = Object.fromEntries(options.map((o, i) => [`L${i + 1}`, o]));
   criteria.none = "no candidate states this behaviour as a promise to the user";
@@ -118,7 +118,7 @@ async function judgedAnswer(title, options) {
     },
   };
   const a = options.length
-    ? (await ask({ test: title, candidates: options }, q)).pick
+    ? await resolvePick(ask, { test: title, candidates: options }, q)
     : { choice: "none", probabilities: { none: 1 } };
   return pickAnswer(a, criteria);
 }

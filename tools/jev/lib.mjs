@@ -52,6 +52,22 @@ export async function ask(state, questions, tries = 5) {
   throw new Error("jev: gave up after rate-limit retries");
 }
 
+/** A Jev tie: no option holds the top chance alone. */
+export function isTieError(e) {
+  return /did not select a highest-probability option/.test(String(e?.message ?? e));
+}
+
+/** One pick question, or `none` at zero confidence when Jev ties: unsure, never a gap,
+ *  never a crash. Other errors still throw. */
+export async function resolvePick(askFn, state, questions) {
+  try {
+    return (await askFn(state, questions)).pick;
+  } catch (e) {
+    if (!isTieError(e)) throw e;
+    return { choice: "none", probabilities: { none: 0 } };
+  }
+}
+
 // ---------- git helpers ----------
 const git = (args) => execSync(`git ${args}`, { encoding: "utf8" });
 export const diff = (range) => git(`diff ${range}`);
