@@ -168,5 +168,15 @@
     "separation": null,
     "ordered": 0,
     "at": "2026-09-21"
+  },
+  "survivorMatters": {
+    "status": "proven",
+    "trues": 6,
+    "falses": 7,
+    "medianTrue": 0.84,
+    "medianFalse": 0.2,
+    "separation": 0.64,
+    "ordered": 1,
+    "at": "2026-09-21"
   }
 }
