@@ -1,0 +1,132 @@
+{
+  "runForwardsToClosure": {
+    "status": "noisy",
+    "trues": 3,
+    "falses": 3,
+    "medianTrue": 0.86,
+    "medianFalse": 0.57,
+    "separation": 0.29,
+    "ordered": 0.78,
+    "at": "2026-09-21"
+  },
+  "effectWithoutDefer": {
+    "status": "noisy",
+    "trues": 2,
+    "falses": 2,
+    "medianTrue": 0.87,
+    "medianFalse": 0.45,
+    "separation": 0.42,
+    "ordered": 0.75,
+    "at": "2026-09-21"
+  },
+  "stateOutsideCell": {
+    "status": "provisional",
+    "trues": 1,
+    "falses": 1,
+    "medianTrue": 0.89,
+    "medianFalse": 0.06,
+    "separation": 0.83,
+    "ordered": 1,
+    "at": "2026-09-21"
+  },
+  "configNotTag": {
+    "status": "proven",
+    "trues": 2,
+    "falses": 2,
+    "medianTrue": 0.85,
+    "medianFalse": 0.38,
+    "separation": 0.47,
+    "ordered": 1,
+    "at": "2026-09-21"
+  },
+  "handRolledLifetime": {
+    "status": "noisy",
+    "trues": 2,
+    "falses": 2,
+    "medianTrue": 0.54,
+    "medianFalse": 0.5,
+    "separation": 0.04,
+    "ordered": 0.75,
+    "at": "2026-09-21"
+  },
+  "stopOnlyInDefer": {
+    "status": "provisional",
+    "trues": 1,
+    "falses": 1,
+    "medianTrue": 0.83,
+    "medianFalse": 0.09,
+    "separation": 0.74,
+    "ordered": 1,
+    "at": "2026-09-21"
+  },
+  "ignoresAbortAfterAwait": {
+    "status": "provisional",
+    "trues": 1,
+    "falses": 1,
+    "medianTrue": 0.79,
+    "medianFalse": 0.31,
+    "separation": 0.48,
+    "ordered": 1,
+    "at": "2026-09-21"
+  },
+  "readsMoreThanRendered": {
+    "status": "provisional",
+    "trues": 1,
+    "falses": 2,
+    "medianTrue": 0.91,
+    "medianFalse": 0.21,
+    "separation": 0.7,
+    "ordered": 1,
+    "at": "2026-09-21"
+  },
+  "subscribesToWriteOnly": {
+    "status": "provisional",
+    "trues": 1,
+    "falses": 1,
+    "medianTrue": 0.95,
+    "medianFalse": 0.1,
+    "separation": 0.85,
+    "ordered": 1,
+    "at": "2026-09-21"
+  },
+  "runDuringRender": {
+    "status": "provisional",
+    "trues": 1,
+    "falses": 1,
+    "medianTrue": 0.96,
+    "medianFalse": 0.17,
+    "separation": 0.79,
+    "ordered": 1,
+    "at": "2026-09-21"
+  },
+  "domainLogicInRender": {
+    "status": "provisional",
+    "trues": 1,
+    "falses": 1,
+    "medianTrue": 0.93,
+    "medianFalse": 0.05,
+    "separation": 0.88,
+    "ordered": 1,
+    "at": "2026-09-21"
+  },
+  "effectOwnedByComponent": {
+    "status": "provisional",
+    "trues": 1,
+    "falses": 1,
+    "medianTrue": 0.96,
+    "medianFalse": 0.05,
+    "separation": 0.91,
+    "ordered": 1,
+    "at": "2026-09-21"
+  },
+  "leakedInternal": {
+    "status": "provisional",
+    "trues": 1,
+    "falses": 2,
+    "medianTrue": 0.71,
+    "medianFalse": 0.17,
+    "separation": 0.53,
+    "ordered": 1,
+    "at": "2026-09-21"
+  }
+}

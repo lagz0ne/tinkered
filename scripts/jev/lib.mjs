@@ -149,4 +149,6 @@ export const OVERCLAIM = {
   },
 };
 
+/** The labeled-case bank `label.mjs` appends to and `calibrate.mjs` reads. */
+export const BANK = "scripts/jev/cases.jsonl";
 export const pct = (p) => `${(p * 100).toFixed(0)}%`;

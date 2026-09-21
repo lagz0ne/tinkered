@@ -5,7 +5,12 @@
 //
 //   node scripts/jev/preflight.mjs [<range>]   (default: HEAD = all changes since last commit)
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+
+/** Per-judge status from `scripts/jev/calibrate.mjs`; a `noisy` judge prints as `~` (a note, not a flag). */
+const CALIBRATION = existsSync("scripts/jev/calibration.json")
+  ? JSON.parse(readFileSync("scripts/jev/calibration.json", "utf8"))
+  : {};
 import { loadKey, ask, changedSources, fileAt, JUDGES, pct } from "./lib.mjs";
 
 const range = process.argv.slice(2).find((a) => !a.startsWith("--")) ?? "HEAD";
@@ -24,7 +29,10 @@ for (const f of files) {
   );
   const hits = Object.entries(JUDGES)
     .filter(([id, j]) => answers[id].probability >= j.threshold)
-    .map(([id]) => `${id} ${pct(answers[id].probability)}`);
+    .map(
+      ([id]) =>
+        `${CALIBRATION[id]?.status === "noisy" ? "~" : ""}${id} ${pct(answers[id].probability)}`,
+    );
   if (hits.length) {
     flags++;
     console.log(`  ⚠ ${f}: ${hits.join(", ")}`);
@@ -37,6 +45,6 @@ if (files.length) {
   });
 }
 console.log(
-  `\njev pre-flight: ${flags} file flag(s) plus the lint notes above. Not a gate — vp check / tests / validate still decide.`,
+  `\njev pre-flight: ${flags} file flag(s) plus the lint notes above. A ~ hit is a calibrated-noisy judge: read it, no line owed. Every other flag: fixed or explained, then label it (scripts/jev/label.mjs). Not a gate.`,
 );
 process.exit(0);

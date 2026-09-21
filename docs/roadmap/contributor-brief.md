@@ -30,16 +30,24 @@ cd ../tinkered-<task> && vp install && git checkout -- pnpm-workspace.yaml && vp
    `vp check` at 0 errors and no more warnings than `main`.
 2. **jev pre-flight** (advisory, generic — it never gates, you never tune it):
    `node scripts/jev/preflight.mjs main..HEAD`. For every flag write one line: `fixed <how>` or
-   `explained <why it is not a defect here>`. A flag you cannot explain is a fix. The tool is generic by
-   design: do not add rules or special cases to `scripts/jev/**` for your ticket.
-3. **Blast radius**: the greps the ticket names (old symbols → `(none)`; `Scope.Handle` only where ADR 0051
+   `explained <why it is not a defect here>`. A flag you cannot explain is a fix. A `~` hit is a
+   calibrated-noisy judge: read it, no line owed. The tool is generic by design: do not add rules or
+   special cases to `scripts/jev/**` for your ticket.
+   **Then label what you decided** — this is how the judges get calibrated, and it takes one line per flag:
+   `node scripts/jev/label.mjs <judge> true <file>#<unit> --by <ticket> --why "<what you fixed>"` for a
+   fixed flag, `… false …` for an explained one (file judges take `<file>` alone). Commit
+   `scripts/jev/cases.jsonl` with your ticket.
+3. **Promise gap** when you added or changed tests in a package:
+   `node scripts/jev/promises.mjs <pkg>`. Every `⚠` is a test title the README never promises: write the
+   README line, or say in the report why that title is not a promise to the user.
+4. **Blast radius**: the greps the ticket names (old symbols → `(none)`; `Scope.Handle` only where ADR 0051
    allows) and the before/after line table.
-4. `pnpm validate` → 37/37.
+5. `pnpm validate` → 38/38.
 
 ## Report (final message)
 
 Branch · SHAs one line each · line table · the gate chain output (trimmed) with `EXIT 0` · the **jev
-pre-flight** lines (flag → fixed/explained) · tests added (title = the promise) · deviations from the brief
+pre-flight** lines (flag → fixed/explained, each labeled) · the **promise gap** lines for touched packages · tests added (title = the promise) · deviations from the brief
 with reasons · **Core feedback**: friction, a workaround you had to write, a missing affordance with the API
 and the call site, a rule in `docs/best-practices.md` that felt wrong. A feedback row ships with a failing
 snippet, not prose.

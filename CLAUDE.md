@@ -126,10 +126,14 @@ The lead session orchestrates and reviews; implementation is delegated to a Pase
      report's `jev pre-flight` line. A note is a probability, not a verdict; `vp check`, tests,
      census, and the lead decide.
 3. The lead runs `node scripts/jev/review.mjs main..HEAD` on the branch (advisory: it routes attention, never
-   gates), then reviews the diff for shape (facades, duplicated hot bodies, leaked internals, identity-keyed
+   gates), labels each fix-round nit that a judge covers (`scripts/jev/label.mjs <judge> true …`), then reviews the diff for shape (facades, duplicated hot bodies, leaked internals, identity-keyed
    memos), re-measures, requests one fix round, cherry-picks onto `main`, runs the package's mutation lane
    isolated, pushes, then removes the worktree and branch.
-4. **Both sides of the spectrum.** An integration is also a probe of core: every contributor report ends
+4. **Calibration is part of landing.** The bank `scripts/jev/cases.jsonl` grows from every fixed/explained
+   flag and every fix-round nit. When it gained ten or more cases since `scripts/jev/calibration.json` was
+   written, the lead runs `node scripts/jev/calibrate.mjs` and commits the result: a `noisy` judge demotes
+   to a note in lint/preflight, a `proven` one stays a flag. Never gate on a judge that is not `proven`.
+5. **Both sides of the spectrum.** An integration is also a probe of core: every contributor report ends
    with a **Core feedback** section (friction, a workaround, a missing affordance, a rule that felt wrong),
    and the lead records candidates in `docs/roadmap/core-feedback.md`. A candidate becomes a core ticket
    after a second integration asks for it, or at once when the workaround is dishonest (core/t28).

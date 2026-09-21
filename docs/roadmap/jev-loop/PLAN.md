@@ -232,3 +232,46 @@ Ran the three advisory tools on the hono-as-extension landing (`419be02..0d17653
   not SCIP-indexed. **Rule from here:** an `impact` block that Jev should read uses the refs format
   verbatim; prose blast-radius tables get a different fence (`blast`).
 - `lint.mjs` crashes with EISDIR when given a directory; pass files (`git ls-files <dir>`).
+
+## Calibration and the promise gap are in the workflow (2026-09-21)
+
+- `scripts/jev/label.mjs <judge> <true|false> <file>[#<unit>] [--ref] [--by] [--why]` appends a labeled case
+  (the exact Jev state, inline) to `scripts/jev/cases.jsonl`. Writers label every pre-flight flag they fixed
+  (true) or explained (false); the lead labels fix-round nits (true). Seeded with 13 cases from the
+  2026-09-20 fix rounds and explained flags.
+- `scripts/jev/calibrate.mjs` asks each judge about every case (bank + the seed fixture pairs) and writes
+  `scripts/jev/calibration.json`: `proven` (≥ 2 each side, median gap ≥ 30 points, ≥ 90% of pairs ordered),
+  `provisional` (thin), `noisy`. `lint.mjs`/`preflight.mjs` print a noisy judge's hit as `~` (a note, no
+  fixed/explained line owed). First run on real cases: `configNotTag` proven; `runForwardsToClosure`,
+  `effectWithoutDefer`, `handRolledLifetime` **noisy** (the hand-written fixture pairs had passed them all —
+  that is what the bank is for); nine judges provisional on fixtures alone. The three noisy judges match
+  the "driver internals read like…" noise seen on 2026-09-20; rewording them is the next calibrate step.
+- `scripts/jev/promises.mjs <pkg> [--floor 0.7]`: for every `test("…")` title, deterministic narrowing to
+  the README lines sharing stems, then one Jev pick with `none`; a confident `none` is a promise gap. First
+  run on harness: 20/48 confident gaps, 10 unsure. Of the four gaps the floor-75 writer reported, two are
+  real and two were already in the README (line 113) — the tool caught a writer overclaim on its first
+  run. One duplicated title got two different picks at ~52% (below the floor: reported as unsure, as it should).
+- Brief: `docs/roadmap/contributor-brief.md` steps 2–3; lead rule: CLAUDE.md contributor workflow §3–4.
+
+### harness README gaps (confident, first run)
+
+- a failed approval rejects the turn, and the error is not a TurnFailed
+- an unknown message kind still lands in events and the turn resolves
+- a turn folds the event stream into the result and the ambient cells
+- a failed turn rejects with TurnFailed and the harness turn line says failed
+- a rewritten agent text restreams whole and only the last text stays final
+- an empty agent update streams nothing and the turn still completes
+- a stream that ends with no completion rejects TurnEnded
+- a reasoning item records the event phase, not an SDK status
+- a failed command item keeps the SDK's failed status
+- a turn streams text and fills the ambient cells
+- options merge nearest-first and force partial messages
+- with observe, the turn span carries the adapter and one harness turn line logs done
+- a stream event that is not a text delta adds no text
+- an assistant message without a tool call adds no tool item
+- the usage cell keeps the result's own cost
+- a stream that ends with no result rejects TurnEnded
+- a non-init system message leaves the id cell alone
+- a user message with plain text adds a tool result item only for tool answers
+- a trailing assistant message with no tool call adds no tool item
+- a named tool registers under its meta name, not the op label

@@ -10,6 +10,12 @@ import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { loadKey, ask, pct } from "./lib.mjs";
 import { slice, forJev, LINT, GUIDE } from "./bank.mjs";
 
+/** Per-judge status from `scripts/jev/calibrate.mjs`: a `noisy` judge prints as a note (`~`), never as a flag. */
+const CALIBRATION = existsSync("scripts/jev/calibration.json")
+  ? JSON.parse(readFileSync("scripts/jev/calibration.json", "utf8"))
+  : {};
+const isNoisy = (id) => CALIBRATION[id]?.status === "noisy";
+
 const DEFAULT = [
   "examples/*.ts",
   "examples/*.tsx",
@@ -40,10 +46,11 @@ function questionsFor(kind) {
   return qs;
 }
 
+/** Hits above threshold: a calibrated-noisy judge prints as `~note`, a proven or provisional one as a flag. */
 function flagsOf(answers) {
   return Object.entries(LINT)
     .filter(([id, j]) => answers[id] && answers[id].probability >= j.threshold)
-    .map(([id]) => `${id} ${pct(answers[id].probability)}`);
+    .map(([id]) => `${isNoisy(id) ? "~" : ""}${id} ${pct(answers[id].probability)}`);
 }
 
 // What each sliced kind should read like: helpers and hooks as glue, components as a view.
