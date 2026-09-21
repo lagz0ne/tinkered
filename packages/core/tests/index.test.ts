@@ -2511,7 +2511,8 @@ test("meta is static and never affects resolution; no meta reads as empty", () =
 test("meta is authored as a binding, nothing, or a nested list, and reads flat in order", () => {
   const ui = tag<string>({ label: "ui" });
   const group = tag<string>({ label: "group" });
-  const shared = [group("net"), null];
+  const flags = { audit: false };
+  const shared = [group("net"), null, flags.audit && ui("never")];
   const port = data({ initial: 1, meta: [undefined, ui("slider"), [shared, [ui("dial")]]] });
   const single = operation({ label: "single", run: () => 1, meta: ui("button") });
   const nothing = resource({ label: "nothing", factory: () => 1, meta: [null, [undefined, []]] });
@@ -2536,6 +2537,7 @@ test("a call's tags take the authored shape: a single binding opens the session,
   expect(await scope.run(read, { tags: zone("us") })).toBe("us");
   expect(await scope.run(read, { tags: [null, [zone("eu"), undefined]] })).toBe("eu");
   expect(scope.run(read, { tags: undefined })).toBe("base");
+  expect(scope.run(read, { tags: false })).toBe("base");
 });
 
 test("shared empty meta is frozen, so a no-meta unit cannot be mutated to leak across units", () => {

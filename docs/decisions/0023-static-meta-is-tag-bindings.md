@@ -18,9 +18,9 @@ of **tag bindings**, fixed at definition and read off the handle. It never affec
 
 - **Attach:** every factory config takes `meta?: Tag.Bindings`. (Amended 2026-09-21: was
   `readonly Tag.Binding<unknown>[]`. `Tag.Bindings` is the authored shape — one binding,
-  nothing (`null`/`undefined`), or a list of those to any depth, the `clsx` / ESLint flat-config
-  precedent — flattened once at definition, so optional and grouped bindings need no spread:
-  `meta: [ui("slider"), dev ? debug(true) : null, shared]`. The handle still carries the flat list.)
+  nothing (`null`/`undefined`/`false`, never `0`/`""`), or a list of those to any depth, the
+  `clsx` / ESLint flat-config precedent — flattened once at definition, so optional and grouped
+  bindings need no spread: `meta: [ui("slider"), dev && debug(true), shared]`. The handle still carries the flat list.)
 
   ```ts
   const ui = tag<string>({ label: "ui" });

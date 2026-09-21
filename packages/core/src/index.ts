@@ -44,10 +44,12 @@ export declare namespace Tag {
   export type Binding<T> = { readonly tag: Handle<any>; readonly value: T };
 
   /** Bindings as authored (the `clsx` / ESLint flat-config shape): one binding, nothing
-   * (`null`/`undefined`), or a list of those to any depth. Read once where they land — a unit's
-   * `meta`, a scope's `tags`, a call's `tags` — into a flat list, so a config composes optional
-   * and grouped bindings without spreads: `meta: [ui("slider"), dev ? debug(true) : null, shared]`. */
-  export type Bindings = Binding<unknown> | null | undefined | readonly Bindings[];
+   * (`null`/`undefined`/`false` — so `cond && binding` reads as one), or a list of those to any
+   * depth. Read once where they land — a unit's `meta`, a scope's `tags`, a call's `tags` — into
+   * a flat list, so a config composes optional and grouped bindings without spreads:
+   * `tags: [request(raw), audit && trace(true), shared]`. Only `false`, never `0`/`""`: a
+   * `count && x` slip stays a type error. */
+  export type Bindings = Binding<unknown> | null | undefined | false | readonly Bindings[];
 
   /** Any unit carrying static metadata bindings (data/operation/resource/tag). */
   export type Metaed = { readonly meta: readonly Binding<unknown>[] };
@@ -266,8 +268,8 @@ export declare namespace Scope {
    * resources built for the flow see them through the layer chain. Scope-target resources are
    * unchanged. A call carrying `tags` always returns a promise — a session closes
    * asynchronously, so no sync fast path is offered. The authored shape is `Tag.Bindings` minus
-   * a bare nothing: `tags: undefined` is an untagged call, not a tagged one. */
-  export type Bindings = Exclude<Tag.Bindings, null | undefined>;
+   * a bare nothing: `tags: undefined` (or `false`) is an untagged call, not a tagged one. */
+  export type Bindings = Exclude<Tag.Bindings, null | undefined | false>;
 
   /** A call that carries `tags`: always async (ADR 0038). For a void input the call object
    * holds only `tags`; otherwise it holds the run's `input` (or `rawInput`) plus `tags`. */
@@ -570,6 +572,11 @@ function admit<T>(label: string, parse: Data.Parse<T> | undefined, raw: unknown)
  * reach past the `readonly` type and leak a binding across every no-meta unit. */
 const NO_META: readonly Tag.Binding<unknown>[] = Object.freeze([]);
 
+/** The "nothing" cases of an authored binding — skipped wherever bindings are read. */
+function isNoBinding(input: Tag.Bindings): input is null | undefined | false {
+  return input === undefined || input === null || input === false;
+}
+
 /** The one discriminator over authored bindings: a list, or a single binding. Named because
  * `Array.isArray` alone does not narrow a `readonly` list. */
 function isBindingList(input: Tag.Bindings): input is readonly Tag.Bindings[] {
@@ -578,7 +585,7 @@ function isBindingList(input: Tag.Bindings): input is readonly Tag.Bindings[] {
 
 /** Flatten authored bindings (a binding, nothing, or a nested list) into `out`, in order. */
 function pushBindings(out: Tag.Binding<unknown>[], input: Tag.Bindings): void {
-  if (input === undefined || input === null) return;
+  if (isNoBinding(input)) return;
   if (isBindingList(input)) {
     for (const item of input) pushBindings(out, item);
     return;
@@ -589,7 +596,7 @@ function pushBindings(out: Tag.Binding<unknown>[], input: Tag.Bindings): void {
 /** Read authored bindings into the flat list a unit's `meta` carries (or a layer seeds from):
  * the shared frozen empty when nothing was bound, else a fresh list the reader owns. */
 function readBindings(input: Tag.Bindings): readonly Tag.Binding<unknown>[] {
-  if (input === undefined || input === null) return NO_META;
+  if (isNoBinding(input)) return NO_META;
   const out: Tag.Binding<unknown>[] = [];
   pushBindings(out, input);
   return out.length === 0 ? NO_META : out;
@@ -1542,11 +1549,11 @@ class OperationCtx<I> implements Operation.Ctx<I> {
 
 /** True when a call carries tag bindings (ADR 0038): one optional `tags` read, no chain.
  * A tagged call opens a child session for the run; anything else takes the untagged body
- * inline below. Nothing (`undefined`/`null`) and `tags: []` count as untagged (no session for
- * an empty binding list); a single binding or a non-empty list counts as tagged. */
+ * inline below. Nothing (`undefined`/`null`/`false`) and `tags: []` count as untagged (no session
+ * for an empty binding list); a single binding or a non-empty list counts as tagged. */
 function hasCallTags(call: Scope.Invocation<unknown> | undefined): boolean {
   const tags = call?.tags;
-  if (tags === undefined || tags === null) return false;
+  if (isNoBinding(tags)) return false;
   return !isBindingList(tags) || tags.length !== 0;
 }
 

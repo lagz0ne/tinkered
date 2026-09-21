@@ -124,12 +124,12 @@ A custom binding builder names the value types it can return in `Tag.Binding<T>`
 with a narrower value type can be assigned to one with a wider union of value types.
 
 Everywhere bindings are authored — a unit's `meta`, a scope's or session's `tags`, a call's
-`tags` — the shape is `Tag.Bindings`: one binding, nothing (`null` or `undefined`), or a list
-of those to any depth. Core flattens it once, in authored order, so a config composes optional
+`tags` — the shape is `Tag.Bindings`: one binding, nothing (`null`, `undefined`, or `false`), or
+a list of those to any depth. Core flattens it once, in authored order, so a config composes optional
 and grouped bindings without a spread:
 
 ```ts
-const shared = [group("net"), audit ? trace(true) : null];
+const shared = [group("net"), audit && trace(true)]; // only `false` is "nothing", never 0 or ""
 const port = data({ initial: 8080, meta: [ui("slider"), shared] });
 scope.run(op, { tags: zone("us") }); // a single binding is a tagged call
 scope.createSession({ tags: [request(raw), wiring.tags?.(c)] }); // an absent group is skipped
