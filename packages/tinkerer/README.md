@@ -54,6 +54,8 @@ await scope.close();
 with no `finish_reason` seen.
 `MissingConfig { label, key }` — `model` or
 `baseUrl` missing after the merge.
+`EmptyPrompt { label }` — the turn got
+an empty prompt, so no request went out.
 
 ## Test recipe
 

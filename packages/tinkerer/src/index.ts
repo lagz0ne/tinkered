@@ -1,16 +1,17 @@
 import { data, operation, tag } from "@tinker/core";
-import type { Data, Operation, Tag } from "@tinker/core";
+import type { Data, Operation, Scope, Tag } from "@tinker/core";
 import { httpClient, HttpRequest } from "@tinker/http";
 import type { HttpResponse } from "@tinker/http";
 import { isError, raise } from "./errors.ts";
 import type { Errors } from "./errors.ts";
 
 export declare namespace Tinkerer {
-  /** The provider's own request fields plus our two: baseUrl and headers reach the step; system seeds the transcript. */
+  /** The provider's own request fields plus our two: baseUrl (e.g. "https://api.meta.ai/v1")
+   * and headers (authorization goes here) reach the step; system seeds the transcript. */
   export type Config = {
     readonly model: string;
-    readonly baseUrl: string; // e.g. "https://api.meta.ai/v1"
-    readonly headers?: Readonly<Record<string, string>>; // authorization goes here
+    readonly baseUrl: string;
+    readonly headers?: Readonly<Record<string, string>>;
     readonly system?: string;
     readonly reasoning_effort?: "low" | "medium" | "high";
     readonly max_completion_tokens?: number;
@@ -90,7 +91,7 @@ export function tinkerer(config: { label: string }): Tinkerer.Frame {
   });
   const turn = operation({
     label: `${label}.turn`,
-    input: parsePrompt,
+    input: readPrompt(label),
     depends: {
       configs: configTag.all,
       step,
@@ -115,10 +116,7 @@ export function tinkerer(config: { label: string }): Tinkerer.Frame {
           },
         });
         const folded = await foldStream(events, deps);
-        if (folded.finish === undefined) {
-          deps.status.set("failed");
-          raise("StreamEnded", { label });
-        }
+        if (folded.finish === undefined) raise("StreamEnded", { label });
         return closeTurn(deps, ctx, prompt, folded.finish);
       } catch (error) {
         if (!ctx.signal.aborted) deps.status.set("failed");
@@ -129,9 +127,11 @@ export function tinkerer(config: { label: string }): Tinkerer.Frame {
   return { label, config: configTag, messages, status, text, usage, step, turn };
 }
 
-function parsePrompt(raw: unknown): string {
-  if (typeof raw !== "string" || raw.length === 0) throw new Error("tinkerer: prompt is empty");
-  return raw;
+function readPrompt(label: string): (raw: unknown) => string {
+  return (raw: unknown) => {
+    if (typeof raw !== "string" || raw.length === 0) raise("EmptyPrompt", { label });
+    return raw;
+  };
 }
 
 type MergedConfig = {
@@ -188,37 +188,20 @@ function readRequired(merged: MergedConfig, label: string): RequiredConfig {
   };
 }
 
-type MessageList = {
-  get(): readonly Tinkerer.Message[];
-  update(fn: (list: readonly Tinkerer.Message[]) => readonly Tinkerer.Message[]): void;
-};
-
-type TextCell = {
-  get(): string;
-  set(value: string): void;
-  update(fn: (current: string) => string): void;
-};
-
-type UsageCell = {
-  get(): Tinkerer.Usage;
-  set(value: Tinkerer.Usage): void;
-};
-
-type StatusCell = {
-  set(value: Tinkerer.Status): void;
-};
-
-function seedSystem(messages: MessageList, system: string | undefined): void {
+function seedSystem(
+  messages: Scope.DataController<readonly Tinkerer.Message[]>,
+  system: string | undefined,
+): void {
   if (messages.get().length > 0 || system === undefined) return;
   const seed: Tinkerer.Message = { role: "system", content: system };
   messages.update((list) => [...list, seed]);
 }
 
 type TurnCells = {
-  readonly messages: MessageList;
-  readonly status: StatusCell;
-  readonly text: TextCell;
-  readonly usage: UsageCell;
+  readonly messages: Scope.DataController<readonly Tinkerer.Message[]>;
+  readonly status: Scope.DataController<Tinkerer.Status>;
+  readonly text: Scope.DataController<string>;
+  readonly usage: Scope.DataController<Tinkerer.Usage>;
 };
 
 function openTurn(deps: TurnCells, prompt: string): void {
@@ -270,11 +253,14 @@ function foldChunk(
   return typeof reason === "string" ? reason : finish;
 }
 
-function appendDelta(text: TextCell, content: string | null | undefined): void {
+function appendDelta(text: Scope.DataController<string>, content: string | null | undefined): void {
   if (typeof content === "string") text.update((current) => current + content);
 }
 
-function recordUsage(usage: UsageCell, metered: Tinkerer.Chunk["usage"]): void {
+function recordUsage(
+  usage: Scope.DataController<Tinkerer.Usage>,
+  metered: Tinkerer.Chunk["usage"],
+): void {
   if (metered === undefined) return;
   usage.set({
     input: metered.prompt_tokens,
@@ -285,7 +271,7 @@ function recordUsage(usage: UsageCell, metered: Tinkerer.Chunk["usage"]): void {
 
 function closeTurn(
   deps: TurnCells,
-  ctx: { log(message: string, attrs?: Record<string, unknown>): void },
+  ctx: Operation.Ctx<string>,
   prompt: string,
   finish: string,
 ): Tinkerer.Reply {

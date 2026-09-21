@@ -7,6 +7,9 @@ type Payloads = {
     label: string;
     key: string;
   };
+  EmptyPrompt: {
+    label: string;
+  };
 };
 
 export declare namespace Errors {
