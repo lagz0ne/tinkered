@@ -1,7 +1,8 @@
-import { operation, tag } from "@tinker/core";
+import { operation, tag, type Operation } from "@tinker/core";
 import type { Stream } from "@tinker/hono";
 import { claudeCode, harness, type ClaudeCode } from "@tinker/harness";
 import { fail, raise } from "../errors.ts";
+import { describeError } from "./observe.ts";
 import { parseDraftInput, type Draft } from "../shared/draft.ts";
 import { getRemote, listRemote } from "../tools/issues.ts";
 import { readDetail } from "./operations.ts";
@@ -65,7 +66,9 @@ function draftFrame(event: Draft.Event): string {
  * frame. A client disconnect force-closes the request session, the turn's
  * signal aborts, and the turn rejects into a terminal `cancelled`. Every
  * emit after the client went away throws; the terminal emits share one
- * try/catch that returns instead. */
+ * try/catch that returns instead. The body's `ctx` (the stream's own
+ * operation) carries the signal and the log: a run that did not finish
+ * writes one `draft failed` line with the model's error. */
 export const startDraft = operation({
   label: "startDraft",
   input: parseDraftInput,
@@ -81,7 +84,7 @@ export const startDraft = operation({
     await detail.run({ input: ctx.input.id });
     const input = ctx.input;
     return {
-      stream: async (emit: Stream.Emit, signal: AbortSignal): Promise<void> => {
+      stream: async (emit: Stream.Emit, { signal, log }: Operation.Ctx<void>): Promise<void> => {
         let live = "";
         const unText = text.watch((next) => {
           if (next.length > live.length) {
@@ -101,8 +104,9 @@ export const startDraft = operation({
           } catch {
             return;
           }
-        } catch {
+        } catch (error) {
           const outcome: Draft.Outcome = signal.aborted ? "cancelled" : "failed";
+          if (outcome === "failed") log("draft failed", { id: input.id, ...describeError(error) });
           try {
             emit(draftFrame({ kind: "status", status: outcome }));
             emit(draftFrame({ kind: "terminal", status: outcome, draft: "" }));

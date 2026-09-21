@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "vite-plus/test";
-import { preset, type Operation, type Scope } from "@tinker/core";
+import { preset, type Observe, type Operation, type Scope } from "@tinker/core";
 import {
   addComment,
   createApp,
@@ -195,9 +195,11 @@ test("a model error result and a thrown model error both fail without a draft", 
     const before = await booted.scope.run(readDetail, { input: created.id });
     await booted.scope.close({ graceful: true });
     const fixture = readDraftServer([{ id: created.id, text: "never shown", ...script }]);
+    const lines: Observe.Log[] = [];
     const live = await boot(path, {
       draft: { enabled: true, baseUrl: heard.base },
       presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
+      observe: { log: (entry) => lines.push(entry) },
     });
     heard.serve(live.app);
     try {
@@ -211,6 +213,10 @@ test("a model error result and a thrown model error both fail without a draft", 
       expect(seen.some((event) => event.kind === "done")).toBe(false);
       expect(seen.some((event) => event.kind === "status" && event.status === "failed")).toBe(true);
       expect(await live.scope.run(readDetail, { input: created.id })).toEqual(before);
+      const logged = lines.filter((line) => line.message === "draft failed");
+      expect(logged).toHaveLength(1);
+      expect(logged[0]?.attributes).toMatchObject({ id: created.id });
+      expect(typeof logged[0]?.attributes.error).toBe("string");
     } finally {
       await live.scope.close({ graceful: true });
       await heard.stop();

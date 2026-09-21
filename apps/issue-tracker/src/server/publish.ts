@@ -1,5 +1,6 @@
 import { extension, type Scope } from "@tinker/core";
 import { request } from "@tinker/hono";
+import { describeError } from "./observe.ts";
 import { publishIssues } from "./operations.ts";
 
 /** Publish after commit (ADR 0051): the `session` hook fires when each request
@@ -8,13 +9,27 @@ import { publishIssues } from "./operations.ts";
  * the one whose `request` tag holds this request's web Request: capture the
  * method before `next()` (a read would cross the closed layer after), and run
  * the publish op at the root only after a successful close of a non-GET. The
- * `start` hand is kept as a publish thunk, never as a held handle. */
+ * `start` hand is kept as a publish thunk, never as a held handle. The row is
+ * saved by then, so a publish that fails (the read after commit) must not turn
+ * the answered request into a 500 — a `session` hook never throws (core); the
+ * thunk logs `publish failed` and the next commit republishes. */
 export function publishAfterCommit(): Scope.Extension<void> {
   let runPublish: (() => Promise<unknown>) | undefined;
   return extension({
     label: "tracker.publishAfterCommit",
     start: (scope, _ctx, next) => {
-      runPublish = () => scope.run(publishIssues);
+      runPublish = () =>
+        scope.run({
+          label: "publish after commit",
+          depends: { publish: publishIssues },
+          run: async ({ publish }, ctx) => {
+            try {
+              await publish.run();
+            } catch (error) {
+              ctx.log("publish failed", describeError(error));
+            }
+          },
+        });
       return next();
     },
     session: async (handle, next) => {

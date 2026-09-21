@@ -40,6 +40,7 @@ export type { Store } from "./server/store.ts";
 export { issueRoutes } from "./server/routes.ts";
 export { src } from "./server/sync.ts";
 export { publishAfterCommit } from "./server/publish.ts";
+export { describeError, jsonLines } from "./server/observe.ts";
 export { registerViewer, viewers } from "./server/sync.ts";
 export { createApp } from "./server/app.ts";
 export type { AppConfig } from "./server/app.ts";

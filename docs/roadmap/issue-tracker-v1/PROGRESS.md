@@ -1799,3 +1799,24 @@ grep fetch( apps/issue-tracker/src/client               → connection.ts only (
 The card's verify condition holds. The "fewer lines" goal held on the server and failed on the client, and
 `docs/best-practices.md` says so; the goals that held everywhere are one writer per state and a seam test for every
 operation. The next reshape brief should budget lines per slice up front.
+
+### tracker/observe — Doing, 2026-09-21
+
+Errors were caught, then dropped: `entry()` printed nothing on a boot failure, the scope had no `observe`
+sink so every `ctx.log` line went nowhere, the draft stream's `catch {}` lost the model error, and the
+publish-after-commit hook could throw (core: hooks must not throw), which answered 500 after a saved row.
+Design: core's `Observe.Config` is the seam. `src/server/observe.ts` gives `jsonLines(write)` (log lines and
+failed spans as one JSON object per line, no dependency) and `describeError(error)` (plain fields for a log
+line). `createApp` takes `observe`; `main.ts` writes JSON lines to stdout. A tracing backend swaps in by
+handing `createApp` another `Observe.Config`.
+
+SCIP does not index `apps/`; the table below is from grep over `apps/issue-tracker`.
+
+```impact tracker/observe
+symbol / file                         refs
+AppConfig (+ observe)                 src/server/app.ts, src/index.ts, tests/browser-helper.test.ts (type only)
+createApp                             src/server/main.ts, tests/issues.test.ts, draft.test.ts, tools.test.ts, browser-helper.test.ts (config widened, no caller changes)
+startDraft.stream(emit, ctx)          src/server/routes.ts:85 (was `ctx.signal`, now `ctx`); tests/draft.test.ts:505,513 (run only, no stream call)
+publishAfterCommit                    src/server/app.ts:39, src/index.ts:42
+main.ts entry/serve                   no importers
+```

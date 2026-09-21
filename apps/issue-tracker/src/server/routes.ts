@@ -1,14 +1,32 @@
-import type { Context } from "hono";
-import { operation } from "@tinker/core";
+import type { Context, ErrorHandler } from "hono";
+import { HTTPException } from "hono/http-exception";
+import { operation, type Observe } from "@tinker/core";
 import { route, stream, type HonoScope } from "@tinker/hono";
 import { isError } from "../errors.ts";
 import { readCapability, startDraft } from "./draft.ts";
+import { describeError } from "./observe.ts";
 import { addComment, createIssue, editIssue, readDetail, readIssues } from "./operations.ts";
 import { registerViewer, src, sseTransport, viewers } from "./sync.ts";
 
 /** Map a registry failure to its status; anything else falls through to Hono. */
 export function onError(error: unknown, c: Parameters<HonoScope.OnError>[1]) {
   return readIssueError(error, c) ?? readStreamError(error, c);
+}
+
+/** Hono's last handler: an error `onError` did not map is a bug, so it answers
+ * 500 and writes one log line through the scope's sink (Hono's default would
+ * `console.error`, off the seam). An `HTTPException` keeps its own response. */
+export function reportUnmapped(observe: Observe.Config | undefined): ErrorHandler {
+  return (error, c) => {
+    if (error instanceof HTTPException) return error.getResponse();
+    observe?.log?.({
+      time: observe.clock?.() ?? Date.now(),
+      message: "request failed",
+      attributes: { method: c.req.method, path: c.req.path, ...describeError(error) },
+      span: undefined,
+    });
+    return c.text("internal", 500);
+  };
 }
 
 function readIssueError(error: unknown, c: Parameters<HonoScope.OnError>[1]) {
@@ -82,7 +100,7 @@ export const issueRoutes: readonly HonoScope.Row[] = [
       c.header("Content-Type", "text/event-stream");
       c.header("Cache-Control", "no-cache");
       c.header("Connection", "keep-alive");
-      return stream(c, (emit, ctx) => started.stream(emit, ctx.signal));
+      return stream(c, (emit, ctx) => started.stream(emit, ctx));
     },
   }),
   route.post("/sync", registerViewer, {
@@ -98,13 +116,17 @@ export const issueRoutes: readonly HonoScope.Row[] = [
       c.header("Content-Type", "text/event-stream");
       c.header("Cache-Control", "no-cache");
       c.header("Connection", "keep-alive");
-      return stream(c, (emit, ctx) => {
+      return stream(c, async (emit, ctx) => {
         emit(": ready\n\n");
         const wire = sseTransport(emit, ctx.signal);
         const close = opened.wires.open(id, wire.deliver);
-        return opened.origin.connect(wire).then(() => {
+        try {
+          const ended = await opened.origin.connect(wire);
+          if (ended.status === "failed")
+            ctx.log("sync wire failed", { client: id, ...describeError(ended.error) });
+        } finally {
           close();
-        });
+        }
       });
     },
   }),

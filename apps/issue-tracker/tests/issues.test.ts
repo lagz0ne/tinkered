@@ -1,4 +1,4 @@
-import { createScope, type Operation, type Scope } from "@tinker/core";
+import { createScope, preset, type Observe, type Operation, type Scope } from "@tinker/core";
 import { hono, route } from "@tinker/hono";
 import { memoryPair, subscribe } from "@tinker/sync";
 import {
@@ -357,6 +357,35 @@ test("edited details, comments, and activity survive a restart", async () => {
     expect(found.activity.length).toBe(3);
   } finally {
     await second.scope.close({ graceful: true });
+  }
+});
+
+test("a publish that fails after the commit keeps the 201, saves the row, and logs one line", async () => {
+  const lines: Observe.Log[] = [];
+  let publishes = 0;
+  const { scope, app } = await createApp({
+    dataPath: tempPath(),
+    observe: { log: (entry) => lines.push(entry) },
+    presets: [
+      preset(publishIssues, async () => {
+        publishes += 1;
+        if (publishes > 1) throw new Error("read after commit broke");
+      }),
+    ],
+  });
+  try {
+    const res = await app.request("/api/issues", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: "Saved anyway", description: "x" }),
+    });
+    expect(res.status).toBe(201);
+    expect((await scope.run(listIssues)).map((i) => i.title)).toEqual(["Saved anyway"]);
+    const failed = lines.filter((line) => line.message === "publish failed");
+    expect(failed).toHaveLength(1);
+    expect(failed[0]?.attributes).toMatchObject({ error: "read after commit broke" });
+  } finally {
+    await scope.close({ graceful: true });
   }
 });
 
