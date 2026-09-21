@@ -313,3 +313,32 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A child span never calls a non-promise thenable's `then`.
 - An inline run yields one span named `inline`, or its label, with the subflow nested under it; running the
   same inline config twice yields two spans and two bodies.
+
+### Scope seam
+
+- `scope.resolve` reads a cell's current value with no subscription, builds a resource once like its
+  controller, and reads a tag's nearest binding, default, or throws `MissingTag`.
+- `scope.run` shares the controller path: same lookup, same CallArgs rules, stable controller identity.
+- A scope with no extensions is ready at once on one shared promise; a session after ready is already ready.
+- A close hook wraps the structural close and sees its result.
+
+### Extensions
+
+- An operation depending on an extension receives the start value after ready; on a still-pending extension
+  it raises `NotResolved` naming the extension.
+- Resolving an extension that is not installed throws `NotResolved` naming it; `resolve(ext)` bypasses the
+  resolve chain.
+- A run hook sees every call, including an inline config, and passes the call through unchanged; a tagged
+  call still opens its child session under the hook.
+- `update(fn)` runs through the write chain with the computed value; the wrapped cell controller is cached
+  per cell.
+- Resource and operation controllers from the extended handle stay plain: reads and runs bypass the write
+  chain untouched.
+- A tagged call runs the session chain once; a session under a session is wrapped; with no session hook,
+  sessions run as before.
+- Session hooks nest in registration order and each sees the end status.
+- A throwing session hook rejects the session with its error; a hook that skips `next` still lets the
+  session run and close.
+- A session felled by a forced parent close settles the hook chain as `cancelled`; under a graceful close it
+  settles as `success`.
+- `session(fn)` reports the close end through the chain: success, a failed run, a forced close.
