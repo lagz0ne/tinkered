@@ -18,7 +18,8 @@
   "files": [
     "dist",
     "corpus",
-    "evals"
+    "evals",
+    "blueprint.yaml"
   ],
   "type": "module",
   "exports": {
@@ -42,6 +43,7 @@
     "@tinker/cli": "workspace:*",
     "@tinker/core": "workspace:*",
     "ai": "catalog:",
+    "oxc-parser": "catalog:",
     "yaml": "catalog:",
     "zod": "catalog:"
   },

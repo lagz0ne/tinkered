@@ -31,6 +31,7 @@ catalog:
   zustand: ^5.0.15
   ai: ^7.0.105
   yaml: ^2.9.1
+  oxc-parser: ^0.117.0
 overrides:
   vite@*: "catalog:"
 peerDependencyRules:

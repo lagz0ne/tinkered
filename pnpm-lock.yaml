@@ -203,6 +203,9 @@ catalogs:
     mitata:
       specifier: ^1.0.34
       version: 1.0.34
+    oxc-parser:
+      specifier: ^0.117.0
+      version: 0.117.0
     react:
       specifier: ^19.3.0
       version: 19.3.0
@@ -568,6 +571,9 @@ importers:
       ai:
         specifier: 'catalog:'
         version: 7.0.105(zod@4.6.2)
+      oxc-parser:
+        specifier: 'catalog:'
+        version: 0.117.0(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)
       yaml:
         specifier: 'catalog:'
         version: 2.9.1
