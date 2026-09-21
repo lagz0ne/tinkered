@@ -34,16 +34,18 @@ function SliceObj({ onRender }: { onRender: () => void }): React.ReactElement {
   return <p>obj-a:{slice.a}</p>;
 }
 
-const optsBox = data({ label: "optsBox", initial: { a: 1, b: 1 } });
+const sbox = data({ label: "sbox", initial: { a: 1, b: 1 } });
+const pickS = (v: { a: number; b: number }): { a: number } => ({ a: v.a });
 
 function SliceOpts({ onRender }: { onRender: () => void }): React.ReactElement {
-  const slice = useData(optsBox, (v) => ({ a: v.a }), { isEqual: (x, y) => x.a === y.a });
+  const slice = useData(sbox, pickS, { isEqual: (x, y) => x.a === y.a });
   onRender();
   return <p>opts-a:{slice.a}</p>;
 }
 
 test("a selector with an options object applies its isEqual", async () => {
   const scope = createScope();
+  scope.controller(sbox).set({ a: 1, b: 1 });
   let renders = 0;
 
   const screen = await render(
@@ -59,27 +61,26 @@ test("a selector with an options object applies its isEqual", async () => {
   await expect.element(screen.getByText("opts-a:1")).toBeVisible();
   const afterMount = renders;
 
-  scope.controller(optsBox).update((v) => ({ ...v, b: 5 }));
+  scope.controller(sbox).update((v) => ({ ...v, b: 5 }));
   await expect.element(screen.getByText("opts-a:1")).toBeVisible();
   expect(renders).toBe(afterMount);
 
-  scope.controller(optsBox).update((v) => ({ ...v, a: 2 }));
+  scope.controller(sbox).update((v) => ({ ...v, a: 2 }));
   await expect.element(screen.getByText("opts-a:2")).toBeVisible();
   expect(renders).toBeGreaterThan(afterMount);
 
   await scope.close();
 });
 
-const aeBox = data({ label: "aeBox", initial: { a: 1, b: 1 } });
-
 function AlwaysEqual({ onRender }: { onRender: () => void }): React.ReactElement {
-  const value = useData(aeBox, { isEqual: () => true });
+  const value = useData(sbox, { isEqual: () => true });
   onRender();
   return <p>ae-a:{value.a}</p>;
 }
 
 test("an isEqual of always-true never re-renders on cell updates", async () => {
   const scope = createScope();
+  scope.controller(sbox).set({ a: 1, b: 1 });
   let renders = 0;
 
   const screen = await render(
@@ -95,7 +96,7 @@ test("an isEqual of always-true never re-renders on cell updates", async () => {
   await expect.element(screen.getByText("ae-a:1")).toBeVisible();
   const afterMount = renders;
 
-  scope.controller(aeBox).update((v) => ({ ...v, a: 2 }));
+  scope.controller(sbox).update((v) => ({ ...v, a: 2 }));
   await expect.element(screen.getByText("ae-a:1")).toBeVisible();
   expect(renders).toBe(afterMount);
 
@@ -153,18 +154,17 @@ test("re-renders only when the selected slice changes", async () => {
   await scope.close();
 });
 
-const keptBox = data({ label: "keptBox", initial: { a: 1, b: 1 } });
-const pickKept = (v: { a: number; b: number }): { a: number } => ({ a: v.a });
 const alwaysTrue = (): boolean => true;
 
 function SliceKept({ onSeen }: { onSeen: (slice: object) => void }): React.ReactElement {
-  const slice = useData(keptBox, pickKept, alwaysTrue);
+  const slice = useData(sbox, pickS, alwaysTrue);
   onSeen(slice);
   return <p>kept:{slice.a}</p>;
 }
 
 test("a kept slice survives a raw change and two parent re-renders", async () => {
   const scope = createScope();
+  scope.controller(sbox).set({ a: 1, b: 1 });
   const seen: object[] = [];
 
   function Parent(): React.ReactElement {
@@ -184,7 +184,7 @@ test("a kept slice survives a raw change and two parent re-renders", async () =>
   );
 
   await expect.element(screen.getByText("kept:1")).toBeVisible();
-  scope.controller(keptBox).update((v) => ({ ...v, b: 2 }));
+  scope.controller(sbox).update((v) => ({ ...v, b: 2 }));
   await expect.element(screen.getByText("kept:1")).toBeVisible();
   await screen.getByRole("button").click();
   await expect.element(screen.getByText("bump 1")).toBeVisible();
@@ -265,16 +265,14 @@ test("a new inline selector after a parent re-render shows its output and still 
   await scope.close();
 });
 
-const swapBox = data({ label: "swapBox", initial: { a: 1, b: 1 } });
-const pickAStable = (v: { a: number; b: number }): { a: number } => ({ a: v.a });
-
 function SliceSwapped({ equal }: { equal: (x: { a: number }, y: { a: number }) => boolean }): React.ReactElement {
-  const slice = useData(swapBox, pickAStable, equal);
+  const slice = useData(sbox, pickS, equal);
   return <p>swapped:{slice.a}</p>;
 }
 
 test("a swapped-in isEqual applies from the next render", async () => {
   const scope = createScope();
+  scope.controller(sbox).set({ a: 1, b: 1 });
   const always = alwaysTrue;
   const never = (): boolean => false;
 
@@ -295,7 +293,7 @@ test("a swapped-in isEqual applies from the next render", async () => {
   );
 
   await expect.element(screen.getByText("swapped:1")).toBeVisible();
-  scope.controller(swapBox).update((v) => ({ ...v, a: 2 }));
+  scope.controller(sbox).update((v) => ({ ...v, a: 2 }));
   await expect.element(screen.getByText("swapped:1")).toBeVisible();
   await screen.getByRole("button").click();
   await expect.element(screen.getByText("swapped:2")).toBeVisible();

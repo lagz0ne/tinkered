@@ -270,25 +270,20 @@ function Flags({
   );
 }
 
-function SettledOnly({
-  op,
-  call,
-  events,
-}: {
+function SettledOnly({ op, call, events }: {
   op: Operation.Handle<Promise<number>, number>;
   call: Scope.ProvideInput<number>;
   events: string[];
 }): React.ReactElement {
-  const run = useRun(op, {
-    onSettled: (data, error, variables) =>
-      void events.push(`settled:${String(data)}:${String(error)}:${String(variables.rawInput)}`),
-  });
+  const push = (d: unknown, e: unknown, v: Scope.ProvideInput<number>): void => {
+    events.push(`settled:${String(d)}:${String(e)}:${String(v.rawInput)}`);
+  };
+  const run = useRun(op, { onSettled: push });
+  const sflags = [run.isSuccess, run.isError].map(Number).join("");
   return (
     <div>
-      <button type="button" onClick={() => run.run(call)}>
-        go
-      </button>
-      <p>sflags:{[run.isSuccess, run.isError].map(Number).join("")}</p>
+      <button type="button" onClick={() => run.run(call)}>go</button>
+      <p>sflags:{sflags}</p>
     </div>
   );
 }
