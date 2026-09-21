@@ -331,6 +331,12 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A child span never calls a non-promise thenable's `then`.
 - An inline run yields one span named `inline`, or its label, with the subflow under it; the same config
   run twice yields two spans and two bodies.
+- A manual child span exports its event.
+- A manual child span that returns a value closes as ok.
+- A manual child span that throws closes as failed and rethrows.
+- An async child span closes as ok when its promise resolves.
+- An async child span closes as failed when its promise rejects.
+- Sibling spans carry distinct ids in call order.
 
 ### Extensions
 
