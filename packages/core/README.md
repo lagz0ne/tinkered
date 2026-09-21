@@ -214,7 +214,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A rejecting release cleanup surfaces as secondary: the outcome keeps its status and the error lands in the
   teardown errors.
 - Release cascades down: the dependent rebuilds, exactly once across diamonds, while upstream stays built;
-  dependents tear down first. A cascade re-runs no operation.
+  dependents tear down first.
+- A cascade re-runs no operation.
 - A throwing cleanup mid-cascade still drops every dependent's cache; a throwing watcher during release still
   runs the cleanups.
 - Releasing a scope resource cascades into each session's dependents; an uninvolved session keeps its
@@ -239,8 +240,9 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A rejecting operation rejects with its cause, and `settled` still drains when it finishes.
 - `settled` stays pending until owned work finishes.
 - An operation preset replaces the run for a direct call, a downstream subflow, and an inline config.
-- An inline run resolves deps, delivers the full context, and shares nothing between runs; a tagged inline
-  run sees the call's tags, and a preset resource arrives through the deps it names.
+- An inline run resolves deps, delivers the full context, and shares nothing between runs; with no call,
+  deps resolve and `ctx.input` is void. A tagged inline run sees the call's tags, and a preset resource
+  arrives through the deps it names.
 - A tagged call binds the whole flow: the run, a subflow, and a nested subflow all read the call's tags, and
   a tagged call is always async even for a sync operation.
 - A tagged run builds session resources in the flow and leaves scope resources at the root; an untagged
@@ -278,7 +280,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - Failed owned work fails the session with its cause; a body failure still wins over owned-work noise for the
   caller and the hooks.
 - A failure in a nested session bubbles to the caller and rolls back the leaf; a parent collecting while a
-  child runs keeps the child's real failure and its cleanup error.
+  descendant runs keeps its real failure and its cleanup error.
 - Closing a parent while a session runs joins the body: success commits, failure rolls back.
 - A session-owned build that rejects while the session closes still fails the session with its cause.
 - A session that finished before any cancel keeps its success, a settled body result survives a later
@@ -286,8 +288,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A graceful close still rolls back children when the scope already failed; a child closing graceful after an
   ancestor abort still rolls its own resources back.
 - A failure already known before the cascade rolls back the remaining children.
-- A reused error object counts as the later session's own body failure, and a child's own throw wins over an
-  earlier close of the same cause.
+- A reused error object counts as the later session's own body failure; a child's own throw wins over a
+  manual close of the same cause, and a manual close never demotes the parent's own body failure.
 - `settled` inside `session(fn)` drains owned work without waiting on the body.
 - A teardown hook may return its own `close` without hanging; concurrent closes join the one real teardown
   and share its error.
