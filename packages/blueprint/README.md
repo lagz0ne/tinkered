@@ -21,6 +21,10 @@ shipped question templates.
 - Nodes keep file order.
 - `uses` reads what a node names;
   `usedBy` reads what names it.
+- A name nothing has, or a dangling
+  `depends` entry, reads as no
+  nodes — `uses`/`usedBy` never
+  throw.
 
 ```yaml
 - tag:
@@ -189,11 +193,17 @@ blueprint:
     `declaredKind` is the node's own
     `compare` field; `0` when
     `probabilities` is absent.
+  - A case scores `0` when the
+    judge's answer is missing for
+    that template id.
 - `bad` cases should score high,
   `clean` cases low. With at least
   5 of each:
   - **sep** — `median(bad) -
-median(clean)`.
+median(clean)`; `median` sorts its
+    values numerically, never
+    lexicographically, before
+    taking the middle one.
   - **ordered** — the share of
     (bad, clean) pairs where bad
     outranks clean.
@@ -316,6 +326,9 @@ ok: 5 nodes, 3 findings
   at or above `minConfidence`.
   Below `minConfidence`, or a pick
   that matches `compare`: no finding.
+  A choice hit prints `reads as
+<pick>` with the pick's own
+  confidence as the percent.
 - A hit blocks (`blocking: true`)
   when its template is `proven`,
   or it is a plain check (always
@@ -346,9 +359,11 @@ AI_GATEWAY_API_KEY or
   Carries the finding lines; the message
   holds one line per finding.
 - **InvalidEval** — an eval file is not
-  yaml, breaks the schema, or names a
+  yaml, breaks the schema, names a
   `target` no node in its own blueprint
-  has. Carries the file and the issues.
+  has, or (a pair template) is missing
+  its second name. Carries the file
+  and the issues.
 - **NoKey** — `check` or `evals` ran
   with no `AI_GATEWAY_API_KEY` and no
   `--key-file`.
