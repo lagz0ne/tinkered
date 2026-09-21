@@ -109,7 +109,9 @@ Claude's `canUseTool` is answered by an ordinary operation: pass it as `approve`
 frame, and the turn op depends on it — the approval runs as a **subflow** of the turn (its span nests
 under the turn's, it sees the session's bindings and the frame's cells). Its input is the SDK's own
 request (`ClaudeCode.Approval`: `toolName`, `input`, the SDK's options), its result the SDK's own
-`PermissionResult`. Each decision lands in `items` as `{ kind: "approval", status: "allow" | "deny" }`.
+`PermissionResult`. Each decision lands in `items` as `{ kind: "approval", status: "allow" | "deny" }`,
+keeping the SDK request and the decision as its `source`. A throwing approve op rejects the turn
+with that same error, not wrapped as `TurnFailed`.
 An `approve` op overrides a `canUseTool` bound in `claudeCode.options`; without one, a bound
 `canUseTool` still applies. Codex has no approval callback (only `approvalPolicy`), so `approve` is a
 compile error for the `codex` adapter.
