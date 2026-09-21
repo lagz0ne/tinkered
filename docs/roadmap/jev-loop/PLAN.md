@@ -400,3 +400,18 @@ operation.`) reads as a gap; the pick question crashed twice with "did not selec
   targets literals construction already proves, not an inferred generic across a seam (ADR 0044, 0050/0051).
 - The case bank hit its second append conflict in a day: resolve as a union by id (a helper for it belongs in
   `label.mjs`; card `jev/promises-fixes` carries it).
+
+## Batch three (2026-09-21, 05:15 → 06:45 UTC)
+
+- `tests/core-titles` — ~25 min, 0 fix rounds, landed `79b1f13`. 14 titles renamed, 1 split; the vacuous
+  assertion had already been fixed by the other session. One delete-not-retitle finding → card
+  `tests/core-tag-read-split`.
+- `jev/promises-fixes` — ~75 min, 0 fix rounds, landed `e83e520`. Exact-title match answers without a Jev call;
+  README lines of 20+ chars are candidates; a tie in the pick prints `?` at 0% (never a gap, never a crash);
+  `label.mjs --merge` unions a conflicted bank by id (`JEV_BANK` overrides the path for tests).
+- Honest note from the writer, kept: on the real README the confident-gap count moved 7 → 9 between runs with
+  no code change to the judged path — run-to-run Jev noise of ±2 on 293 picks. The exact-match arm removes one
+  source of that noise (it never asks); the rest is the model. Treat single-run gap counts as ±2.
+- Eight tooled cards in the day, zero fix rounds. Lead time went to: `main` moving during landings (four times,
+  all the other session's — the landing worktree absorbs them), one missing `vp install` after a lockfile
+  change (now part of the landing chain), and two case-bank conflicts (now one command).
