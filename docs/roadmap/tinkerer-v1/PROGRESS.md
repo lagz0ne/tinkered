@@ -129,7 +129,7 @@ Each ticket blocks the next one.
   a throw → error result. `mode` tag → `settings`
   seeded; `read` tool; `read-only` blocks the rest.
   Seam test: `1-ask` then `2-answer` fixtures.
-- **tinkerer/t03** — [ ]
+- **tinkerer/t03** — [x]
   `bash`, `edit`, `write`; `workspace-write` (paths
   under cwd, no bash) and `full-access`.
   Seam tests in a temp dir.
@@ -191,6 +191,16 @@ One line per ticket: tag — sha — tests — size (B gzip) — mutation — no
   complexity, exact asserts, no test cast). Real
   endpoint: `user > assistant > tool > assistant`,
   the model read the README heading.
+- **tinkerer/t03** — `655ad06` — 32 tests —
+  5811 (cap 10240) — 79.10 alone — lead-built
+  (the writer route dies on multi-file tickets):
+  `write`, `edit`, `bash`, a shared `resolveUnder`
+  path guard, `EditMiss` in the registry,
+  `shippedTools`. Real endpoint (`workspace-write`):
+  the model wrote hello.txt and was told bash needs
+  full-access. Fact: a mutant can write outside the
+  temp dir (once left /tmp/escape.txt) — an escape
+  test targets a fresh dir it also asserts empty.
 
 ### Impact blocks (ADR 0047)
 
