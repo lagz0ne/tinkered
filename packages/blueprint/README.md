@@ -47,6 +47,81 @@ It names the units, their kinds, and their links, plus one promise per node.
     work: insert in db; update issueList
 ```
 
+## The corpus
+
+- A template is one YAML file
+  in `corpus/`: `id`, `scope`,
+  `applies`, `needs`, `ask`,
+  plus `true` / `false`
+  (boolean) or `choices`
+  (choice).
+- `scope` is `node` or `pair.
+- `applies` names node kinds;
+  `needs` names state fields
+  the question reads: `kind`,
+  `name`, `promise`, `why`,
+  `depends`, `work`, `target`,
+  `uses`, `usedBy`.
+- A template naming anything
+  else fails the load with
+  `InvalidTemplate`.
+- Every seed is `provisional`;
+  evals (t04) flip it to `proven`.
+- The 17 seeds:
+  - **unitFits** — which unit fits:
+    data, resource, operation, tag.
+  - **target** — one copy per scope
+    or one per session.
+  - **needsDefer** — something must be
+    released at close.
+  - **runForwardsToClosure** — work hands
+    the job to what depends misses.
+  - **effectWithoutDefer** — a started
+    thing is stopped by hand.
+  - **stateOutsideCell** — shared state
+    with no data node.
+  - **configNotTag** — an environment
+    choice no tag delivers.
+  - **handRolledLifetime** — a waiting
+    line the scope should own.
+  - **stopOnlyInDefer** — running work
+    stops only at close.
+  - **scopeInsideUnit** — work calls
+    the scope (rule 5).
+  - **parseNotAtDoor** — input parsed
+    past the door (rule 12).
+  - **manualSession** — a session opened
+    by hand (rule 14).
+  - **publishTwice** — re-list after
+    a save (rule 15).
+  - **hiddenNode** — an effect or state
+    with no node.
+  - **dataManyWriters** — two writers
+    for one data node.
+  - **whyUnfulfilled** — why names what
+    no dep fulfils, or repeats promise.
+  - **whyDuplicate** — two nodes share
+    one why (pair scope).
+
+## explain
+
+- `explain` prints every template
+  verbatim: one block per template,
+  a blank line between.
+- `explain --md` prints the same
+  as a markdown list: one
+  `- **id** — ask` item, then
+  indented lines for applies /
+  needs / status / true / false
+  or choices.
+
+```bash
+node packages/blueprint/dist/main.mjs \
+  explain
+node packages/blueprint/dist/main.mjs \
+  explain --md
+```
+
 ## The three plain checks
 
 - **unknownDepends** — a `depends` entry names no node.
