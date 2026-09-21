@@ -184,3 +184,51 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A unit carries static tag meta, readable off its handle.
 - Meta never affects resolution; no meta reads as empty.
 - The shared empty meta is frozen: pushing to one unit's meta cannot leak into others.
+
+### Resources
+
+- A scope resource builds once; every resolve shares the one instance.
+- A resource factory sees its owner's current deps.
+- A depended-on resource builds before the body runs, whether or not the body reads it; reading it twice
+  builds once.
+- An async dependency arrives as its value: the body reads it without awaiting.
+- Concurrent resolves share one in-flight build; a later resolve keeps the same settled instance and promise.
+- An async factory's thenable resolves to its awaited value.
+- A resource that resolves itself fails with `CircularResource` naming the resource.
+- `get` before `resolve` fails with `NotResolved` naming the resource; through a closed owner it fails with
+  `Disposed` instead of a stale value, and a resolve through a closed owner builds nothing.
+- A scope-target resource is one instance shared across sessions, with one shared sticky rejection.
+- A session-target resource builds once per session, distinct across sessions; a child session's own
+  instance survives its parent's release.
+- A scope resource that needs a session-only tag fails with `MissingTag`.
+- A build still in flight when released never publishes; the next resolve rebuilds.
+- A release started inside a running factory stops that build from publishing.
+- An old build settling late never drops its replacement; its late rejection never detaches the
+  replacement's edges nor fails a session that already holds the replacement.
+- A rejected build is sticky: re-resolve returns the same rejection with no new build, until a release lets
+  it rebuild fresh; releasing a dependency also lets a rejected dependent rebuild.
+- Releasing a resource runs its cleanup; a re-resolve builds a new instance. Releasing a data cell resets it
+  to its initial and notifies watchers.
+- Release drops only the resource's cleanup, never a shared `onClose` hook.
+- A release whose owner is already closing fails with `Disposed`.
+- A rejecting release cleanup surfaces as secondary: the outcome keeps its status and the error lands in the
+  teardown errors.
+- Release cascades down: the dependent rebuilds, exactly once across diamonds, while upstream stays built;
+  dependents tear down before dependencies. A cascade re-runs no operation.
+- A throwing cleanup mid-cascade still drops every dependent's cache; a throwing watcher during release still
+  runs the cleanups.
+- Releasing a scope resource cascades into each session's dependent instances; a session that never depended
+  keeps its instance, a closed session is skipped, and a closing session is skipped while the others still
+  release.
+- A release waits for a borrower: a cross-owner operation still running keeps the resource and its scope
+  dependency alive until it and their cleanups finish, then teardown runs borrower-first. A synchronous
+  operation's async cleanup still holds the resource open.
+- A build superseded while in flight leaves the rebuilt instance alive: its late cleanup never drops the
+  replacement from the cache.
+- A release nested inside a release cleanup, and a release from a session cleanup that closes the root,
+  neither hangs close; a close started from another scope's cleanup still awaits the real teardown and
+  reports its error.
+- A resource preset replaces the built instance for downstream consumers, builds once per owner and caches,
+  sees the resolved deps, resolves an async factory to its awaited value, and runs its own cleanup at owner
+  close while the real factory never runs.
+- A preset is scoped to its scope: another scope still builds the real value.
