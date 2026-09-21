@@ -1,0 +1,11 @@
+target: [issueList, issueCount]
+expect: false
+blueprint:
+  - data:
+      name: issueList
+      promise: the saved issues; one writer
+      why: the view lists every issue
+  - data:
+      name: issueCount
+      promise: the number of issues; one writer
+      why: the badge shows a running total

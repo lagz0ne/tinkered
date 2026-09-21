@@ -1,0 +1,8 @@
+target: worker
+expect: false
+blueprint:
+  - resource:
+      name: worker
+      promise: one background worker per scope
+      why: jobs run continuously
+      work: start a loop; expose a stop() the caller can invoke sooner, and defer calls it too

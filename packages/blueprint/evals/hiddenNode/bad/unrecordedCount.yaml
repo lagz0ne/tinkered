@@ -1,0 +1,8 @@
+target: startServer
+expect: true
+blueprint:
+  - resource:
+      name: startServer
+      promise: one http server per scope
+      why: requests need a listener
+      work: open a socket and keep a private connection count nowhere else recorded

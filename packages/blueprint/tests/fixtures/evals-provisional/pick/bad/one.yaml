@@ -1,0 +1,7 @@
+target: thing
+expect: resource
+blueprint:
+  - data:
+      name: thing
+      promise: subscribes and connects over time
+      why: w

@@ -1,0 +1,8 @@
+target: importFile
+expect: true
+blueprint:
+  - operation:
+      name: importFile
+      promise: given a file, its rows are imported
+      why: import needs a fresh session per file
+      work: manually construct a session context object and tear it down at the end

@@ -1,0 +1,13 @@
+target: refreshCounter
+expect: true
+blueprint:
+  - data:
+      name: counter
+      promise: the current count; one writer
+      why: the badge reads it
+  - operation:
+      name: refreshCounter
+      depends: [counter]
+      promise: given a delta, the count is updated
+      why: the badge must reflect the latest count
+      work: apply the delta, then read the count back from storage to set counter

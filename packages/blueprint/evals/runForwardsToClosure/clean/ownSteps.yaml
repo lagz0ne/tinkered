@@ -1,0 +1,13 @@
+target: saveIssue
+expect: false
+blueprint:
+  - resource:
+      name: tx
+      promise: one transaction per session
+      why: the request commit is the save
+  - operation:
+      name: saveIssue
+      depends: [tx]
+      promise: given input, one saved issue
+      why: writes go through tx
+      work: parse input; insert the row in tx; return the row

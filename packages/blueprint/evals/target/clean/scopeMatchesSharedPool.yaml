@@ -1,0 +1,9 @@
+target: dbPool
+expect: scope
+blueprint:
+  - resource:
+      name: dbPool
+      target: scope
+      promise: one shared connection pool for the whole process
+      why: all requests reuse the one pool
+      work: build one pool at startup; every call reuses it

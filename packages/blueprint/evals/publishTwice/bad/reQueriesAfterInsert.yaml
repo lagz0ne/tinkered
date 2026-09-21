@@ -1,0 +1,13 @@
+target: saveIssue
+expect: true
+blueprint:
+  - data:
+      name: issueList
+      promise: the saved issues; one writer
+      why: the view reads it
+  - operation:
+      name: saveIssue
+      depends: [issueList]
+      promise: given input, one saved issue lands in issueList
+      why: writes go through here
+      work: insert the row, then re-query all issues and set issueList to the fresh list

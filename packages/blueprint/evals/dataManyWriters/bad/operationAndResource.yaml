@@ -1,0 +1,19 @@
+target: cache
+expect: true
+blueprint:
+  - data:
+      name: cache
+      promise: the cached rows; one writer
+      why: the read path reuses it
+  - operation:
+      name: refreshCache
+      depends: [cache]
+      promise: given nothing, cache is refreshed
+      why: refreshCache updates cache
+      work: query the source and update cache
+  - resource:
+      name: warmup
+      depends: [cache]
+      promise: one warmup pass per scope
+      why: warmup seeds cache at boot
+      work: fill cache once at scope start

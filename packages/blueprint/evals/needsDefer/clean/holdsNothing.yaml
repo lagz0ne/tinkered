@@ -1,0 +1,8 @@
+target: settings
+expect: false
+blueprint:
+  - resource:
+      name: settings
+      promise: the parsed settings; read once
+      why: every request reads the same settings
+      work: read and parse the settings file once

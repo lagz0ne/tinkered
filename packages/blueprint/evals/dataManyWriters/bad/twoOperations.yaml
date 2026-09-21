@@ -1,0 +1,19 @@
+target: issueList
+expect: true
+blueprint:
+  - data:
+      name: issueList
+      promise: the saved issues; one writer
+      why: the view reads it
+  - operation:
+      name: saveIssue
+      depends: [issueList]
+      promise: given input, one saved issue lands in issueList
+      why: writes go through here
+      work: insert and update issueList
+  - operation:
+      name: archiveIssue
+      depends: [issueList]
+      promise: given an id, the issue is archived in issueList
+      why: archiving also writes issueList
+      work: mark the row archived and update issueList

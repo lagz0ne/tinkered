@@ -1,0 +1,8 @@
+target: saveIssue
+expect: true
+blueprint:
+  - operation:
+      name: saveIssue
+      promise: given input, one saved issue
+      why: the request commit is the save
+      work: re-validate the input shape again before inserting, then insert the row

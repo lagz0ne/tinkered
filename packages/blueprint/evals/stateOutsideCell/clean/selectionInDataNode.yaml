@@ -1,0 +1,13 @@
+target: selection
+expect: false
+blueprint:
+  - data:
+      name: selectedId
+      promise: the selected id; one writer
+      why: the toolbar reads it
+  - resource:
+      name: selection
+      depends: [selectedId]
+      promise: the current selection, kept in selectedId
+      why: selection writes to selectedId
+      work: update selectedId when the user picks a row

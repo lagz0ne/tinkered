@@ -1,0 +1,7 @@
+target: other
+expect: data
+blueprint:
+  - data:
+      name: other
+      promise: a value written by an operation
+      why: w

@@ -1,0 +1,7 @@
+target: other
+expect: resource
+blueprint:
+  - data:
+      name: other
+      promise: opens and streams, built once
+      why: w

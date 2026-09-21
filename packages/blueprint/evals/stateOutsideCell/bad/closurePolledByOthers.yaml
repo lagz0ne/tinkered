@@ -1,0 +1,8 @@
+target: uiStatus
+expect: true
+blueprint:
+  - resource:
+      name: uiStatus
+      promise: the current status text
+      why: the footer shows progress
+      work: hold the latest status string in a closure other nodes poll

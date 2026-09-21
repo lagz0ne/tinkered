@@ -1,0 +1,8 @@
+target: saveIssue
+expect: false
+blueprint:
+  - operation:
+      name: saveIssue
+      promise: given input, one saved issue
+      why: the request commit is the save
+      work: hand ctx to saveIssueImpl; the tagged call already opened the session

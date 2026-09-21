@@ -1,0 +1,8 @@
+target: saveIssue
+expect: true
+blueprint:
+  - operation:
+      name: saveIssue
+      promise: given input, one saved issue
+      why: the save needs the db
+      work: call scope.resolve(db) to get the connection, then insert the row

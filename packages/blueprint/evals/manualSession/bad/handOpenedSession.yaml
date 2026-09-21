@@ -1,0 +1,8 @@
+target: runBatch
+expect: true
+blueprint:
+  - operation:
+      name: runBatch
+      promise: given a batch, every row is processed
+      why: batches need their own session
+      work: open a new session with scope.session(), run the rows, close the session by hand

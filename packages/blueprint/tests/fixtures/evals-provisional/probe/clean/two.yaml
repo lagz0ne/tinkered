@@ -1,0 +1,8 @@
+target: op
+expect: false
+blueprint:
+  - operation:
+      name: op
+      promise: p2
+      why: w
+      work: has its own steps, using only what depends names

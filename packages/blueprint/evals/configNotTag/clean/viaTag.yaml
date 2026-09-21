@@ -1,0 +1,13 @@
+target: db
+expect: false
+blueprint:
+  - tag:
+      name: dbUrl
+      promise: the db url; rebound in tests
+      why: the only environment choice the store has
+  - resource:
+      name: db
+      depends: [dbUrl]
+      promise: one client per scope
+      why: one connection for the process
+      work: connect using dbUrl

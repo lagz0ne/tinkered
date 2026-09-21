@@ -1,0 +1,13 @@
+target: rateLimiter
+expect: false
+blueprint:
+  - data:
+      name: lastSeen
+      promise: the last-seen time per key; one writer
+      why: rateLimiter reads and writes it
+  - operation:
+      name: rateLimiter
+      depends: [lastSeen]
+      promise: given a key, whether it may proceed
+      why: callers must not exceed the limit
+      work: read and update lastSeen for the key

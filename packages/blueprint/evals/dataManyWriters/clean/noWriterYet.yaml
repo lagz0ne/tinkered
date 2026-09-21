@@ -1,0 +1,7 @@
+target: reportDraft
+expect: false
+blueprint:
+  - data:
+      name: reportDraft
+      promise: the draft report; one writer
+      why: the export step reads it

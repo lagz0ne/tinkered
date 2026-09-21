@@ -1,0 +1,8 @@
+target: saveIssue
+expect: true
+blueprint:
+  - operation:
+      name: saveIssue
+      promise: given input, one saved issue lands in issueList
+      why: given input, one saved issue lands in issueList
+      work: insert the row

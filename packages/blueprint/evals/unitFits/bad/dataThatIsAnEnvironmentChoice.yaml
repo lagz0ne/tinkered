@@ -1,0 +1,7 @@
+target: dbUrl
+expect: tag
+blueprint:
+  - data:
+      name: dbUrl
+      promise: the database connection string, bound once at the root and rebound in tests
+      why: every resource that opens a connection reads this environment choice

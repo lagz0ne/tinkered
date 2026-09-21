@@ -1,0 +1,8 @@
+target: worker
+expect: true
+blueprint:
+  - resource:
+      name: worker
+      promise: one background worker per scope
+      why: jobs run continuously
+      work: start a loop that only stops when defer runs at close; no other stop exists

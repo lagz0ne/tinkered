@@ -1,0 +1,8 @@
+target: poll
+expect: true
+blueprint:
+  - resource:
+      name: poll
+      promise: one polling loop per scope
+      why: the health check needs a heartbeat
+      work: setInterval to ping the server every 5s; never cleared

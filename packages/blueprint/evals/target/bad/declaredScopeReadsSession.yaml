@@ -1,0 +1,9 @@
+target: tx
+expect: session
+blueprint:
+  - resource:
+      name: tx
+      target: scope
+      promise: one transaction per request, committed when the request ends
+      why: each request needs its own transaction
+      work: begin a new transaction for every incoming request

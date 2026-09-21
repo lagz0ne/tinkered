@@ -1,0 +1,13 @@
+target: importRow
+expect: false
+blueprint:
+  - resource:
+      name: rowImporter
+      promise: one row importer per scope
+      why: importing needs a shared parser
+  - operation:
+      name: importRow
+      depends: [rowImporter]
+      promise: given a row, it is imported
+      why: rows go through rowImporter
+      work: hand the row to rowImporter and return what it returns

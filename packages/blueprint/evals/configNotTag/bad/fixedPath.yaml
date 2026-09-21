@@ -1,0 +1,8 @@
+target: loadConfig
+expect: true
+blueprint:
+  - operation:
+      name: loadConfig
+      promise: given nothing, the parsed settings file
+      why: startup needs the settings once
+      work: read /etc/app/settings.json from disk and parse it

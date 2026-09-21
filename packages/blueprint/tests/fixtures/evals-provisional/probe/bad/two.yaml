@@ -1,0 +1,8 @@
+target: op
+expect: true
+blueprint:
+  - operation:
+      name: op
+      promise: p2
+      why: w
+      work: hand the whole job to something depends does not name

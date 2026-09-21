@@ -1,0 +1,8 @@
+target: watcher
+expect: true
+blueprint:
+  - resource:
+      name: watcher
+      promise: one file watcher per scope
+      why: the build reacts to changes
+      work: open fs.watch on the src folder

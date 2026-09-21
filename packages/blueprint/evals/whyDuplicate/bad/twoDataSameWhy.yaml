@@ -1,0 +1,11 @@
+target: [issueList, issueCount]
+expect: true
+blueprint:
+  - data:
+      name: issueList
+      promise: the saved issues; one writer
+      why: the view needs the current issues
+  - data:
+      name: issueCount
+      promise: the number of issues; one writer
+      why: the view needs the current issues

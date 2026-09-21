@@ -1,0 +1,8 @@
+target: fileWatcher
+expect: resource
+blueprint:
+  - operation:
+      name: fileWatcher
+      promise: watches the src folder for changes and emits events over time
+      why: the build reacts to file changes as they happen
+      work: open a filesystem watch and keep emitting change events until stopped

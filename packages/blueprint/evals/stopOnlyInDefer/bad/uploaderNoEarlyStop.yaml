@@ -1,0 +1,8 @@
+target: uploader
+expect: true
+blueprint:
+  - resource:
+      name: uploader
+      promise: one upload queue per scope
+      why: files upload in the background
+      work: start uploading in a loop; the only way to stop it is the scope closing

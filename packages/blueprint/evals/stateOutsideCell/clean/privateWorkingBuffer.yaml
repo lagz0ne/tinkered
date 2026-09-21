@@ -1,0 +1,8 @@
+target: parseAll
+expect: false
+blueprint:
+  - operation:
+      name: parseAll
+      promise: given files, the parsed nodes
+      why: parsing keeps only its own working buffer
+      work: keep a private buffer while parsing; return the parsed nodes when done

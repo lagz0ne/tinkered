@@ -1,0 +1,8 @@
+target: op
+expect: true
+blueprint:
+  - operation:
+      name: op
+      promise: p1
+      why: w
+      work: forwards the whole job to something else

@@ -1,0 +1,8 @@
+target: sumTotals
+expect: false
+blueprint:
+  - operation:
+      name: sumTotals
+      promise: given a list of numbers, their sum
+      why: the report needs one total
+      work: add every number in the input list

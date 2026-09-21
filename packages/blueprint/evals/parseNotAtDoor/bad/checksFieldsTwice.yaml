@@ -1,0 +1,8 @@
+target: importRow
+expect: true
+blueprint:
+  - operation:
+      name: importRow
+      promise: given a row, it is imported
+      why: rows must be well-formed
+      work: check the row's fields are present a second time, then insert

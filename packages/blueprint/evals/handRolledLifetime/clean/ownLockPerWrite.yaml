@@ -1,0 +1,8 @@
+target: writer
+expect: false
+blueprint:
+  - resource:
+      name: writer
+      promise: one writer per scope
+      why: writes must land safely
+      work: open one file handle; each write awaits the handle's own lock

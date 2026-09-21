@@ -1,0 +1,8 @@
+target: tx
+expect: false
+blueprint:
+  - resource:
+      name: tx
+      promise: one transaction per session; commit on close
+      why: the request commit is the save
+      work: begin a transaction on the connection; commit or rollback when the session closes

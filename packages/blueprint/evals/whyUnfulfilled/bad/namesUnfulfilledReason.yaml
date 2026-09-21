@@ -1,0 +1,12 @@
+target: tx
+expect: true
+blueprint:
+  - resource:
+      name: db
+      promise: one client per scope
+      why: one connection for the process
+  - resource:
+      name: tx
+      depends: [db]
+      promise: one transaction per session
+      why: retries need a queue to replay failed writes

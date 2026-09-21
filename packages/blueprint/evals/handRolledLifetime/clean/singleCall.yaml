@@ -1,0 +1,8 @@
+target: sendOne
+expect: false
+blueprint:
+  - operation:
+      name: sendOne
+      promise: given one message, it is sent
+      why: sending is a single call
+      work: send the message and return the response

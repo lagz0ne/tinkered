@@ -1,0 +1,8 @@
+target: sendBatch
+expect: true
+blueprint:
+  - operation:
+      name: sendBatch
+      promise: given messages, they are sent in order
+      why: the receiver reads them in order
+      work: hold a local queue and .then() each send onto the previous send

@@ -1,0 +1,12 @@
+target: [db, tx]
+expect: true
+blueprint:
+  - resource:
+      name: db
+      promise: one client per scope
+      why: the request commit is the save
+  - resource:
+      name: tx
+      depends: [db]
+      promise: one transaction per session
+      why: the request commit is the save

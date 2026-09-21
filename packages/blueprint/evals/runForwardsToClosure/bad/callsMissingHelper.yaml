@@ -1,0 +1,8 @@
+target: importRow
+expect: true
+blueprint:
+  - operation:
+      name: importRow
+      promise: given a row, it is imported
+      why: rows go through the importer
+      work: call rowImporter.run(row) and return its result

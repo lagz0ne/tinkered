@@ -1,0 +1,8 @@
+target: selection
+expect: true
+blueprint:
+  - resource:
+      name: selection
+      promise: the current selection
+      why: the toolbar reads what is selected
+      work: keep the selected id in a module variable; the toolbar reads it directly

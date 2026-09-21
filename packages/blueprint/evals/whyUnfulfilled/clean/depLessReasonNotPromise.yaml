@@ -1,0 +1,7 @@
+target: dbPath
+expect: false
+blueprint:
+  - tag:
+      name: dbPath
+      promise: the db path; rebound in tests
+      why: the only environment choice the store has

@@ -1,0 +1,8 @@
+target: cache
+expect: true
+blueprint:
+  - resource:
+      name: cache
+      promise: one cache per scope
+      why: reads should be fast
+      work: call scope.run(loadSeed) at build time to warm itself

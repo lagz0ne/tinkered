@@ -1,0 +1,8 @@
+target: parseAll
+expect: false
+blueprint:
+  - operation:
+      name: parseAll
+      promise: given files, the parsed nodes
+      why: parsing is a one-shot read
+      work: read each file and parse it; return the parsed nodes

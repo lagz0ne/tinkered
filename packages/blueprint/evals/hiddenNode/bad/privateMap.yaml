@@ -1,0 +1,8 @@
+target: rateLimiter
+expect: true
+blueprint:
+  - operation:
+      name: rateLimiter
+      promise: given a key, whether it may proceed
+      why: callers must not exceed the limit
+      work: keep a private map of key to last-seen time across calls; deny when too soon

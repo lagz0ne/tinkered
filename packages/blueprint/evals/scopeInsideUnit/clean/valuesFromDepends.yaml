@@ -1,0 +1,13 @@
+target: saveIssue
+expect: false
+blueprint:
+  - resource:
+      name: db
+      promise: one client per scope
+      why: one connection for the process
+  - operation:
+      name: saveIssue
+      depends: [db]
+      promise: given input, one saved issue
+      why: the save needs the db
+      work: insert the row using db

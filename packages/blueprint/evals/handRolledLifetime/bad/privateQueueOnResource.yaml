@@ -1,0 +1,8 @@
+target: writer
+expect: true
+blueprint:
+  - resource:
+      name: writer
+      promise: one write queue per scope
+      why: writes must land in arrival order
+      work: keep a private array of pending writes; chain each new write onto the last promise by hand

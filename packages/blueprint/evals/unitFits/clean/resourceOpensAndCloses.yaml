@@ -1,0 +1,8 @@
+target: db
+expect: resource
+blueprint:
+  - resource:
+      name: db
+      promise: one client connection, opened once and closed by defer
+      why: the process needs one shared connection
+      work: open a connection at build; close it in the defer hook
