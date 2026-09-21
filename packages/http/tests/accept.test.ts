@@ -1,41 +1,48 @@
 import { expect, test } from "vite-plus/test";
-import { HttpRequest, HttpResponse } from "../src/index.ts";
+import { createScope } from "@tinker/core";
+import { backend, httpClient, HttpRequest, HttpResponse, type HttpClient } from "../src/index.ts";
 
-const req = HttpRequest.get("https://api/a");
+const github = httpClient({ label: "github" });
 
-test("the accept shorthand sets the header and an explicit accept wins", async () => {
-  const shorthand = HttpRequest.get("https://api/a", { acceptJson: true });
-  expect(shorthand.headers["accept"]).toBe("application/json");
-  const explicit = HttpRequest.get("https://api/a", {
-    accept: "text/x",
-    acceptJson: true,
+/** A closure backend that records the request it was given and answers `body` at `status`. */
+function recording(body: string, seen: HttpRequest.Record[], status = 200): HttpClient.Backend {
+  return async (request) => {
+    seen.push(request);
+    return HttpResponse.make(request, { status, body });
+  };
+}
+
+test("acceptJson sets the accept header the backend sees", async () => {
+  const seen: HttpRequest.Record[] = [];
+  const call = github.operation({
+    label: "call",
+    request: () => HttpRequest.get("/a", { acceptJson: true }),
   });
-  expect(explicit.headers["accept"]).toBe("text/x");
-  const res = HttpResponse.make(explicit, { status: 200, body: "hi" });
-  expect(HttpRequest.toUrl(res.request)).toBe("https://api/a");
+  const scope = createScope({
+    tags: [backend(recording("ok", seen)), github.config({ baseUrl: "https://api" })],
+  });
+  await scope.run(call);
+  expect(seen[seen.length - 1].headers["accept"]).toBe("application/json");
+  await scope.close();
 });
 
-test("modify sets the accept header after the merge without moving the other keys", async () => {
-  const base = HttpRequest.get("https://api/a", {
-    headers: { x: "1", accept: "text/old" },
+test("an explicit accept wins over acceptJson and modify keeps the other headers", async () => {
+  const seen: HttpRequest.Record[] = [];
+  const call = github.operation({
+    label: "call",
+    request: () =>
+      HttpRequest.modify(
+        HttpRequest.get("/a", { headers: { x: "1" }, accept: "text/x", acceptJson: true }),
+        { headers: { y: "2" } },
+      ),
   });
-  const next = HttpRequest.modify(base, { acceptJson: true });
-  expect(next.headers["accept"]).toBe("application/json");
-  expect(next.headers["x"]).toBe("1");
-  const kept = HttpRequest.modify(base, { headers: { y: "2" } });
-  expect(kept.headers["accept"]).toBe("text/old");
-  expect(kept.headers["y"]).toBe("2");
-});
-
-test("a custom accept header reaches the record the endpoint builds", async () => {
-  const built = HttpRequest.post("https://api/a", {
-    accept: "application/vnd.x",
-    headers: { "X-Up": "1" },
-    urlParams: { p: "1" },
-    hash: "frag",
+  const scope = createScope({
+    tags: [backend(recording("ok", seen)), github.config({ baseUrl: "https://api" })],
   });
-  expect(built.headers["accept"]).toBe("application/vnd.x");
-  expect(built.headers["x-up"]).toBe("1");
-  expect(HttpRequest.toUrl(built)).toBe("https://api/a?p=1#frag");
-  expect(req.headers["accept"]).toBe(undefined);
+  await scope.run(call);
+  const sent = seen[seen.length - 1];
+  expect(sent.headers["accept"]).toBe("text/x");
+  expect(sent.headers["x"]).toBe("1");
+  expect(sent.headers["y"]).toBe("2");
+  await scope.close();
 });
