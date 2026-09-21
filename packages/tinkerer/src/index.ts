@@ -5,9 +5,12 @@ import type { HttpResponse } from "@tinker/http";
 import { z } from "zod";
 import { isError, raise } from "./errors.ts";
 import type { Errors } from "./errors.ts";
+import { bash, bashDescription, bashInput } from "./tools/bash.ts";
+import { edit, editDescription, editInput } from "./tools/edit.ts";
 import { cwd, read, readDescription, readInput } from "./tools/read.ts";
+import { write, writeDescription, writeInput } from "./tools/write.ts";
 
-export { cwd, read };
+export { bash, cwd, edit, read, write };
 
 export declare namespace Tinkerer {
   /** The provider's own request fields plus our two: baseUrl (e.g. "https://api.meta.ai/v1")
@@ -125,6 +128,30 @@ export const readTool: Tinkerer.Tool = tool(read, {
   schema: readInput,
   mode: "read-only",
 });
+
+/** The shipped `edit` tool as a row: needs `workspace-write`. */
+export const editTool: Tinkerer.Tool = tool(edit, {
+  description: editDescription,
+  schema: editInput,
+  mode: "workspace-write",
+});
+
+/** The shipped `write` tool as a row: needs `workspace-write`. */
+export const writeTool: Tinkerer.Tool = tool(write, {
+  description: writeDescription,
+  schema: writeInput,
+  mode: "workspace-write",
+});
+
+/** The shipped `bash` tool as a row: needs `full-access`. */
+export const bashTool: Tinkerer.Tool = tool(bash, {
+  description: bashDescription,
+  schema: bashInput,
+  mode: "full-access",
+});
+
+/** The four shipped rows, pi's set: `tinkerer({ label, tools: shippedTools })`. */
+export const shippedTools: readonly Tinkerer.Tool[] = [readTool, editTool, writeTool, bashTool];
 
 export function tinkerer(config: { label: string; tools?: Many<Tinkerer.Tool> }): Tinkerer.Frame {
   const { label } = config;

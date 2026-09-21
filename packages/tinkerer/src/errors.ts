@@ -14,6 +14,11 @@ type Payloads = {
     label: string;
     name: string;
   };
+  EditMiss: {
+    label: string;
+    path: string;
+    count: number;
+  };
   PathOutsideCwd: {
     label: string;
     path: string;

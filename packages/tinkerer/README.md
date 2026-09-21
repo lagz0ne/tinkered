@@ -88,6 +88,23 @@ await scope.close();
 - `read` returns a window of lines and
   refuses a path outside `cwd`.
 
+The shipped rows, pi's set: `shippedTools` =
+`[readTool, editTool, writeTool, bashTool]`.
+Each shipped tool reads the `cwd` tag.
+
+- `write` creates the file under cwd with its
+  parents and reports the byte count.
+- `edit` replaces the one exact match and
+  refuses zero or many matches with `EditMiss`.
+- `write` and `edit` refuse a path outside cwd
+  before touching the disk.
+- `bash` runs the command in cwd and answers its
+  merged output with a non-zero exit code.
+- `bash` kills a command at its timeout
+  (default 30 s) and says so.
+- A forced close during `bash` kills the command
+  and rejects the run.
+
 ## Mode
 
 - Three values, weakest first: `read-only`,
@@ -98,6 +115,9 @@ await scope.close();
   tool and tells the model why.
 - Bind the `mode` tag in a session;
   full-access lets the same tool run.
+- `workspace-write` lets `write` and `edit` run
+  in a reply and blocks `bash` in the same reply;
+  `bash` needs `full-access`.
 - Turn start seeds the `settings` cell from
   the tags: mode plus model and options.
 - Every step and every tool call reads
@@ -114,6 +134,8 @@ with no `finish_reason` seen.
 an empty prompt, so no request went out.
 `DuplicateTool { label, name }` — two rows
 share one wire name at construction.
+`EditMiss { label, path, count }` — `edit` found
+zero or several matches.
 `PathOutsideCwd { label, path }` — `read`
 was asked for a path outside `cwd`.
 

@@ -1,9 +1,8 @@
 import { readFile } from "node:fs/promises";
-import { relative, resolve, sep } from "node:path";
 import { operation, tag } from "@tinker/core";
 import type { Operation, Tag } from "@tinker/core";
 import { z } from "zod";
-import { raise } from "../errors.ts";
+import { resolveUnder } from "./path.ts";
 
 export const cwd: Tag.Handle<string> = tag({ label: "tinkerer.cwd" });
 
@@ -35,15 +34,9 @@ function readRawInput(raw: unknown): ReadInput {
 }
 
 async function readWindow(base: string, input: ReadInput): Promise<string> {
-  const target = resolve(base, input.path);
-  if (isOutside(base, target)) raise("PathOutsideCwd", { label: "read", path: input.path });
+  const target = resolveUnder(base, input.path, "read");
   const text = await readFile(target, "utf8");
   return windowLines(text, input.offset ?? 0, input.limit);
-}
-
-function isOutside(base: string, target: string): boolean {
-  const rel = relative(base, target);
-  return rel === ".." || rel.startsWith(`..${sep}`);
 }
 
 function windowLines(text: string, offset: number, limit: number | undefined): string {
