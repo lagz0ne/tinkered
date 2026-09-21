@@ -95,13 +95,18 @@ Each ticket blocks the next one.
   hidden node, one writer per data,
   `why` fulfilled by a dep, same `why` on two nodes.
   `explain` (`--md`).
-- **blueprint/t03** — [ ]
+- **blueprint/t03** — [x]
   `engine` tag + `judge` resource
   (`ai` evaluate, 429 backoff).
   `check` asks every applicable template per node.
   Result list with `~` for a template not `proven`.
   Exit code. Seam tests with a `preset` judge.
 - **blueprint/t04** — [ ]
+  First: reword `needsDefer` as a defect question
+  ("holds something and promise/work never say it
+  is released at close") and make `whyUnfulfilled`
+  skip a node with no `depends` (or ask only
+  "does why repeat promise").
   Evals: `evals/<id>/{bad,clean}/*.yaml`.
   A test runs them when a key is present, skips when not.
   Each template carries `status: proven | provisional`.
@@ -146,6 +151,24 @@ One line per ticket: tag — sha — tests — size (B gzip) — mutation — no
   two loose `explain` tests deleted (covered exactly).
   Core feedback: sync `resolve`/`run` + `await` trips
   `await-thenable` in tests (first asker).
+- **blueprint/t03** — 34 tests — 7155 — 75.09 —
+  writer-built (claude/sonnet-5 after one pi drop),
+  no fix round. Lead: probability on every template
+  line; zod guard for the call; `state[compare]`
+  instead of a reader table; root excluded from the
+  lane; four seam tests (67.17 → 75.09). The 54
+  uncovered mutants are the gateway path; proven by
+  one real call (below).
+  Real run on `examples/tracker.yaml` (2026-09-21):
+  7 provisional findings, exit 0. Two template
+  wordings already look wrong — t04 material:
+  `needsDefer` fires on `db` and `tx`, which correctly
+  need defer (a guide answer, not a defect);
+  `whyUnfulfilled` fires on `dbPath`, a tag with no
+  `depends` (nothing to fulfil).
+  Core feedback: `Operation.Handle<T>` vs
+  `Operation.Handle<Promise<T>>` for an async `run`
+  compiles either way and mistypes `scope.run`.
 
 ### Impact blocks (ADR 0047)
 
