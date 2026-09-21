@@ -2,9 +2,9 @@ import { join } from "node:path";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
-import { createScope } from "@tinker/core";
-import { cli } from "@tinker/cli";
-import { commands, corpus, corpusPath, explain, isError } from "../src/index.ts";
+import { createScope, type Scope } from "@tinker/core";
+import { run, type Process } from "@tinker/process";
+import { corpus, corpusPath, explain, isError, shell } from "../src/index.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -138,15 +138,18 @@ test("a template's omitted fields read as their defaults", async () => {
   ]);
 });
 
+/** Run the shell in-process: argv in, exit code and streams out. */
+async function answer(
+  argv: readonly string[],
+  options?: Omit<Scope.Options, "extensions">,
+): Promise<Process.Result> {
+  return run(shell(options), argv);
+}
+
 test("explain prints a template as its file's fields, one per line", async () => {
-  const ext = cli({ name: "blueprint", version: "0.0.0", commands });
-  const scope = createScope({
-    extensions: [ext],
-    tags: [corpusPath(join(here, "fixtures", "corpus-print"))],
-  });
-  await scope.ready;
-  try {
-    const result = await scope.resolve(ext)(["explain"]);
+  const options = { tags: [corpusPath(join(here, "fixtures", "corpus-print"))] };
+  {
+    const result = await answer(["explain"], options);
     expect(result.stdout).toBe(
       [
         "id: pick",
@@ -173,20 +176,13 @@ test("explain prints a template as its file's fields, one per line", async () =>
         "",
       ].join("\n"),
     );
-  } finally {
-    await scope.close({ graceful: true });
   }
 });
 
 test("explain --md prints a template as one list item with indented fields", async () => {
-  const ext = cli({ name: "blueprint", version: "0.0.0", commands });
-  const scope = createScope({
-    extensions: [ext],
-    tags: [corpusPath(join(here, "fixtures", "corpus-print"))],
-  });
-  await scope.ready;
-  try {
-    const result = await scope.resolve(ext)(["explain", "--md"]);
+  const options = { tags: [corpusPath(join(here, "fixtures", "corpus-print"))] };
+  {
+    const result = await answer(["explain", "--md"], options);
     expect(result.stdout).toBe(
       [
         "- **pick** — Which one?",
@@ -205,8 +201,6 @@ test("explain --md prints a template as one list item with indented fields", asy
         "",
       ].join("\n"),
     );
-  } finally {
-    await scope.close({ graceful: true });
   }
 });
 

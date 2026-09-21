@@ -1,10 +1,9 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
-import { createScope, preset } from "@tinker/core";
-import { cli } from "@tinker/cli";
+import { createScope, preset, type Scope } from "@tinker/core";
+import { run, type Process } from "@tinker/process";
 import {
-  commands,
   corpus,
   corpusPath,
   engine,
@@ -18,6 +17,7 @@ import {
   median,
   readBlueprint,
   readEval,
+  shell,
   type Blueprint,
 } from "../src/index.ts";
 
@@ -364,6 +364,14 @@ test("evalSet attaches golden cases from evals/golden.yaml to every template it 
   }
 });
 
+/** Run the shell in-process: argv in, exit code and streams out. */
+async function answer(
+  argv: readonly string[],
+  options?: Omit<Scope.Options, "extensions">,
+): Promise<Process.Result> {
+  return run(shell(options), argv);
+}
+
 test("evals through the cli prints exactly the expected line for proven, provisional, and a golden hit", async () => {
   const gradesJudge: Blueprint.Judge = {
     ask: async (state, questions) => {
@@ -373,18 +381,15 @@ test("evals through the cli prints exactly the expected line for proven, provisi
       return { [id]: { type: "boolean", probability } };
     },
   };
-  const ext = cli({ name: "blueprint", version: "0.0.0", commands });
-  const scope = createScope({
-    extensions: [ext],
+  const options = {
     tags: [
       corpusPath(join(here, "fixtures", "corpus-grades")),
       evalsPath(join(here, "fixtures", "evals-grades")),
     ],
     presets: [preset(judge, () => gradesJudge)],
-  });
-  await scope.ready;
-  try {
-    const result = await scope.resolve(ext)(["evals"]);
+  };
+  {
+    const result = await answer(["evals"], options);
     expect(result.stdout).toBe(
       [
         "✗ noisy        noisy        bad 2 (med 100%)  clean 3 (med 0%)  sep 100%  ordered 67%  golden 1/1",
@@ -393,8 +398,6 @@ test("evals through the cli prints exactly the expected line for proven, provisi
         "",
       ].join("\n"),
     );
-  } finally {
-    await scope.close({ graceful: true });
   }
 });
 

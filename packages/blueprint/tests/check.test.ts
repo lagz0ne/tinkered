@@ -4,14 +4,14 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
 import { createScope, isError as isCoreError, preset, type Scope } from "@tinker/core";
-import { cli, type Cli } from "@tinker/cli";
+import { run, type Process } from "@tinker/process";
 import {
   check,
-  commands,
   corpusPath,
   isError,
   judge,
   readBlueprint,
+  shell,
   type Blueprint,
 } from "../src/index.ts";
 
@@ -31,19 +31,12 @@ function fake(table: Readonly<Record<string, Blueprint.Answer>>): Blueprint.Judg
   };
 }
 
-/** Run the wiring in-process and close the root, like the real cli `run`. */
+/** Run the shell in-process: argv in, exit code and streams out. */
 async function answer(
   argv: readonly string[],
   options?: Omit<Scope.Options, "extensions">,
-): Promise<Cli.Result> {
-  const ext = cli({ name: "blueprint", version: "0.0.0", commands });
-  const scope = createScope({ ...options, extensions: [ext] });
-  await scope.ready;
-  try {
-    return await scope.resolve(ext)(argv);
-  } finally {
-    await scope.close({ graceful: true });
-  }
+): Promise<Process.Result> {
+  return run(shell(options), argv);
 }
 
 /** Write one throwaway yaml file under a temp dir; the caller removes the dir. */

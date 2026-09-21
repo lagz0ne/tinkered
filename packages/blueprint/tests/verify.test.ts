@@ -3,9 +3,9 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "vite-plus/test";
-import { createScope, type Scope } from "@tinker/core";
-import { cli, type Cli } from "@tinker/cli";
-import { commands, readBlueprint, readUnits, verifyChecks } from "../src/index.ts";
+import { type Scope } from "@tinker/core";
+import { run, type Process } from "@tinker/process";
+import { readBlueprint, readUnits, shell, verifyChecks } from "../src/index.ts";
 
 /** The golden pair is the committed file and source, found through the repo root: under a
  * mutation run this test file lives in a sandbox whose `src` is instrumented, and the pair
@@ -14,20 +14,13 @@ const repo = execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "
 const blueprintYaml = join(repo, "packages", "blueprint", "blueprint.yaml");
 const srcDir = join(repo, "packages", "blueprint", "src");
 
-/** Run the wiring in-process and close the root, like the real cli `run` (`check.test.ts`'s
+/** Run the shell in-process: argv in, exit code and streams out (`check.test.ts`'s
  * `answer`). `verify` depends on nothing, so no tags or presets are ever needed. */
 async function answer(
   argv: readonly string[],
   options?: Omit<Scope.Options, "extensions">,
-): Promise<Cli.Result> {
-  const ext = cli({ name: "blueprint", version: "0.0.0", commands });
-  const scope = createScope({ ...options, extensions: [ext] });
-  await scope.ready;
-  try {
-    return await scope.resolve(ext)(argv);
-  } finally {
-    await scope.close({ graceful: true });
-  }
+): Promise<Process.Result> {
+  return run(shell(options), argv);
 }
 
 test("readUnits reads a resource's depends value, target, and factory body", () => {

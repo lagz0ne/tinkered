@@ -1,21 +1,14 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, isError as isCoreError, preset, type Scope } from "@tinker/core";
-import { cli, type Cli } from "@tinker/cli";
-import { commands, isError, judge, readTemplate, suggest, type Blueprint } from "../src/index.ts";
+import { run, type Process } from "@tinker/process";
+import { isError, judge, readTemplate, shell, suggest, type Blueprint } from "../src/index.ts";
 
-/** Run the wiring in-process and close the root, like the real cli `run`. */
+/** Run the shell in-process: argv in, exit code and streams out. */
 async function answer(
   argv: readonly string[],
   options?: Omit<Scope.Options, "extensions">,
-): Promise<Cli.Result> {
-  const ext = cli({ name: "blueprint", version: "0.0.0", commands });
-  const scope = createScope({ ...options, extensions: [ext] });
-  await scope.ready;
-  try {
-    return await scope.resolve(ext)(argv);
-  } finally {
-    await scope.close({ graceful: true });
-  }
+): Promise<Process.Result> {
+  return run(shell(options), argv);
 }
 
 /** A fixed judge over the shipped corpus: one answer per template id, counting calls
