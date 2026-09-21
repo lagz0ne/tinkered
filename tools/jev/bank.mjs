@@ -327,3 +327,86 @@ export const TEST_PAIR = {
 export function sliceTests(src, file = "a.test.ts") {
   return extractTests(src, file);
 }
+
+// ---------- survivors: one anti-goal judge per surviving mutant (survivors.mjs) ----------
+export const SURVIVORS = {
+  survivorMatters: {
+    threshold: 0.5,
+    q: {
+      type: "boolean",
+      instructions:
+        "This mutant survived every test: inside the unit shown, the code `before` became `after` and no test failed. Would a user of this package observe a wrong result, a missed error, a wrong count, or a leak if this change shipped?",
+      criteria: {
+        true: "the change alters a value, a branch, an error code, an ordering, or a cleanup a caller can observe — a boundary, a returned field, a thrown code, a defer, a limit",
+        false:
+          "the change touches only a message or label string, a log line, an expression with the same result, unreachable or dead code, or a speed-only path with the same outcome",
+      },
+    },
+  },
+};
+
+const isSurvivor = (m) => m.status === "Survived" || m.status === "NoCoverage";
+
+/** The original text a mutant replaced: `source` sliced from start to end (1-based lines and columns). */
+function spanText(source, start, end) {
+  const lines = source.split("\n");
+  const at = (line, from = 0, to) => (lines[line - 1] ?? "").slice(from, to);
+  if (start.line === end.line) return at(start.line, start.column - 1, end.column - 1);
+  const out = [at(start.line, start.column - 1)];
+  for (let line = start.line + 1; line < end.line; line++) out.push(lines[line - 1] ?? "");
+  out.push(at(end.line, 0, end.column - 1));
+  return out.join("\n");
+}
+
+/** The unit enclosing the mutant span, or a ±15-line window named `module#<file>`. */
+function enclosingUnit(units, file, source, startLine, endLine) {
+  for (const u of units) {
+    const end = u.line + u.source.split("\n").length - 1;
+    if (u.line <= startLine && startLine <= end)
+      return { unit: { kind: u.kind, name: u.name }, source: u.source };
+  }
+  const lines = source.split("\n");
+  const from = Math.max(1, startLine - 15);
+  const to = Math.min(lines.length, endLine + 15);
+  return { unit: { kind: "module", name: file }, source: lines.slice(from - 1, to).join("\n") };
+}
+
+/** One file's survivors, in report order. */
+function sliceFile(key, entry, pkgDir) {
+  const file = pkgDir ? `${pkgDir}/${key}` : key;
+  const source = entry.source ?? "";
+  const units = extractUnits(source, key);
+  return (entry.mutants ?? []).filter(isSurvivor).map((m) => {
+    const enclosed = enclosingUnit(units, key, source, m.location.start.line, m.location.end.line);
+    return {
+      id: `${file}#${m.id}`,
+      file,
+      line: m.location.start.line,
+      column: m.location.start.column,
+      mutator: m.mutatorName,
+      status: m.status,
+      before: spanText(source, m.location.start, m.location.end),
+      after: m.replacement ?? "",
+      unit: enclosed.unit,
+      source: enclosed.source,
+    };
+  });
+}
+
+/** Every survivor in a Stryker JSON report: the fields the judge depends on, nothing else. */
+export function sliceSurvivors(report, pkgDir = "") {
+  return Object.entries(report.files ?? {}).flatMap(([key, entry]) =>
+    sliceFile(key, entry, pkgDir),
+  );
+}
+
+/** The fields the decision depends on — not `id`, not `status`. */
+export const forSurvivorJev = ({ file, unit, line, mutator, before, after, source }) => ({
+  file,
+  unit: `${unit.kind}#${unit.name}`,
+  line,
+  mutator,
+  before,
+  after,
+  source,
+});
