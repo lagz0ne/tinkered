@@ -6,7 +6,7 @@
 //   node tools/jev/calibrate.mjs [--judge <id>] [--dry]   (--dry: numbers only, no file write)
 //
 // Status per judge:
-//   proven      ≥ 2 true and ≥ 2 false cases, median(true) − median(false) ≥ 0.30, and ≥ 90% of
+//   proven      ≥ 5 true and ≥ 5 false cases (ADR 0052 §5, 0054), median(true) − median(false) ≥ 0.30, and ≥ 90% of
 //               (true, false) pairs ordered right — a hit is a flag
 //   provisional fewer cases than that (fixtures only, or one side thin) — a hit is a flag, marked ~
 //   noisy       enough cases but the separation or the ordering fails — a hit is a note
@@ -21,7 +21,7 @@ const OUT = join(HERE, "calibration.json");
 const args = process.argv.slice(2);
 const only = args.includes("--judge") ? args[args.indexOf("--judge") + 1] : undefined;
 const dry = args.includes("--dry");
-const MIN_EACH = 2;
+const MIN_EACH = 5;
 const MIN_SEP = 0.3;
 const MIN_ORDERED = 0.9;
 

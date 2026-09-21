@@ -256,19 +256,6 @@ export const SHAPE = {
 // State per test: { title, body }. Pairwise state: { a: { title, body }, b: { title, body } }.
 // Rule text: .agents/skills/coding-convention/SKILL.md "Tests".
 export const TESTS = {
-  helperAlone: {
-    threshold: 0.5,
-    q: {
-      type: "boolean",
-      instructions:
-        "Is the subject of this test a helper's own output — a builder's record, a guard's boolean, a reader's parse — asserted with no behaviour around it? The seam is the package entry (`src/index.ts`): a test that calls an exported function or resolves a scope through the entry and asserts what comes back is AT the seam, even when the input is an inline literal. Only a test that imports a private module, or builds a value with a helper and then asserts that helper's fields, is a helper tested alone.",
-      criteria: {
-        true: "the test imports a private module, or builds a value with a helper and asserts that helper's own fields, with no exported behaviour in between",
-        false:
-          "the test calls an exported function or runs a scope through the package entry and asserts the outcome; helpers, fixtures, and inline literals are only on the way",
-      },
-    },
-  },
   titleVague: {
     threshold: 0.5,
     q: {

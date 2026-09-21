@@ -39,8 +39,8 @@ cd ../tinkered-<task> && vp install && git checkout -- pnpm-workspace.yaml && vp
    `tools/jev/cases.jsonl` with your ticket.
 3. **Test quality and promise gap** when you added or changed tests in a package:
    `node tools/jev/tests.mjs <pkg>` — every `⚠` is a test to delete, merge, or explain. The convention
-   says over-testing is a defect: a helper tested alone (a private import, or a helper's own fields
-   asserted), and a title that does not name the outcome the body asserts. Then
+   says over-testing is a defect; the judge asks one thing — does the title name the outcome the
+   body asserts? — and plain code flags private imports and helper counts. Then
    `node tools/jev/promises.mjs <pkg>` — every
    `⚠` is a test title the README never promises: write the README line, or say why that title is not a
    promise.

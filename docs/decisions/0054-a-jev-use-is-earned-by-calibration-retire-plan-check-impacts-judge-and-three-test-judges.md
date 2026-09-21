@@ -1,4 +1,4 @@
-# 0054 A Jev use is earned by calibration: retire plan-check, impact's judge, and three test judges; add `titleVague`
+# 0054 A Jev use is earned by calibration: retire plan-check, impact's judge, and four test judges; add `titleVague`
 
 Date: 2026-09-21. Status: accepted. Narrows: 0047 (the impact chain keeps the SCIP diff and drops
 the Jev verdict). Builds on: 0052 §5 (a template is `proven` only past a bar with a golden set).
@@ -22,7 +22,11 @@ clean set, and words that carry the definition (`unitFits` went 44% → 92% by r
 ## Decision
 
 1. **A Jev use lives only while calibration says so.** `calibrate.mjs` runs and its output is
-   committed at every landing that adds labels (not "every ~10 cases"). A judge `noisy` on ten or
+   committed at every landing that adds labels (not "every ~10 cases"). `enough` is 5 true and
+   5 false cases, the bar ADR 0052 §5 set for blueprint — 2+2 is what graded every template
+   `proven` on the first try. Under 5 a side a judge is `provisional` whatever its numbers, so
+   the four unit judges that read `proven` on 2–3 true cases read `provisional` until labeled
+   against real code again; `survivorMatters` (6/7) keeps `proven`. A judge `noisy` on ten or
    more labeled cases is reworded once; still noisy, it is retired. Its cases stay in
    `cases.jsonl`; `calibrate.mjs` prints them as `retired` and drops the judge from
    `calibration.json`.
@@ -30,9 +34,12 @@ clean set, and words that carry the definition (`unitFits` went 44% → 92% by r
    with it the pair loop in `tests.mjs`), `plan-check.mjs`, and the Jev verdict in `impact.mjs`.
    `impact.mjs` stays as plain code: the SCIP diff prints every discrepancy and the lead decides
    the side.
-3. **Reworded:** `helperAlone` now defines the seam in the question (a test that calls an
-   exported function or resolves a scope through `src/index.ts` is at the seam, inline literals
-   included). First run on `packages/blueprint`: 0 flags where the old wording gave 11.
+3. **Reworded, then retired:** `helperAlone` got the seam defined in the question (a test that
+   calls an exported function or resolves a scope through `src/index.ts` is at the seam, inline
+   literals included). On `packages/blueprint` that gave 0 flags where the old wording gave 11 —
+   and re-graded over its 30 labeled cases it stayed `noisy` (true median 38%: it now misses the
+   real helper-alone tests too). One reword, still noisy: retired, by rule 1. `tests.mjs` keeps
+   one judge, `titleVague`, until a seam question with a crisp `true` is found.
 4. **Added:** `titleVague` — does the title fail to name the outcome the decisive assertion
    checks? It replaces a hand job (`tests/core-titles`) with a narrow yes/no over facts
    `tests.mjs` already extracts. `label.mjs` sends a test judge the same facts `tests.mjs` sends
@@ -44,9 +51,9 @@ clean set, and words that carry the definition (`unitFits` went 44% → 92% by r
 
 ## Consequences
 
-- `tests.mjs` asks two questions per test instead of five; a `⚠` means "move to the seam" or
-  "retitle", both concrete.
-- The contributor brief's step 3 names the two judges; the README judge table is regenerated.
+- `tests.mjs` asks one question per test instead of five; a `⚠` means "retitle", which is
+  concrete. The private-import and helper-count notes stay plain code.
+- The contributor brief's step 3 names the one judge; the README judge table is regenerated.
 - ADR 0047's impact block stays required for public-symbol changes; the verdict line
   ("plan wrong / source wrong") is gone from the tool and lives in the lead's review note.
 
