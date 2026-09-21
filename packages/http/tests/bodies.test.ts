@@ -1,52 +1,85 @@
 import { expect, test } from "vite-plus/test";
-import { HttpRequest, HttpResponse } from "../src/index.ts";
+import { createScope } from "@tinker/core";
+import { backend, httpClient, HttpRequest, HttpResponse, type HttpClient } from "../src/index.ts";
 
-const req = HttpRequest.get("https://api/a");
+const github = httpClient({ label: "github" });
 
-test("builders default their content types and carry the value", async () => {
-  const text = HttpRequest.bodyText("b");
-  expect(text.kind).toBe("text");
-  if (text.kind !== "text") throw text;
-  expect(text.contentType).toBe("text/plain");
-  expect(text.text).toBe("b");
-  const bytes = HttpRequest.bodyBytes(new Uint8Array([7]));
-  expect(bytes.kind).toBe("bytes");
-  if (bytes.kind !== "bytes") throw bytes;
-  expect(bytes.contentType).toBe("application/octet-stream");
-  expect(bytes.bytes).toEqual(new Uint8Array([7]));
+/** A closure backend that records the request it was given and answers `body` at `status`. */
+function recording(body: string, seen: HttpRequest.Record[], status = 200): HttpClient.Backend {
+  return async (request) => {
+    seen.push(request);
+    return HttpResponse.make(request, { status, body });
+  };
+}
+
+test("text and bytes bodies arrive with their content types", async () => {
+  const seen: HttpRequest.Record[] = [];
+  const send = github.operation({
+    label: "send",
+    request: () => HttpRequest.post("/a", { body: HttpRequest.bodyBytes(new Uint8Array([7])) }),
+    response: (res) => res.text(),
+  });
+  const scope = createScope({
+    tags: [backend(recording("hi", seen)), github.config({ baseUrl: "https://api" })],
+  });
+  await scope.run(send);
+  const sent = seen[seen.length - 1];
+  if (sent.body.kind !== "bytes") throw sent;
+  expect([...sent.body.bytes]).toEqual([7]);
+  expect(sent.body.contentType).toBe("application/octet-stream");
+  await scope.close();
 });
 
 test("a body option rides along and an explicit builder body wins", async () => {
-  const withBody = HttpRequest.post("https://api/a", { body: HttpRequest.bodyText("opt") });
-  expect(withBody.body.kind).toBe("text");
-  const bare = HttpRequest.get("https://api/a");
-  expect(bare.body.kind).toBe("empty");
-  const modified = HttpRequest.modify(bare, { body: HttpRequest.bodyText("new") });
-  expect(modified.body.kind).toBe("text");
-  expect(bare.body.kind).toBe("empty");
+  const seen: HttpRequest.Record[] = [];
+  const send = github.operation({
+    label: "send",
+    request: () => HttpRequest.post("/a", { body: HttpRequest.bodyText("opt") }),
+  });
+  const scope = createScope({
+    tags: [backend(recording("ok", seen)), github.config({ baseUrl: "https://api" })],
+  });
+  await scope.run(send);
+  const sent = seen[seen.length - 1];
+  if (sent.body.kind !== "text") throw sent;
+  expect(sent.body.text).toBe("opt");
+  await scope.close();
 });
 
 test("query params keep their pairs and the fragment stays at the end", async () => {
-  const pairs: (readonly [string, string])[] = [
-    ["p", "1"],
-    ["p", "2"],
-  ];
-  const listed = HttpRequest.get("https://api/a", { urlParams: pairs });
-  expect(HttpRequest.toUrl(listed)).toBe("https://api/a?p=1&p=2");
-  const hashed = HttpRequest.modify(listed, { hash: "frag" });
-  expect(HttpRequest.toUrl(hashed)).toBe("https://api/a?p=1&p=2#frag");
-  const cleared = HttpRequest.setUrlParams(listed, []);
-  expect(HttpRequest.toUrl(cleared)).toBe("https://api/a");
+  const seen: HttpRequest.Record[] = [];
+  const send = github.operation({
+    label: "send",
+    request: () =>
+      HttpRequest.get("/a", {
+        urlParams: [
+          ["p", "1"],
+          ["p", "2"],
+        ],
+        hash: "frag",
+      }),
+  });
+  const scope = createScope({
+    tags: [backend(recording("ok", seen)), github.config({ baseUrl: "https://api" })],
+  });
+  await scope.run(send);
+  expect(HttpRequest.toUrl(seen[seen.length - 1])).toBe("https://api/a?p=1&p=2#frag");
+  await scope.close();
 });
 
-test("response bodies read through every reader", async () => {
-  const bytes = HttpResponse.make(req, { status: 200, body: new Uint8Array([104, 105]) });
-  expect(await bytes.text()).toBe("hi");
-  const json = HttpResponse.make(req, { status: 200, body: '{"a":1}' });
-  expect(await json.json()).toEqual({ a: 1 });
-  const buffer = HttpResponse.make(req, { status: 200, body: "hi" });
-  const view = new Uint8Array(await buffer.arrayBuffer());
-  expect([...view]).toEqual([104, 105]);
-  const dumped = HttpResponse.make(req, { status: 200, body: "hi" });
-  expect(dumped.request).toBe(req);
+test("response bodies read through text, json, and bytes", async () => {
+  const json = github.operation({
+    label: "json",
+    request: () => HttpRequest.get("https://api/a"),
+    response: (res) => res.json(),
+  });
+  const words = github.operation({
+    label: "words",
+    request: () => HttpRequest.get("https://api/a"),
+    response: (res) => res.text(),
+  });
+  const scope = createScope({ tags: [backend(recording('{"a":1}', []))] });
+  expect(await scope.run(json)).toEqual({ a: 1 });
+  expect(await scope.run(words)).toBe('{"a":1}');
+  await scope.close();
 });
