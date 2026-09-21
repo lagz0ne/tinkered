@@ -62,6 +62,6 @@ only two shapes to compare (kind and edges).
 - A registry or a `blueprint:` comment on each unit: a second name to keep in sync; the label
   already exists and already means "this unit".
 - Reusing `tools/jev/extract.mjs` from the package: ADR 0052 §6 — the package imports nothing from
-  the repo's tools; and the extractor there reads depends *keys*, the blueprint needs the values.
+  the repo's tools; and the extractor there reads depends _keys_, the blueprint needs the values.
 - One broad question ("does this code implement this design?"): a multi-hop read Jev is weak at;
   five plain diffs and one narrow body question cover it.
