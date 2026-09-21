@@ -132,8 +132,8 @@ test("dataNoWriter produces one finding per data node with no writer", () => {
   ]);
 });
 
-test("a clean blueprint returns no findings", async () => {
-  expect(await runCheck(readFileSync(trackerPath, "utf8"))).toEqual([]);
+test("a clean blueprint returns its node count with no findings", async () => {
+  expect(await runCheck(readFileSync(trackerPath, "utf8"))).toEqual({ nodes: 5, findings: [] });
 });
 
 test("a blocking finding throws BlueprintRejected and the message holds the line", async () => {

@@ -32,6 +32,11 @@ export declare namespace Blueprint {
     readonly detail: string;
     readonly blocking: true;
   };
+  /** What `check` answers: how many nodes it read and every finding. */
+  export type Report = {
+    readonly nodes: number;
+    readonly findings: readonly Finding[];
+  };
 }
 
 type Parsed = z.infer<typeof file>;
@@ -64,9 +69,9 @@ const file = z.array(z.union([dataEntry, tagEntry, operationEntry, resourceEntry
 
 /** Read one parsed entry into a node: the kind is the key, the rest is the value. */
 function readNode(entry: Parsed[number]): Blueprint.Node {
-  if ("data" in entry) return { kind: "data", ...entry.data, target: undefined };
-  if ("tag" in entry) return { kind: "tag", ...entry.tag, target: undefined };
-  if ("operation" in entry) return { kind: "operation", ...entry.operation, target: undefined };
+  if ("data" in entry) return { kind: "data", ...entry.data };
+  if ("tag" in entry) return { kind: "tag", ...entry.tag };
+  if ("operation" in entry) return { kind: "operation", ...entry.operation };
   return { kind: "resource", ...entry.resource };
 }
 

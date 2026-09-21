@@ -17,13 +17,14 @@ export declare namespace Errors {
 }
 
 /** Throw a registry error. The only throw site in the package. The message
- * carries the payload lines when there are any (a rejection's finding lines),
- * else the kind — the cli prints the message on stderr. */
-export function raise<N extends Errors.Name>(kind: N, payload: Errors.Payload<N>): never {
-  const lines = (payload as { findings?: readonly string[] }).findings;
-  const error = new Error(
-    lines !== undefined && lines.length > 0 ? lines.join("\n") : kind,
-  ) as Errors.Of<N>;
+ * defaults to the kind; a caller passes its own when stderr should show
+ * more — the cli prints the message. */
+export function raise<N extends Errors.Name>(
+  kind: N,
+  payload: Errors.Payload<N>,
+  message: string = kind,
+): never {
+  const error = new Error(message) as Errors.Of<N>;
   Object.assign(error, { kind, payload });
   throw error;
 }

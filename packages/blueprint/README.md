@@ -61,6 +61,8 @@ It names the units, their kinds, and their links, plus one promise per node.
 ## Exit codes
 
 - **0** — clean; prints `ok: N nodes`.
+  `check` answers the report: the node
+  count beside the findings.
 - **1** — a plain check failed.
   Prints one finding line per failure:
 
