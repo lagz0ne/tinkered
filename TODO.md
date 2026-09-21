@@ -35,6 +35,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
+| docs/core-promises — a `Promises` appendix in the core README, one line per seam-test promise, grouped by unit | lead (Claude); contributor in `../tinkered-core-promises` (launched ~03:55 UTC) | Decision (user, 2026-09-21): an appendix, not prose — 151 gaps do not fit the sections; `promises.mjs core` is the check                                     | `promises.mjs core` confident gaps → under 20; README-only diff                          |
+| tests/core-many-causes — the 31 core test flags: split, delete, or explain                                     | lead (Claude); contributor in `../tinkered-core-tests` (launched ~03:50 UTC)    | `tests.mjs core`: 18 manyCauses, 4 typeGuarantee, 4 helperAlone, 4 negativeTwin, 3 pairs, 1 `Object.isFrozen`; act on each, label each; core lane alone ≥ 75 | flags gone or explained; 270 → N tests each naming one promise; core mutation alone ≥ 75 |
+| jev/survivors — `tools/jev/survivors.mjs <pkg>`: one `survivorMatters` judge over Stryker's surviving mutants | lead (Claude, session 23c22cd); contributor f49c34d in `../tinkered-jev-survivors` (started 2026-09-21 04:40 UTC; brief `/tmp/jev-survivors-brief.md`) | Contributor: bank + script + fixtures/eval + wiring + `json` reporter, commit per step. Lead: core mutation run with the json reporter is in flight (`/tmp/core-survivors-mutate.log`); copy `packages/core/reports/mutation/mutation.json` to the worktree when it ends; review; label the first 10 real survivors | eval: `survivorMatters` bad ≥ 50%, every clean < 50%, separation ≥ 30; real run on core prints a ⚠ list shorter than the survivor list; `vp check` 0 errors; `calibrate.mjs` ≥ provisional |
 
 ## Review
 
