@@ -1,5 +1,6 @@
 import { operation } from "@tinker/core";
-import { command, type Cli } from "@tinker/cli";
+import type { Scope } from "@tinker/core";
+import { command, type Process } from "@tinker/process";
 import { isError as isHttpError } from "@tinker/http";
 import { expose, mcp, tool, type Mcp } from "@tinker/mcp";
 import { z } from "zod";
@@ -166,28 +167,35 @@ export const getRemote = operation({
   },
 });
 
-/** The CLI wiring rows for the issue commands: the operation plus its argv
- * reader, handed to `cli({ commands })`. Help lists them without a backend. */
-export const issueCommands: readonly Cli.Row[] = [
-  command("list", listRemote, { description: "list the saved issues" }),
-  command("create", createRemote, {
-    description: "create one issue: create --title T --description D",
-    input: readCreateArgs,
-  }),
-  command("update", updateRemote, {
-    description:
-      "save an edit: update ID --base-revision N [--title T] [--status S] [--assignee A]",
-    input: readUpdateArgs,
-  }),
-  command("comment", commentRemote, {
-    description: "append a comment: comment ID --author A --text T",
-    input: readCommentArgs,
-  }),
-  command("get", getRemote, {
-    description: "show one saved issue with its detail",
-    input: readGetArgs,
-  }),
-];
+/** The routes for the issue commands: the operation plus its argv reader, each
+ * carrying the root `options` its run needs (ADR 0056). Help lists them without
+ * building a root, so it needs no backend. */
+export function issueCommands(options: Scope.Options = {}): readonly Process.Route[] {
+  return [
+    command("list", listRemote, { description: "list the saved issues", options }),
+    command("create", createRemote, {
+      description: "create one issue: create --title T --description D",
+      input: readCreateArgs,
+      options,
+    }),
+    command("update", updateRemote, {
+      description:
+        "save an edit: update ID --base-revision N [--title T] [--status S] [--assignee A]",
+      input: readUpdateArgs,
+      options,
+    }),
+    command("comment", commentRemote, {
+      description: "append a comment: comment ID --author A --text T",
+      input: readCommentArgs,
+      options,
+    }),
+    command("get", getRemote, {
+      description: "show one saved issue with its detail",
+      input: readGetArgs,
+      options,
+    }),
+  ];
+}
 
 /** The MCP wiring rows for the same issue actions: the operation plus its tool
  * facts, handed to `mcp({ tools })`. The MCP driver reads these rows; the

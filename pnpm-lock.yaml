@@ -283,9 +283,6 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: 'catalog:'
         version: 1.30.0(zod@4.6.2)
-      '@tinker/cli':
-        specifier: workspace:*
-        version: link:../../packages/cli
       '@tinker/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -304,6 +301,9 @@ importers:
       '@tinker/mcp':
         specifier: workspace:*
         version: link:../../packages/mcp
+      '@tinker/process':
+        specifier: workspace:*
+        version: link:../../packages/process
       '@tinker/react':
         specifier: workspace:*
         version: link:../../packages/react

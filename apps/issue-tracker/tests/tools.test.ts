@@ -5,7 +5,7 @@ import { expect, test } from "vite-plus/test";
 import { createScope } from "@tinker/core";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { cli } from "@tinker/cli";
+import { run, type Process } from "@tinker/process";
 import { mcp } from "@tinker/mcp";
 import {
   api,
@@ -60,26 +60,23 @@ function readText(answered: object): string {
   return readTextPart(content[0]);
 }
 
-/** Open the CLI extension on the issue commands with the API config bound. */
-async function openCli(baseUrl: string): Promise<{
-  readonly scope: ReturnType<typeof createScope>;
-  readonly run: (
-    argv: readonly string[],
-  ) => Promise<{ readonly code: number; readonly stdout: string; readonly stderr: string }>;
-}> {
-  const ext = cli({ name: "issues", version: "0.1.0", commands: issueCommands });
-  const scope = createScope({
-    tags: [api.config({ baseUrl })],
-    extensions: [ext],
-  });
-  await scope.ready;
-  return { scope, run: scope.resolve(ext) };
+/** Run one issue command with the API config bound. Every run builds and closes
+ * its own root (ADR 0056), so a test needs no scope of its own. */
+function openCli(baseUrl: string): {
+  readonly run: (argv: readonly string[]) => Promise<Process.Result>;
+} {
+  const shell: Process.Shell = {
+    name: "issues",
+    version: "0.1.0",
+    commands: issueCommands({ tags: [api.config({ baseUrl })] }),
+  };
+  return { run: (argv) => run(shell, argv) };
 }
 
 test("missing and blank revisions report command usage", async () => {
-  const { scope, run } = await openCli("http://127.0.0.1:1");
-  try {
-    const usage = "issues 0.1.0\n  comment";
+  const { run } = openCli("http://127.0.0.1:1");
+  {
+    const usage = "usage: issues <command>\n  comment";
     const missing = await run(["update", "x"]);
     expect(missing.code).toBe(2);
     expect(missing.stdout).toBe("");
@@ -88,14 +85,12 @@ test("missing and blank revisions report command usage", async () => {
     expect(blank.code).toBe(2);
     expect(blank.stdout).toBe("");
     expect(blank.stderr).toContain(usage);
-  } finally {
-    await scope.close({ graceful: true });
   }
 });
 
 test("help lists the issue commands with no backend", async () => {
-  const { scope, run } = await openCli("http://127.0.0.1:1");
-  try {
+  const { run } = openCli("http://127.0.0.1:1");
+  {
     const helped = await run(["help"]);
     expect(helped.code).toBe(0);
     expect(helped.stdout).toContain("  list");
@@ -104,15 +99,13 @@ test("help lists the issue commands with no backend", async () => {
     expect(helped.stdout).toContain("  comment");
     expect(helped.stdout).toContain("  get");
     expect(helped.stderr).toBe("");
-  } finally {
-    await scope.close({ graceful: true });
   }
 });
 
 test("CLI drives the saved create/list/update/comment/get through real HTTP", async () => {
   const { scope, app } = await createApp({ dataPath: tempPath() });
   const heard = await hear(app);
-  const cliScope = await openCli(heard.base);
+  const cliScope = openCli(heard.base);
   try {
     const created = await cliScope.run([
       "create",
@@ -185,7 +178,6 @@ test("CLI drives the saved create/list/update/comment/get through real HTTP", as
     expect(gone.code).toBe(1);
     expect(gone.stderr).toContain("IssueNotFound");
   } finally {
-    await cliScope.scope.close({ graceful: true });
     await heard.stop();
     await scope.close({ graceful: true });
   }

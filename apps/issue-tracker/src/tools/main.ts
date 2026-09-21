@@ -1,6 +1,6 @@
-import { createScope } from "@tinker/core";
-import { cli, command } from "@tinker/cli";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { data, extension, operation } from "@tinker/core";
+import type { Scope } from "@tinker/core";
+import { main, type Process } from "@tinker/process";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { api } from "../client/api.ts";
 import { issueCommands, issuesMcp } from "./issues.ts";
@@ -11,60 +11,70 @@ function readBaseUrl(): string {
   return "http://127.0.0.1:4311";
 }
 
-/** Serve the resolved issue MCP server over stdio. Owns the serving lifetime:
- * the entry holds it until EOF or a transport close, and a CLI signal closes
- * the scope to settle it; the transport closes in every case while the root
- * below closes the scope. Takes the server plus the scope's close hook — a
- * function value, never the handle. */
-async function serve(
-  server: McpServer,
-  hooks: { readonly onClose: (fn: () => void) => void },
-): Promise<void> {
-  let stop: () => void = () => undefined;
-  const stopped = new Promise<void>((resolve) => {
-    stop = () => resolve();
-  });
-  hooks.onClose(stop);
-  process.stdin.once("end", stop);
-  server.server.onclose = stop;
-  try {
-    await server.connect(new StdioServerTransport());
-    if (process.stdin.readableEnded) stop();
-    await stopped;
-  } finally {
-    process.stdin.removeListener("end", stop);
-    await server.close();
-  }
-}
+/** Set once the stdio transport is done: stdin reached EOF or the server closed.
+ * The serving extension writes it; the `mcp` command watches it and returns. */
+const stopping = data<boolean>({ label: "issues.stopping", initial: false });
 
-/** Root glue (24 lines): `runMain` cannot serve here because the `mcp` entry
- * must `resolve()` the installed MCP extension off the root — and `runMain`
- * never hands the root back. So the root installs both extensions, resolves
- * the CLI run, and owns signals/exit itself; the entry's closure reads the
- * root's own `scope` binding. */
-const shell = cli({
+/** Serve the issue MCP server over stdio. An extension's `start` is its one use
+ * of the scope (ADR 0051): `next()` starts the MCP driver first, then this
+ * resolves the server it built and connects the transport. The serving lifetime
+ * is the extension's — the transport closes in its `defer`, on every path. */
+const stdio = extension({
+  label: "issues.stdio",
+  start: async (scope, ctx, next) => {
+    await next();
+    const server = scope.resolve(issuesMcp);
+    const stop = scope.controller(stopping);
+    const done = (): void => stop.set(true);
+    process.stdin.once("end", done);
+    server.server.onclose = done;
+    ctx.defer(async () => {
+      process.stdin.removeListener("end", done);
+      await server.close();
+    });
+    await server.connect(new StdioServerTransport());
+    if (process.stdin.readableEnded) done();
+  },
+});
+
+/** The `mcp` command: a server is a command that returns when it is told to
+ * stop (ADR 0056). It waits for the transport to finish or for the signal —
+ * either way the answer is 0, because for a server a signal is the normal stop. */
+const serveMcp = operation({
+  label: "mcp",
+  depends: { stopping: stopping.controller },
+  run: (deps, ctx) =>
+    new Promise<number>((resolve) => {
+      const answer = (): void => resolve(0);
+      if (deps.stopping.get()) {
+        answer();
+        return;
+      }
+      ctx.signal.addEventListener("abort", answer, { once: true });
+      deps.stopping.watch((next) => {
+        if (next) answer();
+      });
+    }),
+});
+
+/** The entrypoint: the issue routes plus `mcp`, which installs the MCP driver
+ * and the stdio server on its own root. No scope is built here — `main` builds
+ * one for whichever command routing picked, and `help` builds none. */
+const options: Scope.Options = { tags: [api.config({ baseUrl: readBaseUrl() })] };
+const shell: Process.Shell = {
   name: "issues",
   version: "0.1.0",
   commands: [
-    ...issueCommands,
-    command.entry("mcp", async () =>
-      serve(scope.resolve(issuesMcp), { onClose: scope.onClose.bind(scope) }),
-    ),
+    ...issueCommands(options),
+    {
+      name: "mcp",
+      description: "serve the issue tools over stdio",
+      entry: () => ({
+        op: serveMcp,
+        options: { ...options, extensions: [stdio, issuesMcp] },
+      }),
+    },
   ],
-});
-const scope = createScope({
-  tags: [api.config({ baseUrl: readBaseUrl() })],
-  extensions: [issuesMcp, shell],
-});
-await scope.ready;
-const run = scope.resolve(shell);
-const controller = new AbortController();
-process.on("SIGINT", () => controller.abort());
-process.on("SIGTERM", () => controller.abort());
-const result = await run(process.argv.slice(2), {
-  stdout: (s) => process.stdout.write(s),
-  stderr: (s) => process.stderr.write(s),
-  signal: controller.signal,
-});
-await scope.close({ graceful: true });
-process.exit(result.code);
+};
+
+await main(shell);
