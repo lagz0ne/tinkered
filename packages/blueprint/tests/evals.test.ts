@@ -166,7 +166,7 @@ test("gradeTemplate grades noisy when the judge's answers are reversed", async (
   expect(grade.status).toBe("noisy");
 });
 
-test("gradeTemplate grades noisy when a golden case hits, naming it, even with a clean bar otherwise", async () => {
+test("gradeTemplate grades noisy when a golden case hits, naming it, whatever the case count", async () => {
   const goldenCase = booleanEval("CLEAN", 99);
   const hitsGolden: Blueprint.Judge = {
     ask: async (state, questions) => {
@@ -178,7 +178,7 @@ test("gradeTemplate grades noisy when a golden case hits, naming it, even with a
   };
   const grade = await gradeTemplate(
     probeTemplate,
-    { bad: fiveBad, clean: fiveClean, golden: [goldenCase] },
+    { bad: fiveBad.slice(0, 2), clean: fiveClean.slice(0, 2), golden: [goldenCase] },
     hitsGolden,
     signal,
   );

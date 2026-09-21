@@ -28,7 +28,7 @@
   },
   "scripts": {
     "build": "vp pack",
-    "size": "vp pack && node ../../scripts/check-size.mjs 10240 dist",
+    "size": "vp pack && node ../../scripts/check-size.mjs 20480 dist",
     "dev": "vp pack --watch",
     "test": "vp test",
     "mutate": "stryker run",

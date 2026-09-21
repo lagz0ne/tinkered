@@ -210,14 +210,14 @@ median(clean)`.
 - **proven** — at least 5 bad and 5
   clean cases, sep ≥ 0.30, ordered
   ≥ 0.90, and no golden hit at all.
-- **noisy** — enough cases on each
-  side, but the bar is missed, or a
-  golden hit exists (even with a
-  clean bar otherwise: a hit on the
-  golden design outranks it).
-- **provisional** — fewer than 5
-  cases on a side (golden cases
-  count toward the total).
+- **noisy** — a golden hit exists
+  (whatever the case count: a hit on
+  the golden design outranks all), or
+  enough cases on each side but the
+  bar is missed.
+- **provisional** — no golden hit and
+  fewer than 5 cases on a side (golden
+  cases count toward the total).
 - The test's bar: a corpus file
   saying `status: proven` must grade
   `proven`. A `provisional` file that
@@ -367,7 +367,10 @@ moved from 2 to 5 and gained the golden
 veto. A `proven` status is earned by
 hand, later, with more cases.
 
-2026-09-21 — every seed `provisional`:
+2026-09-21 — every seed `provisional`,
+except the two the golden design vetoed
+(`noisy`: a golden hit always reads
+`noisy`, whatever the case count):
 
 - **configNotTag** — sep 0.65, ordered
   1.00, golden 0/3
@@ -393,14 +396,14 @@ hand, later, with more cases.
   ordered 1.00, golden 0/3
 - **stateOutsideCell** — sep 0.67,
   ordered 1.00, golden 0/3
-- **stopOnlyInDefer** — sep 0.62,
+- **stopOnlyInDefer** — `noisy`: sep 0.62,
   ordered 1.00, golden 2/2 (db, tx)
 - **target** — sep 0.88, ordered 1.00,
   golden 0/2
 - **unitFits** — sep 0.72, ordered
   1.00, golden 0/5
-- **whyDuplicate** — sep 0.61, ordered
-  1.00, golden 2/10 (tx/saveIssue,
+- **whyDuplicate** — `noisy`: sep 0.61,
+  ordered 1.00, golden 2/10 (tx/saveIssue,
   issueList/saveIssue)
 - **whyUnfulfilled** — sep 0.42,
   ordered 1.00, golden 0/5
