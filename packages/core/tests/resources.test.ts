@@ -208,3 +208,21 @@ test("a resource cleanup that rejects asynchronously lands in teardown errors", 
   expect(seen).toEqual(["kept"]);
   expect(result.teardownErrors).toContain(boom);
 });
+
+test("a child session reads its parent's latest write", () => {
+  const count = data({ initial: 1, parse: asNumber });
+  const scope = createScope();
+  scope.controller(count).set(5);
+  const child = scope.createSession();
+  expect(child.controller(count).get()).toBe(5);
+});
+
+test("a child update builds on its parent's latest write", () => {
+  const count = data({ initial: 1, parse: asNumber });
+  const scope = createScope();
+  scope.controller(count).set(5);
+  const child = scope.createSession();
+  child.controller(count).update((n) => n + 1);
+  expect(child.controller(count).get()).toBe(6);
+  expect(scope.controller(count).get()).toBe(5);
+});
