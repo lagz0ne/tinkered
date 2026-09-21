@@ -62,9 +62,16 @@ It names the units, their kinds, and their links, plus one promise per node.
   `name`, `promise`, `why`,
   `depends`, `work`, `target`,
   `uses`, `usedBy`.
-- A template naming anything
-  else fails the load with
+- An `applies` entry outside
+  the four kinds, or a `needs`
+  entry outside the nine fields,
+  fails the load with
   `InvalidTemplate`.
+- The corpus loads every `*.yaml`
+  once per scope, sorted by id.
+- `corpusPath` names the folder:
+  the shipped `corpus/` by default;
+  a test rebinds it to a fixture.
 - Every seed is `provisional`;
   evals (t04) flip it to `proven`.
 - The 17 seeds:
