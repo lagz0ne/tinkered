@@ -6,7 +6,7 @@ import {
   type Experimental_EvaluationModel as EvaluationModel,
 } from "ai";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import {
   findingLine,
   goldenCasesOf,
@@ -14,15 +14,18 @@ import {
   median,
   parseCheckInput,
   parseSuggestInput,
+  parseVerifyInput,
   readBlueprint,
   readCorpus,
   readEval,
   readTemplate,
   runCheck,
   templateQuestion,
+  verifyChecks,
   type Blueprint,
 } from "./blueprint.ts";
 import { raise } from "./errors.ts";
+import { readUnits } from "./extract.ts";
 
 export { isError } from "./blueprint.ts";
 export type { Errors } from "./blueprint.ts";
@@ -35,7 +38,9 @@ export {
   readCorpus,
   readEval,
   readTemplate,
+  verifyChecks,
 } from "./blueprint.ts";
+export { readUnits } from "./extract.ts";
 export type { Blueprint } from "./blueprint.ts";
 
 /** Where the templates live. Default: the shipped `corpus/` folder, resolved from
@@ -282,6 +287,75 @@ function checkLines(report: Blueprint.Report): string {
   return `${lines.join("\n")}\n`;
 }
 
+/** The operation: input `{ graph, units, json }`, depends on nothing — a plain diff between a
+ * blueprint file and the code's declared units (ADR 0055 §2, §3). Throws `BlueprintRejected`
+ * when any finding blocks; every plain finding does. */
+export const verify: Operation.Handle<
+  { readonly json: boolean; readonly report: Blueprint.VerifyReport },
+  {
+    readonly graph: Blueprint.Graph;
+    readonly units: readonly Blueprint.Unit[];
+    readonly json: boolean;
+  }
+> = operation({
+  label: "verify",
+  input: parseVerifyInput,
+  run: (_deps, ctx) => {
+    const findings = verifyChecks(ctx.input.graph, ctx.input.units);
+    const report: Blueprint.VerifyReport = {
+      nodes: ctx.input.graph.nodes.length,
+      units: ctx.input.units.length,
+      findings,
+    };
+    if (findings.some((finding) => finding.blocking))
+      raise(
+        "BlueprintRejected",
+        { findings: findings.map(findingLine) },
+        findings.map(findingLine).join("\n"),
+      );
+    return { json: ctx.input.json, report };
+  },
+});
+
+/** One line per finding, then `ok: N nodes, M units, K findings`. */
+function verifyLines(report: Blueprint.VerifyReport): string {
+  const lines = [
+    ...report.findings.map(findingLine),
+    `ok: ${report.nodes} nodes, ${report.units} units, ${report.findings.length} findings`,
+  ];
+  return `${lines.join("\n")}\n`;
+}
+
+/** Every `*.ts` file under `dir`, recursively, relative to `dir` — never `*.test.ts` or
+ * `*.d.ts` (source only; a test or a type-only declaration names no runtime unit). */
+function tsFilesUnder(dir: string, base: string = dir): readonly string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) return tsFilesUnder(full, base);
+    if (
+      !entry.name.endsWith(".ts") ||
+      entry.name.endsWith(".test.ts") ||
+      entry.name.endsWith(".d.ts")
+    )
+      return [];
+    return [relative(base, full)];
+  });
+}
+
+/** Every declared unit under `dir` — the walk and the parse both happen here, the process
+ * edge, not in `verify`'s `run` (ADR 0055 §2). */
+function walk(dir: string): readonly Blueprint.Unit[] {
+  return tsFilesUnder(dir).flatMap((file) =>
+    readUnits(readFileSync(join(dir, file), "utf8"), file),
+  );
+}
+
+/** The two non-flag argv entries `verify` takes: the blueprint file, then the source dir. */
+function verifyArgs(argv: readonly string[]): { readonly file: string; readonly dir: string } {
+  const [file, dir] = argv.filter((arg) => !arg.startsWith("--"));
+  return { file: file ?? "", dir: dir ?? "" };
+}
+
 /** The operation: no input, depends `{ corpus, judge, evalSet }`, grades every shipped
  * template against its evals (ADR 0052 decision 5). Same code path `blueprint evals` prints. */
 export const evals: Operation.Handle<Promise<readonly Blueprint.Grade[]>, void> = operation({
@@ -466,5 +540,18 @@ export const commands: Cli.Row[] = [
     description: "which unit fits a sentence, with the shape to write (needs a key)",
     input: (argv) => ({ words: argv.join(" ") }),
     respond: suggestLines,
+  }),
+  command("verify", () => verify, {
+    description: "diff a blueprint file's nodes against the code's declared units (no key needed)",
+    input: (argv) => {
+      const { file, dir } = verifyArgs(argv);
+      return {
+        text: readFileSync(file, "utf8"),
+        units: walk(dir),
+        dir,
+        json: argv.includes("--json"),
+      };
+    },
+    respond: ({ json, report }) => (json ? `${JSON.stringify(report)}\n` : verifyLines(report)),
   }),
 ];

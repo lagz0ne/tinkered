@@ -25,6 +25,21 @@ export declare namespace Blueprint {
     /** The nodes whose `depends` name `name`. */
     readonly usedBy: (name: string) => readonly Node[];
   };
+  /** One declared unit in the code: what `verify` compares a node with (`src/extract.ts`'s
+   * `readUnits`, ADR 0055 §2). */
+  export type Unit = {
+    readonly kind: Node["kind"];
+    readonly label: string;
+    /** Relative to the dir `readUnits` was walked from. */
+    readonly file: string;
+    readonly line: number;
+    /** Identifier roots of the `depends` values, in order (a dotted name reads as its own
+     * text — ADR 0055 §1: a frame's part is not a unit of its own). */
+    readonly depends: readonly string[];
+    readonly target?: "scope" | "session";
+    /** The source text of `run` / `factory`; `data` and `tag` units carry none. */
+    readonly body?: string;
+  };
   /** A node field, or a neighbour list, a template may read. */
   export type StateField =
     | "kind"
@@ -125,6 +140,12 @@ export declare namespace Blueprint {
   /** What `check` answers: how many nodes it read and every finding. */
   export type Report = {
     readonly nodes: number;
+    readonly findings: readonly Finding[];
+  };
+  /** What `verify` answers: how many nodes and units it read, and every finding. */
+  export type VerifyReport = {
+    readonly nodes: number;
+    readonly units: number;
     readonly findings: readonly Finding[];
   };
   /** One eval file: a small blueprint plus what the judge should say about one
@@ -286,6 +307,132 @@ export function plainChecks(graph: Blueprint.Graph): readonly Blueprint.Finding[
   return [...duplicateNames(graph.nodes), ...unknownNames(graph.nodes), ...unwrittenData(graph)];
 }
 
+/** The unit whose `label` is `name` (ADR 0055 §1: a node finds its unit by label), or
+ * `undefined` when no unit carries it. */
+function unitFor(units: readonly Blueprint.Unit[], name: string): Blueprint.Unit | undefined {
+  return units.find((unit) => unit.label === name);
+}
+
+/** One finding per graph node with no unit of that label. */
+function missingUnits(
+  graph: Blueprint.Graph,
+  units: readonly Blueprint.Unit[],
+): readonly Blueprint.Finding[] {
+  return graph.nodes
+    .filter((node) => unitFor(units, node.name) === undefined)
+    .map((node) => ({
+      source: "plain" as const,
+      check: "missingUnit",
+      node: node.name,
+      detail: `no unit labeled "${node.name}"`,
+      blocking: true,
+    }));
+}
+
+/** One finding per declared unit with no node of that label — plain functions and glue are
+ * never units, so this only ever names a `data`/`resource`/`operation`/`tag` call. */
+function undeclaredUnits(
+  graph: Blueprint.Graph,
+  units: readonly Blueprint.Unit[],
+): readonly Blueprint.Finding[] {
+  const names = new Set(graph.nodes.map((node) => node.name));
+  return units
+    .filter((unit) => !names.has(unit.label))
+    .map((unit) => ({
+      source: "plain" as const,
+      check: "undeclaredUnit",
+      node: unit.label,
+      detail: `${unit.kind} labeled "${unit.label}" at ${unit.file}:${unit.line} has no node`,
+      blocking: true,
+    }));
+}
+
+/** One finding per node whose kind differs from its unit's. */
+function kindMismatches(
+  graph: Blueprint.Graph,
+  units: readonly Blueprint.Unit[],
+): readonly Blueprint.Finding[] {
+  return graph.nodes.flatMap((node) => {
+    const unit = unitFor(units, node.name);
+    if (unit === undefined || unit.kind === node.kind) return [];
+    return [
+      {
+        source: "plain" as const,
+        check: "kindMismatch",
+        node: node.name,
+        detail: `the file says ${node.kind}; ${unit.file}:${unit.line} declares a ${unit.kind}`,
+        blocking: true,
+      },
+    ];
+  });
+}
+
+/** Two string sets hold exactly the same members, order ignored. */
+function sameSet(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  return a.size === b.size && [...a].every((item) => b.has(item));
+}
+
+/** One finding per node whose declared `depends` set differs from its unit's — both read as
+ * sets of labels (ADR 0055 §1: a name the code writes that names no unit, such as a frame's
+ * part `store.tx`, reads as its own text and so never equals a label). */
+function dependsMismatches(
+  graph: Blueprint.Graph,
+  units: readonly Blueprint.Unit[],
+): readonly Blueprint.Finding[] {
+  return graph.nodes.flatMap((node) => {
+    const unit = unitFor(units, node.name);
+    if (unit === undefined) return [];
+    const declared = new Set(node.depends);
+    const coded = new Set(unit.depends);
+    if (sameSet(declared, coded)) return [];
+    return [
+      {
+        source: "plain" as const,
+        check: "dependsMismatch",
+        node: node.name,
+        detail: `the file names [${[...declared].sort().join(", ")}]; the code names [${[...coded].sort().join(", ")}]`,
+        blocking: true,
+      },
+    ];
+  });
+}
+
+/** One finding per `resource` node whose `target` differs from its unit's. */
+function targetMismatches(
+  graph: Blueprint.Graph,
+  units: readonly Blueprint.Unit[],
+): readonly Blueprint.Finding[] {
+  return graph.nodes.flatMap((node) => {
+    if (node.kind !== "resource") return [];
+    const unit = unitFor(units, node.name);
+    if (unit === undefined || unit.target === node.target) return [];
+    return [
+      {
+        source: "plain" as const,
+        check: "targetMismatch",
+        node: node.name,
+        detail: `the file says ${node.target}; ${unit.file}:${unit.line} declares ${unit.target}`,
+        blocking: true,
+      },
+    ];
+  });
+}
+
+/** The five plain checks of ADR 0055 §3, in this order: missingUnit, undeclaredUnit,
+ * kindMismatch, dependsMismatch, targetMismatch. Pure over its inputs. */
+export function verifyChecks(
+  graph: Blueprint.Graph,
+  units: readonly Blueprint.Unit[],
+): readonly Blueprint.Finding[] {
+  return [
+    ...missingUnits(graph, units),
+    ...undeclaredUnits(graph, units),
+    ...kindMismatches(graph, units),
+    ...dependsMismatches(graph, units),
+    ...targetMismatches(graph, units),
+  ];
+}
+
 /** Parse the operation's raw input (the file text) into a graph. A yaml or
  * schema failure throws `InvalidBlueprint` — the input admits it as the
  * operation's parse failure, which the cli maps to exit 2. */
@@ -307,6 +454,31 @@ export function parseCheckInput(raw: unknown): {
 
 /** What the cli row hands `check`: the file text beside the `--json` flag. */
 const checkCall = z.object({ text: z.string(), json: z.boolean().default(false) });
+
+/** What the cli row hands `verify`: the file text, the dir's units (already parsed by
+ * `readUnits` at the row, the process edge), the dir (for `NoSource`'s message), and `--json`. */
+const verifyCall = z.object({
+  text: z.string(),
+  units: z.array(z.custom<Blueprint.Unit>()),
+  dir: z.string(),
+  json: z.boolean().default(false),
+});
+
+/** Parse `verify`'s raw input into its typed input: the graph (via {@link parseGraph}) beside
+ * the units `readUnits` already extracted. Throws `NoSource` when the dir held no unit — a
+ * missing `*.ts` file walks to an empty `units`, same admission point as a bad yaml file. */
+export function parseVerifyInput(raw: unknown): {
+  readonly graph: Blueprint.Graph;
+  readonly units: readonly Blueprint.Unit[];
+  readonly json: boolean;
+} {
+  const call = verifyCall.safeParse(raw);
+  if (!call.success) raise("InvalidBlueprint", { text: "", issues: call.error.issues });
+  const graph = parseGraph(call.data.text);
+  if (call.data.units.length === 0)
+    raise("NoSource", { dir: call.data.dir }, `blueprint: no *.ts file under ${call.data.dir}`);
+  return { graph, units: call.data.units, json: call.data.json };
+}
 
 /** What the cli row hands `suggest`: the words to classify. */
 const suggestCall = z.object({ words: z.string() });

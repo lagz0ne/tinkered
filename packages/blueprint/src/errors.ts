@@ -8,6 +8,7 @@ type Payloads = {
   JevUnavailable: Record<string, never>;
   NoWords: Record<string, never>;
   NoTemplate: { id: string };
+  NoSource: { dir: string };
 };
 
 export declare namespace Errors {
