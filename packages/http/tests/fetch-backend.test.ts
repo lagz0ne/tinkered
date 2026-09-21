@@ -8,13 +8,11 @@ type Echo = { readonly method: string; readonly contentType: string; readonly bo
 /** A loopback echo server: records method/headers/body, answers "ok". A real transport. */
 function startEcho(seen: Echo[]): Promise<EchoServer> {
   const server = createServer((req, res) => {
-    const chunks: Uint8Array[] = [];
-    req.on("data", (chunk: Uint8Array) => chunks.push(chunk));
-    req.on("end", () => {
+    readBody(req).then((body) => {
       seen.push({
         method: req.method ?? "",
         contentType: String(req.headers["content-type"] ?? ""),
-        body: Buffer.concat(chunks).toString(),
+        body,
       });
       res.end("ok");
     });
@@ -28,6 +26,17 @@ function startEcho(seen: Echo[]): Promise<EchoServer> {
         [Symbol.dispose]: () => server.close(),
       });
     });
+  });
+}
+
+/** Read a request's body as text. */
+function readBody(req: {
+  on(event: string, listener: (chunk: Uint8Array) => void): void;
+}): Promise<string> {
+  return new Promise((resolve) => {
+    const chunks: Uint8Array[] = [];
+    req.on("data", (chunk: Uint8Array) => chunks.push(chunk));
+    req.on("end", () => resolve(Buffer.concat(chunks).toString()));
   });
 }
 
@@ -74,7 +83,7 @@ test("fetchBackend sends no body for a GET record", async () => {
   expect(seen[0].body).toBe("");
 });
 
-test("fetchBackend sends bytes and url-params bodies to the server", async () => {
+test("fetchBackend sends bytes bodies with the octet-stream content type", async () => {
   const seen: Echo[] = [];
   using server = await startEcho(seen);
   await fetchBackend(
@@ -84,11 +93,16 @@ test("fetchBackend sends bytes and url-params bodies to the server", async () =>
     new AbortController().signal,
   );
   expect(seen[0].contentType).toBe("application/octet-stream");
+});
+
+test("fetchBackend sends url-params bodies url-encoded", async () => {
+  const seen: Echo[] = [];
+  using server = await startEcho(seen);
   await fetchBackend(
     HttpRequest.post(`${server.origin}/form`, {
       body: HttpRequest.bodyUrlParams({ q: "x" }),
     }),
     new AbortController().signal,
   );
-  expect(seen[1].body).toBe("q=x");
+  expect(seen[0].body).toBe("q=x");
 });
