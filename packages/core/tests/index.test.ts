@@ -1871,7 +1871,7 @@ test("a diamond release cascades to the shared dependent exactly once", () => {
   expect(cleaned).toEqual(["top"]);
 });
 
-test("a cascade re-runs no operation", () => {
+test("a release cascade rebuilds the dependent resource without re-running the operation", () => {
   let runs = 0;
   const flag = data({ initial: 0, parse: asNumber });
   const cmd = operation({
@@ -2584,7 +2584,7 @@ test("tag.read misses a tag the unit never bound", () => {
   expect(other.read(port)).toEqual({ present: false });
 });
 
-test("every unit kind carries its own meta", () => {
+test("tag.read returns each unit's own binding on an operation, a resource, and a tag itself", () => {
   const ui = tag<string>({ label: "ui" });
   const op = operation({ label: "op", run: () => 1, meta: [ui("button")] });
   const res = resource({ label: "res", factory: () => 1, meta: [ui("panel")] });
@@ -2763,7 +2763,7 @@ test("an operation defer sees failed when the run throws", () => {
   expect(seen).toEqual(["failed"]);
 });
 
-test("an operation ctx hides borrow and drain", () => {
+test("an operation context carries no borrow or drain handle", () => {
   const probe = operation({
     label: "probe",
     run: (_deps, ctx) => "registeredDefers" in ctx,
@@ -3501,7 +3501,7 @@ test("an own body failure wins even when an ancestor reports the same cause", as
   expect(seen).toEqual([{ status: "failed", error: bodyCause }]);
 });
 
-test("the settlement reducer handles a primitive (non-Error) body cause", async () => {
+test("a body that rejects with a primitive closes with that value as the failure error", async () => {
   const own = "owned failure";
   const ancestor = "ancestor failure";
   const bad = operation({ label: "bad", run: () => Promise.reject(own) });
@@ -4307,7 +4307,7 @@ test("scope.run runs an operation with no call args", () => {
   expect(scope.run(stamp)).toBe(7);
 });
 
-test("scope.run shares the controller path: one record lookup, stable controller identity", () => {
+test("scope.run and the operation controller share one lookup and one controller", () => {
   let runs = 0;
   const ping = operation({ label: "ping", run: () => ++runs });
   const scope = createScope();
@@ -4556,7 +4556,7 @@ test("a rejected start rejects ready and fails the scope", async () => {
   expect(result.status).toBe("failed");
 });
 
-test("start runs as an onion: first registered is outermost", async () => {
+test("start hooks nest: the first registered runs outermost", async () => {
   const order: string[] = [];
   const a = extension({
     label: "a",
@@ -4599,7 +4599,7 @@ test("a start that skips next short-circuits the inner starts", async () => {
   await scope.close();
 });
 
-test("resolve(ext) reads the start value once ready, NotResolved before", async () => {
+test("resolve(ext) fails with NotResolved before ready", async () => {
   let release: () => void = () => undefined;
   const gate = new Promise<void>((resolve) => {
     release = resolve;
@@ -4620,6 +4620,25 @@ test("resolve(ext) reads the start value once ready, NotResolved before", async 
     if (!isError(e, "NotResolved")) throw e;
     expect(e.payload.label).toBe("num");
   }
+  release();
+  await scope.ready;
+  await scope.close();
+});
+
+test("resolve(ext) reads the start value once ready", async () => {
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const ext = extension<number>({
+    label: "num",
+    start: async (_scope, _ctx, next) => {
+      await gate;
+      await next();
+      return 41;
+    },
+  });
+  const scope = createScope({ extensions: [ext] });
   release();
   await scope.ready;
   const value: number = scope.resolve(ext);
@@ -4772,7 +4791,7 @@ test("two resolve hooks nest in registration order", async () => {
   await scope.close();
 });
 
-test("the resolve chain wraps tag and resource reads too", async () => {
+test("a resolve hook also wraps tag and resource reads", async () => {
   let calls = 0;
   const zone = tag<string>({ label: "zone", default: "base" });
   const pool = resource({ label: "pool", factory: () => 9 });
@@ -4814,7 +4833,7 @@ test("resolve(ext) bypasses the resolve chain", async () => {
   await scope.close();
 });
 
-test("a session reads with the plain dispatch, unwrapped by the chain", async () => {
+test("a session read bypasses the resolve chain", async () => {
   let calls = 0;
   const cell = data({ initial: 3 });
   const count = extension({
@@ -4941,7 +4960,7 @@ test("a run hook passes the call through to the operation unchanged", async () =
   await scope.close();
 });
 
-test("a tagged call still opens its child session under the hook", async () => {
+test("a tagged call opens its child session under the run hook", async () => {
   const zone = tag<string>({ label: "zone", default: "base" });
   const read = operation({ label: "read", depends: { zone }, run: ({ zone }) => zone });
   const pass = extension({
@@ -4954,7 +4973,7 @@ test("a tagged call still opens its child session under the hook", async () => {
   await scope.close();
 });
 
-test("a session from an extended scope runs with the plain dispatch", async () => {
+test("a session run from an extended scope bypasses the run hook", async () => {
   let calls = 0;
   const op = operation({ label: "op", run: () => "ran" });
   const count = extension({
@@ -5116,7 +5135,7 @@ test("an operation controller from the extended handle stays plain", async () =>
   await scope.close();
 });
 
-test("a session from an extended scope writes with the plain dispatch", async () => {
+test("a session write from an extended scope bypasses the write hook", async () => {
   let writes = 0;
   const cell = data({ initial: 0, parse: asNumber });
   const count = extension({
@@ -5276,7 +5295,7 @@ test("a session created under a session is wrapped", async () => {
   await scope.close();
 });
 
-test("a scope with no session hook still runs session bodies", async () => {
+test("a scope with no session hook runs session bodies and closes the child session", async () => {
   const plain = createScope();
   expect(await plain.session(() => 1)).toBe(1);
   const child = plain.createSession();
@@ -5284,7 +5303,7 @@ test("a scope with no session hook still runs session bodies", async () => {
   await plain.close();
 });
 
-test("a scope with no session hook still runs tagged calls", async () => {
+test("a scope with no session hook binds a tagged call's tags", async () => {
   const plain = createScope();
   const zone = tag<string>({ label: "zone", default: "base" });
   const read = operation({ label: "read", depends: { zone }, run: ({ zone }) => zone });
