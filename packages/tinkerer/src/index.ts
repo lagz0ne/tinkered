@@ -223,14 +223,18 @@ export function tinkerer(config: {
   });
   const inbox = data<readonly Tinkerer.Entry[]>({ label: `${label}.inbox`, initial: noEntries });
   const http = httpClient({ label: `${label}.http` });
-  const step = http.operation({
-    label: "step",
-    request: (input: Tinkerer.StepInput) =>
-      HttpRequest.post(input.url, {
-        headers: input.headers,
-        body: HttpRequest.bodyJson(input.body),
-      }),
-    response: (res) => res.sse(),
+  const step: Tinkerer.Frame["step"] = operation({
+    label: `${label}.http.step`,
+    depends: { send: http.send },
+    run: async ({ send }, ctx: Operation.Ctx<Tinkerer.StepInput>) => {
+      const res = await send.run({
+        input: HttpRequest.post(ctx.input.url, {
+          headers: ctx.input.headers,
+          body: HttpRequest.bodyJson(ctx.input.body),
+        }),
+      });
+      return res.sse();
+    },
   });
   const toolDeps = readToolDeps(rows);
   const gateDeps: { gate?: Tinkerer.Gate } = config.gate === undefined ? {} : { gate: config.gate };
