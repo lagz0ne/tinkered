@@ -368,3 +368,42 @@ core **78.21** (was 77.96) · hono **77.95** (77.66) · mcp **82.86** (82.86) ·
 (76.05, after the test cleanup). Every lane ≥ 75; the nested-bindings flattening added tests in each package
 and moved no lane by more than 0.7. `Many<T>` also unblocks drivers/t08 (`meta` removal): every config list now
 reads through one `readMany`, so removing `meta` is one field on five unit kinds plus the harness's `tool` read.
+
+## drivers/t08 — impact list (2026-09-21, grep on `main` after `Many<T>`; SCIP does not index apps)
+
+The one remaining reader of `meta` is the harness (`readToolEntries` → mcp's `readTool` → `tool.read(op)`).
+Everything else declares `meta` and never reads it. Order: expand (harness takes tool rows), migrate the two
+apps, then contract (core drops the field). Hold until `mutation/core-85` lands — both touch core.
+
+Core (`packages/core/src/index.ts`):
+
+- `Data.Cell.meta`, `Tag.Metaed`, `Tag.Handle.read`, `Operation.Handle.meta`, `Resource.Handle.meta`: the field and the type
+- `metaFind` (~619), `NO_META`, the `meta: readMany(config.meta)` line in `data`, `tag`, `operation`, `resource` (~634–739)
+- README: "static meta" paragraph and the Promises appendix's meta lines; ADR 0023 gets a "superseded" note
+- tests: the meta tests split by tests/core-many-causes this week (search `meta` in `index.test.ts`)
+
+Frames that pass `meta` through (declare only, delete the option):
+
+- `packages/drizzle/src/index.ts` 52, 62, 75
+- `packages/http/src/client.ts` 187, 193
+
+mcp (`packages/mcp/src/index.ts`):
+
+- keep: `Mcp.Tool`, `Mcp.Row`, `expose`, `answerTool`, `mcp()`
+- delete: the `tool` meta tag (40–47), `readTool` (115–122) — after the harness stops calling it
+
+Harness (`packages/harness/src/index.ts`, the expand step):
+
+- `harness({ tools: [op] })` becomes `harness({ tools: [expose(op, { description, schema })] })` — the same `Mcp.Row` mcp uses
+- `readToolEntries` (177–200) reads `row.meta` instead of `readTool(op)`; `ToolUndeclared` becomes a type error and its test goes
+- `claude.ts` / `codex.ts` consume `Harness.ToolEntry.meta` unchanged
+- tests: `packages/harness/tests/tools.test.ts` (8 `meta` mentions), README "Tools" section
+
+Apps and tours (the migrate step):
+
+- `apps/issue-tracker/src/tools/issues.ts` 115–120, 173–185, 217: drop `meta: [tool(…)]` on `listRemote`/`getRemote`; `server/draft.ts` `triage.tools` becomes two `expose` rows
+- `examples/harness/tools.ts` 12–18: same
+
+Docs: `docs/decisions/0046` (tool = op with meta → tool = op with a row), `0023` (superseded note), glossary "meta", `packages/{core,cli,sync,harness}/README.md` mentions, `docs/best-practices.md` rule 6 ("no meta read by a driver" → "there is no meta").
+
+Expected after: `grep -rn "\bmeta\b" packages/*/src apps examples --include='*.ts' --include='*.tsx'` → only `Mcp.Row.meta` / `Harness.ToolEntry.meta` (a row field, not a unit field); core mutation alone ≥ its break; every lane ≥ its break.
