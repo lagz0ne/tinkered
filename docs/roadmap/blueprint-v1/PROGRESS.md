@@ -86,7 +86,7 @@ Each ticket blocks the next one.
   Plain checks: unknown `depends`, duplicate `name`,
   `data` with zero writers.
   `cli` wiring for `check` (plain results only).
-- **blueprint/t02** — [ ]
+- **blueprint/t02** — [x]
   Template schema + `corpus` resource
   (load fails on unknown `applies` / `needs`).
   Seed templates: `GUIDE` (unit, target, needsDefer),
@@ -134,6 +134,18 @@ One line per ticket: tag — sha — tests — size (B gzip) — mutation — no
   Lead fix: the size lane summed the dist chunks
   (the entry alone measured a 140 B stub).
   Core feedback: `respond` cannot set the exit code.
+- **blueprint/t02** — 24 tests — 4330 — 78.92 —
+  writer-built (pi muse-spark, third launch: two
+  provider drops before any write), one fix round
+  (zod enums instead of casts; `--md` read at the row;
+  `kind` in the verbatim print).
+  Lead: `InvalidTemplate` message names the file and
+  the issue path; discriminated union on `kind`;
+  four seam tests for the print formats and the
+  schema defaults lifted mutation 69.71 → 78.92;
+  two loose `explain` tests deleted (covered exactly).
+  Core feedback: sync `resolve`/`run` + `await` trips
+  `await-thenable` in tests (first asker).
 
 ### Impact blocks (ADR 0047)
 
