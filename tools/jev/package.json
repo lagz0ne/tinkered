@@ -15,6 +15,7 @@
     "plan-check": "node plan-check.mjs",
     "label": "node label.mjs",
     "calibrate": "node calibrate.mjs",
+    "survivors": "node survivors.mjs",
     "explain": "node explain.mjs",
     "eval": "node evals/lint.mjs && node evals/impact.mjs"
   },
