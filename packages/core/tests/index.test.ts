@@ -2529,15 +2529,18 @@ test("a resource preset receives the resolved deps, delivered untyped (narrow at
 test("a unit carries static tag meta, readable off its handle via tag.read", () => {
   const ui = tag<string>({ label: "ui" });
   const group = tag<string>({ label: "group", default: "misc" });
-  const other = tag<string>({ label: "other" });
   const port = data({ initial: 8080, parse: asNumber, meta: [ui("slider")] });
-  expect(port.meta.length).toBe(1);
   expect(ui.read(port)).toEqual({ present: true, value: "slider" });
   expect(group.read(port)).toEqual({ present: true, value: "misc" });
+});
+
+test("tag.read on a unit without that tag reads as absent", () => {
+  const other = tag<string>({ label: "other" });
+  const port = data({ initial: 8080, parse: asNumber });
   expect(other.read(port)).toEqual({ present: false });
 });
 
-test("meta attaches to every unit kind, including a tag itself", () => {
+test("meta attaches to operations, resources, and tags alike", () => {
   const ui = tag<string>({ label: "ui" });
   const op = operation({ label: "op", run: () => 1, meta: [ui("button")] });
   const res = resource({ label: "res", factory: () => 1, meta: [ui("panel")] });
@@ -2547,11 +2550,14 @@ test("meta attaches to every unit kind, including a tag itself", () => {
   expect(ui.read(secret)).toEqual({ present: true, value: "password" });
 });
 
-test("meta is static and never affects resolution; no meta reads as empty", () => {
+test("meta is static and never affects resolution", () => {
   const ui = tag<string>({ label: "ui" });
   const count = data({ initial: 5, parse: asNumber, meta: [ui("slider")] });
   const read = operation({ label: "read", depends: { count }, run: ({ count }) => count });
   expect(createScope().controller(read).run()).toBe(5);
+});
+
+test("a unit with no meta reads as empty", () => {
   expect(operation({ label: "bare", run: () => 0 }).meta).toEqual([]);
 });
 
@@ -2561,10 +2567,14 @@ test("meta is authored as a binding, nothing, or a nested list, and reads flat i
   const flags = { audit: false };
   const shared = [group("net"), null, flags.audit && ui("never")];
   const port = data({ initial: 1, meta: [undefined, ui("slider"), [shared, [ui("dial")]]] });
-  const single = operation({ label: "single", run: () => 1, meta: ui("button") });
-  const nothing = resource({ label: "nothing", factory: () => 1, meta: [null, [undefined, []]] });
   expect(port.meta).toEqual([ui("slider"), group("net"), ui("dial")]);
   expect(ui.read(port)).toEqual({ present: true, value: "dial" });
+});
+
+test("a lone binding is one meta entry; an all-nothing list reads as empty", () => {
+  const ui = tag<string>({ label: "ui" });
+  const single = operation({ label: "single", run: () => 1, meta: ui("button") });
+  const nothing = resource({ label: "nothing", factory: () => 1, meta: [null, [undefined, []]] });
   expect(ui.read(single)).toEqual({ present: true, value: "button" });
   expect(nothing.meta).toEqual([]);
 });
