@@ -211,7 +211,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   that cleanup. Releasing a data cell resets it to its initial and notifies watchers.
 - Release drops only the resource's cleanup, never a shared `onClose` hook.
 - A release whose owner is already closing fails with `Disposed`.
-- A rejecting release cleanup surfaces as secondary: the outcome keeps its status and the error lands in the
+- A rejecting release cleanup surfaces as secondary: the outcome keeps its status, the error lands in
   teardown errors.
 - Release cascades down: the dependent rebuilds, exactly once across diamonds, while upstream stays built;
   dependents tear down first, and the cascade re-runs no operation.
@@ -231,9 +231,9 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 ### Operations
 
 - An operation runs on every run; calls are never memoized and concurrent calls stay independent.
-- A dependency snapshot is captured before the body suspends: a later write never leaks into a running call.
+- A dependency snapshot is captured before the body suspends: a later write never leaks in.
 - A read-mode dep delivers the current value; a write-mode dep hands the caller a controller that writes.
-- An operation composes through its controller, or through a bare dependency delivered as a callable subflow;
+- An operation composes through its controller, or through a bare dep delivered as a callable subflow;
   a void-input operation is always a callable subflow, never a value.
 - An async operation runs to its awaited value.
 - A rejecting operation rejects with its cause, and `settled` still drains when it finishes.
@@ -264,28 +264,26 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   runs before its dependency's.
 - A throwing hook or cleanup never stops the rest: every cause lands in the teardown errors, in execution
   order.
-- Close is idempotent: hooks run once, a re-entering close tears down once, and closing again re-reports the
-  same result.
+- Close is idempotent: hooks run once, a re-entering close tears down once, closing again re-reports.
 - A clean scope closes `success` when graceful, `cancelled` when forced, and never throws; a second close
   returns the same result.
 - A failed start rejects `ready` with its cause and fails the scope.
-- A scope with no extensions is ready at once on one shared promise; a session after ready is already ready.
+- A scope with no extensions is ready at once on one shared promise; a session after ready is ready.
 - `scope.resolve` reads a cell's current value with no subscription, builds a resource once like its
   controller, and reads a tag's nearest binding, default, or throws `MissingTag`.
 - `scope.run` shares the controller path: same lookup, same CallArgs rules, stable controller identity.
 - A close hook wraps the structural close and sees its result.
 - `session(fn)` commits on return and rolls back on throw, closes the child itself, and passes the error
   on; a throwing outcome hook keeps the outcome and aggregates its error.
-- Failed owned work fails the session with its cause; a body failure still wins over owned-work noise for the
-  caller and the hooks.
+- Failed owned work fails the session with its cause; a body failure still wins for caller and hooks.
 - A failure in a nested session bubbles to the caller and rolls back the leaf; a parent collecting while a
   descendant runs keeps its real failure and its cleanup error.
 - Closing a parent while a session runs joins the body: success commits, failure rolls back.
 - A session-owned build that rejects while the session closes still fails the session with its cause.
 - A session that finished before any cancel keeps its success, a settled body result survives a later
   interrupt, and a cancelled session rejects rather than resolving undefined.
-- A graceful close still rolls back children when the scope already failed; a child closing graceful after an
-  ancestor abort still rolls its own resources back.
+- A graceful close still rolls back children of an already-failed scope; a child closing graceful after
+  an ancestor abort still rolls its own resources back.
 - A failure already known before the cascade rolls back the remaining children.
 - A reused error object counts as the later session's own body failure; a child's own throw wins over a
   manual close of the same cause, and a manual close never demotes the parent's own body failure.
@@ -308,7 +306,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 ### Observation
 
 - With observation off, the context carries no span and nothing is retained.
-- With observation on, returned values and resource instances keep their identity: measuring changes nothing.
+- With observation on, values and instances keep their identity: measuring changes nothing.
 - A subflow nests its span under its caller; two interleaved async operations keep separate trees.
 - A failed parse still closes and exports its operation span as failed; an async resource build opens and
   closes one balanced span.
@@ -321,8 +319,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 
 ### Extensions
 
-- An operation depending on an extension receives the start value after ready; on a still-pending extension
-  it raises `NotResolved` naming the extension.
+- An operation depending on an extension receives the start value after ready; while pending it raises
+  `NotResolved` naming the extension.
 - Resolving an extension that is not installed throws `NotResolved` naming it; `resolve(ext)` reads the
   extension's own start value, bypassing the resolve chain.
 - A run hook sees every call and passes it through unchanged; a start or run hook that skips `next`
