@@ -119,9 +119,27 @@ export declare namespace Blueprint {
     readonly nodes: number;
     readonly findings: readonly Finding[];
   };
+  /** One eval file: a small blueprint plus what the judge should say about one
+   * node (`target` names it) or one pair (`target` names both). */
+  export type Eval = {
+    readonly file: string;
+    readonly target: string | readonly [string, string];
+    readonly expect: boolean | string;
+    readonly graph: Graph;
+  };
+  /** One template's grade against its evals: `bad`/`clean` are the per-case
+   * numbers `gradeTemplate` scored (a probability, or a choice's `1 - probabilities[declared]`). */
+  export type Grade = {
+    readonly id: string;
+    readonly status: "proven" | "provisional" | "noisy";
+    readonly bad: readonly number[];
+    readonly clean: readonly number[];
+    readonly sep: number;
+    readonly ordered: number;
+  };
 }
 
-type Parsed = z.infer<typeof file>;
+type Parsed = z.infer<typeof entries>;
 
 /** A node name holds letters, digits, and `_` — a dot is an error. */
 const name = z
@@ -147,7 +165,7 @@ const resourceEntry = z.strictObject({
   }),
 });
 
-const file = z.array(z.union([dataEntry, tagEntry, operationEntry, resourceEntry]));
+const entries = z.array(z.union([dataEntry, tagEntry, operationEntry, resourceEntry]));
 
 /** Read one parsed entry into a node: the kind is the key, the rest is the value. */
 function readNode(entry: Parsed[number]): Blueprint.Node {
@@ -157,18 +175,8 @@ function readNode(entry: Parsed[number]): Blueprint.Node {
   return { kind: "resource", ...entry.resource };
 }
 
-/** Parse yaml text into a graph. Throws `InvalidBlueprint` (registry) on a yaml
- * or schema failure, with the zod issues in the payload. */
-export function readBlueprint(text: string): Blueprint.Graph {
-  let parsed: unknown;
-  try {
-    parsed = yaml.parse(text);
-  } catch (error: unknown) {
-    raise("InvalidBlueprint", { text, issues: [error] });
-  }
-  const result = file.safeParse(parsed);
-  if (!result.success) raise("InvalidBlueprint", { text, issues: result.error.issues });
-  const nodes = result.data.map(readNode);
+/** Build a graph's edge readers over its nodes, in file order. */
+function graphFrom(nodes: readonly Blueprint.Node[]): Blueprint.Graph {
   const byName = new Map(nodes.map((node) => [node.name, node]));
   return {
     nodes,
@@ -182,6 +190,20 @@ export function readBlueprint(text: string): Blueprint.Graph {
     },
     usedBy: (called) => nodes.filter((candidate) => candidate.depends.includes(called)),
   };
+}
+
+/** Parse yaml text into a graph. Throws `InvalidBlueprint` (registry) on a yaml
+ * or schema failure, with the zod issues in the payload. */
+export function readBlueprint(text: string): Blueprint.Graph {
+  let parsed: unknown;
+  try {
+    parsed = yaml.parse(text);
+  } catch (error: unknown) {
+    raise("InvalidBlueprint", { text, issues: [error] });
+  }
+  const result = entries.safeParse(parsed);
+  if (!result.success) raise("InvalidBlueprint", { text, issues: result.error.issues });
+  return graphFrom(result.data.map(readNode));
 }
 
 /** One finding line: what `check` prints, one per line. A non-blocking (provisional
@@ -347,6 +369,38 @@ export function readCorpus(loaded: readonly Blueprint.Template[]): Blueprint.Cor
   };
 }
 
+/** One eval file's own shape: `target` (a node name, or a pair), `expect`
+ * (a boolean, or the option name a choice template should pick), and
+ * `blueprint` (the same node list `readBlueprint` parses). */
+const evalFile = z.strictObject({
+  target: z.union([name, z.tuple([name, name])]),
+  expect: z.union([z.boolean(), z.string()]),
+  blueprint: entries,
+});
+
+/** Read one eval file (yaml text) into an eval. A yaml or schema failure
+ * throws `InvalidEval` with the file name and the issues, same shape as
+ * {@link readTemplate}'s `InvalidTemplate`. */
+export function readEval(text: string, file: string): Blueprint.Eval {
+  let parsed: unknown;
+  try {
+    parsed = yaml.parse(text);
+  } catch (error: unknown) {
+    raise("InvalidEval", { file, issues: [error] }, `${file}: ${String(error)}`);
+  }
+  const result = evalFile.safeParse(parsed);
+  if (!result.success) {
+    const lines = result.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`);
+    raise("InvalidEval", { file, issues: result.error.issues }, `${file}: ${lines.join("; ")}`);
+  }
+  return {
+    file,
+    target: result.data.target,
+    expect: result.data.expect,
+    graph: graphFrom(result.data.blueprint.map(readNode)),
+  };
+}
+
 /** One template as a question, straight from its fields. */
 function templateQuestion(template: Blueprint.Template): Blueprint.Question {
   return template.kind === "boolean"
@@ -506,4 +560,92 @@ export async function runCheck(
     ...(await pairFindings(graph, corpus, judge, signal)),
   ];
   return { nodes: graph.nodes.length, findings };
+}
+
+/** One eval's state, as the judge sees it: `target`'s node (or, for a pair template, both
+ * nodes), each with its one-hop neighbours. Throws `InvalidEval` when `target` names no node. */
+function evalStateOf(
+  template: Blueprint.Template,
+  evalCase: Blueprint.Eval,
+): Blueprint.NodeState | Blueprint.PairState {
+  const find = (called: string): Blueprint.Node => {
+    const node = evalCase.graph.nodes.find((candidate) => candidate.name === called);
+    if (node === undefined)
+      raise(
+        "InvalidEval",
+        { file: evalCase.file, issues: [`target "${called}": no such node`] },
+        `${evalCase.file}: target "${called}": no such node`,
+      );
+    return node;
+  };
+  if (template.scope === "pair") {
+    const [a, b] = evalCase.target as readonly [string, string];
+    return { a: nodeStateOf(evalCase.graph, find(a)), b: nodeStateOf(evalCase.graph, find(b)) };
+  }
+  return nodeStateOf(evalCase.graph, find(evalCase.target as string));
+}
+
+/** One eval case's score: a boolean's probability, or a choice's `1 - probabilities[declared]`
+ * (0 when `probabilities` is absent) — `declared` is the field `compare` names on the target node. */
+async function scoreEval(
+  template: Blueprint.Template,
+  question: Blueprint.Question,
+  evalCase: Blueprint.Eval,
+  judge: Blueprint.Judge,
+  signal: AbortSignal,
+): Promise<number> {
+  const state = evalStateOf(template, evalCase);
+  const answers = await judge.ask(state, { [template.id]: question }, signal);
+  const answer = answers[template.id];
+  if (answer === undefined) return 0;
+  if (answer.type === "boolean") return answer.probability;
+  if (answer.probabilities === undefined) return 0;
+  const declared = compareValueOf(template, state as Blueprint.NodeState);
+  return 1 - (answer.probabilities[declared as string] ?? 0);
+}
+
+/** The middle value, sorted ascending; `NaN` with nothing to average. */
+function median(values: readonly number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  if (sorted.length === 0) return NaN;
+  const mid = sorted.length >> 1;
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
+/** The share of (bad, clean) pairs where the bad score outranks the clean one; 0 with no pairs. */
+function orderedShare(bad: readonly number[], clean: readonly number[]): number {
+  let ordered = 0;
+  for (const b of bad) for (const c of clean) if (b > c) ordered++;
+  const pairs = bad.length * clean.length;
+  return pairs === 0 ? 0 : ordered / pairs;
+}
+
+/** The grade for one template's `bad`/`clean` scores — `tools/jev/calibrate.mjs`'s bar, copied:
+ * fewer than 2 cases on either side is `provisional`; enough cases, separation ≥ 0.30 and
+ * ordering ≥ 0.90 is `proven`; enough cases otherwise is `noisy`. */
+function gradeFrom(id: string, bad: readonly number[], clean: readonly number[]): Blueprint.Grade {
+  const enough = bad.length >= 2 && clean.length >= 2;
+  const sep = median(bad) - median(clean);
+  const ordered = orderedShare(bad, clean);
+  const status = !enough ? "provisional" : sep >= 0.3 && ordered >= 0.9 ? "proven" : "noisy";
+  return { id, status, bad, clean, sep, ordered };
+}
+
+/** Grade one template against its evals with the judge (ADR 0052 decision 5): every bad
+ * case should score high, every clean case low. Pure over its inputs — no file read, no
+ * corpus lookup. */
+export async function gradeTemplate(
+  template: Blueprint.Template,
+  evals: { readonly bad: readonly Blueprint.Eval[]; readonly clean: readonly Blueprint.Eval[] },
+  judge: Blueprint.Judge,
+  signal: AbortSignal,
+): Promise<Blueprint.Grade> {
+  const question = templateQuestion(template);
+  const bad: number[] = [];
+  for (const evalCase of evals.bad)
+    bad.push(await scoreEval(template, question, evalCase, judge, signal));
+  const clean: number[] = [];
+  for (const evalCase of evals.clean)
+    clean.push(await scoreEval(template, question, evalCase, judge, signal));
+  return gradeFrom(template.id, bad, clean);
 }

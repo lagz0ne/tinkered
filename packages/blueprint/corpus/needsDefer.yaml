@@ -1,16 +1,19 @@
 id: needsDefer
 applies: [resource]
-needs: [work]
+needs: [promise, work]
 kind: boolean
 status: provisional
 ask: >-
-  Does this start or hold something that
-  must be stopped, closed, or rolled back
-  when its owner closes?
+  Does work start or hold something that
+  must be released at close — a connection,
+  timer, listener, transaction, buffer —
+  while neither promise nor work says it
+  is released (defer, close, stop, commit,
+  rollback)?
 true: >-
-  a connection, timer, listener,
-  transaction, or buffer must be
-  released at close
+  it holds something that must be
+  released, and neither promise nor
+  work says it is released
 false: >-
-  it computes or reads values only;
-  nothing to release
+  promise or work says it is released,
+  or it holds nothing that needs release

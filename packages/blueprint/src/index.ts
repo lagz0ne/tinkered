@@ -5,12 +5,14 @@ import {
   experimental_evaluate as evaluate,
   type Experimental_EvaluationModel as EvaluationModel,
 } from "ai";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   findingLine,
+  gradeTemplate,
   parseCheckInput,
   readCorpus,
+  readEval,
   readTemplate,
   runCheck,
   type Blueprint,
@@ -19,7 +21,14 @@ import { raise } from "./errors.ts";
 
 export { isError } from "./blueprint.ts";
 export type { Errors } from "./blueprint.ts";
-export { plainChecks, readBlueprint, readCorpus, readTemplate } from "./blueprint.ts";
+export {
+  gradeTemplate,
+  plainChecks,
+  readBlueprint,
+  readCorpus,
+  readEval,
+  readTemplate,
+} from "./blueprint.ts";
 export type { Blueprint } from "./blueprint.ts";
 
 /** Where the templates live. Default: the shipped `corpus/` folder, resolved from
@@ -40,6 +49,46 @@ export const corpus: Resource.Handle<Blueprint.Corpus> = resource({
       .sort();
     return readCorpus(
       files.map((file) => readTemplate(readFileSync(join(dir, file), "utf8"), file)),
+    );
+  },
+});
+
+/** Where the evals live. Default: the shipped `evals/` folder, resolved from
+ * this module; a test rebinds it to a fixture. */
+export const evalsPath: Tag.Handle<string> = tag({
+  label: "evalsPath",
+  default: new URL("../evals/", import.meta.url).pathname,
+});
+
+/** One template id's evals, read off disk. Empty when the id has no `bad` or `clean` folder. */
+function readEvalFiles(folder: string): readonly Blueprint.Eval[] {
+  if (!existsSync(folder)) return [];
+  return readdirSync(folder)
+    .filter((file) => file.endsWith(".yaml"))
+    .sort()
+    .map((file) => readEval(readFileSync(join(folder, file), "utf8"), join(folder, file)));
+}
+
+/** The eval-set resource: reads `evalsPath/<id>/{bad,clean}/*.yaml` once per scope into a
+ * map keyed by template id. A bad eval file fails the build with `InvalidEval`. */
+export const evalSet: Resource.Handle<
+  ReadonlyMap<
+    string,
+    { readonly bad: readonly Blueprint.Eval[]; readonly clean: readonly Blueprint.Eval[] }
+  >
+> = resource({
+  label: "evalSet",
+  depends: { dir: evalsPath },
+  factory: ({ dir }) => {
+    const ids = readdirSync(dir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort();
+    return new Map(
+      ids.map((id) => [
+        id,
+        { bad: readEvalFiles(join(dir, id, "bad")), clean: readEvalFiles(join(dir, id, "clean")) },
+      ]),
     );
   },
 });
@@ -200,6 +249,51 @@ function checkLines(report: Blueprint.Report): string {
   return `${lines.join("\n")}\n`;
 }
 
+/** The operation: no input, depends `{ corpus, judge, evalSet }`, grades every shipped
+ * template against its evals (ADR 0052 decision 5). Same code path `blueprint evals` prints. */
+export const evals: Operation.Handle<Promise<readonly Blueprint.Grade[]>, void> = operation({
+  label: "evals",
+  depends: { corpus, judge, evalSet },
+  run: async ({ corpus, judge, evalSet }, ctx) => {
+    const grades: Blueprint.Grade[] = [];
+    for (const template of corpus.templates) {
+      const set = evalSet.get(template.id) ?? { bad: [], clean: [] };
+      grades.push(await gradeTemplate(template, set, judge, ctx.signal));
+    }
+    return grades;
+  },
+});
+
+/** A share, as a rounded percent: `0.755` reads `76%`. */
+function pct(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
+
+/** The middle value, sorted ascending; `NaN` with nothing to average. */
+function medianOf(values: readonly number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  if (sorted.length === 0) return NaN;
+  const mid = sorted.length >> 1;
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
+/** One grade as a line: `✓` proven, `~` provisional, `✗` noisy, then the numbers behind it. */
+function gradeLine(grade: Blueprint.Grade, idWidth: number): string {
+  const mark = grade.status === "proven" ? "✓" : grade.status === "noisy" ? "✗" : "~";
+  return (
+    `${mark} ${grade.id.padEnd(idWidth)}  ${grade.status.padEnd(11)}` +
+    `  bad ${grade.bad.length} (med ${pct(medianOf(grade.bad))})` +
+    `  clean ${grade.clean.length} (med ${pct(medianOf(grade.clean))})` +
+    `  sep ${pct(grade.sep)}  ordered ${pct(grade.ordered)}`
+  );
+}
+
+/** One line per template's grade, widest id first so the columns line up. */
+function evalsLines(grades: readonly Blueprint.Grade[]): string {
+  const idWidth = Math.max(0, ...grades.map((grade) => grade.id.length));
+  return `${grades.map((grade) => gradeLine(grade, idWidth)).join("\n")}\n`;
+}
+
 /** The first argv entry that is not a flag and is not `--key-file`'s value. */
 function fileArg(argv: readonly string[]): string | undefined {
   return argv.find((arg, i) => !arg.startsWith("--") && argv[i - 1] !== "--key-file");
@@ -224,5 +318,9 @@ export const commands: Cli.Row[] = [
       report.md
         ? `${report.templates.map(markdown).join("\n\n")}\n`
         : `${report.templates.map(verbatim).join("\n\n")}\n`,
+  }),
+  command("evals", () => evals, {
+    description: "grade every template against its evals with the judge (needs a key)",
+    respond: evalsLines,
   }),
 ];

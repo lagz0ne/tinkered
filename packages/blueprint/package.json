@@ -14,7 +14,8 @@
   },
   "files": [
     "dist",
-    "corpus"
+    "corpus",
+    "evals"
   ],
   "type": "module",
   "exports": {

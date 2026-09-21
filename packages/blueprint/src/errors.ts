@@ -2,6 +2,7 @@
 type Payloads = {
   InvalidBlueprint: { text: string; issues: readonly unknown[] };
   InvalidTemplate: { file: string; issues: readonly unknown[] };
+  InvalidEval: { file: string; issues: readonly unknown[] };
   BlueprintRejected: { findings: readonly string[] };
   NoKey: Record<string, never>;
   JevUnavailable: Record<string, never>;
