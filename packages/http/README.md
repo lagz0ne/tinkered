@@ -136,11 +136,18 @@ const fake: HttpClient.Backend = async (req) => {
 createScope({ tags: [backend(fake), github.config({ baseUrl: "https://api" })] });
 ```
 
+## Server-sent events
+
+`sse()` yields one event per blank-line block with data lines joined by newline; carries
+`event` and `id` and skips comment lines; joins an event split across chunks; an endpoint
+reader may return `sse()` and the operation delivers the stream.
+
 ## Errors
 
 `RequestFailed { request, reason: "Transport" | "Encode" | "InvalidUrl", cause? }` and
 `ResponseFailed { request, response, reason: "StatusCode" | "Decode" | "EmptyBody", cause? }`.
-A bodiless response raises `NoBody { status }` on `stream()` — `stream()` never returns `null`.
+A bodiless response raises `NoBody { status }` on `stream()` **and `sse()`** — `stream()`
+never returns `null`.
 Narrow with `isError(e, "RequestFailed")` by control flow, then read `payload.reason`. A forced
 close while a request is in flight rethrows the signal's reason untouched — a cancel is a clean
 end, not a `RequestFailed`.
