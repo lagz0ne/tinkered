@@ -323,7 +323,8 @@ export function readCorpus(loaded: readonly Blueprint.Template[]): Blueprint.Cor
   const templates = [...loaded].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return {
     templates,
-    forKind: (kind) => templates.filter((item) => item.scope === "node" && item.applies.includes(kind)),
+    forKind: (kind) =>
+      templates.filter((item) => item.scope === "node" && item.applies.includes(kind)),
     pairs: templates.filter((item) => item.scope === "pair"),
   };
 }

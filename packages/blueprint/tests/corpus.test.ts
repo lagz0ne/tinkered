@@ -12,7 +12,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 async function loadShipped() {
   const scope = createScope();
   try {
-    return await scope.resolve(corpus);
+    return scope.resolve(corpus);
   } finally {
     await scope.close({ graceful: true });
   }
@@ -22,7 +22,7 @@ async function loadShipped() {
 async function loadFixture(name: string) {
   const scope = createScope({ tags: [corpusPath(join(here, "fixtures", name))] });
   try {
-    return await scope.resolve(corpus);
+    return scope.resolve(corpus);
   } finally {
     await scope.close({ graceful: true });
   }
@@ -78,7 +78,7 @@ test("one fixture template loads through a rebound corpusPath", async () => {
 test("needs naming body fails the build with InvalidTemplate", async () => {
   const scope = createScope({ tags: [corpusPath(join(here, "fixtures", "corpus-bad"))] });
   try {
-    await scope.resolve(corpus);
+    scope.resolve(corpus);
     throw new Error("must throw");
   } catch (error: unknown) {
     if (!isError(error, "InvalidTemplate")) throw error;
@@ -93,7 +93,7 @@ test("applies naming view fails the build with InvalidTemplate", async () => {
     tags: [corpusPath(join(here, "fixtures", "corpus-bad-views"))],
   });
   try {
-    await scope.resolve(corpus);
+    scope.resolve(corpus);
     throw new Error("must throw");
   } catch (error: unknown) {
     if (!isError(error, "InvalidTemplate")) throw error;
@@ -113,7 +113,7 @@ test("a pair template sits in pairs and in no forKind list", async () => {
 test("explain answers every template beside the flag", async () => {
   const scope = createScope();
   try {
-    const report = await scope.run(explain, { input: { md: false } });
+    const report = scope.run(explain, { input: { md: false } });
     expect(report.md).toBe(false);
     expect(report.templates).toHaveLength(17);
   } finally {

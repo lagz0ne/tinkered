@@ -1,4 +1,4 @@
-import { operation, resource, tag, type Operation } from "@tinker/core";
+import { operation, resource, tag, type Operation, type Resource, type Tag } from "@tinker/core";
 import { command, type Cli } from "@tinker/cli";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -33,7 +33,9 @@ export const corpus: Resource.Handle<Blueprint.Corpus> = resource({
     const files = readdirSync(dir)
       .filter((file) => file.endsWith(".yaml"))
       .sort();
-    return readCorpus(files.map((file) => readTemplate(readFileSync(join(dir, file), "utf8"), file)));
+    return readCorpus(
+      files.map((file) => readTemplate(readFileSync(join(dir, file), "utf8"), file)),
+    );
   },
 });
 
