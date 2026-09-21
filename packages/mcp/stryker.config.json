@@ -4,7 +4,7 @@
   "plugins": ["@stryker-mutator/vitest-runner"],
   "mutate": ["src/**/*.ts"],
   "ignorePatterns": ["tsconfig.json", "dist"],
-  "reporters": ["clear-text", "progress"],
+  "reporters": ["clear-text", "progress", "json"],
   "thresholds": { "high": 80, "low": 60, "break": 75 },
   "tempDirName": ".stryker-tmp"
 }
