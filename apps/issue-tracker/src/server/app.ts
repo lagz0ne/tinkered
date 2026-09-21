@@ -26,16 +26,15 @@ export async function createApp(config: AppConfig): Promise<{
   readonly src: Scope.Extension<Sync.Source>;
 }> {
   const web = hono({ routes: issueRoutes, onError });
+  const draft = config.draft;
   const scope = createScope({
     tags: [
       store.config(config.dataPath),
-      ...(config.draft === undefined
-        ? []
-        : [
-            draftHelper({ enabled: config.draft.enabled, baseUrl: config.draft.baseUrl }),
-            draftGuardrails,
-            ...(config.draft.enabled ? [api.config({ baseUrl: config.draft.baseUrl })] : []),
-          ]),
+      draft && [
+        draftHelper({ enabled: draft.enabled, baseUrl: draft.baseUrl }),
+        draftGuardrails,
+        draft.enabled && api.config({ baseUrl: draft.baseUrl }),
+      ],
     ],
     extensions: [src, web, publishAfterCommit()],
     presets: config.presets,
