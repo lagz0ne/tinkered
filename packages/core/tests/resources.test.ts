@@ -120,3 +120,91 @@ test("a factory that declares no ctx still reads its abort signal", async () => 
   await scope.close();
   expect(aborted).toBe(true);
 });
+
+test("a resource context hands the same abort signal on every read", () => {
+  const seen: AbortSignal[] = [];
+  const probe = resource({
+    label: "probe",
+    factory: (_deps, ctx) => {
+      seen.push(ctx.signal, ctx.signal);
+      return 1;
+    },
+  });
+  expect(createScope().resolve(probe)).toBe(1);
+  expect(seen[0]).toBe(seen[1]);
+});
+
+test("releasing one resource leaves another resource's cleanup in place", async () => {
+  const order: string[] = [];
+  const first = resource({
+    label: "first",
+    factory: (_deps, { defer }) => {
+      defer(() => void order.push("first-clean"));
+      return 1;
+    },
+  });
+  const second = resource({
+    label: "second",
+    factory: (_deps, { defer }) => {
+      defer(() => void order.push("second-clean"));
+      return 2;
+    },
+  });
+  const scope = createScope();
+  scope.resolve(first);
+  scope.resolve(second);
+  scope.release(first);
+  expect(order).toEqual(["first-clean"]);
+  await scope.close();
+  expect(order).toEqual(["first-clean", "second-clean"]);
+});
+
+test("releasing a mid-chain resource tears down each dependent once in order", () => {
+  const cleaned: string[] = [];
+  const base = resource({
+    label: "base",
+    factory: (_deps, { defer }) => {
+      defer(() => void cleaned.push("base"));
+      return { v: 1 };
+    },
+  });
+  const mid = resource({
+    label: "mid",
+    depends: { base },
+    factory: ({ base: b }, { defer }) => {
+      defer(() => void cleaned.push("mid"));
+      return { v: (b as { v: number }).v };
+    },
+  });
+  const top = resource({
+    label: "top",
+    depends: { mid },
+    factory: ({ mid: m }, { defer }) => {
+      defer(() => void cleaned.push("top"));
+      return { v: (m as { v: number }).v };
+    },
+  });
+  const scope = createScope();
+  scope.resolve(top);
+  scope.release(mid);
+  expect(cleaned).toEqual(["top", "mid"]);
+  expect(scope.resolve(top).v).toBe(1);
+});
+
+test("a resource cleanup that rejects asynchronously lands in teardown errors", async () => {
+  const boom = new Error("async-cleanup-boom");
+  const seen: string[] = [];
+  const r = resource({
+    label: "r",
+    factory: (_deps, { defer }) => {
+      defer(() => void seen.push("kept"));
+      defer(() => Promise.reject(boom));
+      return 1;
+    },
+  });
+  const scope = createScope();
+  scope.resolve(r);
+  const result = await scope.close();
+  expect(seen).toEqual(["kept"]);
+  expect(result.teardownErrors).toContain(boom);
+});

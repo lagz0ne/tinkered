@@ -243,6 +243,10 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - Releasing a data cell resets it and releases only its dependents.
 - A factory that declares no ctx fails its defer with `Disposed`.
 - A factory that declares no ctx still reads its abort signal.
+- A resource context hands the same abort signal on every read.
+- Releasing one resource leaves another resource's cleanup in place.
+- Releasing a mid-chain resource tears down each dependent once in order.
+- A resource cleanup that rejects asynchronously lands in teardown errors.
 
 ### Operations
 
