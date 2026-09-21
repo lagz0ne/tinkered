@@ -1,6 +1,6 @@
-import { runMain } from "@tinker/cli";
+import { main } from "@tinker/process";
 import { readFileSync } from "node:fs";
-import { commands, engine } from "./index.ts";
+import { engine, shell } from "./index.ts";
 
 /** `--key-file <path>` off `process.argv` (the process edge), else `AI_GATEWAY_API_KEY`. */
 function keyFrom(argv: readonly string[]): string | undefined {
@@ -11,9 +11,6 @@ function keyFrom(argv: readonly string[]): string | undefined {
 
 const key = keyFrom(process.argv);
 
-/** The real entrypoint: the blueprint row table, run through the process —
+/** The real entrypoint: the blueprint shell, run through the process —
  * argv in, exit code out. `engine` binds only when a key exists. */
-await runMain(
-  { name: "blueprint", version: "0.0.0", commands },
-  { tags: key ? [engine({ model: "typesafe-ai/jev", apiKey: key })] : [] },
-);
+await main(shell({ tags: key ? [engine({ model: "typesafe-ai/jev", apiKey: key })] : [] }));

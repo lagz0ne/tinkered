@@ -1,5 +1,13 @@
-import { operation, resource, tag, type Operation, type Resource, type Tag } from "@tinker/core";
-import { command, type Cli } from "@tinker/cli";
+import {
+  operation,
+  resource,
+  tag,
+  type Operation,
+  type Resource,
+  type Scope,
+  type Tag,
+} from "@tinker/core";
+import { command, type Process } from "@tinker/process";
 import {
   createGateway,
   experimental_evaluate as evaluate,
@@ -512,46 +520,59 @@ function fileArg(argv: readonly string[]): string | undefined {
   return argv.find((arg, i) => !arg.startsWith("--") && argv[i - 1] !== "--key-file");
 }
 
-/** The wiring row for the cli: `input` reads the named file off disk (the process
+/** The binary: every command runs on the same root options, so the entrypoint binds the key once
+ * and a test binds its fakes the same way. `input` reads the named file off disk (the process
  * edge, at the root) beside the `--json` flag; `respond` prints the lines or,
  * with `--json`, the report as one JSON object. */
-export const commands: Cli.Row[] = [
-  command("check", () => check, {
-    description: "judge one blueprint file with Jev over the shipped question templates",
-    input: (argv) => ({
-      text: readFileSync(fileArg(argv) ?? "", "utf8"),
-      json: argv.includes("--json"),
-    }),
-    respond: ({ json, report }) => (json ? `${JSON.stringify(report)}\n` : checkLines(report)),
-  }),
-  command("explain", () => explain, {
-    description: "print every template verbatim, or as a markdown list with --md",
-    input: (argv) => ({ md: argv.includes("--md") }),
-    respond: (report) =>
-      report.md
-        ? `${report.templates.map(markdown).join("\n\n")}\n`
-        : `${report.templates.map(verbatim).join("\n\n")}\n`,
-  }),
-  command("evals", () => evals, {
-    description: "grade every template against its evals with the judge (needs a key)",
-    respond: evalsLines,
-  }),
-  command("suggest", () => suggest, {
-    description: "which unit fits a sentence, with the shape to write (needs a key)",
-    input: (argv) => ({ words: argv.join(" ") }),
-    respond: suggestLines,
-  }),
-  command("verify", () => verify, {
-    description: "diff a blueprint file's nodes against the code's declared units (no key needed)",
-    input: (argv) => {
-      const { file, dir } = verifyArgs(argv);
-      return {
-        text: readFileSync(file, "utf8"),
-        units: walk(dir),
-        dir,
-        json: argv.includes("--json"),
-      };
-    },
-    respond: ({ json, report }) => (json ? `${JSON.stringify(report)}\n` : verifyLines(report)),
-  }),
-];
+export function shell(options: Scope.Options = {}): Process.Shell {
+  return {
+    name: "blueprint",
+    version: "0.0.0",
+    commands: [
+      command("check", () => check, {
+        description: "judge one blueprint file with Jev over the shipped question templates",
+        input: (argv) => ({
+          text: readFileSync(fileArg(argv) ?? "", "utf8"),
+          json: argv.includes("--json"),
+        }),
+        respond: ({ json, report }) => (json ? `${JSON.stringify(report)}\n` : checkLines(report)),
+        options,
+      }),
+      command("explain", () => explain, {
+        description: "print every template verbatim, or as a markdown list with --md",
+        input: (argv) => ({ md: argv.includes("--md") }),
+        respond: (report) =>
+          report.md
+            ? `${report.templates.map(markdown).join("\n\n")}\n`
+            : `${report.templates.map(verbatim).join("\n\n")}\n`,
+        options,
+      }),
+      command("evals", () => evals, {
+        description: "grade every template against its evals with the judge (needs a key)",
+        respond: evalsLines,
+        options,
+      }),
+      command("suggest", () => suggest, {
+        description: "which unit fits a sentence, with the shape to write (needs a key)",
+        input: (argv) => ({ words: argv.join(" ") }),
+        respond: suggestLines,
+        options,
+      }),
+      command("verify", () => verify, {
+        description:
+          "diff a blueprint file's nodes against the code's declared units (no key needed)",
+        input: (argv) => {
+          const { file, dir } = verifyArgs(argv);
+          return {
+            text: readFileSync(file, "utf8"),
+            units: walk(dir),
+            dir,
+            json: argv.includes("--json"),
+          };
+        },
+        respond: ({ json, report }) => (json ? `${JSON.stringify(report)}\n` : verifyLines(report)),
+        options,
+      }),
+    ],
+  };
+}

@@ -565,12 +565,12 @@ importers:
 
   packages/blueprint:
     dependencies:
-      '@tinker/cli':
-        specifier: workspace:*
-        version: link:../cli
       '@tinker/core':
         specifier: workspace:*
         version: link:../core
+      '@tinker/process':
+        specifier: workspace:*
+        version: link:../process
       ai:
         specifier: 'catalog:'
         version: 7.0.105(zod@4.6.2)
