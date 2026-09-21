@@ -136,6 +136,110 @@ node packages/blueprint/dist/main.mjs \
   explain --md
 ```
 
+## Evals
+
+- Every template ships with evals under
+  `evals/<id>/{bad,clean}/*.yaml` — at
+  least 2 bad and 2 clean files each.
+- One eval file: `target` (a node name,
+  or `[a, b]` for a pair template),
+  `expect` (a boolean, or the option
+  name a choice template should pick),
+  and `blueprint` (the same node list
+  a blueprint file holds).
+- A `bad` file shows one distinct way
+  the template's defect appears; a
+  `clean` file is a near-miss with
+  no defect.
+- `readEval` parses one file,
+  `.strict()`; a bad file fails with
+  `InvalidEval` (file, issues).
+
+```yaml
+# evals/runForwardsToClosure/bad/forwards.yaml
+target: saveIssue
+expect: true
+blueprint:
+  - resource:
+      name: tx
+      promise: one transaction per session
+      why: the request commit is the save
+  - operation:
+      name: saveIssue
+      depends: [tx]
+      promise: given input, one saved issue
+      why: writes go through tx
+      work: hand ctx to saveIssueImpl
+        and return what it returns
+```
+
+## The grade
+
+- `gradeTemplate` asks the judge about
+  every eval's target with only that
+  template's question, then scores
+  each case:
+  - **boolean** — the answer's
+    probability.
+  - **choice** — a choice template
+    grades on `1 - probabilities
+[declaredKind]`, where
+    `declaredKind` is the node's own
+    `compare` field; `0` when
+    `probabilities` is absent.
+- `bad` cases should score high,
+  `clean` cases low. With at least
+  2 of each:
+  - **sep** — `median(bad) -
+median(clean)`.
+  - **ordered** — the share of
+    (bad, clean) pairs where bad
+    outranks clean.
+- **proven** — sep ≥ 0.30 and
+  ordered ≥ 0.90.
+- **noisy** — enough cases on each
+  side, but the bar is missed.
+- **provisional** — fewer than 2
+  cases on a side.
+- The test's bar: a corpus file
+  saying `status: proven` must grade
+  `proven`. A `provisional` file that
+  grades `proven` prints as "could be
+  proven"; a `noisy` grade on a
+  `provisional` file prints as
+  "noisy". Neither fails the run.
+
+## evals
+
+- `evals` grades every shipped
+  template against its evals with
+  the judge — the same code path
+  `vp test` runs when a key is
+  present (it skips the whole file
+  otherwise). With no key, the cli
+  row fails `NoKey`, same as `check`.
+- `✓` proven, `~` provisional,
+  `✗` noisy, then the numbers
+  behind the grade:
+
+```text
+✓ runForwardsToClosure  proven  bad 3
+  (med 88%)  clean 3 (med 12%)  sep
+  76%  ordered 100%
+~ whyDuplicate  provisional  bad 2
+  (med 70%)  clean 2 (med 40%)  sep
+  30%  ordered 75%
+✗ needsDefer  noisy  bad 2 (med 55%)
+  clean 2 (med 60%)  sep -5%
+  ordered 25%
+```
+
+```bash
+AI_GATEWAY_API_KEY=… node \
+  packages/blueprint/dist/main.mjs \
+  evals
+```
+
 ## The three plain checks
 
 - **unknownDepends** — a `depends` entry names no node.
@@ -216,9 +320,21 @@ AI_GATEWAY_API_KEY or
   or a `proven` template blocked.
   Carries the finding lines; the message
   holds one line per finding.
-- **NoKey** — `check` ran with no
-  `AI_GATEWAY_API_KEY` and no
+- **InvalidEval** — an eval file is not
+  yaml, breaks the schema, or names a
+  `target` no node in its own blueprint
+  has. Carries the file and the issues.
+- **NoKey** — `check` or `evals` ran
+  with no `AI_GATEWAY_API_KEY` and no
   `--key-file`.
+
+## What is proven
+
+Graded against the shipped evals with a
+real key (`vp run blueprint#test`); the
+date is when this table was last pasted.
+
+- (filled in after the real run)
 
 ## Run it
 

@@ -71,32 +71,6 @@ function booleanEval(marker: "BAD" | "CLEAN", n: number): Blueprint.Eval {
   );
 }
 
-/** A boolean fake: high on `BAD`, low on `CLEAN`, read off the state's `promise`. */
-function fakeBoolean(): Blueprint.Judge {
-  return {
-    ask: async (state, questions) => {
-      const promise = "promise" in state ? state.promise : "";
-      const probability = promise.includes("BAD") ? 0.9 : 0.1;
-      return Object.fromEntries(
-        Object.keys(questions).map((id) => [id, { type: "boolean", probability }]),
-      );
-    },
-  };
-}
-
-/** The same fake, with its answers swapped — high on `CLEAN`, low on `BAD`. */
-function fakeBooleanReversed(): Blueprint.Judge {
-  return {
-    ask: async (state, questions) => {
-      const promise = "promise" in state ? state.promise : "";
-      const probability = promise.includes("BAD") ? 0.1 : 0.9;
-      return Object.fromEntries(
-        Object.keys(questions).map((id) => [id, { type: "boolean", probability }]),
-      );
-    },
-  };
-}
-
 /** One choice eval case for `pickTemplate`: declared `data`, `expect` names the pick. */
 function choiceEval(name: string, expect: string): Blueprint.Eval {
   return readEval(
@@ -105,22 +79,22 @@ function choiceEval(name: string, expect: string): Blueprint.Eval {
   );
 }
 
-/** A choice fake: picks `resource` (low confidence in `data`) for a `bad`-named node,
- * `data` (high confidence) otherwise — read off the node's own name. */
-function fakeChoice(): Blueprint.Judge {
+/** One fake for both question shapes, driven by what the question itself says it is:
+ * boolean (high on `BAD`, low on `CLEAN`, read off the state's `promise`, swapped when
+ * `reversed`) or choice (picks `resource` for a `bad`-named node, `data` otherwise). */
+function fakeJudge(reversed = false): Blueprint.Judge {
   return {
     ask: async (state, questions) => {
-      const name = "name" in state ? state.name : "";
-      const bad = name.toLowerCase().startsWith("bad");
+      const [id, question] = Object.entries(questions)[0];
+      if (question.type === "boolean") {
+        const bad = ("promise" in state ? state.promise : "").includes("BAD") !== reversed;
+        return { [id]: { type: "boolean", probability: bad ? 0.9 : 0.1 } };
+      }
+      const bad = ("name" in state ? state.name : "").toLowerCase().startsWith("bad");
       const probabilities = bad
         ? { data: 0.1, resource: 0.9, operation: 0, tag: 0 }
         : { data: 0.9, resource: 0.05, operation: 0.05, tag: 0 };
-      return Object.fromEntries(
-        Object.keys(questions).map((id) => [
-          id,
-          { type: "choice", choice: bad ? "resource" : "data", probabilities },
-        ]),
-      );
+      return { [id]: { type: "choice", choice: bad ? "resource" : "data", probabilities } };
     },
   };
 }
@@ -152,7 +126,7 @@ test("gradeTemplate grades proven with clear separation over at least two cases 
       bad: [booleanEval("BAD", 1), booleanEval("BAD", 2)],
       clean: [booleanEval("CLEAN", 1), booleanEval("CLEAN", 2)],
     },
-    fakeBoolean(),
+    fakeJudge(),
     signal,
   );
   expect(grade).toEqual({
@@ -169,7 +143,7 @@ test("gradeTemplate grades provisional with only one bad case", async () => {
   const grade = await gradeTemplate(
     probeTemplate,
     { bad: [booleanEval("BAD", 1)], clean: [booleanEval("CLEAN", 1), booleanEval("CLEAN", 2)] },
-    fakeBoolean(),
+    fakeJudge(),
     signal,
   );
   expect(grade.status).toBe("provisional");
@@ -182,7 +156,7 @@ test("gradeTemplate grades noisy when the judge's answers are reversed", async (
       bad: [booleanEval("BAD", 1), booleanEval("BAD", 2)],
       clean: [booleanEval("CLEAN", 1), booleanEval("CLEAN", 2)],
     },
-    fakeBooleanReversed(),
+    fakeJudge(true),
     signal,
   );
   expect(grade.status).toBe("noisy");
@@ -195,7 +169,7 @@ test("a choice template grades on 1 - probabilities[declaredKind]", async () => 
       bad: [choiceEval("badOne", "resource"), choiceEval("badTwo", "resource")],
       clean: [choiceEval("cleanOne", "data"), choiceEval("cleanTwo", "data")],
     },
-    fakeChoice(),
+    fakeJudge(),
     signal,
   );
   for (const value of grade.bad) expect(value).toBeCloseTo(0.9);
@@ -206,7 +180,7 @@ test("a choice template grades on 1 - probabilities[declaredKind]", async () => 
 test("evals returns one grade per template in the fixture corpus", async () => {
   const scope = createScope({
     tags: [corpusPath(provisionalCorpus), evalsPath(provisionalEvals)],
-    presets: [preset(judge, () => fakeBoolean())],
+    presets: [preset(judge, () => fakeJudge())],
   });
   try {
     const grades = await scope.run(evals);
