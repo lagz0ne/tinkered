@@ -235,6 +235,14 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   root; closing another scope from a cleanup still awaits its real teardown.
 - A resource preset replaces the built instance, builds once per owner, sees the resolved deps, resolves
   async factories, and runs its own cleanup at owner close; the real factory never runs.
+- A child session reads its parent's cell value.
+- Releasing a resource drops its dependents so they rebuild.
+- A throwing operation defer is aggregated as `TeardownFailed`.
+- Releasing a cell cascades into a resource behind its controller edge.
+- A released resource rebuilds with a fresh generation.
+- Releasing a data cell resets it and releases only its dependents.
+- A factory that declares no ctx fails its defer with `Disposed`.
+- A factory that declares no ctx still reads its abort signal.
 
 ### Operations
 
