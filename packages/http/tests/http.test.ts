@@ -1,7 +1,6 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, operation } from "@tinker/core";
 import {
-  applyConfig,
   backend,
   httpClient,
   HttpRequest,
@@ -23,19 +22,15 @@ function recording(body: string, seen: HttpRequest.Record[], status = 200): Http
 
 const listUsers = operation({
   label: "listUsers",
-  depends: { client: github.client, config: github.config.all },
-  run: ({ client, config }, ctx) =>
-    client.execute(
-      applyConfig(
-        HttpRequest.get("/users", {
-          headers: { x: "req" },
-          urlParams: { page: "2" },
-          hash: "top",
-        }),
-        mergeConfig(config),
-      ),
-      ctx,
-    ),
+  depends: { send: github.send },
+  run: ({ send }) =>
+    send.run({
+      input: HttpRequest.get("/users", {
+        headers: { x: "req" },
+        urlParams: { page: "2" },
+        hash: "top",
+      }),
+    }),
 });
 
 test("a scope-bound backend receives the merged url and headers, and delivers its response", async () => {
@@ -62,9 +57,8 @@ test("scope, session, and per-call config bindings merge nearest-first", async (
   const child = httpClient({ label: "child" });
   const callChild = operation({
     label: "callChild",
-    depends: { client: child.client, config: child.config.all },
-    run: ({ client, config }, ctx) =>
-      client.execute(applyConfig(HttpRequest.get("/users"), mergeConfig(config)), ctx),
+    depends: { send: child.send },
+    run: ({ send }) => send.run({ input: HttpRequest.get("/users") }),
   });
   const scope = createScope({
     tags: [
@@ -102,8 +96,8 @@ test("a session-bound backend serves the session", async () => {
   const session = scope.createSession({ tags: [backend(recording("session", atSession))] });
   const call = operation({
     label: "call",
-    depends: { client: github.client },
-    run: ({ client }, ctx) => client.execute(HttpRequest.get("https://api/users"), ctx),
+    depends: { send: github.send },
+    run: ({ send }) => send.run({ input: HttpRequest.get("https://api/users") }),
   });
   const fromSession = await session.run(call);
   expect(await fromSession.text()).toBe("session");
@@ -118,8 +112,8 @@ test("the scope keeps its own backend beside a session binding", async () => {
   scope.createSession({ tags: [backend(recording("session", []))] });
   const call = operation({
     label: "call",
-    depends: { client: github.client },
-    run: ({ client }, ctx) => client.execute(HttpRequest.get("https://api/users"), ctx),
+    depends: { send: github.send },
+    run: ({ send }) => send.run({ input: HttpRequest.get("https://api/users") }),
   });
   const fromScope = await scope.run(call);
   expect(await fromScope.text()).toBe("scope");
@@ -132,8 +126,8 @@ test("no base url plus a relative path rejects RequestFailed/InvalidUrl", async 
   const scope = createScope({ tags: [backend(recording("[]", seen))] });
   const relative = operation({
     label: "relative",
-    depends: { client: github.client },
-    run: ({ client }, ctx) => client.execute(HttpRequest.get("/users"), ctx),
+    depends: { send: github.send },
+    run: ({ send }) => send.run({ input: HttpRequest.get("/users") }),
   });
   try {
     await scope.run(relative);
@@ -152,8 +146,8 @@ test("a backend that throws rejects RequestFailed/Transport with the cause", asy
   const scope = createScope({ tags: [backend(broken)] });
   const call = operation({
     label: "call",
-    depends: { client: github.client },
-    run: ({ client }, ctx) => client.execute(HttpRequest.get("https://api/users"), ctx),
+    depends: { send: github.send },
+    run: ({ send }) => send.run({ input: HttpRequest.get("https://api/users") }),
   });
   try {
     await scope.run(call);
@@ -174,8 +168,8 @@ test("a forced close while the backend parks on the signal rejects with the abor
   const scope = createScope({ tags: [backend(parking)] });
   const call = operation({
     label: "call",
-    depends: { client: github.client },
-    run: ({ client }, ctx) => client.execute(HttpRequest.get("https://api/users"), ctx),
+    depends: { send: github.send },
+    run: ({ send }) => send.run({ input: HttpRequest.get("https://api/users") }),
   });
   const running = scope.run(call);
   const closing = scope.close();
@@ -190,10 +184,15 @@ test("a forced close while the backend parks on the signal rejects with the abor
 });
 
 test("streaming a bodiless response rejects NoBody with the status", async () => {
-  const nodata = github.operation({
-    label: "nodata",
-    request: () => HttpRequest.get("https://api/empty"),
-    response: (res) => res.stream(),
+  const nodata = operation({
+    label: "github.nodata",
+    depends: { send: github.send },
+    run: async ({ send }, ctx) => {
+      const received = await send.run({
+        input: HttpRequest.get("https://api/empty"),
+      });
+      return ((res) => res.stream())(received);
+    },
   });
   const empty: HttpClient.Backend = async (request) =>
     HttpResponse.make(request, { status: 204, body: null });

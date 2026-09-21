@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, makeTestClock } from "@tinker/core";
+import { createScope, operation, makeTestClock } from "@tinker/core";
 import {
   backend,
   httpClient,
@@ -27,9 +27,10 @@ test("a 408 retries and a 429 retries, but a 404 arrives without a retry", async
       body: `s${calls.length}`,
     });
   };
-  const raw = retrying.operation({
-    label: "raw",
-    request: () => HttpRequest.get("https://api/missing"),
+  const raw = operation({
+    label: "retrying.raw",
+    depends: { send: retrying.send },
+    run: ({ send }, ctx) => send.run({ input: HttpRequest.get("https://api/missing") }),
   });
   const scope = createScope({ clock: makeTestClock({ now: 0 }), tags: [backend(backendByCall)] });
   const res = await scope.run(raw);
@@ -45,10 +46,15 @@ test("a 500 retries through to success and a 501 does too", async () => {
     calls += 1;
     return HttpResponse.make(request, { status: calls === 1 ? 500 : 200, body: "back" });
   };
-  const text = retrying.operation({
-    label: "text",
-    request: () => HttpRequest.get("https://api/repos"),
-    response: (res) => res.text(),
+  const text = operation({
+    label: "retrying.text",
+    depends: { send: retrying.send },
+    run: async ({ send }, ctx) => {
+      const received = await send.run({
+        input: HttpRequest.get("https://api/repos"),
+      });
+      return ((res) => res.text())(received);
+    },
   });
   const scope = createScope({ clock: makeTestClock({ now: 0 }), tags: [backend(wobbly)] });
   expect(await scope.run(text)).toBe("back");
@@ -62,9 +68,10 @@ test("the retry budget runs out: three transient statuses deliver the last one",
     calls += 1;
     return HttpResponse.make(request, { status: 503, body: `try${calls}` });
   };
-  const raw = retrying.operation({
-    label: "raw",
-    request: () => HttpRequest.get("https://api/down"),
+  const raw = operation({
+    label: "retrying.raw",
+    depends: { send: retrying.send },
+    run: ({ send }, ctx) => send.run({ input: HttpRequest.get("https://api/down") }),
   });
   const scope = createScope({ clock: makeTestClock({ now: 0 }), tags: [backend(down)] });
   const res = await scope.run(raw);
@@ -77,12 +84,17 @@ test("the retry budget runs out: three transient statuses deliver the last one",
 test("a rejected status throws ResponseFailed and skips the body reader", async () => {
   const strict = httpClient({ label: "strict", filterStatus: (status) => status < 300 });
   let readerCalls = 0;
-  const guarded = strict.operation({
-    label: "guarded",
-    request: () => HttpRequest.get("https://api/repos"),
-    response: (res) => {
-      readerCalls += 1;
-      return res.text();
+  const guarded = operation({
+    label: "strict.guarded",
+    depends: { send: strict.send },
+    run: async ({ send }, ctx) => {
+      const received = await send.run({
+        input: HttpRequest.get("https://api/repos"),
+      });
+      return ((res) => {
+        readerCalls += 1;
+        return res.text();
+      })(received);
     },
   });
   const scope = createScope({

@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope } from "@tinker/core";
+import { createScope, operation } from "@tinker/core";
 import { backend, httpClient, HttpRequest, HttpResponse, type HttpClient } from "../src/index.ts";
 
 const github = httpClient({ label: "github" });
@@ -14,9 +14,10 @@ function recording(body: string, seen: HttpRequest.Record[], status = 200): Http
 
 test("acceptJson sets the accept header the backend sees", async () => {
   const seen: HttpRequest.Record[] = [];
-  const call = github.operation({
-    label: "call",
-    request: () => HttpRequest.get("/a", { acceptJson: true }),
+  const call = operation({
+    label: "github.call",
+    depends: { send: github.send },
+    run: ({ send }, ctx) => send.run({ input: HttpRequest.get("/a", { acceptJson: true }) }),
   });
   const scope = createScope({
     tags: [backend(recording("ok", seen)), github.config({ baseUrl: "https://api" })],
@@ -28,13 +29,17 @@ test("acceptJson sets the accept header the backend sees", async () => {
 
 test("an explicit accept wins over acceptJson and modify keeps the other headers", async () => {
   const seen: HttpRequest.Record[] = [];
-  const call = github.operation({
-    label: "call",
-    request: () =>
-      HttpRequest.modify(
-        HttpRequest.get("/a", { headers: { x: "1" }, accept: "text/x", acceptJson: true }),
-        { headers: { y: "2" } },
-      ),
+  const call = operation({
+    label: "github.call",
+    depends: { send: github.send },
+    run: ({ send }, ctx) =>
+      send.run({
+        input: (() =>
+          HttpRequest.modify(
+            HttpRequest.get("/a", { headers: { x: "1" }, accept: "text/x", acceptJson: true }),
+            { headers: { y: "2" } },
+          ))(ctx.input),
+      }),
   });
   const scope = createScope({
     tags: [backend(recording("ok", seen)), github.config({ baseUrl: "https://api" })],

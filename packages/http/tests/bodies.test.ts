@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope } from "@tinker/core";
+import { createScope, operation } from "@tinker/core";
 import { backend, httpClient, HttpRequest, HttpResponse, type HttpClient } from "../src/index.ts";
 
 const github = httpClient({ label: "github" });
@@ -14,10 +14,15 @@ function recording(body: string, seen: HttpRequest.Record[], status = 200): Http
 
 test("text and bytes bodies arrive with their content types", async () => {
   const seen: HttpRequest.Record[] = [];
-  const send = github.operation({
-    label: "send",
-    request: () => HttpRequest.post("/a", { body: HttpRequest.bodyBytes(new Uint8Array([7])) }),
-    response: (res) => res.text(),
+  const send = operation({
+    label: "github.send",
+    depends: { send: github.send },
+    run: async ({ send }, ctx) => {
+      const received = await send.run({
+        input: HttpRequest.post("/a", { body: HttpRequest.bodyBytes(new Uint8Array([7])) }),
+      });
+      return ((res) => res.text())(received);
+    },
   });
   const scope = createScope({
     tags: [backend(recording("hi", seen)), github.config({ baseUrl: "https://api" })],
@@ -32,9 +37,13 @@ test("text and bytes bodies arrive with their content types", async () => {
 
 test("a body option rides along and an explicit builder body wins", async () => {
   const seen: HttpRequest.Record[] = [];
-  const send = github.operation({
-    label: "send",
-    request: () => HttpRequest.post("/a", { body: HttpRequest.bodyText("opt") }),
+  const send = operation({
+    label: "github.send",
+    depends: { send: github.send },
+    run: ({ send }, ctx) =>
+      send.run({
+        input: HttpRequest.post("/a", { body: HttpRequest.bodyText("opt") }),
+      }),
   });
   const scope = createScope({
     tags: [backend(recording("ok", seen)), github.config({ baseUrl: "https://api" })],
@@ -48,15 +57,19 @@ test("a body option rides along and an explicit builder body wins", async () => 
 
 test("query params keep their pairs and the fragment stays at the end", async () => {
   const seen: HttpRequest.Record[] = [];
-  const send = github.operation({
-    label: "send",
-    request: () =>
-      HttpRequest.get("/a", {
-        urlParams: [
-          ["p", "1"],
-          ["p", "2"],
-        ],
-        hash: "frag",
+  const send = operation({
+    label: "github.send",
+    depends: { send: github.send },
+    run: ({ send }, ctx) =>
+      send.run({
+        input: (() =>
+          HttpRequest.get("/a", {
+            urlParams: [
+              ["p", "1"],
+              ["p", "2"],
+            ],
+            hash: "frag",
+          }))(ctx.input),
       }),
   });
   const scope = createScope({
@@ -68,10 +81,15 @@ test("query params keep their pairs and the fragment stays at the end", async ()
 });
 
 test("response bodies read through json", async () => {
-  const json = github.operation({
-    label: "json",
-    request: () => HttpRequest.get("https://api/a"),
-    response: (res) => res.json(),
+  const json = operation({
+    label: "github.json",
+    depends: { send: github.send },
+    run: async ({ send }, ctx) => {
+      const received = await send.run({
+        input: HttpRequest.get("https://api/a"),
+      });
+      return ((res) => res.json())(received);
+    },
   });
   const scope = createScope({ tags: [backend(recording('{"a":1}', []))] });
   expect(await scope.run(json)).toEqual({ a: 1 });

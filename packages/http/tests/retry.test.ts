@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, makeTestClock } from "@tinker/core";
+import { createScope, operation, makeTestClock } from "@tinker/core";
 import {
   backend,
   httpClient,
@@ -13,27 +13,43 @@ const flaky = httpClient({ label: "flaky", retry: { times: 2, delay: (n) => n * 
 const retrying = httpClient({ label: "retrying", retry: { times: 2 } });
 const plain = httpClient({ label: "plain" });
 
-const flakyText = flaky.operation({
-  label: "text",
-  request: () => HttpRequest.get("https://api/repos"),
-  response: (res) => res.text(),
+const flakyText = operation({
+  label: "flaky.text",
+  depends: { send: flaky.send },
+  run: async ({ send }, ctx) => {
+    const received = await send.run({
+      input: HttpRequest.get("https://api/repos"),
+    });
+    return ((res) => res.text())(received);
+  },
 });
 
-const retryingText = retrying.operation({
-  label: "text",
-  request: () => HttpRequest.get("https://api/repos"),
-  response: (res) => res.text(),
+const retryingText = operation({
+  label: "retrying.text",
+  depends: { send: retrying.send },
+  run: async ({ send }, ctx) => {
+    const received = await send.run({
+      input: HttpRequest.get("https://api/repos"),
+    });
+    return ((res) => res.text())(received);
+  },
 });
 
-const retryingRaw = retrying.operation({
-  label: "raw",
-  request: () => HttpRequest.get("https://api/missing"),
+const retryingRaw = operation({
+  label: "retrying.raw",
+  depends: { send: retrying.send },
+  run: ({ send }, ctx) => send.run({ input: HttpRequest.get("https://api/missing") }),
 });
 
-const plainText = plain.operation({
-  label: "text",
-  request: () => HttpRequest.get("https://api/repos"),
-  response: (res) => res.text(),
+const plainText = operation({
+  label: "plain.text",
+  depends: { send: plain.send },
+  run: async ({ send }, ctx) => {
+    const received = await send.run({
+      input: HttpRequest.get("https://api/repos"),
+    });
+    return ((res) => res.text())(received);
+  },
 });
 
 /** Let queued microtasks run until `ready` holds; a stuck backend fails the next assert, never hangs. */

@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, type Observe } from "@tinker/core";
+import { createScope, operation, type Observe } from "@tinker/core";
 import {
   backend,
   httpClient,
@@ -25,11 +25,17 @@ function parseUser(raw: unknown): string {
   return raw.trim();
 }
 
-const listRepos = github.operation({
-  label: "listRepos",
+const listRepos = operation({
+  label: "github.listRepos",
   input: parseUser,
-  request: (user) => HttpRequest.get(`/users/${user}/repos`, { urlParams: { per_page: "100" } }),
-  response: (res) => res.text(),
+  depends: { send: github.send },
+  run: async ({ send }, ctx) => {
+    const received = await send.run({
+      input: ((user) =>
+        HttpRequest.get(`/users/${user}/repos`, { urlParams: { per_page: "100" } }))(ctx.input),
+    });
+    return ((res) => res.text())(received);
+  },
 });
 
 const url = "https://api/users/octocat/repos?per_page=100";
@@ -83,9 +89,10 @@ test("a backend failure marks the child failed and logs one line", async () => {
 
 test("a rejected status marks the child failed and logs nothing", async () => {
   const strict = httpClient({ label: "strict", filterStatus: (status) => status < 300 });
-  const strictRepos = strict.operation({
-    label: "repos",
-    request: () => HttpRequest.get("https://api/repos"),
+  const strictRepos = operation({
+    label: "strict.repos",
+    depends: { send: strict.send },
+    run: ({ send }, ctx) => send.run({ input: HttpRequest.get("https://api/repos") }),
   });
   const logs: Observe.Log[] = [];
   const scope = createScope({

@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope } from "@tinker/core";
+import { createScope, operation } from "@tinker/core";
 import { backend, httpClient, HttpRequest, HttpResponse, type HttpClient } from "../src/index.ts";
 
 const github = httpClient({ label: "github" });
@@ -15,9 +15,13 @@ function recording(body: string, seen: HttpRequest.Record[], status = 200): Http
 test("nearer config headers win per key and the request's own headers win over config", async () => {
   const seen: HttpRequest.Record[] = [];
   const child = httpClient({ label: "child" });
-  const callChild = github.operation({
-    label: "raw",
-    request: () => HttpRequest.get("https://api/a", { headers: { x: "req", y: "req" } }),
+  const callChild = operation({
+    label: "github.raw",
+    depends: { send: github.send },
+    run: ({ send }, ctx) =>
+      send.run({
+        input: HttpRequest.get("https://api/a", { headers: { x: "req", y: "req" } }),
+      }),
   });
   const scope = createScope({
     tags: [
@@ -36,9 +40,10 @@ test("nearer config headers win per key and the request's own headers win over c
 test("a nearer config baseUrl wins and one binding without headers still merges", async () => {
   const seen: HttpRequest.Record[] = [];
   const child = httpClient({ label: "child" });
-  const callChild = child.operation({
-    label: "raw",
-    request: () => HttpRequest.get("/a"),
+  const callChild = operation({
+    label: "child.raw",
+    depends: { send: child.send },
+    run: ({ send }, ctx) => send.run({ input: HttpRequest.get("/a") }),
   });
   const scope = createScope({
     tags: [
@@ -58,9 +63,10 @@ test("a nearer config baseUrl wins and one binding without headers still merges"
 test("header keys merge case-insensitively with the nearer binding winning", async () => {
   const seen: HttpRequest.Record[] = [];
   const child = httpClient({ label: "child" });
-  const callChild = child.operation({
-    label: "raw",
-    request: () => HttpRequest.get("https://api/a"),
+  const callChild = operation({
+    label: "child.raw",
+    depends: { send: child.send },
+    run: ({ send }, ctx) => send.run({ input: HttpRequest.get("https://api/a") }),
   });
   const scope = createScope({
     tags: [backend(recording("[]", seen)), child.config({ headers: { "X-Token": "far" } })],

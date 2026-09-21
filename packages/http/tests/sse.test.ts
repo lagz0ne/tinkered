@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "vite-plus/test";
-import { createScope } from "@tinker/core";
+import { createScope, operation } from "@tinker/core";
 import {
   backend,
   httpClient,
@@ -88,10 +88,15 @@ test("sse() on a bodiless response raises NoBody", async () => {
 
 test("an endpoint reader may return sse() and the operation delivers the recorded stream", async () => {
   const recorded = readFileSync(new URL("./fixtures/chat-completions.sse", import.meta.url));
-  const stream = chat.operation({
-    label: "stream",
-    request: () => HttpRequest.post("https://api/chat", { body: HttpRequest.bodyText("{}") }),
-    response: (res) => res.sse(),
+  const stream = operation({
+    label: "chat.stream",
+    depends: { send: chat.send },
+    run: async ({ send }, ctx) => {
+      const received = await send.run({
+        input: HttpRequest.post("https://api/chat", { body: HttpRequest.bodyText("{}") }),
+      });
+      return ((res) => res.sse())(received);
+    },
   });
   const fake: HttpClient.Backend = async (request) =>
     HttpResponse.make(request, { status: 200, body: recorded });
