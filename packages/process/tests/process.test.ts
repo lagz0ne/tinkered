@@ -1,3 +1,7 @@
+import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
 import { extension, operation, tag } from "@tinker/core";
 import { argv, command, env, execute, io, isError, main, run, type Process } from "../src/index.ts";
@@ -378,4 +382,34 @@ test("the env tag reads an empty record when there is no process", async () => {
   } finally {
     (globalThis as { process?: unknown }).process = real;
   }
+});
+
+/** The repo root: the nearest ancestor holding `pnpm-workspace.yaml`. Stryker copies this file
+ * into a sandbox two levels deeper, so a fixed `../../..` would miss the examples there. */
+function workspaceRoot(): string {
+  let dir = dirname(fileURLToPath(import.meta.url));
+  while (!existsSync(join(dir, "pnpm-workspace.yaml"))) dir = dirname(dir);
+  return dir;
+}
+
+test("the process smoke test: node runs the example and help exits 0 with its usage", async () => {
+  const child = await new Promise<{ code: number; out: string; err: string }>((resolve, reject) => {
+    execFile(
+      process.execPath,
+      ["--experimental-strip-types", "process-cli/main.ts", "help"],
+      { cwd: join(workspaceRoot(), "examples") },
+      (error, stdout, stderr) => {
+        if (error && error.code === undefined) reject(error);
+        else
+          resolve({
+            code: typeof error?.code === "number" ? error.code : 0,
+            out: String(stdout),
+            err: String(stderr),
+          });
+      },
+    );
+  });
+  expect(child.err).toBe("");
+  expect(child.code).toBe(0);
+  expect(child.out).toBe("usage: tinker <command>\n  greet\n  ping\n");
 });

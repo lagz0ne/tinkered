@@ -1,12 +1,10 @@
-import { createScope } from "@tinker/core";
 import { operation } from "@tinker/core";
-import { cli, command } from "@tinker/cli";
+import { command, run, type Process } from "@tinker/process";
 import { z } from "zod";
 
-/** A cast-free tour of the driver: the flat row table hands operations to
- * `cli({ commands })` — `double` eager, `ping` behind a loader — and the root
- * resolves `run` off the extension and answers in-process. Returns the codes,
- * the answer, and the count. */
+/** A cast-free tour of the entrypoint: routes are plain data, `run` builds one root per run and
+ * answers `{ code, stdout, stderr }` without a process, and `help` loads nothing (ADR 0056).
+ * Returns the codes, the answer, and the load count. */
 export async function tour(): Promise<string> {
   const double = operation({
     label: "double",
@@ -17,7 +15,7 @@ export async function tour(): Promise<string> {
   const ping = operation({ label: "ping", run: () => "pong" });
 
   let loads = 0;
-  const ext = cli({
+  const shell: Process.Shell = {
     name: "tour",
     version: "0.0.0",
     commands: [
@@ -30,13 +28,9 @@ export async function tour(): Promise<string> {
         return ping;
       }),
     ],
-  });
-  const scope = createScope({ extensions: [ext] });
-  await scope.ready;
-  const run = scope.resolve(ext);
-  const helped = await run(["help"]);
-  const answered = await run(["double", "21"]);
-  const pinged = await run(["ping"]);
-  await scope.close({ graceful: true });
+  };
+  const helped = await run(shell, ["help"]);
+  const answered = await run(shell, ["double", "21"]);
+  const pinged = await run(shell, ["ping"]);
   return `${helped.code} ${answered.code} ${answered.stdout} ${loads} ${pinged.code}`;
 }

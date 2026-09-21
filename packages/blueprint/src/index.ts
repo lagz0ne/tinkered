@@ -377,7 +377,7 @@ export const verify: Operation.Handle<
 });
 
 /** One line per finding, then `ok: N nodes, M units, K findings`, then — with no engine bound —
- * `body templates skipped: no key` (`@tinker/cli`'s `Cli.Row` has no stderr channel for a
+ * `body templates skipped: no key` (the old cli row had no stderr channel for a
  * code-0 command, only for a thrown error or usage — see the report's deviations). */
 function verifyLines(report: Blueprint.VerifyReport, bodySkipped: boolean): string {
   const lines = [

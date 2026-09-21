@@ -483,9 +483,6 @@ importers:
 
   examples:
     dependencies:
-      '@tinker/cli':
-        specifier: workspace:*
-        version: link:../packages/cli
       '@tinker/core':
         specifier: workspace:*
         version: link:../packages/core
@@ -812,9 +809,6 @@ importers:
       '@stryker-mutator/vitest-runner':
         specifier: 'catalog:'
         version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@26.5.1))(vitest@4.1.11)
-      '@tinker/cli':
-        specifier: workspace:*
-        version: link:../cli
       '@types/node':
         specifier: ^26.1.1
         version: 26.5.1
@@ -917,9 +911,6 @@ importers:
       '@stryker-mutator/vitest-runner':
         specifier: 'catalog:'
         version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@26.5.1))(vitest@4.1.11)
-      '@tinker/cli':
-        specifier: workspace:*
-        version: link:../cli
       '@tinker/hono':
         specifier: workspace:*
         version: link:../hono
@@ -944,15 +935,15 @@ importers:
 
   packages/tinkerer:
     dependencies:
-      '@tinker/cli':
-        specifier: workspace:*
-        version: link:../cli
       '@tinker/core':
         specifier: workspace:*
         version: link:../core
       '@tinker/http':
         specifier: workspace:*
         version: link:../http
+      '@tinker/process':
+        specifier: workspace:*
+        version: link:../process
     devDependencies:
       '@stryker-mutator/core':
         specifier: 'catalog:'

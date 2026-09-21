@@ -121,6 +121,8 @@ one abort, exit with the code. Never returns.
   usage to the process stderr.
 - `main` without a process raises `NoProcess`,
   which `isError` narrows and rejects other kinds.
+- The process smoke test: node runs the example
+  and help exits 0 with its usage.
 
 ## Errors
 

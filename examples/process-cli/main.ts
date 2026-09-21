@@ -1,5 +1,5 @@
 import { operation } from "@tinker/core";
-import { command, runMain } from "@tinker/cli";
+import { command, main } from "@tinker/process";
 import { z } from "zod";
 
 const ping = operation({ label: "ping", run: () => "pong" });
@@ -10,9 +10,8 @@ const greet = operation({
   run: (_deps, ctx) => `hello ${ctx.input}`,
 });
 
-/** The real entrypoint: the tour's row table, run through the process — argv
- * in, exit code out. The smoke test spawns this file. */
-await runMain({
+/** The real entrypoint: argv in, exit code out. The smoke test spawns this file. */
+await main({
   name: "tinker",
   version: "0.0.0",
   commands: [

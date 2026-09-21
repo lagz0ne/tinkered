@@ -8,7 +8,6 @@
     "check": "vp check"
   },
   "dependencies": {
-    "@tinker/cli": "workspace:*",
     "@tinker/core": "workspace:*",
     "@tinker/drizzle": "workspace:*",
     "@tinker/harness": "workspace:*",
