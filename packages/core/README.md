@@ -353,6 +353,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A failing body with a failing cleanup reports both causes.
 - A session that ends cancelled rejects with its reason.
 - Session hooks wrap sessions nested two deep.
+- An operation that finishes after abort still sees cancelled.
 
 ### Clock
 

@@ -366,3 +366,28 @@ test("a close re-entered from an async cleanup is still acknowledged", async () 
   const innerResult = (await inner) as { status: string };
   expect(innerResult.status).toBe("cancelled");
 });
+
+test("an operation that finishes after abort still sees cancelled", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let end: string | undefined;
+  const op = operation({
+    label: "op",
+    run: (_deps, { defer }) => {
+      defer((e) => {
+        end = e.status;
+      });
+      return gate.then(() => 1);
+    },
+  });
+  const scope = createScope();
+  const running = scope.run(op) as Promise<unknown>;
+  const closing = scope.close();
+  release();
+  expect(await running).toBe(1);
+  const result = await closing;
+  expect(result.status).toBe("cancelled");
+  expect(end).toBe("cancelled");
+});
