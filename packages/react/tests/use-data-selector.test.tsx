@@ -38,7 +38,7 @@ const sbox = data({ label: "sbox", initial: { a: 1, b: 1 } });
 const pickS = (v: { a: number; b: number }): { a: number } => ({ a: v.a });
 
 function SliceOpts({ onRender }: { onRender: () => void }): React.ReactElement {
-  const slice = useData(sbox, pickS, { isEqual: (x, y) => x.a === y.a });
+  const [slice] = useData(sbox, pickS, { isEqual: (x, y) => x.a === y.a, writable: true });
   onRender();
   return <p>opts-a:{slice.a}</p>;
 }
@@ -73,7 +73,7 @@ test("a selector with an options object applies its isEqual", async () => {
 });
 
 function AlwaysEqual({ onRender }: { onRender: () => void }): React.ReactElement {
-  const value = useData(sbox, { isEqual: () => true });
+  const [value] = useData(sbox, { isEqual: () => true, writable: true });
   onRender();
   return <p>ae-a:{value.a}</p>;
 }
@@ -108,7 +108,8 @@ test("useData with only isEqual reads the raw value", async () => {
   const count = data({ label: "count-eq", initial: 4 });
 
   function Raw(): React.ReactElement {
-    return <p>raw:{useData(count, { isEqual: Object.is })}</p>;
+    const [value] = useData(count, { isEqual: Object.is, writable: true });
+    return <p>raw:{value}</p>;
   }
 
   const screen = await render(

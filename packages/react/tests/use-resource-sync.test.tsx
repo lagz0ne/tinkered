@@ -1,4 +1,5 @@
 import { createScope, resource } from "@tinker/core";
+import type { Resource } from "@tinker/core";
 import { useState } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
