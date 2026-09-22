@@ -240,3 +240,36 @@ Both added notice checks pass, making 46 of 46.
 The lead read the code and browser tests; the style census passes.
 MiMo Flash is accepted after its second repair.
 Three writers are now accepted. MiMo Pro is still on its first attempt.
+
+## MiMo Pro first attempt accepted
+
+The normal checker passes 44 of 44.
+Both added notice checks pass, making 46 of 46.
+All supplied commands pass, with 38 core tests.
+The lead also ran the separate Playwright command: 16 tests pass.
+All submitted code ran only in fresh, isolated Docker containers.
+The lead read every source file and the core and browser tests.
+Typing and filter writes live in operations from the first attempt.
+Those actions clear old notices. Draft copies and undo are correct.
+The style census passes. Jev reviewed nine view units with no notes.
+No repair was needed. The run took 94.8 minutes.
+
+Its own draft-copy test checks values, not object identity.
+The private teacher check proves the draft is a separate object.
+Its archive keeps the writable package-link setup.
+A checkout from git alone must recreate that setup.
+
+All four writers now pass the same 46 checks and source review.
+MiMo Pro has the best first result in this one stock trial.
+DeepSeek has the shortest time to an accepted result: about 18 minutes.
+GLM took about 39 minutes; MiMo Flash took about 57 minutes.
+Those three needed two repairs each. Times exclude review waits.
+One task is evidence of this result, not proof for every new task.
+
+Proof lives under `stock-01/results/round-1/worker-2-attempt-1`.
+Its `lead-review.json` records acceptance and limits.
+The extra notice and browser logs live in `stock-01/teacher-proof`.
+
+The new writable-view Jev rule still needs its own review fix.
+A name in one function must not hide a hook in another function.
+Current trial tools remain frozen. The fix serves the next trial.

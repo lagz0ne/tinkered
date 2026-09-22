@@ -32,7 +32,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **writers/repeat** — owner: Codex.
   Make tested rules and the review loop the default; try a new stock app.
-  Next: fix the teacher module URL, then score writers and send own findings.
+  Next: finish the new Jev rule review and verify trial cleanup.
   Verify: all four first attempts scored, fixes kept separate, examples blocked.
   Keep every result and remove all trial projects after review.
 
