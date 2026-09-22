@@ -3192,7 +3192,10 @@ function selectNsDataEntry(
   target: Data.Cell<unknown>,
   chain: readonly Namespace[],
 ): NsDataDependency | undefined {
-  return selectBucket(
+  // Resolve exactly as the READ does (effectiveEntryNs): named chain first, then the layer's own
+  // default. A nearer default SHADOWS a farther named bucket, so stop there and make no named link —
+  // the read landed on the default, tracked by the base handle-level dependents (N6).
+  const hit = selectBucket<NsDataDependency | typeof DEFAULT_ENTRY>(
     owner,
     chain,
     (layer, key) => {
@@ -3200,9 +3203,13 @@ function selectNsDataEntry(
       const entry = source?.nsCells?.get(key);
       return source && entry ? { source, entry } : undefined;
     },
-    () => undefined,
+    (layer) => (layer.nodes.get(target)?.cell ? DEFAULT_ENTRY : undefined),
   );
+  return hit === DEFAULT_ENTRY ? undefined : hit;
 }
+
+/** Sentinel: the ns data read resolved to a layer's default bucket, so no named link is made. */
+const DEFAULT_ENTRY = Symbol("default-entry");
 
 function detachNsState(state: NsResourceState): void {
   detachNsDataDependencies(state);
