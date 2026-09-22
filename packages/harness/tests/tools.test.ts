@@ -14,6 +14,12 @@ import { z } from "zod";
 import { claudeCode, harness, type ClaudeCode } from "../src/index.ts";
 import { readResult, readSystemInit, readToolResult, readToolUse } from "./fixtures.ts";
 
+/** Parse the author's prompt input: a plain string, trimmed of padding. */
+function parsePrompt(raw: unknown): string {
+  if (typeof raw !== "string") throw new Error("bad prompt");
+  return raw;
+}
+
 /** What the fake SDK saw: every in-process server registered, every `query`'s options, and
  * what each tool handler returned when the fake "model" called it. */
 type Seen = {
@@ -69,10 +75,18 @@ const search = operation({
   run: (_deps, ctx) => `hit:${ctx.input.q}`,
 });
 
-test("a tool op runs as a subflow of the turn and answers the mapped value", async () => {
+test("a tool op runs as a subflow of the send and answers the mapped value", async () => {
   const seen: Seen = { servers: [], queries: [], results: [] };
   const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     observe: { history: 20 },
     presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))],
@@ -81,16 +95,24 @@ test("a tool op runs as a subflow of the turn and answers the mapped value", asy
   await session.run(ask, { input: "hello" });
   expect(seen.results[0]?.content).toEqual([{ type: "text", text: '"hit:x"' }]);
   const spans = scope.spans();
-  const turn = spans.find((span) => span.name === "coder.ask");
+  const send = spans.find((span) => span.name === "coder.send");
   const call = spans.find((span) => span.name === "search");
-  expect(call?.parentId).toBe(turn?.id);
+  expect(call?.parentId).toBe(send?.id);
   await scope.close();
 });
 
 test("the in-process server is built once per thread and reused across turns", async () => {
   const seen: Seen = { servers: [], queries: [], results: [] };
   const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({ presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))] });
   const session = scope.createSession();
   await session.run(ask, { input: "a" });
@@ -105,7 +127,15 @@ test("the in-process server is built once per thread and reused across turns", a
 test("a user-bound mcpServers entry survives beside the frame's server", async () => {
   const seen: Seen = { servers: [], queries: [], results: [] };
   const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     tags: [claudeCode.options({ mcpServers: { other: { command: "x" } } })],
     presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))],
@@ -125,7 +155,15 @@ test("a tool op sees the session's own bindings", async () => {
     run: ({ index }, ctx) => `${index}:${ctx.input.q}`,
   });
   const coder = harness({ label: "coder", adapter: claudeCode, tools: [lookup] });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({ presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))] });
   await scope.createSession({ tags: [index("docs")] }).run(ask, { input: "a" });
   await scope.createSession({ tags: [index("code")] }).run(ask, { input: "b" });
@@ -151,7 +189,15 @@ test("a tool op without tool meta throws ToolUndeclared with its label", async (
 test("one declaration serves the MCP driver and the Claude fast path", async () => {
   const seen: Seen = { servers: [], queries: [], results: [] };
   const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const ext = mcp({ name: "coder", version: "0", tools: [expose(search, readTool(search))] });
   const scope = createScope({
     extensions: [ext],
@@ -179,7 +225,15 @@ test("a frame with approve and tools answers the approval and still calls the to
     run: (): PermissionResult => ({ behavior: "allow" }),
   });
   const coder = harness({ label: "coder", adapter: claudeCode, approve, tools: [search] });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     observe: { history: 20 },
     presets: [
@@ -195,9 +249,9 @@ test("a frame with approve and tools answers the approval and still calls the to
   expect(decisions).toEqual([{ behavior: "allow" }]);
   expect(seen.results[0]?.content).toEqual([{ type: "text", text: '"hit:x"' }]);
   const spans = scope.spans();
-  const turn = spans.find((span) => span.name === "coder.ask");
-  expect(spans.find((span) => span.name === "approve")?.parentId).toBe(turn?.id);
-  expect(spans.find((span) => span.name === "search")?.parentId).toBe(turn?.id);
+  const send = spans.find((span) => span.name === "coder.send");
+  expect(spans.find((span) => span.name === "approve")?.parentId).toBe(send?.id);
+  expect(spans.find((span) => span.name === "search")?.parentId).toBe(send?.id);
   await scope.close();
 });
 
@@ -229,7 +283,15 @@ test("a named tool registers under its meta name, not the op label", async () =>
     run: (_deps, ctx) => `hit:${(ctx.input as { q: string }).q}`,
   });
   const coder = harness({ label: "coder", adapter: claudeCode, tools: [named] });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))],
   });
@@ -242,7 +304,15 @@ test("a named tool registers under its meta name, not the op label", async () =>
 test("the frame server wins over a user server bound under the frame label", async () => {
   const seen: Seen = { servers: [], queries: [], results: [] };
   const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     tags: [claudeCode.options({ mcpServers: { coder: { command: "mine" } } })],
     presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))],
@@ -262,7 +332,15 @@ test("two tools register under their own names", async () => {
     run: (_deps, ctx) => `hit:${(ctx.input as { q: string }).q}`,
   });
   const coder = harness({ label: "coder", adapter: claudeCode, tools: [search, lookup] });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))],
   });
@@ -285,7 +363,15 @@ test("tools take nested lists and false: every reachable tool registers", async 
     adapter: claudeCode,
     tools: [null, [search], flags.lookup && lookup],
   });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))],
   });

@@ -15,6 +15,12 @@ import {
   readToolSdk,
 } from "./fixtures.ts";
 
+/** Parse the author's prompt input: a plain string, trimmed of padding. */
+function parsePrompt(raw: unknown): string {
+  if (typeof raw !== "string") throw new Error("bad prompt");
+  return raw;
+}
+
 /** What one fake turn saw: the decision the SDK's `canUseTool` got back, if it was asked. */
 type Seen = { decisions: PermissionResult[] };
 
@@ -52,7 +58,15 @@ test("an approve op that allows answers canUseTool as a subflow of the turn and 
     run: (): PermissionResult => ({ behavior: "allow" }),
   });
   const coder = harness({ label: "coder", adapter: claudeCode, approve });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     observe: { history: 20 },
     presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))],
@@ -66,9 +80,9 @@ test("an approve op that allows answers canUseTool as a subflow of the turn and 
   expect(items[1]).toMatchObject({ kind: "tool_use", id: "tu-1" });
   expect(items[2]).toMatchObject({ kind: "tool_result", id: "tu-1" });
   const spans = scope.spans();
-  const turn = spans.find((span) => span.name === "coder.ask");
+  const send = spans.find((span) => span.name === "coder.send");
   const approval = spans.find((span) => span.name === "approve");
-  expect(approval?.parentId).toBe(turn?.id);
+  expect(approval?.parentId).toBe(send?.id);
   await scope.close();
 });
 
@@ -84,7 +98,15 @@ test("an approve op that denies stops the tool: no tool result, the deny lands i
     },
   });
   const coder = harness({ label: "coder", adapter: claudeCode, approve });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({ presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))] });
   const session = scope.createSession();
   await session.run(ask, { input: "hello" });
@@ -106,7 +128,15 @@ test("the approve op sees the session's own bindings: one session allows, anothe
       policy === "allow" ? { behavior: "allow" } : { behavior: "deny", message: "policy" },
   });
   const coder = harness({ label: "coder", adapter: claudeCode, approve });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({ presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))] });
   await scope.createSession({ tags: [policy("deny")] }).run(ask, { input: "a" });
   await scope.createSession({ tags: [policy("allow")] }).run(ask, { input: "b" });
@@ -125,7 +155,15 @@ test("a failed approval rejects the turn, and the error is not a TurnFailed", as
     },
   });
   const coder = harness({ label: "coder", adapter: claudeCode, approve });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({ presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))] });
   const session = scope.createSession();
   const outcome = await session.run(ask, { input: "hello" }).then(
@@ -145,7 +183,15 @@ test("the approval item keeps the request and the decision as its source", async
     run: (): PermissionResult => ({ behavior: "allow", updatedInput: { command: "ls -l" } }),
   });
   const coder = harness({ label: "coder", adapter: claudeCode, approve });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({ presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))] });
   const session = scope.createSession();
   await session.run(ask, { input: "hello" });
@@ -167,7 +213,15 @@ test("the approval item keeps the request and the decision as its source", async
 test("without an approve op a canUseTool bound in options still answers", async () => {
   const bound: PermissionResult[] = [];
   const coder = harness({ label: "coder", adapter: claudeCode });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     tags: [
       claudeCode.options({
@@ -195,7 +249,15 @@ test("an approve op overrides a canUseTool bound in options", async () => {
     run: (): PermissionResult => ({ behavior: "deny", message: "frame" }),
   });
   const coder = harness({ label: "coder", adapter: claudeCode, approve });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     tags: [
       claudeCode.options({
@@ -225,7 +287,15 @@ test("an unknown message kind still lands in events and the turn resolves", asyn
     uuid: "11111111-2222-4333-8444-555555555555",
   };
   const coder = harness({ label: "coder", adapter: claudeCode });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     presets: [
       preset(claudeCode.sdk, async () => ({

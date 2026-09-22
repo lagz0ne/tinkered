@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, preset, type Observe } from "@tinker/core";
+import { createScope, operation, preset, type Observe } from "@tinker/core";
 import type { ThreadEvent, ThreadItem } from "@openai/codex-sdk";
 import { codex, harness, isError, type Harness } from "../src/index.ts";
 import {
@@ -11,11 +11,25 @@ import {
   type CodexSeen,
 } from "./fixtures.ts";
 
+/** Parse the author's prompt input: a plain string, trimmed of padding. */
+function parsePrompt(raw: unknown): string {
+  if (typeof raw !== "string") throw new Error("bad prompt");
+  return raw;
+}
+
 test("a turn folds the event stream into the result and the ambient cells", async () => {
   const seen: CodexSeen = { turns: [], clients: [] };
   const script = readCodexScript();
   const coder = harness({ label: "coder", adapter: codex });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { input: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     presets: [preset(codex.sdk, async () => readCodexSdk([script], seen))],
   });
@@ -67,7 +81,15 @@ test("a turn folds the event stream into the result and the ambient cells", asyn
 test("options split into the constructor's keys and the thread's keys", async () => {
   const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { input: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     tags: [codex.options({ apiKey: "k", model: "a", workingDirectory: "/x" })],
     presets: [preset(codex.sdk, async () => readCodexSdk([readCodexScript()], seen))],
@@ -83,7 +105,15 @@ test("options split into the constructor's keys and the thread's keys", async ()
 test("every option key reaches its SDK side: the constructor's six, the thread's eleven", async () => {
   const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { input: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     tags: [
       codex.options({
@@ -138,7 +168,15 @@ test("every option key reaches its SDK side: the constructor's six, the thread's
 test("a resume binding resumes the thread id", async () => {
   const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { input: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     presets: [preset(codex.sdk, async () => readCodexSdk([readCodexScript()], seen))],
   });
@@ -154,7 +192,15 @@ test("a resume binding resumes the thread id", async () => {
 test("two turns in one session use one thread", async () => {
   const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { input: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     presets: [
       preset(codex.sdk, async () => readCodexSdk([readCodexScript(), readCodexScript()], seen)),
@@ -173,7 +219,15 @@ test("two turns in one session use one thread", async () => {
 test("a failed turn rejects with TurnFailed and the harness turn line says failed", async () => {
   const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { input: ctx.input } });
+      return result;
+    },
+  });
   const logs: Observe.Log[] = [];
   const scope = createScope({
     observe: { history: 20, log: (entry) => logs.push(entry) },
@@ -205,7 +259,15 @@ test("a forced close mid-turn rejects the turn and cancels the close", async () 
     }),
   };
   const coder = harness({ label: "coder", adapter: codex });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { input: ctx.input } });
+      return result;
+    },
+  });
   const logs: Observe.Log[] = [];
   const scope = createScope({
     observe: { history: 20, log: (entry) => logs.push(entry) },
@@ -231,10 +293,18 @@ test("a forced close mid-turn rejects the turn and cancels the close", async () 
   await scope.close();
 });
 
-test("with observe, the turn span carries the adapter and one harness turn line logs done", async () => {
+test("with observe, the send span carries the adapter and one harness turn line logs done", async () => {
   const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { input: ctx.input } });
+      return result;
+    },
+  });
   const logs: Observe.Log[] = [];
   const scope = createScope({
     observe: { history: 20, log: (entry) => logs.push(entry) },
@@ -242,8 +312,8 @@ test("with observe, the turn span carries the adapter and one harness turn line 
   });
   const session = scope.createSession();
   await session.run(ask, { input: "hello" });
-  const turn = scope.spans().find((span) => span.name === "coder.ask");
-  expect(turn?.attributes.adapter).toBe("codex");
+  const send = scope.spans().find((span) => span.name === "coder.send");
+  expect(send?.attributes.adapter).toBe("codex");
   const lines = logs.filter((entry) => entry.message === "harness turn");
   expect(lines.length).toBe(1);
   expect(lines[0].attributes.status).toBe("done");
@@ -259,7 +329,15 @@ async function readCells(events: readonly ThreadEvent[]): Promise<{
 }> {
   const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { input: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     presets: [preset(codex.sdk, async () => readCodexSdk([{ events }], seen))],
   });
@@ -336,7 +414,15 @@ test("an empty agent update streams nothing and the turn still completes", async
 test("a stream that ends with no completion rejects TurnEnded", async () => {
   const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { input: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     presets: [preset(codex.sdk, async () => readCodexSdk([readCodexCut()], seen))],
   });
@@ -354,7 +440,15 @@ test("a stream that ends with no completion rejects TurnEnded", async () => {
 test("closing the thread stops the turn signal the SDK sees", async () => {
   const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { input: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     presets: [preset(codex.sdk, async () => readCodexSdk([readCodexScript()], seen))],
   });
@@ -373,7 +467,15 @@ test("closing the thread stops the turn signal the SDK sees", async () => {
 test("a reasoning item records the event phase, not an SDK status", async () => {
   const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { input: ctx.input } });
+      return result;
+    },
+  });
   const thinking: ThreadItem = { id: "r-1", type: "reasoning", text: "hmm" };
   const scope = createScope({
     presets: [
@@ -421,7 +523,15 @@ test("a reasoning item records the event phase, not an SDK status", async () => 
 test("a failed command item keeps the SDK's failed status", async () => {
   const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { input: ctx.input } });
+      return result;
+    },
+  });
   const failed = { ...readCommand("failed"), id: "c-9" };
   const scope = createScope({
     presets: [

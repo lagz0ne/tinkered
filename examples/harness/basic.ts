@@ -1,10 +1,16 @@
-import { createScope, preset } from "@tinker/core";
+import { createScope, operation, preset } from "@tinker/core";
 import type {
   SDKMessage,
   SDKPartialAssistantMessage,
   SDKResultMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import { claudeCode, harness, type ClaudeCode } from "@tinker/harness";
+
+/** Parse the author's prompt input: a plain string, trimmed of padding. */
+function parsePrompt(raw: unknown): string {
+  if (typeof raw !== "string") throw new Error("bad prompt");
+  return raw;
+}
 
 /** One recorded turn: the words streamed one delta at a time, plus the final reply. */
 type Script = { readonly words: readonly string[]; readonly reply: string };
@@ -94,7 +100,15 @@ export async function tour(): Promise<string> {
   };
 
   const coder = harness({ label: "coder", adapter: claudeCode });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     tags: [claudeCode.options({ cwd: "/work" })],
     presets: [preset(claudeCode.sdk, async () => fake)],

@@ -1,6 +1,12 @@
 import { createScope, operation, tag } from "@tinker/core";
 import { claudeCode, harness, type ClaudeCode } from "@tinker/harness";
 
+/** Parse the author's prompt input: a plain string, trimmed of padding. */
+function parsePrompt(raw: unknown): string {
+  if (typeof raw !== "string") throw new Error("bad prompt");
+  return raw;
+}
+
 /** A per-session policy the approval reads: the session decides, not the tool. */
 const policy = tag<"allow" | "deny">({ label: "policy", default: "deny" });
 
@@ -18,7 +24,15 @@ const approve = operation({
 /** The real adapter (needs Claude Code auth — not run by tests): every tool call asks `approve`. */
 export async function tour(): Promise<string> {
   const coder = harness({ label: "coder", adapter: claudeCode, approve });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({ tags: [claudeCode.options({ cwd: process.cwd() })] });
   const session = scope.createSession({ tags: [policy("allow")] });
   await session.run(ask, { input: "list the files here" });

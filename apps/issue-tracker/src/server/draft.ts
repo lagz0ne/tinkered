@@ -46,11 +46,12 @@ function readPrompt(input: { readonly id: string; readonly prompt: string }): st
   return `Read issue ${input.id} with the get tool, then ${ask}. Reply with a short summary or next steps as plain text.`;
 }
 
-export const draftTurn = triage.turn({
-  label: "draft",
+export const draftTurn = operation({
+  label: "triage.draft",
   input: parseDraftInput,
-  request: (input) => ({ prompt: readPrompt(input) }),
-  response: (result) => {
+  depends: { send: triage.send },
+  run: async ({ send }, ctx) => {
+    const result = await send.run({ input: { prompt: readPrompt(ctx.input) } });
     if (result.subtype === "success") return result.result;
     throw fail("DraftFailed", { reason: "the draft run did not finish" });
   },

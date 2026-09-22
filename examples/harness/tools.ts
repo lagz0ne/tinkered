@@ -4,6 +4,12 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { claudeCode, harness } from "@tinker/harness";
 
+/** Parse the author's prompt input: a plain string, trimmed of padding. */
+function parsePrompt(raw: unknown): string {
+  if (typeof raw !== "string") throw new Error("bad prompt");
+  return raw;
+}
+
 /** Which index a session searches: a per-session binding the tool reads. */
 const index = tag<string>({ label: "index", default: "docs" });
 
@@ -24,7 +30,15 @@ const search = operation({
 /** The real adapter (needs Claude Code auth — not run by tests): the model may call `search`. */
 export async function tour(): Promise<string> {
   const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     tags: [claudeCode.options({ cwd: process.cwd(), allowedTools: ["mcp__coder__search"] })],
   });

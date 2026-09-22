@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, preset, type Observe } from "@tinker/core";
+import { createScope, operation, preset, type Observe } from "@tinker/core";
 import type {
   Options,
   SDKMessage,
@@ -15,6 +15,12 @@ import {
   type Script,
   readToolSdk,
 } from "./fixtures.ts";
+
+/** Parse the author's prompt input: a plain string, trimmed of padding. */
+function parsePrompt(raw: unknown): string {
+  if (typeof raw !== "string") throw new Error("bad prompt");
+  return raw;
+}
 
 /** One `query` call a test fake saw: the prompt plus the options it opened with. */
 type Seen = { readonly prompt: string; readonly options: Options | undefined };
@@ -58,7 +64,15 @@ async function* readStream(
 /** Run one turn of `ask` on a scope whose `sdk` resource is the fake scripts. */
 function readSetup(scripts: Script[], seen: Seen[]) {
   const coder = harness({ label: "coder", adapter: claudeCode });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     presets: [preset(claudeCode.sdk, async () => fakeSdk(scripts, seen))],
   });
@@ -112,7 +126,15 @@ test("two turns in one session resume the first session id", async () => {
 test("a resume binding opens the first turn on that id", async () => {
   const seen: Seen[] = [];
   const coder = harness({ label: "coder", adapter: claudeCode });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     presets: [preset(claudeCode.sdk, async () => fakeSdk([readScript("hi")], seen))],
   });
@@ -125,7 +147,15 @@ test("a resume binding opens the first turn on that id", async () => {
 test("options merge nearest-first and force partial messages", async () => {
   const seen: Seen[] = [];
   const coder = harness({ label: "coder", adapter: claudeCode });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     tags: [claudeCode.options({ model: "a", cwd: "/x" })],
     presets: [preset(claudeCode.sdk, async () => fakeSdk([readScript("hi")], seen))],
@@ -142,7 +172,15 @@ test("options merge nearest-first and force partial messages", async () => {
 test("the nearer options binding wins every key it sets", async () => {
   const seen: Seen[] = [];
   const coder = harness({ label: "coder", adapter: claudeCode });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const scope = createScope({
     tags: [claudeCode.options({ model: "a", cwd: "/far", maxTurns: 1 })],
     presets: [preset(claudeCode.sdk, async () => fakeSdk([readScript("hi")], seen))],
@@ -166,7 +204,15 @@ test("a forced close mid-turn rejects the turn and cancels the close", async () 
     }),
   };
   const coder = harness({ label: "coder", adapter: claudeCode });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const logs: Observe.Log[] = [];
   const scope = createScope({
     observe: { history: 20, log: (entry) => logs.push(entry) },
@@ -192,10 +238,18 @@ test("a forced close mid-turn rejects the turn and cancels the close", async () 
   await scope.close();
 });
 
-test("with observe, the turn span carries the adapter and one harness turn line logs done", async () => {
+test("with observe, the send span carries the adapter and one harness turn line logs done", async () => {
   const seen: Seen[] = [];
   const coder = harness({ label: "coder", adapter: claudeCode });
-  const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result;
+    },
+  });
   const logs: Observe.Log[] = [];
   const scope = createScope({
     observe: { history: 20, log: (entry) => logs.push(entry) },
@@ -203,8 +257,8 @@ test("with observe, the turn span carries the adapter and one harness turn line 
   });
   const session = scope.createSession();
   await session.run(ask, { input: "hello" });
-  const turn = scope.spans().find((span) => span.name === "coder.ask");
-  expect(turn?.attributes.adapter).toBe("claudeCode");
+  const send = scope.spans().find((span) => span.name === "coder.send");
+  expect(send?.attributes.adapter).toBe("claudeCode");
   const lines = logs.filter((entry) => entry.message === "harness turn");
   expect(lines.length).toBe(1);
   expect(lines[0].attributes.status).toBe("done");
@@ -212,13 +266,17 @@ test("with observe, the turn span carries the adapter and one harness turn line 
   await scope.close();
 });
 
-test("a response reader delivers its reading, not the raw result", async () => {
+test("the author's run maps the result, not the frame", async () => {
   const seen: Seen[] = [];
   const coder = harness({ label: "coder", adapter: claudeCode });
-  const ask = coder.turn({
-    label: "ask",
-    request: (prompt: string) => ({ prompt }),
-    response: (result) => (result.subtype === "success" ? result.result : "error"),
+  const ask = operation({
+    label: "coder.ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: async ({ send }, ctx) => {
+      const result = await send.run({ input: { prompt: ctx.input } });
+      return result.subtype === "success" ? result.result : "error";
+    },
   });
   const scope = createScope({
     presets: [preset(claudeCode.sdk, async () => fakeSdk([readScript("Hello")], seen))],
