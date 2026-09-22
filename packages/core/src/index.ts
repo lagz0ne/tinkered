@@ -3048,8 +3048,13 @@ function releaseNsData(layer: Layer, target: Data.Cell<unknown>, key: Namespace)
   const rec = layer.nodes.get(target);
   const release = prepareNsRelease(collectNsAffected(nsDataDependents(rec, key)));
   rec?.nsCells?.delete(key);
-  flushNsWatchers(layer, target);
-  drainNsRelease(release);
+  // Drain in finally: a watcher callback can throw, and the release's defers are already extracted
+  // from owner.defers, so neither another release nor close could recover them otherwise (N2).
+  try {
+    flushNsWatchers(layer, target);
+  } finally {
+    drainNsRelease(release);
+  }
 }
 
 function nsDataDependents(rec: NodeState | undefined, key: Namespace): NsResourceState[] {
@@ -3062,8 +3067,15 @@ function nsDataDependents(rec: NodeState | undefined, key: Namespace): NsResourc
 
 function releaseNsResource(owner: Layer, target: Resource.Handle<unknown>, key: Namespace): void {
   const first = owner.nodes.get(target)?.nsResources?.get(key);
-  if (first === undefined) return;
-  drainNsRelease(prepareNsRelease(collectNsAffected([first])));
+  if (first !== undefined) {
+    drainNsRelease(prepareNsRelease(collectNsAffected([first])));
+    return;
+  }
+  // The bucket was discarded (a failed build resets it so a re-resolve rebuilds), but its cleanup
+  // defer is still in owner.defers keyed (target, key) — run it once with `released` (N3).
+  const released = new Map([[target, new Set([key])]]);
+  const fns = extractNsDefers(owner, released);
+  if (fns.length > 0) drainNsRelease(new Map([[owner, { states: [], released, fns }]]));
 }
 
 type NsReleased = {
@@ -3358,18 +3370,10 @@ function collectBorrowers(
 }
 
 function appendNodeBorrowers(rec: NodeState | undefined, out: Promise<unknown>[]): void {
+  // Only the DEFAULT node's borrowers. Named buckets' borrowers come from the captured release states
+  // (appendStateBorrowers), never from a fresh read of the live nsResources map — a notification
+  // callback can install a new namespace's borrower mid-release, which must not join this drain (N4).
   if (rec?.borrowers) for (const work of rec.borrowers) out.push(work);
-  appendNsBorrowers(rec?.nsResources, out);
-}
-
-function appendNsBorrowers(
-  resources: Map<Namespace, NsResourceState> | undefined,
-  out: Promise<unknown>[],
-): void {
-  if (!resources) return;
-  for (const state of resources.values()) {
-    if (state.borrowers) for (const work of state.borrowers) out.push(work);
-  }
 }
 
 /** Seed a layer's tag map from the authored bindings: nothing (or only nothing, however
