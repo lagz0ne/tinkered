@@ -913,6 +913,36 @@ test("releaseNs resets one data bucket and leaves its sibling and default", asyn
   await scope.close();
 });
 
+test("releaseNs on named data invalidates only resources that read that bucket", async () => {
+  const a = namespace();
+  const b = namespace();
+  const ended: string[] = [];
+  const config = data({ label: "config", initial: 0 });
+  const client = resource({
+    label: "client",
+    target: "session",
+    depends: { config },
+    factory: ({ config }, ctx) => {
+      ctx.defer((end) => void ended.push(`${config}:${end.status}`));
+      return { config };
+    },
+  });
+  const scope = createScope();
+  scope.controller(config, { ns: a }).set(1);
+  scope.controller(config, { ns: b }).set(2);
+  const plain = scope.resolve(client);
+  const first = scope.resolve(client, { ns: a });
+  const sibling = scope.resolve(client, { ns: b });
+  scope.releaseNs(config, a);
+  expect(scope.resolve(config, { ns: a })).toBe(0);
+  expect(scope.resolve(client, { ns: a })).toEqual({ config: 0 });
+  expect(scope.resolve(client, { ns: a })).not.toBe(first);
+  expect(scope.resolve(client, { ns: b })).toBe(sibling);
+  expect(scope.resolve(client)).toBe(plain);
+  expect(ended).toEqual(["1:released"]);
+  await scope.close();
+});
+
 test("releaseNs leaves a namespace-blind scope resource built", async () => {
   const a = namespace();
   const ended: string[] = [];

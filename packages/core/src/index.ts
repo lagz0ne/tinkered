@@ -915,7 +915,10 @@ type DeferEntry = {
 
 /** One named resource bucket. Default resource state stays directly on {@link NodeState}, keeping
  * the namespace-absent hot path unchanged. */
+type NsDataDependency = { source: NodeState; entry: Entry };
+
 class NsResourceState {
+  readonly owner: Layer;
   readonly target: Resource.Handle<unknown>;
   readonly key: Namespace;
   resource: Entry | undefined = undefined;
@@ -928,7 +931,9 @@ class NsResourceState {
   borrowDependencies: Set<ResourceState> | undefined = undefined;
   dependents: Set<NsResourceState> | undefined = undefined;
   dependencies: Set<NsResourceState> | undefined = undefined;
-  constructor(target: Resource.Handle<unknown>, key: Namespace) {
+  dataDependencies: Set<NsDataDependency> | undefined = undefined;
+  constructor(owner: Layer, target: Resource.Handle<unknown>, key: Namespace) {
+    this.owner = owner;
     this.target = target;
     this.key = key;
   }
@@ -979,6 +984,8 @@ class NodeState {
   /** Named cell buckets at this layer, keyed by namespace (ADR 0059): one `(layer, ns, unit)`
    * bucket per write. Absent until the first namespaced write at this layer. */
   nsCells: Map<Namespace, Entry> | undefined = undefined;
+  /** Named resource states keyed by the exact data entry they read. */
+  nsDataDependents: Map<Entry, Set<NsResourceState>> | undefined = undefined;
   /** Namespaced watchers at this layer. Each owns its full chain and last observed value because
    * two chains with the same write head can resolve through different fallback buckets. */
   nsWatchers: Set<NsWatcher> | undefined = undefined;
@@ -2667,7 +2674,7 @@ function ownNsResource(
   const rec = nodeState(owner, target);
   let state = rec.nsResources?.get(key);
   if (state === undefined) {
-    state = new NsResourceState(target, key);
+    state = new NsResourceState(owner, target, key);
     (rec.nsResources ??= new Map()).set(key, state);
   }
   return state;
@@ -2773,7 +2780,10 @@ function invalidateData(owner: Layer, target: Data.Cell<unknown>): void {
     s.cell = undefined;
     invalidateEff(owner, target);
   }
-  if (s) s.dependents = undefined;
+  if (s) {
+    s.dependents = undefined;
+    s.nsDataDependents = undefined;
+  }
 }
 
 /** Whether a node's dependents can live below its owner: a `scope` resource and a data cell are
@@ -2893,7 +2903,8 @@ function releaseSupersededDefer(
   fn: (end: Scope.End) => void | PromiseLike<void>,
   state: ResourceState,
 ): void {
-  drainStatesBorrowAware(owner, [state], [fn]);
+  const pending = drainStatesBorrowAware(owner, [state], [fn]);
+  if (pending) ignoreRejection(pending);
 }
 
 /** Run `fns` as a release drain at `owner`, after the prior (more-dependent) owner's drain (`prev`)
@@ -2932,26 +2943,31 @@ function appendStateBorrowers(
   }
 }
 
+function borrowersOf(states: readonly ResourceState[]): Set<Promise<unknown>> {
+  const borrowers = new Set<Promise<unknown>>();
+  for (const state of states) {
+    if (state.borrowers) for (const work of state.borrowers) borrowers.add(work);
+  }
+  return borrowers;
+}
+
 /** Drain exact resource buckets after only those buckets' live operation borrows settle. */
 function drainStatesBorrowAware(
   owner: Layer,
   states: readonly ResourceState[],
   fns: ((end: Scope.End) => void | PromiseLike<void>)[],
-): void {
-  const borrowers = new Set<Promise<unknown>>();
-  for (const state of states) {
-    if (state.borrowers) for (const work of state.borrowers) borrowers.add(work);
-  }
-  if (borrowers.size === 0) {
-    const done = runDefers(owner, fns, RELEASED);
-    if (done) ignoreRejection(done);
-    return;
-  }
-  const wait: Promise<void> = Promise.allSettled(borrowers).then(() => {
+  prev?: Promise<void>,
+): Promise<void> | undefined {
+  const borrowers = borrowersOf(states);
+  if (fns.length === 0 && borrowers.size === 0) return prev;
+  if (prev === undefined && borrowers.size === 0) return runDefers(owner, fns, RELEASED);
+  const waitOn: Promise<unknown>[] = prev ? [...borrowers, prev] : [...borrowers];
+  const wait: Promise<void> = Promise.allSettled(waitOn).then(() => {
     owner.pending.delete(wait);
     return runDefers(owner, fns, RELEASED);
   });
   owner.pending.add(wait);
+  return wait;
 }
 
 /** Drop every affected node's cache at its owner, then extract each affected owner's OLD defers (in
@@ -2976,17 +2992,11 @@ function invalidateAffected(order: Affected[], affected: Map<Layer, Released>): 
   return dataReleased;
 }
 
-/** Collect one named resource bucket and its named dependents. */
-function collectNsAffected(
-  owner: Layer,
-  target: Resource.Handle<unknown>,
-  key: Namespace,
-): NsResourceState[] {
-  const first = owner.nodes.get(target)?.nsResources?.get(key);
-  if (first === undefined) return [];
+/** Collect named resource buckets and their named dependents. */
+function collectNsAffected(first: readonly NsResourceState[]): NsResourceState[] {
   const seen = new Set<NsResourceState>();
   const order: NsResourceState[] = [];
-  const stack = [first];
+  const stack = [...first];
   while (stack.length > 0) {
     const state = stack.pop() as NsResourceState;
     if (seen.has(state)) continue;
@@ -3006,16 +3016,60 @@ function releaseNsBucket(layer: Layer, target: Node, key: Namespace): void {
 }
 
 function releaseNsData(layer: Layer, target: Data.Cell<unknown>, key: Namespace): void {
-  layer.nodes.get(target)?.nsCells?.delete(key);
+  const rec = layer.nodes.get(target);
+  const release = prepareNsRelease(collectNsAffected(nsDataDependents(rec, key)));
+  rec?.nsCells?.delete(key);
   flushNsWatchers(layer, target);
+  drainNsRelease(release);
+}
+
+function nsDataDependents(rec: NodeState | undefined, key: Namespace): NsResourceState[] {
+  if (rec === undefined) return [];
+  const entry = rec.nsCells?.get(key);
+  if (entry === undefined) return [];
+  const dependents = rec.nsDataDependents?.get(entry);
+  return dependents ? [...dependents] : [];
 }
 
 function releaseNsResource(owner: Layer, target: Resource.Handle<unknown>, key: Namespace): void {
-  const affected = collectNsAffected(owner, target, key);
-  if (affected.length === 0) return;
-  const released = invalidateNsAffected(owner, affected);
-  const fns = extractNsDefers(owner, released);
-  drainStatesBorrowAware(owner, affected, fns);
+  const first = owner.nodes.get(target)?.nsResources?.get(key);
+  if (first === undefined) return;
+  drainNsRelease(prepareNsRelease(collectNsAffected([first])));
+}
+
+type NsReleased = {
+  states: NsResourceState[];
+  released: Map<Resource.Handle<unknown>, Set<Namespace>>;
+  fns: ((end: Scope.End) => void | PromiseLike<void>)[];
+};
+
+function prepareNsRelease(states: readonly NsResourceState[]): Map<Layer, NsReleased> {
+  const byOwner = new Map<Layer, NsReleased>();
+  for (const state of states) nsReleaseFor(byOwner, state.owner).states.push(state);
+  for (const [owner, entry] of byOwner) {
+    entry.released = invalidateNsAffected(owner, entry.states);
+  }
+  for (const [owner, entry] of byOwner) {
+    entry.fns = extractNsDefers(owner, entry.released);
+  }
+  return byOwner;
+}
+
+function nsReleaseFor(release: Map<Layer, NsReleased>, owner: Layer): NsReleased {
+  let entry = release.get(owner);
+  if (entry === undefined) {
+    entry = { states: [], released: new Map(), fns: [] };
+    release.set(owner, entry);
+  }
+  return entry;
+}
+
+function drainNsRelease(release: Map<Layer, NsReleased>): void {
+  let prev: Promise<void> | undefined;
+  const ordered = [...release].sort(([a], [b]) => layerDepth(b) - layerDepth(a));
+  for (const [owner, entry] of ordered) {
+    prev = drainStatesBorrowAware(owner, entry.states, entry.fns, prev);
+  }
 }
 
 function invalidateNsAffected(
@@ -3062,6 +3116,7 @@ function addDependent(
   dependentState: ResourceState,
 ): void {
   const source = nsDependencyState(owner, node, chain, dependentNs);
+  addNsDataDependent(owner, node, chain, dependentState);
   const borrowed = resourceDependencyState(owner, node, chain);
   if (borrowed !== undefined) (dependentState.borrowDependencies ??= new Set()).add(borrowed);
   if (source !== undefined && dependentState instanceof NsResourceState) {
@@ -3071,6 +3126,46 @@ function addDependent(
   }
   const s = nodeState(owner, node);
   (s.dependents ??= new Set()).add(dependent);
+}
+
+function addNsDataDependent(
+  owner: Layer,
+  node: Node,
+  chain: readonly Namespace[] | undefined,
+  dependent: ResourceState,
+): void {
+  if (!isData(node) || !(dependent instanceof NsResourceState) || chain === undefined) return;
+  const selected = selectNsDataEntry(owner, node, chain);
+  if (selected !== undefined) linkNsDataDependent(selected, dependent);
+}
+
+function linkNsDataDependent(selected: NsDataDependency, dependent: NsResourceState): void {
+  const dependents =
+    selected.source.nsDataDependents?.get(selected.entry) ?? new Set<NsResourceState>();
+  if (dependents.has(dependent)) return;
+  dependents.add(dependent);
+  (selected.source.nsDataDependents ??= new Map()).set(selected.entry, dependents);
+  (dependent.dataDependencies ??= new Set()).add(selected);
+}
+
+function selectNsDataEntry(
+  owner: Layer,
+  target: Data.Cell<unknown>,
+  chain: readonly Namespace[],
+): NsDataDependency | undefined {
+  return selectBucket(
+    owner,
+    chain,
+    (layer, key) => {
+      const source = layer.nodes.get(target);
+      const entry = source?.nsCells?.get(key);
+      return source && entry ? { source, entry } : undefined;
+    },
+    (layer) => {
+      const source = layer.nodes.get(target);
+      return source?.cell ? { source, entry: source.cell } : undefined;
+    },
+  );
 }
 
 function nsDependencyState(
@@ -3086,11 +3181,29 @@ function nsDependencyState(
 }
 
 function detachNsState(state: NsResourceState): void {
-  if (state.dependencies) for (const source of state.dependencies) source.dependents?.delete(state);
-  if (state.dependents)
-    for (const dependent of state.dependents) dependent.dependencies?.delete(state);
+  detachNsDataDependencies(state);
+  detachNsResourceDependencies(state);
   state.dependencies = undefined;
   state.dependents = undefined;
+  state.dataDependencies = undefined;
+}
+
+function detachNsDataDependencies(state: NsResourceState): void {
+  if (!state.dataDependencies) return;
+  for (const link of state.dataDependencies) unlinkNsDataDependent(link, state);
+}
+
+function unlinkNsDataDependent(link: NsDataDependency, state: NsResourceState): void {
+  const dependents = link.source.nsDataDependents?.get(link.entry);
+  if (!dependents?.delete(state) || dependents.size !== 0) return;
+  link.source.nsDataDependents?.delete(link.entry);
+}
+
+function detachNsResourceDependencies(state: NsResourceState): void {
+  if (state.dependencies) for (const source of state.dependencies) source.dependents?.delete(state);
+  if (state.dependents) {
+    for (const dependent of state.dependents) dependent.dependencies?.delete(state);
+  }
 }
 
 function resourceDependencyState(
