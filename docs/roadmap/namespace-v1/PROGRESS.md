@@ -28,7 +28,7 @@ node tools/jev/label.mjs <judge> t|f <file> --by <ticket>
   and tags resolve through `(layer, ns, unit)`. The `ns`-absent path stays byte-for-byte and is
   benched (the +2 ns budget). Probes cover: two namespaces split one cell; a tag chain `[a, muse]`
   finds a binding in `muse`; ambient + override; parent-vs-child read order.
-- **t02a ns resource build** -- [ ] blocked by: t01
+- **t02a ns resource build** -- [x] blocked by: t01
   Session-target resources key on `(owner, ns, handle)` via the same selector; scope-target stay
   ns-blind (one shared build, no tenant-tag leak); the warm/cache path is per namespace; a named
   resource's data dependency links to the entry the read actually resolved (nearer default shadows a
@@ -93,3 +93,15 @@ One line per ticket: tag -- sha -- tests -- size (B gzip) -- mutation -- Jev fla
   shared per-key comparison, then a re-entrancy rob) fixed by making each
   watcher own its chain + value and snapshotting before firing. The green
   gate never showed any of these -- the xhigh judge did.
+
+- **t02a** -- tag `namespace-v1/t02a` -- core 424 tests -- mutation 85.30 (floor 85).
+  Session-target resources key on `(owner, ns, handle)` via the shared selector; a chain
+  reuses the nearest occupied bucket and builds in its head; scope-target stays ns-blind;
+  a named resource links to the exact data entry it read; close and base `release`
+  clear every bucket of a handle and wait for every borrow on it. No `releaseNs`.
+  Writers sol 5.6 (build) and sol 6 (fix round); the lead reviewed it, not a judge
+  agent. The lead's own probes found one real bug the writer's tests missed: a bucket
+  left empty by a sync build failure was picked as a fallback and filled with a sibling
+  chain's tags (the round-1 contamination returning). Fixed by selecting only occupied
+  buckets. Also removed a dead per-bucket `borrowers` field and restored the inline
+  ns-absent path in `resourceSlot`.
