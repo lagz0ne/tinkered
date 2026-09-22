@@ -599,3 +599,10 @@ The changed build passes, with no sideways scroll or errors.
 Build and check pass; 56 scope tests pass.
 Style census passes. Advisory view findings describe the
 React view components correctly; no model change is needed.
+
+Shipped commit `478cfff` to main and the live playground.
+Dokploy deployment `Ma0ZPG_56nFfEuFtrbUmu` finished.
+Its log confirms recreation and startup; the image is healthy.
+The live index hash matches the checked build.
+The same phone reset and reload regression passes live.
+This checks phone-sized Chromium, not a physical Android Edge.
