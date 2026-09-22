@@ -9,33 +9,47 @@ function validateSource(file) {
     throw new Error("Choose a .ts or .tsx file below src/ or tests/");
 }
 
+const unavailable = (why) => new Error(`Shape check unavailable: ${why}`);
+
+async function loadShapeHelper(jevDir) {
+  const shapePath = join(jevDir, "shape.mjs");
+  if (!existsSync(shapePath)) return null;
+  try {
+    return await import(pathToFileURL(shapePath).href);
+  } catch (error) {
+    throw unavailable(`cannot import shape.mjs (${error?.message ?? error})`);
+  }
+}
+
+function requireInspectShape(shape) {
+  if (typeof shape?.inspectShape === "function") return shape.inspectShape;
+  throw unavailable("shape.mjs has no inspectShape export");
+}
+
+async function runInspectShape(inspect, source, file) {
+  try {
+    return await inspect(source, file);
+  } catch (error) {
+    throw unavailable(`inspectShape failed (${error?.message ?? error})`);
+  }
+}
+
+function requireFindingRows(found) {
+  if (Array.isArray(found)) return found;
+  throw unavailable("inspectShape must return an array");
+}
+
 // Deterministic source-shape findings for one file. Only an absent
 // shape.mjs is legacy-optional (old frozen dirs report no findings).
 // A present helper that cannot import, has no inspectShape export,
 // throws, or returns a non-array is an unavailable check: it throws,
 // never a clean empty list (unavailable checks never pass).
 export async function plainFindingsFor(source, file, jevDir) {
-  const shapePath = join(jevDir, "shape.mjs");
-  if (!existsSync(shapePath)) return [];
-  let shape;
-  try {
-    shape = await import(pathToFileURL(shapePath).href);
-  } catch (error) {
-    throw new Error(
-      `Shape check unavailable: cannot import shape.mjs (${error?.message ?? error})`,
-    );
-  }
-  if (typeof shape.inspectShape !== "function")
-    throw new Error("Shape check unavailable: shape.mjs has no inspectShape export");
-  let found;
-  try {
-    found = await shape.inspectShape(source, file);
-  } catch (error) {
-    throw new Error(`Shape check unavailable: inspectShape failed (${error?.message ?? error})`);
-  }
-  if (!Array.isArray(found))
-    throw new Error("Shape check unavailable: inspectShape must return an array");
-  return found;
+  const shape = await loadShapeHelper(jevDir);
+  if (shape === null) return [];
+  const inspect = requireInspectShape(shape);
+  const found = await runInspectShape(inspect, source, file);
+  return requireFindingRows(found);
 }
 
 export function createBroker(config) {
