@@ -453,3 +453,16 @@ Round 2 resumed agent IDs:
 - `xiaomi/mimo-v2.6-pro`: `64462225-78fd-4659-83cf-b13a13fa1a79`.
 - `zai/glm-5.3-flash`: `97d7cd24-53ad-4f96-8fff-f76df8379db1`.
 - `deepseek/deepseek-v4.1-flash`: `9c942f93-9636-4974-8f05-d8bd5d8729dd`.
+
+### DeepSeek after budget stops were removed
+
+DeepSeek completed rounds 1 and 2 on its own saved repo.
+Its logs show type checks, 34 tests, and a build passing.
+It made six Jev tool calls and fixed a module-level ID counter.
+The saved snapshot passes the teacher's sampled core and browser
+checks for both rounds. No teacher repair was needed.
+Source: 662 lines. Tests: 798 lines.
+[Saved result](trial-01-round-2-deepseek.json).
+
+The other three resumed writers have not sent completion notices.
+Keep this checked snapshot while they work; round 3 is not staged.
