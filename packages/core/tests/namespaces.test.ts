@@ -190,6 +190,32 @@ test("a subflow .run({ input, ns }) writes its own bucket; without ns it inherit
   return scope.close();
 });
 
+test("a tagged subflow inherits its named caller's namespace", async () => {
+  const named = namespace();
+  const marker = tag({ label: "marker", default: false });
+  const cell = data({ label: "cell", initial: 0, parse: asNumber });
+  const child = operation({
+    label: "child",
+    depends: { cell: cell.controller, marker },
+    run: ({ cell, marker }) => {
+      expect(marker).toBe(true);
+      cell.set(cell.get() + 2);
+      return cell.get();
+    },
+  });
+  const parent = operation({
+    label: "parent",
+    depends: { child },
+    run: ({ child }) => child.run({ tags: [marker(true)] }),
+  });
+  const scope = createScope();
+  scope.controller(cell, { ns: named }).set(3);
+  expect(await scope.run(parent, { ns: named })).toBe(5);
+  expect(scope.resolve(cell, { ns: named })).toBe(3);
+  expect(scope.resolve(cell)).toBe(0);
+  await scope.close();
+});
+
 test("named calls keep the real layer lifecycle and extension registry", async () => {
   const readyValue = extension({ label: "readyValue", start: async () => 42 });
   const named = namespace();

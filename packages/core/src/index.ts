@@ -1996,12 +1996,14 @@ function runTagged<T, I>(
   target: Operation.Handle<T, I>,
   parent: Observe.Span | undefined,
   call: Scope.Invocation<I> & { readonly tags: Scope.Bindings },
+  inheritedChain: readonly Namespace[] | undefined,
 ): Promise<Awaited<T>> {
   const tags = call.tags;
+  const chain = call.ns === undefined ? inheritedChain : nsChainOf(call.ns);
   const inner: Scope.Invocation<I> | undefined =
     call.input === undefined && call.rawInput === undefined ? undefined : stripTags(call);
-  return runSessionWith(layer, { tags, ns: call.ns }, (child) =>
-    runUntagged(child, target, parent, inner, child.ns),
+  return runSessionWith(layer, { tags, ns: chain }, (child) =>
+    runUntagged(child, target, parent, inner, chain),
   ) as Promise<Awaited<T>>;
 }
 
@@ -2054,6 +2056,7 @@ function operationController<T, I>(
         call as Scope.Invocation<I> & {
           readonly tags: Scope.Bindings;
         },
+        chain,
       );
     if (hasCallNs(call))
       return runNsCall(layer, target, parent, call as Scope.Invocation<I> & { readonly ns: Ns });
