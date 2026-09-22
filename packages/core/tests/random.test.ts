@@ -32,6 +32,17 @@ test("different seeds produce different next() streams", () => {
   expect(two).not.toEqual(one);
 });
 
+test("uuid() yields a distinct id on each call", () => {
+  const ids = createScope({ random: makeTestRandom({ seed: 99 }) }).run(drawUuid);
+  expect(new Set(ids).size).toBe(ids.length);
+});
+
+test("makeTestRandom with no seed is a deterministic default generator", () => {
+  const first = createScope({ random: makeTestRandom() }).run(drawNext);
+  const second = createScope({ random: makeTestRandom() }).run(drawNext);
+  expect(second).toEqual(first);
+});
+
 test("a scope with no random option reads the system source", () => {
   const [n] = createScope().run(drawNext);
   const [id] = createScope().run(drawUuid);
