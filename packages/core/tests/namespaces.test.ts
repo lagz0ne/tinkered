@@ -516,6 +516,222 @@ test("a chain borrow waits on the fallback bucket it resolved", async () => {
   await scope.close();
 });
 
+test("a named run borrows the bucket selected after earlier dependencies resolve", async () => {
+  const tenant = tag<string>({ label: "tenant" });
+  const a = namespace({ tags: [tenant("A")] });
+  const b = namespace({ tags: [tenant("B")] });
+  const ended: string[] = [];
+  let finish = (): void => undefined;
+  const gate = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const scope = createScope();
+  const client = resource({
+    label: "client",
+    target: "session",
+    depends: { tenant },
+    factory: ({ tenant }, ctx) => {
+      const value = { tenant, closed: false };
+      ctx.defer(() => {
+        value.closed = true;
+        ended.push(tenant);
+      });
+      return value;
+    },
+  });
+  scope.resolve(client, { ns: b });
+  const trigger = resource({
+    label: "trigger",
+    target: "session",
+    factory: () => {
+      scope.resolve(client, { ns: a });
+      return {};
+    },
+  });
+  let held = { tenant: "", closed: true };
+  const hold = operation({
+    label: "hold",
+    depends: { trigger, client },
+    run: async ({ client }) => {
+      held = client;
+      await gate;
+    },
+  });
+  const running = scope.run(hold, { ns: [a, b] });
+  scope.releaseNs(client, a);
+  expect(held).toEqual({ tenant: "A", closed: false });
+  expect(ended).toEqual([]);
+  scope.releaseNs(client, b);
+  expect(ended).toEqual(["B"]);
+  finish();
+  await running;
+  await scope.settled();
+  expect(ended).toEqual(["B", "A"]);
+  await scope.close();
+});
+
+test("a named run borrows a replacement built after an earlier dependency releases it", async () => {
+  const a = namespace();
+  const ended: string[] = [];
+  let finish = (): void => undefined;
+  const gate = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const scope = createScope();
+  const client = resource({
+    label: "client",
+    target: "session",
+    factory: (_deps, ctx) => {
+      const value = { closed: false };
+      ctx.defer(() => {
+        value.closed = true;
+        ended.push("client");
+      });
+      return value;
+    },
+  });
+  const trigger = resource({
+    label: "trigger",
+    target: "session",
+    factory: () => {
+      scope.releaseNs(client, a);
+      return {};
+    },
+  });
+  let held = { closed: true };
+  const hold = operation({
+    label: "hold",
+    depends: { trigger, client },
+    run: async ({ client }) => {
+      held = client;
+      await gate;
+    },
+  });
+  const running = scope.run(hold, { ns: a });
+  scope.releaseNs(client, a);
+  expect(held.closed).toBe(false);
+  expect(ended).toEqual([]);
+  finish();
+  await running;
+  await scope.settled();
+  expect(ended).toEqual(["client"]);
+  await scope.close();
+});
+
+test("a named run keeps a late dependency cleanup alive through its dependent", async () => {
+  const a = namespace();
+  const ended: string[] = [];
+  let finishBuild = (): void => undefined;
+  const buildGate = new Promise<void>((resolve) => {
+    finishBuild = resolve;
+  });
+  let finishRun = (): void => undefined;
+  const runGate = new Promise<void>((resolve) => {
+    finishRun = resolve;
+  });
+  let enter = (): void => undefined;
+  const entered = new Promise<void>((resolve) => {
+    enter = resolve;
+  });
+  const pool = resource({
+    label: "pool",
+    target: "session",
+    factory: async (_deps, ctx) => {
+      await buildGate;
+      const value = { closed: false };
+      ctx.defer(() => {
+        value.closed = true;
+        ended.push("pool");
+      });
+      return value;
+    },
+  });
+  const client = resource({
+    label: "client",
+    target: "session",
+    depends: { pool },
+    factory: async ({ pool }, ctx) => {
+      ctx.defer(() => void ended.push("client"));
+      return pool;
+    },
+  });
+  let held = { closed: true };
+  const hold = operation({
+    label: "hold",
+    depends: { client },
+    run: async ({ client }) => {
+      held = client;
+      enter();
+      await runGate;
+    },
+  });
+  const scope = createScope();
+  const running = scope.run(hold, { ns: a });
+  scope.releaseNs(pool, a);
+  finishBuild();
+  await entered;
+  expect(held.closed).toBe(false);
+  expect(ended).toEqual([]);
+  finishRun();
+  await running;
+  await scope.settled();
+  expect(held.closed).toBe(true);
+  expect(ended).toHaveLength(2);
+  expect(ended).toContain("client");
+  expect(ended).toContain("pool");
+  await scope.close();
+});
+
+test("a named run keeps dependencies borrowed after its dependent is released", async () => {
+  const a = namespace();
+  const ended: string[] = [];
+  let finish = (): void => undefined;
+  const gate = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const pool = resource({
+    label: "pool",
+    target: "session",
+    factory: (_deps, ctx) => {
+      const value = { closed: false };
+      ctx.defer(() => {
+        value.closed = true;
+        ended.push("pool");
+      });
+      return value;
+    },
+  });
+  const client = resource({
+    label: "client",
+    target: "session",
+    depends: { pool },
+    factory: ({ pool }, ctx) => {
+      ctx.defer(() => void ended.push("client"));
+      return pool;
+    },
+  });
+  let held = { closed: true };
+  const hold = operation({
+    label: "hold",
+    depends: { client },
+    run: async ({ client }) => {
+      held = client;
+      await gate;
+    },
+  });
+  const scope = createScope();
+  const running = scope.run(hold, { ns: a });
+  scope.releaseNs(client, a);
+  scope.releaseNs(pool, a);
+  expect(held.closed).toBe(false);
+  expect(ended).toEqual([]);
+  finish();
+  await running;
+  await scope.settled();
+  expect(ended).toEqual(["client", "pool"]);
+  await scope.close();
+});
+
 test("namespace clients share one scope-target pool", () => {
   const a = namespace();
   const b = namespace();

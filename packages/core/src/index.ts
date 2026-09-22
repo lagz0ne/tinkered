@@ -925,6 +925,7 @@ class NsResourceState {
   gen: object = {};
   building = false;
   borrowers: Set<Promise<unknown>> | undefined = undefined;
+  borrowDependencies: Set<ResourceState> | undefined = undefined;
   dependents: Set<NsResourceState> | undefined = undefined;
   dependencies: Set<NsResourceState> | undefined = undefined;
   constructor(target: Resource.Handle<unknown>, key: Namespace) {
@@ -961,6 +962,8 @@ class NodeState {
   building = false;
   /** In-flight op promises borrowing this resource (release waits on them). */
   borrowers: Set<Promise<unknown>> | undefined = undefined;
+  /** Resource states this resource uses; a borrow follows these links transitively. */
+  borrowDependencies: Set<ResourceState> | undefined = undefined;
   /** Resources that depend on this node (for cascade release/close). */
   dependents: Set<Resource.Handle<unknown>> | undefined = undefined;
   /** Memoized controller: the public `controller` path always passes an undefined observation
@@ -2108,12 +2111,12 @@ function operationController<T, I>(
     /** Hold a borrow across the op's WHOLE lifetime — body settle (or a throw) AND its own `defer`
      * drain — so a release waits for the op's cleanup (which may still touch the resource) before
      * tearing it down (ADR 0026 Q2). Input is admitted first, so a rejected call never reserves an
-     * empty resource bucket. A fully synchronous op removes the borrow within `run()`, so a later
-     * release sees no borrower and stays sync. */
-    let held: ReturnType<typeof takeBorrows>;
+     * empty resource bucket. Named dependencies register after each resolve against the bucket that
+     * delivered the value. A fully synchronous op removes the borrow within `run()`. */
+    let held: Borrow | undefined;
     const releaseBorrow = (): void => {
       if (!held) return;
-      for (const b of held.list) removeBorrow(b.state, held.done);
+      for (const state of held.list) removeBorrow(state, held.done);
       held.settle();
     };
     let ctx: OperationCtx<I> | undefined;
@@ -2131,8 +2134,9 @@ function operationController<T, I>(
     buildDepth++;
     try {
       ctx = new OperationCtx<I>(layer, target, call, obs, span);
-      held = takeBorrows(layer, target, chain);
-      const deps = readOpDeps(layer, target, span, sees, chain);
+      const borrowing = prepareBorrows(layer, target, chain);
+      held = borrowing.borrow;
+      const deps = readOpDeps(layer, target, span, sees, chain, borrowing.register);
       result = runBody(override, target, deps, ctx, parked);
     } catch (error) {
       closeSpan(obs, span, "failed");
@@ -2185,6 +2189,7 @@ function ownerOf(layer: Layer, target: Resource.Handle<unknown>): Layer {
 /** Per-dependency edge bookkeeping run when a dependency is realized (undefined for operations, which
  * form no release edges). */
 type RegisterEdge = ((dep: Scope.Dependency) => void) | undefined;
+type RegisterBorrow = ((dep: Scope.Dependency) => void) | undefined;
 
 /** One still-building resource slot of a `deps` object: its key and the build to await. */
 type PendingSlot = { key: string; build: Promise<unknown> };
@@ -2206,6 +2211,7 @@ function buildDeps(
   span: Observe.Span | undefined,
   registerEdge: RegisterEdge,
   chain: readonly Namespace[] | undefined = layer.ns,
+  registerBorrow?: RegisterBorrow,
 ): Record<string, unknown> {
   const deps: Record<string, unknown> = {};
   let pending: PendingSlot[] | undefined;
@@ -2213,6 +2219,7 @@ function buildDeps(
     const dep = depends[key];
     registerEdge?.(dep);
     const value = resolveDep(layer, dep, span, chain);
+    registerResolvedBorrow(registerBorrow, dep);
     if (isThenable(value) && isResource(dep)) {
       (pending ??= []).push({ key, build: Promise.resolve(value) });
     }
@@ -2245,9 +2252,10 @@ function readOpDeps(
   span: Observe.Span | undefined,
   sees: boolean,
   chain: readonly Namespace[] | undefined = layer.ns,
+  registerBorrow?: RegisterBorrow,
 ): Record<string, unknown> {
   return sees
-    ? buildDeps(layer, target.depends, span, undefined, chain)
+    ? buildDeps(layer, target.depends, span, undefined, chain, registerBorrow)
     : buildPlainDeps(layer, target.depends, span, chain);
 }
 
@@ -2722,6 +2730,7 @@ function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): NsR
   s.promise = undefined;
   s.failed = undefined;
   s.build = undefined;
+  s.borrowDependencies = undefined;
   if (s.nsResources) {
     for (const state of s.nsResources.values()) {
       state.gen = {};
@@ -2729,6 +2738,7 @@ function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): NsR
       state.promise = undefined;
       state.failed = undefined;
       state.build = undefined;
+      state.borrowDependencies = undefined;
       detachNsState(state);
     }
     s.nsResources = undefined;
@@ -3019,6 +3029,7 @@ function invalidateNsAffected(
     state.promise = undefined;
     state.failed = undefined;
     state.build = undefined;
+    state.borrowDependencies = undefined;
     detachNsState(state);
     owner.nodes.get(state.target)?.nsResources?.delete(state.key);
     const keys = released.get(state.target) ?? new Set<Namespace>();
@@ -3051,6 +3062,8 @@ function addDependent(
   dependentState: ResourceState,
 ): void {
   const source = nsDependencyState(owner, node, chain, dependentNs);
+  const borrowed = resourceDependencyState(owner, node, chain);
+  if (borrowed !== undefined) (dependentState.borrowDependencies ??= new Set()).add(borrowed);
   if (source !== undefined && dependentState instanceof NsResourceState) {
     (source.dependents ??= new Set()).add(dependentState);
     (dependentState.dependencies ??= new Set()).add(source);
@@ -3080,11 +3093,26 @@ function detachNsState(state: NsResourceState): void {
   state.dependents = undefined;
 }
 
+function resourceDependencyState(
+  owner: Layer,
+  node: Node,
+  chain: readonly Namespace[] | undefined,
+): ResourceState | undefined {
+  if (!isResource(node)) return undefined;
+  const sourceOwner = ownerOf(owner, node);
+  if (node.target !== "session" || chain === undefined || chain.length === 0) {
+    return nodeState(sourceOwner, node);
+  }
+  const [head] = chain;
+  return selectNsResource(sourceOwner, node, chain) ?? ownNsResource(sourceOwner, node, head);
+}
+
 function detachResource(
   owner: Layer,
   dependent: Resource.Handle<unknown>,
   state: ResourceState,
 ): void {
+  state.borrowDependencies = undefined;
   if (state instanceof NsResourceState) return detachNsState(state);
   detachDependent(owner, dependent);
 }
@@ -3115,40 +3143,63 @@ function resourceDepHandle(dep: Scope.Dependency): Resource.Handle<unknown> | un
   return undefined;
 }
 
-type Borrow = { state: ResourceState };
+type Borrow = {
+  list: Set<ResourceState>;
+  done: Promise<void>;
+  settle: () => void;
+};
 
-/** The exact resource buckets an operation borrows. A namespaced session resource uses the first
- * existing key in its chain, or the chain head that dependency resolution is about to build. */
-function collectBorrows(
+function registerResolvedBorrow(register: RegisterBorrow, dep: Scope.Dependency): void {
+  register?.(dep);
+}
+
+function beginBorrow(target: Operation.Handle<unknown, unknown>): Borrow | undefined {
+  if ((target as BorrowFlag)[borrowSym] !== true) return undefined;
+  let settle: () => void = noop;
+  const done = new Promise<void>((resolve) => (settle = resolve));
+  return { list: new Set(), done, settle };
+}
+
+function holdBorrow(borrow: Borrow, state: ResourceState): void {
+  const stack = [state];
+  while (stack.length > 0) {
+    const current = stack.pop() as ResourceState;
+    if (borrow.list.has(current)) continue;
+    borrow.list.add(current);
+    (current.borrowers ??= new Set()).add(borrow.done);
+    if (current.borrowDependencies) {
+      for (const dependency of current.borrowDependencies) stack.push(dependency);
+    }
+  }
+}
+
+function prepareBorrows(
   layer: Layer,
-  depends: Scope.Depends,
+  target: Operation.Handle<unknown, unknown>,
   chain: readonly Namespace[] | undefined,
-): Borrow[] {
-  const out: Borrow[] = [];
-  for (const key in depends) {
-    const target = resourceDepHandle(depends[key]);
-    if (target === undefined) continue;
-    const owner = ownerOf(layer, target);
-    const state = borrowState(owner, target, chain);
-    out.push({ state });
+): { borrow: Borrow | undefined; register: RegisterBorrow } {
+  if (chain === undefined || chain.length === 0) {
+    return { borrow: takeBorrows(layer, target, chain), register: undefined };
   }
-  return out;
+  const borrow = beginBorrow(target);
+  return {
+    borrow,
+    register: borrow ? (dep) => borrowResolved(layer, dep, chain, borrow) : undefined,
+  };
 }
 
-function borrowState(
-  owner: Layer,
-  target: Resource.Handle<unknown>,
-  chain: readonly Namespace[] | undefined,
-): ResourceState {
-  if (target.target !== "session" || chain === undefined || chain.length === 0) {
-    return nodeState(owner, target);
-  }
-  const [head] = chain;
-  return selectNsResource(owner, target, chain) ?? ownNsResource(owner, target, head);
-}
-
-function addBorrow(state: ResourceState, work: Promise<unknown>): void {
-  (state.borrowers ??= new Set()).add(work);
+function borrowResolved(
+  layer: Layer,
+  dep: Scope.Dependency,
+  chain: readonly Namespace[],
+  borrow: Borrow,
+): void {
+  const target = resourceDepHandle(dep);
+  if (target === undefined) return;
+  const owner = ownerOf(layer, target);
+  const state =
+    target.target === "session" ? selectNsResource(owner, target, chain) : nodeState(owner, target);
+  if (state !== undefined) holdBorrow(borrow, state);
 }
 
 /** An operation's dependency borrows, or undefined when its deps name no resource. */
@@ -3156,14 +3207,17 @@ function takeBorrows(
   layer: Layer,
   target: Operation.Handle<unknown, unknown>,
   chain: readonly Namespace[] | undefined,
-): { list: Borrow[]; done: Promise<void>; settle: () => void } | undefined {
-  if ((target as BorrowFlag)[borrowSym] !== true) return undefined;
-  const list = collectBorrows(layer, target.depends, chain);
-  if (list.length === 0) return undefined;
-  let settle: () => void = noop;
-  const done = new Promise<void>((r) => (settle = r));
-  for (const b of list) addBorrow(b.state, done);
-  return { list, done, settle };
+): Borrow | undefined {
+  const borrow = beginBorrow(target);
+  if (borrow === undefined) return undefined;
+  for (const key in target.depends) {
+    const resource = resourceDepHandle(target.depends[key]);
+    if (resource === undefined) continue;
+    const owner = ownerOf(layer, resource);
+    const state = resourceDependencyState(owner, resource, chain);
+    if (state !== undefined) holdBorrow(borrow, state);
+  }
+  return borrow;
 }
 
 function removeBorrow(state: ResourceState, work: Promise<unknown>): void {
