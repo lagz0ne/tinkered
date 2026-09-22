@@ -310,7 +310,7 @@ void describe("shape findings", () => {
     );
   });
 
-  void it("flags a nested function local, not a use after its declaration hoists", () => {
+  void it("binds a nested function local wherever the use sits", () => {
     const nested = inspectShape(
       `import { useData } from "@tinker/react"; function View() { function useData() {} const x=useData(c,{writable:true}); return <div/>; }`,
       "a.tsx",
@@ -320,10 +320,52 @@ void describe("shape findings", () => {
       `import { useData } from "@tinker/react"; function View() { const x=useData(c,{writable:true}); function useData() {} return <div/>; }`,
       "a.tsx",
     );
+    assert.deepEqual(hoisted, []);
+  });
+
+  void it("binds late imports and late functions before resolving calls", () => {
+    const lateImport = inspectShape(
+      `function V(){ useData(c,{writable:true}); return <div/>; } import {useData} from "@tinker/react";`,
+      "a.tsx",
+    );
     assert.deepEqual(
-      hoisted.map((r) => [r.id, r.line]),
+      lateImport.map((r) => [r.id, r.line]),
       [["no-writable-in-view", 1]],
     );
+    const lateFunction = inspectShape(
+      `import {useData} from "@tinker/react"; function V(){ useData(c,{writable:true}); function useData(){} return <div/>; }`,
+      "a.tsx",
+    );
+    assert.deepEqual(lateFunction, []);
+  });
+
+  void it("keeps catch params and loop heads inside their own frame", () => {
+    const afterCatch = inspectShape(
+      `import {useData} from "@tinker/react"; function V(){ try{}catch(useData){} useData(c,{writable:true}); return <div/>; }`,
+      "a.tsx",
+    );
+    assert.deepEqual(
+      afterCatch.map((r) => [r.id, r.line]),
+      [["no-writable-in-view", 1]],
+    );
+    const insideCatch = inspectShape(
+      `import {useData} from "@tinker/react"; function V(){ try{}catch(useData){ useData(c,{writable:true}); } return <div/>; }`,
+      "a.tsx",
+    );
+    assert.deepEqual(insideCatch, []);
+    const afterLoop = inspectShape(
+      `import {useData} from "@tinker/react"; function V(){ for(let useData of []){} useData(c,{writable:true}); return <div/>; }`,
+      "a.tsx",
+    );
+    assert.deepEqual(
+      afterLoop.map((r) => [r.id, r.line]),
+      [["no-writable-in-view", 1]],
+    );
+    const insideLoop = inspectShape(
+      `import {useData} from "@tinker/react"; function V(){ for(let useData of []){ useData(c,{writable:true}); } return <div/>; }`,
+      "a.tsx",
+    );
+    assert.deepEqual(insideLoop, []);
   });
 
   void it("keeps a block-local const inside its block", () => {
