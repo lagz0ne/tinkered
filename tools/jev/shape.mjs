@@ -106,30 +106,6 @@ function specKind(s, hook, hookAlias, hookNs) {
   return "local";
 }
 
-/** One `import … from` row into the top scope: hook bindings or locals. */
-function importRow(top, hookAlias, hookNs, node) {
-  const hook = node.source.value === "@tinker/react";
-  for (const s of node.specifiers) {
-    if (s.local) top.set(s.local.name, specKind(s, hook, hookAlias, hookNs));
-  }
-}
-
-/** A `useData(…)` call resolved through the scope chain — plain, aliased, or off a
- *  `@tinker/react` namespace — else false. Reads one row: the name, then the object. */
-function bareData(callee, bound, scopes, stack) {
-  if (callee?.type !== "Identifier") return null;
-  if (callee.name !== "useData" && !bound.dataCall.has(callee.name)) return false;
-  return lookup(scopes, stack, callee.name) === "hook";
-}
-
-/** A `useData` call off a namespace object bound to `@tinker/react` — else false. */
-function nsData(callee, bound, scopes, stack) {
-  const member = memberOf(callee);
-  if (member === null || member.name !== "useData") return false;
-  if (!bound.scopeNs.has(member.obj)) return false;
-  return lookup(scopes, stack, member.obj) === "hook-ns";
-}
-
 /** The declarator's function init — `{ name, params, body }` — or null. */
 function constInit(src, d) {
   const init = d?.init;
@@ -202,92 +178,83 @@ function providesScope(body, bound) {
 const SCOPE_PROP = /Scope\s*\.\s*Handle|DataController/;
 const SCOPE_NAME = /^(scope|session|controller)$/i;
 
-/** One parameter's bound names into `bind`: plain, destructured, or array. */
-function bindParam(bind, p) {
-  if (p.type === "Identifier") bind(p.name, "local");
-  if (p.type === "ObjectPattern") for (const q of p.properties) bindPattern(bind, q.value ?? q.key);
-  if (p.type === "ArrayPattern") for (const e of p.elements) bindPattern(bind, e);
+/** Function node types: one lexical scope each. Block statements own a scope for
+ *  let/const/catch; `var` and function declarations belong to the function.
+ *  `extract.mjs` keeps its own copy for units. */
+const SHAPE_BLOCK_TYPES = new Set(["BlockStatement", "StaticBlock"]);
+
+/** Every name a pattern binds: identifiers, defaults, rests, holes skipped. */
+function patternNames(p, out = []) {
+  if (!p) return out;
+  return patternInto(p, out);
 }
 
-/** One pattern's bound names into `bind`: identifiers, holes, defaults, and rests. */
-function bindPattern(bind, p) {
-  if (!p) return;
-  if (p.type === "Identifier") bind(p.name, "local");
-  else if (p.type === "AssignmentPattern") bindPattern(bind, p.left);
-  else if (p.type === "RestElement") bindPattern(bind, p.argument);
-  else bindParam(bind, p);
+/** One pattern node into `out`: the identifier, default, rest, or element kind. */
+function patternInto(p, out) {
+  if (p.type === "Identifier") out.push(p.name);
+  else if (p.type === "AssignmentPattern") patternNames(p.left, out);
+  else if (p.type === "RestElement") patternNames(p.argument, out);
+  else patternKids(p, out);
+  return out;
 }
 
-/** The innermost enclosing function scope, or null at module level. */
-function stackTop(stack, fnNames) {
-  for (let i = stack.length - 1; i >= 0; i--)
-    if (fnNames.has(stack[i])) return fnNames.get(stack[i]);
-  return null;
+/** The bound names under one object or array pattern. */
+function patternKids(p, out) {
+  if (p.type === "ObjectPattern")
+    for (const q of p.properties ?? [])
+      patternNames(q.type === "Property" ? q.value : q.argument, out);
+  if (p.type === "ArrayPattern") for (const e of p.elements ?? []) patternNames(e, out);
+  return out;
 }
 
-/** A function node's params into its own scope. */
-function noteParams(inner, bindInto, node) {
-  for (const p of node.params ?? []) bindParam(bindInto(inner), p);
-}
-
-/** A declarator or catch binding into the owning scope — the function, else top. */
-function notePattern(stack, fnNames, bindInto, bindTop, id) {
-  const owner = stackTop(stack, fnNames);
-  bindPattern(owner === null ? bindTop : bindInto(owner), id);
-}
-
-/** A function node on entry: push its scope and bind its params. */
-function enterFn(stack, intoFn, bindInto, node) {
-  stack.push(node);
-  noteParams(intoFn(node), bindInto, node);
-}
-
-/** A non-function node on entry: the name it declares, if any. One branch per
- *  node kind keeps it under the cap. */
-function noteLeaf(top, stack, fnNames, bindInto, bindTop, row, kind, node) {
-  if (kind === "FunctionDeclaration" && node.id) top.set(node.id.name, "local");
-  if (kind === "VariableDeclarator") notePattern(stack, fnNames, bindInto, bindTop, node.id);
-  if (kind === "CatchClause" && node.param)
-    notePattern(stack, fnNames, bindInto, bindTop, node.param);
-  if (kind === "ImportDeclaration") row(node);
-}
-
-/** The enter half of the collecting pass: push function scopes, bind params,
- *  then file each declarator in the scope that owns it. One branch per node
- *  kind keeps it under the cap. */
-function makeNote(stack, fnNames, top, bindInto, bindTop, row) {
-  const intoFn = (node) => {
-    if (!fnNames.has(node)) fnNames.set(node, new Map());
-    return fnNames.get(node);
-  };
-  return (node) => {
-    const kind = node.type ?? "";
-    if (SHAPE_FN_TYPES.has(kind)) enterFn(stack, intoFn, bindInto, node);
-    else noteLeaf(top, stack, fnNames, bindInto, bindTop, row, kind, node);
+/** One scope-frame stack: push/pop maps of name → kind, read innermost first. */
+function scopeStack() {
+  const frames = [new Map()];
+  return {
+    push: () => frames.push(new Map()),
+    pop: () => frames.pop(),
+    set: (name, kind) => frames[frames.length - 1].set(name, kind),
+    setVar: (name, kind) => {
+      for (let i = frames.length - 1; i >= 0; i--) {
+        if (frames[i].get("@kind") === "function") {
+          frames[i].set(name, kind);
+          return;
+        }
+      }
+      frames[0].set(name, kind);
+    },
+    get: (name) => {
+      for (let i = frames.length - 1; i >= 0; i--)
+        if (frames[i].has(name)) return frames[i].get(name);
+      return undefined;
+    },
+    markFunction: () => frames[frames.length - 1].set("@kind", "function"),
   };
 }
 
-/** One scope record: each function node owns its params plus the names declared
- *  inside it; the top map holds module-level names. Collection is one
- *  enter/exit pass (`scopeWalk`); reads use a fresh stack per query below. */
-function binderOf(program, hookAlias, hookNs) {
-  const fnNames = new Map();
-  const top = new Map();
-  const stack = [];
-  const bindInto = (inner) => (name, kind) => inner.set(name, kind);
-  const bindTop = (name, kind) => top.set(name, kind);
-  const row = (node) => importRow(top, hookAlias, hookNs, node);
-  const note = makeNote(stack, fnNames, top, bindInto, bindTop, row);
-  const leave = (node) => {
-    const kind = node.type ?? "";
-    if (
-      kind === "FunctionDeclaration" ||
-      kind === "ArrowFunctionExpression" ||
-      kind === "FunctionExpression"
-    )
-      stack.pop();
-  };
-  return { fnNames, top, note, leave };
+/** Does this callee name the hook — a plain or aliased `useData` bound to the
+ *  `@tinker/react` import, or `useData` off one of its bound namespaces? */
+function namesHook(callee, dataAlias, dataNs, scopes) {
+  if (callee?.type === "Identifier") {
+    if (callee.name !== "useData" && !dataAlias.has(callee.name)) return false;
+    return scopes.get(callee.name) === "hook";
+  }
+  const member = memberOf(callee);
+  return (
+    member !== null &&
+    member.name === "useData" &&
+    dataNs.has(member.obj) &&
+    scopes.get(member.obj) === "hook-ns"
+  );
+}
+
+/** Bind one `import … from` row: hook bindings stay `hook`/`hook-ns`, else `local`. */
+function noteImport(scopes, hookAlias, hookNs, node) {
+  const hook = node.source.value === "@tinker/react";
+  for (const s of node.specifiers) {
+    if (!s.local) continue;
+    scopes.set(s.local.name, specKind(s, hook, hookAlias, hookNs));
+  }
 }
 
 /** The declaration behind an alias — through `export type …` too — or null. */
@@ -346,52 +313,87 @@ function bindImports(into, node) {
   if (node.source.value === "@tinker/react") bindScope(into, node);
 }
 
-/** One child visit on the collecting pass: enter, recurse, exit. */
-function scopeStep(scopes, node) {
-  scopes.note(node);
-  const kids = Object.values(node).filter((v) => v && typeof v === "object") ?? [];
-  for (const v of kids) scopeWalk(scopes, v);
-  scopes.leave(node);
+/** Bind a `let`/`const` declarator: every name in its id pattern. `var` belongs
+ *  to the enclosing function, so it walks outward past block frames. */
+function noteDeclarator(scopes, node) {
+  for (const d of node.declarations ?? [])
+    for (const name of patternNames(d.id))
+      (node.kind === "var" ? scopes.setVar : scopes.set.bind(scopes))(name, "local");
 }
 
-/** One scope-collecting pass over the tree: `note` on entry, `leave` on exit, so each
- *  declarator lands in the scope that owns it and the stack is empty afterward. */
-function scopeWalk(scopes, node) {
-  if (!node || typeof node !== "object") return;
-  if (!Array.isArray(node)) {
-    scopeStep(scopes, node);
+/** Bind a `catch` binding into the current block scope. */
+function noteCatch(scopes, node) {
+  if (node.param) for (const name of patternNames(node.param)) scopes.set(name, "local");
+}
+
+/** One node on the single scope-aware pass. Functions push a scope, bind params
+ *  (plus a named expression's own name), and declare their name outside. Blocks
+ *  push a scope for let/const/catch. The writable check reads the stack in place.
+ *  One branch per node kind keeps it under the cap. */
+function visitScoped(source, bound, inView, scopes, rows, node) {
+  const kind = node.type ?? "";
+  if (kind === "ImportDeclaration") return noteImport(scopes, bound.dataCall, bound.scopeNs, node);
+  if (kind === "FunctionDeclaration") return enterNamed(source, bound, inView, scopes, rows, node);
+  if (kind === "FunctionExpression" || kind === "ArrowFunctionExpression")
+    return enterAnon(source, bound, inView, scopes, rows, node);
+  if (SHAPE_BLOCK_TYPES.has(kind)) return enterBlock(source, bound, inView, scopes, rows, node);
+  visitLeaf(source, bound, inView, scopes, rows, kind, node);
+}
+/** A leaf node: bind what it declares, check what it calls, then walk its kids. */
+function visitLeaf(source, bound, inView, scopes, rows, kind, node) {
+  if (kind === "VariableDeclaration") noteDeclarator(scopes, node);
+  else if (kind === "CatchClause") noteCatch(scopes, node);
+  else if (kind === "CallExpression" && node.start !== undefined) {
+    checkCall(source, bound, inView, scopes, rows, node);
     return;
   }
-  for (const v of node) if (v && typeof v === "object") scopeWalk(scopes, v);
+  for (const v of Object.values(node))
+    if (v && typeof v === "object") visitScoped(source, bound, inView, scopes, rows, v);
 }
 
-/** Function node types: each owns one lexical scope for the binder. Kept local so
- *  the set reads beside its use; `extract.mjs` keeps its own copy for units. */
-const SHAPE_FN_TYPES = new Set([
-  "FunctionDeclaration",
-  "ArrowFunctionExpression",
-  "FunctionExpression",
-]);
-
-/** Does this callee name the hook through the scope chain — a plain or aliased
- *  `useData` binding from the `@tinker/react` import, or `useData` off one of its
- *  bound namespace objects? A bare name with no import binding is never the hook. */
-function namesHook(callee, bound, scopes, stack) {
-  return bareData(callee, bound, scopes, stack) ?? nsData(callee, bound, scopes, stack);
+/** A named function: declare its name outside, then run its body in its own
+ *  scope with params bound. The declaration hoists, so the name binds before
+ *  the body runs even when the statement sits after a call. */
+function enterNamed(source, bound, inView, scopes, rows, node) {
+  if (node.id) scopes.set(node.id.name, "local");
+  scopes.push();
+  scopes.markFunction();
+  bindParams(scopes, node);
+  for (const v of Object.values(node.body ?? {}))
+    if (v && typeof v === "object") visitScoped(source, bound, inView, scopes, rows, v);
+  scopes.pop();
 }
 
-/** Is this writable call the imported hook — resolved where it sits, never globally. */
-function isHookCall(node, bound, scopes, stack) {
-  return namesHook(node.callee, bound, scopes, stack);
+/** An anonymous function: its own scope with params bound; a named expression
+ *  also binds its own name inside itself for recursion. */
+function enterAnon(source, bound, inView, scopes, rows, node) {
+  scopes.push();
+  scopes.markFunction();
+  if (node.id) scopes.set(node.id.name, "local");
+  bindParams(scopes, node);
+  for (const key of ["body", "returnType", "typeParameters"])
+    if (node[key] && typeof node[key] === "object")
+      visitScoped(source, bound, inView, scopes, rows, node[key]);
+  scopes.pop();
+}
+/** Bind every param name of one function into its scope. */
+function bindParams(scopes, node) {
+  for (const p of node.params ?? []) for (const name of patternNames(p)) scopes.set(name, "local");
 }
 
-/** The binding of `name` at the call site: the nearest enclosing function first. */
-function lookup(scopes, stack, name) {
-  for (let i = stack.length - 1; i >= 0; i--) {
-    const inner = scopes.fnNames.get(stack[i]);
-    if (inner?.has(name)) return inner.get(name);
-  }
-  return scopes.top.get(name);
+/** A block: its own scope for let/const/catch; `var` still lands on the function. */
+function enterBlock(source, bound, inView, scopes, rows, node) {
+  scopes.push();
+  for (const v of Object.values(node))
+    if (v && typeof v === "object") visitScoped(source, bound, inView, scopes, rows, v);
+  scopes.pop();
+}
+
+/** A call in place: the writable check resolves its callee against live scopes. */
+function checkCall(source, bound, inView, scopes, rows, node) {
+  const resolve = (c) => namesHook(c.callee, bound.dataCall, bound.scopeNs, scopes);
+  const row = callRow(source, node, bound, inView, resolve);
+  if (row !== null) rows.push(row);
 }
 
 /** One writable-useData finding for a call node in a view, or null. The callee name
@@ -479,15 +481,6 @@ function paramRow(source, seen, aliases, p) {
   return null;
 }
 
-/** One object node on the finding pass: track function scope around the visit. */
-function visitInScope(stack, node, visit, find) {
-  const fn = SHAPE_FN_TYPES.has(node.type ?? "");
-  if (fn) stack.push(node);
-  visit(node, stack);
-  for (const v of Object.values(node)) if (v && typeof v === "object") find(v, stack);
-  if (fn) stack.pop();
-}
-
 /** Every deterministic shape finding in one file, in source order. */
 // oxlint-disable-next-line complexity
 export function inspectShape(source, file = "a.tsx") {
@@ -502,27 +495,12 @@ export function inspectShape(source, file = "a.tsx") {
   };
   for (const node of program.body) if (node.type === "ImportDeclaration") bindImports(bound, node);
   const aliases = scopeAliases(source, program);
-  const scopes = binderOf(program, bound.dataCall, bound.scopeNs);
-  scopeWalk(scopes, program);
-  const resolve = (node, stack) => isHookCall(node, bound, scopes, stack);
+  const scopes = scopeStack();
   const comps = units(source, file).filter((u) => u.kind === "component");
   const starts = new Set(comps.map((u) => u.line));
   const ranges = comps.map((u) => [u.line, u.line + u.source.split("\n").length - 1]);
   const inView = (line) => ranges.some(([from, to]) => from <= line && line <= to);
-  const visit = (node, stack) => {
-    if (node.type !== "CallExpression" || node.start === undefined) return;
-    const row = callRow(source, node, bound, inView, (c) => resolve(c, stack));
-    if (row !== null) rows.push(row);
-  };
-  const find = (node, stack) => {
-    if (!node || typeof node !== "object") return;
-    if (!Array.isArray(node)) {
-      visitInScope(stack, node, visit, find);
-      return;
-    }
-    for (const v of node) if (v && typeof v === "object") find(v, stack);
-  };
-  find(program, []);
+  visitScoped(source, bound, inView, scopes, rows, program);
   for (const node of program.body)
     for (const fn of topFns(source, node)) {
       if (!starts.has(fn.line) || providesScope(fn.body, bound)) continue;

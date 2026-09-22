@@ -310,6 +310,61 @@ void describe("shape findings", () => {
     );
   });
 
+  void it("flags a nested function local, not a use after its declaration hoists", () => {
+    const nested = inspectShape(
+      `import { useData } from "@tinker/react"; function View() { function useData() {} const x=useData(c,{writable:true}); return <div/>; }`,
+      "a.tsx",
+    );
+    assert.deepEqual(nested, []);
+    const hoisted = inspectShape(
+      `import { useData } from "@tinker/react"; function View() { const x=useData(c,{writable:true}); function useData() {} return <div/>; }`,
+      "a.tsx",
+    );
+    assert.deepEqual(
+      hoisted.map((r) => [r.id, r.line]),
+      [["no-writable-in-view", 1]],
+    );
+  });
+
+  void it("keeps a block-local const inside its block", () => {
+    const rows = inspectShape(
+      `import { useData } from "@tinker/react"; function View() { { const useData = () => {}; } const x=useData(c,{writable:true}); return <div/>; }`,
+      "a.tsx",
+    );
+    assert.deepEqual(
+      rows.map((r) => [r.id, r.line]),
+      [["no-writable-in-view", 1]],
+    );
+    const inside = inspectShape(
+      `import { useData } from "@tinker/react"; function View() { { const useData = () => {}; const y=useData(c,{writable:true}); } return <div/>; }`,
+      "a.tsx",
+    );
+    assert.deepEqual(inside, []);
+  });
+
+  void it("reads defaults and rests in params, including aliased and namespaced", () => {
+    const def = inspectShape(
+      `import { useData } from "@tinker/react"; function View(useData = local) { const x=useData(c,{writable:true}); return <div/>; }`,
+      "a.tsx",
+    );
+    assert.deepEqual(def, []);
+    const rest = inspectShape(
+      `import { useData } from "@tinker/react"; function View({a, ...useData}) { const x=useData(c,{writable:true}); return <div/>; }`,
+      "a.tsx",
+    );
+    assert.deepEqual(rest, []);
+    const aliasDef = inspectShape(
+      `import { useData as read } from "@tinker/react"; function View(read = local) { const x=read(c,{writable:true}); return <div/>; }`,
+      "a.tsx",
+    );
+    assert.deepEqual(aliasDef, []);
+    const nsParam = inspectShape(
+      `import * as TR from "@tinker/react"; function View(TR = local) { const x=TR.useData(c,{writable:true}); return <div/>; }`,
+      "a.tsx",
+    );
+    assert.deepEqual(nsParam, []);
+  });
+
   void it("leaves plain helpers and typed non-scope props alone", () => {
     assert.deepEqual(inspectShape("function Helper(title) { return title.trim(); }", "a.tsx"), []);
     assert.deepEqual(
