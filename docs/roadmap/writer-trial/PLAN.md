@@ -39,5 +39,16 @@ One trial cannot prove that every model will follow the rules on every task.
 
 ## State
 
-Task saved. Runner and private checks are next.
+Task saved in commit e6dfdb6.
+The contributor is building the runner and private checks.
 No plan writer has started.
+
+The lead saved all 13 enabled questions, their full text,
+thresholds, and hashes in `plan-prep/fixed-questions.json`.
+This proof folder is under the persistent trial data root.
+The bank, library, extractor, calibration, enabled ids, and full rules
+match the stock trial byte for byte.
+The plain source checker is the only planned tool change.
+Its writable-view rule was reviewed after the stock trial.
+Keep that difference explicit when comparing the two trials.
+
