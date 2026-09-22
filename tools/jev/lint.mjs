@@ -9,6 +9,7 @@ import { execSync } from "node:child_process";
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { loadKey, ask, pct, readCalibration } from "./lib.mjs";
 import { slice, forJev, LINT, GUIDE } from "./bank.mjs";
+import { inspectShape } from "./shape.mjs";
 
 /** Per-judge status from `tools/jev/calibrate.mjs`: a `noisy` judge prints as a note (`~`), never as a flag. */
 const CALIBRATION = readCalibration();
@@ -68,6 +69,11 @@ function printUnit(u, flags, reads) {
   console.log(notes.length ? `  ⚠ ${head}: ${notes.join(", ")}` : `  ✓ ${head}`);
 }
 
+/** Deterministic shape rows for one file: same { id, line, message } the JSON carries. */
+function shapeOf(src, file) {
+  return inspectShape(src, file);
+}
+
 // Skipped by default: data/tag one-liners and tiny functions (type guards, predicates).
 const MIN_FUNCTION = 150;
 // A function that calls createScope is a composition root (rule 1), not a primitive candidate.
@@ -82,9 +88,21 @@ const report = [];
 console.log(`jev lint (advisory) — ${files.length} file(s)\n`);
 for (const file of files) {
   if (report.length >= limit) break;
-  const units = slice(readFileSync(file, "utf8"), file).filter(wanted);
-  if (units.length === 0) continue;
+  const src = readFileSync(file, "utf8");
+  const units = slice(src, file).filter(wanted);
+  const shape = shapeOf(src, file);
+  if (units.length === 0 && shape.length === 0) continue;
   console.log(file);
+  for (const r of shape) console.log(`  ▪ L${r.line} ${r.id}: ${r.message}`);
+  for (const row of shape)
+    report.push({
+      file,
+      kind: "shape",
+      name: row.id,
+      line: row.line,
+      flags: [],
+      reads: row.message,
+    });
   for (const u of units) {
     if (report.length >= limit) break;
     const answers = await ask(forJev(u), questionsFor(u.kind));

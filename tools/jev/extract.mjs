@@ -59,30 +59,125 @@ function declaresUnit(node) {
   return found;
 }
 
-/** A top-level function as a unit record of kind "function". */
-const functionRecord = (src, node, name, exported) => ({
-  kind: "function",
+/** Function node types: returns or JSX inside one of these belong to the inner function. */
+const FN_TYPES = new Set(["ArrowFunctionExpression", "FunctionExpression", "FunctionDeclaration"]);
+
+/** Ranges of nested function bodies under root — the root itself is never one of them. */
+function innerBodies(root) {
+  const out = [];
+  walk(root, (n) => {
+    if (n === root) return;
+    if (!FN_TYPES.has(n.type)) return;
+    if (!n.body || n.body.start === undefined) return;
+    out.push([n.body.start, n.body.end]);
+  });
+  return out;
+}
+
+/** Is this offset inside one of the ranges? */
+function insideAny(ranges, pos) {
+  return ranges.some(([from, to]) => from <= pos && pos <= to);
+}
+
+/** Any JSX element or fragment in root outside nested function bodies. */
+function rendersOutside(root) {
+  const hidden = innerBodies(root);
+  let found = false;
+  walk(root, (n) => {
+    if (found) return;
+    if (n.type !== "JSXElement" && n.type !== "JSXFragment") return;
+    if (n.start !== undefined && !insideAny(hidden, n.start)) found = true;
+  });
+  return found;
+}
+
+/** Does this function body return JSX — through `if`/`switch`/`try` branches too? An arrow
+ *  expression body is its return. Returns inside a nested function do not count, so a helper
+ *  holding `const render = () => <p/>` but returning a value stays a helper. */
+function returnsJsx(body) {
+  if (!body) return false;
+  if (body.type !== "BlockStatement") return rendersOutside(body);
+  const hidden = innerBodies(body);
+  let found = false;
+  walk(body, (n) => {
+    if (found || n.type !== "ReturnStatement") return;
+    if (n.start === undefined || !n.argument) return;
+    if (insideAny(hidden, n.start)) return;
+    if (rendersOutside(n.argument)) found = true;
+  });
+  return found;
+}
+
+/** A top-level function as a unit record: kind "component" when it returns JSX, else plain
+ *  "function". Only the tree decides: a capital-named helper with no JSX stays a helper. */
+const functionRecord = (src, node, name, exported, kind) => ({
+  kind,
   name,
   line: lineOf(src, node.start),
   source: text(src, node),
   exported,
 });
 
-/** The name of a `.tsx` arrow component `const X = (…) => …` that declares no unit, else null. */
-function arrowName(decl) {
-  const d = decl?.type === "VariableDeclaration" ? decl.declarations[0] : undefined;
-  const isArrow = d?.init?.type === "ArrowFunctionExpression" && d.id.type === "Identifier";
-  return isArrow && !declaresUnit(d.init.body) ? d.id.name : null;
+/** The functions one declaration holds — { name, body } each. Covers a named `function`,
+ *  an anonymous default-exported function (which reads as "default"), and
+ *  `const X = (…) => …` / `const X = function …`. */
+function isFnInit(init) {
+  return init?.type === "ArrowFunctionExpression" || init?.type === "FunctionExpression";
 }
 
-/** Top-level function declarations (and arrow consts in .tsx) that declare no unit. */
+/** The function declarators of one `const` — each keeps its own name and body. */
+function constFns(decl) {
+  return decl.declarations
+    .filter((d) => d.id.type === "Identifier" && isFnInit(d.init))
+    .map((d) => ({ name: d.id.name, body: d.init.body }));
+}
+
+/** The named `function` or bare arrow one declaration holds, or null. */
+function singleFn(decl) {
+  if (decl?.type === "FunctionDeclaration" && decl.body)
+    return { name: decl.id?.name ?? "default", body: decl.body };
+  if (isFnInit(decl)) return { name: "default", body: decl.body };
+  return null;
+}
+
+/** Every function a declaration holds, in order: the named `function` or bare arrow, or each
+ *  function declarator of a `const A = …, B = …` (the unit keeps its own const name). */
+function fnsOf(decl) {
+  const single = singleFn(decl);
+  if (single !== null) return [single];
+  if (decl?.type !== "VariableDeclaration") return [];
+  return constFns(decl);
+}
+
+/** One unit record for a declared function: a component when `.tsx` JSX returns, else a helper. */
+function fnRecord(src, node, exported, tsx, found) {
+  const kind = tsx && returnsJsx(found.body) ? "component" : "function";
+  return functionRecord(src, node, found.name, exported, kind);
+}
+
+/** The unit records for one named `function` declaration, or none. */
+function namedRecords(src, node, exported, tsx, decl) {
+  const found = fnsOf(decl)[0];
+  if (!found || declaresUnit(found.body)) return [];
+  return [fnRecord(src, node, exported, tsx, found)];
+}
+
+/** Top-level functions that declare no unit: a component when the body returns JSX
+ *  (fragments count, nesting in the returned tree counts), a plain helper otherwise. Arrow
+ *  and function-expression consts only read as units in `.tsx`/`.jsx`, where JSX parses. */
 function functionOf(src, node, file) {
-  const decl = node.type === "ExportNamedDeclaration" ? node.declaration : node;
-  const exported = node.type === "ExportNamedDeclaration";
-  if (decl?.type === "FunctionDeclaration" && decl.id && !declaresUnit(decl.body))
-    return functionRecord(src, node, decl.id.name, exported);
-  const arrow = file.endsWith(".tsx") ? arrowName(decl) : null;
-  return arrow ? functionRecord(src, node, arrow, exported) : null;
+  const decl =
+    node.type === "ExportNamedDeclaration" || node.type === "ExportDefaultDeclaration"
+      ? node.declaration
+      : node;
+  const exported =
+    node.type === "ExportNamedDeclaration" || node.type === "ExportDefaultDeclaration";
+  const tsx = file.endsWith(".tsx") || file.endsWith(".jsx");
+  if (decl?.type === "FunctionDeclaration") return namedRecords(src, node, exported, tsx, decl);
+  if (!tsx) return [];
+  return fnsOf(decl)
+    .filter((found) => !declaresUnit(found.body))
+    .map((found) => fnRecord(src, node, exported, tsx, found));
 }
 
 /** Every declared unit and every top-level function that declares none, in source order. */
@@ -93,8 +188,7 @@ export function units(src, file = "a.ts") {
     const exported = node.type === "ExportNamedDeclaration";
     const declarators = decl?.type === "VariableDeclaration" ? decl.declarations : [];
     out.push(...declarators.map((d) => unitOf(src, d, exported)).filter(Boolean));
-    const fn = functionOf(src, node, file);
-    if (fn) out.push(fn);
+    out.push(...functionOf(src, node, file));
   }
   return out;
 }
