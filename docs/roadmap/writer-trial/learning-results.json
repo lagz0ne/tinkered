@@ -1,0 +1,149 @@
+[
+  {
+    "model": "xiaomi/mimo-v2.6-flash",
+    "repairChecks": "29/29",
+    "freshFeatureChecks": "43/43",
+    "freshAttempts": 2,
+    "writerMinutes": 107.98,
+    "gatewayTimeoutMinutes": 0,
+    "attempts": [
+      {
+        "stage": "repair-1",
+        "minutes": 90.37,
+        "stopReason": "finished"
+      },
+      {
+        "stage": "transfer-1",
+        "minutes": 12.02,
+        "stopReason": "finished"
+      },
+      {
+        "stage": "transfer-2",
+        "minutes": 5.59,
+        "stopReason": "finished"
+      }
+    ],
+    "archive": "/home/paseo/.local/share/tinker-writer-trial/learn-01/results/transfer-2/worker-1.tar",
+    "sha256": "f51b623443b9acc319f02e96c02f06d94c10b98215870f86df89b764718e0ab2",
+    "acceptance": {
+      "status": "accepted",
+      "scope": "R1-R4 repair plus fresh rename-series; no claim for arbitrary future work",
+      "repairStage": "repair-1",
+      "transferStage": "transfer-2",
+      "repairChecks": "29/29",
+      "transferChecks": "43/43",
+      "sourceReview": "lead read saved source; core cell state, useData/useRun, registry errors rethrow unknown values",
+      "jev": "transfer-2/worker-1-view-jev.json; shape0",
+      "acceptedAt": "2026-09-22T09:00:44.677370+00:00"
+    }
+  },
+  {
+    "model": "xiaomi/mimo-v2.6-pro",
+    "repairChecks": "29/29",
+    "freshFeatureChecks": "43/43",
+    "freshAttempts": 1,
+    "writerMinutes": 131.61,
+    "gatewayTimeoutMinutes": 66.16,
+    "attempts": [
+      {
+        "stage": "repair-1",
+        "minutes": 66.16,
+        "stopReason": "gateway-stream-timeout"
+      },
+      {
+        "stage": "repair-2",
+        "minutes": 42.38,
+        "stopReason": "finished"
+      },
+      {
+        "stage": "transfer-1",
+        "minutes": 23.07,
+        "stopReason": "finished"
+      }
+    ],
+    "archive": "/home/paseo/.local/share/tinker-writer-trial/learn-01/results/transfer-1/worker-2.tar",
+    "sha256": "0cb247209dde82cbd55ec0fa67aec0ba54cfd32b2b7f7ddf8df0bdf41ac6277c",
+    "acceptance": {
+      "status": "accepted",
+      "scope": "R1-R4 repair plus fresh rename-series; no claim for arbitrary future work",
+      "repairStage": "repair-2",
+      "transferStage": "transfer-1",
+      "repairChecks": "29/29",
+      "transferChecks": "43/43",
+      "sourceReview": "lead read saved source; core cell state, useData/useRun, registry errors rethrow unknown values",
+      "jev": "transfer-1/worker-2-view-jev.json; shape0",
+      "acceptedAt": "2026-09-22T09:20:12.198150+00:00"
+    }
+  },
+  {
+    "model": "zai/glm-5.3-flash",
+    "repairChecks": "29/29",
+    "freshFeatureChecks": "43/43",
+    "freshAttempts": 1,
+    "writerMinutes": 18.03,
+    "gatewayTimeoutMinutes": 0,
+    "attempts": [
+      {
+        "stage": "repair-1",
+        "minutes": 11.76,
+        "stopReason": "finished"
+      },
+      {
+        "stage": "transfer-1",
+        "minutes": 6.27,
+        "stopReason": "finished"
+      }
+    ],
+    "archive": "/home/paseo/.local/share/tinker-writer-trial/learn-01/results/transfer-1/worker-3.tar",
+    "sha256": "be03f1aeaba850f313c5ab4945953781106b03a740c7b9a3089ad8a62d0f947b",
+    "acceptance": {
+      "status": "accepted",
+      "scope": "R1-R4 repair plus fresh rename-series; no claim for arbitrary future work",
+      "repairStage": "repair-1",
+      "transferStage": "transfer-1",
+      "repairChecks": "29/29",
+      "transferChecks": "43/43",
+      "sourceReview": "lead read saved source; core cell state, useData/useRun, registry errors rethrow unknown values",
+      "jev": "final-view-jev.json; no flags; shape-comparison.json zero findings",
+      "acceptedAt": "2026-09-22T08:14:32.324155+00:00"
+    }
+  },
+  {
+    "model": "deepseek/deepseek-v4.1-flash",
+    "repairChecks": "29/29",
+    "freshFeatureChecks": "43/43",
+    "freshAttempts": 2,
+    "writerMinutes": 15.08,
+    "gatewayTimeoutMinutes": 0,
+    "attempts": [
+      {
+        "stage": "repair-1",
+        "minutes": 7.35,
+        "stopReason": "finished"
+      },
+      {
+        "stage": "transfer-1",
+        "minutes": 5.52,
+        "stopReason": "finished"
+      },
+      {
+        "stage": "transfer-2",
+        "minutes": 2.21,
+        "stopReason": "finished"
+      }
+    ],
+    "archive": "/home/paseo/.local/share/tinker-writer-trial/learn-01/results/transfer-2/worker-4.tar",
+    "sha256": "dd68bb6ca1a98ef005f9e5d1db4f3255da99383a6c918ee38f9d434042862370",
+    "acceptance": {
+      "status": "accepted",
+      "scope": "R1-R4 repair plus fresh rename-series; no claim for arbitrary future work",
+      "repairStage": "repair-1",
+      "transferStage": "transfer-2",
+      "repairChecks": "29/29",
+      "transferChecks": "43/43",
+      "sourceReview": "lead read saved source; core cell state, useData/useRun, registry errors rethrow unknown values",
+      "jev": "final-view-jev.json; no flags; shape-comparison.json zero findings",
+      "acceptedAt": "2026-09-22T08:14:32.324181+00:00"
+    }
+  }
+]

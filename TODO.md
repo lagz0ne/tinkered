@@ -30,12 +30,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **writers/learn** — owner: Codex.
-  Loop repairs, then a fresh feature, until all four meet the rules.
-  Next: check MiMo Pro fresh-feature result, then finish cleanup.
-  Verify: behavior, state ownership, errors, tests, and a fresh-feature pass.
-  Preserve every attempt; clean projects and workspaces after completion.
-
 | Card | Owner | Next | Verify |
 
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -69,6 +63,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **writers/learn** — all four pass repair and fresh work.
+  Source review, 29 repair checks, 43 fresh checks, own tests/builds pass.
+  Trial projects and workspaces are removed; every saved attempt is kept.
+  Repo check: 0 errors; report prose check passes.
+  [Results and cleanup](docs/roadmap/writer-trial/LEARNING.md#final-call).
 
 - **writers/review** — owner: Codex.
   Jev comparison and source review saved; four new checks per writer.

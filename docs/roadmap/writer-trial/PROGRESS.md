@@ -665,3 +665,20 @@ The final runner repeats both 29/29 repairs and 43/43 fresh features.
 The old DeepSeek feature still fails only the clicked-row check.
 Both teacher workspaces and branches are removed.
 The live card stays Doing until all four are reviewed and cleaned up.
+
+## Learning loop complete
+
+All four models pass repair and the fresh rename-series task.
+The lead checked saved apps in fresh containers and read the changed code.
+Each passes 29 repair checks and 43 fresh-feature checks.
+Their own type checks, tests, builds, and earlier teacher checks pass.
+GLM and MiMo Pro passed the fresh task first try.
+DeepSeek and MiMo Flash each needed one clicked-row fix.
+All four keep app state in cells and use the tracker view/action pattern.
+
+All worker projects and workspaces are removed, with runtime files and trust.
+The teacher workspaces were removed after review too.
+Failed and passing archives, logs, and source review copies remain.
+The main project is kept.
+See [the final call](LEARNING.md#final-call),
+[results](learning-results.json), and [cleanup](learning-cleanup.json).

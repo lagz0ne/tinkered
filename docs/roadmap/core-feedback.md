@@ -136,3 +136,8 @@ a message read from useRun.error is allowed.
 This is a second report of unclear teaching, not a missing core feature.
 It also noted verbose controller types, without a failing public example.
 Keep that as a first request for simpler types, not a core change yet.
+
+MiMo Pro also found input shaping and raw error payloads awkward.
+Its saved code already reads ctx.rawInput through its source helper.
+The fresh action and raw-value checks pass; no failing core example was given.
+Keep this with the input-guide feedback above, not as a new API change.

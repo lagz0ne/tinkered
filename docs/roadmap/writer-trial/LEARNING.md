@@ -1,10 +1,8 @@
 # Writer learning loop
 
-Status: all four repairs pass.
-MiMo Flash fresh-feature fix is in review.
-MiMo Pro is on the fresh feature.
-GLM and DeepSeek pass the stronger behavior checks.
-The final Jev tool checks are in progress.
+Status: all four pass repair and the fresh feature.
+All worker and teacher trial workspaces are removed.
+Worker projects and runtime files are removed; evidence is kept.
 Owner: Codex.
 User asked to keep looping until all four follow our code pattern.
 
@@ -255,3 +253,58 @@ With the repair, total writer time was about 108 minutes.
 The failed save and the passing save are both kept.
 Its workspace, project, folder, container, volume, and trust entry are removed.
 MiMo Pro is the only writer still running.
+
+## MiMo Pro fresh feature accepted
+
+The saved app passes all 43 teacher checks on its first fresh attempt.
+Its own 104 tests, type check, and build pass.
+The earlier teacher checks pass too.
+The lead read the new core action, screen actions, view, and tests.
+The clicked row supplies its own title when opening the editor.
+State stays in cells; unknown errors are rethrown.
+Jev reports no notes on four view units; the plain shape check is clear.
+The six style hits still read parsed date or clock text.
+Supplied scripts, type settings, and the toolchain link are unchanged.
+
+This fresh attempt took 23.07 minutes.
+Total writer time was 131.61 minutes, including the 66.16-minute gateway stop.
+Without that stop, the two completed attempts took 65.45 minutes.
+Its workspace, project, folder, container, volume, and trust entry are removed.
+
+## Final call
+
+All four can apply our core-cell and React-view pattern on this app.
+Each repaired earlier work, then used the rules on a fresh feature.
+All pass 29 repair checks and 43 fresh-feature checks.
+The lead read the code and compared it with the issue tracker.
+Workers never received the tracker, other examples, or other submissions.
+This is evidence for this task, not a promise about every future app.
+These runs teach through rules and feedback; they do not change model weights.
+
+My pick is GLM for this work.
+It passed the fresh task on its first try, with a smaller saved app.
+DeepSeek was fastest across the learning phase, including its one fix.
+MiMo Pro also passed the fresh task on its first try, but took longer.
+MiMo Flash needed one fresh-task fix and took longer than GLM and DeepSeek.
+
+Writer time for repair plus fresh work, including retries:
+
+- DeepSeek: 15.08 minutes; one fresh-task fix.
+- GLM: 18.03 minutes; no fresh-task fix.
+- MiMo Flash: 107.98 minutes; one fresh-task fix.
+- MiMo Pro: 131.61 minutes; includes a 66.16-minute gateway stop.
+
+These times exclude teacher review and the earlier four-round trial.
+They measure this run, not a fixed speed for each model.
+Test counts, code size, and Jev probabilities are not quality scores.
+
+[Final results and archive hashes](learning-results.json).
+[Source, test, and tool-call growth at each save](learning-growth.json).
+Line counts include source and test TS/JS files, not generated output.
+[Checked cleanup proof](learning-cleanup.json).
+Every failed and passing app save, git history, report, and log is kept.
+No trial workspace, worker project, container, volume, or trust entry remains.
+The shared image, model routes, and main project remain.
+
+Final repo check: vp check exits 0, with 0 errors and 22 warnings.
+The report prose check also passes.
