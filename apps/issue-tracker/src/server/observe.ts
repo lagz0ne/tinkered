@@ -26,6 +26,7 @@ export function jsonLines(write: (line: string) => void): Observe.Config {
         JSON.stringify({
           kind: "log",
           time: entry.time,
+          level: entry.level,
           message: entry.message,
           span: entry.span?.id,
           ...entry.attributes,

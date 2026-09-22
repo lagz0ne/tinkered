@@ -15,6 +15,9 @@ const lanes = [
   // The graph produces the trace (ADR 0058): no hand-rolled span outside core, and a package
   // that declares operations ships a span-tree test.
   ["graph (span-tree per package, no hand-rolled span)", `${strip} scripts/check-graph.mjs`],
+  // Ambient time/random (ADR 0034, 0062): read "now" and randomness off ctx, never a hidden
+  // global; only the systemClock/systemRandom source lines are marked `ambient-source`.
+  ["ambient reads off ctx (no bare time/random)", `node scripts/check-ambient.mjs`],
   [
     "cast-free examples (0 casts)",
     `bash -c 'test $(grep -rcE "\\\\bas [A-Za-z{(]|\\\\bas unknown|[a-zA-Z0-9_)\\\\]]!" examples/core | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,

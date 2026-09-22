@@ -302,7 +302,7 @@ async function sendOnce(
     delivered = await send(request, ctx.signal);
   } catch (error) {
     if (ctx.signal.aborted) throw ctx.signal.reason;
-    ctx.log("http request failed", { method: request.method, url });
+    ctx.log.error("http request failed", { method: request.method, url });
     throw error;
   }
   if (span !== undefined) span.attributes.status = delivered.status;

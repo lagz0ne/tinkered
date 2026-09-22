@@ -5,6 +5,7 @@ import {
   data,
   extension,
   isError,
+  LEVELS,
   makeTestClock,
   type Observe,
   type Operation,
@@ -2286,6 +2287,47 @@ test("a throwing logger does not fail the operation", () => {
     },
   });
   expect(scope.run(op)).toBe(5);
+});
+
+test("a bare log call is info; the four methods carry their level to the sink", () => {
+  const seen: Observe.Log[] = [];
+  const op = operation({
+    label: "op",
+    run: (_deps, { log }) => {
+      log("bare");
+      log.debug("d");
+      log.info("i");
+      log.warn("w");
+      log.error("e");
+      return 1;
+    },
+  });
+  createScope({ observe: { log: (entry) => void seen.push(entry) } }).run(op);
+  expect(seen.map((entry) => [entry.message, entry.level])).toEqual([
+    ["bare", LEVELS.info],
+    ["d", LEVELS.debug],
+    ["i", LEVELS.info],
+    ["w", LEVELS.warn],
+    ["e", LEVELS.error],
+  ]);
+});
+
+test("the config level drops every line below the threshold", () => {
+  const seen: string[] = [];
+  const op = operation({
+    label: "op",
+    run: (_deps, { log }) => {
+      log.debug("skip");
+      log.info("skip");
+      log.warn("keep");
+      log.error("keep");
+      return 1;
+    },
+  });
+  createScope({
+    observe: { level: LEVELS.warn, log: (entry) => void seen.push(entry.message) },
+  }).run(op);
+  expect(seen).toEqual(["keep", "keep"]);
 });
 
 test("a span for an operation whose setup throws is still closed and exported as failed", () => {

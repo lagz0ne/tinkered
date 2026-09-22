@@ -309,6 +309,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A tagged run builds session resources in the flow, scope resources at the root; an untagged run builds
   session resources at the root and opens no session; the tagged session closes with the run.
 - An operation reads the scope's clock; a resource factory does too (see Clock).
+- An operation reads the scope's random; a resource factory does too (see Random).
 - An operation's context exposes no borrow or drain internals.
 - An operation defer sees the run's own end: `success` on return, `failed` on throw, `cancelled` under
   a forced close.
@@ -392,6 +393,17 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - Due test-clock sleeps wake earliest-first.
 - A system-clock sleep cleans its timer after an abort.
 - A test-clock sleep set into the past wakes at once.
+
+### Random
+
+- An operation and a resource factory read the scope's random.
+- The default random reads the system source (`Math.random` / `crypto.randomUUID`); a child session
+  reads its parent's random.
+- A test random built from a seed replays the same `next()` stream across scopes; a different seed
+  gives a different stream.
+- A test random built from a seed replays the same `uuid()` stream, each id v4-shaped; every `uuid()`
+  call yields a distinct id.
+- A test random with no seed is a deterministic default generator.
 
 ### Observation
 
