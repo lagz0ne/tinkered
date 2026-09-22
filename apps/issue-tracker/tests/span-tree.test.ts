@@ -38,6 +38,6 @@ test("the graph produces the trace: a caller, its send, and its attempt", async 
   });
   const issues = await scope.run(getIssues);
   expect(issues).toEqual([issue]);
-  expect(shape(scope.spans())).toEqual(["issues.getIssues", "  issues.send", "    issues.attempt"]);
+  expect(shape(scope.spans())).toEqual(["issues.getIssues", "  http.send", "    http.attempt"]);
   await scope.close();
 });

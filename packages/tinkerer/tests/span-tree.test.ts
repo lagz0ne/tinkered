@@ -42,8 +42,8 @@ test("a turn's trace shows the step it took, with the http send beneath it", asy
   expect(shape(scope.spans())).toEqual([
     "coder.turn",
     "  coder.http.step",
-    "    coder.http.send",
-    "      coder.http.attempt",
+    "    http.send",
+    "      http.attempt",
   ]);
   await scope.close();
 });
@@ -72,12 +72,12 @@ test("a tool call appears in the trace as its own operation under the turn", asy
   expect(shape(scope.spans())).toEqual([
     "coder.turn",
     "  coder.http.step",
-    "    coder.http.send",
-    "      coder.http.attempt",
+    "    http.send",
+    "      http.attempt",
     "  act",
     "  coder.http.step",
-    "    coder.http.send",
-    "      coder.http.attempt",
+    "    http.send",
+    "      http.attempt",
   ]);
   await scope.close();
 });
