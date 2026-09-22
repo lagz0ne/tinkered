@@ -78,8 +78,9 @@ export declare namespace Harness {
     readonly run: Scope.OperationController<unknown, unknown>;
   };
   /** The approval operation a frame over `C` accepts: its input is the adapter's request, its
-   * result the adapter's decision. Attached at frame construction (like `httpClient`'s policy
-   * slots) so the turn op can depend on it — the approval runs as a SUBFLOW of the turn. */
+   * result the adapter's decision. Attached at frame construction (like the harness's own
+   * tool and approval slots) so the turn op can depend on it — the approval runs as a SUBFLOW
+   * of the turn. */
   export type ApproveOp<C extends Calls> = Operation.Handle<
     C["approval"]["decision"] | PromiseLike<C["approval"]["decision"]>,
     C["approval"]["request"]

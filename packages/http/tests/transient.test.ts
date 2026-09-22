@@ -1,7 +1,6 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, operation, makeTestClock } from "@tinker/core";
 import {
-  attempt,
   backend,
   config,
   HttpRequest,
@@ -10,7 +9,6 @@ import {
   send,
   type HttpClient,
 } from "../src/index.ts";
-
 
 /** Drain the microtask queue: every already-queued continuation runs, no timer fires. */
 async function drain(): Promise<void> {
@@ -92,7 +90,7 @@ test("the retry budget runs out: three transient statuses deliver the last one",
 });
 
 test("a rejected status throws ResponseFailed and skips the body reader", async () => {
-    let readerCalls = 0;
+  let readerCalls = 0;
   const guarded = operation({
     label: "strict.guarded",
     depends: { send },

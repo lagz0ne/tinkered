@@ -1,7 +1,6 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, operation, type Observe } from "@tinker/core";
 import {
-  attempt,
   backend,
   config,
   HttpRequest,
@@ -10,7 +9,6 @@ import {
   send,
   type HttpClient,
 } from "../src/index.ts";
-
 
 /** A closure backend that records every request it was given and answers `body` at `status`. */
 function recording(body: string, seen: HttpRequest.Record[], status = 200): HttpClient.Backend {
@@ -92,7 +90,6 @@ test("a backend failure marks the child failed and logs one line", async () => {
 });
 
 test("a rejected status marks the child failed and logs nothing", async () => {
-  
   const strictRepos = operation({
     label: "strict.repos",
     depends: { send },

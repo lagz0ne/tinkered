@@ -43,10 +43,7 @@ test("nearer config headers win per key and the request's own headers win over c
 test("a nearer config baseUrl wins and one binding without headers still merges", async () => {
   const seen: HttpRequest.Record[] = [];
   const scope = createScope({
-    tags: [
-      backend(recording("[]", seen)),
-      config({ baseUrl: "https://far", headers: { a: "1" } }),
-    ],
+    tags: [backend(recording("[]", seen)), config({ baseUrl: "https://far", headers: { a: "1" } })],
   });
   const session = scope.createSession({
     tags: [config({ baseUrl: "https://near" })],
@@ -62,8 +59,7 @@ test("header keys merge case-insensitively with the nearer binding winning", asy
   const callToken = operation({
     label: "callToken",
     depends: { send },
-    run: ({ send: sendIt }) =>
-      sendIt.run({ input: HttpRequest.get("https://api/a") }),
+    run: ({ send: sendIt }) => sendIt.run({ input: HttpRequest.get("https://api/a") }),
   });
   const scope = createScope({
     tags: [backend(recording("[]", seen)), config({ headers: { "X-Token": "far" } })],

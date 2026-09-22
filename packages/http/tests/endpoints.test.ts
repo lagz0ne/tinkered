@@ -11,7 +11,6 @@ import {
   type HttpClient,
 } from "../src/index.ts";
 
-
 /** A closure backend that records every request it was given and answers `body` at `status`. */
 function recording(body: string, seen: HttpRequest.Record[], status = 200): HttpClient.Backend {
   return async (request) => {

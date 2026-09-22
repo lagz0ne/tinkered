@@ -2,16 +2,13 @@ import { readFileSync } from "node:fs";
 import { expect, test } from "vite-plus/test";
 import { createScope, operation } from "@tinker/core";
 import {
-  attempt,
   backend,
-  config,
   HttpRequest,
   HttpResponse,
   isError as isHttpError,
   send,
   type HttpClient,
 } from "../src/index.ts";
-
 
 /** Drain an `sse()` reader into an array. */
 async function readEvents(

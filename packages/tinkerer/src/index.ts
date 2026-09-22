@@ -1,6 +1,6 @@
 import { data, isError as isCoreError, operation, readMany, tag } from "@tinker/core";
 import type { Data, Many, Operation, Scope, Tag } from "@tinker/core";
-import { httpClient, HttpRequest } from "@tinker/http";
+import { HttpRequest, send } from "@tinker/http";
 import type { HttpResponse } from "@tinker/http";
 import { z } from "zod";
 import { isError, raise } from "./errors.ts";
@@ -222,12 +222,11 @@ export function tinkerer(config: {
     initial: undefined,
   });
   const inbox = data<readonly Tinkerer.Entry[]>({ label: `${label}.inbox`, initial: noEntries });
-  const http = httpClient({ label: `${label}.http` });
   const step: Tinkerer.Frame["step"] = operation({
     label: `${label}.http.step`,
-    depends: { send: http.send },
-    run: async ({ send }, ctx: Operation.Ctx<Tinkerer.StepInput>) => {
-      const res = await send.run({
+    depends: { send },
+    run: async ({ send: sendIt }, ctx: Operation.Ctx<Tinkerer.StepInput>) => {
+      const res = await sendIt.run({
         input: HttpRequest.post(ctx.input.url, {
           headers: ctx.input.headers,
           body: HttpRequest.bodyJson(ctx.input.body),

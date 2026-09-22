@@ -2,7 +2,6 @@ import { expect, test } from "vite-plus/test";
 import { createScope, operation, type Observe } from "@tinker/core";
 import { backend, config, HttpRequest, HttpResponse, send } from "../src/index.ts";
 
-
 /** A caller's own operation: it depends on `send` and reads the body itself. */
 const listRepos = operation({
   label: "listRepos",
@@ -32,7 +31,10 @@ test("the graph produces the trace: a caller, its send, and one attempt per try"
     calls += 1;
     return HttpResponse.make(request, { status: calls === 1 ? 503 : 200, body: "[]" });
   });
-  const scope = createScope({ tags: [flaky, config({ retry: { times: 1 } })], observe: { history: 50 } });
+  const scope = createScope({
+    tags: [flaky, config({ retry: { times: 1 } })],
+    observe: { history: 50 },
+  });
   expect(await scope.run(listRepos)).toBe(200);
   expect(shape(scope.spans())).toEqual([
     "listRepos",

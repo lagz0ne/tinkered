@@ -1,7 +1,6 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, operation, makeTestClock } from "@tinker/core";
 import {
-  attempt,
   backend,
   config,
   HttpRequest,

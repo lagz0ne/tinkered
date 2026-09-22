@@ -1,5 +1,5 @@
 import { operation } from "@tinker/core";
-import { HttpRequest, httpClient } from "@tinker/http";
+import { config, HttpRequest, send } from "@tinker/http";
 import { fail, raise, type Errors } from "../errors.ts";
 import {
   parseComment,
@@ -13,12 +13,15 @@ import {
 } from "../shared/issues.ts";
 import { parseDraftCapability, parseDraftInput } from "../shared/draft.ts";
 
-/** The browser's command frame: saves through HTTP; the server owns the saved state. A 409
- * passes the filter so `patchIssue` can read its body as the conflict. */
-export const api = httpClient({
-  label: "issues",
-  filterStatus: (status) => status < 300 || status === 409,
-});
+/** The browser's command frame: saves through HTTP; the server owns the saved state. Every
+ * operation below depends on the shared `send` directly; the 409-accept policy is a `config`
+ * value the composition root binds beside `baseUrl` (see `main.tsx`), so a 409 passes the
+ * filter and `patchIssue` can read its body as the conflict. `api` stays as the `config`
+ * alias the server and tools bind through. */
+export const api = { config };
+
+/** A 409 passes the filter, so `patchIssue` can read its body as the conflict. */
+export const acceptIssues = (status: number): boolean => status < 300 || status === 409;
 
 function isRecord(raw: unknown): raw is Record<string, unknown> {
   return typeof raw === "object" && raw !== null;
@@ -45,9 +48,9 @@ function parseConflict(raw: unknown): Errors.Of<"IssueConflict"> {
 export const postIssue = operation({
   label: "issues.postIssue",
   input: parseCreateInput,
-  depends: { send: api.send },
-  run: async ({ send }, ctx) => {
-    const res = await send.run({
+  depends: { send },
+  run: async ({ send: sendIt }, ctx) => {
+    const res = await sendIt.run({
       input: HttpRequest.post("/api/issues", { body: HttpRequest.bodyJson(ctx.input) }),
     });
     return res.json(parseIssue);
@@ -60,9 +63,9 @@ export const postIssue = operation({
 export const patchIssue = operation({
   label: "issues.patchIssue",
   input: parseEditInput,
-  depends: { send: api.send },
-  run: async ({ send }, ctx) => {
-    const res = await send.run({
+  depends: { send },
+  run: async ({ send: sendIt }, ctx) => {
+    const res = await sendIt.run({
       input: HttpRequest.patch(`/api/issues/${ctx.input.id}`, {
         body: HttpRequest.bodyJson(ctx.input),
       }),
@@ -76,9 +79,9 @@ export const patchIssue = operation({
 export const postComment = operation({
   label: "issues.postComment",
   input: parseCommentInput,
-  depends: { send: api.send },
-  run: async ({ send }, ctx) => {
-    const res = await send.run({
+  depends: { send },
+  run: async ({ send: sendIt }, ctx) => {
+    const res = await sendIt.run({
       input: HttpRequest.post(`/api/issues/${ctx.input.issueId}/comments`, {
         body: HttpRequest.bodyJson(ctx.input),
       }),
@@ -90,9 +93,9 @@ export const postComment = operation({
 /** Read the draft helper's capability through HTTP: enabled means the view drafts. */
 export const getCapability = operation({
   label: "issues.getCapability",
-  depends: { send: api.send },
-  run: async ({ send }) => {
-    const res = await send.run({ input: HttpRequest.get("/api/draft") });
+  depends: { send },
+  run: async ({ send: sendIt }) => {
+    const res = await sendIt.run({ input: HttpRequest.get("/api/draft") });
     return res.json(parseDraftCapability);
   },
 });
@@ -103,9 +106,9 @@ export const getCapability = operation({
 export const openDraft = operation({
   label: "issues.openDraft",
   input: parseDraftInput,
-  depends: { send: api.send },
-  run: async ({ send }, ctx) => {
-    const res = await send.run({
+  depends: { send },
+  run: async ({ send: sendIt }, ctx) => {
+    const res = await sendIt.run({
       input: HttpRequest.post(`/api/issues/${ctx.input.id}/draft`, {
         body: HttpRequest.bodyJson({ prompt: ctx.input.prompt }),
       }),
@@ -118,9 +121,9 @@ export const openDraft = operation({
 export const getDetail = operation({
   label: "issues.getDetail",
   input: parseIssueId,
-  depends: { send: api.send },
-  run: async ({ send }, ctx) => {
-    const res = await send.run({ input: HttpRequest.get(`/api/issues/${ctx.input}`) });
+  depends: { send },
+  run: async ({ send: sendIt }, ctx) => {
+    const res = await sendIt.run({ input: HttpRequest.get(`/api/issues/${ctx.input}`) });
     return res.json(parseIssueDetail);
   },
 });
@@ -128,9 +131,9 @@ export const getDetail = operation({
 /** Read the saved list through HTTP (used before sync lands). */
 export const getIssues = operation({
   label: "issues.getIssues",
-  depends: { send: api.send },
-  run: async ({ send }) => {
-    const res = await send.run({ input: HttpRequest.get("/api/issues") });
+  depends: { send },
+  run: async ({ send: sendIt }) => {
+    const res = await sendIt.run({ input: HttpRequest.get("/api/issues") });
     return res.json(parseIssueList);
   },
 });

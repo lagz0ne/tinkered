@@ -1,13 +1,11 @@
 import { createScope, operation } from "@tinker/core";
-import { backend, httpClient, HttpRequest, HttpResponse, type HttpClient } from "@tinker/http";
+import { backend, config, HttpRequest, HttpResponse, send, type HttpClient } from "@tinker/http";
 import { z } from "zod";
 
-/** A cast-free tour of the frame: a frame, two declared operations on `send`, and a userland
+/** A cast-free tour of the declared units: two operations on `send`, and a userland
  * operation that depends on both and hands a fresh token to one call via `tags`. Every value's
  * type is INFERRED — no `as`, no non-null `!`. */
 export async function tour(): Promise<string> {
-  const github = httpClient({ label: "github", filterStatus: (status) => status < 300 });
-
   const seen: HttpRequest.Record[] = [];
   const fake: HttpClient.Backend = (request) => {
     seen.push(request);
@@ -17,9 +15,9 @@ export async function tour(): Promise<string> {
   const listRepos = operation({
     label: "github.listRepos",
     input: z.string(),
-    depends: { send: github.send },
-    run: async ({ send }, ctx) => {
-      const res = await send.run({
+    depends: { send },
+    run: async ({ send: sendIt }, ctx) => {
+      const res = await sendIt.run({
         input: HttpRequest.get(`/users/${ctx.input}/repos`),
       });
       return res.text();
@@ -29,9 +27,9 @@ export async function tour(): Promise<string> {
   const createIssue = operation({
     label: "github.createIssue",
     input: z.string(),
-    depends: { send: github.send },
-    run: ({ send }) =>
-      send.run({
+    depends: { send },
+    run: ({ send: sendIt }) =>
+      sendIt.run({
         input: HttpRequest.post("/issues", { body: HttpRequest.bodyJson({ title: "t" }) }),
       }),
   });
@@ -44,7 +42,7 @@ export async function tour(): Promise<string> {
       const names = await repos.run({ input: ctx.input });
       return issue.run({
         input: `${ctx.input}:${names}`,
-        tags: [github.config({ headers: { authorization: "Bearer fresh" } })],
+        tags: [config({ headers: { authorization: "Bearer fresh" } })],
       });
     },
   });
@@ -52,7 +50,11 @@ export async function tour(): Promise<string> {
   const scope = createScope({
     tags: [
       backend(fake),
-      github.config({ baseUrl: "https://api.github.com", headers: { accept: "json" } }),
+      config({
+        baseUrl: "https://api.github.com",
+        headers: { accept: "json" },
+        accept: (status) => status < 300,
+      }),
     ],
   });
   const repos = await scope.run(listRepos, { input: "octocat" });

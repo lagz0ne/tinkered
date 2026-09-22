@@ -2,7 +2,6 @@ import { expect, test } from "vite-plus/test";
 import { createScope, operation } from "@tinker/core";
 import { backend, config, HttpRequest, HttpResponse, send, type HttpClient } from "../src/index.ts";
 
-
 /** A closure backend that records the request it was given and answers `body` at `status`. */
 function recording(body: string, seen: HttpRequest.Record[], status = 200): HttpClient.Backend {
   return async (request) => {

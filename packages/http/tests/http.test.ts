@@ -11,7 +11,6 @@ import {
   type HttpClient,
 } from "../src/index.ts";
 
-
 /** A closure backend that records the request it was given and answers `body` at `status`. */
 function recording(body: string, seen: HttpRequest.Record[], status = 200): HttpClient.Backend {
   return async (request) => {
@@ -60,10 +59,7 @@ test("scope, session, and per-call config bindings merge nearest-first", async (
     run: ({ send: sendIt }) => sendIt.run({ input: HttpRequest.get("/users") }),
   });
   const scope = createScope({
-    tags: [
-      backend(recording("[]", seen)),
-      config({ baseUrl: "https://api", headers: { a: "1" } }),
-    ],
+    tags: [backend(recording("[]", seen)), config({ baseUrl: "https://api", headers: { a: "1" } })],
   });
   await scope.run(callChild);
   expect(HttpRequest.toUrl(seen[seen.length - 1])).toBe("https://api/users");

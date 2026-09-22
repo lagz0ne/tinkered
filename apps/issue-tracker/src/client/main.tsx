@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createScope } from "@tinker/core";
 import { subscribe } from "@tinker/sync";
-import { api } from "./api.ts";
+import { acceptIssues, api } from "./api.ts";
 import { ScopedApp } from "./App.tsx";
 import { reconnectingTransport, wire } from "./connection.ts";
 import { capability, detailRefresh, liveness } from "./services.ts";
@@ -29,7 +29,7 @@ async function start(element: ReturnType<typeof createRoot>): Promise<boolean> {
   const transport = reconnectingTransport(window.location.origin);
   const subscription = subscribe(transport, { cells: [[issueList, "issues"]] });
   const scope = createScope({
-    tags: [api.config({ baseUrl: window.location.origin }), wire(transport)],
+    tags: [api.config({ baseUrl: window.location.origin, accept: acceptIssues }), wire(transport)],
     extensions: [subscription],
   });
   try {
