@@ -1,5 +1,5 @@
 import { extension, operation } from "@tinker/core";
-import { argv, command, io, run, type Process } from "@tinker/process";
+import { argv, io, jsonLine, run, type Process } from "@tinker/process";
 
 /** An operation with its own parse: the command hands it argv[0]. */
 const check = operation({
@@ -9,6 +9,16 @@ const check = operation({
     return raw;
   },
   run: (_deps, ctx) => `checked ${ctx.input}`,
+});
+
+/** The `check` command, declared by its author: argv[0] in, the answer out, code owned. */
+const checkCommand = operation({
+  label: "check",
+  depends: { argv: argv.required, io: io.required, check },
+  run: ({ argv: args, io: out, check: flow }) => {
+    out.write(`${flow.run({ rawInput: args[0] })}\n`);
+    return 0;
+  },
 });
 
 /** A command that streams as it works: `io` is a tag it declares. */
@@ -22,6 +32,41 @@ const count = operation({
     return 0;
   },
 });
+
+/** A lazily loaded operation: the dynamic import in practice. */
+async function loadCheck(): Promise<typeof check> {
+  return check;
+}
+
+/** A route whose `entry` awaits the loader on first selection — the old sugar's home, now plain. */
+function lazyCheckRoute(): Process.Route {
+  let cached: Promise<typeof check> | undefined;
+  const once = (): Promise<typeof check> => {
+    cached ??= Promise.resolve(loadCheck()).catch((error: unknown) => {
+      cached = undefined;
+      throw error;
+    });
+    return cached;
+  };
+  return {
+    name: "lazy-check",
+    description: "check a file, loaded lazily",
+    entry: async () => {
+      const flow = await once();
+      return {
+        op: operation({
+          label: "lazy-check",
+          depends: { argv: argv.required, io: io.required, check: flow },
+          run: ({ argv: args, io: out, check: op }) => {
+            const value = op.run({ rawInput: args[0] });
+            out.write(jsonLine(value) ?? "");
+            return 0;
+          },
+        }),
+      };
+    },
+  };
+}
 
 /** A server is the driver extension serving from its `start`; the command waits for the signal. */
 const ticker = extension({
@@ -54,11 +99,8 @@ export const shell: Process.Shell = {
   name: "tk",
   version: "0.1.0",
   commands: [
-    command("check", check, {
-      input: (a) => a[0],
-      respond: (v) => `${v}\n`,
-      description: "check a file",
-    }),
+    { name: "check", description: "check a file", entry: () => ({ op: checkCommand }) },
+    lazyCheckRoute(),
     { name: "count", description: "count up, streamed", entry: () => ({ op: count }) },
     {
       name: "serve",

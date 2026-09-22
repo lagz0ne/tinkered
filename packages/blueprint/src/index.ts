@@ -7,7 +7,7 @@ import {
   type Scope,
   type Tag,
 } from "@tinker/core";
-import { command, type Process } from "@tinker/process";
+import { argv, io, jsonLine, type Process } from "@tinker/process";
 import {
   createGateway,
   experimental_evaluate as evaluate,
@@ -580,60 +580,128 @@ function fileArg(argv: readonly string[]): string | undefined {
   return positionals(argv)[0];
 }
 
+/** The `check` command, declared by its author: argv in (the file beside `--json`, read off
+ * disk at the root), the driven operation's report out, its own exit code owned. A `proven`
+ * hit still raises `BlueprintRejected`, which routing maps to exit 1. */
+function checkCommand(options: Scope.Options): Process.Route {
+  const op = operation({
+    label: "check",
+    depends: { argv: argv.required, io: io.required, check },
+    run: async ({ argv: args, io: out, check: judge }) => {
+      const { json, report } = await judge.run({
+        rawInput: {
+          text: readFileSync(fileArg(args) ?? "", "utf8"),
+          json: args.includes("--json"),
+        },
+      });
+      out.write(json ? (jsonLine(report) ?? "") : checkLines(report));
+      return 0;
+    },
+  });
+  return {
+    name: "check",
+    description: "judge one blueprint file with Jev over the shipped question templates",
+    entry: () => ({ op, options }),
+  };
+}
+
+/** The `explain` command: `--md` picks the markdown list, otherwise the verbatim blocks. */
+function explainCommand(options: Scope.Options): Process.Route {
+  const op = operation({
+    label: "explain",
+    depends: { argv: argv.required, io: io.required, explain },
+    run: ({ argv: args, io: out, explain: flow }) => {
+      const report = flow.run({ rawInput: { md: args.includes("--md") } });
+      out.write(
+        report.md
+          ? `${report.templates.map(markdown).join("\n\n")}\n`
+          : `${report.templates.map(verbatim).join("\n\n")}\n`,
+      );
+      return 0;
+    },
+  });
+  return {
+    name: "explain",
+    description: "print every template verbatim, or as a markdown list with --md",
+    entry: () => ({ op, options }),
+  };
+}
+
+/** The `evals` command: grades every shipped template, one line per grade. */
+function evalsCommand(options: Scope.Options): Process.Route {
+  const op = operation({
+    label: "evals",
+    depends: { io: io.required, evals },
+    run: async ({ io: out, evals: flow }) => {
+      out.write(evalsLines(await flow.run()));
+      return 0;
+    },
+  });
+  return {
+    name: "evals",
+    description: "grade every template against its evals with the judge (needs a key)",
+    entry: () => ({ op, options }),
+  };
+}
+
+/** The `suggest` command: the prompt is the whole argv, joined with spaces. */
+function suggestCommand(options: Scope.Options): Process.Route {
+  const op = operation({
+    label: "suggest",
+    depends: { argv: argv.required, io: io.required, suggest },
+    run: async ({ argv: args, io: out, suggest: flow }) => {
+      out.write(suggestLines(await flow.run({ rawInput: { words: args.join(" ") } })));
+      return 0;
+    },
+  });
+  return {
+    name: "suggest",
+    description: "which unit fits a sentence, with the shape to write (needs a key)",
+    entry: () => ({ op, options }),
+  };
+}
+
+/** The `verify` command: the file's text and the dir's units are read at the root, then the
+ * driven operation diffs them. */
+function verifyCommand(options: Scope.Options): Process.Route {
+  const op = operation({
+    label: "verify",
+    depends: { argv: argv.required, io: io.required, verify },
+    run: async ({ argv: args, io: out, verify: flow }) => {
+      const { file, dir } = verifyArgs(args);
+      const { json, report, bodySkipped } = await flow.run({
+        rawInput: {
+          text: readFileSync(file, "utf8"),
+          units: walk(dir),
+          dir,
+          json: args.includes("--json"),
+        },
+      });
+      out.write(json ? (jsonLine(report) ?? "") : verifyLines(report, bodySkipped));
+      return 0;
+    },
+  });
+  return {
+    name: "verify",
+    description:
+      "diff a blueprint file's nodes against the code's declared units, plus body templates with a key",
+    entry: () => ({ op, options }),
+  };
+}
+
 /** The binary: every command runs on the same root options, so the entrypoint binds the key once
- * and a test binds its fakes the same way. `input` reads the named file off disk (the process
- * edge, at the root) beside the `--json` flag; `respond` prints the lines or,
- * with `--json`, the report as one JSON object. */
+ * and a test binds its fakes the same way. Each command is a declared operation: argv in at
+ * the root, the report out, its own exit code owned. */
 export function shell(options: Scope.Options = {}): Process.Shell {
   return {
     name: "blueprint",
     version: "0.0.0",
     commands: [
-      command("check", () => check, {
-        description: "judge one blueprint file with Jev over the shipped question templates",
-        input: (argv) => ({
-          text: readFileSync(fileArg(argv) ?? "", "utf8"),
-          json: argv.includes("--json"),
-        }),
-        respond: ({ json, report }) => (json ? `${JSON.stringify(report)}\n` : checkLines(report)),
-        options,
-      }),
-      command("explain", () => explain, {
-        description: "print every template verbatim, or as a markdown list with --md",
-        input: (argv) => ({ md: argv.includes("--md") }),
-        respond: (report) =>
-          report.md
-            ? `${report.templates.map(markdown).join("\n\n")}\n`
-            : `${report.templates.map(verbatim).join("\n\n")}\n`,
-        options,
-      }),
-      command("evals", () => evals, {
-        description: "grade every template against its evals with the judge (needs a key)",
-        respond: evalsLines,
-        options,
-      }),
-      command("suggest", () => suggest, {
-        description: "which unit fits a sentence, with the shape to write (needs a key)",
-        input: (argv) => ({ words: argv.join(" ") }),
-        respond: suggestLines,
-        options,
-      }),
-      command("verify", () => verify, {
-        description:
-          "diff a blueprint file's nodes against the code's declared units, plus body templates with a key",
-        input: (argv) => {
-          const { file, dir } = verifyArgs(argv);
-          return {
-            text: readFileSync(file, "utf8"),
-            units: walk(dir),
-            dir,
-            json: argv.includes("--json"),
-          };
-        },
-        respond: ({ json, report, bodySkipped }) =>
-          json ? `${JSON.stringify(report)}\n` : verifyLines(report, bodySkipped),
-        options,
-      }),
+      checkCommand(options),
+      explainCommand(options),
+      evalsCommand(options),
+      suggestCommand(options),
+      verifyCommand(options),
     ],
   };
 }
