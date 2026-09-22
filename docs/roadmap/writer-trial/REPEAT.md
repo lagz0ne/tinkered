@@ -209,3 +209,12 @@ The same added typing case was run on MiMo Flash.
 It fails: ShortStock stays visible after typing Quantity 1.
 Its earlier 45-case result stands, but acceptance is reopened.
 The extra case and finding are saved apart from that score.
+
+## DeepSeek final repair accepted
+
+All supplied commands pass, with 58 tests.
+The corrected checks plus both notice cases pass 46 of 46.
+The lead read the small fix and the two browser regressions.
+DeepSeek is accepted for this task after two repair attempts.
+Its first attempt and earlier repair remain scored separately.
+MiMo Flash is working on its final notice fix.
