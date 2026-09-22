@@ -1,0 +1,63 @@
+# Writer learning loop
+
+Status: preparing repair checks; writers have their own saved apps.
+Owner: Codex.
+User asked to keep looping until all four follow our code pattern.
+
+## What counts as done
+
+Each writer must pass both stages on its own code:
+
+- Repair all four earlier task rounds and the review failures.
+- Add the fresh rename-series feature using the same rules.
+
+For both stages, check:
+
+- Earlier behavior and new behavior through core and the real browser.
+- All app state in core cells; views use useData and useRun.
+- Managed errors, no hidden casts or mocks, and behavior tests.
+- Type check, writer tests, browser tests, and build.
+- Jev advice reviewed; a low probability is not a pass condition.
+- Lead reads the saved code before accepting it.
+
+The second stage tests use of the rules on new work.
+It does not prove these models will pass every future task.
+No repairs or app implementation are written by the teacher.
+
+## Fair access
+
+Each writer starts from its own last saved trial-01 code.
+The same pinned image and original four model routes are kept.
+Trial budget stops remain off, as the user requested.
+All examples, issue-tracker code, other submissions,
+private checks, host files, and network stay out of the workers.
+The fresh task is frozen before repair and kept hidden until needed.
+
+The longer learning rules are explicit for this new phase.
+They do not change the historic scores or original submissions.
+Each worker gets only its own bug report.
+
+## Teacher work
+
+Two Paseo contributors prepare separate tool changes:
+
+- Jev: recognize JSX components and report plain hook-rule failures.
+- Writer trial: stronger isolated behavior and state checks.
+
+The lead reviews both, checks that known bad submissions fail,
+and uses the stronger rules for every writer.
+
+## Evidence and cleanup
+
+Keep every attempt with its app archive, events, report,
+check output, time, and reasons for another attempt.
+Save results outside temporary projects before cleanup.
+Archive every worker workspace and delete its project too.
+Remove containers, volumes, worker folders, and trust entries.
+Keep the shared image, model routes, and saved evidence.
+
+Runtime manifest and continuation notes:
+
+```text
+~/.local/share/tinker-writer-trial/learn-01/
+```

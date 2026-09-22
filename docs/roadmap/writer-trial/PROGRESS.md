@@ -1,6 +1,6 @@
 # Writer trial
 
-Status: done; all four passed the final checks and cleanup is proved.
+Status: learning loop active; earlier trial results and cleanup stay saved.
 Owner: Codex.
 Scope settled: core and React only.
 Trial shape settled: four attempts per writer on its own growing repo.
@@ -631,3 +631,10 @@ still miss the local-state pattern that plain code should check.
 No app code changed and no repair workers were launched.
 All temporary probe containers were removed.
 See [code review and proof](CODE-REVIEW.md).
+
+## Learning loop authorized
+
+User asked to keep looping until the writers follow our pattern.
+Restored each own app in a fresh isolated project.
+Teacher fixes are underway; no repair writer launched yet.
+See [learning stages and acceptance](LEARNING.md).
