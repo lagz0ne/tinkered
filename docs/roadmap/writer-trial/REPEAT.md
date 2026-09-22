@@ -231,3 +231,12 @@ Older failed runs remain saved with the teacher bug explained.
 
 A plain Jev check for writable useData in views is being added.
 It will serve later trials. Current frozen worker tools stay unchanged.
+
+## MiMo Flash final repair accepted
+
+All supplied commands pass, with 56 tests.
+The normal checker passes 44 of 44.
+Both added notice checks pass, making 46 of 46.
+The lead read the code and browser tests; the style census passes.
+MiMo Flash is accepted after its second repair.
+Three writers are now accepted. MiMo Pro is still on its first attempt.
