@@ -189,6 +189,21 @@ test("a subflow .run({ input, ns }) writes its own bucket; without ns it inherit
   return scope.close();
 });
 
+test("a scope-target resource is namespace-blind and keeps default storage clean", () => {
+  const tenant = tag<string>({ label: "tenant" });
+  const named = namespace({ tags: [tenant("named")] });
+  const shared = resource({
+    label: "shared",
+    target: "scope",
+    depends: { tenant },
+    factory: ({ tenant }) => tenant,
+  });
+  const scope = createScope({ tags: [tenant("default")] });
+  expect(scope.resolve(shared, { ns: named })).toBe("default");
+  expect(scope.resolve(shared)).toBe("default");
+  return scope.close();
+});
+
 test("invalid input rejects before dependencies build", () => {
   let builds = 0;
   const dep = resource({ label: "dep", factory: () => ++builds });

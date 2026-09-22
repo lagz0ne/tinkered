@@ -2580,7 +2580,8 @@ function resourceSlot(
   if (rec.failed) return rec.failed.promise;
   if (rec.build) return rec.build;
   if (rec.building) raise("CircularResource", { label: target.label });
-  return buildResource(owner, target, parent, chain);
+  const buildChain = target.target === "scope" ? undefined : chain;
+  return buildResource(owner, target, parent, buildChain);
 }
 
 type Affected = { node: Node; owner: Layer };
