@@ -2,8 +2,19 @@
 // Run: node --test tools/jev/shape.test.mjs (no network; oxc-parser is local).
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { units } from "./extract.mjs";
 import { inspectShape } from "./shape.mjs";
+
+/** Run inspectShape in a subprocess: proves the case returns, not hangs. */
+const RUN_SHAPE = `import(new URL("./shape.mjs", "file://" + process.cwd() + "/").href).then(async ({ inspectShape }) => {
+  const src = await new Promise((resolve) => {
+    let text = "";
+    process.stdin.on("data", (chunk) => (text += chunk));
+    process.stdin.on("end", () => resolve(text));
+  });
+  console.log(JSON.stringify(inspectShape(src, "a.tsx").map((r) => [r.id, r.line])));
+});`;
 
 const kindOf = (src, file = "a.tsx") => units(src, file).map((u) => [u.kind, u.name]);
 
@@ -390,6 +401,27 @@ void describe("shape findings", () => {
       "a.tsx",
     );
     assert.deepEqual(rows, []);
+  });
+
+  void it("binds var in its function frame without hanging", () => {
+    // A same-process test timeout cannot interrupt a sync hang, so each
+    // case runs under an external timeout: exit 124 means the walk looped.
+    const cases = [
+      `import {useData} from "@tinker/react"; function V(){ var useData=local; useData(c,{writable:true}); return <div/>; }`,
+      `import {useData} from "@tinker/react"; function V(){ { var useData=local; } useData(c,{writable:true}); return <div/>; }`,
+      `import {useData} from "@tinker/react"; var useData=local; function V(){ useData(c,{writable:true}); return <div/>; }`,
+      `import {useData as read} from "@tinker/react"; function V(){ var read=local; read(c,{writable:true}); return <div/>; }`,
+      `import * as TR from "@tinker/react"; function V(){ var TR=local; TR.useData(c,{writable:true}); return <div/>; }`,
+    ];
+    for (const src of cases) {
+      const out = execFileSync(process.execPath, ["--input-type=module", "-e", RUN_SHAPE], {
+        input: src,
+        encoding: "utf8",
+        timeout: 10000,
+        cwd: new URL(".", import.meta.url),
+      });
+      assert.deepEqual(JSON.parse(out), []);
+    }
   });
 
   void it("keeps a block-local const inside its block", () => {

@@ -310,7 +310,7 @@ function declareHoisted(program, bind, owners, frames, parents) {
   walk(program, (n) => {
     if (!n.type) return;
     if (n.type === "FunctionDeclaration" && n.id) bindOuter(frames, owners, parents, n, n.id.name);
-    if (n.type === "VariableDeclaration" && n.kind === "var") bindVar(n, owners, frames);
+    if (n.type === "VariableDeclaration" && n.kind === "var") bindVar(n, owners, frames, parents);
   });
 }
 
@@ -393,17 +393,19 @@ function bindAt(frames, owners, node, name, kind) {
   if (!isHookKind(kind) || !frame.has(name)) frame.set(name, kind);
 }
 
-/** A `var` binds at the enclosing function (or module) frame, past blocks. */
-function bindVar(node, owners, frames) {
-  const owner = fnOwner(owners, owners.get(node) ?? null);
+/** A `var` binds at the enclosing function (or module) frame, past blocks.
+ *  Walks the parents table (strictly upward like parentFrame), never the
+ *  owners map: a frame owns itself there, which loops forever. */
+function bindVar(node, owners, frames, parents) {
+  const owner = fnOwner(owners, parents, owners.get(node) ?? null);
   for (const d of node.declarations ?? [])
     for (const name of patternNames(d.id)) bindAt(frames, owners, owner ?? node, name, "local");
 }
 
 /** Walk up to the enclosing function (or module) frame owner. */
-function fnOwner(owners, owner) {
+function fnOwner(owners, parents, owner) {
   let at = owner;
-  while (at && !isFnRoot(at)) at = owners.get(at) ?? null;
+  while (at && !isFnRoot(at)) at = parentFrame(owners, parents, at);
   return at;
 }
 
