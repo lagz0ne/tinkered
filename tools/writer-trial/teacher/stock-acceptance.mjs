@@ -37,6 +37,21 @@ advisory.push({
     "React state shape and unknown-error rethrow are lead-review notes, never a pass; only exact-syntax shape cases fail.",
 });
 
+// One reporter for both exits: human lines plus stable case-level JSON
+// for the review CLI.
+const finish = () => {
+  for (const r of results) {
+    console.log(
+      `${r.pass ? "PASS" : "FAIL"} ${r.name}${r.pass && r.detail ? ` — ${r.detail}` : ""}${r.pass ? "" : ` — ${r.error}`}`,
+    );
+  }
+  for (const a of advisory) console.log(`NOTE ${a.name} — ${a.detail}`);
+  const failed = results.filter((r) => !r.pass);
+  console.log(`ACCEPTANCE stock: ${results.length - failed.length}/${results.length} pass`);
+  console.log(`RESULTS_JSON ${JSON.stringify({ cases: results, advisory })}`);
+  process.exitCode = failed.length ? 1 : 0;
+};
+
 // ---- core checks: the frozen stock packet, nothing invented ----
 const vite = await createServer({
   root,
@@ -62,6 +77,16 @@ const need = (value, label) => {
 const stockRows = (scope) => scope.resolve(need(app.stock, "stock"));
 const moveRows = (scope) => scope.resolve(need(app.moves, "moves"));
 const draftOf = (scope) => scope.resolve(need(app.editDraft, "editDraft"));
+const INITIAL_STOCK = [
+  { item: "Cable", place: "East", quantity: 8 },
+  { item: "Cable", place: "West", quantity: 2 },
+  { item: "Stand", place: "East", quantity: 3 },
+  { item: "Stand", place: "West", quantity: 1 },
+];
+// Plain clones: a broken in-place write must not pass by comparing an
+// object against its own mutated alias.
+const snapStock = (scope) => stockRows(scope).map((row) => ({ ...row }));
+const snapMoves = (scope) => moveRows(scope).map((move) => ({ ...move }));
 const throws = (scope, op, input) => {
   try {
     scope.run(op, { input });
@@ -171,7 +196,7 @@ core("core move ids are nonempty, unique, opaque", async () => {
 core("core UnknownItem keeps the original value", async () => {
   const s = coreMod.createScope();
   try {
-    const before = stockRows(s);
+    const before = snapStock(s);
     const failed = throws(s, app.moveStock, {
       item: "Wire",
       from: "East",
@@ -193,7 +218,7 @@ core("core UnknownItem keeps the original value", async () => {
 core("core UnknownPlace keeps the original value", async () => {
   const s = coreMod.createScope();
   try {
-    const before = stockRows(s);
+    const before = snapStock(s);
     const failed = throws(s, app.moveStock, {
       item: "Cable",
       from: "North",
@@ -213,7 +238,7 @@ core("core UnknownPlace keeps the original value", async () => {
 core("core SamePlace reports that place", async () => {
   const s = coreMod.createScope();
   try {
-    const before = stockRows(s);
+    const before = snapStock(s);
     const failed = throws(s, app.moveStock, {
       item: "Cable",
       from: "East",
@@ -278,7 +303,7 @@ core("core raw invalid quantity keeps its text", async () => {
 core("core ShortStock names available and requested", async () => {
   const s = coreMod.createScope();
   try {
-    const before = stockRows(s);
+    const before = snapStock(s);
     const failed = throws(s, app.moveStock, {
       item: "Cable",
       from: "East",
@@ -323,21 +348,21 @@ core("core scopes share no stock, moves, or drafts", async () => {
   }
 });
 
-core("core open copies, mutating the copy writes nothing", async () => {
+core("core open copies the saved move and adds no undo step", async () => {
   const s = coreMod.createScope();
   try {
     const made = s.run(app.moveStock, {
       input: { item: "Cable", from: "East", to: "West", quantity: 2 },
     });
     const draft = s.run(app.openMoveEdit, { input: { id: made.id } });
-    assert.equal(draft.id, made.id);
-    assert.deepStrictEqual(draftOf(s), draft);
-    draft.quantity = 99;
-    assert.equal(moveRows(s)[0].quantity, 2);
-    assert.equal(draftOf(s).quantity, 2);
+    assert.deepStrictEqual({ ...draft }, { ...made });
+    assert.notEqual(draft, moveRows(s)[0]);
+    assert.deepStrictEqual(snapMoves(s)[0], { ...made });
+    s.run(app.undoMove, {});
+    assert.deepStrictEqual(moveRows(s), []);
+    assert.deepStrictEqual(snapStock(s), INITIAL_STOCK);
     assert.equal(throwsVoid(s, app.undoMove).kind, "EmptyUndo");
-    s.run(app.discardMoveEdit, { input: { id: made.id } });
-    return "copy only, open adds no step";
+    return "open copies, the move itself undoes once";
   } finally {
     await s.close();
   }
@@ -415,6 +440,9 @@ core("core save 3 to 5 keeps id and list place", async () => {
     const made = s.run(app.moveStock, {
       input: { item: "Cable", from: "East", to: "West", quantity: 3 },
     });
+    const second = s.run(app.moveStock, {
+      input: { item: "Stand", from: "East", to: "West", quantity: 1 },
+    });
     s.run(app.openMoveEdit, { input: { id: made.id } });
     const replaced = s.run(app.saveMoveEdit, {
       input: { id: made.id, item: "Cable", from: "East", to: "West", quantity: 5 },
@@ -423,16 +451,19 @@ core("core save 3 to 5 keeps id and list place", async () => {
     assert.deepStrictEqual(stockRows(s), [
       { item: "Cable", place: "East", quantity: 3 },
       { item: "Cable", place: "West", quantity: 7 },
-      { item: "Stand", place: "East", quantity: 3 },
-      { item: "Stand", place: "West", quantity: 1 },
+      { item: "Stand", place: "East", quantity: 2 },
+      { item: "Stand", place: "West", quantity: 2 },
     ]);
     assert.deepStrictEqual(
       moveRows(s).map((m) => [m.id, m.quantity]),
-      [[made.id, 5]],
+      [
+        [made.id, 5],
+        [second.id, 1],
+      ],
     );
-    assert.deepStrictEqual(moveRows(s)[0], replaced);
+    assert.deepStrictEqual({ ...moveRows(s)[0] }, { ...replaced });
     assert.strictEqual(draftOf(s), undefined);
-    return "East 3, West 7, same id";
+    return "East 3, West 7, same id, same list place";
   } finally {
     await s.close();
   }
@@ -474,8 +505,8 @@ core("core reversal shortage is atomic, draft stays open", async () => {
     s.run(app.moveStock, {
       input: { item: "Cable", from: "West", to: "East", quantity: 4 },
     });
-    const beforeStock = stockRows(s);
-    const beforeMoves = moveRows(s).map((m) => ({ ...m }));
+    const beforeStock = snapStock(s);
+    const beforeMoves = snapMoves(s);
     s.run(app.openMoveEdit, { input: { id: first.id } });
     const failed = throws(s, app.saveMoveEdit, {
       id: first.id,
@@ -512,7 +543,8 @@ core("core replacement shortage is atomic, draft stays open", async () => {
     const made = s.run(app.moveStock, {
       input: { item: "Cable", from: "East", to: "West", quantity: 3 },
     });
-    const beforeStock = stockRows(s);
+    const beforeStock = snapStock(s);
+    const beforeMoves = snapMoves(s);
     s.run(app.openMoveEdit, { input: { id: made.id } });
     const failed = throws(s, app.saveMoveEdit, {
       id: made.id,
@@ -525,11 +557,12 @@ core("core replacement shortage is atomic, draft stays open", async () => {
     assert.equal(failed.payload.place, "East");
     assert.equal(failed.payload.available, 8);
     assert.equal(failed.payload.requested, 9);
-    assert.deepStrictEqual(stockRows(s), beforeStock);
-    assert.equal(moveRows(s).length, 1);
-    assert.equal(moveRows(s)[0].quantity, 3);
+    assert.deepStrictEqual(snapStock(s), beforeStock);
+    assert.deepStrictEqual(snapMoves(s), beforeMoves);
     assert.equal(draftOf(s).id, made.id);
-    return "ShortStock East 8 of 9, nothing written";
+    s.run(app.undoMove, {});
+    assert.deepStrictEqual(moveRows(s), []);
+    return "ShortStock East 8 of 9, failed save adds no step";
   } finally {
     await s.close();
   }
@@ -565,12 +598,12 @@ core("core discard closes and writes nothing", async () => {
 core("core undo restores exact stock and moves, adds no step", async () => {
   const s = coreMod.createScope();
   try {
-    const before = stockRows(s);
+    const before = snapStock(s);
     s.run(app.moveStock, {
       input: { item: "Cable", from: "East", to: "West", quantity: 3 },
     });
     s.run(app.undoMove, {});
-    assert.deepStrictEqual(stockRows(s), before);
+    assert.deepStrictEqual(snapStock(s), before);
     assert.deepStrictEqual(moveRows(s), []);
     assert.equal(throwsVoid(s, app.undoMove).kind, "EmptyUndo");
     return "move undone, history empty";
@@ -695,6 +728,25 @@ core("core empty undo reports EmptyUndo", async () => {
   }
 });
 
+core("core managed errors narrow through isError, fakes rejected", async () => {
+  const s = coreMod.createScope();
+  try {
+    const failed = throws(s, app.moveStock, {
+      item: "Wire",
+      from: "East",
+      to: "West",
+      quantity: 1,
+    });
+    assert.ok(app.isError(failed, "UnknownItem"));
+    assert.ok(!app.isError(failed, "UnknownPlace"));
+    // A bare kind tag with no registry backing must not narrow.
+    assert.ok(!app.isError({ kind: "UnknownItem", payload: { item: "Wire" } }, "UnknownItem"));
+    return "registry narrowing only";
+  } finally {
+    await s.close();
+  }
+});
+
 if (loadError) {
   for (const [name] of coreTests) {
     results.push({ name, pass: false, error: `load failed: ${loadError}`.slice(0, 300) });
@@ -714,23 +766,15 @@ if (loadError) {
     "browser blank quantity is BadQuantity and saves nothing",
     "browser form values survive success and failure",
     "browser filter hides rows without deleting",
-    "browser editor seeds from the clicked row",
+    "browser switching rows drops unsaved text",
     "browser failed save keeps text, passing save clears notice",
-    "browser undo restores stock and keeps draft text",
+    "browser undo keeps filter and form text",
     "browser discard drops the draft and writes nothing",
     "browser two roots share no stock, form, or notice",
   ];
   for (const name of names)
     results.push({ name, pass: false, error: `load failed: ${loadError}`.slice(0, 300) });
-  for (const r of results) {
-    console.log(
-      `${r.pass ? "PASS" : "FAIL"} ${r.name}${r.pass && r.detail ? ` — ${r.detail}` : ""}${r.pass ? "" : ` — ${r.error}`}`,
-    );
-  }
-  for (const a of advisory) console.log(`NOTE ${a.name} — ${a.detail}`);
-  const failed = results.filter((r) => !r.pass);
-  console.log(`ACCEPTANCE stock: ${results.length - failed.length}/${results.length} pass`);
-  process.exitCode = failed.length ? 1 : 0;
+  finish();
   process.exit(process.exitCode);
 }
 
@@ -767,14 +811,18 @@ browser("browser loads form with initial text", async (page) => {
   return "Cable, East, West, 1";
 });
 
+const rowCells = (table, row) =>
+  table.locator("tbody tr").nth(row).locator("th, td").allInnerTexts();
+
 browser("browser stock table shows four rows in order", async (page) => {
   await page.goto("http://127.0.0.1:5173");
   const table = page.getByRole("table", { name: "Stock" });
   await table.waitFor();
-  const text = await table.innerText();
-  for (const cell of ["Item", "Place", "Quantity", "Cable", "East", "8", "2", "Stand", "3", "1"])
-    assert.match(text, new RegExp(cell), `stock table shows ${cell}`);
-  assert.ok(text.indexOf("8") < text.lastIndexOf("2"), "Cable East before Cable West");
+  assert.deepStrictEqual(await rowCells(table, 0), ["Cable", "East", "8"]);
+  assert.deepStrictEqual(await rowCells(table, 1), ["Cable", "West", "2"]);
+  assert.deepStrictEqual(await rowCells(table, 2), ["Stand", "East", "3"]);
+  assert.deepStrictEqual(await rowCells(table, 3), ["Stand", "West", "1"]);
+  assert.equal(await table.locator("tbody tr").count(), 4);
   return "four rows in order";
 });
 
@@ -785,9 +833,8 @@ browser("browser move appends one row in list order", async (page) => {
   await page.getByRole("button", { name: "Move stock", exact: true }).click();
   await moves.getByRole("button", { name: "Edit move", exact: true }).waitFor();
   assert.equal(await moves.getByRole("button", { name: "Edit move", exact: true }).count(), 1);
-  const text = await moves.innerText();
-  for (const cell of ["Item", "From", "To", "Quantity", "Cable", "East", "West", "1"])
-    assert.match(text, new RegExp(cell), `moves table shows ${cell}`);
+  assert.equal(await moves.locator("tbody tr").count(), 1);
+  assert.deepStrictEqual(await rowCells(moves, 0), ["Cable", "East", "West", "1"]);
   return "one move row with Edit move";
 });
 
@@ -826,32 +873,48 @@ browser("browser filter hides rows without deleting", async (page) => {
   const moves = page.getByRole("table", { name: "Moves" });
   await moves.getByRole("button", { name: "Edit move", exact: true }).nth(1).waitFor();
   await page.getByRole("button", { name: "Cable", exact: true }).click();
-  assert.equal(await moves.getByRole("button", { name: "Edit move", exact: true }).count(), 1);
-  const stock = await page.getByRole("table", { name: "Stock" }).innerText();
-  assert.match(stock, /7/, "filter changes no stock");
+  assert.deepStrictEqual(await rowCells(moves, 0), ["Cable", "East", "West", "1"]);
+  assert.equal(await moves.locator("tbody tr").count(), 1);
+  const stock = page.getByRole("table", { name: "Stock" });
+  assert.deepStrictEqual(await rowCells(stock, 0), ["Cable", "East", "7"]);
+  assert.deepStrictEqual(await rowCells(stock, 1), ["Cable", "West", "3"]);
   await page.getByRole("button", { name: "All", exact: true }).click();
-  assert.equal(await moves.getByRole("button", { name: "Edit move", exact: true }).count(), 2);
+  assert.deepStrictEqual(await rowCells(moves, 0), ["Cable", "East", "West", "1"]);
+  assert.deepStrictEqual(await rowCells(moves, 1), ["Stand", "East", "West", "1"]);
   await page.getByRole("button", { name: "Stand", exact: true }).click();
-  assert.equal(await moves.getByRole("button", { name: "Edit move", exact: true }).count(), 1);
+  assert.deepStrictEqual(await rowCells(moves, 0), ["Stand", "East", "West", "1"]);
+  assert.equal(await moves.locator("tbody tr").count(), 1);
   return "filter hides, All restores";
 });
 
-browser("browser editor seeds from the clicked row", async (page) => {
+browser("browser switching rows drops unsaved text", async (page) => {
   await page.goto("http://127.0.0.1:5173");
   await page.getByRole("button", { name: "Move stock", exact: true }).click();
   await page.getByLabel("Item", { exact: true }).fill("Stand");
+  await page.getByLabel("Quantity", { exact: true }).fill("2");
   await page.getByRole("button", { name: "Move stock", exact: true }).click();
   const moves = page.getByRole("table", { name: "Moves" });
   await moves.getByRole("button", { name: "Edit move", exact: true }).nth(1).waitFor();
+  await moves.getByRole("button", { name: "Edit move", exact: true }).first().click();
+  await page.getByLabel("Edit quantity", { exact: true }).fill("7");
+  assert.equal(await page.getByLabel("Edit quantity", { exact: true }).inputValue(), "7");
   await moves.getByRole("button", { name: "Edit move", exact: true }).nth(1).click();
   assert.equal(await page.getByLabel("Edit item", { exact: true }).inputValue(), "Stand");
-  await moves.getByRole("button", { name: "Edit move", exact: true }).first().click();
-  assert.equal(await page.getByLabel("Edit item", { exact: true }).inputValue(), "Cable");
-  assert.equal(await page.getByLabel("Edit quantity", { exact: true }).inputValue(), "1");
-  await page.getByLabel("Edit quantity", { exact: true }).fill(" typed");
-  assert.match(await moves.innerText(), /Cable/, "typing changes no saved row");
-  return "switch replaces all text";
+  assert.equal(await page.getByLabel("Edit from", { exact: true }).inputValue(), "East");
+  assert.equal(await page.getByLabel("Edit to", { exact: true }).inputValue(), "West");
+  assert.equal(await page.getByLabel("Edit quantity", { exact: true }).inputValue(), "2");
+  assert.deepStrictEqual(await rowCells(moves, 0), ["Cable", "East", "West", "1"]);
+  assert.deepStrictEqual(await rowCells(moves, 1), ["Stand", "East", "West", "2"]);
+  return "second row replaces all unsaved text";
 });
+
+// A persistent empty role=alert is allowed: cleared means no error text,
+// whether the block is empty or absent.
+const noticeText = async (scope) => {
+  const alerts = scope.getByRole("alert");
+  if ((await alerts.count()) === 0) return "";
+  return (await alerts.first().innerText()).trim();
+};
 
 browser("browser failed save keeps text, passing save clears notice", async (page) => {
   await page.goto("http://127.0.0.1:5173");
@@ -866,38 +929,42 @@ browser("browser failed save keeps text, passing save clears notice", async (pag
   await page.getByLabel("Edit quantity", { exact: true }).fill("2");
   await page.getByRole("button", { name: "Save move", exact: true }).click();
   await page.getByRole("button", { name: "Save move", exact: true }).waitFor({ state: "hidden" });
-  assert.equal(await page.getByRole("alert").count(), 0);
-  const stock = await page.getByRole("table", { name: "Stock" }).innerText();
-  assert.match(stock, /6/, "edit changes stock");
+  assert.equal(await noticeText(page), "");
+  const stock = page.getByRole("table", { name: "Stock" });
+  assert.deepStrictEqual(await rowCells(stock, 0), ["Cable", "East", "6"]);
+  assert.deepStrictEqual(await rowCells(stock, 1), ["Cable", "West", "4"]);
   return "failure keeps text, success clears";
 });
 
-browser("browser undo restores stock and keeps draft text", async (page) => {
+browser("browser undo keeps filter and form text", async (page) => {
   await page.goto("http://127.0.0.1:5173");
   await page.getByRole("button", { name: "Undo", exact: true }).waitFor();
-  await page.getByLabel("Item", { exact: true }).fill("typed text");
-  await page
-    .getByRole("button", { name: "Maple", exact: true })
-    .click()
-    .catch(() => {});
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
-  await page.getByRole("alert").filter({ hasText: "EmptyUndo" }).waitFor();
-  assert.equal(await page.getByLabel("Item", { exact: true }).inputValue(), "typed text");
-  await page.getByLabel("Item", { exact: true }).fill("Cable");
+  await page.getByRole("button", { name: "Move stock", exact: true }).click();
+  await page.getByLabel("Item", { exact: true }).fill("Stand");
   await page.getByRole("button", { name: "Move stock", exact: true }).click();
   const moves = page.getByRole("table", { name: "Moves" });
-  await moves.getByRole("button", { name: "Edit move", exact: true }).waitFor();
+  await moves.getByRole("button", { name: "Edit move", exact: true }).nth(1).waitFor();
+  await page.getByRole("button", { name: "Cable", exact: true }).click();
+  await page.getByLabel("Item", { exact: true }).fill("typed text");
   await moves.getByRole("button", { name: "Edit move", exact: true }).first().click();
   await page.getByLabel("Edit quantity", { exact: true }).fill("unsaved edit");
   await page.getByRole("button", { name: "Undo", exact: true }).click();
-  await moves.getByRole("button", { name: "Edit move", exact: true }).waitFor({ state: "hidden" });
+  await moves
+    .getByRole("button", { name: "Edit move", exact: true })
+    .nth(1)
+    .waitFor({ state: "hidden" });
+  assert.deepStrictEqual(await rowCells(moves, 0), ["Cable", "East", "West", "1"]);
+  assert.equal(await moves.locator("tbody tr").count(), 1);
+  const stock = page.getByRole("table", { name: "Stock" });
+  assert.deepStrictEqual(await rowCells(stock, 0), ["Cable", "East", "7"]);
+  assert.deepStrictEqual(await rowCells(stock, 1), ["Cable", "West", "3"]);
+  assert.deepStrictEqual(await rowCells(stock, 2), ["Stand", "East", "3"]);
+  assert.equal(await page.getByLabel("Item", { exact: true }).inputValue(), "typed text");
   assert.equal(
     await page.getByLabel("Edit quantity", { exact: true }).inputValue(),
     "unsaved edit",
   );
-  const stock = await page.getByRole("table", { name: "Stock" }).innerText();
-  assert.match(stock, /8/, "undo restores East 8");
-  return "undo data only, text kept";
+  return "undo data only, filter and text kept";
 });
 
 browser("browser discard drops the draft and writes nothing", async (page) => {
@@ -909,9 +976,10 @@ browser("browser discard drops the draft and writes nothing", async (page) => {
   await page.getByLabel("Edit quantity", { exact: true }).fill("5");
   await page.getByRole("button", { name: "Discard move", exact: true }).click();
   await page.getByRole("button", { name: "Save move", exact: true }).waitFor({ state: "hidden" });
-  const stock = await page.getByRole("table", { name: "Stock" }).innerText();
-  assert.match(stock, /7/, "discard changes no stock");
-  assert.match(await moves.innerText(), /1/, "discard changes no move");
+  const stock = page.getByRole("table", { name: "Stock" });
+  assert.deepStrictEqual(await rowCells(stock, 0), ["Cable", "East", "7"]);
+  assert.deepStrictEqual(await rowCells(stock, 1), ["Cable", "West", "3"]);
+  assert.deepStrictEqual(await rowCells(moves, 0), ["Cable", "East", "West", "1"]);
   return "discard drops text";
 });
 
@@ -990,26 +1058,38 @@ browser("browser two roots share no stock, form, or notice", async (page) => {
     await page.goto("http://127.0.0.1:5173");
     await page.getByLabel("Item", { exact: true }).waitFor();
     await page.evaluate(mountSecondRoot);
+    const first = page.locator("#root");
     const secondScope = page.locator("#teacher-second-root");
     await secondScope.waitFor({ state: "attached" });
-    let secondItem = secondScope.getByLabel("Item", { exact: true });
-    if ((await secondItem.count()) === 0) secondItem = secondScope.locator("input").first();
-    let secondQty = secondScope.getByLabel("Quantity", { exact: true });
-    if ((await secondQty.count()) === 0) secondQty = secondScope.locator("input").nth(3);
-    await secondItem.waitFor({ state: "visible" });
-    await secondQty.fill("99");
+    await secondScope.getByLabel("Item", { exact: true }).waitFor({ state: "visible" });
     await secondScope.getByRole("button", { name: "Move stock", exact: true }).click();
-    await secondScope.getByRole("alert").filter({ hasText: "ShortStock" }).waitFor();
-    assert.equal(await page.locator("#root").getByRole("alert").count(), 0);
-    assert.equal(
-      await page.locator("#root").getByLabel("Quantity", { exact: true }).inputValue(),
-      "1",
-    );
-    const firstStock = await page
-      .locator("#root")
-      .getByRole("table", { name: "Stock" })
-      .innerText();
-    assert.match(firstStock, /8/, "first root stock untouched");
+    await secondScope
+      .getByRole("table", { name: "Moves" })
+      .getByRole("button", { name: "Edit move", exact: true })
+      .waitFor();
+    await secondScope.getByRole("button", { name: "Stand", exact: true }).click();
+    await secondScope.getByRole("button", { name: "Move stock", exact: true }).click();
+    await secondScope
+      .getByRole("table", { name: "Moves" })
+      .getByRole("button", { name: "Edit move", exact: true })
+      .nth(1)
+      .waitFor();
+    const secondMoves = secondScope.getByRole("table", { name: "Moves" });
+    assert.deepStrictEqual(await rowCells(secondMoves, 0), ["Cable", "East", "West", "1"]);
+    assert.deepStrictEqual(await rowCells(secondMoves, 1), ["Stand", "East", "West", "1"]);
+    // The first root keeps its own initial stock, empty moves, initial
+    // form text, and no notice.
+    const firstStock = first.getByRole("table", { name: "Stock" });
+    assert.deepStrictEqual(await rowCells(firstStock, 0), ["Cable", "East", "8"]);
+    assert.deepStrictEqual(await rowCells(firstStock, 1), ["Cable", "West", "2"]);
+    assert.deepStrictEqual(await rowCells(firstStock, 2), ["Stand", "East", "3"]);
+    assert.deepStrictEqual(await rowCells(firstStock, 3), ["Stand", "West", "1"]);
+    assert.equal(await first.getByRole("table", { name: "Moves" }).locator("tbody tr").count(), 0);
+    assert.equal(await first.getByLabel("Item", { exact: true }).inputValue(), "Cable");
+    assert.equal(await first.getByLabel("From", { exact: true }).inputValue(), "East");
+    assert.equal(await first.getByLabel("To", { exact: true }).inputValue(), "West");
+    assert.equal(await first.getByLabel("Quantity", { exact: true }).inputValue(), "1");
+    assert.equal(await noticeText(first), "");
     return "two roots truly separate";
   } finally {
     await page
@@ -1034,12 +1114,4 @@ try {
   await server.close();
 }
 
-for (const r of results) {
-  console.log(
-    `${r.pass ? "PASS" : "FAIL"} ${r.name}${r.pass && r.detail ? ` — ${r.detail}` : ""}${r.pass ? "" : ` — ${r.error}`}`,
-  );
-}
-for (const a of advisory) console.log(`NOTE ${a.name} — ${a.detail}`);
-const failed = results.filter((r) => !r.pass);
-console.log(`ACCEPTANCE stock: ${results.length - failed.length}/${results.length} pass`);
-process.exitCode = failed.length ? 1 : 0;
+finish();
