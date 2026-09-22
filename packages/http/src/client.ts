@@ -124,9 +124,7 @@ export function mergeConfig(bindings: readonly HttpClient.Config[]): HttpClient.
 }
 
 /** The nearest `retry` in a nearest-first `.all` list, if any binding sets one. */
-function readRetry(
-  bindings: readonly HttpClient.Config[],
-): HttpClient.Retry | undefined {
+function readRetry(bindings: readonly HttpClient.Config[]): HttpClient.Retry | undefined {
   for (const binding of bindings) {
     if (binding.retry !== undefined) return binding.retry;
   }
@@ -188,31 +186,30 @@ export const config: Tag.Handle<HttpClient.Config> = tag({ label: "http.config" 
 /** One send through the backend. Its own span carries the method, url, attempt, and status,
  * so the retry is visible without any span code (ADR 0058). It reads `accept` from the merged
  * config bindings (default accept all), so a per-call `tags: [config({ accept })]` is seen. */
-export const attempt: Operation.Handle<Promise<HttpResponse.Handle>, HttpClient.Attempt> =
-  operationCore({
-    label: "http.attempt",
-    depends: { send: backend, config: config.all },
-    run: async ({ send, config: bindings }, ctx) =>
-      sendOnce(send, ctx.input, ctx, mergeConfig(bindings).accept ?? acceptAll),
-  });
+export const attempt: Operation.Handle<
+  Promise<HttpResponse.Handle>,
+  HttpClient.Attempt
+> = operationCore({
+  label: "http.attempt",
+  depends: { send: backend, config: config.all },
+  run: async ({ send, config: bindings }, ctx) =>
+    sendOnce(send, ctx.input, ctx, mergeConfig(bindings).accept ?? acceptAll),
+});
 
 /** Merge the config bindings nearest-first, validate the URL once, then run `attempt` as a
  * subflow until it delivers or the tries run out. `retry` is the merged policy (default never
  * retry). */
-export const send: Operation.Handle<Promise<HttpResponse.Handle>, HttpRequest.Record> =
-  operationCore({
-    label: "http.send",
-    depends: { attempt, config: config.all },
-    run: (deps, ctx) => {
-      const merged = mergeConfig(deps.config);
-      return runSend(
-        deps.attempt,
-        applyConfig(ctx.input, merged),
-        ctx,
-        merged.retry ?? noRetry,
-      );
-    },
-  });
+export const send: Operation.Handle<
+  Promise<HttpResponse.Handle>,
+  HttpRequest.Record
+> = operationCore({
+  label: "http.send",
+  depends: { attempt, config: config.all },
+  run: (deps, ctx) => {
+    const merged = mergeConfig(deps.config);
+    return runSend(deps.attempt, applyConfig(ctx.input, merged), ctx, merged.retry ?? noRetry);
+  },
+});
 
 /** The retry loop: each try is one `attempt` subflow, so each gets its own nested span. A
  * transient status or a rejected backend tries again until `retry.times + 1` is spent. */
