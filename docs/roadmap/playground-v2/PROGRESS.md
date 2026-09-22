@@ -146,3 +146,27 @@ Two smaller jobs now use separate worktrees:
 Both use Pi and the writer gateway.
 The view work follows the engine API.
 No library package changes are planned.
+
+## Writer rotation
+
+User choice: use the highest effort for every writer.
+Rotate MiMo V2.6 Flash, GLM 5.3 Flash, and DeepSeek
+V4.1 Flash through the writer gateway in Pi.
+The user confirmed V4.1 after discovery found no V4.6.
+Paseo reports no named profiles; use the gateway model IDs.
+
+Record time, saved results, check exits, and review fixes.
+Different tasks are not a fair speed test or a final ranking.
+
+- MiMo: engine and source links, in progress.
+  First broad task saved no code before it was stopped.
+  One later reply made 3,966 tool calls; 3,917 repeated
+  the same read command. A one-call rule was added.
+  Files began saving after that rule; review is pending.
+- GLM: 3D board and game controls, in progress.
+- DeepSeek: took over engine and frame tests.
+  MiMo had saved state and error files, but no engine or
+  tests. Those partial files were kept for the next writer.
+  No correctness rating is claimed for that partial work.
+
+The lead stays responsible for review and observed checks.

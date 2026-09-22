@@ -23,6 +23,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **playground/page** — owner: next writer.
+  Next: use reviewed game and code APIs for page views.
+  Verify: play, code, and full screen keep the game alive.
+
 - **namespace-v1/t01 ns values** -- ns cells + tags in core; one selector; chain order decided; ambient + inherit; hot path benched. Verify: core gate green, 385 old tests hold, new probes pass. (writer glm-5.3-flash, review astra xhigh) [namespace-v1](docs/roadmap/namespace-v1/PROGRESS.md)
 - **namespace-v1/t02 ns resources + release** -- blocked by t01. session/scope target, releaseNs, borrows by ns.
 - **namespace-v1/t03 ns edges** -- blocked by t01,t02. named watches, retry, .all, full inheritance.
@@ -39,11 +43,15 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **playground/visuals** — owner: GLM writer.
+  Next: draw 3D tiles and add game controls.
+  Verify: checks plus desktop and phone browser review.
+
 - **playground/tsunami** — owner: Codex reviewer.
   Next: review the engine and code links, then assign the view.
   Verify: checks, scope tests, build, and phone/browser review.
   [Track](docs/roadmap/playground-v2/PROGRESS.md).
-- **playground/frames** — owner: MiMo engine writer.
+- **playground/frames** — owner: DeepSeek engine writer.
   Next: save engine and frame tests in its own worktree.
   Verify: Node scope tests, build, and checks pass.
 - **playground/source-links** — owner: MiMo source writer.
