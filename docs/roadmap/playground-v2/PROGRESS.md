@@ -543,3 +543,20 @@ The slow-wave and eased-turn titles name the measured
 outcomes, so their title findings were labeled false too.
 The older wave title already has a false label on record.
 Calibration was run and saved with the new review labels.
+
+## Playground release
+
+User requested commit, push, and release.
+Merged current origin/main (`f7e8ed5`) into the playground
+branch. Both sets of review labels were retained.
+Combined build and checks pass; 56 playground tests pass.
+
+The existing Dokploy compose is named playground, ID
+`vGQY1X2XEn7f7dyzt9LqP`, using a local static nginx image.
+Release will keep its domain, network, and settings intact.
+Only the image is rebuilt, then Dokploy redeploys the app.
+
+Release checks: the full package run had one Drizzle test
+hit its five-second timeout under parallel load.
+The unchanged Drizzle suite passed when run alone.
+The merged review cases were calibrated and saved.
