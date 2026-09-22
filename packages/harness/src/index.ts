@@ -145,13 +145,10 @@ const noItems: readonly Harness.Item[] = Object.freeze([]);
 /** The shared frozen empty event list — every frame's `events` cell starts here. */
 const noEvents: readonly unknown[] = Object.freeze([]);
 
-/** The `depends` slots of a frame's tools, one per tool under `tool:<name>`: a record the turn
- * op spreads into its own `depends`, so each tool's operation is a subflow of the turn. The
+/** The `depends` slots of a frame's tools, one per tool under `tool:<name>`: a record the send
+ * op spreads into its own `depends`, so each tool's operation is a subflow of the send. The
  * value is whatever the op returns — the adapter maps it at the edge. */
-type ToolDeps<C extends Harness.Calls> = Record<
-  `tool:${string}`,
-  Operation.Handle<unknown, unknown>
->;
+type ToolDeps = Record<`tool:${string}`, Operation.Handle<unknown, unknown>>;
 
 /** The controllers those slots deliver, read back by the same keys. */
 type ToolSlots<C extends Harness.Calls> = Record<`tool:${string}`, Harness.ToolCall<C>["run"]>;
@@ -176,8 +173,8 @@ function readToolEntries<C extends Harness.Calls>(
 }
 
 /** One `tool:<name>` slot per tool, built once at frame construction. */
-function readToolDeps<C extends Harness.Calls>(entries: readonly ToolEntry<C>[]): ToolDeps<C> {
-  const deps: ToolDeps<C> = {};
+function readToolDeps<C extends Harness.Calls>(entries: readonly ToolEntry<C>[]): ToolDeps {
+  const deps: ToolDeps = {};
   for (const entry of entries) deps[entry.key] = entry.op;
   return deps;
 }
@@ -264,31 +261,30 @@ export function harness<O, T, R, C extends Harness.Calls>(config: {
    * the thread, the cells it writes, and the tool and approval slots — so each tool and
    * the approval runs as a SUBFLOW of the turn (its span nests, it sees the session's
    * bindings). The author declares the turn's own operation above it. */
-  const send: Operation.Handle<Promise<R>, T> =
-    approve === undefined
-      ? operation({
-          label: `${config.label}.send`,
-          depends: {
-            thread,
-            status: status.controller,
-            text: text.controller,
-            ...toolDeps,
-          },
-          meta: config.meta,
-          run: (deps, ctx) => runTurn(frame, deps, readCalls(deps, entries, undefined), ctx),
-        })
-      : operation({
-          label: `${config.label}.send`,
-          depends: {
-            thread,
-            status: status.controller,
-            text: text.controller,
-            approve,
-            ...toolDeps,
-          },
-          meta: config.meta,
-          run: (deps, ctx) => runTurn(frame, deps, readCalls(deps, entries, deps.approve), ctx),
-        });
+  const send: Operation.Handle<Promise<R>, T> = approve === undefined
+    ? operation({
+        label: `${config.label}.send`,
+        depends: {
+          thread,
+          status: status.controller,
+          text: text.controller,
+          ...toolDeps,
+        },
+        meta: config.meta,
+        run: (deps, ctx) => runTurn(frame, deps, readCalls(deps, entries, undefined), ctx),
+      })
+    : operation({
+        label: `${config.label}.send`,
+        depends: {
+          thread,
+          status: status.controller,
+          text: text.controller,
+          approve,
+          ...toolDeps,
+        },
+        meta: config.meta,
+        run: (deps, ctx) => runTurn(frame, deps, readCalls(deps, entries, deps.approve), ctx),
+      });
   return {
     label: config.label,
     adapter,

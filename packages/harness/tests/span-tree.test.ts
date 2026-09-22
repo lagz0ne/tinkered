@@ -2,6 +2,7 @@ import { expect, test } from "vite-plus/test";
 import { createScope, operation, preset, type Observe } from "@tinker/core";
 import { tool } from "@tinker/mcp";
 import type { Options, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { claudeCode, harness, type ClaudeCode } from "../src/index.ts";
 import {
@@ -52,11 +53,6 @@ const ask = operation({
  * — asserted separately — so the tree reads without them). */
 function shape(spans: readonly Observe.Span[]): string[] {
   const byId = new Map(spans.map((span) => [span.id, span]));
-  const depth = (span: Observe.Span): number => {
-    let n = 0;
-    for (let at = span.parentId; at !== undefined; at = byId.get(at)?.parentId) n += 1;
-    return n;
-  };
   const ops = spans.filter((span) => span.kind === "operation");
   const ids = new Set(ops.map((span) => span.id));
   const opDepth = (span: Observe.Span): number => {
@@ -66,9 +62,7 @@ function shape(spans: readonly Observe.Span[]): string[] {
     }
     return n;
   };
-  return ops
-    .sort((a, b) => a.id - b.id)
-    .map((span) => `${"  ".repeat(opDepth(span))}${span.name}`);
+  return ops.sort((a, b) => a.id - b.id).map((span) => `${"  ".repeat(opDepth(span))}${span.name}`);
 }
 
 test("the graph produces the trace: the author's op over the frame's send", async () => {
@@ -95,10 +89,10 @@ const search = operation({
 });
 
 test("the graph produces the trace: the tool nests under the send", async () => {
-  const seen: { servers: { tools: { name: string; handler: (args: unknown, extra: unknown) => Promise<unknown> }[] }[]; results: unknown[] } = {
-    servers: [],
-    results: [],
-  };
+  const seen: {
+    servers: { tools: Parameters<ClaudeCode.Sdk["createSdkMcpServer"]>[0]["tools"] }[];
+    results: CallToolResult[];
+  } = { servers: [], results: [] };
   const sdk: ClaudeCode.Sdk = {
     tool: (name, description, schema, handler) => ({
       name,
@@ -136,8 +130,8 @@ test("the graph produces the trace: the tool nests under the send", async () => 
 async function* readToolStream(
   options: Options | undefined,
   seen: {
-    servers: { tools: { handler: (args: unknown, extra: unknown) => Promise<unknown> }[] }[];
-    results: unknown[];
+    servers: { tools: Parameters<ClaudeCode.Sdk["createSdkMcpServer"]>[0]["tools"] }[];
+    results: CallToolResult[];
   },
 ): AsyncGenerator<SDKMessage> {
   yield readSystemInit();
