@@ -23,12 +23,17 @@ const DECLARERS: Record<string, boolean> = {
   ClassDeclaration: true,
   NamespaceDeclaration: true,
   TypeAliasDeclaration: true,
+  ForOfSpec: true,
+  ForInSpec: true,
 };
 
 const WRAPPERS: Record<string, boolean> = {
   ExportDeclaration: true,
   AmbientDeclaration: true,
+  ForSpec: true,
 };
+
+const SCOPES: Record<string, boolean> = { Block: true, ForStatement: true };
 
 const FUNCTIONS: Record<string, boolean> = {
   FunctionDeclaration: true,
@@ -165,22 +170,32 @@ function declarationIn(stmt: Node, source: Source, name: string): Node | undefin
   return children(stmt).find((kid) => kid.name === wanted && text(source, kid) === name);
 }
 
+function paramNamed(kid: Node, source: Source, name: string): boolean {
+  if (kid.name === "PatternProperty") {
+    const key = childNamed(kid, "PropertyName");
+    return key !== undefined && text(source, key) === name;
+  }
+  if (kid.name === "VariableDefinition" || kid.name === "TypeDefinition")
+    return text(source, kid) === name;
+  return false;
+}
+
+function deepDeclares(scope: Node, source: Source, name: string): boolean {
+  for (const kid of children(scope)) {
+    if (paramNamed(kid, source, name) || deepDeclares(kid, source, name)) return true;
+  }
+  return false;
+}
+
 function declaresParam(fn: Node, source: Source, name: string): boolean {
   const params = childNamed(fn, "ParamList");
-  if (!params) return false;
-  return children(params).some(
-    (kid) =>
-      (kid.name === "VariableDefinition" ||
-        kid.name === "TypeDefinition" ||
-        kid.name === "TypeName") &&
-      text(source, kid) === name,
-  );
+  return params !== undefined && deepDeclares(params, source, name);
 }
 
 function shadowed(node: Node, source: Source, name: string): boolean {
   for (let scope = node.parent; scope; scope = scope.parent) {
     if (scope.parent === null) return false;
-    if (scope.name === "Block" && children(scope).some((kid) => declarationIn(kid, source, name)))
+    if (SCOPES[scope.name] && children(scope).some((kid) => declarationIn(kid, source, name)))
       return true;
     if (FUNCTIONS[scope.name] && declaresParam(scope, source, name)) return true;
   }

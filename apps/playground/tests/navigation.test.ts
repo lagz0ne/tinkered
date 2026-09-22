@@ -222,6 +222,27 @@ export function viaLocal() {
   ).toBeUndefined();
 });
 
+test("a destructured parameter or loop local shadows the import", () => {
+  const scope = createScope();
+  const fixture = `import { createScope } from "@tinker/core";
+export const viaDestructured = ({ createScope }: { createScope: number }) => createScope + 1;
+export const viaLoop = () => {
+  for (const createScope of [1]) return createScope;
+};
+`;
+  scope.controller(filesCell).set([{ name: "shadowed.ts", content: fixture }]);
+  expect(
+    scope.run(followDefinition, {
+      input: { file: "shadowed.ts", offset: at(fixture, "createScope", 3) },
+    }),
+  ).toBeUndefined();
+  expect(
+    scope.run(followDefinition, {
+      input: { file: "shadowed.ts", offset: at(fixture, "createScope", 5) },
+    }),
+  ).toBeUndefined();
+});
+
 test("back and forward walk history and restore the exact file and offset", () => {
   const scope = createScope();
   const main = contentOf("main.tsx");
@@ -241,6 +262,38 @@ test("back and forward walk history and restore the exact file and offset", () =
   expect(scope.run(goBack)).toEqual({ file: "main.tsx", offset: 55 });
   expect(scope.run(goBack)).toBeUndefined();
   expect(scope.resolve(navigationCell).place).toEqual({ file: "main.tsx", offset: 55 });
+});
+
+test("history walks the most recent place, and a new jump clears the forward stack", () => {
+  const scope = createScope();
+  scope.run(openSource, { input: { file: "main.tsx", offset: 10 } });
+  scope.run(openSource, { input: { file: "state.ts", offset: 20 } });
+  scope.run(openSource, { input: { file: "Tile.tsx", offset: 30 } });
+  expect(scope.resolve(navigationCell)).toEqual({
+    place: { file: "Tile.tsx", offset: 30 },
+    back: [
+      { file: "main.tsx", offset: 10 },
+      { file: "state.ts", offset: 20 },
+    ],
+    forward: [],
+  });
+  expect(scope.run(goBack)).toEqual({ file: "state.ts", offset: 20 });
+  expect(scope.run(goBack)).toEqual({ file: "main.tsx", offset: 10 });
+  expect(scope.run(goBack)).toBeUndefined();
+  expect(scope.run(goForward)).toEqual({ file: "state.ts", offset: 20 });
+  expect(scope.run(goForward)).toEqual({ file: "Tile.tsx", offset: 30 });
+  expect(scope.run(goForward)).toBeUndefined();
+  expect(scope.run(goBack)).toEqual({ file: "state.ts", offset: 20 });
+  scope.run(openSource, { input: { file: "engine.ts", offset: 40 } });
+  expect(scope.resolve(navigationCell)).toEqual({
+    place: { file: "engine.ts", offset: 40 },
+    back: [
+      { file: "main.tsx", offset: 10 },
+      { file: "state.ts", offset: 20 },
+    ],
+    forward: [],
+  });
+  expect(scope.run(goBack)).toEqual({ file: "state.ts", offset: 20 });
 });
 
 test("a navigation input that is not { file, offset } is refused", () => {

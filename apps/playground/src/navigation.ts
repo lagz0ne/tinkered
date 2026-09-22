@@ -5,8 +5,8 @@ import { sourceFiles, type Source } from "@/lib/sources.ts";
 import { filesCell } from "@/state.ts";
 
 /** Where navigation stands: `place` is the spot shown now (absent until the first open), `back`
- * holds where it came from, `forward` holds what a back-jump would undo. Every new jump replaces
- * both arrays; `trackCursor` moves `place` alone. */
+ * holds where it came from, newest last; `forward` holds what a back-jump would undo, newest last.
+ * A new jump appends to `back` and clears `forward`; `trackCursor` moves `place` alone. */
 export type Navigation = { place?: Place; back: readonly Place[]; forward: readonly Place[] };
 
 /** The navigation state: current place plus the two history stacks. */
@@ -72,35 +72,35 @@ export const followDefinition = operation({
   },
 });
 
-/** Step back to the previous place — file and exact offset — or `undefined` with no history. */
+/** Step back to the most recent place — file and exact offset — or `undefined` with no history. */
 export const goBack = operation({
   label: "goBack",
   depends: { nav: navigationCell.controller },
   run: ({ nav }) => {
     const current = nav.get();
-    const [target, ...back] = current.back;
+    const target = current.back.at(-1);
     if (!target) return undefined;
     nav.set({
       place: target,
-      back,
+      back: current.back.slice(0, -1),
       forward: current.place ? [...current.forward, current.place] : current.forward,
     });
     return target;
   },
 });
 
-/** Step forward to the place a back-jump undid, or `undefined` with nothing to redo. */
+/** Step forward to the most recent place a back-jump undid, or `undefined` with nothing to redo. */
 export const goForward = operation({
   label: "goForward",
   depends: { nav: navigationCell.controller },
   run: ({ nav }) => {
     const current = nav.get();
-    const [target, ...forward] = current.forward;
+    const target = current.forward.at(-1);
     if (!target) return undefined;
     nav.set({
       place: target,
       back: current.place ? [...current.back, current.place] : current.back,
-      forward,
+      forward: current.forward.slice(0, -1),
     });
     return target;
   },
