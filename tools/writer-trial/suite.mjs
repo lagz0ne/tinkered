@@ -50,6 +50,23 @@ export const roundsFor = (suite) => {
 
 export const taskRounds = (suite) => roundsFor(suite);
 
+export const taskFileFor = (suite, round) => {
+  if (suite === "stock") {
+    if (round !== 1) throw new Error("Suite stock has no round " + round);
+    return "01-stock-moves.md";
+  }
+  if (!SUITES[suite]) throw new Error(`Unknown suite: ${suite}`);
+  const names = {
+    1: "01-book-cancel.md",
+    2: "02-edit.md",
+    3: "03-series.md",
+    4: "04-undo.md",
+    5: "05-rename-series.md",
+  };
+  if (!names[round]) throw new Error(`Suite ${suite} has no round ${round}`);
+  return names[round];
+};
+
 export const taskSourcesFor = (suite, round) => {
   if (!SUITES[suite]) throw new Error(`Unknown suite: ${suite}`);
   if (!SUITES[suite].rounds.includes(round))
@@ -93,11 +110,26 @@ export const freezeTrial = (root, suite) => {
     put(join(trialDir, task), `tasks/${task.split("/").pop()}`);
   for (const guide of guidelineSourcesFor(suite)) put(join(trialDir, guide), `rules/${guide}`);
   for (const tool of ["extension.mjs", "broker.mjs"]) put(join(trialDir, tool), `tools/${tool}`);
+  // Limits drift after create when stage reads live config.
+  // New trials freeze config.json and read limits from the copy.
+  put(join(trialDir, "config.json"), "config.json");
   for (const file of JEV_FROZEN) put(join(repoDir, "tools/jev", file), `jev/${file}`);
   return { dir: "frozen", files };
 };
 
-// Staging reads frozen copies only, never the mutable repo.
+export const frozenConfigFor = (root, frozen) =>
+  JSON.parse(readFileSync(join(root, frozen.dir, "config.json"), "utf8"));
+
+// New trials read limits from the frozen copy; old trials use live config.
+// Fixture dirs work here: no repo config edit is needed to test this.
+export const limitsFor = (manifest, liveConfig, root) => {
+  if (manifest.frozen) return frozenConfigFor(root, manifest.frozen).limits;
+  return liveConfig.limits;
+};
+
+// Old trials without frozen/ keep rounds 1-4; frozen trials use suite rounds.
+export const validRounds = (manifest) =>
+  manifest.frozen ? roundsFor(suiteFor(manifest)) : [1, 2, 3, 4];
 export const verifyFrozen = (root, frozen) => {
   for (const [rel, hash] of Object.entries(frozen.files)) {
     const path = join(root, frozen.dir, rel);

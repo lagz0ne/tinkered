@@ -7,12 +7,16 @@ import { join } from "node:path";
 import {
   assembleGuidelines,
   freezeTrial,
+  frozenConfigFor,
   guidelineSourcesFor,
+  limitsFor,
   readFrozenGuidelines,
   readFrozenTask,
   roundsFor,
   suiteFor,
+  taskFileFor,
   taskSourcesFor,
+  validRounds,
   verifyFrozen,
 } from "./suite.mjs";
 
@@ -77,5 +81,35 @@ void describe("frozen copies", () => {
       rmSync(root, { recursive: true, force: true });
       rmSync(stockRoot, { recursive: true, force: true });
     }
+  });
+
+  void it("freezes the worker limits so live config cannot drift stage", () => {
+    const root = mkdtempSync(join(tmpdir(), "suite-limits-"));
+    try {
+      const frozen = freezeTrial(root, "stock");
+      assert.ok(frozen.files["config.json"]);
+      // A changed live config object cannot move the frozen read.
+      const live = { limits: { ...frozenConfigFor(root, frozen).limits, toolCalls: 1 } };
+      assert.notEqual(live.limits.toolCalls, limitsFor({ frozen }, live, root).toolCalls);
+      assert.equal(
+        limitsFor({ frozen }, live, root).toolCalls,
+        frozenConfigFor(root, frozen).limits.toolCalls,
+      );
+      // Old trials with no frozen/ still read the live config.
+      assert.equal(limitsFor({}, live, root).toolCalls, 1);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  void it("names one task file per round, no false round 5 for legacy", () => {
+    assert.equal(taskFileFor("stock", 1), "01-stock-moves.md");
+    assert.equal(taskFileFor("booking", 5), "05-rename-series.md");
+    assert.throws(() => taskFileFor("stock", 2), /no round/);
+    assert.deepEqual(validRounds({}), [1, 2, 3, 4]);
+    assert.deepEqual(
+      validRounds({ suite: "booking", frozen: { dir: "f", files: {} } }),
+      [1, 2, 3, 4, 5],
+    );
   });
 });

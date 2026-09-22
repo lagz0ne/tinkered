@@ -13,13 +13,16 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
   freezeTrial,
+  limitsFor,
   readFrozenGuidelines,
   readFrozenTask,
   readFrozenToolPath,
   suiteFor,
   taskRounds,
+  validRounds,
   verifyFrozen,
 } from "./suite.mjs";
+import { cleanupReady } from "./attempts.mjs";
 const here = fileURLToPath(new URL(".", import.meta.url));
 const repo = resolve(here, "../..");
 const home = join(homedir(), ".local/share/tinker-writer-trial");
@@ -113,7 +116,7 @@ if (action === "create") {
       join(seed, "package.json"),
       JSON.stringify(
         {
-          name: "room-booking-trial",
+          name: suite === "stock" ? "stock-moves-trial" : "room-booking-trial",
           private: true,
           type: "module",
           scripts: {
@@ -236,9 +239,9 @@ if (action === "create") {
 } else if (action === "stage") {
   const round = Number(process.argv[4]);
   const manifest = JSON.parse(readFileSync(manifestPath));
-  // Old trials have no suite: keep rounds 1-4 working as before.
+  // Old trials have no suite: legacy stays at rounds 1-4.
   const suite = suiteFor(manifest);
-  const valid = taskRounds(suite);
+  const valid = manifest.frozen ? taskRounds(suite) : validRounds(manifest);
   if (!valid.includes(round)) throw new Error(`Stage needs round ${valid.join(", ")} for ${suite}`);
   if (manifest.round && round !== manifest.round + 1) throw new Error("Stage the next round only");
   if (
@@ -277,7 +280,8 @@ if (action === "create") {
     }
     const cfgPath = join(ext, "worker.json");
     const cfg = JSON.parse(readFileSync(cfgPath));
-    cfg.limits = config.limits;
+    // Frozen trials read limits from the frozen copy, not live config.
+    cfg.limits = limitsFor(manifest, config, root);
     cfg.events = join(root, `${w.container}-round-${round}.jsonl`);
     writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
     writeFileSync(
@@ -286,7 +290,7 @@ if (action === "create") {
     );
     w.status = "staged";
   }
-  manifest.phase = config.limits.disabled ? "completion" : "scored";
+  manifest.phase = limitsFor(manifest, config, root).disabled ? "completion" : "scored";
   manifest.round = round;
   save(manifest);
   console.log(`Round ${round} staged. No agents launched.`);
@@ -311,6 +315,9 @@ if (action === "create") {
 } else if (action === "cleanup") {
   const manifest = JSON.parse(readFileSync(manifestPath));
   if (!manifest.exportedAt) throw new Error("Export results before cleanup");
+  // New trials save attempts through review.mjs: cleanup needs every
+  // worker's current attempt saved first. Old export-only trials skip this.
+  if (manifest.frozen && manifest.round) cleanupReady(manifest.workers, manifest.round);
   for (const w of manifest.workers) {
     if (w.status === "cleaned") continue;
     if (w.workspaceId) run("paseo", ["workspace", "archive", w.workspaceId, "--json"]);
