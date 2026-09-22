@@ -1,0 +1,358 @@
+# Writer trial
+
+Status: worker readiness passed; scored rounds have not started.
+Owner: Codex.
+Scope settled: core and React only.
+Trial shape settled: four attempts per writer on its own growing repo.
+Next: stage the first scored round when trial work starts.
+
+## What we checked
+
+- Base commit: `50ae1294a484fc796834467fdd9309c31e8b9479`.
+- `vp install`: exit 0; dependencies already present.
+- Read Jev tools, the live question bank, and tracker code.
+- Jev findings are advice, not proof that work passes.
+- `lint` and `tests` accept explicit file paths.
+- `promises` and `survivors` expect `packages/<name>`.
+- `preflight` calls `tools/jev/lint.mjs` from the current folder.
+- Some comments describe retired questions.
+  Use the live bank and `explain.mjs` for the active set.
+- The tracker covers saved edits, stale writes, live state,
+  HTTP, CLI, MCP, and an optional draft helper.
+- Paseo reports Pi available; no saved launch profiles exist.
+- All four requested routes appear in the live Vercel model list.
+  Checked `https://ai-gateway.vercel.sh/v1/models`.
+  Preparation added the four routes to Pi's model settings.
+  All four were then tested through Paseo.
+- All four model routes now pass real calls through Paseo and Pi.
+- All four use the worker shell and real Jev tool successfully.
+- The requested token file exists and is nonempty.
+  Its contents were not printed or copied.
+
+## Proposed task
+
+Use [SlopCodeBench](https://github.com/SprocketLab/slop-code-bench)
+as the precedent: a writer extends its earlier code as requirements change.
+The user asked for repo growth over at least three to four attempts.
+Plan four attempts per writer, with a saved result after each one.
+This is one growing app per writer, not four fresh app builds.
+
+Borrow the staged tasks and checks of earlier behavior.
+Keep our task smaller: core and React, with no server.
+Our task details and scoring below are local proposals,
+not claims about SlopCodeBench's exact rules.
+
+Build a room-booking screen using only `@tinker/core`
+and `@tinker/react` from the Tinker packages.
+The user set this scope on 2026-09-22.
+Book a room, list bookings, cancel, and reject clashes.
+Two requests for the same slot must not both succeed.
+Adjacent bookings are allowed; invalid time ranges fail.
+Use UTC times and fixed rooms to keep the first task small.
+Keep bookings in local state; reload starts fresh.
+No server, database, HTTP, CLI, MCP, or model helper.
+React reads cells and runs operations; core owns the rules.
+Final checks cover core behavior and real browser clicks.
+
+## Teacher controls
+
+- Freeze all four task packets, rules, package versions, and checks.
+- Reveal only the current task and earlier requirements to the writer.
+- Choose which Jev tools and questions each run can use.
+- Freeze question wording and calibration for each comparison.
+- Set time, spend, tool-call, and feedback limits before launch.
+- Keep the final tests and other writers' answers private.
+- Score behavior, rule following, time, cost, and follow-up count.
+- Count Jev cost and calls separately from writer cost and calls.
+- Keep provider failures separate from failed app behavior.
+
+## Writer loop
+
+- Read the task and restate its rules with a small example.
+- Build with supplied public types and task rules.
+- Run plain checks and the allowed Jev tools.
+- Fix each finding or give a short reason to leave it.
+- Submit when public checks pass and findings are addressed.
+- Stop and report a blocker when the run limit is reached.
+- Missing credentials or failed checks are not clean results.
+- Do not use Jev's exit code alone to declare success.
+
+## Four attempts on the same repo
+
+```text
+1. Book and cancel
+        ↓
+2. Edit with save/discard
+        ↓
+3. Book a repeating series
+        ↓
+4. Undo changes
+```
+
+Each model gets its own project, starter, and Git history.
+Its next attempt starts from its own last submitted code,
+including defects. Do not replace it with another writer's answer.
+Do not reset to the starter after a poor score.
+All four models get the same task sequence.
+Four models times four attempts gives 16 scored results.
+These are four histories, not 16 independent trials.
+
+Proposed steps:
+
+1. **Book and cancel.** The base task below.
+   Observe state ownership, booking rules, and React reads.
+2. **Edit a booking.** Open a draft; save or discard it.
+   Unsaved edits must not change the list.
+   A failed save preserves both the saved booking and the draft.
+   Clash checks exclude the booking being edited.
+3. **Book a series.** Add dates and weekly repeats.
+   Create all requested dates, or none if any date clashes.
+   Allow canceling one occurrence or its whole series.
+   Earlier single-booking behavior must remain valid.
+4. **Undo.** Undo the last successful booking change.
+   A series change is one undo step.
+   Failed actions and filter changes add no undo step.
+   Undo restores booking data, not the current form or filter.
+
+Before launch, each packet must define its exact inputs,
+button names, errors, and the behavior of each new action.
+Later packets may extend prior rules explicitly.
+For example, step 3 replaces the fixed day with a chosen date;
+its old tests still run using the original date.
+No later requirement is scored before it has been revealed.
+
+## Fair comparison
+
+Keep code and history across attempts.
+Default: start a fresh Pi session for each attempt through Paseo,
+with its own repo, current task, earlier rules, and allowed docs.
+This makes the saved repo carry the earlier design forward.
+Use that session rule for all four writers.
+Record any restart or missing context.
+
+Give each writer the same self-check tools and per-attempt limits.
+Teacher checks score the submitted snapshot before the next step.
+Do not send unseen test bodies or a model-specific repair patch.
+Within each attempt, the writer can use Jev to fix issues early.
+A submission or the run limit ends the attempt; Jev alone cannot.
+
+Keep teacher feedback fixed for the first comparison:
+public check results and Jev findings are visible;
+unseen test results are saved for the teacher through step 4.
+Later teaching trials may add feedback, with that change recorded.
+This improves the working process; it does not change model weights.
+
+The teacher may add or remove tools between trial versions.
+For a fair comparison, freeze the tool set across the four steps
+and all four writers in one version.
+If a tool must change mid-trial, record the boundary and do not
+attribute the later score change to the writer alone.
+Keep the teacher's scoring checks fixed even if writer tools vary.
+
+One four-step history per model is a pilot, not a reliable ranking.
+Repeat full histories before claiming one writer is better.
+A future no-Jev comparison must start from the same starter,
+not a repo already improved with Jev.
+
+## What to save after each attempt
+
+- The exact task, rules, tool set, and model route.
+- Paseo project, workspace, and agent IDs; session settings.
+- Parent commit, submitted commit, and diff.
+- New behavior passed out of new checks run.
+- Earlier behavior passed out of earlier checks run.
+- Earlier passing checks that now fail: regressions.
+- Earlier failing checks that now pass: repairs.
+- Build, type, and browser results, including checks not run.
+- Source and test lines, files, and lines added or removed.
+- Duplicated code and branching counts, using fixed tools.
+- Jev findings by question ID and status, with units scanned.
+- Teacher-confirmed findings separate from raw Jev output.
+- Writer and Jev tokens, calls, cost, and elapsed time separately.
+- Follow-ups, restarts, errors, and the reason the writer stopped.
+
+Show a four-point history for each model, not just its final score.
+Compare the same step across models.
+Code growth is evidence to inspect, not an automatic penalty.
+Keep source, tests, generated files, and dependencies separate.
+Never add unlike Jev probabilities into one quality score.
+Record missing cost or skipped checks as unknown, not zero.
+
+Save timed-out or broken submissions too, then continue from them
+when another attempt can run. Record setup/provider failures apart
+from app failures; do not silently substitute a model.
+
+Requested models, all through Pi and Vercel Gateway:
+
+- `xiaomi/mimo-v2.6-flash`
+- `xiaomi/mimo-v2.6-pro`
+- `zai/glm-5.3-flash`
+- `deepseek/deepseek-v4.1-flash`
+
+## Access and launch
+
+Use Paseo to create, launch, stop, and archive each run.
+Each writer starts with a fresh project containing the starter
+and allowed docs. Keep that project across its four attempts.
+Do not copy the tracker, repo history, or other submissions.
+A separate folder is not an access boundary on this host.
+Before calling a run isolated, prove that its tools cannot read
+outside the allowed files or fetch the existing example.
+Keep final tests outside the writer's allowed files.
+
+Pi custom model entries and the worker extension are proven.
+All four gateway routes, tool restrictions, stop limits, and
+Jev outside this repo passed readiness checks.
+Only the named gateway provider and scoped trust entries were added.
+Trust entries were removed with the temporary projects.
+
+## Results and cleanup
+
+Save the task version, allowed tools, model route, session IDs,
+submission, checks, feedback, usage, and stop reason first.
+Do not save credentials with results.
+Record every temporary project ID, workspace ID, and folder.
+Save a snapshot after every attempt; keep the project for the next.
+At the end of the four attempts, or when the whole run is stopped:
+
+1. Stop the writer and its child processes.
+2. Save results outside the temporary project.
+3. Archive its workspace through Paseo.
+4. Delete its project from Paseo's registry.
+5. Remove only its recorded temporary folder.
+6. Check that the workspace, project, and folder are gone.
+
+Paseo project deletion leaves the project folder on disk.
+Workspace removal alone leaves the project registered.
+Readiness projects were created, tested, then removed.
+
+## Draft writer task: attempt 1
+
+Build a room-booking screen for one day: 2026-10-01 UTC.
+Use rooms Cedar and Maple, each with its own bookings.
+Start with no bookings.
+
+- Enter a title, room, start time, and end time.
+- Use minute precision, from 00:00 through 23:59.
+- Trim the title; reject a blank title.
+- Reject an unknown room, invalid time, or end before start.
+- Reject equal start and end times.
+- Reject any overlap in the same room.
+- Allow overlap in different rooms.
+- Allow one booking to start when another ends.
+- List bookings by start time, then by creation order.
+- Cancel by booking ID; a second cancel reports not found.
+- A failed action leaves saved bookings unchanged.
+- Two calls for one empty slot create exactly one booking.
+- Keep the form values after a failed booking.
+- After success, clear the title and show the saved booking.
+- A cancel removes the row and frees its slot.
+- Filter by room without deleting hidden bookings.
+- Show errors beside the form with an accessible alert.
+- Give inputs visible labels and buttons clear names.
+- Separate mounted app roots must not share booking state.
+
+Core owns saved state and the booking operations.
+React reads state and runs actions through `@tinker/react`.
+Do not add another state library or another Tinker package.
+Use the supplied coding rules and public package exports.
+Do not change supplied checks or their configuration.
+Write tests that prove what a caller or person can observe.
+
+The teacher will supply the starter entry names before launch.
+That freezes how final tests call the app without prescribing
+its private functions or component tree.
+
+## Proposed first tool set
+
+- Writer: Jev file checks, core unit checks, React checks,
+  and test-title checks; plain build, type, and behavior checks.
+- Teacher: the same checks, diff review, and unseen tests.
+- Keep calibration and label writes teacher-owned.
+- Leave mutation and README matching out of the first round.
+- Save the enabled question IDs with every run.
+- Missing Jev output is recorded as unavailable, never clean.
+
+## Remaining setup
+
+- Run the prepared teacher checks against the first real submission.
+- Record later checks as not run when an earlier check fails.
+- Apply the proven equal limits to each scored attempt.
+- Keep the proven file boundary when staging the task.
+- Export every round before advancing, then use the tested cleanup.
+
+No scored attempt has run. Readiness projects have been cleaned up.
+
+## Preparation proof: 2026-09-22
+
+The reusable setup is in [tools/writer-trial](../../../tools/writer-trial/README.md).
+Results stay outside worker projects in
+`~/.local/share/tinker-writer-trial/readiness/`.
+
+- `model-readiness.json`: all four model routes, shell, and Jev pass.
+- `readiness-checks.json`: 32 checks pass across four containers.
+- `node --test tools/writer-trial/limits-check.mjs`: 4 tests pass.
+  Tool blocking, inherited context removal, tool limit,
+  token limit, and wall-clock stop are covered.
+- Real Chromium opened a page and clicked a button in every container.
+- Core and React imports and public declarations are readable.
+- Host files, credentials, source maps, and repo examples are absent.
+- Network access fails; shell commands time out.
+- Four successful agent IDs and usage are saved in the model report.
+- Each worker has the same `high` thinking setting and tool set.
+- Initial MiMo and GLM calls hit Vercel's model allowlist.
+  The user enabled them; fresh calls passed.
+- Pi initially skipped untrusted project extensions.
+  Trust was scoped to the four teacher-owned folders; retries passed.
+- `vp run core#test`: 385 tests pass.
+- `vp run react#test`: 69 browser tests pass.
+- `vp check`: exit 0, warnings remain elsewhere in the repo.
+- Root `vp test`: exit 1; 767 passed, 37 failed, 1 skipped.
+  Failures include missing playground aliases, React browser setup,
+  and timeouts in tracker and database tests.
+  These suites are outside the worker setup; no fixes made there.
+
+All example-land is excluded, as the user required.
+Workers get no package README tours or worked sample app.
+Only the public declarations, built libraries, and task rules are supplied.
+The teacher's frozen Jev copy stays outside the worker container.
+Jev receives source text, never host execution of worker code.
+
+Writer budgets stop after a completed response crosses the token
+or estimated-cost limit; one response may exceed that threshold.
+Jev's current adapter reports calls but no usage or cost.
+Those fields stay unknown, not zero.
+
+Cleanup proof: all four readiness projects, workspaces, containers,
+volumes, and worker folders are gone.
+`cleanup-proof.json` records each check; results and archives remain.
+
+SCIP review: `scripts/scip.sh index` rebuilt all package indexes.
+No existing public symbol changed in this preparation.
+`scripts/scip.sh refs 'createScope\(\)\.$' core`
+locates the scope entry at `packages/core/src/index.ts:3199`.
+Its references remain in the existing core tests.
+
+## Final preparation review
+
+Four task packets and core checks are saved.
+The teacher also has browser checks for all four rounds.
+Round 2 no longer exposes the date field from round 3.
+No scored app code was written during preparation.
+
+`evaluate.mjs` restores a saved archive in a separate container.
+It loads teacher checks there, with no host mounts or network.
+A blank readiness archive failed on the missing `src/index.ts`,
+as expected. The container was removed after that failure.
+Evidence: `teacher-empty-check.log` in the saved results folder.
+This proves setup and rejection, not a passing app.
+The checks stop at the first failure and sample the stated rules.
+A complete app still needs its first real evaluation.
+
+Contributor commit `a1448bb` is saved as a patch in the results.
+Its files are copied here with the review fixes.
+The helper workspace, worktree, and branch are removed.
+Its shared parent project remains in place.
+The worker projects were separate and are all removed.
+
+Preparation is done. The four-round trial remains Ready.

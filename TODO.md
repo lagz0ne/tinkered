@@ -23,6 +23,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **writers/trial** — owner: Codex.
+  Four attempts per writer; observe its repo grow.
+  Next: stage round 1 from the prepared worker setup.
+  Verify: 16 saved results, growth reports, and cleanup proof.
+  Notes: [writer trial](docs/roadmap/writer-trial/PROGRESS.md).
+
 | Card                                                                                                                                                | Owner         | Next                                                                                                                                                            | Verify                                        |
 | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | tests/core-tag-read-split — `tag.read returns each unit's own binding on an operation, a resource, and a tag itself` proves three kinds in one body | lead (Claude) | Split three ways (one kind each) or keep one; it also overlaps `tag.read finds a unit's own binding` next door (the titles writer's delete-not-retitle finding) | one cause per test; core lane ≥ break         |
@@ -63,6 +69,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **writers/prep** — model routes, shell, Jev, browser,
+  limits, file access, and cleanup checks passed.
+  Four task packets and private teacher checks reviewed.
+  The isolated teacher runner rejects an empty app.
+  No scored rounds started.
+  Proof: [readiness](docs/roadmap/writer-trial/readiness.json)
+  and [review](docs/roadmap/writer-trial/PROGRESS.md).
 
 | Card | Evidence |
 | tests/kill-check-in-brief — per-line kill check is the writer's proof | brief updated (`docs/roadmap/contributor-brief.md` Setup); `vp run prose` 0 hits |

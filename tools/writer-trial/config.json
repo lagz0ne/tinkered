@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "models": [
+    "xiaomi/mimo-v2.6-flash",
+    "xiaomi/mimo-v2.6-pro",
+    "zai/glm-5.3-flash",
+    "deepseek/deepseek-v4.1-flash"
+  ],
+  "provider": "writer-gateway",
+  "image": "tinker-writer-trial:20260922",
+  "limits": {
+    "seconds": 2700,
+    "toolCalls": 160,
+    "modelTurns": 80,
+    "tokens": 300000,
+    "estimatedDollars": 3,
+    "jevCalls": 60
+  },
+  "smokeLimits": {
+    "seconds": 300,
+    "toolCalls": 12,
+    "modelTurns": 8,
+    "tokens": 30000,
+    "estimatedDollars": 0.25,
+    "jevCalls": 2
+  },
+  "judges": [
+    "partialStub",
+    "memoKeyIgnoresInput",
+    "leakedInternal",
+    "runForwardsToClosure",
+    "effectWithoutDefer",
+    "stateOutsideCell",
+    "configNotTag",
+    "readsMoreThanRendered",
+    "subscribesToWriteOnly",
+    "runDuringRender",
+    "domainLogicInRender",
+    "effectOwnedByComponent",
+    "titleVague"
+  ]
+}
