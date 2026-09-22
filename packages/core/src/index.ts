@@ -2992,7 +2992,6 @@ function collectNsAffected(
 function releaseNsBucket(layer: Layer, target: Node, key: Namespace): void {
   ensureOpen(layer);
   if (isData(target)) return releaseNsData(layer, target, key);
-  if (target.target === "scope") return;
   releaseNsResource(layer, target, key);
 }
 
