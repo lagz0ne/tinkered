@@ -840,64 +840,82 @@ if (mode === "transfer") {
   });
 }
 
-// Runs inside the page: page.evaluate takes a string, so the mount code
-// stays self-contained here (the id below must match the locators).
-const mountSecondRootSource = `void (async () => {
+// Runs inside the page: one ordinary async function passed directly to
+// page.evaluate. All helpers nest INSIDE it, so the serialized closure is
+// self-contained (awaited, errors carried) with complexity split in real
+// code the lint sees. The id below must match the locators.
+const mountSecondRoot = async () => {
+  const entryCandidates = ["/src/index.ts", "/src/index.tsx"];
   const pickEntry = async () => {
-    for (const entry of ["/src/index.ts", "/src/index.tsx"]) {
+    for (const entry of entryCandidates) {
       try {
         return await import(entry);
       } catch {}
     }
     throw new Error("cannot import submission entry");
   };
-  const firstJsx = (mod) =>
-    mod?.jsx ?? mod?.jsxs ?? mod?.default?.jsx ?? mod?.default?.createElement ?? mod?.createElement;
+  const ownJsx = (mod) => mod?.jsx ?? mod?.jsxs;
+  const inheritedJsx = (mod) =>
+    mod?.default?.jsx ?? mod?.default?.createElement ?? mod?.createElement;
+  const firstJsx = (mod) => ownJsx(mod) ?? inheritedJsx(mod);
+  const probeDirectJsx = async () =>
+    firstJsx(await import("/@id/__x00__react/jsx-runtime").catch(() => null));
+  const probeBareJsx = async () => firstJsx(await import("react/jsx-runtime").catch(() => null));
   const probeJsxRuntime = async () => {
-    const direct = await import("/@id/__x00__react/jsx-runtime").catch(() => null);
-    if (typeof firstJsx(direct) === "function") return firstJsx(direct);
-    return firstJsx(await import("react/jsx-runtime").catch(() => null));
+    const direct = await probeDirectJsx();
+    if (typeof direct === "function") return direct;
+    return probeBareJsx();
+  };
+  const candidatePaths = (paths) =>
+    paths.filter((p) => p.includes("jsx-runtime") || p.includes("react")).slice(0, 8);
+  const loadCandidateJsx = async (cand) => {
+    try {
+      const jsx = firstJsx(await import(cand));
+      return typeof jsx === "function" ? jsx : undefined;
+    } catch {
+      return undefined;
+    }
   };
   const scanJsxCandidates = async (paths) => {
-    const cands = paths
-      .filter((p) => p.includes("jsx-runtime") || p.includes("react"))
-      .slice(0, 8);
-    for (const cand of cands) {
-      try {
-        const jsx = firstJsx(await import(cand));
-        if (typeof jsx === "function") return jsx;
-      } catch {}
+    for (const cand of candidatePaths(paths)) {
+      const jsx = await loadCandidateJsx(cand);
+      if (typeof jsx === "function") return jsx;
     }
     return undefined;
   };
+  const pickClientPath = (paths) => {
+    const pick = (...subs) => paths.find((p) => subs.every((s) => p.includes(s)));
+    return pick("react-dom", "client") ?? "/node_modules/.vite/deps/react-dom_client.js";
+  };
   const loadCreateRoot = async (clientPath) => {
     const clientMod = await import(clientPath);
-    const createRoot =
-      clientMod.createRoot ?? clientMod.default?.createRoot ?? clientMod.default;
+    const createRoot = clientMod.createRoot ?? clientMod.default?.createRoot ?? clientMod.default;
     if (typeof createRoot !== "function") throw new Error("cannot load createRoot");
     return createRoot;
   };
+  const resolveJsx = async (paths) => {
+    const probed = await probeJsxRuntime();
+    if (typeof probed === "function") return probed;
+    const scanned = await scanJsxCandidates(paths);
+    if (typeof scanned === "function") return scanned;
+    throw new Error("cannot load jsx runtime");
+  };
   const paths = performance.getEntriesByType("resource").map((r) => new URL(r.name).pathname);
-  const pick = (...subs) => paths.find((p) => subs.every((s) => p.includes(s)));
-  const clientPath =
-    pick("react-dom", "client") ?? "/node_modules/.vite/deps/react-dom_client.js";
   const appMod = await pickEntry();
   if (!appMod?.BookingApp) throw new Error("cannot import submission entry");
-  let jsx = await probeJsxRuntime();
-  if (typeof jsx !== "function") jsx = await scanJsxCandidates(paths);
-  if (typeof jsx !== "function") throw new Error("cannot load jsx runtime");
-  const createRoot = await loadCreateRoot(clientPath);
+  const jsx = await resolveJsx(paths);
+  const createRoot = await loadCreateRoot(pickClientPath(paths));
   const holder = document.createElement("div");
   holder.id = "teacher-second-root";
   document.body.appendChild(holder);
   createRoot(holder).render(jsx(appMod.BookingApp));
-})();`;
+};
 
 browser("browser: two roots on one page share nothing", async (page) => {
   try {
     await page.goto("http://127.0.0.1:5173");
     await page.getByLabel("Title", { exact: true }).waitFor();
-    await page.evaluate(mountSecondRootSource);
+    await page.evaluate(mountSecondRoot);
     const secondScope = page.locator("#teacher-second-root");
     await secondScope.waitFor({ state: "attached" });
     // Labels use `for` without an accessible-name link in one repair; fall
