@@ -1,0 +1,1698 @@
+[
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "kind": "function",
+    "name": "IssueForm",
+    "line": 43,
+    "flags": [],
+    "reads": "reads like a view (100%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "kind": "function",
+    "name": "IssueFilters",
+    "line": 88,
+    "flags": [],
+    "reads": "reads like a view (100%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "kind": "function",
+    "name": "sameIssues",
+    "line": 107,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "kind": "function",
+    "name": "IssueList",
+    "line": 111,
+    "flags": [],
+    "reads": "reads like a view (100%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "kind": "function",
+    "name": "EditForm",
+    "line": 143,
+    "flags": [],
+    "reads": "reads like a view (100%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "kind": "function",
+    "name": "CommentForm",
+    "line": 222,
+    "flags": [],
+    "reads": "reads like a view (100%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "kind": "function",
+    "name": "DetailView",
+    "line": 266,
+    "flags": [],
+    "reads": "reads like a view (100%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "kind": "function",
+    "name": "SelectedDetail",
+    "line": 273,
+    "flags": [],
+    "reads": "reads like a view (100%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "kind": "function",
+    "name": "DetailPending",
+    "line": 319,
+    "flags": [],
+    "reads": "reads like a view (97%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "kind": "function",
+    "name": "LiveState",
+    "line": 330,
+    "flags": [],
+    "reads": "reads like a view (99%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "kind": "function",
+    "name": "ReloadButton",
+    "line": 349,
+    "flags": [],
+    "reads": "reads like a view (100%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "kind": "function",
+    "name": "App",
+    "line": 360,
+    "flags": [],
+    "reads": "reads like a view (83%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "kind": "function",
+    "name": "ScopedApp",
+    "line": 375,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/DraftView.tsx",
+    "kind": "function",
+    "name": "ReadyView",
+    "line": 23,
+    "flags": [],
+    "reads": "reads like a view (99%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/DraftView.tsx",
+    "kind": "function",
+    "name": "RetryView",
+    "line": 56,
+    "flags": [],
+    "reads": "reads like a view (98%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/DraftView.tsx",
+    "kind": "function",
+    "name": "DraftBody",
+    "line": 84,
+    "flags": [],
+    "reads": "reads like a view (99%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "function",
+    "name": "readString",
+    "line": 35,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "operation",
+    "name": "typeNewIssue",
+    "line": 55,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "operation",
+    "name": "submitNewIssue",
+    "line": 66,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "operation",
+    "name": "setFilter",
+    "line": 77,
+    "flags": ["configNotTag 50%"],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "operation",
+    "name": "selectIssue",
+    "line": 90,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "operation",
+    "name": "loadDetail",
+    "line": 123,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "operation",
+    "name": "typeEdit",
+    "line": 154,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "operation",
+    "name": "saveEdit",
+    "line": 170,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "operation",
+    "name": "reloadTheirs",
+    "line": 211,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "operation",
+    "name": "typeComment",
+    "line": 229,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "operation",
+    "name": "submitComment",
+    "line": 241,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "operation",
+    "name": "reload",
+    "line": 270,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "operation",
+    "name": "typePrompt",
+    "line": 281,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "operation",
+    "name": "setDraftAuthor",
+    "line": 291,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "operation",
+    "name": "checkCapability",
+    "line": 301,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "operation",
+    "name": "beginDraft",
+    "line": 319,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "operation",
+    "name": "cancelDraft",
+    "line": 334,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "operation",
+    "name": "discardDraft",
+    "line": 343,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "operation",
+    "name": "postDraft",
+    "line": 353,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "operation",
+    "name": "reconnect",
+    "line": 383,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "function",
+    "name": "readSubmitMessage",
+    "line": 399,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "function",
+    "name": "readEditError",
+    "line": 409,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "function",
+    "name": "readCommentError",
+    "line": 432,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "function",
+    "name": "readDetailError",
+    "line": 442,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "function",
+    "name": "statusName",
+    "line": 455,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "function",
+    "name": "assigneeName",
+    "line": 462,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "function",
+    "name": "matches",
+    "line": 467,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "function",
+    "name": "readStatusOption",
+    "line": 473,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "function",
+    "name": "readHttpMessage",
+    "line": 479,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "kind": "function",
+    "name": "readOfflineMessage",
+    "line": 486,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/api.ts",
+    "kind": "function",
+    "name": "isRecord",
+    "line": 23,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/api.ts",
+    "kind": "function",
+    "name": "parseConflict",
+    "line": 30,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/api.ts",
+    "kind": "operation",
+    "name": "postIssue",
+    "line": 45,
+    "flags": ["configNotTag 65%"],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/api.ts",
+    "kind": "operation",
+    "name": "patchIssue",
+    "line": 60,
+    "flags": ["configNotTag 55%"],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/api.ts",
+    "kind": "operation",
+    "name": "postComment",
+    "line": 76,
+    "flags": ["configNotTag 65%"],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/api.ts",
+    "kind": "operation",
+    "name": "getCapability",
+    "line": 91,
+    "flags": ["configNotTag 85%"],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/api.ts",
+    "kind": "operation",
+    "name": "openDraft",
+    "line": 103,
+    "flags": ["effectWithoutDefer 53%", "configNotTag 74%"],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/api.ts",
+    "kind": "operation",
+    "name": "getDetail",
+    "line": 118,
+    "flags": ["configNotTag 68%"],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/api.ts",
+    "kind": "operation",
+    "name": "getIssues",
+    "line": 129,
+    "flags": ["configNotTag 84%"],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/connection.ts",
+    "kind": "function",
+    "name": "isRecord",
+    "line": 21,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/connection.ts",
+    "kind": "function",
+    "name": "readMessage",
+    "line": 26,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/connection.ts",
+    "kind": "function",
+    "name": "readData",
+    "line": 35,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/connection.ts",
+    "kind": "function",
+    "name": "reconnectingTransport",
+    "line": 53,
+    "flags": ["effectWithoutDefer 93%", "stateOutsideCell 92%", "handRolledLifetime 67%"],
+    "reads": "reads like a resource (100%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/connection.ts",
+    "kind": "tag",
+    "name": "wire",
+    "line": 219,
+    "flags": [],
+    "reads": "declared tag, reads like resource (68%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/drafter.ts",
+    "kind": "function",
+    "name": "readView",
+    "line": 17,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/drafter.ts",
+    "kind": "function",
+    "name": "applyDraft",
+    "line": 24,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/drafter.ts",
+    "kind": "function",
+    "name": "isStaleCancel",
+    "line": 36,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/drafter.ts",
+    "kind": "function",
+    "name": "readFailedRun",
+    "line": 45,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/drafter.ts",
+    "kind": "function",
+    "name": "readFailedMessage",
+    "line": 60,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/drafter.ts",
+    "kind": "resource",
+    "name": "drafter",
+    "line": 76,
+    "flags": ["stopOnlyInDefer 50%"],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/main.tsx",
+    "kind": "function",
+    "name": "boot",
+    "line": 17,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/main.tsx",
+    "kind": "function",
+    "name": "start",
+    "line": 28,
+    "flags": ["effectWithoutDefer 75%"],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/main.tsx",
+    "kind": "function",
+    "name": "renderDead",
+    "line": 59,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/main.tsx",
+    "kind": "function",
+    "name": "retry",
+    "line": 91,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/services.ts",
+    "kind": "function",
+    "name": "readConnection",
+    "line": 15,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/services.ts",
+    "kind": "resource",
+    "name": "liveness",
+    "line": 26,
+    "flags": ["stopOnlyInDefer 58%"],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/services.ts",
+    "kind": "resource",
+    "name": "capability",
+    "line": 42,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/services.ts",
+    "kind": "resource",
+    "name": "detailRefresh",
+    "line": 56,
+    "flags": ["stopOnlyInDefer 76%"],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "data",
+    "name": "newIssue",
+    "line": 34,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "data",
+    "name": "filter",
+    "line": 40,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "data",
+    "name": "selectedId",
+    "line": 43,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "data",
+    "name": "editDraft",
+    "line": 46,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "data",
+    "name": "editNotice",
+    "line": 49,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "data",
+    "name": "commentDraft",
+    "line": 52,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "data",
+    "name": "commentAuthor",
+    "line": 55,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "data",
+    "name": "commentNotice",
+    "line": 58,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "data",
+    "name": "detail",
+    "line": 61,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "data",
+    "name": "detailNotice",
+    "line": 64,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "data",
+    "name": "connection",
+    "line": 77,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "data",
+    "name": "draftRun",
+    "line": 83,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "data",
+    "name": "draftPrompt",
+    "line": 89,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "data",
+    "name": "draftAuthor",
+    "line": 92,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "data",
+    "name": "draftCapability",
+    "line": 95,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "function",
+    "name": "draftOf",
+    "line": 101,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "function",
+    "name": "markOf",
+    "line": 117,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "function",
+    "name": "sameMark",
+    "line": 124,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "function",
+    "name": "isField",
+    "line": 133,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "function",
+    "name": "setField",
+    "line": 141,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "function",
+    "name": "readPatch",
+    "line": 155,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "function",
+    "name": "isString",
+    "line": 171,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "function",
+    "name": "isStatus",
+    "line": 176,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "kind": "function",
+    "name": "isAssignee",
+    "line": 181,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/errors.ts",
+    "kind": "function",
+    "name": "fail",
+    "line": 32,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/errors.ts",
+    "kind": "function",
+    "name": "raise",
+    "line": 39,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/errors.ts",
+    "kind": "function",
+    "name": "isError",
+    "line": 44,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/app.ts",
+    "kind": "function",
+    "name": "createApp",
+    "line": 27,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/draft.ts",
+    "kind": "tag",
+    "name": "draftHelper",
+    "line": 12,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/draft.ts",
+    "kind": "operation",
+    "name": "readCapability",
+    "line": 18,
+    "flags": ["configNotTag 50%"],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/draft.ts",
+    "kind": "operation",
+    "name": "denyUnexpected",
+    "line": 24,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/draft.ts",
+    "kind": "function",
+    "name": "readPrompt",
+    "line": 44,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/draft.ts",
+    "kind": "operation",
+    "name": "draftTurn",
+    "line": 49,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/draft.ts",
+    "kind": "function",
+    "name": "draftFrame",
+    "line": 60,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/draft.ts",
+    "kind": "operation",
+    "name": "startDraft",
+    "line": 73,
+    "flags": ["effectWithoutDefer 72%", "configNotTag 71%"],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/main.ts",
+    "kind": "function",
+    "name": "readHost",
+    "line": 9,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/main.ts",
+    "kind": "function",
+    "name": "readPort",
+    "line": 13,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/main.ts",
+    "kind": "function",
+    "name": "readDataPath",
+    "line": 20,
+    "flags": [],
+    "reads": "reads like a tag (74%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/main.ts",
+    "kind": "function",
+    "name": "readDraftOptIn",
+    "line": 24,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/main.ts",
+    "kind": "function",
+    "name": "readPublicBase",
+    "line": 34,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/main.ts",
+    "kind": "function",
+    "name": "isMissing",
+    "line": 42,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/main.ts",
+    "kind": "function",
+    "name": "serveClient",
+    "line": 46,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/main.ts",
+    "kind": "function",
+    "name": "listening",
+    "line": 76,
+    "flags": [],
+    "reads": "reads like a resource (97%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/main.ts",
+    "kind": "function",
+    "name": "writeLine",
+    "line": 84,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/main.ts",
+    "kind": "function",
+    "name": "writeLog",
+    "line": 88,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/main.ts",
+    "kind": "function",
+    "name": "readShutdown",
+    "line": 92,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/main.ts",
+    "kind": "function",
+    "name": "main",
+    "line": 107,
+    "flags": ["effectWithoutDefer 58%"],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/main.ts",
+    "kind": "function",
+    "name": "entry",
+    "line": 129,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/observe.ts",
+    "kind": "function",
+    "name": "describeError",
+    "line": 6,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/observe.ts",
+    "kind": "function",
+    "name": "jsonLines",
+    "line": 22,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/operations.ts",
+    "kind": "function",
+    "name": "selectAllIssues",
+    "line": 24,
+    "flags": [],
+    "reads": "reads like a operation (64%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/operations.ts",
+    "kind": "function",
+    "name": "loadSaved",
+    "line": 29,
+    "flags": [],
+    "reads": "reads like a operation (87%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/operations.ts",
+    "kind": "function",
+    "name": "checkFresh",
+    "line": 36,
+    "flags": [],
+    "reads": "reads like a operation (69%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/operations.ts",
+    "kind": "function",
+    "name": "applyEdit",
+    "line": 42,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/operations.ts",
+    "kind": "function",
+    "name": "editNames",
+    "line": 54,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/operations.ts",
+    "kind": "function",
+    "name": "writeIssue",
+    "line": 63,
+    "flags": [],
+    "reads": "reads like a operation (94%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/operations.ts",
+    "kind": "function",
+    "name": "recordActivity",
+    "line": 77,
+    "flags": [],
+    "reads": "reads like a operation (94%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/operations.ts",
+    "kind": "operation",
+    "name": "createIssue",
+    "line": 94,
+    "flags": ["stopOnlyInDefer 50%"],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/operations.ts",
+    "kind": "operation",
+    "name": "editIssue",
+    "line": 119,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/operations.ts",
+    "kind": "operation",
+    "name": "addComment",
+    "line": 142,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/operations.ts",
+    "kind": "operation",
+    "name": "readDetail",
+    "line": 164,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/operations.ts",
+    "kind": "operation",
+    "name": "listIssues",
+    "line": 192,
+    "flags": ["runForwardsToClosure 87%"],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/operations.ts",
+    "kind": "operation",
+    "name": "readIssues",
+    "line": 199,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/operations.ts",
+    "kind": "operation",
+    "name": "publishIssues",
+    "line": 210,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/routes.ts",
+    "kind": "function",
+    "name": "onError",
+    "line": 12,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/routes.ts",
+    "kind": "function",
+    "name": "reportUnmapped",
+    "line": 19,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/routes.ts",
+    "kind": "function",
+    "name": "readIssueError",
+    "line": 32,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/routes.ts",
+    "kind": "function",
+    "name": "readStreamError",
+    "line": 52,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/routes.ts",
+    "kind": "function",
+    "name": "readBody",
+    "line": 64,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/routes.ts",
+    "kind": "operation",
+    "name": "openWire",
+    "line": 71,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/store.ts",
+    "kind": "function",
+    "name": "openDatabase",
+    "line": 44,
+    "flags": [],
+    "reads": "reads like a resource (95%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/sync.ts",
+    "kind": "resource",
+    "name": "viewers",
+    "line": 24,
+    "flags": ["stopOnlyInDefer 62%"],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/sync.ts",
+    "kind": "function",
+    "name": "sseTransport",
+    "line": 52,
+    "flags": ["effectWithoutDefer 78%", "stateOutsideCell 73%"],
+    "reads": "reads like a resource (99%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/sync.ts",
+    "kind": "function",
+    "name": "frame",
+    "line": 98,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/sync.ts",
+    "kind": "function",
+    "name": "parseRegister",
+    "line": 104,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/sync.ts",
+    "kind": "function",
+    "name": "parsePosted",
+    "line": 115,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/sync.ts",
+    "kind": "operation",
+    "name": "registerViewer",
+    "line": 123,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/draft.ts",
+    "kind": "function",
+    "name": "parseDraftEvent",
+    "line": 19,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/draft.ts",
+    "kind": "function",
+    "name": "readEventKind",
+    "line": 28,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/draft.ts",
+    "kind": "function",
+    "name": "readTextEvent",
+    "line": 36,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/draft.ts",
+    "kind": "function",
+    "name": "readStatusEvent",
+    "line": 41,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/draft.ts",
+    "kind": "function",
+    "name": "readDoneEvent",
+    "line": 46,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/draft.ts",
+    "kind": "function",
+    "name": "readTerminalEvent",
+    "line": 51,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/draft.ts",
+    "kind": "function",
+    "name": "readOutcome",
+    "line": 60,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/draft.ts",
+    "kind": "function",
+    "name": "readTerminalDraft",
+    "line": 65,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/draft.ts",
+    "kind": "function",
+    "name": "readLine",
+    "line": 72,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/draft.ts",
+    "kind": "function",
+    "name": "pumpLines",
+    "line": 92,
+    "flags": ["stateOutsideCell 60%"],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/draft.ts",
+    "kind": "function",
+    "name": "parseDraftCapability",
+    "line": 106,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/draft.ts",
+    "kind": "function",
+    "name": "parseDraftId",
+    "line": 116,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/draft.ts",
+    "kind": "function",
+    "name": "parseDraftInput",
+    "line": 126,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "isRecord",
+    "line": 65,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "readId",
+    "line": 70,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "readStatus",
+    "line": 76,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "readAssignee",
+    "line": 82,
+    "flags": ["stateOutsideCell 52%"],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "readCount",
+    "line": 88,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "readTime",
+    "line": 93,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "parseIssue",
+    "line": 100,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "parseIssueList",
+    "line": 119,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "parseIssueId",
+    "line": 125,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "parseComment",
+    "line": 133,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "readIssueId",
+    "line": 144,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "readAuthor",
+    "line": 151,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "readCommentText",
+    "line": 158,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "parseActivity",
+    "line": 166,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "readActivityIssue",
+    "line": 177,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "readKind",
+    "line": 184,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "readSummary",
+    "line": 191,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "parseIssueDetail",
+    "line": 197,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "parseCreateInput",
+    "line": 209,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "parseEditInput",
+    "line": 226,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "readEditTitle",
+    "line": 244,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "readEditDescription",
+    "line": 253,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "readEditStatus",
+    "line": 260,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "readEditAssignee",
+    "line": 266,
+    "flags": ["stateOutsideCell 53%"],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "parseCommentInput",
+    "line": 274,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "readCommentIssue",
+    "line": 283,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "readCommentAuthor",
+    "line": 290,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "function",
+    "name": "readNewCommentText",
+    "line": 297,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "kind": "data",
+    "name": "issueList",
+    "line": 306,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/issues.ts",
+    "kind": "function",
+    "name": "readRevision",
+    "line": 31,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/issues.ts",
+    "kind": "function",
+    "name": "readFlag",
+    "line": 38,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/issues.ts",
+    "kind": "function",
+    "name": "readCreateArgs",
+    "line": 44,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/issues.ts",
+    "kind": "function",
+    "name": "readUpdateArgs",
+    "line": 48,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/issues.ts",
+    "kind": "function",
+    "name": "readCommentArgs",
+    "line": 59,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/issues.ts",
+    "kind": "function",
+    "name": "readGetArgs",
+    "line": 67,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/issues.ts",
+    "kind": "function",
+    "name": "parseGetInput",
+    "line": 72,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/issues.ts",
+    "kind": "function",
+    "name": "isRecord",
+    "line": 77,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/issues.ts",
+    "kind": "function",
+    "name": "readRemoteError",
+    "line": 81,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/issues.ts",
+    "kind": "operation",
+    "name": "listRemote",
+    "line": 96,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/issues.ts",
+    "kind": "operation",
+    "name": "createRemote",
+    "line": 110,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/issues.ts",
+    "kind": "operation",
+    "name": "updateRemote",
+    "line": 124,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/issues.ts",
+    "kind": "operation",
+    "name": "commentRemote",
+    "line": 138,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/issues.ts",
+    "kind": "operation",
+    "name": "getRemote",
+    "line": 154,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/issues.ts",
+    "kind": "function",
+    "name": "issueCommands",
+    "line": 255,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/main.ts",
+    "kind": "function",
+    "name": "readBaseUrl",
+    "line": 8,
+    "flags": [],
+    "reads": "reads like a tag (79%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/main.ts",
+    "kind": "data",
+    "name": "stopping",
+    "line": 16,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/main.ts",
+    "kind": "extension",
+    "name": "stdio",
+    "line": 22,
+    "flags": [],
+    "reads": "declared extension, reads like resource (99%)"
+  },
+  {
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/main.ts",
+    "kind": "operation",
+    "name": "serveMcp",
+    "line": 43,
+    "flags": ["effectWithoutDefer 69%"],
+    "reads": null
+  }
+]

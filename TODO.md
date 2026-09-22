@@ -64,6 +64,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Done
 
+- **writers/review** — owner: Codex.
+  Jev comparison and source review saved; four new checks per writer.
+  Seven failed cases found, plus state-rule gaps in all four apps.
+  No app edits; probe containers removed.
+  Proof: [code review](docs/roadmap/writer-trial/CODE-REVIEW.md).
+
 - **writers/trial** — owner: Codex.
   All four final apps pass core, browser, type, test, and build checks.
   Saved five stages per writer, including capped attempts.

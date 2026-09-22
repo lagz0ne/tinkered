@@ -1,0 +1,20 @@
+[
+  {
+    "name": "creation order after an edit ties start times",
+    "pass": false,
+    "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   'Newer',\n    'Older',\n-   'Newer'\n  ]\n"
+  },
+  {
+    "name": "valid four-digit early year",
+    "pass": false,
+    "error": "BadDate"
+  },
+  {
+    "name": "switching drafts drops first unsaved text",
+    "pass": true
+  },
+  {
+    "name": "blank date reports BadDate and saves nothing",
+    "pass": true
+  }
+]

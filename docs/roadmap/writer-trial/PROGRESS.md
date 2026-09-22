@@ -620,3 +620,14 @@ All four workspaces and projects are removed.
 Their containers, volumes, folders, and trust entries are gone.
 The main project and saved evidence remain.
 See [results](REPORT.md) and [cleanup proof](trial-01-cleanup.json).
+
+## Code review after the trial
+
+Compared all four saved apps with the current issue tracker using Jev.
+Added four checks per writer; seven cases fail across the four apps.
+All four also keep app state in React, contrary to the worker rules.
+The Jev parser misses React component kinds; direct React questions
+still miss the local-state pattern that plain code should check.
+No app code changed and no repair workers were launched.
+All temporary probe containers were removed.
+See [code review and proof](CODE-REVIEW.md).

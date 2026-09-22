@@ -1,0 +1,536 @@
+[
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 38,
+    "title": "lists the two rooms",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 42,
+    "title": "starts every scope with an empty list",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 48,
+    "title": "saves a trimmed booking and returns it",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 62,
+    "title": "rejects blank titles and keeps the list empty",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 76,
+    "title": "rejects an unknown room",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 86,
+    "title": "rejects times outside 0..1439 or that are not integers",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 108,
+    "title": "rejects an end at or before the start with EmptySlot and saves nothing",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 122,
+    "title": "rejects an overlap in one room and leaves bookings unchanged",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 139,
+    "title": "books Maple at Cedar's taken times and keeps both bookings in the list",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 149,
+    "title": "books a slot that starts when another ends: back-to-back is not a clash",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 156,
+    "title": "lists by start time, then creation order",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 164,
+    "title": "creates exactly one booking when the same slot is called twice",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 178,
+    "title": "gives every booking a unique id",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 187,
+    "title": "rawInput with start \"noon\" fails with BadTime, not DataValidationFailed",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 199,
+    "title": "keeps two scopes independent",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 208,
+    "title": "removes the booking and frees its slot",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 220,
+    "title": "reports NotFound on a second cancel and on an unknown id",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 234,
+    "title": "opens with a copy that never changes the saved booking",
+    "notes": ["toBeThenToEqual"]
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 248,
+    "title": "reports NotFound for an unknown id",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 255,
+    "title": "keeps one draft: opening a second id closes the first",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 277,
+    "title": "saves a passing draft over the booking",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 298,
+    "title": "keeps the booking and the draft when a save fails",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 317,
+    "title": "keeps its own slot on save but blocks another booking's slot",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 343,
+    "title": "discardEdit clears editDraft and leaves the saved booking exactly as it was",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 355,
+    "title": "reports NotFound for save or discard on a closed or missing draft",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 386,
+    "title": "reports NotFound when saving an id that is gone",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 402,
+    "title": "closes the draft when its booking is canceled",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts",
+    "line": 414,
+    "title": "keeps list order after a save that moves the start time",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts",
+    "line": 109,
+    "title": "starts empty, books a slot, shows the row, and clears the title",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts",
+    "line": 123,
+    "title": "shows the error kind on a clash and keeps the form values",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts",
+    "line": 137,
+    "title": "books the other room and a back-to-back slot; filters hide rows without deleting them",
+    "notes": ["titleVague 53%"]
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts",
+    "line": 155,
+    "title": "cancels a row, frees its slot, and starts fresh on reload",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts",
+    "line": 172,
+    "title": "shows UnknownRoom in the role=alert block and keeps the entered title",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts",
+    "line": 183,
+    "title": "Save replaces the row title and removes the edit inputs",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts",
+    "line": 199,
+    "title": "discards an edit and leaves the row unchanged",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts",
+    "line": 212,
+    "title": "a failing Save shows Clash in role=alert, keeps the edit inputs open, and the row keeps its old times",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts",
+    "line": 232,
+    "title": "canceling the drafted booking removes its row and its edit inputs",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts",
+    "line": 245,
+    "title": "the Date input starts at 2026-10-01 and the Weeks input starts at 1",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts",
+    "line": 251,
+    "title": "a row shows its booked date 2026-10-06 and the same slot on 2026-10-07 saves too",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts",
+    "line": 270,
+    "title": "shows BadDate in the role=alert block and keeps the form values",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts",
+    "line": 282,
+    "title": "Book series with Weeks 3 yields rows dated 2026-10-06, 2026-10-13, and 2026-10-20",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts",
+    "line": 299,
+    "title": "Cancel series frees every date of the series",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts",
+    "line": 317,
+    "title": "one occurrence's Cancel button removes only that day",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts",
+    "line": 334,
+    "title": "a clash on one series date leaves only the pre-existing row and keeps Title as Weekly",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts",
+    "line": 347,
+    "title": "shows BadCount in role=alert for a bad Weeks value and keeps the form values",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts",
+    "line": 359,
+    "title": "Edit date starts at 2026-10-01 and Save moves the row to 2026-10-05",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts",
+    "line": 376,
+    "title": "Undo removes the last row and keeps the form text and the filter as they were",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts",
+    "line": 396,
+    "title": "two Undos empty the list and a third shows EmptyUndo in the role=alert block",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts",
+    "line": 416,
+    "title": "Undo restores a canceled row together with its Cancel button",
+    "notes": ["titleVague 62%"]
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts",
+    "line": 434,
+    "title": "Undo leaves an open draft open, and its Discard still closes it",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 39,
+    "title": "an input without a date saves the booking on 2026-10-01",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 48,
+    "title": "input carrying date 2026-10-07 saves that date on the booking",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 56,
+    "title": "rejects a date that is not a real YYYY-MM-DD day with BadDate",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 95,
+    "title": "keeps leap days and month edges as real days",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 109,
+    "title": "never clashes the same slot on two dates",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 121,
+    "title": "partial overlap on 2026-10-01 reports Clash while Maple on 2026-10-01 and Cedar on 2026-10-05 both save",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 145,
+    "title": "lists by date, then start time, then creation order",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 167,
+    "title": "books weeks dates seven days apart under one seriesId",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 179,
+    "title": "gives a one-off booking no seriesId key",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 188,
+    "title": "books one date when weeks is 1",
+    "notes": ["titleVague 55%"]
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 197,
+    "title": "rejects weeks outside 1..12 or that are not integers with BadCount",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 225,
+    "title": "reports BadCount from rawInput weeks, not a schema failure",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 238,
+    "title": "books nothing when any date clashes: the whole series fails with Clash",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 253,
+    "title": "rejects a blank title, unknown room, out-of-range time, empty slot, and bad date with that kind",
+    "notes": ["titleVague 59%"]
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 293,
+    "title": "two series in different rooms at one time both save: four rows, two dates",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 312,
+    "title": "cancels one occurrence by id and leaves the rest of its series",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 334,
+    "title": "cancels every occurrence by the series id",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 348,
+    "title": "cancelSeries drops its two ids and keeps the other series plus the one-off",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 367,
+    "title": "reports NotFound with the id on an unknown or already-canceled series id",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 384,
+    "title": "closes the draft when its series is canceled",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 398,
+    "title": "after Save moves Mover from 2026-10-04 to 2026-10-06 the list reads 2026-10-05 first, then 2026-10-06",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 414,
+    "title": "clashes a save against the target room and date but never against itself",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 441,
+    "title": "rejects a bad date in a save and keeps the booking and draft",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts",
+    "line": 458,
+    "title": "defaults an omitted save date to 2026-10-01",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/undo.test.ts",
+    "line": 40,
+    "title": "reports EmptyUndo with an empty payload when no change was made",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/undo.test.ts",
+    "line": 54,
+    "title": "returns nothing for a passing undo",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/undo.test.ts",
+    "line": 60,
+    "title": "removes the last booking first: book A, book B, undo drops B then A, then EmptyUndo",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/undo.test.ts",
+    "line": 73,
+    "title": "restores the exact prior booking state, id included",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/undo.test.ts",
+    "line": 87,
+    "title": "a clash after one book leaves one step: the undo drops that book and the next undo reports EmptyUndo",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/undo.test.ts",
+    "line": 100,
+    "title": "adds no step for draft moves: open, save, and discard are not changes",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/undo.test.ts",
+    "line": 117,
+    "title": "reverses an edit save: Planning undone brings Standup back",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/undo.test.ts",
+    "line": 132,
+    "title": "adds no step for a failed save",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/undo.test.ts",
+    "line": 153,
+    "title": "undoing one canceled occurrence restores all three series dates, and the restored middle day clashes again",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/undo.test.ts",
+    "line": 173,
+    "title": "one undo removes all three occurrences of a 3-week series book, and the next undo reports EmptyUndo",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/undo.test.ts",
+    "line": 184,
+    "title": "reverses a series cancel in one step, restoring every occurrence",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/undo.test.ts",
+    "line": 198,
+    "title": "lets a new change after an undo become the next step",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/undo.test.ts",
+    "line": 213,
+    "title": "leaves an open draft alone: undo restores booking data only",
+    "notes": ["titleVague 53%"]
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/undo.test.ts",
+    "line": 232,
+    "title": "keeps undo history per scope: two scopes share no steps",
+    "notes": []
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/undo.test.ts",
+    "line": 246,
+    "title": "keeps list order after an undo restores an earlier state",
+    "notes": []
+  }
+]

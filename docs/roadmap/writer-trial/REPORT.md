@@ -1,5 +1,8 @@
 # Writer trial results
 
+Later [code review](CODE-REVIEW.md) found bugs and state-rule gaps.
+The pass results below describe the original chosen checks only.
+
 DeepSeek is the best speed and test-pass pick in this run.
 There is no clear quality-only winner from the shared checks.
 All four final apps pass the teacher core and browser checks

@@ -1,0 +1,214 @@
+{
+  "repoCommit": "dd26aa48cc3a609c14165789c05787f650349f1d",
+  "groups": [
+    {
+      "group": "worker-1",
+      "sourceFiles": 5,
+      "sourceHashByFile": {
+        "BookingApp.tsx": "6ea70438bde8a4f59e25e1b05b20b81bbe21ae13e22951de331974686b9b95cb",
+        "errors.ts": "8cc48d2d2183c730cc973672eae66b2d44e1b6bccf8a3998909d4dede9b1d733",
+        "index.ts": "563699a7946e247d3bdf476cffdf8cb6d295743b920d7d463404e544c34f3dbe",
+        "main.tsx": "0546eaa1f45f0ae3191362817ee673e075747d79982c6680bcac9834c18dcdfb",
+        "model.ts": "10eaf6e5c98cdbd0ab68681e1bbb104778b02e214f194805ed179bc1a454fd4f"
+      },
+      "useStateCalls": 13,
+      "useRunCalls": 0,
+      "units": 37,
+      "unitJudgeHits": 0,
+      "shapeHints": 3,
+      "fileJudgeHits": 0,
+      "manualReactUnits": 3,
+      "manualReactJudgeHits": 0,
+      "testEntries": 89,
+      "testTitleFlags": 5,
+      "testsWithDeterministicNotes": 1,
+      "newProbes": [
+        {
+          "name": "creation order after an edit ties start times",
+          "pass": false,
+          "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   'Newer',\n    'Older',\n-   'Newer'\n  ]\n"
+        },
+        {
+          "name": "valid four-digit early year",
+          "pass": true
+        },
+        {
+          "name": "switching drafts drops first unsaved text",
+          "pass": true
+        },
+        {
+          "name": "blank date reports BadDate and saves nothing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "group": "worker-2",
+      "sourceFiles": 6,
+      "sourceHashByFile": {
+        "BookingApp.tsx": "1d3df6909a2f0d2a261fda8ba9c7f3575bc2ffbce4b1213244ec0e2735c0f675",
+        "errors.ts": "bf6a6b8884d344bf8ec2f5f6ae51008a87bed338542b47debef3c5f8ed64066f",
+        "index.ts": "a5182e1e673d0350a70f7facefd00bd860ebf11b28cbc334a176389cedfa6bb6",
+        "main.tsx": "87cc67a7bab070ed8331b6807936bb0ba8153f34d1285047be83b3d65bd7b7c7",
+        "model.ts": "426f3333f3bc3fcbcbd4456cca7dfa51ef948dfbb288c3dc4b258570dd354b8f",
+        "ops.ts": "cc6d54c359130ea2ebcab0dd3faf8804875f22e053a5dca67c6bdcd08d69a8df"
+      },
+      "useStateCalls": 13,
+      "useRunCalls": 0,
+      "units": 53,
+      "unitJudgeHits": 2,
+      "shapeHints": 3,
+      "fileJudgeHits": 0,
+      "manualReactUnits": 3,
+      "manualReactJudgeHits": 0,
+      "testEntries": 83,
+      "testTitleFlags": 18,
+      "testsWithDeterministicNotes": 33,
+      "newProbes": [
+        {
+          "name": "creation order after an edit ties start times",
+          "pass": true,
+          "detail": ["Older", "Newer"]
+        },
+        {
+          "name": "valid four-digit early year",
+          "pass": true
+        },
+        {
+          "name": "switching drafts drops first unsaved text",
+          "pass": true
+        },
+        {
+          "name": "blank date reports BadDate and saves nothing",
+          "pass": false,
+          "error": "Expected values to be strictly equal:\n\n1 !== 0\n"
+        }
+      ]
+    },
+    {
+      "group": "worker-3",
+      "sourceFiles": 5,
+      "sourceHashByFile": {
+        "app.tsx": "30957310a8bb5255d85807ba8961baa4ca29ccc9ffd1855fe9dd8d497db3dd9c",
+        "bookings.ts": "01bee3700815edeacbf91c9d3da36cd7e2c28141e7342fda19b824b3ec1edef9",
+        "errors.ts": "ae692abb48db6599ca83800c56fa6c22cc92273fe95fa10f0cca8872e902095b",
+        "index.ts": "e2e18133d41d99f5ed69f93b4bf203b99c21294ff7ee490de3caa85b68d3b0b8",
+        "main.tsx": "d7be1ce5ce5c049baa8c949f50925b141b60341d207fce5026f7a14d79835f5b"
+      },
+      "useStateCalls": 13,
+      "useRunCalls": 8,
+      "units": 34,
+      "unitJudgeHits": 0,
+      "shapeHints": 3,
+      "fileJudgeHits": 0,
+      "manualReactUnits": 4,
+      "manualReactJudgeHits": 0,
+      "testEntries": 55,
+      "testTitleFlags": 11,
+      "testsWithDeterministicNotes": 21,
+      "newProbes": [
+        {
+          "name": "creation order after an edit ties start times",
+          "pass": false,
+          "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   'Newer',\n    'Older',\n-   'Newer'\n  ]\n"
+        },
+        {
+          "name": "valid four-digit early year",
+          "pass": false,
+          "error": "BadDate: {\"date\":\"0099-10-01\"}"
+        },
+        {
+          "name": "switching drafts drops first unsaved text",
+          "pass": false,
+          "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'UNSAVED Alpha'\n- 'Beta'\n"
+        },
+        {
+          "name": "blank date reports BadDate and saves nothing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "group": "worker-4",
+      "sourceFiles": 4,
+      "sourceHashByFile": {
+        "app.tsx": "4e3bfaa895a989835989d0cc17297025dd73996c5b73b436b7e23bcf1d4aa20e",
+        "errors.ts": "2c620094d44fcf93665c33769f9c0c7f4564603dcb562919e182d173d939c87d",
+        "index.ts": "474da688554bdf64f75f55f958e5477f72e90cbae594ba65ad86330762f3db7e",
+        "main.tsx": "23b94f2669c80cb01bf04df94683fa8fa1ab4574e76b0688c1915454424dc43a"
+      },
+      "useStateCalls": 13,
+      "useRunCalls": 0,
+      "units": 32,
+      "unitJudgeHits": 1,
+      "shapeHints": 6,
+      "fileJudgeHits": 0,
+      "manualReactUnits": 5,
+      "manualReactJudgeHits": 0,
+      "testEntries": 65,
+      "testTitleFlags": 19,
+      "testsWithDeterministicNotes": 1,
+      "newProbes": [
+        {
+          "name": "creation order after an edit ties start times",
+          "pass": false,
+          "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  [\n+   'Newer',\n    'Older',\n-   'Newer'\n  ]\n"
+        },
+        {
+          "name": "valid four-digit early year",
+          "pass": false,
+          "error": "BadDate"
+        },
+        {
+          "name": "switching drafts drops first unsaved text",
+          "pass": true
+        },
+        {
+          "name": "blank date reports BadDate and saves nothing",
+          "pass": true
+        }
+      ]
+    },
+    {
+      "group": "tracker",
+      "sourceFiles": 24,
+      "sourceHashByFile": {
+        "client/App.tsx": "77854d681b2352b5dcfc0f082bd3c72c4f94bb8b250ca4b08d8efa2f8342d786",
+        "client/DraftView.tsx": "19fb7abce0fa7bf42e8c405eecf36d108a0aa6523427cf867ed71287ad2f657c",
+        "client/actions.ts": "e4782fbebc118b8e2afa6aef4752bbfe0f5e7a5fe105918f1e1b03b7ed93205e",
+        "client/api.ts": "b9f272f49df37f3219001610c7ddebea116692ab0f575a9d00e2857dca8e6e3a",
+        "client/connection.ts": "efcb422569480da2ec2f3229cdce893db09315d4b16be82c2789f32e33a5c632",
+        "client/drafter.ts": "58e679ba3511074470344a87452452fd0294405c1689fe4454fe97822c1c578a",
+        "client/main.tsx": "06c700a87163df83c9e83f4405db2858f5ace414612f5ce84070ce85861390f3",
+        "client/services.ts": "df9a95ccd9363983fcda38d9b9cc51e7261ec2c999a4b39fc79e5bd98da21dd0",
+        "client/state.ts": "c1e7c1e09536a054d74954976b4ce9b9cf40757ce8027db36b36d87ed3e2a870",
+        "errors.ts": "1c88937d0d82cf8150b330658f9337f855344a0953a1c10e9d5e72590a2e82ec",
+        "index.ts": "cbcfecf88eda55e60b24b63d7ad8f890beb16c8d1d327afd49b8aa261316bbae",
+        "server/app.ts": "eef924018e454331c178220e89d7328c499a78fa8302750dc33eff9acacd3cad",
+        "server/draft.ts": "0de8d9c7a400a3c511f72d3d090bab5cd3050a77a64a73f0007eaf3fe8970535",
+        "server/main.ts": "46b4964b99bd65d511280c8d36861e533f894c7b2133d00598b037241be85e54",
+        "server/observe.ts": "8b30702bd84f72a6674e1907fd9932374a79ef4d07b5091177437ef9afed4997",
+        "server/operations.ts": "96950f2dd5cab9cba4d57c7d61b69c10833026e227745aae23bd46ecb2ebce1d",
+        "server/publish.ts": "bff8acb36784cd0efd6f733468683c68bc73a139a8d66456c46a58027bc79195",
+        "server/routes.ts": "128d4302e1ac84032bb8c81eb4cd9b4b2f24b1ed05571a13fdbfb74e30b94ebf",
+        "server/store.ts": "c81745f665ca1da66163bde9f261a02a041760402a6cf94ac284d25c43bfc8b8",
+        "server/sync.ts": "348503875c40354a9664013aabe447cbbef7d219fe0bd3d8e380644661c8f55f",
+        "shared/draft.ts": "a6622ddc8a6b760d64eda60fb30bc3f33f04ba3d9fcc358714fef98f6c8b07b4",
+        "shared/issues.ts": "194d5e86060f2ff0dff27e1849266cf4825c439455cf9b7d5b045e92ae90c3b8",
+        "tools/issues.ts": "fd97f6dbf924ef1bbd19b93762c9304fe2e79680a25d886f00b903b1be520343",
+        "tools/main.ts": "fb9a88f1dac840e7ee541180924c1adcf073ea5eaae7bf93504d1947c40096e0"
+      },
+      "useStateCalls": 0,
+      "useRunCalls": 18,
+      "units": 212,
+      "unitJudgeHits": 29,
+      "shapeHints": 27,
+      "fileJudgeHits": 2,
+      "manualReactUnits": 15,
+      "manualReactJudgeHits": 0,
+      "testEntries": 54,
+      "testTitleFlags": 14,
+      "testsWithDeterministicNotes": 0
+    }
+  ]
+}

@@ -1,0 +1,326 @@
+[
+  {
+    "file": "apps/issue-tracker/tests/browser-helper.test.ts",
+    "line": 53,
+    "title": "cancelling a held draft keeps partial text and saves nothing",
+    "notes": ["titleVague 51%"]
+  },
+  {
+    "file": "apps/issue-tracker/tests/browser-helper.test.ts",
+    "line": 98,
+    "title": "posting a draft saves one comment and one activity",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/browser-helper.test.ts",
+    "line": 143,
+    "title": "closing the issue view cancels the held draft turn",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/browser-helper.test.ts",
+    "line": 183,
+    "title": "discarding a ready draft clears it and saves nothing",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/browser-helper.test.ts",
+    "line": 226,
+    "title": "a held draft post disables posting controls then saves once",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/browser-helper.test.ts",
+    "line": 293,
+    "title": "a broken draft frame shows a plain notice and saves nothing",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/browser-helper.test.ts",
+    "line": 363,
+    "title": "shutdown with a live wire and held turn joins cleanly",
+    "notes": ["titleVague 71%"]
+  },
+  {
+    "file": "apps/issue-tracker/tests/client.test.ts",
+    "line": 108,
+    "title": "typing then submitting the create form posts once and clears the draft",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/client.test.ts",
+    "line": 133,
+    "title": "selecting an issue with a preset detail fills the detail cell and seeds the edit draft",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/client.test.ts",
+    "line": 150,
+    "title": "saving an edit over a stale revision keeps the draft and stores the conflict",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/client.test.ts",
+    "line": 184,
+    "title": "posting a comment clears the draft text",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/client.test.ts",
+    "line": 210,
+    "title": "checking the helper writes off when it answers disabled",
+    "notes": ["titleVague 58%"]
+  },
+  {
+    "file": "apps/issue-tracker/tests/client.test.ts",
+    "line": 225,
+    "title": "checking the helper writes failed when it answers an error",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/client.test.ts",
+    "line": 239,
+    "title": "starting a draft streams text into the run cell until ready",
+    "notes": ["titleVague 61%"]
+  },
+  {
+    "file": "apps/issue-tracker/tests/client.test.ts",
+    "line": 265,
+    "title": "posting a ready draft saves one comment and quiets the run",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/client.test.ts",
+    "line": 292,
+    "title": "a broken frame fails the run, cancels the stream, and saves nothing",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/client.test.ts",
+    "line": 320,
+    "title": "discarding a run quiets the cell without posting",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/draft.test.ts",
+    "line": 49,
+    "title": "the draft helper is off by default and needs no account",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/draft.test.ts",
+    "line": 77,
+    "title": "a draft streams text and finishes without saving anything",
+    "notes": ["titleVague 79%"]
+  },
+  {
+    "file": "apps/issue-tracker/tests/draft.test.ts",
+    "line": 141,
+    "title": "an explicit post sends the generated draft and appends once",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/draft.test.ts",
+    "line": 189,
+    "title": "a model error result and a thrown model error both fail without a draft",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/draft.test.ts",
+    "line": 228,
+    "title": "a draft for a missing issue answers gone and runs no model",
+    "notes": ["titleVague 59%"]
+  },
+  {
+    "file": "apps/issue-tracker/tests/draft.test.ts",
+    "line": 250,
+    "title": "an aborted caller runs no model turn",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/draft.test.ts",
+    "line": 275,
+    "title": "ordinary saves continue while a draft turn holds",
+    "notes": ["titleVague 64%"]
+  },
+  {
+    "file": "apps/issue-tracker/tests/draft.test.ts",
+    "line": 323,
+    "title": "an HTTP disconnect cancels the model and saves nothing",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/draft.test.ts",
+    "line": 369,
+    "title": "root close with a live caller aborts the model and settles cancelled",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/draft.test.ts",
+    "line": 425,
+    "title": "overlapping drafts on two issues stay isolated through one live app",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/draft.test.ts",
+    "line": 503,
+    "title": "startDraft runs without Hono: off answers DraftOff, a missing issue answers gone",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/issues.test.ts",
+    "line": 39,
+    "title": "a session save commits a row the root list read sees",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/issues.test.ts",
+    "line": 50,
+    "title": "creating a valid issue saves it and a second viewer sees it",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/issues.test.ts",
+    "line": 73,
+    "title": "reopening against the same database restores the saved issue",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/issues.test.ts",
+    "line": 91,
+    "title": "the HTTP routes save through app.request",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/issues.test.ts",
+    "line": 120,
+    "title": "one row plus one extension answers a read with no composition root",
+    "notes": ["titleVague 72%"]
+  },
+  {
+    "file": "apps/issue-tracker/tests/issues.test.ts",
+    "line": 136,
+    "title": "publishAfterCommit republishes after a POST and keeps the cell on a 400",
+    "notes": ["titleVague 65%"]
+  },
+  {
+    "file": "apps/issue-tracker/tests/issues.test.ts",
+    "line": 161,
+    "title": "an edit saves with the opened revision and records activity",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/issues.test.ts",
+    "line": 195,
+    "title": "a stale edit is rejected with the current saved issue and writes nothing",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/issues.test.ts",
+    "line": 225,
+    "title": "two concurrent edits on one revision settle exactly one winner",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/issues.test.ts",
+    "line": 248,
+    "title": "comments append without a revision and show with activity",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/issues.test.ts",
+    "line": 272,
+    "title": "two back-to-back comments both survive in the detail",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/issues.test.ts",
+    "line": 286,
+    "title": "a stale edit publishes no new snapshot to a live viewer",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/issues.test.ts",
+    "line": 314,
+    "title": "a rejected comment writes nothing and records no activity",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/issues.test.ts",
+    "line": 332,
+    "title": "edited details, comments, and activity survive a restart",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/issues.test.ts",
+    "line": 363,
+    "title": "a publish that fails after the commit keeps the 201, saves the row, and logs one line",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/issues.test.ts",
+    "line": 392,
+    "title": "the detail and conflict routes answer through app.request",
+    "notes": ["titleVague 84%"]
+  },
+  {
+    "file": "apps/issue-tracker/tests/issues.test.ts",
+    "line": 429,
+    "title": "a register for a gone tab answers gone and a bad message answers bad",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/observe.test.ts",
+    "line": 16,
+    "title": "describeError reads a registry error, a plain Error with a cause, and a non-error",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/observe.test.ts",
+    "line": 32,
+    "title": "jsonLines writes every log line and only the failed spans",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/observe.test.ts",
+    "line": 61,
+    "title": "jsonLines survives a writer that throws: the scope keeps running",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/observe.test.ts",
+    "line": 84,
+    "title": "an error no route maps answers 500 and one `request failed` line names it",
+    "notes": []
+  },
+  {
+    "file": "apps/issue-tracker/tests/span-tree.test.ts",
+    "line": 21,
+    "title": "the graph produces the trace: a caller, its send, and its attempt",
+    "notes": ["titleVague 65%"]
+  },
+  {
+    "file": "apps/issue-tracker/tests/tools.test.ts",
+    "line": 76,
+    "title": "missing and blank revisions report command usage",
+    "notes": ["titleVague 74%"]
+  },
+  {
+    "file": "apps/issue-tracker/tests/tools.test.ts",
+    "line": 91,
+    "title": "help lists the issue commands with no backend",
+    "notes": ["titleVague 57%"]
+  },
+  {
+    "file": "apps/issue-tracker/tests/tools.test.ts",
+    "line": 105,
+    "title": "CLI drives the saved create/list/update/comment/get through real HTTP",
+    "notes": ["titleVague 72%"]
+  },
+  {
+    "file": "apps/issue-tracker/tests/tools.test.ts",
+    "line": 186,
+    "title": "MCP tools save through the same server and answer conflicts as errors",
+    "notes": []
+  }
+]
