@@ -2281,7 +2281,6 @@ function resolveResourceDeps(
   span: Observe.Span | undefined,
   superseded: () => boolean,
   chain: readonly Namespace[] | undefined,
-  ns: Namespace | undefined,
   state: ResourceState,
 ): Record<string, unknown> {
   return buildDeps(
@@ -2292,7 +2291,7 @@ function resolveResourceDeps(
       const node = depNode(dep);
       /** Edges register before the factory runs (eager deps, ADR 0044); a build superseded while its
        * deps were still resolving records none, so a stale build never evicts its live replacement. */
-      if (node && !superseded()) addDependent(owner, node, target, chain, ns, state);
+      if (node && !superseded()) addDependent(owner, node, target, chain, state);
     },
     chain,
   );
@@ -2540,7 +2539,7 @@ function buildResource<T>(
   let settled = false;
   buildDepth++;
   try {
-    const deps = resolveResourceDeps(owner, target, span, superseded, chain, ns, rec);
+    const deps = resolveResourceDeps(owner, target, span, superseded, chain, rec);
     const pending = parked;
     const override = presetFor(owner, target) as Resource.Handle<T>["factory"] | undefined;
     const fn = override ?? target.factory;
@@ -3131,14 +3130,12 @@ function addDependent(
   node: Node,
   dependent: Resource.Handle<unknown>,
   chain: readonly Namespace[] | undefined,
-  dependentNs: Namespace | undefined,
   dependentState: ResourceState,
 ): void {
-  const source = nsDependencyState(owner, node, chain, dependentNs);
   addNsDataDependent(owner, node, chain, dependentState);
-  const borrowed = resourceDependencyState(owner, node, chain);
-  if (borrowed !== undefined) (dependentState.borrowDependencies ??= new Set()).add(borrowed);
-  if (source !== undefined && dependentState instanceof NsResourceState) {
+  const source = resourceDependencyState(owner, node, chain);
+  if (source !== undefined) (dependentState.borrowDependencies ??= new Set()).add(source);
+  if (source instanceof NsResourceState && dependentState instanceof NsResourceState) {
     (source.dependents ??= new Set()).add(dependentState);
     (dependentState.dependencies ??= new Set()).add(source);
     return;
@@ -3180,23 +3177,8 @@ function selectNsDataEntry(
       const entry = source?.nsCells?.get(key);
       return source && entry ? { source, entry } : undefined;
     },
-    (layer) => {
-      const source = layer.nodes.get(target);
-      return source?.cell ? { source, entry: source.cell } : undefined;
-    },
+    () => undefined,
   );
-}
-
-function nsDependencyState(
-  owner: Layer,
-  node: Node,
-  chain: readonly Namespace[] | undefined,
-  dependentNs: Namespace | undefined,
-): NsResourceState | undefined {
-  if (!isResource(node) || node.target !== "session") return undefined;
-  if (chain === undefined || chain.length === 0 || dependentNs === undefined) return undefined;
-  const [head] = chain;
-  return selectNsResource(owner, node, chain) ?? ownNsResource(owner, node, head);
 }
 
 function detachNsState(state: NsResourceState): void {
@@ -3209,13 +3191,9 @@ function detachNsState(state: NsResourceState): void {
 
 function detachNsDataDependencies(state: NsResourceState): void {
   if (!state.dataDependencies) return;
-  for (const link of state.dataDependencies) unlinkNsDataDependent(link, state);
-}
-
-function unlinkNsDataDependent(link: NsDataDependency, state: NsResourceState): void {
-  const dependents = link.source.nsDataDependents?.get(link.entry);
-  if (!dependents?.delete(state) || dependents.size !== 0) return;
-  link.source.nsDataDependents?.delete(link.entry);
+  for (const link of state.dataDependencies) {
+    link.source.nsDataDependents?.get(link.entry)?.delete(state);
+  }
 }
 
 function detachNsResourceDependencies(state: NsResourceState): void {

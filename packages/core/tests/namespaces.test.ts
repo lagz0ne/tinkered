@@ -732,6 +732,55 @@ test("a named run keeps dependencies borrowed after its dependent is released", 
   await scope.close();
 });
 
+test("a named run keeps a scope pool alive through its session client", async () => {
+  const a = namespace();
+  let finish = (): void => undefined;
+  const gate = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const ended: string[] = [];
+  const pool = resource({
+    label: "pool",
+    target: "scope",
+    factory: (_deps, ctx) => {
+      const value = { closed: false };
+      ctx.defer(() => {
+        value.closed = true;
+        ended.push("pool");
+      });
+      return value;
+    },
+  });
+  const client = resource({
+    label: "client",
+    target: "session",
+    depends: { pool },
+    factory: ({ pool }, ctx) => {
+      ctx.defer(() => void ended.push("client"));
+      return pool;
+    },
+  });
+  let held = { closed: true };
+  const hold = operation({
+    label: "hold",
+    depends: { client },
+    run: async ({ client }) => {
+      held = client;
+      await gate;
+    },
+  });
+  const scope = createScope();
+  const running = scope.run(hold, { ns: a });
+  scope.release(pool);
+  expect(held.closed).toBe(false);
+  expect(ended).toEqual([]);
+  finish();
+  await running;
+  await scope.settled();
+  expect(ended).toEqual(["client", "pool"]);
+  await scope.close();
+});
+
 test("namespace clients share one scope-target pool", () => {
   const a = namespace();
   const b = namespace();
