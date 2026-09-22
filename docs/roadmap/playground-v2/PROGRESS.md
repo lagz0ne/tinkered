@@ -170,3 +170,17 @@ Different tasks are not a fair speed test or a final ranking.
   No correctness rating is claimed for that partial work.
 
 The lead stays responsible for review and observed checks.
+
+## Page API impact
+
+The Play view extends the input of `setView`.
+The old symbol remains; its callers stay in the shell.
+
+```impact playground/page
+== playground
+  definitions
+    setView.  ->  src/actions.ts:119
+  references (count  symbol  file)
+        2  setView.  src/App.tsx
+
+```
