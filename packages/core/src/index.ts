@@ -2932,7 +2932,10 @@ function addNsDataDependent(
 ): void {
   if (!isData(node) || !(dependent instanceof NsResourceState) || chain === undefined) return;
   const selected = selectNsDataEntry(owner, node, chain);
-  if (selected === undefined) return;
+  if (selected !== undefined) linkNsDataDependent(selected, dependent);
+}
+
+function linkNsDataDependent(selected: NsDataDependency, dependent: NsResourceState): void {
   const dependents =
     selected.source.nsDataDependents?.get(selected.entry) ?? new Set<NsResourceState>();
   if (dependents.has(dependent)) return;
