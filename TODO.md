@@ -39,19 +39,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **playground/frames** — owner: DeepSeek writer.
-  Next: final combined checks; engine review fixes are saved.
-  Verify: Node scope tests, build, and checks pass.
-
-- **playground/tsunami** — owner: Codex reviewer.
-  Next: finish source UI and review the combined app.
-  Verify: checks, scope tests, build, and phone/browser review.
-  [Track](docs/roadmap/playground-v2/PROGRESS.md).
-
-- **playground/source-links** — owner: MiMo source writer.
-  Next: fix history order and shadowed-name links.
-  Verify: exact library links and code history tests pass.
-
 | Card | Owner | Next | Verify |
 
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -61,14 +48,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 | tests/core-many-causes — the 31 core test flags: split, delete, or explain | lead (Claude); contributor in `../tinkered-core-tests` (launched ~03:50 UTC) | `tests.mjs core`: 18 manyCauses, 4 typeGuarantee, 4 helperAlone, 4 negativeTwin, 3 pairs, 1 `Object.isFrozen`; act on each, label each; core lane alone ≥ 75 | flags gone or explained; 270 → N tests each naming one promise; core mutation alone ≥ 75 |
 
 ## Review
-
-- **playground/page** — owner: GLM writer.
-  Next: finish source UI and phone board fit.
-  Verify: play, code, and full screen keep the game alive.
-
-- **playground/visuals** — owner: GLM writer.
-  Next: finish source UI and phone board fit.
-  Verify: checks plus desktop and phone browser review.
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
@@ -93,6 +72,19 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **playground/tsunami** — complete: 3D waves, controls,
+  full screen, source browsing, and scope tests.
+  [Final proof](docs/roadmap/playground-v2/PROGRESS.md#final-proof).
+- **playground/frames** — complete: frame tag and 12 engine
+  tests without a browser; all 53 playground tests pass.
+- **playground/source-links** — complete: real core/React
+  links, file search, cursor history, and browser proof.
+- **playground/page** — complete: one mounted game across
+  views; native full screen and fit fallback both checked.
+- **playground/visuals** — complete: solid tiles, wave lift,
+  four turns, live controls, and phone frame scan pass.
+
 
 | Card | Evidence |
 | tests/kill-check-in-brief — per-line kill check is the writer's proof | brief updated (`docs/roadmap/contributor-brief.md` Setup); `vp run prose` 0 hits |

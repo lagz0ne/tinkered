@@ -349,3 +349,114 @@ vertically on the phone; it has no sideways page scroll.
 The latest remaining review fix is tab state and history
 for renamed or closed files. It stays in Review until
 its scope tests and browser checks pass.
+
+## Final proof
+
+The final tab fixes are integrated from `2ae4a12` and
+`e1f1857`. Tabs use Tinker state, with separate real
+buttons for opening and closing a file. Both are 44 px.
+Close prunes history; rename keeps history offsets and
+changes the stored filename. The writer's two new tests
+fail on the old code and pass with these fixes.
+
+Lead checks on `2cf51fc`:
+
+- `vp run -r build`: exit 0.
+- `vp check`: exit 0, no errors, 19 existing warnings.
+- `vp run -r test`: exit 0, all 14 package tasks pass.
+  Playground: 53 tests across six files, all pass.
+  The other 13 tasks use valid cached results.
+- Strict style census for example, shell, and tests: exit 0.
+- `vp run prose`: exit 0 before the final record commit.
+- Root `vp test` has the baseline setup failures listed
+  above; it is not reported as green.
+
+Final browser review also passes:
+
+- Desktop and phone source search, symbol jumps, history.
+- Read-only core can follow its own import with F12.
+  Alt+Left returns to the core file.
+- Rename Enter commits; Escape cancels.
+- Tab Enter opens; Close Enter removes the file.
+- Back skips closed files and uses renamed filenames.
+- No script errors in these final runs.
+
+The game, full screen, and maximum-height wave scan
+passed as recorded above. The later edits only changed
+the Code tabs and file actions.
+
+Temporary preview for review:
+<https://p-9b276e97cabf.preview.tini.works>
+It serves this worktree's built app, not a production deploy.
+
+SCIP was rebuilt for playground, core, and React.
+Old `EditorPane` has no definition or references.
+No existing public game name was removed.
+The game and page impact checks report zero discrepancies.
+The app-only limit of the impact tool is recorded above.
+
+Final old-symbol output:
+
+```text
+== playground
+  definitions
+  references (count  symbol  file)
+    (none)
+```
+
+Final source and action references:
+
+```text
+== playground
+  definitions
+    addFile.  ->  src/actions.ts:53
+    closeFile.  ->  src/actions.ts:78
+    codeEditor.  ->  src/lib/code-editor.ts:29
+    followDefinition.  ->  src/navigation.ts:61
+    goBack.  ->  src/navigation.ts:76
+    goForward.  ->  src/navigation.ts:93
+    openSource.  ->  src/navigation.ts:49
+    renameFile.  ->  src/actions.ts:108
+    setView.  ->  src/actions.ts:157
+    trackCursor.  ->  src/navigation.ts:110
+  references (count  symbol  file)
+        2  addFile.  src/App.tsx
+        4  addFile.  tests/actions.test.ts
+        2  addFile.  tests/bundler.test.ts
+        2  closeFile.  src/App.tsx
+        5  closeFile.  tests/actions.test.ts
+        2  codeEditor.  src/App.tsx
+        2  codeEditor.  src/components/Editor.tsx
+        2  followDefinition.  src/App.tsx
+        1  followDefinition.  src/index.ts
+        2  followDefinition.  src/lib/code-editor.ts
+       21  followDefinition.  tests/navigation.test.ts
+        2  goBack.  src/App.tsx
+        1  goBack.  src/index.ts
+        2  goBack.  src/lib/code-editor.ts
+        3  goBack.  tests/actions.test.ts
+        9  goBack.  tests/navigation.test.ts
+        2  goForward.  src/App.tsx
+        1  goForward.  src/index.ts
+        2  goForward.  src/lib/code-editor.ts
+        5  goForward.  tests/navigation.test.ts
+        2  openSource.  src/App.tsx
+        2  openSource.  src/components/SourcePicker.tsx
+        1  openSource.  src/index.ts
+        9  openSource.  tests/actions.test.ts
+        7  openSource.  tests/navigation.test.ts
+        2  renameFile.  src/App.tsx
+        4  renameFile.  tests/actions.test.ts
+        2  setView.  src/App.tsx
+        2  trackCursor.  src/App.tsx
+        1  trackCursor.  src/index.ts
+        2  trackCursor.  src/lib/code-editor.ts
+        2  trackCursor.  tests/navigation.test.ts
+```
+
+The writer rotation log remains a first sample.
+DeepSeek completed the engine; MiMo completed source
+resolution; GLM completed the game and shell.
+All required lead review and observed checks.
+The UI needed more browser fix rounds than the scope code.
+Future comparisons should keep tasks similar in size.
