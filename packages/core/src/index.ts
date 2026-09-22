@@ -2505,8 +2505,8 @@ function buildResource<T>(
   target: Resource.Handle<T>,
   parent: Observe.Span | undefined,
   chain: readonly Namespace[] | undefined,
-  rec: ResourceState = nodeState(owner, target),
-  ns: Namespace | undefined = undefined,
+  rec: ResourceState,
+  ns: Namespace | undefined,
 ): unknown {
   const gen = rec.gen;
   const superseded = (): boolean => rec.gen !== gen;
@@ -2674,19 +2674,27 @@ function resourceSlot(
   ensureOpen(owner);
   recordUsed(layer.obs, parent, target);
   if (target.target === "session" && chain !== undefined && chain.length > 0) {
-    const state = selectNsResource(owner, target, chain) ?? ownNsResource(owner, target, chain[0]);
-    if (state.resource) return state.resource.value;
-    if (state.failed) return state.failed.promise;
-    if (state.build) return state.build;
-    if (state.building) raise("CircularResource", { label: target.label });
-    return buildResource(owner, target, parent, chain, state, chain[0]);
+    const [head] = chain;
+    const state = selectNsResource(owner, target, chain) ?? ownNsResource(owner, target, head);
+    return readResourceState(owner, target, parent, chain, state, head);
   }
-  if (rec.resource) return rec.resource.value;
-  if (rec.failed) return rec.failed.promise;
-  if (rec.build) return rec.build;
-  if (rec.building) raise("CircularResource", { label: target.label });
   const buildChain = target.target === "scope" ? NO_NAMESPACE : chain;
-  return buildResource(owner, target, parent, buildChain);
+  return readResourceState(owner, target, parent, buildChain, rec, undefined);
+}
+
+function readResourceState(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  parent: Observe.Span | undefined,
+  chain: readonly Namespace[] | undefined,
+  state: ResourceState,
+  ns: Namespace | undefined,
+): unknown {
+  if (state.resource) return state.resource.value;
+  if (state.failed) return state.failed.promise;
+  if (state.build) return state.build;
+  if (state.building) raise("CircularResource", { label: target.label });
+  return buildResource(owner, target, parent, chain, state, ns);
 }
 
 type Affected = { node: Node; owner: Layer };
@@ -2766,16 +2774,29 @@ function forEachDependent(
   const stack: Layer[] = [nodeOwner];
   while (stack.length) {
     const scope = stack.pop() as Layer;
-    const rec = scope.nodes.get(node);
-    const deps = rec?.dependents;
-    if (deps) for (const target of deps) visit(target, scope);
-    if (rec?.nsResources) {
-      for (const state of rec.nsResources.values()) {
-        if (!state.dependents) continue;
-        for (const target of state.dependents.keys()) visit(target, scope);
-      }
-    }
+    visitDependents(scope.nodes.get(node), scope, visit);
     if (deep) for (const child of scope.children) stack.push(child);
+  }
+}
+
+function visitDependents(
+  rec: NodeState | undefined,
+  owner: Layer,
+  visit: (target: Resource.Handle<unknown>, owner: Layer) => void,
+): void {
+  if (rec?.dependents) for (const target of rec.dependents) visit(target, owner);
+  visitNsDependents(rec?.nsResources, owner, visit);
+}
+
+function visitNsDependents(
+  resources: Map<Namespace, NsResourceState> | undefined,
+  owner: Layer,
+  visit: (target: Resource.Handle<unknown>, owner: Layer) => void,
+): void {
+  if (!resources) return;
+  for (const state of resources.values()) {
+    if (!state.dependents) continue;
+    for (const target of state.dependents.keys()) visit(target, owner);
   }
 }
 
@@ -2890,7 +2911,8 @@ function drainStatesBorrowAware(
     if (state.borrowers) for (const work of state.borrowers) borrowers.add(work);
   }
   if (borrowers.size === 0) {
-    runDefers(owner, fns, RELEASED);
+    const done = runDefers(owner, fns, RELEASED);
+    if (done) ignoreRejection(done);
     return;
   }
   const wait: Promise<void> = Promise.allSettled(borrowers).then(() => {
@@ -2938,36 +2960,66 @@ function collectNsAffected(
   const stack: { target: Resource.Handle<unknown>; key: Namespace }[] = [{ target, key }];
   while (stack.length > 0) {
     const item = stack.pop() as { target: Resource.Handle<unknown>; key: Namespace };
-    const keys = seen.get(item.target) ?? new Set<Namespace>();
-    if (keys.has(item.key)) continue;
-    keys.add(item.key);
-    seen.set(item.target, keys);
+    if (markNsSeen(seen, item)) continue;
     const state = owner.nodes.get(item.target)?.nsResources?.get(item.key);
     if (state === undefined) continue;
     order.push({ ...item, state });
-    if (state.dependents) {
-      for (const [dependent, dependentKeys] of state.dependents) {
-        for (const dependentKey of dependentKeys) {
-          stack.push({ target: dependent, key: dependentKey });
-        }
-      }
-    }
+    pushNsDependents(state, stack);
   }
   return order;
+}
+
+function markNsSeen(
+  seen: Map<Resource.Handle<unknown>, Set<Namespace>>,
+  item: { target: Resource.Handle<unknown>; key: Namespace },
+): boolean {
+  const keys = seen.get(item.target) ?? new Set<Namespace>();
+  if (keys.has(item.key)) return true;
+  keys.add(item.key);
+  seen.set(item.target, keys);
+  return false;
+}
+
+function pushNsDependents(
+  state: NsResourceState,
+  stack: { target: Resource.Handle<unknown>; key: Namespace }[],
+): void {
+  if (!state.dependents) return;
+  for (const [target, keys] of state.dependents) {
+    for (const key of keys) stack.push({ target, key });
+  }
 }
 
 /** Remove one namespace bucket and its dependent buckets. Generations are bumped before map entries
  * disappear, so late async builds cannot publish. All old hooks are extracted before one can rebuild. */
 function releaseNsBucket(layer: Layer, target: Node, key: Namespace): void {
   ensureOpen(layer);
-  if (isData(target)) {
-    layer.nodes.get(target)?.nsCells?.delete(key);
-    flushNsWatchers(layer, target);
-    return;
-  }
+  if (isData(target)) return releaseNsData(layer, target, key);
   if (target.target === "scope") return;
-  const affected = collectNsAffected(layer, target, key);
+  releaseNsResource(layer, target, key);
+}
+
+function releaseNsData(layer: Layer, target: Data.Cell<unknown>, key: Namespace): void {
+  layer.nodes.get(target)?.nsCells?.delete(key);
+  flushNsWatchers(layer, target);
+}
+
+function releaseNsResource(owner: Layer, target: Resource.Handle<unknown>, key: Namespace): void {
+  const affected = collectNsAffected(owner, target, key);
   if (affected.length === 0) return;
+  const released = invalidateNsAffected(owner, affected);
+  const fns = extractNsDefers(owner, released);
+  drainStatesBorrowAware(
+    owner,
+    affected.map((item) => item.state),
+    fns,
+  );
+}
+
+function invalidateNsAffected(
+  owner: Layer,
+  affected: readonly NsAffected[],
+): Map<Resource.Handle<unknown>, Set<Namespace>> {
   const released = new Map<Resource.Handle<unknown>, Set<Namespace>>();
   for (const item of affected) {
     item.state.gen += 1;
@@ -2976,28 +3028,27 @@ function releaseNsBucket(layer: Layer, target: Node, key: Namespace): void {
     item.state.failed = undefined;
     item.state.build = undefined;
     item.state.dependents = undefined;
-    layer.nodes.get(item.target)?.nsResources?.delete(item.key);
-    detachNsDependent(layer, item.target, item.key);
+    owner.nodes.get(item.target)?.nsResources?.delete(item.key);
+    detachNsDependent(owner, item.target, item.key);
     const keys = released.get(item.target) ?? new Set<Namespace>();
     keys.add(item.key);
     released.set(item.target, keys);
   }
+  return released;
+}
+
+function extractNsDefers(
+  owner: Layer,
+  released: Map<Resource.Handle<unknown>, Set<Namespace>>,
+): ((end: Scope.End) => void | PromiseLike<void>)[] {
   const fns: ((end: Scope.End) => void | PromiseLike<void>)[] = [];
-  layer.defers = layer.defers.filter((entry) => {
-    if (entry.resource !== undefined && entry.ns !== undefined) {
-      const keys = released.get(entry.resource);
-      if (keys?.has(entry.ns)) {
-        fns.push(entry.fn);
-        return false;
-      }
-    }
-    return true;
+  owner.defers = owner.defers.filter((entry) => {
+    if (entry.resource === undefined || entry.ns === undefined) return true;
+    if (!released.get(entry.resource)?.has(entry.ns)) return true;
+    fns.push(entry.fn);
+    return false;
   });
-  drainStatesBorrowAware(
-    layer,
-    affected.map((item) => item.state),
-    fns,
-  );
+  return fns;
 }
 
 function addDependent(
@@ -3007,14 +3058,8 @@ function addDependent(
   chain: readonly Namespace[] | undefined,
   dependentNs: Namespace | undefined,
 ): void {
-  if (
-    isResource(node) &&
-    node.target === "session" &&
-    chain !== undefined &&
-    chain.length > 0 &&
-    dependentNs !== undefined
-  ) {
-    const state = selectNsResource(owner, node, chain) ?? ownNsResource(owner, node, chain[0]);
+  const state = nsDependencyState(owner, node, chain, dependentNs);
+  if (state !== undefined && dependentNs !== undefined) {
     const keys = state.dependents?.get(dependent) ?? new Set<Namespace>();
     keys.add(dependentNs);
     (state.dependents ??= new Map()).set(dependent, keys);
@@ -3024,16 +3069,32 @@ function addDependent(
   (s.dependents ??= new Set()).add(dependent);
 }
 
+function nsDependencyState(
+  owner: Layer,
+  node: Node,
+  chain: readonly Namespace[] | undefined,
+  dependentNs: Namespace | undefined,
+): NsResourceState | undefined {
+  if (!isResource(node) || node.target !== "session") return undefined;
+  if (chain === undefined || chain.length === 0 || dependentNs === undefined) return undefined;
+  const [head] = chain;
+  return selectNsResource(owner, node, chain) ?? ownNsResource(owner, node, head);
+}
+
 /** Remove one resource from every dependents set (its incoming edges), dropping empty sets. */
 function detachDependent(owner: Layer, dependent: Resource.Handle<unknown>): void {
-  for (const s of owner.nodes.values()) {
-    const set = s.dependents;
-    if (set && set.delete(dependent) && set.size === 0) s.dependents = undefined;
-    if (!s.nsResources) continue;
-    for (const state of s.nsResources.values()) {
-      state.dependents?.delete(dependent);
-      if (state.dependents?.size === 0) state.dependents = undefined;
-    }
+  for (const rec of owner.nodes.values()) {
+    const set = rec.dependents;
+    if (set && set.delete(dependent) && set.size === 0) rec.dependents = undefined;
+    detachFromNsStates(rec, dependent);
+  }
+}
+
+function detachFromNsStates(rec: NodeState, dependent: Resource.Handle<unknown>): void {
+  if (!rec.nsResources) return;
+  for (const state of rec.nsResources.values()) {
+    state.dependents?.delete(dependent);
+    if (state.dependents?.size === 0) state.dependents = undefined;
   }
 }
 
@@ -3042,16 +3103,24 @@ function detachNsDependent(
   dependent: Resource.Handle<unknown>,
   key: Namespace,
 ): void {
-  for (const rec of owner.nodes.values()) {
-    if (!rec.nsResources) continue;
-    for (const state of rec.nsResources.values()) {
-      const keys = state.dependents?.get(dependent);
-      if (!keys) continue;
-      keys.delete(key);
-      if (keys.size === 0) state.dependents?.delete(dependent);
-      if (state.dependents?.size === 0) state.dependents = undefined;
-    }
-  }
+  for (const rec of owner.nodes.values()) detachNsKey(rec, dependent, key);
+}
+
+function detachNsKey(rec: NodeState, dependent: Resource.Handle<unknown>, key: Namespace): void {
+  if (!rec.nsResources) return;
+  for (const state of rec.nsResources.values()) detachNsKeyFromState(state, dependent, key);
+}
+
+function detachNsKeyFromState(
+  state: NsResourceState,
+  dependent: Resource.Handle<unknown>,
+  key: Namespace,
+): void {
+  const keys = state.dependents?.get(dependent);
+  if (!keys) return;
+  keys.delete(key);
+  if (keys.size === 0) state.dependents?.delete(dependent);
+  if (state.dependents?.size === 0) state.dependents = undefined;
 }
 
 /** The releasable node a dependency reads through, if any — a bare data cell or its controller
@@ -3086,13 +3155,22 @@ function collectBorrows(
     const target = resourceDepHandle(depends[key]);
     if (target === undefined) continue;
     const owner = ownerOf(layer, target);
-    const state =
-      target.target === "session" && chain !== undefined && chain.length > 0
-        ? (selectNsResource(owner, target, chain) ?? ownNsResource(owner, target, chain[0]))
-        : nodeState(owner, target);
+    const state = borrowState(owner, target, chain);
     out.push({ state });
   }
   return out;
+}
+
+function borrowState(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  chain: readonly Namespace[] | undefined,
+): ResourceState {
+  if (target.target !== "session" || chain === undefined || chain.length === 0) {
+    return nodeState(owner, target);
+  }
+  const [head] = chain;
+  return selectNsResource(owner, target, chain) ?? ownNsResource(owner, target, head);
 }
 
 function addBorrow(state: ResourceState, work: Promise<unknown>): void {
@@ -3126,17 +3204,23 @@ function collectBorrowers(
   resources: Set<Resource.Handle<unknown>>,
 ): Promise<unknown>[] {
   const out: Promise<unknown>[] = [];
-  for (const resource of resources) {
-    const rec = owner.nodes.get(resource);
-    const set = rec?.borrowers;
-    if (set) for (const work of set) out.push(work);
-    if (rec?.nsResources) {
-      for (const state of rec.nsResources.values()) {
-        if (state.borrowers) for (const work of state.borrowers) out.push(work);
-      }
-    }
-  }
+  for (const resource of resources) appendNodeBorrowers(owner.nodes.get(resource), out);
   return out;
+}
+
+function appendNodeBorrowers(rec: NodeState | undefined, out: Promise<unknown>[]): void {
+  if (rec?.borrowers) for (const work of rec.borrowers) out.push(work);
+  appendNsBorrowers(rec?.nsResources, out);
+}
+
+function appendNsBorrowers(
+  resources: Map<Namespace, NsResourceState> | undefined,
+  out: Promise<unknown>[],
+): void {
+  if (!resources) return;
+  for (const state of resources.values()) {
+    if (state.borrowers) for (const work of state.borrowers) out.push(work);
+  }
 }
 
 /** Seed a layer's tag map from the authored bindings: nothing (or only nothing, however
