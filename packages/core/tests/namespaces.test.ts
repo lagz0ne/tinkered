@@ -284,6 +284,50 @@ test("pass-through extensions preserve namespaces for writes and resolves", asyn
   await scope.close();
 });
 
+test("a session-target resource builds once in each namespace and reuses its warm bucket", () => {
+  const a = namespace();
+  const b = namespace();
+  let builds = 0;
+  const client = resource({
+    label: "client",
+    target: "session",
+    factory: () => ({ build: ++builds }),
+  });
+  const scope = createScope();
+  const firstA = scope.resolve(client, { ns: a });
+  const secondA = scope.resolve(client, { ns: a });
+  const firstB = scope.resolve(client, { ns: b });
+  expect(secondA).toBe(firstA);
+  expect(firstB).not.toBe(firstA);
+  expect(builds).toBe(2);
+  return scope.close();
+});
+
+test("namespace clients share one scope-target pool", () => {
+  const a = namespace();
+  const b = namespace();
+  let poolBuilds = 0;
+  let clientBuilds = 0;
+  const pool = resource({
+    label: "pool",
+    target: "scope",
+    factory: () => ({ build: ++poolBuilds }),
+  });
+  const client = resource({
+    label: "client",
+    target: "session",
+    depends: { pool },
+    factory: ({ pool }) => ({ build: ++clientBuilds, pool }),
+  });
+  const scope = createScope();
+  const clientA = scope.resolve(client, { ns: a });
+  const clientB = scope.resolve(client, { ns: b });
+  expect(clientA.pool).toBe(clientB.pool);
+  expect(poolBuilds).toBe(1);
+  expect(clientBuilds).toBe(2);
+  return scope.close();
+});
+
 test("a scope-target resource is namespace-blind and keeps default storage clean", () => {
   const tenant = tag<string>({ label: "tenant" });
   const named = namespace({ tags: [tenant("named")] });

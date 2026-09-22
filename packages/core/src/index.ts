@@ -901,6 +901,32 @@ type NsWatcher = Watcher & {
   chain: readonly Namespace[];
   notified: unknown;
 };
+
+/** The exact data entry a named resource read. */
+type NsDataDependency = { source: NodeState; entry: Entry };
+
+/** One named resource bucket. Default resource state stays directly on {@link NodeState}. */
+class NsResourceState {
+  readonly owner: Layer;
+  readonly target: Resource.Handle<unknown>;
+  readonly key: Namespace;
+  resource: Entry | undefined = undefined;
+  promise: Promise<unknown> | undefined = undefined;
+  failed: { error: unknown; promise: Promise<unknown> } | undefined = undefined;
+  build: Promise<unknown> | undefined = undefined;
+  gen = 0;
+  building = false;
+  borrowers: Set<Promise<unknown>> | undefined = undefined;
+  dataDependencies: Set<NsDataDependency> | undefined = undefined;
+  constructor(owner: Layer, target: Resource.Handle<unknown>, key: Namespace) {
+    this.owner = owner;
+    this.target = target;
+    this.key = key;
+  }
+}
+
+type ResourceState = NodeState | NsResourceState;
+
 /** An end-hook (`ctx.defer`) tagged with the resource that registered it (undefined = userland
  * `onClose`), so `release` can drop exactly one resource's hooks without touching others. Kept in
  * registration order; teardown runs them in reverse (ADR 0026). */
@@ -945,9 +971,13 @@ class NodeState {
   /** Value the watchers at this layer were last called with; refreshed at registration so a new
    * watcher never inherits a stale comparison. */
   notified: unknown = undefined;
+  /** Named resource buckets at this layer. Scope-target resources never use this map. */
+  nsResources: Map<Namespace, NsResourceState> | undefined = undefined;
   /** Named cell buckets at this layer, keyed by namespace (ADR 0059): one `(layer, ns, unit)`
    * bucket per write. Absent until the first namespaced write at this layer. */
   nsCells: Map<Namespace, Entry> | undefined = undefined;
+  /** Named resource states keyed by the exact data entry they read. */
+  nsDataDependents: Map<Entry, Set<NsResourceState>> | undefined = undefined;
   /** Namespaced watchers at this layer. Each owns its full chain and last observed value because
    * two chains with the same write head can resolve through different fallback buckets. */
   nsWatchers: Set<NsWatcher> | undefined = undefined;
@@ -2238,6 +2268,7 @@ function resolveResourceDeps(
   span: Observe.Span | undefined,
   superseded: () => boolean,
   chain: readonly Namespace[] | undefined,
+  state: ResourceState,
 ): Record<string, unknown> {
   return buildDeps(
     owner,
@@ -2247,7 +2278,7 @@ function resolveResourceDeps(
       const node = depNode(dep);
       /** Edges register before the factory runs (eager deps, ADR 0044); a build superseded while its
        * deps were still resolving records none, so a stale build never evicts its live replacement. */
-      if (node && !superseded()) addDependent(owner, node, target);
+      if (node && !superseded()) addDependent(owner, node, target, chain, state);
     },
     chain,
   );
@@ -2475,8 +2506,8 @@ function buildResource<T>(
   target: Resource.Handle<T>,
   parent: Observe.Span | undefined,
   chain: readonly Namespace[] | undefined,
+  rec: ResourceState,
 ): unknown {
-  const rec = nodeState(owner, target);
   const gen = rec.gen;
   const superseded = (): boolean => rec.gen !== gen;
   const canPublish = (): boolean => !superseded() && !owner.closed;
@@ -2486,7 +2517,7 @@ function buildResource<T>(
   let settled = false;
   buildDepth++;
   try {
-    const deps = resolveResourceDeps(owner, target, span, superseded, chain);
+    const deps = resolveResourceDeps(owner, target, span, superseded, chain, rec);
     const pending = parked;
     const override = presetFor(owner, target) as Resource.Handle<T>["factory"] | undefined;
     const fn = override ?? target.factory;
@@ -2534,7 +2565,7 @@ function buildResource<T>(
  * clear `owner.resources` and detach the edges, so the sticky failure honors the normal lifetime. */
 function finishAsyncBuild(
   owner: Layer,
-  rec: NodeState,
+  rec: ResourceState,
   result: PromiseLike<unknown>,
   superseded: () => boolean,
   canPublish: () => boolean,
@@ -2575,23 +2606,60 @@ function resourceController<T>(
   chain: readonly Namespace[] | undefined = layer.ns,
 ): Scope.ResourceController<T> {
   const owner = ownerOf(layer, target);
-  /** Second cache layer: the controller (already cached per node) holds the owner's node record
-   * directly, so a warm resolve is a field read — no per-call `owner.nodes.get`. The record is a
-   * stable object mutated in place by build/invalidate, so it always reflects the current state. */
+  /** An ns-blind controller holds the owner's node record directly. A named controller selects
+   * on each read because an earlier key in a fallback chain may be built after controller creation. */
   const rec = nodeState(owner, target);
+  const named = hasResourceNs(target, chain);
   return {
     resolve: () => {
       const value = resourceSlot(layer, target, parent, chain);
-      return (rec.promise ?? value) as Scope.ResourceValue<T>;
+      const state = named ? selectNsResource(owner, target, chain) : rec;
+      return (state?.promise ?? value) as Scope.ResourceValue<T>;
     },
     get: () => {
       ensureOpen(layer);
       ensureOpen(owner);
-      if (rec.failed) return rec.failed.promise as Scope.ResourceValue<T>;
-      if (!rec.resource) raise("NotResolved", { label: target.label });
-      return (rec.promise ?? rec.resource.value) as Scope.ResourceValue<T>;
+      const state = named ? selectNsResource(owner, target, chain) : rec;
+      if (state?.failed) return state.failed.promise as Scope.ResourceValue<T>;
+      if (!state?.resource) raise("NotResolved", { label: target.label });
+      return (state.promise ?? state.resource.value) as Scope.ResourceValue<T>;
     },
   };
+}
+
+/** Select an existing named resource through the shared layers-first bucket walk. */
+function selectNsResource(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  chain: readonly Namespace[],
+): NsResourceState | undefined {
+  return selectBucket(
+    owner,
+    chain,
+    (layer, key) => (layer === owner ? layer.nodes.get(target)?.nsResources?.get(key) : undefined),
+    () => undefined,
+  );
+}
+
+function ownNsResource(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  key: Namespace,
+): NsResourceState {
+  const rec = nodeState(owner, target);
+  let state = rec.nsResources?.get(key);
+  if (state === undefined) {
+    state = new NsResourceState(owner, target, key);
+    (rec.nsResources ??= new Map()).set(key, state);
+  }
+  return state;
+}
+
+function hasResourceNs(
+  target: Resource.Handle<unknown>,
+  chain: readonly Namespace[] | undefined,
+): chain is readonly [Namespace, ...Namespace[]] {
+  return target.target === "session" && chain !== undefined && chain.length > 0;
 }
 
 /** A resource in a `depends` slot (ADR 0044): the built VALUE for sync and async builds alike; a
@@ -2610,12 +2678,27 @@ function resourceSlot(
   ensureOpen(layer);
   ensureOpen(owner);
   recordUsed(layer.obs, parent, target);
-  if (rec.resource) return rec.resource.value;
-  if (rec.failed) return rec.failed.promise;
-  if (rec.build) return rec.build;
-  if (rec.building) raise("CircularResource", { label: target.label });
+  if (hasResourceNs(target, chain)) {
+    const [head] = chain;
+    const state = selectNsResource(owner, target, chain) ?? ownNsResource(owner, target, head);
+    return readResourceState(owner, target, parent, chain, state);
+  }
   const buildChain = target.target === "scope" ? NO_NAMESPACE : chain;
-  return buildResource(owner, target, parent, buildChain);
+  return readResourceState(owner, target, parent, buildChain, rec);
+}
+
+function readResourceState(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  parent: Observe.Span | undefined,
+  chain: readonly Namespace[] | undefined,
+  state: ResourceState,
+): unknown {
+  if (state.resource) return state.resource.value;
+  if (state.failed) return state.failed.promise;
+  if (state.build) return state.build;
+  if (state.building) raise("CircularResource", { label: target.label });
+  return buildResource(owner, target, parent, chain, state);
 }
 
 type Affected = { node: Node; owner: Layer };
@@ -2817,7 +2900,13 @@ function invalidateAffected(order: Affected[], affected: Map<Layer, Released>): 
   return dataReleased;
 }
 
-function addDependent(owner: Layer, node: Node, dependent: Resource.Handle<unknown>): void {
+function addDependent(
+  owner: Layer,
+  node: Node,
+  dependent: Resource.Handle<unknown>,
+  _chain: readonly Namespace[] | undefined,
+  _state: ResourceState,
+): void {
   const s = nodeState(owner, node);
   (s.dependents ??= new Set()).add(dependent);
 }
