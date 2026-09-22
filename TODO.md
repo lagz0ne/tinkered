@@ -31,7 +31,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **namespace-v1/t06 sync family onto ns** -- blocked by t03.
 - **namespace-v1/t07 tinkerer onto ns** -- blocked by t03.
 - **namespace-v1/t08 harness onto ns** -- blocked by t03.
-- **random-v1/t03 docs + lint** -- after t01+t02 (landed). core README `## Random`; glossary row; ADR 0062 → Accepted; a lint against bare `Math.random` / `crypto.randomUUID` / `new Date()` in unit bodies (read the ctx capability). [track](docs/roadmap/random-v1/PROGRESS.md)
 
 | Card                                                                                                                                                | Owner         | Next                                                                                                                                                            | Verify                                        |
 | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
@@ -75,6 +74,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 ## Done
 
 | Card | Evidence |
+| random-v1/t03 — docs + ambient-read lint | core README `### Random` (5 promise lines), glossary `random` + `TestRandom` rows, ADR 0062 → accepted, `scripts/check-ambient.mjs` + `pnpm validate` lane (package src/examples read time+random off ctx; only `systemClock`/`systemRandom` lines marked `ambient-source`). `vp check`/`vp run core#test` EXIT 0; `node scripts/check-ambient.mjs` exit 0 (negative test exit 1); `vp run prose` clean. [track](docs/roadmap/random-v1/PROGRESS.md) |
 | random-v1/t01+t02 — ambient `random` capability + seeded `makeTestRandom` (ADR 0062, mirrors clock) | branch `random-v1/t01` (contributor `ce3b0e5`/`b6178c5` + lead docs): `Random.Handle{next,uuid}`, `systemRandom` default, `Scope.Options.random`, session inheritance, `makeTestRandom({ seed })` (mulberry32; uuid from same stream). `vp run -r build`/`vp check` (0 errors)/`vp run core#test` EXIT 0, 392 tests (7 new); core mutation alone **86.30** ≥ 85 (8 min); validate: core lanes green (3 http/process FAILs pre-existing on base `c3a33ba`); Jev preflight blocked by provider 503 (advisory). [track](docs/roadmap/random-v1/PROGRESS.md) |
 | tests/kill-check-in-brief — per-line kill check is the writer's proof | brief updated (`docs/roadmap/contributor-brief.md` Setup); `vp run prose` 0 hits |
 | jev/banks-registry — one `BANKS` registry + `judgeOf` | `tools/jev/bank.mjs`; `label.mjs`, `calibrate.mjs`, `evals/lint.mjs` look a judge up there; `label nope` lists every bank; `calibrate --dry` unchanged (survivorMatters proven); eval 25/25; `vp check` 0 errors / 20 warnings |

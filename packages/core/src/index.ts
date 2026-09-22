@@ -1259,9 +1259,9 @@ function nanosFromMillis(ms: number): bigint {
 }
 
 const systemClock: Clock.Handle = {
-  currentTimeMillis: () => Date.now(),
+  currentTimeMillis: () => Date.now(), // ambient-source
   currentTimeNanos: () =>
-    nanosFromMillis(performance.timeOrigin) + nanosFromMillis(performance.now()),
+    nanosFromMillis(performance.timeOrigin) + nanosFromMillis(performance.now()), // ambient-source
   sleep: (ms, signal) =>
     new Promise<void>((resolve, reject) => {
       if (signal?.aborted) return reject(signal.reason);
@@ -1328,8 +1328,8 @@ export function makeTestClock(options?: Clock.Options): Clock.Test {
 }
 
 const systemRandom: Random.Handle = {
-  next: () => Math.random(),
-  uuid: () => crypto.randomUUID(),
+  next: () => Math.random(), // ambient-source
+  uuid: () => crypto.randomUUID(), // ambient-source
 };
 
 /** Create a seeded randomness source for tests: the same `seed` replays the same `next` and `uuid`

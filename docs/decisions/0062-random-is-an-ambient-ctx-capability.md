@@ -1,6 +1,6 @@
 # 0062 Random is an ambient ctx capability (Effect default-service model)
 
-Date: 2026-09-22. Status: proposed.
+Date: 2026-09-22. Status: accepted.
 
 ## Context
 

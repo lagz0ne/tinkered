@@ -11,8 +11,11 @@ The model is the clock (ADR 0034). It mirrors it site for site.
 
 - **t01+t02 ambient random + test seam** — landed together (one core contributor):
   the ambient field cannot be tested deterministically without its seeded seam.
-- **t03 docs + lint** — README `## Random`; glossary; ADR 0062 → Accepted; a lint
-  against bare `Math.random` / `crypto.randomUUID` / `new Date()` in unit bodies.
+- **t03 docs + lint** — landed: core README `### Random` (5 promise lines), glossary
+  `random` + `TestRandom` rows (ambient-capability row now lists `random`), ADR 0062
+  → accepted, and `scripts/check-ambient.mjs` (a `pnpm validate` lane): package src and
+  examples read time/randomness off ctx, never a hidden global; only the
+  `systemClock`/`systemRandom` source lines carry the `ambient-source` marker.
 
 ## Anchors (SCIP, `scripts/scip.sh refs`, indexed on main c3a33ba)
 
@@ -30,6 +33,7 @@ The model is the clock (ADR 0034). It mirrors it site for site.
 `packages/core/src/index.ts` (+64), `packages/core/tests/random.test.ts` (+59, new).
 
 New public symbols:
+
 - `Random` namespace (`Handle` = `next()`/`uuid()`, `Options` = `seed?`) — ~ln 195.
 - `systemRandom` (default) and `makeTestRandom({ seed })` (mulberry32; uuid drawn
   from the same stream, v4 nibbles set) — ln 1330–1357.
