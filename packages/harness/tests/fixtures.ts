@@ -1,3 +1,9 @@
+/** Parse a test author's prompt input: a plain string. */
+export function parsePrompt(raw: unknown): string {
+  if (typeof raw !== "string") throw new Error("bad prompt");
+  return raw;
+}
+
 import type {
   SDKAssistantMessage,
   SDKMessage,
