@@ -87,7 +87,10 @@ function servePort(
 ): HonoScope.Serve {
   return (app) =>
     new Promise<{ readonly close: () => void }>((resolve, reject) => {
-      void serveClient(app).then(() => {
+      // A setup failure (a missing client build) rejects the boot path —
+      // the same `entry` that reports a refusing port — never an unhandled
+      // rejection the process crashes on.
+      serveClient(app).then(() => {
         app.onError(reportUnmapped(observe));
         const server = serve({ fetch: app.fetch, hostname: host, port }, (info) => {
           writeLog("listening", { host, port: info.port });

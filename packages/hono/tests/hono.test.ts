@@ -325,5 +325,40 @@ test("one scope close stops both servers: two serve binds, one reap", async () =
   expect(await (await scope.resolve(second).request("/two")).text()).toContain("two");
   stops.length = 0;
   await scope.close();
+  // Both listeners stopped, each exactly once: no reap means the port
+  // stays open (the leak fix 1 closes), a double stop means two owners.
   expect(stops.sort()).toEqual(["stopped:one", "stopped:two"]);
+});
+
+test("a close landing mid-bind still reaps the listener exactly once", async () => {
+  let stops = 0;
+  let openGate!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    openGate = resolve;
+  });
+  const ping = operation({ label: "ping", run: () => "pong" });
+  let bound = false;
+  const { extension: web } = hono([route.get("/ping", ping)], {
+    serve: () => {
+      bound = true;
+      return gate.then(() => () => {
+        stops += 1;
+      });
+    },
+  });
+  const scope = createScope({ extensions: [web] });
+  // Wait until `start` is parked inside the bind (not merely scheduled):
+  // the close must land while the bind is still pending for the race to
+  // be real. `serve` ran means `ctx.defer` already registered, so the
+  // close cannot take the idle fast path.
+  for (let i = 0; i < 100 && !bound; i++) await Promise.resolve();
+  expect(bound).toBe(true);
+  const closing = scope.close();
+  openGate();
+  await closing;
+  // The bind settled after the close ran: the stop fired at once, and the
+  // later drain found nothing left to stop — exactly one stop, no leak.
+  expect(stops).toBe(1);
+  await scope.close();
+  expect(stops).toBe(1);
 });

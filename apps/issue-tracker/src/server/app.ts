@@ -27,14 +27,24 @@ export type AppConfig = {
  * app: the flat issue rows (including the `/sync` GET stream row) mounted by
  * the `hono` extension, plus `publishAfterCommit` on the new `session` hook.
  * An error no route mapped answers 500 and is logged through `observe`.
- * The caller owns the scope and closes it. A `serve` wiring can bind the app
- * to a port inside the extension, so the scope's close reaps the listener. */
+ * Boot is atomic: the `serve` bind opens inside `start`, so anything after it
+ * that fails (a bad saved-list load, a refusing store) closes the scope —
+ * which stops the listener — before rejecting. A failed boot leaves no open
+ * port. The caller owns the returned scope and closes it. */
 export async function createApp(config: AppConfig): Promise<{
   readonly scope: Scope.Handle;
   readonly app: Hono;
   readonly src: Scope.Extension<Sync.Source>;
 }> {
-  const { extension: web } = hono(issueRoutes, { onError, serve: config.serve });
+  // The app-level `onError` (Hono's last handler) installs before the
+  // custom bind opens, so no request on that path can fail without it —
+  // `main.ts` does the same on its own path.
+  const observe = config.observe;
+  const serve = config.serve && ((app: Hono) => {
+    app.onError(reportUnmapped(observe));
+    return config.serve?.(app);
+  });
+  const { extension: web } = hono(issueRoutes, { onError, serve });
   const draft = config.draft;
   const scope = createScope({
     tags: [
@@ -49,8 +59,13 @@ export async function createApp(config: AppConfig): Promise<{
     presets: config.presets,
     observe: config.observe,
   });
-  await scope.ready;
-  await scope.run(publishIssues);
+  try {
+    await scope.ready;
+    await scope.run(publishIssues);
+  } catch (error: unknown) {
+    await scope.close();
+    throw error;
+  }
   const app = scope.resolve(web);
   app.onError(reportUnmapped(config.observe));
   return { scope, app, src };

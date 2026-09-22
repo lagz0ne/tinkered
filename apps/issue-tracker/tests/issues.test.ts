@@ -389,6 +389,29 @@ test("a publish that fails after the commit keeps the 201, saves the row, and lo
   }
 });
 
+test("a failed boot closes the scope and stops the bound listener", async () => {
+  let stops = 0;
+  const failure = new Error("saved list would not load");
+  let failed: unknown;
+  try {
+    await createApp({
+      dataPath: tempPath(),
+      serve: () => () => {
+        stops += 1;
+      },
+      presets: [preset(publishIssues, async () => {
+        throw failure;
+      })],
+    });
+  } catch (error: unknown) {
+    failed = error;
+  }
+  // The load threw, so `createApp` rejected — and closed the scope first,
+  // which ran the serve stop: no open port left behind, exactly one stop.
+  expect(failed).toBe(failure);
+  expect(stops).toBe(1);
+});
+
 test("the detail and conflict routes answer through app.request", async () => {
   const { scope, app } = await boot();
   try {

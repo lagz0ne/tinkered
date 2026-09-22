@@ -90,9 +90,11 @@ type SessionEnv = {
  * loader rejects `start` — `ready` rejects, the scope closes failed, boot
  * fails never a request), then builds the one Hono app: the session
  * middleware plus one endpoint per row, then `mount`, then the opt-in `serve`
- * bind (a refusing port fails boot; its stop is deferred to scope close, so
- * one `scope.close()` reaps every `hono` extension on it). The value is the
- * app. This `start` is the extension's ONE use of the scope: per request the
+ * bind (a refusing port fails boot; the bind and its stop are atomic — the
+ * stop registers before the bind settles, so a close landing mid-bind still
+ * reaps the listener exactly once — and one `scope.close()` reaps every
+ * `hono` extension on it). The value is the app. This `start` is the
+ * extension's ONE use of the scope: per request the
  * middleware opens sessions from the captured root handle. */
 export function hono(
   routes: Many<HonoScope.Row>,
@@ -109,8 +111,19 @@ export function hono(
         const app = new Hono().use(serveRequests(scope, wiring));
         for (const { row, op } of mounted) app.on(row.method, row.path, answerRoute(op, row.route));
         wiring?.mount?.(app);
-        const served = await wiring?.serve?.(app);
-        ctx.defer(() => readStop(served));
+        // Atomic bind: the stop registers BEFORE the bind settles, so a
+        // close landing mid-bind still drains this defer (which also keeps
+        // the fast-close path off the table). The defer reads the settled
+        // stop out of the box; when the bind lands after the defer already
+        // ran, it stops at once. Exactly one stop either way.
+        let served: HonoScope.Served | undefined;
+        let stopped = false;
+        ctx.defer(() => {
+          stopped = true;
+          return readStop(served);
+        });
+        served = await wiring?.serve?.(app);
+        if (stopped) await readStop(served);
         return app;
       },
     }),
