@@ -13,15 +13,18 @@ import {
 } from "../shared/issues.ts";
 import { parseDraftCapability, parseDraftInput } from "../shared/draft.ts";
 
-/** The browser's command frame: saves through HTTP; the server owns the saved state. Every
- * operation below depends on the shared `send` directly; the 409-accept policy is a `config`
- * value the composition root binds beside `baseUrl` (see `main.tsx`), so a 409 passes the
- * filter and `patchIssue` can read its body as the conflict. `api` stays as the `config`
- * alias the server and tools bind through. */
-export const api = { config };
-
 /** A 409 passes the filter, so `patchIssue` can read its body as the conflict. */
 export const acceptIssues = (status: number): boolean => status < 300 || status === 409;
+
+/** The browser's command frame: saves through HTTP; the server owns the saved state. Every
+ * operation below depends on the shared `send` directly. `api.config` folds the 409-accept
+ * policy in by default, so every `api.config({ baseUrl })` caller — the browser root, the
+ * server draft, the CLI/MCP tools — rejects a 500 as `ResponseFailed` while `patchIssue` can
+ * still read a 409 body as the conflict. Pass `accept` to override per site. */
+export const api = {
+  config: (opts: { baseUrl: string; accept?: (status: number) => boolean }) =>
+    config({ ...opts, accept: opts.accept ?? acceptIssues }),
+};
 
 function isRecord(raw: unknown): raw is Record<string, unknown> {
   return typeof raw === "object" && raw !== null;
