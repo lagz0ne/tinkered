@@ -1,6 +1,6 @@
 # Fresh task with the tested rules
 
-Status: blank workers staged; review-tool fixes pending.
+Status: first three writers running; DeepSeek queued.
 Owner: Codex.
 
 ## Goal
@@ -89,86 +89,41 @@ Workspaces and projects are both removed after the final saves.
 Containers, volumes, worker folders, and trust entries are removed too.
 The main project and evidence remain.
 
-## Preparation note
+## Preparation proof
 
-Trial stock-01 is created and staged at round 1.
-No writer agent has started.
+The lead tested save, feedback, and retry in a separate container.
+Binary and non-ASCII bytes survived unchanged.
+Feedback reached /work. Each retry saved its own event log.
+Duplicate saves and feedback were refused.
+Cleanup refused an unsaved retry.
+All three own checks ran after failures. Teacher checks still ran.
+Check evidence records the archive, image, and all checker hashes.
+The suite, attempt, and shape tests pass 35 of 35.
+The full repo check has zero errors and 22 old warnings.
+
+The final checker allows hidden rows and empty notices.
+It checks the task's thrown errors without an extra stamp rule.
+Its undo case can catch a lost filter.
+Only the two needed checker files enter the grading container.
+The private fixture stays outside worker access.
+The saved canary script rebuilds good and broken test apps.
+Proof logs live in stock-01/teacher-proof.
+
 All 32 isolation checks and five tool-limit tests passed.
-All four frozen Jev setups returned live reports and caught a useState probe.
-The probes were removed.
-All four src, tests, and docs folders are empty.
-Task, rules, and tool copies match; trial caps are disabled.
-Proof is in the trial's readiness-checks.json, jev-readiness.json,
-and prelaunch-checks.json.
+All four frozen Jev setups returned reports and caught a useState probe.
+The probes were removed. All four app folders are still blank.
+Frozen hashes match. Trial caps are disabled.
+MiMo Flash, MiMo Pro, and GLM started with the same prompt.
+DeepSeek waits for a free slot. Waiting time is not writer time.
 
-The create/stage limit fixes are saved as 8e3c3f9.
-The full setup has 13 passing suite and attempt tests.
-The full vp check has zero errors and the same 22 old warnings.
-The saved review command is still under repair.
-Lead review found that save decodes the archive as UTF-8 text,
-feedback does not reach the worker, and retries copy the old event log.
-A real blank archive grew from 81,408 to 84,110 bytes after that decode.
-Its hash changed. Saving must keep the raw bytes.
-The lead also requested current-attempt cleanup guards,
-full task text on retries, and separate results for each check.
-These commands will not score writers until the fixes are verified.
+One preparation folder was lost during contributor cleanup.
+The contributor deleted repeat-prep after wrongly claiming ownership.
+Earlier trial evidence remains intact.
+Git notes and conversation output retain the earlier observed results.
+The lead recreated the folder and reran current checks.
+Shared trial paths are now explicitly excluded from contributor cleanup.
 
-The preparation-log folder disappeared during contributor smoke work.
-The lead asked for the exact cleanup commands and recreated the folder.
-Earlier trial evidence remains present.
-Saved Git notes and tool output retain the earlier observed results.
-Current setup checks were run again into the new folder.
-
-The first tool step is saved as 42a5e0e.
-It adds full default rules and frozen task, rule, and Jev files.
-The lead ran all five suite tests: five passed.
-The full vp check returned zero errors and the same 22 old warnings.
-Prose checks passed on both rule files and this report.
-Jev review raised no flags; its file checks do not read these .mjs files.
-Manual review found two gaps still being fixed:
-
-- Staging reads live limits instead of a frozen config copy.
-- Old trials can claim round 5 while getting only packets 1 through 4.
-
-The package symbol index was rebuilt.
-Core and React have no references to the new suite helper names.
-These JavaScript tools are outside that package index.
-The all-package reference scan failed on an empty tinkerer index;
-the core and React scans passed.
-No package API changed.
-Save, check, feedback, and live stock runs are still pending.
-
-The first stock checker is saved on its branch as 3962623.
-It has not been accepted into the lead branch.
-Lead review found wrong checks in teacher/stock-acceptance.mjs:
-
-- Line 338 expects empty undo after one saved move.
-- Line 335 assumes the returned draft must be a second separate copy.
-- Lines 477 and 515 keep live stock references as the expected old state.
-  An in-place write could change both sides of that check.
-- Lines 869 and 1003 reject an empty alert kept in the page.
-- Line 880 looks for Maple, which is not part of the stock task.
-
-The lead also asked for exact row checks, a real draft-switch check,
-two-root checks that change stock, and machine-readable case results.
-The checker needs a passing private fixture and known-bad variants.
-No model will be scored against this first checker version.
-
-The lead re-read the tracker's App.tsx and DraftView.tsx.
-Both use cell reads and operation calls for form changes.
-Jev's plain shape scan found no hits in those files or main.tsx.
-The client style census passed.
-The tracker is a pattern reference, not an exact stock rule set:
-its actions.ts has broad network-error handling at lines 310 and 390,
-and fallback error messages from line 399 onward.
-The local stock task still requires unknown errors to be rethrown.
-Plain scans cannot prove that rule; source review remains required.
-
-Before any stock writer launched, the lead checked a long preparation delay.
-The stock-check contributor had read an earlier GLM booking app,
-contrary to its brief to use only the stock task and public API.
-The lead stopped that reading and narrowed the work to saved checker code.
-The stock task was already frozen before that read.
-No stock worker received that app or any other worked code.
-Review must confirm that checks follow the task, not an old app's layout.
-A provider retry in this teacher work is not a writer-model result.
+The lead reran all five canary cases: all passed.
+Good and hidden-row apps scored 44 of 44.
+The broken edit scored 39 of 44; the wrong draft scored 43 of 44.
+The empty app scored zero of 40.
