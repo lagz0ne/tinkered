@@ -79,7 +79,10 @@ core("core r1: rooms, book, clash, rooms separate, cancel frees", async () => {
     });
     assert.equal(typeof one.id, "string");
     assert.equal(rows(s).length, 1);
-    assert.equal(throws(s, app.bookBooking, { title: "B", room: "Cedar", start: 570, end: 630 }).kind, "Clash");
+    assert.equal(
+      throws(s, app.bookBooking, { title: "B", room: "Cedar", start: 570, end: 630 }).kind,
+      "Clash",
+    );
     assert.equal(rows(s).length, 1);
     const cross = s.run(app.bookBooking, {
       input: { title: "C", room: "Maple", start: 570, end: 630 },
@@ -101,7 +104,10 @@ core("core r1: blank title rejected, failed action saves nothing", async () => {
   const s = coreMod.createScope();
   try {
     const before = rows(s).length;
-    assert.equal(throws(s, app.bookBooking, { title: "   ", room: "Cedar", start: 540, end: 600 }).kind, "BlankTitle");
+    assert.equal(
+      throws(s, app.bookBooking, { title: "   ", room: "Cedar", start: 540, end: 600 }).kind,
+      "BlankTitle",
+    );
     assert.equal(rows(s).length, before);
     return "BlankTitle keeps list";
   } finally {
@@ -150,7 +156,8 @@ core("core r2: open copy, save, failed save keeps both, discard", async () => {
     assert.equal(rows(s).find((x) => x.id === target.id).title, "E");
     s.run(app.bookBooking, { input: { title: "Clash", room: "Maple", start: 570, end: 630 } });
     assert.equal(
-      throws(s, app.saveEdit, { id: target.id, title: "E", room: "Maple", start: 570, end: 630 }).kind,
+      throws(s, app.saveEdit, { id: target.id, title: "E", room: "Maple", start: 570, end: 630 })
+        .kind,
       "Clash",
     );
     assert.equal(rows(s).find((x) => x.id === target.id).start, 60);
@@ -176,7 +183,11 @@ core("core r2: unknown ids, closed draft, cancel closes draft", async () => {
     s.run(app.openEdit, { input: { id: target.id } });
     s.run(app.discardEdit, { input: { id: target.id } });
     assert.strictEqual(s.resolve(app.editDraft), undefined);
-    assert.equal(throws(s, app.saveEdit, { id: target.id, title: "F", room: "Cedar", start: 60, end: 120 }).kind, "NotFound");
+    assert.equal(
+      throws(s, app.saveEdit, { id: target.id, title: "F", room: "Cedar", start: 60, end: 120 })
+        .kind,
+      "NotFound",
+    );
     assert.equal(throws(s, app.discardEdit, { id: target.id }).kind, "NotFound");
     s.run(app.openEdit, { input: { id: target.id } });
     s.run(app.cancelBooking, { input: { id: target.id } });
@@ -267,7 +278,13 @@ core("core r3: invalid and blank dates BadDate, bad weeks BadCount", async () =>
   const s = coreMod.createScope();
   try {
     assert.equal(
-      throws(s, app.bookBooking, { title: "X", room: "Cedar", date: "not-a-date", start: 60, end: 120 }).kind,
+      throws(s, app.bookBooking, {
+        title: "X",
+        room: "Cedar",
+        date: "not-a-date",
+        start: 60,
+        end: 120,
+      }).kind,
       "BadDate",
     );
     assert.equal(
@@ -401,16 +418,27 @@ if (mode === "transfer") {
       const { made, seriesId } = await seriesFixture(s);
       const renamed = s.run(app.renameSeries, { input: { seriesId, title: "  Gamma  " } });
       assert.equal(renamed.length, 2);
-      assert.deepStrictEqual(renamed.map((b) => b.title), ["Gamma", "Gamma"]);
-      assert.deepStrictEqual(renamed.map((b) => b.id), made.map((b) => b.id));
+      assert.deepStrictEqual(
+        renamed.map((b) => b.title),
+        ["Gamma", "Gamma"],
+      );
+      assert.deepStrictEqual(
+        renamed.map((b) => b.id),
+        made.map((b) => b.id),
+      );
       assert.ok(renamed.every((b) => b.seriesId === seriesId));
-      assert.deepStrictEqual(renamed.map((b) => b.date), ["2026-10-06", "2026-10-13"]);
+      assert.deepStrictEqual(
+        renamed.map((b) => b.date),
+        ["2026-10-06", "2026-10-13"],
+      );
       assert.deepStrictEqual(
         renamed.map((b) => [b.room, b.start, b.end]),
         made.map((b) => [b.room, b.start, b.end]),
       );
       assert.deepStrictEqual(
-        rows(s).filter((b) => b.seriesId === seriesId).map((b) => b.id),
+        rows(s)
+          .filter((b) => b.seriesId === seriesId)
+          .map((b) => b.id),
         renamed.map((b) => b.id),
       );
       assert.equal(rows(s).find((b) => b.title === "Solo").title, "Solo");
@@ -429,7 +457,10 @@ if (mode === "transfer") {
       const failed = throws(s, app.renameSeries, { seriesId, title: "   " });
       assert.equal(failed.kind, "BlankTitle");
       assert.equal(failed.payload.title, "   ");
-      assert.deepStrictEqual(rows(s).map((b) => ({ ...b })), before);
+      assert.deepStrictEqual(
+        rows(s).map((b) => ({ ...b })),
+        before,
+      );
       s.run(app.undoChange, {});
       assert.ok(rows(s).some((b) => b.title === "Solo"));
       assert.ok(!rows(s).some((b) => b.title === "Alpha"));
@@ -463,7 +494,10 @@ if (mode === "transfer") {
       const before = rows(s).map((b) => ({ ...b }));
       s.run(app.renameSeries, { input: { seriesId, title: "Gamma" } });
       s.run(app.undoChange, {});
-      assert.deepStrictEqual(rows(s).map((b) => ({ ...b })), before);
+      assert.deepStrictEqual(
+        rows(s).map((b) => ({ ...b })),
+        before,
+      );
       return "undo restores exact list";
     } finally {
       await s.close();
@@ -491,13 +525,23 @@ if (mode === "transfer") {
     try {
       need(app.renameSeries, "renameSeries");
       const made = s.run(app.bookSeries, {
-        input: { title: "Alpha", room: "Cedar", date: "2026-10-06", start: 540, end: 600, weeks: 3 },
+        input: {
+          title: "Alpha",
+          room: "Cedar",
+          date: "2026-10-06",
+          start: 540,
+          end: 600,
+          weeks: 3,
+        },
       });
       const seriesId = made[0].seriesId;
       s.run(app.cancelBooking, { input: { id: made[0].id } });
       const renamed = s.run(app.renameSeries, { input: { seriesId, title: "Gamma" } });
       assert.equal(renamed.length, 2);
-      assert.deepStrictEqual(renamed.map((b) => b.date), ["2026-10-13", "2026-10-20"]);
+      assert.deepStrictEqual(
+        renamed.map((b) => b.date),
+        ["2026-10-13", "2026-10-20"],
+      );
       return "2 remaining renamed";
     } finally {
       await s.close();
@@ -510,7 +554,14 @@ if (mode === "transfer") {
     try {
       need(app.renameSeries, "renameSeries");
       const made = a.run(app.bookSeries, {
-        input: { title: "Alpha", room: "Cedar", date: "2026-10-06", start: 540, end: 600, weeks: 2 },
+        input: {
+          title: "Alpha",
+          room: "Cedar",
+          date: "2026-10-06",
+          start: 540,
+          end: 600,
+          weeks: 2,
+        },
       });
       b.run(app.bookBooking, { input: { title: "Other", room: "Cedar", start: 540, end: 600 } });
       a.run(app.renameSeries, { input: { seriesId: made[0].seriesId, title: "Gamma" } });
@@ -575,8 +626,7 @@ const bookOne = async (page, title, room, start, end) => {
   await page.getByRole("button", { name: "Book", exact: true }).click();
   await page.getByRole("button", { name: `Cancel ${title}`, exact: true }).waitFor();
 };
-const cancel = (page, title) =>
-  page.getByRole("button", { name: `Cancel ${title}`, exact: true });
+const cancel = (page, title) => page.getByRole("button", { name: `Cancel ${title}`, exact: true });
 
 browser("browser r1: book, clash keeps form, filter preserves", async (page) => {
   await page.goto("http://127.0.0.1:5173");
@@ -622,14 +672,20 @@ browser("browser r2: failed save keeps draft open", async (page) => {
     await page.getByLabel("Edit room", { exact: true }).fill("Maple");
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await page.getByLabel("Edit title", { exact: true }).waitFor();
-    const alertText = await page.getByRole("alert").innerText().catch(() => "");
+    const alertText = await page
+      .getByRole("alert")
+      .innerText()
+      .catch(() => "");
     assert.match(alertText, /Clash/, "failed save shows Clash");
     assert.equal(await page.getByLabel("Edit title", { exact: true }).inputValue(), "Browser A");
     await page.getByRole("button", { name: "Discard", exact: true }).click();
     await cancel(page, "Browser A").waitFor();
     return "failed save keeps draft";
   } catch (error) {
-    await page.getByRole("button", { name: "Discard", exact: true }).click().catch(() => {});
+    await page
+      .getByRole("button", { name: "Discard", exact: true })
+      .click()
+      .catch(() => {});
     throw error;
   }
 });
@@ -704,7 +760,10 @@ if (mode === "transfer") {
     await page.getByLabel("End time", { exact: true }).fill(end);
     await page.getByLabel("Weeks", { exact: true }).fill(weeks);
     await page.getByRole("button", { name: "Book series", exact: true }).click();
-    await page.getByRole("button", { name: `Cancel ${title}`, exact: true }).nth(1).waitFor();
+    await page
+      .getByRole("button", { name: `Cancel ${title}`, exact: true })
+      .nth(1)
+      .waitFor();
   };
   const renameBtn = (page, title) =>
     page.getByRole("button", { name: `Rename series ${title}`, exact: true });
@@ -788,8 +847,10 @@ browser("browser: two roots on one page share nothing", async (page) => {
     await page.evaluate(async () => {
       const paths = performance.getEntriesByType("resource").map((r) => new URL(r.name).pathname);
       const pick = (...subs) => paths.find((p) => subs.every((s) => p.includes(s)));
-      const clientPath = pick("react-dom", "client") ?? "/node_modules/.vite/deps/react-dom_client.js";
-      const rootPath = pick("_react@", "/react@") ?? pick("react") ?? "/node_modules/.vite/deps/react.js";
+      const clientPath =
+        pick("react-dom", "client") ?? "/node_modules/.vite/deps/react-dom_client.js";
+      const rootPath =
+        pick("_react@", "/react@") ?? pick("react") ?? "/node_modules/.vite/deps/react.js";
       let appMod;
       for (const entry of ["/src/index.ts", "/src/index.tsx"]) {
         try {
@@ -802,16 +863,15 @@ browser("browser: two roots on one page share nothing", async (page) => {
       const jsxMod = await import("/@id/__x00__react/jsx-runtime").catch(() => null);
       const interop = (m) => m?.default ?? m;
       let jsx =
-        jsxMod?.jsx ??
-        jsxMod?.jsxs ??
-        interop(jsxMod)?.jsx ??
-        interop(clientMod)?.createElement;
+        jsxMod?.jsx ?? jsxMod?.jsxs ?? interop(jsxMod)?.jsx ?? interop(clientMod)?.createElement;
       if (typeof jsx !== "function") {
         const probe = await import("react/jsx-runtime").catch(() => null);
         jsx = probe?.jsx ?? probe?.jsxs ?? interop(probe)?.jsx;
       }
       if (typeof jsx !== "function") {
-        const cands = paths.filter((p) => p.includes("jsx-runtime") || p.includes("react")).slice(0, 8);
+        const cands = paths
+          .filter((p) => p.includes("jsx-runtime") || p.includes("react"))
+          .slice(0, 8);
         for (const cand of cands) {
           try {
             const mod = await import(cand);
@@ -820,11 +880,12 @@ browser("browser: two roots on one page share nothing", async (page) => {
           } catch {}
         }
       }
-      if (typeof jsx !== "function")
-        throw new Error(`cannot load jsx runtime from ${clientPath}`);
+      if (typeof jsx !== "function") throw new Error(`cannot load jsx runtime from ${clientPath}`);
       const createRoot = clientMod.createRoot ?? clientMod.default?.createRoot ?? clientMod.default;
       if (typeof createRoot !== "function")
-        throw new Error(`cannot load createRoot from ${clientPath}: ${Object.keys(clientMod).slice(0, 8).join(",")}`);
+        throw new Error(
+          `cannot load createRoot from ${clientPath}: ${Object.keys(clientMod).slice(0, 8).join(",")}`,
+        );
       const holder = document.createElement("div");
       holder.id = "teacher-second-root";
       document.body.appendChild(holder);
@@ -848,15 +909,26 @@ browser("browser: two roots on one page share nothing", async (page) => {
     await secondRoom.fill("Cedar");
     await secondStart.fill("09:00");
     await secondEnd.fill("10:00");
-    await page.locator("#teacher-second-root").getByRole("button", { name: "Book", exact: true }).click();
-    await page.locator("#teacher-second-root").getByRole("button", { name: "Cancel Root Two", exact: true }).waitFor();
+    await page
+      .locator("#teacher-second-root")
+      .getByRole("button", { name: "Book", exact: true })
+      .click();
+    await page
+      .locator("#teacher-second-root")
+      .getByRole("button", { name: "Cancel Root Two", exact: true })
+      .waitFor();
     assert.equal(
-      await page.locator("#root").getByRole("button", { name: "Cancel Root Two", exact: true }).count(),
+      await page
+        .locator("#root")
+        .getByRole("button", { name: "Cancel Root Two", exact: true })
+        .count(),
       0,
     );
     return "two roots on one page separate";
   } finally {
-    await page.evaluate(() => document.getElementById("teacher-second-root")?.remove()).catch(() => {});
+    await page
+      .evaluate(() => document.getElementById("teacher-second-root")?.remove())
+      .catch(() => {});
   }
 });
 
@@ -872,7 +944,8 @@ try {
     for (const [name] of browserTests) results.push({ name, pass: false, error: message });
   } else {
     for (const [name] of browserTests) {
-      if (!results.some((r) => r.name === name)) results.push({ name, pass: false, error: message });
+      if (!results.some((r) => r.name === name))
+        results.push({ name, pass: false, error: message });
     }
   }
 } finally {
@@ -881,7 +954,9 @@ try {
 }
 
 for (const r of results) {
-  console.log(`${r.pass ? "PASS" : "FAIL"} ${r.name}${r.pass && r.detail ? ` — ${r.detail}` : ""}${r.pass ? "" : ` — ${r.error}`}`);
+  console.log(
+    `${r.pass ? "PASS" : "FAIL"} ${r.name}${r.pass && r.detail ? ` — ${r.detail}` : ""}${r.pass ? "" : ` — ${r.error}`}`,
+  );
 }
 for (const a of advisory) console.log(`NOTE ${a.name} — ${a.detail}`);
 const failed = results.filter((r) => !r.pass);

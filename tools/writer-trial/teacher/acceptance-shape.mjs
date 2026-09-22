@@ -79,7 +79,9 @@ export function shapeCases(root) {
         }
         const star = /import\s*\*\s*as\s+([\w$]+)\s*from\s*["']([^"']+)["']/.exec(line);
         if (star && modules.includes(star[2])) spaces.push(star[1]);
-        const def = /import\s+([\w$]+)\s*[,{]/.exec(line) ?? /import\s+([\w$]+)\s+from\s*["']([^"']+)["']/.exec(line);
+        const def =
+          /import\s+([\w$]+)\s*[,{]/.exec(line) ??
+          /import\s+([\w$]+)\s+from\s*["']([^"']+)["']/.exec(line);
         if (def) {
           const from = /from\s*["']([^"']+)["']/.exec(line);
           if (from && modules.includes(from[1])) spaces.push(def[1]);
@@ -129,15 +131,23 @@ export function shapeCases(root) {
   const runCall = new Set([...tinker.local.get("useRun")]);
   const reads = hits(tsxFiles, anyCall(dataRead, tinker.spaces)).length > 0;
   const runs = hits(tsxFiles, anyCall(runCall, tinker.spaces)).length > 0;
-  note("view reads cells and runs actions", `useData: ${reads}, useRun: ${runs} (aliases resolved)`);
+  note(
+    "view reads cells and runs actions",
+    `useData: ${reads}, useRun: ${runs} (aliases resolved)`,
+  );
 
   const providerNames = [...tinker.local.get("ScopeProvider")];
   const provider = tsxFiles.some((full) => {
     const text = readFileSync(full, "utf8");
-    return providerNames.some((n) => new RegExp(`\\b${n}\\b`).test(codeOf(text).join("\n")))
-      && /create\s*=/.test(codeOf(text).join("\n"));
+    return (
+      providerNames.some((n) => new RegExp(`\\b${n}\\b`).test(codeOf(text).join("\n"))) &&
+      /create\s*=/.test(codeOf(text).join("\n"))
+    );
   });
-  note("BookingApp owns scope via provider", provider ? "ScopeProvider create= found" : "not found (lead review)");
+  note(
+    "BookingApp owns scope via provider",
+    provider ? "ScopeProvider create= found" : "not found (lead review)",
+  );
 
   const custom = hits(srcFiles, /\bfunction\s+use[A-Z]\w*|const\s+use[A-Z]\w*\s*=/);
   if (custom.length) note("custom hook hides a pattern?", custom.join(", "));

@@ -21,7 +21,9 @@ export async function plainFindingsFor(source, file, jevDir) {
   try {
     shape = await import(pathToFileURL(shapePath).href);
   } catch (error) {
-    throw new Error(`Shape check unavailable: cannot import shape.mjs (${error?.message ?? error})`);
+    throw new Error(
+      `Shape check unavailable: cannot import shape.mjs (${error?.message ?? error})`,
+    );
   }
   if (typeof shape.inspectShape !== "function")
     throw new Error("Shape check unavailable: shape.mjs has no inspectShape export");
