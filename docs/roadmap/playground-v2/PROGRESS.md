@@ -101,3 +101,35 @@ No old export needs removal; retain existing names where possible.
         4  waves.  example/engine.ts
 
 ```
+
+## Baseline checks
+
+Before game or shell edits, on 2721642 plus this work card:
+
+- `vp install`: exit 0.
+- `vp run -r build`: exit 0.
+- `vp check`: exit 0, no errors, 19 warnings.
+- `vp run playground#test`: exit 0, 19 tests pass.
+- `vp test`: exit 1, 29 files fail, 54 pass.
+  It runs app files without their path aliases and React
+  browser tests without browser mode; other tests time out.
+  796 tests pass, 22 fail, one is skipped.
+- Strict style check: only S05 fails, at the old bare
+  `Error` in `example/engine.ts`; the writer will replace it.
+
+Logs for this session are in `/tmp/playground-base-*.log`.
+
+- `vp run -r test`: exit 0, all 14 package tasks pass.
+  This uses each package's own test setup.
+- Browser baseline: 84 tiles load at 1280 by 850.
+  The old game gets only 640 by 806 in the split view.
+
+## Review cases
+
+- Desktop: press a tile, see nearby tiles rise, turn twice.
+- Phone: all controls reachable; no sideways page scroll.
+- Storm: start, change rate, clear, stop; no hidden restart.
+- Code: find a file; follow a local and library symbol.
+- History: return to the same file and code position.
+- Full screen: enter, exit, then keep using the same game.
+- Scope: close with a frame queued; no later write occurs.
