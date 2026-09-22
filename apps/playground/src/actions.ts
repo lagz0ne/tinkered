@@ -1,6 +1,7 @@
 import { operation } from "@tinker/core";
 import { navigationCell } from "@/navigation.ts";
 import { raise } from "@/errors.ts";
+import type { Place } from "@/lib/definitions.ts";
 import { DEFAULT_FILES, ENTRY } from "@/lib/files.ts";
 import { THEMES, type ThemeId } from "@/lib/themes.ts";
 import {
@@ -8,6 +9,7 @@ import {
   dirtyCell,
   filesCell,
   pickerOpenCell,
+  renameCell,
   searchCell,
   themeCell,
   type View,
@@ -91,8 +93,12 @@ export const closeFile = operation({
     files.update((prev) => prev.filter((f) => f.name !== name));
     const [first] = next;
     if (active.get() === name) active.set(next[idx] ?? next[idx - 1] ?? first);
-    if (nav.get().place?.file === name)
-      nav.update((n) => ({ ...n, place: { file: active.get(), offset: 0 } }));
+    const prev = nav.get();
+    nav.set({
+      place: prev.place?.file === name ? { file: active.get(), offset: 0 } : prev.place,
+      back: prev.back.filter((p) => p.file !== name),
+      forward: prev.forward.filter((p) => p.file !== name),
+    });
     return true;
   },
 });
@@ -117,8 +123,14 @@ export const renameFile = operation({
     dirty.set(true);
     files.update((prev) => prev.map((f) => (f.name === from ? { ...f, name: to } : f)));
     if (active.get() === from) active.set(to);
-    if (nav.get().place?.file === from)
-      nav.update((n) => ({ ...n, place: { file: to, offset: n.place?.offset ?? 0 } }));
+    const retitle = (places: readonly Place[]): readonly Place[] =>
+      places.map((p) => (p.file === from ? { file: to, offset: p.offset } : p));
+    const prev = nav.get();
+    nav.set({
+      place: prev.place?.file === from ? { file: to, offset: prev.place?.offset ?? 0 } : prev.place,
+      back: retitle(prev.back),
+      forward: retitle(prev.forward),
+    });
     return true;
   },
 });
@@ -169,6 +181,21 @@ export const setPickerOpen = operation({
       : raise("InvalidInput", { operation: "setPickerOpen", reason: "open or closed" }),
   depends: { picker: pickerOpenCell.controller },
   run: ({ picker }, { input }) => picker.set(input),
+});
+
+/** Open the inline rename input for a tab. */
+export const openRename = operation({
+  label: "openRename",
+  input: string("openRename"),
+  depends: { rename: renameCell.controller },
+  run: ({ rename }, { input }) => rename.set(input),
+});
+
+/** Close the inline rename input without committing. */
+export const closeRename = operation({
+  label: "closeRename",
+  depends: { rename: renameCell.controller },
+  run: ({ rename }) => rename.set(undefined),
 });
 
 /** Back to the starter project; the session is no longer dirty, so a future default replaces it.

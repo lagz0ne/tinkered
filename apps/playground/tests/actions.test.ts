@@ -10,7 +10,7 @@ import {
   setTheme,
 } from "@/actions.ts";
 import { isError as isPlaygroundError } from "@/errors.ts";
-import { navigationCell, openSource } from "../src/index.ts";
+import { goBack, navigationCell, openSource } from "../src/index.ts";
 import { DEFAULT_FILES, ENTRY } from "@/lib/files.ts";
 import { activeCell, dirtyCell, filesCell, themeCell } from "@/state.ts";
 
@@ -110,4 +110,27 @@ test("closing the shown file moves the navigation place to the next tab", () => 
   scope.run(openSource, { input: { file: "main.tsx", offset: 0 } });
   scope.run(closeFile, { input: "main.tsx" });
   expect(scope.resolve(navigationCell).place).toEqual({ file: "state.ts", offset: 0 });
+});
+
+test("closing a file prunes it from both navigation history stacks", () => {
+  const scope = createScope();
+  scope.run(openSource, { input: { file: "main.tsx", offset: 0 } });
+  scope.run(openSource, { input: { file: "state.ts", offset: 5 } });
+  scope.run(openSource, { input: { file: "errors.ts", offset: 3 } });
+  scope.run(closeFile, { input: "state.ts" });
+  const nav = scope.resolve(navigationCell);
+  expect(nav.place).toEqual({ file: "errors.ts", offset: 3 });
+  expect(nav.back).toEqual([{ file: "main.tsx", offset: 0 }]);
+  expect(scope.run(goBack)).toEqual({ file: "main.tsx", offset: 0 });
+});
+
+test("renaming a file rewrites its history entries, keeping offsets", () => {
+  const scope = createScope();
+  scope.run(openSource, { input: { file: "main.tsx", offset: 0 } });
+  scope.run(openSource, { input: { file: "state.ts", offset: 5 } });
+  scope.run(renameFile, { input: { from: "main.tsx", to: "launch.tsx" } });
+  expect(scope.resolve(navigationCell).back).toEqual([{ file: "launch.tsx", offset: 0 }]);
+  scope.run(goBack);
+  expect(scope.resolve(navigationCell).place).toEqual({ file: "launch.tsx", offset: 0 });
+  expect(scope.resolve(navigationCell).forward).toEqual([{ file: "state.ts", offset: 5 }]);
 });

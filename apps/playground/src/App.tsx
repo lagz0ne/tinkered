@@ -12,7 +12,17 @@ import {
 } from "lucide-react";
 import { lazy, Suspense, useRef } from "react";
 import type { ReactElement, RefObject } from "react";
-import { addFile, closeFile, renameFile, reset, selectFile, setTheme, setView } from "@/actions.ts";
+import {
+  addFile,
+  closeFile,
+  closeRename,
+  openRename,
+  renameFile,
+  reset,
+  selectFile,
+  setTheme,
+  setView,
+} from "@/actions.ts";
 import { FileTabs } from "@/components/FileTabs.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import {
@@ -43,6 +53,7 @@ import {
   bundleCell,
   filesCell,
   modeCell,
+  renameCell,
   statusCell,
   themeCell,
   type View,
@@ -118,15 +129,23 @@ function Tabs(): ReactElement {
   const [first] = names;
   const active = useData(activeCell);
   const shown = useData(navigationCell, (nav) => nav.place?.file ?? first, Object.is);
+  const renaming = useData(renameCell);
   const select = useRun(selectFile);
   const open = useRun(openSource);
   const add = useRun(addFile);
   const close = useRun(closeFile);
   const rename = useRun(renameFile);
+  const markRename = useRun(openRename);
+  const clearRename = useRun(closeRename);
   return (
     <FileTabs
       files={names}
       active={names.includes(shown) ? shown : names.includes(active) ? active : first}
+      renaming={renaming}
+      onRenameOpen={(name) => {
+        if (name === undefined) clearRename.run();
+        else markRename.run({ input: name });
+      }}
       onSelect={(name) => {
         select.run({ input: name });
         open.run({ input: { file: name, offset: 0 } });
