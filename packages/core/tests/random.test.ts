@@ -46,8 +46,11 @@ test("makeTestRandom with no seed is a deterministic default generator", () => {
 test("a scope with no random option reads the system source", () => {
   const [n] = createScope().run(drawNext);
   const [id] = createScope().run(drawUuid);
+  const [id2] = createScope().run(drawUuid);
   expect(n >= 0 && n < 1).toBe(true);
   expect(id).toMatch(V4);
+  // Two default scopes differ: the source is the real system random, not a fixed seed.
+  expect(id).not.toBe(id2);
 });
 
 test("a child session inherits the parent scope's injected random", async () => {
