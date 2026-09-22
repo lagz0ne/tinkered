@@ -2758,7 +2758,10 @@ function invalidateData(owner: Layer, target: Data.Cell<unknown>): void {
     s.cell = undefined;
     invalidateEff(owner, target);
   }
-  if (s) s.dependents = undefined;
+  if (s) {
+    s.dependents = undefined;
+    s.nsDataDependents = undefined;
+  }
 }
 
 /** Whether a node's dependents can live below its owner: a `scope` resource and a data cell are
@@ -2779,9 +2782,20 @@ function forEachDependent(
   const stack: Layer[] = [nodeOwner];
   while (stack.length) {
     const scope = stack.pop() as Layer;
-    const deps = scope.nodes.get(node)?.dependents;
-    if (deps) for (const target of deps) visit(target, scope);
+    visitDependents(scope.nodes.get(node), scope, visit);
     if (deep) for (const child of scope.children) stack.push(child);
+  }
+}
+
+function visitDependents(
+  rec: NodeState | undefined,
+  owner: Layer,
+  visit: (target: Resource.Handle<unknown>, owner: Layer) => void,
+): void {
+  if (rec?.dependents) for (const target of rec.dependents) visit(target, owner);
+  if (!rec?.nsDataDependents) return;
+  for (const states of rec.nsDataDependents.values()) {
+    for (const state of states) visit(state.target, state.owner);
   }
 }
 
@@ -2919,7 +2933,7 @@ function addDependent(
   chain: readonly Namespace[] | undefined,
   state: ResourceState,
 ): void {
-  addNsDataDependent(owner, node, chain, state);
+  if (addNsDataDependent(owner, node, chain, state)) return;
   const s = nodeState(owner, node);
   (s.dependents ??= new Set()).add(dependent);
 }
@@ -2929,10 +2943,12 @@ function addNsDataDependent(
   node: Node,
   chain: readonly Namespace[] | undefined,
   dependent: ResourceState,
-): void {
-  if (!isData(node) || !(dependent instanceof NsResourceState) || chain === undefined) return;
+): boolean {
+  if (!isData(node) || !(dependent instanceof NsResourceState) || chain === undefined) return false;
   const selected = selectNsDataEntry(owner, node, chain);
-  if (selected !== undefined) linkNsDataDependent(selected, dependent);
+  if (selected === undefined) return false;
+  linkNsDataDependent(selected, dependent);
+  return true;
 }
 
 function linkNsDataDependent(selected: NsDataDependency, dependent: NsResourceState): void {
@@ -2967,9 +2983,7 @@ const DEFAULT_DATA_ENTRY = Symbol("default-data-entry");
 function detachNsDataDependencies(state: NsResourceState): void {
   if (!state.dataDependencies) return;
   for (const link of state.dataDependencies) {
-    const dependents = link.source.nsDataDependents?.get(link.entry);
-    if (!dependents?.delete(state) || dependents.size !== 0) continue;
-    link.source.nsDataDependents?.delete(link.entry);
+    link.source.nsDataDependents?.get(link.entry)?.delete(state);
   }
 }
 

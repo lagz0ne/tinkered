@@ -336,15 +336,20 @@ test("a named resource dependency reads a nearer default before a farther named 
   });
   const scope = createScope();
   scope.controller(config, { ns: b }).set(99);
+  const far = scope.resolve(client, { ns: b });
+  expect(far.config).toBe(99);
   const child = scope.createSession();
   child.controller(config).set(7);
-  const first = child.resolve(client, { ns: [a, b] });
-  expect(first.config).toBe(7);
+  const near = child.resolve(client, { ns: [a, b] });
+  expect(near.config).toBe(7);
   scope.release(config);
-  const second = child.resolve(client, { ns: [a, b] });
-  expect(second).not.toBe(first);
-  expect(second.config).toBe(7);
-  expect(builds).toBe(2);
+  const rebuiltFar = scope.resolve(client, { ns: b });
+  const rebuiltNear = child.resolve(client, { ns: [a, b] });
+  expect(rebuiltFar).not.toBe(far);
+  expect(rebuiltFar.config).toBe(99);
+  expect(rebuiltNear).not.toBe(near);
+  expect(rebuiltNear.config).toBe(7);
+  expect(builds).toBe(4);
   return scope.close();
 });
 
