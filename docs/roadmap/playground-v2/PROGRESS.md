@@ -560,3 +560,25 @@ Release checks: the full package run had one Drizzle test
 hit its five-second timeout under parallel load.
 The unchanged Drizzle suite passed when run alone.
 The merged review cases were calibrated and saved.
+
+Released `playground-2026.09.22` from `00841b8`.
+Main and the feature branch are pushed.
+[Release and static archive](https://github.com/lagz0ne/tinkered/releases/tag/playground-2026.09.22).
+[Live playground](https://playground.tini.works).
+
+Dokploy deployment `TK0c9An1hfBUpF57d3_Rh` is done.
+Its log confirms the container was recreated and started.
+The container is healthy and uses the new image:
+`sha256:e5b4a567ccb394a83024794196280c9011a7b3676062908782b7ddefb31a7bf1`.
+The live index hash matches the checked build.
+The domain, port, path, and service mapping are unchanged.
+
+Live browser checks pass at desktop and phone widths:
+styles, waves, four turns, source search, F12, read-only
+package files, cursor history, and phone Follow controls.
+Native fullscreen, fit fallback, and iframe Escape pass.
+No script errors were observed.
+
+Rollback image: `tinkered-playground:before-playground-2026.09.22`.
+To roll back, tag that image as `tinkered-playground:latest`,
+then redeploy this compose through the Dokploy API.

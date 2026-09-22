@@ -39,11 +39,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **playground/release** — owner: Codex.
-  Next: push the checked merge and deploy the static image.
-  Verify: main and release tag pushed, live image healthy,
-  desktop and phone smoke checks pass.
-
 | Card | Owner | Next | Verify |
 
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -77,6 +72,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **playground/release** — Codex; released 2026-09-22.
+  Main pushed; release `playground-2026.09.22` published.
+  Live image healthy; desktop and phone checks pass.
+  Proof: [release record](docs/roadmap/playground-v2/PROGRESS.md#playground-release).
 
 - **playground/motion-polish** — complete: ocean theme,
   one motion clock, eased waves and turns, less layout work.
