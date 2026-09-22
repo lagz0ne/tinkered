@@ -923,6 +923,7 @@ class NsResourceState {
   gen = 0;
   building = false;
   borrowers: Set<Promise<unknown>> | undefined = undefined;
+  dependents: Map<Resource.Handle<unknown>, Set<Namespace>> | undefined = undefined;
 }
 
 type ResourceState = NodeState | NsResourceState;
@@ -2258,6 +2259,7 @@ function resolveResourceDeps(
   span: Observe.Span | undefined,
   superseded: () => boolean,
   chain: readonly Namespace[] | undefined,
+  ns: Namespace | undefined,
 ): Record<string, unknown> {
   return buildDeps(
     owner,
@@ -2267,7 +2269,7 @@ function resolveResourceDeps(
       const node = depNode(dep);
       /** Edges register before the factory runs (eager deps, ADR 0044); a build superseded while its
        * deps were still resolving records none, so a stale build never evicts its live replacement. */
-      if (node && !superseded()) addDependent(owner, node, target);
+      if (node && !superseded()) addDependent(owner, node, target, chain, ns);
     },
     chain,
   );
@@ -2515,7 +2517,7 @@ function buildResource<T>(
   let settled = false;
   buildDepth++;
   try {
-    const deps = resolveResourceDeps(owner, target, span, superseded, chain);
+    const deps = resolveResourceDeps(owner, target, span, superseded, chain, ns);
     const pending = parked;
     const override = presetFor(owner, target) as Resource.Handle<T>["factory"] | undefined;
     const fn = override ?? target.factory;
@@ -2832,7 +2834,7 @@ function releaseSupersededDefer(
   fn: (end: Scope.End) => void | PromiseLike<void>,
   state: ResourceState,
 ): void {
-  drainStateBorrowAware(owner, state, [fn]);
+  drainStatesBorrowAware(owner, [state], [fn]);
 }
 
 /** Run `fns` as a release drain at `owner`, after the prior (more-dependent) owner's drain (`prev`)
@@ -2860,14 +2862,17 @@ function drainBorrowAware(
   return wait;
 }
 
-/** Drain one exact resource bucket after only that bucket's live operation borrows settle. */
-function drainStateBorrowAware(
+/** Drain exact resource buckets after only those buckets' live operation borrows settle. */
+function drainStatesBorrowAware(
   owner: Layer,
-  state: ResourceState,
+  states: readonly ResourceState[],
   fns: ((end: Scope.End) => void | PromiseLike<void>)[],
 ): void {
-  const borrowers = state.borrowers ? [...state.borrowers] : [];
-  if (borrowers.length === 0) {
+  const borrowers = new Set<Promise<unknown>>();
+  for (const state of states) {
+    if (state.borrowers) for (const work of state.borrowers) borrowers.add(work);
+  }
+  if (borrowers.size === 0) {
     runDefers(owner, fns, RELEASED);
     return;
   }
@@ -2899,8 +2904,43 @@ function invalidateAffected(order: Affected[], affected: Map<Layer, Released>): 
   return dataReleased;
 }
 
-/** Remove one namespace bucket and take only its cleanup hooks. The state generation is bumped
- * before the map entry is removed, so a late async build cannot publish into the released bucket. */
+type NsAffected = {
+  target: Resource.Handle<unknown>;
+  key: Namespace;
+  state: NsResourceState;
+};
+
+/** Collect one named resource bucket and its named dependents. */
+function collectNsAffected(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  key: Namespace,
+): NsAffected[] {
+  const seen = new Map<Resource.Handle<unknown>, Set<Namespace>>();
+  const order: NsAffected[] = [];
+  const stack: { target: Resource.Handle<unknown>; key: Namespace }[] = [{ target, key }];
+  while (stack.length > 0) {
+    const item = stack.pop() as { target: Resource.Handle<unknown>; key: Namespace };
+    const keys = seen.get(item.target) ?? new Set<Namespace>();
+    if (keys.has(item.key)) continue;
+    keys.add(item.key);
+    seen.set(item.target, keys);
+    const state = owner.nodes.get(item.target)?.nsResources?.get(item.key);
+    if (state === undefined) continue;
+    order.push({ ...item, state });
+    if (state.dependents) {
+      for (const [dependent, dependentKeys] of state.dependents) {
+        for (const dependentKey of dependentKeys) {
+          stack.push({ target: dependent, key: dependentKey });
+        }
+      }
+    }
+  }
+  return order;
+}
+
+/** Remove one namespace bucket and its dependent buckets. Generations are bumped before map entries
+ * disappear, so late async builds cannot publish. All old hooks are extracted before one can rebuild. */
 function releaseNsBucket(layer: Layer, target: Node, key: Namespace): void {
   ensureOpen(layer);
   if (isData(target)) {
@@ -2909,27 +2949,60 @@ function releaseNsBucket(layer: Layer, target: Node, key: Namespace): void {
     return;
   }
   if (target.target === "scope") return;
-  const rec = layer.nodes.get(target);
-  const state = rec?.nsResources?.get(key);
-  if (state === undefined) return;
-  state.gen += 1;
-  state.resource = undefined;
-  state.promise = undefined;
-  state.failed = undefined;
-  state.build = undefined;
-  rec?.nsResources?.delete(key);
+  const affected = collectNsAffected(layer, target, key);
+  if (affected.length === 0) return;
+  const released = new Map<Resource.Handle<unknown>, Set<Namespace>>();
+  for (const item of affected) {
+    item.state.gen += 1;
+    item.state.resource = undefined;
+    item.state.promise = undefined;
+    item.state.failed = undefined;
+    item.state.build = undefined;
+    item.state.dependents = undefined;
+    layer.nodes.get(item.target)?.nsResources?.delete(item.key);
+    detachNsDependent(layer, item.target, item.key);
+    const keys = released.get(item.target) ?? new Set<Namespace>();
+    keys.add(item.key);
+    released.set(item.target, keys);
+  }
   const fns: ((end: Scope.End) => void | PromiseLike<void>)[] = [];
   layer.defers = layer.defers.filter((entry) => {
-    if (entry.resource === target && entry.ns === key) {
-      fns.push(entry.fn);
-      return false;
+    if (entry.resource !== undefined && entry.ns !== undefined) {
+      const keys = released.get(entry.resource);
+      if (keys?.has(entry.ns)) {
+        fns.push(entry.fn);
+        return false;
+      }
     }
     return true;
   });
-  drainStateBorrowAware(layer, state, fns);
+  drainStatesBorrowAware(
+    layer,
+    affected.map((item) => item.state),
+    fns,
+  );
 }
 
-function addDependent(owner: Layer, node: Node, dependent: Resource.Handle<unknown>): void {
+function addDependent(
+  owner: Layer,
+  node: Node,
+  dependent: Resource.Handle<unknown>,
+  chain: readonly Namespace[] | undefined,
+  dependentNs: Namespace | undefined,
+): void {
+  if (
+    isResource(node) &&
+    node.target === "session" &&
+    chain !== undefined &&
+    chain.length > 0 &&
+    dependentNs !== undefined
+  ) {
+    const state = selectNsResource(owner, node, chain) ?? ownNsResource(owner, node, chain[0]);
+    const keys = state.dependents?.get(dependent) ?? new Set<Namespace>();
+    keys.add(dependentNs);
+    (state.dependents ??= new Map()).set(dependent, keys);
+    return;
+  }
   const s = nodeState(owner, node);
   (s.dependents ??= new Set()).add(dependent);
 }
@@ -2939,6 +3012,23 @@ function detachDependent(owner: Layer, dependent: Resource.Handle<unknown>): voi
   for (const s of owner.nodes.values()) {
     const set = s.dependents;
     if (set && set.delete(dependent) && set.size === 0) s.dependents = undefined;
+  }
+}
+
+function detachNsDependent(
+  owner: Layer,
+  dependent: Resource.Handle<unknown>,
+  key: Namespace,
+): void {
+  for (const rec of owner.nodes.values()) {
+    if (!rec.nsResources) continue;
+    for (const state of rec.nsResources.values()) {
+      const keys = state.dependents?.get(dependent);
+      if (!keys) continue;
+      keys.delete(key);
+      if (keys.size === 0) state.dependents?.delete(dependent);
+      if (state.dependents?.size === 0) state.dependents = undefined;
+    }
   }
 }
 

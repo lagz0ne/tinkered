@@ -397,6 +397,51 @@ test("releaseNs waits for its own live borrow but not a sibling namespace", asyn
   await scope.close();
 });
 
+test("releaseNs keeps a dependency alive until its named dependent borrow ends", async () => {
+  const a = namespace();
+  const ended: string[] = [];
+  let baseBuilds = 0;
+  let clientBuilds = 0;
+  let finish = (): void => undefined;
+  const gate = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const base = resource({
+    label: "base",
+    target: "session",
+    factory: (_deps, ctx) => {
+      const build = ++baseBuilds;
+      ctx.defer(() => void ended.push(`base:${build}`));
+      return { build };
+    },
+  });
+  const client = resource({
+    label: "client",
+    target: "session",
+    depends: { base },
+    factory: ({ base }, ctx) => {
+      const build = ++clientBuilds;
+      ctx.defer(() => void ended.push(`client:${build}`));
+      return { base, build };
+    },
+  });
+  const hold = operation({
+    label: "hold",
+    depends: { client },
+    run: async () => gate,
+  });
+  const scope = createScope();
+  const running = scope.run(hold, { ns: a });
+  scope.releaseNs(base, a);
+  expect(ended).toEqual([]);
+  finish();
+  await running;
+  await scope.settled();
+  expect(ended).toEqual(["client:1", "base:1"]);
+  expect(scope.resolve(client, { ns: a })).toEqual({ base: { build: 2 }, build: 2 });
+  await scope.close();
+});
+
 test("a scope-target resource is namespace-blind and keeps default storage clean", () => {
   const tenant = tag<string>({ label: "tenant" });
   const named = namespace({ tags: [tenant("named")] });
