@@ -1335,6 +1335,20 @@ function tagAll(
   return out;
 }
 
+function appendNsTags(
+  out: unknown[],
+  chain: readonly Namespace[],
+  target: Tag.Handle<unknown>,
+): void {
+  for (const key of chain) {
+    const bindings = key.tags;
+    for (let i = bindings.length - 1; i >= 0; i--) {
+      const binding = bindings[i] as Tag.Binding<unknown>;
+      if (binding.tag === target) out.push(binding.value);
+    }
+  }
+}
+
 /** A namespaced `.all` follows the same layers-first walk as cell selection. */
 function tagAllNs(
   layer: Layer,
@@ -1343,15 +1357,7 @@ function tagAllNs(
 ): unknown[] {
   const out: unknown[] = [];
   for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
-    if (cur.parent === undefined) {
-      for (const key of chain) {
-        const bindings = key.tags;
-        for (let i = bindings.length - 1; i >= 0; i--) {
-          const binding = bindings[i] as Tag.Binding<unknown>;
-          if (binding.tag === target) out.push(binding.value);
-        }
-      }
-    }
+    if (cur.parent === undefined) appendNsTags(out, chain, target);
     const list = cur.tags?.get(target);
     if (list) for (let i = list.length - 1; i >= 0; i--) out.push(list[i]);
   }
@@ -1465,7 +1471,9 @@ function resolveControllerEdge(
   chain: readonly Namespace[] | undefined = layer.ns,
 ): unknown {
   if (isData(target))
-    return chain !== undefined ? dataControllerNs(layer, target, chain) : dataController(layer, target);
+    return chain !== undefined
+      ? dataControllerNs(layer, target, chain)
+      : dataController(layer, target);
   if (isOperation(target)) return operationController(layer, target, parent, chain);
   raise("InvalidDependency", { label: "edge", reason: "unknown controller target" });
 }
@@ -2215,12 +2223,18 @@ function resolveResourceDeps(
   superseded: () => boolean,
   chain: readonly Namespace[] | undefined,
 ): Record<string, unknown> {
-  return buildDeps(owner, target.depends, span, (dep) => {
-    const node = depNode(dep);
-    /** Edges register before the factory runs (eager deps, ADR 0044); a build superseded while its
-     * deps were still resolving records none, so a stale build never evicts its live replacement. */
-    if (node && !superseded()) addDependent(owner, node, target);
-  }, chain);
+  return buildDeps(
+    owner,
+    target.depends,
+    span,
+    (dep) => {
+      const node = depNode(dep);
+      /** Edges register before the factory runs (eager deps, ADR 0044); a build superseded while its
+       * deps were still resolving records none, so a stale build never evicts its live replacement. */
+      if (node && !superseded()) addDependent(owner, node, target);
+    },
+    chain,
+  );
 }
 
 class ResourceCtx implements Resource.Ctx {
