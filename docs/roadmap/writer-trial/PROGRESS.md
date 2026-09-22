@@ -417,3 +417,13 @@ Round 2 agent IDs:
 - `xiaomi/mimo-v2.6-pro`: `09062190-4ae5-493d-b0dd-5d5b770f8102`.
 - `zai/glm-5.3-flash`: `db69948e-0c9f-41d9-9718-db3633b907fb`.
 - `deepseek/deepseek-v4.1-flash`: `9233b769-9ec6-4d1b-bc74-90be7e15549e`.
+
+### Round 2 partial results
+
+DeepSeek and GLM both reached the attempt token limit.
+Both snapshots and session records are saved.
+DeepSeek still has no app files; its core entry is missing.
+GLM passes the sampled core and browser checks for rounds 1 and 2.
+Its source grew from 342 to 558 lines and tests from 0 to 330 lines.
+These line counts describe growth; they are not quality scores.
+The two MiMo writers have not yet sent completion notices.
