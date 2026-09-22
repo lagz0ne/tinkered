@@ -1,33 +1,35 @@
 import { useData, useRun } from "@tinker/react";
 import { FileCode, Lock, Search } from "lucide-react";
 import type { ReactElement } from "react";
-import { setSearch } from "@/actions.ts";
+import { setPickerOpen, setSearch } from "@/actions.ts";
 import { openSource } from "@/navigation.ts";
 import { PACKAGE_SOURCES } from "@/lib/sources.ts";
-import { filesCell, searchCell } from "@/state.ts";
+import { filesCell, pickerOpenCell, searchCell } from "@/state.ts";
 
 const sameNames = (a: string[], b: string[]): boolean =>
   a.length === b.length && a.every((name, i) => name === b[i]);
 
 /** The searchable list of everything openable: the editable session files first, then the
- * read-only package sources. The query is shell state (`searchCell` through `setSearch`), so the
- * component renders only from Tinker cells and runs one operation to open. A click opens before
- * the input can blur away the list (`onMouseDown`), and Enter opens the first hit. */
+ * read-only package sources. The query and the open/closed state are shell cells through
+ * `setSearch` and `setPickerOpen` — focus or typing shows the list, a choice or Escape closes it —
+ * and choices run on `onClick`, so keyboard and assistive activation work like a mouse click. */
 export function SourcePicker({ active }: { active: string }): ReactElement {
   const names = useData(filesCell, (files) => files.map((f) => f.name), sameNames);
   const query = useData(searchCell);
+  const open = useData(pickerOpenCell);
   const type = useRun(setSearch);
-  const open = useRun(openSource);
+  const toggle = useRun(setPickerOpen);
+  const jump = useRun(openSource);
 
   const all = [...names, ...PACKAGE_SOURCES.map((s) => s.name)];
   const needle = query.trim().toLowerCase();
   const hits = all.filter((name) => name.toLowerCase().includes(needle));
   const [firstHit] = hits;
-  const shown = needle === "";
 
-  const openIt = (file: string) => {
-    open.run({ input: { file, offset: 0 } });
+  const pick = (file: string) => {
+    jump.run({ input: { file, offset: 0 } });
     type.run({ input: "" });
+    toggle.run({ input: false });
   };
 
   return (
@@ -38,15 +40,19 @@ export function SourcePicker({ active }: { active: string }): ReactElement {
           value={query}
           placeholder="Search files…"
           aria-label="Search files"
-          onChange={(e) => type.run({ input: e.target.value })}
+          onFocus={() => toggle.run({ input: true })}
+          onChange={(e) => {
+            type.run({ input: e.target.value });
+            toggle.run({ input: true });
+          }}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && firstHit !== undefined) openIt(firstHit);
-            if (e.key === "Escape") type.run({ input: "" });
+            if (e.key === "Enter" && firstHit !== undefined) pick(firstHit);
+            if (e.key === "Escape") toggle.run({ input: false });
           }}
           className="min-w-0 flex-1 bg-transparent text-sm outline-none"
         />
       </label>
-      {shown && (
+      {open && (
         <ul className="absolute inset-x-0 top-12 z-20 max-h-72 overflow-y-auto rounded-lg border bg-background p-1 shadow-lg">
           {hits.map((name) => {
             const editable = names.includes(name);
@@ -54,10 +60,7 @@ export function SourcePicker({ active }: { active: string }): ReactElement {
               <li key={name}>
                 <button
                   type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    openIt(name);
-                  }}
+                  onClick={() => pick(name)}
                   aria-current={name === active}
                   className={
                     "flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-left text-xs transition-colors " +

@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.tsx";
+import { codeEditor } from "@/lib/code-editor.ts";
 import { immersive } from "@/lib/fullscreen.ts";
 import { previewDocument } from "@/lib/preview.ts";
 import { ENTRY } from "@/lib/files.ts";
@@ -87,9 +88,6 @@ function ViewToggle(): ReactElement {
   );
 }
 
-/** Reads the active file's content and the theme. Its own keystrokes do NOT re-render it: the
- * content it just emitted comes back through the cell, and the isEqual policy treats "the value I
- * last emitted" as unchanged. A tab switch, a reset, or any other writer still swaps the doc. */
 /** THE one preview iframe for the whole shell: mounted for every view, its `srcDoc` driven only by
  * the bundle cell — switching to Code, Benchmark, or full screen never remounts it or resets the
  * running game. Views that are not Play simply cover it with an overlay, and `inert` takes the
@@ -247,10 +245,13 @@ function BottomBar(props: { stage: RefObject<HTMLDivElement | null> }): ReactEle
 }
 
 /** The Code view: searchable file list, the one editor, and reader-first navigation. The shown
- * file is the navigation place (falling back to the active tab before the first open); a package
- * source shows a read-only badge. Follow records the caret through `trackCursor` and then jumps —
- * the caret itself is already tracked on every cursor move, so Back lands on the exact spot. */
+ * file is the navigation place (falling back to the entry before the first open); a package
+ * source shows a read-only badge and its full path, since no example tab names it. The editor
+ * resource is resolved first so its seed place exists before the navigation is read. Follow
+ * records the caret through `trackCursor` and then jumps — the caret itself is already tracked
+ * on every cursor move, so Back lands on the exact spot. */
 function CodeOverlay(): ReactElement {
+  useResource(codeEditor);
   const names = useData(filesCell, (files) => files.map((f) => f.name), sameNames);
   const nav = useData(navigationCell);
   const shown = nav.place?.file ?? ENTRY;
@@ -268,6 +269,12 @@ function CodeOverlay(): ReactElement {
     <div className="absolute inset-0 z-10 flex flex-col bg-background">
       <div className="flex items-center gap-2 border-b px-2 py-1.5">
         <SourcePicker active={shown} />
+        <span
+          title={shown}
+          className="min-w-0 max-w-[36vw] shrink truncate rounded-md bg-muted px-2 py-1 font-mono text-[11px] text-muted-foreground"
+        >
+          {shown}
+        </span>
         {!editable && (
           <span className="shrink-0 rounded-md bg-muted px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
             read-only
@@ -280,7 +287,7 @@ function CodeOverlay(): ReactElement {
       <div className="flex items-center gap-2 border-t px-2 py-1.5">
         <NavButton label="Follow symbol" hint="F12 or Ctrl-click a name" onClick={follow}>
           <Crosshair className="size-4" />
-          <span className="hidden xs:inline">Follow symbol</span>
+          <span>Follow symbol</span>
         </NavButton>
         <NavButton
           label="Back"

@@ -162,7 +162,8 @@ const css = `
   .sub { margin: 4px 0 2px; max-width: 60ch; text-align: center; font-size: 0.92rem; color: #8fb6cc; }
   .live { font-size: 12px; color: #5f93b3; font-variant-numeric: tabular-nums; margin-bottom: 6px; }
 
-  .scene { position: relative; width: min(92vw, 560px); aspect-ratio: 10 / 9; display: grid; place-items: center;
+  .scene { position: relative; width: min(92vw, 560px); aspect-ratio: 11 / 10; display: grid; place-items: center;
+    padding-top: 12px;
     perspective: 1500px; border-radius: 22px; border: 1px solid rgba(122, 196, 214, 0.16); overflow: hidden;
     background: radial-gradient(120% 95% at 50% 0%, #103152 0%, #081c31 55%, #050f1d 100%); }
   .scene.storm { background: radial-gradient(120% 95% at 50% 0%, #14324c 0%, #0a2036 55%, #061224 100%); }
@@ -172,7 +173,7 @@ const css = `
   @keyframes squall { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
 
   .tilt { transform-style: preserve-3d; }
-  .board { position: relative; display: grid; gap: 3px; width: min(75vw, 415px); transform-style: preserve-3d;
+  .board { position: relative; display: grid; gap: 3px; width: min(72vw, 400px); transform-style: preserve-3d;
     touch-action: manipulation; }
   .floor { position: absolute; inset: -14px; transform: translateZ(-6px); border-radius: 16px;
     background: linear-gradient(160deg, #0a2a44 0%, #061a2e 60%, #04101f 100%);

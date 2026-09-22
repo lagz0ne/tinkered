@@ -10,6 +10,7 @@ import {
   setTheme,
 } from "@/actions.ts";
 import { isError as isPlaygroundError } from "@/errors.ts";
+import { navigationCell, openSource } from "../src/index.ts";
 import { DEFAULT_FILES, ENTRY } from "@/lib/files.ts";
 import { activeCell, dirtyCell, filesCell, themeCell } from "@/state.ts";
 
@@ -87,4 +88,26 @@ test("setTheme rejects an unknown theme at the door", () => {
     expect(cause.payload).toEqual({ operation: "setTheme", reason: "unknown theme" });
   }
   expect(scope.resolve(themeCell)).toBe("github-light");
+});
+
+test("addFile opens the new file as the navigation place and records the origin", () => {
+  const scope = createScope();
+  scope.run(openSource, { input: { file: "main.tsx", offset: 0 } });
+  const name = scope.run(addFile);
+  expect(scope.resolve(navigationCell).place).toEqual({ file: name, offset: 0 });
+  expect(scope.resolve(navigationCell).back).toEqual([{ file: "main.tsx", offset: 0 }]);
+});
+
+test("renaming the shown file keeps the navigation place on the renamed file", () => {
+  const scope = createScope();
+  scope.run(openSource, { input: { file: "main.tsx", offset: 12 } });
+  scope.run(renameFile, { input: { from: "main.tsx", to: "launch.tsx" } });
+  expect(scope.resolve(navigationCell).place).toEqual({ file: "launch.tsx", offset: 12 });
+});
+
+test("closing the shown file moves the navigation place to the next tab", () => {
+  const scope = createScope();
+  scope.run(openSource, { input: { file: "main.tsx", offset: 0 } });
+  scope.run(closeFile, { input: "main.tsx" });
+  expect(scope.resolve(navigationCell).place).toEqual({ file: "state.ts", offset: 0 });
 });

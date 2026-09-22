@@ -1,12 +1,13 @@
 import { operation } from "@tinker/core";
-import { raise } from "@/errors.ts";
 import { navigationCell } from "@/navigation.ts";
+import { raise } from "@/errors.ts";
 import { DEFAULT_FILES, ENTRY } from "@/lib/files.ts";
 import { THEMES, type ThemeId } from "@/lib/themes.ts";
 import {
   activeCell,
   dirtyCell,
   filesCell,
+  pickerOpenCell,
   searchCell,
   themeCell,
   type View,
@@ -45,24 +46,33 @@ export const editFile = operation({
   },
 });
 
-/** Add an empty `UntitledN.tsx` and make it active. Returns its name. */
+/** Add an empty `UntitledN.tsx` and make it active. Returns its name. The navigation place opens
+ * the new file, so the editor shows what was just created and Back returns to the previous spot. */
 export const addFile = operation({
   label: "addFile",
   depends: {
     files: filesCell.controller,
     active: activeCell.controller,
     dirty: dirtyCell.controller,
+    nav: navigationCell.controller,
   },
-  run: ({ files, active, dirty }) => {
+  run: ({ files, active, dirty, nav }) => {
     const name = untitled(files.get().map((f) => f.name));
     dirty.set(true);
     files.update((prev) => [...prev, { name, content: "" }]);
     active.set(name);
+    const prev = nav.get();
+    nav.set({
+      place: { file: name, offset: 0 },
+      back: prev.place ? [...prev.back, prev.place] : prev.back,
+      forward: [],
+    });
     return name;
   },
 });
 
-/** Close a tab; if it was active, the neighbour takes over. The last tab cannot be closed. */
+/** Close a tab; if it was active, the neighbour takes over. The last tab cannot be closed. The
+ * navigation place follows: a closed file cannot stay on screen (its edits would throw). */
 export const closeFile = operation({
   label: "closeFile",
   input: string("closeFile"),
@@ -70,8 +80,9 @@ export const closeFile = operation({
     files: filesCell.controller,
     active: activeCell.controller,
     dirty: dirtyCell.controller,
+    nav: navigationCell.controller,
   },
-  run: ({ files, active, dirty }, { input: name }) => {
+  run: ({ files, active, dirty, nav }, { input: name }) => {
     const names = files.get().map((f) => f.name);
     const idx = names.indexOf(name);
     if (idx < 0 || names.length < 2) return false;
@@ -80,11 +91,14 @@ export const closeFile = operation({
     files.update((prev) => prev.filter((f) => f.name !== name));
     const [first] = next;
     if (active.get() === name) active.set(next[idx] ?? next[idx - 1] ?? first);
+    if (nav.get().place?.file === name)
+      nav.update((n) => ({ ...n, place: { file: active.get(), offset: 0 } }));
     return true;
   },
 });
 
-/** Rename a tab. Refused (returns false) when the target name is taken. */
+/** Rename a tab. Refused (returns false) when the target name is taken. A renamed file that is on
+ * screen keeps its place under the new name, so the editor never shows a ghost. */
 export const renameFile = operation({
   label: "renameFile",
   input: (raw) => {
@@ -96,12 +110,15 @@ export const renameFile = operation({
     files: filesCell.controller,
     active: activeCell.controller,
     dirty: dirtyCell.controller,
+    nav: navigationCell.controller,
   },
-  run: ({ files, active, dirty }, { input: { from, to } }) => {
+  run: ({ files, active, dirty, nav }, { input: { from, to } }) => {
     if (files.get().some((f) => f.name === to)) return false;
     dirty.set(true);
     files.update((prev) => prev.map((f) => (f.name === from ? { ...f, name: to } : f)));
     if (active.get() === from) active.set(to);
+    if (nav.get().place?.file === from)
+      nav.update((n) => ({ ...n, place: { file: to, offset: n.place?.offset ?? 0 } }));
     return true;
   },
 });
@@ -141,6 +158,17 @@ export const setSearch = operation({
   input: string("setSearch"),
   depends: { search: searchCell.controller },
   run: ({ search }, { input }) => search.set(input),
+});
+
+/** Show or hide the Code view's file-picker list. */
+export const setPickerOpen = operation({
+  label: "setPickerOpen",
+  input: (raw): boolean =>
+    typeof raw === "boolean"
+      ? raw
+      : raise("InvalidInput", { operation: "setPickerOpen", reason: "open or closed" }),
+  depends: { picker: pickerOpenCell.controller },
+  run: ({ picker }, { input }) => picker.set(input),
 });
 
 /** Back to the starter project; the session is no longer dirty, so a future default replaces it.
