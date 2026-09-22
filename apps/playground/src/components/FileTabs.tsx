@@ -13,10 +13,11 @@ type FileTabsProps = {
   onRename: (from: string, to: string) => void;
 };
 
-/** A file switcher: one 44px tab per file, the active one shaded by CSS — no measured pill. Tabs
- * are real buttons (keyboard activation), close is a span button with its own Enter/Space
- * handling, and the open-rename state arrives from a Tinker cell, not component state. Double-click
- * a tab to rename it. */
+/** A file switcher: one wrapper per tab holding the filename button (or the inline rename input)
+ * and a sibling Close button — no interactive element inside another, so the DOM matches the
+ * keyboard. Close is a real 44px button, visible without hover for touch. The active tab is
+ * shaded by CSS, and the open-rename state arrives from a Tinker cell. Double-click a tab to
+ * rename it. */
 export function FileTabs({
   files,
   active,
@@ -31,24 +32,11 @@ export function FileTabs({
     <div className="flex min-w-0 items-center gap-1">
       <div className="flex min-w-0 items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {files.map((name) => (
-          <button
-            key={name}
-            type="button"
-            onClick={() => onSelect(name)}
-            onDoubleClick={() => onRenameOpen(name)}
-            aria-current={name === active}
-            className={cn(
-              "group relative z-10 flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring",
-              name === active
-                ? "bg-accent text-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
+          <div key={name} className="flex shrink-0 items-center gap-0.5">
             {renaming === name ? (
               <input
                 autoFocus
                 defaultValue={name}
-                onClick={(e) => e.stopPropagation()}
                 onBlur={(e) => {
                   onRenameOpen(undefined);
                   const to = e.target.value.trim();
@@ -58,33 +46,36 @@ export function FileTabs({
                   if (e.key === "Enter") e.currentTarget.blur();
                   if (e.key === "Escape") onRenameOpen(undefined);
                 }}
-                className="w-24 bg-transparent font-mono text-xs outline-none"
+                aria-label={`Rename ${name}`}
+                className="h-11 w-28 rounded-md bg-accent px-2.5 font-mono text-xs outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
               />
             ) : (
-              <span className="font-mono">{name}</span>
+              <button
+                type="button"
+                onClick={() => onSelect(name)}
+                onDoubleClick={() => onRenameOpen(name)}
+                aria-current={name === active}
+                className={cn(
+                  "flex min-h-11 cursor-pointer items-center rounded-md px-2.5 text-xs font-medium transition-colors select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring",
+                  name === active
+                    ? "bg-accent text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <span className="font-mono">{name}</span>
+              </button>
             )}
             {files.length > 1 && renaming !== name && (
-              <span
-                role="button"
-                tabIndex={0}
+              <button
+                type="button"
+                onClick={() => onClose(name)}
                 aria-label={`Close ${name}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onClose(name);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onClose(name);
-                  }
-                }}
-                className="grid size-9 shrink-0 place-items-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
               >
-                <X className="size-3" />
-              </span>
+                <X className="size-3.5" />
+              </button>
             )}
-          </button>
+          </div>
         ))}
       </div>
       <button
