@@ -17,8 +17,11 @@ const docker = (args, input) =>
     maxBuffer: 8 * 1024 * 1024,
   });
 const teacher = fileURLToPath(new URL("./teacher/", import.meta.url));
-// Read the trusted checks before creating the disposable container.
-readFileSync(resolve(teacher, "stock-acceptance.mjs"));
+// Only these two files ship into the grading container: the runner and its
+// one shape helper. The teacher-only fixture and other app checks never
+// ride along with an ordinary submission.
+const SHIPPED = ["stock-acceptance.mjs", "acceptance-shape.mjs"];
+for (const name of SHIPPED) readFileSync(resolve(teacher, name));
 // Never import submitted code on the host: it only runs inside the container.
 try {
   docker([
@@ -71,7 +74,7 @@ try {
   );
   docker(
     ["exec", "-i", container, "tar", "--no-same-owner", "-xf", "-", "-C", "/teacher"],
-    execFileSync("tar", ["-C", teacher, "-cf", "-", "."]),
+    execFileSync("tar", ["-C", teacher, "-cf", "-", ...SHIPPED]),
   );
   docker([
     "exec",

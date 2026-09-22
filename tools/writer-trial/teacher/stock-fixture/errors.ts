@@ -21,11 +21,10 @@ export type Of<N extends Name = Name> = Error & {
   readonly payload: Payloads[N];
 };
 
-/** The single place a registry error is made. The marker proves the
- * value came from this registry, so isError rejects caller-built fakes. */
+/** The single place a registry error is made. */
 export function fail<const N extends Name>(kind: N, payload: Payloads[N]): Of<N> {
   const error = new Error(`${kind}: ${JSON.stringify(payload)}`);
-  return Object.assign(error, { kind, payload, registry: "stock-teacher" });
+  return Object.assign(error, { kind, payload });
 }
 
 /** Narrow an unknown thrown value to one registry entry. */
@@ -35,11 +34,7 @@ export function isError<const N extends Name>(value: unknown, kind: N): value is
     value !== null &&
     "kind" in value &&
     "payload" in value &&
-    value.kind === kind &&
-    // A caller-built lookalike with the right kind tag and shape is not one
-    // of ours: only this module's fail() stamps the registry marker.
-    "registry" in value &&
-    (value as { registry?: unknown }).registry === "stock-teacher"
+    value.kind === kind
   );
 }
 
