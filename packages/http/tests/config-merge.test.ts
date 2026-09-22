@@ -1,6 +1,14 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, operation } from "@tinker/core";
-import { backend, config, HttpRequest, HttpResponse, send, type HttpClient } from "../src/index.ts";
+import {
+  backend,
+  config,
+  HttpRequest,
+  HttpResponse,
+  isError as isHttpError,
+  send,
+  type HttpClient,
+} from "../src/index.ts";
 
 /** A closure backend that records the request it was given and answers `body` at `status`. */
 function recording(body: string, seen: HttpRequest.Record[], status = 200): HttpClient.Backend {
@@ -89,12 +97,10 @@ test("two sessions bind two configs and each keeps its own base url", async () =
   await scope.close();
 });
 
-test("retry and accept merge nearest-wins like baseUrl", async () => {
-  const seen: HttpRequest.Record[] = [];
+test("a nearer retry wins: the session retries where the scope would not", async () => {
   let calls = 0;
   const wobbly: HttpClient.Backend = async (request) => {
     calls += 1;
-    seen.push(request);
     return HttpResponse.make(request, { status: calls === 1 ? 503 : 200, body: "back" });
   };
   const scope = createScope({
@@ -113,5 +119,29 @@ test("retry and accept merge nearest-wins like baseUrl", async () => {
   });
   expect(await session.run(text)).toBe("back");
   expect(calls).toBe(2);
+  await scope.close();
+});
+
+test("a nearer accept wins: the session rejects where the scope would accept", async () => {
+  const scope = createScope({
+    tags: [backend(async (request) => HttpResponse.make(request, { status: 404, body: "nf" }))],
+  });
+  const session = scope.createSession({
+    tags: [config({ accept: (status) => status < 300 })],
+  });
+  const raw = operation({
+    label: "raw",
+    depends: { send },
+    run: ({ send: sendIt }) => sendIt.run({ input: HttpRequest.get("https://api/a") }),
+  });
+  const res = await scope.run(raw);
+  expect(res.status).toBe(404);
+  try {
+    await session.run(raw);
+    expect.unreachable();
+  } catch (error) {
+    if (!isHttpError(error, "ResponseFailed")) throw error;
+    expect(error.payload.reason).toBe("StatusCode");
+  }
   await scope.close();
 });
