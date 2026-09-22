@@ -218,3 +218,16 @@ The lead read the small fix and the two browser regressions.
 DeepSeek is accepted for this task after two repair attempts.
 Its first attempt and earlier repair remain scored separately.
 MiMo Flash is working on its final notice fix.
+
+## Teacher harness fix landed
+
+Commit 42d77c0 keeps the full module URL when mounting another app.
+The lead reran all six harness tests; all passed.
+The useId case now passes 44 of 44.
+The full repo check has zero errors and 22 old warnings.
+Normal review commands now pass GLM attempt 3 and DeepSeek attempt 3.
+Each has a new check-2 folder with checker hashes.
+Older failed runs remain saved with the teacher bug explained.
+
+A plain Jev check for writable useData in views is being added.
+It will serve later trials. Current frozen worker tools stay unchanged.

@@ -141,3 +141,21 @@ MiMo Pro also found input shaping and raw error payloads awkward.
 Its saved code already reads ctx.rawInput through its source helper.
 The fresh action and raw-value checks pass; no failing core example was given.
 Keep this with the input-guide feedback above, not as a new API change.
+
+## Fresh stock writers, 2026-09-22
+
+MiMo Flash and DeepSeek both named writable useData as a trap.
+GLM also used it despite the operation-owned typing rule.
+The public hook permits that code; it is not a runtime bug.
+The teacher is adding a plain Jev finding for this forbidden view shape.
+No React API removal is approved by this trial.
+
+GLM and DeepSeek both missed notice clearing on successful filter changes.
+Their fixes use the existing cell and operation APIs.
+A shared success hook was suggested without a failing core example.
+Keep that as design feedback, not an approved core change.
+
+The rawInput reports repeat the known input-guide issue above.
+The stock writers also saw missing package source-map warnings.
+Those warnings did not fail tests or builds.
+Proof stays under stock-01/results in the saved trial folder.
