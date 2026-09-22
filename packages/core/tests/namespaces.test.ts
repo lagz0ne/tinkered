@@ -1043,6 +1043,31 @@ test("releaseNs on parent data invalidates a child resource that read its bucket
   await scope.close();
 });
 
+test("releaseNs on parent data cleans child resources before parent resources", async () => {
+  const a = namespace();
+  const config = data({ label: "config", initial: 0 });
+  const ended: number[] = [];
+  let builds = 0;
+  const client = resource({
+    label: "client",
+    target: "session",
+    depends: { config },
+    factory: (_deps, ctx) => {
+      const build = ++builds;
+      ctx.defer(() => void ended.push(build));
+      return {};
+    },
+  });
+  const scope = createScope();
+  const child = scope.createSession();
+  scope.controller(config, { ns: a }).set(1);
+  child.resolve(client, { ns: a });
+  scope.resolve(client, { ns: a });
+  scope.releaseNs(config, a);
+  expect(ended).toEqual([1, 2]);
+  await scope.close();
+});
+
 test("releaseNs leaves a namespace-blind scope resource built", async () => {
   const a = namespace();
   const ended: string[] = [];
