@@ -2143,7 +2143,14 @@ function operationController<T, I>(
       ctx = new OperationCtx<I>(layer, target, call, obs, span);
       const borrowing = prepareBorrows(layer, target, chain);
       held = borrowing.borrow;
-      const deps = readOpDeps(layer, target, span, sees, chain, borrowing.register);
+      const savedBorrow = borrowInFlight;
+      borrowInFlight = borrowing.borrow;
+      let deps: Record<string, unknown>;
+      try {
+        deps = readOpDeps(layer, target, span, sees, chain, borrowing.register);
+      } finally {
+        borrowInFlight = savedBorrow;
+      }
       result = runBody(override, target, deps, ctx, parked);
     } catch (error) {
       closeSpan(obs, span, "failed");
@@ -2205,6 +2212,9 @@ type PendingSlot = { key: string; build: Promise<unknown> };
  * allocation, no symbol lookup on the sync fast path; undefined when every declared dep delivered
  * synchronously. */
 let parked: PendingSlot[] | undefined;
+/** The borrow of the operation whose direct deps are resolving now, so a session-target resource is
+ * held the instant its bucket exists — before its factory runs, which may release the bucket (N1). */
+let borrowInFlight: Borrow | undefined;
 
 /** Build the `deps` object a factory/run reads. Every declared dependency is resolved EAGERLY here,
  * before the body runs (ADR 0026 for data, ADR 0044 for resources): a data snapshot, tag, subflow,
@@ -2711,6 +2721,20 @@ function nsResourceForRead(
  * one — {@link buildDeps} parks either for the caller to await before the body, so the call rejects
  * with the build's error and the body never runs. One record lookup, no controller allocation —
  * the dependency hot path. */
+/** Resolve a session-target resource in its namespace. The borrow is held on the bucket the instant
+ * it exists (before the factory runs), so a factory that releases its own bucket still waits for the
+ * borrowing run (N1); transitive buckets resolved inside the factory are held the same way. */
+function nsResourceSlot(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  parent: Observe.Span | undefined,
+  chain: readonly [Namespace, ...Namespace[]],
+): unknown {
+  const state = nsResourceForRead(owner, target, chain);
+  if (borrowInFlight) holdBorrow(borrowInFlight, state);
+  return readResourceState(owner, target, parent, chain, state, state.key);
+}
+
 function resourceSlot(
   layer: Layer,
   target: Resource.Handle<unknown>,
@@ -2722,10 +2746,7 @@ function resourceSlot(
   ensureOpen(layer);
   ensureOpen(owner);
   recordUsed(layer.obs, parent, target);
-  if (hasResourceNs(target, chain)) {
-    const state = nsResourceForRead(owner, target, chain);
-    return readResourceState(owner, target, parent, chain, state, state.key);
-  }
+  if (hasResourceNs(target, chain)) return nsResourceSlot(owner, target, parent, chain);
   if (rec.resource) return rec.resource.value;
   if (rec.failed) return rec.failed.promise;
   if (rec.build) return rec.build;
