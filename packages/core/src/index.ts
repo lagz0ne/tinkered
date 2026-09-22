@@ -916,7 +916,6 @@ class NsResourceState {
   build: Promise<unknown> | undefined = undefined;
   gen = 0;
   building = false;
-  borrowers: Set<Promise<unknown>> | undefined = undefined;
   dataDependencies: Set<NsDataDependency> | undefined = undefined;
   constructor(owner: Layer, target: Resource.Handle<unknown>, key: Namespace) {
     this.owner = owner;
@@ -2685,13 +2684,24 @@ function resourceSlot(
   ensureOpen(layer);
   ensureOpen(owner);
   recordUsed(layer.obs, parent, target);
-  if (hasResourceNs(target, chain)) {
-    const [head] = chain;
-    const state = selectNsResource(owner, target, chain) ?? ownNsResource(owner, target, head);
-    return readResourceState(owner, target, parent, chain, state);
-  }
+  if (hasResourceNs(target, chain)) return namedResourceSlot(owner, target, parent, chain);
+  if (rec.resource) return rec.resource.value;
+  if (rec.failed) return rec.failed.promise;
+  if (rec.build) return rec.build;
+  if (rec.building) raise("CircularResource", { label: target.label });
   const buildChain = target.target === "scope" ? NO_NAMESPACE : chain;
-  return readResourceState(owner, target, parent, buildChain, rec);
+  return buildResource(owner, target, parent, buildChain, rec);
+}
+
+function namedResourceSlot(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  parent: Observe.Span | undefined,
+  chain: readonly [Namespace, ...Namespace[]],
+): unknown {
+  const [head] = chain;
+  const state = selectNsResource(owner, target, chain) ?? ownNsResource(owner, target, head);
+  return readResourceState(owner, target, parent, chain, state);
 }
 
 function readResourceState(
