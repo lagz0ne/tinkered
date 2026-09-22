@@ -2638,8 +2638,7 @@ function selectNsResource(
   return selectBucket(
     owner,
     chain,
-    (layer, key) =>
-      layer === owner ? layer.nodes.get(target)?.nsResources?.get(key) : undefined,
+    (layer, key) => (layer === owner ? layer.nodes.get(target)?.nsResources?.get(key) : undefined),
     () => undefined,
   );
 }
