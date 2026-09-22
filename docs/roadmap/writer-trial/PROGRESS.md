@@ -636,5 +636,29 @@ See [code review and proof](CODE-REVIEW.md).
 
 User asked to keep looping until the writers follow our pattern.
 Restored each own app in a fresh isolated project.
-Teacher fixes are underway; no repair writer launched yet.
+All four repair writers launched with the same new rules.
+GLM and DeepSeek now pass repair and the fresh feature.
+MiMo repairs are still running.
 See [learning stages and acceptance](LEARNING.md).
+
+## First two learning results accepted
+
+The lead checked GLM and DeepSeek in fresh containers:
+29 of 29 repair checks and 43 of 43 fresh-feature checks pass.
+Source review finds the same core-cell and view-action pattern as the tracker.
+The new Jev component scan sees the views; it reports no notes on them.
+The old DeepSeek feature save fails the clicked-row check,
+which its next attempt passes.
+All original round-4 saves fail at least one stronger check.
+
+Both accepted workers are cleaned up, including their projects.
+Saved app archives include git history; their hashes were checked first.
+Their workspaces, containers, volumes, folders, and trust entries are gone.
+The two MiMo workers remain active.
+MiMo Pro resumed after a gateway timeout; trial caps remain off.
+The Jev teacher workspace is removed after its commits were reviewed.
+The main project is untouched.
+
+Proof stays in learn-01/results under the runtime path in LEARNING.md.
+Teacher repo checks still need the acceptance-code lint fixes.
+The live card stays Doing until all four are reviewed and cleaned up.
