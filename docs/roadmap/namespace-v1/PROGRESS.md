@@ -28,7 +28,19 @@ node tools/jev/label.mjs <judge> t|f <file> --by <ticket>
   and tags resolve through `(layer, ns, unit)`. The `ns`-absent path stays byte-for-byte and is
   benched (the +2 ns budget). Probes cover: two namespaces split one cell; a tag chain `[a, muse]`
   finds a binding in `muse`; ambient + override; parent-vs-child read order.
-- **t02 ns resources + release** -- [ ] blocked by: t01
+- **t02a ns resource build** -- [ ] blocked by: t01
+  Session-target resources key on `(owner, ns, handle)` via the same selector; scope-target stay
+  ns-blind (one shared build, no tenant-tag leak); the warm/cache path is per namespace; a named
+  resource's data dependency links to the entry the read actually resolved (nearer default shadows a
+  farther named). Close tears the ns buckets down through the base path. NO `releaseNs` verb -- that
+  is t02b. This is the clean, additive half that lands.
+- **t02b ns resource release** -- [ ] blocked by: t02a
+  `scope.releaseNs(target, ns)` and its borrow/cleanup lifetime. The reference implementation lives at
+  tag `namespace-v1/t02-release-ref` (5 of 6 review findings fixed, with tests); it is NOT landable
+  as-is: one finding (N5 -- a resource released mid-async-build whose dependent forms later needs its
+  cleanup ordered after that dependent) needs a cleanup-completion mechanism, and mutation sits at
+  84.71 under the 85 floor. This ticket redesigns release from that reference with proper design time
+  -- the release lifetime is a bigger subsystem than one ticket (three review rounds churned on it).
   Session-target resources key on `(owner, ns, handle)` via the same selector; scope-target resources
   are blind to `ns` (one shared build; a tenant's tags never reach it). `scope.releaseNs(target, ns)`
   drops one bucket now, running its `defer` once with `released`; siblings and the default stay;
