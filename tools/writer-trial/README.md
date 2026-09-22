@@ -1,8 +1,9 @@
-# Writer trial preparation
+# Writer trial
 
-Four models, four rounds, one growing app per model.
+Two suites, one repeatable flow per suite.
 Only core and React from Tinker.
-No scored work starts during preparation.
+Booking grows over rounds 1-5.
+Stock is one fresh round.
 
 ## What workers can see
 
@@ -39,9 +40,19 @@ vp install
 vp run core#build
 vp run react#build
 node tools/writer-trial/prepare.mjs --models --build
-node tools/writer-trial/workers.mjs create trial-01
-node tools/writer-trial/workers.mjs stage trial-01 1
+node tools/writer-trial/workers.mjs \
+  create trial-02 --suite stock
+node tools/writer-trial/workers.mjs \
+  stage trial-02 1
 ```
+
+`create` freezes one suite into the trial:
+task, full rules, tool copies, limits, and the Jev copy.
+It records hashes and refuses a silent refresh.
+The default suite is booking; stock needs `--suite stock`.
+Stock stage 1 loads `stock/01-stock-moves.md`.
+Booking stages rounds 1-5 from frozen packets.
+Old trials without frozen files still stage rounds 1-4.
 
 The first command that registers models adds only the
 `writer-gateway` provider to Pi's model file.
@@ -114,7 +125,36 @@ A provider can still cut off a response; resume unfinished work
 rather than counting that cutoff as a completed attempt.
 Calibration and labels remain teacher-owned.
 
-## Save and clean up
+## Save, check, and retry
+
+No command here launches a model.
+Launch stays through Paseo tools.
+The finish callback names the saved files.
+
+```bash
+node tools/writer-trial/review.mjs save trial-02 1 1 \
+  --session <pi-session.jsonl> --report <report.md>
+node tools/writer-trial/review.mjs check trial-02 1 1
+node tools/writer-trial/review.mjs feedback trial-02 1 1 \
+  --teacher <teacher-notes.md>
+```
+
+`save` stops the container, then saves one attempt:
+source archive, native session copy, report copy,
+event copy, and per-file hashes. It refuses overwrite.
+`check` runs the worker's own check, test, and build
+in a fresh pinned container, then the suite checker
+in a second one. It writes named `check-N` folders with
+checker hashes and the image ID beside exit codes.
+Repeats never reuse a folder.
+`feedback` copies only teacher text, restages frozen
+task, rules, tools, and limits, and starts a fresh
+event log. Saved tries are kept.
+Machine pass or fail is recorded apart from lead review.
+Lead review stays pending until the lead sets it.
+A missing checker fails unavailable, never passes.
+
+## Clean up
 
 Stop writers before exporting or deleting their projects.
 Keep each round's source archive and events before moving on.
@@ -127,6 +167,8 @@ node tools/writer-trial/workers.mjs cleanup trial-01
 ```
 
 Cleanup refuses to run before export.
+For frozen trials it also needs every worker's
+current attempt saved through `review.mjs save`.
 It archives each workspace, deletes its Paseo project,
 removes its container and named volume, removes its trust entry,
 and deletes only its recorded worker folder.
@@ -152,6 +194,16 @@ Live model probes additionally check each route through Paseo,
 its shell tool, and its real Jev tool.
 Readiness uses a tiny disposable file, never the app task.
 
+## Which checker runs
+
+- Booking 1-3: `evaluate.mjs <archive> <round> <image>`.
+- Booking 4: `acceptance.mjs <archive> repair <image>`.
+- Booking 5: `acceptance.mjs <archive> transfer <image>`.
+- Stock 1: `stock-acceptance.mjs <archive> <image>`.
+
+Own check, test, and build always run apart.
+Submitted code runs in Docker only.
+
 ## Teacher checks
 
 Export the round first. Keep writers stopped while exporting.
@@ -174,4 +226,4 @@ Checks stop at the first failure.
 Later checks are not run; do not count them as failures or passes.
 These checks sample the task rules; they do not cover every rule.
 The empty starter was rejected by the isolated runner.
-A passing full app has not yet been checked.
+Accepted learning apps pass repair 29/29 and transfer 43/43.
