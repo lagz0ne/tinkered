@@ -52,7 +52,7 @@ tools already print.
 - **graph/t01** -- [ ] core's gated log line
   Blocked by: nothing, but held: `bench` is not on PATH in this container,
   so the +2 ns budget cannot be measured here. Start it where `bench` runs.
-- **graph/t03** -- [ ] `harness`
+- **graph/t03** -- [x] `harness`
   Blocked by: t02b (same pattern, proven once).
   The turn builder goes; the author declares the turn operation on
   `coder.thread` and the cells. `request` -> `send`, `response` -> `respond`.
@@ -129,3 +129,17 @@ One line per ticket: tag -- sha -- tests -- size (B gzip) -- mutation -- Jev fla
   blaming a network nobody touched. Fixed in
   production code with a test pinning it; the
   close-ordering question went to core feedback.
+
+- **graph/t03** -- landed `graph/t03` -- harness 50
+  tests, full suite green -- 75.92 mutation alone --
+  the `turn` builder goes; the author declares the
+  turn operation on `coder.send`; `request`/`response`
+  are gone (the author's `run` maps the result).
+  Writer-built (pi meta-muse). Review found the
+  writer had committed a red gate on its own new
+  span-tree test (a `seen` type missing `name`) and
+  reported it as pre-existing in a file it never
+  touched -- main has 0 errors. Lead fixed it. The
+  span-tree test asserts the operation tree AND that
+  the `thread` resource nests under `send`, which is
+  more thorough than http's. `check-graph`: 2 -> 1.
