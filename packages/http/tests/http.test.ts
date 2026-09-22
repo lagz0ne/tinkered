@@ -2,15 +2,15 @@ import { expect, test } from "vite-plus/test";
 import { createScope, isError as isCoreError, operation } from "@tinker/core";
 import {
   backend,
-  httpClient,
+  config,
   HttpRequest,
   HttpResponse,
   isError as isHttpError,
   mergeConfig,
+  send,
   type HttpClient,
 } from "../src/index.ts";
 
-const github = httpClient({ label: "github" });
 
 /** A closure backend that records the request it was given and answers `body` at `status`. */
 function recording(body: string, seen: HttpRequest.Record[], status = 200): HttpClient.Backend {
@@ -22,9 +22,9 @@ function recording(body: string, seen: HttpRequest.Record[], status = 200): Http
 
 const listUsers = operation({
   label: "listUsers",
-  depends: { send: github.send },
-  run: ({ send }) =>
-    send.run({
+  depends: { send },
+  run: ({ send: sendIt }) =>
+    sendIt.run({
       input: HttpRequest.get("/users", {
         headers: { x: "req" },
         urlParams: { page: "2" },
@@ -38,7 +38,7 @@ test("a scope-bound backend receives the merged url and headers, and delivers it
   const scope = createScope({
     tags: [
       backend(recording("[]", seen)),
-      github.config({ baseUrl: "https://api", headers: { a: "1", x: "cfg" } }),
+      config({ baseUrl: "https://api", headers: { a: "1", x: "cfg" } }),
     ],
   });
   const res = await scope.run(listUsers);
@@ -54,30 +54,29 @@ test("a scope-bound backend receives the merged url and headers, and delivers it
 
 test("scope, session, and per-call config bindings merge nearest-first", async () => {
   const seen: HttpRequest.Record[] = [];
-  const child = httpClient({ label: "child" });
   const callChild = operation({
     label: "callChild",
-    depends: { send: child.send },
-    run: ({ send }) => send.run({ input: HttpRequest.get("/users") }),
+    depends: { send },
+    run: ({ send: sendIt }) => sendIt.run({ input: HttpRequest.get("/users") }),
   });
   const scope = createScope({
     tags: [
       backend(recording("[]", seen)),
-      child.config({ baseUrl: "https://api", headers: { a: "1" } }),
+      config({ baseUrl: "https://api", headers: { a: "1" } }),
     ],
   });
   await scope.run(callChild);
   expect(HttpRequest.toUrl(seen[seen.length - 1])).toBe("https://api/users");
   const readConfig = operation({
     label: "readConfig",
-    depends: { config: child.config.all },
-    run: ({ config }) => mergeConfig(config),
+    depends: { all: config.all },
+    run: ({ all }) => mergeConfig(all),
   });
   const session = scope.createSession({
-    tags: [child.config({ headers: { b: "2" } })],
+    tags: [config({ headers: { b: "2" } })],
   });
   const merged = await session.controller(readConfig).run({
-    tags: [child.config({ baseUrl: "https://other" })],
+    tags: [config({ baseUrl: "https://other" })],
   });
   expect(merged.baseUrl).toBe("https://other");
   expect(merged.headers).toEqual({ a: "1", b: "2" });
@@ -96,8 +95,8 @@ test("a session-bound backend serves the session", async () => {
   const session = scope.createSession({ tags: [backend(recording("session", atSession))] });
   const call = operation({
     label: "call",
-    depends: { send: github.send },
-    run: ({ send }) => send.run({ input: HttpRequest.get("https://api/users") }),
+    depends: { send },
+    run: ({ send: sendIt }) => sendIt.run({ input: HttpRequest.get("https://api/users") }),
   });
   const fromSession = await session.run(call);
   expect(await fromSession.text()).toBe("session");
@@ -112,8 +111,8 @@ test("the scope keeps its own backend beside a session binding", async () => {
   scope.createSession({ tags: [backend(recording("session", []))] });
   const call = operation({
     label: "call",
-    depends: { send: github.send },
-    run: ({ send }) => send.run({ input: HttpRequest.get("https://api/users") }),
+    depends: { send },
+    run: ({ send: sendIt }) => sendIt.run({ input: HttpRequest.get("https://api/users") }),
   });
   const fromScope = await scope.run(call);
   expect(await fromScope.text()).toBe("scope");
@@ -126,8 +125,8 @@ test("no base url plus a relative path rejects RequestFailed/InvalidUrl", async 
   const scope = createScope({ tags: [backend(recording("[]", seen))] });
   const relative = operation({
     label: "relative",
-    depends: { send: github.send },
-    run: ({ send }) => send.run({ input: HttpRequest.get("/users") }),
+    depends: { send },
+    run: ({ send: sendIt }) => sendIt.run({ input: HttpRequest.get("/users") }),
   });
   try {
     await scope.run(relative);
@@ -146,8 +145,8 @@ test("a backend that throws rejects RequestFailed/Transport with the cause", asy
   const scope = createScope({ tags: [backend(broken)] });
   const call = operation({
     label: "call",
-    depends: { send: github.send },
-    run: ({ send }) => send.run({ input: HttpRequest.get("https://api/users") }),
+    depends: { send },
+    run: ({ send: sendIt }) => sendIt.run({ input: HttpRequest.get("https://api/users") }),
   });
   try {
     await scope.run(call);
@@ -168,8 +167,8 @@ test("a forced close while the backend parks on the signal rejects with the abor
   const scope = createScope({ observe: { history: 20 }, tags: [backend(parking)] });
   const call = operation({
     label: "call",
-    depends: { send: github.send },
-    run: ({ send }) => send.run({ input: HttpRequest.get("https://api/users") }),
+    depends: { send },
+    run: ({ send: sendIt }) => sendIt.run({ input: HttpRequest.get("https://api/users") }),
   });
   const running = scope.run(call);
   await Promise.resolve();
@@ -187,9 +186,9 @@ test("a forced close while the backend parks on the signal rejects with the abor
 test("streaming a bodiless response rejects NoBody with the status", async () => {
   const nodata = operation({
     label: "github.nodata",
-    depends: { send: github.send },
-    run: async ({ send }) => {
-      const received = await send.run({
+    depends: { send },
+    run: async ({ send: sendIt }) => {
+      const received = await sendIt.run({
         input: HttpRequest.get("https://api/empty"),
       });
       return received.stream();
@@ -217,8 +216,8 @@ test("a close in the same tick surfaces Disposed, never a transport failure", as
   );
   const call = operation({
     label: "call",
-    depends: { send: github.send },
-    run: ({ send }) => send.run({ input: HttpRequest.get("https://api/users") }),
+    depends: { send },
+    run: ({ send: sendIt }) => sendIt.run({ input: HttpRequest.get("https://api/users") }),
   });
   const scope = createScope({ tags: [parked] });
   const running = scope.run(call);

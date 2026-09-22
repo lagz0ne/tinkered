@@ -1,15 +1,16 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, operation, type Observe } from "@tinker/core";
 import {
+  attempt,
   backend,
-  httpClient,
+  config,
   HttpRequest,
   HttpResponse,
   isError as isHttpError,
+  send,
   type HttpClient,
 } from "../src/index.ts";
 
-const github = httpClient({ label: "github" });
 
 /** A closure backend that records every request it was given and answers `body` at `status`. */
 function recording(body: string, seen: HttpRequest.Record[], status = 200): HttpClient.Backend {
@@ -28,9 +29,9 @@ function parseUser(raw: unknown): string {
 const listRepos = operation({
   label: "github.listRepos",
   input: parseUser,
-  depends: { send: github.send },
-  run: async ({ send }, ctx) => {
-    const received = await send.run({
+  depends: { send },
+  run: async ({ send: sendIt }, ctx) => {
+    const received = await sendIt.run({
       input: HttpRequest.get(`/users/${ctx.input}/repos`, {
         urlParams: { per_page: "100" },
       }),
@@ -45,15 +46,15 @@ test("a request opens one attempt span with method, url, and status", async () =
   const seen: HttpRequest.Record[] = [];
   const scope = createScope({
     observe: { history: 20 },
-    tags: [backend(recording("[]", seen)), github.config({ baseUrl: "https://api" })],
+    tags: [backend(recording("[]", seen)), config({ baseUrl: "https://api" })],
   });
   await scope.run(listRepos, { input: "octocat" });
   const spans = scope.spans();
   const op = spans.find((span) => span.name === "github.listRepos");
   expect(op?.kind).toBe("operation");
-  const send = spans.find((span) => span.parentId === op?.id && span.name === "github.send");
+  const send = spans.find((span) => span.parentId === op?.id && span.name === "http.send");
   expect(send?.kind).toBe("operation");
-  const child = spans.find((span) => span.parentId === send?.id && span.name === "github.attempt");
+  const child = spans.find((span) => span.parentId === send?.id && span.name === "http.attempt");
   expect(child?.kind).toBe("operation");
   expect(child?.status).toBe("ok");
   expect(child?.attributes).toEqual({ method: "GET", url, status: 200, attempt: 1 });
@@ -68,7 +69,7 @@ test("a backend failure marks the child failed and logs one line", async () => {
   const logs: Observe.Log[] = [];
   const scope = createScope({
     observe: { history: 20, log: (entry) => logs.push(entry) },
-    tags: [backend(failing), github.config({ baseUrl: "https://api" })],
+    tags: [backend(failing), config({ baseUrl: "https://api" })],
   });
   try {
     await scope.run(listRepos, { input: "octocat" });
@@ -79,8 +80,8 @@ test("a backend failure marks the child failed and logs one line", async () => {
   }
   const spans = scope.spans();
   const op = spans.find((span) => span.name === "github.listRepos");
-  const send = spans.find((span) => span.parentId === op?.id && span.name === "github.send");
-  const child = spans.find((span) => span.parentId === send?.id && span.name === "github.attempt");
+  const send = spans.find((span) => span.parentId === op?.id && span.name === "http.send");
+  const child = spans.find((span) => span.parentId === send?.id && span.name === "http.attempt");
   expect(child?.status).toBe("failed");
   expect(logs.length).toBe(1);
   expect(logs[0].message).toBe("http request failed");
@@ -91,16 +92,16 @@ test("a backend failure marks the child failed and logs one line", async () => {
 });
 
 test("a rejected status marks the child failed and logs nothing", async () => {
-  const strict = httpClient({ label: "strict", filterStatus: (status) => status < 300 });
+  
   const strictRepos = operation({
     label: "strict.repos",
-    depends: { send: strict.send },
-    run: ({ send }) => send.run({ input: HttpRequest.get("https://api/repos") }),
+    depends: { send },
+    run: ({ send: sendIt }) => sendIt.run({ input: HttpRequest.get("https://api/repos") }),
   });
   const logs: Observe.Log[] = [];
   const scope = createScope({
     observe: { history: 20, log: (entry) => logs.push(entry) },
-    tags: [backend(recording("nope", [], 404)), strict.config({})],
+    tags: [backend(recording("nope", [], 404)), config({ accept: (status) => status < 300 })],
   });
   try {
     await scope.run(strictRepos);
@@ -109,7 +110,7 @@ test("a rejected status marks the child failed and logs nothing", async () => {
     if (!isHttpError(error, "ResponseFailed")) throw error;
     expect(error.payload.reason).toBe("StatusCode");
   }
-  const child = scope.spans().find((span) => span.name === "strict.attempt");
+  const child = scope.spans().find((span) => span.name === "http.attempt");
   expect(child?.kind).toBe("operation");
   expect(child?.status).toBe("failed");
   expect(child?.attributes.status).toBe(404);
@@ -120,7 +121,7 @@ test("a rejected status marks the child failed and logs nothing", async () => {
 test("with observation off the request succeeds and no span is kept", async () => {
   const seen: HttpRequest.Record[] = [];
   const scope = createScope({
-    tags: [backend(recording("[]", seen)), github.config({ baseUrl: "https://api" })],
+    tags: [backend(recording("[]", seen)), config({ baseUrl: "https://api" })],
   });
   expect(await scope.run(listRepos, { input: "octocat" })).toBe("[]");
   expect(scope.spans().length).toBe(0);
@@ -135,7 +136,7 @@ test("a forced close while parked rejects with the abort reason, logs nothing, c
   const logs: Observe.Log[] = [];
   const scope = createScope({
     observe: { history: 20, log: (entry) => logs.push(entry) },
-    tags: [backend(parking), github.config({ baseUrl: "https://api" })],
+    tags: [backend(parking), config({ baseUrl: "https://api" })],
   });
   const running = scope.run(listRepos, { input: "octocat" });
   await Promise.resolve();
@@ -149,6 +150,6 @@ test("a forced close while parked rejects with the abort reason, logs nothing, c
   if (result.status !== "cancelled") throw result;
   expect(outcome).toBe(result.reason);
   expect(logs.length).toBe(0);
-  const child = scope.spans().find((span) => span.name === "github.attempt");
+  const child = scope.spans().find((span) => span.name === "http.attempt");
   expect(child?.status).toBe("failed");
 });

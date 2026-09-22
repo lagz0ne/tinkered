@@ -1,8 +1,7 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, operation } from "@tinker/core";
-import { backend, httpClient, HttpRequest, HttpResponse, type HttpClient } from "../src/index.ts";
+import { backend, config, HttpRequest, HttpResponse, send, type HttpClient } from "../src/index.ts";
 
-const github = httpClient({ label: "github" });
 
 /** A closure backend that records the request it was given and answers `body` at `status`. */
 function recording(body: string, seen: HttpRequest.Record[], status = 200): HttpClient.Backend {
@@ -14,20 +13,20 @@ function recording(body: string, seen: HttpRequest.Record[], status = 200): Http
 
 test("text and bytes bodies arrive with their content types", async () => {
   const seen: HttpRequest.Record[] = [];
-  const send = operation({
-    label: "github.send",
-    depends: { send: github.send },
-    run: async ({ send }) => {
-      const received = await send.run({
+  const posts = operation({
+    label: "posts",
+    depends: { send },
+    run: async ({ send: sendIt }) => {
+      const received = await sendIt.run({
         input: HttpRequest.post("/a", { body: HttpRequest.bodyBytes(new Uint8Array([7])) }),
       });
       return received.text();
     },
   });
   const scope = createScope({
-    tags: [backend(recording("hi", seen)), github.config({ baseUrl: "https://api" })],
+    tags: [backend(recording("hi", seen)), config({ baseUrl: "https://api" })],
   });
-  await scope.run(send);
+  await scope.run(posts);
   const sent = seen[seen.length - 1];
   if (sent.body.kind !== "bytes") throw sent;
   expect([...sent.body.bytes]).toEqual([7]);
@@ -37,18 +36,18 @@ test("text and bytes bodies arrive with their content types", async () => {
 
 test("a body option rides along and an explicit builder body wins", async () => {
   const seen: HttpRequest.Record[] = [];
-  const send = operation({
-    label: "github.send",
-    depends: { send: github.send },
-    run: ({ send }) =>
-      send.run({
+  const posts = operation({
+    label: "posts",
+    depends: { send },
+    run: ({ send: sendIt }) =>
+      sendIt.run({
         input: HttpRequest.post("/a", { body: HttpRequest.bodyText("opt") }),
       }),
   });
   const scope = createScope({
-    tags: [backend(recording("ok", seen)), github.config({ baseUrl: "https://api" })],
+    tags: [backend(recording("ok", seen)), config({ baseUrl: "https://api" })],
   });
-  await scope.run(send);
+  await scope.run(posts);
   const sent = seen[seen.length - 1];
   if (sent.body.kind !== "text") throw sent;
   expect(sent.body.text).toBe("opt");
@@ -57,11 +56,11 @@ test("a body option rides along and an explicit builder body wins", async () => 
 
 test("query params keep their pairs and the fragment stays at the end", async () => {
   const seen: HttpRequest.Record[] = [];
-  const send = operation({
-    label: "github.send",
-    depends: { send: github.send },
-    run: ({ send }) =>
-      send.run({
+  const posts = operation({
+    label: "posts",
+    depends: { send },
+    run: ({ send: sendIt }) =>
+      sendIt.run({
         input: HttpRequest.get("/a", {
           urlParams: [
             ["p", "1"],
@@ -72,9 +71,9 @@ test("query params keep their pairs and the fragment stays at the end", async ()
       }),
   });
   const scope = createScope({
-    tags: [backend(recording("ok", seen)), github.config({ baseUrl: "https://api" })],
+    tags: [backend(recording("ok", seen)), config({ baseUrl: "https://api" })],
   });
-  await scope.run(send);
+  await scope.run(posts);
   expect(HttpRequest.toUrl(seen[seen.length - 1])).toBe("https://api/a?p=1&p=2#frag");
   await scope.close();
 });
@@ -82,9 +81,9 @@ test("query params keep their pairs and the fragment stays at the end", async ()
 test("response bodies read through json", async () => {
   const json = operation({
     label: "github.json",
-    depends: { send: github.send },
-    run: async ({ send }) => {
-      const received = await send.run({
+    depends: { send },
+    run: async ({ send: sendIt }) => {
+      const received = await sendIt.run({
         input: HttpRequest.get("https://api/a"),
       });
       return received.json();

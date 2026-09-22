@@ -4,27 +4,39 @@ An HTTP client as a **frame** of core primitives (ADR 0035): a pre-wired graph w
 user fills in. Nothing in it runs until an operation resolves.
 
 ```text
-httpClient({ label: "github" })   // the frame
+declared units (no factory — import them)
 ├── backend            (shared tag)             slot: how a request is sent; default fetchBackend
-├── github.config      (tag, one per client)    slot: baseUrl, headers — scope, session, or per call
-├── github.send        (operation)              merges config, validates the URL, retries via attempt
-└── github.attempt     (operation)              one send through the backend; the swappable seam
+├── config             (shared tag)             slot: baseUrl, headers, retry, accept — scope, session, or per call
+├── send               (operation)              merges config, validates the URL, retries via attempt
+└── attempt            (operation)              one send through the backend; the swappable seam
+```
+
+Two clients (github, stripe) are two sessions binding the one `config` tag:
+
+```ts
+const github = scope.createSession({
+  tags: [config({ baseUrl: "https://api.github.com" })],
+});
+const stripe = scope.createSession({
+  tags: [config({ baseUrl: "https://api.stripe.com" })],
+});
+await github.run(listRepos, { input: "octocat" });
+await stripe.run(createCharge, { input: charge });
 ```
 
 ## Operations: declared by the author, on `send`
 
-The author declares the operation; `send` merges config and retries. The operation is labelled
-`github.listRepos` (frame label as prefix); a userland operation depends on it as a subflow.
-Per-call config is `tags` on the run, never a helper. An endpoint with no `response` reader
-just returns the handle.
+The author declares the operation; `send` merges config and retries. A userland operation
+depends on it as a subflow. Per-call config is `tags` on the run, never a helper. An
+endpoint with no `response` reader just returns the handle.
 
 ```ts
 const listRepos = operation({
   label: "github.listRepos",
   input: parseUser,
-  depends: { send: github.send },
-  run: async ({ send }, ctx) => {
-    const res = await send.run({
+  depends: { send },
+  run: async ({ send: sendIt }, ctx) => {
+    const res = await sendIt.run({
       input: HttpRequest.get(`/users/${ctx.input}/repos`),
     });
     return res.json(parseRepos);
@@ -40,21 +52,24 @@ const onboard = operation({
   run: async ({ auth, issue }, { input }) =>
     issue.run({
       input,
-      tags: [github.config({ headers: { authorization: `Bearer ${await auth.token()}` } })],
+      tags: [config({ headers: { authorization: `Bearer ${await auth.token()}` } })],
     }),
 });
 ```
 
-## Retry: a frame slot
+## Retry: a config value
 
-`httpClient({ label, retry: { times, delay? } })` — `times` extra attempts after the first
-(default 0), `delay(n)` the milliseconds to wait before retry `n` (1-based, default none).
-Transient only: a backend failure, or status 408, 429, 5xx. A non-transient status is never
-retried, and an aborted signal never retries. Backoff sleeps on the caller's `ctx.clock`, so a
-`makeTestClock` drives it deterministically in tests.
+`config({ retry: { times, delay? } })` — `times` extra attempts after the first (default 0),
+`delay(n)` the milliseconds to wait before retry `n` (1-based, default none). Transient
+only: a backend failure, or status 408, 429, 5xx. A non-transient status is never retried,
+and an aborted signal never retries. Backoff sleeps on the caller's `ctx.clock`, so a
+`makeTestClock` drives it deterministically in tests. Merged nearest-wins like `baseUrl`:
+a session retries, the scope does not.
 
 ```ts
-const github = httpClient({ label: "github", retry: { times: 2, delay: (n) => n * 1000 } });
+createScope({
+  tags: [config({ baseUrl: "https://api", retry: { times: 2, delay: (n) => n * 1000 } })],
+});
 ```
 
 ## Observation: one attempt span per try
@@ -67,13 +82,15 @@ Nothing is recorded when observation is off.
 
 ## Status: a frame slot plus response-level readers
 
-`httpClient({ label, filterStatus })` rejects a bad status inside `attempt`, before the caller
-sees the response and before any body reader runs: a rejected status raises
+`config({ accept })` rejects a bad status inside `attempt`, before the caller sees the
+response and before any body reader runs: a rejected status raises
 `ResponseFailed/StatusCode` carrying `request` and `response` (the body stays readable by a
 catch handler). Default accept all.
 
 ```ts
-const github = httpClient({ label: "github", filterStatus: (status) => status < 300 });
+createScope({
+  tags: [config({ baseUrl: "https://api", accept: (status) => status < 300 })],
+});
 ```
 
 Inside a body reader, `HttpResponse.filterStatus(res, accept)` does the same per call,
@@ -102,18 +119,18 @@ the request's own headers on top (request wins).
 // scope: the common case — base URL and a service token, once
 createScope({
   tags: [
-    github.config({
+    config({
       baseUrl: "https://api.github.com",
       headers: { authorization: `Bearer ${svc}` },
     }),
   ],
 });
 // session: a tenant/user token for everything in that session; baseUrl inherited from the scope
-scope.session({ tags: [github.config({ headers: { authorization: `Bearer ${user}` } })] }, run);
+scope.session({ tags: [config({ headers: { authorization: `Bearer ${user}` } })] }, run);
 // per call: a composing operation hands a fresh token to one subflow call
 scope.run(listRepos, {
   input: "octocat",
-  tags: [github.config({ headers: { authorization: `Bearer ${fresh}` } })],
+  tags: [config({ headers: { authorization: `Bearer ${fresh}` } })],
 });
 ```
 
@@ -132,7 +149,7 @@ const fake: HttpClient.Backend = async (req) => {
   seen.push(req);
   return HttpResponse.make(req, { status: 200, body: JSON.stringify([]) });
 };
-createScope({ tags: [backend(fake), github.config({ baseUrl: "https://api" })] });
+createScope({ tags: [backend(fake), config({ baseUrl: "https://api" })] });
 ```
 
 ## Server-sent events

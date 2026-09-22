@@ -1,15 +1,16 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, operation, preset, type Scope } from "@tinker/core";
 import {
+  attempt,
   backend,
-  httpClient,
+  config,
   HttpRequest,
   HttpResponse,
   isError as isHttpError,
+  send,
   type HttpClient,
 } from "../src/index.ts";
 
-const github = httpClient({ label: "github" });
 
 /** A closure backend that records every request it was given and answers `body` at `status`. */
 function recording(body: string, seen: HttpRequest.Record[], status = 200): HttpClient.Backend {
@@ -39,9 +40,9 @@ function parseRepos(raw: unknown): string[] {
 const listRepos = operation({
   label: "github.listRepos",
   input: parseUser,
-  depends: { send: github.send },
-  run: async ({ send }, ctx) => {
-    const received = await send.run({
+  depends: { send },
+  run: async ({ send: sendIt }, ctx) => {
+    const received = await sendIt.run({
       input: HttpRequest.get(`/users/${ctx.input}/repos`, {
         urlParams: { per_page: "100" },
       }),
@@ -53,7 +54,7 @@ const listRepos = operation({
 test("an endpoint resolves input, sends the built request, and reads the body", async () => {
   const seen: HttpRequest.Record[] = [];
   const scope = createScope({
-    tags: [backend(recording('[{"name":"a"}]', seen)), github.config({ baseUrl: "https://api" })],
+    tags: [backend(recording('[{"name":"a"}]', seen)), config({ baseUrl: "https://api" })],
   });
   const repos = await scope.run(listRepos, { input: "octocat" });
   expect(repos).toEqual(["a"]);
@@ -69,8 +70,8 @@ test("an endpoint without a response reader delivers the raw handle", async () =
   const marker = { marker: true };
   const raw = operation({
     label: "github.raw",
-    depends: { send: github.send },
-    run: ({ send }) => send.run({ input: HttpRequest.get("https://api/users") }),
+    depends: { send },
+    run: ({ send: sendIt }) => sendIt.run({ input: HttpRequest.get("https://api/users") }),
   });
   const headed: HttpClient.Backend = async (request) => {
     seen.push(request);
@@ -99,11 +100,11 @@ test("a composing operation hands a fresh token to one subflow call via tags", a
     run: ({ repos }, ctx) =>
       repos.run({
         input: ctx.input,
-        tags: [github.config({ headers: { authorization: "Bearer fresh" } })],
+        tags: [config({ headers: { authorization: "Bearer fresh" } })],
       }),
   });
   const scope = createScope({
-    tags: [backend(recording("[]", seen)), github.config({ baseUrl: "https://api" })],
+    tags: [backend(recording("[]", seen)), config({ baseUrl: "https://api" })],
   });
   await scope.run(authed, { input: "octocat" });
   expect(seen[seen.length - 1].headers["authorization"]).toBe("Bearer fresh");
@@ -118,13 +119,13 @@ test("a composing operation hands a fresh token to one subflow call via tags", a
 test("a json post travels through an endpoint and the backend sees the record", async () => {
   const seen: HttpRequest.Record[] = [];
   const scope = createScope({
-    tags: [backend(recording("ok", seen)), github.config({ baseUrl: "https://api" })],
+    tags: [backend(recording("ok", seen)), config({ baseUrl: "https://api" })],
   });
   const createIssue = operation({
     label: "github.createIssue",
-    depends: { send: github.send },
-    run: async ({ send }) => {
-      const received = await send.run({
+    depends: { send },
+    run: async ({ send: sendIt }) => {
+      const received = await sendIt.run({
         input: HttpRequest.post("/issues", { body: HttpRequest.bodyJson({ title: "t" }) }),
       });
       return received.text();
@@ -142,7 +143,7 @@ test("a json post travels through an endpoint and the backend sees the record", 
 test("put, patch, delete, head, and options travel through endpoints", async () => {
   const seen: HttpRequest.Record[] = [];
   const scope = createScope({
-    tags: [backend(recording("ok", seen)), github.config({ baseUrl: "https://api" })],
+    tags: [backend(recording("ok", seen)), config({ baseUrl: "https://api" })],
   });
   const verbs: [string, HttpRequest.Record][] = [
     ["PUT", HttpRequest.put("https://api/a")],
@@ -153,9 +154,9 @@ test("put, patch, delete, head, and options travel through endpoints", async () 
   ];
   for (const [verb, record] of verbs) {
     const endpoint = operation({
-      label: `${github.label}.${verb}`,
-      depends: { send: github.send },
-      run: ({ send }) => send.run({ input: record }),
+      label: `http.${verb}`,
+      depends: { send },
+      run: ({ send: sendIt }) => sendIt.run({ input: record }),
     });
     await scope.run(endpoint);
     expect(seen[seen.length - 1].method).toBe(verb);
@@ -166,13 +167,13 @@ test("put, patch, delete, head, and options travel through endpoints", async () 
 test("url-params bodies travel through endpoints", async () => {
   const seen: HttpRequest.Record[] = [];
   const scope = createScope({
-    tags: [backend(recording("ok", seen)), github.config({ baseUrl: "https://api" })],
+    tags: [backend(recording("ok", seen)), config({ baseUrl: "https://api" })],
   });
   const forms = operation({
     label: "github.forms",
-    depends: { send: github.send },
-    run: ({ send }) =>
-      send.run({
+    depends: { send },
+    run: ({ send: sendIt }) =>
+      sendIt.run({
         input: HttpRequest.post("https://api/form", {
           body: HttpRequest.bodyUrlParams({ q: "x" }),
         }),
@@ -186,15 +187,15 @@ test("url-params bodies travel through endpoints", async () => {
 test("form bodies travel through endpoints", async () => {
   const seen: HttpRequest.Record[] = [];
   const scope = createScope({
-    tags: [backend(recording("ok", seen)), github.config({ baseUrl: "https://api" })],
+    tags: [backend(recording("ok", seen)), config({ baseUrl: "https://api" })],
   });
   const form = new FormData();
   form.append("k", "v");
   const multipart = operation({
     label: "github.multipart",
-    depends: { send: github.send },
-    run: ({ send }) =>
-      send.run({
+    depends: { send },
+    run: ({ send: sendIt }) =>
+      sendIt.run({
         input: HttpRequest.post("https://api/multi", {
           body: HttpRequest.bodyFormData(form),
         }),
@@ -208,7 +209,7 @@ test("form bodies travel through endpoints", async () => {
 test("modify, appendUrl, and setHeader derive the record the backend sees", async () => {
   const seen: HttpRequest.Record[] = [];
   const scope = createScope({
-    tags: [backend(recording("ok", seen)), github.config({ baseUrl: "https://api" })],
+    tags: [backend(recording("ok", seen)), config({ baseUrl: "https://api" })],
   });
   const derived = HttpRequest.modify(
     HttpRequest.appendUrl(
@@ -223,8 +224,8 @@ test("modify, appendUrl, and setHeader derive the record the backend sees", asyn
   );
   const viaModify = operation({
     label: "github.viaModify",
-    depends: { send: github.send },
-    run: ({ send }) => send.run({ input: derived }),
+    depends: { send },
+    run: ({ send: sendIt }) => sendIt.run({ input: derived }),
   });
   await scope.run(viaModify);
   const sent = seen[seen.length - 1];
@@ -237,15 +238,15 @@ test("modify, appendUrl, and setHeader derive the record the backend sees", asyn
 test("setUrlParams replaces the pairs the backend sees", async () => {
   const seen: HttpRequest.Record[] = [];
   const scope = createScope({
-    tags: [backend(recording("ok", seen)), github.config({ baseUrl: "https://api" })],
+    tags: [backend(recording("ok", seen)), config({ baseUrl: "https://api" })],
   });
   const replaced = HttpRequest.setUrlParams(HttpRequest.get("/a", { urlParams: { p: "1" } }), {
     p: "2",
   });
   const viaParams = operation({
     label: "github.viaParams",
-    depends: { send: github.send },
-    run: ({ send }) => send.run({ input: replaced }),
+    depends: { send },
+    run: ({ send: sendIt }) => sendIt.run({ input: replaced }),
   });
   await scope.run(viaParams);
   expect(HttpRequest.toUrl(seen[seen.length - 1])).toBe("https://api/a?p=2");
@@ -254,22 +255,21 @@ test("setUrlParams replaces the pairs the backend sees", async () => {
 
 test("the frame filterStatus rejects a bad status before the response reader runs", async () => {
   const seen: HttpRequest.Record[] = [];
-  const strict = httpClient({ label: "strict", filterStatus: (status) => status < 300 });
+
   let readerCalls = 0;
   const strictRepos = operation({
     label: "strict.repos",
-    depends: { send: strict.send },
-    run: async ({ send }) => {
-      const received = await send.run({
+    depends: { send },
+    run: async ({ send: sendIt }) => {
+      const received = await sendIt.run({
         input: HttpRequest.get("https://api/repos"),
       });
       readerCalls += 1;
       return received.text();
     },
   });
-  const loose = httpClient({ label: "loose" });
   const scope = createScope({
-    tags: [backend(recording("nope", seen, 404)), strict.config({}), loose.config({})],
+    tags: [backend(recording("nope", seen, 404)), config({ accept: (status) => status < 300 })],
   });
   try {
     await scope.run(strictRepos);
@@ -285,14 +285,13 @@ test("the frame filterStatus rejects a bad status before the response reader run
 });
 
 test("without filterStatus a bad status arrives raw", async () => {
-  const loose = httpClient({ label: "loose" });
   const looseRepos = operation({
     label: "loose.repos",
-    depends: { send: loose.send },
-    run: ({ send }) => send.run({ input: HttpRequest.get("https://api/repos") }),
+    depends: { send },
+    run: ({ send: sendIt }) => sendIt.run({ input: HttpRequest.get("https://api/repos") }),
   });
   const scope = createScope({
-    tags: [backend(recording("nope", [], 404)), loose.config({})],
+    tags: [backend(recording("nope", [], 404))],
   });
   const raw = await scope.run(looseRepos);
   expect(raw.status).toBe(404);
@@ -303,9 +302,9 @@ test("filterStatusOk rejects a bad status inside a response reader", async () =>
   const scope = createScope({ tags: [backend(recording("x", [], 500))] });
   const broken = operation({
     label: "github.broken",
-    depends: { send: github.send },
-    run: async ({ send }) => {
-      const received = await send.run({
+    depends: { send },
+    run: async ({ send: sendIt }) => {
+      const received = await sendIt.run({
         input: HttpRequest.get("https://api/a"),
       });
       return HttpResponse.filterStatusOk(received);
@@ -325,9 +324,9 @@ test("matchStatus dispatches a received status to its class bucket", async () =>
   const scope = createScope({ tags: [backend(recording("x", [], 500))] });
   const open = operation({
     label: "github.open",
-    depends: { send: github.send },
-    run: async ({ send }) => {
-      const received = await send.run({
+    depends: { send },
+    run: async ({ send: sendIt }) => {
+      const received = await sendIt.run({
         input: HttpRequest.get("https://api/a"),
       });
       return HttpResponse.matchStatus(received, {
@@ -345,9 +344,9 @@ test("an exact status beats its class bucket and anything unmatched falls to orE
   const scope = createScope({ tags: [backend(recording("nf", [], 404))] });
   const open = operation({
     label: "github.open",
-    depends: { send: github.send },
-    run: async ({ send }) => {
-      const received = await send.run({
+    depends: { send },
+    run: async ({ send: sendIt }) => {
+      const received = await sendIt.run({
         input: HttpRequest.get("https://api/a"),
       });
       return HttpResponse.matchStatus(received, {
@@ -366,9 +365,9 @@ test("a throwing body reader rejects ResponseFailed/Decode", async () => {
   const boom = new Error("parse boom");
   const decode = operation({
     label: "github.decode",
-    depends: { send: github.send },
-    run: async ({ send }) => {
-      const received = await send.run({
+    depends: { send },
+    run: async ({ send: sendIt }) => {
+      const received = await sendIt.run({
         input: HttpRequest.get("https://api/a"),
       });
       return received.json(() => {
@@ -391,15 +390,15 @@ test("a throwing body reader rejects ResponseFailed/Decode", async () => {
 test("an empty body rejects ResponseFailed/EmptyBody", async () => {
   const empty = operation({
     label: "github.empty",
-    depends: { send: github.send },
-    run: async ({ send }) => {
-      const received = await send.run({
+    depends: { send },
+    run: async ({ send: sendIt }) => {
+      const received = await sendIt.run({
         input: HttpRequest.get("https://api/a"),
       });
       return received.json();
     },
   });
-  const hollow = createScope({ tags: [backend(recording("", [])), github.config({})] });
+  const hollow = createScope({ tags: [backend(recording("", [])), config({})] });
   try {
     await hollow.run(empty);
     expect.unreachable();
@@ -414,9 +413,9 @@ test("presetting the attempt swaps the transport", async () => {
   const seen: HttpRequest.Record[] = [];
   const recorded: HttpRequest.Record[] = [];
   const attemptScope = createScope({
-    tags: [backend(recording("[]", seen)), github.config({ baseUrl: "https://api" })],
+    tags: [backend(recording("[]", seen)), config({ baseUrl: "https://api" })],
     presets: [
-      preset(github.attempt, (_deps, ctx) => {
+      preset(attempt, (_deps, ctx) => {
         const request = ctx.input.request;
         recorded.push(request);
         return Promise.resolve(
@@ -434,7 +433,7 @@ test("presetting the attempt swaps the transport", async () => {
 test("presetting the endpoint short-circuits the transport", async () => {
   const seen: HttpRequest.Record[] = [];
   const endpointScope = createScope({
-    tags: [backend(recording("[]", seen)), github.config({ baseUrl: "https://api" })],
+    tags: [backend(recording("[]", seen)), config({ baseUrl: "https://api" })],
     presets: [preset(listRepos, () => Promise.resolve([]))],
   });
   expect(await endpointScope.run(listRepos, { input: "octocat" })).toEqual([]);
@@ -449,7 +448,7 @@ test("a forced close while an endpoint is parked aborts the run and settles canc
     });
   const scope = createScope({
     observe: { history: 20 },
-    tags: [backend(parking), github.config({ baseUrl: "https://api" })],
+    tags: [backend(parking), config({ baseUrl: "https://api" })],
   });
   const ends: Scope.End[] = [];
   const watching = operation({

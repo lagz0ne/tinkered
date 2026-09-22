@@ -2,15 +2,16 @@ import { readFileSync } from "node:fs";
 import { expect, test } from "vite-plus/test";
 import { createScope, operation } from "@tinker/core";
 import {
+  attempt,
   backend,
-  httpClient,
+  config,
   HttpRequest,
   HttpResponse,
   isError as isHttpError,
+  send,
   type HttpClient,
 } from "../src/index.ts";
 
-const chat = httpClient({ label: "chat" });
 
 /** Drain an `sse()` reader into an array. */
 async function readEvents(
@@ -90,9 +91,9 @@ test("an endpoint reader may return sse() and the operation delivers the recorde
   const recorded = readFileSync(new URL("./fixtures/chat-completions.sse", import.meta.url));
   const stream = operation({
     label: "chat.stream",
-    depends: { send: chat.send },
-    run: async ({ send }) => {
-      const received = await send.run({
+    depends: { send },
+    run: async ({ send: sendIt }) => {
+      const received = await sendIt.run({
         input: HttpRequest.post("https://api/chat", { body: HttpRequest.bodyText("{}") }),
       });
       return received.sse();

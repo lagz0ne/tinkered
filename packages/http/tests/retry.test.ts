@@ -1,23 +1,24 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, operation, makeTestClock } from "@tinker/core";
 import {
+  attempt,
   backend,
-  httpClient,
+  config,
   HttpRequest,
   HttpResponse,
   isError as isHttpError,
+  send,
   type HttpClient,
 } from "../src/index.ts";
 
-const flaky = httpClient({ label: "flaky", retry: { times: 2, delay: (n) => n * 1000 } });
-const retrying = httpClient({ label: "retrying", retry: { times: 2 } });
-const plain = httpClient({ label: "plain" });
+const flakyRetry = { times: 2, delay: (n: number) => n * 1000 };
+const retryingRetry = { times: 2 };
 
 const flakyText = operation({
   label: "flaky.text",
-  depends: { send: flaky.send },
-  run: async ({ send }) => {
-    const received = await send.run({
+  depends: { send },
+  run: async ({ send: sendIt }) => {
+    const received = await sendIt.run({
       input: HttpRequest.get("https://api/repos"),
     });
     return received.text();
@@ -26,9 +27,9 @@ const flakyText = operation({
 
 const retryingText = operation({
   label: "retrying.text",
-  depends: { send: retrying.send },
-  run: async ({ send }) => {
-    const received = await send.run({
+  depends: { send },
+  run: async ({ send: sendIt }) => {
+    const received = await sendIt.run({
       input: HttpRequest.get("https://api/repos"),
     });
     return received.text();
@@ -37,15 +38,15 @@ const retryingText = operation({
 
 const retryingRaw = operation({
   label: "retrying.raw",
-  depends: { send: retrying.send },
-  run: ({ send }) => send.run({ input: HttpRequest.get("https://api/missing") }),
+  depends: { send },
+  run: ({ send: sendIt }) => sendIt.run({ input: HttpRequest.get("https://api/missing") }),
 });
 
 const plainText = operation({
   label: "plain.text",
-  depends: { send: plain.send },
-  run: async ({ send }) => {
-    const received = await send.run({
+  depends: { send },
+  run: async ({ send: sendIt }) => {
+    const received = await sendIt.run({
       input: HttpRequest.get("https://api/repos"),
     });
     return received.text();
@@ -74,7 +75,7 @@ test("two failures then success waits 1s then 2s and leaves one span per attempt
   const scope = createScope({
     clock,
     observe: { history: 20 },
-    tags: [backend(failing)],
+    tags: [backend(failing), config({ retry: flakyRetry })],
   });
   const running = scope.run(flakyText);
   await until(() => calls === 1);
@@ -87,7 +88,7 @@ test("two failures then success waits 1s then 2s and leaves one span per attempt
   clock.advance(2000);
   expect(await running).toBe("[]");
   expect(calls).toBe(3);
-  const kids = scope.spans().filter((span) => span.name === "flaky.attempt");
+  const kids = scope.spans().filter((span) => span.name === "http.attempt");
   expect(kids.map((span) => span.attributes.attempt)).toEqual([1, 2, 3]);
   expect(kids.map((span) => span.status)).toEqual(["failed", "failed", "ok"]);
   await scope.close();
@@ -102,11 +103,11 @@ test("a 503 then a 200 resolves after one retry and the 503 span stays ok", asyn
   const scope = createScope({
     clock: makeTestClock({ now: 0 }),
     observe: { history: 20 },
-    tags: [backend(wobbly)],
+    tags: [backend(wobbly), config({ retry: retryingRetry })],
   });
   expect(await scope.run(retryingText)).toBe("back");
   expect(calls).toBe(2);
-  const kids = scope.spans().filter((span) => span.name === "retrying.attempt");
+  const kids = scope.spans().filter((span) => span.name === "http.attempt");
   expect(kids.length).toBe(2);
   expect(kids[0].status).toBe("ok");
   expect(kids[0].attributes.status).toBe(503);
@@ -119,7 +120,10 @@ test("a 404 is not retried and arrives raw", async () => {
     calls += 1;
     return HttpResponse.make(request, { status: 404, body: "nf" });
   };
-  const scope = createScope({ clock: makeTestClock({ now: 0 }), tags: [backend(missing)] });
+  const scope = createScope({
+    clock: makeTestClock({ now: 0 }),
+    tags: [backend(missing), config({ retry: retryingRetry })],
+  });
   const res = await scope.run(retryingRaw);
   expect(res.status).toBe(404);
   expect(await res.text()).toBe("nf");
@@ -134,7 +138,10 @@ test("closing during backoff rejects with the abort reason and makes no further 
     calls += 1;
     throw boom;
   };
-  const scope = createScope({ clock: makeTestClock({ now: 0 }), tags: [backend(failing)] });
+  const scope = createScope({
+    clock: makeTestClock({ now: 0 }),
+    tags: [backend(failing), config({ retry: flakyRetry })],
+  });
   const running = scope.run(flakyText);
   await until(() => calls === 1);
   await drain();

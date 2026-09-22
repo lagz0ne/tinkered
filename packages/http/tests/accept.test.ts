@@ -1,8 +1,7 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, operation } from "@tinker/core";
-import { backend, httpClient, HttpRequest, HttpResponse, type HttpClient } from "../src/index.ts";
+import { backend, config, HttpRequest, HttpResponse, send, type HttpClient } from "../src/index.ts";
 
-const github = httpClient({ label: "github" });
 
 /** A closure backend that records the request it was given and answers `body` at `status`. */
 function recording(body: string, seen: HttpRequest.Record[], status = 200): HttpClient.Backend {
@@ -16,11 +15,11 @@ test("acceptJson sets the accept header the backend sees", async () => {
   const seen: HttpRequest.Record[] = [];
   const call = operation({
     label: "github.call",
-    depends: { send: github.send },
-    run: ({ send }) => send.run({ input: HttpRequest.get("/a", { acceptJson: true }) }),
+    depends: { send },
+    run: ({ send: sendIt }) => sendIt.run({ input: HttpRequest.get("/a", { acceptJson: true }) }),
   });
   const scope = createScope({
-    tags: [backend(recording("ok", seen)), github.config({ baseUrl: "https://api" })],
+    tags: [backend(recording("ok", seen)), config({ baseUrl: "https://api" })],
   });
   await scope.run(call);
   expect(seen[seen.length - 1].headers["accept"]).toBe("application/json");
@@ -31,9 +30,9 @@ test("an explicit accept wins over acceptJson and modify keeps the other headers
   const seen: HttpRequest.Record[] = [];
   const call = operation({
     label: "github.call",
-    depends: { send: github.send },
-    run: ({ send }) =>
-      send.run({
+    depends: { send },
+    run: ({ send: sendIt }) =>
+      sendIt.run({
         input: HttpRequest.modify(
           HttpRequest.get("/a", { headers: { x: "1" }, accept: "text/x", acceptJson: true }),
           { headers: { y: "2" } },
@@ -41,7 +40,7 @@ test("an explicit accept wins over acceptJson and modify keeps the other headers
       }),
   });
   const scope = createScope({
-    tags: [backend(recording("ok", seen)), github.config({ baseUrl: "https://api" })],
+    tags: [backend(recording("ok", seen)), config({ baseUrl: "https://api" })],
   });
   await scope.run(call);
   const sent = seen[seen.length - 1];
