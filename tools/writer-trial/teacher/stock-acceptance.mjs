@@ -811,17 +811,24 @@ browser("browser loads form with initial text", async (page) => {
   return "Cable, East, West, 1";
 });
 
-const rowCells = (table, row) =>
-  table.locator("tbody tr").nth(row).locator("th, td").allInnerTexts();
+// Data cells only: the Moves table carries the Edit button in its own
+// trailing action cell, which is not one of the packet's data columns.
+const rowCells = (table, row, count) =>
+  table
+    .locator("tbody tr")
+    .nth(row)
+    .locator("th, td")
+    .allInnerTexts()
+    .then((cells) => cells.slice(0, count));
 
 browser("browser stock table shows four rows in order", async (page) => {
   await page.goto("http://127.0.0.1:5173");
   const table = page.getByRole("table", { name: "Stock" });
   await table.waitFor();
-  assert.deepStrictEqual(await rowCells(table, 0), ["Cable", "East", "8"]);
-  assert.deepStrictEqual(await rowCells(table, 1), ["Cable", "West", "2"]);
-  assert.deepStrictEqual(await rowCells(table, 2), ["Stand", "East", "3"]);
-  assert.deepStrictEqual(await rowCells(table, 3), ["Stand", "West", "1"]);
+  assert.deepStrictEqual(await rowCells(table, 0, 3), ["Cable", "East", "8"]);
+  assert.deepStrictEqual(await rowCells(table, 1, 3), ["Cable", "West", "2"]);
+  assert.deepStrictEqual(await rowCells(table, 2, 3), ["Stand", "East", "3"]);
+  assert.deepStrictEqual(await rowCells(table, 3, 3), ["Stand", "West", "1"]);
   assert.equal(await table.locator("tbody tr").count(), 4);
   return "four rows in order";
 });
@@ -834,7 +841,7 @@ browser("browser move appends one row in list order", async (page) => {
   await moves.getByRole("button", { name: "Edit move", exact: true }).waitFor();
   assert.equal(await moves.getByRole("button", { name: "Edit move", exact: true }).count(), 1);
   assert.equal(await moves.locator("tbody tr").count(), 1);
-  assert.deepStrictEqual(await rowCells(moves, 0), ["Cable", "East", "West", "1"]);
+  assert.deepStrictEqual(await rowCells(moves, 0, 4), ["Cable", "East", "West", "1"]);
   return "one move row with Edit move";
 });
 
@@ -873,16 +880,16 @@ browser("browser filter hides rows without deleting", async (page) => {
   const moves = page.getByRole("table", { name: "Moves" });
   await moves.getByRole("button", { name: "Edit move", exact: true }).nth(1).waitFor();
   await page.getByRole("button", { name: "Cable", exact: true }).click();
-  assert.deepStrictEqual(await rowCells(moves, 0), ["Cable", "East", "West", "1"]);
+  assert.deepStrictEqual(await rowCells(moves, 0, 4), ["Cable", "East", "West", "1"]);
   assert.equal(await moves.locator("tbody tr").count(), 1);
   const stock = page.getByRole("table", { name: "Stock" });
-  assert.deepStrictEqual(await rowCells(stock, 0), ["Cable", "East", "7"]);
-  assert.deepStrictEqual(await rowCells(stock, 1), ["Cable", "West", "3"]);
+  assert.deepStrictEqual(await rowCells(stock, 0, 3), ["Cable", "East", "7"]);
+  assert.deepStrictEqual(await rowCells(stock, 1, 3), ["Cable", "West", "3"]);
   await page.getByRole("button", { name: "All", exact: true }).click();
-  assert.deepStrictEqual(await rowCells(moves, 0), ["Cable", "East", "West", "1"]);
-  assert.deepStrictEqual(await rowCells(moves, 1), ["Stand", "East", "West", "1"]);
+  assert.deepStrictEqual(await rowCells(moves, 0, 4), ["Cable", "East", "West", "1"]);
+  assert.deepStrictEqual(await rowCells(moves, 1, 4), ["Stand", "East", "West", "1"]);
   await page.getByRole("button", { name: "Stand", exact: true }).click();
-  assert.deepStrictEqual(await rowCells(moves, 0), ["Stand", "East", "West", "1"]);
+  assert.deepStrictEqual(await rowCells(moves, 0, 4), ["Stand", "East", "West", "1"]);
   assert.equal(await moves.locator("tbody tr").count(), 1);
   return "filter hides, All restores";
 });
@@ -903,8 +910,8 @@ browser("browser switching rows drops unsaved text", async (page) => {
   assert.equal(await page.getByLabel("Edit from", { exact: true }).inputValue(), "East");
   assert.equal(await page.getByLabel("Edit to", { exact: true }).inputValue(), "West");
   assert.equal(await page.getByLabel("Edit quantity", { exact: true }).inputValue(), "2");
-  assert.deepStrictEqual(await rowCells(moves, 0), ["Cable", "East", "West", "1"]);
-  assert.deepStrictEqual(await rowCells(moves, 1), ["Stand", "East", "West", "2"]);
+  assert.deepStrictEqual(await rowCells(moves, 0, 4), ["Cable", "East", "West", "1"]);
+  assert.deepStrictEqual(await rowCells(moves, 1, 4), ["Stand", "East", "West", "2"]);
   return "second row replaces all unsaved text";
 });
 
@@ -931,8 +938,8 @@ browser("browser failed save keeps text, passing save clears notice", async (pag
   await page.getByRole("button", { name: "Save move", exact: true }).waitFor({ state: "hidden" });
   assert.equal(await noticeText(page), "");
   const stock = page.getByRole("table", { name: "Stock" });
-  assert.deepStrictEqual(await rowCells(stock, 0), ["Cable", "East", "6"]);
-  assert.deepStrictEqual(await rowCells(stock, 1), ["Cable", "West", "4"]);
+  assert.deepStrictEqual(await rowCells(stock, 0, 3), ["Cable", "East", "6"]);
+  assert.deepStrictEqual(await rowCells(stock, 1, 3), ["Cable", "West", "4"]);
   return "failure keeps text, success clears";
 });
 
@@ -953,12 +960,12 @@ browser("browser undo keeps filter and form text", async (page) => {
     .getByRole("button", { name: "Edit move", exact: true })
     .nth(1)
     .waitFor({ state: "hidden" });
-  assert.deepStrictEqual(await rowCells(moves, 0), ["Cable", "East", "West", "1"]);
+  assert.deepStrictEqual(await rowCells(moves, 0, 4), ["Cable", "East", "West", "1"]);
   assert.equal(await moves.locator("tbody tr").count(), 1);
   const stock = page.getByRole("table", { name: "Stock" });
-  assert.deepStrictEqual(await rowCells(stock, 0), ["Cable", "East", "7"]);
-  assert.deepStrictEqual(await rowCells(stock, 1), ["Cable", "West", "3"]);
-  assert.deepStrictEqual(await rowCells(stock, 2), ["Stand", "East", "3"]);
+  assert.deepStrictEqual(await rowCells(stock, 0, 3), ["Cable", "East", "7"]);
+  assert.deepStrictEqual(await rowCells(stock, 1, 3), ["Cable", "West", "3"]);
+  assert.deepStrictEqual(await rowCells(stock, 2, 3), ["Stand", "East", "3"]);
   assert.equal(await page.getByLabel("Item", { exact: true }).inputValue(), "typed text");
   assert.equal(
     await page.getByLabel("Edit quantity", { exact: true }).inputValue(),
@@ -977,9 +984,9 @@ browser("browser discard drops the draft and writes nothing", async (page) => {
   await page.getByRole("button", { name: "Discard move", exact: true }).click();
   await page.getByRole("button", { name: "Save move", exact: true }).waitFor({ state: "hidden" });
   const stock = page.getByRole("table", { name: "Stock" });
-  assert.deepStrictEqual(await rowCells(stock, 0), ["Cable", "East", "7"]);
-  assert.deepStrictEqual(await rowCells(stock, 1), ["Cable", "West", "3"]);
-  assert.deepStrictEqual(await rowCells(moves, 0), ["Cable", "East", "West", "1"]);
+  assert.deepStrictEqual(await rowCells(stock, 0, 3), ["Cable", "East", "7"]);
+  assert.deepStrictEqual(await rowCells(stock, 1, 3), ["Cable", "West", "3"]);
+  assert.deepStrictEqual(await rowCells(moves, 0, 4), ["Cable", "East", "West", "1"]);
   return "discard drops text";
 });
 
@@ -1067,7 +1074,7 @@ browser("browser two roots share no stock, form, or notice", async (page) => {
       .getByRole("table", { name: "Moves" })
       .getByRole("button", { name: "Edit move", exact: true })
       .waitFor();
-    await secondScope.getByRole("button", { name: "Stand", exact: true }).click();
+    await secondScope.getByLabel("Item", { exact: true }).fill("Stand");
     await secondScope.getByRole("button", { name: "Move stock", exact: true }).click();
     await secondScope
       .getByRole("table", { name: "Moves" })
@@ -1075,15 +1082,15 @@ browser("browser two roots share no stock, form, or notice", async (page) => {
       .nth(1)
       .waitFor();
     const secondMoves = secondScope.getByRole("table", { name: "Moves" });
-    assert.deepStrictEqual(await rowCells(secondMoves, 0), ["Cable", "East", "West", "1"]);
-    assert.deepStrictEqual(await rowCells(secondMoves, 1), ["Stand", "East", "West", "1"]);
+    assert.deepStrictEqual(await rowCells(secondMoves, 0, 4), ["Cable", "East", "West", "1"]);
+    assert.deepStrictEqual(await rowCells(secondMoves, 1, 4), ["Stand", "East", "West", "1"]);
     // The first root keeps its own initial stock, empty moves, initial
     // form text, and no notice.
     const firstStock = first.getByRole("table", { name: "Stock" });
-    assert.deepStrictEqual(await rowCells(firstStock, 0), ["Cable", "East", "8"]);
-    assert.deepStrictEqual(await rowCells(firstStock, 1), ["Cable", "West", "2"]);
-    assert.deepStrictEqual(await rowCells(firstStock, 2), ["Stand", "East", "3"]);
-    assert.deepStrictEqual(await rowCells(firstStock, 3), ["Stand", "West", "1"]);
+    assert.deepStrictEqual(await rowCells(firstStock, 0, 3), ["Cable", "East", "8"]);
+    assert.deepStrictEqual(await rowCells(firstStock, 1, 3), ["Cable", "West", "2"]);
+    assert.deepStrictEqual(await rowCells(firstStock, 2, 3), ["Stand", "East", "3"]);
+    assert.deepStrictEqual(await rowCells(firstStock, 3, 3), ["Stand", "West", "1"]);
     assert.equal(await first.getByRole("table", { name: "Moves" }).locator("tbody tr").count(), 0);
     assert.equal(await first.getByLabel("Item", { exact: true }).inputValue(), "Cable");
     assert.equal(await first.getByLabel("From", { exact: true }).inputValue(), "East");
