@@ -4,7 +4,12 @@ import { THEMES, type ThemeId } from "@/lib/themes.ts";
 
 /** The build/runtime status shown in the bottom bar; `ms` is the last compile's duration. */
 export type Status = { kind: "ok" | "error" | "info"; text: string; ms?: number };
-export type View = "editor" | "bench";
+/** A top-level view: the game (default), the code editor, or the benchmark. `play` renders the
+ * preview edge to edge; `editor` keeps the same mounted iframe underneath a code overlay. */
+export type View = "play" | "editor" | "bench";
+/** How the stage is shown: in the shell window, pinned over everything (fit fallback), or native
+ * full screen. */
+export type Mode = "window" | "fit" | "native";
 
 /** A session as it is stored. `dirty` marks files the user changed; without it a stored session
  * yields to the current default example, so a new starter reaches returning visitors. */
@@ -58,8 +63,10 @@ export const filesCell = data<PlaygroundFile[]>({ label: "files", initial: [...D
 export const activeCell = data<string>({ label: "active", initial: ENTRY });
 /** The selected CodeMirror theme. */
 export const themeCell = data<ThemeId>({ label: "theme", initial: "github-light" });
-/** Which top-level view is showing: the editor or the benchmark. */
-export const viewCell = data<View>({ label: "view", initial: "editor" });
+/** Which top-level view is showing: the game, the code editor, or the benchmark. */
+export const viewCell = data<View>({ label: "view", initial: "play" });
+/** The stage's display mode; `fit` and `native` hide the shell chrome. */
+export const modeCell = data<Mode>({ label: "mode", initial: "window" });
 /** True once the user has changed a file (content, add, close, rename); reset clears it. */
 export const dirtyCell = data<boolean>({ label: "dirty", initial: false });
 /** The latest build/runtime status. */

@@ -3,7 +3,9 @@
  * The iframe is same-origin (so the vendor bundles load with no CORS), and an import map points every
  * bare specifier at a self-hosted vendor bundle — one shared React, one shared engine. A `<base>`
  * tag makes the absolute vendor paths resolve against this origin even though the document is
- * injected via `srcdoc`. Uncaught errors are posted back to the parent for the status line. */
+ * injected via `srcdoc`. The document stays out of the way: edge-to-edge, no padding or base
+ * element styles, so an app like the tile game can own the full page. Uncaught errors are posted
+ * back to the parent for the status line. */
 export function previewDocument(compiledJs: string): string {
   const origin = location.origin;
   const importMap = {
@@ -20,14 +22,13 @@ export function previewDocument(compiledJs: string): string {
 <html>
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <base href="${origin}/" />
     <style>
-      :root { color-scheme: light; }
-      body { font: 15px/1.55 ui-sans-serif, system-ui, sans-serif; margin: 0; padding: 24px; color: #18181b; background: #fff; }
-      button { font: inherit; padding: 6px 12px; margin: 4px 4px 4px 0; border-radius: 8px;
-        border: 1px solid #e4e4e7; background: #fafafa; cursor: pointer; transition: background .15s ease; }
-      button:hover { background: #f4f4f5; }
-      h1 { font-size: 1.4rem; font-weight: 650; letter-spacing: -0.01em; }
+      :root { color-scheme: dark; }
+      html, body { margin: 0; min-height: 100%; }
+      body { font: 15px/1.55 ui-sans-serif, system-ui, sans-serif; color: #e6f4f1;
+        background: #04101f; overflow-x: hidden; }
     </style>
     <script type="importmap">${JSON.stringify(importMap)}</script>
     <script>
@@ -35,6 +36,9 @@ export function previewDocument(compiledJs: string): string {
       window.onerror = function (msg, _src, _line, _col, err) { send((err && err.stack) || msg); };
       window.addEventListener("unhandledrejection", function (ev) {
         send((ev.reason && ev.reason.stack) || ev.reason);
+      });
+      window.addEventListener("keydown", function (ev) {
+        if (ev.key === "Escape") parent.postMessage({ __pg: "escape" }, "*");
       });
     </script>
   </head>

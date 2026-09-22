@@ -1,7 +1,7 @@
-import { useData, useRun } from "@tinker/react";
-import { BarChart3, Code2, RotateCcw } from "lucide-react";
-import { lazy, Suspense, useRef, useSyncExternalStore } from "react";
-import type { ReactElement } from "react";
+import { useData, useResource, useRun } from "@tinker/react";
+import { BarChart3, Code2, Gamepad2, Maximize, Minimize2, RotateCcw } from "lucide-react";
+import { lazy, Suspense, useRef } from "react";
+import type { RefObject, ReactElement } from "react";
 import {
   addFile,
   closeFile,
@@ -16,11 +16,6 @@ import { Editor } from "@/components/Editor.tsx";
 import { FileTabs } from "@/components/FileTabs.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable.tsx";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -28,12 +23,14 @@ import {
   SelectValue,
 } from "@/components/ui/select.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.tsx";
+import { immersive } from "@/lib/fullscreen.ts";
 import { previewDocument } from "@/lib/preview.ts";
 import { THEMES } from "@/lib/themes.ts";
 import {
   activeCell,
   bundleCell,
   filesCell,
+  modeCell,
   statusCell,
   themeCell,
   type View,
@@ -57,9 +54,10 @@ function ViewToggle(): ReactElement {
       type="button"
       onClick={() => select.run({ input: v })}
       aria-label={label}
+      aria-pressed={view === v}
       title={label}
       className={
-        "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors " +
+        "flex min-h-11 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring " +
         (view === v
           ? "bg-background text-foreground shadow-sm"
           : "text-muted-foreground hover:text-foreground")
@@ -71,24 +69,11 @@ function ViewToggle(): ReactElement {
   );
   return (
     <div className="flex items-center gap-0.5 rounded-lg bg-muted p-0.5">
-      {item("editor", "Editor", Code2)}
+      {item("play", "Play", Gamepad2)}
+      {item("editor", "Code", Code2)}
       {item("bench", "Benchmark", BarChart3)}
     </div>
   );
-}
-
-const MOBILE = "(max-width: 767px)";
-/** Phones stack editor over preview; wider screens sit them side by side. */
-function useLayoutDirection(): "horizontal" | "vertical" {
-  const mobile = useSyncExternalStore(
-    (onChange) => {
-      const m = matchMedia(MOBILE);
-      m.addEventListener("change", onChange);
-      return () => m.removeEventListener("change", onChange);
-    },
-    () => matchMedia(MOBILE).matches,
-  );
-  return mobile ? "vertical" : "horizontal";
 }
 
 /** Reads the active file's content and the theme. Its own keystrokes do NOT re-render it: the
@@ -111,16 +96,21 @@ function EditorPane(): ReactElement {
   return <Editor value={content} onChange={onChange} theme={theme} />;
 }
 
-/** The last bundle, as a document. Subscribes to the bundle only: a tab or theme switch never
- * touches a running preview; a new bundle is a new document. */
+/** THE one preview iframe for the whole shell: mounted for every view, its `srcDoc` driven only by
+ * the bundle cell — switching to Code, Benchmark, or full screen never remounts it or resets the
+ * running game. Views that are not Play simply cover it with an overlay, and `inert` takes the
+ * covered game out of the tab order and out of assistive tech while it cannot be seen. */
 function Preview(): ReactElement {
   const bundle = useData(bundleCell);
+  const view = useData(viewCell);
+  const covered = view !== "play";
   return (
     <iframe
       title="Live preview"
       sandbox="allow-scripts allow-same-origin"
-      className="h-full w-full border-0 bg-white"
+      className="absolute inset-0 h-full w-full border-0 bg-[#04101f]"
       srcDoc={bundle === undefined ? "" : previewDocument(bundle)}
+      inert={covered}
     />
   );
 }
@@ -194,7 +184,13 @@ function ResetButton(): ReactElement {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button variant="ghost" size="icon-sm" onClick={() => run.run()} aria-label="Reset">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-11"
+          onClick={() => run.run()}
+          aria-label="Reset"
+        >
           <RotateCcw />
         </Button>
       </TooltipTrigger>
@@ -203,10 +199,30 @@ function ResetButton(): ReactElement {
   );
 }
 
-function BottomBar(): ReactElement {
+function FullscreenButton(props: { stage: RefObject<HTMLDivElement | null> }): ReactElement {
+  const handle = useResource(immersive);
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-11"
+          onClick={() => handle.enter(props.stage.current)}
+          aria-label="Full screen"
+        >
+          <Maximize />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>Full screen — the game alone, edge to edge</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function BottomBar(props: { stage: RefObject<HTMLDivElement | null> }): ReactElement {
   const view = useData(viewCell);
   return (
-    <div className="flex h-11 shrink-0 items-center gap-3 border-t bg-background/80 px-3 backdrop-blur">
+    <div className="shell-chrome flex h-12 shrink-0 items-center gap-3 border-t bg-background/80 px-3 backdrop-blur">
       <span className="hidden text-xs font-semibold tracking-tight text-muted-foreground sm:inline">
         tinkered
       </span>
@@ -224,16 +240,23 @@ function BottomBar(): ReactElement {
             <ResetButton />
           </>
         )}
+        {view === "play" && <FullscreenButton stage={props.stage} />}
       </div>
     </div>
   );
 }
 
-function BenchOverlay(): ReactElement | null {
-  const view = useData(viewCell);
-  if (view !== "bench") return null;
+function CodeOverlay(): ReactElement {
   return (
-    <div className="absolute inset-0 bg-background">
+    <div className="absolute inset-0 z-10 bg-background">
+      <EditorPane />
+    </div>
+  );
+}
+
+function BenchOverlay(): ReactElement {
+  return (
+    <div className="absolute inset-0 z-10 bg-background">
       <Suspense
         fallback={
           <div className="grid h-full place-items-center text-sm text-muted-foreground">
@@ -247,24 +270,51 @@ function BenchOverlay(): ReactElement | null {
   );
 }
 
-/** The layout reads no cell at all. */
-export function App(): ReactElement {
-  const direction = useLayoutDirection();
+/** The visible way out of full screen: floats over the stage in both the native and the fit
+ * fallback mode; Escape also clears the fit pin (the browser handles native Escape itself). */
+function ExitImmersive(props: { onExit: () => void }): ReactElement | null {
+  const mode = useData(modeCell);
+  if (mode === "window") return null;
   return (
-    <div className="flex h-full flex-col">
-      <div className="relative min-h-0 flex-1">
-        <ResizablePanelGroup key={direction} direction={direction} className="h-full">
-          <ResizablePanel defaultSize={50} minSize={25}>
-            <EditorPane />
-          </ResizablePanel>
-          <ResizableHandle />
-          <ResizablePanel defaultSize={50} minSize={25}>
-            <Preview />
-          </ResizablePanel>
-        </ResizablePanelGroup>
-        <BenchOverlay />
-      </div>
-      <BottomBar />
+    <button
+      type="button"
+      onClick={props.onExit}
+      aria-label="Exit full screen"
+      title="Exit full screen (Esc)"
+      className="absolute right-3 top-3 z-20 flex size-11 items-center justify-center rounded-full border bg-background/80 text-foreground shadow-md backdrop-blur transition-colors hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+    >
+      <Minimize2 className="size-4" />
+    </button>
+  );
+}
+
+/** The stage holds the mounted iframe plus, per view, one overlay. In native full screen THIS is
+ * the element the browser fills; in fit mode the stylesheet pins it over the shell. */
+function Stage(props: {
+  stage: RefObject<HTMLDivElement | null>;
+  onExit: () => void;
+}): ReactElement {
+  const view = useData(viewCell);
+  return (
+    <div ref={props.stage} data-stage className="relative min-h-0 flex-1">
+      <Preview />
+      {view === "editor" && <CodeOverlay />}
+      {view === "bench" && <BenchOverlay />}
+      <ExitImmersive onExit={props.onExit} />
+    </div>
+  );
+}
+
+/** Reads the mode only to label the shell for the stylesheet: fit mode hides the chrome and pins
+ * the stage; native mode is the browser's to draw. */
+export function App(): ReactElement {
+  const mode = useData(modeCell);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const handle = useResource(immersive);
+  return (
+    <div className="flex h-full flex-col" data-mode={mode}>
+      <BottomBar stage={stageRef} />
+      <Stage stage={stageRef} onExit={() => handle.exit()} />
     </div>
   );
 }

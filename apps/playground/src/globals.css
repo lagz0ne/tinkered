@@ -73,6 +73,17 @@
   }
 }
 
+/* Full screen fit fallback: the shell chrome steps aside and the stage pins over everything.
+ * Native full screen needs no CSS — the browser fills the viewport with the stage itself. */
+[data-mode="fit"] .shell-chrome {
+  display: none;
+}
+[data-mode="fit"] [data-stage] {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}
+
 /* CodeMirror should fill its pane and read cleanly. */
 .cm-editor {
   height: 100%;

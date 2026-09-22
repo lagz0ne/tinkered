@@ -119,7 +119,7 @@ export const setTheme = operation({
 export const setView = operation({
   label: "setView",
   input: (raw): View =>
-    raw === "editor" || raw === "bench"
+    raw === "play" || raw === "editor" || raw === "bench"
       ? raw
       : raise("InvalidInput", { operation: "setView", reason: "unknown view" }),
   depends: { view: viewCell.controller },
