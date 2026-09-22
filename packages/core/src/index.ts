@@ -1451,6 +1451,7 @@ function addWatcherNs(
     ws: new Set<Watcher>(),
     notified: readCell(layer, target, [key]),
   };
+  if (entry.ws.size === 0) entry.notified = readCell(layer, target, [key]);
   map.set(key, entry);
   const w: Watcher = { fn };
   entry.ws.add(w);

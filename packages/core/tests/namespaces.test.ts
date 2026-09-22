@@ -239,6 +239,21 @@ test("invalid input rejects before dependencies build", () => {
   return scope.close();
 });
 
+test("a re-registered named watcher refreshes its comparison value", () => {
+  const named = namespace();
+  const cell = data({ label: "cell", initial: 0, parse: asNumber });
+  const scope = createScope();
+  const ctl = scope.controller(cell, { ns: named });
+  const stop = ctl.watch(() => undefined);
+  stop();
+  ctl.set(2);
+  const seen: [number, number][] = [];
+  ctl.watch((next, prev) => seen.push([next, prev]));
+  ctl.set(0);
+  expect(seen).toEqual([[0, 2]]);
+  return scope.close();
+});
+
 test("an empty namespace chain is rejected", () => {
   const cell = data({ label: "cell", initial: 0, parse: asNumber });
   const scope = createScope();
