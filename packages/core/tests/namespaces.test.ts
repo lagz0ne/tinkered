@@ -450,3 +450,23 @@ test("a non-namespace ns value is a loud error, not a silent key", () => {
   expect(isError(error, "InvalidDependency")).toBe(true);
   return scope.close();
 });
+
+test("a watcher that writes during notify does not rob a later watcher of its change", async () => {
+  const a = namespace();
+  const cell = data<number>({ label: "reentrant", initial: 0 });
+  const scope = createScope();
+  scope.controller(cell, { ns: a }).set(1);
+  const seen2: [number, number][] = [];
+  // two watchers on the SAME bucket; the first re-writes on seeing 2, the second must still be told 1->2
+  scope.controller(cell, { ns: a }).watch((next) => {
+    if (next === 2) scope.controller(cell, { ns: a }).set(0);
+  });
+  scope.controller(cell, { ns: a }).watch((next, prev) => seen2.push([prev, next]));
+  scope.controller(cell, { ns: a }).set(2);
+  // the second watcher must see 1->2 (not miss it or see 1->0), then the re-write's own round 2->0
+  expect(seen2).toEqual([
+    [2, 0],
+    [1, 2],
+  ]);
+  await scope.close();
+});

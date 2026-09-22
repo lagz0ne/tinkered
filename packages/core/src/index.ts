@@ -1271,13 +1271,26 @@ function ownNsCell(layer: Layer, target: Data.Cell<unknown>, key: Namespace, see
 function flushNsWatchers(layer: Layer, target: Data.Cell<unknown>): void {
   const watchers = layer.nodes.get(target)?.nsWatchers;
   if (watchers === undefined || watchers.size === 0) return;
+  const pending = pendingNsWatchers(layer, target, watchers);
+  if (pending) for (const p of pending) p.fn(p.next, p.prev);
+}
+
+/** Snapshot the changed watchers BEFORE any callback fires: read and record each watcher's new value
+ * so a callback that writes this cell cannot change what a later watcher in this round observes. */
+function pendingNsWatchers(
+  layer: Layer,
+  target: Data.Cell<unknown>,
+  watchers: Set<NsWatcher>,
+): { fn: (n: unknown, p: unknown) => void; next: unknown; prev: unknown }[] | undefined {
+  let pending: { fn: (n: unknown, p: unknown) => void; next: unknown; prev: unknown }[] | undefined;
   for (const watcher of watchers) {
     const next = readCell(layer, target, watcher.chain);
     const prev = watcher.notified;
     if (cellEq(target, prev, next)) continue;
     watcher.notified = next;
-    watcher.fn(next, prev);
+    (pending ??= []).push({ fn: watcher.fn, next, prev });
   }
+  return pending;
 }
 
 /** The last value of a tag list (its nearest binding), or undefined for an absent/empty list. */
