@@ -517,3 +517,17 @@ Round 3 agent IDs:
 - `xiaomi/mimo-v2.6-pro`: `394002e9-b627-453e-a980-88ad4fdfa465`.
 - `zai/glm-5.3-flash`: `f77d7642-6118-4667-a86f-66ba096e9608`.
 - `deepseek/deepseek-v4.1-flash`: `a60e42a3-de4f-4d23-a057-941d080d3797`.
+
+### Round 3: DeepSeek checked
+
+DeepSeek's saved code passes the teacher's sampled core and
+browser checks for all three rounds, including all-or-none
+series booking and canceling one or every occurrence.
+Direct public checks in a separate container also pass:
+type check, 50 tests, and build all exit 0.
+It used Jev five times and explained a pure-helper finding.
+
+Source grew from 662 to 885 lines; tests from 798 to 1,234 lines.
+[Saved result](trial-01-round-3-deepseek.json).
+The other three round-3 writers have not sent completion notices.
+Round 4 is not staged yet.

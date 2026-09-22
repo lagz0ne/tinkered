@@ -1,0 +1,24 @@
+{
+  "round": 3,
+  "phase": "completion",
+  "worker": 4,
+  "teacherVersion": 2,
+  "exitCode": 0,
+  "core": "pass",
+  "browser": "pass",
+  "sourceLines": 885,
+  "testLines": 1234,
+  "tokens": 654222,
+  "estimatedDollars": 0.070885202,
+  "turns": 17,
+  "stopReason": "stop",
+  "jevRequests": 5,
+  "jevTokens": null,
+  "jevDollars": null,
+  "publicDirect": {
+    "typecheck": 0,
+    "tests": 0,
+    "testsPassed": 50,
+    "build": 0
+  }
+}
