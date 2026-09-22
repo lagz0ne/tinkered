@@ -33,7 +33,7 @@ type Press = { x: number; y: number };
  * `scope.run(press, { input: { x, y } })` then reading the `waves` cell. The id is derived from the
  * list and the ambient clock. No counters, no globals. The parser is the door: it admits the one
  * shape a press has; anything else is refused with `BadPress`, which reaches the caller as core's
- * DataValidationFailed carrying it as the cause. */
+ * DataValidationFailed carrying it as the cause. Returns the hue it dealt. */
 export const press = operation({
   label: "press",
   input: (raw): Press => {
@@ -43,17 +43,13 @@ export const press = operation({
   },
   depends: { waves: waves.controller, random: random.required },
   run: ({ waves, random: roll }, { input, clock }) => {
+    const hue = Math.floor(roll() * 360);
     const start = clock.currentTimeMillis();
     waves.update((list) => [
       ...list,
-      {
-        id: (list.at(-1)?.id ?? 0) + 1,
-        x: input.x,
-        y: input.y,
-        hue: Math.floor(roll() * 360),
-        start,
-      },
+      { id: (list.at(-1)?.id ?? 0) + 1, x: input.x, y: input.y, hue, start },
     ]);
+    return hue;
   },
 });
 

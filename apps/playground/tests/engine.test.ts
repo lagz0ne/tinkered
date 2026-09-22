@@ -26,21 +26,19 @@ import {
 function frameQueue(): { frames: Frames; pump: () => void; pending: () => number } {
   let next = 1;
   const due = new Map<number, () => void>();
-  return {
-    frames: {
-      request: (cb) => {
-        due.set(next, cb);
-        return next++;
-      },
-      cancel: (id) => due.delete(id),
+  const frames: Frames = {
+    request: (cb) => {
+      due.set(next, cb);
+      return next++;
     },
-    pump: () => {
-      const run = [...due.values()];
-      due.clear();
-      for (const cb of run) cb();
-    },
-    pending: () => due.size,
+    cancel: (id) => due.delete(id),
   };
+  const pump = () => {
+    const run = [...due.values()];
+    due.clear();
+    for (const cb of run) cb();
+  };
+  return { frames, pump, pending: () => due.size };
 }
 
 const START = 1000;
@@ -75,7 +73,8 @@ test("a press lifts the tile it hits, and the lift moves outward", () => {
   queue.pump();
   expect(shades()[4].z).toBe(0);
 
-  scope.run(press, { input: { x: 1, y: 1 } });
+  const hue = scope.run(press, { input: { x: 1, y: 1 } });
+  expect(hue).toBe(0);
   clock.advance(300);
   queue.pump();
   expect(shades()[4].z).toBeGreaterThan(0);
@@ -130,10 +129,27 @@ test("the storm presses a tile every stormRate, and setStorm false stops it", ()
   expect(scope.resolve(waves)).toHaveLength(2);
 });
 
+test("raising stormRate mid-flight delays the next storm press", () => {
+  const { scope, clock, queue } = game();
+  scope.run(setStorm, { input: true });
+  clock.advance(400);
+  queue.pump();
+  expect(scope.resolve(waves)).toHaveLength(1);
+
+  scope.run(setPhysics, { input: { stormRate: 1200 } });
+  clock.advance(400);
+  queue.pump();
+  expect(scope.resolve(waves)).toHaveLength(1);
+
+  clock.advance(800);
+  queue.pump();
+  expect(scope.resolve(waves)).toHaveLength(2);
+});
+
 test("each turn rotates the board a quarter turn and lands on its target", () => {
   const { scope, clock, queue } = game();
   queue.pump();
-  for (let quarter = 0; quarter < 4; quarter++) {
+  for (let quarter = 0; quarter < 5; quarter++) {
     scope.run(turn, { input: -1 });
     clock.advance(100);
     queue.pump();
@@ -146,7 +162,7 @@ test("each turn rotates the board a quarter turn and lands on its target", () =>
     queue.pump();
     expect(scope.resolve(angle)).toBe(target);
   }
-  expect(scope.resolve(targetAngle)).toBe(-360);
+  expect(scope.resolve(targetAngle)).toBe(-450);
 });
 
 test("clear empties the waves and stops the storm", () => {
@@ -182,10 +198,22 @@ test("closing the scope cancels the frame loop and stops the writes", async () =
   expect(painted.get()).toBe(after);
 });
 
-test("bad presses and settings are refused with a registry error", () => {
+test("a press without two numbers is refused with BadPress", () => {
   const { scope } = game();
   refused("BadPress", () => scope.run(press, { rawInput: { x: 1 } }));
+});
+
+test("a physics setting without a number is refused with BadPhysics", () => {
+  const { scope } = game();
   refused("BadPhysics", () => scope.run(setPhysics, { rawInput: { speed: "fast" } }));
+});
+
+test("a storm switch without a boolean is refused with BadStorm", () => {
+  const { scope } = game();
   refused("BadStorm", () => scope.run(setStorm, { rawInput: "on" }));
+});
+
+test("a turn without -1 or 1 is refused with BadTurn", () => {
+  const { scope } = game();
   refused("BadTurn", () => scope.run(turn, { rawInput: 90 }));
 });
