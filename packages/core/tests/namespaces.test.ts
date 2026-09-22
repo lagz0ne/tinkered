@@ -323,6 +323,29 @@ test("a resource chain reuses its fallback then switches to a nearer warm bucket
   return scope.close();
 });
 
+test("a sync-failed named bucket is not filled by a sibling chain", () => {
+  const tenant = tag<string>({ label: "tenant" });
+  const a = namespace({ tags: [tenant("A")] });
+  const b = namespace({ tags: [tenant("B")] });
+  let fail = true;
+  const client = resource({
+    label: "c",
+    target: "session",
+    depends: { tenant },
+    factory: ({ tenant }) => {
+      if (tenant === "B" && fail) {
+        fail = false;
+        throw new Error("bad");
+      }
+      return tenant;
+    },
+  });
+  const scope = createScope();
+  expect(() => scope.resolve(client, { ns: b })).toThrow();
+  expect(scope.resolve(client, { ns: [a, b] })).toBe("A");
+  expect(scope.resolve(client, { ns: b })).toBe("B");
+});
+
 test("a named resource dependency reads a nearer default before a farther named entry", () => {
   const a = namespace();
   const b = namespace();

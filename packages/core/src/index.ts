@@ -2636,9 +2636,16 @@ function selectNsResource(
   return selectBucket(
     owner,
     chain,
-    (layer, key) => (layer === owner ? layer.nodes.get(target)?.nsResources?.get(key) : undefined),
+    (layer, key) => {
+      const state = layer === owner ? layer.nodes.get(target)?.nsResources?.get(key) : undefined;
+      return state && occupiedNsResource(state) ? state : undefined;
+    },
     () => undefined,
   );
+}
+
+function occupiedNsResource(state: NsResourceState): boolean {
+  return Boolean(state.resource || state.build || state.failed || state.building);
 }
 
 function ownNsResource(
