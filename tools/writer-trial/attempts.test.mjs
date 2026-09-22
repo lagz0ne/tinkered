@@ -7,11 +7,13 @@ import { join, basename } from "node:path";
 import {
   attemptDir,
   checkerFor,
+  checkName,
   cleanupReady,
   claimAttemptDir,
   feedbackEventsPath,
   latestAttempt,
   nextAttempt,
+  nextCheckSeq,
 } from "./attempts.mjs";
 
 void describe("checker routing", () => {
@@ -86,5 +88,11 @@ void describe("cleanup gate", () => {
     assert.throws(() => cleanupReady(workers, 1), /worker\(s\): 2/);
     workers[1].attempts.push({ round: 1, archive: "c.tar" });
     assert.equal(cleanupReady(workers, 1), true);
+  });
+
+  void it("names repeat check folders without reuse", () => {
+    assert.equal(checkName(1), "check-1");
+    assert.equal(nextCheckSeq(undefined), 1);
+    assert.equal(nextCheckSeq([{ seq: 1 }, { seq: 2 }]), 3);
   });
 });

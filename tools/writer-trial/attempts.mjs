@@ -7,12 +7,15 @@ import { join } from "node:path";
 // Booking rounds 1-3 use the round runner.
 // Round 4 adds repair acceptance; round 5 uses transfer.
 // Stock uses the new stock entry (may not exist yet).
+const bookingChecker = (round) => {
+  if ([1, 2, 3].includes(round)) return { script: "evaluate.mjs", args: [String(round)] };
+  if (round === 4) return { script: "acceptance.mjs", args: ["repair"] };
+  if (round === 5) return { script: "acceptance.mjs", args: ["transfer"] };
+  throw new Error(`No checker for suite booking round ${round}`);
+};
+
 export const checkerFor = (suite, round) => {
-  if (suite === "booking" && [1, 2, 3].includes(round))
-    return { script: "evaluate.mjs", args: [String(round)] };
-  if (suite === "booking" && round === 4) return { script: "acceptance.mjs", args: ["repair"] };
-  if (suite === "booking" && round === 5)
-    return { script: "acceptance.mjs", args: ["transfer"] };
+  if (suite === "booking") return bookingChecker(round);
   if (suite === "stock" && round === 1) return { script: "stock-acceptance.mjs", args: [] };
   throw new Error(`No checker for suite ${suite} round ${round}`);
 };
@@ -54,3 +57,7 @@ export const cleanupReady = (workers, round) => {
     throw new Error(`Save the current attempt first for worker(s): ${missing.join(", ")}`);
   return true;
 };
+
+// Named check results: every repeat gets a new folder, never a reuse.
+export const checkName = (seq) => `check-${seq}`;
+export const nextCheckSeq = (checks) => (checks ?? []).length + 1;
