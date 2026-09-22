@@ -319,6 +319,32 @@ test("invalid input leaves no namespace resource bucket behind", async () => {
   expect(ended).toEqual(["B:released", "A:success"]);
 });
 
+test("a failed named resource build leaves no fallback bucket behind", async () => {
+  const tenant = tag<string>({ label: "tenant" });
+  const a = namespace({ tags: [tenant("A")] });
+  const b = namespace({ tags: [tenant("B")] });
+  let failB = true;
+  const client = resource({
+    label: "client",
+    target: "session",
+    depends: { tenant },
+    factory: ({ tenant }) => {
+      if (tenant === "B" && failB) {
+        failB = false;
+        throw new Error("failed build");
+      }
+      return tenant;
+    },
+  });
+  const scope = createScope();
+  try {
+    scope.resolve(client, { ns: b });
+  } catch {}
+  expect(scope.resolve(client, { ns: [a, b] })).toBe("A");
+  expect(scope.resolve(client, { ns: b })).toBe("B");
+  await scope.close();
+});
+
 test("a session-target resource builds once in each namespace and reuses its warm bucket", () => {
   const a = namespace();
   const b = namespace();

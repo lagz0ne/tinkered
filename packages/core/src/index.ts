@@ -2569,12 +2569,23 @@ function buildResource<T>(
     );
   } catch (error) {
     settled = true;
-    if (!superseded()) detachResource(owner, target, rec);
+    if (!superseded()) dropFailedResource(owner, target, rec);
     closeSpan(obs, span, "failed");
     throw error;
   } finally {
     buildDepth--;
     rec.building = false;
+  }
+}
+
+function dropFailedResource(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  state: ResourceState,
+): void {
+  detachResource(owner, target, state);
+  if (state instanceof NsResourceState) {
+    owner.nodes.get(target)?.nsResources?.delete(state.key);
   }
 }
 
