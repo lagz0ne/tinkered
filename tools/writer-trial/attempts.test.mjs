@@ -1,19 +1,23 @@
 // Attempt bookkeeping. No docker, no Paseo, no network.
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, basename } from "node:path";
 import {
   attemptDir,
   checkerFor,
   checkName,
-  cleanupReady,
   claimAttemptDir,
+  claimLock,
+  cleanupReady,
   feedbackEventsPath,
   latestAttempt,
+  lockPathFor,
   nextAttempt,
   nextCheckSeq,
+  pendingFor,
+  planSave,
 } from "./attempts.mjs";
 
 void describe("checker routing", () => {
@@ -82,11 +86,12 @@ void describe("overwrite refusal", () => {
 void describe("cleanup gate", () => {
   void it("fails until every worker has a saved archive", () => {
     const workers = [
-      { attempts: [{ round: 1, archive: "a.tar" }] },
-      { attempts: [{ round: 2, archive: "b.tar" }] },
+      { status: "saved", attempts: [{ round: 1, archive: "a.tar" }] },
+      { status: "staged", attempts: [{ round: 2, archive: "b.tar" }] },
     ];
     assert.throws(() => cleanupReady(workers, 1), /worker\(s\): 2/);
     workers[1].attempts.push({ round: 1, archive: "c.tar" });
+    workers[1].status = "saved";
     assert.equal(cleanupReady(workers, 1), true);
   });
 
@@ -94,5 +99,53 @@ void describe("cleanup gate", () => {
     assert.equal(checkName(1), "check-1");
     assert.equal(nextCheckSeq(undefined), 1);
     assert.equal(nextCheckSeq([{ seq: 1 }, { seq: 2 }]), 3);
+  });
+
+  void it("plans one open save per round; feedback opens the retry", () => {
+    const fresh = { status: "staged", attempts: [] };
+    assert.deepEqual(planSave(fresh, 1), { attempt: 1, retry: false });
+    const saved = { status: "saved", attempts: [{ round: 1, attempt: 1 }] };
+    assert.throws(() => planSave(saved, 1), /stage feedback/);
+    const fed = {
+      status: "feedback",
+      pending: { round: 1, attempt: 2 },
+      attempts: [{ round: 1, attempt: 1 }],
+    };
+    assert.deepEqual(planSave(fed, 1), { attempt: 2, retry: true });
+    assert.deepEqual(pendingFor(fed, 1), { round: 1, attempt: 2 });
+    assert.equal(pendingFor(saved, 1), null);
+    assert.throws(() => planSave({ ...fed, pending: { round: 2, attempt: 1 } }, 1), /round 2/);
+  });
+
+  void it("cleanup waits for the pending retry save on the active round", () => {
+    const ok = [{ status: "saved", attempts: [{ round: 1, archive: "a" }] }];
+    assert.equal(cleanupReady(ok, 1), true);
+    const fed = [
+      {
+        status: "feedback",
+        pending: { round: 1, attempt: 2 },
+        attempts: [{ round: 1, archive: "a" }],
+      },
+    ];
+    assert.throws(() => cleanupReady(fed, 1), /worker\(s\): 1/);
+    const other = [{ status: "saved", attempts: [{ round: 2, archive: "a" }] }];
+    assert.throws(() => cleanupReady(other, 1), /worker\(s\): 1/);
+  });
+});
+
+void describe("review lock", () => {
+  void it("claims once, fails busy, releases", () => {
+    const root = mkdtempSync(join(tmpdir(), "attempts-lock-"));
+    try {
+      const release = claimLock(root);
+      assert.ok(existsSync(lockPathFor(root)));
+      assert.throws(() => claimLock(root), /busy/);
+      release();
+      assert.ok(!existsSync(lockPathFor(root)));
+      const again = claimLock(root);
+      again();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

@@ -1,6 +1,6 @@
 // Pure attempt bookkeeping for review.mjs.
 // No docker, no Paseo, no network. Tested in attempts.test.mjs.
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, openSync, closeSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
 // Which teacher checker scores one suite round.
@@ -30,7 +30,31 @@ export const latestAttempt = (attempts, round) => {
   return rows.at(-1);
 };
 
+// One worker try is open at a time per round. Save claims the next
+// number only once: a second save without staged feedback refuses
+// instead of inventing a new attempt. Feedback opens the retry.
+export const pendingFor = (worker, round) => {
+  const pending = worker.pending ?? null;
+  return pending && pending.round === round ? pending : null;
+};
+
+export const planSave = (worker, round) => {
+  const attempts = worker.attempts ?? [];
+  const existing = attempts.filter((a) => a.round === round);
+  const pending = pendingFor(worker, round);
+  if (pending) return { attempt: pending.attempt, retry: true };
+  if (worker.pending)
+    throw new Error(`Feedback is staged for round ${worker.pending.round}; save that round first`);
+  if (!existing.length) return { attempt: 1, retry: false };
+  throw new Error(
+    `Round ${round} attempt ${existing.at(-1).attempt} is already saved; ` +
+      "stage feedback before saving again",
+  );
+};
+
 // One folder per worker try. Never reuse a folder.
+// Cleanup also needs the worker parked on a save, not on staged
+// feedback: after feedback the next attempt is still unsaved.
 export const attemptDir = (root, round, worker, attempt) =>
   join(root, "results", `round-${round}`, `worker-${worker}-attempt-${attempt}`);
 
@@ -48,11 +72,16 @@ export const feedbackEventsPath = (root, container, round, retry) => {
 };
 
 // Cleanup needs every worker's current attempt saved first.
+// A worker with staged feedback still owes its next attempt.
+// Only attempts for the active round count.
 export const cleanupReady = (workers, round) => {
-  const missing = workers
-    .map((w, i) => ({ w, n: i + 1 }))
-    .filter(({ w }) => !(w.attempts ?? []).some((a) => a.round === round && a.archive))
-    .map(({ n }) => n);
+  const missing = [];
+  workers.forEach((w, i) => {
+    const rows = (w.attempts ?? []).filter((a) => a.round === round && a.archive);
+    const latest = rows.at(-1);
+    void latest;
+    if (!rows.length || w.pending?.round === round || w.status !== "saved") missing.push(i + 1);
+  });
   if (missing.length)
     throw new Error(`Save the current attempt first for worker(s): ${missing.join(", ")}`);
   return true;
@@ -61,3 +90,26 @@ export const cleanupReady = (workers, round) => {
 // Named check results: every repeat gets a new folder, never a reuse.
 export const checkName = (seq) => `check-${seq}`;
 export const nextCheckSeq = (checks) => (checks ?? []).length + 1;
+
+// One manifest writer at a time: review commands hold an exclusive
+// lock file for the whole command and release it in a finally.
+// A second command fails busy instead of overwriting with stale
+// manifest state. Lock lives beside the manifest it guards.
+export const lockPathFor = (root) => join(root, "review.lock");
+
+export const claimLock = (root) => {
+  const path = lockPathFor(root);
+  let fd;
+  try {
+    fd = openSync(path, "wx", 0o600);
+  } catch {
+    throw new Error(`Trial is busy; another review command holds ${path}`);
+  }
+  return () => {
+    try {
+      closeSync(fd);
+    } finally {
+      rmSync(path, { force: true });
+    }
+  };
+};
