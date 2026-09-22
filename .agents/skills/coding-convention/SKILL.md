@@ -5,18 +5,18 @@ description: Use whenever writing, editing, or reviewing TypeScript source or te
 
 # Coding convention
 
-Write for a reader who wants to reason about the code. Each rule is an
-intention, then the shape it produces. When in doubt, the shape the reader
-holds easiest wins.
+Write for a reader who wants to reason about the code. Each rule is an aim,
+then the shape it gives. When unsure, pick the shape easiest to hold in your
+head.
 
-## Intentions
+## Aims
 
 1. **Trust the types.** Outside-process data (network, fs, env, argv, user
    input) is validated once at the door, then passed on as typed facts. Inside,
    never re-check a typed value: no `typeof` walls, no `if (!x)` on a typed
-   parameter, no `as unknown as`. An `isX` guard is a discriminator, not a
-   safety wall: it checks the smallest stable shape needed to narrow. A `readX`
-   reader does any real admission once and captures the facts later code needs.
+   parameter, no `as unknown as`. An `isX` guard only tells cases apart: it
+   checks the smallest stable shape needed to narrow. A `readX` reader does any
+   real validation once and keeps the facts later code needs.
 
 2. **Errors are managed.** Each package has one `src/errors.ts` that names every
    error and its payload type. Code throws only from that registry. Callers
@@ -45,10 +45,19 @@ holds easiest wins.
 
    ```ts
    export declare namespace Tasks {
-     type Task = { id: string; title: string; done: boolean }
-     type Handle = { add(title: string): Task; complete(id: string): void }
+     type Task = {
+       id: string
+       title: string
+       done: boolean
+     }
+     type Handle = {
+       add(title: string): Task
+       complete(id: string): void
+     }
    }
-   export function createTasks(): Tasks.Handle { ... }
+   export function createTasks(): Tasks.Handle {
+     ...
+   }
    ```
 
 7. **Private is `private`.** Class internals use the TypeScript `private`
@@ -61,8 +70,8 @@ holds easiest wins.
 
 9. **Infer, do not restate.** A public function with two or more input
    shapes gets one typed overload per shape; the implementation signature is
-   broad and dispatches. One input shape means one signature and no overload. No
-   generic the compiler already infers, no facade, no pass-through variable
+   broad and picks the case. One input shape means one signature, no overload.
+   No generic the compiler already infers, no facade, no pass-through variable
    that adds no meaning. Keep a local only for narrowing, read order, or
    ownership.
 
@@ -72,11 +81,10 @@ holds easiest wins.
 
 11. **Build only what today needs (YAGNI).** No options, wrappers, schemas, or
     extension points for a future caller. Do not invent a failure mode, input
-    check, or edge case the task did not name; if one seems needed, ask.
-    Add a helper for real repeated work,
-    not hoped-for reuse. A shorter form must keep the same reads, read order,
-    error boundaries, narrowing, identity, and copies. Fewer lines do not prove
-    less work.
+    check, or edge case the task did not name; if one seems needed, ask. Add a
+    helper for real repeated work, not hoped-for reuse. A shorter form must keep
+    the same reads, read order, error boundaries, narrowing, identity, and
+    copies. Fewer lines do not prove less work.
 
 12. **Own before reusing.** At every handoff say who owns the value: borrow,
     transfer, or retain. Copy for isolation; share exact identities and opaque
@@ -198,14 +206,22 @@ Formatting and lint are the machine's job. Run, in order:
 ```bash
 vp check
 vp test
-bash .agents/skills/coding-convention/scripts/style-census.sh <dir...> --strict
-node tools/jev/preflight.mjs   # advisory: anti-goal judges + per-unit lint on your diff
+bash .agents/skills/coding-convention/\
+  scripts/style-census.sh <dir...> --strict
+node tools/jev/preflight.mjs
 ```
 
-Fix every strict hit. Jev notes are look-here hints, not failures: clear the ones you agree
-with, explain the rest in the report's `jev pre-flight` line. Unsure which unit a piece of
-logic should be? Ask before writing it: `node packages/blueprint/dist/main.mjs suggest "<logic in words>"`.
-Then end the handoff with this standalone line, no
-bullet, quote, or code formatting:
+Fix every strict hit. Jev is advisory: it points, it never blocks. Fix the
+notes you agree with; explain the rest in the report's `jev pre-flight` line.
+
+Unsure which unit a piece of logic belongs in? Ask before writing it:
+
+```bash
+node packages/blueprint/dist/main.mjs \
+  suggest "<logic in words>"
+```
+
+Then end the handoff with this line on its own, with no bullet, quote, or code
+formatting:
 
 Style census: OK

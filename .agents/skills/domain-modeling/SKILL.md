@@ -1,74 +1,67 @@
 ---
 name: domain-modeling
-description: Build and sharpen a project's domain model. Use when discussing codebase terminology, writing or editing a CONTEXT.md, or recording or editing an ADR.
+description: Build and sharpen this repo's domain model. Use when discussing codebase terms, editing docs/glossary.md, or writing or editing a decision in docs/decisions/.
 ---
 
-# Domain Modeling
+# Domain modeling
 
-Actively build and sharpen the project's domain model as you design. This is the _active_ discipline: challenging terms, inventing edge-case scenarios, and writing the glossary and decisions down the moment they crystallise. (Merely _reading_ `CONTEXT.md` for vocabulary is not this skill: that's a one-line habit any skill can do. This skill is for when you're changing the model, not just consuming it.)
+This skill changes the model while you design. You challenge terms, invent edge
+cases, and write each term and decision down the moment it settles.
 
-## File structure
+Reading `docs/glossary.md` for words is not this skill. Any skill does that.
 
-Most repos have a single context:
+## Where things live
 
+```text
+docs/
+├── glossary.md      # one row per term
+└── decisions/
+    ├── README.md    # one index row per decision
+    └── 0062-random-is-an-ambient-ctx-capability.md
 ```
-/
-├── CONTEXT.md
-├── docs/
-│   └── adr/
-│       ├── 0001-event-sourced-orders.md
-│       └── 0002-postgres-for-write-model.md
-└── src/
-```
-
-If a `CONTEXT-MAP.md` exists at the root, the repo has multiple contexts. The map points to where each one lives:
-
-```
-/
-├── CONTEXT-MAP.md
-├── docs/
-│   └── adr/                          ← system-wide decisions
-├── src/
-│   ├── ordering/
-│   │   ├── CONTEXT.md
-│   │   └── docs/adr/                 ← context-specific decisions
-│   └── billing/
-│       ├── CONTEXT.md
-│       └── docs/adr/
-```
-
-Create files lazily: only when you have something to write. If no `CONTEXT.md` exists, create one when the first term is resolved. If no `docs/adr/` exists, create it when the first ADR is needed.
 
 ## During the session
 
-### Challenge against the glossary
+### Check words against the glossary
 
-When the user uses a term that conflicts with the existing language in `CONTEXT.md`, call it out immediately. "Your glossary defines 'cancellation' as X, but you seem to mean Y. Which is it?"
+When the user's word clashes with `docs/glossary.md`, say so at once:
 
-### Sharpen fuzzy language
+> The glossary says "session" is X. You seem to mean Y. Which one?
 
-When the user uses vague or overloaded terms, propose one precise term and use it everywhere. "You're saying 'account': do you mean the Customer or the User? Those are different things."
+### Pin down vague words
 
-### Discuss concrete scenarios
+When a word is vague or means two things, propose one exact term and use it
+from then on:
 
-When domain relationships are being discussed, stress-test them with specific scenarios. Invent scenarios that probe edge cases and force the user to be precise about the boundaries between concepts.
+> You say "account". Do you mean the Customer or the User?
 
-### Cross-reference with code
+### Test with real cases
 
-When the user states how something works, check whether the code agrees. If you find a contradiction, surface it: "Your code cancels entire Orders, but you just said partial cancellation is possible. Which is right?"
+When the talk is about how concepts relate, invent a concrete case that probes
+the edge. Make the user say where one concept ends and the next begins.
 
-### Update CONTEXT.md inline
+### Check the code
 
-When a term is resolved, update `CONTEXT.md` right there. Don't batch these up: capture them as they happen. Use the format in [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md).
+When the user says how something works, check that the code agrees. If not,
+show the clash:
 
-`CONTEXT.md` should be totally devoid of implementation details. Do not treat `CONTEXT.md` as a spec, a scratch pad, or a repository for implementation decisions. It is a glossary and nothing else.
+> The code cancels whole Orders. You said a partial cancel works. Which is
+> right?
 
-### Offer ADRs sparingly
+### Write the term now
 
-Only offer to create an ADR when all three are true:
+When a term settles, add or fix its row in `docs/glossary.md` right away. Do
+not save terms for later. Format: [GLOSSARY-FORMAT.md](./GLOSSARY-FORMAT.md).
 
-1. **Hard to reverse**: the cost of changing your mind later is meaningful
-2. **Surprising without context**: a future reader will wonder "why did they do it this way?"
-3. **The result of a real trade-off**: there were genuine alternatives and you picked one for specific reasons
+The glossary holds meanings only. No specs, no notes, no implementation detail.
 
-If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md).
+### Offer a decision rarely
+
+Offer a decision record only when all three hold:
+
+1. **Hard to undo:** changing your mind later costs real work.
+2. **Surprising:** a future reader would ask "why this way?"
+3. **A real trade-off:** there were other good options, and one won for a
+   reason.
+
+If one is missing, skip it. Format: [ADR-FORMAT.md](./ADR-FORMAT.md).

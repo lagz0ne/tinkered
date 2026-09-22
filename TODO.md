@@ -75,6 +75,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Done
 
+- **docs/skills-prose** — Claude; plain words in all 7 skills.
+  Stale paths fixed: `docs/decisions/`, `docs/glossary.md`, `TODO.md`.
+  Proof: `vp check` green; prose lint 0 hits, 0 wide lines.
+
 - **namespace-v1/t01 ns values** — sol + lead; tag `namespace-v1/t01`.
   core 418 tests, mutation 85.74; four astra xhigh rounds cleared every P1.
   Proof: [namespace-v1 landed](docs/roadmap/namespace-v1/PROGRESS.md).

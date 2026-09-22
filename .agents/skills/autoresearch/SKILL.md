@@ -1,124 +1,137 @@
 ---
 name: autoresearch
-description: "Experiment loop discipline for autoresearch sessions — decision rules, git workflow, JSONL logging, benchmark metrics, anti-patterns"
+description: "Rules for an autoresearch experiment loop: one change per run, benchmark, keep or revert, log every run as JSONL, commit what was learned."
 ---
 
-# Autoresearch — Experiment Loop Skill
+# Autoresearch
 
-You are in an autoresearch session. This skill governs how you run the experiment loop.
+This skill runs the experiment loop in an autoresearch session.
 
-## Session State
+## Where state lives
 
-State lives in files (survives context resets):
+State lives in files, so it survives a context reset:
 
-- `.autoresearch/current` — active session id
-- `.autoresearch/sessions/<session-id>/state.md` — config, rules, scope
-- `.autoresearch/sessions/<session-id>/benchmark.sh` — benchmark wrapper
-- `.autoresearch/sessions/<session-id>/run.jsonl` — run log (append-only)
-- `research/learnings/<session-id>.md` — extracted learning that should be committed
-- Git branch `autoresearch/*` — all work happens here
+- `.autoresearch/current` — the active session id.
+- `.autoresearch/sessions/<id>/state.md` — config, rules, scope.
+- `.autoresearch/sessions/<id>/benchmark.sh` — the benchmark wrapper.
+- `.autoresearch/sessions/<id>/run.jsonl` — the run log. Append only.
+- `research/learnings/<id>.md` — what was learned. This one is committed.
+- A git branch `autoresearch/*` — all work happens there.
 
-Runtime state under `.autoresearch/**` is in-progress state. Never commit it.
+Everything under `.autoresearch/**` is work in progress. Never commit it.
 
-**On context reset**: read `.autoresearch/current`, then that session's `state.md` and only the last 20 lines of `run.jsonl`. The last JSONL entry tells you the run number and current state. Do not scan older sessions by default. To extend prior work, create a new session id and set `Extends:` in `state.md`; then read only the parent session's summary/last 20 runs unless the user asks for deeper history.
+Templates for `state.md`, `benchmark.sh`, and the log:
+[references/experiment-protocol.md](references/experiment-protocol.md).
 
-## Retention
+## Each run
 
-Default policy:
+1. **Guess:** one change, why, and what it should do to the metric.
+2. **Change:** the smallest diff, only in scoped files.
+3. **Measure:** `bash "$SESSION_DIR/benchmark.sh"`.
+4. **Decide:** by the target metric and direction in `state.md`.
+5. **Record:** append a JSONL line, then commit or revert.
+6. **Report:** run number, change, before → after, decision.
 
-- Hot: active session from `.autoresearch/current`
-- Warm: sessions modified in the last 14 days
-- Cold: older sessions, read only on request or explicit `Extends:`
+Wall-clock timing never runs in this container. Run it through `bench` (see
+the global rules).
 
-On start/resume/stop, prune cold runtime sessions that are not active. Keep `research/learnings/*.md` as the durable record.
+## Keep or revert
 
-## Experiment Protocol
+- **Better** — commit the intended paths with a `Result:` trailer.
+  Log `"status":"keep"`.
+- **Worse** — revert only the experiment's paths. Log `"status":"discard"`.
+- **Same** — discard, unless a later change needs it.
+  Log `"status":"discard"`.
+- **Crash** — revert only the experiment's paths. Log `"status":"crash"`.
+  Find the cause before the next run.
+- **Timeout** — same as a crash.
 
-### Each Iteration
+Never `git add .`. Never check out or reset the whole tree. Both mix log
+files, the user's own edits, and the experiment.
 
-1. **Hypothesize** — one change, clear rationale, predicted impact
-2. **Implement** — minimal diff, touch only scoped files
-3. **Benchmark** — `bash "$SESSION_DIR/benchmark.sh"`
-4. **Decide** — based on target metric and direction from `$SESSION_DIR/state.md`
-5. **Record** — append JSONL, commit or revert
-6. **Report** — run#, change, before→after, decision
+## Commit message
 
-### Decision Rules
-
-| Outcome           | Action                                                                                         |
-| ----------------- | ---------------------------------------------------------------------------------------------- |
-| Metric improves   | `git add <intended-paths>` and commit with `Result:` trailer. JSONL: `"status":"keep"`         |
-| Metric regresses  | Revert only intended experiment pathspecs. JSONL: `"status":"discard"`                         |
-| Metric unchanged  | Discard unless change is a prerequisite. JSONL: `"status":"discard"`                           |
-| Benchmark crashes | Revert only intended experiment pathspecs. JSONL: `"status":"crash"`. Diagnose before next run |
-| Benchmark timeout | Treat as crash                                                                                 |
-
-Never use `git add .` or whole-tree checkout/reset in an autoresearch session. They mix runtime trash, unrelated user edits, and experiment edits.
-
-### Commit Format
-
-```
+```text
 experiment: <short description>
 
-<detailed rationale — what and why>
+<what changed and why>
 
 Result: <metric>=<value>, <metric>=<value>
 ```
 
-### JSONL Schema
+## Log line
 
-Each line is a JSON object:
+One JSON object per line:
 
 ```json
-{"run":<n>,"commit":"<short-hash>","metrics":{<parsed>},"status":"keep|discard|crash","description":"<what changed>","timestamp":<unix>}
+{
+  "run": 2,
+  "commit": "def5678",
+  "metrics": { "ns_per_op": 412 },
+  "status": "keep",
+  "description": "share the trap object",
+  "timestamp": 1710000300
+}
 ```
 
-- `run` — sequential, starts at 1 (baseline)
-- `commit` — short hash of HEAD at time of run (before revert if discarded)
-- `metrics` — full parsed output from `parse-metrics.sh`
-- `status` — decision outcome
-- `description` — human-readable summary of the change
-- `timestamp` — Unix epoch seconds
+- `run` — counts up from 1, the baseline.
+- `commit` — short hash of HEAD at run time, before any revert.
+- `metrics` — every `METRIC` line the benchmark printed.
+- `status` — `keep`, `discard`, or `crash`.
+- `description` — the change, in plain words.
+- `timestamp` — Unix seconds.
 
-## Extracted Learning
+## What was learned
 
-Commit learning only when it is reusable outside the active run. Use one file per session:
+Commit a learning only when it helps outside this run. One file per session,
+`research/learnings/<id>.md`, so two sessions never edit the same file. Commit
+it apart from experiment commits.
 
-```text
-research/learnings/<session-id>.md
-```
+## Traps
 
-This avoids conflicts between resumed or parallel research sessions. Keep these commits separate from experiment commits when practical.
+- **Two changes at once.** If you cannot pin the delta on one change, split it.
+- **Keeping a regression.** Worse means revert, even if the code is cleaner.
+- **Skipping the benchmark.** Every change is measured. No eyeballing.
+- **Changing the benchmark.** Leave `benchmark.sh` alone mid-session unless it
+  is broken. If you fix it, log that as its own line.
+- **Committing `.autoresearch/**`.**
+- **Hoarding old logs.** Keep learnings in committed files; prune the rest.
+- **Wandering.** Three discards in a row: stop, rethink, tell the user.
+- **A run with no log line.** Crashes get a line too.
+- **Big diffs.** Keep each experiment under 50 lines.
 
-## Anti-Patterns
+## Resume after a reset
 
-- **Compound changes** — never change two things at once. If you can't attribute the metric delta to exactly one change, split it.
-- **Ignoring regressions** — if the metric went down, revert. No exceptions for "but it's cleaner code."
-- **Skipping the benchmark** — every change gets benchmarked. No eyeballing.
-- **Changing the benchmark** — never modify `$SESSION_DIR/benchmark.sh` mid-session unless the benchmark itself is broken. Log this as a special entry.
-- **Committing runtime state** — never commit `.autoresearch/**`; it is local progress state.
-- **Bloating session state** — do not read or preserve old runtime logs forever. Compact by default; keep learning in committed files.
-- **Unbounded exploration** — if 3 consecutive experiments are discarded, stop and reassess strategy. Report to user.
-- **Forgetting to log** — every run gets a JSONL entry, even crashes.
-- **Large diffs** — keep each experiment's diff under 50 lines. Smaller is better.
+If `.autoresearch/current` exists but you have no context:
 
-## Session Resumption
+1. Read `.autoresearch/current` for the id.
+2. Read that session's `state.md`.
+3. Read only the last 20 lines of its `run.jsonl`. The last line gives the run
+   number and state.
+4. Check `git log --oneline -5` for recent experiment commits.
+5. Prune old sessions (see below).
+6. Tell the user: "Resuming autoresearch session: run {n}, last result:
+   {status}".
+7. Go on with the loop.
 
-If `.autoresearch/current` exists but you have no conversation context:
+To build on an older session, start a new id and set `Extends:` in its
+`state.md`. Read only the parent's summary and last 20 runs, unless the user
+asks for more.
 
-1. Read `.autoresearch/current` to get the session id
-2. Read `.autoresearch/sessions/<session-id>/state.md` for config
-3. Read only the last 20 lines of `.autoresearch/sessions/<session-id>/run.jsonl`
-4. Check `git log --oneline -5` for recent experiment commits
-5. Prune non-active cold runtime sessions older than 14 days
-6. Report status to user: "Resuming autoresearch session: run {n}, last result: {status}"
-7. Continue the loop
+## Old sessions
 
-## Progress Reporting
+- **Hot:** the one named in `.autoresearch/current`.
+- **Warm:** touched in the last 14 days.
+- **Cold:** older. Read only when asked, or when named in `Extends:`.
 
-Every 5 runs (or on user request), show a summary:
+On start, resume, and stop, delete cold sessions that are not active. The
+learnings files are the lasting record.
 
-- Total runs, keeps, discards, crashes
-- Best metric value and which run achieved it
-- Cumulative improvement from baseline
-- Trend direction
+## Progress
+
+Every 5 runs, or when asked, report:
+
+- runs, keeps, discards, crashes;
+- the best value, and which run got it;
+- the total gain over the baseline;
+- the trend.

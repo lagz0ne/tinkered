@@ -1,18 +1,27 @@
 ---
 name: grilling
-description: Grill the user relentlessly about a plan, decision, or idea. Use when the user wants to stress-test their thinking, or uses any 'grill' trigger phrases.
+description: Grill the user about a plan, decision, or idea until you both agree on it. Use when the user wants to stress-test their thinking, or says "grill".
 ---
 
-Interview the user relentlessly until you reach a shared understanding. Map this as a **design tree**: every decision branches into the decisions that hang off it.
+Ask questions until you and the user share one picture. Keep a **design tree**
+in your head: each decision opens the decisions that hang off it.
 
-Work the tree in **rounds**. The **frontier** is every decision whose prerequisites are already settled: the questions you can ask _now_ without guessing at answers you haven't heard yet. Ask the whole frontier in one round: number each question and give your recommended answer. Then wait for the user's answers before the next round.
+## Rounds
 
-Format a round like so — **at most three questions per round**, the shortest form that shows the
-choice. When the choice is about code, show the options as code. When it is about flow or order, show
-a call stack or a short ASCII sequence. Prose only when neither fits. One line of ask, one line of
-recommendation:
+The **frontier** is every decision whose parents are settled. You can ask it
+now without guessing an answer you have not heard.
 
-````
+Each round asks the frontier:
+
+- **At most three questions.** Number them.
+- **Show, do not tell.** A code choice shows both options as code. A flow or
+  order choice shows a call stack or a short sequence. Prose only when neither
+  fits.
+- **One line of ask, one line of pick.** Give your recommended answer.
+
+Then stop and wait for the answers.
+
+````md
 ❓ **Q1** - <one-line ask>
 
 ```ts
@@ -21,7 +30,7 @@ recommendation:
 
 // B: <label>
 <the shape under B>
-````
+```
 
 ➡️ A
 
@@ -35,15 +44,27 @@ B: <call stack or sequence under B>
 ```
 
 ➡️ B
+````
 
-```
+Routine choices are not questions. That covers names, order, and defaults with
+a usual answer. List them in one closing line: "I take these as routine unless
+you object."
 
-Routine choices (naming, ordering, defaults with a conventional answer) are not questions: state
-them in one closing line as "I will take these as routine unless you object" and move on.
+## After each round
 
-Each round the user answers reshapes the tree: settled decisions push the frontier outward and unblock questions that depended on them. Recompute the frontier and ask the next round. A question whose answer depends on another question still open in this round belongs to a _later_ round, not this one.
+The answers move the frontier. Work it out again and ask the next round. A
+question that depends on another open question in this round waits for a later
+round.
 
-Finding _facts_ is your job, never the user's. When a frontier question needs a fact from the environment (filesystem, tools, etc.), dispatch a sub-agent to find it; don't ask the user for anything you could look up yourself. Don't block on it: a running exploration is an unsettled prerequisite, so only the questions downstream of it wait for the sub-agent to report; ask the rest of the frontier now. The _decisions_ are the user's: put each to them and wait.
+## Facts are yours, decisions are theirs
 
-The session is done when the frontier is empty: every branch of the design tree visited, nothing left silently assumed. Do not act on it until the user confirms you have reached a shared understanding.
-```
+Never ask the user for a fact you can look up. Send a sub-agent to find it.
+Do not wait on it: only the questions that need its answer wait. Ask the rest
+now.
+
+Decisions belong to the user. Ask each one and wait.
+
+## Done
+
+The session ends when the frontier is empty: every branch visited, nothing
+assumed in silence. Do not act until the user confirms you agree.
