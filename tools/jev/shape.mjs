@@ -82,15 +82,52 @@ function writesCell(node) {
   return (node.arguments ?? []).some(isWritableOpt);
 }
 
-/** A `useData(…)` call — plain, aliased, or off a `@tinker/react` namespace — else false.
- *  A bare name bound anywhere else (another module's import, a local declaration) is an
- *  unrelated same-name function, never the hook. */
-function isDataCall(node, dataAlias, dataNs, shadowed) {
-  const c = node.callee;
-  if (c?.type === "Identifier")
-    return (c.name === "useData" || dataAlias.has(c.name)) && !shadowed.has(c.name);
-  const member = memberOf(c);
-  return member !== null && member.name === "useData" && dataNs.has(member.obj);
+/** Is this specifier the `useData` name itself from `@tinker/react`? */
+function isHookSpec(s, hook) {
+  return s.type === "ImportSpecifier" && hook && s.imported?.name === "useData";
+}
+
+/** Is this specifier a known `useData` alias from `@tinker/react`? */
+function isAliasSpec(s, hook, hookAlias) {
+  return s.type === "ImportSpecifier" && hook && hookAlias.has(s.local.name);
+}
+
+/** Is this specifier a namespace bound to `@tinker/react`? */
+function isNsSpec(s, hook, hookNs) {
+  const ns = s.type === "ImportDefaultSpecifier" || s.type === "ImportNamespaceSpecifier";
+  return ns && hook && hookNs.has(s.local.name);
+}
+
+/** The binding kind of one import specifier: `hook` for the `useData` name itself
+ *  or a known alias, `hook-ns` for a bound namespace, else `local`. */
+function specKind(s, hook, hookAlias, hookNs) {
+  if (isHookSpec(s, hook) || isAliasSpec(s, hook, hookAlias)) return "hook";
+  if (isNsSpec(s, hook, hookNs)) return "hook-ns";
+  return "local";
+}
+
+/** One `import … from` row into the top scope: hook bindings or locals. */
+function importRow(top, hookAlias, hookNs, node) {
+  const hook = node.source.value === "@tinker/react";
+  for (const s of node.specifiers) {
+    if (s.local) top.set(s.local.name, specKind(s, hook, hookAlias, hookNs));
+  }
+}
+
+/** A `useData(…)` call resolved through the scope chain — plain, aliased, or off a
+ *  `@tinker/react` namespace — else false. Reads one row: the name, then the object. */
+function bareData(callee, bound, scopes, stack) {
+  if (callee?.type !== "Identifier") return null;
+  if (callee.name !== "useData" && !bound.dataCall.has(callee.name)) return false;
+  return lookup(scopes, stack, callee.name) === "hook";
+}
+
+/** A `useData` call off a namespace object bound to `@tinker/react` — else false. */
+function nsData(callee, bound, scopes, stack) {
+  const member = memberOf(callee);
+  if (member === null || member.name !== "useData") return false;
+  if (!bound.scopeNs.has(member.obj)) return false;
+  return lookup(scopes, stack, member.obj) === "hook-ns";
 }
 
 /** The declarator's function init — `{ name, params, body }` — or null. */
@@ -165,37 +202,92 @@ function providesScope(body, bound) {
 const SCOPE_PROP = /Scope\s*\.\s*Handle|DataController/;
 const SCOPE_NAME = /^(scope|session|controller)$/i;
 
-/** One parameter's bound names into `take`: plain, destructured, or array. */
-function takeParam(take, p) {
-  if (p.type === "Identifier") take(p);
-  if (p.type === "ObjectPattern") for (const q of p.properties) take(q.value ?? q.key);
-  if (p.type === "ArrayPattern") for (const e of p.elements) take(e);
+/** One parameter's bound names into `bind`: plain, destructured, or array. */
+function bindParam(bind, p) {
+  if (p.type === "Identifier") bind(p.name, "local");
+  if (p.type === "ObjectPattern") for (const q of p.properties) bindPattern(bind, q.value ?? q.key);
+  if (p.type === "ArrayPattern") for (const e of p.elements) bindPattern(bind, e);
 }
 
-/** One arrow/function-expression's parameter names into `take`. */
-function takeParams(take, n) {
-  for (const p of n.params ?? []) takeParam(take, p);
+/** One pattern's bound names into `bind`: identifiers, holes, defaults, and rests. */
+function bindPattern(bind, p) {
+  if (!p) return;
+  if (p.type === "Identifier") bind(p.name, "local");
+  else if (p.type === "AssignmentPattern") bindPattern(bind, p.left);
+  else if (p.type === "RestElement") bindPattern(bind, p.argument);
+  else bindParam(bind, p);
 }
 
-/** Local names hiding the hook: a declared `useData` of our own (imported elsewhere,
- *  function, param, or catch binding) means a bare call is that name, never the hook. */
-function shadowedData(program) {
-  const names = new Set();
-  const take = (id) => {
-    if (id?.type === "Identifier") names.add(id.name);
+/** The innermost enclosing function scope, or null at module level. */
+function stackTop(stack, fnNames) {
+  for (let i = stack.length - 1; i >= 0; i--)
+    if (fnNames.has(stack[i])) return fnNames.get(stack[i]);
+  return null;
+}
+
+/** A function node's params into its own scope. */
+function noteParams(inner, bindInto, node) {
+  for (const p of node.params ?? []) bindParam(bindInto(inner), p);
+}
+
+/** A declarator or catch binding into the owning scope — the function, else top. */
+function notePattern(stack, fnNames, bindInto, bindTop, id) {
+  const owner = stackTop(stack, fnNames);
+  bindPattern(owner === null ? bindTop : bindInto(owner), id);
+}
+
+/** A function node on entry: push its scope and bind its params. */
+function enterFn(stack, intoFn, bindInto, node) {
+  stack.push(node);
+  noteParams(intoFn(node), bindInto, node);
+}
+
+/** A non-function node on entry: the name it declares, if any. One branch per
+ *  node kind keeps it under the cap. */
+function noteLeaf(top, stack, fnNames, bindInto, bindTop, row, kind, node) {
+  if (kind === "FunctionDeclaration" && node.id) top.set(node.id.name, "local");
+  if (kind === "VariableDeclarator") notePattern(stack, fnNames, bindInto, bindTop, node.id);
+  if (kind === "CatchClause" && node.param)
+    notePattern(stack, fnNames, bindInto, bindTop, node.param);
+  if (kind === "ImportDeclaration") row(node);
+}
+
+/** The enter half of the collecting pass: push function scopes, bind params,
+ *  then file each declarator in the scope that owns it. One branch per node
+ *  kind keeps it under the cap. */
+function makeNote(stack, fnNames, top, bindInto, bindTop, row) {
+  const intoFn = (node) => {
+    if (!fnNames.has(node)) fnNames.set(node, new Map());
+    return fnNames.get(node);
   };
-  walk(program, (n) => {
-    if (n.type === "ImportDeclaration" && n.source.value !== "@tinker/react")
-      for (const s of n.specifiers) take(s.local);
-    if (n.type === "FunctionDeclaration") take(n.id);
-    if (n.type === "VariableDeclarator") take(n.id);
-    if (n.type === "CatchClause" && n.param) take(n.param);
-  });
-  walk(program, (n) => {
-    if (n.type !== "ArrowFunctionExpression" && n.type !== "FunctionExpression") return;
-    takeParams(take, n);
-  });
-  return names;
+  return (node) => {
+    const kind = node.type ?? "";
+    if (SHAPE_FN_TYPES.has(kind)) enterFn(stack, intoFn, bindInto, node);
+    else noteLeaf(top, stack, fnNames, bindInto, bindTop, row, kind, node);
+  };
+}
+
+/** One scope record: each function node owns its params plus the names declared
+ *  inside it; the top map holds module-level names. Collection is one
+ *  enter/exit pass (`scopeWalk`); reads use a fresh stack per query below. */
+function binderOf(program, hookAlias, hookNs) {
+  const fnNames = new Map();
+  const top = new Map();
+  const stack = [];
+  const bindInto = (inner) => (name, kind) => inner.set(name, kind);
+  const bindTop = (name, kind) => top.set(name, kind);
+  const row = (node) => importRow(top, hookAlias, hookNs, node);
+  const note = makeNote(stack, fnNames, top, bindInto, bindTop, row);
+  const leave = (node) => {
+    const kind = node.type ?? "";
+    if (
+      kind === "FunctionDeclaration" ||
+      kind === "ArrowFunctionExpression" ||
+      kind === "FunctionExpression"
+    )
+      stack.pop();
+  };
+  return { fnNames, top, note, leave };
 }
 
 /** The declaration behind an alias — through `export type …` too — or null. */
@@ -254,11 +346,59 @@ function bindImports(into, node) {
   if (node.source.value === "@tinker/react") bindScope(into, node);
 }
 
-/** One writable-useData finding for a call node in a view, or null. Plain, aliased,
- *  or namespaced from `@tinker/react`; anything else is not the hook. */
-function writableRow(source, node, bound, line, inView, shadowed) {
-  const writes =
-    isDataCall(node, bound.dataCall, bound.scopeNs, shadowed) && writesCell(node) && inView(line);
+/** One child visit on the collecting pass: enter, recurse, exit. */
+function scopeStep(scopes, node) {
+  scopes.note(node);
+  const kids = Object.values(node).filter((v) => v && typeof v === "object") ?? [];
+  for (const v of kids) scopeWalk(scopes, v);
+  scopes.leave(node);
+}
+
+/** One scope-collecting pass over the tree: `note` on entry, `leave` on exit, so each
+ *  declarator lands in the scope that owns it and the stack is empty afterward. */
+function scopeWalk(scopes, node) {
+  if (!node || typeof node !== "object") return;
+  if (!Array.isArray(node)) {
+    scopeStep(scopes, node);
+    return;
+  }
+  for (const v of node) if (v && typeof v === "object") scopeWalk(scopes, v);
+}
+
+/** Function node types: each owns one lexical scope for the binder. Kept local so
+ *  the set reads beside its use; `extract.mjs` keeps its own copy for units. */
+const SHAPE_FN_TYPES = new Set([
+  "FunctionDeclaration",
+  "ArrowFunctionExpression",
+  "FunctionExpression",
+]);
+
+/** Does this callee name the hook through the scope chain — a plain or aliased
+ *  `useData` binding from the `@tinker/react` import, or `useData` off one of its
+ *  bound namespace objects? A bare name with no import binding is never the hook. */
+function namesHook(callee, bound, scopes, stack) {
+  return bareData(callee, bound, scopes, stack) ?? nsData(callee, bound, scopes, stack);
+}
+
+/** Is this writable call the imported hook — resolved where it sits, never globally. */
+function isHookCall(node, bound, scopes, stack) {
+  return namesHook(node.callee, bound, scopes, stack);
+}
+
+/** The binding of `name` at the call site: the nearest enclosing function first. */
+function lookup(scopes, stack, name) {
+  for (let i = stack.length - 1; i >= 0; i--) {
+    const inner = scopes.fnNames.get(stack[i]);
+    if (inner?.has(name)) return inner.get(name);
+  }
+  return scopes.top.get(name);
+}
+
+/** One writable-useData finding for a call node in a view, or null. The callee name
+ *  must resolve to the `@tinker/react` import through the enclosing function scope —
+ *  a sibling's local or an unimported name is never the hook. */
+function writableRow(source, node, line, inView, resolve) {
+  const writes = resolve(node) && writesCell(node) && inView(line);
   if (!writes) return null;
   return {
     id: "no-writable-in-view",
@@ -269,7 +409,7 @@ function writableRow(source, node, bound, line, inView, shadowed) {
 }
 
 /** One banned-hook, writable-useData, or in-view scope finding for a call node, or null. */
-function callRow(source, node, bound, inView, shadowed) {
+function callRow(source, node, bound, inView, resolve) {
   const line = lineOf(source, node.start);
   const hook = hookOf(node.callee, bound.hooks);
   if (hook !== null) {
@@ -291,7 +431,7 @@ function callRow(source, node, bound, inView, shadowed) {
       message:
         "useScope in a view (best-practices rule 2): only the root holds the scope; views read cells and run operations",
     };
-  return writableRow(source, node, bound, line, inView, shadowed);
+  return writableRow(source, node, line, inView, resolve);
 }
 
 /** The referenced type name behind a parameter annotation (`Props` in `p: Props`), or null. */
@@ -339,6 +479,15 @@ function paramRow(source, seen, aliases, p) {
   return null;
 }
 
+/** One object node on the finding pass: track function scope around the visit. */
+function visitInScope(stack, node, visit, find) {
+  const fn = SHAPE_FN_TYPES.has(node.type ?? "");
+  if (fn) stack.push(node);
+  visit(node, stack);
+  for (const v of Object.values(node)) if (v && typeof v === "object") find(v, stack);
+  if (fn) stack.pop();
+}
+
 /** Every deterministic shape finding in one file, in source order. */
 // oxlint-disable-next-line complexity
 export function inspectShape(source, file = "a.tsx") {
@@ -353,16 +502,27 @@ export function inspectShape(source, file = "a.tsx") {
   };
   for (const node of program.body) if (node.type === "ImportDeclaration") bindImports(bound, node);
   const aliases = scopeAliases(source, program);
-  const shadowed = shadowedData(program);
+  const scopes = binderOf(program, bound.dataCall, bound.scopeNs);
+  scopeWalk(scopes, program);
+  const resolve = (node, stack) => isHookCall(node, bound, scopes, stack);
   const comps = units(source, file).filter((u) => u.kind === "component");
   const starts = new Set(comps.map((u) => u.line));
   const ranges = comps.map((u) => [u.line, u.line + u.source.split("\n").length - 1]);
   const inView = (line) => ranges.some(([from, to]) => from <= line && line <= to);
-  walk(program, (n) => {
-    if (n.type !== "CallExpression" || n.start === undefined) return;
-    const row = callRow(source, n, bound, inView, shadowed);
+  const visit = (node, stack) => {
+    if (node.type !== "CallExpression" || node.start === undefined) return;
+    const row = callRow(source, node, bound, inView, (c) => resolve(c, stack));
     if (row !== null) rows.push(row);
-  });
+  };
+  const find = (node, stack) => {
+    if (!node || typeof node !== "object") return;
+    if (!Array.isArray(node)) {
+      visitInScope(stack, node, visit, find);
+      return;
+    }
+    for (const v of node) if (v && typeof v === "object") find(v, stack);
+  };
+  find(program, []);
   for (const node of program.body)
     for (const fn of topFns(source, node)) {
       if (!starts.has(fn.line) || providesScope(fn.body, bound)) continue;

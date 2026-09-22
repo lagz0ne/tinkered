@@ -249,6 +249,67 @@ void describe("shape findings", () => {
     assert.deepEqual(runAllowed, []);
   });
 
+  void it("flags writable useData in one scope, not a sibling's local or a param", () => {
+    const sibling = inspectShape(
+      `import { useData } from "@tinker/react";\nfunction helper() { const useData = () => {}; }\nfunction View() { const x = useData(cell, { writable: true }); return <div/>; }`,
+      "case.tsx",
+    );
+    assert.deepEqual(
+      sibling.map((r) => [r.id, r.line]),
+      [["no-writable-in-view", 3]],
+    );
+    const param = inspectShape(
+      `import { useData } from "@tinker/react";\nfunction View(useData) { const x = useData(cell, { writable: true }); return <div/>; }`,
+      "case.tsx",
+    );
+    assert.deepEqual(param, []);
+    const bare = inspectShape(
+      `function View() { const x = useData(cell, { writable: true }); return <div/>; }`,
+      "case.tsx",
+    );
+    assert.deepEqual(bare, []);
+  });
+
+  void it("flags aliased and namespaced hook calls, not their shadowed names", () => {
+    const aliased = inspectShape(
+      `import { useData as read } from "@tinker/react";\nfunction View() { const [a, setA] = read(c, { writable: true }); return <p>{a}</p>; }`,
+      "case.tsx",
+    );
+    assert.deepEqual(
+      aliased.map((r) => [r.id, r.line]),
+      [["no-writable-in-view", 2]],
+    );
+    const shadowedAlias = inspectShape(
+      `import { useData as read } from "@tinker/react";\nfunction View(read) { const [a, setA] = read(c, { writable: true }); return <p>{a}</p>; }`,
+      "case.tsx",
+    );
+    assert.deepEqual(shadowedAlias, []);
+    const namespaced = inspectShape(
+      `import * as TR from "@tinker/react";\nfunction View() { const [a, setA] = TR.useData(c, { writable: true }); return <p>{a}</p>; }`,
+      "case.tsx",
+    );
+    assert.deepEqual(
+      namespaced.map((r) => [r.id, r.line]),
+      [["no-writable-in-view", 2]],
+    );
+    const shadowedNs = inspectShape(
+      `import * as TR from "@tinker/react";\nfunction View(TR) { const [a, setA] = TR.useData(c, { writable: true }); return <p>{a}</p>; }`,
+      "case.tsx",
+    );
+    assert.deepEqual(shadowedNs, []);
+  });
+
+  void it("flags one mixed file's imported call only", () => {
+    const rows = inspectShape(
+      `import { useData } from "@tinker/react";\nfunction helper() { const useData = () => {}; }\nfunction Shadowed(useData) { const y = useData(c, { writable: true }); return <div/>; }\nfunction View() { const [a, setA] = useData(c, { writable: true }); return <p>{a}</p>; }`,
+      "case.tsx",
+    );
+    assert.deepEqual(
+      rows.map((r) => [r.id, r.line]),
+      [["no-writable-in-view", 4]],
+    );
+  });
+
   void it("leaves plain helpers and typed non-scope props alone", () => {
     assert.deepEqual(inspectShape("function Helper(title) { return title.trim(); }", "a.tsx"), []);
     assert.deepEqual(
