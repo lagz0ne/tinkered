@@ -88,7 +88,9 @@ Do not send future packets or teacher test bodies.
 ## Limits
 
 Teacher controls live in `config.json`.
-Defaults per scored attempt:
+The user asked to finish testing before comparing budgets.
+`limits.disabled` is now `true`: trial stops are off.
+The stored thresholds below apply only when it is `false`:
 
 - 45 minutes.
 - 160 tool calls and 80 model turns.
@@ -97,16 +99,19 @@ Defaults per scored attempt:
 - 60 Jev requests, counted separately.
 - Each shell command has at most 120 seconds.
 
-Token and cost stops apply after completed model responses.
+When enabled, token and cost stops apply after completed model responses.
 One response may cross the limit; these are not billing caps.
 Costs use gateway catalog rates and are estimates.
 Jev usage and cost are recorded as unknown by the current adapter.
 Its call limit still applies.
-The wall-clock stop aborts the agent and stops its container.
+When enabled, the wall-clock stop aborts the agent and stops its container.
 A stopped container keeps its `/work` volume for the next round.
 
 Teacher can change the enabled judge IDs in `config.json`.
-Freeze that file for a comparison.
+Record any change to that file as a new trial phase.
+Response and context allowances use the live gateway model catalog.
+A provider can still cut off a response; resume unfinished work
+rather than counting that cutoff as a completed attempt.
 Calibration and labels remain teacher-owned.
 
 ## Save and clean up

@@ -14,6 +14,7 @@ export function createBroker(config) {
     throw new Error("Invalid trial container");
   let calls = 0;
   let jevCalls = 0;
+  const jevLimitReached = () => !config.limits.disabled && jevCalls >= config.limits.jevCalls;
   const log = (event) =>
     appendFileSync(
       config.events,
@@ -66,14 +67,15 @@ export function createBroker(config) {
     log,
     async shell(command, signal, timeout) {
       calls++;
-      if (calls > config.limits.toolCalls) throw new Error("Tool-call limit reached");
+      if (!config.limits.disabled && calls > config.limits.toolCalls)
+        throw new Error("Tool-call limit reached");
       const result = await run(["bash", "-lc", command], signal, timeout);
       log({ kind: "shell", call: calls, command, ...result });
       return result;
     },
     async jev(file, signal) {
       validateSource(file);
-      if (jevCalls >= config.limits.jevCalls) throw new Error("Jev call limit reached");
+      if (jevLimitReached()) throw new Error("Jev call limit reached");
       const result = await run(
         [
           "node",
@@ -100,7 +102,7 @@ export function createBroker(config) {
             .map(([id, j]) => [id, j.q]),
         );
         if (!Object.keys(questions).length) return;
-        if (jevCalls >= config.limits.jevCalls) {
+        if (jevLimitReached()) {
           rows.push({ unit, status: "not-run", reason: "Jev call limit reached" });
           return;
         }

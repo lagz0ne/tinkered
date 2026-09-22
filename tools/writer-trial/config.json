@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "models": [
     "xiaomi/mimo-v2.6-flash",
     "xiaomi/mimo-v2.6-pro",
@@ -14,7 +14,8 @@
     "modelTurns": 80,
     "tokens": 300000,
     "estimatedDollars": 3,
-    "jevCalls": 60
+    "jevCalls": 60,
+    "disabled": true
   },
   "smokeLimits": {
     "seconds": 300,

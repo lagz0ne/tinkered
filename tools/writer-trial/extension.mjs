@@ -12,6 +12,7 @@ function tokenCount(usage) {
 }
 
 function limitReached(config, turns, tokens, cost) {
+  if (config.limits.disabled) return false;
   return (
     turns >= config.limits.modelTurns ||
     tokens >= config.limits.tokens ||
@@ -77,14 +78,16 @@ export default function (pi) {
   });
   pi.on("session_start", (_event, ctx) => {
     pi.setActiveTools(tools);
-    timer = setTimeout(() => {
-      stop(ctx, "wall-clock limit").catch(() => {});
-    }, config.limits.seconds * 1000);
-    timer.unref();
+    if (!config.limits.disabled) {
+      timer = setTimeout(() => {
+        stop(ctx, "wall-clock limit").catch(() => {});
+      }, config.limits.seconds * 1000);
+      timer.unref();
+    }
     broker.log({ kind: "session-start", allowedTools: tools, limits: config.limits });
   });
   pi.on("before_agent_start", (_event, ctx) => {
-    if (!timer) {
+    if (!config.limits.disabled && !timer) {
       timer = setTimeout(
         () => {
           stop(ctx, "wall-clock limit").catch(() => {});
@@ -102,7 +105,7 @@ export default function (pi) {
     toolCalls++;
     if (!tools.includes(event.toolName))
       return { block: true, terminate: true, reason: "Tool unavailable in this trial" };
-    if (stopped || toolCalls > config.limits.toolCalls) {
+    if (stopped || (!config.limits.disabled && toolCalls > config.limits.toolCalls)) {
       await stop(ctx, "tool-call limit");
       return { block: true, terminate: true, reason: "Trial limit reached" };
     }

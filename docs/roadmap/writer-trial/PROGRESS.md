@@ -1,6 +1,6 @@
 # Writer trial
 
-Status: trial-01 round 2 is running for all four writers.
+Status: round 2 resumed for all four writers with trial budget stops off.
 Owner: Codex.
 Scope settled: core and React only.
 Trial shape settled: four attempts per writer on its own growing repo.
@@ -427,3 +427,29 @@ GLM passes the sampled core and browser checks for rounds 1 and 2.
 Its source grew from 342 to 558 lines and tests from 0 to 330 lines.
 These line counts describe growth; they are not quality scores.
 The two MiMo writers have not yet sent completion notices.
+
+## User change: finish testing before budget comparison
+
+The user asked us to stop worrying about our caps.
+Disable trial stops for time, tokens, estimated cost, turns,
+tool calls, and Jev calls. Keep file access and shell timeouts.
+Use each route's gateway response and context allowances.
+Keep the capped phase results separate; do not rank models from them.
+
+Round 2 capped snapshots are saved before this change.
+MiMo Pro was stopped by the teacher to switch settings;
+that stop is not a model failure.
+Resume all four on their own round-2 code in fresh sessions.
+Write small steps, run checks, use Jev, and fix failures.
+If a response is cut short, continue the same task.
+Teacher feedback may now help get the app tested.
+Keep future packets hidden until this round is checked.
+
+Five budget/tool checks pass, including work beyond disabled thresholds.
+
+Round 2 resumed agent IDs:
+
+- `xiaomi/mimo-v2.6-flash`: `b6854bb7-486f-4c24-b695-646279a6d714`.
+- `xiaomi/mimo-v2.6-pro`: `64462225-78fd-4659-83cf-b13a13fa1a79`.
+- `zai/glm-5.3-flash`: `97d7cd24-53ad-4f96-8fff-f76df8379db1`.
+- `deepseek/deepseek-v4.1-flash`: `9c942f93-9636-4974-8f05-d8bd5d8729dd`.

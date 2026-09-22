@@ -78,8 +78,8 @@ if (process.argv.includes("--models")) {
       name: m.name,
       reasoning: true,
       input: ["text"],
-      contextWindow: Math.min(m.context_window, 131072),
-      maxTokens: 16384,
+      contextWindow: m.context_window,
+      maxTokens: m.max_tokens,
       cost: {
         input: Number(p.input) * 1e6,
         output: Number(p.output) * 1e6,

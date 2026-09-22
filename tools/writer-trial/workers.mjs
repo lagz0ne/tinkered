@@ -223,7 +223,11 @@ if (action === "create") {
   if (![1, 2, 3, 4].includes(round)) throw new Error("Stage needs round 1, 2, 3, or 4");
   const manifest = JSON.parse(readFileSync(manifestPath));
   if (manifest.round && round !== manifest.round + 1) throw new Error("Stage the next round only");
-  if (manifest.round && manifest.exportedRound !== manifest.round)
+  if (
+    manifest.round &&
+    (manifest.exportedRound !== manifest.round ||
+      (manifest.phase === "completion" && manifest.exportedPhase !== "completion"))
+  )
     throw new Error("Export the previous round before staging the next");
   const packets = ["01-book-cancel.md", "02-edit.md", "03-series.md", "04-undo.md"];
   const task = packets
@@ -250,13 +254,14 @@ if (action === "create") {
     );
     w.status = "staged";
   }
-  manifest.phase = "scored";
+  manifest.phase = config.limits.disabled ? "completion" : "scored";
   manifest.round = round;
   save(manifest);
   console.log(`Round ${round} staged. No agents launched.`);
 } else if (action === "export") {
   const manifest = JSON.parse(readFileSync(manifestPath));
-  const resultDir = join(root, "results", `round-${manifest.round ?? "readiness"}`);
+  const suffix = manifest.phase === "completion" ? "-completion" : "";
+  const resultDir = join(root, "results", `round-${manifest.round ?? "readiness"}${suffix}`);
   if (existsSync(resultDir))
     throw new Error("This round was already exported; preserve the existing evidence");
   mkdirSync(resultDir, { recursive: true });
@@ -267,6 +272,7 @@ if (action === "create") {
     writeFileSync(join(resultDir, `worker-${i + 1}.tar`), snapshot);
   }
   manifest.exportedRound = manifest.round ?? "readiness";
+  manifest.exportedPhase = manifest.phase;
   manifest.exportedAt = new Date().toISOString();
   save(manifest);
   console.log("Saved worker archives outside temporary projects.");

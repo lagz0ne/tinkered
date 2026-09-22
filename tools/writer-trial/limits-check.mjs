@@ -28,7 +28,7 @@ async function harness(limits) {
     JSON.stringify({
       ...original,
       events: join(dir, "events.jsonl"),
-      limits: { ...original.limits, ...limits },
+      limits: { ...original.limits, disabled: false, ...limits },
     }),
   );
   const events = {};
@@ -39,8 +39,11 @@ async function harness(limits) {
       aborted = true;
     },
   };
+  const registered = new Map();
   const pi = {
-    registerTool() {},
+    registerTool(tool) {
+      registered.set(tool.name, tool);
+    },
     on(name, fn) {
       events[name] = fn;
     },
@@ -54,6 +57,7 @@ async function harness(limits) {
     events,
     context,
     active: () => active,
+    tool: (name) => registered.get(name),
     aborted: () => aborted,
     close() {
       events.session_shutdown();
@@ -112,6 +116,31 @@ await test("wall clock stops the container without a model response", async () =
   try {
     await new Promise((resolve) => setTimeout(resolve, 150));
     assert.equal(h.aborted(), true);
+  } finally {
+    h.close();
+  }
+});
+
+await test("disabled budgets allow work beyond token, tool, turn, cost and time thresholds", async () => {
+  const h = await harness({
+    disabled: true,
+    seconds: 0.01,
+    toolCalls: 0,
+    modelTurns: 0,
+    tokens: 0,
+    estimatedDollars: 0,
+  });
+  try {
+    assert.equal(await h.events.tool_call({ toolName: "work_shell" }, h.context), undefined);
+    await h.events.turn_end(
+      { message: { usage: { totalTokens: 999999, cost: { total: 10 } } } },
+      h.context,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    assert.equal(h.aborted(), false);
+    const result = await h.tool("work_shell").execute("disabled-probe", { command: "true" });
+    assert.equal(result.details.code, 0);
+    assert.equal(await h.events.tool_call({ toolName: "jev" }, h.context), undefined);
   } finally {
     h.close();
   }
