@@ -373,6 +373,51 @@ test("namespace clients share one scope-target pool", () => {
   return scope.close();
 });
 
+test("close waits for a named resource borrow and tears every bucket down once", async () => {
+  const tenant = tag<string>({ label: "tenant" });
+  const a = namespace({ tags: [tenant("A")] });
+  const b = namespace({ tags: [tenant("B")] });
+  const ended: string[] = [];
+  let finish = (): void => undefined;
+  const gate = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const client = resource({
+    label: "client",
+    target: "session",
+    depends: { tenant },
+    factory: ({ tenant }, ctx) => {
+      const value = { closed: false };
+      ctx.defer((end) => {
+        value.closed = true;
+        ended.push(`${tenant}:${end.status}`);
+      });
+      return value;
+    },
+  });
+  let held = { closed: true };
+  const hold = operation({
+    label: "hold",
+    depends: { client },
+    run: async ({ client }) => {
+      held = client;
+      await gate;
+    },
+  });
+  const scope = createScope();
+  scope.resolve(client, { ns: b });
+  const running = scope.run(hold, { ns: a });
+  const closing = scope.close({ graceful: true });
+  expect(held.closed).toBe(false);
+  expect(ended).toEqual([]);
+  finish();
+  await running;
+  const result = await closing;
+  expect(result.status).toBe("success");
+  expect(held.closed).toBe(true);
+  expect(ended).toEqual(["A:success", "B:success"]);
+});
+
 test("a scope-target resource is namespace-blind and keeps default storage clean", () => {
   const tenant = tag<string>({ label: "tenant" });
   const named = namespace({ tags: [tenant("named")] });
