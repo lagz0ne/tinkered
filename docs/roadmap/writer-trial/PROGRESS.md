@@ -531,3 +531,17 @@ Source grew from 662 to 885 lines; tests from 798 to 1,234 lines.
 [Saved result](trial-01-round-3-deepseek.json).
 The other three round-3 writers have not sent completion notices.
 Round 4 is not staged yet.
+
+### Round 3: GLM checked
+
+GLM's snapshot passes the teacher's sampled core and browser
+checks for all three rounds. Earlier checks remain green.
+Direct public checks also pass: type check, 38 core tests,
+build, and 7 real browser tests all exit 0.
+It used Jev four times; its JavaScript browser tests are outside
+Jev's current TypeScript-only file boundary.
+
+Source grew from 558 to 769 lines; tests and test setup
+from 500 to 811 lines. The worker saved commit `f3a2e7f`.
+[Saved result](trial-01-round-3-glm.json).
+GLM and DeepSeek are checked; both MiMo writers are still running.
