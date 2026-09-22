@@ -1113,8 +1113,11 @@ function selectBucket<B>(
  * the cell's initial value, so reads never check for absence. A namespaced read branches off
  * here (ns present only) and takes the shared selector uncached — the default path and its
  * cache are untouched. */
-function effectiveEntry(layer: Layer, target: Data.Cell<unknown>): Entry {
-  const chain = layer.ns;
+function effectiveEntry(
+  layer: Layer,
+  target: Data.Cell<unknown>,
+  chain: readonly Namespace[] | undefined = layer.ns,
+): Entry {
   if (chain !== undefined) return effectiveEntryNs(layer, target, chain);
   const self = nodeState(layer, target);
   const cached = self.eff;
@@ -1147,8 +1150,12 @@ function effectiveEntryNs(
   );
 }
 
-function readCell(layer: Layer, target: Data.Cell<unknown>): unknown {
-  return effectiveEntry(layer, target).value;
+function readCell(
+  layer: Layer,
+  target: Data.Cell<unknown>,
+  chain: readonly Namespace[] | undefined = layer.ns,
+): unknown {
+  return effectiveEntry(layer, target, chain).value;
 }
 
 /** Creating a nearer shadow changes the effective cell for this layer and its descendants. */
@@ -1201,8 +1208,12 @@ function cellEq(target: Data.Cell<unknown>, a: unknown, b: unknown): boolean {
   return target.eq(a, b);
 }
 
-function writeCell<T>(layer: Layer, target: Data.Cell<T>, next: unknown): void {
-  const chain = layer.ns;
+function writeCell<T>(
+  layer: Layer,
+  target: Data.Cell<T>,
+  next: unknown,
+  chain: readonly Namespace[] | undefined = layer.ns,
+): void {
   if (chain !== undefined) return writeCellNs(layer, target, chain, next);
   ensureOpen(layer);
   const value = admit(target.label, target.parse, next);
@@ -1222,7 +1233,7 @@ function writeCellNs(
 ): void {
   ensureOpen(layer);
   const value = admit(target.label, target.parse, next);
-  const current = readCell(layer, target);
+  const current = readCell(layer, target, chain);
   if (cellEq(target, current, value)) return;
   ownNsCell(layer, target, chain[0], current).value = value;
   flushNs(layer, target, chain[0]);
@@ -1265,8 +1276,11 @@ function topTag(list: unknown[] | undefined): { present: true; value: unknown } 
   return list && list.length ? { present: true, value: list[list.length - 1] } : undefined;
 }
 
-function tagFind(layer: Layer, target: Tag.Handle<unknown>): Tag.Presence<unknown> {
-  const chain = layer.ns;
+function tagFind(
+  layer: Layer,
+  target: Tag.Handle<unknown>,
+  chain: readonly Namespace[] | undefined = layer.ns,
+): Tag.Presence<unknown> {
   if (chain !== undefined) return tagFindNs(layer, target, chain);
   for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
     const hit = topTag(cur.tags?.get(target));
@@ -1305,8 +1319,11 @@ function nsTagBinding(
   return undefined;
 }
 
-function tagAll(layer: Layer, target: Tag.Handle<unknown>): unknown[] {
-  const chain = layer.ns;
+function tagAll(
+  layer: Layer,
+  target: Tag.Handle<unknown>,
+  chain: readonly Namespace[] | undefined = layer.ns,
+): unknown[] {
   if (chain !== undefined) return tagAllNs(layer, target, chain);
   const out: unknown[] = [];
   for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
@@ -1337,8 +1354,12 @@ function tagAllNs(
   return out;
 }
 
-function tagRequired(layer: Layer, target: Tag.Handle<unknown>): unknown {
-  const found = tagFind(layer, target);
+function tagRequired(
+  layer: Layer,
+  target: Tag.Handle<unknown>,
+  chain: readonly Namespace[] | undefined = layer.ns,
+): unknown {
+  const found = tagFind(layer, target, chain);
   if (!found.present) raise("MissingTag", { label: target.label });
   return found.value;
 }
@@ -1399,13 +1420,13 @@ function dataControllerNs<T>(
   target: Data.Cell<T>,
   chain: readonly Namespace[],
 ): Scope.DataController<T> {
-  const get = (): T => readCell(layer, target) as T;
+  const get = (): T => readCell(layer, target, chain) as T;
   return {
     get,
-    set: (value: T) => writeCell(layer, target, value),
+    set: (value: T) => writeCell(layer, target, value, chain),
     update: (fn: (previous: T) => T) => {
       ensureOpen(layer);
-      writeCell(layer, target, fn(get()));
+      writeCell(layer, target, fn(get()), chain);
     },
     watch: (listener: (next: T, prev: T) => void) =>
       addWatcherNs(layer, target, chain[0], listener as (next: unknown, prev: unknown) => void),
@@ -1422,7 +1443,10 @@ function addWatcherNs(
   ensureOpen(layer);
   const rec = nodeState(layer, target);
   const map = (rec.nsWatchers ??= new Map());
-  const entry = map.get(key) ?? { ws: new Set<Watcher>(), notified: readCell(layer, target) };
+  const entry = map.get(key) ?? {
+    ws: new Set<Watcher>(),
+    notified: readCell(layer, target, [key]),
+  };
   map.set(key, entry);
   const w: Watcher = { fn };
   entry.ws.add(w);
@@ -1433,12 +1457,11 @@ function resolveControllerEdge(
   layer: Layer,
   target: unknown,
   parent: Observe.Span | undefined,
+  chain: readonly Namespace[] | undefined = layer.ns,
 ): unknown {
   if (isData(target))
-    return layer.ns !== undefined
-      ? dataControllerNs(layer, target, layer.ns)
-      : dataController(layer, target);
-  if (isOperation(target)) return operationController(layer, target, parent);
+    return chain !== undefined ? dataControllerNs(layer, target, chain) : dataController(layer, target);
+  if (isOperation(target)) return operationController(layer, target, parent, chain);
   raise("InvalidDependency", { label: "edge", reason: "unknown controller target" });
 }
 
@@ -1446,24 +1469,26 @@ function resolveEdge(
   layer: Layer,
   dep: Edge<string, unknown>,
   parent: Observe.Span | undefined,
+  chain: readonly Namespace[] | undefined = layer.ns,
 ): unknown {
-  if (dep.kind === "controller") return resolveControllerEdge(layer, dep.target, parent);
+  if (dep.kind === "controller") return resolveControllerEdge(layer, dep.target, parent, chain);
   const target = dep.target as Tag.Handle<unknown>;
-  if (dep.kind === "all") return tagAll(layer, target);
-  if (dep.kind === "optional") return tagFind(layer, target);
-  return tagRequired(layer, target);
+  if (dep.kind === "all") return tagAll(layer, target, chain);
+  if (dep.kind === "optional") return tagFind(layer, target, chain);
+  return tagRequired(layer, target, chain);
 }
 
 function resolveDep(
   layer: Layer,
   dep: Scope.Dependency,
   parent: Observe.Span | undefined,
+  chain: readonly Namespace[] | undefined = layer.ns,
 ): unknown {
-  if (isEdge(dep)) return resolveEdge(layer, dep, parent);
-  if (isData(dep)) return readCell(layer, dep);
-  if (isTag(dep)) return tagRequired(layer, dep);
-  if (isOperation(dep)) return operationController(layer, dep, parent);
-  if (isResource(dep)) return resourceSlot(layer, dep, parent);
+  if (isEdge(dep)) return resolveEdge(layer, dep, parent, chain);
+  if (isData(dep)) return readCell(layer, dep, chain);
+  if (isTag(dep)) return tagRequired(layer, dep, chain);
+  if (isOperation(dep)) return operationController(layer, dep, parent, chain);
+  if (isResource(dep)) return resourceSlot(layer, dep, parent, chain);
   if (isExtension(dep)) return resolveExtension(layer, dep);
   raise("InvalidDependency", { label: "unknown", reason: "unknown dependency" });
 }
@@ -1963,14 +1988,12 @@ function runTagged<T, I>(
   const inner: Scope.Invocation<I> | undefined =
     call.input === undefined && call.rawInput === undefined ? undefined : stripTags(call);
   return runSessionWith(layer, { tags, ns: call.ns }, (child) =>
-    runUntagged(child, target, parent, inner),
+    runUntagged(child, target, parent, inner, child.ns),
   ) as Promise<Awaited<T>>;
 }
 
-/** Run `target` in the call's namespace (ADR 0059): a view layer carries the chain as its ambient
- * namespace, so every read and write inside — deps, tags, cells, subflows — resolves through it
- * while the span parent and the real layer stay untouched. Cold path only (the ns-absent run
- * never enters). A fresh controller per call, cached in no layer. */
+/** Run `target` in the call's namespace (ADR 0059). The real layer remains the owner of
+ * lifecycle state and registries; the chain travels beside it through resolution. */
 function runNsCall<I>(
   layer: Layer,
   target: Operation.Handle<unknown, I>,
@@ -1978,8 +2001,7 @@ function runNsCall<I>(
   call: Scope.Invocation<I> & { readonly ns: Ns },
 ): unknown {
   ensureOpen(layer);
-  const view = nsView(layer, nsChainOf(call.ns));
-  return runUntagged(view, target, parent, stripNs(call));
+  return runUntagged(layer, target, parent, stripNs(call), nsChainOf(call.ns));
 }
 
 /** The ns-stripped call a namespaced run replays on its view layer: the same `input`/`rawInput`
@@ -1988,13 +2010,6 @@ function stripNs<I>(call: Scope.Invocation<I>): Scope.Invocation<I> | undefined 
   if (call.input !== undefined) return { input: call.input };
   if (call.rawInput !== undefined) return { rawInput: call.rawInput };
   return undefined;
-}
-
-/** An ephemeral layer view with one chain as its ambient namespace: everything is shared with the
- * real layer (nodes, children, parent, close state) except `ns`, so resolution through the view
- * reads and writes the named buckets of the REAL layer — the span parent never moves. */
-function nsView(layer: Layer, chain: readonly Namespace[]): Layer {
-  return { ...layer, ns: chain };
 }
 
 /** The tag-stripped call a tagged run replays inside its child session (ADR 0038): the same
@@ -2009,6 +2024,7 @@ function operationController<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
   parent: Observe.Span | undefined,
+  chain: readonly Namespace[] | undefined = layer.ns,
 ): Scope.OperationController<T, I> {
   /** The single entry every run takes — declared, subflow, and inline alike. A call carrying
    * `tags` opens a child session for the run (ADR 0038, always async); anything else runs the
@@ -2058,7 +2074,7 @@ function operationController<T, I>(
     let result: T;
     buildDepth++;
     try {
-      const deps = readOpDeps(layer, target, span, sees);
+      const deps = readOpDeps(layer, target, span, sees, chain);
       ctx = new OperationCtx<I>(layer, target, call, obs, span);
       result = runBody(override, target, deps, ctx, parked);
     } catch (error) {
@@ -2091,11 +2107,13 @@ function runUntagged<T, I>(
   target: Operation.Handle<T, I>,
   parent: Observe.Span | undefined,
   call: Scope.Invocation<I> | undefined,
+  chain: readonly Namespace[] | undefined = layer.ns,
 ): T {
   const untagged: { run(call?: Scope.Invocation<I>): T } = operationController(
     layer,
     target,
     parent,
+    chain,
   ) as { run(call?: Scope.Invocation<I>): T };
   return untagged.run(call);
 }
@@ -2130,13 +2148,14 @@ function buildDeps(
   depends: Scope.Depends,
   span: Observe.Span | undefined,
   registerEdge: RegisterEdge,
+  chain: readonly Namespace[] | undefined = layer.ns,
 ): Record<string, unknown> {
   const deps: Record<string, unknown> = {};
   let pending: PendingSlot[] | undefined;
   for (const key in depends) {
     const dep = depends[key];
     registerEdge?.(dep);
-    const value = resolveDep(layer, dep, span);
+    const value = resolveDep(layer, dep, span, chain);
     if (isThenable(value) && isResource(dep)) {
       (pending ??= []).push({ key, build: Promise.resolve(value) });
     }
@@ -2152,9 +2171,10 @@ function buildPlainDeps(
   layer: Layer,
   depends: Scope.Depends,
   span: Observe.Span | undefined,
+  chain: readonly Namespace[] | undefined = layer.ns,
 ): Record<string, unknown> {
   const deps: Record<string, unknown> = {};
-  for (const key in depends) deps[key] = resolveDep(layer, depends[key], span);
+  for (const key in depends) deps[key] = resolveDep(layer, depends[key], span, chain);
   parked = undefined;
   return deps;
 }
@@ -2167,10 +2187,11 @@ function readOpDeps(
   target: Operation.Handle<unknown, unknown>,
   span: Observe.Span | undefined,
   sees: boolean,
+  chain: readonly Namespace[] | undefined = layer.ns,
 ): Record<string, unknown> {
   return sees
-    ? buildDeps(layer, target.depends, span, undefined)
-    : buildPlainDeps(layer, target.depends, span);
+    ? buildDeps(layer, target.depends, span, undefined, chain)
+    : buildPlainDeps(layer, target.depends, span, chain);
 }
 
 /** Await every parked build, then deliver the values into their slots. A rejected build rejects
@@ -2187,13 +2208,14 @@ function resolveResourceDeps(
   target: Resource.Handle<unknown>,
   span: Observe.Span | undefined,
   superseded: () => boolean,
+  chain: readonly Namespace[] | undefined,
 ): Record<string, unknown> {
   return buildDeps(owner, target.depends, span, (dep) => {
     const node = depNode(dep);
     /** Edges register before the factory runs (eager deps, ADR 0044); a build superseded while its
      * deps were still resolving records none, so a stale build never evicts its live replacement. */
     if (node && !superseded()) addDependent(owner, node, target);
-  });
+  }, chain);
 }
 
 class ResourceCtx implements Resource.Ctx {
@@ -2416,6 +2438,7 @@ function buildResource<T>(
   owner: Layer,
   target: Resource.Handle<T>,
   parent: Observe.Span | undefined,
+  chain: readonly Namespace[] | undefined,
 ): unknown {
   const rec = nodeState(owner, target);
   const gen = rec.gen;
@@ -2427,7 +2450,7 @@ function buildResource<T>(
   let settled = false;
   buildDepth++;
   try {
-    const deps = resolveResourceDeps(owner, target, span, superseded);
+    const deps = resolveResourceDeps(owner, target, span, superseded, chain);
     const pending = parked;
     const override = presetFor(owner, target) as Resource.Handle<T>["factory"] | undefined;
     const fn = override ?? target.factory;
@@ -2513,6 +2536,7 @@ function resourceController<T>(
   layer: Layer,
   target: Resource.Handle<T>,
   parent: Observe.Span | undefined,
+  chain: readonly Namespace[] | undefined = layer.ns,
 ): Scope.ResourceController<T> {
   const owner = ownerOf(layer, target);
   /** Second cache layer: the controller (already cached per node) holds the owner's node record
@@ -2521,7 +2545,7 @@ function resourceController<T>(
   const rec = nodeState(owner, target);
   return {
     resolve: () => {
-      const value = resourceSlot(layer, target, parent);
+      const value = resourceSlot(layer, target, parent, chain);
       return (rec.promise ?? value) as Scope.ResourceValue<T>;
     },
     get: () => {
@@ -2543,6 +2567,7 @@ function resourceSlot(
   layer: Layer,
   target: Resource.Handle<unknown>,
   parent: Observe.Span | undefined,
+  chain: readonly Namespace[] | undefined = layer.ns,
 ): unknown {
   const owner = ownerOf(layer, target);
   const rec = nodeState(owner, target);
@@ -2553,7 +2578,7 @@ function resourceSlot(
   if (rec.failed) return rec.failed.promise;
   if (rec.build) return rec.build;
   if (rec.building) raise("CircularResource", { label: target.label });
-  return buildResource(owner, target, parent);
+  return buildResource(owner, target, parent, chain);
 }
 
 type Affected = { node: Node; owner: Layer };
@@ -3486,29 +3511,24 @@ function runThrough(
   return chained as Scope.Handle["run"];
 }
 
-/** A namespaced resolve (ADR 0059): same dispatch as the plain resolve, on a view layer carrying
- * the chain. Cells and tags resolve in the namespace; resources are ns-blind in t01 (t02 keys
- * their builds on `(owner, ns, handle)` through the same selector); extensions are ns-blind. */
+/** A namespaced resolve keeps the real layer and passes the storage chain explicitly. */
 function resolveNs(layer: Layer, target: unknown, chain: readonly Namespace[]): unknown {
-  const view = nsView(layer, chain);
-  if (isData(target)) return readCell(view, target);
-  if (isResource(target)) return resourceController(view, target, undefined).resolve();
-  if (isEdge(target)) return resolveEdge(view, target, undefined);
+  if (isData(target)) return readCell(layer, target, chain);
+  if (isResource(target)) return resourceController(layer, target, undefined, chain).resolve();
+  if (isEdge(target)) return resolveEdge(layer, target, undefined, chain);
   if (isExtension(target)) return resolveExtension(layer, target);
-  return tagRequired(view, target as Tag.Handle<unknown>);
+  return tagRequired(layer, target as Tag.Handle<unknown>, chain);
 }
 
-/** A namespaced controller (ADR 0059): built fresh on the view layer, cached in no layer — a view
- * shares its real layer's node map, so a cached namespaced controller would leak its chain. */
+/** A namespaced controller is fresh so its explicit chain cannot leak through the layer cache. */
 function controllerNs(
   layer: Layer,
   target: Data.Cell<unknown> | Resource.Handle<unknown> | Operation.Handle<unknown, unknown>,
   chain: readonly Namespace[],
 ): unknown {
-  const view = nsView(layer, chain);
-  if (isData(target)) return dataControllerNs(view, target, chain);
-  if (isResource(target)) return resourceController(view, target, undefined);
-  return operationController(view, target, undefined);
+  if (isData(target)) return dataControllerNs(layer, target, chain);
+  if (isResource(target)) return resourceController(layer, target, undefined, chain);
+  return operationController(layer, target, undefined, chain);
 }
 
 function handleFor(layer: Layer): Scope.Handle {
@@ -3525,8 +3545,8 @@ function handleFor(layer: Layer): Scope.Handle {
         ? dataControllerNs(layer, target, layer.ns)
         : dataController(layer, target)
       : isResource(target)
-        ? resourceController(layer, target, undefined)
-        : operationController(layer, target, undefined);
+        ? resourceController(layer, target, undefined, layer.ns)
+        : operationController(layer, target, undefined, layer.ns);
     s.controller = ctl;
     return ctl;
   };
