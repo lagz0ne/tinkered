@@ -922,7 +922,7 @@ class NsResourceState {
   promise: Promise<unknown> | undefined = undefined;
   failed: { error: unknown; promise: Promise<unknown> } | undefined = undefined;
   build: Promise<unknown> | undefined = undefined;
-  gen = 0;
+  gen: object = {};
   building = false;
   borrowers: Set<Promise<unknown>> | undefined = undefined;
   dependents: Set<NsResourceState> | undefined = undefined;
@@ -2724,7 +2724,7 @@ function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): NsR
   s.build = undefined;
   if (s.nsResources) {
     for (const state of s.nsResources.values()) {
-      state.gen += 1;
+      state.gen = {};
       state.resource = undefined;
       state.promise = undefined;
       state.failed = undefined;
@@ -3015,7 +3015,7 @@ function invalidateNsAffected(
 ): Map<Resource.Handle<unknown>, Set<Namespace>> {
   const released = new Map<Resource.Handle<unknown>, Set<Namespace>>();
   for (const state of affected) {
-    state.gen += 1;
+    state.gen = {};
     state.resource = undefined;
     state.promise = undefined;
     state.failed = undefined;

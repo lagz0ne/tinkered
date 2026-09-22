@@ -532,7 +532,8 @@ test("releaseNs cleans one resource bucket and close drains the buckets left beh
   expect(secondA).not.toBe(firstA);
   expect(scope.resolve(client, { ns: b })).toBe(firstB);
   expect(scope.resolve(client)).toBe(plain);
-  await scope.close({ graceful: true });
+  const result = await scope.close({ graceful: true });
+  expect(result.teardownErrors).toBeUndefined();
   expect(ended).toEqual([
     `${firstA.build}:released`,
     `${secondA.build}:success`,
@@ -563,7 +564,8 @@ test("release without ns drops every named resource bucket", async () => {
   expect(ended).toEqual(["2:released", "1:released"]);
   expect(scope.resolve(client, { ns: a })).toEqual({ build: 3 });
   expect(scope.resolve(client, { ns: b })).toEqual({ build: 4 });
-  await scope.close();
+  const result = await scope.close();
+  expect(result.teardownErrors).toBeUndefined();
 });
 
 test("releaseNs waits for its own live borrow but not a sibling namespace", async () => {
