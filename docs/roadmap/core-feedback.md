@@ -129,3 +129,10 @@ to verify its entrypoint. No new helper or core ticket was requested.
 
 Reports and source checks are saved in
 `~/.local/share/tinker-writer-trial/learn-01/results/repair-1/`.
+
+MiMo Flash reported the same useRun error-state concern as DeepSeek.
+Its repair used the earlier rules; the fresh task includes the shared fix:
+a message read from useRun.error is allowed.
+This is a second report of unclear teaching, not a missing core feature.
+It also noted verbose controller types, without a failing public example.
+Keep that as a first request for simpler types, not a core change yet.

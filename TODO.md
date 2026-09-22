@@ -32,7 +32,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **writers/learn** — owner: Codex.
   Loop repairs, then a fresh feature, until all four meet the rules.
-  Next: review MiMo repairs, then run their fresh-feature tasks.
+  Next: check MiMo Flash fresh feature and MiMo Pro repair.
   Verify: behavior, state ownership, errors, tests, and a fresh-feature pass.
   Preserve every attempt; clean projects and workspaces after completion.
 

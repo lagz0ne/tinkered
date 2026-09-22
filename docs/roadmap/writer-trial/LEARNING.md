@@ -1,6 +1,7 @@
 # Writer learning loop
 
-Status: MiMo repairs are still in progress.
+Status: MiMo Flash is on the fresh feature.
+MiMo Pro is finishing repair.
 GLM and DeepSeek pass the stronger behavior checks.
 The final Jev tool checks are in progress.
 Owner: Codex.
@@ -186,3 +187,21 @@ The lead labeled one earlier Jev render warning false.
 Its action calls were inside event handlers.
 The full judge check ran again and saved calibration.json.
 These labels help judge quality; they do not change writer scores.
+
+## MiMo Flash repair accepted
+
+The lead ran its saved repair in fresh containers:
+29 of 29 stronger checks pass, as do the earlier teacher checks.
+Its own type check, 104 tests, and build pass.
+The lead read the view, screen actions, model, and errors.
+All form text, notices, filter, draft, and history live in cells.
+Unknown errors are rethrown; views use useData and useRun.
+Jev reports no notes on its two view units and no shape findings.
+
+The style scan flags five reads from regex matches as tuple reads.
+Those are match groups, not app records stored as tuples.
+The lead checked and explained them; all other strict counts are zero.
+
+A fresh agent now has the same frozen rename-series task and rules.
+Its own saved repair is the only app code it starts from.
+No teacher fixes were written into the app.
