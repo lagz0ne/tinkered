@@ -1454,7 +1454,7 @@ function dataControllerNs<T>(
             nodeState(layer, target),
             listener as (next: unknown, prev: unknown) => void,
           )
-        : addWatcherNs(layer, target, chain[0], listener as (next: unknown, prev: unknown) => void),
+        : addWatcherNs(layer, target, chain, listener as (next: unknown, prev: unknown) => void),
   };
 }
 
@@ -1462,17 +1462,18 @@ function dataControllerNs<T>(
 function addWatcherNs(
   layer: Layer,
   target: Data.Cell<unknown>,
-  key: Namespace,
+  chain: readonly Namespace[],
   fn: (next: unknown, prev: unknown) => void,
 ): () => void {
   ensureOpen(layer);
+  const key = chain[0];
   const rec = nodeState(layer, target);
   const map = (rec.nsWatchers ??= new Map());
   const entry = map.get(key) ?? {
     ws: new Set<Watcher>(),
-    notified: readCell(layer, target, [key]),
+    notified: readCell(layer, target, chain),
   };
-  if (entry.ws.size === 0) entry.notified = readCell(layer, target, [key]);
+  if (entry.ws.size === 0) entry.notified = readCell(layer, target, chain);
   map.set(key, entry);
   const w: Watcher = { fn };
   entry.ws.add(w);
