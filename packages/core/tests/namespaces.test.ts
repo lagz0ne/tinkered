@@ -1506,3 +1506,150 @@ test("a watcher that writes during notify does not rob a later watcher of its ch
   ]);
   await scope.close();
 });
+
+/** A one-shot gate: a promise plus its resolver, for driving async build/run ordering in probes. */
+function gate(): { promise: Promise<void>; open: () => void } {
+  let open = (): void => {};
+  const promise = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  return { promise, open };
+}
+
+test("a throwing named data watcher still runs the extracted release cleanup (N2)", async () => {
+  const ns = namespace();
+  const cell = data<number>({ label: "n2cell", initial: 0 });
+  const ended: string[] = [];
+  const client = resource({
+    label: "n2client",
+    target: "session",
+    depends: { cell },
+    factory: ({ cell }, ctx) => {
+      ctx.defer((end) => ended.push(end.status));
+      return { cell };
+    },
+  });
+  const scope = createScope();
+  const ctl = scope.controller(cell, { ns });
+  ctl.set(1);
+  scope.resolve(client, { ns });
+  ctl.watch(() => {
+    throw new Error("watcher");
+  });
+  let threw = false;
+  try {
+    scope.releaseNs(cell, ns);
+  } catch {
+    threw = true;
+  }
+  expect(threw).toBe(true);
+  expect(ended).toEqual(["released"]);
+  await scope.close({ graceful: true });
+  expect(ended).toEqual(["released"]);
+});
+
+test("a failed named build's cleanup is still run by releaseNs (N3)", async () => {
+  const ns = namespace();
+  const ended: string[] = [];
+  const client = resource({
+    label: "n3client",
+    target: "session",
+    factory: (_deps, ctx) => {
+      ctx.defer((end) => ended.push(end.status));
+      throw new Error("build");
+    },
+  });
+  const scope = createScope();
+  try {
+    scope.resolve(client, { ns });
+  } catch {
+    // expected
+  }
+  scope.releaseNs(client, ns);
+  expect(ended).toEqual(["released"]);
+  await scope.close({ graceful: true });
+  expect(ended).toEqual(["released"]);
+});
+
+test("a failed named build does not fill a sibling chain's fallback (N3)", () => {
+  const tenant = tag<string>({ label: "n3tenant" });
+  const a = namespace({ tags: [tenant("A")] });
+  const b = namespace({ tags: [tenant("B")] });
+  let fail = true;
+  const client = resource({
+    label: "n3fb",
+    target: "session",
+    depends: { tenant },
+    factory: ({ tenant }) => {
+      if (tenant === "B" && fail) {
+        fail = false;
+        throw new Error("bad");
+      }
+      return tenant;
+    },
+  });
+  const scope = createScope();
+  try {
+    scope.resolve(client, { ns: b });
+  } catch {
+    // expected
+  }
+  expect(scope.resolve(client, { ns: [a, b] })).toBe("A");
+  expect(scope.resolve(client, { ns: b })).toBe("B");
+});
+
+test("a factory that releases its own bucket does not close the value the run gets (N1)", async () => {
+  const ns = namespace();
+  const ended: string[] = [];
+  const wait = gate();
+  let held: { closed: boolean } | undefined;
+  const client = resource({
+    label: "n1client",
+    target: "session",
+    factory: (_deps, ctx) => {
+      const obj = { closed: false };
+      ctx.defer((end) => {
+        obj.closed = true;
+        ended.push(end.status);
+      });
+      scope.releaseNs(client, ns);
+      return obj;
+    },
+  });
+  const hold = operation({
+    label: "n1hold",
+    depends: { client },
+    run: async ({ client }) => {
+      held = client;
+      await wait.promise;
+    },
+  });
+  const scope = createScope();
+  const running = scope.run(hold, { ns });
+  await Promise.resolve();
+  expect(held?.closed).toBe(false);
+  expect(ended).toEqual([]);
+  wait.open();
+  await running;
+  await scope.close();
+});
+
+test("releasing a far named data bucket does not invalidate a client reading a nearer default (N6)", () => {
+  const config = data<number>({ label: "n6config", initial: 0 });
+  const a = namespace();
+  const client = resource({
+    label: "n6client",
+    target: "session",
+    depends: { config },
+    factory: ({ config }) => ({ value: config }),
+  });
+  const scope = createScope();
+  scope.controller(config, { ns: a }).set(1);
+  const child = scope.createSession();
+  child.controller(config).set(2);
+  const first = child.resolve(client, { ns: [a] });
+  expect(first.value).toBe(2);
+  scope.releaseNs(config, a);
+  const second = child.resolve(client, { ns: [a] });
+  expect(second).toBe(first);
+});
