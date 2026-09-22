@@ -176,3 +176,15 @@ Quantity 99, Move stock, then Cable leaves the ShortStock notice.
 The task says a passing action clears the earlier error.
 This new probe is recorded apart from the original score.
 GLM needs one more fix. MiMo Flash has started its own repair.
+
+## MiMo Flash repair accepted
+
+The lead read the typing changes: operations now own all eight writes.
+All supplied commands pass, with 54 tests.
+The corrected teacher probe plus the notice case passes 45 of 45.
+The style census passes.
+Jev helped remove a helper that held a whole operation body.
+This saved repair is accepted for the current task.
+Its failed first attempt remains recorded separately.
+The normal checker still needs the pending module-URL fix landed.
+DeepSeek has started its own repair.
