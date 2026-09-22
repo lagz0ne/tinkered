@@ -4,7 +4,17 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
 import { extension, operation, tag } from "@tinker/core";
-import { argv, command, env, execute, io, isError, main, run, type Process } from "../src/index.ts";
+import {
+  argv,
+  env,
+  execute,
+  io,
+  isError,
+  jsonLine,
+  main,
+  run,
+  type Process,
+} from "../src/index.ts";
 
 /** Collects what a no-process run wrote. */
 const seenWrite: string[] = [];
@@ -25,6 +35,23 @@ const double = operation({
   run: (_deps, ctx) => ctx.input * 2,
 });
 
+/** One `double` command over any `double` operation: parse argv[0], run, write the line, own
+ * the code. The lazy route reuses it with the loaded operation. */
+function doubleCommandFor(label: string, flow: typeof double): Process.Command {
+  return operation({
+    label,
+    depends: { argv: argv.required, io: io.required, double: flow },
+    run: ({ argv: args, io: out, double: op }) => {
+      const value = op.run({ rawInput: args[0] });
+      out.write(jsonLine(value) ?? "");
+      return 0;
+    },
+  });
+}
+
+/** The `double` command, declared by its author: parse argv[0], run, write the line, own the code. */
+const doubleCommand = doubleCommandFor("double", double);
+
 /** A command that answers its own code and writes through the io tag as it goes. */
 const three = operation({
   label: "three",
@@ -35,6 +62,23 @@ const three = operation({
     return 3;
   },
 });
+
+/** A route whose `entry` awaits a lazy loader on first selection — memoized on success,
+ * retried after a rejection. A dynamic `import` in practice; a function here. */
+function lazyRoute(
+  name: string,
+  load: () => typeof double | PromiseLike<typeof double>,
+): Process.Route {
+  let cached: Promise<typeof double> | undefined;
+  const once = (): Promise<typeof double> => {
+    cached ??= Promise.resolve(load()).catch((error: unknown) => {
+      cached = undefined;
+      throw error;
+    });
+    return cached;
+  };
+  return { name, entry: async () => ({ op: doubleCommandFor(name, await once()) }) };
+}
 
 /** A one-shot that never answers until the signal fires — a model call that hangs. */
 const hang = operation({
@@ -54,6 +98,11 @@ const serve = operation({
     }),
 });
 
+/** A command over a plain route: `entry` answers the operation, `run` supplies the root. */
+function routeFor(name: string, op: Process.Command, description?: string): Process.Route {
+  return { name, description, entry: () => ({ op }) };
+}
+
 /** A signal that aborts after `ms`, on a real timer so the loop stays alive. */
 function later(ms: number): AbortSignal {
   const controller = new AbortController();
@@ -64,15 +113,15 @@ function later(ms: number): AbortSignal {
 test("help lists the routes sorted with their descriptions and loads nothing", async () => {
   let loads = 0;
   const table = shell([
-    command(
-      "zeta",
-      () => {
+    {
+      name: "zeta",
+      description: "last",
+      entry: () => {
         loads += 1;
-        return double;
+        return { op: doubleCommand };
       },
-      { description: "last" },
-    ),
-    command("alpha", double, { description: "first" }),
+    },
+    routeFor("alpha", doubleCommand, "first"),
   ]);
   const result = await run(table, ["help"]);
   expect(result).toEqual({
@@ -90,35 +139,50 @@ test("--version answers the version with exit 0", async () => {
 
 test("an unknown command prints usage to stderr with exit 2 and loads nothing", async () => {
   let loads = 0;
-  const table = shell([command("d", () => ((loads += 1), double))]);
+  const table = shell([
+    {
+      name: "d",
+      entry: () => {
+        loads += 1;
+        return { op: doubleCommand };
+      },
+    },
+  ]);
   const result = await run(table, ["nope"]);
   expect(result.code).toBe(2);
   expect(result.stderr).toBe("usage: tk <command>\n  d\n");
   expect(loads).toBe(0);
 });
 
-test("a command over an operation parses argv through its own input and answers one JSON line", async () => {
-  const result = await run(shell([command("double", double, { input: (a) => a[0] })]), [
-    "double",
-    "21",
-  ]);
+test("a declared command parses argv through the operation's own parse and answers one JSON line", async () => {
+  const result = await run(shell([routeFor("double", doubleCommand)]), ["double", "21"]);
   expect(result).toEqual({ code: 0, stdout: "42\n", stderr: "" });
 });
 
-test("respond overrides the default output and a void operation prints nothing", async () => {
-  const table = shell([
-    command("double", double, { input: (a) => a[0], respond: (n) => `= ${n}\n` }),
-    command("quiet", operation({ label: "quiet", run: () => undefined })),
-  ]);
+test("the author owns the output: a custom line, and a void operation prints nothing", async () => {
+  const loud = operation({
+    label: "double",
+    depends: { argv: argv.required, io: io.required, double },
+    run: ({ argv: args, io: out, double: flow }) => {
+      out.write(`= ${flow.run({ rawInput: args[0] })}\n`);
+      return 0;
+    },
+  });
+  const quiet = operation({
+    label: "quiet",
+    depends: { io: io.required },
+    run: ({ io: out }) => {
+      out.write(jsonLine(undefined) ?? "");
+      return 0;
+    },
+  });
+  const table = shell([routeFor("double", loud), routeFor("quiet", quiet)]);
   expect((await run(table, ["double", "4"])).stdout).toBe("= 8\n");
   expect(await run(table, ["quiet"])).toEqual({ code: 0, stdout: "", stderr: "" });
 });
 
 test("an operation's parse failure prints usage to stderr with exit 2", async () => {
-  const result = await run(shell([command("double", double, { input: (a) => a[0] })]), [
-    "double",
-    "x",
-  ]);
+  const result = await run(shell([routeFor("double", doubleCommand)]), ["double", "x"]);
   expect(result.code).toBe(2);
   expect(result.stderr).toBe("usage: tk <command>\n  double\n");
 });
@@ -130,22 +194,18 @@ test("a throwing operation prints its error to stderr with exit 1", async () => 
       throw new Error("boom");
     },
   });
-  const result = await run(shell([command("boom", boom)]), ["boom"]);
+  const result = await run(shell([routeFor("boom", boom)]), ["boom"]);
   expect(result).toEqual({ code: 1, stdout: "", stderr: "Error: boom\n" });
 });
 
 test("a throwing loader is the run's failure with exit 1 and the next run retries it", async () => {
   let calls = 0;
   const table = shell([
-    command(
-      "flaky",
-      () => {
-        calls += 1;
-        if (calls === 1) return Promise.reject(new Error("no module"));
-        return double;
-      },
-      { input: (a) => a[0] },
-    ),
+    lazyRoute("flaky", () => {
+      calls += 1;
+      if (calls === 1) return Promise.reject(new Error("no module"));
+      return double;
+    }),
   ]);
   const first = await run(table, ["flaky", "2"]);
   expect(first).toEqual({ code: 1, stdout: "", stderr: "Error: no module\n" });
@@ -155,7 +215,12 @@ test("a throwing loader is the run's failure with exit 1 and the next run retrie
 
 test("the selected loader runs once across two runs", async () => {
   let loads = 0;
-  const table = shell([command("d", () => ((loads += 1), double), { input: (a) => a[0] })]);
+  const table = shell([
+    lazyRoute("d", () => {
+      loads += 1;
+      return double;
+    }),
+  ]);
   await run(table, ["d", "1"]);
   await run(table, ["d", "1"]);
   expect(loads).toBe(1);
@@ -268,7 +333,7 @@ test("a throwing run leaves the next run unaffected", async () => {
       throw new Error("boom");
     },
   });
-  const table = shell([command("boom", boom), command("double", double, { input: (a) => a[0] })]);
+  const table = shell([routeFor("boom", boom), routeFor("double", doubleCommand)]);
   expect((await run(table, ["boom"])).code).toBe(1);
   expect(await run(table, ["double", "5"])).toEqual({ code: 0, stdout: "10\n", stderr: "" });
 });
@@ -318,19 +383,23 @@ async function underFakeProcess(
 }
 
 test("main reads argv off the process, writes to its streams, wires both signals, and exits with the code", async () => {
-  const table = shell([command("double", double, { input: (a) => a[0] })]);
+  const table = shell([routeFor("double", doubleCommand)]);
   const ran = await underFakeProcess(["double", "8"], (s) => main(s), table);
   expect(ran).toEqual({ code: 0, out: "16\n", err: "", events: ["SIGINT", "SIGTERM"] });
 });
 
 test("main passes explicit args through instead of the process argv", async () => {
-  const table = shell([command("double", double, { input: (a) => a[0] })]);
+  const table = shell([routeFor("double", doubleCommand)]);
   const ran = await underFakeProcess(["double", "8"], (s) => main(s, ["double", "1"]), table);
   expect(ran.out).toBe("2\n");
 });
 
 test("main exits 2 on an unknown command and prints usage to the process stderr", async () => {
-  const ran = await underFakeProcess(["nope"], (s) => main(s), shell([command("d", double)]));
+  const ran = await underFakeProcess(
+    ["nope"],
+    (s) => main(s),
+    shell([routeFor("d", doubleCommand)]),
+  );
   expect(ran.code).toBe(2);
   expect(ran.err).toBe("usage: tk <command>\n  d\n");
 });
@@ -357,7 +426,7 @@ test("a command that throws a non-Error prints it as JSON with exit 1", async ()
       throw { why: "odd" };
     },
   });
-  const result = await run(shell([command("odd", odd)]), ["odd"]);
+  const result = await run(shell([routeFor("odd", odd)]), ["odd"]);
   expect(result).toEqual({ code: 1, stdout: "", stderr: '{"why":"odd"}\n' });
 });
 
@@ -382,6 +451,11 @@ test("the env tag reads an empty record when there is no process", async () => {
   } finally {
     (globalThis as { process?: unknown }).process = real;
   }
+});
+
+test("jsonLine answers one JSON line and stays undefined for a void value", () => {
+  expect(jsonLine({ n: 2 })).toBe('{"n":2}\n');
+  expect(jsonLine(undefined)).toBe(undefined);
 });
 
 /** The repo root: the nearest ancestor holding `pnpm-workspace.yaml`. Stryker copies this file

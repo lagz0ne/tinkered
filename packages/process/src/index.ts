@@ -1,4 +1,4 @@
-import { createScope, isError as isCoreError, operation, tag } from "@tinker/core";
+import { createScope, isError as isCoreError, tag } from "@tinker/core";
 import type { Operation, Scope, Tag } from "@tinker/core";
 import { isError, raise } from "./errors.ts";
 import type { Errors } from "./errors.ts";
@@ -23,16 +23,9 @@ export declare namespace Process {
     readonly description?: string;
     readonly entry: (rest: readonly string[]) => Entry | PromiseLike<Entry>;
   };
-  /** A lazy operation: a dynamic `import` in practice, run once per route. */
+  /** A lazy operation: a dynamic `import` in practice. The route's `entry` awaits it on first
+   * selection — never for `help` — memoizes the success, and retries after a rejection. */
   export type Load<T, I> = () => Operation.Handle<T, I> | PromiseLike<Operation.Handle<T, I>>;
-  /** How a command over a plain operation reads argv and writes its value: `input` hands raw
-   * argv to the operation's own parse; `respond` maps the value to text (default: one JSON line). */
-  export type Sugar<T> = {
-    readonly input?: (argv: readonly string[]) => unknown;
-    readonly respond?: (value: Awaited<T>) => string;
-    readonly description?: string;
-    readonly options?: Scope.Options;
-  };
   /** A binary: its name, version, and routes. */
   export type Shell = {
     readonly name: string;
@@ -108,53 +101,6 @@ function readFailure(
   }
   out.error(printError(error));
   return 1;
-}
-
-/** A command over a plain operation: one subflow with the argv parsed by the operation's own
- * `input`, its value written through `respond`, exit 0; one `command` log line. Keeps ADR 0042:
- * a command is an operation. A loader runs once, on first selection — never for `help`. */
-export function command<T, I>(
-  name: string,
-  source: Operation.Handle<T, I> | Process.Load<T, I>,
-  sugar: Process.Sugar<T> = {},
-): Process.Route {
-  let loaded: Promise<Operation.Handle<T, I>> | undefined;
-  /** Memoized on success only: a rejected load is not cached, so the next run retries it. */
-  const load = (): Promise<Operation.Handle<T, I>> => {
-    loaded ??= Promise.resolve(typeof source === "function" ? source() : source).catch(
-      (error: unknown) => {
-        loaded = undefined;
-        throw error;
-      },
-    );
-    return loaded;
-  };
-  return {
-    name,
-    description: sugar.description,
-    entry: async () => ({ op: readCommand(name, await load(), sugar), options: sugar.options }),
-  };
-}
-
-function readCommand<T, I>(
-  name: string,
-  target: Operation.Handle<T, I>,
-  sugar: Process.Sugar<T>,
-): Process.Command {
-  return operation({
-    label: name,
-    depends: { argv: argv.required, io: io.required, op: target },
-    run: async ({ argv: args, io: out, op: flow }, ctx) => {
-      const started = ctx.clock.currentTimeMillis();
-      const value = (await (sugar.input === undefined
-        ? (flow as { run(): T }).run()
-        : flow.run({ rawInput: sugar.input(args) }))) as Awaited<T>;
-      const text = sugar.respond === undefined ? readJsonLine(value) : sugar.respond(value);
-      if (text !== undefined) out.write(text);
-      ctx.log("command", { command: name, code: 0, ms: ctx.clock.currentTimeMillis() - started });
-      return 0;
-    },
-  });
 }
 
 /** Route by plain lookup, answer help and version without a root, then execute. The seam a
@@ -250,7 +196,10 @@ export async function main(shell: Process.Shell, args?: readonly string[]): Prom
   return proc.exit(result.code);
 }
 
-function readJsonLine(value: unknown): string | undefined {
+/** One value as a JSON line: `undefined` stays `undefined`, so a void value prints nothing.
+ * An author who wants the old default output writes `out.write(jsonLine(value))` — through
+ * the same guard the sugar used to apply invisibly. */
+export function jsonLine(value: unknown): string | undefined {
   const text = JSON.stringify(value);
   return text === undefined ? undefined : `${text}\n`;
 }
