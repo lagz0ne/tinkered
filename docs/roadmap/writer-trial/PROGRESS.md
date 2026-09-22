@@ -597,3 +597,14 @@ Their own commands also pass in separate containers:
 No teacher repairs were needed for either final submission.
 Both MiMo writers are still running the final round.
 Cleanup waits until all final snapshots and results are saved.
+
+### Final round: MiMo Pro checked
+
+MiMo Pro passes the teacher's sampled core and browser checks
+for all four rounds. Its direct type check, 83 tests, and build
+also exit 0. It used Jev seven times in this round.
+Source grew from 941 to 1,011 lines; tests from 1,727 to 2,054 lines.
+[Saved result](trial-01-round-4-mimo-pro.json).
+
+Three final snapshots are saved and checked.
+MiMo Flash is still running the undo round.
