@@ -466,3 +466,17 @@ Source: 662 lines. Tests: 798 lines.
 
 The other three resumed writers have not sent completion notices.
 Keep this checked snapshot while they work; round 3 is not staged.
+
+### GLM after budget stops were removed
+
+GLM completed round 2 with its earlier booking work intact.
+Its snapshot passes the teacher's core and browser checks
+for both rounds. No teacher repair was needed.
+A separate container reran the public commands without pipes:
+type check, 22 core tests, build, and 4 browser tests all exit 0.
+It used Jev four times and changed two test titles.
+Source: 558 lines. Tests and test setup: 500 lines.
+[Saved result](trial-01-round-2-glm.json).
+
+GLM and DeepSeek are checked. Both MiMo writers are still running.
+Round 3 waits for their results.
