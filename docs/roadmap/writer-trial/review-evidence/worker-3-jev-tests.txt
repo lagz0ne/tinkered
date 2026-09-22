@@ -1,0 +1,59 @@
+/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-3/tests/bookings.test.ts
+  ✓ L26 books a slot and lists it
+  ⚠ L38 starts empty and two scopes share nothing  — titleVague 59%
+  ⚠ L48 rejects the same slot in one room but allows the other room and back-to-back  — isErrorInExpect
+  ⚠ L69 rejects a blank title, unknown room, bad times, and an empty slot  — isErrorInExpect, titleVague 59%
+  ✓ L102 trims the title
+  ✓ L110 orders by start time, then creation order
+  ⚠ L118 cancels by id; a second cancel reports not found  — isErrorInExpect
+  ⚠ L131 frees a slot after cancel  — titleVague 51%
+  ⚠ L143 two calls for one empty slot create exactly one booking  — isErrorInExpect
+  ⚠ L155 openEdit returns a copy; writing to it never changes the saved list  — toBeThenToEqual
+  ✓ L169 a discard leaves the saved booking unchanged and closes the draft
+  ✓ L180 save replaces the booking with checked values
+  ⚠ L198 a clash on save reports Clash and keeps the booking and draft  — isErrorInExpect
+  ✓ L213 saving the draft back to its own slot passes: the clash check skips the edited booking
+  ⚠ L225 a failed save keeps the saved booking and the draft open for another try  — isErrorInExpect
+  ⚠ L242 a draft blocks nothing until save: another booking can take a slot while the draft is open  — isErrorInExpect
+  ⚠ L261 openEdit of an unknown id reports NotFound  — isErrorInExpect
+  ⚠ L267 discardEdit of an unknown id reports NotFound  — isErrorInExpect
+  ⚠ L273 save or discard for a closed or missing draft reports NotFound with that id  — isErrorInExpect
+  ⚠ L292 canceling the drafted booking closes its draft too  — isErrorInExpect
+  ⚠ L307 only one draft is open at a time; opening a second closes the first  — isErrorInExpect
+  ⚠ L321 unsaved text never changes the list  — titleVague 61%
+  ✓ L338 an omitted date books the default day 2026-10-01
+  ✓ L347 an explicit date is kept and old calls still work beside it
+  ⚠ L363 rejects a date that is not a real YYYY-MM-DD day with BadDate  — titleVague 66%
+  ⚠ L382 the same slot on two dates never clashes; one room on one date still does  — isErrorInExpect
+  ✓ L399 orders by date, then start time, then creation order
+  ✓ L417 bookSeries books weeks dates seven days apart sharing one seriesId
+  ⚠ L428 one series date being taken books nothing and reports Clash  — isErrorInExpect
+  ⚠ L442 rejects a weeks count outside 1..12 or not an integer with BadCount  — titleVague 52%
+  ✓ L457 canceling one occurrence frees one day and leaves the rest of its series
+  ⚠ L473 cancelSeries removes every occurrence; an unknown seriesId reports NotFound  — isErrorInExpect
+  ⚠ L488 cancelSeries of a one-off-only list reports NotFound and removes nothing  — isErrorInExpect
+  ✓ L498 canceling the series closes the draft of its drafted occurrence
+  ⚠ L511 saveEdit accepts a date and clash-checks only that room on that date  — isErrorInExpect
+  ⚠ L535 a failed date save keeps the saved booking; a BadDate save reports BadDate  — isErrorInExpect
+  ✓ L551 saving a series occurrence keeps its seriesId; editing skips only the edited booking
+  ⚠ L566 a draft on one date blocks nothing on another date until save  — titleVague 69%
+  ⚠ L591 undo removes the last booking, then the first, then reports EmptyUndo  — isErrorInExpect
+  ⚠ L607 undo reverses a cancel and a series cancel restores every occurrence  — titleVague 60%
+  ✓ L618 a series book is one step: undo removes all three days at once
+  ✓ L630 undo of a cancel restores the booking and frees nothing extra
+  ✓ L641 undo of an edit save restores the prior values under the same id
+  ⚠ L654 a failed action adds no undo step; undo still reverses the last passing change  — isErrorInExpect
+  ⚠ L667 an undo of an undo pops one step each time and adds no entry  — titleVague 52%
+  ✓ L677 undo leaves an open draft untouched
+  ⚠ L688 undo never fails with Clash: restoring a prior snapshot always passes  — titleVague 54%
+/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-3/tests/browser.mjs  ⚠ sleep
+  ✓ L74 book, see the row, clear the title, keep a clash error in an alert
+  ✓ L96 filter hides rows without deleting them
+  ✓ L117 cancel removes the row and frees the slot
+  ✓ L133 edit draft: discard keeps the row, save replaces it
+  ⚠ L167 round 3: date input, series booking, cancel series  — titleVague 81%
+  ✓ L193 round 3: a bad date shows BadDate in the alert and keeps the form
+  ✓ L210 round 3: the edit form has an edit date input and saves the changed date
+  ✓ L230 round 4: undo removes the last row; an empty undo shows EmptyUndo
+
+jev tests: 31/55 entries flagged. Each ⚠ is delete, merge, or explain — the convention says over-testing is a defect. Not a gate.

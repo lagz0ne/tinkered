@@ -1,0 +1,91 @@
+/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/book-cancel.test.ts
+  ⚠ L25 rejects a second booking of the same room and slot  — isErrorInExpect
+  ✓ L47 allows the same slot in another room and a start when another ends
+  ✓ L61 trims the saved title
+  ⚠ L69 rejects a blank title  — titleVague 63%
+  ⚠ L85 rejects an unknown room  — isErrorInExpect
+  ⚠ L99 rejects a time outside 0..1439 or not an integer  — isErrorInExpect
+  ⚠ L134 rejects an end at or before the start  — titleVague 63%
+  ⚠ L153 rejects any overlap in one room and allows overlap across rooms  — isErrorInExpect
+  ⚠ L173 allows back-to-back bookings: one starts exactly when another ends  — titleVague 56%
+  ✓ L187 lists bookings by start time, then creation order
+  ✓ L201 leaves saved bookings unchanged on a failed action
+  ⚠ L219 creates exactly one booking for two calls on an empty slot  — isErrorInExpect
+  ✓ L240 cancel removes the booking so its slot can be booked again
+  ⚠ L253 reports NotFound on a second cancel of one id  — isErrorInExpect
+  ⚠ L268 reports NotFound for an unknown id  — isErrorInExpect
+/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/dates.test.ts
+  ⚠ L24 books 2026-10-01 when the input carries no date  — titleVague 56%
+  ✓ L32 stores the passed date on the saved booking
+  ⚠ L46 rejects a date that is not a real YYYY-MM-DD day  — isErrorInExpect
+  ⚠ L85 clashes only in one room on one date  — isErrorInExpect
+  ✓ L132 sorts by date, then start time, then creation order
+  ✓ L173 cancels by id and frees only that day
+  ✓ L199 openEdit copies the saved date while the list keeps its own
+  ⚠ L217 saves onto a new date and clashes on that date only  — isErrorInExpect
+  ⚠ L267 saveEdit on the booking's own slot and date never reports Clash  — titleVague 75%
+  ⚠ L293 rejects a bad date on save and keeps the draft open  — isErrorInExpect
+/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/edit.test.ts
+  ⚠ L24 returns a copy: editing it never changes the saved booking  — toBeThenToEqual
+  ⚠ L37 reports NotFound for an unknown id  — isErrorInExpect
+  ⚠ L48 keeps only one draft: opening a second id closes the first  — isErrorInExpect
+  ⚠ L68 drops the draft and leaves the booking unchanged  — isErrorInExpect, titleVague 51%
+  ⚠ L86 reports NotFound for an unknown id  — isErrorInExpect
+  ✓ L99 replaces the booking and closes the draft
+  ✓ L126 passes a save that keeps the edited booking's own slot
+  ✓ L144 re-sorts the list after a save moves a booking
+  ⚠ L159 reports Clash and keeps the saved booking and the draft  — isErrorInExpect
+  ⚠ L197 keeps the draft open on a validation failure  — isErrorInExpect
+  ⚠ L231 reports NotFound for a closed or missing draft  — isErrorInExpect
+  ⚠ L256 reports NotFound after canceling the drafted booking  — isErrorInExpect
+  ✓ L278 blocks nothing while a draft is open: other bookings still book
+  ✓ L295 never changes the list from unsaved draft text
+/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/series.test.ts
+  ✓ L26 books weeks dates, seven days apart, under one series id
+  ✓ L51 carries no series id on a one-off booking
+  ✓ L59 crosses a month boundary seven days at a time
+  ⚠ L78 rejects weeks outside 1 to 12 or not an integer  — isErrorInExpect
+  ✓ L117 accepts weeks = 1 and weeks = 12 as the bounds
+  ⚠ L144 books none and reports Clash when one date is taken  — isErrorInExpect
+  ⚠ L171 leaves saved bookings unchanged when the title is blank  — isErrorInExpect
+  ⚠ L192 rejects a bad date before booking anything  — isErrorInExpect
+  ⚠ L210 overlaps in another room or on another date never clash  — titleVague 51%
+  ✓ L249 frees every occurrence of the series
+  ✓ L266 canceling one id leaves the rest of its series
+  ⚠ L292 reports NotFound for an unknown series id, with that id  — isErrorInExpect
+  ⚠ L303 reports NotFound on a second cancel of one series id  — isErrorInExpect
+  ⚠ L323 cancelSeries closes the draft of an occurrence it removes  — isErrorInExpect
+  ⚠ L356 keeps the series tie when one occurrence is edited  — isErrorInExpect
+  ⚠ L390 books another room while a draft is open: the draft blocks nothing  — titleVague 68%
+/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/ui.test.ts
+  ✓ L54 books a slot, shows the row, and clears the title
+  ✓ L74 shows the error kind beside the form and keeps the values
+  ✓ L105 cancels a row, which frees its slot
+  ⚠ L127 filters hide rows without deleting them  — titleVague 60%
+  ⚠ L152 saves an edit and shows the new row  — titleVague 60%
+  ✓ L176 Discard closes the draft and the row keeps its saved title
+  ⚠ L195 keeps the draft open on a failed save  — titleVague 58%
+  ✓ L220 gives each mounted app its own scope
+  ✓ L253 starts the Date at 2026-10-01 and Weeks at 1, and shows the date in the row
+  ⚠ L273 the same slot books on two dates but clashes twice on one date  — titleVague 66%
+  ✓ L305 shows BadDate beside the form and keeps the values
+  ✓ L326 books a weekly series and shows one row per occurrence
+  ✓ L348 Cancel series frees every occurrence; Cancel frees one
+  ⚠ L371 the open draft can move its booking to a new date  — titleVague 52%
+  ⚠ L391 Undo removes the last booking and EmptyUndo shows when nothing is left  — titleVague 64%
+  ✓ L419 Undo after a saved edit restores the old row and its buttons
+  ✓ L444 an undo leaves the typed title, the open draft, and the filter untouched
+/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/undo.test.ts
+  ⚠ L26 reverses one book per undo and reports EmptyUndo when none is left  — isErrorInExpect
+  ⚠ L46 reports EmptyUndo on a fresh scope  — isErrorInExpect
+  ✓ L52 keeps stacking after an undo: a new change is its own step
+  ✓ L71 restores an edited booking exactly
+  ✓ L92 restores one series edit without losing the series
+  ⚠ L119 undoes a whole series book in one step  — isErrorInExpect, titleVague 55%
+  ✓ L138 undoes a one-off cancel and brings the booking back
+  ✓ L149 one undo restores every occurrence of a canceled series at once
+  ⚠ L169 failed actions add no undo step  — isErrorInExpect, titleVague 57%
+  ⚠ L207 the open draft survives undos, and openEdit adds no undo step  — isErrorInExpect, titleVague 51%
+  ⚠ L226 a save after an undo is a new change with its own step  — titleVague 54%
+
+jev tests: 47/83 entries flagged. Each ⚠ is delete, merge, or explain — the convention says over-testing is a defect. Not a gate.
