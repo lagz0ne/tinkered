@@ -480,3 +480,17 @@ Source: 558 lines. Tests and test setup: 500 lines.
 
 GLM and DeepSeek are checked. Both MiMo writers are still running.
 Round 3 waits for their results.
+
+### MiMo Flash after budget stops were removed
+
+MiMo Flash completed rounds 1 and 2 and used Jev twelve times.
+Its logs show type checks, build, and 37 tests passing
+(28 core tests and 9 real browser tests).
+The teacher's sampled core and browser checks also pass
+for both rounds. No teacher repair was needed.
+Source: 637 lines. Tests: 665 lines.
+[Saved result](trial-01-round-2-mimo-flash.json).
+
+MiMo Flash, GLM, and DeepSeek are checked.
+MiMo Pro has not sent its completion notice yet.
+Round 3 waits for that result.
