@@ -31,7 +31,6 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
   frozenConfigFor,
-  guidelineSourcesFor,
   readFrozenGuidelines,
   readFrozenTask,
   suiteFor,
@@ -131,11 +130,13 @@ if (command === "save") {
   const eventsSrc = existsSync(cfgPath) ? (JSON.parse(readFileSync(cfgPath)).events ?? null) : null;
   if (eventsSrc && !existsSync(eventsSrc)) throw new Error(`Event log missing: ${eventsSrc}`);
   // Claim the folder only after every check above passes.
+  // Stop before claiming: a stop failure must not wedge the folder.
+  stopWorker();
+  if (existsSync(dir)) throw new Error(`Attempt folder exists; refusing overwrite: ${dir}`);
   mkdirSync(join(dir, ".."), { recursive: true });
   mkdirSync(dir);
   // Paseo launches happen outside this file; the finish callback
   // passes the completed agent id and these saved file paths.
-  stopWorker();
   const archive = join(dir, "archive.tar");
   try {
     writeFileSync(archive, runBytes("docker", ["cp", `${worker.container}:/work/.`, "-"]));
@@ -199,8 +200,15 @@ if (command === "save") {
   const teacherLog = join(checkDir, "teacher.log");
   // Checker source hashes plus the pinned image sit beside exit
   // codes, so a later teacher edit cannot reuse an old pass claim.
+  // A missing helper is recorded unavailable here; own checks
+  // still run apart below and the teacher run fails the same way.
   const evidence = checkerEvidence(checker, row.archive, manifest.image);
   writeFileSync(join(checkDir, "evidence.json"), JSON.stringify(evidence, null, 2) + "\n");
+  if (evidence.unavailable)
+    writeFileSync(
+      join(checkDir, "teacher.log"),
+      `Checker unavailable: ${evidence.unavailable} is not in this checkout\n`,
+    );
   // Own and teacher checks run apart: an own failure still scores
   // every teacher case. Each exit is recorded on its own.
   let ownExit = null;
@@ -278,7 +286,6 @@ if (command === "save") {
     const extCfg = JSON.parse(readFileSync(extCfgPath));
     extCfg.limits = frozenLimits;
     writeFileSync(extCfgPath, JSON.stringify(extCfg, null, 2));
-    void guidelineSourcesFor;
   }
   // Fresh event log for the next attempt. Saved logs are kept.
   writeFileSync(events, "");
@@ -302,7 +309,9 @@ function checkerEvidence(checker, archive, image) {
   const files = {};
   files[checker.script] = sha(join(here, checker.script));
   // Hash the helpers the runner loads: booking core, browser,
-  // full acceptance pair, or the stock checker itself.
+  // full acceptance pair, or the stock teacher pair.
+  // A missing helper is recorded unavailable, never skipped
+  // silently: the teacher run below fails the same way.
   const helpers =
     checker.script === "evaluate.mjs"
       ? ["teacher/check.mjs", "teacher/run.mjs", "teacher/browser.mjs"]
@@ -314,14 +323,25 @@ function checkerEvidence(checker, archive, image) {
             "teacher/check.mjs",
             "teacher/run.mjs",
           ]
-        : [checker.script];
+        : ["teacher/stock-acceptance.mjs", "teacher/acceptance-shape.mjs"];
+  let unavailable = null;
   for (const helper of helpers) {
     const path = join(here, helper);
-    if (!existsSync(path))
-      throw new Error(`Checker helper unavailable: ${helper} is not in this checkout`);
+    if (!existsSync(path)) {
+      unavailable ??= helper;
+      continue;
+    }
     files[helper] = sha(path);
   }
-  return { checker: checker.script, args: checker.args, image, archive: sha(archive), files };
+  const evidence = {
+    checker: checker.script,
+    args: checker.args,
+    image,
+    archive: sha(archive),
+    files,
+  };
+  if (unavailable) evidence.unavailable = unavailable;
+  return evidence;
 }
 
 // Own check/test/build from the archive inside the pinned image.
@@ -360,6 +380,9 @@ function runOwnChecks(archive, image, logPath) {
       ["exec", "-i", id, "timeout", "30", "tar", "-xf", "-", "-C", "/work"],
       readFileSync(archive),
     );
+    // Each script runs even when an earlier one fails; the log
+    // keeps every exit apart and one aggregate error goes up.
+    const failures = [];
     for (const script of ["check", "test", "build"]) {
       try {
         out.push(`RUN npm run ${script}\n`);
@@ -376,9 +399,11 @@ function runOwnChecks(archive, image, logPath) {
         if (error.stdout) out.push(error.stdout);
         if (error.stderr) out.push(error.stderr);
         out.push(`\nEXIT nonzero npm run ${script}: ${error.message}\n`);
-        throw new Error(`Own ${script} failed; see ${logPath}`);
+        failures.push(script);
       }
     }
+    if (failures.length)
+      throw new Error(`Own checks failed (${failures.join(", ")}); see ${logPath}`);
   } finally {
     try {
       runText("docker", ["rm", "-f", id], undefined, 30000);
