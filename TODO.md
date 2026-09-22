@@ -30,12 +30,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **writers/repeat** — owner: Codex.
-  Make tested rules and the review loop the default; try a new stock app.
-  Next: finish the new Jev rule review and verify trial cleanup.
-  Verify: all four first attempts scored, fixes kept separate, examples blocked.
-  Keep every result and remove all trial projects after review.
-
 | Card | Owner | Next | Verify |
 
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -69,6 +63,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **writers/repeat** — all four stock apps accepted.
+  MiMo Pro passed first try; the other three needed two repairs.
+  Each passes 44 teacher checks plus two notice checks and source review.
+  Frozen rules, saved attempts, and the review loop are in place.
+  New writable-view check: 48 tooling tests pass; repo check has no errors.
+  All worker projects removed; every saved result kept.
+  [Results and limits](docs/roadmap/writer-trial/REPEAT.md#final-call).
 
 - **writers/learn** — all four pass repair and fresh work.
   Source review, 29 repair checks, 43 fresh checks, own tests/builds pass.

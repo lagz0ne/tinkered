@@ -273,3 +273,31 @@ The extra notice and browser logs live in `stock-01/teacher-proof`.
 The new writable-view Jev rule still needs its own review fix.
 A name in one function must not hide a hook in another function.
 Current trial tools remain frozen. The fix serves the next trial.
+
+## Final call
+
+All four saved apps pass the same checks and lead review.
+MiMo Pro passed on its first attempt. The other three needed two repairs.
+This proves the rules and review loop can reach the target on this task.
+It does not prove all four will do so on the first try.
+
+The new `no-writable-in-view` check is saved through commit 9ece4a4.
+The lead reran 48 tooling tests: all pass.
+The full repo check has zero errors and 22 old warnings.
+On saved first attempts, the rule finds 8 Flash, 8 GLM, and 9 DeepSeek writes.
+All four accepted apps have no writable-view finding.
+The hang regression runs in a child process with a time limit.
+The same test fails on the old code and passes with the fix.
+
+Jev still guides review; it does not prove an app is correct.
+The plain rule checks direct imported hooks and literal writable options.
+It does not follow dynamic aliases, eval, or with.
+Source review and real browser checks remain part of acceptance.
+The current trial kept its frozen tools; the new rule serves later trials.
+
+Every attempt, report, session, and test log is kept.
+All four worker projects, workspaces, containers, and volumes are removed.
+Worker folders and trust entries are gone. The shared image is kept.
+Proof: `stock-01/teacher-proof/cleanup-checks.json`.
+Tool proof: `final-root-tests.log`, `final-root-check.log`,
+and `final-shape-apps.json` in the same proof folder.
