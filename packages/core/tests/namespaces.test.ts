@@ -576,6 +576,47 @@ test("releasing a shared pool drops every named client that depends on it", asyn
   await scope.close();
 });
 
+test("a rebuilt chain dependent leaves its old fallback bucket", async () => {
+  const a = namespace();
+  const b = namespace();
+  const ended: string[] = [];
+  let baseBuilds = 0;
+  let clientBuilds = 0;
+  const base = resource({
+    label: "base",
+    target: "session",
+    factory: (_deps, ctx) => {
+      const build = ++baseBuilds;
+      ctx.defer(() => void ended.push(`base:${build}`));
+      return { build };
+    },
+  });
+  const client = resource({
+    label: "client",
+    target: "session",
+    depends: { base },
+    factory: ({ base }, ctx) => {
+      const build = ++clientBuilds;
+      ctx.defer(() => void ended.push(`client:${build}`));
+      return { base, build };
+    },
+  });
+  const scope = createScope();
+  scope.resolve(base, { ns: b });
+  scope.resolve(client, { ns: [a, b] });
+  scope.releaseNs(client, a);
+  scope.resolve(base, { ns: a });
+  const rebuilt = scope.resolve(client, { ns: [a, b] });
+  scope.releaseNs(base, b);
+  await scope.settled();
+  expect(scope.resolve(client, { ns: [a, b] })).toBe(rebuilt);
+  expect(ended).toEqual(["client:1", "base:1"]);
+  scope.releaseNs(base, a);
+  await scope.settled();
+  expect(ended).toEqual(["client:1", "base:1", "client:2", "base:2"]);
+  await scope.close();
+});
+
 test("a scope-target resource is namespace-blind and keeps default storage clean", () => {
   const tenant = tag<string>({ label: "tenant" });
   const named = namespace({ tags: [tenant("named")] });

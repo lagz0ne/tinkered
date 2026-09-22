@@ -916,6 +916,8 @@ type DeferEntry = {
 /** One named resource bucket. Default resource state stays directly on {@link NodeState}, keeping
  * the namespace-absent hot path unchanged. */
 class NsResourceState {
+  readonly target: Resource.Handle<unknown>;
+  readonly key: Namespace;
   resource: Entry | undefined = undefined;
   promise: Promise<unknown> | undefined = undefined;
   failed: { error: unknown; promise: Promise<unknown> } | undefined = undefined;
@@ -923,7 +925,12 @@ class NsResourceState {
   gen = 0;
   building = false;
   borrowers: Set<Promise<unknown>> | undefined = undefined;
-  dependents: Map<Resource.Handle<unknown>, Set<Namespace>> | undefined = undefined;
+  dependents: Set<NsResourceState> | undefined = undefined;
+  dependencies: Set<NsResourceState> | undefined = undefined;
+  constructor(target: Resource.Handle<unknown>, key: Namespace) {
+    this.target = target;
+    this.key = key;
+  }
 }
 
 type ResourceState = NodeState | NsResourceState;
@@ -2260,6 +2267,7 @@ function resolveResourceDeps(
   superseded: () => boolean,
   chain: readonly Namespace[] | undefined,
   ns: Namespace | undefined,
+  state: ResourceState,
 ): Record<string, unknown> {
   return buildDeps(
     owner,
@@ -2269,7 +2277,7 @@ function resolveResourceDeps(
       const node = depNode(dep);
       /** Edges register before the factory runs (eager deps, ADR 0044); a build superseded while its
        * deps were still resolving records none, so a stale build never evicts its live replacement. */
-      if (node && !superseded()) addDependent(owner, node, target, chain, ns);
+      if (node && !superseded()) addDependent(owner, node, target, chain, ns, state);
     },
     chain,
   );
@@ -2517,7 +2525,7 @@ function buildResource<T>(
   let settled = false;
   buildDepth++;
   try {
-    const deps = resolveResourceDeps(owner, target, span, superseded, chain, ns);
+    const deps = resolveResourceDeps(owner, target, span, superseded, chain, ns, rec);
     const pending = parked;
     const override = presetFor(owner, target) as Resource.Handle<T>["factory"] | undefined;
     const fn = override ?? target.factory;
@@ -2547,7 +2555,7 @@ function buildResource<T>(
     );
   } catch (error) {
     settled = true;
-    if (!superseded()) detachDependent(owner, target);
+    if (!superseded()) detachResource(owner, target, rec);
     closeSpan(obs, span, "failed");
     throw error;
   } finally {
@@ -2651,7 +2659,7 @@ function ownNsResource(
   const rec = nodeState(owner, target);
   let state = rec.nsResources?.get(key);
   if (state === undefined) {
-    state = new NsResourceState();
+    state = new NsResourceState(target, key);
     (rec.nsResources ??= new Map()).set(key, state);
   }
   return state;
@@ -2720,7 +2728,7 @@ function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): voi
       state.promise = undefined;
       state.failed = undefined;
       state.build = undefined;
-      state.dependents = undefined;
+      detachNsState(state);
     }
     s.nsResources = undefined;
   }
@@ -2796,7 +2804,7 @@ function visitNsDependents(
   if (!resources) return;
   for (const state of resources.values()) {
     if (!state.dependents) continue;
-    for (const target of state.dependents.keys()) visit(target, owner);
+    for (const dependent of state.dependents) visit(dependent.target, owner);
   }
 }
 
@@ -2943,51 +2951,25 @@ function invalidateAffected(order: Affected[], affected: Map<Layer, Released>): 
   return dataReleased;
 }
 
-type NsAffected = {
-  target: Resource.Handle<unknown>;
-  key: Namespace;
-  state: NsResourceState;
-};
-
 /** Collect one named resource bucket and its named dependents. */
 function collectNsAffected(
   owner: Layer,
   target: Resource.Handle<unknown>,
   key: Namespace,
-): NsAffected[] {
-  const seen = new Map<Resource.Handle<unknown>, Set<Namespace>>();
-  const order: NsAffected[] = [];
-  const stack: { target: Resource.Handle<unknown>; key: Namespace }[] = [{ target, key }];
+): NsResourceState[] {
+  const first = owner.nodes.get(target)?.nsResources?.get(key);
+  if (first === undefined) return [];
+  const seen = new Set<NsResourceState>();
+  const order: NsResourceState[] = [];
+  const stack = [first];
   while (stack.length > 0) {
-    const item = stack.pop() as { target: Resource.Handle<unknown>; key: Namespace };
-    if (markNsSeen(seen, item)) continue;
-    const state = owner.nodes.get(item.target)?.nsResources?.get(item.key);
-    if (state === undefined) continue;
-    order.push({ ...item, state });
-    pushNsDependents(state, stack);
+    const state = stack.pop() as NsResourceState;
+    if (seen.has(state)) continue;
+    seen.add(state);
+    order.push(state);
+    if (state.dependents) for (const dependent of state.dependents) stack.push(dependent);
   }
   return order;
-}
-
-function markNsSeen(
-  seen: Map<Resource.Handle<unknown>, Set<Namespace>>,
-  item: { target: Resource.Handle<unknown>; key: Namespace },
-): boolean {
-  const keys = seen.get(item.target) ?? new Set<Namespace>();
-  if (keys.has(item.key)) return true;
-  keys.add(item.key);
-  seen.set(item.target, keys);
-  return false;
-}
-
-function pushNsDependents(
-  state: NsResourceState,
-  stack: { target: Resource.Handle<unknown>; key: Namespace }[],
-): void {
-  if (!state.dependents) return;
-  for (const [target, keys] of state.dependents) {
-    for (const key of keys) stack.push({ target, key });
-  }
 }
 
 /** Remove one namespace bucket and its dependent buckets. Generations are bumped before map entries
@@ -3009,30 +2991,25 @@ function releaseNsResource(owner: Layer, target: Resource.Handle<unknown>, key: 
   if (affected.length === 0) return;
   const released = invalidateNsAffected(owner, affected);
   const fns = extractNsDefers(owner, released);
-  drainStatesBorrowAware(
-    owner,
-    affected.map((item) => item.state),
-    fns,
-  );
+  drainStatesBorrowAware(owner, affected, fns);
 }
 
 function invalidateNsAffected(
   owner: Layer,
-  affected: readonly NsAffected[],
+  affected: readonly NsResourceState[],
 ): Map<Resource.Handle<unknown>, Set<Namespace>> {
   const released = new Map<Resource.Handle<unknown>, Set<Namespace>>();
-  for (const item of affected) {
-    item.state.gen += 1;
-    item.state.resource = undefined;
-    item.state.promise = undefined;
-    item.state.failed = undefined;
-    item.state.build = undefined;
-    item.state.dependents = undefined;
-    owner.nodes.get(item.target)?.nsResources?.delete(item.key);
-    detachNsDependent(owner, item.target, item.key);
-    const keys = released.get(item.target) ?? new Set<Namespace>();
-    keys.add(item.key);
-    released.set(item.target, keys);
+  for (const state of affected) {
+    state.gen += 1;
+    state.resource = undefined;
+    state.promise = undefined;
+    state.failed = undefined;
+    state.build = undefined;
+    detachNsState(state);
+    owner.nodes.get(state.target)?.nsResources?.delete(state.key);
+    const keys = released.get(state.target) ?? new Set<Namespace>();
+    keys.add(state.key);
+    released.set(state.target, keys);
   }
   return released;
 }
@@ -3057,12 +3034,12 @@ function addDependent(
   dependent: Resource.Handle<unknown>,
   chain: readonly Namespace[] | undefined,
   dependentNs: Namespace | undefined,
+  dependentState: ResourceState,
 ): void {
-  const state = nsDependencyState(owner, node, chain, dependentNs);
-  if (state !== undefined && dependentNs !== undefined) {
-    const keys = state.dependents?.get(dependent) ?? new Set<Namespace>();
-    keys.add(dependentNs);
-    (state.dependents ??= new Map()).set(dependent, keys);
+  const source = nsDependencyState(owner, node, chain, dependentNs);
+  if (source !== undefined && dependentState instanceof NsResourceState) {
+    (source.dependents ??= new Set()).add(dependentState);
+    (dependentState.dependencies ??= new Set()).add(source);
     return;
   }
   const s = nodeState(owner, node);
@@ -3081,46 +3058,29 @@ function nsDependencyState(
   return selectNsResource(owner, node, chain) ?? ownNsResource(owner, node, head);
 }
 
-/** Remove one resource from every dependents set (its incoming edges), dropping empty sets. */
+function detachNsState(state: NsResourceState): void {
+  if (state.dependencies) for (const source of state.dependencies) source.dependents?.delete(state);
+  if (state.dependents)
+    for (const dependent of state.dependents) dependent.dependencies?.delete(state);
+  state.dependencies = undefined;
+  state.dependents = undefined;
+}
+
+function detachResource(
+  owner: Layer,
+  dependent: Resource.Handle<unknown>,
+  state: ResourceState,
+): void {
+  if (state instanceof NsResourceState) return detachNsState(state);
+  detachDependent(owner, dependent);
+}
+
+/** Remove one resource from every default dependents set. */
 function detachDependent(owner: Layer, dependent: Resource.Handle<unknown>): void {
   for (const rec of owner.nodes.values()) {
     const set = rec.dependents;
     if (set && set.delete(dependent) && set.size === 0) rec.dependents = undefined;
-    detachFromNsStates(rec, dependent);
   }
-}
-
-function detachFromNsStates(rec: NodeState, dependent: Resource.Handle<unknown>): void {
-  if (!rec.nsResources) return;
-  for (const state of rec.nsResources.values()) {
-    state.dependents?.delete(dependent);
-    if (state.dependents?.size === 0) state.dependents = undefined;
-  }
-}
-
-function detachNsDependent(
-  owner: Layer,
-  dependent: Resource.Handle<unknown>,
-  key: Namespace,
-): void {
-  for (const rec of owner.nodes.values()) detachNsKey(rec, dependent, key);
-}
-
-function detachNsKey(rec: NodeState, dependent: Resource.Handle<unknown>, key: Namespace): void {
-  if (!rec.nsResources) return;
-  for (const state of rec.nsResources.values()) detachNsKeyFromState(state, dependent, key);
-}
-
-function detachNsKeyFromState(
-  state: NsResourceState,
-  dependent: Resource.Handle<unknown>,
-  key: Namespace,
-): void {
-  const keys = state.dependents?.get(dependent);
-  if (!keys) return;
-  keys.delete(key);
-  if (keys.size === 0) state.dependents?.delete(dependent);
-  if (state.dependents?.size === 0) state.dependents = undefined;
 }
 
 /** The releasable node a dependency reads through, if any — a bare data cell or its controller
