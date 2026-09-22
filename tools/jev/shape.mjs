@@ -1,7 +1,9 @@
 // Source-shape findings (deterministic, no model): the plain-code half of the component rules
 // in docs/best-practices.md that a probabilistic judge cannot own — React state/effect hooks
-// (rules 8–9; useId stays allowed) and scope handles inside views (rule 2). Advisory: it lists,
-// it never blocks; an app outside the worker policy may ignore a row.
+// (rules 8–9; useId stays allowed), writable useData setters in views (rule 9: typing and
+// filter writes are actions, operations own their state changes), and scope handles inside
+// views (rule 2). Advisory: it lists, it never blocks; an app outside the worker policy may
+// ignore a row.
 //
 //   inspectShape(source, file) → stable rows [{ id, line, message }] in source order
 import { parseSync } from "oxc-parser";
@@ -64,6 +66,31 @@ function isScopeCall(node, scopeAlias, scopeNs) {
   if (c?.type === "Identifier") return c.name === "useScope" || scopeAlias.has(c.name);
   const member = memberOf(c);
   return member !== null && member.name === "useScope" && scopeNs.has(member.obj);
+}
+
+/** Is this options object the `useState`-like pair — a literal `{ writable: true }`? */
+function isWritableOpt(arg) {
+  if (arg?.type !== "ObjectExpression") return false;
+  return arg.properties.some((p) => {
+    const key = p.key?.name ?? p.key?.value;
+    return key === "writable" && p.value?.type === "Literal" && p.value.value === true;
+  });
+}
+
+/** Does this call take the pair form — `{ writable: true }` beside the cell or selector? */
+function writesCell(node) {
+  return (node.arguments ?? []).some(isWritableOpt);
+}
+
+/** A `useData(…)` call — plain, aliased, or off a `@tinker/react` namespace — else false.
+ *  A bare name bound anywhere else (another module's import, a local declaration) is an
+ *  unrelated same-name function, never the hook. */
+function isDataCall(node, dataAlias, dataNs, shadowed) {
+  const c = node.callee;
+  if (c?.type === "Identifier")
+    return (c.name === "useData" || dataAlias.has(c.name)) && !shadowed.has(c.name);
+  const member = memberOf(c);
+  return member !== null && member.name === "useData" && dataNs.has(member.obj);
 }
 
 /** The declarator's function init — `{ name, params, body }` — or null. */
@@ -138,6 +165,39 @@ function providesScope(body, bound) {
 const SCOPE_PROP = /Scope\s*\.\s*Handle|DataController/;
 const SCOPE_NAME = /^(scope|session|controller)$/i;
 
+/** One parameter's bound names into `take`: plain, destructured, or array. */
+function takeParam(take, p) {
+  if (p.type === "Identifier") take(p);
+  if (p.type === "ObjectPattern") for (const q of p.properties) take(q.value ?? q.key);
+  if (p.type === "ArrayPattern") for (const e of p.elements) take(e);
+}
+
+/** One arrow/function-expression's parameter names into `take`. */
+function takeParams(take, n) {
+  for (const p of n.params ?? []) takeParam(take, p);
+}
+
+/** Local names hiding the hook: a declared `useData` of our own (imported elsewhere,
+ *  function, param, or catch binding) means a bare call is that name, never the hook. */
+function shadowedData(program) {
+  const names = new Set();
+  const take = (id) => {
+    if (id?.type === "Identifier") names.add(id.name);
+  };
+  walk(program, (n) => {
+    if (n.type === "ImportDeclaration" && n.source.value !== "@tinker/react")
+      for (const s of n.specifiers) take(s.local);
+    if (n.type === "FunctionDeclaration") take(n.id);
+    if (n.type === "VariableDeclarator") take(n.id);
+    if (n.type === "CatchClause" && n.param) take(n.param);
+  });
+  walk(program, (n) => {
+    if (n.type !== "ArrowFunctionExpression" && n.type !== "FunctionExpression") return;
+    takeParams(take, n);
+  });
+  return names;
+}
+
 /** The declaration behind an alias — through `export type …` too — or null. */
 function aliasDecl(node) {
   const decl = node.type === "ExportNamedDeclaration" ? node.declaration : node;
@@ -171,9 +231,14 @@ function bindReact(into, node) {
   }
 }
 
-/** One `@tinker/react` import row: useScope and ScopeProvider aliases plus namespaces. */
+/** One `@tinker/react` import row: useScope and ScopeProvider aliases plus namespaces,
+ *  and useData aliases (namespaces share the scope set). */
 function bindScope(into, node) {
-  const named = { useScope: into.scopeCall, ScopeProvider: into.scopeView };
+  const named = {
+    useScope: into.scopeCall,
+    ScopeProvider: into.scopeView,
+    useData: into.dataCall,
+  };
   for (const s of node.specifiers) {
     if (s.type === "ImportSpecifier" && s.imported?.name in named)
       named[s.imported.name].add(s.local.name);
@@ -189,8 +254,22 @@ function bindImports(into, node) {
   if (node.source.value === "@tinker/react") bindScope(into, node);
 }
 
-/** One banned-hook or in-view scope finding for a call node, or null. */
-function callRow(source, node, bound, inView) {
+/** One writable-useData finding for a call node in a view, or null. Plain, aliased,
+ *  or namespaced from `@tinker/react`; anything else is not the hook. */
+function writableRow(source, node, bound, line, inView, shadowed) {
+  const writes =
+    isDataCall(node, bound.dataCall, bound.scopeNs, shadowed) && writesCell(node) && inView(line);
+  if (!writes) return null;
+  return {
+    id: "no-writable-in-view",
+    line,
+    message:
+      "writable useData in a view (best-practices rule 9): typing and filter writes are actions; operations own their state changes",
+  };
+}
+
+/** One banned-hook, writable-useData, or in-view scope finding for a call node, or null. */
+function callRow(source, node, bound, inView, shadowed) {
   const line = lineOf(source, node.start);
   const hook = hookOf(node.callee, bound.hooks);
   if (hook !== null) {
@@ -212,7 +291,7 @@ function callRow(source, node, bound, inView) {
       message:
         "useScope in a view (best-practices rule 2): only the root holds the scope; views read cells and run operations",
     };
-  return null;
+  return writableRow(source, node, bound, line, inView, shadowed);
 }
 
 /** The referenced type name behind a parameter annotation (`Props` in `p: Props`), or null. */
@@ -270,16 +349,18 @@ export function inspectShape(source, file = "a.tsx") {
     scopeCall: new Set(),
     scopeNs: new Set(),
     scopeView: new Set(),
+    dataCall: new Set(),
   };
   for (const node of program.body) if (node.type === "ImportDeclaration") bindImports(bound, node);
   const aliases = scopeAliases(source, program);
+  const shadowed = shadowedData(program);
   const comps = units(source, file).filter((u) => u.kind === "component");
   const starts = new Set(comps.map((u) => u.line));
   const ranges = comps.map((u) => [u.line, u.line + u.source.split("\n").length - 1]);
   const inView = (line) => ranges.some(([from, to]) => from <= line && line <= to);
   walk(program, (n) => {
     if (n.type !== "CallExpression" || n.start === undefined) return;
-    const row = callRow(source, n, bound, inView);
+    const row = callRow(source, n, bound, inView, shadowed);
     if (row !== null) rows.push(row);
   });
   for (const node of program.body)

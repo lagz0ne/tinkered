@@ -198,6 +198,57 @@ void describe("shape findings", () => {
     );
   });
 
+  void it("flags writable useData in a view, plain, aliased, and namespaced", () => {
+    const plain = inspectShape(
+      `import { useData } from "@tinker/react";\nfunction MoveForm() {\n  const [item, setItem] = useData(formItem, { writable: true });\n  return <p>{item}</p>;\n}`,
+      "a.tsx",
+    );
+    assert.deepEqual(
+      plain.map((r) => [r.id, r.line]),
+      [["no-writable-in-view", 3]],
+    );
+    assert.match(plain[0].message, /rule 9/);
+    const aliased = inspectShape(
+      `import { useData as read } from "@tinker/react";\nfunction MoveForm() {\n  const [item, setItem] = read(formItem, { writable: true });\n  return <p>{item}</p>;\n}`,
+      "a.tsx",
+    );
+    assert.deepEqual(
+      aliased.map((r) => [r.id, r.line]),
+      [["no-writable-in-view", 3]],
+    );
+    const namespaced = inspectShape(
+      `import * as TR from "@tinker/react";\nfunction MoveForm() {\n  const [item, setItem] = TR.useData(formItem, { writable: true });\n  return <p>{item}</p>;\n}`,
+      "a.tsx",
+    );
+    assert.deepEqual(
+      namespaced.map((r) => [r.id, r.line]),
+      [["no-writable-in-view", 3]],
+    );
+  });
+
+  void it("leaves read-only useData, other modules, same-name functions, and useRun alone", () => {
+    const readOnly = inspectShape(
+      `import { useData } from "@tinker/react";\nfunction MoveForm() {\n  const item = useData(formItem);\n  return <p>{item}</p>;\n}`,
+      "a.tsx",
+    );
+    assert.deepEqual(readOnly, []);
+    const otherModule = inspectShape(
+      `import { useData } from "./cells.ts";\nfunction MoveForm() {\n  const [item, setItem] = useData(formItem, { writable: true });\n  return <p>{item}</p>;\n}`,
+      "a.tsx",
+    );
+    assert.deepEqual(otherModule, []);
+    const sameName = inspectShape(
+      `function useData(cell, opts) { return [cell, () => {}]; }\nfunction MoveForm() {\n  const [item, setItem] = useData(formItem, { writable: true });\n  return <p>{item}</p>;\n}`,
+      "a.tsx",
+    );
+    assert.deepEqual(sameName, []);
+    const runAllowed = inspectShape(
+      `import { useData, useRun } from "@tinker/react";\nfunction MoveForm() {\n  const item = useData(formItem);\n  const run = useRun(submitMove);\n  return <p onClick={() => run.run()}>{item}</p>;\n}`,
+      "a.tsx",
+    );
+    assert.deepEqual(runAllowed, []);
+  });
+
   void it("leaves plain helpers and typed non-scope props alone", () => {
     assert.deepEqual(inspectShape("function Helper(title) { return title.trim(); }", "a.tsx"), []);
     assert.deepEqual(
