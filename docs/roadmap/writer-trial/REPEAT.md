@@ -1,6 +1,6 @@
 # Fresh task with the tested rules
 
-Status: first three writers running; DeepSeek queued.
+Status: GLM first attempt reviewed; three writers running.
 Owner: Codex.
 
 ## Goal
@@ -127,3 +127,18 @@ The lead reran all five canary cases: all passed.
 Good and hidden-row apps scored 44 of 44.
 The broken edit scored 39 of 44; the wrong draft scored 43 of 44.
 The empty app scored zero of 40.
+
+## First saved result: GLM
+
+Type check and build passed. The supplied test command failed.
+The writer used an extra loader flag to run its 34 tests.
+Views write form cells through writable useData.
+The rules require operations to own those typing writes.
+Jev gave no notes on that view; manual review caught the gap.
+This attempt needs fixes. No feedback has been sent yet.
+
+The teacher first scored 43 of 44.
+The two-root failure came from the teacher loading React twice.
+Keeping the full module URL fixed that probe: 44 of 44 passed.
+The app archive was unchanged. The checker fix still needs landing.
+DeepSeek started when GLM freed a slot.

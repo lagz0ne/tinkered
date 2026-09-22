@@ -32,7 +32,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **writers/repeat** — owner: Codex.
   Make tested rules and the review loop the default; try a new stock app.
-  Next: score the fresh stock writers; start DeepSeek when a slot opens.
+  Next: fix the teacher module URL, then score writers and send own findings.
   Verify: all four first attempts scored, fixes kept separate, examples blocked.
   Keep every result and remove all trial projects after review.
 
