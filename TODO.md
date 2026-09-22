@@ -73,6 +73,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Done
 
+- **playground/motion-polish** — complete: ocean theme,
+  one motion clock, eased waves and turns, less layout work.
+  56 tests pass; desktop and phone review pass.
+  [Proof](docs/roadmap/playground-v2/PROGRESS.md#motion-follow-up-proof).
+
 - **playground/tsunami** — complete: 3D waves, controls,
   full screen, source browsing, and scope tests.
   [Final proof](docs/roadmap/playground-v2/PROGRESS.md#final-proof).
@@ -84,7 +89,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   views; native full screen and fit fallback both checked.
 - **playground/visuals** — complete: solid tiles, wave lift,
   four turns, live controls, and phone frame scan pass.
-
 
 | Card | Evidence |
 | tests/kill-check-in-brief — per-line kill check is the writer's proof | brief updated (`docs/roadmap/contributor-brief.md` Setup); `vp run prose` 0 hits |

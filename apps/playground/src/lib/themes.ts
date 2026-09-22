@@ -4,7 +4,7 @@ import type { Extension } from "@codemirror/state";
 
 export type ThemeId = "github-light" | "github-dark" | "one-dark";
 
-/** Common, high-contrast editor themes the user can pick between. Light is the default. */
+/** Common, high-contrast editor themes; the initial selection matches the dark game shell. */
 export const THEMES: readonly { id: ThemeId; label: string; extension: Extension }[] = [
   { id: "github-light", label: "GitHub Light", extension: githubLight },
   { id: "github-dark", label: "GitHub Dark", extension: githubDark },

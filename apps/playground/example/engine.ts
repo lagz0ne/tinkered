@@ -20,8 +20,12 @@ import {
 /** The settings a live control may write; every one of them is a finite number. */
 const SETTINGS = ["speed", "ring", "reach", "life", "height", "stormRate"] as const;
 
-/** How fast the board follows its target, in degrees per millisecond: a quarter turn in 250 ms. */
-const TURN_PER_MS = 90 / 250;
+const TURN_MS = 250;
+
+const soften = (progress: number): number => {
+  const t = Math.max(0, Math.min(1, progress));
+  return t * t * (3 - 2 * t);
+};
 
 const isNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
@@ -114,11 +118,12 @@ export const turn = operation({
 export function shadeAt(x: number, y: number, list: Wave[], now: number, p: Physics): Shade {
   const hits: { w: Wave; i: number; angle: number }[] = [];
   for (const w of list) {
+    const age = now - w.start;
     const d = Math.hypot(x - w.x, y - w.y);
-    const r = ((now - w.start) / 1000) * p.speed;
+    const r = (age / 1000) * p.speed;
     const front = Math.exp(-(((d - r) / p.ring) ** 2));
     const fade = Math.max(0, 1 - d / p.reach);
-    const i = front * fade;
+    const i = front * fade * soften(age / 90) * soften((p.life - age) / 250);
     if (i > 0.04) hits.push({ w, i, angle: Math.atan2(y - w.y, x - w.x) });
   }
   const [top, second] = hits.sort((a, b) => b.i - a.i);
@@ -175,8 +180,17 @@ export const ticker = resource({
     const schedule = deps.frames;
     const roll = deps.random;
     let frame = 0;
-    let last = clock.currentTimeMillis();
-    let lastStorm = last;
+    let lastStorm = clock.currentTimeMillis();
+    let motion = { from: deps.angle.get(), to: deps.targetAngle.get(), start: lastStorm };
+    defer(
+      deps.targetAngle.watch(() => {
+        motion = {
+          from: deps.angle.get(),
+          to: deps.targetAngle.get(),
+          start: clock.currentTimeMillis(),
+        };
+      }),
+    );
 
     /** Drop the waves that outlived `life`. */
     const expire = (now: number, life: number) => {
@@ -211,16 +225,11 @@ export const ticker = resource({
       if (changed) deps.board.set(next);
     };
 
-    /** Move the board a step along the turn the elapsed time pays for. */
+    /** Ease into and out of each turn, using scope time so frame rate does not change its length. */
     const rotate = (now: number) => {
-      const to = deps.targetAngle.get();
-      const from = deps.angle.get();
-      if (from !== to) {
-        const travel = (now - last) * TURN_PER_MS;
-        const gap = Math.abs(to - from);
-        deps.angle.set(gap <= travel ? to : from + Math.sign(to - from) * travel);
-      }
-      last = now;
+      if (deps.angle.get() === motion.to) return;
+      const progress = soften((now - motion.start) / TURN_MS);
+      deps.angle.set(motion.from + (motion.to - motion.from) * progress);
     };
 
     const step = () => {

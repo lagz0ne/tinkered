@@ -460,3 +460,76 @@ resolution; GLM completed the game and shell.
 All required lead review and observed checks.
 The UI needed more browser fix rounds than the scope code.
 Future comparisons should keep tasks similar in size.
+
+## Motion and style follow-up
+
+The user asked Codex to make this change directly.
+The user clarified that sluggish animation is the main issue.
+The tile currently starts a 160 ms CSS transition for every
+frame update. Its walls also change width and height each
+frame. The shell still uses white default component colors
+beside the dark game.
+
+Plan: remove the extra motion delay, give new waves a short
+rise, keep wall dimensions fixed, and use one ocean palette
+for the shell. Measure before and after on the same browser.
+Keep the frame source and game state in Tinker.
+
+## Motion follow-up proof
+
+Codex made the edits directly, as the user requested.
+
+- The shell now uses ocean colors, seafoam focus rings,
+  and dark native controls. New sessions use One Dark.
+  Stored editor theme choices are kept.
+- Removed the tile's extra 160 ms transform transition.
+  Tinker frame updates now set the shown position directly.
+- Waves rise over 90 ms and settle during their last 250 ms.
+  Slow waves no longer drop away at their time limit.
+- Board turns ease at both ends over 250 ms, using scope time.
+- Wall faces keep fixed 1 px dimensions and stretch with
+  transforms. Back faces are hidden. Face styles are direct;
+  changing a tile no longer propagates custom properties
+  through every face. Arrows stay mounted and use opacity.
+
+Browser diagnostics used headless Chromium at 1280 by 850,
+a storm, 180 sampled frames, and 4x CPU slowdown.
+Three runs were taken for each version. The following are
+medians, not a promise about frame rates on user devices:
+
+- Mean tile position lag: 7.94 px before; below 0.001 px after.
+- Style work per run: 15.75 s before; 1.77 s after.
+- Layout work per run: 2.76 s before; 0.039 s after.
+- Main-thread work per run: 29.48 s before; 7.01 s after.
+- Median frame gap: 183 ms before; 50 ms after under slowdown.
+
+The first pass removed the extra transition and layout size
+changes. A second pass removed inherited face variables and
+arrow mount changes; that removed more style and layout work.
+An unthrottled diagnostic still showed a 33 ms median gap on
+this headless host. No universal 60 fps claim is made.
+
+Observed checks:
+
+- Playground build and `vp check`: exit 0, 19 old warnings.
+- Scope tests: 56 pass, including three new motion tests.
+- All three motion regressions fail on the old engine.
+  The fixed source was restored byte for byte after that run.
+- Strict style census: exit 0.
+- Browser: matching shell color, One Dark default, four turns,
+  no tile transition, fixed wall dimensions, no script errors.
+- Phone: no sideways scroll; a 400-frame maximum-height
+  storm scan showed no tile clipping through four turns.
+- Source search, F12, history, and game identity checks pass.
+
+SCIP was rebuilt. Old `TURN_PER_MS` has no definition or
+references. Existing Tile, ticker, and themeCell callers stay
+in the view, services, and their scope tests. No public
+signature changed. The game impact check has no discrepancy.
+
+Writer cleanup is complete through Paseo's workspace API.
+The tsunami, source, and visual writer workspaces and their
+five agents were archived; all three directories were removed.
+The visual writer's two unstaged files were checked byte for
+byte against committed `c070795` before removal. Nothing
+unique was discarded. This working checkout is retained.

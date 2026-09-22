@@ -4,25 +4,26 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --radius: 0.65rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  color-scheme: dark;
+  --radius: 0.75rem;
+  --background: #051525;
+  --foreground: #eaf7f4;
+  --card: #081c31;
+  --card-foreground: #eaf7f4;
+  --popover: #0b263d;
+  --popover-foreground: #eaf7f4;
+  --primary: #67e3cd;
+  --primary-foreground: #051525;
+  --secondary: #0d2a40;
+  --secondary-foreground: #dbf4f4;
+  --muted: #0b263d;
+  --muted-foreground: #8fb6cc;
+  --accent: #153c59;
+  --accent-foreground: #eaf7f4;
+  --destructive: #e88383;
+  --border: #24465d;
+  --input: #24465d;
+  --ring: #67e3cd;
 }
 
 @theme inline {

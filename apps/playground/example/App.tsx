@@ -120,7 +120,7 @@ function Controls(): ReactElement {
         </label>
         <label className="ctl">
           <span className="lab">
-            Storm interval <b>Every {(p.stormRate / 1000).toFixed(1)} s</b>
+            Storm gap <b>Every {(p.stormRate / 1000).toFixed(1)} s</b>
           </span>
           <input
             type="range"
@@ -181,20 +181,18 @@ const css = `
 
   .tile { position: relative; display: block; width: 100%; aspect-ratio: 1; border: 0; padding: 0;
     border-radius: 6px; cursor: pointer; transform-style: preserve-3d; -webkit-tap-highlight-color: transparent;
-    transition: transform 160ms ease-out, background 140ms linear; }
+    }
   .tile:focus-visible { outline: 2px solid #67e3cd; outline-offset: 2px; }
   .tile.converge { box-shadow: 0 0 0 1px rgba(233, 255, 247, 0.5), 0 0 18px rgba(103, 227, 205, 0.45); }
-  .wall { position: absolute; display: block; }
-  .wall.n { left: 0; width: 100%; top: calc(-1 * var(--h)); height: var(--h);
-    transform-origin: 50% 100%; transform: rotateX(90deg); }
-  .wall.s { left: 0; width: 100%; top: 100%; height: var(--h);
-    transform-origin: 50% 0%; transform: rotateX(-90deg); }
-  .wall.e { top: 0; height: 100%; left: 100%; width: var(--h);
-    transform-origin: 0% 50%; transform: rotateY(90deg); }
-  .wall.w { top: 0; height: 100%; left: calc(-1 * var(--h)); width: var(--h);
-    transform-origin: 100% 50%; transform: rotateY(-90deg); }
-  .wall.lo { background: var(--wall-lo); }
-  .wall.hi { background: var(--wall-hi); }
+  .wall { position: absolute; display: block; backface-visibility: hidden; }
+  .wall.n { left: 0; width: 100%; top: -1px; height: 1px;
+    transform-origin: 50% 100%; }
+  .wall.s { left: 0; width: 100%; top: 100%; height: 1px;
+    transform-origin: 50% 0%; }
+  .wall.e { top: 0; height: 100%; left: 100%; width: 1px;
+    transform-origin: 0% 50%; }
+  .wall.w { top: 0; height: 100%; left: -1px; width: 1px;
+    transform-origin: 100% 50%; }
 
   .arrow { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none;
     font-size: clamp(11px, 2.4vw, 18px); line-height: 1; }
@@ -221,7 +219,6 @@ const css = `
   .ctl input:focus-visible { outline: 2px solid #67e3cd; outline-offset: 2px; }
 
   @media (prefers-reduced-motion: reduce) {
-    .tile { transition: none; }
     .scene.storm::after { animation: none; }
   }
 `;

@@ -87,6 +87,34 @@ test("a press lifts the tile it hits, and the lift moves outward", () => {
   expect(queue.pending()).toBe(1);
 });
 
+test("a pressed tile rises into its wave instead of jumping to full height", () => {
+  const { scope, clock, queue, shades } = game();
+  scope.run(press, { input: { x: 1, y: 1 } });
+  queue.pump();
+  expect(shades()[4].z).toBe(0);
+  clock.advance(40);
+  queue.pump();
+  const rising = shades()[4].z;
+  clock.advance(50);
+  queue.pump();
+  expect(rising).toBeGreaterThan(0);
+  expect(shades()[4].z).toBeGreaterThan(rising);
+});
+
+test("a slow wave settles before its lifetime ends", () => {
+  const { scope, clock, queue, shades } = game();
+  scope.run(setPhysics, { input: { speed: 1 } });
+  scope.run(press, { input: { x: 1, y: 1 } });
+  clock.advance(2350);
+  queue.pump();
+  const crest = shades()[1].z;
+  clock.advance(200);
+  queue.pump();
+  expect(crest).toBeGreaterThan(0);
+  expect(shades()[1].z).toBeLessThan(crest / 2);
+  expect(scope.resolve(waves)).toHaveLength(1);
+});
+
 test("a wave expires after its life", () => {
   const { scope, clock, queue } = game();
   scope.run(press, { input: { x: 1, y: 1 } });
@@ -112,12 +140,11 @@ test("setting physics.height doubles the lift on the next frame", () => {
 });
 
 test("the storm presses a tile every stormRate, and setStorm false stops it", () => {
-  const { scope, clock, queue, shades } = game();
+  const { scope, clock, queue } = game();
   scope.run(setStorm, { input: true });
   clock.advance(400);
   queue.pump();
   expect(scope.resolve(waves)).toHaveLength(1);
-  expect(shades()[0].i).toBe(1);
 
   clock.advance(400);
   queue.pump();
@@ -163,6 +190,22 @@ test("each turn rotates the board a quarter turn and lands on its target", () =>
     expect(scope.resolve(angle)).toBe(target);
   }
   expect(scope.resolve(targetAngle)).toBe(-450);
+});
+
+test("a turn eases at both ends and finishes in 250 milliseconds", () => {
+  const { scope, clock, queue } = game();
+  scope.run(turn, { input: 1 });
+  clock.advance(25);
+  queue.pump();
+  expect(scope.resolve(angle)).toBeGreaterThan(0);
+  expect(scope.resolve(angle)).toBeLessThan(9);
+  clock.advance(200);
+  queue.pump();
+  expect(scope.resolve(angle)).toBeGreaterThan(81);
+  expect(scope.resolve(angle)).toBeLessThan(90);
+  clock.advance(25);
+  queue.pump();
+  expect(scope.resolve(angle)).toBe(90);
 });
 
 test("clear empties the waves and stops the storm", () => {

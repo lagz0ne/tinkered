@@ -1,6 +1,6 @@
 import { useData, useRun } from "@tinker/react";
 import { memo } from "react";
-import type { CSSProperties, ReactElement } from "react";
+import type { ReactElement } from "react";
 import { press } from "./engine";
 import { board, IDLE, sameShade, type Shade } from "./state";
 
@@ -35,8 +35,8 @@ function topOf(water: { calm: boolean; hue: number; sat: number; lit: number }, 
 function arrowOf(
   shade: Shade,
   water: { hue: number; lit: number },
-): { color: string; transform: string; opacity: number } | undefined {
-  if (shade.i <= 0.1) return undefined;
+): { color: string; transform: string; opacity: number } {
+  if (shade.i <= 0.1) return { color: "transparent", transform: "none", opacity: 0 };
   return {
     color: `hsl(${(water.hue + 180) % 360} 72% ${Math.max(14, Math.min(44, 100 - water.lit))}%)`,
     transform: `rotate(${shade.a}deg)`,
@@ -68,10 +68,9 @@ export const Tile = memo(function Tile({
   const style = {
     transform: `translateZ(${h}px)`,
     background: topOf(water, shade.z),
-    "--h": `${h}px`,
-    "--wall-lo": wall(0.4),
-    "--wall-hi": wall(0.52),
-  } as CSSProperties;
+  };
+  const low = wall(0.4);
+  const high = wall(0.52);
   return (
     <button
       type="button"
@@ -80,24 +79,29 @@ export const Tile = memo(function Tile({
       onClick={() => run.run({ input: { x, y } })}
       aria-label={`tile ${x},${y}`}
     >
-      <span className="wall n lo" aria-hidden="true" />
-      <span className="wall s hi" aria-hidden="true" />
-      <span className="wall w lo" aria-hidden="true" />
-      <span className="wall e hi" aria-hidden="true" />
-      <Arrow of={arrowOf(shade, water)} />
+      <span
+        className="wall n"
+        style={{ transform: `rotateX(90deg) scaleY(${h})`, background: low }}
+        aria-hidden="true"
+      />
+      <span
+        className="wall s"
+        style={{ transform: `rotateX(-90deg) scaleY(${h})`, background: high }}
+        aria-hidden="true"
+      />
+      <span
+        className="wall w"
+        style={{ transform: `rotateY(-90deg) scaleX(${h})`, background: low }}
+        aria-hidden="true"
+      />
+      <span
+        className="wall e"
+        style={{ transform: `rotateY(90deg) scaleX(${h})`, background: high }}
+        aria-hidden="true"
+      />
+      <span className="arrow" style={arrowOf(shade, water)} aria-hidden="true">
+        ➜
+      </span>
     </button>
   );
 });
-
-function Arrow({
-  of,
-}: {
-  of: { color: string; transform: string; opacity: number } | undefined;
-}): ReactElement | null {
-  if (of === undefined) return null;
-  return (
-    <span className="arrow" style={of}>
-      ➜
-    </span>
-  );
-}

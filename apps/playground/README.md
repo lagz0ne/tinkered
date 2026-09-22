@@ -75,9 +75,14 @@ local names do not falsely jump to an import, and history
 restores each file and cursor position in the right order.
 Package sources stay out of the editable file set.
 
+The shell uses the game's ocean colors. New sessions start
+with the One Dark editor theme; saved theme choices stay.
+
 The tests prove these game promises:
 
 - A press returns its hue and sends a rising wave outward.
+- A new wave rises smoothly; slow waves settle before expiry.
+- Turns ease at both ends and finish in 250 milliseconds.
 - Live height settings change tile lift.
 - Clear removes waves and stops the storm.
 - Storm presses use the chosen time gap, including changes

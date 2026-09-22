@@ -87,7 +87,7 @@ test("setTheme rejects an unknown theme at the door", () => {
     if (!isPlaygroundError(cause, "InvalidInput")) throw cause;
     expect(cause.payload).toEqual({ operation: "setTheme", reason: "unknown theme" });
   }
-  expect(scope.resolve(themeCell)).toBe("github-light");
+  expect(scope.resolve(themeCell)).toBe("one-dark");
 });
 
 test("addFile opens the new file as the navigation place and records the origin", () => {

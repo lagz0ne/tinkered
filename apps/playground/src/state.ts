@@ -62,7 +62,7 @@ export const filesCell = data<PlaygroundFile[]>({ label: "files", initial: [...D
 /** The active tab's file name. */
 export const activeCell = data<string>({ label: "active", initial: ENTRY });
 /** The selected CodeMirror theme. */
-export const themeCell = data<ThemeId>({ label: "theme", initial: "github-light" });
+export const themeCell = data<ThemeId>({ label: "theme", initial: "one-dark" });
 /** Which top-level view is showing: the game, the code editor, or the benchmark. */
 export const viewCell = data<View>({ label: "view", initial: "play" });
 /** The stage's display mode; `fit` and `native` hide the shell chrome. */
