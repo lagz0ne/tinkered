@@ -90,7 +90,10 @@ const search = operation({
 
 test("the graph produces the trace: the tool nests under the send", async () => {
   const seen: {
-    servers: { tools: Parameters<ClaudeCode.Sdk["createSdkMcpServer"]>[0]["tools"] }[];
+    servers: {
+      name: string;
+      tools: Parameters<ClaudeCode.Sdk["createSdkMcpServer"]>[0]["tools"];
+    }[];
     results: CallToolResult[];
   } = { servers: [], results: [] };
   const sdk: ClaudeCode.Sdk = {
@@ -130,7 +133,10 @@ test("the graph produces the trace: the tool nests under the send", async () => 
 async function* readToolStream(
   options: Options | undefined,
   seen: {
-    servers: { tools: Parameters<ClaudeCode.Sdk["createSdkMcpServer"]>[0]["tools"] }[];
+    servers: {
+      name: string;
+      tools: Parameters<ClaudeCode.Sdk["createSdkMcpServer"]>[0]["tools"];
+    }[];
     results: CallToolResult[];
   },
 ): AsyncGenerator<SDKMessage> {
