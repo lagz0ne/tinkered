@@ -162,7 +162,7 @@ const css = `
   .sub { margin: 4px 0 2px; max-width: 60ch; text-align: center; font-size: 0.92rem; color: #8fb6cc; }
   .live { font-size: 12px; color: #5f93b3; font-variant-numeric: tabular-nums; margin-bottom: 6px; }
 
-  .scene { position: relative; width: min(92vw, 560px); aspect-ratio: 5 / 4; display: grid; place-items: center;
+  .scene { position: relative; width: min(92vw, 560px); aspect-ratio: 10 / 9; display: grid; place-items: center;
     perspective: 1500px; border-radius: 22px; border: 1px solid rgba(122, 196, 214, 0.16); overflow: hidden;
     background: radial-gradient(120% 95% at 50% 0%, #103152 0%, #081c31 55%, #050f1d 100%); }
   .scene.storm { background: radial-gradient(120% 95% at 50% 0%, #14324c 0%, #0a2036 55%, #061224 100%); }
@@ -172,7 +172,7 @@ const css = `
   @keyframes squall { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
 
   .tilt { transform-style: preserve-3d; }
-  .board { position: relative; display: grid; gap: 3px; width: min(78vw, 430px); transform-style: preserve-3d;
+  .board { position: relative; display: grid; gap: 3px; width: min(75vw, 415px); transform-style: preserve-3d;
     touch-action: manipulation; }
   .floor { position: absolute; inset: -14px; transform: translateZ(-6px); border-radius: 16px;
     background: linear-gradient(160deg, #0a2a44 0%, #061a2e 60%, #04101f 100%);
@@ -214,8 +214,8 @@ const css = `
   .sliders { display: grid; gap: 6px 18px; grid-template-columns: 1fr; }
   @media (min-width: 620px) { .sliders { grid-template-columns: repeat(3, 1fr); } }
   .ctl { display: grid; gap: 2px; font-size: 12.5px; color: #8fb6cc; }
-  .ctl .lab { display: flex; justify-content: space-between; align-items: baseline; }
-  .ctl b { color: #eaf7f4; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .ctl .lab { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .ctl b { color: #eaf7f4; font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
   .ctl input { width: 100%; height: 44px; margin: 0; accent-color: #38d9c3; cursor: pointer; }
   .ctl input:focus-visible { outline: 2px solid #67e3cd; outline-offset: 2px; }
 

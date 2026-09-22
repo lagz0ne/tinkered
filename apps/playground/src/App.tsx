@@ -1,18 +1,18 @@
 import { useData, useResource, useRun } from "@tinker/react";
-import { BarChart3, Code2, Gamepad2, Maximize, Minimize2, RotateCcw } from "lucide-react";
-import { lazy, Suspense, useRef } from "react";
-import type { RefObject, ReactElement } from "react";
 import {
-  addFile,
-  closeFile,
-  editFile,
-  renameFile,
-  reset,
-  selectFile,
-  setTheme,
-  setView,
-} from "@/actions.ts";
-import { Editor } from "@/components/Editor.tsx";
+  ArrowLeft,
+  ArrowRight,
+  BarChart3,
+  Code2,
+  Crosshair,
+  Gamepad2,
+  Maximize,
+  Minimize2,
+  RotateCcw,
+} from "lucide-react";
+import { lazy, Suspense, useRef } from "react";
+import type { ReactElement, RefObject } from "react";
+import { addFile, closeFile, renameFile, reset, selectFile, setTheme, setView } from "@/actions.ts";
 import { FileTabs } from "@/components/FileTabs.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import {
@@ -25,7 +25,18 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip.tsx";
 import { immersive } from "@/lib/fullscreen.ts";
 import { previewDocument } from "@/lib/preview.ts";
+import { ENTRY } from "@/lib/files.ts";
 import { THEMES } from "@/lib/themes.ts";
+import { Editor } from "@/components/Editor.tsx";
+import { SourcePicker } from "@/components/SourcePicker.tsx";
+import {
+  followDefinition,
+  goBack,
+  goForward,
+  navigationCell,
+  openSource,
+  trackCursor,
+} from "@/navigation.ts";
 import {
   activeCell,
   bundleCell,
@@ -79,23 +90,6 @@ function ViewToggle(): ReactElement {
 /** Reads the active file's content and the theme. Its own keystrokes do NOT re-render it: the
  * content it just emitted comes back through the cell, and the isEqual policy treats "the value I
  * last emitted" as unchanged. A tab switch, a reset, or any other writer still swaps the doc. */
-function EditorPane(): ReactElement {
-  const active = useData(activeCell);
-  const theme = useData(themeCell);
-  const emitted = useRef<string | undefined>(undefined);
-  const content = useData(
-    filesCell,
-    (files) => files.find((f) => f.name === active)?.content ?? "",
-    (prev, next) => prev === next || next === emitted.current,
-  );
-  const edit = useRun(editFile);
-  const onChange = (next: string) => {
-    emitted.current = next;
-    edit.run({ input: { name: active, content: next } });
-  };
-  return <Editor value={content} onChange={onChange} theme={theme} />;
-}
-
 /** THE one preview iframe for the whole shell: mounted for every view, its `srcDoc` driven only by
  * the bundle cell — switching to Code, Benchmark, or full screen never remounts it or resets the
  * running game. Views that are not Play simply cover it with an overlay, and `inert` takes the
@@ -119,20 +113,26 @@ const sameNames = (a: string[], b: string[]): boolean =>
   a.length === b.length && a.every((name, i) => name === b[i]);
 
 /** Subscribes to the file NAMES: a keystroke changes a file's content, not its name, so typing
- * never re-renders the tab strip. */
+ * never re-renders the tab strip. A tab click is also a navigation open, so Back returns to the
+ * tab you came from. */
 function Tabs(): ReactElement {
   const names = useData(filesCell, (files) => files.map((f) => f.name), sameNames);
   const [first] = names;
   const active = useData(activeCell);
+  const shown = useData(navigationCell, (nav) => nav.place?.file ?? first, Object.is);
   const select = useRun(selectFile);
+  const open = useRun(openSource);
   const add = useRun(addFile);
   const close = useRun(closeFile);
   const rename = useRun(renameFile);
   return (
     <FileTabs
       files={names}
-      active={names.includes(active) ? active : first}
-      onSelect={(name) => select.run({ input: name })}
+      active={names.includes(shown) ? shown : names.includes(active) ? active : first}
+      onSelect={(name) => {
+        select.run({ input: name });
+        open.run({ input: { file: name, offset: 0 } });
+      }}
       onAdd={() => add.run()}
       onClose={(name) => close.run({ input: name })}
       onRename={(from, to) => rename.run({ input: { from, to } })}
@@ -246,11 +246,84 @@ function BottomBar(props: { stage: RefObject<HTMLDivElement | null> }): ReactEle
   );
 }
 
+/** The Code view: searchable file list, the one editor, and reader-first navigation. The shown
+ * file is the navigation place (falling back to the active tab before the first open); a package
+ * source shows a read-only badge. Follow records the caret through `trackCursor` and then jumps —
+ * the caret itself is already tracked on every cursor move, so Back lands on the exact spot. */
 function CodeOverlay(): ReactElement {
+  const names = useData(filesCell, (files) => files.map((f) => f.name), sameNames);
+  const nav = useData(navigationCell);
+  const shown = nav.place?.file ?? ENTRY;
+  const editable = names.includes(shown);
+  const record = useRun(trackCursor);
+  const hop = useRun(followDefinition);
+  const back = useRun(goBack);
+  const forward = useRun(goForward);
+  const follow = () => {
+    const place = nav.place ?? { file: shown, offset: 0 };
+    record.run({ input: place });
+    hop.run({ input: place });
+  };
   return (
-    <div className="absolute inset-0 z-10 bg-background">
-      <EditorPane />
+    <div className="absolute inset-0 z-10 flex flex-col bg-background">
+      <div className="flex items-center gap-2 border-b px-2 py-1.5">
+        <SourcePicker active={shown} />
+        {!editable && (
+          <span className="shrink-0 rounded-md bg-muted px-2 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+            read-only
+          </span>
+        )}
+      </div>
+      <div className="min-h-0 flex-1">
+        <Editor />
+      </div>
+      <div className="flex items-center gap-2 border-t px-2 py-1.5">
+        <NavButton label="Follow symbol" hint="F12 or Ctrl-click a name" onClick={follow}>
+          <Crosshair className="size-4" />
+          <span className="hidden xs:inline">Follow symbol</span>
+        </NavButton>
+        <NavButton
+          label="Back"
+          hint="Alt+Left"
+          disabled={nav.back.length === 0}
+          onClick={() => back.run()}
+        >
+          <ArrowLeft className="size-4" />
+        </NavButton>
+        <NavButton
+          label="Forward"
+          hint="Alt+Right"
+          disabled={nav.forward.length === 0}
+          onClick={() => forward.run()}
+        >
+          <ArrowRight className="size-4" />
+        </NavButton>
+        <span className="ml-auto hidden pr-1 text-[11px] text-muted-foreground sm:inline">
+          F12 or Ctrl-click follows a symbol
+        </span>
+      </div>
     </div>
+  );
+}
+
+function NavButton(props: {
+  label: string;
+  hint?: string;
+  disabled?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}): ReactElement {
+  return (
+    <button
+      type="button"
+      onClick={props.onClick}
+      disabled={props.disabled}
+      title={props.hint}
+      aria-label={props.label}
+      className="flex min-h-11 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors enabled:hover:bg-accent disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+    >
+      {props.children}
+    </button>
   );
 }
 

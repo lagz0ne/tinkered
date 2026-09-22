@@ -1,8 +1,17 @@
 import { operation } from "@tinker/core";
 import { raise } from "@/errors.ts";
+import { navigationCell } from "@/navigation.ts";
 import { DEFAULT_FILES, ENTRY } from "@/lib/files.ts";
 import { THEMES, type ThemeId } from "@/lib/themes.ts";
-import { activeCell, dirtyCell, filesCell, themeCell, type View, viewCell } from "@/state.ts";
+import {
+  activeCell,
+  dirtyCell,
+  filesCell,
+  searchCell,
+  themeCell,
+  type View,
+  viewCell,
+} from "@/state.ts";
 
 /** Every user action is an operation: typed input admitted at the door, the cells it touches
  * declared as controller deps, and no React in sight — `scope.run(addFile)` in a test does exactly
@@ -126,17 +135,28 @@ export const setView = operation({
   run: ({ view }, { input }) => view.set(input),
 });
 
-/** Back to the starter project; the session is no longer dirty, so a future default replaces it. */
+/** Set the Code view's file-search text. */
+export const setSearch = operation({
+  label: "setSearch",
+  input: string("setSearch"),
+  depends: { search: searchCell.controller },
+  run: ({ search }, { input }) => search.set(input),
+});
+
+/** Back to the starter project; the session is no longer dirty, so a future default replaces it.
+ * Navigation restarts at the entry file: the restored project is where a fresh session opens. */
 export const reset = operation({
   label: "reset",
   depends: {
     files: filesCell.controller,
     active: activeCell.controller,
     dirty: dirtyCell.controller,
+    nav: navigationCell.controller,
   },
-  run: ({ files, active, dirty }) => {
+  run: ({ files, active, dirty, nav }) => {
     dirty.set(false);
     files.set([...DEFAULT_FILES]);
     active.set(ENTRY);
+    nav.set({ place: { file: ENTRY, offset: 0 }, back: [], forward: [] });
   },
 });

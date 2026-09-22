@@ -67,6 +67,8 @@ export const themeCell = data<ThemeId>({ label: "theme", initial: "github-light"
 export const viewCell = data<View>({ label: "view", initial: "play" });
 /** The stage's display mode; `fit` and `native` hide the shell chrome. */
 export const modeCell = data<Mode>({ label: "mode", initial: "window" });
+/** The Code view's file-search text; empty means the picker list is hidden. */
+export const searchCell = data<string>({ label: "search", initial: "" });
 /** True once the user has changed a file (content, add, close, rename); reset clears it. */
 export const dirtyCell = data<boolean>({ label: "dirty", initial: false });
 /** The latest build/runtime status. */
