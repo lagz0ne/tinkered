@@ -8,6 +8,7 @@ const edge: unique symbol = Symbol("edge");
 const resourceSym: unique symbol = Symbol("resource");
 const extensionSym: unique symbol = Symbol("extension");
 const presetSym: unique symbol = Symbol("preset");
+const namespaceSym: unique symbol = Symbol("namespace");
 
 /** A declared dependency edge: a mode (`controller`, `required`, `optional`, `all`) onto a target. */
 export type Edge<K extends string, Target> = {
@@ -98,6 +99,19 @@ export declare namespace Tag {
     (value: T): Binding<T>;
   };
 }
+
+/** A parallel storage bucket inside a layer (ADR 0059): minted by {@link namespace}, carried on
+ * an invocation (`ns`) or a scope/session (`createSession({ ns })`). A branded value, not a name —
+ * two namespaces differ by identity, never by a string. Its `tags` are the namespace's own
+ * bindings, read when a call resolves in it. */
+export type Namespace = {
+  readonly [namespaceSym]: true;
+  readonly tags: readonly Tag.Binding<unknown>[];
+};
+
+/** A namespace as authored on an invocation or scope option: one key, or a read-through
+ * fallback chain tried in order (ADR 0059 decision 3). Absent means today's single namespace. */
+export type Ns = Namespace | readonly Namespace[];
 
 export declare namespace Observe {
   /** What opened a span: resolving an operation or a resource, or a manual `ctx.obs.child`. */
@@ -285,13 +299,17 @@ export declare namespace Scope {
   };
 
   /** How a subflow call is supplied (ADR 0022, 0038): a pre-typed `input` (parse skipped), or a
-   * raw `rawInput` (run through the operation's parse), plus per-call ambient tag bindings.
-   * A call carrying `tags` opens a child session for that run (always async). A defined `input`
-   * wins; an `undefined` `input` counts as absent, so `rawInput` is parsed instead. */
+   * raw `rawInput` (run through the operation's parse), plus per-call ambient tag bindings and
+   * per-call namespace (ADR 0059). A call carrying `tags` opens a child session for that run
+   * (always async). A defined `input` wins; an `undefined` `input` counts as absent, so `rawInput`
+   * is parsed instead. */
   export type Invocation<I> = {
     readonly input?: I;
     readonly rawInput?: unknown;
     readonly tags?: Tag.Bindings;
+    /** The storage bucket for this call (ADR 0059): one namespace or a read-through chain.
+     * Absent resolves in the layer's ambient namespace (or the default bucket). */
+    readonly ns?: Ns;
   };
 
   /** An invocation that carries an input — exactly one of `input` or `rawInput`, never both and
@@ -301,11 +319,13 @@ export declare namespace Scope {
         readonly input: I;
         readonly rawInput?: never;
         readonly tags?: Tag.Bindings;
+        readonly ns?: Ns;
       }
     | {
         readonly input?: never;
         readonly rawInput: unknown;
         readonly tags?: Tag.Bindings;
+        readonly ns?: Ns;
       };
 
   /** The `run` argument list for input `I`: a genuinely void input is callable with no
@@ -339,7 +359,7 @@ export declare namespace Scope {
   /** A call that carries `tags`: always async (ADR 0038). For a void input the call object
    * holds only `tags`; otherwise it holds the run's `input` (or `rawInput`) plus `tags`. */
   export type TaggedCall<I> = [I] extends [void]
-    ? [call: { readonly tags: Bindings }]
+    ? [call: { readonly tags: Bindings; readonly ns?: Ns }]
     : [call: ProvideInput<I> & { readonly tags: Bindings }];
 
   /** An inline operation: a config with the same deps + body shape as `operation()`, but no
@@ -357,13 +377,17 @@ export declare namespace Scope {
    * with nothing to pass, omit the call and `I` is void. A call carrying `tags` opens a
    * child session for the run and is always async. */
   export type InlineCall<I> = [I] extends [void]
-    ? [call?: { readonly tags?: Bindings }]
-    : [call: { readonly input: I; readonly tags?: Bindings }];
+    ? [call?: { readonly tags?: Bindings; readonly ns?: Ns }]
+    : [call: { readonly input: I; readonly tags?: Bindings; readonly ns?: Ns }];
 
   /** An inline run carrying `tags`: always async (ADR 0038). */
   export type TaggedInlineCall<I> = [I] extends [void]
-    ? [call: { readonly tags: Bindings }]
-    : [call: { readonly input: I; readonly tags: Bindings }];
+    ? [call: { readonly tags: Bindings; readonly ns?: Ns }]
+    : [call: { readonly input: I; readonly tags: Bindings; readonly ns?: Ns }];
+
+  /** The per-call namespace argument of `resolve`/`controller` (ADR 0059):
+   * `scope.resolve(cell, { ns })`, `scope.controller(cell, { ns })`. */
+  export type NsArg = { readonly ns: Ns };
 
   export type Dependency =
     | Data.Cell<unknown>
@@ -463,6 +487,9 @@ export declare namespace Scope {
   /** Values seeded on a scope at creation. */
   export type Options = {
     tags?: Tag.Bindings;
+    /** The ambient namespace (ADR 0059): every read and write inside resolves through it; a
+     * child session inherits it; a per-call `ns` overrides it for one run. Absent = default. */
+    ns?: Ns;
     observe?: Observe.Config;
     presets?: Many<Preset>;
     /** The ambient clock for this scope; child sessions inherit it. Default is the system clock. */
@@ -507,23 +534,23 @@ export declare namespace Scope {
   export type Handle = {
     /** Give back control: a handle that delays and steers — data `get/set/update/watch`,
      * resource `resolve/get`, operation `run(call)`. */
-    controller<T>(target: Data.Cell<T>): DataController<T>;
-    controller<T>(target: Resource.Handle<T>): ResourceController<T>;
-    controller<T, I>(target: Operation.Handle<T, I>): OperationController<T, I>;
+    controller<T>(target: Data.Cell<T>, ns?: NsArg): DataController<T>;
+    controller<T>(target: Resource.Handle<T>, ns?: NsArg): ResourceController<T>;
+    controller<T, I>(target: Operation.Handle<T, I>, ns?: NsArg): OperationController<T, I>;
     /** Read the snapshot, in the form a `depends` slot delivers: a data cell reads its current
      * value (no subscription); a resource reads its built instance (builds once if needed — the
      * same build `depends` performs, so the one `resolve` that may do work); a tag reads the
      * nearest binding, else its default, else throws `MissingTag`. An operation has no snapshot:
      * it is not accepted (no overload), run it with `run` instead. */
-    resolve<T>(cell: Data.Cell<T>): T;
-    resolve<T>(res: Resource.Handle<T>): ResourceValue<T>;
-    resolve<T>(tag: Tag.Handle<T>): T;
+    resolve<T>(cell: Data.Cell<T>, ns?: NsArg): T;
+    resolve<T>(res: Resource.Handle<T>, ns?: NsArg): ResourceValue<T>;
+    resolve<T>(tag: Tag.Handle<T>, ns?: NsArg): T;
     /** A tag edge reads exactly what that `depends` slot would deliver (ADR 0020/0036): `.all` →
      * every binding nearest-first, `.optional` → a presence, `.required` → the value or `MissingTag`.
      * The way a driver reads a whole routing table off the scope (core/t29). */
-    resolve<T>(edge: Edge<"all", Tag.Handle<T>>): T[];
-    resolve<T>(edge: Edge<"optional", Tag.Handle<T>>): Tag.Presence<T>;
-    resolve<T>(edge: Edge<"required", Tag.Handle<T>>): T;
+    resolve<T>(edge: Edge<"all", Tag.Handle<T>>, ns?: NsArg): T[];
+    resolve<T>(edge: Edge<"optional", Tag.Handle<T>>, ns?: NsArg): Tag.Presence<T>;
+    resolve<T>(edge: Edge<"required", Tag.Handle<T>>, ns?: NsArg): T;
     /** Read what an extension's `start` returned (ADR 0050): available once that extension's start
      * settled (`NotResolved` before, or when the extension is not installed on this scope). */
     resolve<T>(ext: Extension<T>): T;
@@ -751,6 +778,27 @@ export function tag<T>(config: {
   });
 }
 
+/** Mint a namespace: a branded parallel storage bucket (ADR 0059), exactly as `data`/`tag` mint
+ * configured handles. It carries no string — two namespaces differ by identity. `opts.tags` are
+ * the namespace's own bindings, read when a call resolves in it. */
+export function namespace(options?: { readonly tags?: Tag.Bindings }): Namespace {
+  return { [namespaceSym]: true as const, tags: readMany(options?.tags) };
+}
+
+const isNamespace = (n: unknown): n is Namespace =>
+  (n as { [namespaceSym]?: true } | null | undefined)?.[namespaceSym] === true;
+
+/** Normalize an authored `ns` to a fallback chain (one key wraps into a one-element chain) and
+ * reject anything that is not a namespace — a string or a foreign object is a loud error, not a
+ * silent second key space (ADR 0059: callers pass the value around; they never name one). */
+function nsChainOf(ns: Ns): readonly Namespace[] {
+  const chain = Array.isArray(ns) ? ns : [ns];
+  for (const key of chain) {
+    if (!isNamespace(key)) raise("InvalidDependency", { label: "ns", reason: "not a namespace" });
+  }
+  return chain as readonly Namespace[];
+}
+
 /** Declare an operation: a function with typed input that runs on every call. */
 export function operation<
   const D extends Scope.Depends = Record<string, never>,
@@ -886,6 +934,12 @@ class NodeState {
   /** Value the watchers at this layer were last called with; refreshed at registration so a new
    * watcher never inherits a stale comparison. */
   notified: unknown = undefined;
+  /** Named cell buckets at this layer, keyed by namespace (ADR 0059): one `(layer, ns, unit)`
+   * bucket per write. Absent until the first namespaced write at this layer. */
+  nsCells: Map<Namespace, Entry> | undefined = undefined;
+  /** Watchers of one named bucket at this layer (a named write notifies only that bucket's).
+   * Cross-layer inheritance of named writes is t03. */
+  nsWatchers: Map<Namespace, { ws: Set<Watcher>; notified: unknown }> | undefined = undefined;
 }
 
 /** Get-or-create this layer's record for a node. */
@@ -946,6 +1000,9 @@ type Layer = {
   clock: Clock.Handle;
   random: Random.Handle;
   emptyCtx: Resource.Ctx | undefined;
+  /** The ambient namespace chain of this layer (ADR 0059): set from the scope/session options,
+   * inherited by child sessions, overridden per call through a view layer. Undefined = default. */
+  ns: readonly Namespace[] | undefined;
 };
 
 type ExtRec = { settled: boolean; value: unknown };
@@ -1028,9 +1085,37 @@ function ensureOpen(layer: Layer): void {
   if (layer.closed) raise("Disposed", { reason: "scope is closed" });
 }
 
+/** THE bucket selector (ADR 0059): layers near→far; at each layer the ns chain in order, then
+ * that layer's default bucket. ONE walk serves cells AND tags so the two cannot disagree on the
+ * order (the spike's bug). CHAIN ORDER, decided: layers-first, namespaces-second within each
+ * layer — the layer chain is the shadowing axis (a child's own write must beat anything it
+ * inherits from a parent, exactly as an ns-absent write shadows), so a NEAR layer's default
+ * write beats a FAR layer's named bucket; the ns chain only orders buckets within one layer.
+ * The discriminator is locked by a test that fails under namespaces-first. */
+function selectBucket<B>(
+  layer: Layer,
+  chain: readonly Namespace[],
+  bucket: (layer: Layer, key: Namespace) => B | undefined,
+  fallback: (layer: Layer) => B | undefined,
+): B | undefined {
+  for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
+    for (const key of chain) {
+      const hit = bucket(cur, key);
+      if (hit !== undefined) return hit;
+    }
+    const own = fallback(cur);
+    if (own !== undefined) return own;
+  }
+  return undefined;
+}
+
 /** The nearest cell up the chain (cached per layer); a missing cell resolves to an entry holding
- * the cell's initial value, so reads never check for absence. */
+ * the cell's initial value, so reads never check for absence. A namespaced read branches off
+ * here (ns present only) and takes the shared selector uncached — the default path and its
+ * cache are untouched. */
 function effectiveEntry(layer: Layer, target: Data.Cell<unknown>): Entry {
+  const chain = layer.ns;
+  if (chain !== undefined) return effectiveEntryNs(layer, target, chain);
   const self = nodeState(layer, target);
   const cached = self.eff;
   if (cached !== undefined) return cached;
@@ -1044,6 +1129,22 @@ function effectiveEntry(layer: Layer, target: Data.Cell<unknown>): Entry {
   const fresh: Entry = { value: target.initial };
   self.eff = fresh;
   return fresh;
+}
+
+/** A namespaced cell read through the one selector; never touches the default `eff` cache. */
+function effectiveEntryNs(
+  layer: Layer,
+  target: Data.Cell<unknown>,
+  chain: readonly Namespace[],
+): Entry {
+  return (
+    selectBucket(
+      layer,
+      chain,
+      (cur, key) => cur.nodes.get(target)?.nsCells?.get(key),
+      (cur) => cur.nodes.get(target)?.cell,
+    ) ?? { value: target.initial }
+  );
 }
 
 function readCell(layer: Layer, target: Data.Cell<unknown>): unknown {
@@ -1101,11 +1202,62 @@ function cellEq(target: Data.Cell<unknown>, a: unknown, b: unknown): boolean {
 }
 
 function writeCell<T>(layer: Layer, target: Data.Cell<T>, next: unknown): void {
+  const chain = layer.ns;
+  if (chain !== undefined) return writeCellNs(layer, target, chain, next);
   ensureOpen(layer);
   const value = admit(target.label, target.parse, next);
   if (cellEq(target, readCell(layer, target), value)) return;
   ownCell(layer, target).value = value;
   flushCell(layer, target);
+}
+
+/** A namespaced write lands at `(this layer, first key)` (ADR 0059 decision 3), seeded from the
+ * current effective value (write-what-differs). The default bucket and its watchers are untouched;
+ * only the named bucket's own watchers flush (cross-layer named inheritance is t03). */
+function writeCellNs(
+  layer: Layer,
+  target: Data.Cell<unknown>,
+  chain: readonly Namespace[],
+  next: unknown,
+): void {
+  ensureOpen(layer);
+  const value = admit(target.label, target.parse, next);
+  const current = readCell(layer, target);
+  if (cellEq(target, current, value)) return;
+  ownNsCell(layer, target, chain[0], current).value = value;
+  flushNs(layer, target, chain[0]);
+}
+
+/** Get-or-create this layer's named bucket of a cell, seeded from the inherited value. */
+function ownNsCell(layer: Layer, target: Data.Cell<unknown>, key: Namespace, seed: unknown): Entry {
+  const rec = nodeState(layer, target);
+  let bucket = rec.nsCells?.get(key);
+  if (bucket === undefined) {
+    bucket = { value: seed };
+    (rec.nsCells ??= new Map()).set(key, bucket);
+  }
+  return bucket;
+}
+
+/** Notify the watchers of one named bucket at this layer (compare-once, registration order). */
+function flushNs(layer: Layer, target: Data.Cell<unknown>, key: Namespace): void {
+  const rec = layer.nodes.get(target);
+  const entry = rec?.nsWatchers?.get(key);
+  if (entry === undefined || entry.ws.size === 0) return;
+  const bucket = rec?.nsCells?.get(key);
+  flushWatchers(target, entry, bucket?.value);
+}
+
+/** Compare once against the bucket's last notified value, then run its watchers in order. */
+function flushWatchers(
+  target: Data.Cell<unknown>,
+  entry: { ws: Set<Watcher>; notified: unknown },
+  next: unknown,
+): void {
+  const prev = entry.notified;
+  if (cellEq(target, prev, next)) return;
+  entry.notified = next;
+  for (const w of entry.ws) w.fn(next, prev);
 }
 
 /** The last value of a tag list (its nearest binding), or undefined for an absent/empty list. */
@@ -1114,6 +1266,8 @@ function topTag(list: unknown[] | undefined): { present: true; value: unknown } 
 }
 
 function tagFind(layer: Layer, target: Tag.Handle<unknown>): Tag.Presence<unknown> {
+  const chain = layer.ns;
+  if (chain !== undefined) return tagFindNs(layer, target, chain);
   for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
     const hit = topTag(cur.tags?.get(target));
     if (hit) return hit;
@@ -1121,8 +1275,61 @@ function tagFind(layer: Layer, target: Tag.Handle<unknown>): Tag.Presence<unknow
   return target.hasDefault ? { present: true, value: target.def } : { present: false };
 }
 
+/** A namespaced tag read through the ONE selector (same walk as cells): the ns chain's own
+ * bindings, then each layer's own bindings, nearest layer first — else the tag's default. */
+function tagFindNs(
+  layer: Layer,
+  target: Tag.Handle<unknown>,
+  chain: readonly Namespace[],
+): Tag.Presence<unknown> {
+  const hit = selectBucket(
+    layer,
+    chain,
+    (cur, key) => nsTagBinding(key, target),
+    (cur) => topTag(cur.tags?.get(target)),
+  );
+  if (hit) return hit;
+  return target.hasDefault ? { present: true, value: target.def } : { present: false };
+}
+
+/** A namespace's nearest binding of one tag, or undefined. */
+function nsTagBinding(
+  key: Namespace,
+  target: Tag.Handle<unknown>,
+): Tag.Presence<unknown> | undefined {
+  const bindings = key.tags;
+  for (let i = bindings.length - 1; i >= 0; i--) {
+    const binding = bindings[i] as Tag.Binding<unknown>;
+    if (binding.tag === target) return { present: true, value: binding.value };
+  }
+  return undefined;
+}
+
 function tagAll(layer: Layer, target: Tag.Handle<unknown>): unknown[] {
+  const chain = layer.ns;
+  if (chain !== undefined) return tagAllNs(layer, target, chain);
   const out: unknown[] = [];
+  for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
+    const list = cur.tags?.get(target);
+    if (list) for (let i = list.length - 1; i >= 0; i--) out.push(list[i]);
+  }
+  return out;
+}
+
+/** A namespaced `.all`: the chain's bindings nearest-first (chain head first), then the layers'. */
+function tagAllNs(
+  layer: Layer,
+  target: Tag.Handle<unknown>,
+  chain: readonly Namespace[],
+): unknown[] {
+  const out: unknown[] = [];
+  for (const key of chain) {
+    const bindings = key.tags;
+    for (let i = bindings.length - 1; i >= 0; i--) {
+      const binding = bindings[i] as Tag.Binding<unknown>;
+      if (binding.tag === target) out.push(binding.value);
+    }
+  }
   for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
     const list = cur.tags?.get(target);
     if (list) for (let i = list.length - 1; i >= 0; i--) out.push(list[i]);
@@ -1184,12 +1391,53 @@ function dataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataContro
   };
 }
 
+/** The namespaced data controller (ADR 0059): reads and writes route through the layer's ambient
+ * or view chain — reads uncached via the one selector, writes at `(this layer, first key)`, and a
+ * watch observes the chain-head bucket at this layer (named-watch inheritance is t03). */
+function dataControllerNs<T>(
+  layer: Layer,
+  target: Data.Cell<T>,
+  chain: readonly Namespace[],
+): Scope.DataController<T> {
+  const get = (): T => readCell(layer, target) as T;
+  return {
+    get,
+    set: (value: T) => writeCell(layer, target, value),
+    update: (fn: (previous: T) => T) => {
+      ensureOpen(layer);
+      writeCell(layer, target, fn(get()));
+    },
+    watch: (listener: (next: T, prev: T) => void) =>
+      addWatcherNs(layer, target, chain[0], listener as (next: unknown, prev: unknown) => void),
+  };
+}
+
+/** Register a watcher on one named bucket at this layer; the unwatch fn drops it. */
+function addWatcherNs(
+  layer: Layer,
+  target: Data.Cell<unknown>,
+  key: Namespace,
+  fn: (next: unknown, prev: unknown) => void,
+): () => void {
+  ensureOpen(layer);
+  const rec = nodeState(layer, target);
+  const map = (rec.nsWatchers ??= new Map());
+  const entry = map.get(key) ?? { ws: new Set<Watcher>(), notified: readCell(layer, target) };
+  map.set(key, entry);
+  const w: Watcher = { fn };
+  entry.ws.add(w);
+  return () => void entry.ws.delete(w);
+}
+
 function resolveControllerEdge(
   layer: Layer,
   target: unknown,
   parent: Observe.Span | undefined,
 ): unknown {
-  if (isData(target)) return dataController(layer, target);
+  if (isData(target))
+    return layer.ns !== undefined
+      ? dataControllerNs(layer, target, layer.ns)
+      : dataController(layer, target);
   if (isOperation(target)) return operationController(layer, target, parent);
   raise("InvalidDependency", { label: "edge", reason: "unknown controller target" });
 }
@@ -1653,16 +1901,20 @@ class OperationCtx<I> implements Operation.Ctx<I> {
   readonly random: Random.Handle;
   constructor(
     owner: Layer,
-    label: string,
-    rawInput: unknown,
-    input: I,
+    target: Operation.Handle<unknown, I>,
+    call: Scope.Invocation<I> | undefined,
     obs: Obs,
     span: Observe.Span | undefined,
   ) {
     this.owner = owner;
-    this.label = label;
+    this.label = target.label;
+    /** The invocation's input pair, verbatim from the controller body: a defined `input` is used
+     * as-is (raw = same), else `rawInput` — possibly undefined — is parsed. Computed here (once
+     * per run either way) so the hot closure stays branch-budget-clean. */
+    const given = call?.input;
+    const rawInput = given !== undefined ? given : call?.rawInput;
     this.rawInput = rawInput;
-    this.input = input;
+    this.input = given !== undefined ? given : parseInput(target, rawInput);
     this.obs = obsCtx(obs, span);
     this.log = logFor(obs, span);
     this.clock = owner.clock;
@@ -1679,6 +1931,12 @@ class OperationCtx<I> implements Operation.Ctx<I> {
   get signal(): AbortSignal {
     return signalOf(this.owner);
   }
+}
+
+/** True when a call carries a namespace (ADR 0059): one optional `ns` read, no chain. A namespaced
+ * call resolves through a view layer; anything else takes the untagged body inline below. */
+function hasCallNs(call: Scope.Invocation<unknown> | undefined): boolean {
+  return call?.ns !== undefined;
 }
 
 /** True when a call carries tag bindings (ADR 0038): one optional `tags` read, no chain.
@@ -1704,9 +1962,39 @@ function runTagged<T, I>(
   const tags = call.tags;
   const inner: Scope.Invocation<I> | undefined =
     call.input === undefined && call.rawInput === undefined ? undefined : stripTags(call);
-  return runSessionWith(layer, { tags }, (child) =>
+  return runSessionWith(layer, { tags, ns: call.ns }, (child) =>
     runUntagged(child, target, parent, inner),
   ) as Promise<Awaited<T>>;
+}
+
+/** Run `target` in the call's namespace (ADR 0059): a view layer carries the chain as its ambient
+ * namespace, so every read and write inside — deps, tags, cells, subflows — resolves through it
+ * while the span parent and the real layer stay untouched. Cold path only (the ns-absent run
+ * never enters). A fresh controller per call, cached in no layer. */
+function runNsCall<I>(
+  layer: Layer,
+  target: Operation.Handle<unknown, I>,
+  parent: Observe.Span | undefined,
+  call: Scope.Invocation<I> & { readonly ns: Ns },
+): unknown {
+  ensureOpen(layer);
+  const view = nsView(layer, nsChainOf(call.ns));
+  return runUntagged(view, target, parent, stripNs(call));
+}
+
+/** The ns-stripped call a namespaced run replays on its view layer: the same `input`/`rawInput`
+ * selection the untagged path makes, minus `ns` (already honored by the view). */
+function stripNs<I>(call: Scope.Invocation<I>): Scope.Invocation<I> | undefined {
+  if (call.input !== undefined) return { input: call.input };
+  if (call.rawInput !== undefined) return { rawInput: call.rawInput };
+  return undefined;
+}
+
+/** An ephemeral layer view with one chain as its ambient namespace: everything is shared with the
+ * real layer (nodes, children, parent, close state) except `ns`, so resolution through the view
+ * reads and writes the named buckets of the REAL layer — the span parent never moves. */
+function nsView(layer: Layer, chain: readonly Namespace[]): Layer {
+  return { ...layer, ns: chain };
 }
 
 /** The tag-stripped call a tagged run replays inside its child session (ADR 0038): the same
@@ -1738,6 +2026,8 @@ function operationController<T, I>(
           readonly tags: Scope.Bindings;
         },
       );
+    if (hasCallNs(call))
+      return runNsCall(layer, target, parent, call as Scope.Invocation<I> & { readonly ns: Ns });
     ensureOpen(layer);
     const obs = layer.obs;
     const span = openSpan(obs, parent, target.label, "operation");
@@ -1768,17 +2058,8 @@ function operationController<T, I>(
     let result: T;
     buildDepth++;
     try {
-      let input: I;
-      let rawInput: unknown;
-      if (call?.input !== undefined) {
-        input = call.input;
-        rawInput = call.input;
-      } else {
-        rawInput = call?.rawInput;
-        input = parseInput(target, rawInput);
-      }
       const deps = readOpDeps(layer, target, span, sees);
-      ctx = new OperationCtx<I>(layer, target.label, rawInput, input, obs, span);
+      ctx = new OperationCtx<I>(layer, target, call, obs, span);
       result = runBody(override, target, deps, ctx, parked);
     } catch (error) {
       closeSpan(obs, span, "failed");
@@ -2603,6 +2884,16 @@ function randomFor(parent: Layer | undefined, options: Scope.Options | undefined
   return options?.random ?? systemRandom;
 }
 
+/** The ambient namespace chain of a new layer: the options' `ns` (validated), else the parent's
+ * — a child session inherits the parent's ambient namespace (ADR 0059 decision 5). */
+function nsFor(
+  parent: Layer | undefined,
+  options: Scope.Options | undefined,
+): readonly Namespace[] | undefined {
+  if (options?.ns !== undefined) return nsChainOf(options.ns);
+  return parent?.ns;
+}
+
 function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
   const tags = seedTags(options?.tags);
   const { nodes, presets } = seedPresets(options?.presets);
@@ -2630,6 +2921,7 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     clock: clockFor(parent, options),
     random: randomFor(parent, options),
     emptyCtx: undefined,
+    ns: nsFor(parent, options),
   };
   if (parent) {
     parent.children.add(layer);
@@ -3194,6 +3486,31 @@ function runThrough(
   return chained as Scope.Handle["run"];
 }
 
+/** A namespaced resolve (ADR 0059): same dispatch as the plain resolve, on a view layer carrying
+ * the chain. Cells and tags resolve in the namespace; resources are ns-blind in t01 (t02 keys
+ * their builds on `(owner, ns, handle)` through the same selector); extensions are ns-blind. */
+function resolveNs(layer: Layer, target: unknown, chain: readonly Namespace[]): unknown {
+  const view = nsView(layer, chain);
+  if (isData(target)) return readCell(view, target);
+  if (isResource(target)) return resourceController(view, target, undefined).resolve();
+  if (isEdge(target)) return resolveEdge(view, target, undefined);
+  if (isExtension(target)) return resolveExtension(layer, target);
+  return tagRequired(view, target as Tag.Handle<unknown>);
+}
+
+/** A namespaced controller (ADR 0059): built fresh on the view layer, cached in no layer — a view
+ * shares its real layer's node map, so a cached namespaced controller would leak its chain. */
+function controllerNs(
+  layer: Layer,
+  target: Data.Cell<unknown> | Resource.Handle<unknown> | Operation.Handle<unknown, unknown>,
+  chain: readonly Namespace[],
+): unknown {
+  const view = nsView(layer, chain);
+  if (isData(target)) return dataControllerNs(view, target, chain);
+  if (isResource(target)) return resourceController(view, target, undefined);
+  return operationController(view, target, undefined);
+}
+
 function handleFor(layer: Layer): Scope.Handle {
   const settled = async (): Promise<void> => {
     while (layer.pending.size) await Promise.all(layer.pending);
@@ -3204,7 +3521,9 @@ function handleFor(layer: Layer): Scope.Handle {
     const s = nodeState(layer, target);
     if (s.controller) return s.controller;
     const ctl = isData(target)
-      ? dataController(layer, target)
+      ? layer.ns !== undefined
+        ? dataControllerNs(layer, target, layer.ns)
+        : dataController(layer, target)
       : isResource(target)
         ? resourceController(layer, target, undefined)
         : operationController(layer, target, undefined);
@@ -3213,8 +3532,10 @@ function handleFor(layer: Layer): Scope.Handle {
   };
   const controller = (<T, I>(
     target: Data.Cell<T> | Resource.Handle<T> | Operation.Handle<T, I>,
+    ns?: Scope.NsArg,
   ) => {
     ensureOpen(layer);
+    if (ns?.ns !== undefined) return controllerNs(layer, target, nsChainOf(ns.ns));
     return controllerOf(target);
   }) as Scope.Handle["controller"];
   const resolve = (<T>(
@@ -3224,8 +3545,10 @@ function handleFor(layer: Layer): Scope.Handle {
       | Tag.Handle<T>
       | Edge<string, Tag.Handle<T>>
       | Scope.Extension<unknown>,
+    ns?: Scope.NsArg,
   ): unknown => {
     ensureOpen(layer);
+    if (ns?.ns !== undefined) return resolveNs(layer, target, nsChainOf(ns.ns));
     if (isData(target)) return readCell(layer, target);
     if (isResource(target)) {
       return (controllerOf(target) as Scope.ResourceController<T>).resolve();
