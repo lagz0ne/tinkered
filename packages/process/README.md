@@ -14,16 +14,27 @@ argv ─▶ run ─▶ help | --version | unknown   (no root)
 ```
 
 ```ts
-import { command, main } from "@tinker/process";
+import { argv, io, main, operation } from "@tinker/process";
+
+const checkCommand = operation({
+  label: "check",
+  depends: { argv: argv.required, io: io.required, check },
+  run: async ({ argv: args, io: out, check: judge }) => {
+    const report = await judge.run({ rawInput: args[0] });
+    out.write(checkLines(report));
+    return 0;
+  },
+});
 
 const shell = {
   name: "tk",
   version: "0.1.0",
   commands: [
-    command("check", check, {
-      input: (a) => a[0],
+    {
+      name: "check",
       description: "check a file",
-    }),
+      entry: () => ({ op: checkCommand }),
+    },
     {
       name: "serve",
       entry: () => ({
@@ -39,18 +50,21 @@ if (import.meta.main) await main(shell);
 ## Commands
 
 A command is an operation that answers an exit
-code. What it needs it declares: the `argv`, `env`,
-and `io` tags, cells, resources, other operations.
+code. The author declares it: the `argv`, `env`,
+and `io` tags in `depends`, the driven operation
+beside them, argv in through its parse, the
+answer out through `io`, the code owned.
 
 - Help lists the routes sorted with their
   descriptions and loads nothing.
 - `--version` answers the version with exit 0.
 - An unknown command prints usage to stderr with
   exit 2 and loads nothing.
-- A command over an operation parses argv through
-  its own `input` and answers one JSON line.
-- `respond` overrides the default output, and a
-  void operation prints nothing.
+- A declared command parses argv through the
+  operation's own parse and answers one JSON
+  line.
+- The author owns the output: a custom line,
+  and a void operation prints nothing.
 - An operation's parse failure prints usage to
   stderr with exit 2.
 - A throwing operation prints its error to stderr
@@ -62,6 +76,8 @@ and `io` tags, cells, resources, other operations.
   `io` writes are collected in order.
 - A command that throws a non-Error prints it as
   JSON with exit 1.
+- `jsonLine` answers one JSON line and stays
+  undefined for a void value.
 
 ## Roots
 
@@ -93,6 +109,22 @@ or let the cancellation throw (a one-shot: 130).
   its own code, not 130.
 - An already-aborted signal exits 130 with empty
   streams and no root.
+
+## Observation: the command and the operation it drives
+
+A command run is two spans: the command
+operation, and the operation it drives beneath
+it. No span code anywhere — the graph produces
+the trace (ADR 0058).
+
+```text
+check
+  checkContents
+```
+
+- The graph produces the trace: the command
+  operation and the operation it drives
+  beneath it.
 
 ## Test recipe
 
