@@ -1,6 +1,6 @@
 # Fresh task with the tested rules
 
-Status: preparing tools and teacher checks.
+Status: blank workers staged; review-tool fixes pending.
 Owner: Codex.
 
 ## Goal
@@ -90,6 +90,34 @@ Containers, volumes, worker folders, and trust entries are removed too.
 The main project and evidence remain.
 
 ## Preparation note
+
+Trial stock-01 is created and staged at round 1.
+No writer agent has started.
+All 32 isolation checks and five tool-limit tests passed.
+All four frozen Jev setups returned live reports and caught a useState probe.
+The probes were removed.
+All four src, tests, and docs folders are empty.
+Task, rules, and tool copies match; trial caps are disabled.
+Proof is in the trial's readiness-checks.json, jev-readiness.json,
+and prelaunch-checks.json.
+
+The create/stage limit fixes are saved as 8e3c3f9.
+The full setup has 13 passing suite and attempt tests.
+The full vp check has zero errors and the same 22 old warnings.
+The saved review command is still under repair.
+Lead review found that save decodes the archive as UTF-8 text,
+feedback does not reach the worker, and retries copy the old event log.
+A real blank archive grew from 81,408 to 84,110 bytes after that decode.
+Its hash changed. Saving must keep the raw bytes.
+The lead also requested current-attempt cleanup guards,
+full task text on retries, and separate results for each check.
+These commands will not score writers until the fixes are verified.
+
+The preparation-log folder disappeared during contributor smoke work.
+The lead asked for the exact cleanup commands and recreated the folder.
+Earlier trial evidence remains present.
+Saved Git notes and tool output retain the earlier observed results.
+Current setup checks were run again into the new folder.
 
 The first tool step is saved as 42a5e0e.
 It adds full default rules and frozen task, rule, and Jev files.
