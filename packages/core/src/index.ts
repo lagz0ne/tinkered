@@ -192,6 +192,22 @@ export declare namespace Clock {
   export type Options = { readonly now?: number };
 }
 
+export declare namespace Random {
+  /** The ambient randomness source carried on every ctx (`ctx.random`). Default is the system
+   * source; set once via `createScope({ random })` and inherited by child sessions. Both reads are
+   * synchronous — no signal, no wait (ADR 0061). */
+  export type Handle = {
+    /** A float in `[0, 1)`, like `Math.random`. */
+    next(): number;
+    /** A v4-shaped unique id, like `crypto.randomUUID`. */
+    uuid(): string;
+  };
+
+  /** Seeds {@link makeTestRandom}: the same seed replays the same `next` and `uuid` stream
+   * (default `0`). */
+  export type Options = { readonly seed?: number };
+}
+
 export declare namespace Operation {
   /** The receiver an operation body reads its own invocation through. `signal` aborts when the owning
    * scope/session closes (hand it to `fetch`/an SDK); `defer` runs one hook when the run settles. */
@@ -204,6 +220,7 @@ export declare namespace Operation {
     readonly obs: Observe.Ctx;
     readonly log: Observe.Logger;
     readonly clock: Clock.Handle;
+    readonly random: Random.Handle;
   };
 
   /** An operation: typed input, declared deps, runs on every call. Not reactive, not memoized. */
@@ -230,6 +247,7 @@ export declare namespace Resource {
     readonly obs: Observe.Ctx;
     readonly log: Observe.Logger;
     readonly clock: Clock.Handle;
+    readonly random: Random.Handle;
   };
 
   /** A reusable built instance. `target` picks the owning layer: `scope` = one per chain
@@ -449,6 +467,8 @@ export declare namespace Scope {
     presets?: Many<Preset>;
     /** The ambient clock for this scope; child sessions inherit it. Default is the system clock. */
     clock?: Clock.Handle;
+    /** The ambient randomness for this scope; child sessions inherit it. Default is the system source. */
+    random?: Random.Handle;
     /** Middleware installed on the root scope only (ADR 0050); sessions inherit the resolved values. */
     extensions?: Many<Extension<unknown>>;
   };
@@ -924,6 +944,7 @@ type Layer = {
   closing: Promise<Scope.Result> | undefined;
   obs: Obs;
   clock: Clock.Handle;
+  random: Random.Handle;
   emptyCtx: Resource.Ctx | undefined;
 };
 
@@ -1306,6 +1327,35 @@ export function makeTestClock(options?: Clock.Options): Clock.Test {
   };
 }
 
+const systemRandom: Random.Handle = {
+  next: () => Math.random(),
+  uuid: () => crypto.randomUUID(),
+};
+
+/** Create a seeded randomness source for tests: the same `seed` replays the same `next` and `uuid`
+ * stream, drawn from one mulberry32 generator. Pass it to `createScope({ random })` (ADR 0061). */
+export function makeTestRandom(options?: Random.Options): Random.Handle {
+  let state = (options?.seed ?? 0) >>> 0;
+  const next = (): number => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const uuid = (): string => {
+    let out = "";
+    for (let i = 0; i < 16; i++) {
+      let byte = Math.trunc(next() * 256) & 0xff;
+      if (i === 6) byte = (byte & 0x0f) | 0x40;
+      if (i === 8) byte = (byte & 0x3f) | 0x80;
+      out += byte.toString(16).padStart(2, "0");
+      if (i === 3 || i === 5 || i === 7 || i === 9) out += "-";
+    }
+    return out;
+  };
+  return { next, uuid };
+}
+
 const DEFAULT_OBS: Obs = {
   observing: false,
   clock: Date.now,
@@ -1600,6 +1650,7 @@ class OperationCtx<I> implements Operation.Ctx<I> {
   readonly obs: Observe.Ctx;
   readonly log: Observe.Logger;
   readonly clock: Clock.Handle;
+  readonly random: Random.Handle;
   constructor(
     owner: Layer,
     label: string,
@@ -1615,6 +1666,7 @@ class OperationCtx<I> implements Operation.Ctx<I> {
     this.obs = obsCtx(obs, span);
     this.log = logFor(obs, span);
     this.clock = owner.clock;
+    this.random = owner.random;
   }
   readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
     (this.defers ??= []).push(fn);
@@ -1872,6 +1924,7 @@ class ResourceCtx implements Resource.Ctx {
   readonly obs: Observe.Ctx;
   readonly log: Observe.Logger;
   readonly clock: Clock.Handle;
+  readonly random: Random.Handle;
   constructor(
     owner: Layer,
     target: Resource.Handle<unknown>,
@@ -1888,6 +1941,7 @@ class ResourceCtx implements Resource.Ctx {
     this.obs = obsCtx(obs, span);
     this.log = logFor(obs, span);
     this.clock = owner.clock;
+    this.random = owner.random;
   }
   readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
     const { owner, target } = this;
@@ -1925,10 +1979,12 @@ class EmptyCtx implements Resource.Ctx {
   readonly obs = OFF_OBS;
   readonly log = OFF_LOG;
   readonly clock: Clock.Handle;
+  readonly random: Random.Handle;
   private owner: Layer;
   constructor(owner: Layer) {
     this.owner = owner;
     this.clock = owner.clock;
+    this.random = owner.random;
   }
   readonly defer = (): void => {
     raise("Disposed", { reason: "resource factory declared no ctx" });
@@ -2045,12 +2101,14 @@ class ExtensionCtx implements Resource.Ctx {
   readonly obs = OFF_OBS;
   readonly log = OFF_LOG;
   readonly clock: Clock.Handle;
+  readonly random: Random.Handle;
   readonly label: string;
   private owner: Layer;
   constructor(owner: Layer, label: string) {
     this.owner = owner;
     this.label = label;
     this.clock = owner.clock;
+    this.random = owner.random;
   }
   readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
     this.owner.defers.push({ fn, resource: undefined });
@@ -2540,6 +2598,11 @@ function clockFor(parent: Layer | undefined, options: Scope.Options | undefined)
   return options?.clock ?? systemClock;
 }
 
+function randomFor(parent: Layer | undefined, options: Scope.Options | undefined): Random.Handle {
+  if (parent) return parent.random;
+  return options?.random ?? systemRandom;
+}
+
 function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
   const tags = seedTags(options?.tags);
   const { nodes, presets } = seedPresets(options?.presets);
@@ -2565,6 +2628,7 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     closing: undefined,
     obs: parent ? parent.obs : makeObs(options?.observe),
     clock: clockFor(parent, options),
+    random: randomFor(parent, options),
     emptyCtx: undefined,
   };
   if (parent) {
