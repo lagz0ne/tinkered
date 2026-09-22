@@ -110,6 +110,32 @@ the core and React scans passed.
 No package API changed.
 Save, check, feedback, and live stock runs are still pending.
 
+The first stock checker is saved on its branch as 3962623.
+It has not been accepted into the lead branch.
+Lead review found wrong checks in teacher/stock-acceptance.mjs:
+
+- Line 338 expects empty undo after one saved move.
+- Line 335 assumes the returned draft must be a second separate copy.
+- Lines 477 and 515 keep live stock references as the expected old state.
+  An in-place write could change both sides of that check.
+- Lines 869 and 1003 reject an empty alert kept in the page.
+- Line 880 looks for Maple, which is not part of the stock task.
+
+The lead also asked for exact row checks, a real draft-switch check,
+two-root checks that change stock, and machine-readable case results.
+The checker needs a passing private fixture and known-bad variants.
+No model will be scored against this first checker version.
+
+The lead re-read the tracker's App.tsx and DraftView.tsx.
+Both use cell reads and operation calls for form changes.
+Jev's plain shape scan found no hits in those files or main.tsx.
+The client style census passed.
+The tracker is a pattern reference, not an exact stock rule set:
+its actions.ts has broad network-error handling at lines 310 and 390,
+and fallback error messages from line 399 onward.
+The local stock task still requires unknown errors to be rethrown.
+Plain scans cannot prove that rule; source review remains required.
+
 Before any stock writer launched, the lead checked a long preparation delay.
 The stock-check contributor had read an earlier GLM booking app,
 contrary to its brief to use only the stock task and public API.
