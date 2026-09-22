@@ -907,7 +907,22 @@ type NsWatcher = Watcher & {
 type DeferEntry = {
   fn: (end: Scope.End) => void | PromiseLike<void>;
   resource: Resource.Handle<unknown> | undefined;
+  ns: Namespace | undefined;
 };
+
+/** One named resource bucket. Default resource state stays directly on {@link NodeState}, keeping
+ * the namespace-absent hot path unchanged. */
+class NsResourceState {
+  resource: Entry | undefined = undefined;
+  promise: Promise<unknown> | undefined = undefined;
+  failed: { error: unknown; promise: Promise<unknown> } | undefined = undefined;
+  build: Promise<unknown> | undefined = undefined;
+  gen = 0;
+  building = false;
+  borrowers: Set<Promise<unknown>> | undefined = undefined;
+}
+
+type ResourceState = NodeState | NsResourceState;
 
 /** All per-node state for one layer, colocated in a single record so a scope allocates ONE Map
  * (`Layer.nodes`) instead of a dozen parallel ones — one `Map.get(node)` fetches everything.
@@ -945,6 +960,8 @@ class NodeState {
   /** Value the watchers at this layer were last called with; refreshed at registration so a new
    * watcher never inherits a stale comparison. */
   notified: unknown = undefined;
+  /** Named resource buckets at this layer. Scope-target resources never use this map. */
+  nsResources: Map<Namespace, NsResourceState> | undefined = undefined;
   /** Named cell buckets at this layer, keyed by namespace (ADR 0059): one `(layer, ns, unit)`
    * bucket per write. Absent until the first namespaced write at this layer. */
   nsCells: Map<Namespace, Entry> | undefined = undefined;
@@ -2256,6 +2273,7 @@ function resolveResourceDeps(
 class ResourceCtx implements Resource.Ctx {
   private owner: Layer;
   private target: Resource.Handle<unknown>;
+  private ns: Namespace | undefined;
   private isSettled: () => boolean;
   private superseded: () => boolean;
   readonly label: string;
@@ -2270,9 +2288,11 @@ class ResourceCtx implements Resource.Ctx {
     span: Observe.Span | undefined,
     isSettled: () => boolean,
     superseded: () => boolean,
+    ns: Namespace | undefined,
   ) {
     this.owner = owner;
     this.target = target;
+    this.ns = ns;
     this.isSettled = isSettled;
     this.superseded = superseded;
     this.label = target.label;
@@ -2282,7 +2302,7 @@ class ResourceCtx implements Resource.Ctx {
     this.random = owner.random;
   }
   readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
-    const { owner, target } = this;
+    const { owner, target, ns } = this;
     if (this.isSettled()) raise("Disposed", { reason: "resource factory already finished" });
     /** A build that finished after its resource was released (superseded) tears down NOW, but
      * borrow-aware so it still waits for any op that borrowed this resource before running its
@@ -2290,7 +2310,7 @@ class ResourceCtx implements Resource.Ctx {
      * is drained directly — never pushed to `owner.defers` — so it cannot sweep up a LIVE
      * rebuild's defers registered under the same handle. */
     if (this.superseded()) releaseSupersededDefer(owner, target, fn);
-    else owner.defers.push({ fn, resource: target });
+    else owner.defers.push({ fn, resource: target, ns });
   };
   get signal(): AbortSignal {
     return signalOf(this.owner);
@@ -2308,8 +2328,9 @@ function buildCtx(
   span: Observe.Span | undefined,
   isSettled: () => boolean,
   superseded: () => boolean,
+  ns: Namespace | undefined = undefined,
 ): Resource.Ctx {
-  return new ResourceCtx(owner, target, obs, span, isSettled, superseded);
+  return new ResourceCtx(owner, target, obs, span, isSettled, superseded, ns);
 }
 
 class EmptyCtx implements Resource.Ctx {
@@ -2450,7 +2471,7 @@ class ExtensionCtx implements Resource.Ctx {
     this.random = owner.random;
   }
   readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
-    this.owner.defers.push({ fn, resource: undefined });
+    this.owner.defers.push({ fn, resource: undefined, ns: undefined });
   };
   get signal(): AbortSignal {
     return signalOf(this.owner);
@@ -2475,8 +2496,9 @@ function buildResource<T>(
   target: Resource.Handle<T>,
   parent: Observe.Span | undefined,
   chain: readonly Namespace[] | undefined,
+  rec: ResourceState = nodeState(owner, target),
+  ns: Namespace | undefined = undefined,
 ): unknown {
-  const rec = nodeState(owner, target);
   const gen = rec.gen;
   const superseded = (): boolean => rec.gen !== gen;
   const canPublish = (): boolean => !superseded() && !owner.closed;
@@ -2492,7 +2514,7 @@ function buildResource<T>(
     const fn = override ?? target.factory;
     const ctx =
       fn.length >= 2
-        ? buildCtx(owner, target, obs, span, () => settled, superseded)
+        ? buildCtx(owner, target, obs, span, () => settled, superseded, ns)
         : emptyCtxFor(owner);
     const result =
       pending === undefined ? fn(deps, ctx) : settleDeps(deps, pending).then(() => fn(deps, ctx));
@@ -2534,7 +2556,7 @@ function buildResource<T>(
  * clear `owner.resources` and detach the edges, so the sticky failure honors the normal lifetime. */
 function finishAsyncBuild(
   owner: Layer,
-  rec: NodeState,
+  rec: ResourceState,
   result: PromiseLike<unknown>,
   superseded: () => boolean,
   canPublish: () => boolean,
@@ -2575,23 +2597,56 @@ function resourceController<T>(
   chain: readonly Namespace[] | undefined = layer.ns,
 ): Scope.ResourceController<T> {
   const owner = ownerOf(layer, target);
-  /** Second cache layer: the controller (already cached per node) holds the owner's node record
-   * directly, so a warm resolve is a field read — no per-call `owner.nodes.get`. The record is a
-   * stable object mutated in place by build/invalidate, so it always reflects the current state. */
+  /** Second cache layer: an ns-blind controller holds the owner's node record directly, so a warm
+   * resolve is a field read. A named controller selects its bucket on each read because an earlier
+   * key in a fallback chain may be built after the controller was created. */
   const rec = nodeState(owner, target);
+  const named = target.target === "session" && chain !== undefined && chain.length > 0;
   return {
     resolve: () => {
       const value = resourceSlot(layer, target, parent, chain);
-      return (rec.promise ?? value) as Scope.ResourceValue<T>;
+      const state = named ? selectNsResource(owner, target, chain) : rec;
+      return (state?.promise ?? value) as Scope.ResourceValue<T>;
     },
     get: () => {
       ensureOpen(layer);
       ensureOpen(owner);
-      if (rec.failed) return rec.failed.promise as Scope.ResourceValue<T>;
-      if (!rec.resource) raise("NotResolved", { label: target.label });
-      return (rec.promise ?? rec.resource.value) as Scope.ResourceValue<T>;
+      const state = named ? selectNsResource(owner, target, chain) : rec;
+      if (state?.failed) return state.failed.promise as Scope.ResourceValue<T>;
+      if (!state?.resource) raise("NotResolved", { label: target.label });
+      return (state.promise ?? state.resource.value) as Scope.ResourceValue<T>;
     },
   };
+}
+
+/** Select an existing named resource through the shared layers-first bucket walk. Session-target
+ * ownership remains the asking layer, so parent layers and the default bucket are not candidates. */
+function selectNsResource(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  chain: readonly Namespace[],
+): NsResourceState | undefined {
+  return selectBucket(
+    owner,
+    chain,
+    (layer, key) =>
+      layer === owner ? layer.nodes.get(target)?.nsResources?.get(key) : undefined,
+    () => undefined,
+  );
+}
+
+function ownNsResource(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  key: Namespace,
+): NsResourceState {
+  const rec = nodeState(owner, target);
+  let state = rec.nsResources?.get(key);
+  if (state === undefined) {
+    state = new NsResourceState();
+    (rec.nsResources ??= new Map()).set(key, state);
+  }
+  return state;
 }
 
 /** A resource in a `depends` slot (ADR 0044): the built VALUE for sync and async builds alike; a
@@ -2610,6 +2665,14 @@ function resourceSlot(
   ensureOpen(layer);
   ensureOpen(owner);
   recordUsed(layer.obs, parent, target);
+  if (target.target === "session" && chain !== undefined && chain.length > 0) {
+    const state = selectNsResource(owner, target, chain) ?? ownNsResource(owner, target, chain[0]);
+    if (state.resource) return state.resource.value;
+    if (state.failed) return state.failed.promise;
+    if (state.build) return state.build;
+    if (state.building) raise("CircularResource", { label: target.label });
+    return buildResource(owner, target, parent, chain, state, chain[0]);
+  }
   if (rec.resource) return rec.resource.value;
   if (rec.failed) return rec.failed.promise;
   if (rec.build) return rec.build;
@@ -3673,7 +3736,7 @@ function handleFor(layer: Layer): Scope.Handle {
     spans: () => layer.obs.history.slice(),
     onClose: (fn: () => void | PromiseLike<void>) => {
       ensureOpen(layer);
-      layer.defers.push({ fn: () => fn(), resource: undefined });
+      layer.defers.push({ fn: () => fn(), resource: undefined, ns: undefined });
     },
     settled,
     close: (opts?: Scope.CloseOptions) => closeLayer(layer, !opts?.graceful),
