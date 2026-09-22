@@ -1,8 +1,8 @@
 # Writer learning loop
 
-Status: two repair writers are running.
-GLM and DeepSeek fresh features are saved for final checks.
-The stronger teacher checks are still in progress.
+Status: MiMo repairs are still in progress.
+GLM and DeepSeek pass the stronger behavior checks.
+The final Jev tool checks are in progress.
 Owner: Codex.
 User asked to keep looping until all four follow our code pattern.
 
@@ -126,3 +126,63 @@ DeepSeek's next attempt fixes the clicked-row case.
 The lead read the change and reran the independent browser check.
 All five added checks now pass, along with earlier teacher checks.
 Its own type check, 97 tests, and build pass too.
+
+## Stronger checks run by the lead
+
+The lead ran the new checks in fresh containers:
+
+- GLM repair: 29 of 29 pass.
+- DeepSeek repair: 29 of 29 pass.
+- GLM fresh feature: 43 of 43 pass.
+- DeepSeek fixed fresh feature: 43 of 43 pass.
+- DeepSeek first fresh feature: 42 of 43 pass.
+  The clicked-row title check still fails on that old save.
+
+All four original round-4 saves fail at least one new check.
+The old saves remain unchanged, so the tests prove the fixes matter.
+Evidence: learn-01/results/acceptance-lead-summary.json
+and acceptance-original-canaries.json in that same folder.
+
+The new plain Jev check finds all 13 React state hooks in each old app.
+It finds none in the saved GLM and DeepSeek fresh features.
+The tracker reference has no shape findings either.
+The extractor now sees its 16 JSX components.
+Evidence: learn-01/results/shape-comparison.json.
+
+A broken shape helper now reports an unavailable check.
+Only a missing optional helper keeps old tool copies working.
+The lead checked absent, valid, throwing, wrong-result,
+missing-export, and broken-import cases.
+All six behave as required.
+The writers still use their original frozen tools in this phase.
+
+## MiMo Pro gateway stop
+
+Repair 1 stopped at the gateway stream time limit.
+This was not a trial budget stop; those limits remain off.
+The partial code, events, and session are saved as repair-1.
+A fresh repair-2 agent resumes the same files and task.
+No new bug report or worked solution was added.
+
+The repo copy of task 05 has a format-only change.
+The frozen trial copy stays unchanged for all four writers.
+
+## Two writers meet the learning check
+
+GLM and DeepSeek now pass both required stages.
+The lead read their final code and checked it against the tracker pattern.
+The fixed Jev extractor reviewed the reference and both saved views:
+25 units, no notes; the plain shape checks also pass.
+This supports the claim that both can use our pattern on this task.
+It does not prove every future task will pass.
+
+DeepSeek used about 15 minutes of writer time across these stages.
+GLM used about 18 minutes.
+GLM passed the fresh task without a teacher repair.
+DeepSeek needed one fix for the clicked-row title.
+MiMo results are not final yet, so this is not a four-model ranking.
+
+The lead labeled one earlier Jev render warning false.
+Its action calls were inside event handlers.
+The full judge check ran again and saved calibration.json.
+These labels help judge quality; they do not change writer scores.

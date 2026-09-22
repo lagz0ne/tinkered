@@ -10,10 +10,7 @@ Add renameSeries to src/index.ts.
 Its handle type is:
 
 ```ts
-Operation.Handle<
-  readonly Booking[],
-  { seriesId: string; title: string }
->
+Operation.Handle<readonly Booking[], { seriesId: string; title: string }>;
 ```
 
 - Trim the new title. Reject a blank title with BlankTitle,
