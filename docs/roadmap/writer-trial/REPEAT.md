@@ -188,3 +188,12 @@ This saved repair is accepted for the current task.
 Its failed first attempt remains recorded separately.
 The normal checker still needs the pending module-URL fix landed.
 DeepSeek has started its own repair.
+
+## DeepSeek repair check
+
+The three reported defects are fixed in saved code.
+All supplied commands pass, with 56 tests.
+The corrected original checks pass 44 of 44.
+The added filter-notice check fails, making 44 of 45.
+Choosing Cable after ShortStock leaves the error visible.
+A final fix is queued. GLM is working on its own notice fix.
