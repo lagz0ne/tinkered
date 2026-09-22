@@ -2706,6 +2706,17 @@ function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): voi
   s.promise = undefined;
   s.failed = undefined;
   s.build = undefined;
+  if (s.nsResources) {
+    for (const state of s.nsResources.values()) {
+      state.gen += 1;
+      state.resource = undefined;
+      state.promise = undefined;
+      state.failed = undefined;
+      state.build = undefined;
+      state.dependents = undefined;
+    }
+    s.nsResources = undefined;
+  }
   detachDependent(owner, target);
   s.dependents = undefined;
 }
@@ -2719,7 +2730,7 @@ function extractReleasedDefers(
 ): ((end: Scope.End) => void | PromiseLike<void>)[] {
   const released: ((end: Scope.End) => void | PromiseLike<void>)[] = [];
   owner.defers = owner.defers.filter((entry) => {
-    if (entry.ns === undefined && entry.resource !== undefined && resources.has(entry.resource)) {
+    if (entry.resource !== undefined && resources.has(entry.resource)) {
       released.push(entry.fn);
       return false;
     }
@@ -2756,8 +2767,15 @@ function forEachDependent(
   const stack: Layer[] = [nodeOwner];
   while (stack.length) {
     const scope = stack.pop() as Layer;
-    const deps = scope.nodes.get(node)?.dependents;
+    const rec = scope.nodes.get(node);
+    const deps = rec?.dependents;
     if (deps) for (const target of deps) visit(target, scope);
+    if (rec?.nsResources) {
+      for (const state of rec.nsResources.values()) {
+        if (!state.dependents) continue;
+        for (const target of state.dependents.keys()) visit(target, scope);
+      }
+    }
     if (deep) for (const child of scope.children) stack.push(child);
   }
 }
@@ -3012,6 +3030,11 @@ function detachDependent(owner: Layer, dependent: Resource.Handle<unknown>): voi
   for (const s of owner.nodes.values()) {
     const set = s.dependents;
     if (set && set.delete(dependent) && set.size === 0) s.dependents = undefined;
+    if (!s.nsResources) continue;
+    for (const state of s.nsResources.values()) {
+      state.dependents?.delete(dependent);
+      if (state.dependents?.size === 0) state.dependents = undefined;
+    }
   }
 }
 
@@ -3105,8 +3128,14 @@ function collectBorrowers(
 ): Promise<unknown>[] {
   const out: Promise<unknown>[] = [];
   for (const resource of resources) {
-    const set = owner.nodes.get(resource)?.borrowers;
+    const rec = owner.nodes.get(resource);
+    const set = rec?.borrowers;
     if (set) for (const work of set) out.push(work);
+    if (rec?.nsResources) {
+      for (const state of rec.nsResources.values()) {
+        if (state.borrowers) for (const work of state.borrowers) out.push(work);
+      }
+    }
   }
   return out;
 }
