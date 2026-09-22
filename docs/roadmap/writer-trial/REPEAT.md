@@ -56,6 +56,21 @@ Start a fresh agent on its saved app with the same frozen task and tools.
 Save and score the next attempt separately.
 Do not send a worked fix or another model's code.
 
+## Code review checklist
+
+Use the same checks for every saved app:
+
+- State: each mutable app value has a core-cell owner.
+- Views: read, format, and run actions; no hidden state or effects.
+- Errors: expected registry kinds are narrowed; other values are rethrown.
+- Changes: failed saves write nothing; undo keeps the stated boundaries.
+- Tests: use the public entry or browser, with no mocks or private state checks.
+- Tools: every claimed check has output; no supplied check was weakened.
+
+Record file and line evidence for any failure.
+Plain shape checks help this review but do not replace it.
+No code-size target or Jev probability threshold decides acceptance.
+
 ## Meaning of the result
 
 This tests the full setup on another task.
