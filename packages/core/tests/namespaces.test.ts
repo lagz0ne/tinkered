@@ -547,6 +547,7 @@ test("releasing a shared pool drops every named client that depends on it", asyn
   const ended: string[] = [];
   let poolBuilds = 0;
   let clientBuilds = 0;
+  let viewBuilds = 0;
   const pool = resource({
     label: "pool",
     target: "scope",
@@ -566,13 +567,115 @@ test("releasing a shared pool drops every named client that depends on it", asyn
       return { build, pool };
     },
   });
+  const view = resource({
+    label: "view",
+    target: "session",
+    depends: { client },
+    factory: ({ client }, ctx) => {
+      const build = ++viewBuilds;
+      ctx.defer(() => void ended.push(`view:${build}`));
+      return { build, client };
+    },
+  });
   const scope = createScope();
-  scope.resolve(client, { ns: a });
-  scope.resolve(client, { ns: b });
+  scope.resolve(view, { ns: a });
+  scope.resolve(view, { ns: b });
   scope.release(pool);
   await scope.settled();
-  expect(ended).toEqual(["client:2", "client:1", "pool:1"]);
-  expect(scope.resolve(client, { ns: a })).toEqual({ build: 3, pool: { build: 2 } });
+  expect(ended).toEqual(["view:2", "client:2", "view:1", "client:1", "pool:1"]);
+  expect(scope.resolve(view, { ns: a })).toEqual({
+    build: 3,
+    client: { build: 3, pool: { build: 2 } },
+  });
+  await scope.close();
+});
+
+test("releaseNs waits for an async cleanup without a live borrow", async () => {
+  const a = namespace();
+  let finish = (): void => undefined;
+  let ended = false;
+  const gate = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const client = resource({
+    label: "client",
+    target: "session",
+    factory: (_deps, ctx) => {
+      ctx.defer(async () => {
+        await gate;
+        ended = true;
+      });
+      return {};
+    },
+  });
+  const scope = createScope();
+  scope.resolve(client, { ns: a });
+  scope.releaseNs(client, a);
+  expect(ended).toBe(false);
+  finish();
+  await scope.settled();
+  expect(ended).toBe(true);
+  await scope.close();
+});
+
+test("release waits for a live borrow from a named bucket", async () => {
+  const a = namespace();
+  let finish = (): void => undefined;
+  const ended: string[] = [];
+  const gate = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const client = resource({
+    label: "client",
+    target: "session",
+    factory: (_deps, ctx) => {
+      ctx.defer((end) => void ended.push(end.status));
+      return {};
+    },
+  });
+  const hold = operation({
+    label: "hold",
+    depends: { client },
+    run: async () => gate,
+  });
+  const scope = createScope();
+  const running = scope.run(hold, { ns: a });
+  scope.release(client);
+  expect(ended).toEqual([]);
+  finish();
+  await running;
+  await scope.settled();
+  expect(ended).toEqual(["released"]);
+  await scope.close();
+});
+
+test("a late named resource build cleans up and never fills its released bucket", async () => {
+  const a = namespace();
+  let builds = 0;
+  let finish = (): void => undefined;
+  const ended: string[] = [];
+  const gate = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const client = resource({
+    label: "client",
+    target: "session",
+    factory: async (_deps, ctx) => {
+      const build = ++builds;
+      await gate;
+      ctx.defer((end) => void ended.push(`${build}:${end.status}`));
+      return { build };
+    },
+  });
+  const scope = createScope();
+  const first = scope.resolve(client, { ns: a });
+  scope.releaseNs(client, a);
+  finish();
+  expect(await first).toEqual({ build: 1 });
+  await scope.settled();
+  expect(ended).toEqual(["1:released"]);
+  expect(scope.resolve(client, { ns: a })).not.toBe(first);
+  expect(builds).toBe(2);
   await scope.close();
 });
 

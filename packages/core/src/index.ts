@@ -2714,8 +2714,9 @@ type Affected = { node: Node; owner: Layer };
  * The resource's `defer`s stay in `owner.defers` — release drains them by reverse registration order
  * (`extractReleasedDefers`) alongside its affected dependents, so a diamond tears down dependents
  * before dependencies (ADR 0026), not per-resource grouped at build-completion. */
-function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): void {
+function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): NsResourceState[] {
   const s = nodeState(owner, target);
+  const named = s.nsResources ? [...s.nsResources.values()] : [];
   s.gen += 1;
   s.resource = undefined;
   s.promise = undefined;
@@ -2734,6 +2735,7 @@ function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): voi
   }
   detachDependent(owner, target);
   s.dependents = undefined;
+  return named;
 }
 
 /** Pull the affected resources' `defer`s out of `owner.defers` in registration order (removing them so
@@ -2832,6 +2834,7 @@ function collectAffected(target: Node, targetOwner: Layer): Affected[] {
 /** A released owner's affected resources and their OLD defers, extracted up front. */
 type Released = {
   resources: Set<Resource.Handle<unknown>>;
+  states: NsResourceState[];
   fns: ((end: Scope.End) => void | PromiseLike<void>)[];
 };
 
@@ -2855,7 +2858,7 @@ function releaseNode(layer: Layer, target: Node): void {
   } finally {
     let prev: Promise<void> | undefined;
     for (const [owner, entry] of byDepthDesc(affected)) {
-      prev = drainBorrowAware(owner, entry.resources, entry.fns, prev);
+      prev = drainBorrowAware(owner, entry.resources, entry.states, entry.fns, prev);
     }
   }
 }
@@ -2893,10 +2896,12 @@ function releaseSupersededDefer(
 function drainBorrowAware(
   owner: Layer,
   resources: Set<Resource.Handle<unknown>>,
+  states: readonly NsResourceState[],
   fns: ((end: Scope.End) => void | PromiseLike<void>)[],
   prev: Promise<void> | undefined,
 ): Promise<void> | undefined {
   const borrowers = collectBorrowers(owner, resources);
+  appendStateBorrowers(states, borrowers);
   if (fns.length === 0 && borrowers.length === 0) return prev;
   if (prev === undefined && borrowers.length === 0) return runDefers(owner, fns, RELEASED);
   const waitOn: Promise<unknown>[] = prev ? [...borrowers, prev] : borrowers;
@@ -2906,6 +2911,15 @@ function drainBorrowAware(
   });
   owner.pending.add(wait);
   return wait;
+}
+
+function appendStateBorrowers(
+  states: readonly ResourceState[],
+  borrowers: Promise<unknown>[],
+): void {
+  for (const state of states) {
+    if (state.borrowers) for (const work of state.borrowers) borrowers.push(work);
+  }
 }
 
 /** Drain exact resource buckets after only those buckets' live operation borrows settle. */
@@ -2938,9 +2952,10 @@ function invalidateAffected(order: Affected[], affected: Map<Layer, Released>): 
   for (const { node, owner } of order) {
     if (owner.closed) continue;
     if (isResource(node)) {
-      invalidateResource(owner, node);
-      const entry = affected.get(owner) ?? { resources: new Set(), fns: [] };
+      const states = invalidateResource(owner, node);
+      const entry = affected.get(owner) ?? { resources: new Set(), states: [], fns: [] };
       entry.resources.add(node);
+      entry.states.push(...states);
       affected.set(owner, entry);
     } else {
       invalidateData(owner, node);
