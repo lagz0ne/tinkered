@@ -580,3 +580,20 @@ Round 4 agent IDs:
 - `xiaomi/mimo-v2.6-pro`: `b0277200-a7b5-4eaf-901e-415169078098`.
 - `zai/glm-5.3-flash`: `ccfb0b60-1690-4893-880f-54da07d4d213`.
 - `deepseek/deepseek-v4.1-flash`: `3a826952-6532-44f7-8419-da54054b9a99`.
+
+### Final round: DeepSeek and GLM checked
+
+Both saved snapshots pass the teacher's sampled core and browser
+checks for all four rounds, including undo and earlier behavior.
+Their own commands also pass in separate containers:
+
+- DeepSeek: type check, 65 tests, build. Five Jev calls this round.
+  Source: 951 lines. Tests: 1,647 lines.
+  [Saved result](trial-01-round-4-deepseek.json).
+- GLM: type check, 47 core tests, 8 browser tests, build.
+  Four Jev calls this round. Source: 819 lines. Tests: 965 lines.
+  [Saved result](trial-01-round-4-glm.json).
+
+No teacher repairs were needed for either final submission.
+Both MiMo writers are still running the final round.
+Cleanup waits until all final snapshots and results are saved.
