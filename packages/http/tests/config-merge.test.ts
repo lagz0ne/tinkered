@@ -122,6 +122,28 @@ test("a nearer retry wins: the session retries where the scope would not", async
   await scope.close();
 });
 
+test("a session without retry inherits the scope retry", async () => {
+  let calls = 0;
+  const down: HttpClient.Backend = async (request) => {
+    calls += 1;
+    return HttpResponse.make(request, { status: 503, body: "down" });
+  };
+  const scope = createScope({
+    tags: [backend(down), config({ retry: { times: 2 } })],
+  });
+  const session = scope.createSession({
+    tags: [config({ baseUrl: "https://api" })],
+  });
+  const raw = operation({
+    label: "raw",
+    depends: { send },
+    run: ({ send: sendIt }) => sendIt.run({ input: HttpRequest.get("/a") }),
+  });
+  await session.run(raw);
+  expect(calls).toBe(3);
+  await scope.close();
+});
+
 test("sibling sessions keep their own retry: one retries, the other does not", async () => {
   const calls: string[] = [];
   const down: HttpClient.Backend = async (request) => {
