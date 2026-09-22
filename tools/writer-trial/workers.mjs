@@ -27,8 +27,8 @@ if (action === "create") {
   mkdirSync(root, { recursive: true, mode: 0o700 });
   const jevDir = join(root, "jev");
   mkdirSync(jevDir);
-  for (const file of ["lib.mjs", "bank.mjs", "extract.mjs", "calibration.json", "package.json"])
-    copyFileSync(join(repo, "tools/jev", file), join(jevDir, file));
+  for (const file of ["lib.mjs", "bank.mjs", "extract.mjs", "shape.mjs", "calibration.json", "package.json"])
+    if (existsSync(join(repo, "tools/jev", file))) copyFileSync(join(repo, "tools/jev", file), join(jevDir, file));
   symlinkSync(join(repo, "tools/jev/node_modules"), join(jevDir, "node_modules"));
   const manifest = {
     name,

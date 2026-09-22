@@ -91,6 +91,19 @@ export function createBroker(config) {
       const lib = await import(pathToFileURL(join(config.jevDir, "lib.mjs")).href);
       const bank = await import(pathToFileURL(join(config.jevDir, "bank.mjs")).href);
       const extractor = await import(pathToFileURL(join(config.jevDir, "extract.mjs")).href);
+      // Optional generic shape helper (Jev contributor owns it). Reports
+      // deterministic findings separately; never breaks old frozen dirs.
+      let shape = null;
+      try {
+        shape = await import(pathToFileURL(join(config.jevDir, "shape.mjs")).href);
+      } catch {}
+      const plainFindings = [];
+      if (shape && typeof shape.inspectShape === "function") {
+        try {
+          const found = shape.inspectShape(source, file);
+          if (Array.isArray(found)) for (const row of found) plainFindings.push(row);
+        } catch {}
+      }
       if (!lib.loadKey()) throw new Error("Jev unavailable: missing credentials");
       const selected = new Set(config.judges);
       const calibration = lib.readCalibration();
@@ -137,6 +150,7 @@ export function createBroker(config) {
         file,
         sourceHash: createHash("sha256").update(source).digest("hex"),
         rows,
+        plainFindings,
         callsUsed: jevCalls,
         usage: null,
         cost: null,
