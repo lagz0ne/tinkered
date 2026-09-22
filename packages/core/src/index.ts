@@ -2307,12 +2307,13 @@ function writeThrough(
   const cache = new Map<Data.Cell<unknown>, Scope.DataController<unknown>>();
   const chained = (
     target: Data.Cell<unknown> | Resource.Handle<unknown> | Operation.Handle<unknown, unknown>,
+    ns?: Scope.NsArg,
   ): unknown => {
     ensureOpen(layer);
     if (isData(target)) {
-      const hit = cache.get(target);
+      const hit = ns === undefined ? cache.get(target) : undefined;
       if (hit !== undefined) return hit;
-      const plainCtl = plain.controller(target);
+      const plainCtl = plain.controller(target, ns);
       const at = (value: unknown, index: number): void => {
         if (index >= writers.length) {
           plainCtl.set(value);
@@ -2337,11 +2338,11 @@ function writeThrough(
         },
         watch: (listener: (next: unknown, prev: unknown) => void) => plainCtl.watch(listener),
       };
-      cache.set(target, wrapped);
+      if (ns === undefined) cache.set(target, wrapped);
       return wrapped;
     }
-    if (isResource(target)) return plain.controller(target);
-    return plain.controller(target);
+    if (isResource(target)) return plain.controller(target, ns);
+    return plain.controller(target, ns);
   };
   /** One cast: the broad internal entry covers every overload the public face types. */
   return chained as Scope.Handle["controller"];
@@ -3463,24 +3464,29 @@ function resolveThrough(
   resolvers: readonly Scope.Extension<unknown>[],
 ): Scope.Handle["resolve"] {
   type OnionTarget = Data.Cell<unknown> | Resource.Handle<unknown> | Tag.Handle<unknown>;
-  const at = (target: OnionTarget, index: number): unknown => {
+  const at = (
+    target: OnionTarget,
+    index: number,
+    chain: readonly Namespace[] | undefined,
+  ): unknown => {
     if (index >= resolvers.length) {
-      if (isData(target)) return readCell(layer, target);
-      if (isEdge(target)) return resolveEdge(layer, target, undefined);
-      if (isResource(target)) return resourceController(layer, target, undefined).resolve();
-      return tagRequired(layer, target);
+      if (isData(target)) return readCell(layer, target, chain);
+      if (isEdge(target)) return resolveEdge(layer, target, undefined, chain);
+      if (isResource(target)) return resourceController(layer, target, undefined, chain).resolve();
+      return tagRequired(layer, target, chain);
     }
-    const next = (): unknown => at(target, index + 1);
+    const next = (): unknown => at(target, index + 1, chain);
     const { resolve: hook } = resolvers[index] as {
       resolve?: (target: OnionTarget, next: () => unknown) => unknown;
     };
     if (hook === undefined) return next();
     return hook(target, next);
   };
-  const chained = (target: OnionTarget): unknown => {
+  const chained = (target: OnionTarget, ns?: Scope.NsArg): unknown => {
     ensureOpen(layer);
     if (isExtension(target)) return resolveExtension(layer, target);
-    return at(target, 0);
+    const chain = ns?.ns === undefined ? layer.ns : nsChainOf(ns.ns);
+    return at(target, 0, chain);
   };
   return chained as Scope.Handle["resolve"];
 }

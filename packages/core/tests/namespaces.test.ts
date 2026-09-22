@@ -2,6 +2,7 @@ import { expect, test } from "vite-plus/test";
 import {
   createScope,
   data,
+  extension,
   isError,
   namespace,
   operation,
@@ -187,6 +188,25 @@ test("a subflow .run({ input, ns }) writes its own bucket; without ns it inherit
   expect(scope.resolve(count, { ns: a })).toBe(8);
   expect(scope.resolve(count)).toBe(0);
   return scope.close();
+});
+
+test("pass-through extensions preserve namespaces for writes and resolves", async () => {
+  const pass = extension({
+    label: "pass",
+    resolve: (_target, next) => next(),
+    write: (_target, _value, next) => next(),
+  });
+  const named = namespace();
+  const cell = data({ label: "cell", initial: 0, parse: asNumber });
+  const scope = createScope({ extensions: [pass] });
+  await scope.ready;
+  const defaultSeen: number[] = [];
+  scope.controller(cell).watch((next) => defaultSeen.push(next));
+  scope.controller(cell, { ns: named }).set(4);
+  expect(scope.resolve(cell, { ns: named })).toBe(4);
+  expect(scope.resolve(cell)).toBe(0);
+  expect(defaultSeen).toEqual([]);
+  await scope.close();
 });
 
 test("a scope-target resource is namespace-blind and keeps default storage clean", () => {
