@@ -54,26 +54,29 @@ function nsHook(callee, bindings) {
   return rooted && HOOK_RULE.has(member.name) ? member.name : null;
 }
 
-/** The banned hook behind a call — bare, aliased, or namespaced — else null. */
+/** The banned hook behind a call — bare, aliased, or namespaced — else null.
+ *  `useData` is never a banned hook here: the writable rule owns it with
+ *  scope resolution, so a local shadowing the import must not flag. */
 function hookOf(callee, bindings) {
+  if (callee?.type === "Identifier" && callee.name === "useData") return null;
   return bareHook(callee, bindings) ?? nsHook(callee, bindings);
 }
 
 /** A `useScope(…)` call at this site — bare, aliased, or off a bound namespace —
  *  else false. The name must resolve to the `@tinker/react` import; a local
  *  `useScope` of our own is never the hook. */
-function isScopeCall(node, bound, scopes) {
+function isScopeCall(node, bound, ctx) {
   const c = node.callee;
   if (c?.type === "Identifier") {
     if (c.name !== "useScope" && !bound.scopeCall.has(c.name)) return false;
-    return resolvePos(scopes.tree, node.start, c.name) === "hook-scope";
+    return ctx.get(c.name, node) === "hook-scope";
   }
   const member = memberOf(c);
   return (
     member !== null &&
     member.name === "useScope" &&
     bound.scopeNs.has(member.obj) &&
-    resolvePos(scopes.tree, node.start, member.obj) === "hook-ns"
+    ctx.get(member.obj, node) === "hook-ns"
   );
 }
 
@@ -220,254 +223,202 @@ function patternKids(p, out) {
   return out;
 }
 
-/** A lexical scope: declared names plus child scopes with source spans. */
-function newScope(kind) {
-  return { kind, names: new Map(), kids: [] };
-}
-
-/** Names one statement hoists into its owner: function declarations and vars.
- *  `using`/`await using` are block-scoped and stay out of this pass. */
-function declaredNames(node, out = []) {
-  if (node?.type === "FunctionDeclaration" && node.id) out.push(node.id.name);
-  if (node?.type === "VariableDeclaration" && node.kind === "var") varNames(node, out);
-  return out;
-}
-
-/** A `var` declarator's bound names into `out`. */
-function varNames(node, out) {
-  for (const d of node.declarations ?? []) patternNames(d.id, out);
-  return out;
-}
-
-/** Hoisted pass over one body: function names and vars first, so a call above
- *  a later `function` still resolves to the local. Vars hoist through nested
- *  blocks, so the pass walks the whole subtree outside nested functions. */
-function declareHoisted(scope, body) {
-  for (const st of body ?? []) hoistStmt(scope, st);
-}
-
-/** Is this node type a function of any shape. */
-function isFnKind(kind) {
-  return SHAPE_FRAMES.get(kind) === "function";
-}
-
-/** Hoisted names one statement contributes: its own, plus any `var` under
- *  nested blocks. Nested functions own their scope and stop the walk. */
-function hoistStmt(scope, node) {
-  for (const name of declaredNames(node)) scope.names.set(name, "local");
-  if (isFnKind(node?.type)) return;
-  for (const v of Object.values(node ?? {})) hoistKid(scope, v);
-}
-
-/** One child value into the hoist pass: lists fan out, non-functions recurse. */
-function hoistKid(scope, v) {
-  if (Array.isArray(v)) for (const w of v) hoistStmt(scope, w);
-  else if (v?.type && !isFnKind(v.type)) hoistStmt(scope, v);
-}
-
-/** Build the scope tree for one body: hoisted names on the owner, one child
- *  scope per nested function, block, loop head, catch, or import row. */
-function buildBody(owner, body, hookAlias, hookNs, scopeAlias) {
-  declareHoisted(owner, body);
-  for (const st of body ?? []) buildStatement(owner, st, hookAlias, hookNs, scopeAlias);
-  for (const st of body ?? []) {
-    if (st?.type === "VariableDeclaration" && st.kind !== "var") stmtLets(owner, st);
-  }
-}
-
-/** Block-scoped declarators of one statement into the already-built body scope.
- *  Runs after children so a `const` never leaks into a sibling nested block. */
-function stmtLets(owner, node) {
-  for (const d of node.declarations ?? [])
-    for (const name of patternNames(d.id)) owner.names.set(name, "local");
-}
-
-/** Node types with their own scope frame: blocks, loops, and functions. */
+/** Node types with their own scope frame. */
 const SHAPE_FRAMES = new Map([
+  ["Program", "module"],
+  ["FunctionDeclaration", "function"],
+  ["FunctionExpression", "function"],
+  ["ArrowFunctionExpression", "function"],
   ["BlockStatement", "block"],
   ["StaticBlock", "block"],
   ["ForStatement", "loop"],
   ["ForInStatement", "loop"],
   ["ForOfStatement", "loop"],
-  ["FunctionDeclaration", "function"],
-  ["FunctionExpression", "function"],
-  ["ArrowFunctionExpression", "function"],
+  ["CatchClause", "catch"],
 ]);
 
-/** Is this node type a block with its own lexical scope. */
-function isBlockKind(kind) {
-  return SHAPE_FRAMES.get(kind) === "block";
+/** The frame kind of one node type, or null for nodes that share a frame. */
+function frameKind(type) {
+  return SHAPE_FRAMES.get(type) ?? null;
 }
 
-/** Is this node type a loop with a lexical head frame. */
-function isLoopKind(kind) {
-  return SHAPE_FRAMES.get(kind) === "loop";
+/** Visit array children under the same parent. */
+function visitKids(node, parent, visit) {
+  for (const v of node) visit(v, parent);
 }
 
-/** Is this node type an anonymous function value. */
-function isAnonKind(kind) {
-  return kind === "FunctionExpression" || kind === "ArrowFunctionExpression";
+/** Visit one child value: arrays fan out, typed nodes recurse. */
+function visitKid(v, node, parent, visit) {
+  if (Array.isArray(v)) for (const w of v) visit(w, node.type ? node : parent);
+  else if (v && typeof v === "object" && v.type) visit(v, node.type ? node : parent);
 }
 
-/** `let`/`const` declarators of one loop head into the loop frame. */
-function loopHead(inner, node) {
-  const head = node.init ?? node.left;
-  if (head?.type !== "VariableDeclaration" || head.kind === "var") return;
-  for (const d of head.declarations ?? [])
-    for (const name of patternNames(d.id)) inner.names.set(name, "local");
+/** Record one node's parent and owning frame. */
+function ownNode(node, parent, owners, parents, program) {
+  parents.set(node, parent);
+  if (frameKind(node.type)) owners.set(node, node);
+  else if (!owners.has(node)) owners.set(node, owners.get(parent) ?? program);
 }
 
-/** One statement into the scope tree. Plain blocks, loops, and catches own a
- *  child scope; everything else is scanned for nested functions and imports. */
-function buildStatement(owner, node, hookAlias, hookNs, scopeAlias) {
-  const kind = node?.type ?? "";
-  if (kind === "FunctionDeclaration")
-    return buildFunction(owner, node, hookAlias, hookNs, scopeAlias);
-  if (kind === "ImportDeclaration")
-    return noteImportNames(owner, hookAlias, hookNs, scopeAlias, node);
-  if (SHAPE_FRAMES.has(kind) || kind === "CatchClause" || kind === "TryStatement")
-    return buildFramed(owner, node, kind, hookAlias, hookNs, scopeAlias);
-  scanValue(owner, node, hookAlias, hookNs, scopeAlias);
+/** Map every node to its parent and its owning frame, once. Arrays fan out
+ *  without a frame; every other node resolves in its nearest frame owner.
+ *  Parents live in a side table (never on the AST), so later generic walks
+ *  cannot loop back through them. Owners link upward: each frame owner's
+ *  owner is its own parent owner, so lookup walks frame to frame. */
+function frameMap(program) {
+  const owners = new Map([[program, program]]);
+  const parents = new Map();
+  const seen = new Set();
+  const visit = (node, parent) => {
+    if (!node || typeof node !== "object" || seen.has(node)) return;
+    seen.add(node);
+    if (Array.isArray(node)) return visitKids(node, parent, visit);
+    if (node.type) ownNode(node, parent, owners, parents, program);
+    for (const v of Object.values(node)) visitKid(v, node, parent, visit);
+  };
+  visit(program, null);
+  return { owners, parents };
 }
 
-/** Build a framed node into its own child scope. */
-function buildFramed(owner, node, kind, hookAlias, hookNs, scopeAlias) {
-  if (isLoopKind(kind)) return buildLoop(owner, node, hookAlias, hookNs, scopeAlias);
-  return buildScoped(owner, node, kind, hookAlias, hookNs, scopeAlias);
-}
-
-/** A block, try, or catch into its own child frame. A try builds its block,
- *  handler, and finalizer each in place, so the catch frame never wraps
- *  a sibling. */
-function buildScoped(owner, node, kind, hookAlias, hookNs, scopeAlias) {
-  if (isBlockKind(kind)) return buildBlock(owner, node, hookAlias, hookNs, scopeAlias);
-  if (kind === "TryStatement") return buildTry(owner, node, hookAlias, hookNs, scopeAlias);
-  return buildCatch(owner, node, hookAlias, hookNs, scopeAlias);
-}
-
-/** A try statement: its block, handler, and finalizer each build in place,
- *  so the handler's catch frame never wraps a sibling. */
-function buildTry(owner, node, hookAlias, hookNs, scopeAlias) {
-  if (node.block) buildBlock(owner, node.block, hookAlias, hookNs, scopeAlias);
-  if (node.handler) buildCatch(owner, node.handler, hookAlias, hookNs, scopeAlias);
-  if (node.finalizer) buildBlock(owner, node.finalizer, hookAlias, hookNs, scopeAlias);
-}
-
-/** One nested value into the tree: function values own a scope; other nodes
- *  are scanned for statements they hold (consequent, arms, handlers). */
-function scanValue(owner, node, hookAlias, hookNs, scopeAlias) {
-  if (!node || typeof node !== "object") return;
-  if (Array.isArray(node)) {
-    for (const v of node) scanValue(owner, v, hookAlias, hookNs, scopeAlias);
-    return;
+/** Resolve `name` at `node`: innermost owning frame outward to the module.
+ *  Frames own themselves in `owners`, so stepping from a frame goes through
+ *  the parents table to the nearest enclosing frame — never through another
+ *  entry's owner link. */
+function lookupAt(frames, owners, parents, node, name) {
+  let at = owners.get(node) ?? null;
+  while (at) {
+    const frame = frames.get(at);
+    if (frame?.has(name)) return frame.get(name);
+    at = parentFrame(owners, parents, at);
   }
-  const kind = node.type ?? "";
-  if (kind === "FunctionDeclaration") buildFunction(owner, node, hookAlias, hookNs, scopeAlias);
-  else if (isAnonKind(kind)) buildAnon(owner, node, hookAlias, hookNs, scopeAlias);
-  else scanKids(owner, node, hookAlias, hookNs, scopeAlias);
-}
-
-/** Every other child value into the tree. */
-function scanKids(owner, node, hookAlias, hookNs, scopeAlias) {
-  for (const v of Object.values(node)) scanValue(owner, v, hookAlias, hookNs, scopeAlias);
-}
-
-/** A nested function declaration: name outside, params plus hoisted body inside. */
-function buildFunction(owner, node, hookAlias, hookNs, scopeAlias) {
-  if (node.id) owner.names.set(node.id.name, "local");
-  const inner = newScope("function");
-  owner.kids.push({ at: node.start, end: node.end, scope: inner });
-  for (const q of node.params ?? [])
-    for (const name of patternNames(q)) inner.names.set(name, "local");
-  buildBody(inner, node.body?.body ?? [], hookAlias, hookNs, scopeAlias);
-}
-
-/** A function expression: params plus hoisted body inside; a named one also
- *  binds its own name within itself. */
-function buildAnon(owner, node, hookAlias, hookNs, scopeAlias) {
-  const inner = newScope("function");
-  owner.kids.push({ at: node.start, end: node.end, scope: inner });
-  if (node.id) inner.names.set(node.id.name, "local");
-  for (const q of node.params ?? [])
-    for (const name of patternNames(q)) inner.names.set(name, "local");
-  const body = node.body?.type === "BlockStatement" ? node.body.body : [];
-  buildBody(inner, body ?? [], hookAlias, hookNs, scopeAlias);
-}
-
-/** A plain block: one child scope spanning the block. */
-function buildBlock(owner, node, hookAlias, hookNs, scopeAlias) {
-  const inner = newScope("block");
-  owner.kids.push({ at: node.start, end: node.end, scope: inner });
-  buildBody(inner, node.body ?? [], hookAlias, hookNs, scopeAlias);
-}
-
-/** A loop: its head declares into one lexical frame wrapping head and body. */
-function buildLoop(owner, node, hookAlias, hookNs, scopeAlias) {
-  const inner = newScope("block");
-  owner.kids.push({ at: node.start, end: node.end, scope: inner });
-  loopHead(inner, node);
-  const bodies = node.body?.type === "BlockStatement" ? node.body.body : [node.body];
-  buildBody(inner, (bodies ?? []).filter(Boolean), hookAlias, hookNs, scopeAlias);
-}
-
-/** A catch clause: its own frame for the param, guarding handler and body. */
-function buildCatch(owner, node, hookAlias, hookNs, scopeAlias) {
-  const inner = newScope("block");
-  owner.kids.push({ at: node.start, end: node.end, scope: inner });
-  for (const name of patternNames(node.param)) inner.names.set(name, "local");
-  buildBody(inner, node.body?.body ?? [], hookAlias, hookNs, scopeAlias);
-}
-
-/** An import row into the owning scope: hook bindings or locals. */
-function noteImportNames(owner, hookAlias, hookNs, scopeAlias, node) {
-  const hook = node.source.value === "@tinker/react";
-  for (const q of node.specifiers) {
-    if (q.local) owner.names.set(q.local.name, specKind(q, hook, hookAlias, hookNs, scopeAlias));
-  }
-}
-
-/** The scope tree root: one module scope holding imports plus hoisted names. */
-function buildTree(program, hookAlias, hookNs, scopeAlias) {
-  const root = newScope("module");
-  buildBody(root, program.body ?? [], hookAlias, hookNs, scopeAlias);
-  return root;
-}
-
-/** The chain from the module scope down to the scope owning a call: at each
- *  level, the last child whose span holds the call. Later siblings start
- *  after earlier ones end, so the last match is the innermost owner. */
-function chainAt(root, pos, out = []) {
-  out.push(root);
-  let match = null;
-  for (const kid of root.kids) {
-    if (kid.at !== undefined && kid.end !== undefined && kid.at <= pos && pos < kid.end)
-      match = kid;
-  }
-  if (match !== null) chainAt(match.scope, pos, out);
-  return out;
-}
-
-/** Resolve `name` at a call: innermost scope outward to the module. */
-function resolvePos(root, pos, name) {
-  const chain = chainAt(root, pos);
-  for (let i = chain.length - 1; i >= 0; i--)
-    if (chain[i].names.has(name)) return chain[i].names.get(name);
   return undefined;
 }
 
-/** Does this callee name the imported hook at this call site. */
-function hookAt(callee, dataAlias, dataNs, root, pos) {
-  if (callee?.type === "Identifier") {
-    if (callee.name !== "useData" && !dataAlias.has(callee.name)) return false;
-    return resolvePos(root, pos, callee.name) === "hook";
+/** The parent frame above one frame: nearest enclosing frame-owning node. */
+function parentFrame(owners, parents, at) {
+  let parent = parents.get(at) ?? null;
+  while (parent && !frameKind(parent.type)) parent = parents.get(parent) ?? null;
+  return parent;
+}
+
+/** Declare hoisted names through the whole tree before anything else:
+ *  every function declaration name and every `var` name, each in its own
+ *  owning frame. Order-free, so a call above a later declaration resolves
+ *  to the local, and a block-level `function` in strict mode stays put.
+ *  (Module code here is strict — see the strict-block test below.) */
+function declareHoisted(program, bind, owners, frames, parents) {
+  walk(program, (n) => {
+    if (!n.type) return;
+    if (n.type === "FunctionDeclaration" && n.id) bindOuter(frames, owners, parents, n, n.id.name);
+    if (n.type === "VariableDeclaration" && n.kind === "var") bindVar(n, owners, frames);
+  });
+}
+
+/** A function declaration's name binds in the enclosing frame (parent frame
+ *  of its own frame), never inside itself. */
+function bindOuter(frames, owners, parents, n, name) {
+  const outer = parentFrame(owners, parents, n);
+  if (outer !== null && !frames.has(outer)) frames.set(outer, new Map());
+  frames.get(outer)?.set(name, "local");
+}
+
+/** Declare every binding into its owning frame: imports and hoisted names
+ *  first (order-free), then params, lets, catches, and loop heads in place.
+ *  One generic child walk — every node kind reaches a frame this way, so no
+ *  statement shape can hide a nested block from scope creation. Loop heads
+ *  bind through the generic `bindLocals` below: their declarator already owns
+ *  to the loop frame, so no head-specific branch is needed. */
+function declareAll(program, frames, bound, owners, parents) {
+  const bind = (node, name, kind) => bindAt(frames, owners, node, name, kind);
+  declareHoisted(program, bind, owners, frames, parents);
+  const pre = (node) => {
+    if (node.type === "ImportDeclaration") noteRow(node, bind, bound);
+  };
+  walk(program, (n) => {
+    if (!n.type) return;
+    pre(n);
+  });
+  walk(program, (n) => {
+    if (!n.type) return;
+    bindParams(n, bind);
+    bindLocals(n, bind);
+    if (n.type === "CatchClause" && n.param)
+      for (const name of patternNames(n.param)) bind(n, name, "local");
+  });
+  return owners;
+}
+
+/** Bind one non-hoisted declaration into its owning frame: `let`/`const`
+ *  declarators and named function-expression names. A loop head's declarator
+ *  already owns to the loop frame, so no head check is needed. Loop bodies
+ *  declare nothing here; their own BlockStatement frame owns them. */
+function bindLocals(n, bind) {
+  bindDecl(n, bind);
+  if ((n.type === "FunctionExpression" || n.type === "ArrowFunctionExpression") && n.id)
+    bind(n, n.id.name, "local");
+}
+
+/** Bind `let`/`const` declarator names into the owning frame. */
+function bindDecl(n, bind) {
+  if (n.type !== "VariableDeclaration" || n.kind === "var") return;
+  for (const d of n.declarations ?? [])
+    for (const name of patternNames(d.id)) bind(n, name, "local");
+}
+
+/** Bind function params into the function's own frame. */
+function bindParams(n, bind) {
+  if (
+    n.type !== "FunctionDeclaration" &&
+    n.type !== "FunctionExpression" &&
+    n.type !== "ArrowFunctionExpression"
+  )
+    return;
+  for (const q of n.params ?? []) for (const name of patternNames(q)) bind(n, name, "local");
+}
+
+/** Is this binding kind a hook import (fills gaps only). */
+function isHookKind(kind) {
+  return kind === "hook" || kind === "hook-scope" || kind === "hook-ns";
+}
+
+/** Bind `name` → `kind` in the frame owning `node`. A local declared
+ *  anywhere in the frame beats the import: locals overwrite, imports only
+ *  fill gaps, so passes can run in any order. */
+function bindAt(frames, owners, node, name, kind) {
+  const owner = owners.get(node) ?? null;
+  if (owner === null) return;
+  if (!frames.has(owner)) frames.set(owner, new Map());
+  const frame = frames.get(owner);
+  if (!frame) return;
+  if (!isHookKind(kind) || !frame.has(name)) frame.set(name, kind);
+}
+
+/** A `var` binds at the enclosing function (or module) frame, past blocks. */
+function bindVar(node, owners, frames) {
+  const owner = fnOwner(owners, owners.get(node) ?? null);
+  for (const d of node.declarations ?? [])
+    for (const name of patternNames(d.id)) bindAt(frames, owners, owner ?? node, name, "local");
+}
+
+/** Walk up to the enclosing function (or module) frame owner. */
+function fnOwner(owners, owner) {
+  let at = owner;
+  while (at && !isFnRoot(at)) at = owners.get(at) ?? null;
+  return at;
+}
+
+/** Is this frame owner a function or the module. */
+function isFnRoot(node) {
+  return node?.type === "Program" || frameKind(node?.type) === "function";
+}
+
+/** Bind one import row: hook kinds stay, everything else is `local`. */
+function noteRow(node, bind, bound) {
+  const hook = node.source.value === "@tinker/react";
+  for (const q of node.specifiers) {
+    if (q.local)
+      bind(node, q.local.name, specKind(q, hook, bound.dataCall, bound.scopeNs, bound.scopeCall));
   }
-  const member = memberOf(callee);
-  return (
-    member !== null &&
-    member.name === "useData" &&
-    dataNs.has(member.obj) &&
-    resolvePos(root, pos, member.obj) === "hook-ns"
-  );
 }
 
 /** The declaration behind an alias — through `export type …` too — or null. */
@@ -527,10 +478,10 @@ function bindImports(into, node) {
 }
 
 /** One writable-useData row for a call node, or null. The callee must resolve
- *  to the `@tinker/react` import through the declare-collected scope tree. */
-function writableRow(source, node, scopes, inView) {
+ *  to the `@tinker/react` import through the frame tree at the call site. */
+function writableRow(source, node, ctx, inView) {
   const line = lineOf(source, node.start);
-  const hook = hookAt(node.callee, scopes.dataAlias, scopes.dataNs, scopes.tree, node.start);
+  const hook = hookAt(node.callee, ctx, node);
   if (!hook || !writesCell(node) || !inView(line)) return null;
   return {
     id: "no-writable-in-view",
@@ -540,8 +491,23 @@ function writableRow(source, node, scopes, inView) {
   };
 }
 
+/** Does this callee name the imported hook at this call site. */
+function hookAt(callee, ctx, node) {
+  if (callee?.type === "Identifier") {
+    if (callee.name !== "useData" && !ctx.alias.has(callee.name)) return false;
+    return ctx.get(callee.name, node) === "hook";
+  }
+  const member = memberOf(callee);
+  return (
+    member !== null &&
+    member.name === "useData" &&
+    ctx.ns.has(member.obj) &&
+    ctx.get(member.obj, node) === "hook-ns"
+  );
+}
+
 /** One banned-hook, writable-useData, or in-view scope row for a call, or null. */
-function callRow(source, node, bound, scopes, inView) {
+function callRow(source, node, bound, ctx, inView) {
   const line = lineOf(source, node.start);
   const hook = hookOf(node.callee, bound.hooks);
   if (hook !== null) {
@@ -556,14 +522,14 @@ function callRow(source, node, bound, scopes, inView) {
       message: `${hook} (best-practices rule ${rule}): ${what}`,
     };
   }
-  if (isScopeCall(node, bound, scopes) && inView(line))
+  if (isScopeCall(node, bound, ctx) && inView(line))
     return {
       id: "no-scope-in-view",
       line,
       message:
         "useScope in a view (best-practices rule 2): only the root holds the scope; views read cells and run operations",
     };
-  return writableRow(source, node, scopes, inView);
+  return writableRow(source, node, ctx, inView);
 }
 
 /** Every CallExpression under `node`: `fn` sees each once, in source order. */
@@ -632,8 +598,14 @@ export function inspectShape(source, file = "a.tsx") {
   };
   for (const node of program.body) if (node.type === "ImportDeclaration") bindImports(bound, node);
   const aliases = scopeAliases(source, program);
-  const tree = buildTree(program, bound.dataCall, bound.scopeNs, bound.scopeCall);
-  const scopes = { tree, dataAlias: bound.dataCall, dataNs: bound.scopeNs };
+  const frames = new Map();
+  const { owners, parents } = frameMap(program);
+  const scopes = {
+    alias: bound.dataCall,
+    ns: bound.scopeNs,
+    get: (name, node) => lookupAt(frames, owners, parents, node, name),
+  };
+  declareAll(program, frames, bound, owners, parents);
   const comps = units(source, file).filter((u) => u.kind === "component");
   const starts = new Set(comps.map((u) => u.line));
   const ranges = comps.map((u) => [u.line, u.line + u.source.split("\n").length - 1]);

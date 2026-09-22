@@ -368,6 +368,30 @@ void describe("shape findings", () => {
     assert.deepEqual(insideLoop, []);
   });
 
+  void it("keeps a strict block function inside its block", () => {
+    const after = inspectShape(
+      `import {useData} from "@tinker/react"; function V(){ { function useData(){} } useData(c,{writable:true}); return <div/>; }`,
+      "a.tsx",
+    );
+    assert.deepEqual(
+      after.map((r) => [r.id, r.line]),
+      [["no-writable-in-view", 1]],
+    );
+    const inside = inspectShape(
+      `import {useData} from "@tinker/react"; function V(){ { function useData(){} useData(c,{writable:true}); } return <div/>; }`,
+      "a.tsx",
+    );
+    assert.deepEqual(inside, []);
+  });
+
+  void it("sees a nested block under any statement shape", () => {
+    const rows = inspectShape(
+      `import {useData} from "@tinker/react"; function V(){ if(ok){ const useData=local; useData(c,{writable:true}); } return <div/>; }`,
+      "a.tsx",
+    );
+    assert.deepEqual(rows, []);
+  });
+
   void it("keeps a block-local const inside its block", () => {
     const rows = inspectShape(
       `import { useData } from "@tinker/react"; function View() { { const useData = () => {}; } const x=useData(c,{writable:true}); return <div/>; }`,
