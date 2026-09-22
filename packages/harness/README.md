@@ -10,19 +10,31 @@ harness({ label, adapter, approve?, tools? })
 ├── adapter           (resource, scope)    depends on the module; returns Harness.Backend
 ├── x.thread          (resource, session)  backend.start(options merged nearest-first (+ resume), hooks) — one per session
 ├── x.status / x.text / x.items / x.usage / x.id / x.events   data cells, written as events arrive
-├── approve / tools   (operations)         attached at construction; each runs as a subflow of the turn
-└── x.turn({ label, input?, request, response? })   an op: request(input) → the turn; delivers the SDK result
+├── x.send            (operation)            the SDK turn itself: input is the adapter's turn, result its result
+└── approve / tools   (operations)         attached at construction; each runs as a subflow of the send
 ```
 
 Declare a coder on the Claude Code adapter, bind options, run two turns in one session while
 watching `text` and `status`, and resume a conversation by id:
 
 ```ts
-import { createScope } from "@tinker/core";
+import { createScope, operation } from "@tinker/core";
 import { claudeCode, harness } from "@tinker/harness";
 
+const parsePrompt = (raw: unknown): string => {
+  if (typeof raw !== "string") throw new Error("bad prompt");
+  return raw;
+};
 const coder = harness({ label: "coder", adapter: claudeCode });
-const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ prompt }) });
+const ask = operation({
+  label: "coder.ask",
+  input: parsePrompt,
+  depends: { send: coder.send },
+  run: async ({ send }, ctx) => {
+    const result = await send.run({ input: { prompt: ctx.input } });
+    return result.result;
+  },
+});
 
 const scope = createScope({ tags: [claudeCode.options({ cwd: "/work", model: "sonnet" })] });
 const session = scope.createSession();
@@ -58,8 +70,8 @@ Each turn opens one SDK call on the merged options — nearer bindings win per k
 and the ambient cells: text deltas stream into `text`, tool calls and answers land in `items`,
 the result's own usage and cost land in `usage`, the session id lands in `id`, and every
 message lands in `events` raw, including kinds the frame does not otherwise read, which never
-stop the turn. A turn's `response` reader maps the result before the turn delivers it, instead
-of the raw SDK result. With `observe`, the turn span carries the adapter label and one
+stop the turn. The author's own `run` maps the result before the turn delivers it — there is
+no frame-side mapping. With `observe`, the send span carries the adapter label and one
 `harness turn` line logs the outcome (`done`, `failed`, or `cancelled`). Only text deltas move `text`; any other stream event streams nothing. Only tool
 calls add tool items and only tool answers add tool results, so a plain or trailing assistant
 message adds nothing. The `id` cell moves only on the init message and the result; any other
@@ -82,11 +94,23 @@ no cost. A failed turn rejects with `TurnFailed` carrying the SDK's message; a s
 ends with no completion rejects with `TurnEnded`.
 
 ```ts
-import { createScope } from "@tinker/core";
+import { createScope, operation } from "@tinker/core";
 import { codex, harness } from "@tinker/harness";
 
+const parsePrompt = (raw: unknown): string => {
+  if (typeof raw !== "string") throw new Error("bad prompt");
+  return raw;
+};
 const coder = harness({ label: "coder", adapter: codex });
-const ask = coder.turn({ label: "ask", request: (prompt: string) => ({ input: prompt }) });
+const ask = operation({
+  label: "coder.ask",
+  input: parsePrompt,
+  depends: { send: coder.send },
+  run: async ({ send }, ctx) => {
+    const result = await send.run({ input: { input: ctx.input } });
+    return result;
+  },
+});
 
 const scope = createScope({
   tags: [codex.options({ workingDirectory: "/work", sandboxMode: "read-only", model: "gpt-5" })],
@@ -129,8 +153,8 @@ it cannot be the only way to stop that turn. See core's
 ## Approvals
 
 Claude's `canUseTool` is answered by an ordinary operation: pass it as `approve` when you build the
-frame, and the turn op depends on it — the approval runs as a **subflow** of the turn (its span nests
-under the turn's, it sees the session's bindings and the frame's cells). Its input is the SDK's own
+frame, and the send op depends on it — the approval runs as a **subflow** of the send (its span nests
+under the send's, it sees the session's bindings and the frame's cells). Its input is the SDK's own
 request (`ClaudeCode.Approval`: `toolName`, `input`, the SDK's options), its result the SDK's own
 `PermissionResult`. Each decision lands in `items` as `{ kind: "approval", status: "allow" | "deny" }`,
 keeping the SDK request and the decision as its `source`. A throwing approve op rejects the turn
@@ -163,8 +187,8 @@ the MCP driver serves (`mcpServer(scope)`), shared with every MCP host. The oper
 is the handler, its `input` parse is the edge, and `tool.read(op)` gives any driver or adapter
 the facts (description, zod raw shape, name defaulting to the op's label, an optional `respond`
 that maps the value to a result — default one JSON text content). Pass tool ops in
-`harness({ tools })`, and the turn op depends on them: the call runs as a **subflow** of the
-turn (its span nests under the turn's, it sees the session's bindings). Each op registers
+`harness({ tools })`, and the send op depends on them: the call runs as a **subflow** of the
+send (its span nests under the send's, it sees the session's bindings). Each op registers
 under its `tool` meta name, defaulting to the op's label. A bound op without
 `tool` meta throws `ToolUndeclared` at construction, naming the op's label.
 
