@@ -39,10 +39,16 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **playground/tsunami** — owner: Codex reviewer, MiMo writer.
-  Next: build the 3D board, controls, code links, and frame tests.
+- **playground/tsunami** — owner: Codex reviewer.
+  Next: review the engine and code links, then assign the view.
   Verify: checks, scope tests, build, and phone/browser review.
   [Track](docs/roadmap/playground-v2/PROGRESS.md).
+- **playground/frames** — owner: MiMo engine writer.
+  Next: save engine and frame tests in its own worktree.
+  Verify: Node scope tests, build, and checks pass.
+- **playground/source-links** — owner: MiMo source writer.
+  Next: save source links and scope tests in its own worktree.
+  Verify: exact library links and code history tests pass.
 
 | Card | Owner | Next | Verify |
 

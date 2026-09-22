@@ -133,3 +133,16 @@ Logs for this session are in `/tmp/playground-base-*.log`.
 - History: return to the same file and code position.
 - Full screen: enter, exit, then keep using the same game.
 - Scope: close with a frame queued; no later write occurs.
+
+## Writer split
+
+The first writer spent its turn planning without saving code.
+Its session was stopped; the chosen model stays MiMo Flash.
+Two smaller jobs now use separate worktrees:
+
+- `playground/frames`: game engine and Node tests.
+- `playground/source-links`: code links and history tests.
+
+Both use Pi and the writer gateway.
+The view work follows the engine API.
+No library package changes are planned.
