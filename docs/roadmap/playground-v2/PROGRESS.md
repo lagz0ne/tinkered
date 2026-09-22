@@ -184,3 +184,19 @@ The old symbol remains; its callers stay in the shell.
         2  setView.  src/App.tsx
 
 ```
+
+## First view review
+
+GLM saved the 3D view, controls, Play/Code views, and
+full-screen resource. Its package tests pass 19/19;
+full type checks await the engine API, so this is not Done.
+
+Requested fixes before browser proof:
+
+- Missing `requestFullscreen` must enter fit mode.
+- A failed native exit must keep the exit button visible.
+- Escape in fit mode must work while the iframe has focus.
+- A covered iframe must leave the keyboard tab order.
+- Shell buttons need 44 px touch targets too.
+
+These are observed code findings, not a model ranking.

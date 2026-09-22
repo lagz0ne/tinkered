@@ -23,10 +23,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **playground/page** — owner: next writer.
-  Next: use reviewed game and code APIs for page views.
-  Verify: play, code, and full screen keep the game alive.
-
 - **namespace-v1/t01 ns values** -- ns cells + tags in core; one selector; chain order decided; ambient + inherit; hot path benched. Verify: core gate green, 385 old tests hold, new probes pass. (writer glm-5.3-flash, review astra xhigh) [namespace-v1](docs/roadmap/namespace-v1/PROGRESS.md)
 - **namespace-v1/t02 ns resources + release** -- blocked by t01. session/scope target, releaseNs, borrows by ns.
 - **namespace-v1/t03 ns edges** -- blocked by t01,t02. named watches, retry, .all, full inheritance.
@@ -43,17 +39,15 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **playground/visuals** — owner: GLM writer.
-  Next: draw 3D tiles and add game controls.
-  Verify: checks plus desktop and phone browser review.
+- **playground/frames** — owner: DeepSeek writer.
+  Next: one review round for test focus and live storm timing.
+  Verify: Node scope tests, build, and checks pass.
 
 - **playground/tsunami** — owner: Codex reviewer.
   Next: review the engine and code links, then assign the view.
   Verify: checks, scope tests, build, and phone/browser review.
   [Track](docs/roadmap/playground-v2/PROGRESS.md).
-- **playground/frames** — owner: DeepSeek engine writer.
-  Next: save engine and frame tests in its own worktree.
-  Verify: Node scope tests, build, and checks pass.
+
 - **playground/source-links** — owner: MiMo source writer.
   Next: save source links and scope tests in its own worktree.
   Verify: exact library links and code history tests pass.
@@ -67,6 +61,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 | tests/core-many-causes — the 31 core test flags: split, delete, or explain | lead (Claude); contributor in `../tinkered-core-tests` (launched ~03:50 UTC) | `tests.mjs core`: 18 manyCauses, 4 typeGuarantee, 4 helperAlone, 4 negativeTwin, 3 pairs, 1 `Object.isFrozen`; act on each, label each; core lane alone ≥ 75 | flags gone or explained; 270 → N tests each naming one promise; core mutation alone ≥ 75 |
 
 ## Review
+
+- **playground/page** — owner: GLM writer.
+  Next: run integrated checks and browser proof.
+  Verify: play, code, and full screen keep the game alive.
+
+- **playground/visuals** — owner: GLM writer.
+  Next: run integrated checks and browser proof.
+  Verify: checks plus desktop and phone browser review.
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
