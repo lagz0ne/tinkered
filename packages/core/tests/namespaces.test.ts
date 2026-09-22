@@ -362,6 +362,41 @@ test("releaseNs cleans one resource bucket and close drains the buckets left beh
   ]);
 });
 
+test("releaseNs waits for its own live borrow but not a sibling namespace", async () => {
+  const a = namespace();
+  const b = namespace();
+  const ended: string[] = [];
+  let finish = (): void => undefined;
+  const gate = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const client = resource({
+    label: "client",
+    target: "session",
+    factory: (_deps, ctx) => {
+      ctx.defer((end) => void ended.push(end.status));
+      return {};
+    },
+  });
+  const hold = operation({
+    label: "hold",
+    depends: { client },
+    run: async () => gate,
+  });
+  const scope = createScope();
+  scope.resolve(client, { ns: b });
+  const running = scope.run(hold, { ns: a });
+  scope.releaseNs(client, b);
+  expect(ended).toEqual(["released"]);
+  scope.releaseNs(client, a);
+  expect(ended).toEqual(["released"]);
+  finish();
+  await running;
+  await scope.settled();
+  expect(ended).toEqual(["released", "released"]);
+  await scope.close();
+});
+
 test("a scope-target resource is namespace-blind and keeps default storage clean", () => {
   const tenant = tag<string>({ label: "tenant" });
   const named = namespace({ tags: [tenant("named")] });

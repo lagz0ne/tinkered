@@ -2103,10 +2103,10 @@ function operationController<T, I>(
      * dep during resolution), released after the defer drain on BOTH the success and throwing paths.
      * A fully synchronous op runs and removes the borrow within `run()`, so a later release
      * sees no borrower and stays sync. */
-    const held = takeBorrows(layer, target);
+    const held = takeBorrows(layer, target, chain);
     const releaseBorrow = (): void => {
       if (!held) return;
-      for (const b of held.list) removeBorrow(b.owner, b.resource, held.done);
+      for (const b of held.list) removeBorrow(b.state, held.done);
       held.settle();
     };
     let ctx: OperationCtx<I> | undefined;
@@ -2277,6 +2277,7 @@ class ResourceCtx implements Resource.Ctx {
   private owner: Layer;
   private target: Resource.Handle<unknown>;
   private ns: Namespace | undefined;
+  private state: ResourceState;
   private isSettled: () => boolean;
   private superseded: () => boolean;
   readonly label: string;
@@ -2292,10 +2293,12 @@ class ResourceCtx implements Resource.Ctx {
     isSettled: () => boolean,
     superseded: () => boolean,
     ns: Namespace | undefined,
+    state: ResourceState,
   ) {
     this.owner = owner;
     this.target = target;
     this.ns = ns;
+    this.state = state;
     this.isSettled = isSettled;
     this.superseded = superseded;
     this.label = target.label;
@@ -2312,7 +2315,7 @@ class ResourceCtx implements Resource.Ctx {
      * cleanup (ADR 0026 Q2), and holds its own dependency-closure borrows while it runs. Its `fn`
      * is drained directly — never pushed to `owner.defers` — so it cannot sweep up a LIVE
      * rebuild's defers registered under the same handle. */
-    if (this.superseded()) releaseSupersededDefer(owner, target, fn);
+    if (this.superseded()) releaseSupersededDefer(owner, fn, this.state);
     else owner.defers.push({ fn, resource: target, ns });
   };
   get signal(): AbortSignal {
@@ -2331,9 +2334,10 @@ function buildCtx(
   span: Observe.Span | undefined,
   isSettled: () => boolean,
   superseded: () => boolean,
-  ns: Namespace | undefined = undefined,
+  ns: Namespace | undefined,
+  state: ResourceState,
 ): Resource.Ctx {
-  return new ResourceCtx(owner, target, obs, span, isSettled, superseded, ns);
+  return new ResourceCtx(owner, target, obs, span, isSettled, superseded, ns, state);
 }
 
 class EmptyCtx implements Resource.Ctx {
@@ -2517,7 +2521,7 @@ function buildResource<T>(
     const fn = override ?? target.factory;
     const ctx =
       fn.length >= 2
-        ? buildCtx(owner, target, obs, span, () => settled, superseded, ns)
+        ? buildCtx(owner, target, obs, span, () => settled, superseded, ns, rec)
         : emptyCtxFor(owner);
     const result =
       pending === undefined ? fn(deps, ctx) : settleDeps(deps, pending).then(() => fn(deps, ctx));
@@ -2825,16 +2829,10 @@ function layerDepth(layer: Layer): number {
  * `owner.defers` — so it can't sweep up a LIVE rebuild's defers under the same handle. */
 function releaseSupersededDefer(
   owner: Layer,
-  target: Resource.Handle<unknown>,
   fn: (end: Scope.End) => void | PromiseLike<void>,
+  state: ResourceState,
 ): void {
-  const done = drainBorrowAware(
-    owner,
-    new Set<Resource.Handle<unknown>>().add(target),
-    [fn],
-    undefined,
-  );
-  if (done) ignoreRejection(done);
+  drainStateBorrowAware(owner, state, [fn]);
 }
 
 /** Run `fns` as a release drain at `owner`, after the prior (more-dependent) owner's drain (`prev`)
@@ -2860,6 +2858,24 @@ function drainBorrowAware(
   });
   owner.pending.add(wait);
   return wait;
+}
+
+/** Drain one exact resource bucket after only that bucket's live operation borrows settle. */
+function drainStateBorrowAware(
+  owner: Layer,
+  state: ResourceState,
+  fns: ((end: Scope.End) => void | PromiseLike<void>)[],
+): void {
+  const borrowers = state.borrowers ? [...state.borrowers] : [];
+  if (borrowers.length === 0) {
+    runDefers(owner, fns, RELEASED);
+    return;
+  }
+  const wait: Promise<void> = Promise.allSettled(borrowers).then(() => {
+    owner.pending.delete(wait);
+    return runDefers(owner, fns, RELEASED);
+  });
+  owner.pending.add(wait);
 }
 
 /** Drop every affected node's cache at its owner, then extract each affected owner's OLD defers (in
@@ -2910,7 +2926,7 @@ function releaseNsBucket(layer: Layer, target: Node, key: Namespace): void {
     }
     return true;
   });
-  runDefers(layer, fns, RELEASED);
+  drainStateBorrowAware(layer, state, fns);
 }
 
 function addDependent(owner: Layer, node: Node, dependent: Resource.Handle<unknown>): void {
@@ -2944,47 +2960,51 @@ function resourceDepHandle(dep: Scope.Dependency): Resource.Handle<unknown> | un
   return undefined;
 }
 
-type Borrow = { owner: Layer; resource: Resource.Handle<unknown> };
+type Borrow = { state: ResourceState };
 
-/** The (owner, resource) borrows for an operation's dependencies: the resources it directly resolves
- * (ADR 0026 Q2 — a release waits for in-flight OPERATIONS borrowing the released resource). Cross-owner
- * and diamond ordering is handled by the depth-ordered release chain, not by transitive borrows. */
-function collectBorrows(layer: Layer, depends: Scope.Depends): Borrow[] {
+/** The exact resource buckets an operation borrows. A namespaced session resource uses the first
+ * existing key in its chain, or the chain head that dependency resolution is about to build. */
+function collectBorrows(
+  layer: Layer,
+  depends: Scope.Depends,
+  chain: readonly Namespace[] | undefined,
+): Borrow[] {
   const out: Borrow[] = [];
   for (const key in depends) {
-    const res = resourceDepHandle(depends[key]);
-    if (res !== undefined) out.push({ owner: ownerOf(layer, res), resource: res });
+    const target = resourceDepHandle(depends[key]);
+    if (target === undefined) continue;
+    const owner = ownerOf(layer, target);
+    const state =
+      target.target === "session" && chain !== undefined && chain.length > 0
+        ? (selectNsResource(owner, target, chain) ?? ownNsResource(owner, target, chain[0]))
+        : nodeState(owner, target);
+    out.push({ state });
   }
   return out;
 }
 
-function addBorrow(owner: Layer, resource: Resource.Handle<unknown>, work: Promise<unknown>): void {
-  const s = nodeState(owner, resource);
-  (s.borrowers ??= new Set()).add(work);
+function addBorrow(state: ResourceState, work: Promise<unknown>): void {
+  (state.borrowers ??= new Set()).add(work);
 }
 
 /** An operation's dependency borrows, or undefined when its deps name no resource. */
 function takeBorrows(
   layer: Layer,
   target: Operation.Handle<unknown, unknown>,
+  chain: readonly Namespace[] | undefined,
 ): { list: Borrow[]; done: Promise<void>; settle: () => void } | undefined {
   if ((target as BorrowFlag)[borrowSym] !== true) return undefined;
-  const list = collectBorrows(layer, target.depends);
+  const list = collectBorrows(layer, target.depends, chain);
   if (list.length === 0) return undefined;
   let settle: () => void = noop;
   const done = new Promise<void>((r) => (settle = r));
-  for (const b of list) addBorrow(b.owner, b.resource, done);
+  for (const b of list) addBorrow(b.state, done);
   return { list, done, settle };
 }
 
-function removeBorrow(
-  owner: Layer,
-  resource: Resource.Handle<unknown>,
-  work: Promise<unknown>,
-): void {
-  const s = owner.nodes.get(resource);
-  const set = s?.borrowers;
-  if (set && set.delete(work) && set.size === 0 && s) s.borrowers = undefined;
+function removeBorrow(state: ResourceState, work: Promise<unknown>): void {
+  const set = state.borrowers;
+  if (set && set.delete(work) && set.size === 0) state.borrowers = undefined;
 }
 
 /** In-flight operation promises borrowing any of `resources` at `owner`, so release can wait for them
