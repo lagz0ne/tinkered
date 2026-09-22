@@ -107,8 +107,7 @@ export function hono(
           readMany(routes).map(async (row) => ({ row, op: await row.load() })),
         );
         const app = new Hono().use(serveRequests(scope, wiring));
-        for (const { row, op } of mounted)
-          app.on(row.method, row.path, answerRoute(op, row.route));
+        for (const { row, op } of mounted) app.on(row.method, row.path, answerRoute(op, row.route));
         wiring?.mount?.(app);
         const served = await wiring?.serve?.(app);
         ctx.defer(() => readStop(served));

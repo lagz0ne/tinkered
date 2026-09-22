@@ -57,54 +57,54 @@ const deliverRegister = operation({
 /** The recipe: flat rows plus the source extension. One way: nothing is pushed
  * unasked. The stream goes down, the registration comes up. */
 const { extension: web } = hono([
-    route.get("/sync", openWire, {
-      respond: (opened, c) => {
-        const id = c.req.query("client") ?? "guest";
-        c.header("Content-Type", "text/event-stream");
-        c.header("Cache-Control", "no-cache");
-        c.header("Connection", "keep-alive");
-        return stream(c, (emit, ctx) => {
-          let open = true;
-          const arrivals = new Set<(message: Sync.Message) => void>();
-          const partings = new Set<() => void>();
-          const transport: Sync.Transport = {
-            send: (message) => {
-              if (open) emit(frame(message));
-            },
-            onMessage: (listener) => {
-              arrivals.add(listener);
-              return () => {
-                arrivals.delete(listener);
-              };
-            },
-            onClose: (listener) => {
-              partings.add(listener);
-              return () => {
-                partings.delete(listener);
-              };
-            },
-            close: () => {
-              if (open === false) return;
-              open = false;
-              opened.posts.delete(id);
-              for (const part of partings) part();
-            },
-          };
-          opened.posts.set(id, (message) => {
-            for (const arrival of arrivals) arrival(message);
-          });
-          ctx.signal.addEventListener("abort", () => transport.close(), { once: true });
-          return opened.origin.connect(transport).then(() => {
+  route.get("/sync", openWire, {
+    respond: (opened, c) => {
+      const id = c.req.query("client") ?? "guest";
+      c.header("Content-Type", "text/event-stream");
+      c.header("Cache-Control", "no-cache");
+      c.header("Connection", "keep-alive");
+      return stream(c, (emit, ctx) => {
+        let open = true;
+        const arrivals = new Set<(message: Sync.Message) => void>();
+        const partings = new Set<() => void>();
+        const transport: Sync.Transport = {
+          send: (message) => {
+            if (open) emit(frame(message));
+          },
+          onMessage: (listener) => {
+            arrivals.add(listener);
+            return () => {
+              arrivals.delete(listener);
+            };
+          },
+          onClose: (listener) => {
+            partings.add(listener);
+            return () => {
+              partings.delete(listener);
+            };
+          },
+          close: () => {
+            if (open === false) return;
+            open = false;
             opened.posts.delete(id);
-          });
+            for (const part of partings) part();
+          },
+        };
+        opened.posts.set(id, (message) => {
+          for (const arrival of arrivals) arrival(message);
         });
-      },
-    }),
-    route.post("/sync", deliverRegister, {
-      input: async (c) => ({ id: c.req.query("client") ?? "guest", message: await c.req.json() }),
-      respond: (_delivery, c) => c.text("ok"),
-    }),
-  ]);
+        ctx.signal.addEventListener("abort", () => transport.close(), { once: true });
+        return opened.origin.connect(transport).then(() => {
+          opened.posts.delete(id);
+        });
+      });
+    },
+  }),
+  route.post("/sync", deliverRegister, {
+    input: async (c) => ({ id: c.req.query("client") ?? "guest", message: await c.req.json() }),
+    respond: (_delivery, c) => c.text("ok"),
+  }),
+]);
 
 /** The source half in one call: a scope holding the source extension plus the app.
  * `boot` installs the source extension, awaits `ready`, and hands both back. */
