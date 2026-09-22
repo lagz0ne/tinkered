@@ -15,26 +15,23 @@ import {
   type Script,
 } from "./fixtures.ts";
 
-/** A fake SDK module: each `query` records its call, then yields the next script's messages. */
+/** A fake SDK module: each `query` records its call, then yields the next script's messages —
+ * checking the call's abort signal before every yield, so a forced close lands mid-turn. */
 function fakeSdk(scripts: Script[], seen: string[]): ClaudeCode.Sdk {
   return {
     ...readToolSdk(),
     query: ({ prompt, options }: { prompt: string; options?: Options }) => {
       seen.push(prompt);
-      return readStream(scripts.shift()?.messages ?? [], options?.abortController?.signal);
+      const messages = scripts.shift()?.messages ?? [];
+      const signal = options?.abortController?.signal;
+      return (async function* (): AsyncGenerator<SDKMessage> {
+        for (const message of messages) {
+          if (signal?.aborted === true) throw signal.reason;
+          yield message;
+        }
+      })();
     },
   };
-}
-
-/** Yield recorded messages, checking the call's abort signal before every yield. */
-async function* readStream(
-  messages: readonly SDKMessage[],
-  signal: AbortSignal | undefined,
-): AsyncGenerator<SDKMessage> {
-  for (const message of messages) {
-    if (signal?.aborted === true) throw signal.reason;
-    yield message;
-  }
 }
 
 const coder = harness({ label: "coder", adapter: claudeCode });
@@ -89,13 +86,11 @@ test("the graph produces the trace: the author's op over the frame's send", asyn
   await scope.close();
 });
 
-const searchShape = { q: z.string() };
-
 /** One tool the turn calls: a plain-value op with `tool` meta. */
 const search = operation({
   label: "search",
-  input: z.object(searchShape),
-  meta: [tool({ description: "find things", schema: searchShape })],
+  input: z.object({ q: z.string() }),
+  meta: [tool({ description: "find things", schema: { q: z.string() } })],
   run: (_deps, ctx) => `hit:${(ctx.input as { q: string }).q}`,
 });
 

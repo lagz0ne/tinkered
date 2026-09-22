@@ -3,6 +3,7 @@ import { createScope, operation, preset, type Observe } from "@tinker/core";
 import type { ThreadEvent, ThreadItem } from "@openai/codex-sdk";
 import { codex, harness, isError, type Harness } from "../src/index.ts";
 import {
+  parsePrompt,
   readCodexCut,
   readCodexFailure,
   readCodexScript,
@@ -10,12 +11,6 @@ import {
   readCommand,
   type CodexSeen,
 } from "./fixtures.ts";
-
-/** Parse the author's prompt input: a plain string, trimmed of padding. */
-function parsePrompt(raw: unknown): string {
-  if (typeof raw !== "string") throw new Error("bad prompt");
-  return raw;
-}
 
 test("a turn folds the event stream into the result and the ambient cells", async () => {
   const seen: CodexSeen = { turns: [], clients: [] };

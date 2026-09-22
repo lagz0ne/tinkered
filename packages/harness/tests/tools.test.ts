@@ -12,13 +12,13 @@ import type {
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { claudeCode, harness, type ClaudeCode } from "../src/index.ts";
-import { readResult, readSystemInit, readToolResult, readToolUse } from "./fixtures.ts";
-
-/** Parse the author's prompt input: a plain string, trimmed of padding. */
-function parsePrompt(raw: unknown): string {
-  if (typeof raw !== "string") throw new Error("bad prompt");
-  return raw;
-}
+import {
+  parsePrompt,
+  readResult,
+  readSystemInit,
+  readToolResult,
+  readToolUse,
+} from "./fixtures.ts";
 
 /** What the fake SDK saw: every in-process server registered, every `query`'s options, and
  * what each tool handler returned when the fake "model" called it. */

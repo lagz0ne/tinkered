@@ -8,6 +8,7 @@ import type {
 } from "@anthropic-ai/claude-agent-sdk";
 import { claudeCode, harness, isError, type ClaudeCode, type Harness } from "../src/index.ts";
 import {
+  parsePrompt,
   readAssistantText,
   readScript,
   readScriptCost,
@@ -15,12 +16,6 @@ import {
   type Script,
   readToolSdk,
 } from "./fixtures.ts";
-
-/** Parse the author's prompt input: a plain string, trimmed of padding. */
-function parsePrompt(raw: unknown): string {
-  if (typeof raw !== "string") throw new Error("bad prompt");
-  return raw;
-}
 
 /** One `query` call a test fake saw: the prompt plus the options it opened with. */
 type Seen = { readonly prompt: string; readonly options: Options | undefined };
