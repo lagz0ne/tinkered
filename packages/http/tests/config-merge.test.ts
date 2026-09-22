@@ -122,6 +122,106 @@ test("a nearer retry wins: the session retries where the scope would not", async
   await scope.close();
 });
 
+test("sibling sessions keep their own retry: one retries, the other does not", async () => {
+  const calls: string[] = [];
+  const down: HttpClient.Backend = async (request) => {
+    calls.push(HttpRequest.toUrl(request));
+    return HttpResponse.make(request, { status: 503, body: "down" });
+  };
+  const scope = createScope({ tags: [backend(down)] });
+  const patient = scope.createSession({
+    tags: [config({ baseUrl: "https://patient", retry: { times: 2 } })],
+  });
+  const plain = scope.createSession({
+    tags: [config({ baseUrl: "https://plain", retry: { times: 0 } })],
+  });
+  const raw = operation({
+    label: "raw",
+    depends: { send },
+    run: ({ send: sendIt }) => sendIt.run({ input: HttpRequest.get("/a") }),
+  });
+  await patient.run(raw);
+  await plain.run(raw);
+  expect(calls.filter((url) => url.startsWith("https://patient")).length).toBe(3);
+  expect(calls.filter((url) => url.startsWith("https://plain")).length).toBe(1);
+  await scope.close();
+});
+
+test("a session retry beats the scope retry: nearer wins when both are set", async () => {
+  let calls = 0;
+  const down: HttpClient.Backend = async (request) => {
+    calls += 1;
+    return HttpResponse.make(request, { status: 503, body: "down" });
+  };
+  const scope = createScope({
+    tags: [backend(down), config({ retry: { times: 0 } })],
+  });
+  const session = scope.createSession({
+    tags: [config({ retry: { times: 2 } })],
+  });
+  const raw = operation({
+    label: "raw",
+    depends: { send },
+    run: ({ send: sendIt }) => sendIt.run({ input: HttpRequest.get("https://api/a") }),
+  });
+  await session.run(raw);
+  expect(calls).toBe(3);
+  await scope.close();
+});
+
+test("sibling sessions keep their own accept: one rejects, the other delivers", async () => {
+  const scope = createScope({
+    tags: [backend(async (request) => HttpResponse.make(request, { status: 404, body: "nf" }))],
+  });
+  const strict = scope.createSession({
+    tags: [config({ baseUrl: "https://strict", accept: (status) => status < 300 })],
+  });
+  const loose = scope.createSession({
+    tags: [config({ baseUrl: "https://loose" })],
+  });
+  const raw = operation({
+    label: "raw",
+    depends: { send },
+    run: ({ send: sendIt }) => sendIt.run({ input: HttpRequest.get("/a") }),
+  });
+  const res = await loose.run(raw);
+  expect(res.status).toBe(404);
+  try {
+    await strict.run(raw);
+    expect.unreachable();
+  } catch (error) {
+    if (!isHttpError(error, "ResponseFailed")) throw error;
+    expect(error.payload.reason).toBe("StatusCode");
+  }
+  await scope.close();
+});
+
+test("a per-call accept overrides the session binding for that call only", async () => {
+  const scope = createScope({
+    tags: [backend(async (request) => HttpResponse.make(request, { status: 404, body: "nf" }))],
+  });
+  const session = scope.createSession({
+    tags: [config({ accept: (status) => status < 300 })],
+  });
+  const raw = operation({
+    label: "raw",
+    depends: { send },
+    run: ({ send: sendIt }) => sendIt.run({ input: HttpRequest.get("https://api/a") }),
+  });
+  const res = await session.controller(raw).run({
+    tags: [config({ accept: (_status) => true })],
+  });
+  expect(res.status).toBe(404);
+  try {
+    await session.run(raw);
+    expect.unreachable();
+  } catch (error) {
+    if (!isHttpError(error, "ResponseFailed")) throw error;
+    expect(error.payload.reason).toBe("StatusCode");
+  }
+  await scope.close();
+});
+
 test("a nearer accept wins: the session rejects where the scope would accept", async () => {
   const scope = createScope({
     tags: [backend(async (request) => HttpResponse.make(request, { status: 404, body: "nf" }))],
