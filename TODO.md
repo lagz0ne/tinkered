@@ -40,16 +40,16 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 ## Doing
 
 - **playground/frames** — owner: DeepSeek writer.
-  Next: one review round for test focus and live storm timing.
+  Next: final combined checks; engine review fixes are saved.
   Verify: Node scope tests, build, and checks pass.
 
 - **playground/tsunami** — owner: Codex reviewer.
-  Next: review the engine and code links, then assign the view.
+  Next: finish source UI and review the combined app.
   Verify: checks, scope tests, build, and phone/browser review.
   [Track](docs/roadmap/playground-v2/PROGRESS.md).
 
 - **playground/source-links** — owner: MiMo source writer.
-  Next: save source links and scope tests in its own worktree.
+  Next: fix history order and shadowed-name links.
   Verify: exact library links and code history tests pass.
 
 | Card | Owner | Next | Verify |
@@ -63,11 +63,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 ## Review
 
 - **playground/page** — owner: GLM writer.
-  Next: run integrated checks and browser proof.
+  Next: finish source UI and phone board fit.
   Verify: play, code, and full screen keep the game alive.
 
 - **playground/visuals** — owner: GLM writer.
-  Next: run integrated checks and browser proof.
+  Next: finish source UI and phone board fit.
   Verify: checks plus desktop and phone browser review.
 
 | Card | Owner | Next | Verify |

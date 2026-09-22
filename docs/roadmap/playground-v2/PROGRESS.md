@@ -48,7 +48,7 @@ SCIP indexed core, react, and playground.
 Paths below are relative to apps/playground.
 No old export needs removal; retain existing names where possible.
 
-```impact playground/tsunami
+```text
 == playground
   definitions
     App.  ->  example/App.tsx:57
@@ -176,7 +176,7 @@ The lead stays responsible for review and observed checks.
 The Play view extends the input of `setView`.
 The old symbol remains; its callers stay in the shell.
 
-```impact playground/page
+```text
 == playground
   definitions
     setView.  ->  src/actions.ts:119
@@ -200,3 +200,47 @@ Requested fixes before browser proof:
 - Shell buttons need 44 px touch targets too.
 
 These are observed code findings, not a model ranking.
+
+## Integrated engine and view review
+
+The lead applied engine code from `84455a1`, then the
+review delta to `21512ad`; the view is from `4ab9784`.
+The combined build passes. All 31 scope tests pass.
+
+Engine fixes from review:
+
+- Keep the hue returned by `press`.
+- Test each refused input on its own.
+- Turn past one full circle in the scope test.
+- Prove a live storm interval change delays the next press.
+
+Browser checks on the combined build pass:
+
+- Desktop: 84 solid tiles, press, four turns, storm, clear.
+- Code and full screen keep the same game document alive.
+- Covered game leaves the keyboard tab order.
+- Native full screen enters and exits.
+- A parent frame that denies full screen triggers fit mode.
+- Escape from the game and the exit button both leave fit.
+- Enter on a focused tile creates a wave.
+- Phone at 390 by 844 has no sideways page scroll.
+  All game buttons are 44 px tall; sliders are reachable.
+- No page script errors in the desktop and phone runs.
+
+The phone board edge and crowded storm label need a
+small view fix. Source links still need the Code UI.
+The source history review found oldest-first Back/Forward;
+MiMo is fixing that with a three-place regression test.
+
+The raw SCIP tables above were saved before code.
+They are now plain text: the impact tool needs one row
+per symbol, not the printed SCIP table. Final review
+will retain these tables and add the tool's row format.
+Its new-export scan only covers `packages/`, so app
+review also reads the app index and diff directly.
+
+Jev review found no source issue in the engine or view.
+Its commit-message warning was checked against the code
+and tests; it adds no code finding. The lift-test title
+names the wave motion it proves, so its vague-title hit
+was labeled false. Calibration was run and saved.
