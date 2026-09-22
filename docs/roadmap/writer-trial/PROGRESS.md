@@ -1,10 +1,10 @@
 # Writer trial
 
-Status: worker readiness passed; scored rounds have not started.
+Status: trial-01 round 1 is running for all four writers.
 Owner: Codex.
 Scope settled: core and React only.
 Trial shape settled: four attempts per writer on its own growing repo.
-Next: stage the first scored round when trial work starts.
+Next: finish round 1, save and check all four submissions.
 
 ## What we checked
 
@@ -356,3 +356,29 @@ Its shared parent project remains in place.
 The worker projects were separate and are all removed.
 
 Preparation is done. The four-round trial remains Ready.
+
+## Trial 01 launch: 2026-09-22
+
+The user said to start.
+All four writers use the prepared image and high thinking.
+Four new projects keep separate repos across four rounds.
+The task packets, tools, limits, and teacher checks are frozen
+in `~/.local/share/tinker-writer-trial/trial-01/frozen/`.
+The host project note now points at the current task,
+so its old readiness-only note cannot conflict with scored work.
+
+Paseo will report each completion.
+Save all four submissions before revealing the next packet.
+Run private checks in separate containers.
+Keep failed code for the next round; send no private test bodies.
+After round 4, save the growth report and remove all four
+projects, workspaces, containers, volumes, and worker folders.
+
+Round 1 agent IDs:
+
+- `xiaomi/mimo-v2.6-flash`: `6613fef8-60a5-4b42-8563-99f6821b7956`.
+- `xiaomi/mimo-v2.6-pro`: `a1da6706-65b1-4b22-acdc-c404bd7fd5e3`.
+- `zai/glm-5.3-flash`: `7ffdec47-e803-43e6-b5f7-6f0e288016d1`.
+- `deepseek/deepseek-v4.1-flash`: `ec178b7d-74f7-4209-b08f-f56269a5853c`.
+
+All 32 checks passed again on these fresh containers before launch.

@@ -244,6 +244,10 @@ if (action === "create") {
     cfg.limits = config.limits;
     cfg.events = join(root, `${w.container}-round-${round}.jsonl`);
     writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
+    writeFileSync(
+      join(w.dir, "AGENTS.md"),
+      "# Writer trial\n\nYour project is /work through work_shell.\nRead TASK.md and GUIDELINES.md there. Complete only the current round.\n",
+    );
     w.status = "staged";
   }
   manifest.phase = "scored";
