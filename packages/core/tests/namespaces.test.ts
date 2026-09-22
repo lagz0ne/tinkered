@@ -1,5 +1,14 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, isError, namespace, operation, tag, type Ns } from "../src/index.ts";
+import {
+  createScope,
+  data,
+  isError,
+  namespace,
+  operation,
+  resource,
+  tag,
+  type Ns,
+} from "../src/index.ts";
 
 const asNumber = (v: unknown): number => {
   if (typeof v !== "number") throw new Error("not a number");
@@ -163,6 +172,21 @@ test("a subflow .run({ input, ns }) writes its own bucket; without ns it inherit
   scope.run(inherit, { ns: a });
   expect(scope.resolve(count, { ns: a })).toBe(8);
   expect(scope.resolve(count)).toBe(0);
+  return scope.close();
+});
+
+test("invalid input rejects before dependencies build", () => {
+  let builds = 0;
+  const dep = resource({ label: "dep", factory: () => ++builds });
+  const op = operation({
+    label: "op",
+    input: asNumber,
+    depends: { dep },
+    run: ({ dep }) => dep,
+  });
+  const scope = createScope();
+  expect(() => scope.run(op, { rawInput: "bad" })).toThrow("DataValidationFailed");
+  expect(builds).toBe(0);
   return scope.close();
 });
 

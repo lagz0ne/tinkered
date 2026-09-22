@@ -2074,8 +2074,8 @@ function operationController<T, I>(
     let result: T;
     buildDepth++;
     try {
-      const deps = readOpDeps(layer, target, span, sees, chain);
       ctx = new OperationCtx<I>(layer, target, call, obs, span);
+      const deps = readOpDeps(layer, target, span, sees, chain);
       result = runBody(override, target, deps, ctx, parked);
     } catch (error) {
       closeSpan(obs, span, "failed");
