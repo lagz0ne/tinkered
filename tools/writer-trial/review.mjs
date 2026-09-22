@@ -323,9 +323,9 @@ function checkerEvidence(checker, archive, image) {
             "teacher/check.mjs",
             "teacher/run.mjs",
           ]
-      : checker.script === "plan-acceptance.mjs"
-        ? ["teacher/plan-acceptance.mjs", "teacher/acceptance-shape.mjs"]
-        : ["teacher/stock-acceptance.mjs", "teacher/acceptance-shape.mjs"];
+        : checker.script === "plan-acceptance.mjs"
+          ? ["teacher/plan-acceptance.mjs", "teacher/acceptance-shape.mjs"]
+          : ["teacher/stock-acceptance.mjs", "teacher/acceptance-shape.mjs"];
   let unavailable = null;
   for (const helper of helpers) {
     const path = join(here, helper);
