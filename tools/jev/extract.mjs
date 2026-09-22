@@ -109,12 +109,13 @@ function returnsJsx(body) {
 }
 
 /** A top-level function as a unit record: kind "component" when it returns JSX, else plain
- *  "function". Only the tree decides: a capital-named helper with no JSX stays a helper. */
-const functionRecord = (src, node, name, exported, kind) => ({
+ *  "function". One declarator of `const A = …, B = …` owns only its own span — name, line,
+ *  and source — so a judge never reads a sibling. */
+const functionRecord = (src, span, name, exported, kind) => ({
   kind,
   name,
-  line: lineOf(src, node.start),
-  source: text(src, node),
+  line: lineOf(src, span.start),
+  source: src.slice(span.start, span.end),
   exported,
 });
 
@@ -125,41 +126,41 @@ function isFnInit(init) {
   return init?.type === "ArrowFunctionExpression" || init?.type === "FunctionExpression";
 }
 
-/** The function declarators of one `const` — each keeps its own name and body. */
+/** The function declarators of one `const` — each keeps its own name, body, and span. */
 function constFns(decl) {
   return decl.declarations
     .filter((d) => d.id.type === "Identifier" && isFnInit(d.init))
-    .map((d) => ({ name: d.id.name, body: d.init.body }));
+    .map((d) => ({ name: d.id.name, body: d.init.body, span: d }));
 }
 
 /** The named `function` or bare arrow one declaration holds, or null. */
-function singleFn(decl) {
+function singleFn(decl, node) {
   if (decl?.type === "FunctionDeclaration" && decl.body)
-    return { name: decl.id?.name ?? "default", body: decl.body };
-  if (isFnInit(decl)) return { name: "default", body: decl.body };
+    return { name: decl.id?.name ?? "default", body: decl.body, span: node };
+  if (isFnInit(decl)) return { name: "default", body: decl.body, span: node };
   return null;
 }
 
 /** Every function a declaration holds, in order: the named `function` or bare arrow, or each
  *  function declarator of a `const A = …, B = …` (the unit keeps its own const name). */
-function fnsOf(decl) {
-  const single = singleFn(decl);
+function fnsOf(decl, node) {
+  const single = singleFn(decl, node);
   if (single !== null) return [single];
   if (decl?.type !== "VariableDeclaration") return [];
   return constFns(decl);
 }
 
 /** One unit record for a declared function: a component when `.tsx` JSX returns, else a helper. */
-function fnRecord(src, node, exported, tsx, found) {
+function fnRecord(src, exported, tsx, found) {
   const kind = tsx && returnsJsx(found.body) ? "component" : "function";
-  return functionRecord(src, node, found.name, exported, kind);
+  return functionRecord(src, found.span, found.name, exported, kind);
 }
 
 /** The unit records for one named `function` declaration, or none. */
 function namedRecords(src, node, exported, tsx, decl) {
-  const found = fnsOf(decl)[0];
+  const found = fnsOf(decl, node)[0];
   if (!found || declaresUnit(found.body)) return [];
-  return [fnRecord(src, node, exported, tsx, found)];
+  return [fnRecord(src, exported, tsx, found)];
 }
 
 /** Top-level functions that declare no unit: a component when the body returns JSX
@@ -175,9 +176,9 @@ function functionOf(src, node, file) {
   const tsx = file.endsWith(".tsx") || file.endsWith(".jsx");
   if (decl?.type === "FunctionDeclaration") return namedRecords(src, node, exported, tsx, decl);
   if (!tsx) return [];
-  return fnsOf(decl)
+  return fnsOf(decl, node)
     .filter((found) => !declaresUnit(found.body))
-    .map((found) => fnRecord(src, node, exported, tsx, found));
+    .map((found) => fnRecord(src, exported, tsx, found));
 }
 
 /** Every declared unit and every top-level function that declares none, in source order. */

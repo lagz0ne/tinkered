@@ -138,15 +138,24 @@ function providesScope(body, bound) {
 const SCOPE_PROP = /Scope\s*\.\s*Handle|DataController/;
 const SCOPE_NAME = /^(scope|session|controller)$/i;
 
+/** The declaration behind an alias — through `export type …` too — or null. */
+function aliasDecl(node) {
+  const decl = node.type === "ExportNamedDeclaration" ? node.declaration : node;
+  const isAlias =
+    decl?.type === "TSTypeAliasDeclaration" || decl?.type === "TSInterfaceDeclaration";
+  if (!isAlias || decl.id?.type !== "Identifier") return null;
+  return decl;
+}
+
 /** The local names of Props-like aliases whose members carry a scope type
- *  (`type Props = { scope: Scope.Handle }`), read off the source text of each alias. */
+ *  (`type Props = { scope: Scope.Handle }`, `export type …`, an interface), read off the
+ *  source text of each alias. */
 function scopeAliases(source, program) {
   const names = new Set();
   for (const node of program.body) {
-    const isAlias =
-      node.type === "TSTypeAliasDeclaration" || node.type === "TSInterfaceDeclaration";
-    if (!isAlias || node.id?.type !== "Identifier") continue;
-    if (SCOPE_PROP.test(source.slice(node.start, node.end))) names.add(node.id.name);
+    const decl = aliasDecl(node);
+    if (decl === null) continue;
+    if (SCOPE_PROP.test(source.slice(decl.start, decl.end))) names.add(decl.id.name);
   }
   return names;
 }

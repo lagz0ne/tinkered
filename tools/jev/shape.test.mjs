@@ -64,6 +64,23 @@ describe("component extraction", () => {
     ]);
   });
 
+  it("gives each const declarator its own line and source span", () => {
+    const found = units(
+      "const A = () => <a/>,\n  B = (props) => <b>{String(!!props.id)}</b>;",
+      "a.tsx",
+    );
+    assert.deepEqual(
+      found.map((u) => [u.kind, u.name, u.line]),
+      [
+        ["component", "A", 1],
+        ["component", "B", 2],
+      ],
+    );
+    assert.match(found[0].source, /^A = /);
+    assert.match(found[1].source, /^B = /);
+    assert.doesNotMatch(found[1].source, /A = /);
+  });
+
   it("keeps a capital-named helper with no JSX a function", () => {
     assert.deepEqual(kindOf("function Helper(title) { return title.trim(); }"), [
       ["function", "Helper"],
@@ -161,12 +178,23 @@ describe("shape findings", () => {
 
   it("flags a scope prop on the second declarator of one const statement", () => {
     const rows = inspectShape(
-      `const A = () => <a/>, B = (props: { scope: Scope.Handle }) => <b>{String(!!props.scope)}</b>;`,
+      `const A = () => <a/>,\n  B = (props: { scope: Scope.Handle }) => <b>{String(!!props.scope)}</b>;`,
       "a.tsx",
     );
     assert.deepEqual(
       rows.map((r) => [r.id, r.line]),
-      [["no-scope-prop", 1]],
+      [["no-scope-prop", 2]],
+    );
+  });
+
+  it("flags a scope prop through an exported Props alias", () => {
+    const rows = inspectShape(
+      `export type Props = { handle: Scope.Handle };\nfunction V(p: Props) {\n  return <p>{String(!!p.handle)}</p>;\n}`,
+      "a.tsx",
+    );
+    assert.deepEqual(
+      rows.map((r) => [r.id, r.line]),
+      [["no-scope-prop", 2]],
     );
   });
 
