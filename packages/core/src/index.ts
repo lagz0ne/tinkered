@@ -195,7 +195,7 @@ export declare namespace Clock {
 export declare namespace Random {
   /** The ambient randomness source carried on every ctx (`ctx.random`). Default is the system
    * source; set once via `createScope({ random })` and inherited by child sessions. Both reads are
-   * synchronous — no signal, no wait (ADR 0061). */
+   * synchronous — no signal, no wait (ADR 0062). */
   export type Handle = {
     /** A float in `[0, 1)`, like `Math.random`. */
     next(): number;
@@ -1333,7 +1333,7 @@ const systemRandom: Random.Handle = {
 };
 
 /** Create a seeded randomness source for tests: the same `seed` replays the same `next` and `uuid`
- * stream, drawn from one mulberry32 generator. Pass it to `createScope({ random })` (ADR 0061). */
+ * stream, drawn from one mulberry32 generator. Pass it to `createScope({ random })` (ADR 0062). */
 export function makeTestRandom(options?: Random.Options): Random.Handle {
   let state = (options?.seed ?? 0) >>> 0;
   const next = (): number => {
