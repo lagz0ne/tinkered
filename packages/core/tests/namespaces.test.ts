@@ -303,6 +303,45 @@ test("a session-target resource builds once in each namespace and reuses its war
   return scope.close();
 });
 
+test("a resource namespace chain reuses its first built fallback bucket", () => {
+  const a = namespace();
+  const b = namespace();
+  let builds = 0;
+  const client = resource({
+    label: "client",
+    target: "session",
+    factory: () => ({ build: ++builds }),
+  });
+  const scope = createScope();
+  const fromB = scope.resolve(client, { ns: b });
+  expect(scope.resolve(client, { ns: [a, b] })).toBe(fromB);
+  const fromA = scope.resolve(client, { ns: a });
+  expect(scope.resolve(client, { ns: [a, b] })).toBe(fromA);
+  expect(builds).toBe(2);
+  return scope.close();
+});
+
+test("a named resource controller keeps one settled async promise per bucket", async () => {
+  const a = namespace();
+  const b = namespace();
+  let builds = 0;
+  const client = resource({
+    label: "async-client",
+    target: "session",
+    factory: async () => ({ build: ++builds }),
+  });
+  const scope = createScope();
+  const ctlA = scope.controller(client, { ns: a });
+  const firstA = ctlA.resolve();
+  expect(ctlA.resolve()).toBe(firstA);
+  expect(await firstA).toEqual({ build: 1 });
+  expect(ctlA.get()).toBe(firstA);
+  const firstB = scope.controller(client, { ns: b }).resolve();
+  expect(firstB).not.toBe(firstA);
+  expect(await firstB).toEqual({ build: 2 });
+  await scope.close();
+});
+
 test("namespace clients share one scope-target pool", () => {
   const a = namespace();
   const b = namespace();
@@ -360,6 +399,31 @@ test("releaseNs cleans one resource bucket and close drains the buckets left beh
     `${firstB.build}:success`,
     `${plain.build}:success`,
   ]);
+});
+
+test("release without ns drops every named resource bucket", async () => {
+  const a = namespace();
+  const b = namespace();
+  const ended: string[] = [];
+  let builds = 0;
+  const client = resource({
+    label: "client",
+    target: "session",
+    factory: (_deps, ctx) => {
+      const build = ++builds;
+      ctx.defer((end) => void ended.push(`${build}:${end.status}`));
+      return { build };
+    },
+  });
+  const scope = createScope();
+  scope.resolve(client, { ns: a });
+  scope.resolve(client, { ns: b });
+  scope.release(client);
+  await scope.settled();
+  expect(ended).toEqual(["2:released", "1:released"]);
+  expect(scope.resolve(client, { ns: a })).toEqual({ build: 3 });
+  expect(scope.resolve(client, { ns: b })).toEqual({ build: 4 });
+  await scope.close();
 });
 
 test("releaseNs waits for its own live borrow but not a sibling namespace", async () => {
@@ -439,6 +503,76 @@ test("releaseNs keeps a dependency alive until its named dependent borrow ends",
   await scope.settled();
   expect(ended).toEqual(["client:1", "base:1"]);
   expect(scope.resolve(client, { ns: a })).toEqual({ base: { build: 2 }, build: 2 });
+  await scope.close();
+});
+
+test("releaseNs resets one data bucket and leaves its sibling and default", async () => {
+  const a = namespace();
+  const b = namespace();
+  const cell = data({ label: "cell", initial: 0, parse: asNumber });
+  const scope = createScope();
+  scope.controller(cell).set(3);
+  scope.controller(cell, { ns: a }).set(1);
+  scope.controller(cell, { ns: b }).set(2);
+  scope.releaseNs(cell, a);
+  expect(scope.resolve(cell, { ns: a })).toBe(3);
+  expect(scope.resolve(cell, { ns: b })).toBe(2);
+  expect(scope.resolve(cell)).toBe(3);
+  await scope.close();
+});
+
+test("releaseNs leaves a namespace-blind scope resource built", async () => {
+  const a = namespace();
+  const ended: string[] = [];
+  const shared = resource({
+    label: "shared",
+    target: "scope",
+    factory: (_deps, ctx) => {
+      ctx.defer((end) => void ended.push(end.status));
+      return {};
+    },
+  });
+  const scope = createScope();
+  const first = scope.resolve(shared, { ns: a });
+  scope.releaseNs(shared, a);
+  expect(scope.resolve(shared)).toBe(first);
+  expect(ended).toEqual([]);
+  await scope.close({ graceful: true });
+  expect(ended).toEqual(["success"]);
+});
+
+test("releasing a shared pool drops every named client that depends on it", async () => {
+  const a = namespace();
+  const b = namespace();
+  const ended: string[] = [];
+  let poolBuilds = 0;
+  let clientBuilds = 0;
+  const pool = resource({
+    label: "pool",
+    target: "scope",
+    factory: (_deps, ctx) => {
+      const build = ++poolBuilds;
+      ctx.defer(() => void ended.push(`pool:${build}`));
+      return { build };
+    },
+  });
+  const client = resource({
+    label: "client",
+    target: "session",
+    depends: { pool },
+    factory: ({ pool }, ctx) => {
+      const build = ++clientBuilds;
+      ctx.defer(() => void ended.push(`client:${build}`));
+      return { build, pool };
+    },
+  });
+  const scope = createScope();
+  scope.resolve(client, { ns: a });
+  scope.resolve(client, { ns: b });
+  scope.release(pool);
+  await scope.settled();
+  expect(ended).toEqual(["client:2", "client:1", "pool:1"]);
+  expect(scope.resolve(client, { ns: a })).toEqual({ build: 3, pool: { build: 2 } });
   await scope.close();
 });
 
