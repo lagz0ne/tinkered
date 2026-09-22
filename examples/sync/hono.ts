@@ -56,8 +56,7 @@ const deliverRegister = operation({
 
 /** The recipe: flat rows plus the source extension. One way: nothing is pushed
  * unasked. The stream goes down, the registration comes up. */
-const web = hono({
-  routes: [
+const { extension: web } = hono([
     route.get("/sync", openWire, {
       respond: (opened, c) => {
         const id = c.req.query("client") ?? "guest";
@@ -105,8 +104,7 @@ const web = hono({
       input: async (c) => ({ id: c.req.query("client") ?? "guest", message: await c.req.json() }),
       respond: (_delivery, c) => c.text("ok"),
     }),
-  ],
-});
+  ]);
 
 /** The source half in one call: a scope holding the source extension plus the app.
  * `boot` installs the source extension, awaits `ready`, and hands both back. */

@@ -21,10 +21,10 @@ const getUser = operation({
 });
 
 test("a request-derived tag shadows the scope binding and the op sees the request url", async () => {
-  const web = hono({
-    routes: [route.get("/users/:id", getUser, { input: (c) => c.req.param("id") })],
-    tags: (c) => [tenant(c.req.header("x-tenant") ?? "public")],
-  });
+  const { extension: web } = hono(
+    [route.get("/users/:id", getUser, { input: (c) => c.req.param("id") })],
+    { tags: (c) => [tenant(c.req.header("x-tenant") ?? "public")] },
+  );
   const scope = createScope({ tags: [tenant("acme")], extensions: [web] });
   await scope.ready;
   const app = scope.resolve(web);
@@ -38,12 +38,10 @@ test("a request-derived tag shadows the scope binding and the op sees the reques
 
 test("a void op answers its value as json by default, or as text with respond", async () => {
   const health = operation({ label: "health", run: () => "ok" });
-  const web = hono({
-    routes: [
-      route.get("/json", health),
-      route.get("/text", health, { respond: (v, c) => c.text(String(v)) }),
-    ],
-  });
+  const { extension: web } = hono([
+    route.get("/json", health),
+    route.get("/text", health, { respond: (v, c) => c.text(String(v)) }),
+  ]);
   const scope = createScope({ extensions: [web] });
   await scope.ready;
   const app = scope.resolve(web);
@@ -73,9 +71,7 @@ test("a session-target resource depending on request builds once per request", a
     depends: { seen: perRequest },
     run: ({ seen }) => seen.url,
   });
-  const web = hono({
-    routes: [route.get("/a", who), route.get("/b", who)],
-  });
+  const { extension: web } = hono([route.get("/a", who), route.get("/b", who)]);
   const scope = createScope({ extensions: [web] });
   await scope.ready;
   const app = scope.resolve(web);
@@ -98,7 +94,7 @@ test("a client abort force-closes the session: the op settles cancelled", async 
       return clock.sleep(10_000, signal);
     },
   });
-  const web = hono({ routes: [route.get("/slow", slow)] });
+  const { extension: web } = hono([route.get("/slow", slow)]);
   const scope = createScope({ clock: makeTestClock({ now: 0 }), extensions: [web] });
   await scope.ready;
   const app = scope.resolve(web);
@@ -135,7 +131,7 @@ test("a graceful scope close waits for the in-flight request, then succeeds", as
     label: "slow",
     run: (_deps, { clock, signal }) => clock.sleep(10_000, signal),
   });
-  const web = hono({ routes: [route.get("/slow", slow)] });
+  const { extension: web } = hono([route.get("/slow", slow)]);
   const scope = createScope({ clock: clk, extensions: [web] });
   await scope.ready;
   const app = scope.resolve(web);
@@ -159,7 +155,7 @@ test("a forced scope close cancels the in-flight request and its defer sees canc
       return clock.sleep(10_000, signal);
     },
   });
-  const web = hono({ routes: [route.get("/slow", slow)] });
+  const { extension: web } = hono([route.get("/slow", slow)]);
   const scope = createScope({ clock: clk, extensions: [web] });
   await scope.ready;
   const app = scope.resolve(web);
@@ -172,9 +168,9 @@ test("a forced scope close cancels the in-flight request and its defer sees canc
 });
 
 test("one request yields a request span with the route op nested under it", async () => {
-  const web = hono({
-    routes: [route.get("/users/:id", getUser, { input: (c) => c.req.param("id") })],
-  });
+  const { extension: web } = hono([
+    route.get("/users/:id", getUser, { input: (c) => c.req.param("id") }),
+  ]);
   const scope = createScope({
     tags: [tenant("acme")],
     observe: { history: 20 },
@@ -202,9 +198,9 @@ test("one request yields a request span with the route op nested under it", asyn
 test("one request writes one http request log line on the request span", async () => {
   const logs: Observe.Log[] = [];
   const clk = makeTestClock({ now: 0 });
-  const web = hono({
-    routes: [route.get("/users/:id", getUser, { input: (c) => c.req.param("id") })],
-  });
+  const { extension: web } = hono([
+    route.get("/users/:id", getUser, { input: (c) => c.req.param("id") }),
+  ]);
   const scope = createScope({
     tags: [tenant("acme")],
     clock: clk,
@@ -235,7 +231,7 @@ test("a throwing route op settles the request span failed and reaches onError", 
       throw new Error("kaboom");
     },
   });
-  const web = hono({ routes: [route.get("/boom", boom)] });
+  const { extension: web } = hono([route.get("/boom", boom)]);
   const scope = createScope({ observe: { history: 20 }, extensions: [web] });
   await scope.ready;
   const app = scope.resolve(web);
@@ -254,10 +250,10 @@ test("a throwing route op settles the request span failed and reaches onError", 
 });
 
 test("with observation off no span is recorded and the request still answers", async () => {
-  const web = hono({
-    routes: [route.get("/users/:id", getUser, { input: (c) => c.req.param("id") })],
-    tags: (c) => [tenant(c.req.header("x-tenant") ?? "public")],
-  });
+  const { extension: web } = hono(
+    [route.get("/users/:id", getUser, { input: (c) => c.req.param("id") })],
+    { tags: (c) => [tenant(c.req.header("x-tenant") ?? "public")] },
+  );
   const scope = createScope({ tags: [tenant("acme")], extensions: [web] });
   await scope.ready;
   const app = scope.resolve(web);
@@ -278,7 +274,7 @@ test("input is required at the type level when the operation takes one", () => {
 
 test("resolving the extension before ready raises NotResolved", async () => {
   const ping = operation({ label: "ping", run: () => "pong" });
-  const web = hono({ routes: [route.get("/ping", ping)] });
+  const { extension: web } = hono([route.get("/ping", ping)]);
   const scope = createScope({ extensions: [web] });
   try {
     scope.resolve(web);
@@ -297,8 +293,8 @@ test("resolving the extension before ready raises NotResolved", async () => {
 test("two hono extensions on one scope are two apps", async () => {
   const one = operation({ label: "one", run: () => "one" });
   const two = operation({ label: "two", run: () => "two" });
-  const first = hono({ routes: [route.get("/one", one)] });
-  const second = hono({ routes: [route.get("/two", two)] });
+  const { extension: first } = hono([route.get("/one", one)]);
+  const { extension: second } = hono([route.get("/two", two)]);
   const scope = createScope({ extensions: [first, second] });
   await scope.ready;
   const appOne = scope.resolve(first);
@@ -308,4 +304,26 @@ test("two hono extensions on one scope are two apps", async () => {
   expect(await (await appTwo.request("/two")).text()).toContain("two");
   expect(await appTwo.request("/one")).toMatchObject({ status: 404 });
   await scope.close();
+});
+
+test("one scope close stops both servers: two serve binds, one reap", async () => {
+  const stops: string[] = [];
+  const serve = (name: string) => () => {
+    stops.push(`listening:${name}`);
+    return () => {
+      stops.push(`stopped:${name}`);
+    };
+  };
+  const one = operation({ label: "one", run: () => "one" });
+  const two = operation({ label: "two", run: () => "two" });
+  const { extension: first } = hono([route.get("/one", one)], { serve: serve("one") });
+  const { extension: second } = hono([route.get("/two", two)], { serve: serve("two") });
+  const scope = createScope({ extensions: [first, second] });
+  await scope.ready;
+  expect(stops.sort()).toEqual(["listening:one", "listening:two"]);
+  expect(await (await scope.resolve(first).request("/one")).text()).toContain("one");
+  expect(await (await scope.resolve(second).request("/two")).text()).toContain("two");
+  stops.length = 0;
+  await scope.close();
+  expect(stops.sort()).toEqual(["stopped:one", "stopped:two"]);
 });

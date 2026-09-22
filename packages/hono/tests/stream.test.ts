@@ -66,19 +66,17 @@ function readerOf(res: Response): ReadableStreamDefaultReader<Uint8Array> {
 test("the body yields each chunk as the clock advances, then ends", async () => {
   const clk = makeTestClock({ now: 0 });
   const chunks = operation({ label: "chunks", run: () => ["a", "b", "c"] });
-  const web = hono({
-    routes: [
-      route.get("/stream", chunks, {
-        respond: (cs, c) =>
-          stream(c, async (emit, { clock, signal }) => {
-            for (const ch of cs) {
-              emit(ch);
-              await clock.sleep(10, signal);
-            }
-          }),
-      }),
-    ],
-  });
+  const { extension: web } = hono([
+    route.get("/stream", chunks, {
+      respond: (cs, c) =>
+        stream(c, async (emit, { clock, signal }) => {
+          for (const ch of cs) {
+            emit(ch);
+            await clock.sleep(10, signal);
+          }
+        }),
+    }),
+  ]);
   const scope = createScope({ clock: clk, extensions: [web] });
   await scope.ready;
   const res = await scope.resolve(web).request("/stream");
@@ -90,7 +88,7 @@ test("the body yields each chunk as the clock advances, then ends", async () => 
 test("a session resource's defer runs only after the last chunk was read", async () => {
   const clk = makeTestClock({ now: 0 });
   const ends: string[] = [];
-  const web = hono({ routes: [streamRow(pathResource(ends))] });
+  const { extension: web } = hono([streamRow(pathResource(ends))]);
   const scope = createScope({ clock: clk, extensions: [web] });
   await scope.ready;
   const res = await scope.resolve(web).request("/stream");
@@ -112,20 +110,18 @@ test("cancelling the reader mid-body force-closes the session and stops the writ
     run: ({ path }) => [path, "b", "c"],
   });
   let emitted = 0;
-  const web = hono({
-    routes: [
-      route.get("/stream", chunks, {
-        respond: (cs, c) =>
-          stream(c, async (emit, { clock, signal }) => {
-            for (const ch of cs) {
-              emitted++;
-              emit(ch);
-              await clock.sleep(10, signal);
-            }
-          }),
-      }),
-    ],
-  });
+  const { extension: web } = hono([
+    route.get("/stream", chunks, {
+      respond: (cs, c) =>
+        stream(c, async (emit, { clock, signal }) => {
+          for (const ch of cs) {
+            emitted++;
+            emit(ch);
+            await clock.sleep(10, signal);
+          }
+        }),
+    }),
+  ]);
   const scope = createScope({ clock: clk, extensions: [web] });
   await scope.ready;
   const res = await scope.resolve(web).request("/stream");
@@ -144,18 +140,16 @@ test("a throwing writer errors the body and the session settles failed", async (
   const path = pathResource(ends);
   const clk = makeTestClock({ now: 0 });
   const chunks = operation({ label: "chunks", depends: { path }, run: ({ path }) => [path] });
-  const web = hono({
-    routes: [
-      route.get("/stream", chunks, {
-        respond: (cs, c) =>
-          stream(c, async (emit, { clock }) => {
-            emit(cs[0] ?? "");
-            await clock.sleep(10);
-            throw boom;
-          }),
-      }),
-    ],
-  });
+  const { extension: web } = hono([
+    route.get("/stream", chunks, {
+      respond: (cs, c) =>
+        stream(c, async (emit, { clock }) => {
+          emit(cs[0] ?? "");
+          await clock.sleep(10);
+          throw boom;
+        }),
+    }),
+  ]);
   const scope = createScope({ clock: clk, extensions: [web] });
   await scope.ready;
   const res = await scope.resolve(web).request("/stream");
@@ -179,9 +173,7 @@ test("a plain row on the same app still commits right after the handler", async 
   const ends: string[] = [];
   const path = pathResource(ends);
   const ping = operation({ label: "ping", depends: { path }, run: ({ path }) => `pong${path}` });
-  const web = hono({
-    routes: [streamRow(pathResource(ends)), route.get("/ping", ping)],
-  });
+  const { extension: web } = hono([streamRow(pathResource(ends)), route.get("/ping", ping)]);
   const scope = createScope({ extensions: [web] });
   await scope.ready;
   const res = await scope.resolve(web).request("/ping");
@@ -223,12 +215,10 @@ test("the request session commits on success, rolls back on abort, fails on an u
       throw new Error("kaboom");
     },
   });
-  const web = hono({
-    routes: [
-      route.get("/ok/:id", get, { input: (c) => c.req.param("id") }),
-      route.get("/boom", boom),
-    ],
-  });
+  const { extension: web } = hono([
+    route.get("/ok/:id", get, { input: (c) => c.req.param("id") }),
+    route.get("/boom", boom),
+  ]);
   const scope = createScope({ extensions: [web] });
   await scope.ready;
   const app = scope.resolve(web);

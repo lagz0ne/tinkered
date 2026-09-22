@@ -18,8 +18,8 @@ export async function tour(): Promise<string> {
 
   const ticks = operation({ label: "ticks", run: () => ["a", "b"] });
 
-  const web = hono({
-    routes: [
+  const { extension: web } = hono(
+    [
       route.get("/greet/:name", greet, { input: (c) => c.req.param("name") }),
       route.get("/health", health),
       route.get("/ticks", ticks, {
@@ -30,8 +30,8 @@ export async function tour(): Promise<string> {
           }),
       }),
     ],
-    tags: (c) => [tenant(c.req.header("x-tenant") ?? "public")],
-  });
+    { tags: (c) => [tenant(c.req.header("x-tenant") ?? "public")] },
+  );
 
   const scope = createScope({ tags: [tenant("acme")], extensions: [web] });
   await scope.ready;

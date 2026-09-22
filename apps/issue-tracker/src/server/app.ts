@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import { createScope, type Observe, type Scope } from "@tinker/core";
-import { hono } from "@tinker/hono";
+import { hono, type HonoScope } from "@tinker/hono";
 import { type Sync } from "@tinker/sync";
 import { api } from "../client/api.ts";
 import { draftGuardrails, draftHelper } from "./draft.ts";
@@ -17,19 +17,24 @@ export type AppConfig = {
   /** Where log lines and spans go (`jsonLines` in `main.ts`; a test captures them;
    * absent = dropped). A tracing backend swaps in here and nowhere else. */
   readonly observe?: Observe.Config;
+  /** Bind the app to the outside world inside the extension (`serve` in
+   * `main.ts`); absent the app answers only `app.request`. The scope's close
+   * stops the listener. */
+  readonly serve?: HonoScope.Serve;
 };
 
 /** Create the owning scope, publish the restored list, and resolve the one Hono
  * app: the flat issue rows (including the `/sync` GET stream row) mounted by
  * the `hono` extension, plus `publishAfterCommit` on the new `session` hook.
  * An error no route mapped answers 500 and is logged through `observe`.
- * The caller owns the scope and closes it. */
+ * The caller owns the scope and closes it. A `serve` wiring can bind the app
+ * to a port inside the extension, so the scope's close reaps the listener. */
 export async function createApp(config: AppConfig): Promise<{
   readonly scope: Scope.Handle;
   readonly app: Hono;
   readonly src: Scope.Extension<Sync.Source>;
 }> {
-  const web = hono({ routes: issueRoutes, onError });
+  const { extension: web } = hono(issueRoutes, { onError, serve: config.serve });
   const draft = config.draft;
   const scope = createScope({
     tags: [

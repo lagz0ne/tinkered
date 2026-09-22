@@ -39,7 +39,7 @@ export declare namespace HonoScope {
    * is allowed. Runs once at mount — a server is eager (ADR 0042). */
   export type Load<T, I> = () => Operation.Handle<T, I> | PromiseLike<Operation.Handle<T, I>>;
   /** One row of the routing table: the verb plus path, the loader, and the request
-   * shape. Handed to `hono({ routes })` — plain data, not a scope tag. */
+   * shape. Handed to `hono(routes)` — plain data, not a scope tag. */
   export type Row = {
     readonly method: Method;
     readonly path: string;
@@ -49,17 +49,29 @@ export declare namespace HonoScope {
       readonly respond?: Respond<unknown>;
     };
   };
-  /** Wiring for {@link hono}: the flat row table plus request-derived tag
-   * bindings, first-hand errors, and hand-mounted extras. */
+  /** Wiring for {@link hono}: request-derived tag bindings, first-hand
+   * errors, hand-mounted extras, and the process-edge bind. */
   export type Wiring = {
-    readonly routes: Many<Row>;
     readonly onError?: OnError;
     readonly tags?: (c: Context) => Tag.Bindings;
     /** Hand-mounted extras: routes that need `stream` directly and cannot
      * be rows yet. Runs after the rows, inside the same session middleware,
      * so `stream` sees the request session. */
     readonly mount?: (app: Hono) => void;
+    /** Bind the process edge (a port, a test fake): runs after mount and is
+     * awaited before `start` settles — a refusing port fails boot, never a
+     * request. The returned stop runs on scope close (`ctx.defer`), so two
+     * `hono` extensions on one scope are two servers one close reaps. */
+    readonly serve?: Serve;
   };
+  /** Bind the built app to the outside world: a port in production, a fake
+   * in tests. */
+  export type Serve = (app: Hono) => Served | PromiseLike<Served>;
+  /** What a `serve` bind hands back: a stop thunk, a closer, or nothing. */
+  export type Served =
+    | (() => void | PromiseLike<void>)
+    | { readonly close: () => void | PromiseLike<void> }
+    | void;
 }
 
 type SessionEnv = {
@@ -70,41 +82,61 @@ type SessionEnv = {
   };
 };
 
-/** The Hono driver, an extension (ADR 0051): `start` resolves its hand once
- * (`await next()`, so a second extension's `start` work is visible), loads
- * every row's operation once (a rejecting loader rejects `start` — `ready`
- * rejects, the scope closes failed, boot fails never a request), then builds
- * the one Hono app: the session middleware plus one endpoint per row, then
- * `mount`. The value is the app. This `start` is the extension's ONE use of
- * the scope: per request the middleware opens sessions from the captured
- * root handle. */
-export function hono(wiring: HonoScope.Wiring): Scope.Extension<Hono> {
-  return extension<Hono>({
-    label: "hono",
-    start: async (scope, _ctx, next) => {
-      await next();
-      const mounted = await Promise.all(
-        readMany(wiring.routes).map(async (row) => ({ row, op: await row.load() })),
-      );
-      const app = new Hono().use(serveRequests(scope, wiring));
-      for (const { row, op } of mounted) app.on(row.method, row.path, answerRoute(op, row.route));
-      wiring.mount?.(app);
-      return app;
-    },
-  });
+/** The Hono driver, an extension the scope owns (ADR 0060): `hono(routes)`
+ * returns the route value plus the bridge extension — the entrypoint pulls the
+ * scope at boot through `createScope({ extensions })`, never the reverse.
+ * `start` resolves its hand once (`await next()`, so a second extension's
+ * `start` work is visible), loads every row's operation once (a rejecting
+ * loader rejects `start` — `ready` rejects, the scope closes failed, boot
+ * fails never a request), then builds the one Hono app: the session
+ * middleware plus one endpoint per row, then `mount`, then the opt-in `serve`
+ * bind (a refusing port fails boot; its stop is deferred to scope close, so
+ * one `scope.close()` reaps every `hono` extension on it). The value is the
+ * app. This `start` is the extension's ONE use of the scope: per request the
+ * middleware opens sessions from the captured root handle. */
+export function hono(
+  routes: Many<HonoScope.Row>,
+  wiring?: HonoScope.Wiring,
+): { readonly extension: Scope.Extension<Hono> } {
+  return {
+    extension: extension<Hono>({
+      label: "hono",
+      start: async (scope, ctx, next) => {
+        await next();
+        const mounted = await Promise.all(
+          readMany(routes).map(async (row) => ({ row, op: await row.load() })),
+        );
+        const app = new Hono().use(serveRequests(scope, wiring));
+        for (const { row, op } of mounted)
+          app.on(row.method, row.path, answerRoute(op, row.route));
+        wiring?.mount?.(app);
+        const served = await wiring?.serve?.(app);
+        ctx.defer(() => readStop(served));
+        return app;
+      },
+    }),
+  };
+}
+
+/** Read the stop thunk out of a `serve` bind: a bare function, a `.close`
+ * object (the node server), or nothing — deferred to scope close. */
+function readStop(served: HonoScope.Served | undefined): void | PromiseLike<void> {
+  if (served === undefined) return undefined;
+  if (typeof served === "function") return served();
+  return served.close();
 }
 
 /** Open one session per request, bound with the request plus any request-derived tags.
  * A client abort force-closes the session (rollback); after the handler the session
  * closes graceful (commit). */
-function serveRequests(scope: Scope.Handle, wiring: HonoScope.Wiring): Middleware {
+function serveRequests(scope: Scope.Handle, wiring: HonoScope.Wiring | undefined): Middleware {
   return createMiddleware<SessionEnv>(async (c, next) => {
     const raw = c.req.raw;
     const session = scope.createSession({
-      tags: [request(raw), wiring.tags?.(c)],
+      tags: [request(raw), wiring?.tags?.(c)],
     });
     c.set("tinker.session", session);
-    c.set("tinker.onError", wiring.onError);
+    c.set("tinker.onError", wiring?.onError);
     const onAbort = (): void => {
       ignoreRejection(session.close());
     };

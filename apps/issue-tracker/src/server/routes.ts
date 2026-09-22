@@ -75,7 +75,7 @@ const openWire = operation({
 });
 
 /** Every /api route as flat rows: the verb plus path, the domain operation,
- * and the request shape. Handed to `hono({ routes })` in the composition root. */
+ * and the request shape. Handed to `hono(routes)` in the composition root. */
 export const issueRoutes: readonly HonoScope.Row[] = [
   route.post("/api/issues", createIssue, {
     input: (c) => readBody(c, {}),

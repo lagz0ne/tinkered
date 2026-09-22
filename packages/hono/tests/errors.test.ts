@@ -28,13 +28,15 @@ const getUser = operation({
 test("a parse failure answers 400 with the request span ok and the op span failed", async () => {
   const logs: Observe.Log[] = [];
   let seen: unknown;
-  const web = hono({
-    routes: [route.get("/users/:id", getUser, { input: (c) => c.req.param("id") })],
-    onError: (e) => {
-      seen = e;
-      return undefined;
+  const { extension: web } = hono(
+    [route.get("/users/:id", getUser, { input: (c) => c.req.param("id") })],
+    {
+      onError: (e) => {
+        seen = e;
+        return undefined;
+      },
     },
-  });
+  );
   const scope = createScope({
     tags: [tenant("acme")],
     observe: { history: 20, log: (entry) => logs.push(entry) },
@@ -65,7 +67,7 @@ test("a missing required tag answers 500 with the request span ok", async () => 
     depends: { secret: secret.required },
     run: ({ secret }) => secret,
   });
-  const web = hono({ routes: [route.get("/secret", readSecret)] });
+  const { extension: web } = hono([route.get("/secret", readSecret)]);
   const scope = createScope({
     observe: { history: 20, log: (entry) => logs.push(entry) },
     extensions: [web],
@@ -93,7 +95,7 @@ test("a client abort answers nothing usable but logs one 499 line and cancels th
       return clock.sleep(10_000, signal);
     },
   });
-  const web = hono({ routes: [route.get("/slow", slow)] });
+  const { extension: web } = hono([route.get("/slow", slow)]);
   const scope = createScope({
     clock: makeTestClock({ now: 0 }),
     observe: { history: 20, log: (entry) => logs.push(entry) },
@@ -121,7 +123,7 @@ test("an unmapped error reaches onError with the request span failed and no log 
       throw new Error("kaboom");
     },
   });
-  const web = hono({ routes: [route.get("/boom", boom)] });
+  const { extension: web } = hono([route.get("/boom", boom)]);
   const scope = createScope({
     observe: { history: 20, log: (entry) => logs.push(entry) },
     extensions: [web],
@@ -150,13 +152,16 @@ test("onError answers first: a parse failure becomes 418 while MissingTag keeps 
     depends: { secret: secret.required },
     run: ({ secret }) => secret,
   });
-  const web = hono({
-    routes: [
+  const { extension: web } = hono(
+    [
       route.get("/users/:id", getUser, { input: (c) => c.req.param("id") }),
       route.get("/secret", readSecret),
     ],
-    onError: (e, c) => (isCoreError(e, "DataValidationFailed") ? c.text("teapot", 418) : undefined),
-  });
+    {
+      onError: (e, c) =>
+        isCoreError(e, "DataValidationFailed") ? c.text("teapot", 418) : undefined,
+    },
+  );
   const scope = createScope({
     tags: [tenant("acme")],
     observe: { history: 20, log: (entry) => logs.push(entry) },

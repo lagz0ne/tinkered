@@ -1,10 +1,12 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Hono } from "hono";
-import type { Scope } from "@tinker/core";
-import { serve, type ServerType } from "@hono/node-server";
+import type { Observe, Scope } from "@tinker/core";
+import type { HonoScope } from "@tinker/hono";
+import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { describeError, jsonLines } from "./observe.ts";
+import { reportUnmapped } from "./routes.ts";
 
 function readHost(): string {
   return process.env.HOST ?? "127.0.0.1";
@@ -71,13 +73,49 @@ async function serveClient(app: Hono): Promise<void> {
   });
 }
 
-/** Wait for the port: `serve` returns before the listen settles, and a listen
- * error (port taken) fires on the server, not the promise. */
-function listening(server: ServerType): Promise<void> {
-  return new Promise((resolve, reject) => {
-    server.once("listening", resolve);
-    server.once("error", reject);
+/** Bind the app to the process edge: the client routes first (hand-mounted
+ * extras inside the same session middleware, as today), then the app-level
+ * `onError` (Hono's last handler — set here, before the port opens, so no
+ * request can fail without it), then serve the fetch on the port and hand
+ * the node server's `close` back — the extension defers it, so
+ * `scope.close()` stops the listener. A refusing port rejects the listen
+ * wait, so boot fails here, never at a request. */
+function servePort(
+  host: string,
+  port: number,
+  observe: Observe.Config | undefined,
+): HonoScope.Serve {
+  return (app) =>
+    new Promise<{ readonly close: () => void }>((resolve, reject) => {
+      void serveClient(app).then(() => {
+        app.onError(reportUnmapped(observe));
+        const server = serve({ fetch: app.fetch, hostname: host, port }, (info) => {
+          writeLog("listening", { host, port: info.port });
+          resolve({ close: () => void server.close() });
+        });
+        server.once("error", reject);
+      }, reject);
+    });
+}
+
+/** The server entrypoint: the composition root lives in `createApp`; this only
+ * reads the environment, binds the port through the `hono` extension's `serve`
+ * wiring, and closes graceful on a signal. Log lines and failed spans go to
+ * stdout as JSON lines (`jsonLines`). One `scope.close()` stops the
+ * listener — no hand-close here. */
+async function main(): Promise<number> {
+  const observe = jsonLines(writeLine);
+  const { scope } = await createApp({
+    dataPath: readDataPath(),
+    observe,
+    serve: servePort(readHost(), readPort(), observe),
+    ...readDraftOptIn(),
   });
+  await new Promise<void>((resolve) => {
+    process.once("SIGTERM", resolve);
+    process.once("SIGINT", resolve);
+  });
+  return readShutdown(await scope.close({ graceful: true }));
 }
 
 /** One JSON line to stdout: the same shape the scope's sink writes. */
@@ -99,29 +137,6 @@ function readShutdown(result: Scope.Result): number {
     return 1;
   }
   return 0;
-}
-
-/** The server entrypoint: the composition root lives in `createApp`; this only
- * reads the environment, serves the app, and closes graceful on a signal. Log
- * lines and failed spans go to stdout as JSON lines (`jsonLines`). */
-async function main(): Promise<number> {
-  const { scope, app } = await createApp({
-    dataPath: readDataPath(),
-    observe: jsonLines(writeLine),
-    ...readDraftOptIn(),
-  });
-  await serveClient(app);
-  const host = readHost();
-  const port = readPort();
-  const server = serve({ fetch: app.fetch, hostname: host, port });
-  await listening(server);
-  writeLog("listening", { host, port });
-  await new Promise<void>((resolve) => {
-    process.once("SIGTERM", resolve);
-    process.once("SIGINT", resolve);
-  });
-  server.close();
-  return readShutdown(await scope.close({ graceful: true }));
 }
 
 /** A boot failure (the store, the port) is the one error no scope can log:

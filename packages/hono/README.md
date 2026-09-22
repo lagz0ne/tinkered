@@ -1,10 +1,11 @@
 # @tinker/hono
 
-A Hono server as a **driver extension** (ADR 0051): the entrypoint installs
-`hono({ routes })` and resolves the app after `ready`; the extension's `start`
-is the only hand that holds the scope. Per request it opens one session, runs
-the route's operation as an inline op (span, one log line, error map), and
-closes graceful — a `stream` row keeps the session open until the body ends.
+A Hono server as an **extension the scope owns** (ADR 0060): the entrypoint
+calls `hono(routes)` and installs the returned extension; the extension's
+`start` pulls the scope, mounts the routes, and opens one session per
+request. Each request runs the route's operation as an inline op (span, one
+log line, error map) and closes graceful — a `stream` row keeps the session
+open until the body ends.
 
 ```ts
 // main.ts (the entrypoint owns the scope and its close)
@@ -14,16 +15,15 @@ import { hono } from "@tinker/hono";
 import { store } from "./store.ts";
 import { issueRoutes, tenant } from "./routes.ts";
 
-const web = hono({
-  routes: issueRoutes,
-  tags: (c) => [tenant(c.req.header("x-tenant") ?? "public")], // request-derived bindings
+const { extension: web } = hono(issueRoutes, {
+  tags: (c) => [tenant(c.req.header("x-tenant") ?? "public")],
+  serve: (app) => serve({ fetch: app.fetch }),
 });
 const scope = createScope({ tags: [tenant("public")], extensions: [web] });
-await scope.ready; // every row's loader ran once; a rejection fails boot, never a request
+await scope.ready; // every row's loader ran once; a rejection fails boot
 await scope.resolve(store.db); // warm-up: the read verb is the warm-up
-serve({ fetch: scope.resolve(web).fetch });
 process.on("SIGTERM", async () => {
-  await scope.close({ graceful: true }); // waits for in-flight requests
+  await scope.close({ graceful: true }); // waits for requests, stops serve
   process.exit(0);
 });
 ```
@@ -53,23 +53,25 @@ export const issueRoutes = [
 
 ```ts
 // a test is an entrypoint: one extension with one row, presets, drive via app.request
-const web = hono({
-  routes: [route.get("/users/:id", () => getUser, { input: (c) => c.req.param("id") })],
-});
+const { extension: web } = hono([
+  route.get("/users/:id", () => getUser, { input: (c) => c.req.param("id") }),
+]);
 const scope = createScope({ tags: [tenant("acme")], extensions: [web] });
 await scope.ready;
 const res = await scope.resolve(web).request("/users/42");
 expect(await res.json()).toEqual({ id: 42 });
 ```
 
-Two `hono()` extensions on one scope are two apps: store each extension object
-once (`const web = hono({ routes })`), install it, resolve it — a second call
-is a different identity.
+Two `hono()` calls on one scope are two apps (two servers, one close):
+store each returned extension once (`const { extension: web } = hono(...)`),
+install it, resolve it — a second call is a different identity. Each
+`serve` bind stops on `scope.close()` through the extension onion, so one
+close reaps both listeners.
 
 ## Hand mounting
 
 `mount` stays for routes that need `stream` directly and cannot be rows yet:
-`hono({ routes, mount: (app) => { … } })` runs after the rows, inside the same
+`hono(rows, { mount: (app) => { … } })` runs after the rows, inside the same
 session middleware, so `stream` sees the request session.
 
 The `input` callback may return a promise: the endpoint awaits it, then parses
@@ -126,5 +128,5 @@ start, since a later call cannot upgrade an in-progress graceful close.
 | `MissingTag` / `NoSession`                                                   | 500                                       |
 | anything else                                                                | rethrown to Hono's `onError`, no log line |
 
-`hono({ onError: (e, c) => Response | undefined })` answers first; `undefined`
+`hono(routes, { onError: (e, c) => Response | undefined })` answers first; `undefined`
 falls through to the table. A mapped failure settles the request span `ok`.
