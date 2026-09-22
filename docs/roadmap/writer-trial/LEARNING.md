@@ -1,6 +1,7 @@
 # Writer learning loop
 
-Status: two fresh-feature writers and two repair writers are running.
+Status: two repair writers are running.
+GLM and DeepSeek fresh features are saved for final checks.
 The stronger teacher checks are still in progress.
 Owner: Codex.
 User asked to keep looping until all four follow our code pattern.
@@ -104,3 +105,24 @@ Both repair archives are saved before this work starts.
 The stronger checks can run beside the new work.
 Neither stage is accepted until those checks and source review pass.
 This avoids making the writers wait for the teacher tool changes.
+
+## Fresh feature review
+
+GLM and DeepSeek both kept state in cells on the new feature.
+Their own checks and earlier teacher checks pass again.
+The lead found one new behavior bug in DeepSeek:
+
+- Book a series called Alpha.
+- Edit its second row to Beta.
+- Click Rename series Beta.
+- The editor starts with Alpha; it must start with Beta.
+
+A separate browser check proves the failure.
+GLM passes that same check.
+DeepSeek now has the failing steps for a fix on its own code.
+The first failed feature attempt stays saved.
+
+DeepSeek's next attempt fixes the clicked-row case.
+The lead read the change and reran the independent browser check.
+All five added checks now pass, along with earlier teacher checks.
+Its own type check, 97 tests, and build pass too.

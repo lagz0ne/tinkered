@@ -32,7 +32,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **writers/learn** — owner: Codex.
   Loop repairs, then a fresh feature, until all four meet the rules.
-  Next: close teacher gaps and restore each writer’s own app.
+  Next: review teacher fixes; check MiMo repairs and all fresh features.
   Verify: behavior, state ownership, errors, tests, and a fresh-feature pass.
   Preserve every attempt; clean projects and workspaces after completion.
 
