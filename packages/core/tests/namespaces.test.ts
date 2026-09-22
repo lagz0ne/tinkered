@@ -364,6 +364,58 @@ test("a re-registered named watcher refreshes its comparison value", () => {
   return scope.close();
 });
 
+test("a namespace-blind watcher observes default storage, never ambient tenant storage", () => {
+  const tenant = namespace();
+  const other = namespace();
+  const cell = data({ label: "cell", initial: 1, parse: asNumber });
+  const seen: [number, number][] = [];
+  const observer = resource({
+    label: "observer",
+    target: "scope",
+    depends: { cell: cell.controller },
+    factory: ({ cell }) => {
+      cell.watch((next, prev) => seen.push([prev, next]));
+      cell.set(0);
+      return cell.get();
+    },
+  });
+  const scope = createScope({ ns: tenant });
+  scope.controller(cell).set(9);
+  expect(scope.resolve(observer)).toBe(0);
+  expect(seen).toEqual([[1, 0]]);
+  expect(scope.resolve(cell)).toBe(9);
+  expect(scope.resolve(cell, { ns: other })).toBe(0);
+  return scope.close();
+});
+
+test.each(["head-first", "chain-first"] as const)(
+  "watchers with one head and different chains compare independently: %s",
+  (order) => {
+    const a = namespace();
+    const b = namespace();
+    const cell = data({ label: "cell", initial: 0, parse: asNumber });
+    const scope = createScope();
+    scope.controller(cell, { ns: b }).set(2);
+    const head = scope.controller(cell, { ns: a });
+    const chain = scope.controller(cell, { ns: [a, b] });
+    const headSeen: [number, number][] = [];
+    const chainSeen: [number, number][] = [];
+    const watchHead = () => head.watch((next, prev) => headSeen.push([next, prev]));
+    const watchChain = () => chain.watch((next, prev) => chainSeen.push([next, prev]));
+    if (order === "head-first") {
+      watchHead();
+      watchChain();
+    } else {
+      watchChain();
+      watchHead();
+    }
+    head.set(1);
+    expect(headSeen).toEqual([[1, 0]]);
+    expect(chainSeen).toEqual([[1, 2]]);
+    return scope.close().then(() => undefined);
+  },
+);
+
 test("a chained watcher compares against the full resolved namespace chain", () => {
   const a = namespace();
   const b = namespace();

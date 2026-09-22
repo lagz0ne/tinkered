@@ -891,10 +891,15 @@ export function preset(node: unknown, replacement: unknown): Scope.Preset {
 type Entry = { value: unknown };
 /** A releasable node: a data cell or a resource. Release cascades from a node to its dependents. */
 type Node = Data.Cell<unknown> | Resource.Handle<unknown>;
-/** One subscription: a wrapper so the same listener subscribed twice keeps two identities. The
- * single per-layer compare lives on the record (`notified`), never here. */
-type Watcher = {
-  fn: (next: unknown, prev: unknown) => void;
+/** One default-bucket subscription: a wrapper so the same listener subscribed twice keeps two
+ * identities. The single per-layer compare lives on the node record (`notified`). */
+type Watcher = { fn: (next: unknown, prev: unknown) => void };
+
+/** One namespaced subscription. Its complete chain and comparison value belong to this watcher:
+ * chains with the same head can resolve differently through their later fallbacks. */
+type NsWatcher = Watcher & {
+  chain: readonly Namespace[];
+  notified: unknown;
 };
 /** An end-hook (`ctx.defer`) tagged with the resource that registered it (undefined = userland
  * `onClose`), so `release` can drop exactly one resource's hooks without touching others. Kept in
@@ -943,9 +948,9 @@ class NodeState {
   /** Named cell buckets at this layer, keyed by namespace (ADR 0059): one `(layer, ns, unit)`
    * bucket per write. Absent until the first namespaced write at this layer. */
   nsCells: Map<Namespace, Entry> | undefined = undefined;
-  /** Watchers of one named bucket at this layer (a named write notifies only that bucket's).
-   * Cross-layer inheritance of named writes is t03. */
-  nsWatchers: Map<Namespace, { ws: Set<Watcher>; notified: unknown }> | undefined = undefined;
+  /** Namespaced watchers at this layer. Each owns its full chain and last observed value because
+   * two chains with the same write head can resolve through different fallback buckets. */
+  nsWatchers: Set<NsWatcher> | undefined = undefined;
 }
 
 /** Get-or-create this layer's record for a node. */
@@ -1190,6 +1195,7 @@ function ownCell(
  * the layer's last notified value, then every watcher runs in registration order. */
 function flushCell(layer: Layer, target: Data.Cell<unknown>): void {
   flushOne(layer, target);
+  flushNsWatchers(layer, target);
   for (const child of layer.children) {
     if (!child.nodes.get(target)?.cell) flushCell(child, target);
   }
@@ -1234,7 +1240,7 @@ function writeCell<T>(
 
 /** A namespaced write lands at `(this layer, first key)` (ADR 0059 decision 3), seeded from the
  * current effective value (write-what-differs). The default bucket and its watchers are untouched;
- * only the named bucket's own watchers flush (cross-layer named inheritance is t03). */
+ * namespaced watchers at this layer re-resolve their own chains (cross-layer inheritance is t03). */
 function writeCellNs(
   layer: Layer,
   target: Data.Cell<unknown>,
@@ -1246,7 +1252,7 @@ function writeCellNs(
   const current = readCell(layer, target, chain);
   if (cellEq(target, current, value)) return;
   ownNsCell(layer, target, chain[0], current).value = value;
-  flushNs(layer, target, chain[0]);
+  flushNsWatchers(layer, target);
 }
 
 /** Get-or-create this layer's named bucket of a cell, seeded from the inherited value. */
@@ -1260,25 +1266,18 @@ function ownNsCell(layer: Layer, target: Data.Cell<unknown>, key: Namespace, see
   return bucket;
 }
 
-/** Notify the watchers of one named bucket at this layer (compare-once, registration order). */
-function flushNs(layer: Layer, target: Data.Cell<unknown>, key: Namespace): void {
-  const rec = layer.nodes.get(target);
-  const entry = rec?.nsWatchers?.get(key);
-  if (entry === undefined || entry.ws.size === 0) return;
-  const bucket = rec?.nsCells?.get(key);
-  flushWatchers(target, entry, bucket?.value);
-}
-
-/** Compare once against the bucket's last notified value, then run its watchers in order. */
-function flushWatchers(
-  target: Data.Cell<unknown>,
-  entry: { ws: Set<Watcher>; notified: unknown },
-  next: unknown,
-): void {
-  const prev = entry.notified;
-  if (cellEq(target, prev, next)) return;
-  entry.notified = next;
-  for (const w of entry.ws) w.fn(next, prev);
+/** Re-resolve every namespaced watcher through its own full chain. A write to one bucket can
+ * change any chain that falls through to it, while another chain with the same head may not change. */
+function flushNsWatchers(layer: Layer, target: Data.Cell<unknown>): void {
+  const watchers = layer.nodes.get(target)?.nsWatchers;
+  if (watchers === undefined || watchers.size === 0) return;
+  for (const watcher of watchers) {
+    const next = readCell(layer, target, watcher.chain);
+    const prev = watcher.notified;
+    if (cellEq(target, prev, next)) continue;
+    watcher.notified = next;
+    watcher.fn(next, prev);
+  }
 }
 
 /** The last value of a tag list (its nearest binding), or undefined for an absent/empty list. */
@@ -1430,9 +1429,9 @@ function dataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataContro
   };
 }
 
-/** The namespaced data controller (ADR 0059): reads and writes route through the layer's ambient
- * or view chain — reads uncached via the one selector, writes at `(this layer, first key)`, and a
- * watch observes the chain-head bucket at this layer (named-watch inheritance is t03). */
+/** The namespaced data controller (ADR 0059): reads, writes, and watches use one explicit chain.
+ * Reads use the shared selector, writes land at `(this layer, first key)`, and each watcher keeps
+ * its own full-chain comparison value (named-watch inheritance across layers is t03). */
 function dataControllerNs<T>(
   layer: Layer,
   target: Data.Cell<T>,
@@ -1447,18 +1446,11 @@ function dataControllerNs<T>(
       writeCell(layer, target, fn(get()), chain);
     },
     watch: (listener: (next: T, prev: T) => void) =>
-      chain.length === 0
-        ? addWatcher(
-            layer,
-            target,
-            nodeState(layer, target),
-            listener as (next: unknown, prev: unknown) => void,
-          )
-        : addWatcherNs(layer, target, chain, listener as (next: unknown, prev: unknown) => void),
+      addWatcherNs(layer, target, chain, listener as (next: unknown, prev: unknown) => void),
   };
 }
 
-/** Register a watcher on one named bucket at this layer; the unwatch fn drops it. */
+/** Register one namespaced watcher with its own chain and current resolved comparison value. */
 function addWatcherNs(
   layer: Layer,
   target: Data.Cell<unknown>,
@@ -1466,18 +1458,10 @@ function addWatcherNs(
   fn: (next: unknown, prev: unknown) => void,
 ): () => void {
   ensureOpen(layer);
-  const key = chain[0];
   const rec = nodeState(layer, target);
-  const map = (rec.nsWatchers ??= new Map());
-  const entry = map.get(key) ?? {
-    ws: new Set<Watcher>(),
-    notified: readCell(layer, target, chain),
-  };
-  if (entry.ws.size === 0) entry.notified = readCell(layer, target, chain);
-  map.set(key, entry);
-  const w: Watcher = { fn };
-  entry.ws.add(w);
-  return () => void entry.ws.delete(w);
+  const watcher: NsWatcher = { fn, chain, notified: readCell(layer, target, chain) };
+  (rec.nsWatchers ??= new Set()).add(watcher);
+  return () => void rec.nsWatchers?.delete(watcher);
 }
 
 function resolveControllerEdge(
