@@ -303,6 +303,26 @@ test("a session-target resource builds once in each namespace and reuses its war
   return scope.close();
 });
 
+test("a resource chain reuses its fallback then switches to a nearer warm bucket", () => {
+  const a = namespace();
+  const b = namespace();
+  let builds = 0;
+  const client = resource({
+    label: "client",
+    target: "session",
+    factory: () => ({ build: ++builds }),
+  });
+  const scope = createScope();
+  const fromB = scope.resolve(client, { ns: b });
+  const chained = scope.controller(client, { ns: [a, b] });
+  expect(chained.resolve()).toBe(fromB);
+  const fromA = scope.resolve(client, { ns: a });
+  expect(chained.resolve()).toBe(fromA);
+  expect(chained.get()).toBe(fromA);
+  expect(builds).toBe(2);
+  return scope.close();
+});
+
 test("namespace clients share one scope-target pool", () => {
   const a = namespace();
   const b = namespace();
