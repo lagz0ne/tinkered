@@ -328,6 +328,40 @@ test("namespace clients share one scope-target pool", () => {
   return scope.close();
 });
 
+test("releaseNs cleans one resource bucket and close drains the buckets left behind", async () => {
+  const a = namespace();
+  const b = namespace();
+  let builds = 0;
+  const ended: string[] = [];
+  const client = resource({
+    label: "client",
+    target: "session",
+    factory: (_deps, ctx) => {
+      const build = ++builds;
+      ctx.defer((end) => void ended.push(`${build}:${end.status}`));
+      return { build };
+    },
+  });
+  const scope = createScope();
+  const plain = scope.resolve(client);
+  const firstA = scope.resolve(client, { ns: a });
+  const firstB = scope.resolve(client, { ns: b });
+  scope.releaseNs(client, a);
+  await scope.settled();
+  expect(ended).toEqual([`${firstA.build}:released`]);
+  const secondA = scope.resolve(client, { ns: a });
+  expect(secondA).not.toBe(firstA);
+  expect(scope.resolve(client, { ns: b })).toBe(firstB);
+  expect(scope.resolve(client)).toBe(plain);
+  await scope.close({ graceful: true });
+  expect(ended).toEqual([
+    `${firstA.build}:released`,
+    `${secondA.build}:success`,
+    `${firstB.build}:success`,
+    `${plain.build}:success`,
+  ]);
+});
+
 test("a scope-target resource is namespace-blind and keeps default storage clean", () => {
   const tenant = tag<string>({ label: "tenant" });
   const named = namespace({ tags: [tenant("named")] });

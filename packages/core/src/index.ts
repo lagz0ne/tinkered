@@ -582,6 +582,9 @@ export declare namespace Scope {
      * watchers; a resource runs its cleanup, drops its instance, and a re-resolve rebuilds
      * a fresh generation (a late build from the released generation never publishes). */
     release(target: Data.Cell<unknown> | Resource.Handle<unknown>): void;
+    /** Release one named data or session-resource bucket now. Resource cleanup receives `released`;
+     * sibling namespace buckets and the default bucket stay live. Scope-target resources ignore it. */
+    releaseNs(target: Data.Cell<unknown> | Resource.Handle<unknown>, ns: Namespace): void;
     /** Register a userland teardown hook, run (LIFO) when this scope closes. */
     onClose(fn: () => void | PromiseLike<void>): void;
     /** The retained span history (bounded by `observe.history`; empty when observation is off). */
@@ -2692,7 +2695,7 @@ type Affected = { node: Node; owner: Layer };
  * before dependencies (ADR 0026), not per-resource grouped at build-completion. */
 function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): void {
   const s = nodeState(owner, target);
-  s.gen = (s.gen ?? 0) + 1;
+  s.gen += 1;
   s.resource = undefined;
   s.promise = undefined;
   s.failed = undefined;
@@ -2710,7 +2713,7 @@ function extractReleasedDefers(
 ): ((end: Scope.End) => void | PromiseLike<void>)[] {
   const released: ((end: Scope.End) => void | PromiseLike<void>)[] = [];
   owner.defers = owner.defers.filter((entry) => {
-    if (entry.resource !== undefined && resources.has(entry.resource)) {
+    if (entry.ns === undefined && entry.resource !== undefined && resources.has(entry.resource)) {
       released.push(entry.fn);
       return false;
     }
@@ -2878,6 +2881,36 @@ function invalidateAffected(order: Affected[], affected: Map<Layer, Released>): 
   }
   for (const [owner, entry] of affected) entry.fns = extractReleasedDefers(owner, entry.resources);
   return dataReleased;
+}
+
+/** Remove one namespace bucket and take only its cleanup hooks. The state generation is bumped
+ * before the map entry is removed, so a late async build cannot publish into the released bucket. */
+function releaseNsBucket(layer: Layer, target: Node, key: Namespace): void {
+  ensureOpen(layer);
+  if (isData(target)) {
+    layer.nodes.get(target)?.nsCells?.delete(key);
+    flushNsWatchers(layer, target);
+    return;
+  }
+  if (target.target === "scope") return;
+  const rec = layer.nodes.get(target);
+  const state = rec?.nsResources?.get(key);
+  if (state === undefined) return;
+  state.gen += 1;
+  state.resource = undefined;
+  state.promise = undefined;
+  state.failed = undefined;
+  state.build = undefined;
+  rec?.nsResources?.delete(key);
+  const fns: ((end: Scope.End) => void | PromiseLike<void>)[] = [];
+  layer.defers = layer.defers.filter((entry) => {
+    if (entry.resource === target && entry.ns === key) {
+      fns.push(entry.fn);
+      return false;
+    }
+    return true;
+  });
+  runDefers(layer, fns, RELEASED);
 }
 
 function addDependent(owner: Layer, node: Node, dependent: Resource.Handle<unknown>): void {
@@ -3733,6 +3766,8 @@ function handleFor(layer: Layer): Scope.Handle {
       return runSession(layer, a, b);
     }) as Scope.Handle["session"],
     release: (target: Data.Cell<unknown> | Resource.Handle<unknown>) => releaseNode(layer, target),
+    releaseNs: (target: Data.Cell<unknown> | Resource.Handle<unknown>, ns: Namespace) =>
+      releaseNsBucket(layer, target, ns),
     spans: () => layer.obs.history.slice(),
     onClose: (fn: () => void | PromiseLike<void>) => {
       ensureOpen(layer);
