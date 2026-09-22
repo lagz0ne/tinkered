@@ -2680,6 +2680,22 @@ function ownNsResource(
   return state;
 }
 
+function hasResourceNs(
+  target: Resource.Handle<unknown>,
+  chain: readonly Namespace[] | undefined,
+): chain is readonly [Namespace, ...Namespace[]] {
+  return target.target === "session" && chain !== undefined && chain.length > 0;
+}
+
+function nsResourceForRead(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  chain: readonly [Namespace, ...Namespace[]],
+): NsResourceState {
+  const [head] = chain;
+  return selectNsResource(owner, target, chain) ?? ownNsResource(owner, target, head);
+}
+
 /** A resource in a `depends` slot (ADR 0044): the built VALUE for sync and async builds alike; a
  * still-building async resource returns its build promise, and a sticky async failure its rejected
  * one — {@link buildDeps} parks either for the caller to await before the body, so the call rejects
@@ -2696,13 +2712,16 @@ function resourceSlot(
   ensureOpen(layer);
   ensureOpen(owner);
   recordUsed(layer.obs, parent, target);
-  if (target.target === "session" && chain !== undefined && chain.length > 0) {
-    const [head] = chain;
-    const state = selectNsResource(owner, target, chain) ?? ownNsResource(owner, target, head);
-    return readResourceState(owner, target, parent, chain, state, head);
+  if (hasResourceNs(target, chain)) {
+    const state = nsResourceForRead(owner, target, chain);
+    return readResourceState(owner, target, parent, chain, state, state.key);
   }
+  if (rec.resource) return rec.resource.value;
+  if (rec.failed) return rec.failed.promise;
+  if (rec.build) return rec.build;
+  if (rec.building) raise("CircularResource", { label: target.label });
   const buildChain = target.target === "scope" ? NO_NAMESPACE : chain;
-  return readResourceState(owner, target, parent, buildChain, rec, undefined);
+  return buildResource(owner, target, parent, buildChain, rec, undefined);
 }
 
 function readResourceState(
