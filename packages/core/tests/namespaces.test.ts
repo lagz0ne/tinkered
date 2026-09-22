@@ -285,6 +285,40 @@ test("pass-through extensions preserve namespaces for writes and resolves", asyn
   await scope.close();
 });
 
+test("invalid input leaves no namespace resource bucket behind", async () => {
+  const tenant = tag<string>({ label: "tenant" });
+  const a = namespace({ tags: [tenant("A")] });
+  const b = namespace({ tags: [tenant("B")] });
+  const ended: string[] = [];
+  const client = resource({
+    label: "client",
+    target: "session",
+    depends: { tenant },
+    factory: ({ tenant }, ctx) => {
+      ctx.defer((end) => void ended.push(`${tenant}:${end.status}`));
+      return tenant;
+    },
+  });
+  const bad = operation({
+    label: "bad",
+    input: () => {
+      throw new Error("bad input");
+    },
+    depends: { client },
+    run: ({ client }) => client,
+  });
+  const scope = createScope();
+  try {
+    scope.run(bad, { rawInput: 1, ns: b });
+  } catch {}
+  expect(scope.resolve(client, { ns: [a, b] })).toBe("A");
+  expect(scope.resolve(client, { ns: b })).toBe("B");
+  scope.releaseNs(client, b);
+  expect(ended).toEqual(["B:released"]);
+  await scope.close({ graceful: true });
+  expect(ended).toEqual(["B:released", "A:success"]);
+});
+
 test("a session-target resource builds once in each namespace and reuses its warm bucket", () => {
   const a = namespace();
   const b = namespace();
@@ -818,6 +852,33 @@ test("a late named resource build cleans up and never fills its released bucket"
   expect(ended).toEqual(["1:released"]);
   expect(scope.resolve(client, { ns: a })).not.toBe(first);
   expect(builds).toBe(2);
+  await scope.close();
+});
+
+test("release supersedes a named build before its late cleanup registers", async () => {
+  const a = namespace();
+  let finish = (): void => undefined;
+  const gate = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const ended: string[] = [];
+  const client = resource({
+    label: "client",
+    target: "session",
+    factory: async (_deps, ctx) => {
+      await gate;
+      ctx.defer((end) => void ended.push(end.status));
+      return {};
+    },
+  });
+  const scope = createScope();
+  const first = scope.resolve(client, { ns: a });
+  scope.release(client);
+  finish();
+  await first;
+  await scope.settled();
+  expect(ended).toEqual(["released"]);
+  expect(scope.resolve(client, { ns: a })).not.toBe(first);
   await scope.close();
 });
 

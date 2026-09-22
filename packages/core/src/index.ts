@@ -2107,11 +2107,10 @@ function operationController<T, I>(
     const override = presetFor(layer, target) as Operation.Handle<T, I>["run"] | undefined;
     /** Hold a borrow across the op's WHOLE lifetime — body settle (or a throw) AND its own `defer`
      * drain — so a release waits for the op's cleanup (which may still touch the resource) before
-     * tearing it down (ADR 0026 Q2). Taken before deps resolve (a dep's factory may release another
-     * dep during resolution), released after the defer drain on BOTH the success and throwing paths.
-     * A fully synchronous op runs and removes the borrow within `run()`, so a later release
-     * sees no borrower and stays sync. */
-    const held = takeBorrows(layer, target, chain);
+     * tearing it down (ADR 0026 Q2). Input is admitted first, so a rejected call never reserves an
+     * empty resource bucket. A fully synchronous op removes the borrow within `run()`, so a later
+     * release sees no borrower and stays sync. */
+    let held: ReturnType<typeof takeBorrows>;
     const releaseBorrow = (): void => {
       if (!held) return;
       for (const b of held.list) removeBorrow(b.state, held.done);
@@ -2132,6 +2131,7 @@ function operationController<T, I>(
     buildDepth++;
     try {
       ctx = new OperationCtx<I>(layer, target, call, obs, span);
+      held = takeBorrows(layer, target, chain);
       const deps = readOpDeps(layer, target, span, sees, chain);
       result = runBody(override, target, deps, ctx, parked);
     } catch (error) {
