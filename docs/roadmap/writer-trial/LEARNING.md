@@ -1,7 +1,8 @@
 # Writer learning loop
 
-Status: MiMo Flash is on the fresh feature.
-MiMo Pro is finishing repair.
+Status: all four repairs pass.
+MiMo Flash fresh-feature fix is in review.
+MiMo Pro is on the fresh feature.
 GLM and DeepSeek pass the stronger behavior checks.
 The final Jev tool checks are in progress.
 Owner: Codex.
@@ -205,3 +206,52 @@ The lead checked and explained them; all other strict counts are zero.
 A fresh agent now has the same frozen rename-series task and rules.
 Its own saved repair is the only app code it starts from.
 No teacher fixes were written into the app.
+
+## MiMo Flash fresh feature needs one fix
+
+Its own 121 tests, type check, and build pass.
+The earlier teacher checks pass too.
+The stronger checks find the clicked-row title bug: 42 of 43 pass.
+After the second occurrence changes from Alpha to Beta,
+Rename series Beta starts with Alpha.
+Source review confirms that opening the editor finds the first series member.
+The required behavior is to use the clicked row's title.
+
+The failed attempt is saved unchanged.
+A fresh agent has only its own failing steps and the existing task rules.
+No app code was edited by the teacher.
+
+## MiMo Pro repair accepted
+
+The resumed repair took about 42 minutes of writer time.
+Its earlier gateway stop took about 66 minutes and changed no source or tests.
+Both attempts stay in the record; the stop was not a trial cap.
+
+The saved repair passes 29 of 29 teacher checks,
+the earlier teacher checks, its own 87 tests, type check, and build.
+The lead read its screen state, actions, view, model, and managed errors.
+The cleared-date case is fixed; unknown errors are rethrown.
+Jev has no view notes and the plain shape check has no findings.
+The six style-scan hits are reads from parsed date or clock text.
+All other strict counts are zero.
+
+A fresh agent now has the same frozen rename-series task and rules.
+All four models have passed the repair stage.
+
+## MiMo Flash fresh feature accepted after one fix
+
+The saved fix passes all 43 teacher checks.
+Its own 122 tests, type check, and build pass.
+The earlier teacher checks pass too.
+The lead read the small change: the row passes its own id,
+and the editor reads that row's title.
+The worker showed the new browser test fail before the fix and pass after it.
+Jev has no view notes, and the plain shape check has no findings.
+The five style hits still read regex match groups; no new strict hits appear.
+Supplied scripts, type settings, and the toolchain link are unchanged.
+
+The first fresh attempt took about 12 minutes; the fix took about 6 minutes.
+With the repair, total writer time was about 108 minutes.
+The failed save and the passing save are both kept.
+Its workspace, project, folder, container, volume, and trust entry are removed.
+MiMo Pro is the only writer still running.
