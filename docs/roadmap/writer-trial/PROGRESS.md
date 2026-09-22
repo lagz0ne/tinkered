@@ -660,5 +660,8 @@ The Jev teacher workspace is removed after its commits were reviewed.
 The main project is untouched.
 
 Proof stays in learn-01/results under the runtime path in LEARNING.md.
-Teacher repo checks still need the acceptance-code lint fixes.
+Teacher repo checks pass: vp check exits 0; 19 shape tests pass.
+The final runner repeats both 29/29 repairs and 43/43 fresh features.
+The old DeepSeek feature still fails only the clicked-row check.
+Both teacher workspaces and branches are removed.
 The live card stays Doing until all four are reviewed and cleaned up.
