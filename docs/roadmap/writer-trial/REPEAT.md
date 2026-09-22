@@ -197,3 +197,15 @@ The corrected original checks pass 44 of 44.
 The added filter-notice check fails, making 44 of 45.
 Choosing Cable after ShortStock leaves the error visible.
 A final fix is queued. GLM is working on its own notice fix.
+
+## GLM final repair accepted
+
+All supplied commands pass, with 36 tests.
+The corrected checks plus filter and typing notice cases pass 46 of 46.
+The lead read the changes: each passing action clears notice.
+GLM is accepted for this task after two repair attempts.
+
+The same added typing case was run on MiMo Flash.
+It fails: ShortStock stays visible after typing Quantity 1.
+Its earlier 45-case result stands, but acceptance is reopened.
+The extra case and finding are saved apart from that score.
