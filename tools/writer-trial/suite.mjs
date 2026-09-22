@@ -1,5 +1,5 @@
 // Suite defs for repeatable writer trials. No side effects on import.
-// Booking grows over rounds 1-5; stock is one fresh round.
+// Booking grows over rounds 1-5; stock and plan are one fresh round each.
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -24,6 +24,11 @@ export const SUITES = {
   stock: {
     rounds: [1],
     tasks: ["stock/01-stock-moves.md"],
+    guidelines: ["guidelines.md"],
+  },
+  plan: {
+    rounds: [1],
+    tasks: ["plan/01-learning-plan.md"],
     guidelines: ["guidelines.md"],
   },
 };
@@ -55,6 +60,10 @@ export const taskFileFor = (suite, round) => {
     if (round !== 1) throw new Error("Suite stock has no round " + round);
     return "01-stock-moves.md";
   }
+  if (suite === "plan") {
+    if (round !== 1) throw new Error("Suite plan has no round " + round);
+    return "01-learning-plan.md";
+  }
   if (!SUITES[suite]) throw new Error(`Unknown suite: ${suite}`);
   const names = {
     1: "01-book-cancel.md",
@@ -72,7 +81,8 @@ export const taskSourcesFor = (suite, round) => {
   if (!SUITES[suite].rounds.includes(round))
     throw new Error(`Suite ${suite} has no round ${round}`);
   if (suite === "booking") return SUITES.booking.tasks.slice(0, round);
-  return [...SUITES.stock.tasks];
+  if (suite === "stock") return [...SUITES.stock.tasks];
+  return [...SUITES.plan.tasks];
 };
 
 export const guidelineSourcesFor = (suite) => {

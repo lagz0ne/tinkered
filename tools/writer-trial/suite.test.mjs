@@ -21,18 +21,21 @@ import {
 } from "./suite.mjs";
 
 void describe("suite defs", () => {
-  void it("defaults old trials to booking, keeps stock single-round", () => {
+  void it("defaults old trials to booking, keeps stock and plan single-round", () => {
     assert.equal(suiteFor({}), "booking");
     assert.deepEqual(roundsFor("booking"), [1, 2, 3, 4, 5]);
     assert.deepEqual(roundsFor("stock"), [1]);
+    assert.deepEqual(roundsFor("plan"), [1]);
     assert.throws(() => roundsFor("nope"), /Unknown suite/);
   });
 
-  void it("grows booking tasks round by round, freezes stock task", () => {
+  void it("grows booking tasks round by round, freezes stock and plan tasks", () => {
     assert.equal(taskSourcesFor("booking", 1).length, 1);
     assert.equal(taskSourcesFor("booking", 5).length, 5);
     assert.deepEqual(taskSourcesFor("stock", 1), ["stock/01-stock-moves.md"]);
+    assert.deepEqual(taskSourcesFor("plan", 1), ["plan/01-learning-plan.md"]);
     assert.throws(() => taskSourcesFor("stock", 2), /no round/);
+    assert.throws(() => taskSourcesFor("plan", 2), /no round/);
   });
 
   void it("keeps booking clauses out of the default rules", () => {
@@ -44,6 +47,7 @@ void describe("suite defs", () => {
     assert.match(base, /useData and runs operations with useRun/);
     assert.doesNotMatch(base, /Worked example|for example/i);
     assert.deepEqual(guidelineSourcesFor("stock"), ["guidelines.md"]);
+    assert.deepEqual(guidelineSourcesFor("plan"), ["guidelines.md"]);
   });
 });
 
@@ -77,6 +81,14 @@ void describe("frozen copies", () => {
       assert.match(readFrozenGuidelines(root, frozen, "booking"), /BadDate/);
       const stock = freezeTrial(stockRoot, "stock");
       assert.match(readFrozenTask(stockRoot, stock, "stock", 1), /Stock moves/);
+      const planRoot = mkdtempSync(join(tmpdir(), "suite-plan-"));
+      try {
+        const plan = freezeTrial(planRoot, "plan");
+        assert.match(readFrozenTask(planRoot, plan, "plan", 1), /Learning plan/);
+        assert.match(readFrozenGuidelines(planRoot, plan, "plan"), /useData and runs operations/);
+      } finally {
+        rmSync(planRoot, { recursive: true, force: true });
+      }
     } finally {
       rmSync(root, { recursive: true, force: true });
       rmSync(stockRoot, { recursive: true, force: true });
@@ -104,8 +116,10 @@ void describe("frozen copies", () => {
 
   void it("names one task file per round, no false round 5 for legacy", () => {
     assert.equal(taskFileFor("stock", 1), "01-stock-moves.md");
+    assert.equal(taskFileFor("plan", 1), "01-learning-plan.md");
     assert.equal(taskFileFor("booking", 5), "05-rename-series.md");
     assert.throws(() => taskFileFor("stock", 2), /no round/);
+    assert.throws(() => taskFileFor("plan", 2), /no round/);
     assert.deepEqual(validRounds({}), [1, 2, 3, 4]);
     assert.deepEqual(
       validRounds({ suite: "booking", frozen: { dir: "f", files: {} } }),

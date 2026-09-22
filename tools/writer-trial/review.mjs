@@ -309,7 +309,7 @@ function checkerEvidence(checker, archive, image) {
   const files = {};
   files[checker.script] = sha(join(here, checker.script));
   // Hash the helpers the runner loads: booking core, browser,
-  // full acceptance pair, or the stock teacher pair.
+  // full acceptance pair, or the stock/plan teacher pair.
   // A missing helper is recorded unavailable, never skipped
   // silently: the teacher run below fails the same way.
   const helpers =
@@ -323,6 +323,8 @@ function checkerEvidence(checker, archive, image) {
             "teacher/check.mjs",
             "teacher/run.mjs",
           ]
+      : checker.script === "plan-acceptance.mjs"
+        ? ["teacher/plan-acceptance.mjs", "teacher/acceptance-shape.mjs"]
         : ["teacher/stock-acceptance.mjs", "teacher/acceptance-shape.mjs"];
   let unavailable = null;
   for (const helper of helpers) {
@@ -416,7 +418,7 @@ function runOwnChecks(archive, image, logPath) {
 // disposable pinned containers. Booking 1-3: evaluate.mjs
 // <archive> <round> <image>. Booking 4-5: acceptance.mjs
 // <archive> <repair|transfer> <image>. Stock: stock-acceptance.mjs
-// <archive> <image-id>. A missing checker script fails
+// <archive> <image-id>. Plan: plan-acceptance.mjs <archive> <image-id>. A missing checker script fails
 // unavailable, never passes.
 function runTeacherChecker(checker, archive, image, logPath) {
   const script = join(here, checker.script);

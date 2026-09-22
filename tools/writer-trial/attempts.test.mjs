@@ -21,7 +21,7 @@ import {
 } from "./attempts.mjs";
 
 void describe("checker routing", () => {
-  void it("uses rounds for booking 1-3, repair, transfer, stock", () => {
+  void it("uses rounds for booking 1-3, repair, transfer, stock, plan", () => {
     assert.deepEqual(checkerFor("booking", 1), {
       script: "evaluate.mjs",
       args: ["1"],
@@ -42,7 +42,12 @@ void describe("checker routing", () => {
       script: "stock-acceptance.mjs",
       args: [],
     });
+    assert.deepEqual(checkerFor("plan", 1), {
+      script: "plan-acceptance.mjs",
+      args: [],
+    });
     assert.throws(() => checkerFor("stock", 2), /No checker/);
+    assert.throws(() => checkerFor("plan", 2), /No checker/);
     assert.throws(() => checkerFor("booking", 6), /No checker/);
   });
 });
