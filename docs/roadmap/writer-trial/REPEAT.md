@@ -164,3 +164,15 @@ Jev gave no notes on the view.
 The run took about 11.5 minutes, excluding its queue wait.
 It needs fixes; speed alone does not earn acceptance.
 GLM has begun a separate repair attempt using only its own findings.
+
+## GLM repair check
+
+Typing now runs through operations.
+All supplied commands pass in a fresh container; 34 tests pass.
+The dependency-folder change is in the archive and has rebuild notes.
+The corrected 44-case probe passes.
+A separate browser check found a missed rule:
+Quantity 99, Move stock, then Cable leaves the ShortStock notice.
+The task says a passing action clears the earlier error.
+This new probe is recorded apart from the original score.
+GLM needs one more fix. MiMo Flash has started its own repair.
