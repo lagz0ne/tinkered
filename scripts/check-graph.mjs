@@ -13,12 +13,9 @@
 //   2. A package that declares operations ships a span-tree test, so the graph is asserted to
 //      produce the trace rather than assumed to.
 //
-// Exit 1 on a violation. NOT yet wired into `pnpm validate`: main has 6 violations today (the
-// baseline graph-v1 exists to clear). It becomes a validate lane the moment it passes — that is
-// the ticket that closes the track.
-//
-//   baseline 2026-09-21: 1 hand-rolled span (http), 5 packages without a span-tree test
-//   (blueprint, harness, http, process, tinkerer).
+// Exit 1 on a violation. A `pnpm validate` lane since graph/t06 — every package clears the bar.
+//   Cleared over graph-v1: http (t02) removed the last hand-rolled span; blueprint, harness,
+//   http, process, and tinkerer each gained a span-tree test (t02-t04b).
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";

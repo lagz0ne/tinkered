@@ -72,7 +72,7 @@ tools already print.
   - [ ] `tinkerer`: one turn over the recorded reply shows
         `coder.turn > coder.step`, and with a tool call the tool operation
         nested beneath.
-- **graph/t05** -- [ ] re-run the census
+- **graph/t05** -- [x] re-run the census
   Blocked by: t04. Record the flag count per package, before and after.
 
 ## The Jev loop every ticket ends with
@@ -143,3 +143,25 @@ One line per ticket: tag -- sha -- tests -- size (B gzip) -- mutation -- Jev fla
   span-tree test asserts the operation tree AND that
   the `thread` resource nests under `send`, which is
   more thorough than http's. `check-graph`: 2 -> 1.
+
+- **graph/t04** -- landed `graph/t04` -- process 25
+  tests, blueprint 80, tracker 54, full suite green
+  -- 82.69 mutation alone. The command sugar goes;
+  a command is a declared operation the author
+  writes, which is also what lets it own its exit
+  code (the blueprint core-feedback row). `jsonLine`
+  exported for the old default output. Writer-built
+  (pi meta-muse), lead resolved an append-only
+  `cases.jsonl` rebase conflict. `check-graph`: 1 -> 0.
+- **graph/t05 + t06** -- see the landing sha --
+  the census and the gate, together.
+  `runForwardsToClosure` across the frame packages:
+  http/harness/process/blueprint all 0; tinkerer
+  5 -> 1 (read/write/edit inlined; bash keeps its
+  spawn helper, labeled false -- it takes plain
+  values, the judge's own false criteria). Then
+  `scripts/check-graph.mjs` became a `pnpm validate`
+  lane: no hand-rolled span outside core, a
+  span-tree test per package that declares
+  operations. The bar the track existed for now
+  fails a regression at the gate, not in review.

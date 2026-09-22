@@ -12,6 +12,9 @@ const lanes = [
   ["deep-chain (no overflow)", `${strip} bench/deep.mjs`],
   ["live-heap-per-request", `node --expose-gc --experimental-strip-types bench/heap.mjs`],
   ["CRAP ceiling", `node scripts/check-crap.mjs ${process.argv[2] ?? 0.6}`],
+  // The graph produces the trace (ADR 0058): no hand-rolled span outside core, and a package
+  // that declares operations ships a span-tree test.
+  ["graph (span-tree per package, no hand-rolled span)", `${strip} scripts/check-graph.mjs`],
   [
     "cast-free examples (0 casts)",
     `bash -c 'test $(grep -rcE "\\\\bas [A-Za-z{(]|\\\\bas unknown|[a-zA-Z0-9_)\\\\]]!" examples/core | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
