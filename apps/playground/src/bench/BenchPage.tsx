@@ -268,6 +268,16 @@ async function runRounds(
   }
 }
 
+function BenchNotice({ error }: { error: string | null }): ReactElement {
+  if (error) return <p className="mt-3 text-sm text-destructive">{error}</p>;
+  return (
+    <p className="mt-8 text-sm text-muted-foreground">
+      Click <b>Run benchmark</b> to measure @tinker/react against Zustand, Jotai, Legend State v2
+      &amp; v3, Preact Signals, a naive React Context baseline, and a plain useState control.
+    </p>
+  );
+}
+
 export function BenchPage(): ReactElement {
   const [results, setResults] = useState<LibResult[] | null>(null);
   const [running, setRunning] = useState(false);
@@ -278,10 +288,11 @@ export function BenchPage(): ReactElement {
     setRunning(true);
     setError(null);
     setResults(null);
+    const samplers: Sampler[] = [];
     try {
       setProgress("Preparing…");
       await nextTick();
-      const samplers = buildLibs().map(prepare);
+      for (const lib of buildLibs()) samplers.push(prepare(lib));
       await runRounds(
         samplers,
         UPDATE_SAMPLES,
@@ -310,6 +321,7 @@ export function BenchPage(): ReactElement {
       if (!isError(err, "HarnessInvariant")) throw err;
       setError(`${err.payload.library}: ${err.payload.reason}`);
     } finally {
+      samplers.forEach(endUpdates);
       setRunning(false);
     }
   };
@@ -337,19 +349,8 @@ export function BenchPage(): ReactElement {
           </Button>
           {running && <span className="text-sm text-muted-foreground">{progress}</span>}
         </div>
-        {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
 
-        {results ? (
-          <ResultsTable results={results} />
-        ) : (
-          !running && (
-            <p className="mt-8 text-sm text-muted-foreground">
-              Click <b>Run benchmark</b> to measure @tinker/react against Zustand, Jotai, Legend
-              State v2 &amp; v3, Preact Signals, a naive React Context baseline, and a plain
-              useState control.
-            </p>
-          )
-        )}
+        {results ? <ResultsTable results={results} /> : !running && <BenchNotice error={error} />}
       </div>
     </div>
   );

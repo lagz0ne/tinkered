@@ -49,6 +49,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Review
 
+- **playground/benchmark-batches** — owner: Codex.
+  Saved: adaptive batches; 59 tests and three browser runs pass.
+  Next: deploy and verify live results.
+
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
 

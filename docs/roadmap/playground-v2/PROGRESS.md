@@ -606,3 +606,45 @@ Its log confirms recreation and startup; the image is healthy.
 The live index hash matches the checked build.
 The same phone reset and reload regression passes live.
 This checks phone-sized Chromium, not a physical Android Edge.
+
+## Benchmark short samples
+
+A 1.90 ms Preact sample stopped the entire benchmark.
+The fixed initial batches could fall below the 2 ms floor.
+Short update, fan-out, and mount batches now grow until
+their combined measured time reaches that floor.
+All timed work counts in the average, including short batches.
+The render-count guards remain in place for every batch.
+Eight attempts bound a timer that never advances.
+Mount cleanup stays outside the timing window.
+Failed runs release their live trees, and the error replaces
+the initial click-to-run prompt.
+
+No existing public signature changed.
+The new measurement function is exported for browser-free
+sampling tests. SCIP indexed the app directly; the shared
+index script covers packages, so it cannot see this app.
+The prior package lookup for measureBatch returned none.
+The app index reports these callers:
+
+```impact playground-benchmark-batches
+measureBatch
+  src/bench/runners.ts: 4
+  src/bench/sampling.ts: 2
+  src/index.ts: 1
+  tests/benchmark.test.ts: 4
+endUpdates
+  src/bench/BenchPage.tsx: 3
+  src/bench/runners.ts: 2
+```
+
+Build and check pass; 59 tests pass.
+With batch growth disabled, the short-timing regressions
+fail (2 failed, 1 passed); with growth, all three pass.
+Three complete phone-sized Chromium benchmark runs pass.
+These runs prove completion, not a library speed claim.
+Style census passes. Advisory view and operation notes
+match the existing benchmark design. The sampler counter
+is measurement state outside the competing stores; moving
+it into Tinker would add Tinker work to every competitor.
+The stateOutsideCell finding is labeled false.

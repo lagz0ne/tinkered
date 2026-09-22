@@ -12,6 +12,7 @@ import { createContext, createElement as h, useContext, useState, type ReactNode
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { raise } from "@/errors.ts";
+import { measureBatch } from "./sampling.ts";
 import { create } from "zustand";
 
 /** In-browser port of bench/react-stores.mjs. N components each subscribe to ONE slice; we update
@@ -355,21 +356,16 @@ export function buildLibs(): Lib[] {
  * of one library always going first. Each sample times a large batch so it sits far above
  * `performance.now()`'s ~100µs clamp; we report the median and IQR across samples. */
 export const UPDATE_SAMPLES = 31;
-/** Updates per sample: the bare-useState control does ~4.7 µs/op, so 400 sat under the 2 ms floor. */
+/** Initial update batch; short samples grow automatically. */
 export const UPDATE_BATCH = 800;
 export const FANOUT_SAMPLES = 31;
-/** A fan-out write commits all N=50 components in ONE flushSync, so its fixed per-commit overhead
- * is amortised over 50 renders instead of 1 — measured well under 50× an update's cost, not well
- * over it. 16 (a naive "50× an update" guess) and even 64 measured below the 2 ms floor for the
- * fastest libraries in-browser; 320 clears it with margin for all of them. */
+/** Initial shared-write batch. Every write must render all N cells synchronously. */
 export const FANOUT_BATCH = 320;
 export const MOUNT_SAMPLES = 21;
-/** N-component mounts per sample: ≥5 ms; at 8, a mount quantised to 12.5 µs steps. */
+/** Initial N-component mount batch; cleanup is outside each timed interval. */
 export const MOUNT_BATCH = 32;
 /** The first rounds of each phase are thrown away. */
 export const DISCARD_ROUNDS = 2;
-/** ≥20× a 100 µs clock clamp; below this a number is quantisation, not timing. */
-const MIN_SAMPLE_MS = 2;
 
 /** LOAD-BEARING: `flushSync` here is what makes the re-render count honest for every library. A
  * sync commit flushes passive effects synchronously, so libraries that subscribe in `useEffect`
@@ -426,57 +422,53 @@ export function prepare(lib: Lib): Sampler {
   return s;
 }
 
-function assertResolvable(lib: Lib, elapsedMs: number): void {
-  if (elapsedMs < MIN_SAMPLE_MS)
-    raise("HarnessInvariant", {
-      library: lib.name,
-      reason: `a ${elapsedMs.toFixed(2)} ms sample is below clock resolution; raise the batch size`,
-    });
-}
-
-/** One batched update sample (ms per update). Guards that every update rendered inside flushSync. */
+/** One update sample, growing short batches while guarding synchronous renders. */
 export function sampleUpdate(s: Sampler): number {
   const { lib } = s;
-  lib.reset();
-  const t0 = performance.now();
-  for (let i = 0; i < UPDATE_BATCH; i++) flushSync(() => lib.update(++s.k % N, s.k));
-  const elapsed = performance.now() - t0;
-  if (lib.renders() < UPDATE_BATCH)
-    raise("HarnessInvariant", {
-      library: lib.name,
-      reason: `${lib.renders()} renders for ${UPDATE_BATCH} updates — not synchronous under flushSync`,
-    });
-  assertResolvable(lib, elapsed);
-  return elapsed / UPDATE_BATCH;
+  return measureBatch(lib.name, UPDATE_BATCH, (count) => {
+    lib.reset();
+    const t0 = performance.now();
+    for (let i = 0; i < count; i++) flushSync(() => lib.update(++s.k % N, s.k));
+    const elapsed = performance.now() - t0;
+    if (lib.renders() < count)
+      raise("HarnessInvariant", {
+        library: lib.name,
+        reason: `${lib.renders()} renders for ${count} updates — not synchronous under flushSync`,
+      });
+    return elapsed;
+  });
 }
 
-/** One batched fan-out sample (ms per shared write). Guards that all N Cells re-rendered — the
- * shared slice's whole point — inside flushSync, exactly like `sampleUpdate` guards one. */
+/** One fan-out sample, requiring all N cells to render for every shared write. */
 export function sampleFanout(s: Sampler): number {
   const { lib } = s;
-  lib.reset();
-  const t0 = performance.now();
-  for (let i = 0; i < FANOUT_BATCH; i++) flushSync(() => lib.updateShared(++s.k));
-  const elapsed = performance.now() - t0;
-  const want = FANOUT_BATCH * N;
-  if (lib.renders() < want)
-    raise("HarnessInvariant", {
-      library: lib.name,
-      reason: `${lib.renders()} renders for ${FANOUT_BATCH} fan-out writes — expected ${want}`,
-    });
-  assertResolvable(lib, elapsed);
-  return elapsed / FANOUT_BATCH;
+  return measureBatch(lib.name, FANOUT_BATCH, (count) => {
+    lib.reset();
+    const t0 = performance.now();
+    for (let i = 0; i < count; i++) flushSync(() => lib.updateShared(++s.k));
+    const elapsed = performance.now() - t0;
+    const want = count * N;
+    if (lib.renders() < want)
+      raise("HarnessInvariant", {
+        library: lib.name,
+        reason: `${lib.renders()} renders for ${count} fan-out writes — expected ${want}`,
+      });
+    return elapsed;
+  });
 }
 
-/** One batched mount sample (ms per N-component mount). */
+/** One mount sample. Every batch releases its roots, outside the timed work, even on failure. */
 export function sampleMount(s: Sampler): number {
-  const roots: Root[] = [];
-  const t0 = performance.now();
-  for (let i = 0; i < MOUNT_BATCH; i++) roots.push(mount(s.lib.App));
-  const elapsed = performance.now() - t0;
-  for (const root of roots) root.unmount();
-  assertResolvable(s.lib, elapsed);
-  return elapsed / MOUNT_BATCH;
+  return measureBatch(s.lib.name, MOUNT_BATCH, (count) => {
+    const roots: Root[] = [];
+    try {
+      const t0 = performance.now();
+      for (let i = 0; i < count; i++) roots.push(mount(s.lib.App));
+      return performance.now() - t0;
+    } finally {
+      for (const root of roots) root.unmount();
+    }
+  });
 }
 
 /** Tear down the live tree once update sampling is over (before any mount rounds). */
