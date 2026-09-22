@@ -239,6 +239,14 @@ test("invalid input rejects before dependencies build", () => {
   return scope.close();
 });
 
+test("an empty namespace chain is rejected", () => {
+  const cell = data({ label: "cell", initial: 0, parse: asNumber });
+  const scope = createScope();
+  expect(() => scope.controller(cell, { ns: [] }).set(8)).toThrow("InvalidDependency");
+  expect(scope.resolve(cell)).toBe(0);
+  return scope.close();
+});
+
 test("a non-namespace ns value is a loud error, not a silent key", () => {
   const cell = data({ label: "cell", initial: 0, parse: asNumber });
   const scope = createScope();

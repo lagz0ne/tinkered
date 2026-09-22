@@ -793,6 +793,8 @@ const isNamespace = (n: unknown): n is Namespace =>
  * silent second key space (ADR 0059: callers pass the value around; they never name one). */
 function nsChainOf(ns: Ns): readonly Namespace[] {
   const chain = Array.isArray(ns) ? ns : [ns];
+  if (chain.length === 0)
+    raise("InvalidDependency", { label: "ns", reason: "empty namespace chain" });
   for (const key of chain) {
     if (!isNamespace(key)) raise("InvalidDependency", { label: "ns", reason: "not a namespace" });
   }
