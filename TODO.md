@@ -23,6 +23,15 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **namespace-v1/t01 ns values** -- ns cells + tags in core; one selector; chain order decided; ambient + inherit; hot path benched. Verify: core gate green, 385 old tests hold, new probes pass. (writer glm-5.3-flash, review astra xhigh) [namespace-v1](docs/roadmap/namespace-v1/PROGRESS.md)
+- **namespace-v1/t02 ns resources + release** -- blocked by t01. session/scope target, releaseNs, borrows by ns.
+- **namespace-v1/t03 ns edges** -- blocked by t01,t02. named watches, retry, .all, full inheritance.
+- **namespace-v1/t04 ns docs** -- blocked by t03. README + ADR 0059 Accepted.
+- **namespace-v1/t05 drizzle onto ns** -- blocked by t03.
+- **namespace-v1/t06 sync family onto ns** -- blocked by t03.
+- **namespace-v1/t07 tinkerer onto ns** -- blocked by t03.
+- **namespace-v1/t08 harness onto ns** -- blocked by t03.
+
 | Card                                                                                                                                                | Owner         | Next                                                                                                                                                            | Verify                                        |
 | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | tests/core-tag-read-split — `tag.read returns each unit's own binding on an operation, a resource, and a tag itself` proves three kinds in one body | lead (Claude) | Split three ways (one kind each) or keep one; it also overlaps `tag.read finds a unit's own binding` next door (the titles writer's delete-not-retitle finding) | one cause per test; core lane ≥ break         |
