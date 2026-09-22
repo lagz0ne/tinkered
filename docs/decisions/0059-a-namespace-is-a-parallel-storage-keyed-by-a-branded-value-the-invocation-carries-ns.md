@@ -111,13 +111,35 @@ Resolve walks the layer chain and the ns chain together; a write lands at `(this
 
 ## Open — decide with a probe before building
 
-- **Refcount release timing.** When exactly a dynamic namespace's storage releases (last borrow
-  settles vs an idle grace like `RcMap`'s `idleTimeToLive`), and whether a resource `defer` in a
-  released namespace runs on release or on layer close. The one place Effect's `RcMap` and our
-  layer-close model differ; needs its own probe.
-- **`ns` chain × session chain order.** Whether resolve walks layers-then-namespaces or the reverse
-  when both are chains; the probe is a cell written at a parent layer in namespace `b` read from a
-  child layer with `ns: [a, b]`.
+A first core spike (branch `probe/ns-spike`, tag `probe/ns-spike-v1`, parked 2026-09-22) proved the
+`ns`-absent paths stay green (385 old tests) but an xhigh review found the two probes are harder than
+a quick answer, and a real build must meet all of the below. These are the acceptance criteria for the
+eventual ticket, not open musings:
+
+- **One bucket selector for cells AND resources.** The spike let them diverge: cells searched named
+  buckets across every layer before any default; resources checked only the chain head at the current
+  layer. They gave different answers for the same `ns: [a, b]`. A correct build routes both through one
+  selector so the order cannot disagree.
+- **The chain order is still a real choice, and the spike guessed.** Its cells made a FAR layer's
+  named bucket beat a NEAR layer's default (namespaces-first), and a test locked that — but the report
+  claimed "layers first". Decide it deliberately (a near default vs a far named write) and prove it
+  with a test that cannot pass under the other order.
+- **Release must not under-wait.** Keying borrows on `(owner, handle)` (not `(owner, ns, handle)`)
+  over-waits, which is safe — but the spike's release ALSO walked the dependency graph in a way that
+  freed a `pool` a live `client` still used (under-wait, a real hole). Release keys on
+  `(owner, ns, handle)` and never frees a bucket a live run holds through its dependency edges.
+- **A scope-target build must not see the `ns` chain.** The spike passed it in, so a tenant's tags
+  leaked into the shared default build (an `ns`-absent read saw `"tenant"`). Scope-target resolves
+  blind to `ns`, always (ADR 0059 decision 8 in code, not just on paper).
+- **Ambient `ns` must be inherited.** A child session, a tagged subflow, an inline op, and an
+  imperative controller all dropped the parent's `ns` in the spike. `createSession({ ns })` must flow
+  down every one of these, or the ambient story (decision 5) does not hold.
+- **Named buckets need their own watches, retries, and `.all`.** A named cell write must notify a
+  named watcher (the spike watched only the default); a synchronous factory failure must not poison a
+  named bucket against retry; `.all` on a tag must not drop repeated bindings for a named read.
+- **The hot path was rewritten, not preserved.** `ns`-absent semantics held, but the spike rebuilt
+  the resolve path rather than branching off it; timing is unverified. A real build keeps the
+  `ns`-absent path byte-for-byte and benches it (the +2 ns budget).
 
 ## Alternatives rejected
 

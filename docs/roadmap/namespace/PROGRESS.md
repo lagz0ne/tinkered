@@ -91,3 +91,25 @@ the case one way. Probe output: `pools built: 1  clients built: 2`.
 One core generalisation (`nodeState` keyed by `(layer, ns, unit)`, the invocation `ns` attribute,
 `namespace()`), then frames drop `label` (retires the ADR 0057 factory-with-label pattern), then the
 A<->B multi-agent example as the golden proof.
+
+## Core spike result 2026-09-22 (branch probe/ns-spike, tag probe/ns-spike-v1, PARKED)
+
+A muse writer built `(layer, ns, unit)` in real core (+703 net lines), 392 core tests green (385 old
+
+- 7 new). An xhigh judge (astra) then found the spike does NOT cleanly answer the two probes -- it
+  has real correctness holes, and its own tests lock a rule the report misstated:
+
+* Chain order: cells search named buckets across ALL layers before defaults; resources check only the
+  chain head at the current layer. They disagree. A test asserts a far named beats a near default
+  (namespaces-first) while the report claimed "layers first". Unresolved -- see ADR 0059 criteria.
+* Release under-waits: the dependency-graph walk freed a `pool` a live `client` still used.
+* Scope-target build saw the `ns` chain -- tenant tags leaked into the shared default (breaks CASE 6
+  in code).
+* Ambient `ns` was dropped by child sessions, tagged subflows, inline ops, and imperative controllers.
+
+Value: the spike de-risked by finding the hard parts. The two open probes are now written as concrete
+acceptance criteria in ADR 0059. The branch stays as a reference; it does NOT land. A real ns ticket
+starts from those criteria, not from this spike's code.
+
+Lesson: probe tests written against a buggy build "prove" the build. The judge caught a test that
+locked the wrong chain order -- run the judge before recording a rule as settled.
