@@ -49,6 +49,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Review
 
+- **playground/reset-button** — owner: Codex.
+  Saved: visible Play reset; 56 tests and phone regression pass.
+  Next: deploy and repeat the saved-session reset on the live site.
+
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
 

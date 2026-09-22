@@ -196,22 +196,22 @@ function ThemeSelect(): ReactElement {
 }
 
 /** Reads nothing, so it never re-renders. */
-function ResetButton(): ReactElement {
+function ResetButton({ compact }: { compact: boolean }): ReactElement {
   const run = useRun(reset);
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
           variant="ghost"
-          size="icon"
-          className="size-11"
+          className={compact ? "size-11 shrink-0 p-0" : "h-11 shrink-0 gap-1.5 px-2"}
           onClick={() => run.run()}
-          aria-label="Reset"
+          aria-label="Reset demo"
         >
           <RotateCcw />
+          {!compact && <span>Reset demo</span>}
         </Button>
       </TooltipTrigger>
-      <TooltipContent>Reset to the starter project</TooltipContent>
+      <TooltipContent>Load the latest starter demo. Replaces saved code edits.</TooltipContent>
     </Tooltip>
   );
 }
@@ -254,9 +254,9 @@ function BottomBar(props: { stage: RefObject<HTMLDivElement | null> }): ReactEle
           <>
             <StatusDot />
             <ThemeSelect />
-            <ResetButton />
           </>
         )}
+        {view !== "bench" && <ResetButton compact={view === "editor"} />}
         {view === "play" && <FullscreenButton stage={props.stage} />}
       </div>
     </div>

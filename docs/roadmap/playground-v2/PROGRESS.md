@@ -582,3 +582,20 @@ No script errors were observed.
 Rollback image: `tinkered-playground:before-playground-2026.09.22`.
 To roll back, tag that image as `tinkered-playground:latest`,
 then redeploy this compose through the Dokploy API.
+
+## Reset demo button
+
+Android Edge feedback: make resetting the saved demo easy.
+Play now shows a text-labeled Reset demo button, at least
+44 pixels tall. Code keeps the compact button.
+Both use the existing Tinker reset operation.
+The tooltip says that saved code edits are replaced.
+
+Phone regression at 390 pixels: seed the old saved Ripples
+project, tap Reset demo, see Tile storm, then reload.
+The new starter stays selected and dirty is false.
+The old release fails at the missing Play reset button.
+The changed build passes, with no sideways scroll or errors.
+Build and check pass; 56 scope tests pass.
+Style census passes. Advisory view findings describe the
+React view components correctly; no model change is needed.
