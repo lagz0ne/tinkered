@@ -788,6 +788,10 @@ export function namespace(options?: { readonly tags?: Tag.Bindings }): Namespace
 const isNamespace = (n: unknown): n is Namespace =>
   (n as { [namespaceSym]?: true } | null | undefined)?.[namespaceSym] === true;
 
+/** An internal, defined no-namespace chain. Unlike `undefined`, it survives default parameters
+ * on the resolution path, so a scope-target resource cannot regain its owner's ambient namespace. */
+const NO_NAMESPACE: readonly Namespace[] = Object.freeze([]);
+
 /** Normalize an authored `ns` to a fallback chain (one key wraps into a one-element chain) and
  * reject anything that is not a namespace — a string or a foreign object is a loud error, not a
  * silent second key space (ADR 0059: callers pass the value around; they never name one). */
@@ -1168,10 +1172,14 @@ function invalidateEff(layer: Layer, target: Data.Cell<unknown>): void {
 }
 
 /** Copy-on-write: get or create this layer's own shadow of a cell, seeded from the inherited value. */
-function ownCell(layer: Layer, target: Data.Cell<unknown>): Entry {
+function ownCell(
+  layer: Layer,
+  target: Data.Cell<unknown>,
+  chain: readonly Namespace[] | undefined,
+): Entry {
   const s = nodeState(layer, target);
   if (!s.cell) {
-    s.cell = { value: readCell(layer, target) };
+    s.cell = { value: readCell(layer, target, chain) };
     invalidateEff(layer, target);
   }
   return s.cell;
@@ -1216,11 +1224,11 @@ function writeCell<T>(
   next: unknown,
   chain: readonly Namespace[] | undefined = layer.ns,
 ): void {
-  if (chain !== undefined) return writeCellNs(layer, target, chain, next);
+  if (chain !== undefined && chain.length !== 0) return writeCellNs(layer, target, chain, next);
   ensureOpen(layer);
   const value = admit(target.label, target.parse, next);
-  if (cellEq(target, readCell(layer, target), value)) return;
-  ownCell(layer, target).value = value;
+  if (cellEq(target, readCell(layer, target, chain), value)) return;
+  ownCell(layer, target, chain).value = value;
   flushCell(layer, target);
 }
 
@@ -1439,7 +1447,14 @@ function dataControllerNs<T>(
       writeCell(layer, target, fn(get()), chain);
     },
     watch: (listener: (next: T, prev: T) => void) =>
-      addWatcherNs(layer, target, chain[0], listener as (next: unknown, prev: unknown) => void),
+      chain.length === 0
+        ? addWatcher(
+            layer,
+            target,
+            nodeState(layer, target),
+            listener as (next: unknown, prev: unknown) => void,
+          )
+        : addWatcherNs(layer, target, chain[0], listener as (next: unknown, prev: unknown) => void),
   };
 }
 
@@ -2601,7 +2616,7 @@ function resourceSlot(
   if (rec.failed) return rec.failed.promise;
   if (rec.build) return rec.build;
   if (rec.building) raise("CircularResource", { label: target.label });
-  const buildChain = target.target === "scope" ? undefined : chain;
+  const buildChain = target.target === "scope" ? NO_NAMESPACE : chain;
   return buildResource(owner, target, parent, buildChain);
 }
 

@@ -299,6 +299,21 @@ test("a scope-target resource is namespace-blind and keeps default storage clean
   return scope.close();
 });
 
+test("an ambient namespace cannot enter a scope-target resource build", () => {
+  const tenant = tag<string>({ label: "tenant" });
+  const named = namespace({ tags: [tenant("named")] });
+  const shared = resource({
+    label: "ambient-shared",
+    target: "scope",
+    depends: { tenant },
+    factory: ({ tenant }) => tenant,
+  });
+  const scope = createScope({ ns: named, tags: [tenant("default")] });
+  expect(scope.resolve(shared)).toBe("default");
+  expect(scope.resolve(shared)).toBe("default");
+  return scope.close();
+});
+
 test("invalid input rejects before dependencies build", () => {
   let builds = 0;
   const dep = resource({ label: "dep", factory: () => ++builds });
