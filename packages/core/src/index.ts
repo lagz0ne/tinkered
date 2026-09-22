@@ -1299,7 +1299,7 @@ function tagFindNs(
   const hit = selectBucket(
     layer,
     chain,
-    (cur, key) => nsTagBinding(key, target),
+    (cur, key) => (cur.parent === undefined ? nsTagBinding(key, target) : undefined),
     (cur) => topTag(cur.tags?.get(target)),
   );
   if (hit) return hit;
@@ -1333,21 +1333,23 @@ function tagAll(
   return out;
 }
 
-/** A namespaced `.all`: the chain's bindings nearest-first (chain head first), then the layers'. */
+/** A namespaced `.all` follows the same layers-first walk as cell selection. */
 function tagAllNs(
   layer: Layer,
   target: Tag.Handle<unknown>,
   chain: readonly Namespace[],
 ): unknown[] {
   const out: unknown[] = [];
-  for (const key of chain) {
-    const bindings = key.tags;
-    for (let i = bindings.length - 1; i >= 0; i--) {
-      const binding = bindings[i] as Tag.Binding<unknown>;
-      if (binding.tag === target) out.push(binding.value);
-    }
-  }
   for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
+    if (cur.parent === undefined) {
+      for (const key of chain) {
+        const bindings = key.tags;
+        for (let i = bindings.length - 1; i >= 0; i--) {
+          const binding = bindings[i] as Tag.Binding<unknown>;
+          if (binding.tag === target) out.push(binding.value);
+        }
+      }
+    }
     const list = cur.tags?.get(target);
     if (list) for (let i = list.length - 1; i >= 0; i--) out.push(list[i]);
   }

@@ -101,6 +101,20 @@ test("a child's own default write shadows a parent's namespaced write (layers-fi
   return scope.close();
 });
 
+test("tags and cells both use layers-first chain order", () => {
+  const value = tag<number>({ label: "value" });
+  const far = namespace({ tags: [value(99)] });
+  const cell = data({ label: "cell", initial: 0, parse: asNumber });
+  const scope = createScope();
+  scope.controller(cell, { ns: far }).set(99);
+  const child = scope.createSession({ tags: [value(7)] });
+  child.controller(cell).set(7);
+  expect(child.resolve(cell, { ns: far })).toBe(7);
+  expect(child.resolve(value, { ns: far })).toBe(7);
+  expect(child.resolve(value.all, { ns: far })).toEqual([7, 99]);
+  return scope.close();
+});
+
 test("a child session inherits the parent's ambient ns; its own ns replaces it", () => {
   const model = tag<string>({ label: "model" });
   const muse = namespace({ tags: [model("claude")] });
