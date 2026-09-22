@@ -4,13 +4,23 @@ Live at <https://playground.tini.works>. An in-browser playground for `@tinker/c
 and the **golden example** of an app built on them: every effect is a resource, every user action is
 an operation, and the view only reads cells and runs operations ([ADR 0049](../../docs/decisions/0049-the-playground-is-the-golden-example-every-effect-a-resource-every-action-an-operation.md)).
 
-Two views, toggled in the bottom bar:
+Three views share one running game:
 
-- **Editor** — a multi-file project compiled in the tab by esbuild-wasm and rendered live in a preview
-  iframe. The default project, _Ripples_, is a tile game written the same way as the shell.
-- **Benchmark** — `@tinker/react` against Zustand, Jotai, Legend State v2/v3, Preact Signals, a naive
-  React Context baseline and a bare `useState` control, every competitor in its source-audited best
-  configuration, interleaved sampling, median ± IQR.
+- **Play** opens first. Press a solid tile to raise a wave.
+  Turn the board, start or stop a storm, and change wave
+  height, speed, or the time between storm presses.
+  Clear removes waves and stops the storm.
+- **Code** lets you read and edit the example files.
+  The real core and React source is available to read.
+- **Benchmark** compares `@tinker/react` with Zustand,
+  Jotai, Legend State v2/v3, Preact Signals, React Context,
+  and `useState`.
+
+Full screen shows only the game and an exit button.
+If the browser refuses full screen, the game fills the page.
+Escape also leaves this mode when the game has focus.
+Changing views or full-screen mode keeps the game alive.
+Editing and rebuilding the example starts a new preview.
 
 ## Run it
 
@@ -36,7 +46,7 @@ src/services.ts   effect resources: persistence, bundler (debounced on the ambie
 src/errors.ts     the error registry (InvalidInput, CompileFailed, HarnessInvariant)
 src/App.tsx       the view: components read exactly the cells they render, run operations, hold no effects
 src/bench/        the benchmark runners (one documented function per audited library) and page
-example/          the default project (Ripples) as real modules — type-checked, loaded into the editor as text
+example/          the default project (Tile storm) as real modules — type-checked, loaded into the editor as text
 tests/            the scope-level suite: a Map-backed `storage` tag, a preset `compiler`, a test clock — no React
 ```
 
@@ -46,8 +56,27 @@ consumer calls; a keystroke re-renders nothing but what changed. `src/` and `tes
 style census; `example/` is consumer code in the consumer idiom, like the repo's `examples/`.
 
 ```bash
-vp run playground#test                    # 19 tests, all against the scope
+vp run playground#test                    # tests through a scope
 ```
+
+## Game tests without a browser
+
+`example/index.ts` exports the game state and actions.
+A test creates a scope and binds `frames` to a hand-run
+queue. `makeTestClock` supplies time; `random` supplies
+repeatable storm targets and hues. No DOM or global
+replacement is needed.
+
+The tests prove these game promises:
+
+- A press returns its hue and sends a rising wave outward.
+- Live height settings change tile lift.
+- Clear removes waves and stops the storm.
+- Storm presses use the chosen time gap, including changes
+  made while the storm runs.
+- Turns move toward each new heading, past a full circle.
+- Closing the scope cancels the frame loop.
+- Bad action inputs fail through the error registry.
 
 ## Deploy
 

@@ -244,3 +244,25 @@ Its commit-message warning was checked against the code
 and tests; it adds no code finding. The lift-test title
 names the wave motion it proves, so its vague-title hit
 was labeled false. Calibration was run and saved.
+
+## Impact rows for review
+
+These rows name the known files for the changed game API.
+The earlier raw tables remain the before-code evidence.
+Tests now call the same public actions as the view.
+
+```impact playground/tsunami
+playground press. example/engine.ts example/Tile.tsx tests/engine.test.ts
+playground clear. example/engine.ts example/App.tsx tests/engine.test.ts
+playground physics. example/state.ts example/engine.ts example/App.tsx
+playground setPhysics. example/engine.ts example/App.tsx tests/engine.test.ts
+playground setStorm. example/engine.ts example/App.tsx tests/engine.test.ts
+playground turn. example/engine.ts example/App.tsx tests/engine.test.ts
+playground angle. example/state.ts example/engine.ts example/App.tsx tests/engine.test.ts
+playground stormOn. example/state.ts example/engine.ts example/App.tsx tests/engine.test.ts
+playground ticker. example/engine.ts example/App.tsx example/main.tsx tests/engine.test.ts
+```
+
+```impact playground/page
+playground setView. src/actions.ts src/App.tsx
+```
