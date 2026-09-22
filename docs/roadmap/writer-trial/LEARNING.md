@@ -1,6 +1,6 @@
 # Writer learning loop
 
-Status: two repairs saved and checked; two writers still running.
+Status: two fresh-feature writers and two repair writers are running.
 The stronger teacher checks are still in progress.
 Owner: Codex.
 User asked to keep looping until all four follow our code pattern.
@@ -92,3 +92,15 @@ This matches the tracker's main state and action pattern.
 It does not yet count as full acceptance.
 The stronger checks and fresh feature are still required.
 Saved evidence lives under learn-01/results/repair-1.
+
+## Fresh feature started
+
+GLM and DeepSeek now have fresh agents for the rename-series task.
+They keep their own saved code, with no repair chat or worked solution.
+Their tool copy stays fixed, as it did during repair.
+The shared rules now make clear that useRun.error can supply a message.
+
+Both repair archives are saved before this work starts.
+The stronger checks can run beside the new work.
+Neither stage is accepted until those checks and source review pass.
+This avoids making the writers wait for the teacher tool changes.

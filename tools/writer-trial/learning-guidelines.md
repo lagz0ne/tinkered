@@ -15,6 +15,8 @@ Do not seek examples, other apps, other writers, or teacher checks.
   Typing updates the cell that owns that draft.
 - React reads cells with useData and runs operations with useRun.
   Use the public hook types supplied with the packages.
+  A message read from useRun.error is allowed.
+  Do not copy it into separate React state.
 - Do not use useState, useReducer, useRef, useEffect,
   or useLayoutEffect for this app.
   Do not hide the same pattern behind a custom hook.
