@@ -11,6 +11,15 @@ import { homedir } from "node:os";
 import { resolve, join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import {
+  freezeTrial,
+  readFrozenGuidelines,
+  readFrozenTask,
+  readFrozenToolPath,
+  suiteFor,
+  taskRounds,
+  verifyFrozen,
+} from "./suite.mjs";
 const here = fileURLToPath(new URL(".", import.meta.url));
 const repo = resolve(here, "../..");
 const home = join(homedir(), ".local/share/tinker-writer-trial");
@@ -23,14 +32,17 @@ const run = (bin, args) =>
   execFileSync(bin, args, { encoding: "utf8", timeout: 120000, maxBuffer: 8e6 });
 const save = (manifest) => writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
 if (action === "create") {
+  const suite = process.argv.includes("--suite")
+    ? process.argv[process.argv.indexOf("--suite") + 1]
+    : "booking";
+  if (!["booking", "stock"].includes(suite))
+    throw new Error("Use --suite booking or --suite stock");
   if (existsSync(manifestPath)) throw new Error("Trial already exists; inspect its manifest");
   mkdirSync(root, { recursive: true, mode: 0o700 });
-  const jevDir = join(root, "jev");
-  mkdirSync(jevDir);
-  for (const file of ["lib.mjs", "bank.mjs", "extract.mjs", "calibration.json", "package.json"])
-    copyFileSync(join(repo, "tools/jev", file), join(jevDir, file));
-  if (existsSync(join(repo, "tools/jev", "shape.mjs")))
-    copyFileSync(join(repo, "tools/jev", "shape.mjs"), join(jevDir, "shape.mjs"));
+  // Suite copies are the only source of staged rules, task, and tools.
+  // Nothing here reads the mutable repo after this point.
+  const frozen = freezeTrial(root, suite);
+  const jevDir = join(root, "frozen/jev");
   symlinkSync(join(repo, "tools/jev/node_modules"), join(jevDir, "node_modules"));
   const manifest = {
     name,
@@ -38,6 +50,8 @@ if (action === "create") {
     sourceCommit: run("git", ["-C", repo, "rev-parse", "HEAD"]).trim(),
     image: run("docker", ["image", "inspect", config.image, "--format", "{{.Id}}"]).trim(),
     phase: "readiness",
+    suite,
+    frozen,
     workers: [],
   };
   save(manifest);
@@ -138,10 +152,8 @@ if (action === "create") {
       join(seed, "index.html"),
       '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>\n',
     );
-    writeFileSync(
-      join(seed, "GUIDELINES.md"),
-      "# Worker rules\n\nUse only core and React from Tinker.\nUse core cells for app state and operations for rules.\nReact reads cells and runs actions.\nUse managed errors; validate user input at the boundary.\nUse strict TypeScript; no casts to hide errors or mocks.\nWrite behavior tests. Run check, test, and build.\nAsk Jev about changed source and tests before submitting.\nFix each finding or explain why it stays.\nDo not change supplied checks or their settings.\nDo not read outside examples or other submissions.\nNo app examples or worked code are supplied.\nPublic API declarations are in node_modules/@tinker/{core,react}/dist/index.d.mts.\nReport check commands, results, and remaining issues.\n",
-    );
+    // Seeds stage the full tested rules, not the old short text.
+    writeFileSync(join(seed, "GUIDELINES.md"), readFrozenGuidelines(root, frozen, suite));
     writeFileSync(
       join(seed, "TASK.md"),
       "# Readiness only\n\nNo scored task has started.\nFollow the teacher's small tool check, then stop.\n",
@@ -164,8 +176,9 @@ if (action === "create") {
       "-qm",
       "Blank starter; no example code",
     ]);
-    for (const file of ["extension.mjs", "broker.mjs"])
-      copyFileSync(join(here, file), join(ext, file === "extension.mjs" ? "index.mjs" : file));
+    // Tool copies stay frozen: create must not read the repo.
+    copyFileSync(readFrozenToolPath(root, frozen, "extension.mjs"), join(ext, "index.mjs"));
+    copyFileSync(readFrozenToolPath(root, frozen, "broker.mjs"), join(ext, "broker.mjs"));
     writeFileSync(
       join(ext, "package.json"),
       '{"type":"module","pi":{"extensions":["./index.mjs"]}}\n',
@@ -222,8 +235,11 @@ if (action === "create") {
   }
 } else if (action === "stage") {
   const round = Number(process.argv[4]);
-  if (![1, 2, 3, 4].includes(round)) throw new Error("Stage needs round 1, 2, 3, or 4");
   const manifest = JSON.parse(readFileSync(manifestPath));
+  // Old trials have no suite: keep rounds 1-4 working as before.
+  const suite = suiteFor(manifest);
+  const valid = taskRounds(suite);
+  if (!valid.includes(round)) throw new Error(`Stage needs round ${valid.join(", ")} for ${suite}`);
   if (manifest.round && round !== manifest.round + 1) throw new Error("Stage the next round only");
   if (
     manifest.round &&
@@ -231,11 +247,14 @@ if (action === "create") {
       (manifest.phase === "completion" && manifest.exportedPhase !== "completion"))
   )
     throw new Error("Export the previous round before staging the next");
-  const packets = ["01-book-cancel.md", "02-edit.md", "03-series.md", "04-undo.md"];
-  const task = packets
-    .slice(0, round)
-    .map((file) => readFileSync(join(here, "packets", file), "utf8"))
-    .join("\n\n---\n\n");
+  // Staging reads frozen copies only, never the mutable repo.
+  if (manifest.frozen) verifyFrozen(root, manifest.frozen);
+  const task = manifest.frozen
+    ? readFrozenTask(root, manifest.frozen, suite, round)
+    : ["01-book-cancel.md", "02-edit.md", "03-series.md", "04-undo.md"]
+        .slice(0, round)
+        .map((file) => readFileSync(join(here, "packets", file), "utf8"))
+        .join("\n\n---\n\n");
   const taskFile = join(root, "current-task.md");
   writeFileSync(taskFile, task);
   for (const w of manifest.workers) {
@@ -243,8 +262,19 @@ if (action === "create") {
     run("docker", ["start", w.container]);
     run("docker", ["cp", taskFile, `${w.container}:/work/TASK.md`]);
     const ext = join(w.dir, ".pi/extensions/trial");
-    for (const file of ["extension.mjs", "broker.mjs"])
-      copyFileSync(join(here, file), join(ext, file === "extension.mjs" ? "index.mjs" : file));
+    if (manifest.frozen) {
+      copyFileSync(
+        readFrozenToolPath(root, manifest.frozen, "extension.mjs"),
+        join(ext, "index.mjs"),
+      );
+      copyFileSync(
+        readFrozenToolPath(root, manifest.frozen, "broker.mjs"),
+        join(ext, "broker.mjs"),
+      );
+    } else {
+      for (const file of ["extension.mjs", "broker.mjs"])
+        copyFileSync(join(here, file), join(ext, file === "extension.mjs" ? "index.mjs" : file));
+    }
     const cfgPath = join(ext, "worker.json");
     const cfg = JSON.parse(readFileSync(cfgPath));
     cfg.limits = config.limits;
