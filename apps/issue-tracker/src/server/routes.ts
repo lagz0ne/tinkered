@@ -1,6 +1,6 @@
 import type { Context, ErrorHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { operation, type Observe } from "@tinker/core";
+import { LEVELS, operation, type Observe } from "@tinker/core";
 import { route, stream, type HonoScope } from "@tinker/hono";
 import { isError } from "../errors.ts";
 import { readCapability, startDraft } from "./draft.ts";
@@ -21,6 +21,7 @@ export function reportUnmapped(observe: Observe.Config | undefined): ErrorHandle
     if (error instanceof HTTPException) return error.getResponse();
     observe?.log?.({
       time: observe.clock?.() ?? Date.now(),
+      level: LEVELS.error,
       message: "request failed",
       attributes: { method: c.req.method, path: c.req.path, ...describeError(error) },
       span: undefined,
@@ -123,7 +124,7 @@ export const issueRoutes: readonly HonoScope.Row[] = [
         try {
           const ended = await opened.origin.connect(wire);
           if (ended.status === "failed")
-            ctx.log("sync wire failed", { client: id, ...describeError(ended.error) });
+            ctx.log.error("sync wire failed", { client: id, ...describeError(ended.error) });
         } finally {
           close();
         }

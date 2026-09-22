@@ -120,20 +120,37 @@ export declare namespace Observe {
     readonly attributes: Record<string, unknown>;
     readonly events: Event[];
   };
-  /** A log line, carrying the span it was written under (if any). */
+  /** Where a log line sits on pino's numeric scale — higher is more severe, so a sink filters
+   * with a single `>=`. The four named rungs are `LEVELS` (`debug` 20, `info` 30, `warn` 40,
+   * `error` 50); a value is a number, so an intermediate rung is legal without a new name. */
+  export type Level = number;
+  /** A log line, carrying the level it was written at and the span it was written under (if any). */
   export type Log = {
     readonly time: number;
+    readonly level: Level;
     readonly message: string;
     readonly attributes: Record<string, unknown>;
     readonly span: Span | undefined;
   };
+  /** The ambient `log` capability on a ctx. The bare call logs at `info`; the four methods pick a
+   * rung. Every method takes the same `(message, attributes?)`, so a swapped backend reads the
+   * level off `Log.level` and colors or drops on it — `ctx.log("db query", { sql })` is unchanged. */
+  export type Logger = {
+    (message: string, attributes?: Record<string, unknown>): void;
+    debug(message: string, attributes?: Record<string, unknown>): void;
+    info(message: string, attributes?: Record<string, unknown>): void;
+    warn(message: string, attributes?: Record<string, unknown>): void;
+    error(message: string, attributes?: Record<string, unknown>): void;
+  };
   /** Seeded on a scope; every switch is independent. Off (absent, or no `export`/`history`)
-   * costs one boolean and allocates no spans. `clock` is injected for deterministic tests. */
+   * costs one boolean and allocates no spans. `clock` is injected for deterministic tests.
+   * `level` is the drop threshold: a line below it never reaches `log` (default: keep all). */
   export type Config = {
     readonly clock?: () => number;
     readonly export?: (span: Span) => void;
     readonly history?: number;
     readonly log?: (entry: Log) => void;
+    readonly level?: Level;
   };
   /** The observation receiver on a ctx: the current span, plus manual span/event openers. */
   export type Ctx = {
@@ -142,6 +159,10 @@ export declare namespace Observe {
     child<T>(name: string, fn: (span: Span | undefined) => T): T;
   };
 }
+
+/** The four named rungs of `Observe.Level`, on pino's scale. Producer methods (`ctx.log.warn`)
+ * and a sink share this one source: `if (entry.level >= LEVELS.warn) ...`. */
+export const LEVELS = { debug: 20, info: 30, warn: 40, error: 50 } as const;
 
 export declare namespace Clock {
   /** The ambient time source carried on every ctx (`ctx.clock`). Default is the system clock;
@@ -181,7 +202,7 @@ export declare namespace Operation {
     readonly signal: AbortSignal;
     readonly defer: (fn: (end: Scope.End) => void | PromiseLike<void>) => void;
     readonly obs: Observe.Ctx;
-    readonly log: (message: string, attributes?: Record<string, unknown>) => void;
+    readonly log: Observe.Logger;
     readonly clock: Clock.Handle;
   };
 
@@ -207,7 +228,7 @@ export declare namespace Resource {
     readonly defer: (fn: (end: Scope.End) => void | PromiseLike<void>) => void;
     readonly signal: AbortSignal;
     readonly obs: Observe.Ctx;
-    readonly log: (message: string, attributes?: Record<string, unknown>) => void;
+    readonly log: Observe.Logger;
     readonly clock: Clock.Handle;
   };
 
@@ -1194,10 +1215,17 @@ type Obs = {
   historyMax: number;
   history: Observe.Span[];
   log: ((entry: Observe.Log) => void) | undefined;
+  level: number;
   nextId: number;
 };
 
-const OFF_LOG = (): void => undefined;
+const OFF_LOG_FN = (): void => undefined;
+const OFF_LOG: Observe.Logger = Object.assign(OFF_LOG_FN, {
+  debug: OFF_LOG_FN,
+  info: OFF_LOG_FN,
+  warn: OFF_LOG_FN,
+  error: OFF_LOG_FN,
+});
 const OFF_OBS: Observe.Ctx = {
   span: undefined,
   event: () => undefined,
@@ -1285,6 +1313,7 @@ const DEFAULT_OBS: Obs = {
   historyMax: 0,
   history: [],
   log: undefined,
+  level: 0,
   nextId: 1,
 };
 
@@ -1299,6 +1328,7 @@ function makeObs(config: Observe.Config | undefined): Obs {
     historyMax,
     history: [],
     log: c.log,
+    level: c.level ?? 0,
     nextId: 1,
   };
 }
@@ -1379,14 +1409,20 @@ function obsCtx(obs: Obs, span: Observe.Span | undefined): Observe.Ctx {
   };
 }
 
-function logFor(
-  obs: Obs,
-  span: Observe.Span | undefined,
-): (message: string, attributes?: Record<string, unknown>) => void {
+function logFor(obs: Obs, span: Observe.Span | undefined): Observe.Logger {
   const sink = obs.log;
   if (!sink) return OFF_LOG;
-  return (message, attributes) =>
-    isolate(() => sink({ time: obs.clock(), message, attributes: attributes ?? {}, span }));
+  const min = obs.level;
+  const at = (level: number) => (message: string, attributes?: Record<string, unknown>) => {
+    if (level < min) return;
+    isolate(() => sink({ time: obs.clock(), level, message, attributes: attributes ?? {}, span }));
+  };
+  return Object.assign(at(LEVELS.info), {
+    debug: at(LEVELS.debug),
+    info: at(LEVELS.info),
+    warn: at(LEVELS.warn),
+    error: at(LEVELS.error),
+  });
 }
 
 function recordUsed(
@@ -1562,7 +1598,7 @@ class OperationCtx<I> implements Operation.Ctx<I> {
   readonly rawInput: unknown;
   readonly input: I;
   readonly obs: Observe.Ctx;
-  readonly log: (message: string, attributes?: Record<string, unknown>) => void;
+  readonly log: Observe.Logger;
   readonly clock: Clock.Handle;
   constructor(
     owner: Layer,
@@ -1834,7 +1870,7 @@ class ResourceCtx implements Resource.Ctx {
   private superseded: () => boolean;
   readonly label: string;
   readonly obs: Observe.Ctx;
-  readonly log: (message: string, attributes?: Record<string, unknown>) => void;
+  readonly log: Observe.Logger;
   readonly clock: Clock.Handle;
   constructor(
     owner: Layer,

@@ -26,7 +26,7 @@ export function publishAfterCommit(): Scope.Extension<void> {
             try {
               await publish.run();
             } catch (error) {
-              ctx.log("publish failed", describeError(error));
+              ctx.log.error("publish failed", describeError(error));
             }
           },
         });
