@@ -533,3 +533,13 @@ five agents were archived; all three directories were removed.
 The visual writer's two unstaged files were checked byte for
 byte against committed `c070795` before removal. Nothing
 unique was discarded. This working checkout is retained.
+
+Advisory follow-up: preflight found no file-level issue.
+The component notes correctly identify React views.
+The quarter-turn constant is game behavior, not caller
+configuration. Frame cancellation and watch cleanup are
+both owned by `defer`; those two findings were labeled false.
+The slow-wave and eased-turn titles name the measured
+outcomes, so their title findings were labeled false too.
+The older wave title already has a false label on record.
+Calibration was run and saved with the new review labels.
