@@ -23,9 +23,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **namespace-v1/t01 ns values** -- ns cells + tags in core; one selector; chain order decided; ambient + inherit; hot path benched. Verify: core gate green, 385 old tests hold, new probes pass. (writer glm-5.3-flash, review astra xhigh) [namespace-v1](docs/roadmap/namespace-v1/PROGRESS.md)
-- **namespace-v1/t02 ns resources + release** -- blocked by t01. session/scope target, releaseNs, borrows by ns.
-- **namespace-v1/t03 ns edges** -- blocked by t01,t02. named watches, retry, .all, full inheritance.
+- **namespace-v1/t03 ns edges** -- blocked by t02a. named watches, retry, .all, full inheritance.
 - **namespace-v1/t04 ns docs** -- blocked by t03. README + ADR 0059 Accepted.
 - **namespace-v1/t05 drizzle onto ns** -- blocked by t03.
 - **namespace-v1/t06 sync family onto ns** -- blocked by t03.
@@ -42,7 +40,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 | Card | Owner | Next | Verify |
 
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| graph/v1 — a step worth seeing is an operation; a frame supplies units and never builds the author's operation (ADR 0058) | lead (Claude) | ADR + [track](docs/roadmap/graph-v1/PROGRESS.md) written from the grill. Starting census: Jev flags 33/175 units; 1 hand-rolled `obs.child`, 2 `span.attributes`, 8 log lines re-deriving `ms`. Next: `graph/t01` (core's gated log line, benched) then `t02` http | each ticket: gate EXIT 0; a span-tree test lands with the change; mutation alone ≥ 75; Jev flags fall, recorded per package |
+| namespace-v1/t02a — ns resource BUILD: session-target keyed (owner, ns, handle), scope-target ns-blind, warm cache per ns, data-dep links the read's entry; NO releaseNs | writer sol (pi codex gpt-5.6-sol high), relaunched into `../tinkered-nsv1-t02a` after the first writer's session closed at `58968e4`; lead verifies, astra xhigh judges | finish the brief's remaining items on top of `58968e4`, then astra review | core gate EXIT 0; 385 old + t01 tests hold; five probes pass; `core#mutate` alone ≥ 85 |
 | blueprint/v1 — `packages/blueprint`: a self-contained binary that judges a YAML blueprint of tinker units with Jev over question templates shipped in the package; built on `@tinker/core` + `@tinker/cli` (ADR 0052) | lead (Claude, session blueprint); next contributor for t04 | t01–t03 landed (34 tests, 7155 B gzip, mutation 75.09 alone; one real Jev run: 7 provisional findings on the example; [track](docs/roadmap/blueprint-v1/PROGRESS.md#landed)). Next: the t04 brief (evals, `status: proven`, reword `needsDefer` and `whyUnfulfilled`) to one contributor in `../tinkered-blueprint-t04` off `origin/main` | t01–t05 in the track; `blueprint check <file>` prints one line per plain check and per (node, template); evals gate which hits may block; `vp check` clean; mutation alone ≥ 75; no import from `tools/jev` |
 | docs/core-promises — a `Promises` appendix in the core README, one line per seam-test promise, grouped by unit | lead (Claude); contributor in `../tinkered-core-promises` (launched ~03:55 UTC) | Decision (user, 2026-09-21): an appendix, not prose — 151 gaps do not fit the sections; `promises.mjs core` is the check | `promises.mjs core` confident gaps → under 20; README-only diff |
 | tests/core-many-causes — the 31 core test flags: split, delete, or explain | lead (Claude); contributor in `../tinkered-core-tests` (launched ~03:50 UTC) | `tests.mjs core`: 18 manyCauses, 4 typeGuarantee, 4 helperAlone, 4 negativeTwin, 3 pairs, 1 `Object.isFrozen`; act on each, label each; core lane alone ≥ 75 | flags gone or explained; 270 → N tests each naming one promise; core mutation alone ≥ 75 |
@@ -54,10 +52,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Blocked
 
+- **namespace-v1/t02b ns resource release** — blocked by t02a. `releaseNs` + its borrow/cleanup lifetime, redesigned from tag `namespace-v1/t02-release-ref` (5/6 review findings fixed there; N5 needs a cleanup-completion mechanism; mutation 84.71 < 85). Next once t02a lands: design the cleanup-completion order, then a writer.
+
 | Card | Waiting for | Next | Verify |
 | ---- | ----------- | ---- | ------ |
 
 ## Parked
+
+- **graph/t01 core gated log line** — parked: needs `bench` (the +2 ns budget) and `bench` is not on PATH in this container. Resume where `bench` runs.
 
 | Card                                                                                                                                      | Resume when                                                                  | Next                                                                                                                                                                                                                                                                                                 | Verify                                                                             |
 | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
@@ -72,6 +74,17 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **namespace-v1/t01 ns values** — sol + lead; tag `namespace-v1/t01`.
+  core 418 tests, mutation 85.74; four astra xhigh rounds cleared every P1.
+  Proof: [namespace-v1 landed](docs/roadmap/namespace-v1/PROGRESS.md).
+
+- **graph/v1 t02–t06** — writers + lead; tags `graph/t02`…`graph/t06`.
+  `check-graph` is a validate lane, 0 violations. t01 parked (bench).
+  Proof: [graph-v1 landed](docs/roadmap/graph-v1/PROGRESS.md).
+
+- **http/t07 + hono/ext** — muse writers, astra judged; tags `http/t07`, `hono/ext`.
+  httpClient is declared units; hono is an extension the scope owns (ADR 0060).
 
 - **playground/benchmark-batches** — Codex; shipped `917d950`.
   59 tests pass; live benchmark completes with results.
