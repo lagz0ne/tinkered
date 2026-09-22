@@ -1,6 +1,6 @@
 # Fresh task with the tested rules
 
-Status: GLM first attempt reviewed; three writers running.
+Status: two first attempts reviewed; two writers running.
 Owner: Codex.
 
 ## Goal
@@ -142,3 +142,13 @@ The two-root failure came from the teacher loading React twice.
 Keeping the full module URL fixed that probe: 44 of 44 passed.
 The app archive was unchanged. The checker fix still needs landing.
 DeepSeek started when GLM freed a slot.
+
+## First saved result: MiMo Flash
+
+All supplied commands passed, including 54 tests.
+Manual review found the same typing rule miss as GLM.
+Writable useData in Desk and Editor bypasses operations.
+Jev gave no notes on the view. The style census passed.
+This attempt needs fixes. No feedback has been sent yet.
+The teacher run hit the known two-root harness bug.
+A contributor is fixing it and adding a test with useId labels.
