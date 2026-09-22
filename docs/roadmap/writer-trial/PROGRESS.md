@@ -1,10 +1,10 @@
 # Writer trial
 
-Status: all four passed round 2; round 3 is running.
+Status: all four passed round 3; the final round is running.
 Owner: Codex.
 Scope settled: core and React only.
 Trial shape settled: four attempts per writer on its own growing repo.
-Next: extend each writer’s repo with dates and weekly bookings.
+Next: add undo, check all four rounds, then save results and clean up.
 
 ## What we checked
 
@@ -558,3 +558,25 @@ That is a cost to study: advisory findings need not all disappear.
 Source grew from 637 to 885 lines; tests from 665 to 1,266 lines.
 [Saved result](trial-01-round-3-mimo-flash.json).
 Three writers are checked. MiMo Pro is still running round 3.
+
+### Round 3 complete
+
+MiMo Pro passes the teacher's sampled core and browser checks
+for all three rounds. Its direct type check, 69 tests, and build
+also exit 0. It used Jev ten times.
+Source grew from 653 to 941 lines; tests from 853 to 1,727 lines.
+
+All four checked snapshots are saved in
+`trial-01/results/round-3-completion/`.
+Source and test hashes match the checked snapshots.
+[All four results](trial-01-round-3-all.json).
+
+Round 4 is the last packet: undo successful booking changes.
+Keep each writer's own code; trial budget stops remain off.
+
+Round 4 agent IDs:
+
+- `xiaomi/mimo-v2.6-flash`: `20f46f52-522f-4af8-8fc0-930188c90393`.
+- `xiaomi/mimo-v2.6-pro`: `b0277200-a7b5-4eaf-901e-415169078098`.
+- `zai/glm-5.3-flash`: `ccfb0b60-1690-4893-880f-54da07d4d213`.
+- `deepseek/deepseek-v4.1-flash`: `3a826952-6532-44f7-8419-da54054b9a99`.
