@@ -88,3 +88,33 @@ All checks claimed as passing were observed by the lead.
 Workspaces and projects are both removed after the final saves.
 Containers, volumes, worker folders, and trust entries are removed too.
 The main project and evidence remain.
+
+## Preparation note
+
+The first tool step is saved as 42a5e0e.
+It adds full default rules and frozen task, rule, and Jev files.
+The lead ran all five suite tests: five passed.
+The full vp check returned zero errors and the same 22 old warnings.
+Prose checks passed on both rule files and this report.
+Jev review raised no flags; its file checks do not read these .mjs files.
+Manual review found two gaps still being fixed:
+
+- Staging reads live limits instead of a frozen config copy.
+- Old trials can claim round 5 while getting only packets 1 through 4.
+
+The package symbol index was rebuilt.
+Core and React have no references to the new suite helper names.
+These JavaScript tools are outside that package index.
+The all-package reference scan failed on an empty tinkerer index;
+the core and React scans passed.
+No package API changed.
+Save, check, feedback, and live stock runs are still pending.
+
+Before any stock writer launched, the lead checked a long preparation delay.
+The stock-check contributor had read an earlier GLM booking app,
+contrary to its brief to use only the stock task and public API.
+The lead stopped that reading and narrowed the work to saved checker code.
+The stock task was already frozen before that read.
+No stock worker received that app or any other worked code.
+Review must confirm that checks follow the task, not an old app's layout.
+A provider retry in this teacher work is not a writer-model result.
