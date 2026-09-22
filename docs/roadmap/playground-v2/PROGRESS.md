@@ -266,3 +266,86 @@ playground ticker. example/engine.ts example/App.tsx example/main.tsx tests/engi
 ```impact playground/page
 playground setView. src/actions.ts src/App.tsx
 ```
+
+## Source review
+
+The source model from `cac9734` is integrated.
+Review found Back and Forward used the oldest history
+entry. Fix `5244860` takes the newest entry instead.
+It also stops false import links from destructured
+parameters and loop locals.
+
+The writer ran the new tests against the old source:
+2 failed and 15 passed. Both pass with the fixes.
+The combined playground now passes all 48 tests.
+Source preflight and lint found no issues.
+Two test-title notes were checked, labeled false, and
+included in a fresh saved calibration run.
+
+GLM added the Code UI in `f27e939`. Browser review
+confirmed a Ctrl-click reaches the real core declaration.
+Code review requested these fixes before acceptance:
+
+- Show search hits while typing and close the picker.
+- Support keyboard clicks in the file list.
+- Restore editor shortcuts and isolate undo by file.
+- Keep navigation aligned with add, close, and rename.
+- Clamp saved cursor positions after source changes.
+- Show the current path and a named Follow button.
+- Use the right parser for `.ts` and `.tsx` source.
+- Leave read-only source open to keyboard navigation.
+
+The first scene size fix still clipped one tile by
+2.46 px during a turn at maximum wave height.
+The next view fix must cover motion between headings.
+
+## Writer observations so far
+
+These are observations from this task, not a model ranking.
+All three used the highest offered effort, `max`.
+
+- DeepSeek finished the engine from the saved state file.
+  One review round restored the press return value and
+  strengthened time and rotation tests. Its final engine
+  passes 12 scope tests and real-browser game checks.
+- MiMo finished the source model after a parser correction.
+  Review then found history order and shadowed-name bugs;
+  its fix added tests that fail on the old code.
+  Its earlier stalled and repeated-tool turns remain
+  part of the record above.
+- GLM saved the 3D game, full-screen shell, and Code UI.
+  Review fixed full-screen and keyboard edge cases.
+  The first Code UI still needed the fixes listed above.
+  Passing type checks did not prove those controls worked.
+
+No library API workaround needs a new core ticket here.
+The playground has no mutation task; no mutation score
+or library size claim is made for this app-only change.
+
+## Code UI browser proof
+
+The lead applied `8a54c68` and rebuilt the preview.
+The following checks pass in Chromium:
+
+- Search opens example and package sources.
+- F12 on `createScope` lands at its real declaration.
+- Follow symbol on `useResource` lands in React source.
+- Package source rejects typing and remains focusable.
+- Back restores the exact character offset.
+- Several Back and Forward steps visit the right files.
+- A source jump leaves the game document alive.
+- Phone taps follow core, return, and search React.
+- Desktop and phone runs have no script errors.
+- Undo in one file cannot paste another file's text.
+- Each file keeps its own Undo history across switches.
+- New files open for editing; closing one switches source.
+
+At maximum wave height, a phone frame scan sampled
+100 frames per turn through four right turns.
+No tile bounds crossed the scene in that run.
+The four buttons remain 44 px tall. The game scrolls
+vertically on the phone; it has no sideways page scroll.
+
+The latest remaining review fix is tab state and history
+for renamed or closed files. It stays in Review until
+its scope tests and browser checks pass.

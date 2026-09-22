@@ -10,8 +10,11 @@ Three views share one running game:
   Turn the board, start or stop a storm, and change wave
   height, speed, or the time between storm presses.
   Clear removes waves and stops the storm.
-- **Code** lets you read and edit the example files.
-  The real core and React source is available to read.
+- **Code** opens a file search and source reader.
+  Edit the example files; core and React files are read-only.
+  Follow a name with F12, Ctrl/Cmd-click, or Follow symbol.
+  Back and Forward restore the file and cursor position.
+  Alt+Left and Alt+Right work inside the editor too.
 - **Benchmark** compares `@tinker/react` with Zustand,
   Jotai, Legend State v2/v3, Preact Signals, React Context,
   and `useState`.
@@ -66,6 +69,11 @@ A test creates a scope and binds `frames` to a hand-run
 queue. `makeTestClock` supplies time; `random` supplies
 repeatable storm targets and hues. No DOM or global
 replacement is needed.
+
+Source tests also prove that imports reach real declarations,
+local names do not falsely jump to an import, and history
+restores each file and cursor position in the right order.
+Package sources stay out of the editable file set.
 
 The tests prove these game promises:
 
