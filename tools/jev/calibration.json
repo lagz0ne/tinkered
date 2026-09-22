@@ -2,151 +2,151 @@
   "runForwardsToClosure": {
     "status": "provisional",
     "trues": 3,
-    "falses": 3,
-    "medianTrue": 0.94,
-    "medianFalse": 0.03,
-    "separation": 0.91,
+    "falses": 5,
+    "medianTrue": 0.95,
+    "medianFalse": 0.08,
+    "separation": 0.87,
     "ordered": 1,
-    "at": "2026-09-21"
+    "at": "2026-09-22"
   },
   "effectWithoutDefer": {
     "status": "provisional",
     "trues": 2,
-    "falses": 5,
-    "medianTrue": 0.84,
-    "medianFalse": 0.39,
-    "separation": 0.45,
-    "ordered": 1,
-    "at": "2026-09-21"
+    "falses": 7,
+    "medianTrue": 0.82,
+    "medianFalse": 0.43,
+    "separation": 0.39,
+    "ordered": 0.86,
+    "at": "2026-09-22"
   },
   "stateOutsideCell": {
     "status": "provisional",
     "trues": 2,
     "falses": 7,
-    "medianTrue": 0.91,
-    "medianFalse": 0.61,
-    "separation": 0.3,
+    "medianTrue": 0.9,
+    "medianFalse": 0.58,
+    "separation": 0.32,
     "ordered": 1,
-    "at": "2026-09-21"
+    "at": "2026-09-22"
   },
   "configNotTag": {
     "status": "provisional",
     "trues": 2,
-    "falses": 4,
-    "medianTrue": 0.85,
-    "medianFalse": 0.63,
+    "falses": 14,
+    "medianTrue": 0.87,
+    "medianFalse": 0.64,
     "separation": 0.23,
-    "ordered": 0.88,
-    "at": "2026-09-21"
+    "ordered": 0.89,
+    "at": "2026-09-22"
   },
   "handRolledLifetime": {
     "status": "provisional",
     "trues": 3,
     "falses": 4,
-    "medianTrue": 0.83,
+    "medianTrue": 0.79,
     "medianFalse": 0.04,
-    "separation": 0.79,
+    "separation": 0.75,
     "ordered": 0.92,
-    "at": "2026-09-21"
+    "at": "2026-09-22"
   },
   "stopOnlyInDefer": {
     "status": "provisional",
     "trues": 1,
     "falses": 3,
-    "medianTrue": 0.84,
-    "medianFalse": 0.59,
-    "separation": 0.25,
+    "medianTrue": 0.86,
+    "medianFalse": 0.6,
+    "separation": 0.26,
     "ordered": 1,
-    "at": "2026-09-21"
+    "at": "2026-09-22"
   },
   "ignoresAbortAfterAwait": {
     "status": "provisional",
     "trues": 1,
     "falses": 1,
-    "medianTrue": 0.81,
+    "medianTrue": 0.75,
     "medianFalse": 0.28,
-    "separation": 0.53,
+    "separation": 0.47,
     "ordered": 1,
-    "at": "2026-09-21"
+    "at": "2026-09-22"
   },
   "readsMoreThanRendered": {
     "status": "provisional",
     "trues": 1,
     "falses": 2,
     "medianTrue": 0.92,
-    "medianFalse": 0.23,
-    "separation": 0.69,
+    "medianFalse": 0.21,
+    "separation": 0.71,
     "ordered": 1,
-    "at": "2026-09-21"
+    "at": "2026-09-22"
   },
   "subscribesToWriteOnly": {
     "status": "provisional",
     "trues": 1,
     "falses": 1,
     "medianTrue": 0.95,
-    "medianFalse": 0.11,
-    "separation": 0.84,
+    "medianFalse": 0.09,
+    "separation": 0.86,
     "ordered": 1,
-    "at": "2026-09-21"
+    "at": "2026-09-22"
   },
   "runDuringRender": {
     "status": "provisional",
     "trues": 1,
     "falses": 1,
     "medianTrue": 0.96,
-    "medianFalse": 0.19,
-    "separation": 0.77,
+    "medianFalse": 0.18,
+    "separation": 0.78,
     "ordered": 1,
-    "at": "2026-09-21"
+    "at": "2026-09-22"
   },
   "domainLogicInRender": {
     "status": "provisional",
     "trues": 1,
     "falses": 1,
-    "medianTrue": 0.93,
+    "medianTrue": 0.94,
     "medianFalse": 0.05,
-    "separation": 0.88,
+    "separation": 0.89,
     "ordered": 1,
-    "at": "2026-09-21"
+    "at": "2026-09-22"
   },
   "effectOwnedByComponent": {
     "status": "provisional",
     "trues": 1,
     "falses": 1,
-    "medianTrue": 0.96,
+    "medianTrue": 0.95,
     "medianFalse": 0.05,
-    "separation": 0.91,
+    "separation": 0.9,
     "ordered": 1,
-    "at": "2026-09-21"
+    "at": "2026-09-22"
   },
   "leakedInternal": {
     "status": "provisional",
     "trues": 1,
-    "falses": 3,
-    "medianTrue": 0.7,
-    "medianFalse": 0.21,
-    "separation": 0.49,
-    "ordered": 1,
-    "at": "2026-09-21"
+    "falses": 4,
+    "medianTrue": 0.69,
+    "medianFalse": 0.48,
+    "separation": 0.21,
+    "ordered": 0.5,
+    "at": "2026-09-22"
   },
   "survivorMatters": {
     "status": "proven",
     "trues": 6,
     "falses": 7,
-    "medianTrue": 0.83,
-    "medianFalse": 0.18,
-    "separation": 0.66,
-    "ordered": 0.98,
-    "at": "2026-09-21"
+    "medianTrue": 0.84,
+    "medianFalse": 0.19,
+    "separation": 0.65,
+    "ordered": 0.95,
+    "at": "2026-09-22"
   },
   "titleVague": {
     "status": "provisional",
     "trues": 2,
-    "falses": 2,
+    "falses": 40,
     "medianTrue": 0.72,
-    "medianFalse": 0.55,
-    "separation": 0.17,
-    "ordered": 1,
-    "at": "2026-09-21"
+    "medianFalse": 0.59,
+    "separation": 0.13,
+    "ordered": 0.76,
+    "at": "2026-09-22"
   }
 }
