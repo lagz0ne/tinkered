@@ -49,10 +49,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Review
 
-- **playground/benchmark-batches** — owner: Codex.
-  Saved: adaptive batches; 59 tests and three browser runs pass.
-  Next: deploy and verify live results.
-
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
 
@@ -76,6 +72,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **playground/benchmark-batches** — Codex; shipped `917d950`.
+  59 tests pass; live benchmark completes with results.
+  Proof: [benchmark record](docs/roadmap/playground-v2/PROGRESS.md#benchmark-short-samples).
 
 - **playground/reset-button** — Codex; shipped `478cfff`.
   Live phone reset and reload pass; image healthy.

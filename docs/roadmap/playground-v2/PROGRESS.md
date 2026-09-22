@@ -648,3 +648,13 @@ match the existing benchmark design. The sampler counter
 is measurement state outside the competing stores; moving
 it into Tinker would add Tinker work to every competitor.
 The stateOutsideCell finding is labeled false.
+
+Shipped `917d950` to main and the live playground.
+Dokploy deployment `A7XH6WQQ9fZhLC0h3LMl-` is done.
+The deployment log confirms startup; the image is healthy.
+The live index hash matches the checked build.
+A full benchmark run on the live site produced results,
+including Preact Signals, with no page errors.
+This was phone-sized Chromium, not physical Android Edge.
+The existing domain mapping is unchanged.
+Review labels were recalibrated after the false finding.
