@@ -29,21 +29,19 @@ export const edit: Operation.Handle<Promise<string>, EditInput> = operation({
   label: "edit",
   input: (raw: unknown): EditInput => editSchema.parse(raw),
   depends: { cwd: cwd.required },
-  run: async (deps, ctx) => editOnce(deps.cwd, ctx.input),
+  run: async ({ cwd }, ctx) => {
+    const target = resolveUnder(cwd, ctx.input.path, "edit");
+    const text = await readFile(target, "utf8");
+    const count = countMatches(text, ctx.input.oldText);
+    if (count !== 1) raise("EditMiss", { label: "edit", path: ctx.input.path, count });
+    await writeFile(
+      target,
+      text.replace(ctx.input.oldText, () => ctx.input.newText),
+      "utf8",
+    );
+    return `Edited ${ctx.input.path}`;
+  },
 });
-
-async function editOnce(base: string, input: EditInput): Promise<string> {
-  const target = resolveUnder(base, input.path, "edit");
-  const text = await readFile(target, "utf8");
-  const count = countMatches(text, input.oldText);
-  if (count !== 1) raise("EditMiss", { label: "edit", path: input.path, count });
-  await writeFile(
-    target,
-    text.replace(input.oldText, () => input.newText),
-    "utf8",
-  );
-  return `Edited ${input.path}`;
-}
 
 function countMatches(text: string, needle: string): number {
   let count = 0;

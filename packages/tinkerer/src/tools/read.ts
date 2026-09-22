@@ -26,17 +26,15 @@ export const read: Operation.Handle<Promise<string>, ReadInput> = operation({
   label: "read",
   input: readRawInput,
   depends: { cwd: cwd.required },
-  run: async (deps, ctx) => readWindow(deps.cwd, ctx.input),
+  run: async ({ cwd }, ctx) => {
+    const target = resolveUnder(cwd, ctx.input.path, "read");
+    const text = await readFile(target, "utf8");
+    return windowLines(text, ctx.input.offset ?? 0, ctx.input.limit);
+  },
 });
 
 function readRawInput(raw: unknown): ReadInput {
   return readSchema.parse(raw);
-}
-
-async function readWindow(base: string, input: ReadInput): Promise<string> {
-  const target = resolveUnder(base, input.path, "read");
-  const text = await readFile(target, "utf8");
-  return windowLines(text, input.offset ?? 0, input.limit);
 }
 
 function windowLines(text: string, offset: number, limit: number | undefined): string {

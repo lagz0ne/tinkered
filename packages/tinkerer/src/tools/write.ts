@@ -26,12 +26,10 @@ export const write: Operation.Handle<Promise<string>, WriteInput> = operation({
   label: "write",
   input: (raw: unknown): WriteInput => writeSchema.parse(raw),
   depends: { cwd: cwd.required },
-  run: async (deps, ctx) => writeWhole(deps.cwd, ctx.input),
+  run: async ({ cwd }, ctx) => {
+    const target = resolveUnder(cwd, ctx.input.path, "write");
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, ctx.input.content, "utf8");
+    return `Wrote ${Buffer.byteLength(ctx.input.content, "utf8")} bytes to ${ctx.input.path}`;
+  },
 });
-
-async function writeWhole(base: string, input: WriteInput): Promise<string> {
-  const target = resolveUnder(base, input.path, "write");
-  await mkdir(dirname(target), { recursive: true });
-  await writeFile(target, input.content, "utf8");
-  return `Wrote ${Buffer.byteLength(input.content, "utf8")} bytes to ${input.path}`;
-}
