@@ -30,12 +30,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **writers/trial** — owner: Codex.
-  Four attempts per writer; observe its repo grow.
-  Next: finish undo, check every round, save the growth report, and clean up.
-  Verify: 16 saved results, growth reports, and cleanup proof.
-  Notes: [writer trial](docs/roadmap/writer-trial/PROGRESS.md).
-
 | Card | Owner | Next | Verify |
 
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -69,6 +63,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **writers/trial** — owner: Codex.
+  All four final apps pass core, browser, type, test, and build checks.
+  Saved five stages per writer, including capped attempts.
+  Temporary projects and workspaces removed; cleanup checked.
+  Proof: [results](docs/roadmap/writer-trial/REPORT.md).
 
 - **writers/prep** — model routes, shell, Jev, browser,
   limits, file access, and cleanup checks passed.

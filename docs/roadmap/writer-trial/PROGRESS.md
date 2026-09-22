@@ -1,10 +1,10 @@
 # Writer trial
 
-Status: all four passed round 3; the final round is running.
+Status: done; all four passed the final checks and cleanup is proved.
 Owner: Codex.
 Scope settled: core and React only.
 Trial shape settled: four attempts per writer on its own growing repo.
-Next: add undo, check all four rounds, then save results and clean up.
+Result: [comparison and saved proof](REPORT.md).
 
 ## What we checked
 
@@ -608,3 +608,15 @@ Source grew from 941 to 1,011 lines; tests from 1,727 to 2,054 lines.
 
 Three final snapshots are saved and checked.
 MiMo Flash is still running the undo round.
+
+## Final result
+
+All four saved round-4 apps pass teacher version 2 for rounds 1–4.
+Their direct type checks, tests, and builds also pass.
+MiMo Flash final check: 89 tests passed, type check and build exit 0.
+The final exports match the checked source and test files by hash.
+Five saved stages per writer include the early capped attempts.
+All four workspaces and projects are removed.
+Their containers, volumes, folders, and trust entries are gone.
+The main project and saved evidence remain.
+See [results](REPORT.md) and [cleanup proof](trial-01-cleanup.json).
