@@ -1,7 +1,7 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, operation } from "@tinker/core";
 import { backend, HttpRequest, HttpResponse, isError as isHttpError, send } from "@tinker/http";
-import { api } from "./api.ts";
+import { api } from "../src/client/api.ts";
 
 /** A 500 through a baseUrl-only binding still rejects: the helper folds the policy in. */
 test("api.config with no accept still rejects a 500 as ResponseFailed", async () => {
