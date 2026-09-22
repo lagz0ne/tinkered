@@ -2547,7 +2547,7 @@ function buildResource<T>(
     );
   } catch (error) {
     settled = true;
-    if (!superseded()) detachDependent(owner, target);
+    if (!superseded()) detachResourceDependencies(owner, target, rec);
     closeSpan(obs, span, "failed");
     throw error;
   } finally {
@@ -2717,6 +2717,18 @@ function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): voi
   s.promise = undefined;
   s.failed = undefined;
   s.build = undefined;
+  if (s.nsResources) {
+    for (const state of s.nsResources.values()) {
+      state.gen += 1;
+      state.resource = undefined;
+      state.promise = undefined;
+      state.failed = undefined;
+      state.build = undefined;
+      detachNsDataDependencies(state);
+      state.dataDependencies = undefined;
+    }
+    s.nsResources = undefined;
+  }
   detachDependent(owner, target);
   s.dependents = undefined;
 }
@@ -2904,11 +2916,71 @@ function addDependent(
   owner: Layer,
   node: Node,
   dependent: Resource.Handle<unknown>,
-  _chain: readonly Namespace[] | undefined,
-  _state: ResourceState,
+  chain: readonly Namespace[] | undefined,
+  state: ResourceState,
 ): void {
+  addNsDataDependent(owner, node, chain, state);
   const s = nodeState(owner, node);
   (s.dependents ??= new Set()).add(dependent);
+}
+
+function addNsDataDependent(
+  owner: Layer,
+  node: Node,
+  chain: readonly Namespace[] | undefined,
+  dependent: ResourceState,
+): void {
+  if (!isData(node) || !(dependent instanceof NsResourceState) || chain === undefined) return;
+  const selected = selectNsDataEntry(owner, node, chain);
+  if (selected === undefined) return;
+  const dependents =
+    selected.source.nsDataDependents?.get(selected.entry) ?? new Set<NsResourceState>();
+  if (dependents.has(dependent)) return;
+  dependents.add(dependent);
+  (selected.source.nsDataDependents ??= new Map()).set(selected.entry, dependents);
+  (dependent.dataDependencies ??= new Set()).add(selected);
+}
+
+function selectNsDataEntry(
+  owner: Layer,
+  target: Data.Cell<unknown>,
+  chain: readonly Namespace[],
+): NsDataDependency | undefined {
+  const selected = selectBucket<NsDataDependency | typeof DEFAULT_DATA_ENTRY>(
+    owner,
+    chain,
+    (layer, key) => {
+      const source = layer.nodes.get(target);
+      const entry = source?.nsCells?.get(key);
+      return source && entry ? { source, entry } : undefined;
+    },
+    (layer) => (layer.nodes.get(target)?.cell ? DEFAULT_DATA_ENTRY : undefined),
+  );
+  return selected === DEFAULT_DATA_ENTRY ? undefined : selected;
+}
+
+const DEFAULT_DATA_ENTRY = Symbol("default-data-entry");
+
+function detachNsDataDependencies(state: NsResourceState): void {
+  if (!state.dataDependencies) return;
+  for (const link of state.dataDependencies) {
+    const dependents = link.source.nsDataDependents?.get(link.entry);
+    if (!dependents?.delete(state) || dependents.size !== 0) continue;
+    link.source.nsDataDependents?.delete(link.entry);
+  }
+}
+
+function detachResourceDependencies(
+  owner: Layer,
+  dependent: Resource.Handle<unknown>,
+  state: ResourceState,
+): void {
+  if (state instanceof NsResourceState) {
+    detachNsDataDependencies(state);
+    state.dataDependencies = undefined;
+    return;
+  }
+  detachDependent(owner, dependent);
 }
 
 /** Remove one resource from every dependents set (its incoming edges), dropping empty sets. */

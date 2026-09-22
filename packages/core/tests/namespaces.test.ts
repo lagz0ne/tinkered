@@ -323,6 +323,31 @@ test("a resource chain reuses its fallback then switches to a nearer warm bucket
   return scope.close();
 });
 
+test("a named resource dependency reads a nearer default before a farther named entry", () => {
+  const a = namespace();
+  const b = namespace();
+  const config = data({ label: "config", initial: 0, parse: asNumber });
+  let builds = 0;
+  const client = resource({
+    label: "client",
+    target: "session",
+    depends: { config },
+    factory: ({ config }) => ({ build: ++builds, config }),
+  });
+  const scope = createScope();
+  scope.controller(config, { ns: b }).set(99);
+  const child = scope.createSession();
+  child.controller(config).set(7);
+  const first = child.resolve(client, { ns: [a, b] });
+  expect(first.config).toBe(7);
+  scope.release(config);
+  const second = child.resolve(client, { ns: [a, b] });
+  expect(second).not.toBe(first);
+  expect(second.config).toBe(7);
+  expect(builds).toBe(2);
+  return scope.close();
+});
+
 test("namespace clients share one scope-target pool", () => {
   const a = namespace();
   const b = namespace();
