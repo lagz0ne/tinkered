@@ -545,3 +545,16 @@ Source grew from 558 to 769 lines; tests and test setup
 from 500 to 811 lines. The worker saved commit `f3a2e7f`.
 [Saved result](trial-01-round-3-glm.json).
 GLM and DeepSeek are checked; both MiMo writers are still running.
+
+### Round 3: MiMo Flash checked
+
+MiMo Flash passes the teacher's sampled core and browser checks
+for all three rounds. A separate container also reran its type
+check, 70 tests, and build; all exit 0.
+It used Jev twelve times. It reports repeated title renames
+until borderline provisional findings stopped firing.
+That is a cost to study: advisory findings need not all disappear.
+
+Source grew from 637 to 885 lines; tests from 665 to 1,266 lines.
+[Saved result](trial-01-round-3-mimo-flash.json).
+Three writers are checked. MiMo Pro is still running round 3.
