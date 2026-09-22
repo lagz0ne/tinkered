@@ -1074,7 +1074,15 @@ const mountSecondRoot = async () => {
     if (typeof scanned === "function") return scanned;
     throw new Error("cannot load jsx runtime");
   };
-  const paths = performance.getEntriesByType("resource").map((r) => new URL(r.name).pathname);
+  // Keep the full module URL (path plus query): Vite serves hashed
+  // deps like react-dom_client.js?v=..., and importing the same file
+  // without its query loads a second copy. A second React resets the
+  // useId counters, so labels collide across roots.
+  const modulePath = (name) => {
+    const url = new URL(name);
+    return url.pathname + url.search;
+  };
+  const paths = performance.getEntriesByType("resource").map((r) => modulePath(r.name));
   const appMod = await pickEntry();
   if (!appMod?.StockApp) throw new Error("cannot import submission entry");
   const jsx = await resolveJsx(paths);
