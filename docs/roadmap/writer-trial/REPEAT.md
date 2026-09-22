@@ -1,6 +1,6 @@
 # Fresh task with the tested rules
 
-Status: two first attempts reviewed; two writers running.
+Status: three first attempts reviewed; GLM repair running.
 Owner: Codex.
 
 ## Goal
@@ -152,3 +152,15 @@ Jev gave no notes on the view. The style census passed.
 This attempt needs fixes. No feedback has been sent yet.
 The teacher run hit the known two-root harness bug.
 A contributor is fixing it and adding a test with useId labels.
+
+## First saved result: DeepSeek
+
+All supplied commands passed, including 55 tests.
+The corrected teacher probe scored 40 of 44.
+Opening an edit aliases the saved move instead of copying it.
+The editor remains shown with no draft, including after Save and Discard.
+Typing and filtering also bypass operations.
+Jev gave no notes on the view.
+The run took about 11.5 minutes, excluding its queue wait.
+It needs fixes; speed alone does not earn acceptance.
+GLM has begun a separate repair attempt using only its own findings.
