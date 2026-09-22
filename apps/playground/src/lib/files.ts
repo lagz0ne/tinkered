@@ -1,5 +1,7 @@
 import app from "../../example/App.tsx?raw";
 import engine from "../../example/engine.ts?raw";
+import errors from "../../example/errors.ts?raw";
+import index from "../../example/index.ts?raw";
 import main from "../../example/main.tsx?raw";
 import state from "../../example/state.ts?raw";
 import tile from "../../example/Tile.tsx?raw";
@@ -17,7 +19,9 @@ export const ENTRY = "main.tsx";
 export const DEFAULT_FILES: readonly PlaygroundFile[] = [
   { name: "main.tsx", content: main },
   { name: "state.ts", content: state },
+  { name: "errors.ts", content: errors },
   { name: "engine.ts", content: engine },
+  { name: "index.ts", content: index },
   { name: "Tile.tsx", content: tile },
   { name: "App.tsx", content: app },
 ];

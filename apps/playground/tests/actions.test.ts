@@ -36,8 +36,15 @@ test("closing the active tab hands the editor to its neighbour", () => {
   const scope = createScope();
   scope.run(selectFile, { input: "state.ts" });
   expect(scope.run(closeFile, { input: "state.ts" })).toBe(true);
-  expect(names(scope.resolve(filesCell))).toEqual(["main.tsx", "engine.ts", "Tile.tsx", "App.tsx"]);
-  expect(scope.resolve(activeCell)).toBe("engine.ts");
+  expect(names(scope.resolve(filesCell))).toEqual([
+    "main.tsx",
+    "errors.ts",
+    "engine.ts",
+    "index.ts",
+    "Tile.tsx",
+    "App.tsx",
+  ]);
+  expect(scope.resolve(activeCell)).toBe("errors.ts");
 });
 
 test("renameFile refuses a name another tab already has", () => {
