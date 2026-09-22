@@ -9,6 +9,7 @@ import {
   resource,
   tag,
   type Ns,
+  type Resource,
 } from "../src/index.ts";
 
 const asNumber = (v: unknown): number => {
@@ -339,6 +340,77 @@ test("a named resource controller keeps one settled async promise per bucket", a
   const firstB = scope.controller(client, { ns: b }).resolve();
   expect(firstB).not.toBe(firstA);
   expect(await firstB).toEqual({ build: 2 });
+  await scope.close();
+});
+
+test("a named resource controller reports NotResolved before its first build", async () => {
+  const a = namespace();
+  const client = resource({ label: "client", target: "session", factory: () => ({}) });
+  const scope = createScope();
+  let error: unknown;
+  try {
+    scope.controller(client, { ns: a }).get();
+  } catch (cause) {
+    error = cause;
+  }
+  if (!isError(error, "NotResolved")) throw error;
+  expect(error.payload.label).toBe("client");
+  await scope.close();
+});
+
+test("a named controller keeps a scope-target resource namespace-blind", async () => {
+  const a = namespace();
+  const shared = resource({ label: "shared", target: "scope", factory: () => ({}) });
+  const scope = createScope();
+  const ctl = scope.controller(shared, { ns: a });
+  const value = ctl.resolve();
+  expect(ctl.get()).toBe(value);
+  await scope.close();
+});
+
+test("a failed async named build stays on its bucket until releaseNs", async () => {
+  const a = namespace();
+  const cause = new Error("build failed");
+  let builds = 0;
+  const client = resource({
+    label: "client",
+    target: "session",
+    factory: async () => {
+      builds += 1;
+      throw cause;
+    },
+  });
+  const scope = createScope();
+  const ctl = scope.controller(client, { ns: a });
+  const first = ctl.resolve();
+  await expect(first).rejects.toBe(cause);
+  expect(ctl.resolve()).toBe(first);
+  expect(ctl.get()).toBe(first);
+  scope.releaseNs(client, a);
+  const second = ctl.resolve();
+  expect(second).not.toBe(first);
+  await expect(second).rejects.toBe(cause);
+  expect(builds).toBe(2);
+  await scope.close();
+});
+
+test("a circular named resource fails instead of reading a half-built bucket", async () => {
+  const a = namespace();
+  const scope = createScope();
+  let client: Resource.Handle<unknown>;
+  client = resource({
+    label: "client",
+    target: "session",
+    factory: () => scope.resolve(client, { ns: a }),
+  });
+  let error: unknown;
+  try {
+    scope.resolve(client, { ns: a });
+  } catch (cause) {
+    error = cause;
+  }
+  if (!isError(error, "CircularResource")) throw error;
+  expect(error.payload.label).toBe("client");
   await scope.close();
 });
 
