@@ -414,6 +414,74 @@ test("a circular named resource fails instead of reading a half-built bucket", a
   await scope.close();
 });
 
+test("named session resources stay distinct across owner layers", async () => {
+  const a = namespace();
+  let builds = 0;
+  const client = resource({
+    label: "client",
+    target: "session",
+    factory: () => ({ build: ++builds }),
+  });
+  const scope = createScope();
+  const child = scope.createSession();
+  expect(child.resolve(client, { ns: a })).not.toBe(scope.resolve(client, { ns: a }));
+  expect(builds).toBe(2);
+  await scope.close();
+});
+
+test("a chain controller follows a nearer namespace bucket built later", async () => {
+  const a = namespace();
+  const b = namespace();
+  let builds = 0;
+  const client = resource({
+    label: "client",
+    target: "session",
+    factory: () => ({ build: ++builds }),
+  });
+  const scope = createScope();
+  const fromB = scope.resolve(client, { ns: b });
+  const ctl = scope.controller(client, { ns: [a, b] });
+  expect(ctl.resolve()).toBe(fromB);
+  const fromA = scope.resolve(client, { ns: a });
+  expect(ctl.get()).toBe(fromA);
+  await scope.close();
+});
+
+test("a chain borrow waits on the fallback bucket it resolved", async () => {
+  const a = namespace();
+  const b = namespace();
+  const ended: string[] = [];
+  let finish = (): void => undefined;
+  const gate = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const client = resource({
+    label: "client",
+    target: "session",
+    factory: (_deps, ctx) => {
+      ctx.defer(() => void ended.push("client"));
+      return {};
+    },
+  });
+  const hold = operation({
+    label: "hold",
+    depends: { client },
+    run: async () => gate,
+  });
+  const scope = createScope();
+  scope.resolve(client, { ns: b });
+  const running = scope.run(hold, { ns: [a, b] });
+  scope.releaseNs(client, a);
+  expect(ended).toEqual([]);
+  scope.releaseNs(client, b);
+  expect(ended).toEqual([]);
+  finish();
+  await running;
+  await scope.settled();
+  expect(ended).toEqual(["client"]);
+  await scope.close();
+});
+
 test("namespace clients share one scope-target pool", () => {
   const a = namespace();
   const b = namespace();
