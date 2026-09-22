@@ -399,9 +399,11 @@ test("a failed boot closes the scope and stops the bound listener", async () => 
       serve: () => () => {
         stops += 1;
       },
-      presets: [preset(publishIssues, async () => {
-        throw failure;
-      })],
+      presets: [
+        preset(publishIssues, async () => {
+          throw failure;
+        }),
+      ],
     });
   } catch (error: unknown) {
     failed = error;

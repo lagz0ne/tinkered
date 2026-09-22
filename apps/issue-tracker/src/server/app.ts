@@ -40,10 +40,12 @@ export async function createApp(config: AppConfig): Promise<{
   // custom bind opens, so no request on that path can fail without it —
   // `main.ts` does the same on its own path.
   const observe = config.observe;
-  const serve = config.serve && ((app: Hono) => {
-    app.onError(reportUnmapped(observe));
-    return config.serve?.(app);
-  });
+  const serve =
+    config.serve &&
+    ((app: Hono) => {
+      app.onError(reportUnmapped(observe));
+      return config.serve?.(app);
+    });
   const { extension: web } = hono(issueRoutes, { onError, serve });
   const draft = config.draft;
   const scope = createScope({
