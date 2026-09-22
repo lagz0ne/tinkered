@@ -2955,6 +2955,7 @@ function nsFor(
   parent: Layer | undefined,
   options: Scope.Options | undefined,
 ): readonly Namespace[] | undefined {
+  if (options?.ns === NO_NAMESPACE) return NO_NAMESPACE;
   if (options?.ns !== undefined) return nsChainOf(options.ns);
   return parent?.ns;
 }

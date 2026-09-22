@@ -314,6 +314,26 @@ test("an ambient namespace cannot enter a scope-target resource build", () => {
   return scope.close();
 });
 
+test("namespace-blind scope builds keep tagged operation dependencies blind", async () => {
+  const tenant = tag<string>({ label: "tenant" });
+  const marker = tag({ label: "marker", default: false });
+  const named = namespace({ tags: [tenant("named")] });
+  const readTenant = operation({
+    label: "readTenant",
+    depends: { tenant, marker },
+    run: ({ tenant, marker }) => (marker ? tenant : "missing-marker"),
+  });
+  const shared = resource({
+    label: "tagged-ambient-shared",
+    target: "scope",
+    depends: { readTenant },
+    factory: ({ readTenant }) => readTenant.run({ tags: [marker(true)] }),
+  });
+  const scope = createScope({ ns: named, tags: [tenant("default")] });
+  expect(await scope.resolve(shared)).toBe("default");
+  await scope.close();
+});
+
 test("invalid input rejects before dependencies build", () => {
   let builds = 0;
   const dep = resource({ label: "dep", factory: () => ++builds });
