@@ -23,6 +23,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **playground/tsunami** — owner: Codex reviewer, MiMo writer.
+  Next: build the 3D board, controls, code links, and frame tests.
+  Verify: checks, scope tests, build, and phone/browser review.
+  [Track](docs/roadmap/playground-v2/PROGRESS.md).
+
 - **namespace-v1/t01 ns values** -- ns cells + tags in core; one selector; chain order decided; ambient + inherit; hot path benched. Verify: core gate green, 385 old tests hold, new probes pass. (writer glm-5.3-flash, review astra xhigh) [namespace-v1](docs/roadmap/namespace-v1/PROGRESS.md)
 - **namespace-v1/t02 ns resources + release** -- blocked by t01. session/scope target, releaseNs, borrows by ns.
 - **namespace-v1/t03 ns edges** -- blocked by t01,t02. named watches, retry, .all, full inheritance.
