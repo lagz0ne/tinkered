@@ -20,7 +20,7 @@ node tools/jev/label.mjs <judge> t|f <file> --by <ticket>
 
 ## Tickets
 
-- **t01 ns values (cells + tags)** -- [ ] blocked by: none
+- **t01 ns values (cells + tags)** -- [x] blocked by: none
   `namespace(opts?)` mints a branded key; `opts.tags` are its bindings. `ns` rides run/resolve/
   controller and a subflow `.run({ ns })`. ONE bucket selector serves every read. The chain order is
   DECIDED and locked by a test that fails under the other order. `createSession({ ns })` sets it
@@ -64,3 +64,20 @@ review, 2026-09-22) turned each into a concrete rule. Every core ticket cites th
 ## Landed
 
 One line per ticket: tag -- sha -- tests -- size (B gzip) -- mutation -- Jev flags before/after.
+
+- **t01** -- tag `namespace-v1/t01` -- core 418 tests (385 old + ns
+  probes) -- mutation 85.74 (floor 85) -- FOUR xhigh review rounds.
+  namespace(), ns on run/resolve/controller + subflow, createSession({ ns })
+  ambient with per-call override + child inheritance, storage (layer, ns,
+  unit) via one selector, chain order = layers-first (near default beats
+  far named), locked by a discriminator. Writer glm-5.3-flash built it and
+  chose the chain order; a duration limit stopped its fix round, so sol
+  (high) did the restructure (kill nsView, thread ns as a parameter). The
+  review chain found and cleared, in order: parse-after-resolve additivity
+  break; nsView layer-copy severing close/abort + the extension/session
+  registries; tags not sharing the cells' order; scope-target build leaking
+  tenant tags into the default bucket (a `= layer.ns` default parameter);
+  ns lost through extensions; and a run of ns-watch bugs (sentinel leak,
+  shared per-key comparison, then a re-entrancy rob) fixed by making each
+  watcher own its chain + value and snapshotting before firing. The green
+  gate never showed any of these -- the xhigh judge did.
