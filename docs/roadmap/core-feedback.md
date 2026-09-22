@@ -113,3 +113,19 @@ to verify its entrypoint. No new helper or core ticket was requested.
 | A cli `respond` cannot write to stderr on a code-0 outcome: `answerSelected` calls `collected.stderr` only on usage (2) or a thrown error (1), so an advisory note beside a success (`verify`'s "body templates skipped: no key") has no channel but stdout. | blueprint/t07 2026-09-21 (first asker; kin of the t01 row "respond cannot set the exit code") | candidate — `respond` returning `{ stdout, stderr?, code? }` would close both rows at once |
 | A slot annotation types an operation's `ctx.input` with no parse and no cast (`const g: Tinkerer.Gate = operation({ label, run })` — the target type flows into the generic). Nothing documents it, so an author reaches for a cast or writes a builder that narrows the slot instead. Wanted: one line in core's README under Operations | tinkerer (ADR 0057) — first asker; `gate()` was the builder it produced | **done — docs only** ([core: Operation input](../../packages/core/README.md#operation-input)). Enforcing "no parse means no input" was considered and rejected by the user: it complicates the genuinely-unknown case for no gain, so `rawInput` stays permissive and the trap is documented instead |
 | A subflow that runs as a scope closes throws `Disposed` while `ctx.signal.aborted` can still be `false`, so a driver cannot tell "we were shut down" from "the work failed" by the signal alone. http now checks `isError(e, "Disposed")` explicitly to avoid blaming a transport that was never touched. Wanted: either the signal flips before the dispose, or a documented rule that `Disposed` is the cancellation on that path. A same-tick close also settles `failed` where the pre-subflow shape settled `cancelled` | http (graph/t02, ADR 0058) — first asker | open — http works around it in one line; the question is core's close ordering |
+
+## Writer learning round, 2026-09-22
+
+- DeepSeek thought useRun error state was forbidden by the learning rules.
+  It added screen operations to put notices in cells.
+  That works, but a derived message from useRun is also valid.
+  The tracker uses both forms. This is teaching feedback, not a core bug.
+- DeepSeek found that rawInput without an input parser leaves ctx.input unset.
+  The existing core input guide covers this rule.
+  No new core ticket; the worker can use typed input or add a real parser.
+- GLM blamed stored sorting for needing a creation-order record.
+  Creation order is a separate fact, even with a computed sorted view.
+  Its new cell is valid app state. No core change is needed.
+
+Reports and source checks are saved in
+`~/.local/share/tinker-writer-trial/learn-01/results/repair-1/`.

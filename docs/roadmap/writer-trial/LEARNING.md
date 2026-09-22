@@ -1,6 +1,7 @@
 # Writer learning loop
 
-Status: preparing repair checks; writers have their own saved apps.
+Status: two repairs saved and checked; two writers still running.
+The stronger teacher checks are still in progress.
 Owner: Codex.
 User asked to keep looping until all four follow our code pattern.
 
@@ -61,3 +62,33 @@ Runtime manifest and continuation notes:
 ```text
 ~/.local/share/tinker-writer-trial/learn-01/
 ```
+
+## Repair 1 launch
+
+All four restored apps passed 32 readiness checks.
+Five tool and disabled-budget tests passed too.
+Restored source and tests match their saved archives by hash.
+All four writers started through Paseo with high thinking.
+They have the new rules and their own failures only.
+The original Jev copy stays fixed during this attempt.
+The teacher upgrade must pass review before any app is accepted.
+
+## First repairs checked
+
+DeepSeek and GLM pass the original teacher core and browser checks.
+Both pass all four added bug checks from the code review.
+The lead also ran their own checks in fresh isolated containers:
+
+- DeepSeek: type check, 78 tests including browser tests, and build pass.
+- GLM: type check, 51 core tests, 11 browser tests, and build pass.
+
+The lead read both saved apps.
+Form text, edit text, filters, and notices now live in core cells.
+Both views call useData and useRun, with no local React state hooks.
+The managed error path rethrows unknown values.
+Creation order now has its own record, kept across edits and undo.
+
+This matches the tracker's main state and action pattern.
+It does not yet count as full acceptance.
+The stronger checks and fresh feature are still required.
+Saved evidence lives under learn-01/results/repair-1.
