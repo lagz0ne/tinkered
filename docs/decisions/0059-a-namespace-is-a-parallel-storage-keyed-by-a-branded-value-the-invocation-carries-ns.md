@@ -83,7 +83,19 @@ Resolve walks the layer chain and the ns chain together; a write lands at `(this
 7. **Storage is reference-counted, per the precedent.** A namespace's `(layer, ns, unit)` entries
    release when no live borrow holds them (Effect's `RcMap`), so the dynamic case (thousands of
    short-lived tenants) needs no hand-close. The layer closing still closes everything under it.
-8. **The frame stops needing `label`.** With config bound per namespace, one `httpClient` declaration
+8. **`target` is the shared-versus-per-namespace axis; there is no new marker.** A resource with
+   `target: "scope"` is namespace-blind: one build at the root, every namespace reads through to it
+   (a shared pool). A resource with `target: "session"` is namespace-keyed: one build per layer x
+   namespace (a per-tenant client). This is what the two words already mean, stretched one step —
+   scope is the whole scope; session is the asking layer, and a namespace is a bucket inside a layer.
+   It is also the precedent: Effect's `LayerMap` keeps shared things outside the keyed region and only
+   what varies inside it. A probe ran the exact case — `client` (session-target) depending on `pool`
+   (scope-target) across two namespaces — and got one pool, two clients, both holding the one pool.
+   "Per-tenant for the app's lifetime" is `target: "session"` inside a long-lived
+   `createSession({ ns: tenant })`: a tenant's lifetime IS a layer. The mistake is loud, not silent:
+   a scope-target resource that needs a namespace-bound tag resolves at the root's default bucket
+   and raises `MissingTag` on its first run, exactly as it does today for a session-bound tag.
+9. **The frame stops needing `label`.** With config bound per namespace, one `httpClient` declaration
    serves github and stripe: `send.run({ input, ns: github })`. The factory-with-label pattern (ADR
    0057's Case 2) is the thing this retires; `label` remains only where a genuinely distinct tag
    identity is wanted at authoring time.
@@ -106,11 +118,6 @@ Resolve walks the layer chain and the ns chain together; a write lands at `(this
 - **`ns` chain × session chain order.** Whether resolve walks layers-then-namespaces or the reverse
   when both are chains; the probe is a cell written at a parent layer in namespace `b` read from a
   child layer with `ns: [a, b]`.
-- **A per-namespace resource with a SHARED sub-dep** (CASE 6). `client(tenant)` is per-ns for its
-  config but its `pool` sub-dep should build once for all tenants. Its deps resolve in its own ns, so
-  the pool builds per-tenant unless something pins it to the default namespace. The only case the
-  probes could not collapse to one way: needs either a per-unit "shared" marker (more surface) or a
-  resolve rule, and neither is obviously right. Decide with a probe before building.
 
 ## Alternatives rejected
 

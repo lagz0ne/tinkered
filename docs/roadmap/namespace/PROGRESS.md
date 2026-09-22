@@ -61,8 +61,9 @@ Hunting for gaps and two-ways -- the good design has one expression per problem.
 - **4 A<->B relay** -- per-call `ns` on the subflow, which keeps `relay` as the span
   parent. One way; `ns` must NOT be a session (a session re-parents the span).
 - **5 fallback (override one setting)** -- write what differs, read through the chain. One way.
-- **6 shared resource** -- default ns + read-through. One way for DATA; a per-ns owner with a
-  shared sub-dep (`client(ns)` -> `pool(shared)`) is OPEN -- see the ADR.
+- **6 shared resource** -- `target: "scope"` is shared across every namespace; `target: "session"`
+  is per namespace. Resolved: the existing `target` setting is the axis, no new marker. Probed: one
+  pool, two clients, both holding the one pool.
 - **7 "all work in tenant"** -- ambient `ns` on the session, per-call `ns` overrides. Resolved
   (was two ways): ambient + override, the same shape as tags.
 
@@ -74,13 +75,12 @@ Two design points the probes forced, now in the ADR:
 - **ambient + override.** `createSession({ ns })` for "all work in a tenant"; per-call `ns` for "touch
   two at once". Same shape as tags. Removes the per-call-only trap.
 
-One residual the probes could not collapse: a per-namespace resource whose sub-dep should be shared
-(CASE 6). Flagged in the ADR as a decide-before-building probe.
+CASE 6 (a per-namespace resource with a shared sub-dep) closed on 2026-09-22: `target` already
+says shared (`scope`) versus per-instance (`session`); stretching it one step to namespaces makes
+the case one way. Probe output: `pools built: 1  clients built: 2`.
 
 ## Open probes -- do these before a ticket
 
-- **Per-ns resource with a shared sub-dep (CASE 6):** `client(ns)` per-namespace, `pool` shared;
-  its deps resolve in its ns, so the pool builds per-ns unless pinned to default. Marker vs rule.
 - **Refcount release timing:** last-borrow vs idle grace; does a resource `defer` in a released
   namespace run on release or on layer close?
 - **`ns` chain x session chain order:** a cell written at a parent layer in ns `b`, read from a child
