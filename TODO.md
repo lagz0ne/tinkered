@@ -32,7 +32,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **writers/trial** — owner: Codex.
   Four attempts per writer; observe its repo grow.
-  Next: get round 2 tested with budget stops off, then finish all four rounds.
+  Next: finish dates and weekly bookings, then undo; keep budget stops off.
   Verify: 16 saved results, growth reports, and cleanup proof.
   Notes: [writer trial](docs/roadmap/writer-trial/PROGRESS.md).
 
