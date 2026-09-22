@@ -1,5 +1,5 @@
 import { spawn, execFileSync } from "node:child_process";
-import { appendFileSync } from "node:fs";
+import { appendFileSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { join } from "node:path";
@@ -7,6 +7,33 @@ import { join } from "node:path";
 function validateSource(file) {
   if (!/^(src|tests)\/[a-zA-Z0-9_./-]+\.tsx?$/.test(file) || file.split("/").includes(".."))
     throw new Error("Choose a .ts or .tsx file below src/ or tests/");
+}
+
+// Deterministic source-shape findings for one file. Only an absent
+// shape.mjs is legacy-optional (old frozen dirs report no findings).
+// A present helper that cannot import, has no inspectShape export,
+// throws, or returns a non-array is an unavailable check: it throws,
+// never a clean empty list (unavailable checks never pass).
+export async function plainFindingsFor(source, file, jevDir) {
+  const shapePath = join(jevDir, "shape.mjs");
+  if (!existsSync(shapePath)) return [];
+  let shape;
+  try {
+    shape = await import(pathToFileURL(shapePath).href);
+  } catch (error) {
+    throw new Error(`Shape check unavailable: cannot import shape.mjs (${error?.message ?? error})`);
+  }
+  if (typeof shape.inspectShape !== "function")
+    throw new Error("Shape check unavailable: shape.mjs has no inspectShape export");
+  let found;
+  try {
+    found = await shape.inspectShape(source, file);
+  } catch (error) {
+    throw new Error(`Shape check unavailable: inspectShape failed (${error?.message ?? error})`);
+  }
+  if (!Array.isArray(found))
+    throw new Error("Shape check unavailable: inspectShape must return an array");
+  return found;
 }
 
 export function createBroker(config) {
@@ -91,19 +118,7 @@ export function createBroker(config) {
       const lib = await import(pathToFileURL(join(config.jevDir, "lib.mjs")).href);
       const bank = await import(pathToFileURL(join(config.jevDir, "bank.mjs")).href);
       const extractor = await import(pathToFileURL(join(config.jevDir, "extract.mjs")).href);
-      // Optional generic shape helper (Jev contributor owns it). Reports
-      // deterministic findings separately; never breaks old frozen dirs.
-      let shape = null;
-      try {
-        shape = await import(pathToFileURL(join(config.jevDir, "shape.mjs")).href);
-      } catch {}
-      const plainFindings = [];
-      if (shape && typeof shape.inspectShape === "function") {
-        try {
-          const found = shape.inspectShape(source, file);
-          if (Array.isArray(found)) for (const row of found) plainFindings.push(row);
-        } catch {}
-      }
+      const plainFindings = await plainFindingsFor(source, file, config.jevDir);
       if (!lib.loadKey()) throw new Error("Jev unavailable: missing credentials");
       const selected = new Set(config.judges);
       const calibration = lib.readCalibration();

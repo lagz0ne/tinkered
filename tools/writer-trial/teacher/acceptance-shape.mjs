@@ -13,20 +13,20 @@ export function shapeCases(root) {
   const ok = (name, detail) => cases.push({ name, pass: true, detail });
   const note = (name, detail) => advisory.push({ name, detail });
 
-  const walk = (dir) => {
+  const walk = (dir, pattern) => {
     let out = [];
     if (!existsSync(dir)) return out;
     for (const entry of readdirSync(dir)) {
       if (entry === "node_modules" || entry === "dist") continue;
       const full = join(dir, entry);
-      if (statSync(full).isDirectory()) out = out.concat(walk(full));
-      else if (/\.tsx?$/.test(entry)) out.push(full);
+      if (statSync(full).isDirectory()) out = out.concat(walk(full, pattern));
+      else if (pattern.test(entry)) out.push(full);
     }
     return out;
   };
   const short = (full) => full.slice(root.length + 1);
 
-  const srcFiles = walk(join(root, "src"));
+  const srcFiles = walk(join(root, "src"), /\.tsx?$/);
   if (!srcFiles.length) {
     fail("shape: src present", "no TypeScript files under src/");
     return { cases, advisory };
@@ -35,7 +35,7 @@ export function shapeCases(root) {
   const tsxFiles = srcFiles.filter((f) => f.endsWith(".tsx"));
   if (!tsxFiles.length) fail("shape: view present", "no .tsx view file under src/");
   else ok("shape: view present", tsxFiles.map(short).join(", "));
-  const testFiles = walk(join(root, "tests"));
+  const testFiles = walk(join(root, "tests"), /\.m?[jt]sx?$|\.cjs$/);
 
   // Comments stripped, strings kept: import paths are strings.
   const noComments = (text) =>
