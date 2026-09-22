@@ -1,0 +1,129 @@
+[
+  {
+    "worker": 1,
+    "model": "xiaomi/mimo-v2.6-flash",
+    "round": 1,
+    "teacherVersion": 2,
+    "exitCode": 1,
+    "core": "fail",
+    "browser": "not-run",
+    "sourceLines": 0,
+    "testLines": 0,
+    "files": [],
+    "tokens": 366004,
+    "estimatedDollars": 0.018516993600000003,
+    "turns": 16,
+    "stopReason": "length",
+    "jevRequests": 0,
+    "jevTokens": null,
+    "jevDollars": null,
+    "trialStops": [
+      {
+        "time": "2026-09-22T04:42:51.670Z",
+        "kind": "stop",
+        "reason": "turn/token/cost limit",
+        "tokens": 366004,
+        "estimatedCost": 0.018516993600000003
+      }
+    ]
+  },
+  {
+    "worker": 2,
+    "model": "xiaomi/mimo-v2.6-pro",
+    "round": 1,
+    "teacherVersion": 2,
+    "exitCode": 1,
+    "core": "fail",
+    "browser": "not-run",
+    "sourceLines": 0,
+    "testLines": 0,
+    "files": [],
+    "tokens": 42320,
+    "estimatedDollars": 0.0218392926,
+    "turns": 5,
+    "stopReason": "length",
+    "jevRequests": 0,
+    "jevTokens": null,
+    "jevDollars": null,
+    "trialStops": []
+  },
+  {
+    "worker": 3,
+    "model": "zai/glm-5.3-flash",
+    "round": 1,
+    "teacherVersion": 2,
+    "exitCode": 0,
+    "core": "pass",
+    "browser": "pass",
+    "sourceLines": 342,
+    "testLines": 0,
+    "files": [
+      {
+        "path": "src/app.tsx",
+        "bytes": 4402,
+        "lines": 146,
+        "sha256": "acdc3bd69fef16cfa385d1dad461764bdc2bea0d9de029fcb0d097bdb05b26f5"
+      },
+      {
+        "path": "src/bookings.ts",
+        "bytes": 3826,
+        "lines": 120,
+        "sha256": "bc61871c3717a4de13ebceabe19d425e8dbf84817382d1b55639c9e1a2c1c105"
+      },
+      {
+        "path": "src/errors.ts",
+        "bytes": 1769,
+        "lines": 64,
+        "sha256": "6ff35ffaf33df3198ce2c1d84725aaa14c9185f53cb2c65e97c9170f04231901"
+      },
+      {
+        "path": "src/index.ts",
+        "bytes": 262,
+        "lines": 5,
+        "sha256": "1a8d6c32e623afe8e3f80240ca587fc2e5f72d8642677470d8a80102a54298c7"
+      },
+      {
+        "path": "src/main.tsx",
+        "bytes": 201,
+        "lines": 7,
+        "sha256": "d7be1ce5ce5c049baa8c949f50925b141b60341d207fce5026f7a14d79835f5b"
+      }
+    ],
+    "tokens": 327181,
+    "estimatedDollars": 0.027499179999999998,
+    "turns": 19,
+    "stopReason": "trial-token-limit",
+    "jevRequests": 0,
+    "jevTokens": null,
+    "jevDollars": null,
+    "trialStops": [
+      {
+        "time": "2026-09-22T04:39:54.647Z",
+        "kind": "stop",
+        "reason": "turn/token/cost limit",
+        "tokens": 327181,
+        "estimatedCost": 0.027499179999999998
+      }
+    ]
+  },
+  {
+    "worker": 4,
+    "model": "deepseek/deepseek-v4.1-flash",
+    "round": 1,
+    "teacherVersion": 2,
+    "exitCode": 1,
+    "core": "fail",
+    "browser": "not-run",
+    "sourceLines": 0,
+    "testLines": 0,
+    "files": [],
+    "tokens": 179013,
+    "estimatedDollars": 0.03206434,
+    "turns": 11,
+    "stopReason": "length",
+    "jevRequests": 0,
+    "jevTokens": null,
+    "jevDollars": null,
+    "trialStops": []
+  }
+]

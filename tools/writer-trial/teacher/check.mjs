@@ -8,6 +8,7 @@ assert.ok(Number.isInteger(round) && round >= 1 && round <= 4, "round is 1-4");
 
 const vite = await createServer({
   root: submission,
+  cacheDir: "/tmp/teacher-core-cache",
   configFile: false,
   server: { middlewareMode: true },
   appType: "custom",

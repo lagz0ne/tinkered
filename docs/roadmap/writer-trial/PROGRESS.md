@@ -1,10 +1,10 @@
 # Writer trial
 
-Status: trial-01 round 1 is running for all four writers.
+Status: trial-01 round 2 is running for all four writers.
 Owner: Codex.
 Scope settled: core and React only.
 Trial shape settled: four attempts per writer on its own growing repo.
-Next: finish round 1, save and check all four submissions.
+Next: run round 2 on each writer’s own saved code.
 
 ## What we checked
 
@@ -382,3 +382,38 @@ Round 1 agent IDs:
 - `deepseek/deepseek-v4.1-flash`: `ec178b7d-74f7-4209-b08f-f56269a5853c`.
 
 All 32 checks passed again on these fresh containers before launch.
+
+### Round 1 partial results
+
+- GLM hit the shared 300,000-token attempt limit.
+  Its snapshot passes the sampled core and browser checks.
+- DeepSeek reached the 16,384-token response cap while thinking.
+  It wrote no app files. The core loader rejects the empty app.
+- Both MiMo models reached the response cap before writing app files.
+  MiMo Flash also crossed the attempt token limit.
+
+The first GLM browser check hit Vite's stale dependency cache.
+A separate cache for each teacher server and early loading of
+supplied packages fixed the runner. The same GLM snapshot passed.
+No app code or check rules changed. Keep the original failure log.
+Use the saved `teacher-v2` runner for all writers and rounds.
+The exact change and file hashes are in `teacher-v2-change.json`.
+
+Round 1 is fully saved in `trial-01/results/round-1/`.
+All four snapshots were checked with the corrected teacher runner.
+GLM passes both sampled groups; the other three have no app entry.
+Their browser checks are not run. No writer reached a Jev call.
+All four have zero test lines. These are limited pilot results,
+not evidence of a reliable model ranking.
+[Round 1 data](trial-01-round-1.json).
+
+Round 2 adds draft editing with save and discard.
+Each fresh session gets its own earlier code and both task packets.
+Limits, model settings, and worker tools stay the same.
+
+Round 2 agent IDs:
+
+- `xiaomi/mimo-v2.6-flash`: `1f1a74a6-6468-4faf-9bb4-cbd00c8dae29`.
+- `xiaomi/mimo-v2.6-pro`: `09062190-4ae5-493d-b0dd-5d5b770f8102`.
+- `zai/glm-5.3-flash`: `db69948e-0c9f-41d9-9718-db3633b907fb`.
+- `deepseek/deepseek-v4.1-flash`: `9233b769-9ec6-4d1b-bc74-90be7e15549e`.
