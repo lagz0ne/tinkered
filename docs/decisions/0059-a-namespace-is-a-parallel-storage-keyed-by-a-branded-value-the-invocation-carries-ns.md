@@ -30,13 +30,20 @@ chain — the same read-through shape, sideways.
 
 ## Decision
 
-1. **A namespace is a branded value, not a name.** `namespace()` mints one, exactly as `data()`,
-   `tag()`, and `operation()` mint branded handles. It carries no string; two namespaces differ by
-   identity. Underneath it is a map key and nothing more — callers pass the value around; they never
-   name a namespace.
+1. **A namespace is a branded value, not a name; its config is its binding.** `namespace(opts?)`
+   mints one, exactly as `data({ initial })` and `tag({ default })` mint configured branded handles.
+   `opts.tags` are the namespace's own bindings (github's backend, stripe's) — the thing that made
+   two frames-with-labels necessary; bare `namespace()` is for instances that differ only by
+   accumulated state (agents A and B). It carries no string; two namespaces differ by identity.
+   Callers pass the value around; they never name a namespace.
 2. **The invocation carries `ns`.** The storage key generalises from `(layer, unit)` to
    `(layer, ns, unit)`, default absent = today's single namespace. `ns` is one more attribute on the
-   invocation object the three verbs already share — no new verb, no new edge, no `ctx.in`:
+   invocation object the three verbs already share — no new verb, no new edge, no `ctx.in`. A
+   namespace is NOT a session: a session is a new layer (it changes the span parent AND the storage);
+   a namespace keeps the current layer (the span parent stays, so `relay > a:turn > b:turn` nests)
+   and changes ONLY the storage bucket. A probe proved this — running a subflow via a session handle
+   re-parents its span to that session, breaking the orchestration trace; keeping the layer and
+   swapping the storage key is the one thing no existing primitive does, which is the core change:
 
 ```ts
 turn.run({ input, ns: a }); // a subflow, in namespace a
@@ -65,10 +72,18 @@ Resolve walks the layer chain and the ns chain together; a write lands at `(this
    op's `depends` stays `{ turn }`; `ns` rides the run exactly as `tags` does. Dynamic: `ns` is
    derived from a third factor at runtime (`ns: keyFor(ctx.input)`) — a tenant from the request, an
    agent id spawned mid-run.
-5. **Storage is reference-counted, per the precedent.** A namespace's `(layer, ns, unit)` entries
+5. **Ambient on the session, explicit per call.** "All work in this tenant" binds the namespace once
+   on the session (`createSession({ ns: tenant })`, inherited by every unit inside); "one op touches
+   A and B" passes `ns` per subflow. This is the ambient-plus-override shape tags already have, so the
+   two needs have one expression each and do not overlap — a probe found the per-call-only form was a
+   trap (forget `ns`, silently hit default) that the ambient session removes.
+6. **Fallback is write-what-differs, read-through.** `ns: [a, b]` reads a, else b, else default; a
+   tenant writes only the settings it overrides and inherits the rest (CASE 5), and a shared value is
+   one written in the default namespace that every tenant reads through to (CASE 6, for data).
+7. **Storage is reference-counted, per the precedent.** A namespace's `(layer, ns, unit)` entries
    release when no live borrow holds them (Effect's `RcMap`), so the dynamic case (thousands of
    short-lived tenants) needs no hand-close. The layer closing still closes everything under it.
-6. **The frame stops needing `label`.** With config bound per namespace, one `httpClient` declaration
+8. **The frame stops needing `label`.** With config bound per namespace, one `httpClient` declaration
    serves github and stripe: `send.run({ input, ns: github })`. The factory-with-label pattern (ADR
    0057's Case 2) is the thing this retires; `label` remains only where a genuinely distinct tag
    identity is wanted at authoring time.
@@ -91,6 +106,11 @@ Resolve walks the layer chain and the ns chain together; a write lands at `(this
 - **`ns` chain × session chain order.** Whether resolve walks layers-then-namespaces or the reverse
   when both are chains; the probe is a cell written at a parent layer in namespace `b` read from a
   child layer with `ns: [a, b]`.
+- **A per-namespace resource with a SHARED sub-dep** (CASE 6). `client(tenant)` is per-ns for its
+  config but its `pool` sub-dep should build once for all tenants. Its deps resolve in its own ns, so
+  the pool builds per-tenant unless something pins it to the default namespace. The only case the
+  probes could not collapse to one way: needs either a per-unit "shared" marker (more surface) or a
+  resolve rule, and neither is obviously right. Decide with a probe before building.
 
 ## Alternatives rejected
 
