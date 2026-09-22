@@ -943,6 +943,57 @@ test("releaseNs on named data invalidates only resources that read that bucket",
   await scope.close();
 });
 
+test("a rebuilt resource leaves its old named data fallback bucket", async () => {
+  const a = namespace();
+  const b = namespace();
+  const config = data({ label: "config", initial: 0 });
+  const ended: number[] = [];
+  const client = resource({
+    label: "client",
+    target: "session",
+    depends: { config },
+    factory: ({ config }, ctx) => {
+      ctx.defer(() => void ended.push(config));
+      return { config };
+    },
+  });
+  const scope = createScope();
+  scope.controller(config, { ns: b }).set(1);
+  const first = scope.resolve(client, { ns: [a, b] });
+  scope.releaseNs(client, a);
+  scope.controller(config, { ns: a }).set(2);
+  const rebuilt = scope.resolve(client, { ns: [a, b] });
+  expect(rebuilt).not.toBe(first);
+  scope.releaseNs(config, b);
+  expect(scope.resolve(client, { ns: [a, b] })).toBe(rebuilt);
+  expect(ended).toEqual([1]);
+  await scope.close();
+});
+
+test("releaseNs on parent data invalidates a child resource that read its bucket", async () => {
+  const a = namespace();
+  const config = data({ label: "config", initial: 0 });
+  const ended: string[] = [];
+  const client = resource({
+    label: "client",
+    target: "session",
+    depends: { config },
+    factory: ({ config }, ctx) => {
+      ctx.defer((end) => void ended.push(`${config}:${end.status}`));
+      return { config };
+    },
+  });
+  const scope = createScope();
+  const child = scope.createSession();
+  scope.controller(config, { ns: a }).set(1);
+  const first = child.resolve(client, { ns: a });
+  scope.releaseNs(config, a);
+  expect(ended).toEqual(["1:released"]);
+  expect(child.resolve(client, { ns: a })).toEqual({ config: 0 });
+  expect(child.resolve(client, { ns: a })).not.toBe(first);
+  await scope.close();
+});
+
 test("releaseNs leaves a namespace-blind scope resource built", async () => {
   const a = namespace();
   const ended: string[] = [];
