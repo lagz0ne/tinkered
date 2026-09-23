@@ -2340,7 +2340,7 @@ function resolveResourceDeps(
       if (node && !superseded()) addDependent(owner, node, target, chain, state);
     },
     chain,
-    state instanceof NsResourceState && chain !== undefined
+    state instanceof NsResourceState
       ? (depOwner, depTarget, depState) => {
           if (!superseded() && depState instanceof NsResourceState)
             linkNsResourceDependent(depState, state);
@@ -3216,17 +3216,14 @@ function releaseNamedData(owner: Layer, target: Data.Cell<unknown>, ns: Namespac
   drainRelease(affected, () => flushCell(owner, target));
 }
 
-function namedDataSeeds(rec: NodeState | undefined, entry: Entry): NamedRelease[] {
-  const pending: NamedRelease[] = [];
-  for (const state of rec?.nsDataDependents?.get(entry) ?? [])
-    pending.push({ owner: state.owner, state, target: state.target });
-  return pending;
+function namedDataSeeds(rec: NodeState | undefined, entry: Entry): NsResourceState[] {
+  return [...(rec?.nsDataDependents?.get(entry) ?? [])];
 }
 
 function releaseNamedResource(owner: Layer, target: Resource.Handle<unknown>, ns: Namespace): void {
   const state = owner.nodes.get(target)?.nsResources?.get(ns);
   if (!state) return;
-  const affected = collectNamedRelease([{ owner, state, target }]);
+  const affected = collectNamedRelease([state]);
   drainRelease(affected);
 }
 
@@ -3239,44 +3236,30 @@ function drainRelease(affected: Map<Layer, Released>, notify?: () => void): void
   }
 }
 
-type NamedRelease = {
-  owner: Layer;
-  state: NsResourceState;
-  target: Resource.Handle<unknown>;
-};
-
-function collectNamedRelease(pending: NamedRelease[]): Map<Layer, Released> {
+function collectNamedRelease(pending: NsResourceState[]): Map<Layer, Released> {
   const affected = new Map<Layer, Released>();
-  const seen = new Set<NsResourceState>();
   while (pending.length) {
-    const item = pending.pop()!;
-    if (!isLiveNamedRelease(item) || seen.has(item.state)) continue;
-    seen.add(item.state);
-    const instance = item.state.instance;
-    queueLinkedDependents(item.state, pending);
-    const released = affected.get(item.owner) ?? {
+    const state = pending.pop()!;
+    if (!isLiveNamedRelease(state)) continue;
+    for (const dependent of state.resourceDependents ?? []) pending.push(dependent);
+    const released = affected.get(state.owner) ?? {
       instances: new Set<ResourceInstance>(),
       hooks: [],
     };
-    if (instance) released.instances.add(instance);
-    affected.set(item.owner, released);
-    unlinkNamedState(item);
+    if (state.instance) released.instances.add(state.instance);
+    affected.set(state.owner, released);
+    unlinkNamedState(state);
   }
   return affected;
 }
 
-function isLiveNamedRelease({ owner, target, state }: NamedRelease): boolean {
-  return owner.nodes.get(target)?.nsResources?.get(state.key) === state;
+function isLiveNamedRelease(state: NsResourceState): boolean {
+  return state.owner.nodes.get(state.target)?.nsResources?.get(state.key) === state;
 }
 
-function queueLinkedDependents(state: NsResourceState, pending: NamedRelease[]): void {
-  for (const dependent of state.resourceDependents ?? [])
-    pending.push({ owner: dependent.owner, state: dependent, target: dependent.target });
-}
-
-function unlinkNamedState({ owner, state, target }: NamedRelease): void {
+function unlinkNamedState(state: NsResourceState): void {
   const instance = state.instance;
-  owner.nodes.get(target)?.nsResources?.delete(state.key);
+  state.owner.nodes.get(state.target)?.nsResources?.delete(state.key);
   detachNsDependencies(state);
   state.gen++;
   state.resource = undefined;
@@ -3401,7 +3384,6 @@ function addNsDataDependent(
 }
 
 function linkNsResourceDependent(selected: NsResourceState, dependent: NsResourceState): void {
-  if (selected.resourceDependents?.has(dependent)) return;
   (selected.resourceDependents ??= new Set()).add(dependent);
   (dependent.resourceDependencies ??= new Set()).add(selected);
 }
