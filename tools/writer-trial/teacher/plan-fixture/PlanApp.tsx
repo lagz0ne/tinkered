@@ -1,7 +1,7 @@
 import type { FormEvent, ReactElement } from "react";
 import { createScope } from "@tinker/core";
 import { ScopeProvider, useData, useRun } from "@tinker/react";
-import { courses, undoPlan } from "./model.ts";
+import { courses } from "./model.ts";
 import type { Course } from "./model.ts";
 import {
   courseFilter,
@@ -12,14 +12,14 @@ import {
   pickFilter,
   pickPrereq,
   prereqPick,
-  selectedCourse,
-  selectCourse,
   submitAddLink,
   submitCourse,
   submitRemoveLink,
+  submitUndo,
   typeTitle,
 } from "./screen.ts";
 import { submitComplete, submitReopen } from "./screen.ts";
+import { isReady } from "./model.ts";
 
 /** One course row in saved order. */
 function CourseRow(props: {
@@ -30,10 +30,8 @@ function CourseRow(props: {
   const { row, status, requires } = props;
   const complete = useRun(submitComplete);
   const reopen = useRun(submitReopen);
-  const select = useRun(selectCourse);
-  const selected = useData(selectedCourse);
   return (
-    <tr aria-selected={selected === row.id}>
+    <tr>
       <td>{row.title}</td>
       <td>{status}</td>
       <td>{requires === "" ? "None" : requires}</td>
@@ -47,9 +45,6 @@ function CourseRow(props: {
             Complete {row.title}
           </button>
         )}
-        <button type="button" onClick={() => select.run({ input: { id: row.id } })}>
-          Select {row.title}
-        </button>
       </td>
     </tr>
   );
@@ -154,20 +149,22 @@ function Plan(): ReactElement {
   const filter = useData(courseFilter);
   const alert = useData(notice);
   const pick = useRun(pickFilter);
-  const undo = useRun(undoPlan);
+  const undo = useRun(submitUndo);
   const byId = (id: string): Course | undefined => rows.find((row) => row.id === id);
-  const isReady = (row: Course): boolean =>
-    !row.done && row.prerequisiteIds.every((pid) => byId(pid)?.done === true);
   const requiresText = (row: Course): string => {
     if (row.prerequisiteIds.length === 0) return "";
     return row.prerequisiteIds.map((pid) => byId(pid)?.title ?? "Removed course").join(", ");
   };
   const statusText = (row: Course): string => {
     if (row.done) return "Done";
-    return isReady(row) ? "Ready" : "Blocked";
+    return isReady(rows, row) ? "Ready" : "Blocked";
   };
   const shown =
-    filter === "All" ? rows : filter === "Done" ? rows.filter((r) => r.done) : rows.filter(isReady);
+    filter === "All"
+      ? rows
+      : filter === "Done"
+        ? rows.filter((r) => r.done)
+        : rows.filter((r) => isReady(rows, r));
   return (
     <main>
       <CourseForm />

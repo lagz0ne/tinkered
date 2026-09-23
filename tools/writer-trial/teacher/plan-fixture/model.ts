@@ -76,6 +76,10 @@ const reaches = (
   return row.prerequisiteIds.some((next) => reaches(rows, next, target, [...seen, from]));
 };
 
+/** Ready when incomplete with every direct prerequisite done. */
+export const isReady = (rows: readonly Course[], row: Course): boolean =>
+  !row.done && row.prerequisiteIds.every((pid) => rows.find((r) => r.id === pid)?.done === true);
+
 /** Create a course with a trimmed title. Fails leave everything unchanged. */
 export const createCourse: Operation.Handle<Course, { title: string }> = operation({
   label: "createCourse",

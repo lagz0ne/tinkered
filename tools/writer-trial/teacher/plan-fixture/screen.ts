@@ -1,11 +1,12 @@
 import { data, operation } from "@tinker/core";
-import type { Data, Operation, Scope } from "@tinker/core";
+import type { Data, Operation } from "@tinker/core";
 import {
   addPrerequisite,
   completeCourse,
   createCourse,
   removePrerequisite,
   reopenCourse,
+  undoPlan,
 } from "./model.ts";
 import { errorKind, fail } from "./errors.ts";
 import type { Name } from "./errors.ts";
@@ -34,20 +35,6 @@ export const notice: Data.Cell<Name | undefined> = data({
   label: "notice",
   initial: undefined,
 });
-
-export const selectedCourse: Data.Cell<string> = data({ label: "selectedCourse", initial: "" });
-
-/** Run one body, showing the first managed error's kind and rethrowing. */
-const withNotice = <R>(body: () => R, cell: Scope.DataController<Name | undefined>): R => {
-  try {
-    return body();
-  } catch (error) {
-    const kind = errorKind(error);
-    if (kind === undefined) throw error;
-    cell.set(kind);
-    throw error;
-  }
-};
 
 /** Type into the new-course form. Typing clears any earlier notice. */
 export const typeTitle: Operation.Handle<void, { value: string }> = operation({
@@ -89,15 +76,6 @@ export const pickFilter: Operation.Handle<void, CourseFilter> = operation({
   },
 });
 
-/** Select a course row. Selecting adds no record and no undo step. */
-export const selectCourse: Operation.Handle<void, { id: string }> = operation({
-  label: "selectCourse",
-  depends: { selected: selectedCourse.controller },
-  run: ({ selected }, ctx) => {
-    selected.set(ctx.input.id);
-  },
-});
-
 /** Submit the new-course form. Success clears Title; failure keeps it. */
 export const submitCourse: Operation.Handle<void, void> = operation({
   label: "submitCourse",
@@ -106,12 +84,18 @@ export const submitCourse: Operation.Handle<void, void> = operation({
     noticeCell: notice.controller,
     create: createCourse.controller,
   },
-  run: ({ form, noticeCell, create }) =>
-    withNotice(() => {
+  run: ({ form, noticeCell, create }) => {
+    try {
       create.run({ input: { title: form.get().title } });
-      form.set({ title: "" });
-      noticeCell.set(undefined);
-    }, noticeCell),
+    } catch (error) {
+      const kind = errorKind(error);
+      if (kind === undefined) throw error;
+      noticeCell.set(kind);
+      throw error;
+    }
+    form.set({ title: "" });
+    noticeCell.set(undefined);
+  },
 });
 
 /** Add the selected link. Keeps both selects after success or failure. */
@@ -123,14 +107,20 @@ export const submitAddLink: Operation.Handle<void, void> = operation({
     noticeCell: notice.controller,
     add: addPrerequisite.controller,
   },
-  run: ({ pick, prereq, noticeCell, add }) =>
-    withNotice(() => {
+  run: ({ pick, prereq, noticeCell, add }) => {
+    try {
       const courseId = pick.get();
       const prerequisiteId = prereq.get();
       if (courseId === "" || prerequisiteId === "") throw fail("NotFound", { id: "" });
       add.run({ input: { courseId, prerequisiteId } });
-      noticeCell.set(undefined);
-    }, noticeCell),
+    } catch (error) {
+      const kind = errorKind(error);
+      if (kind === undefined) throw error;
+      noticeCell.set(kind);
+      throw error;
+    }
+    noticeCell.set(undefined);
+  },
 });
 
 /** Remove the selected link. Keeps both selects after success or failure. */
@@ -142,34 +132,69 @@ export const submitRemoveLink: Operation.Handle<void, void> = operation({
     noticeCell: notice.controller,
     remove: removePrerequisite.controller,
   },
-  run: ({ pick, prereq, noticeCell, remove }) =>
-    withNotice(() => {
+  run: ({ pick, prereq, noticeCell, remove }) => {
+    try {
       const courseId = pick.get();
       const prerequisiteId = prereq.get();
       if (courseId === "" || prerequisiteId === "") throw fail("NotFound", { id: "" });
       remove.run({ input: { courseId, prerequisiteId } });
-      noticeCell.set(undefined);
-    }, noticeCell),
+    } catch (error) {
+      const kind = errorKind(error);
+      if (kind === undefined) throw error;
+      noticeCell.set(kind);
+      throw error;
+    }
+    noticeCell.set(undefined);
+  },
 });
 
 /** Complete one course from its row button. */
 export const submitComplete: Operation.Handle<void, { id: string }> = operation({
   label: "submitComplete",
   depends: { noticeCell: notice.controller, complete: completeCourse.controller },
-  run: ({ noticeCell, complete }, ctx) =>
-    withNotice(() => {
+  run: ({ noticeCell, complete }, ctx) => {
+    try {
       complete.run({ input: { id: ctx.input.id } });
-      noticeCell.set(undefined);
-    }, noticeCell),
+    } catch (error) {
+      const kind = errorKind(error);
+      if (kind === undefined) throw error;
+      noticeCell.set(kind);
+      throw error;
+    }
+    noticeCell.set(undefined);
+  },
 });
 
 /** Reopen one course from its row button. */
 export const submitReopen: Operation.Handle<void, { id: string }> = operation({
   label: "submitReopen",
   depends: { noticeCell: notice.controller, reopen: reopenCourse.controller },
-  run: ({ noticeCell, reopen }, ctx) =>
-    withNotice(() => {
+  run: ({ noticeCell, reopen }, ctx) => {
+    try {
       reopen.run({ input: { id: ctx.input.id } });
-      noticeCell.set(undefined);
-    }, noticeCell),
+    } catch (error) {
+      const kind = errorKind(error);
+      if (kind === undefined) throw error;
+      noticeCell.set(kind);
+      throw error;
+    }
+    noticeCell.set(undefined);
+  },
+});
+
+/** Undo the last passing change. Empty history reports EmptyUndo. */
+export const submitUndo: Operation.Handle<void, void> = operation({
+  label: "submitUndo",
+  depends: { noticeCell: notice.controller, undo: undoPlan.controller },
+  run: ({ noticeCell, undo }) => {
+    try {
+      undo.run({});
+    } catch (error) {
+      const kind = errorKind(error);
+      if (kind === undefined) throw error;
+      noticeCell.set(kind);
+      throw error;
+    }
+    noticeCell.set(undefined);
+  },
 });
