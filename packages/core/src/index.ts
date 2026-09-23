@@ -930,7 +930,6 @@ type ResourceState = NodeState | NsResourceState;
 type ResourceInstance = {
   owner: Layer;
   target: Resource.Handle<unknown>;
-  state: ResourceState;
   hooks: ((end: Scope.End) => void | PromiseLike<void>)[];
   dependencies: Set<ResourceInstance> | undefined;
   borrowers: Set<Promise<unknown>> | undefined;
@@ -2536,7 +2535,6 @@ function instanceOf(
     instance = {
       owner,
       target,
-      state,
       hooks: [],
       dependencies: undefined,
       borrowers: undefined,
@@ -2558,27 +2556,11 @@ function holdDependency(dependent: ResourceInstance, dependency: ResourceInstanc
   if (dependent === dependency || dependent.dependencies?.has(dependency)) return;
   (dependent.dependencies ??= new Set()).add(dependency);
   dependency.dependents++;
-  if (dependency.end && !dependent.end) unlinkInstance(dependent, dependency.end);
-}
-
-function clearInstanceState(instance: ResourceInstance): void {
-  const { state } = instance;
-  if (state.instance === instance) {
-    state.instance = undefined;
-    state.gen++;
-    state.resource = undefined;
-    state.promise = undefined;
-    state.failed = undefined;
-    state.build = undefined;
-  }
-  if (state instanceof NsResourceState)
-    state.owner.nodes.get(state.target)?.nsResources?.delete(state.key);
 }
 
 function unlinkInstance(instance: ResourceInstance, end: Scope.End): void {
   if (instance.end) return;
   instance.end = instance.failure ?? end;
-  clearInstanceState(instance);
   if (instance.building || instance.dependents || instance.borrowers?.size) {
     instance.completion = new Promise<void>((resolve) => (instance.complete = resolve));
     instance.owner.pending.add(instance.completion);

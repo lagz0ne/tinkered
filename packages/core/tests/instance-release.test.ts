@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, operation, resource } from "../src/index.ts";
+import { createScope, data, isError, operation, resource, type Resource } from "../src/index.ts";
 
 test("a late default dependency stays open through its dependent's async cleanup", async () => {
   let finishBuild!: () => void;
@@ -203,6 +203,45 @@ test("interleaved release hooks keep reverse registration order", async () => {
   scope.resolve(a);
   scope.release(cell);
   expect(order).toEqual(["a-last", "b", "a-first"]);
+  await scope.close();
+});
+
+test("a circular resource does not hold itself open after rejection", async () => {
+  const depends: Record<string, Resource.Handle<unknown>> = {};
+  const loop = resource({ label: "loop", depends, factory: () => ({}) });
+  depends.self = loop;
+  const scope = createScope();
+  let thrown: unknown;
+  try {
+    scope.resolve(loop);
+  } catch (error) {
+    thrown = error;
+  }
+  if (!isError(thrown, "CircularResource")) throw thrown;
+  expect((await scope.close()).status).toBe("cancelled");
+});
+
+test("two dependency slots keep one hold on the same instance", async () => {
+  const ended: string[] = [];
+  const pool = resource({
+    label: "pool",
+    factory: (_deps, ctx) => {
+      ctx.defer((end) => void ended.push(`pool:${end.status}`));
+      return {};
+    },
+  });
+  const client = resource({
+    label: "client",
+    depends: { first: pool, second: pool },
+    factory: (_deps, ctx) => {
+      ctx.defer((end) => void ended.push(`client:${end.status}`));
+      return {};
+    },
+  });
+  const scope = createScope();
+  scope.resolve(client);
+  scope.release(pool);
+  expect(ended).toEqual(["client:released", "pool:released"]);
   await scope.close();
 });
 
