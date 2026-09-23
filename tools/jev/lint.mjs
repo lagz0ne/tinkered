@@ -110,7 +110,7 @@ console.log(
   `\njev lint: ${report.length} unit(s), ${flagged} ⚠ flag(s), ${noted} ℹ note(s). By question: ${JSON.stringify(counts)}`,
 );
 console.log(
-  "Advisory only — every ⚠ is fixed or labeled; an ℹ note is a hint, no fix or label owed. vp check / tests / the lead decide.",
+  "Advisory only — every ⚠ is fixed or explained, then labeled (a ~ hit: read it, no line owed); an ℹ note is a hint, no fix or label owed. vp check / tests / the lead decide.",
 );
 if (jsonOut) writeFileSync(jsonOut, JSON.stringify(report, null, 2));
 process.exit(0);
