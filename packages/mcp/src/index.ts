@@ -84,20 +84,17 @@ function readCall(
             label: `mcp ${name}`,
             depends: { op },
             run: async ({ op: flow }, ctx) => {
-              const started = ctx.clock.currentTimeMillis();
               try {
                 const value = await flow.run({ rawInput: args });
                 ctx.log("mcp tool", {
                   tool: name,
                   ok: true,
-                  ms: ctx.clock.currentTimeMillis() - started,
                 });
                 return answerTool(meta, value);
               } catch (error: unknown) {
                 ctx.log("mcp tool", {
                   tool: name,
                   ok: false,
-                  ms: ctx.clock.currentTimeMillis() - started,
                 });
                 throw error;
               }

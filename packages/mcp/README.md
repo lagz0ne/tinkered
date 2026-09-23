@@ -95,7 +95,9 @@ an op that still carries it (kept for harnesses until their own ticket), and
 driver answers a call.
 
 Each call runs as a session with an inline operation `mcp search` (span, one
-`mcp tool` log line, the operation as its subflow). The value goes back
+`mcp tool` line with tool and ok, the operation as its subflow).
+Core writes a separate step line with the operation's label, `ms`, and outcome.
+The value goes back
 through `respond` (default: one JSON text content); a failure answers
 `{ isError: true, content: [text] }` — a parse failure answers `invalid input`.
 
