@@ -30,12 +30,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **writers/transfer-plan** — owner: Codex.
-  Try a learning plan with the same Jev questions and full rules.
-  Next: score MiMo Pro's first try and MiMo Flash's repair.
-  DeepSeek and GLM are accepted.
-  Verify: score all four first tries, keep repairs apart, review source,
-  and keep all proof before removing trial projects.
 
 | Card | Owner | Next | Verify |
 
@@ -70,6 +64,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **writers/transfer-plan** — all four learning-plan apps accepted.
+  Same 13 Jev questions and rules; two first passes, two one-repair passes.
+  All final apps pass 43 teacher cases plus the separate no-op check.
+  Own tests, builds, and source review pass. Every attempt is kept.
+  All four worker projects and containers removed after export.
+  [Results, evidence, and limits](docs/roadmap/writer-trial/PLAN.md).
 
 - **writers/repeat** — all four stock apps accepted.
   MiMo Pro passed first try; the other three needed two repairs.
