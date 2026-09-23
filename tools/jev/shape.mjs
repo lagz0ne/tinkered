@@ -590,8 +590,8 @@ function paramRow(source, seen, aliases, p) {
 
 /** Every deterministic shape finding in one file, in source order. */
 // oxlint-disable-next-line complexity
-export function inspectShape(source, file = "a.tsx") {
-  const plain = inspectPlain(source, file);
+export function inspectShape(source, file = "a.tsx", options = {}) {
+  const plain = inspectPlain(source, file, options);
   if (plain.some((r) => r.id === "parse")) return plain;
   const program = parseSync(file, source).program;
   const rows = [...plain];

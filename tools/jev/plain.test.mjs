@@ -8,7 +8,8 @@ const TEST = "tests/app.test.ts";
 const SRC = "src/app.ts";
 
 /** The `[id, line]` pairs a file yields. */
-const hits = (source, file) => inspectPlain(source, file).map((r) => [r.id, r.line]);
+const hits = (source, file, writer = true) =>
+  inspectPlain(source, file, { writer }).map((r) => [r.id, r.line]);
 
 void describe("plain rules in a test file", () => {
   void it("T01 fires on a mock or spy call", () => {
@@ -85,6 +86,34 @@ void describe("plain rules in a source file", () => {
       ["S05", 2],
       ["S05", 3],
     ]);
+  });
+
+  void it("S17 fires on a type assertion in either form", () => {
+    const src = "const a = v as string;\nconst b = <Poll>v;\nconst c = {} as Poll;\n";
+    assert.deepEqual(hits(src, SRC), [
+      ["S17", 1],
+      ["S17", 2],
+      ["S17", 3],
+    ]);
+  });
+
+  void it("S17 leaves as const and an empty list's element type alone", () => {
+    assert.deepEqual(
+      hits('const k = ["a"] as const;\nconst l = [] as readonly Poll[];\n', SRC),
+      [],
+    );
+  });
+
+  void it("S17 does not repeat a cast through unknown that S02 reports", () => {
+    assert.deepEqual(hits("const y = v as unknown as T;\n", SRC), [["S02", 1]]);
+  });
+
+  void it("S17 is writer policy: the repo's own lint does not report it", () => {
+    assert.deepEqual(hits("const a = v as string;\n", SRC, false), []);
+  });
+
+  void it("S17 does not apply to test files", () => {
+    assert.deepEqual(hits("const a = v as string;\n", TEST), []);
   });
 
   void it("S06 fires on a console call", () => {

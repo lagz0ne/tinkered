@@ -32,6 +32,7 @@ const MESSAGES = {
   S06: "console call in source: return a value or emit an event; the caller decides what to show",
   S12: "ts-ignore or ts-expect-error comment: fix the type error instead",
   S13: "lint disable comment: fix the cause instead",
+  S17: "type assertion in source hides what the value really is: narrow it with a check, or fix the type; `as const` and `[] as T[]` are fine",
 };
 
 const MOCK_ROOTS = new Set(["vi", "jest"]);
@@ -180,6 +181,35 @@ function isDoubleCast(node) {
   return cast && isUnknownCast(unwrapParens(node.expression));
 }
 
+/** `as const`: a literal marker, not a claim about a value's type. */
+function isConstMarker(node) {
+  const t = node.typeAnnotation;
+  return (
+    t?.type === "TSTypeReference" &&
+    t.typeName?.type === "Identifier" &&
+    t.typeName.name === "const"
+  );
+}
+
+/** S17: any other `x as T` or `<T>x`. The `as unknown as T` chain is S02's row, so neither of
+ *  its two casts is reported here again. */
+function isHidingCast(node) {
+  const cast = node.type === "TSAsExpression" || node.type === "TSTypeAssertion";
+  return (
+    cast &&
+    !isConstMarker(node) &&
+    !isEmptyList(node.expression) &&
+    !isUnknownCast(node) &&
+    !isDoubleCast(node)
+  );
+}
+
+/** `[] as readonly T[]` names an empty list's element type; no value can be wrong. */
+function isEmptyList(node) {
+  const at = unwrapParens(node);
+  return at?.type === "ArrayExpression" && at.elements.length === 0;
+}
+
 /** Parens removed: the expression they wrap. */
 function unwrapParens(node) {
   let at = node;
@@ -220,10 +250,12 @@ function testIds(node) {
   return ids;
 }
 
-/** Every rule id one source-file node breaks. */
-function srcIds(node) {
+/** Every rule id one source-file node breaks. S17 is writer policy only: the repo's own
+ *  packages allow a plain cast at a typed boundary; the writer rules do not. */
+function srcIds(node, writer) {
   const ids = [];
   if (isDoubleCast(node)) ids.push("S02");
+  if (writer && isHidingCast(node)) ids.push("S17");
   if (node.type === "ThrowStatement" && isBareThrow(node)) ids.push("S05");
   if (node.type === "CallExpression" && isConsole(node)) ids.push("S06");
   return ids;
@@ -259,14 +291,14 @@ function parseRow(errors, starts) {
 }
 
 /** Every plain rule break in one file, in source order. */
-export function inspectPlain(source, file = "a.ts") {
+export function inspectPlain(source, file = "a.ts", { writer = false } = {}) {
   const { program, comments, errors } = parseSync(file, source);
   const starts = lineStarts(source);
   if (errors.length > 0) return [parseRow(errors, starts)];
   const rules = NODE_RULES[kindOf(file)];
   const rows = commentRows(comments, starts);
   walk(program, (node) => {
-    for (const id of rules(node)) rows.push(row(id, lineAt(starts, node.start)));
+    for (const id of rules(node, writer)) rows.push(row(id, lineAt(starts, node.start)));
   });
   rows.sort((a, b) => a.line - b.line || (a.id < b.id ? -1 : 1));
   return rows;

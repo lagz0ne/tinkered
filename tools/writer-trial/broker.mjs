@@ -32,7 +32,9 @@ function requireInspectShape(shape) {
 
 async function runInspectShape(inspect, source, file) {
   try {
-    return await inspect(source, file);
+    // Writer policy: rules only the writer loop enforces (S17 casts).
+    // An older frozen shape.mjs ignores the third argument.
+    return await inspect(source, file, { writer: true });
   } catch (error) {
     throw unavailable(`inspectShape failed (${error?.message ?? error})`);
   }

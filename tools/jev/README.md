@@ -30,7 +30,7 @@ calibration found noisy: read it, no line owed.
 
 Which unit fits my words? → `blueprint suggest "<words>"` (`packages/blueprint`).
 
-Plain rules: `plain.mjs` checks the census rules the writer guidelines share (T01–T08, S02, S05, S06, S12, S13) on the syntax tree and its comment list, so text inside a string never counts.
+Plain rules: `plain.mjs` checks the census rules the writer guidelines share (T01–T08, S02, S05, S06, S12, S13) on the syntax tree and its comment list, so text inside a string never counts. S17 (a type assertion in source, except `as const` and `[] as T[]`) runs in writer mode only: the gate asks for it; the repo's own packages allow a plain cast.
 `lint.mjs` lists its rows; the writer-trial gate blocks on each one (ADR 0061).
 
 ## How to read a probability

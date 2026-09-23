@@ -63,8 +63,11 @@ Every final app: own check, test, and build exit 0;
 - **The payload-type miss has no check.** Twice MiMo Pro,
   once GLM: keep the raw value, break the exact payload
   type. A cast or an `unknown`-typed parameter hides it
-  from `tsc`; only the teacher case caught it. Candidate:
-  a plain rule for `as <Type>` outside `as const`.
+  from `tsc`; only the teacher case caught it.
+  `writers/cast-rule` adds S17: a cast in writer source
+  blocks (GLM's `value as string` does). Widening the
+  registry or a parameter to `unknown` (MiMo Pro) has no
+  cast and still needs the teacher case.
 
 ## Where things live
 

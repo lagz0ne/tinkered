@@ -182,6 +182,20 @@ void describe("the Jev gate", () => {
     assert.match(item.fix, /narrow with isError in an if/);
   });
 
+  void it("blocks on a type assertion in writer source (S17)", async () => {
+    const judged = await judgeSource({
+      source: "export function idOf(v: unknown): string {\n  return v as string;\n}\n",
+      file: "src/ids.ts",
+      jevDir,
+      judges: [],
+      ask: fakeAsk([]),
+    });
+    assert.deepEqual(
+      gateOf(judged).blocking.map((item) => [item.rule, item.line]),
+      [["S17", 2]],
+    );
+  });
+
   void it("blocks on isError inside expect in a test file (T08)", async () => {
     const judged = await judgeSource({
       source: 'test("x", () => {\n  expect(isError(e, "X")).toBe(true);\n});\n',
