@@ -178,8 +178,15 @@ When a driver creates its own scope and returns only its result (as the CLI does
 as it ends, including spans that finish during close; save those spans outside the driver.
 Export works without retained history.
 
-Each observed operation writes one line with its label, elapsed `ms`, and `outcome` to the `log` sink.
+Each observed operation writes one step line to the `log` sink:
+
+- `message` is the operation's label.
+- `attributes` hold elapsed `ms` and `outcome` (`ok` or `failed`).
+- `level` is `debug` when ok and `error` when failed; the scope's `level` can drop it.
+- `span` is the operation's span.
+
 This needs observation (`export` or `history`) and a `log` sink.
+Resource builds write no step line.
 
 ## Namespaces
 

@@ -113,6 +113,8 @@ stop the turn. The author's own `run` maps the result before the turn delivers i
 no frame-side mapping. With `observe`, the send span carries the adapter label and one
 `harness turn` line logs the harness name and outcome (`done`, `failed`, or `cancelled`).
 Core's `send` step line carries elapsed `ms` and `ok` or `failed` when its span closes.
+On a session's first send, that `ms` also counts starting the thread; the
+`<label>.thread` span holds that part. Later sends only count the turn.
 Only text deltas move `text`; any other stream event streams nothing. Only tool
 calls add tool items and only tool answers add tool results, so a plain or trailing assistant
 message adds nothing. The `id` cell moves only on the init message and the result; any other
