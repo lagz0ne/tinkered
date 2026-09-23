@@ -113,11 +113,6 @@ export function hono(
         const app = new Hono().use(serveRequests(scope, wiring));
         for (const { row, op } of mounted) app.on(row.method, row.path, answerRoute(op, row.route));
         wiring?.mount?.(app);
-        // Atomic bind: the stop registers BEFORE the bind settles, so a
-        // close landing mid-bind still drains this defer (which also keeps
-        // the fast-close path off the table). The defer reads the settled
-        // stop out of the box; when the bind lands after the defer already
-        // ran, it stops at once. Exactly one stop either way.
         let served: HonoScope.Served | undefined;
         let stopped = false;
         ctx.defer(() => {
