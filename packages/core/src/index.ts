@@ -938,13 +938,12 @@ type ResourceInstance = {
   building: boolean;
   end: Scope.End | undefined;
   finishing: boolean;
+  remaining: number | undefined;
   completion: Promise<void> | undefined;
   complete: (() => void) | undefined;
 };
 
-/** An end-hook (`ctx.defer`) tagged with the resource that registered it (undefined = userland
- * `onClose`), so `release` can drop exactly one resource's hooks without touching others. Kept in
- * registration order; teardown runs them in reverse (ADR 0026). */
+/** A hook tagged with its exact instance (undefined for onClose), kept in registration order. */
 type DeferEntry = {
   fn: (end: Scope.End) => void | PromiseLike<void>;
   instance: ResourceInstance | undefined;
@@ -2545,6 +2544,7 @@ function instanceOf(
       building: false,
       end: undefined,
       finishing: false,
+      remaining: undefined,
       completion: undefined,
       complete: undefined,
     };
@@ -2597,6 +2597,49 @@ function drainReady(): void {
   }
 }
 
+function completeInstance(instance: ResourceInstance): void {
+  if (instance.dependencies)
+    for (const dependency of instance.dependencies) {
+      dependency.dependents--;
+      readyToFinish.push(dependency);
+    }
+  instance.dependencies = undefined;
+  if (instance.completion) instance.owner.pending.delete(instance.completion);
+  instance.complete?.();
+  drainReady();
+}
+
+function finishHook(
+  instance: ResourceInstance,
+  fn: DeferEntry["fn"],
+  prior?: Promise<void>,
+): Promise<void> | undefined {
+  if (instance.finishing && instance.remaining === undefined) return instance.completion;
+  if (!instance.finishing) {
+    instance.finishing = true;
+    instance.remaining = instance.hooks.length;
+    instance.owner.defers = instance.owner.defers.filter((entry) => entry.instance !== instance);
+  }
+  const run = (): Promise<void> | undefined => {
+    const tail = runDefers(instance.owner, [fn], instance.end as Scope.End);
+    const done = (): void => {
+      instance.remaining = (instance.remaining as number) - 1;
+      if (instance.remaining === 0) completeInstance(instance);
+    };
+    if (tail) return tail.then(done, done);
+    done();
+    return undefined;
+  };
+  if (!prior) return run();
+  const queued = prior.then(run, run);
+  instance.owner.pending.add(queued);
+  queued.then(
+    () => instance.owner.pending.delete(queued),
+    () => instance.owner.pending.delete(queued),
+  );
+  return queued;
+}
+
 function finishInstance(
   instance: ResourceInstance,
   prior?: Promise<void>,
@@ -2614,19 +2657,12 @@ function finishInstance(
   owner.defers = owner.defers.filter((entry) => entry.instance !== instance);
   const finish = (): Promise<void> | undefined => {
     const tail = runDefers(owner, instance.hooks, instance.end as Scope.End);
-    const done = (): void => {
-      if (instance.dependencies)
-        for (const dependency of instance.dependencies) {
-          dependency.dependents--;
-          readyToFinish.push(dependency);
-        }
-      instance.dependencies = undefined;
-      if (instance.completion) owner.pending.delete(instance.completion);
-      instance.complete?.();
-      drainReady();
-    };
-    if (tail) return tail.then(done, done);
-    done();
+    if (tail)
+      return tail.then(
+        () => completeInstance(instance),
+        () => completeInstance(instance),
+      );
+    completeInstance(instance);
     return undefined;
   };
   if (prior) {
@@ -2967,7 +3003,7 @@ function collectAffected(target: Node, targetOwner: Layer): Affected[] {
 /** A released owner's affected resources and their OLD defers, extracted up front. */
 type Released = {
   instances: Set<ResourceInstance>;
-  ordered: ResourceInstance[];
+  hooks: DeferEntry[];
 };
 
 /** Release a node and cascade to its dependents across owners. Two phases so a throwing/closing/
@@ -3003,9 +3039,22 @@ function drainReleasedOwner(
   let prev = previous;
   const borrowed = [...entry.instances].flatMap((instance) => [...(instance.borrowers ?? [])]);
   const gate = borrowed.length ? Promise.allSettled(borrowed).then(() => undefined) : undefined;
-  for (const instance of entry.ordered) {
+  for (const hook of entry.hooks) {
+    const instance = hook.instance as ResourceInstance;
     if (isHeld(instance)) continue;
-    prev = finishInstance(instance, gate ?? prev) ?? prev;
+    prev = finishHook(instance, hook.fn, gate ?? prev) ?? prev;
+  }
+  return drainHookless(entry.instances, gate ?? prev);
+}
+
+function drainHookless(
+  instances: Set<ResourceInstance>,
+  previous: Promise<void> | undefined,
+): Promise<void> | undefined {
+  let prev = previous;
+  for (const instance of instances) {
+    if (instance.hooks.length || isHeld(instance)) continue;
+    prev = finishInstance(instance, prev) ?? prev;
   }
   return prev;
 }
@@ -3027,18 +3076,6 @@ function layerDepth(layer: Layer): number {
   return depth;
 }
 
-/** Tear down a superseded build's late `defer` immediately but borrow-aware (waits for an op that
- * borrowed the resource before running; ADR 0026 Q2). Drained directly — never pushed to
- * `owner.defers` — so it can't sweep up a LIVE rebuild's defers under the same handle. */
-
-/** Run `fns` as a release drain at `owner`, after the prior (more-dependent) owner's drain (`prev`)
- * and after any in-flight OPERATION borrowing one of `resources` settles (ADR 0026 Q2 — the cache is
- * already invalidated; only physical teardown waits). Returns a promise the next owner chains on, or
- * `undefined` when it ran fully synchronously (no `prev`, no borrowers) so an all-sync release stays
- * synchronous. `fns` is passed explicitly (not re-selected by resource handle) so a superseded old
- * build's late defer never sweeps up the LIVE rebuild's defers under the same handle. Tracked in
- * `owner.pending`, joined by close. */
-
 /** Drop every affected node's cache at its owner, then extract each affected owner's OLD defers (in
  * registration order) BEFORE any cleanup or watcher runs. Returns whether any data cell was reset (so
  * the caller flushes watchers). Extracting up front keeps a rebuild's fresh defer out of the drain. */
@@ -3048,7 +3085,7 @@ function collectReleasedInstances(
   affected: Map<Layer, Released>,
 ): void {
   const state = nodeState(owner, target);
-  const entry = affected.get(owner) ?? { instances: new Set(), ordered: [] };
+  const entry = affected.get(owner) ?? { instances: new Set(), hooks: [] };
   if (state.instance) entry.instances.add(state.instance);
   if (state.nsResources)
     for (const bucket of state.nsResources.values()) {
@@ -3059,15 +3096,9 @@ function collectReleasedInstances(
 }
 
 function orderReleased(owner: Layer, entry: Released): void {
-  const seen = new Set<ResourceInstance>();
   for (const hook of owner.defers.toReversed()) {
-    const instance = hook.instance;
-    if (instance && entry.instances.has(instance) && !seen.has(instance)) {
-      entry.ordered.push(instance);
-      seen.add(instance);
-    }
+    if (hook.instance && entry.instances.has(hook.instance)) entry.hooks.push(hook);
   }
-  for (const instance of entry.instances) if (!seen.has(instance)) entry.ordered.push(instance);
   owner.defers = owner.defers.filter(
     (hook) => !hook.instance || !entry.instances.has(hook.instance),
   );
@@ -3366,14 +3397,18 @@ const RELEASED: Scope.End = { status: "released" };
  * next, passing the settled `end`; teardown failures collect in `layer.secondary` in execution order
  * (→ `TeardownFailed`). The teardown guard spans the synchronous call so a callback that synchronously
  * re-enters `close()` is acked (Q3 no-hang). */
-async function finishCloseInstance(instance: ResourceInstance): Promise<void> {
-  const blocked = isHeld(instance);
-  const finished = finishInstance(instance);
-  if (!blocked && finished) await finished;
+async function finishCloseInstance(entry: DeferEntry): Promise<void> {
+  const instance = entry.instance as ResourceInstance;
+  if (isHeld(instance)) {
+    finishInstance(instance);
+    return;
+  }
+  const finished = finishHook(instance, entry.fn);
+  if (finished) await finished;
 }
 
 async function drainCloseEntry(layer: Layer, entry: DeferEntry, end: Scope.End): Promise<void> {
-  if (entry.instance) return finishCloseInstance(entry.instance);
+  if (entry.instance) return finishCloseInstance(entry);
   let pending: void | PromiseLike<void>;
   enterTeardown(layer);
   try {

@@ -137,6 +137,58 @@ test("a watcher borrowing a replacement cannot hold the old instance", async () 
   await scope.close();
 });
 
+test("interleaved resource hooks keep reverse registration order", async () => {
+  const order: string[] = [];
+  const b = resource({
+    label: "b",
+    factory: (_deps, ctx) => {
+      ctx.defer(() => void order.push("b"));
+      return {};
+    },
+  });
+  const scope = createScope();
+  const a = resource({
+    label: "a",
+    factory: (_deps, ctx) => {
+      ctx.defer(() => void order.push("a-first"));
+      scope.resolve(b);
+      ctx.defer(() => void order.push("a-last"));
+      return {};
+    },
+  });
+  scope.resolve(a);
+  await scope.close();
+  expect(order).toEqual(["a-last", "b", "a-first"]);
+});
+
+test("interleaved release hooks keep reverse registration order", async () => {
+  const order: string[] = [];
+  const cell = data({ label: "cell", initial: 0 });
+  const scope = createScope();
+  const b = resource({
+    label: "b",
+    depends: { cell },
+    factory: (_deps, ctx) => {
+      ctx.defer(() => void order.push("b"));
+      return {};
+    },
+  });
+  const a = resource({
+    label: "a",
+    depends: { cell },
+    factory: (_deps, ctx) => {
+      ctx.defer(() => void order.push("a-first"));
+      scope.resolve(b);
+      ctx.defer(() => void order.push("a-last"));
+      return {};
+    },
+  });
+  scope.resolve(a);
+  scope.release(cell);
+  expect(order).toEqual(["a-last", "b", "a-first"]);
+  await scope.close();
+});
+
 test("a late build gives its waiting run a value and ends its hook once as released", async () => {
   let finish!: () => void;
   const gate = new Promise<void>((resolve) => (finish = resolve));
