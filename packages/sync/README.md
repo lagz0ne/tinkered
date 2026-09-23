@@ -33,6 +33,7 @@ the browser. Drivers read no meta (ADR 0051 §3).
 `scope.resolve(todo.cell, { ns: todo("7") })` or
 `scope.controller(todo.cell, { ns: todo("7") }).set(value)`.
 The cell's `initial`, `parse`, and `eq` apply in every namespace.
+Two members hold independent values, including over the wire.
 `members()` lists ids in creation order; `onMember` fires once per new id.
 A family row publishes its members under `${label}/${id}` of the row's
 label — registration is by identity: only the members the viewer holds go
