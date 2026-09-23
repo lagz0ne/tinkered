@@ -1,4 +1,4 @@
-import { createScope, operation, preset } from "@tinker/core";
+import { createScope, namespace, operation, preset } from "@tinker/core";
 import type {
   SDKMessage,
   SDKPartialAssistantMessage,
@@ -6,19 +6,11 @@ import type {
 } from "@anthropic-ai/claude-agent-sdk";
 import { claudeCode, harness, type ClaudeCode } from "@tinker/harness";
 
-/** Parse the author's prompt input: a plain string, trimmed of padding. */
-function parsePrompt(raw: unknown): string {
-  if (typeof raw !== "string") throw new Error("bad prompt");
-  return raw;
-}
-
-/** One recorded turn: the words streamed one delta at a time, plus the final reply. */
+/** One recorded turn: words streamed one delta at a time, plus the final reply. */
 type Script = { readonly words: readonly string[]; readonly reply: string };
 
-/** A recorded client uuid shared by every message built below. */
 const uuid = "11111111-2222-4333-8444-555555555555";
 
-/** The usage block every result built below carries. */
 function readUsage(): SDKResultMessage["usage"] {
   return {
     input_tokens: 10,
@@ -36,19 +28,17 @@ function readUsage(): SDKResultMessage["usage"] {
   };
 }
 
-/** One text delta inside its stream event. */
-function readDelta(word: string): SDKPartialAssistantMessage {
+function readDelta(word: string, id: string): SDKPartialAssistantMessage {
   return {
     type: "stream_event",
     event: { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: word } },
     parent_tool_use_id: null,
     uuid,
-    session_id: "s-1",
+    session_id: id,
   };
 }
 
-/** One success result carrying the turn reply. */
-function readResult(reply: string): SDKResultMessage {
+function readResult(reply: string, id: string): SDKResultMessage {
   return {
     type: "result",
     subtype: "success",
@@ -63,21 +53,34 @@ function readResult(reply: string): SDKResultMessage {
     modelUsage: {},
     permission_denials: [],
     uuid,
-    session_id: "s-1",
+    session_id: id,
   };
 }
 
-/** The messages of one recorded turn: one delta per word, then the result. */
-async function* readTurn(script: Script): AsyncGenerator<SDKMessage> {
-  for (const word of script.words) yield readDelta(word);
-  yield readResult(script.reply);
+async function* readTurn(script: Script, id: string): AsyncGenerator<SDKMessage> {
+  for (const word of script.words) yield readDelta(word, id);
+  yield readResult(script.reply, id);
 }
 
-/** An empty turn for a prompt with no recorded script left. */
 const noScript: Script = { words: [], reply: "" };
 
-/** A cast-free tour of the frame with a fake `query`: two turns, recorded calls, the `text`
- * cell watched while each turn runs. Every value type is inferred. */
+/** One graph for both agents, declared once; namespaces hold their separate conversations. */
+const coder = harness({ adapter: claudeCode });
+const a = namespace({ tags: [claudeCode.options({ cwd: "/work", model: "a" })] });
+const b = namespace({ tags: [claudeCode.options({ cwd: "/work", model: "b" })] });
+const relay = operation({
+  label: "relay",
+  depends: { send: coder.send },
+  run: async ({ send }) => {
+    const first = await send.run({ input: { prompt: "first" }, ns: a });
+    if (first.subtype !== "success") throw new Error("A failed");
+    const second = await send.run({ input: { prompt: first.result }, ns: b });
+    if (second.subtype !== "success") throw new Error("B failed");
+    return second.result;
+  },
+});
+
+/** The relay sends A's answer to B; each agent has its own watcher, id, and thread. */
 export async function tour(): Promise<string> {
   const seen: string[] = [];
   const scripts: Script[] = [
@@ -92,35 +95,26 @@ export async function tour(): Promise<string> {
       handler,
     }),
     createSdkMcpServer: () => ({ type: "stdio", command: "fake" }),
-    query: ({ prompt }) => {
+    query: ({ prompt, options }) => {
       seen.push(prompt);
       const script = scripts.shift();
-      return readTurn(script === undefined ? noScript : script);
+      const id = options?.model === "a" ? "agent-a" : "agent-b";
+      return readTurn(script === undefined ? noScript : script, id);
     },
   };
-
-  const coder = harness({ label: "coder", adapter: claudeCode });
-  const ask = operation({
-    label: "coder.ask",
-    input: parsePrompt,
-    depends: { send: coder.send },
-    run: async ({ send }, ctx) => {
-      const result = await send.run({ input: { prompt: ctx.input } });
-      return result;
-    },
-  });
-  const scope = createScope({
-    tags: [claudeCode.options({ cwd: "/work" })],
-    presets: [preset(claudeCode.sdk, async () => fake)],
-  });
+  const scope = createScope({ presets: [preset(claudeCode.sdk, async () => fake)] });
   const session = scope.createSession();
-  const textSeen: string[] = [];
-  session.controller(coder.text).watch((next) => textSeen.push(next));
-
-  await session.run(ask, { input: "first" });
-  const first = session.resolve(coder.text);
-  await session.run(ask, { input: "second" });
-  const second = session.resolve(coder.text);
+  const textA: string[] = [];
+  const textB: string[] = [];
+  session.controller(coder.text, { ns: a }).watch((next) => textA.push(next));
+  session.controller(coder.text, { ns: b }).watch((next) => textB.push(next));
+  const answer = await session.run(relay);
+  const first = session.resolve(coder.text, { ns: a });
+  const second = session.resolve(coder.text, { ns: b });
+  const idA = session.resolve(coder.id, { ns: a });
+  const idB = session.resolve(coder.id, { ns: b });
   await scope.close();
-  return [first, second, textSeen.join("|"), seen.join("|")].join(";");
+  return [answer, first, second, idA, idB, textA.join("|"), textB.join("|"), seen.join("|")].join(
+    ";",
+  );
 }

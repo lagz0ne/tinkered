@@ -1,15 +1,15 @@
 # @tinker/harness
 
-A harness is a session thread with ambient state; adapters keep the harness's own types
-(ADR 0043).
+A harness is one declared graph with an agent thread and state per namespace.
+Adapters keep the harness's own types (ADR 0043).
 
 ```text
-harness({ label, adapter, approve?, tools? })
+harness({ adapter, label?, approve?, tools? })
 ├── adapter.options   (tag)                the SDK's own thread-level options, bound at scope or session
 ├── adapter.sdk       (resource, scope)    the SDK module itself, imported lazily — the test seam (preset it)
 ├── adapter           (resource, scope)    depends on the module; returns Harness.Backend
-├── x.thread          (resource, session)  backend.start(options merged nearest-first (+ resume), hooks) — one per session
-├── x.status / x.text / x.items / x.usage / x.id / x.events   data cells, written as events arrive
+├── x.thread          (resource, session)  backend.start(options merged nearest-first (+ resume), hooks) — one per session and namespace
+├── x.status / x.text / x.items / x.usage / x.id / x.events   data cells, one value per namespace
 ├── x.send            (operation)            the SDK turn itself: input is the adapter's turn, result its result
 └── approve / tools   (operations)         attached at construction; each runs as a subflow of the send
 ```
@@ -61,7 +61,46 @@ const scope = createScope({
 });
 ```
 
-See `examples/harness/basic.ts` for the fake-`query` tour and `examples/harness/real.ts` for the real adapter.
+See `examples/harness/basic.ts` for the fake-`query` two-agent relay and `examples/harness/real.ts` for the real adapter.
+
+## Two agents, one frame
+
+Declare the frame and relay once, outside requests or loops.
+A namespace is an opaque key for each agent's thread, cells, and `resume` binding.
+Both sends run under the relay span in the same session, but use different storage.
+`label` only names spans and the in-process tool server; it defaults to `"harness"`.
+Changing the label does not select an agent.
+
+```ts
+import { createScope, namespace, operation } from "@tinker/core";
+import { claudeCode, harness } from "@tinker/harness";
+
+const coder = harness({ adapter: claudeCode });
+const a = namespace({ tags: [claudeCode.options({ model: "sonnet" })] });
+const b = namespace({ tags: [claudeCode.options({ model: "opus" }), coder.resume("s-9")] });
+const relay = operation({
+  label: "relay",
+  depends: { send: coder.send },
+  run: async ({ send }) => {
+    const first = await send.run({ input: { prompt: "start" }, ns: a });
+    if (first.subtype !== "success") throw new Error("A failed");
+    return send.run({ input: { prompt: first.result }, ns: b });
+  },
+});
+
+const scope = createScope();
+const session = scope.createSession();
+session.controller(coder.text, { ns: a }).watch(console.log);
+session.controller(coder.text, { ns: b }).watch(console.log);
+await session.run(relay);
+const aItems = session.resolve(coder.items, { ns: a });
+const bItems = session.resolve(coder.items, { ns: b });
+await scope.close();
+```
+
+The two threads keep their own ids and resume their own conversations on later turns.
+A session opened with `createSession({ ns: a })` uses A for calls without an explicit `ns`.
+The relay must pass `ns` on each send to reach both agents.
 
 ## Turns
 
@@ -76,8 +115,8 @@ no frame-side mapping. With `observe`, the send span carries the adapter label a
 calls add tool items and only tool answers add tool results, so a plain or trailing assistant
 message adds nothing. The `id` cell moves only on the init message and the result; any other
 system message leaves it alone. A stream that ends with no result rejects with `TurnEnded`.
-Continuity is by session id: the session's `resume` binding opens the first turn on it, and
-each later turn resumes the last session id, so one thread is one conversation.
+Continuity is by session id: the namespace's `resume` binding opens its first turn on it, and
+each later turn resumes that namespace's last session id, so one thread is one conversation.
 
 ## Codex
 
