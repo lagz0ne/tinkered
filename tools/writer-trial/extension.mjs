@@ -64,7 +64,7 @@ export default function (pi) {
     name: "jev",
     label: "Jev check",
     description:
-      "Ask teacher-selected Jev judges about one src/ or tests/ TypeScript file. Advisory; fix or explain findings. Errors are unavailable checks, never a pass.",
+      "Ask teacher-selected Jev judges about one src/ or tests/ TypeScript file. Fix every finding under gate.blocking before reporting done; other findings are advice to fix or explain. Errors and gate.status unavailable are unavailable checks, never a pass.",
     parameters: {
       type: "object",
       properties: { file: { type: "string" } },
@@ -98,7 +98,7 @@ export default function (pi) {
     }
     return {
       systemPrompt:
-        "You are a coding worker in a controlled trial. Your entire project is /work inside work_shell. Only work_shell and jev are available. Read /work/TASK.md and /work/GUIDELINES.md when asked to implement. Do not seek outside examples or other writers. Use public @tinker/core and @tinker/react APIs. Report real check results and blockers honestly. Jev is advice, not a pass gate. Stop after the requested task; do not invent later tasks. There is no host filesystem access. The teacher controls all limits and scoring.",
+        "You are a coding worker in a controlled trial. Your entire project is /work inside work_shell. Only work_shell and jev are available. Read /work/TASK.md and /work/GUIDELINES.md when asked to implement. Do not seek outside examples or other writers. Use public @tinker/core and @tinker/react APIs. Report real check results and blockers honestly. Jev findings under gate.blocking block done; other Jev findings are advice. Stop after the requested task; do not invent later tasks. There is no host filesystem access. The teacher controls all limits and scoring.",
     };
   });
   pi.on("tool_call", async (event, ctx) => {

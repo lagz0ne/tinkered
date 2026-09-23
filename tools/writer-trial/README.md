@@ -154,7 +154,8 @@ node tools/writer-trial/review.mjs feedback trial-02 1 1 \
   event copy, and per-file hashes. It refuses overwrite.
 - **`check`** — runs the worker's own check, test, and build
   in a fresh pinned container, then the suite checker
-  in a second one. It writes named `check-N` folders with
+  in a second one, then the Jev gate on the saved files.
+  It writes named `check-N` folders with
   checker hashes and the image ID beside exit codes.
   Repeats never reuse a folder.
 - **`feedback`** — copies only teacher text, restages frozen
@@ -164,6 +165,12 @@ node tools/writer-trial/review.mjs feedback trial-02 1 1 \
 Machine pass or fail is recorded apart from lead review.
 Lead review stays pending until the lead sets it.
 A missing checker fails unavailable, never passes.
+The Jev gate reads `src/` and `tests/` from the archive
+with the frozen Jev copy; it never runs them.
+A shape finding or a hit on a `proven` judge blocks.
+Other hits are advice. An unavailable gate fails.
+`machine-pass` needs own, teacher, and gate to pass.
+Trials without `frozen/` record `jev: not-frozen`.
 
 ## Clean up
 

@@ -75,8 +75,12 @@ No worked code is supplied.
   Do not hide a test's actions and checks inside a large helper.
 - Run type check, all behavior tests, real browser tests, and build.
   Do not count a missing test or failed command as a pass.
-- Ask Jev about changed source and tests.
-  Its advice is not a pass gate. Fix real issues; explain false hits.
-  Do not keep renaming a good test just to get a lower probability.
+- Ask Jev about every changed file.
+  A finding under `gate.blocking` must be fixed before you report done.
+  It is a plain rule break, or a question the teacher proved reliable.
+  Other findings are advice. Fix real issues.
+  Explain each false hit in one line.
+  Do not rename a good test just to lower a probability.
+  A `gate.status` of `unavailable` is not a pass; report it.
 - Save small steps to disk. Report exact commands and results.
   Explain any remaining issue, then stop for teacher review.
