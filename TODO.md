@@ -40,8 +40,6 @@ card at a time.
   (t02b-1). Verify: `bench/promises.mjs` prints 17; gate; mutation alone.
 - **core/ns-watch-index** — sol 6. A named write wakes only watchers whose chain holds that key
   (core-feedback, sync family fan-out). Verify: gate, family probe before/after, mutation alone.
-- **jev/unit-note** — deepseek flash. The unit-kind note gets its own mark (`ℹ`), not `⚠`
-  (core-feedback, two askers). Verify: gate, before/after output.
 
 | Card | Owner | Next | Verify |
 
@@ -76,6 +74,9 @@ card at a time.
 
 ## Done
 
+- **jev/unit-note** — deepseek flash + opus review (one fix round); tag `jev/unit-note`. The
+  unit-kind note prints `ℹ`, never `⚠`; the brief, CLAUDE.md, and the coding skill say it owes no
+  line or label. Gate green (1064 tests).
 - **namespace-v1/t02b-2 `releaseNs` verb** — sol 6, lead review + N=61 bench; tag `namespace-v1/t02b-2`.
   Exact named links; closed sessions unlink (fixes a t02a leak); mutation 85.11; create +2.0%.
   The namespace track is complete. Proof: [namespace-v1 landed](docs/roadmap/namespace-v1/PROGRESS.md).
