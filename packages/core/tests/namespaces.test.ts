@@ -404,6 +404,176 @@ test("namespace clients share one scope-target pool", () => {
   return scope.close();
 });
 
+test("namespace resources share a root bucket across request sessions", async () => {
+  const a = namespace();
+  const b = namespace();
+  let builds = 0;
+  const db = resource({
+    label: "db",
+    target: "namespace",
+    factory: () => ({ id: ++builds }),
+  });
+  const scope = createScope();
+  const first = scope.createSession({ ns: a });
+  const second = scope.createSession({ ns: a });
+  const other = scope.createSession({ ns: b });
+  expect(second.resolve(db)).toBe(first.resolve(db));
+  expect(other.resolve(db)).not.toBe(first.resolve(db));
+  expect(builds).toBe(2);
+  await scope.close();
+});
+
+test("sessions without a namespace share one root default resource", async () => {
+  let builds = 0;
+  const db = resource({
+    label: "db",
+    target: "namespace",
+    factory: () => ({ id: ++builds }),
+  });
+  const scope = createScope();
+  const first = scope.createSession();
+  const second = scope.createSession();
+  expect(first.resolve(db)).toBe(second.resolve(db));
+  expect(second.resolve(db)).toBe(scope.resolve(db));
+  expect(builds).toBe(1);
+  await scope.close();
+});
+
+test("namespace resource dependencies see tenant and root tags but not request tags", async () => {
+  const tenant = tag<string>({ label: "tenant" });
+  const region = tag<string>({ label: "region" });
+  const a = namespace({ tags: [tenant("tenant-a")] });
+  const db = resource({
+    label: "db",
+    target: "namespace",
+    depends: { tenant, region },
+    factory: ({ tenant, region }) => ({ tenant, region }),
+  });
+  const scope = createScope({ tags: [region("root"), tenant("root")] });
+  const request = scope.createSession({ ns: a, tags: [tenant("session"), region("session")] });
+  const readDb = operation({ label: "read-db", depends: { db }, run: ({ db }) => db });
+  expect(await request.run(readDb, { tags: [tenant("call"), region("call")] })).toEqual({
+    tenant: "tenant-a",
+    region: "root",
+  });
+  expect(scope.resolve(db)).toEqual({ tenant: "root", region: "root" });
+  await scope.close();
+});
+
+test("request transactions share their tenant database but not each other", async () => {
+  const a = namespace();
+  let databases = 0;
+  let transactions = 0;
+  const db = resource({
+    label: "db",
+    target: "namespace",
+    factory: () => ({ id: ++databases }),
+  });
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    depends: { db },
+    factory: ({ db }) => ({ id: ++transactions, db }),
+  });
+  const scope = createScope();
+  const first = scope.createSession({ ns: a });
+  const second = scope.createSession({ ns: a });
+  const firstTx = first.resolve(tx);
+  const secondTx = second.resolve(tx);
+  expect(firstTx).not.toBe(secondTx);
+  expect(firstTx.db).toBe(secondTx.db);
+  expect(databases).toBe(1);
+  expect(transactions).toBe(2);
+  first.release(db);
+  expect(first.resolve(tx)).not.toBe(firstTx);
+  expect(second.resolve(tx)).not.toBe(secondTx);
+  expect(databases).toBe(2);
+  await scope.close();
+});
+
+test("release waits for a request borrowing a namespace resource and clears all buckets", async () => {
+  const a = namespace();
+  const b = namespace();
+  const ended: string[] = [];
+  let finish = (): void => undefined;
+  const gate = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const db = resource({
+    label: "db",
+    target: "namespace",
+    factory: (_deps, ctx) => {
+      const value = { closed: false };
+      ctx.defer(() => {
+        value.closed = true;
+        ended.push("closed");
+      });
+      return value;
+    },
+  });
+  const hold = operation({
+    label: "hold",
+    depends: { db },
+    run: async ({ db }) => {
+      await gate;
+      return db.closed;
+    },
+  });
+  const scope = createScope();
+  const first = scope.createSession({ ns: a });
+  const second = scope.createSession({ ns: b });
+  const aDb = first.resolve(db);
+  const bDb = second.resolve(db);
+  const running = first.run(hold);
+  second.release(db);
+  expect(aDb.closed).toBe(false);
+  expect(ended).toEqual([]);
+  finish();
+  expect(await running).toBe(false);
+  await scope.close({ graceful: true });
+  expect(aDb.closed).toBe(true);
+  expect(bDb.closed).toBe(true);
+  expect(ended).toEqual(["closed", "closed"]);
+});
+
+test("closing the root waits for a request and cleans each namespace bucket once", async () => {
+  const a = namespace();
+  const b = namespace();
+  const ended: string[] = [];
+  let finish = (): void => undefined;
+  const gate = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const db = resource({
+    label: "db",
+    target: "namespace",
+    factory: (_deps, ctx) => {
+      ctx.defer(() => {
+        ended.push("closed");
+      });
+      return {};
+    },
+  });
+  const hold = operation({
+    label: "hold",
+    depends: { db },
+    run: async () => {
+      await gate;
+    },
+  });
+  const scope = createScope();
+  const first = scope.createSession({ ns: a });
+  const second = scope.createSession({ ns: b });
+  const running = first.run(hold);
+  second.resolve(db);
+  const closing = scope.close({ graceful: true });
+  expect(ended).toEqual([]);
+  finish();
+  await running;
+  await closing;
+  expect(ended).toEqual(["closed", "closed"]);
+});
+
 test("close waits for a named resource borrow and tears every bucket down once", async () => {
   const tenant = tag<string>({ label: "tenant" });
   const a = namespace({ tags: [tenant("A")] });

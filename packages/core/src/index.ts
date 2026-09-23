@@ -264,12 +264,12 @@ export declare namespace Resource {
     readonly random: Random.Handle;
   };
 
-  /** A reusable built instance. `target` picks the owning layer: `scope` = one per chain
-   * (owner is the root), `session` = one per session (owner is the requesting layer). */
+  /** A reusable built instance. `target` picks the owner and bucket: `scope` = root default,
+   * `namespace` = root per namespace, `session` = requesting layer per namespace. */
   export type Handle<T> = {
     readonly [resourceSym]: true;
     readonly label: string;
-    readonly target: "scope" | "session";
+    readonly target: "scope" | "namespace" | "session";
     readonly depends: Scope.Depends;
     factory(deps: Record<string, unknown>, ctx: Ctx): T;
     /** Static metadata bindings, read off the handle (never affects resolution). */
@@ -854,7 +854,7 @@ export function resource<
   T = unknown,
 >(config: {
   label: string;
-  target?: "scope" | "session";
+  target?: "scope" | "namespace" | "session";
   depends?: D;
   factory: (deps: Scope.SlotValues<D>, ctx: Resource.Ctx) => T & Scope.AsyncBody<D>;
   meta?: Tag.Bindings;
@@ -2665,7 +2665,7 @@ function hasResourceNs(
   target: Resource.Handle<unknown>,
   chain: readonly Namespace[] | undefined,
 ): chain is readonly [Namespace, ...Namespace[]] {
-  return target.target === "session" && chain !== undefined && chain.length > 0;
+  return target.target !== "scope" && chain !== undefined && chain.length > 0;
 }
 
 /** A resource in a `depends` slot (ADR 0044): the built VALUE for sync and async builds alike; a
@@ -2781,15 +2781,14 @@ function invalidateData(owner: Layer, target: Data.Cell<unknown>): void {
   }
 }
 
-/** Whether a node's dependents can live below its owner: a `scope` resource and a data cell are
- * shared down the chain, so dependents may sit in descendant sessions; a `session` resource is a
- * per-session instance whose dependents are only ever in its own owner layer. */
+/** Whether a node's dependents can live below its owner: root-owned resources and data cells
+ * are shared down the chain; a `session` resource is only used by its own layer. */
 function spansDescendants(node: Node): boolean {
-  return !isResource(node) || node.target === "scope";
+  return !isResource(node) || node.target !== "session";
 }
 
-/** Visit each (dependent resource, its owner) that depends on `node`. Scope nodes search the
- * owner's whole subtree (to reach session instances); a session node searches only its owner. */
+/** Visit each (dependent resource, its owner) that depends on `node`. Root-owned nodes search
+ * the owner's whole subtree (to reach session instances); a session node searches only its owner. */
 function forEachDependent(
   nodeOwner: Layer,
   node: Node,
