@@ -59,7 +59,11 @@ GLM Flash passed 32 own tests and the 43 teacher cases.
 Source review found an existing-link no-op rejected on a completed course.
 A separate Docker probe fails for GLM and passes for DeepSeek.
 That probe is kept apart from the original 43-case score.
-GLM is fixing it and a test helper that replaces unknown errors.
+GLM passed after one repair: 33 own tests, 43 teacher cases,
+and the separate existing-link check. Both source findings are closed.
+Its resumed agent kept writing to the old event log.
+The lead saved the repair entries separately; the first copy is intact.
+Future repairs will use a fresh agent to reload the tool setup.
 MiMo Flash and MiMo Pro are running first attempts.
 Queue time will not count as work time.
 The prep workspace is removed; its commits and proof are kept.
