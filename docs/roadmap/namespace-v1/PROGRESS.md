@@ -69,7 +69,7 @@ node tools/jev/label.mjs <judge> t|f <file> --by <ticket>
 - **t04 ns docs + ADR 0059 Accepted** -- [ ] blocked by: t01, t02, t03
   A README line per new surface (`namespace`, `ns`, `releaseNs`, the chain rule), a glossary row, and
   ADR 0059 moves from proposed to accepted with the decided chain order and release rule stated.
-- **t05 drizzle onto ns** -- [ ] blocked by: t02c
+- **t05 drizzle onto ns** -- [x] blocked by: t02c
   `drizzleStore({ label })` drops the label as a storage key; two stores are two namespaces. The `db`
   and `tx` resources resolve per namespace. Consumers bind config per namespace.
 - **t06 sync family onto ns** -- [x] blocked by: t03
@@ -144,3 +144,11 @@ One line per ticket: tag -- sha -- tests -- size (B gzip) -- mutation -- Jev fla
   own probes confirmed the ADR 0064 guard: neither a call's tags nor the asking session's tags reach
   the build; sessions without a namespace share one root default; `release` waits for a live request
   and cleans every request's dependent `tx` before the tenant's `db`. Writer sol 6, first round.
+
+- **t05** -- tag `namespace-v1/t05` -- drizzle: `drizzleStore({ target })` picks the pool's target,
+  default `"scope"` (one shared pool, unchanged); `"namespace"` gives one pool per namespace for
+  multi-tenant apps; `tx` stays per session; `label` optional. Mutation 98.31. Lead review caught
+  that the first version (always per namespace) opened a pool per ANY namespace — agents and sync
+  members are namespaces too — so one database with two agent runs opened 3 pools; the user chose
+  "author picks, default shared". Review also found an open ADR 0064 question (a tenant pool reached
+  through `[agent, tenant]` builds in the agent's bucket), logged in core feedback.
