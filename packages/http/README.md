@@ -80,7 +80,7 @@ code anywhere. Each attempt span carries `method`, `url`, `attempt`, and `status
 A transport failure also writes one `http request failed` line with method and url.
 Each observed operation writes a separate core step line with its label, `ms`, and outcome.
 A rejected status or forced close writes no transport failure line; the step line still records failure.
-Nothing is recorded when observation is off.
+With observation off, spans and core step lines are absent; a configured `log` sink still receives the transport line.
 
 ## Status: a frame slot plus response-level readers
 
