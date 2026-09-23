@@ -48,6 +48,7 @@ const JEV_FROZEN = [
   "calibration.json",
   "package.json",
   "shape.mjs",
+  "plain.mjs",
 ];
 
 export const suiteFor = (manifest) => {

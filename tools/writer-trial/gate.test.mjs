@@ -46,7 +46,7 @@ void describe("the Jev gate", () => {
   let jevDir;
   before(() => {
     jevDir = mkdtempSync(join(tmpdir(), "gate-jev-"));
-    for (const file of ["lib.mjs", "bank.mjs", "extract.mjs", "shape.mjs"])
+    for (const file of ["lib.mjs", "bank.mjs", "extract.mjs", "shape.mjs", "plain.mjs"])
       copyFileSync(join(jevSource, file), join(jevDir, file));
     symlinkSync(join(jevSource, "node_modules"), join(jevDir, "node_modules"));
     // A frozen trial's bank may still carry a test judge (the live bank retired titleVague).
@@ -145,6 +145,22 @@ void describe("the Jev gate", () => {
     assert.deepEqual(
       gate.advice.map((item) => item.judge),
       ["leakedInternal"],
+    );
+  });
+
+  void it("blocks on isError inside expect in a test file (T08)", async () => {
+    const judged = await judgeSource({
+      source: 'test("x", () => {\n  expect(isError(e, "X")).toBe(true);\n});\n',
+      file: "tests/app.test.ts",
+      jevDir,
+      judges: ["frozenTestJudge"],
+      ask: fakeAsk([]),
+    });
+    const gate = gateOf(judged);
+    assert.equal(gate.status, "block");
+    assert.deepEqual(
+      gate.blocking.map((item) => [item.rule, item.line]),
+      [["T08", 2]],
     );
   });
 

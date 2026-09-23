@@ -2,12 +2,14 @@
 // in docs/best-practices.md that a probabilistic judge cannot own — React state/effect hooks
 // (rules 8–9; useId stays allowed), writable useData setters in views (rule 9: typing and
 // filter writes are actions, operations own their state changes), and scope handles inside
-// views (rule 2). Advisory: it lists, it never blocks; an app outside the worker policy may
-// ignore a row.
+// views (rule 2). The rows also carry every plain census rule from plain.mjs (T*/S*), merged
+// in line order. In this repo's own tools a row is advice: it lists, it never blocks. In the
+// writer loop every row blocks (ADR 0061): the Jev gate turns each one into a blocking finding.
 //
 //   inspectShape(source, file) → stable rows [{ id, line, message }] in source order
 import { parseSync } from "oxc-parser";
 import { units } from "./extract.mjs";
+import { inspectPlain } from "./plain.mjs";
 
 /** Banned React hooks in app code → the best-practices rule that owns each. `useId` is allowed. */
 const HOOK_RULE = new Map([
@@ -589,8 +591,10 @@ function paramRow(source, seen, aliases, p) {
 /** Every deterministic shape finding in one file, in source order. */
 // oxlint-disable-next-line complexity
 export function inspectShape(source, file = "a.tsx") {
+  const plain = inspectPlain(source, file);
+  if (plain.some((r) => r.id === "parse")) return plain;
   const program = parseSync(file, source).program;
-  const rows = [];
+  const rows = [...plain];
   const bound = {
     hooks: new Map(),
     scopeCall: new Set(),

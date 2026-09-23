@@ -66,6 +66,7 @@ void describe("frozen copies", () => {
       assert.ok(frozen.files["rules/guidelines.md"]);
       assert.ok(frozen.files["tools/broker.mjs"]);
       assert.ok(frozen.files["jev/shape.mjs"]);
+      assert.ok(frozen.files["jev/plain.mjs"]);
       assert.throws(() => freezeTrial(root, "stock"), /do not refresh/);
       assert.equal(verifyFrozen(root, frozen), true);
       writeFileSync(join(root, "frozen/rules/guidelines.md"), "changed\n");
