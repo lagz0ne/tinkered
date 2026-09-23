@@ -26,10 +26,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **namespace-v1/t02c `namespace` resource target (ADR 0064)** -- owner root, keyed per namespace; unblocks t05 drizzle. Verify: probes per the track, core gate EXIT 0, `core#mutate` alone >= 85.
 
 - **namespace-v1/t04 ns docs** -- unblocked (t03 landed). README + ADR 0059 Accepted.
+- **namespace-v1/t09 hono request namespace** -- blocked by t05. Optional `ns` wiring hook on the per-request session.
 - **namespace-v1/t05 drizzle onto ns** -- blocked by t02c (needs the `namespace` target, ADR 0064).
-- **namespace-v1/t06 sync family onto ns** -- unblocked (t03 landed).
-- **namespace-v1/t07 tinkerer onto ns** -- unblocked (t03 landed).
-- **namespace-v1/t08 harness onto ns** -- unblocked (t03 landed).
 
 | Card                                                                                                                                                | Owner         | Next                                                                                                                                                            | Verify                                        |
 | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
@@ -75,6 +73,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **namespace-v1/t06, t07, t08 — sync, tinkerer, harness onto namespaces** — sol 6 writers, lead review;
+  tags `namespace-v1/t06`, `t07`, `t08`. One frame, many instances by namespace; the A-to-B relay
+  (ADR 0059's motivating case) proven in harness. Mutation 78.93 / 85.46 / 76.39.
+  Proof: [namespace-v1 landed](docs/roadmap/namespace-v1/PROGRESS.md).
 
 - **namespace-v1/t03 ns edges** — sol 6, lead review; tag `namespace-v1/t03`.
   Tests only; every edge already held. core 428 tests, mutation 85.40.

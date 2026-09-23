@@ -60,19 +60,25 @@ node tools/jev/label.mjs <judge> t|f <file> --by <ticket>
   does not poison a named bucket against a retry. `.all` on a tag keeps repeated bindings for a named
   read. Inheritance completes: tagged subflows, inline operations, and imperative data/resource
   controllers all carry the ambient `ns`. Probes for each.
+- **t09 hono request namespace** -- [ ] blocked by: t05
+  The hono extension already opens one session per request; add an optional wiring hook
+  `ns: (c) => Namespace | undefined` passed to that session beside `tags`, so a route serves a
+  tenant's buckets (config, `namespace`-target pools) while the request stays its own lifetime.
+  Probe through a real route: two tenants' requests share their own tenant pool, never each
+  other's, and a request-scoped cell dies with its request.
 - **t04 ns docs + ADR 0059 Accepted** -- [ ] blocked by: t01, t02, t03
   A README line per new surface (`namespace`, `ns`, `releaseNs`, the chain rule), a glossary row, and
   ADR 0059 moves from proposed to accepted with the decided chain order and release rule stated.
 - **t05 drizzle onto ns** -- [ ] blocked by: t02c
   `drizzleStore({ label })` drops the label as a storage key; two stores are two namespaces. The `db`
   and `tx` resources resolve per namespace. Consumers bind config per namespace.
-- **t06 sync family onto ns** -- [ ] blocked by: t03
+- **t06 sync family onto ns** -- [x] blocked by: t03
   `family({ label })` drops the label; a family member is a namespace. Parallel members share the
   declared graph and differ only by their namespace.
-- **t07 tinkerer onto ns** -- [ ] blocked by: t03
+- **t07 tinkerer onto ns** -- [x] blocked by: t03
   `tinkerer({ label, tools, gate })` drops `label` as a storage key; two coders are two namespaces.
   `tools` and `gate` stay as graph authoring. The turn units are declared; config binds per namespace.
-- **t08 harness onto ns** -- [ ] blocked by: t03
+- **t08 harness onto ns** -- [x] blocked by: t03
   `harness({ label, adapter, ... })` drops `label` as a storage key; parallel harnesses are
   namespaces. `adapter`, `approve`, `tools` stay as graph authoring.
 
@@ -120,3 +126,15 @@ One line per ticket: tag -- sha -- tests -- size (B gzip) -- mutation -- Jev fla
   and controllers, with a per-call override that does not leak) already held after t01 and t02a.
   Writer sol 6; lead review asked for one fold (probes into `namespaces.test.ts`, a duplicate of
   t01's re-entrancy test dropped).
+
+- **t06** -- tag `namespace-v1/t06` -- sync: `family` declares ONE cell; `family(id)` is a memoized
+  namespace; wire keys stay `label/id`. Mutation 78.93. Lead measured the cost of one shared cell:
+  a member write re-resolves every namespace watcher on the cell (0.12 ms at 100 members, 0.97 ms
+  at 10000). Correct, linear; the fix is in core (see core feedback).
+- **t07** -- tag `namespace-v1/t07` -- tinkerer: one frame, two coders by namespace (history, usage,
+  config, inbox, steer isolated); `label` optional; `persist` takes an optional `ns` (one persist per
+  coder, one file each). Mutation 85.46.
+- **t08** -- tag `namespace-v1/t08` -- harness: one frame, two agents by namespace. The ADR 0059
+  motivating case is proven: one `relay` operation sends to agent A then B, each keeps its own
+  thread, items, and provider session, and both `harness.send` spans nest under `relay`. Mutation 76.39.
+  All three: writer sol 6, lead review; each passed on the first round.
