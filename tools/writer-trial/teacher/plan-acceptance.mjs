@@ -1014,15 +1014,22 @@ browser("browser notices clear on select, filter, and undo", async (page) => {
   await page.getByRole("alert").filter({ hasText: "BlankTitle" }).waitFor();
   await page.getByRole("button", { name: "Ready", exact: true }).click();
   assert.equal(await noticeText(page), "");
-  // EmptyUndo shows on screen; a passing undo clears the prior notice.
+  // Undo clears a notice directly: raise BlankTitle with real history
+  // still present, then click Undo with no passing action between.
+  await page.getByLabel("Title", { exact: true }).fill("   ");
+  await page.getByRole("button", { name: "Add course", exact: true }).click();
+  await page.getByRole("alert").filter({ hasText: "BlankTitle" }).waitFor();
   await page.getByRole("button", { name: "Undo", exact: true }).click();
+  assert.equal(await noticeText(page), "");
+  assert.deepStrictEqual(await titlesOf(page.getByRole("table", { name: "Courses" })), ["Basics"]);
+  // EmptyUndo shows on screen; a passing create clears the prior notice.
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await page.getByRole("alert").filter({ hasText: "EmptyUndo" }).waitFor();
   await addCourse(page, "Fixed");
   assert.equal(await noticeText(page), "");
   assert.deepStrictEqual(await titlesOf(page.getByRole("table", { name: "Courses" })), ["Fixed"]);
-  return "select, filter, passing undo clear";
+  return "select, filter, direct undo clear";
 });
 
 // Runs inside the page: one ordinary async function passed directly to
@@ -1193,16 +1200,11 @@ browser("browser two roots share nothing including query module", async (page) =
     assert.equal(await prereqBox(first).inputValue(), firstDoneId);
     assert.equal(await first.getByLabel("Title", { exact: true }).inputValue(), "First kept");
     assert.equal(await noticeText(first), "");
-    // The first root keeps its own undo history: complete the prereq
-    // (blocked row goes Ready), then undo restores the seeded state.
-    await first.getByRole("button", { name: "Complete First done", exact: true }).click();
-    assert.deepStrictEqual(await visibleRowCells(firstTable, 0, 3), ["First done", "Done", "None"]);
-    assert.deepStrictEqual(await visibleRowCells(firstTable, 1, 3), [
-      "First blocked",
-      "Ready",
-      "First done",
-    ]);
+    // Preexisting history isolation: undo first immediately with no
+    // first write after the second root's changes. The prior link is
+    // removed, so both first rows read Ready/None.
     await first.getByRole("button", { name: "Undo", exact: true }).click();
+    assert.deepStrictEqual(await titlesOf(firstTable), ["First done", "First blocked"]);
     assert.deepStrictEqual(await visibleRowCells(firstTable, 0, 3), [
       "First done",
       "Ready",
@@ -1210,10 +1212,24 @@ browser("browser two roots share nothing including query module", async (page) =
     ]);
     assert.deepStrictEqual(await visibleRowCells(firstTable, 1, 3), [
       "First blocked",
-      "Blocked",
-      "First done",
+      "Ready",
+      "None",
     ]);
     assert.equal(await courseBox(first).inputValue(), firstBlockedId);
+    assert.equal(await prereqBox(first).inputValue(), firstDoneId);
+    assert.equal(await first.getByLabel("Title", { exact: true }).inputValue(), "First kept");
+    assert.equal(await noticeText(first), "");
+    // Second root keeps its own state: Done filter showing its own Done
+    // row, its BlankTitle notice, blank Title text, own selections.
+    assert.equal(await noticeText(secondScope), "BlankTitle");
+    assert.equal(await secondScope.getByLabel("Title", { exact: true }).inputValue(), "   ");
+    assert.equal(await courseBox(secondScope).inputValue(), secondValues[1]);
+    assert.equal(await prereqBox(secondScope).inputValue(), secondValues[1]);
+    assert.deepStrictEqual(
+      await visibleRowCells(secondScope.getByRole("table", { name: "Courses" }), 0, 3),
+      ["Second", "Done", "None"],
+    );
+    assert.equal(await visibleRowCount(secondScope.getByRole("table", { name: "Courses" })), 1);
     return "two roots truly separate";
   } finally {
     await page
