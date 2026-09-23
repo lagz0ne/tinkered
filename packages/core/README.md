@@ -178,6 +178,106 @@ When a driver creates its own scope and returns only its result (as the CLI does
 as it ends, including spans that finish during close; save those spans outside the driver.
 Export works without retained history.
 
+## Namespaces
+
+`namespace(opts?)` makes a key, not a string name. Use its `tags` to bind settings
+for that key; use `namespace()` when only the stored values differ:
+
+```ts
+const region = tag<string>({ label: "region" });
+const west = namespace({ tags: [region("west")] });
+const east = namespace();
+```
+
+Pass `ns` to a run, a read, or a controller. A subflow can switch keys without
+leaving its caller's layer:
+
+```ts
+scope.run(op, { input: value, ns: west });
+scope.resolve(region, { ns: west });
+scope.controller(cell, { ns: east }).set(1);
+// In a run with `depends: { child: op }`:
+child.run({ input: value, ns: east });
+```
+
+`createSession({ ns })` sets an ambient namespace: child sessions, tagged subflows,
+inline runs, and controllers inherit it. An explicit `ns` changes just that call;
+the next call still uses the session's key:
+
+```ts
+const request = scope.createSession({ ns: west });
+request.run(op); // west
+request.run(op, { ns: east }); // east for this call
+request.run(op); // west again
+```
+
+A chain reads each named key, then the default, but checks the nearer layer
+before the farther one. Within each layer it checks the chain in order.
+A write goes to the current layer's first key, not its fallback:
+
+```ts
+scope.controller(cell, { ns: east }).set(2);
+scope.resolve(cell, { ns: [west, east] }); // 2
+scope.controller(cell, { ns: [west, east] }).set(3);
+scope.resolve(cell, { ns: west }); // 3
+```
+
+Pick a resource `target` by how long and where the value must be shared:
+
+- `"scope"`: one build for everyone, regardless of namespace. Use it for a
+  shared pool. Its build reads root defaults, never namespace or request tags.
+- `"namespace"`: one build per namespace for the scope's life, shared by
+  request sessions. Use it for a tenant pool. Its build reads the namespace's
+  and root tags, not the asking request's tags.
+- `"session"`: one build per session per namespace. Use it for a request
+  transaction. A named bucket stays warm for later reads in that session.
+
+```ts
+const db = resource({
+  target: "namespace",
+  factory: () => openDb(),
+});
+const tx = resource({
+  target: "session",
+  depends: { db },
+  factory: ({ db }) => db.begin(),
+});
+```
+
+`release(target)` clears all of that resource's buckets. Releasing only one
+namespace's bucket (`releaseNs`) is **not built yet**; ADR 0063 proposes it.
+
+The namespace tests also pin these guarantees:
+
+- An ambient `createSession({ ns })` resolves there; a per-call `ns` wins for one run.
+- A named write lands at the current layer's first key and never notifies a default watcher.
+- Named calls keep the real layer lifecycle and extension registry.
+- A tagged subflow in a named run uses session hooks.
+- Pass-through extensions preserve namespaces for writes and resolves.
+- A session-target resource builds once in each namespace and reuses its warm bucket.
+- A resource chain reuses its fallback, then switches to a nearer warm bucket.
+- A sync-failed named bucket is not filled by a sibling chain.
+- A named resource dependency reads a nearer default before a farther named entry.
+- Namespace resource dependencies see tenant and root tags but not request tags.
+- Namespace resources share a root bucket across request sessions.
+- Sessions without a namespace share one root default resource.
+- Request transactions share their tenant database but not each other.
+- Closing the root waits for a request and cleans each namespace bucket once.
+- Close waits for a named resource borrow and tears every bucket down once.
+- Namespace clients share one scope-target pool.
+- A scope-target resource is namespace-blind and keeps default storage clean.
+- An ambient namespace cannot enter a scope-target resource build.
+- Namespace-blind scope builds keep tagged operation dependencies blind.
+- A re-registered named watcher refreshes its comparison value.
+- A namespace-blind watcher observes default storage, never ambient tenant storage.
+- A chained watcher compares against the full resolved namespace chain.
+- An empty namespace chain is rejected with `InvalidDependency`.
+- A non-namespace `ns` value fails with `InvalidDependency`, not a silent key.
+- Invalid input rejects before dependencies build.
+- A watcher that writes during notify does not rob a later watcher of its change.
+- Named and chained cell watches notify only when their resolved value changes.
+- A failed named resource retries without leaking to a sibling chain.
+
 ## Promises
 
 This appendix states each behaviour the seam tests pin, one line per promise, grouped by unit.

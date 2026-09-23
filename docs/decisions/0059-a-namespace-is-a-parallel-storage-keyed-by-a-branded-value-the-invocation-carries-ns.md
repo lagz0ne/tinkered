@@ -1,8 +1,10 @@
 # 0059 A namespace is a parallel storage keyed by a branded value; the invocation carries `ns`
 
-Date: 2026-09-22. Status: proposed. Refines: 0038 (a tagged call opens a child session), 0036 (the
-three verbs), 0044 (a resource dep is its value), 0057 (a unit is declared once), 0058 (the graph
-produces the trace). Not yet built — this records a converged design and its probes.
+Date: 2026-09-22. Status: accepted (2026-09-23). Refines: 0038 (a tagged call opens a child
+session), 0036 (the three verbs), 0044 (a resource dep is its value), 0057 (a unit is declared once),
+0058 (the graph produces the trace).
+Refined by 0063 (release, proposed) and 0064 (the `namespace` target; decision 8's
+long-lived-session advice is withdrawn).
 
 ## Context
 
@@ -109,37 +111,17 @@ Resolve walks the layer chain and the ns chain together; a write lands at `(this
 - Sessions and namespaces are orthogonal: session is the layer axis (nested lifetime), namespace the
   key axis (parallel, refcounted). "Session is layer, namespace is cross-cut" holds.
 
-## Open — decide with a probe before building
+## Resolved
 
-A first core spike (branch `probe/ns-spike`, tag `probe/ns-spike-v1`, parked 2026-09-22) proved the
-`ns`-absent paths stay green (385 old tests) but an xhigh review found the two probes are harder than
-a quick answer, and a real build must meet all of the below. These are the acceptance criteria for the
-eventual ticket, not open musings:
-
-- **One bucket selector for cells AND resources.** The spike let them diverge: cells searched named
-  buckets across every layer before any default; resources checked only the chain head at the current
-  layer. They gave different answers for the same `ns: [a, b]`. A correct build routes both through one
-  selector so the order cannot disagree.
-- **The chain order is still a real choice, and the spike guessed.** Its cells made a FAR layer's
-  named bucket beat a NEAR layer's default (namespaces-first), and a test locked that — but the report
-  claimed "layers first". Decide it deliberately (a near default vs a far named write) and prove it
-  with a test that cannot pass under the other order.
-- **Release must not under-wait.** Keying borrows on `(owner, handle)` (not `(owner, ns, handle)`)
-  over-waits, which is safe — but the spike's release ALSO walked the dependency graph in a way that
-  freed a `pool` a live `client` still used (under-wait, a real hole). Release keys on
-  `(owner, ns, handle)` and never frees a bucket a live run holds through its dependency edges.
-- **A scope-target build must not see the `ns` chain.** The spike passed it in, so a tenant's tags
-  leaked into the shared default build (an `ns`-absent read saw `"tenant"`). Scope-target resolves
-  blind to `ns`, always (ADR 0059 decision 8 in code, not just on paper).
-- **Ambient `ns` must be inherited.** A child session, a tagged subflow, an inline op, and an
-  imperative controller all dropped the parent's `ns` in the spike. `createSession({ ns })` must flow
-  down every one of these, or the ambient story (decision 5) does not hold.
-- **Named buckets need their own watches, retries, and `.all`.** A named cell write must notify a
-  named watcher (the spike watched only the default); a synchronous factory failure must not poison a
-  named bucket against retry; `.all` on a tag must not drop repeated bindings for a named read.
-- **The hot path was rewritten, not preserved.** `ns`-absent semantics held, but the spike rebuilt
-  the resolve path rather than branching off it; timing is unverified. A real build keeps the
-  `ns`-absent path byte-for-byte and benches it (the +2 ns budget).
+- **Selection and chain order:** t01 and t02a use one selector for cells and resources.
+  t01 chose layers-first: a near default beats a far named write; tests pin that order.
+- **Shared sub-dependencies:** `target: "scope"` stays namespace-blind.
+  ADR 0064 adds `target: "namespace"` for root-owned, per-namespace resources.
+- **Ambient and named reads:** t01 and t03 cover child sessions, tagged subflows, inline runs,
+  controllers, watches, retries, and repeated `.all` bindings.
+- **Release timing:** base `release` and close wait for live borrows.
+  Releasing one namespace bucket (`releaseNs`) moved to proposed ADR 0063.
+- **Hot path:** t01 kept the `ns`-absent path.
 
 ## Alternatives rejected
 

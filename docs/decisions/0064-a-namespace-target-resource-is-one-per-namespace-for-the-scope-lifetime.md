@@ -39,6 +39,13 @@ namespace  root          ns     namespace
 session    asking layer  ns     session x ns
 ```
 
+## Open
+
+A `namespace`-target resource reached through a chain that mixes kinds of namespace,
+such as `[agent, tenant]`, builds in the chain's head. The tenant's pool can then
+be built twice depending on call order. It is safe today when resolved in the
+tenant's own namespace. See `docs/roadmap/core-feedback.md`.
+
 ## Consequences
 
 - `drizzleStore` declares `db` as `namespace`-target and `tx` as `session`: one declared store, one
