@@ -6,6 +6,7 @@ const borrowSym: unique symbol = Symbol("borrow");
 const tagSym: unique symbol = Symbol("tag");
 const edge: unique symbol = Symbol("edge");
 const resourceSym: unique symbol = Symbol("resource");
+const mayHookSym: unique symbol = Symbol("mayHook");
 const extensionSym: unique symbol = Symbol("extension");
 const presetSym: unique symbol = Symbol("preset");
 const namespaceSym: unique symbol = Symbol("namespace");
@@ -859,15 +860,24 @@ export function resource<
   factory: (deps: Scope.SlotValues<D>, ctx: Resource.Ctx) => T & Scope.AsyncBody<D>;
   meta?: Tag.Bindings;
 }): Resource.Handle<T> {
+  const depends: Scope.Depends = config.depends ?? {};
+  const mayHook =
+    config.factory.length >= 2 ||
+    Object.values(depends).some(
+      (dep) => isResource(dep) && (dep as HookFlag)[mayHookSym] !== false,
+    );
   return {
     [resourceSym]: true,
+    [mayHookSym]: mayHook,
     label: config.label,
     target: config.target ?? "scope",
-    depends: config.depends ?? {},
+    depends,
     factory: config.factory as Resource.Handle<T>["factory"],
     meta: readMany(config.meta),
   } as Resource.Handle<T>;
 }
+
+type HookFlag = { readonly [mayHookSym]?: boolean };
 
 /** Test-only: substitute a node's realization for downstream consumers of a scope (ADR 0015).
  * A `data` value is validated through `parse`; an operation takes a replacement `run`; a resource
@@ -1036,6 +1046,8 @@ type Layer = {
   tags: Map<Tag.Handle<unknown>, unknown[]> | undefined;
   pending: Set<Promise<unknown>>;
   defers: DeferEntry[];
+  /** Live dependency holds owned by resource instances on this layer. */
+  resourceHolds: number;
   /** Cancel state, decoupled from the signal so a forced close needn't dispatch abort events when no
    * factory ever asked for `ctx.signal`. `abort` (the real AbortController) is materialized lazily by
    * {@link signalOf} on first `ctx.signal` read, and kept in sync with `aborted`/`abortReason`. */
@@ -2203,6 +2215,11 @@ function ownerOf(layer: Layer, target: Resource.Handle<unknown>): Layer {
 /** Per-dependency edge bookkeeping run when a dependency is realized (undefined for operations, which
  * form no release edges). */
 type RegisterEdge = ((dep: Scope.Dependency) => void) | undefined;
+type SelectedResource = (
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  state: ResourceState,
+) => void;
 
 /** One still-building resource slot of a `deps` object: its key and the build to await. */
 type PendingSlot = { key: string; build: Promise<unknown> };
@@ -2223,7 +2240,7 @@ function resolveSelectedDep(
   dep: Scope.Dependency,
   span: Observe.Span | undefined,
   chain: readonly Namespace[] | undefined,
-  selected: ((instance: ResourceInstance) => void) | undefined,
+  selected: SelectedResource | undefined,
 ): unknown {
   return selected && isResource(dep)
     ? resourceSlot(layer, dep, span, chain, selected)
@@ -2236,14 +2253,17 @@ function buildDeps(
   span: Observe.Span | undefined,
   registerEdge: RegisterEdge,
   chain: readonly Namespace[] | undefined = layer.ns,
-  selected?: (instance: ResourceInstance) => void,
+  selected?: SelectedResource,
 ): Record<string, unknown> {
   const deps: Record<string, unknown> = {};
   let pending: PendingSlot[] | undefined;
   for (const key in depends) {
     const dep = depends[key];
     registerEdge?.(dep);
-    const value = resolveSelectedDep(layer, dep, span, chain, selected);
+    const value =
+      selected === undefined
+        ? resolveDep(layer, dep, span, chain)
+        : resolveSelectedDep(layer, dep, span, chain, selected);
     if (isThenable(value) && isResource(dep)) {
       (pending ??= []).push({ key, build: Promise.resolve(value) });
     }
@@ -2283,7 +2303,7 @@ function readOpDeps(
     span,
     undefined,
     chain,
-    held && ((instance) => addBorrow(instance, held)),
+    held && ((owner, res, state) => addBorrow(instanceOf(owner, res, state), held)),
   );
 }
 
@@ -2303,7 +2323,7 @@ function resolveResourceDeps(
   superseded: () => boolean,
   chain: readonly Namespace[] | undefined,
   state: ResourceState,
-  instance: ResourceInstance,
+  selected: SelectedResource | undefined,
 ): Record<string, unknown> {
   return buildDeps(
     owner,
@@ -2316,7 +2336,7 @@ function resolveResourceDeps(
       if (node && !superseded()) addDependent(owner, node, target, chain, state);
     },
     chain,
-    (dependency) => holdDependency(instance, dependency),
+    selected,
   );
 }
 
@@ -2539,7 +2559,7 @@ function instanceOf(
       dependencies: undefined,
       borrowers: undefined,
       dependents: 0,
-      building: false,
+      building: state.building,
       end: undefined,
       failure: undefined,
       finishing: false,
@@ -2552,9 +2572,25 @@ function instanceOf(
   return instance;
 }
 
+function hasPresetLayers(layer: Layer): boolean {
+  for (let cur: Layer | undefined = layer; cur; cur = cur.parent) if (cur.presets) return true;
+  return false;
+}
+
+function hasRetainedInstance(state: ResourceState): boolean {
+  return !!state.instance?.hooks.length || !!state.instance?.dependencies?.size;
+}
+
+function needsHold(owner: Layer, target: Resource.Handle<unknown>, state: ResourceState): boolean {
+  if (hasRetainedInstance(state)) return true;
+  if (state.resource || state.failed) return false;
+  return (target as HookFlag)[mayHookSym] !== false || hasPresetLayers(owner);
+}
+
 function holdDependency(dependent: ResourceInstance, dependency: ResourceInstance): void {
   if (dependent === dependency || dependent.dependencies?.has(dependency)) return;
   (dependent.dependencies ??= new Set()).add(dependency);
+  dependent.owner.resourceHolds++;
   dependency.dependents++;
 }
 
@@ -2589,6 +2625,7 @@ function completeInstance(instance: ResourceInstance): void {
   if (instance.dependencies)
     for (const dependency of instance.dependencies) {
       dependency.dependents--;
+      instance.owner.resourceHolds--;
       readyToFinish.push(dependency);
     }
   instance.dependencies = undefined;
@@ -2658,8 +2695,116 @@ function finishInstance(
   return finish();
 }
 
-function recordBuildFailure(instance: ResourceInstance, error: unknown): void {
-  if (!instance.end) instance.failure = { status: "failed", error };
+function startBuildInstance(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  state: ResourceState,
+  usesCtx: boolean,
+): ResourceInstance | undefined {
+  const instance = usesCtx ? instanceOf(owner, target, state) : state.instance;
+  if (instance) instance.building = true;
+  return instance;
+}
+
+function holdSelectedDependency(
+  dependent: ResourceInstance | undefined,
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  state: ResourceState,
+  depOwner: Layer,
+  depTarget: Resource.Handle<unknown>,
+  depState: ResourceState,
+): ResourceInstance | undefined {
+  if (!needsHold(depOwner, depTarget, depState)) return dependent;
+  const current = dependent ?? instanceOf(owner, target, state);
+  holdDependency(current, instanceOf(depOwner, depTarget, depState));
+  return current;
+}
+
+function settleResourceInstance(
+  instance: ResourceInstance | undefined,
+  status: "ok" | "failed",
+  error?: unknown,
+): void {
+  if (!instance) return;
+  if (status === "failed" && !instance.end) instance.failure = { status, error };
+  instance.building = false;
+  finishTracked(instance);
+}
+
+function publishSyncResource(
+  rec: ResourceState,
+  result: unknown,
+  canPublish: () => boolean,
+  instance: ResourceInstance | undefined,
+  obs: Obs,
+  span: Observe.Span | undefined,
+): void {
+  if (canPublish()) rec.resource = { value: result };
+  settleResourceInstance(instance, "ok");
+  closeSpan(obs, span, "ok");
+}
+
+function failResourceBuild(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  rec: ResourceState,
+  gen: number,
+  instance: ResourceInstance | undefined,
+  error: unknown,
+  obs: Obs,
+  span: Observe.Span | undefined,
+): never {
+  if (rec.gen === gen) detachResourceDependencies(owner, target, rec);
+  settleResourceInstance(instance, "failed", error);
+  closeSpan(obs, span, "failed");
+  throw error;
+}
+
+const NOOP_BUILD_SETTLED = (): void => undefined;
+
+function buildHooklessResource<T>(
+  owner: Layer,
+  target: Resource.Handle<T>,
+  parent: Observe.Span | undefined,
+  chain: readonly Namespace[] | undefined,
+  rec: ResourceState,
+): unknown {
+  const gen = rec.gen;
+  const superseded = (): boolean => rec.gen !== gen;
+  const canPublish = (): boolean => !superseded() && !owner.closed;
+  const obs = owner.obs;
+  const span = openSpan(obs, parent, target.label, "resource");
+  rec.building = true;
+  buildDepth++;
+  try {
+    const deps = resolveResourceDeps(owner, target, span, superseded, chain, rec, undefined);
+    const pending = parked;
+    const ctx = emptyCtxFor(owner);
+    const fn = target.factory;
+    const result =
+      pending === undefined ? fn(deps, ctx) : settleDeps(deps, pending).then(() => fn(deps, ctx));
+    if (!isThenable(result)) {
+      if (canPublish()) rec.resource = { value: result };
+      closeSpan(obs, span, "ok");
+      return result;
+    }
+    return finishAsyncBuild(
+      owner,
+      rec,
+      result,
+      superseded,
+      canPublish,
+      NOOP_BUILD_SETTLED,
+      obs,
+      span,
+    );
+  } catch (error) {
+    return failResourceBuild(owner, target, rec, gen, undefined, error, obs, span);
+  } finally {
+    buildDepth--;
+    rec.building = false;
+  }
 }
 
 function buildResource<T>(
@@ -2669,8 +2814,24 @@ function buildResource<T>(
   chain: readonly Namespace[] | undefined,
   rec: ResourceState,
 ): unknown {
-  const instance = instanceOf(owner, target, rec);
-  instance.building = true;
+  if (rec.building) raise("CircularResource", { label: target.label });
+  if (
+    (target as HookFlag)[mayHookSym] === false &&
+    rec.instance === undefined &&
+    !hasPresetLayers(owner)
+  )
+    return buildHooklessResource(owner, target, parent, chain, rec);
+  return buildTrackedResource(owner, target, parent, chain, rec);
+}
+
+function buildTrackedResource<T>(
+  owner: Layer,
+  target: Resource.Handle<T>,
+  parent: Observe.Span | undefined,
+  chain: readonly Namespace[] | undefined,
+  rec: ResourceState,
+): unknown {
+  let instance: ResourceInstance | undefined;
   const gen = rec.gen;
   const superseded = (): boolean => rec.gen !== gen;
   const canPublish = (): boolean => !superseded() && !owner.closed;
@@ -2680,19 +2841,38 @@ function buildResource<T>(
   let settled = false;
   buildDepth++;
   try {
-    const deps = resolveResourceDeps(owner, target, span, superseded, chain, rec, instance);
-    const pending = parked;
     const override = presetFor(owner, target) as Resource.Handle<T>["factory"] | undefined;
     const fn = override ?? target.factory;
-    const ctx = fn.length >= 2 ? buildCtx(instance, obs, span, () => settled) : emptyCtxFor(owner);
+    instance = startBuildInstance(owner, target, rec, fn.length >= 2);
+    const deps = resolveResourceDeps(
+      owner,
+      target,
+      span,
+      superseded,
+      chain,
+      rec,
+      (depOwner, depTarget, depState) => {
+        instance = holdSelectedDependency(
+          instance,
+          owner,
+          target,
+          rec,
+          depOwner,
+          depTarget,
+          depState,
+        );
+      },
+    );
+    const pending = parked;
+    const ctx =
+      fn.length >= 2
+        ? buildCtx(instance as ResourceInstance, obs, span, () => settled)
+        : emptyCtxFor(owner);
     const result =
       pending === undefined ? fn(deps, ctx) : settleDeps(deps, pending).then(() => fn(deps, ctx));
     if (!isThenable(result)) {
       settled = true;
-      instance.building = false;
-      if (canPublish()) rec.resource = { value: result };
-      finishTracked(instance);
-      closeSpan(obs, span, "ok");
+      publishSyncResource(rec, result, canPublish, instance, obs, span);
       return result;
     }
     return finishAsyncBuild(
@@ -2703,21 +2883,14 @@ function buildResource<T>(
       canPublish,
       (status, error) => {
         settled = true;
-        if (status === "failed") recordBuildFailure(instance, error);
-        instance.building = false;
-        finishTracked(instance);
+        settleResourceInstance(instance, status, error);
       },
       obs,
       span,
     );
   } catch (error) {
     settled = true;
-    instance.building = false;
-    recordBuildFailure(instance, error);
-    if (!superseded()) detachResourceDependencies(owner, target, rec);
-    finishTracked(instance);
-    closeSpan(obs, span, "failed");
-    throw error;
+    return failResourceBuild(owner, target, rec, gen, instance, error, obs, span);
   } finally {
     buildDepth--;
     rec.building = false;
@@ -2847,7 +3020,7 @@ function resourceSlot(
   target: Resource.Handle<unknown>,
   parent: Observe.Span | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
-  selected?: (instance: ResourceInstance) => void,
+  selected?: SelectedResource,
 ): unknown {
   const owner = ownerOf(layer, target);
   const rec = nodeState(owner, target);
@@ -2856,9 +3029,12 @@ function resourceSlot(
   recordUsed(layer.obs, parent, target);
   if (hasResourceNs(target, chain))
     return namedResourceSlot(owner, target, parent, chain, selected);
-  selected?.(instanceOf(owner, target, rec));
+  selected?.(owner, target, rec);
+  if (rec.resource) return rec.resource.value;
+  if (rec.failed) return rec.failed.promise;
+  if (rec.build) return rec.build;
   const buildChain = target.target === "scope" ? NO_NAMESPACE : chain;
-  return readResourceState(owner, target, parent, buildChain, rec);
+  return buildResource(owner, target, parent, buildChain, rec);
 }
 
 function namedResourceSlot(
@@ -2866,11 +3042,11 @@ function namedResourceSlot(
   target: Resource.Handle<unknown>,
   parent: Observe.Span | undefined,
   chain: readonly [Namespace, ...Namespace[]],
-  selected?: (instance: ResourceInstance) => void,
+  selected?: SelectedResource,
 ): unknown {
   const [head] = chain;
   const state = selectNsResource(owner, target, chain) ?? ownNsResource(owner, target, head);
-  selected?.(instanceOf(owner, target, state));
+  selected?.(owner, target, state);
   return readResourceState(owner, target, parent, chain, state);
 }
 
@@ -3280,6 +3456,7 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     tags,
     pending: new Set(),
     defers: [],
+    resourceHolds: 0,
     aborted: false,
     abortReason: undefined,
     abort: undefined,
@@ -3444,22 +3621,11 @@ async function closeChildren(layer: Layer, force: boolean): Promise<void> {
  * no children, no in-flight owned work, no deferred cleanups, no teardown error already collected (an
  * operation's cleanup that threw at its own end must still reach `teardownErrors`), no running body, no
  * recorded failure, and no build in progress (whose not-yet-tracked work a synchronous close would miss). */
-function hasLiveResources(layer: Layer): boolean {
-  for (const state of layer.nodes.values()) {
-    if (
-      state.instance ||
-      (state.nsResources && [...state.nsResources.values()].some((bucket) => !!bucket.instance))
-    )
-      return true;
-  }
-  return false;
-}
-
 function canFastClose(layer: Layer): boolean {
   return (
     buildDepth === 0 &&
     layer.children.size === 0 &&
-    layer.pending.size + Number(hasLiveResources(layer)) === 0 &&
+    layer.pending.size + layer.resourceHolds === 0 &&
     layer.defers.length + layer.secondary.length === 0 &&
     layer.body === undefined &&
     layer.failure === undefined &&

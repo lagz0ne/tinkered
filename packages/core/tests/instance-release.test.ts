@@ -1,5 +1,16 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, isError, operation, resource, type Resource } from "../src/index.ts";
+import {
+  createScope,
+  data,
+  isError,
+  namespace,
+  operation,
+  preset,
+  resource,
+  tag,
+  type Observe,
+  type Resource,
+} from "../src/index.ts";
 
 test("a late default dependency stays open through its dependent's async cleanup", async () => {
   let finishBuild!: () => void;
@@ -406,6 +417,359 @@ test("release keeps its end when close joins a borrowed instance", async () => {
   await running;
   await closing;
   expect(ended).toEqual(["released"]);
+});
+
+test("a named late client holds only its own dependency bucket", async () => {
+  let finish!: () => void;
+  const gate = new Promise<void>((resolve) => (finish = resolve));
+  const tenant = tag<string>({ label: "tenant" });
+  const a = namespace({ tags: [tenant("A")] });
+  const b = namespace({ tags: [tenant("B")] });
+  const ended: string[] = [];
+  const pool = resource({
+    label: "pool",
+    target: "namespace",
+    depends: { tenant },
+    factory: ({ tenant }, ctx) => {
+      const value = { tenant, closed: false };
+      ctx.defer(() => {
+        value.closed = true;
+        ended.push(tenant);
+      });
+      return value;
+    },
+  });
+  const client = resource({
+    label: "client",
+    target: "namespace",
+    depends: { pool },
+    factory: async ({ pool }) => {
+      if (pool.tenant === "A") await gate;
+      return pool.closed;
+    },
+  });
+  const scope = createScope();
+  const pending = scope.resolve(client, { ns: a });
+  expect(await scope.resolve(client, { ns: b })).toBe(false);
+  scope.release(pool);
+  expect(ended).toEqual(["B"]);
+  finish();
+  expect(await pending).toBe(false);
+  await scope.settled();
+  expect(ended).toEqual(["B", "A"]);
+  await scope.close();
+});
+
+test("a warm dependency stays open through its client's late build", async () => {
+  let finish!: () => void;
+  const gate = new Promise<void>((resolve) => (finish = resolve));
+  const pool = resource({
+    label: "pool",
+    factory: (_deps, ctx) => {
+      const value = { closed: false };
+      ctx.defer(() => {
+        value.closed = true;
+      });
+      return value;
+    },
+  });
+  const client = resource({
+    label: "client",
+    depends: { pool },
+    factory: async ({ pool }) => {
+      await gate;
+      return pool.closed;
+    },
+  });
+  const scope = createScope();
+  const value = scope.resolve(pool);
+  const building = scope.resolve(client);
+  scope.release(pool);
+  expect(value.closed).toBe(false);
+  finish();
+  expect(await building).toBe(false);
+  await scope.settled();
+  expect(value.closed).toBe(true);
+  await scope.close();
+});
+
+test("a warm hookless bridge holds its pool through a client's late build", async () => {
+  let finish!: () => void;
+  const gate = new Promise<void>((resolve) => (finish = resolve));
+  const pool = resource({
+    label: "pool",
+    factory: (_deps, ctx) => {
+      const value = { closed: false };
+      ctx.defer(() => {
+        value.closed = true;
+      });
+      return value;
+    },
+  });
+  const bridge = resource({ label: "bridge", depends: { pool }, factory: ({ pool }) => pool });
+  const client = resource({
+    label: "client",
+    depends: { bridge },
+    factory: async ({ bridge }) => {
+      await gate;
+      return bridge.closed;
+    },
+  });
+  const scope = createScope();
+  const value = scope.resolve(bridge);
+  const building = scope.resolve(client);
+  scope.release(pool);
+  expect(value.closed).toBe(false);
+  finish();
+  expect(await building).toBe(false);
+  await scope.settled();
+  expect(value.closed).toBe(true);
+  await scope.close();
+});
+
+test("a child build keeps a preset root pool open through its hookless bridge", async () => {
+  let finish!: () => void;
+  const gate = new Promise<void>((resolve) => (finish = resolve));
+  const pool = resource({ label: "pool", factory: () => ({ closed: false }) });
+  const bridge = resource({
+    label: "bridge",
+    target: "session",
+    depends: { pool },
+    factory: ({ pool }) => pool,
+  });
+  const client = resource({
+    label: "client",
+    target: "session",
+    depends: { bridge },
+    factory: async ({ bridge }) => {
+      await gate;
+      return bridge.closed;
+    },
+  });
+  let closed = false;
+  const root = createScope({
+    presets: [
+      preset(pool, (_deps, ctx) => {
+        const value = { closed: false };
+        ctx.defer(() => {
+          closed = true;
+          value.closed = true;
+        });
+        return value;
+      }),
+    ],
+  });
+  const child = root.createSession();
+  const building = child.resolve(client);
+  root.release(pool);
+  expect(closed).toBe(false);
+  finish();
+  expect(await building).toBe(false);
+  await root.settled();
+  expect(closed).toBe(true);
+  await root.close();
+});
+
+test("closing a child waits for its late build while it holds a root pool", async () => {
+  let finish!: () => void;
+  const gate = new Promise<void>((resolve) => (finish = resolve));
+  const pool = resource({
+    label: "pool",
+    factory: (_deps, ctx) => {
+      ctx.defer(() => undefined);
+      return 42;
+    },
+  });
+  const client = resource({
+    label: "client",
+    target: "session",
+    depends: { pool },
+    factory: async ({ pool }) => {
+      await gate;
+      return pool;
+    },
+  });
+  const root = createScope();
+  const child = root.createSession();
+  const building = child.resolve(client);
+  let closed = false;
+  const closing = child.close({ graceful: true }).then(() => {
+    closed = true;
+  });
+  await Promise.resolve();
+  expect(closed).toBe(false);
+  finish();
+  expect(await building).toBe(42);
+  await closing;
+  await root.close();
+});
+
+test("a warmed context-aware pool without cleanup can feed a client", async () => {
+  const pool = resource({ label: "pool", factory: (_deps, _ctx) => 42 });
+  const client = resource({ label: "client", depends: { pool }, factory: ({ pool }) => pool });
+  const scope = createScope();
+  expect(scope.resolve(pool)).toBe(42);
+  expect(scope.resolve(client)).toBe(42);
+  await scope.close();
+});
+
+test("a hookless session client frees its hold on a root resource when it closes", async () => {
+  const ended: string[] = [];
+  const pool = resource({
+    label: "pool",
+    factory: (_deps, ctx) => {
+      ctx.defer((end) => void ended.push(end.status));
+      return {};
+    },
+  });
+  const client = resource({
+    label: "client",
+    target: "session",
+    depends: { pool },
+    factory: (_deps, _ctx) => 1,
+  });
+  const root = createScope();
+  await root.session((child) => child.resolve(client));
+  root.release(pool);
+  expect(ended).toEqual(["released"]);
+  await root.close();
+});
+
+test("a preset cleanup waits for a hookless dependent's late build", async () => {
+  let finish!: () => void;
+  const gate = new Promise<void>((resolve) => (finish = resolve));
+  const pool = resource({ label: "pool", factory: () => ({ closed: false }) });
+  const client = resource({
+    label: "client",
+    depends: { pool },
+    factory: async ({ pool }) => {
+      await gate;
+      return pool.closed;
+    },
+  });
+  let closed = false;
+  const scope = createScope({
+    presets: [
+      preset(pool, (_deps, ctx) => {
+        const value = { closed: false };
+        ctx.defer(() => {
+          closed = true;
+          value.closed = true;
+        });
+        return value;
+      }),
+    ],
+  });
+  const building = scope.resolve(client);
+  scope.release(pool);
+  expect(closed).toBe(false);
+  finish();
+  expect(await building).toBe(false);
+  await scope.settled();
+  expect(closed).toBe(true);
+  await scope.close();
+});
+
+test("a synchronous resource rejects defer after its factory finishes", async () => {
+  let captured!: Resource.Ctx;
+  const value = resource({
+    label: "value",
+    factory: (_deps, ctx) => {
+      captured = ctx;
+      return 42;
+    },
+  });
+  const scope = createScope();
+  scope.resolve(value);
+  let thrown: unknown;
+  try {
+    captured.defer(() => undefined);
+  } catch (error) {
+    thrown = error;
+  }
+  if (!isError(thrown, "Disposed")) throw thrown;
+  expect(thrown.payload.reason).toBe("resource factory already finished");
+  await scope.close();
+});
+
+test("an asynchronous resource rejects defer after its factory finishes", async () => {
+  let captured!: Resource.Ctx;
+  const value = resource({
+    label: "value",
+    factory: async (_deps, ctx) => {
+      captured = ctx;
+      return 42;
+    },
+  });
+  const scope = createScope();
+  await scope.resolve(value);
+  let thrown: unknown;
+  try {
+    captured.defer(() => undefined);
+  } catch (error) {
+    thrown = error;
+  }
+  if (!isError(thrown, "Disposed")) throw thrown;
+  expect(thrown.payload.reason).toBe("resource factory already finished");
+  await scope.close();
+});
+
+test("a late hookless build cannot replace the value built after release", async () => {
+  let finish!: () => void;
+  const gate = new Promise<void>((resolve) => (finish = resolve));
+  let builds = 0;
+  const value = resource({
+    label: "value",
+    factory: async () => {
+      const id = ++builds;
+      if (id === 1) await gate;
+      return id;
+    },
+  });
+  const scope = createScope();
+  const stale = scope.resolve(value);
+  scope.release(value);
+  expect(await scope.resolve(value)).toBe(2);
+  finish();
+  expect(await stale).toBe(1);
+  expect(await scope.resolve(value)).toBe(2);
+  await scope.close();
+});
+
+test("a hookless factory can retry after a synchronous failure", async () => {
+  const cause = new Error("first attempt failed");
+  const spans: Observe.Span[] = [];
+  let builds = 0;
+  const value = resource({
+    label: "retry",
+    factory: () => {
+      if (++builds === 1) throw cause;
+      return 42;
+    },
+  });
+  const scope = createScope({ observe: { export: (span) => void spans.push(span) } });
+  let thrown: unknown;
+  try {
+    scope.resolve(value);
+  } catch (error) {
+    thrown = error;
+  }
+  expect(thrown).toBe(cause);
+  expect(scope.resolve(value)).toBe(42);
+  expect(spans.filter((span) => span.name === "retry").map((span) => span.status)).toEqual([
+    "failed",
+    "ok",
+  ]);
+  await scope.close();
+});
+
+test("a context-aware resource reports its build span", async () => {
+  const spans: Observe.Span[] = [];
+  const value = resource({ label: "value", factory: (_deps, _ctx) => 42 });
+  const scope = createScope({ observe: { export: (span) => void spans.push(span) } });
+  expect(scope.resolve(value)).toBe(42);
+  expect(spans.find((span) => span.name === "value")?.status).toBe("ok");
+  await scope.close();
 });
 
 test("a late build gives its waiting run a value and ends its hook once as released", async () => {
