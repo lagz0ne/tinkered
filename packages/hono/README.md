@@ -62,6 +62,40 @@ const res = await scope.resolve(web).request("/users/42");
 expect(await res.json()).toEqual({ id: 42 });
 ```
 
+## Request namespaces
+
+- Route = graph: the route picks the operation.
+- Session = lifetime: each request gets its own session.
+- Namespace = identity: tenant requests share tenant resources.
+
+Pass `ns` in the wiring to choose a namespace from the request.
+It can return one namespace, a fallback list, or `undefined`.
+With no hook or an `undefined` result, the session uses the default namespace.
+Request `tags` still bind to the session beside namespace tags.
+A resource with `target: "namespace"` is built once per tenant for the scope's lifetime.
+A cell written in one request stays in that request's session.
+
+```ts
+import { namespace, resource, tag } from "@tinker/core";
+
+const database = tag<string>({ label: "database" });
+const alpha = namespace({ tags: [database("alpha-db")] });
+const beta = namespace({ tags: [database("beta-db")] });
+const pool = resource({
+  label: "pool",
+  target: "namespace",
+  depends: { database },
+  factory: ({ database }) => ({ database }),
+});
+
+const { extension: web } = hono([route.get("/database", readDatabase)], {
+  ns: (c) => (c.req.header("x-tenant") === "beta" ? beta : alpha),
+});
+```
+
+Here `readDatabase` is an operation that depends on `pool`.
+See `examples/hono/basic.ts` for a route driven by both tenants.
+
 Two `hono()` calls on one scope are two apps (two servers, one close):
 store each returned extension once (`const { extension: web } = hono(...)`),
 install it, resolve it — a second call is a different identity. Each
