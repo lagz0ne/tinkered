@@ -838,6 +838,51 @@ test("releasing a far named data bucket does not invalidate a client reading a n
   expect(second).toBe(first);
 });
 
+test("releaseNs unlinks a namespace-target resource at the root from a child", async () => {
+  const a = namespace();
+  const b = namespace();
+  const ended: string[] = [];
+  let builds = 0;
+  const pool = resource({
+    label: "root-pool",
+    target: "namespace",
+    factory: (_deps, ctx) => {
+      const build = ++builds;
+      ctx.defer((end) => {
+        ended.push(`${build}:${end.status}`);
+      });
+      return { build };
+    },
+  });
+  const root = createScope();
+  const child = root.createSession();
+  const first = child.resolve(pool, { ns: a });
+  const sibling = child.resolve(pool, { ns: b });
+  const plain = child.resolve(pool);
+  child.releaseNs(pool, a);
+  expect(ended).toEqual([`${first.build}:released`]);
+  expect(root.resolve(pool, { ns: a })).not.toBe(first);
+  expect(root.resolve(pool, { ns: b })).toBe(sibling);
+  expect(root.resolve(pool)).toBe(plain);
+  await root.close({ graceful: true });
+});
+
+test("releaseNs notifies a chain watcher of its fallback value", async () => {
+  const a = namespace();
+  const b = namespace();
+  const cell = data({ label: "fallback-cell", initial: 0 });
+  const scope = createScope();
+  scope.controller(cell, { ns: b }).set(2);
+  scope.controller(cell, { ns: a }).set(1);
+  const changes: number[] = [];
+  scope.controller(cell, { ns: [a, b] }).watch((value) => {
+    changes.push(value);
+  });
+  scope.releaseNs(cell, a);
+  expect(changes).toEqual([2]);
+  await scope.close({ graceful: true });
+});
+
 test("a watcher starting another namespace cannot hold the released instance (N4)", async () => {
   const a = namespace();
   const b = namespace();
