@@ -24,6 +24,10 @@ const where = (id) => status[id]?.status ?? "uncalibrated";
 
 for (const [title, bank] of GROUPS) {
   console.log(md ? `\n### ${title}\n` : `\n== ${title}\n`);
+  if (!Object.keys(bank).length) {
+    console.log("No live judge. Retired judges keep their cases in cases.jsonl.");
+    continue;
+  }
   if (md)
     console.log(
       "| judge | status | the question Jev is asked | `true` means | `false` means |\n| --- | --- | --- | --- | --- |",

@@ -2,151 +2,181 @@
   "runForwardsToClosure": {
     "status": "provisional",
     "trues": 3,
-    "falses": 7,
-    "medianTrue": 0.95,
-    "medianFalse": 0.12,
-    "separation": 0.83,
-    "ordered": 0.95,
-    "at": "2026-09-22"
+    "falses": 52,
+    "medianTrue": 0.94,
+    "medianFalse": 0.04,
+    "separation": 0.9,
+    "ordered": 0.99,
+    "at": "2026-09-23"
   },
   "effectWithoutDefer": {
     "status": "provisional",
     "trues": 2,
-    "falses": 11,
-    "medianTrue": 0.83,
-    "medianFalse": 0.4,
-    "separation": 0.43,
-    "ordered": 0.91,
-    "at": "2026-09-22"
+    "falses": 56,
+    "medianTrue": 0.82,
+    "medianFalse": 0.03,
+    "separation": 0.79,
+    "ordered": 0.98,
+    "at": "2026-09-23"
   },
   "stateOutsideCell": {
     "status": "provisional",
     "trues": 2,
-    "falses": 9,
+    "falses": 54,
     "medianTrue": 0.9,
-    "medianFalse": 0.6,
-    "separation": 0.3,
+    "medianFalse": 0.08,
+    "separation": 0.82,
     "ordered": 1,
-    "at": "2026-09-22"
+    "at": "2026-09-23"
   },
   "configNotTag": {
     "status": "provisional",
     "trues": 2,
-    "falses": 14,
-    "medianTrue": 0.84,
-    "medianFalse": 0.69,
-    "separation": 0.16,
-    "ordered": 0.79,
-    "at": "2026-09-22"
+    "falses": 59,
+    "medianTrue": 0.63,
+    "medianFalse": 0.06,
+    "separation": 0.56,
+    "ordered": 0.93,
+    "at": "2026-09-23"
   },
   "handRolledLifetime": {
     "status": "provisional",
     "trues": 3,
-    "falses": 4,
-    "medianTrue": 0.82,
-    "medianFalse": 0.04,
-    "separation": 0.78,
-    "ordered": 0.92,
-    "at": "2026-09-22"
+    "falses": 49,
+    "medianTrue": 0.78,
+    "medianFalse": 0.03,
+    "separation": 0.75,
+    "ordered": 0.99,
+    "at": "2026-09-23"
   },
   "stopOnlyInDefer": {
     "status": "provisional",
     "trues": 1,
-    "falses": 3,
-    "medianTrue": 0.83,
-    "medianFalse": 0.54,
-    "separation": 0.29,
+    "falses": 48,
+    "medianTrue": 0.85,
+    "medianFalse": 0.18,
+    "separation": 0.67,
     "ordered": 1,
-    "at": "2026-09-22"
+    "at": "2026-09-23"
   },
   "ignoresAbortAfterAwait": {
     "status": "provisional",
     "trues": 1,
     "falses": 1,
-    "medianTrue": 0.82,
-    "medianFalse": 0.31,
-    "separation": 0.51,
+    "medianTrue": 0.79,
+    "medianFalse": 0.34,
+    "separation": 0.45,
     "ordered": 1,
-    "at": "2026-09-22"
+    "at": "2026-09-23"
   },
   "readsMoreThanRendered": {
     "status": "provisional",
     "trues": 1,
-    "falses": 2,
-    "medianTrue": 0.91,
-    "medianFalse": 0.24,
-    "separation": 0.67,
+    "falses": 47,
+    "medianTrue": 0.93,
+    "medianFalse": 0.04,
+    "separation": 0.89,
     "ordered": 1,
-    "at": "2026-09-22"
+    "at": "2026-09-23"
   },
   "subscribesToWriteOnly": {
     "status": "provisional",
     "trues": 1,
-    "falses": 1,
-    "medianTrue": 0.94,
-    "medianFalse": 0.09,
-    "separation": 0.85,
+    "falses": 46,
+    "medianTrue": 0.95,
+    "medianFalse": 0.11,
+    "separation": 0.83,
     "ordered": 1,
-    "at": "2026-09-22"
+    "at": "2026-09-23"
   },
   "runDuringRender": {
     "status": "provisional",
     "trues": 1,
-    "falses": 2,
+    "falses": 46,
     "medianTrue": 0.96,
-    "medianFalse": 0.37,
-    "separation": 0.59,
+    "medianFalse": 0.18,
+    "separation": 0.78,
     "ordered": 1,
-    "at": "2026-09-22"
+    "at": "2026-09-23"
   },
   "domainLogicInRender": {
-    "status": "provisional",
-    "trues": 1,
-    "falses": 1,
-    "medianTrue": 0.93,
-    "medianFalse": 0.05,
-    "separation": 0.88,
+    "status": "proven",
+    "trues": 6,
+    "falses": 43,
+    "medianTrue": 0.87,
+    "medianFalse": 0.06,
+    "separation": 0.81,
     "ordered": 1,
-    "at": "2026-09-22"
+    "at": "2026-09-23"
   },
   "effectOwnedByComponent": {
     "status": "provisional",
     "trues": 1,
-    "falses": 1,
+    "falses": 46,
     "medianTrue": 0.95,
     "medianFalse": 0.05,
     "separation": 0.9,
     "ordered": 1,
-    "at": "2026-09-22"
+    "at": "2026-09-23"
   },
   "leakedInternal": {
     "status": "provisional",
     "trues": 1,
-    "falses": 4,
-    "medianTrue": 0.68,
-    "medianFalse": 0.48,
-    "separation": 0.2,
-    "ordered": 0.5,
-    "at": "2026-09-22"
+    "falses": 49,
+    "medianTrue": 0.74,
+    "medianFalse": 0.15,
+    "separation": 0.59,
+    "ordered": 0.98,
+    "at": "2026-09-23"
   },
   "survivorMatters": {
     "status": "proven",
     "trues": 6,
     "falses": 7,
-    "medianTrue": 0.84,
+    "medianTrue": 0.83,
     "medianFalse": 0.18,
     "separation": 0.66,
-    "ordered": 0.98,
-    "at": "2026-09-22"
+    "ordered": 1,
+    "at": "2026-09-23"
   },
-  "titleVague": {
+  "inputDefaultMasks": {
+    "status": "proven",
+    "trues": 14,
+    "falses": 33,
+    "medianTrue": 0.93,
+    "medianFalse": 0.38,
+    "separation": 0.55,
+    "ordered": 0.98,
+    "at": "2026-09-23"
+  },
+  "noOpRejected": {
+    "status": "proven",
+    "trues": 6,
+    "falses": 44,
+    "medianTrue": 0.83,
+    "medianFalse": 0.17,
+    "separation": 0.67,
+    "ordered": 1,
+    "at": "2026-09-23"
+  },
+  "partialStub": {
     "status": "provisional",
-    "trues": 2,
-    "falses": 48,
-    "medianTrue": 0.71,
-    "medianFalse": 0.57,
-    "separation": 0.14,
-    "ordered": 0.81,
-    "at": "2026-09-22"
+    "trues": 0,
+    "falses": 45,
+    "medianTrue": null,
+    "medianFalse": 0.07,
+    "separation": null,
+    "ordered": 0,
+    "at": "2026-09-23"
+  },
+  "memoKeyIgnoresInput": {
+    "status": "provisional",
+    "trues": 0,
+    "falses": 45,
+    "medianTrue": null,
+    "medianFalse": 0.04,
+    "separation": null,
+    "ordered": 0,
+    "at": "2026-09-23"
   }
 }

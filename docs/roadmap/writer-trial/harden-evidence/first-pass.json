@@ -1,0 +1,84 @@
+{
+  "pool": {
+    "archives": 21,
+    "items": 1695
+  },
+  "firstPass": {
+    "effectWithoutDefer": {
+      "scored": 465,
+      "hits": 0
+    },
+    "stateOutsideCell": {
+      "scored": 270,
+      "hits": 8
+    },
+    "handRolledLifetime": {
+      "scored": 465,
+      "hits": 0
+    },
+    "unknownErrorSwallowed": {
+      "scored": 559,
+      "hits": 58
+    },
+    "inputDefaultMasks": {
+      "scored": 465,
+      "hits": 21
+    },
+    "noOpRejected": {
+      "scored": 465,
+      "hits": 6
+    },
+    "readsMoreThanRendered": {
+      "scored": 94,
+      "hits": 0
+    },
+    "subscribesToWriteOnly": {
+      "scored": 94,
+      "hits": 1
+    },
+    "runDuringRender": {
+      "scored": 94,
+      "hits": 2
+    },
+    "domainLogicInRender": {
+      "scored": 94,
+      "hits": 1
+    },
+    "effectOwnedByComponent": {
+      "scored": 94,
+      "hits": 0
+    },
+    "partialStub": {
+      "scored": 186,
+      "hits": 0
+    },
+    "memoKeyIgnoresInput": {
+      "scored": 186,
+      "hits": 0
+    },
+    "leakedInternal": {
+      "scored": 186,
+      "hits": 1
+    },
+    "runForwardsToClosure": {
+      "scored": 195,
+      "hits": 0
+    },
+    "configNotTag": {
+      "scored": 195,
+      "hits": 9
+    },
+    "stopOnlyInDefer": {
+      "scored": 195,
+      "hits": 0
+    },
+    "staleNotice": {
+      "scored": 195,
+      "hits": 5
+    },
+    "titleVague": {
+      "scored": 832,
+      "hits": 184
+    }
+  }
+}

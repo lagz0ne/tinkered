@@ -170,7 +170,8 @@ Object.assign(LINT, {
   },
   domainLogicInRender: {
     applies: ["component"],
-    threshold: 0.5,
+    // 0.6 from 45 labeled trial cases (2026-09-23): 1 of 42 clean hit, all 3 real bad cases hit.
+    threshold: 0.6,
     q: {
       type: "boolean",
       instructions:
@@ -202,7 +203,8 @@ Object.assign(LINT, {
 Object.assign(LINT, {
   inputDefaultMasks: {
     applies: ["operation", "function"],
-    threshold: 0.5,
+    // 0.7 from 45 labeled trial cases (2026-09-23): 0.5 hit 10 of 32 clean; 0.7 hits 2 of 32 clean, 12 of 13 bad.
+    threshold: 0.7,
     q: {
       type: "boolean",
       instructions:
@@ -216,7 +218,8 @@ Object.assign(LINT, {
   },
   noOpRejected: {
     applies: ["operation", "function"],
-    threshold: 0.5,
+    // 0.6 from 45 labeled trial cases (2026-09-23): 0.5 hit 4 of 43 clean; 0.6 hits 1, both real bad cases.
+    threshold: 0.6,
     q: {
       type: "boolean",
       instructions:
