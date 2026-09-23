@@ -915,7 +915,7 @@ type NsWatcher = Watcher & {
 };
 
 /** The exact data entry a named resource read. */
-type NsDataDependency = { owner: Layer; source: NodeState; entry: Entry };
+type NsDataDependency = { source: NodeState; entry: Entry };
 
 /** One named resource bucket. Default resource state stays directly on {@link NodeState}. */
 class NsResourceState {
@@ -3389,7 +3389,7 @@ function addNsDataDependent(
 function linkNsResourceDependent(selected: NsResourceState, dependent: NsResourceState): void {
   (selected.resourceDependents ??= new Set()).add(dependent);
   (dependent.resourceDependencies ??= new Set()).add(selected);
-  if (selected.owner !== dependent.owner) (dependent.owner.nsLinked ??= new Set()).add(dependent);
+  (dependent.owner.nsLinked ??= new Set()).add(dependent);
 }
 
 function linkNsDataDependent(selected: NsDataDependency, dependent: NsResourceState): void {
@@ -3399,7 +3399,7 @@ function linkNsDataDependent(selected: NsDataDependency, dependent: NsResourceSt
   dependents.add(dependent);
   (selected.source.nsDataDependents ??= new Map()).set(selected.entry, dependents);
   (dependent.dataDependencies ??= new Set()).add(selected);
-  if (selected.owner !== dependent.owner) (dependent.owner.nsLinked ??= new Set()).add(dependent);
+  (dependent.owner.nsLinked ??= new Set()).add(dependent);
 }
 
 function selectNsDataEntry(
@@ -3413,7 +3413,7 @@ function selectNsDataEntry(
     (layer, key) => {
       const source = layer.nodes.get(target);
       const entry = source?.nsCells?.get(key);
-      return source && entry ? { owner: layer, source, entry } : undefined;
+      return source && entry ? { source, entry } : undefined;
     },
     (layer) => (layer.nodes.get(target)?.cell ? DEFAULT_DATA_ENTRY : undefined),
   );
