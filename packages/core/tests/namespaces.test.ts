@@ -635,3 +635,116 @@ test("a watcher that writes during notify does not rob a later watcher of its ch
   ]);
   await scope.close();
 });
+
+test("named and chained cell watches notify only when their resolved value changes", async () => {
+  const a = namespace();
+  const b = namespace();
+  const cell = data({ initial: 0 });
+  const scope = createScope();
+  const named: [number, number][] = [];
+  const chain: [number, number][] = [];
+  scope.controller(cell, { ns: a }).watch((next, prev) => named.push([prev, next]));
+  scope.controller(cell, { ns: [a, b] }).watch((next, prev) => chain.push([prev, next]));
+  scope.controller(cell, { ns: b }).set(1);
+  expect(named).toEqual([]);
+  expect(chain).toEqual([[0, 1]]);
+  scope.controller(cell, { ns: b }).set(2);
+  expect(chain).toEqual([
+    [0, 1],
+    [1, 2],
+  ]);
+  scope.controller(cell, { ns: a }).set(3);
+  expect(named).toEqual([[0, 3]]);
+  expect(chain).toEqual([
+    [0, 1],
+    [1, 2],
+    [2, 3],
+  ]);
+  scope.controller(cell).set(9);
+  expect(named).toEqual([[0, 3]]);
+  expect(chain).toEqual([
+    [0, 1],
+    [1, 2],
+    [2, 3],
+  ]);
+  await scope.close();
+});
+
+test("a failed named resource retries without leaking to a sibling chain", async () => {
+  const tenant = tag<string>({ label: "tenant" });
+  const a = namespace({ tags: [tenant("A")] });
+  const b = namespace({ tags: [tenant("B")] });
+  let fail = true;
+  const built: string[] = [];
+  const client = resource({
+    label: "client",
+    target: "session",
+    depends: { tenant },
+    factory: ({ tenant }) => {
+      built.push(tenant);
+      if (tenant === "A" && fail) throw new Error("not ready");
+      return tenant;
+    },
+  });
+  const scope = createScope();
+  expect(() => scope.resolve(client, { ns: a })).toThrow("not ready");
+  expect(scope.resolve(client, { ns: [b, a] })).toBe("B");
+  fail = false;
+  expect(scope.resolve(client, { ns: a })).toBe("A");
+  expect(scope.resolve(client, { ns: [b, a] })).toBe("B");
+  expect(built).toEqual(["A", "B", "A"]);
+  await scope.close();
+});
+
+test("named tag all keeps repeated bindings through a chain", async () => {
+  const value = tag<number>({ label: "value" });
+  const a = namespace({ tags: [value(1), value(1)] });
+  const b = namespace({ tags: [value(2)] });
+  const scope = createScope();
+  expect(scope.resolve(value.all, { ns: a })).toEqual([1, 1]);
+  expect(scope.resolve(value.all, { ns: [a, b] })).toEqual([1, 1, 2]);
+  await scope.close();
+});
+
+test("ambient namespace survives child, tagged subflow, inline run, and imperative controllers", async () => {
+  const tenant = tag<string>({ label: "tenant" });
+  const marker = tag({ label: "marker", default: false });
+  const a = namespace({ tags: [tenant("A")] });
+  const b = namespace({ tags: [tenant("B")] });
+  const cell = data({ initial: 0 });
+  const client = resource({
+    label: "client",
+    target: "session",
+    depends: { tenant },
+    factory: ({ tenant }) => tenant,
+  });
+  const leaf = operation({
+    label: "leaf",
+    depends: { tenant, marker, cell },
+    run: ({ tenant, marker, cell }) => ({ tenant, marker, cell }),
+  });
+  const parent = operation({
+    label: "parent",
+    depends: { leaf },
+    run: ({ leaf }) => leaf.run({ tags: [marker(true)] }),
+  });
+  const scope = createScope();
+  scope.controller(cell, { ns: a }).set(1);
+  scope.controller(cell, { ns: b }).set(2);
+  const session = scope.createSession({ ns: a });
+  const child = session.createSession();
+  expect(child.resolve(tenant)).toBe("A");
+  expect(await child.run(parent)).toEqual({ tenant: "A", marker: true, cell: 1 });
+  expect(
+    child.run({ depends: { tenant, cell }, run: ({ tenant, cell }) => [tenant, cell] }),
+  ).toEqual(["A", 1]);
+  expect(child.controller(cell).get()).toBe(1);
+  expect(child.controller(client).resolve()).toBe("A");
+  expect(child.resolve(client)).toBe("A");
+  expect(child.resolve(client, { ns: b })).toBe("B");
+  expect(child.controller(cell, { ns: b }).get()).toBe(2);
+  expect(child.resolve(client)).toBe("A");
+  expect(child.controller(cell).get()).toBe(1);
+  expect(await child.run(parent)).toEqual({ tenant: "A", marker: true, cell: 1 });
+  await scope.close();
+});
