@@ -48,7 +48,9 @@ tenant's own namespace. See `docs/roadmap/core-feedback.md`.
 
 ## Consequences
 
-- `drizzleStore` declares `db` as `namespace`-target and `tx` as `session`: one declared store, one
-  pool per tenant, one transaction per request.
+- `drizzleStore({ target })` lets the author pick the pool's target.
+  The default `"scope"` shares one pool; `"namespace"` gives one pool per tenant when used with
+  tenant namespaces. A namespace default would also open a pool for every agent or sync member.
+  `tx` stays `"session"`: one transaction per request.
 - Other tenant-wide pools (an http client pool per tenant) have a home.
 - Decision 8's "long-lived tenant session" advice is withdrawn.

@@ -121,7 +121,9 @@ Resolve walks the layer chain and the ns chain together; a write lands at `(this
   controllers, watches, retries, and repeated `.all` bindings.
 - **Release timing:** base `release` and close wait for live borrows.
   Releasing one namespace bucket (`releaseNs`) moved to proposed ADR 0063.
-- **Hot path:** t01 kept the `ns`-absent path.
+- **Hot path:** the `ns`-absent behavior is kept: every original core test is green.
+  t02a restored the inline default resource path. Timing has not been re-benched
+  since t01's fix rounds because `bench` is not available here.
 
 ## Alternatives rejected
 

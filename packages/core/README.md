@@ -225,7 +225,7 @@ scope.resolve(cell, { ns: west }); // 3
 Pick a resource `target` by how long and where the value must be shared:
 
 - `"scope"`: one build for everyone, regardless of namespace. Use it for a
-  shared pool. Its build reads root defaults, never namespace or request tags.
+  shared pool. Its build reads the root's bindings, never namespace or request tags.
 - `"namespace"`: one build per namespace for the scope's life, shared by
   request sessions. Use it for a tenant pool. Its build reads the namespace's
   and root tags, not the asking request's tags.
