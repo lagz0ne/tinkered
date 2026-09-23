@@ -23,8 +23,8 @@ export declare namespace DrizzleStore {
   export type Tx<DB extends Transactional> = Parameters<Parameters<DB["transaction"]>[0]>[0];
   /** The tools `open` receives: a Drizzle logger bound to the db resource's `ctx.log`. */
   export type Tools = { readonly logger: Logger };
-  /** The frame `drizzleStore` returns: its label, its `config` tag, its per-namespace
-   * `db` resource, and its per-session `tx` resource. */
+  /** The frame `drizzleStore` returns: its label, its `config` tag, its `db`
+   * resource (shared by default or per namespace), and its per-session `tx` resource. */
   export type Frame<Config, DB extends Transactional> = {
     readonly label: string;
     readonly config: Tag.Handle<Config>;
@@ -34,9 +34,10 @@ export declare namespace DrizzleStore {
 }
 
 /** Build the frame: a `config` tag labelled `${label}.config` (no default — an unbound read
- * raises core's `MissingTag`), a `db` resource labelled `${label}.db` (`target: "namespace"`,
- * `depends: { config }`, so `open` runs once per namespace and `close` runs by `defer` when the
- * scope closes), and a `tx` resource labelled `${label}.tx` (`target: "session"`, `depends:
+ * raises core's `MissingTag`), a `db` resource labelled `${label}.db` (`target: "scope"` by
+ * default, or `"namespace"` when requested), with `depends: { config }` so `open` runs once
+ * per selected bucket and `close` runs by `defer` when the scope closes, and a `tx` resource
+ * labelled `${label}.tx` (`target: "session"`, `depends:
  * { db }`). The `tx` factory starts `db.transaction(cb)` and resolves the handle from INSIDE
  * the callback, holding the callback open on a promise the `defer` settles: `success` returns
  * from the callback (commit); anything else raises `Rollback` inside it (rollback). The
@@ -47,6 +48,7 @@ export declare namespace DrizzleStore {
  * a forced close rolls it back like every other resource. */
 export function drizzleStore<Config, DB extends DrizzleStore.Transactional>(config: {
   label?: string;
+  target?: "scope" | "namespace";
   open: (config: Config, tools: DrizzleStore.Tools) => DB | PromiseLike<DB>;
   close?: (db: DB) => void | PromiseLike<void>;
   meta?: Tag.Bindings;
@@ -57,7 +59,7 @@ export function drizzleStore<Config, DB extends DrizzleStore.Transactional>(conf
   const configTag: Tag.Handle<Config> = tag({ label: `${frameLabel}.config` });
   const db: Resource.Handle<Promise<DB>> = resource({
     label: `${frameLabel}.db`,
-    target: "namespace",
+    target: config.target ?? "scope",
     depends: { config: configTag },
     meta: config.meta,
     factory: ({ config: bound }, ctx) => {

@@ -1,13 +1,13 @@
 # @tinker/drizzle
 
-The client is a namespace resource, the transaction a session resource whose commit is the
-session's success (ADR 0041). One declared store can serve many tenants.
+The client is a scope resource by default; the transaction is a session resource whose
+commit is the session's success (ADR 0041). A store can also serve many tenants.
 
 ```text
-drizzleStore({ label?, open, close? })
+drizzleStore({ label?, target?, open, close?, meta? })
 ├── store.config   (tag, required)
-├── store.db       (resource, namespace)  open(config, { logger }) once per tenant
-└── store.tx       (resource, session)    db.transaction(cb) held open for the session
+├── store.db       (resource, scope or namespace)  open(config, { logger })
+└── store.tx       (resource, session)             db.transaction(cb) per request
 ```
 
 `config` has no default: resolving a database without a root or namespace binding
@@ -20,6 +20,7 @@ store is first resolved:
 ```ts
 export const store = drizzleStore({
   label: "store",
+  target: "namespace",
   open: async ({ url }: { url: string }, { logger }) => {
     const { PGlite } = await import("@electric-sql/pglite");
     const { drizzle } = await import("drizzle-orm/pglite");
@@ -30,10 +31,13 @@ export const store = drizzleStore({
 createScope({ tags: [store.config({ url: "memory://" })] });
 ```
 
-Without a namespace, `db` uses the root's default bucket: one database per scope,
-and one transaction per request session, as before. `label` defaults to `"drizzle"`;
-it names the graph nodes, not the tenant. To keep separate tenant databases in one
-scope, bind the same store's config once per namespace:
+`target: "scope"` (the default) shares one pool across the whole scope, even for agent namespaces.
+`target: "namespace"` opens a pool for every namespace in which the store resolves — including agents.
+For tenants, bind each tenant's config in its namespace and resolve the store there:
+
+`label` defaults to `"drizzle"`; it names graph nodes, not tenants. With no namespace,
+either target uses one database from the root's default bucket and one transaction
+per request session, as before.
 
 ```ts
 const a = namespace({ tags: [store.config({ url: "a" })] });

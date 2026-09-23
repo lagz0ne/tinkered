@@ -25,10 +25,11 @@ type PgDatabase = ReturnType<typeof drizzle>;
 /** The store under test: PGlite in memory, table created in `open`, client closed in `close`. */
 function usersStore(
   label: string,
-  hooks?: { opened?: () => void },
+  hooks?: { opened?: () => void; target?: "scope" | "namespace" },
 ): DrizzleStore.Frame<null, PgDatabase> {
   return drizzleStore({
     label,
+    target: hooks?.target,
     open: async (_config, { logger }) => {
       hooks?.opened?.();
       const db = drizzle(new PGlite(), { logger });
@@ -54,6 +55,24 @@ function insertOp<Config>(store: DrizzleStore.Frame<Config, PgDatabase>) {
   });
 }
 
+test("the default database stays shared across agent namespaces", async () => {
+  let opens = 0;
+  const store = usersStore("users", { opened: () => opens++ });
+  const agentA = namespace();
+  const agentB = namespace();
+  const scope = createScope({ tags: [store.config(null)] });
+  const useDb = operation({
+    label: "useDb",
+    depends: { db: store.db },
+    run: ({ db }) => db.select().from(users),
+  });
+  await scope.run(useDb);
+  await scope.run(useDb, { ns: agentA });
+  await scope.run(useDb, { ns: agentB });
+  expect(opens).toBe(1);
+  await scope.close();
+});
+
 test("db opens once per scope and close runs on scope close", async () => {
   let opens = 0;
   const store = usersStore("users", { opened: () => opens++ });
@@ -76,6 +95,7 @@ test("one store keeps each tenant database open across request transactions unti
   const closed: string[] = [];
   const transactions = { count: 0 };
   const store = drizzleStore<string, PgDatabase>({
+    target: "namespace",
     open: async (name, { logger }) => {
       opened.push(name);
       const db = drizzle(new PGlite(), { logger });
@@ -110,7 +130,7 @@ test("one store keeps each tenant database open across request transactions unti
 });
 
 test("a failed tenant request rolls back without losing another request's commit", async () => {
-  const store = usersStore("users");
+  const store = usersStore("users", { target: "namespace" });
   const tenant = namespace({ tags: [store.config(null)] });
   const scope = createScope();
   await scope.session({ ns: tenant }, (s) => s.run(insertOp(store), { input: "ada" }));
@@ -133,6 +153,7 @@ test("a failed tenant request rolls back without losing another request's commit
 test("a request config tag cannot replace its tenant database config", async () => {
   const opened: string[] = [];
   const store = drizzleStore<string, PgDatabase>({
+    target: "namespace",
     open: async (name, { logger }) => {
       opened.push(name);
       const db = drizzle(new PGlite(), { logger });
