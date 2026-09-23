@@ -3836,8 +3836,11 @@ function collectLayerInstances(layer: Layer): ResourceInstance[] {
   return instances;
 }
 
-async function closeInstances(layer: Layer, settled: Scope.Outcome): Promise<void> {
-  const instances = collectLayerInstances(layer);
+async function closeInstances(
+  layer: Layer,
+  settled: Scope.Outcome,
+  instances: ResourceInstance[],
+): Promise<void> {
   for (const instance of instances) unlinkInstance(instance, settled);
   await drainDefers(layer, [...layer.defers], settled);
   for (const instance of instances) {
@@ -3861,7 +3864,9 @@ function startClose(layer: Layer, force: boolean): Promise<Scope.Result> {
     await closeChildren(layer, rollback);
     while (layer.pending.size) await Promise.all(layer.pending);
     const settled = settleOutcome(layer, body);
-    await closeInstances(layer, settled);
+    const instances = collectLayerInstances(layer);
+    if (instances.length) await closeInstances(layer, settled, instances);
+    else await drainDefers(layer, layer.defers, settled);
     /** Re-settle once more: a late real failure (pushed up from a child whose cleanup was parked on a
      * gate) can land WHILE we await the defers; `settleOutcome` never downgrades a recorded failure, so
      * the result stays monotonic and a collecting ancestor still sees it. */
