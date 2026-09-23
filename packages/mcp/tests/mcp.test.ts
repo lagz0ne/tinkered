@@ -115,7 +115,7 @@ test("tools take nested lists and false: every reachable row is registered", asy
   await scope.close({ graceful: true });
 });
 
-test("callTool runs the op under an mcp span and answers one JSON text with one log line", async () => {
+test("callTool runs the op under an mcp span and answers one JSON text with one mcp tool line", async () => {
   const logs: Observe.Log[] = [];
   const exported: string[] = [];
   const ext = mcp({

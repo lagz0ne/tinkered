@@ -95,7 +95,7 @@ test("a rejecting loader rejects ready at boot with the loader error", async () 
   await scope.close();
 });
 
-test("a mounted app still takes request tags, a request span, and one log line", async () => {
+test("a mounted app still takes request tags, a request span, and one http request line", async () => {
   const logs: Observe.Log[] = [];
   const { extension: web } = hono(userRows({ get: 0, post: 0 }), {
     tags: (c) => [tenant(c.req.header("x-tenant") ?? "public")],

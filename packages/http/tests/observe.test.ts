@@ -59,7 +59,7 @@ test("a request opens one attempt span with method, url, and status", async () =
   await scope.close();
 });
 
-test("a backend failure marks the child failed and logs one line", async () => {
+test("a backend failure marks the child failed and logs one transport failure line", async () => {
   const boom = new Error("boom");
   const failing: HttpClient.Backend = async () => {
     throw boom;
