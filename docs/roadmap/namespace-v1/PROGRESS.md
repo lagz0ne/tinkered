@@ -49,6 +49,12 @@ node tools/jev/label.mjs <judge> t|f <file> --by <ticket>
   starts a run in a new namespace during a release must not join the old release's holders) and N5
   for a named bucket.
 
+- **t02c `namespace` resource target (ADR 0064)** -- [ ] blocked by: t02a
+  `target: "namespace"`: owned by the root, keyed by namespace, dependencies resolve at the root in
+  that namespace (asking-session tags never reach it). Reuses t02a's named buckets with the root as
+  owner. Probes: one build per namespace shared by two request sessions; no ns resolves the root
+  default; a request session's tag never reaches the build; `release` and close clean every bucket
+  once. Core mutation alone >= 85.
 - **t03 ns correctness edges** -- [x] blocked by: t01, t02
   A named cell write notifies a named watcher (not only the default). A synchronous factory failure
   does not poison a named bucket against a retry. `.all` on a tag keeps repeated bindings for a named
@@ -57,7 +63,7 @@ node tools/jev/label.mjs <judge> t|f <file> --by <ticket>
 - **t04 ns docs + ADR 0059 Accepted** -- [ ] blocked by: t01, t02, t03
   A README line per new surface (`namespace`, `ns`, `releaseNs`, the chain rule), a glossary row, and
   ADR 0059 moves from proposed to accepted with the decided chain order and release rule stated.
-- **t05 drizzle onto ns** -- [ ] blocked by: t03
+- **t05 drizzle onto ns** -- [ ] blocked by: t02c
   `drizzleStore({ label })` drops the label as a storage key; two stores are two namespaces. The `db`
   and `tx` resources resolve per namespace. Consumers bind config per namespace.
 - **t06 sync family onto ns** -- [ ] blocked by: t03

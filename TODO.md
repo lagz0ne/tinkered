@@ -23,8 +23,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **namespace-v1/t02c `namespace` resource target (ADR 0064)** -- owner root, keyed per namespace; unblocks t05 drizzle. Verify: probes per the track, core gate EXIT 0, `core#mutate` alone >= 85.
+
 - **namespace-v1/t04 ns docs** -- unblocked (t03 landed). README + ADR 0059 Accepted.
-- **namespace-v1/t05 drizzle onto ns** -- unblocked (t03 landed).
+- **namespace-v1/t05 drizzle onto ns** -- blocked by t02c (needs the `namespace` target, ADR 0064).
 - **namespace-v1/t06 sync family onto ns** -- unblocked (t03 landed).
 - **namespace-v1/t07 tinkerer onto ns** -- unblocked (t03 landed).
 - **namespace-v1/t08 harness onto ns** -- unblocked (t03 landed).
