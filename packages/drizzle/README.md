@@ -10,6 +10,9 @@ drizzleStore({ label?, open, close? })
 └── store.tx       (resource, session)    db.transaction(cb) held open for the session
 ```
 
+`config` has no default: resolving a database without a root or namespace binding
+raises core's `MissingTag` with the config label.
+
 A frame is cheap to import (ADR 0042): the driver import lives inside `open`, so binding
 `store.config` at an entrypoint — or listing CLI commands — loads no database code until the
 store is first resolved:
@@ -56,6 +59,9 @@ const addUser = operation({
   run: async ({ tx }, ctx) => tx.insert(users).values({ name: ctx.input }),
 });
 ```
+
+The logger passed to `open` writes one `db query` log line per statement. It records
+SQL, not parameter values.
 
 A helper that accepts a transaction can use
 `DrizzleStore.Tx<Awaited<ReturnType<typeof openDatabase>>>` when `openDatabase` is async.
