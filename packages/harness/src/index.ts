@@ -196,7 +196,9 @@ function readCalls<C extends Harness.Calls>(
   return approve === undefined ? { tools: calls } : { approve, tools: calls };
 }
 
-/** Build the frame: six ambient cells, a `resume` tag (no default — absent means start
+/** Build one frame at construction time; namespaces split its state and thread without
+ * minting another graph. The label only names spans, cells, and the in-process server.
+ * Six ambient cells, a `resume` tag (no default — absent means start
  * fresh), and a session `thread` resource whose factory merges the adapter's option
  * bindings nearest-first, passes `resume` through hooks, hands the backend hook writers
  * over each cell's controller, and always closes the thread on settle. The
@@ -205,25 +207,26 @@ function readCalls<C extends Harness.Calls>(
  * Appending one array per event is O(n²) for long turns — accepted in v1; a ring or a
  * limit is a later knob. */
 export function harness<O, T, R, C extends Harness.Calls>(config: {
-  label: string;
+  label?: string;
   adapter: Harness.Adapter<O, T, R, C>;
   approve?: Harness.ApproveOp<C>;
   tools?: Many<Harness.Tool<C>>;
   meta?: Tag.Bindings;
 }): Harness.Frame<O, T, R, C> {
   const adapter = config.adapter;
-  const status = data<Harness.Status>({ label: `${config.label}.status`, initial: "idle" });
-  const text = data<string>({ label: `${config.label}.text`, initial: "" });
-  const items = data<readonly Harness.Item[]>({ label: `${config.label}.items`, initial: noItems });
+  const label = config.label ?? "harness";
+  const status = data<Harness.Status>({ label: `${label}.status`, initial: "idle" });
+  const text = data<string>({ label: `${label}.text`, initial: "" });
+  const items = data<readonly Harness.Item[]>({ label: `${label}.items`, initial: noItems });
   const usage = data<Harness.Usage | undefined>({
-    label: `${config.label}.usage`,
+    label: `${label}.usage`,
     initial: undefined,
   });
-  const id = data<string | undefined>({ label: `${config.label}.id`, initial: undefined });
-  const events = data<readonly unknown[]>({ label: `${config.label}.events`, initial: noEvents });
-  const resume = tag<string>({ label: `${config.label}.resume`, meta: config.meta });
+  const id = data<string | undefined>({ label: `${label}.id`, initial: undefined });
+  const events = data<readonly unknown[]>({ label: `${label}.events`, initial: noEvents });
+  const resume = tag<string>({ label: `${label}.resume`, meta: config.meta });
   const thread: Resource.Handle<Promise<Harness.Thread<T, R, C>>> = resource({
-    label: `${config.label}.thread`,
+    label: `${label}.thread`,
     target: "session",
     depends: {
       backend: adapter.resource,
@@ -239,7 +242,7 @@ export function harness<O, T, R, C extends Harness.Calls>(config: {
     factory: async ({ backend, options, resume: resumed, text, items, usage, id, events }, ctx) => {
       const merged = adapter.merge(options);
       const hooks: Harness.Hooks = {
-        label: config.label,
+        label,
         signal: ctx.signal,
         resume: resumed.present ? resumed.value : undefined,
         emit: (event) => events.update((list) => [...list, event]),
@@ -253,7 +256,7 @@ export function harness<O, T, R, C extends Harness.Calls>(config: {
       return live;
     },
   });
-  const frame = { label: config.label, adapter, thread };
+  const frame = { label, adapter, thread };
   const entries = readToolEntries(readMany(config.tools));
   const toolDeps = readToolDeps(entries);
   const approve = config.approve;
@@ -264,7 +267,7 @@ export function harness<O, T, R, C extends Harness.Calls>(config: {
    * bindings). The author declares the turn's own operation above it. */
   const send: Operation.Handle<Promise<R>, T> = approve === undefined
     ? operation({
-        label: `${config.label}.send`,
+        label: `${label}.send`,
         depends: {
           thread,
           status: status.controller,
@@ -275,7 +278,7 @@ export function harness<O, T, R, C extends Harness.Calls>(config: {
         run: (deps, ctx) => runTurn(frame, deps, readCalls(deps, entries, undefined), ctx),
       })
     : operation({
-        label: `${config.label}.send`,
+        label: `${label}.send`,
         depends: {
           thread,
           status: status.controller,
@@ -287,7 +290,7 @@ export function harness<O, T, R, C extends Harness.Calls>(config: {
         run: (deps, ctx) => runTurn(frame, deps, readCalls(deps, entries, deps.approve), ctx),
       });
   return {
-    label: config.label,
+    label,
     adapter,
     send,
     thread,
