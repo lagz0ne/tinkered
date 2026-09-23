@@ -38,6 +38,7 @@
     "runDuringRender",
     "domainLogicInRender",
     "effectOwnedByComponent",
-    "titleVague"
+    "inputDefaultMasks",
+    "noOpRejected"
   ]
 }

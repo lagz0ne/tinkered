@@ -3,7 +3,14 @@
 // fixture calibration.
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { copyFileSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  copyFileSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -42,6 +49,11 @@ void describe("the Jev gate", () => {
     for (const file of ["lib.mjs", "bank.mjs", "extract.mjs", "shape.mjs"])
       copyFileSync(join(jevSource, file), join(jevDir, file));
     symlinkSync(join(jevSource, "node_modules"), join(jevDir, "node_modules"));
+    // A frozen trial's bank may still carry a test judge (the live bank retired titleVague).
+    appendFileSync(
+      join(jevDir, "bank.mjs"),
+      'TESTS.frozenTestJudge = { threshold: 0.5, q: { type: "boolean", instructions: "Is it bad?", criteria: { true: "bad", false: "fine" } } };\n',
+    );
     writeFileSync(
       join(jevDir, "calibration.json"),
       JSON.stringify({ partialStub: { status: "proven" }, leakedInternal: { status: "noisy" } }),
@@ -142,7 +154,7 @@ void describe("the Jev gate", () => {
       source: 'test("adds two numbers", () => { expect(add(1, 2)).toBe(3); });\n',
       file: "tests/add.test.ts",
       jevDir,
-      judges: ["titleVague"],
+      judges: ["frozenTestJudge"],
       ask: fakeAsk([], seen),
     });
     assert.deepEqual(seen, [
