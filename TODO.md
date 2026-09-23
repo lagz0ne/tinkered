@@ -23,11 +23,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **namespace-v1/t04 ns docs** -- blocked by t03. README + ADR 0059 Accepted.
-- **namespace-v1/t05 drizzle onto ns** -- blocked by t03.
-- **namespace-v1/t06 sync family onto ns** -- blocked by t03.
-- **namespace-v1/t07 tinkerer onto ns** -- blocked by t03.
-- **namespace-v1/t08 harness onto ns** -- blocked by t03.
+- **namespace-v1/t04 ns docs** -- unblocked (t03 landed). README + ADR 0059 Accepted.
+- **namespace-v1/t05 drizzle onto ns** -- unblocked (t03 landed).
+- **namespace-v1/t06 sync family onto ns** -- unblocked (t03 landed).
+- **namespace-v1/t07 tinkerer onto ns** -- unblocked (t03 landed).
+- **namespace-v1/t08 harness onto ns** -- unblocked (t03 landed).
 
 | Card                                                                                                                                                | Owner         | Next                                                                                                                                                            | Verify                                        |
 | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
@@ -39,7 +39,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 | Card | Owner | Next | Verify |
 
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| namespace-v1/t03 — ns correctness edges: named watchers, failed-bucket retry, `.all` repeats, ambient `ns` through every path | writer sol 6 in `../tinkered-nsv1-t03`; lead reviews | writer probes each edge, fixes what fails; then lead review | core gate EXIT 0; a probe per edge; `core#mutate` alone ≥ 85 |
 | blueprint/v1 — `packages/blueprint`: a self-contained binary that judges a YAML blueprint of tinker units with Jev over question templates shipped in the package; built on `@tinker/core` + `@tinker/cli` (ADR 0052) | lead (Claude, session blueprint); next contributor for t04 | t01–t03 landed (34 tests, 7155 B gzip, mutation 75.09 alone; one real Jev run: 7 provisional findings on the example; [track](docs/roadmap/blueprint-v1/PROGRESS.md#landed)). Next: the t04 brief (evals, `status: proven`, reword `needsDefer` and `whyUnfulfilled`) to one contributor in `../tinkered-blueprint-t04` off `origin/main` | t01–t05 in the track; `blueprint check <file>` prints one line per plain check and per (node, template); evals gate which hits may block; `vp check` clean; mutation alone ≥ 75; no import from `tools/jev` |
 | docs/core-promises — a `Promises` appendix in the core README, one line per seam-test promise, grouped by unit | lead (Claude); contributor in `../tinkered-core-promises` (launched ~03:55 UTC) | Decision (user, 2026-09-21): an appendix, not prose — 151 gaps do not fit the sections; `promises.mjs core` is the check | `promises.mjs core` confident gaps → under 20; README-only diff |
 | tests/core-many-causes — the 31 core test flags: split, delete, or explain | lead (Claude); contributor in `../tinkered-core-tests` (launched ~03:50 UTC) | `tests.mjs core`: 18 manyCauses, 4 typeGuarantee, 4 helperAlone, 4 negativeTwin, 3 pairs, 1 `Object.isFrozen`; act on each, label each; core lane alone ≥ 75 | flags gone or explained; 270 → N tests each naming one promise; core mutation alone ≥ 75 |
@@ -51,7 +50,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Blocked
 
-- **namespace-v1/t02b-1 one release protocol (ADR 0063)** — blocked by t03 (both touch core) and `bench` (borrow path). Hooks and borrows tagged by instance; release unlinks; an unlinked instance finishes when no run or dependent holds it.
+- **namespace-v1/t02b-1 one release protocol (ADR 0063)** — can start (t03 landed); LANDING needs a `bench` run on the borrow path. Hooks and borrows tagged by instance; release unlinks; an unlinked instance finishes when no run or dependent holds it.
 - **namespace-v1/t02b-2 `releaseNs` verb** — blocked by t02b-1. Acceptance: the ref-tag release tests, adapted, plus N4 and N5.
 
 | Card | Waiting for | Next | Verify |
@@ -74,6 +73,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **namespace-v1/t03 ns edges** — sol 6, lead review; tag `namespace-v1/t03`.
+  Tests only; every edge already held. core 428 tests, mutation 85.40.
+  Proof: [namespace-v1 landed](docs/roadmap/namespace-v1/PROGRESS.md).
 
 - **namespace-v1/t02a ns resource build** — sol writers, lead review; tag `namespace-v1/t02a`.
   core 424 tests, mutation 85.30. Lead probe caught a fallback-contamination bug; fixed.

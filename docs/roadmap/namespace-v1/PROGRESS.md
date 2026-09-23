@@ -49,7 +49,7 @@ node tools/jev/label.mjs <judge> t|f <file> --by <ticket>
   starts a run in a new namespace during a release must not join the old release's holders) and N5
   for a named bucket.
 
-- **t03 ns correctness edges** -- [ ] blocked by: t01, t02
+- **t03 ns correctness edges** -- [x] blocked by: t01, t02
   A named cell write notifies a named watcher (not only the default). A synchronous factory failure
   does not poison a named bucket against a retry. `.all` on a tag keeps repeated bindings for a named
   read. Inheritance completes: tagged subflows, inline operations, and imperative data/resource
@@ -107,3 +107,10 @@ One line per ticket: tag -- sha -- tests -- size (B gzip) -- mutation -- Jev fla
   chain's tags (the round-1 contamination returning). Fixed by selecting only occupied
   buckets. Also removed a dead per-bucket `borrowers` field and restored the inline
   ns-absent path in `resourceSlot`.
+
+- **t03** -- tag `namespace-v1/t03` -- core 428 tests -- mutation 85.40. Tests only: every
+  edge (named and chained watchers, failed-bucket retry from the `[b, a]` side, `.all` repeats in
+  a namespace and through a chain, ambient `ns` through child session, tagged subflow, inline run,
+  and controllers, with a per-call override that does not leak) already held after t01 and t02a.
+  Writer sol 6; lead review asked for one fold (probes into `namespaces.test.ts`, a duplicate of
+  t01's re-entrancy test dropped).
