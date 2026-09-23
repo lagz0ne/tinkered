@@ -917,6 +917,7 @@ class NsResourceState {
   gen = 0;
   building = false;
   dataDependencies: Set<NsDataDependency> | undefined = undefined;
+  instance: ResourceInstance | undefined = undefined;
   constructor(owner: Layer, target: Resource.Handle<unknown>, key: Namespace) {
     this.owner = owner;
     this.target = target;
@@ -926,12 +927,27 @@ class NsResourceState {
 
 type ResourceState = NodeState | NsResourceState;
 
+type ResourceInstance = {
+  owner: Layer;
+  target: Resource.Handle<unknown>;
+  state: ResourceState;
+  hooks: ((end: Scope.End) => void | PromiseLike<void>)[];
+  dependencies: Set<ResourceInstance> | undefined;
+  borrowers: Set<Promise<unknown>> | undefined;
+  dependents: number;
+  building: boolean;
+  end: Scope.End | undefined;
+  finishing: boolean;
+  completion: Promise<void> | undefined;
+  complete: (() => void) | undefined;
+};
+
 /** An end-hook (`ctx.defer`) tagged with the resource that registered it (undefined = userland
  * `onClose`), so `release` can drop exactly one resource's hooks without touching others. Kept in
  * registration order; teardown runs them in reverse (ADR 0026). */
 type DeferEntry = {
   fn: (end: Scope.End) => void | PromiseLike<void>;
-  resource: Resource.Handle<unknown> | undefined;
+  instance: ResourceInstance | undefined;
 };
 
 /** All per-node state for one layer, colocated in a single record so a scope allocates ONE Map
@@ -959,7 +975,7 @@ class NodeState {
   /** Build currently in progress (circular-resource guard). */
   building = false;
   /** In-flight op promises borrowing this resource (release waits on them). */
-  borrowers: Set<Promise<unknown>> | undefined = undefined;
+  instance: ResourceInstance | undefined = undefined;
   /** Resources that depend on this node (for cascade release/close). */
   dependents: Set<Resource.Handle<unknown>> | undefined = undefined;
   /** Memoized controller: the public `controller` path always passes an undefined observation
@@ -2112,10 +2128,10 @@ function operationController<T, I>(
      * dep during resolution), released after the defer drain on BOTH the success and throwing paths.
      * A fully synchronous op runs and removes the borrow within `run()`, so a later release
      * sees no borrower and stays sync. */
-    const held = takeBorrows(layer, target);
+    const held = takeBorrows(layer, target, chain);
     const releaseBorrow = (): void => {
       if (!held) return;
-      for (const b of held.list) removeBorrow(b.owner, b.resource, held.done);
+      for (const instance of held.list) removeBorrow(instance, held.done);
       held.settle();
     };
     let ctx: OperationCtx<I> | undefined;
@@ -2133,7 +2149,7 @@ function operationController<T, I>(
     buildDepth++;
     try {
       ctx = new OperationCtx<I>(layer, target, call, obs, span);
-      const deps = readOpDeps(layer, target, span, sees, chain);
+      const deps = readOpDeps(layer, target, span, sees, chain, held);
       result = runBody(override, target, deps, ctx, parked);
     } catch (error) {
       closeSpan(obs, span, "failed");
@@ -2201,19 +2217,32 @@ let parked: PendingSlot[] | undefined;
  * when the build is sync or already settled, and a still-building async resource parks its build
  * under {@link PENDING} for the caller to await before the body. `registerEdge` records a
  * resource's dependency edge and is omitted for operations. */
+function resolveSelectedDep(
+  layer: Layer,
+  dep: Scope.Dependency,
+  span: Observe.Span | undefined,
+  chain: readonly Namespace[] | undefined,
+  selected: ((instance: ResourceInstance) => void) | undefined,
+): unknown {
+  return selected && isResource(dep)
+    ? resourceSlot(layer, dep, span, chain, selected)
+    : resolveDep(layer, dep, span, chain);
+}
+
 function buildDeps(
   layer: Layer,
   depends: Scope.Depends,
   span: Observe.Span | undefined,
   registerEdge: RegisterEdge,
   chain: readonly Namespace[] | undefined = layer.ns,
+  selected?: (instance: ResourceInstance) => void,
 ): Record<string, unknown> {
   const deps: Record<string, unknown> = {};
   let pending: PendingSlot[] | undefined;
   for (const key in depends) {
     const dep = depends[key];
     registerEdge?.(dep);
-    const value = resolveDep(layer, dep, span, chain);
+    const value = resolveSelectedDep(layer, dep, span, chain, selected);
     if (isThenable(value) && isResource(dep)) {
       (pending ??= []).push({ key, build: Promise.resolve(value) });
     }
@@ -2246,9 +2275,17 @@ function readOpDeps(
   span: Observe.Span | undefined,
   sees: boolean,
   chain: readonly Namespace[] | undefined = layer.ns,
+  held?: HeldBorrows,
 ): Record<string, unknown> {
   return sees
-    ? buildDeps(layer, target.depends, span, undefined, chain)
+    ? buildDeps(
+        layer,
+        target.depends,
+        span,
+        undefined,
+        chain,
+        held && ((instance) => addBorrow(instance, held)),
+      )
     : buildPlainDeps(layer, target.depends, span, chain);
 }
 
@@ -2268,6 +2305,7 @@ function resolveResourceDeps(
   superseded: () => boolean,
   chain: readonly Namespace[] | undefined,
   state: ResourceState,
+  instance: ResourceInstance,
 ): Record<string, unknown> {
   return buildDeps(
     owner,
@@ -2280,47 +2318,38 @@ function resolveResourceDeps(
       if (node && !superseded()) addDependent(owner, node, target, chain, state);
     },
     chain,
+    (dependency) => holdDependency(instance, dependency),
   );
 }
 
 class ResourceCtx implements Resource.Ctx {
   private owner: Layer;
-  private target: Resource.Handle<unknown>;
+  private instance: ResourceInstance;
   private isSettled: () => boolean;
-  private superseded: () => boolean;
   readonly label: string;
   readonly obs: Observe.Ctx;
   readonly log: Observe.Logger;
   readonly clock: Clock.Handle;
   readonly random: Random.Handle;
   constructor(
-    owner: Layer,
-    target: Resource.Handle<unknown>,
+    instance: ResourceInstance,
     obs: Obs,
     span: Observe.Span | undefined,
     isSettled: () => boolean,
-    superseded: () => boolean,
   ) {
-    this.owner = owner;
-    this.target = target;
+    this.owner = instance.owner;
+    this.instance = instance;
     this.isSettled = isSettled;
-    this.superseded = superseded;
-    this.label = target.label;
+    this.label = instance.target.label;
     this.obs = obsCtx(obs, span);
     this.log = logFor(obs, span);
-    this.clock = owner.clock;
-    this.random = owner.random;
+    this.clock = instance.owner.clock;
+    this.random = instance.owner.random;
   }
   readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
-    const { owner, target } = this;
     if (this.isSettled()) raise("Disposed", { reason: "resource factory already finished" });
-    /** A build that finished after its resource was released (superseded) tears down NOW, but
-     * borrow-aware so it still waits for any op that borrowed this resource before running its
-     * cleanup (ADR 0026 Q2), and holds its own dependency-closure borrows while it runs. Its `fn`
-     * is drained directly — never pushed to `owner.defers` — so it cannot sweep up a LIVE
-     * rebuild's defers registered under the same handle. */
-    if (this.superseded()) releaseSupersededDefer(owner, target, fn);
-    else owner.defers.push({ fn, resource: target });
+    this.instance.hooks.push(fn);
+    this.instance.owner.defers.push({ fn, instance: this.instance });
   };
   get signal(): AbortSignal {
     return signalOf(this.owner);
@@ -2332,14 +2361,12 @@ class ResourceCtx implements Resource.Ctx {
  * most once per layer. `defer` closes over the build's `settled`/`superseded` so late registration
  * behaves correctly. */
 function buildCtx(
-  owner: Layer,
-  target: Resource.Handle<unknown>,
+  instance: ResourceInstance,
   obs: Obs,
   span: Observe.Span | undefined,
   isSettled: () => boolean,
-  superseded: () => boolean,
 ): Resource.Ctx {
-  return new ResourceCtx(owner, target, obs, span, isSettled, superseded);
+  return new ResourceCtx(instance, obs, span, isSettled);
 }
 
 class EmptyCtx implements Resource.Ctx {
@@ -2480,7 +2507,7 @@ class ExtensionCtx implements Resource.Ctx {
     this.random = owner.random;
   }
   readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
-    this.owner.defers.push({ fn, resource: undefined });
+    this.owner.defers.push({ fn, instance: undefined });
   };
   get signal(): AbortSignal {
     return signalOf(this.owner);
@@ -2500,6 +2527,120 @@ function resolveExtension(layer: Layer, ext: Scope.Extension<unknown>): unknown 
   raise("NotResolved", { label: ext.label });
 }
 
+function instanceOf(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  state: ResourceState,
+): ResourceInstance {
+  let instance = state.instance;
+  if (instance === undefined) {
+    instance = {
+      owner,
+      target,
+      state,
+      hooks: [],
+      dependencies: undefined,
+      borrowers: undefined,
+      dependents: 0,
+      building: false,
+      end: undefined,
+      finishing: false,
+      completion: undefined,
+      complete: undefined,
+    };
+    state.instance = instance;
+  }
+  return instance;
+}
+
+function holdDependency(dependent: ResourceInstance, dependency: ResourceInstance): void {
+  if (dependent === dependency || dependent.dependencies?.has(dependency)) return;
+  (dependent.dependencies ??= new Set()).add(dependency);
+  dependency.dependents++;
+  if (dependency.end && !dependent.end) unlinkInstance(dependent, dependency.end);
+}
+
+function clearInstanceState(instance: ResourceInstance): void {
+  const { state } = instance;
+  if (state.instance === instance) {
+    state.instance = undefined;
+    state.gen++;
+    state.resource = undefined;
+    state.promise = undefined;
+    state.failed = undefined;
+    state.build = undefined;
+  }
+  if (state instanceof NsResourceState)
+    state.owner.nodes.get(state.target)?.nsResources?.delete(state.key);
+}
+
+function unlinkInstance(instance: ResourceInstance, end: Scope.End): void {
+  if (instance.end) return;
+  instance.end = end;
+  clearInstanceState(instance);
+  if (instance.building || instance.dependents || instance.borrowers?.size) {
+    instance.completion = new Promise<void>((resolve) => (instance.complete = resolve));
+    instance.owner.pending.add(instance.completion);
+  }
+}
+
+const readyToFinish: ResourceInstance[] = [];
+let drainingReady = false;
+
+function drainReady(): void {
+  if (drainingReady) return;
+  drainingReady = true;
+  try {
+    while (readyToFinish.length) finishInstance(readyToFinish.pop() as ResourceInstance);
+  } finally {
+    drainingReady = false;
+  }
+}
+
+function finishInstance(
+  instance: ResourceInstance,
+  prior?: Promise<void>,
+): Promise<void> | undefined {
+  if (
+    !instance.end ||
+    instance.finishing ||
+    instance.building ||
+    instance.dependents ||
+    instance.borrowers?.size
+  )
+    return instance.completion;
+  instance.finishing = true;
+  const { owner } = instance;
+  owner.defers = owner.defers.filter((entry) => entry.instance !== instance);
+  const finish = (): Promise<void> | undefined => {
+    const tail = runDefers(owner, instance.hooks, instance.end as Scope.End);
+    const done = (): void => {
+      if (instance.dependencies)
+        for (const dependency of instance.dependencies) {
+          dependency.dependents--;
+          readyToFinish.push(dependency);
+        }
+      instance.dependencies = undefined;
+      if (instance.completion) owner.pending.delete(instance.completion);
+      instance.complete?.();
+      drainReady();
+    };
+    if (tail) return tail.then(done, done);
+    done();
+    return undefined;
+  };
+  if (prior) {
+    const queued = prior.then(finish, finish);
+    owner.pending.add(queued);
+    queued.then(
+      () => owner.pending.delete(queued),
+      () => owner.pending.delete(queued),
+    );
+    return queued;
+  }
+  return finish();
+}
+
 function buildResource<T>(
   owner: Layer,
   target: Resource.Handle<T>,
@@ -2507,6 +2648,8 @@ function buildResource<T>(
   chain: readonly Namespace[] | undefined,
   rec: ResourceState,
 ): unknown {
+  const instance = instanceOf(owner, target, rec);
+  instance.building = true;
   const gen = rec.gen;
   const superseded = (): boolean => rec.gen !== gen;
   const canPublish = (): boolean => !superseded() && !owner.closed;
@@ -2516,19 +2659,18 @@ function buildResource<T>(
   let settled = false;
   buildDepth++;
   try {
-    const deps = resolveResourceDeps(owner, target, span, superseded, chain, rec);
+    const deps = resolveResourceDeps(owner, target, span, superseded, chain, rec, instance);
     const pending = parked;
     const override = presetFor(owner, target) as Resource.Handle<T>["factory"] | undefined;
     const fn = override ?? target.factory;
-    const ctx =
-      fn.length >= 2
-        ? buildCtx(owner, target, obs, span, () => settled, superseded)
-        : emptyCtxFor(owner);
+    const ctx = fn.length >= 2 ? buildCtx(instance, obs, span, () => settled) : emptyCtxFor(owner);
     const result =
       pending === undefined ? fn(deps, ctx) : settleDeps(deps, pending).then(() => fn(deps, ctx));
     if (!isThenable(result)) {
       settled = true;
+      instance.building = false;
       if (canPublish()) rec.resource = { value: result };
+      finishInstance(instance);
       closeSpan(obs, span, "ok");
       return result;
     }
@@ -2540,13 +2682,17 @@ function buildResource<T>(
       canPublish,
       () => {
         settled = true;
+        instance.building = false;
+        finishInstance(instance);
       },
       obs,
       span,
     );
   } catch (error) {
     settled = true;
+    instance.building = false;
     if (!superseded()) detachResourceDependencies(owner, target, rec);
+    finishInstance(instance);
     closeSpan(obs, span, "failed");
     throw error;
   } finally {
@@ -2678,19 +2824,18 @@ function resourceSlot(
   target: Resource.Handle<unknown>,
   parent: Observe.Span | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
+  selected?: (instance: ResourceInstance) => void,
 ): unknown {
   const owner = ownerOf(layer, target);
   const rec = nodeState(owner, target);
   ensureOpen(layer);
   ensureOpen(owner);
   recordUsed(layer.obs, parent, target);
-  if (hasResourceNs(target, chain)) return namedResourceSlot(owner, target, parent, chain);
-  if (rec.resource) return rec.resource.value;
-  if (rec.failed) return rec.failed.promise;
-  if (rec.build) return rec.build;
-  if (rec.building) raise("CircularResource", { label: target.label });
+  if (hasResourceNs(target, chain))
+    return namedResourceSlot(owner, target, parent, chain, selected);
+  selected?.(instanceOf(owner, target, rec));
   const buildChain = target.target === "scope" ? NO_NAMESPACE : chain;
-  return buildResource(owner, target, parent, buildChain, rec);
+  return readResourceState(owner, target, parent, buildChain, rec);
 }
 
 function namedResourceSlot(
@@ -2698,9 +2843,11 @@ function namedResourceSlot(
   target: Resource.Handle<unknown>,
   parent: Observe.Span | undefined,
   chain: readonly [Namespace, ...Namespace[]],
+  selected?: (instance: ResourceInstance) => void,
 ): unknown {
   const [head] = chain;
   const state = selectNsResource(owner, target, chain) ?? ownNsResource(owner, target, head);
+  selected?.(instanceOf(owner, target, state));
   return readResourceState(owner, target, parent, chain, state);
 }
 
@@ -2720,22 +2867,21 @@ function readResourceState(
 
 type Affected = { node: Node; owner: Layer };
 
-/** Drop a resource's cache/generation/defer-registrations and edges at its owner, running no user
- * callback; returns its `defer`s (registration order) for the caller to run after every affected node
- * is invalidated. */
-/** Drop a resource's cache, in-flight build, and edges (a fresh generation invalidates a late build).
- * The resource's `defer`s stay in `owner.defers` — release drains them by reverse registration order
- * (`extractReleasedDefers`) alongside its affected dependents, so a diamond tears down dependents
- * before dependencies (ADR 0026), not per-resource grouped at build-completion. */
+/** Unlink every occupied bucket at this owner and clear its selection state. */
 function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): void {
   const s = nodeState(owner, target);
-  s.gen = (s.gen ?? 0) + 1;
+  if (s.instance) {
+    unlinkInstance(s.instance, RELEASED);
+    s.instance = undefined;
+  }
+  s.gen += 1;
   s.resource = undefined;
   s.promise = undefined;
   s.failed = undefined;
   s.build = undefined;
   if (s.nsResources) {
     for (const state of s.nsResources.values()) {
+      if (state.instance) unlinkInstance(state.instance, RELEASED);
       state.gen += 1;
       state.resource = undefined;
       state.promise = undefined;
@@ -2748,24 +2894,6 @@ function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): voi
   }
   detachDependent(owner, target);
   s.dependents = undefined;
-}
-
-/** Pull the affected resources' `defer`s out of `owner.defers` in registration order (removing them so
- * a later close cannot re-run them). The release drain reverses this → dependents (registered after
- * their dependencies) tear down first. */
-function extractReleasedDefers(
-  owner: Layer,
-  resources: Set<Resource.Handle<unknown>>,
-): ((end: Scope.End) => void | PromiseLike<void>)[] {
-  const released: ((end: Scope.End) => void | PromiseLike<void>)[] = [];
-  owner.defers = owner.defers.filter((entry) => {
-    if (entry.resource !== undefined && resources.has(entry.resource)) {
-      released.push(entry.fn);
-      return false;
-    }
-    return true;
-  });
-  return released;
 }
 
 /** Drop a cell's shadow (revert to inherited/initial) and edges without notifying watchers. */
@@ -2838,8 +2966,8 @@ function collectAffected(target: Node, targetOwner: Layer): Affected[] {
 
 /** A released owner's affected resources and their OLD defers, extracted up front. */
 type Released = {
-  resources: Set<Resource.Handle<unknown>>;
-  fns: ((end: Scope.End) => void | PromiseLike<void>)[];
+  instances: Set<ResourceInstance>;
+  ordered: ResourceInstance[];
 };
 
 /** Release a node and cascade to its dependents across owners. Two phases so a throwing/closing/
@@ -2860,11 +2988,31 @@ function releaseNode(layer: Layer, target: Node): void {
   try {
     if (dataReleased && isData(target)) flushCell(layer, target);
   } finally {
-    let prev: Promise<void> | undefined;
-    for (const [owner, entry] of byDepthDesc(affected)) {
-      prev = drainBorrowAware(owner, entry.resources, entry.fns, prev);
-    }
+    drainReleased(affected);
   }
+}
+
+function isHeld(instance: ResourceInstance): boolean {
+  return instance.dependents > 0 || instance.building || !!instance.borrowers?.size;
+}
+
+function drainReleasedOwner(
+  entry: Released,
+  previous: Promise<void> | undefined,
+): Promise<void> | undefined {
+  let prev = previous;
+  const borrowed = [...entry.instances].flatMap((instance) => [...(instance.borrowers ?? [])]);
+  const gate = borrowed.length ? Promise.allSettled(borrowed).then(() => undefined) : undefined;
+  for (const instance of entry.ordered) {
+    if (isHeld(instance)) continue;
+    prev = finishInstance(instance, gate ?? prev) ?? prev;
+  }
+  return prev;
+}
+
+function drainReleased(affected: Map<Layer, Released>): void {
+  let prev: Promise<void> | undefined;
+  for (const [, entry] of byDepthDesc(affected)) prev = drainReleasedOwner(entry, prev);
 }
 
 /** Affected owners deepest-first (descendants before ancestors): a released dependency lives at a
@@ -2882,19 +3030,6 @@ function layerDepth(layer: Layer): number {
 /** Tear down a superseded build's late `defer` immediately but borrow-aware (waits for an op that
  * borrowed the resource before running; ADR 0026 Q2). Drained directly — never pushed to
  * `owner.defers` — so it can't sweep up a LIVE rebuild's defers under the same handle. */
-function releaseSupersededDefer(
-  owner: Layer,
-  target: Resource.Handle<unknown>,
-  fn: (end: Scope.End) => void | PromiseLike<void>,
-): void {
-  const done = drainBorrowAware(
-    owner,
-    new Set<Resource.Handle<unknown>>().add(target),
-    [fn],
-    undefined,
-  );
-  if (done) ignoreRejection(done);
-}
 
 /** Run `fns` as a release drain at `owner`, after the prior (more-dependent) owner's drain (`prev`)
  * and after any in-flight OPERATION borrowing one of `resources` settles (ADR 0026 Q2 — the cache is
@@ -2903,42 +3038,52 @@ function releaseSupersededDefer(
  * synchronous. `fns` is passed explicitly (not re-selected by resource handle) so a superseded old
  * build's late defer never sweeps up the LIVE rebuild's defers under the same handle. Tracked in
  * `owner.pending`, joined by close. */
-function drainBorrowAware(
-  owner: Layer,
-  resources: Set<Resource.Handle<unknown>>,
-  fns: ((end: Scope.End) => void | PromiseLike<void>)[],
-  prev: Promise<void> | undefined,
-): Promise<void> | undefined {
-  const borrowers = collectBorrowers(owner, resources);
-  if (fns.length === 0 && borrowers.length === 0) return prev;
-  if (prev === undefined && borrowers.length === 0) return runDefers(owner, fns, RELEASED);
-  const waitOn: Promise<unknown>[] = prev ? [...borrowers, prev] : borrowers;
-  const wait: Promise<void> = Promise.allSettled(waitOn).then(() => {
-    owner.pending.delete(wait);
-    return runDefers(owner, fns, RELEASED);
-  });
-  owner.pending.add(wait);
-  return wait;
-}
 
 /** Drop every affected node's cache at its owner, then extract each affected owner's OLD defers (in
  * registration order) BEFORE any cleanup or watcher runs. Returns whether any data cell was reset (so
  * the caller flushes watchers). Extracting up front keeps a rebuild's fresh defer out of the drain. */
+function collectReleasedInstances(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  affected: Map<Layer, Released>,
+): void {
+  const state = nodeState(owner, target);
+  const entry = affected.get(owner) ?? { instances: new Set(), ordered: [] };
+  if (state.instance) entry.instances.add(state.instance);
+  if (state.nsResources)
+    for (const bucket of state.nsResources.values()) {
+      if (bucket.instance) entry.instances.add(bucket.instance);
+    }
+  affected.set(owner, entry);
+  invalidateResource(owner, target);
+}
+
+function orderReleased(owner: Layer, entry: Released): void {
+  const seen = new Set<ResourceInstance>();
+  for (const hook of owner.defers.toReversed()) {
+    const instance = hook.instance;
+    if (instance && entry.instances.has(instance) && !seen.has(instance)) {
+      entry.ordered.push(instance);
+      seen.add(instance);
+    }
+  }
+  for (const instance of entry.instances) if (!seen.has(instance)) entry.ordered.push(instance);
+  owner.defers = owner.defers.filter(
+    (hook) => !hook.instance || !entry.instances.has(hook.instance),
+  );
+}
+
 function invalidateAffected(order: Affected[], affected: Map<Layer, Released>): boolean {
   let dataReleased = false;
   for (const { node, owner } of order) {
     if (owner.closed) continue;
-    if (isResource(node)) {
-      invalidateResource(owner, node);
-      const entry = affected.get(owner) ?? { resources: new Set(), fns: [] };
-      entry.resources.add(node);
-      affected.set(owner, entry);
-    } else {
+    if (isResource(node)) collectReleasedInstances(owner, node, affected);
+    else {
       invalidateData(owner, node);
       dataReleased = true;
     }
   }
-  for (const [owner, entry] of affected) entry.fns = extractReleasedDefers(owner, entry.resources);
+  for (const [owner, entry] of affected) orderReleased(owner, entry);
   return dataReleased;
 }
 
@@ -3042,61 +3187,41 @@ function resourceDepHandle(dep: Scope.Dependency): Resource.Handle<unknown> | un
   return undefined;
 }
 
-type Borrow = { owner: Layer; resource: Resource.Handle<unknown> };
+type HeldBorrows = { list: ResourceInstance[]; done: Promise<void>; settle: () => void };
 
-/** The (owner, resource) borrows for an operation's dependencies: the resources it directly resolves
- * (ADR 0026 Q2 — a release waits for in-flight OPERATIONS borrowing the released resource). Cross-owner
- * and diamond ordering is handled by the depth-ordered release chain, not by transitive borrows. */
-function collectBorrows(layer: Layer, depends: Scope.Depends): Borrow[] {
-  const out: Borrow[] = [];
-  for (const key in depends) {
-    const res = resourceDepHandle(depends[key]);
-    if (res !== undefined) out.push({ owner: ownerOf(layer, res), resource: res });
-  }
-  return out;
+function addBorrow(instance: ResourceInstance, held: HeldBorrows): void {
+  if (held.list.includes(instance)) return;
+  held.list.push(instance);
+  (instance.borrowers ??= new Set()).add(held.done);
 }
 
-function addBorrow(owner: Layer, resource: Resource.Handle<unknown>, work: Promise<unknown>): void {
-  const s = nodeState(owner, resource);
-  (s.borrowers ??= new Set()).add(work);
-}
-
-/** An operation's dependency borrows, or undefined when its deps name no resource. */
 function takeBorrows(
   layer: Layer,
   target: Operation.Handle<unknown, unknown>,
-): { list: Borrow[]; done: Promise<void>; settle: () => void } | undefined {
+  chain: readonly Namespace[] | undefined,
+): HeldBorrows | undefined {
   if ((target as BorrowFlag)[borrowSym] !== true) return undefined;
-  const list = collectBorrows(layer, target.depends);
-  if (list.length === 0) return undefined;
+  const list: ResourceInstance[] = [];
   let settle: () => void = noop;
-  const done = new Promise<void>((r) => (settle = r));
-  for (const b of list) addBorrow(b.owner, b.resource, done);
-  return { list, done, settle };
-}
-
-function removeBorrow(
-  owner: Layer,
-  resource: Resource.Handle<unknown>,
-  work: Promise<unknown>,
-): void {
-  const s = owner.nodes.get(resource);
-  const set = s?.borrowers;
-  if (set && set.delete(work) && set.size === 0 && s) s.borrowers = undefined;
-}
-
-/** In-flight operation promises borrowing any of `resources` at `owner`, so release can wait for them
- * to settle before running the resources' cleanup. */
-function collectBorrowers(
-  owner: Layer,
-  resources: Set<Resource.Handle<unknown>>,
-): Promise<unknown>[] {
-  const out: Promise<unknown>[] = [];
-  for (const resource of resources) {
-    const set = owner.nodes.get(resource)?.borrowers;
-    if (set) for (const work of set) out.push(work);
+  const done = new Promise<void>((resolve) => (settle = resolve));
+  const held = { list, done, settle };
+  for (const key in target.depends) {
+    const dep = target.depends[key];
+    if (isResource(dep)) continue;
+    const res = resourceDepHandle(dep);
+    if (res === undefined) continue;
+    const owner = ownerOf(layer, res);
+    const state = hasResourceNs(res, chain)
+      ? (selectNsResource(owner, res, chain) ?? ownNsResource(owner, res, chain[0]))
+      : nodeState(owner, res);
+    addBorrow(instanceOf(owner, res, state), held);
   }
-  return out;
+  return held;
+}
+
+function removeBorrow(instance: ResourceInstance, work: Promise<unknown>): void {
+  instance.borrowers?.delete(work);
+  finishInstance(instance);
 }
 
 /** Seed a layer's tag map from the authored bindings: nothing (or only nothing, however
@@ -3241,24 +3366,33 @@ const RELEASED: Scope.End = { status: "released" };
  * next, passing the settled `end`; teardown failures collect in `layer.secondary` in execution order
  * (→ `TeardownFailed`). The teardown guard spans the synchronous call so a callback that synchronously
  * re-enters `close()` is acked (Q3 no-hang). */
-async function drainDefers(layer: Layer, entries: DeferEntry[], end: Scope.End): Promise<void> {
-  for (let i = entries.length - 1; i >= 0; i--) {
-    let pending: void | PromiseLike<void>;
-    enterTeardown(layer);
-    try {
-      pending = entries[i].fn(end);
-    } catch (cause) {
-      layer.secondary.push(cause);
-      continue;
-    } finally {
-      exitTeardown(layer);
-    }
-    try {
-      await pending;
-    } catch (cause) {
-      layer.secondary.push(cause);
-    }
+async function finishCloseInstance(instance: ResourceInstance): Promise<void> {
+  const blocked = isHeld(instance);
+  const finished = finishInstance(instance);
+  if (!blocked && finished) await finished;
+}
+
+async function drainCloseEntry(layer: Layer, entry: DeferEntry, end: Scope.End): Promise<void> {
+  if (entry.instance) return finishCloseInstance(entry.instance);
+  let pending: void | PromiseLike<void>;
+  enterTeardown(layer);
+  try {
+    pending = entry.fn(end);
+  } catch (cause) {
+    layer.secondary.push(cause);
+    return;
+  } finally {
+    exitTeardown(layer);
   }
+  try {
+    await pending;
+  } catch (cause) {
+    layer.secondary.push(cause);
+  }
+}
+
+async function drainDefers(layer: Layer, entries: DeferEntry[], end: Scope.End): Promise<void> {
+  for (let i = entries.length - 1; i >= 0; i--) await drainCloseEntry(layer, entries[i], end);
 }
 
 /** A layer's body end, classified at the moment the body settled (`bodyEnd`, attached at session
@@ -3313,11 +3447,22 @@ async function closeChildren(layer: Layer, force: boolean): Promise<void> {
  * no children, no in-flight owned work, no deferred cleanups, no teardown error already collected (an
  * operation's cleanup that threw at its own end must still reach `teardownErrors`), no running body, no
  * recorded failure, and no build in progress (whose not-yet-tracked work a synchronous close would miss). */
+function hasLiveResources(layer: Layer): boolean {
+  for (const state of layer.nodes.values()) {
+    if (
+      state.instance ||
+      (state.nsResources && [...state.nsResources.values()].some((bucket) => !!bucket.instance))
+    )
+      return true;
+  }
+  return false;
+}
+
 function canFastClose(layer: Layer): boolean {
   return (
     buildDepth === 0 &&
     layer.children.size === 0 &&
-    layer.pending.size === 0 &&
+    layer.pending.size + Number(hasLiveResources(layer)) === 0 &&
     layer.defers.length + layer.secondary.length === 0 &&
     layer.body === undefined &&
     layer.failure === undefined &&
@@ -3393,6 +3538,29 @@ function rollsBack(layer: Layer, forced: boolean, body: Scope.Outcome | undefine
   );
 }
 
+function collectLayerInstances(layer: Layer): ResourceInstance[] {
+  const instances: ResourceInstance[] = [];
+  for (const state of layer.nodes.values()) {
+    if (state.instance) instances.push(state.instance);
+    if (state.nsResources)
+      for (const bucket of state.nsResources.values()) {
+        if (bucket.instance) instances.push(bucket.instance);
+      }
+  }
+  return instances;
+}
+
+async function closeInstances(layer: Layer, settled: Scope.Outcome): Promise<void> {
+  const instances = collectLayerInstances(layer);
+  for (const instance of instances) unlinkInstance(instance, settled);
+  await drainDefers(layer, [...layer.defers], settled);
+  for (const instance of instances) {
+    const finished = finishInstance(instance);
+    if (finished) ignoreRejection(finished);
+  }
+  while (layer.pending.size) await Promise.all(layer.pending);
+}
+
 function startClose(layer: Layer, force: boolean): Promise<Scope.Result> {
   const forced = force || layer.aborted;
   markSwept(layer);
@@ -3407,7 +3575,7 @@ function startClose(layer: Layer, force: boolean): Promise<Scope.Result> {
     await closeChildren(layer, rollback);
     while (layer.pending.size) await Promise.all(layer.pending);
     const settled = settleOutcome(layer, body);
-    await drainDefers(layer, layer.defers, settled);
+    await closeInstances(layer, settled);
     /** Re-settle once more: a late real failure (pushed up from a child whose cleanup was parked on a
      * gate) can land WHILE we await the defers; `settleOutcome` never downgrades a recorded failure, so
      * the result stays monotonic and a collecting ancestor still sees it. */
@@ -3867,7 +4035,7 @@ function handleFor(layer: Layer): Scope.Handle {
     spans: () => layer.obs.history.slice(),
     onClose: (fn: () => void | PromiseLike<void>) => {
       ensureOpen(layer);
-      layer.defers.push({ fn: () => fn(), resource: undefined });
+      layer.defers.push({ fn: () => fn(), instance: undefined });
     },
     settled,
     close: (opts?: Scope.CloseOptions) => closeLayer(layer, !opts?.graceful),
