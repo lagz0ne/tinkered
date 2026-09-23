@@ -1,29 +1,35 @@
 import { readFileSync } from "node:fs";
-import { createScope } from "@tinker/core";
+import { createScope, namespace } from "@tinker/core";
 import { tinkerer } from "@tinker/tinkerer";
 
-/** The real model call (needs a Muse token — not run by tests): prints `text` as it streams. */
+/** Two real coders from one graph (needs a Muse token; not run by tests). */
 export async function tour(): Promise<string> {
   const keyFile = process.env.MUSE_TOKEN_FILE ?? "/home/paseo/pilot/.muse-token";
   const key = readFileSync(keyFile, "utf8").trim();
-  const coder = tinkerer({ label: "coder" });
-  const scope = createScope({
-    tags: [
-      coder.config({
-        model: "muse-spark-1.3-contributor",
-        baseUrl: "https://api.meta.ai/v1",
-        headers: { authorization: `Bearer ${key}` },
-      }),
-    ],
-  });
+  const coder = tinkerer();
+  const common = {
+    model: "muse-spark-1.3-contributor",
+    baseUrl: "https://api.meta.ai/v1",
+    headers: { authorization: `Bearer ${key}` },
+  };
+  const a = namespace({ tags: [coder.config({ ...common, system: "You are coder A." })] });
+  const b = namespace({ tags: [coder.config({ ...common, system: "You are coder B." })] });
+  const scope = createScope();
   const session = scope.createSession();
-  session.controller(coder.text).watch((next, prev) => {
-    process.stdout.write(next.slice(prev.length));
-  });
   const prompt = process.argv[2] ?? "Say hi in five words.";
-  const reply = await session.run(coder.turn, { input: prompt });
-  process.stdout.write("\n");
-  console.log(`usage: ${reply.usage.input} in, ${reply.usage.output} out`);
+  for (const { name, ns } of [
+    { name: "A", ns: a },
+    { name: "B", ns: b },
+  ]) {
+    session.controller(coder.text, { ns }).watch((next, prev) => {
+      process.stdout.write(next.slice(prev.length));
+    });
+    process.stdout.write(`${name}: `);
+    const reply = await session.run(coder.turn, { input: prompt, ns });
+    process.stdout.write("\n");
+    console.log(`${name} usage: ${reply.usage.input} in, ${reply.usage.output} out`);
+  }
+  const result = session.resolve(coder.text, { ns: b });
   await scope.close();
-  return reply.message.content ?? "";
+  return result;
 }

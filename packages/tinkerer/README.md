@@ -1,43 +1,69 @@
 # @tinker/tinkerer
 
 Our own ReAct loop on core (ADR 0053).
-The frame: one config tag, one mode tag,
-one step, five cells, one turn, tool rows.
+One frame declares the tools and gate once.
+Namespaces keep each coder's state and config apart.
+`label` is optional; it names spans and errors,
+not storage. The default is `"tinkerer"`.
 
 ```text
-tinkerer({ label: "coder" })
-├── coder.config  (tag)   model, baseUrl,
-│                         headers, system, …
-├── coder.step    (op)    POST /chat/completions,
-│                         res.sse()
-├── coder.messages (cell) the wire transcript
-├── coder.status  (cell)  idle|running|done|failed
-├── coder.text    (cell)  streamed reply so far
-├── coder.usage   (cell)  input, cached, output
-└── coder.turn    (op)    prompt → step → reply
+one tinkerer() frame
+  ├── config, mode (tags)
+  ├── turn → step → http.send (ops)
+  └── messages, status, text,
+      usage, settings, inbox (cells)
+          ├── namespace A: coder A's values
+          └── namespace B: coder B's values
 ```
 
-Recipe (see `examples/tinkerer/real.ts`):
+Two coders from one frame
+(see `examples/tinkerer/real.ts`):
 
 ```ts
-const coder = tinkerer({ label: "coder" });
-const scope = createScope({
+const coder = tinkerer();
+const a = namespace({
   tags: [
     coder.config({
       model: "muse-spark",
-      baseUrl: "https://api.meta.ai/v1",
-      headers: { authorization: `Bearer ${key}` },
+      baseUrl: urlA,
     }),
   ],
 });
+const b = namespace({
+  tags: [
+    coder.config({
+      model: "muse-spark",
+      baseUrl: urlB,
+    }),
+  ],
+});
+const scope = createScope();
 const session = scope.createSession();
-const text = session.controller(coder.text);
-text.watch((next, prev) => write(next.slice(prev.length)));
-const reply = await session.run(coder.turn, {
+const first = await session.run(coder.turn, {
   input: "Say hi.",
+  ns: a,
+});
+const second = await session.run(coder.turn, {
+  input: "Say hi.",
+  ns: b,
+});
+const historyA = session.resolve(coder.messages, {
+  ns: a,
+});
+const boxB = session.controller(coder.inbox, {
+  ns: b,
 });
 await scope.close();
 ```
+
+Use `createSession({ ns: a })` when every call
+in that session belongs to A. Use `ns` on each
+run and controller when one session serves both.
+The same frame keeps each coder's messages,
+status, text, usage, settings, and inbox apart.
+A turn reads that namespace's tag bindings.
+`tools` and `gate` still shape the graph;
+build a separate frame if either differs.
 
 ## Turns
 
@@ -192,7 +218,11 @@ Save a conversation to a JSONL file and resume it.
 `persist({ frame, file })` is an extension: install
 it with `createScope({ extensions: [...] })`, then
 each session it seeds `messages` from the file and
-appends every new message.
+appends every new message. For parallel coders in
+one session, install one extension and file per
+namespace: `persist({ frame, ns: a, file: aFile })`.
+Without `ns`, it follows the session's ambient
+namespace. Never share a file between coders.
 
 - A turn's messages are appended to the file one
   JSON line each.

@@ -1,6 +1,6 @@
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { extension } from "@tinker/core";
-import type { Scope } from "@tinker/core";
+import type { Namespace, Scope } from "@tinker/core";
 import type { Tinkerer } from "./index.ts";
 
 /** Read a JSONL transcript file into messages: one message per non-empty line. A missing file
@@ -13,18 +13,21 @@ export function restore(file: string): readonly Tinkerer.Message[] {
     .map((line) => JSON.parse(line) as Tinkerer.Message);
 }
 
-/** An extension that persists one frame's transcript to a JSONL file, one line per message.
- * On each session it seeds the `messages` cell from the file (resume), then appends every new
- * message as it lands. Watching on the session's own handle sees the turn's writes; a write
- * flows down, never up, so the extension reads exactly this session's transcript (ADR 0053). */
+/** Persist one coder's transcript in a JSONL file. Set `ns` when several coders share a
+ * frame and a session; each coder needs its own file. Without `ns`, use the session's ambient
+ * namespace. Watching on the session's handle sees that session's writes (ADR 0053). */
 export function persist(config: {
   readonly frame: Pick<Tinkerer.Frame, "messages">;
   readonly file: string;
+  readonly ns?: Namespace;
 }): Scope.Extension {
   return extension({
     label: "tinkerer.persist",
     session: async (handle, next) => {
-      const control = handle.controller(config.frame.messages);
+      const control =
+        config.ns === undefined
+          ? handle.controller(config.frame.messages)
+          : handle.controller(config.frame.messages, { ns: config.ns });
       const seeded = restore(config.file);
       if (seeded.length > 0) control.set(seeded);
       let written = seeded.length;

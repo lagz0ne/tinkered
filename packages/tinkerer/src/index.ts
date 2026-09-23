@@ -200,12 +200,15 @@ export const bashTool: Tinkerer.Tool = tool(bash, {
 /** The four shipped rows, pi's set: `tinkerer({ label, tools: shippedTools })`. */
 export const shippedTools: readonly Tinkerer.Tool[] = [readTool, editTool, writeTool, bashTool];
 
-export function tinkerer(config: {
-  label: string;
-  tools?: Many<Tinkerer.Tool>;
-  gate?: Tinkerer.Gate;
-}): Tinkerer.Frame {
-  const { label } = config;
+/** Declare one graph for a set of tools and a gate. Use namespaces for parallel coders. */
+export function tinkerer(
+  config: {
+    label?: string;
+    tools?: Many<Tinkerer.Tool>;
+    gate?: Tinkerer.Gate;
+  } = {},
+): Tinkerer.Frame {
+  const label = config.label ?? "tinkerer";
   const rows = readMany(config.tools);
   checkDuplicateTools(label, rows);
   const configTag = tag<Partial<Tinkerer.Config>>({ label: `${label}.config` });

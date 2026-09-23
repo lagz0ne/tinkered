@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "vite-plus/test";
-import { createScope } from "@tinker/core";
+import { createScope, namespace } from "@tinker/core";
 import { backend, HttpResponse, type HttpClient, type HttpRequest } from "@tinker/http";
 import { queue, steer, tinkerer } from "../src/index.ts";
 
@@ -134,6 +134,51 @@ test("a steer interrupts the step in flight, keeps the partial text, and re-ente
     { role: "assistant", content: replyText },
   ]);
   expect(session.resolve(coder.inbox)).toHaveLength(0);
+  await s.close();
+});
+
+test("a steer for one coder does not interrupt the other coder", async () => {
+  const first = gatedPartial();
+  const a = namespace({ tags: [coder.config({ model: "a", baseUrl: "https://a" })] });
+  const b = namespace({ tags: [coder.config({ model: "b", baseUrl: "https://b" })] });
+  let aCalls = 0;
+  const seen: HttpRequest.Record[] = [];
+  const fake: HttpClient.Backend = async (request) => {
+    seen.push(request);
+    if (request.url === "https://a/chat/completions" && aCalls++ === 0)
+      return HttpResponse.make(request, { status: 200, body: first.body });
+    return HttpResponse.make(request, { status: 200, body: answer });
+  };
+  const s = createScope({ tags: [backend(fake)] });
+  const session = s.createSession();
+  const reached = new Promise<void>((resolve) => {
+    session.controller(coder.text, { ns: a }).watch((next) => {
+      if (next === "Partial") resolve();
+    });
+  });
+  const running = session.run(coder.turn, { input: "start A", ns: a });
+  await reached;
+  session.controller(coder.inbox, { ns: a }).update((list) => [...list, steer("only A")]);
+  await session.run(coder.turn, { input: "start B", ns: b });
+  expect(session.resolve(coder.messages, { ns: b }).map((message) => message.content)).toEqual([
+    "start B",
+    replyText,
+  ]);
+  expect(session.resolve(coder.inbox, { ns: a })).toEqual([steer("only A")]);
+  first.open();
+  await running;
+  expect(session.resolve(coder.messages, { ns: a }).map((message) => message.content)).toEqual([
+    "start A",
+    "Partial",
+    "only A",
+    replyText,
+  ]);
+  expect(session.resolve(coder.inbox, { ns: b })).toEqual([]);
+  expect(seen.map((request) => request.url)).toEqual([
+    "https://a/chat/completions",
+    "https://b/chat/completions",
+    "https://a/chat/completions",
+  ]);
   await s.close();
 });
 

@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "vite-plus/test";
-import { createScope } from "@tinker/core";
+import { createScope, namespace } from "@tinker/core";
 import { backend, HttpResponse, type HttpClient, type HttpRequest } from "@tinker/http";
 import { persist, restore, tinkerer, type Tinkerer } from "../src/index.ts";
 
@@ -60,6 +60,27 @@ test("a session seeds its messages from an existing file and appends only what i
   await session.run(coder.turn, { input: "next" });
   expect(session.resolve(coder.messages)[0]).toEqual({ role: "user", content: "earlier" });
   expect(lines(file).map((message) => message.content)).toEqual(["earlier", "next", replyText]);
+  await scope.close();
+});
+
+test("one frame writes each namespace to its own file and restores only that coder", async () => {
+  const one = tempFile();
+  const two = tempFile();
+  writeFileSync(one, `${JSON.stringify({ role: "user", content: "earlier A" })}\n`);
+  const a = namespace({ tags: [coder.config({ model: "a", baseUrl: "https://api" })] });
+  const b = namespace({ tags: [coder.config({ model: "b", baseUrl: "https://api" })] });
+  const scope = createScope({
+    tags: [backend(recording([]))],
+    extensions: [
+      persist({ frame: coder, ns: a, file: one }),
+      persist({ frame: coder, ns: b, file: two }),
+    ],
+  });
+  const session = scope.createSession();
+  await session.run(coder.turn, { input: "next A", ns: a });
+  await session.run(coder.turn, { input: "first B", ns: b });
+  expect(lines(one).map((message) => message.content)).toEqual(["earlier A", "next A", replyText]);
+  expect(lines(two).map((message) => message.content)).toEqual(["first B", replyText]);
   await scope.close();
 });
 

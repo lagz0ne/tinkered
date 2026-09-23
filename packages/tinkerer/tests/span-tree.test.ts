@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "vite-plus/test";
-import { createScope, type Observe } from "@tinker/core";
+import { createScope, namespace, type Observe } from "@tinker/core";
 import { backend, HttpResponse, type HttpClient } from "@tinker/http";
 import { tinkerer, tool } from "../src/index.ts";
 import { operation } from "@tinker/core";
@@ -31,17 +31,18 @@ function scripted(bodies: (string | Uint8Array)[]): HttpClient.Backend {
   };
 }
 
-test("a turn's trace shows the step it took, with the http send beneath it", async () => {
-  const coder = tinkerer({ label: "coder" });
+test("a turn in a namespace nests the step, send and attempt under the default label", async () => {
+  const coder = tinkerer();
+  const a = namespace({ tags: [coder.config({ model: "m", baseUrl: "https://api" })] });
   const scope = createScope({
-    tags: [backend(scripted([answer])), coder.config({ model: "m", baseUrl: "https://api" })],
+    tags: [backend(scripted([answer]))],
     observe: { history: 100 },
   });
   const session = scope.createSession();
-  await session.run(coder.turn, { input: "hi" });
+  await session.run(coder.turn, { input: "hi", ns: a });
   expect(shape(scope.spans())).toEqual([
-    "coder.turn",
-    "  coder.http.step",
+    "tinkerer.turn",
+    "  tinkerer.http.step",
     "    http.send",
     "      http.attempt",
   ]);
