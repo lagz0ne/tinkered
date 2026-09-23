@@ -1,6 +1,15 @@
 import { expect, test } from "vite-plus/test";
 import { Hono } from "hono";
-import { createScope, makeTestClock, operation, resource, tag, type Observe } from "@tinker/core";
+import {
+  createScope,
+  data,
+  makeTestClock,
+  namespace,
+  operation,
+  resource,
+  tag,
+  type Observe,
+} from "@tinker/core";
 import { hono, isError, request, route, stream } from "../src/index.ts";
 
 /** A tenant tag: bound at the scope, rebound per request from a header. */
@@ -33,6 +42,83 @@ test("a request-derived tag shadows the scope binding and the op sees the reques
   expect(await res.json()).toEqual({ id: 42, tenant: "beta", path: "/users/42" });
   const fallback = await app.request("/users/42");
   expect(await fallback.json()).toEqual({ id: 42, tenant: "public", path: "/users/42" });
+  await scope.close();
+});
+
+test("request namespaces share a tenant resource and keep tenant and request tags separate", async () => {
+  const config = tag<string>({ label: "config" });
+  const caller = tag<string>({ label: "caller" });
+  const alpha = namespace({ tags: [config("alpha-db")] });
+  const beta = namespace({ tags: [config("beta-db")] });
+  let builds = 0;
+  const db = resource({
+    label: "db",
+    target: "namespace",
+    depends: { config },
+    factory: ({ config }) => ({ id: ++builds, config }),
+  });
+  const readDb = operation({
+    label: "readDb",
+    depends: { db, caller },
+    run: ({ db, caller }) => ({ ...db, caller }),
+  });
+  const { extension: web } = hono([route.get("/db", readDb)], {
+    ns: (c) => (c.req.header("x-tenant") === "alpha" ? alpha : beta),
+    tags: (c) => [caller(c.req.header("x-caller") ?? "guest")],
+  });
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const app = scope.resolve(web);
+  const first = await app.request("/db", {
+    headers: { "x-tenant": "alpha", "x-caller": "ada" },
+  });
+  const other = await app.request("/db", {
+    headers: { "x-tenant": "beta", "x-caller": "ben" },
+  });
+  const again = await app.request("/db", {
+    headers: { "x-tenant": "alpha", "x-caller": "cam" },
+  });
+  expect(await first.json()).toEqual({ id: 1, config: "alpha-db", caller: "ada" });
+  expect(await other.json()).toEqual({ id: 2, config: "beta-db", caller: "ben" });
+  expect(await again.json()).toEqual({ id: 1, config: "alpha-db", caller: "cam" });
+  expect(builds).toBe(2);
+  await scope.close();
+});
+
+test("a cell written by a tenant request does not reach its next request", async () => {
+  const alpha = namespace();
+  const cell = data({ initial: 0 });
+  const write = operation({
+    label: "write",
+    depends: { cell: cell.controller },
+    run: ({ cell }) => {
+      cell.set(7);
+      return cell.get();
+    },
+  });
+  const read = operation({ label: "read", depends: { cell }, run: ({ cell }) => cell });
+  const { extension: web } = hono([route.post("/write", write), route.get("/read", read)], {
+    ns: () => alpha,
+  });
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const app = scope.resolve(web);
+  expect(await (await app.request("/write", { method: "POST" })).json()).toBe(7);
+  expect(await (await app.request("/read")).json()).toBe(0);
+  await scope.close();
+});
+
+test("an undefined namespace hook uses the same default resource as no hook", async () => {
+  let builds = 0;
+  const shared = resource({ label: "shared", target: "namespace", factory: () => ++builds });
+  const read = operation({ label: "read", depends: { shared }, run: ({ shared }) => shared });
+  const { extension: plain } = hono([route.get("/read", read)]);
+  const { extension: optional } = hono([route.get("/read", read)], { ns: () => undefined });
+  const scope = createScope({ extensions: [plain, optional] });
+  await scope.ready;
+  expect(await (await scope.resolve(plain).request("/read")).json()).toBe(1);
+  expect(await (await scope.resolve(optional).request("/read")).json()).toBe(1);
+  expect(builds).toBe(1);
   await scope.close();
 });
 

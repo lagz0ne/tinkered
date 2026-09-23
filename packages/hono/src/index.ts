@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
 import type { Context, MiddlewareHandler as Middleware } from "hono";
-import type { Many, Operation, Scope, Tag } from "@tinker/core";
+import type { Many, Namespace, Operation, Scope, Tag } from "@tinker/core";
 import { extension, isError as isCoreError, readMany, tag } from "@tinker/core";
 import { isError, raise } from "./errors.ts";
 
@@ -54,6 +54,8 @@ export declare namespace HonoScope {
   export type Wiring = {
     readonly onError?: OnError;
     readonly tags?: (c: Context) => Tag.Bindings;
+    /** Select the request's namespace; absent or undefined uses the default. */
+    readonly ns?: (c: Context) => Namespace | readonly Namespace[] | undefined;
     /** Hand-mounted extras: routes that need `stream` directly and cannot
      * be rows yet. Runs after the rows, inside the same session middleware,
      * so `stream` sees the request session. */
@@ -144,8 +146,10 @@ function readStop(served: HonoScope.Served | undefined): void | PromiseLike<void
 function serveRequests(scope: Scope.Handle, wiring: HonoScope.Wiring | undefined): Middleware {
   return createMiddleware<SessionEnv>(async (c, next) => {
     const raw = c.req.raw;
+    const ns = wiring?.ns?.(c);
     const session = scope.createSession({
       tags: [request(raw), wiring?.tags?.(c)],
+      ...(ns === undefined ? {} : { ns }),
     });
     c.set("tinker.session", session);
     c.set("tinker.onError", wiring?.onError);
