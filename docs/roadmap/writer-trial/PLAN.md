@@ -40,14 +40,22 @@ One trial cannot prove that every model will follow the rules on every task.
 ## State
 
 Task saved in commit e6dfdb6.
-The runner and private checks are saved on the contributor branch.
-The lead reran eight checker proofs: all passed.
+The runner and private checks are integrated.
+The lead reran all eight final checker proofs: all passed.
 Three valid layouts pass all 43 cases.
 The empty app and four deliberate faults fail as expected.
-Two review gaps remain: undo must clear an existing notice,
-and each app must keep its earlier undo history after another app changes.
-The contributor is adding those checks before launch.
-No plan writer has started.
+Both undo review gaps are closed and checked.
+The full build and 48 tool tests pass.
+Repo checks show no errors and the same 22 old warnings.
+Jev review has no file flags. The fixture passes the style census.
+SCIP was rebuilt; this work changes no public package symbol.
+
+Trial plan-01 is frozen and passed 32 readiness checks.
+All four starters were blank before launch.
+MiMo Flash, MiMo Pro, and DeepSeek Flash are running first attempts.
+GLM Flash is queued for the next free slot.
+Queue time will not count as work time.
+The prep workspace is removed; its commits and proof are kept.
 
 The lead saved all 13 enabled questions, their full text,
 thresholds, and hashes in `plan-prep/fixed-questions.json`.
