@@ -1,9 +1,10 @@
 # Writer trial
 
-Two suites, one repeatable flow per suite.
+Three suites, one repeatable flow per suite.
 Only core and React from Tinker.
 Booking grows over rounds 1-5.
 Stock is one fresh round.
+Plan is one fresh round with course prerequisites.
 
 ## What workers can see
 
@@ -51,6 +52,8 @@ task, full rules, tool copies, limits, and the Jev copy.
 It records hashes and refuses a silent refresh.
 The default suite is booking; stock needs `--suite stock`.
 Stock stage 1 loads `stock/01-stock-moves.md`.
+Plan needs `--suite plan`.
+Plan stage 1 loads `plan/01-learning-plan.md`.
 Booking stages rounds 1-5 from frozen packets.
 Old trials without frozen files still stage rounds 1-4.
 
@@ -200,6 +203,7 @@ Readiness uses a tiny disposable file, never the app task.
 - Booking 4: `acceptance.mjs <archive> repair <image>`.
 - Booking 5: `acceptance.mjs <archive> transfer <image>`.
 - Stock 1: `stock-acceptance.mjs <archive> <image>`.
+- Plan 1: `plan-acceptance.mjs <archive> <image>`.
 
 Own check, test, and build always run apart.
 Submitted code runs in Docker only.
