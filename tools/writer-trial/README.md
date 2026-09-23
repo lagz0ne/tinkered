@@ -32,7 +32,8 @@ The Docker socket and gateway key never enter the container.
 Jev reads a chosen source file through the container.
 A teacher-owned copy of the question bank judges that text.
 It does not import or execute the submitted source on the host.
-Findings remain advice; missing output is not a pass.
+Findings are advice unless the gate marks them blocking.
+Missing output is not a pass.
 
 ## Prepare
 
