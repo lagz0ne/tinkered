@@ -838,6 +838,65 @@ test("releasing a far named data bucket does not invalidate a client reading a n
   expect(second).toBe(first);
 });
 
+test("releaseNs ignores data and resource buckets that were never built or already released", async () => {
+  const ns = namespace();
+  const cell = data({ label: "missing-cell", initial: 0 });
+  let ended = 0;
+  const pool = resource({
+    label: "missing-pool",
+    target: "session",
+    factory: (_deps, ctx) => {
+      ctx.defer(() => {
+        ended++;
+      });
+      return {};
+    },
+  });
+  const scope = createScope();
+  scope.releaseNs(cell, ns);
+  scope.releaseNs(pool, ns);
+  scope.controller(cell, { ns }).set(1);
+  scope.resolve(pool, { ns });
+  scope.releaseNs(cell, ns);
+  scope.releaseNs(pool, ns);
+  scope.releaseNs(cell, ns);
+  scope.releaseNs(pool, ns);
+  expect(scope.resolve(cell, { ns })).toBe(0);
+  expect(ended).toBe(1);
+  await scope.close({ graceful: true });
+});
+
+test("releaseNs from a closed session cannot unlink the root's named pool", async () => {
+  const ns = namespace();
+  const pool = resource({
+    label: "sealed-pool",
+    target: "namespace",
+    factory: () => ({}),
+  });
+  const root = createScope();
+  const child = root.createSession();
+  const first = child.resolve(pool, { ns });
+  await child.close({ graceful: true });
+  expect(() => child.releaseNs(pool, ns)).toThrow("Disposed");
+  expect(root.resolve(pool, { ns })).toBe(first);
+  await root.close({ graceful: true });
+});
+
+test("releaseNs cannot unlink a root pool after its owner begins closing", async () => {
+  const ns = namespace();
+  const pool = resource({
+    label: "closing-pool",
+    target: "namespace",
+    factory: () => ({}),
+  });
+  const root = createScope();
+  const child = root.createSession();
+  child.resolve(pool, { ns });
+  const closing = root.close({ graceful: true });
+  expect(() => child.releaseNs(pool, ns)).toThrow("Disposed");
+  await closing;
+});
+
 test("releaseNs unlinks a namespace-target resource at the root from a child", async () => {
   const a = namespace();
   const b = namespace();

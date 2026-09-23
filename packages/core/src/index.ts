@@ -3208,16 +3208,17 @@ function releaseNamed(layer: Layer, target: Node, ns: Namespace): void {
 
 function releaseNamedData(owner: Layer, target: Data.Cell<unknown>, ns: Namespace): void {
   const rec = owner.nodes.get(target);
-  const entry = rec?.nsCells?.get(ns);
+  if (!rec?.nsCells) return;
+  const entry = rec.nsCells.get(ns);
   if (!entry) return;
   const affected = collectNamedRelease(namedDataSeeds(rec, entry));
-  rec?.nsCells?.delete(ns);
-  rec?.nsDataDependents?.delete(entry);
+  rec.nsCells.delete(ns);
+  rec.nsDataDependents?.delete(entry);
   drainRelease(affected, () => flushCell(owner, target));
 }
 
-function namedDataSeeds(rec: NodeState | undefined, entry: Entry): NsResourceState[] {
-  return [...(rec?.nsDataDependents?.get(entry) ?? [])];
+function namedDataSeeds(rec: NodeState, entry: Entry): NsResourceState[] {
+  return [...(rec.nsDataDependents?.get(entry) ?? [])];
 }
 
 function releaseNamedResource(owner: Layer, target: Resource.Handle<unknown>, ns: Namespace): void {
