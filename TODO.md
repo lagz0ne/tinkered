@@ -23,14 +23,25 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **graph/t01 core gated log line** — unparked 2026-09-23: in-container bench is acceptable with a large N (`bench/ab.sh`). Unblocked: t02b-2 landed. Next: brief a sol 6 writer; lead review and N=61 bench.
-
 | Card                                                                                                                                                | Owner         | Next                                                                                                                                                            | Verify                                        |
 | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | tests/core-tag-read-split — `tag.read returns each unit's own binding on an operation, a resource, and a tag itself` proves three kinds in one body | lead (Claude) | Split three ways (one kind each) or keep one; it also overlaps `tag.read finds a unit's own binding` next door (the titles writer's delete-not-retitle finding) | one cause per test; core lane ≥ break         |
 | docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)                               | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean |
 
 ## Doing
+
+Pairs since 2026-09-23: a writer (sol 6 for hard, deepseek-v4.1-flash for simple) and an Opus 5.5
+reviewer per card; the lead runs mutation, bench, and `pnpm validate` alone at landing, one core
+card at a time.
+
+- **graph/t01 core step log line** — sol 6; core + its consumers (http, hono, mcp drop hand-derived
+  `ms`). Next: consumer fix round, then reviewer. Verify: gate, mutation alone, N=61 bench.
+- **core/tagged-promises** — sol 6. A tagged run allocates 19 promises (budget 17) since `144de99`
+  (t02b-1). Verify: `bench/promises.mjs` prints 17; gate; mutation alone.
+- **core/ns-watch-index** — sol 6. A named write wakes only watchers whose chain holds that key
+  (core-feedback, sync family fan-out). Verify: gate, family probe before/after, mutation alone.
+- **jev/unit-note** — deepseek flash. The unit-kind note gets its own mark (`ℹ`), not `⚠`
+  (core-feedback, two askers). Verify: gate, before/after output.
 
 | Card | Owner | Next | Verify |
 
