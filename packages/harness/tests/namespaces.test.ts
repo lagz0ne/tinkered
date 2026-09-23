@@ -6,9 +6,9 @@ import { readResult, readSystemInit, readTextDelta, readToolSdk, readToolUse } f
 
 /** One SDK module serves both agents; each query reports its own id and events. */
 test("one relay operation sends to A then B without sharing their thread or cells", async () => {
-  const a = namespace({ tags: [claudeCode.options({ model: "a" })] });
-  const b = namespace({ tags: [claudeCode.options({ model: "b" })] });
   const agent = harness({ adapter: claudeCode });
+  const a = namespace({ tags: [claudeCode.options({ model: "a" })] });
+  const b = namespace({ tags: [claudeCode.options({ model: "b" }), agent.resume("prior-b")] });
   expect(agent.label).toBe("harness");
   const relay = operation({
     label: "relay",
@@ -56,7 +56,13 @@ test("one relay operation sends to A then B without sharing their thread or cell
     presets: [preset(claudeCode.sdk, async () => sdk)],
   });
   const session = scope.createSession();
+  const textA: string[] = [];
+  const textB: string[] = [];
+  session.controller(agent.text, { ns: a }).watch((next) => textA.push(next));
+  session.controller(agent.text, { ns: b }).watch((next) => textB.push(next));
   expect(await session.run(relay)).toBe("B:A");
+  expect(textA).toEqual(["A"]);
+  expect(textB).toEqual(["B:A"]);
   expect(session.resolve(agent.thread, { ns: a })).not.toBe(
     session.resolve(agent.thread, { ns: b }),
   );
@@ -76,7 +82,7 @@ test("one relay operation sends to A then B without sharing their thread or cell
   expect(session.resolve(agent.items)).toEqual([]);
   expect(seen).toEqual([
     { prompt: "A", model: "a", resume: undefined },
-    { prompt: "B:A", model: "b", resume: undefined },
+    { prompt: "B:A", model: "b", resume: "prior-b" },
   ]);
   const spans = scope.spans();
   const relaySpan = spans.find((span) => span.name === "relay");
