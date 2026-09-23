@@ -2586,11 +2586,16 @@ function unlinkInstance(instance: ResourceInstance, end: Scope.End): void {
 const readyToFinish: ResourceInstance[] = [];
 let drainingReady = false;
 
+function finishTracked(instance: ResourceInstance): void {
+  const finished = finishInstance(instance);
+  if (finished) ignoreRejection(finished);
+}
+
 function drainReady(): void {
   if (drainingReady) return;
   drainingReady = true;
   try {
-    while (readyToFinish.length) finishInstance(readyToFinish.pop() as ResourceInstance);
+    while (readyToFinish.length) finishTracked(readyToFinish.pop() as ResourceInstance);
   } finally {
     drainingReady = false;
   }
@@ -2705,7 +2710,7 @@ function buildResource<T>(
       settled = true;
       instance.building = false;
       if (canPublish()) rec.resource = { value: result };
-      finishInstance(instance);
+      finishTracked(instance);
       closeSpan(obs, span, "ok");
       return result;
     }
@@ -2718,7 +2723,7 @@ function buildResource<T>(
       () => {
         settled = true;
         instance.building = false;
-        finishInstance(instance);
+        finishTracked(instance);
       },
       obs,
       span,
@@ -2727,7 +2732,7 @@ function buildResource<T>(
     settled = true;
     instance.building = false;
     if (!superseded()) detachResourceDependencies(owner, target, rec);
-    finishInstance(instance);
+    finishTracked(instance);
     closeSpan(obs, span, "failed");
     throw error;
   } finally {
@@ -3225,6 +3230,16 @@ function addBorrow(instance: ResourceInstance, held: HeldBorrows): void {
   (instance.borrowers ??= new Set()).add(held.done);
 }
 
+function borrowState(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  chain: readonly Namespace[] | undefined,
+): ResourceState {
+  if (!hasResourceNs(target, chain)) return nodeState(owner, target);
+  const [head] = chain;
+  return selectNsResource(owner, target, chain) ?? ownNsResource(owner, target, head);
+}
+
 function takeBorrows(
   layer: Layer,
   target: Operation.Handle<unknown, unknown>,
@@ -3241,9 +3256,7 @@ function takeBorrows(
     const res = resourceDepHandle(dep);
     if (res === undefined) continue;
     const owner = ownerOf(layer, res);
-    const state = hasResourceNs(res, chain)
-      ? (selectNsResource(owner, res, chain) ?? ownNsResource(owner, res, chain[0]))
-      : nodeState(owner, res);
+    const state = borrowState(owner, res, chain);
     addBorrow(instanceOf(owner, res, state), held);
   }
   return held;
@@ -3251,7 +3264,7 @@ function takeBorrows(
 
 function removeBorrow(instance: ResourceInstance, work: Promise<unknown>): void {
   instance.borrowers?.delete(work);
-  finishInstance(instance);
+  finishTracked(instance);
 }
 
 /** Seed a layer's tag map from the authored bindings: nothing (or only nothing, however
@@ -3399,7 +3412,7 @@ const RELEASED: Scope.End = { status: "released" };
 async function finishCloseInstance(entry: DeferEntry): Promise<void> {
   const instance = entry.instance as ResourceInstance;
   if (isHeld(instance)) {
-    finishInstance(instance);
+    finishTracked(instance);
     return;
   }
   const finished = finishHook(instance, entry.fn);

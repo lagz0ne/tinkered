@@ -27,7 +27,7 @@ test("a late default dependency stays open through its dependent's async cleanup
     label: "client",
     depends: { pool },
     factory: async ({ pool }, ctx) => {
-      const value = await pool;
+      const value = await Promise.resolve(pool);
       ctx.defer(async (end) => {
         ended.push(`client:${end.status}`);
         expect(value.closed).toBe(false);
@@ -41,7 +41,7 @@ test("a late default dependency stays open through its dependent's async cleanup
     label: "hold",
     depends: { client },
     run: async ({ client }) => {
-      const value = await client;
+      const value = await Promise.resolve(client);
       entered();
       await runGate;
       return value.closed;
@@ -201,7 +201,11 @@ test("a late build gives its waiting run a value and ends its hook once as relea
       return 42;
     },
   });
-  const read = operation({ label: "read", depends: { slow }, run: async ({ slow }) => await slow });
+  const read = operation({
+    label: "read",
+    depends: { slow },
+    run: async ({ slow }) => await Promise.resolve(slow),
+  });
   const scope = createScope();
   const running = scope.run(read);
   scope.release(slow);
