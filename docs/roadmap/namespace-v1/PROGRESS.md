@@ -49,7 +49,7 @@ node tools/jev/label.mjs <judge> t|f <file> --by <ticket>
   starts a run in a new namespace during a release must not join the old release's holders) and N5
   for a named bucket.
 
-- **t02c `namespace` resource target (ADR 0064)** -- [ ] blocked by: t02a
+- **t02c `namespace` resource target (ADR 0064)** -- [x] blocked by: t02a
   `target: "namespace"`: owned by the root, keyed by namespace, dependencies resolve at the root in
   that namespace (asking-session tags never reach it). Reuses t02a's named buckets with the root as
   owner. Probes: one build per namespace shared by two request sessions; no ns resolves the root
@@ -138,3 +138,9 @@ One line per ticket: tag -- sha -- tests -- size (B gzip) -- mutation -- Jev fla
   motivating case is proven: one `relay` operation sends to agent A then B, each keeps its own
   thread, items, and provider session, and both `harness.send` spans nest under `relay`. Mutation 76.39.
   All three: writer sol 6, lead review; each passed on the first round.
+
+- **t02c** -- tag `namespace-v1/t02c` -- core 434 tests -- mutation 85.50. `target: "namespace"` is
+  root-owned and keyed per namespace; it reuses t02a's named buckets (+21 -11 in core). The lead's
+  own probes confirmed the ADR 0064 guard: neither a call's tags nor the asking session's tags reach
+  the build; sessions without a namespace share one root default; `release` waits for a live request
+  and cleans every request's dependent `tx` before the tenant's `db`. Writer sol 6, first round.
