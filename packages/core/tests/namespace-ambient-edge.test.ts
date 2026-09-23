@@ -30,7 +30,9 @@ test("ambient namespace survives child, tagged subflow, inline run, and imperati
   const child = session.createSession();
   expect(child.resolve(tenant)).toBe("A");
   expect(await child.run(parent)).toEqual({ tenant: "A", marker: true, cell: 1 });
-  expect(child.run({ depends: { tenant, cell }, run: ({ tenant, cell }) => [tenant, cell] })).toEqual(["A", 1]);
+  expect(
+    child.run({ depends: { tenant, cell }, run: ({ tenant, cell }) => [tenant, cell] }),
+  ).toEqual(["A", 1]);
   expect(child.controller(cell).get()).toBe(1);
   expect(child.controller(client).resolve()).toBe("A");
   expect(child.resolve(client)).toBe("A");

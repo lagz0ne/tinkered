@@ -13,6 +13,9 @@ test("a notifying watcher cannot rob the next watcher with a nested write", asyn
   });
   ctl.watch((next, prev) => seen.push([prev, next]));
   ctl.set(2);
-  expect(seen).toEqual([[2, 3], [1, 2]]);
+  expect(seen).toEqual([
+    [2, 3],
+    [1, 2],
+  ]);
   await scope.close();
 });
