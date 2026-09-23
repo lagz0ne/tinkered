@@ -583,6 +583,8 @@ export declare namespace Scope {
      * watchers; a resource runs its cleanup, drops its instance, and a re-resolve rebuilds
      * a fresh generation (a late build from the released generation never publishes). */
     release(target: Data.Cell<unknown> | Resource.Handle<unknown>): void;
+    /** Unlink only the named bucket of a resource or cell at this layer. */
+    releaseNs(target: Data.Cell<unknown> | Resource.Handle<unknown>, ns: Namespace): void;
     /** Register a userland teardown hook, run (LIFO) when this scope closes. */
     onClose(fn: () => void | PromiseLike<void>): void;
     /** The retained span history (bounded by `observe.history`; empty when observation is off). */
@@ -3184,11 +3186,119 @@ function releaseNode(layer: Layer, target: Node): void {
   ensureOpen(targetOwner);
   const affected = new Map<Layer, Released>();
   const dataReleased = invalidateAffected(collectAffected(target, targetOwner), affected);
-  try {
+  drainRelease(affected, () => {
     if (dataReleased && isData(target)) flushCell(layer, target);
+  });
+}
+
+function releaseNamed(layer: Layer, target: Node, ns: Namespace): void {
+  ensureOpen(layer);
+  const owner = isResource(target) ? ownerOf(layer, target) : layer;
+  ensureOpen(owner);
+  if (isData(target)) releaseNamedData(owner, target, ns);
+  else if (target.target !== "scope") releaseNamedResource(owner, target, ns);
+}
+
+function releaseNamedData(owner: Layer, target: Data.Cell<unknown>, ns: Namespace): void {
+  const rec = owner.nodes.get(target);
+  const entry = rec?.nsCells?.get(ns);
+  if (!entry) return;
+  const affected = collectNamedRelease(namedDataSeeds(rec, entry));
+  rec?.nsCells?.delete(ns);
+  rec?.nsDataDependents?.delete(entry);
+  drainRelease(affected, () => flushCell(owner, target));
+}
+
+function namedDataSeeds(rec: NodeState | undefined, entry: Entry): NamedRelease[] {
+  const pending: NamedRelease[] = [];
+  for (const state of rec?.nsDataDependents?.get(entry) ?? [])
+    pending.push({ owner: state.owner, state, target: state.target });
+  return pending;
+}
+
+function releaseNamedResource(owner: Layer, target: Resource.Handle<unknown>, ns: Namespace): void {
+  const state = owner.nodes.get(target)?.nsResources?.get(ns);
+  if (!state) return;
+  const affected = collectNamedRelease([{ owner, state, target }]);
+  drainRelease(affected);
+}
+
+function drainRelease(affected: Map<Layer, Released>, notify?: () => void): void {
+  for (const [owner, released] of affected) orderReleased(owner, released);
+  try {
+    notify?.();
   } finally {
     drainReleased(affected);
   }
+}
+
+type NamedRelease = {
+  owner: Layer;
+  state: ResourceState;
+  target: Resource.Handle<unknown>;
+};
+
+function collectNamedRelease(pending: NamedRelease[]): Map<Layer, Released> {
+  const affected = new Map<Layer, Released>();
+  const seen = new Set<ResourceState>();
+  while (pending.length) {
+    const item = pending.pop()!;
+    if (seen.has(item.state)) continue;
+    seen.add(item.state);
+    const instance = item.state.instance;
+    if (instance) enqueueNamedDependents(item.owner, instance, pending);
+    const released = affected.get(item.owner) ?? {
+      instances: new Set<ResourceInstance>(),
+      hooks: [],
+    };
+    if (instance) released.instances.add(instance);
+    affected.set(item.owner, released);
+    unlinkNamedState(item);
+  }
+  return affected;
+}
+
+function enqueueNamedDependents(
+  owner: Layer,
+  dependency: ResourceInstance,
+  pending: NamedRelease[],
+): void {
+  const stack: Layer[] = [owner];
+  while (stack.length) {
+    const scope = stack.pop()!;
+    for (const [node, rec] of scope.nodes)
+      if (isResource(node)) enqueueNamedNode(scope, node, rec, dependency, pending);
+    for (const child of scope.children) stack.push(child);
+  }
+}
+
+function enqueueNamedNode(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  rec: NodeState,
+  dependency: ResourceInstance,
+  pending: NamedRelease[],
+): void {
+  for (const state of [rec, ...(rec.nsResources?.values() ?? [])])
+    if (state.instance?.dependencies?.has(dependency)) pending.push({ owner, state, target });
+}
+
+function unlinkNamedState({ owner, state, target }: NamedRelease): void {
+  const instance = state.instance;
+  if (state instanceof NsResourceState) {
+    owner.nodes.get(target)?.nsResources?.delete(state.key);
+    detachNsDataDependencies(state);
+    state.dataDependencies = undefined;
+  } else {
+    detachDependent(owner, target);
+    state.instance = undefined;
+  }
+  state.gen++;
+  state.resource = undefined;
+  state.promise = undefined;
+  state.failed = undefined;
+  state.build = undefined;
+  if (instance) unlinkInstance(instance, RELEASED);
 }
 
 function isHeld(instance: ResourceInstance): boolean {
@@ -3277,7 +3387,6 @@ function invalidateAffected(order: Affected[], affected: Map<Layer, Released>): 
       dataReleased = true;
     }
   }
-  for (const [owner, entry] of affected) orderReleased(owner, entry);
   return dataReleased;
 }
 
@@ -4195,6 +4304,8 @@ function handleFor(layer: Layer): Scope.Handle {
       return runSession(layer, a, b);
     }) as Scope.Handle["session"],
     release: (target: Data.Cell<unknown> | Resource.Handle<unknown>) => releaseNode(layer, target),
+    releaseNs: (target: Data.Cell<unknown> | Resource.Handle<unknown>, ns: Namespace) =>
+      releaseNamed(layer, target, ns),
     spans: () => layer.obs.history.slice(),
     onClose: (fn: () => void | PromiseLike<void>) => {
       ensureOpen(layer);
