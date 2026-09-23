@@ -937,6 +937,7 @@ type ResourceInstance = {
   dependents: number;
   building: boolean;
   end: Scope.End | undefined;
+  failure: { status: "failed"; error: unknown } | undefined;
   finishing: boolean;
   remaining: number | undefined;
   completion: Promise<void> | undefined;
@@ -2542,6 +2543,7 @@ function instanceOf(
       dependents: 0,
       building: false,
       end: undefined,
+      failure: undefined,
       finishing: false,
       remaining: undefined,
       completion: undefined,
@@ -2575,7 +2577,7 @@ function clearInstanceState(instance: ResourceInstance): void {
 
 function unlinkInstance(instance: ResourceInstance, end: Scope.End): void {
   if (instance.end) return;
-  instance.end = end;
+  instance.end = instance.failure ?? end;
   clearInstanceState(instance);
   if (instance.building || instance.dependents || instance.borrowers?.size) {
     instance.completion = new Promise<void>((resolve) => (instance.complete = resolve));
@@ -2681,6 +2683,10 @@ function finishInstance(
   return finish();
 }
 
+function recordBuildFailure(instance: ResourceInstance, error: unknown): void {
+  if (!instance.end) instance.failure = { status: "failed", error };
+}
+
 function buildResource<T>(
   owner: Layer,
   target: Resource.Handle<T>,
@@ -2720,8 +2726,9 @@ function buildResource<T>(
       result,
       superseded,
       canPublish,
-      () => {
+      (status, error) => {
         settled = true;
+        if (status === "failed") recordBuildFailure(instance, error);
         instance.building = false;
         finishTracked(instance);
       },
@@ -2731,6 +2738,7 @@ function buildResource<T>(
   } catch (error) {
     settled = true;
     instance.building = false;
+    recordBuildFailure(instance, error);
     if (!superseded()) detachResourceDependencies(owner, target, rec);
     finishTracked(instance);
     closeSpan(obs, span, "failed");
@@ -2754,13 +2762,13 @@ function finishAsyncBuild(
   result: PromiseLike<unknown>,
   superseded: () => boolean,
   canPublish: () => boolean,
-  markSettled: () => void,
+  markSettled: (status: "ok" | "failed", error?: unknown) => void,
   obs: Obs,
   span: Observe.Span | undefined,
 ): Promise<unknown> {
   const build: Promise<unknown> = Promise.resolve(result).then(
     (value) => {
-      markSettled();
+      markSettled("ok");
       if (rec.build === build) rec.build = undefined;
       if (canPublish()) {
         rec.resource = { value };
@@ -2770,7 +2778,7 @@ function finishAsyncBuild(
       return value;
     },
     (error: unknown) => {
-      markSettled();
+      markSettled("failed", error);
       if (rec.build === build) rec.build = undefined;
       if (!superseded()) rec.failed = { error, promise: build };
       closeSpan(obs, span, "failed");

@@ -137,6 +137,23 @@ test("a watcher borrowing a replacement cannot hold the old instance", async () 
   await scope.close();
 });
 
+test("a build rejected before release keeps its failed hook outcome", async () => {
+  const cause = new Error("build failed");
+  const ended: string[] = [];
+  const client = resource({
+    label: "client",
+    factory: async (_deps, ctx) => {
+      ctx.defer((end) => void ended.push(end.status));
+      throw cause;
+    },
+  });
+  const scope = createScope();
+  await expect(scope.resolve(client)).rejects.toBe(cause);
+  scope.release(client);
+  expect(ended).toEqual(["failed"]);
+  await scope.close();
+});
+
 test("interleaved resource hooks keep reverse registration order", async () => {
   const order: string[] = [];
   const b = resource({
