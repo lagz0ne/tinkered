@@ -64,7 +64,11 @@ and the separate existing-link check. Both source findings are closed.
 Its resumed agent kept writing to the old event log.
 The lead saved the repair entries separately; the first copy is intact.
 Future repairs will use a fresh agent to reload the tool setup.
-MiMo Flash and MiMo Pro are running first attempts.
+MiMo Flash passed 43 own tests and all 43 teacher cases.
+The separate existing-link check found the same no-op defect as GLM.
+Its first try took about 69 minutes; one small repair is running.
+A fresh repair agent reloads the tool setup and keeps a separate log.
+MiMo Pro is still running its first attempt.
 Queue time will not count as work time.
 The prep workspace is removed; its commits and proof are kept.
 
