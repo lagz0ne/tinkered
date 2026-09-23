@@ -43,6 +43,6 @@ if (files.length) {
   });
 }
 console.log(
-  `\njev pre-flight: ${flags} file flag(s) plus the lint notes above. A ~ hit is a calibrated-noisy judge: read it, no line owed. Every other flag: fixed or explained, then label it (tools/jev/label.mjs). Not a gate.`,
+  `\njev pre-flight: ${flags} file flag(s) plus the lint notes above. An ℹ note is a hint: no fix or label owed. A ~ hit is a calibrated-noisy judge: read it, no line owed. Every other flag: fixed or explained, then label it (tools/jev/label.mjs). Not a gate.`,
 );
 process.exit(0);

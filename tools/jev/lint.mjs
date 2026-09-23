@@ -1,5 +1,6 @@
 // Jev lint (advisory): one call per declared unit or outermost function — the anti-goal judges
-// that apply to its kind plus the unit classifier. Prints flags; never gates; exits 0.
+// that apply to its kind plus the unit classifier. Prints flags (`⚠`) and kind notes (`ℹ`);
+// never gates; exits 0.
 //
 //   node tools/jev/lint.mjs [paths…] [--all] [--limit N] [--json out.json]
 //   default paths: examples/ and apps/issue-tracker/src (git-tracked .ts/.tsx, no tests)
@@ -54,18 +55,23 @@ function flagsOf(answers) {
 // What each sliced kind should read like: helpers and hooks as glue, components as a view.
 const EXPECTED = { function: "glue", hook: "glue", component: "view" };
 
+/** `a`/`an` by the word after it, so a kind note reads as English ("reads like an operation"). */
+const article = (word) => (/^[aeiou]/i.test(word) ? "an" : "a");
+
 function readsAs(kind, answer) {
   const c = answer.choice;
   const conf = answer.probabilities?.[c] ?? 0;
   if (conf < GUIDE.unit.minConfidence || c === (EXPECTED[kind] ?? kind)) return null;
-  if (kind in EXPECTED) return `reads like a ${c} (${pct(conf)})`;
+  if (kind in EXPECTED) return `reads like ${article(c)} ${c} (${pct(conf)})`;
   return `declared ${kind}, reads like ${c} (${pct(conf)})`;
 }
 
+// A judge hit keeps the ⚠ mark; the kind classifier's note rides after it as ℹ (a hint, no
+// fix or label owed — label.mjs has no `unit` judge to record it against).
 function printUnit(u, flags, reads) {
   const head = `${u.kind} ${u.name} (L${u.line})`;
-  const notes = reads ? [...flags, reads] : flags;
-  console.log(notes.length ? `  ⚠ ${head}: ${notes.join(", ")}` : `  ✓ ${head}`);
+  if (flags.length) console.log(`  ⚠ ${head}: ${flags.join(", ")}${reads ? `  ℹ ${reads}` : ""}`);
+  else console.log(reads ? `  ℹ ${head}: ${reads}` : `  ✓ ${head}`);
 }
 
 // Skipped by default: data/tag one-liners and tiny functions (type guards, predicates).
@@ -95,13 +101,16 @@ for (const file of files) {
   }
 }
 
-const noted = report.filter((r) => r.flags.length || r.reads).length;
+const flagged = report.filter((r) => r.flags.length).length;
+const noted = report.filter((r) => r.reads).length;
 const counts = {};
 for (const r of report)
   for (const f of r.flags) counts[f.split(" ")[0]] = (counts[f.split(" ")[0]] ?? 0) + 1;
 console.log(
-  `\njev lint: ${report.length} unit(s), ${noted} with notes. By question: ${JSON.stringify(counts)}`,
+  `\njev lint: ${report.length} unit(s), ${flagged} ⚠ flag(s), ${noted} ℹ note(s). By question: ${JSON.stringify(counts)}`,
 );
-console.log("Advisory only — vp check / tests / the lead decide.");
+console.log(
+  "Advisory only — every ⚠ is fixed or labeled; an ℹ note is a hint, no fix or label owed. vp check / tests / the lead decide.",
+);
 if (jsonOut) writeFileSync(jsonOut, JSON.stringify(report, null, 2));
 process.exit(0);

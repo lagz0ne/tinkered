@@ -10,7 +10,8 @@ README by text, since a README has no syntax tree.
 
 Everything is **advisory**: it points, it never blocks. Nothing here exits non-zero on a finding. The truth
 stays `vp check`, the tests, the mutation lanes, SCIP, and the lead. A `~` in any output marks a judge that
-calibration found noisy: read it, no line owed.
+calibration found noisy: read it, no line owed. An `ℹ` mark is a note from the unit-kind classifier
+(`reads like …`), not a judge hit: a hint, no fix and no label owed.
 
 ## The tools, in plain words
 
