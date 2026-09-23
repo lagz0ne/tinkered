@@ -6,7 +6,7 @@ import { join } from "node:path";
 // Which teacher checker scores one suite round.
 // Booking rounds 1-3 use the round runner.
 // Round 4 adds repair acceptance; round 5 uses transfer.
-// Stock, plan, and loans each use one fresh-round entry checker.
+// Stock, plan, loans, and ballot each use one fresh-round entry checker.
 const bookingChecker = (round) => {
   if ([1, 2, 3].includes(round)) return { script: "evaluate.mjs", args: [String(round)] };
   if (round === 4) return { script: "acceptance.mjs", args: ["repair"] };
@@ -14,11 +14,16 @@ const bookingChecker = (round) => {
   throw new Error(`No checker for suite booking round ${round}`);
 };
 
+const FRESH_CHECKERS = {
+  stock: "stock-acceptance.mjs",
+  plan: "plan-acceptance.mjs",
+  loans: "loans-acceptance.mjs",
+  ballot: "ballot-acceptance.mjs",
+};
 export const checkerFor = (suite, round) => {
   if (suite === "booking") return bookingChecker(round);
-  if (suite === "stock" && round === 1) return { script: "stock-acceptance.mjs", args: [] };
-  if (suite === "plan" && round === 1) return { script: "plan-acceptance.mjs", args: [] };
-  if (suite === "loans" && round === 1) return { script: "loans-acceptance.mjs", args: [] };
+  if (Object.hasOwn(FRESH_CHECKERS, suite) && round === 1)
+    return { script: FRESH_CHECKERS[suite], args: [] };
   throw new Error(`No checker for suite ${suite} round ${round}`);
 };
 

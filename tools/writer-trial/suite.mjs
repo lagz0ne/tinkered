@@ -1,5 +1,5 @@
 // Suite defs for repeatable writer trials. No side effects on import.
-// Booking grows over rounds 1-5; stock, plan, and loans are one fresh round each.
+// Booking grows over rounds 1-5; stock, plan, loans, and ballot are one fresh round each.
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -34,6 +34,11 @@ export const SUITES = {
   loans: {
     rounds: [1],
     tasks: ["loans/01-tool-library.md"],
+    guidelines: ["guidelines.md"],
+  },
+  ballot: {
+    rounds: [1],
+    tasks: ["ballot/01-team-poll.md"],
     guidelines: ["guidelines.md"],
   },
 };

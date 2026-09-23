@@ -81,6 +81,7 @@ const TEACHER_HELPERS = {
   ],
   "plan-acceptance.mjs": ["teacher/plan-acceptance.mjs", "teacher/acceptance-shape.mjs"],
   "loans-acceptance.mjs": ["teacher/loans-acceptance.mjs", "teacher/acceptance-shape.mjs"],
+  "ballot-acceptance.mjs": ["teacher/ballot-acceptance.mjs", "teacher/acceptance-shape.mjs"],
   "stock-acceptance.mjs": ["teacher/stock-acceptance.mjs", "teacher/acceptance-shape.mjs"],
 };
 const home = join(homedir(), ".local/share/tinker-writer-trial");
@@ -96,6 +97,7 @@ if (!Number.isInteger(workerNum) || workerNum < 1)
 
 const root = join(home, name);
 const manifestPath = join(root, "manifest.json");
+if (!existsSync(manifestPath)) throw new Error(`No such trial: ${name} has no manifest`);
 // One manifest writer at a time: fail busy instead of losing a
 // parallel save or check to a stale overwrite.
 const release = claimLock(root);
@@ -362,7 +364,7 @@ function checkerEvidence(checker, archive, image) {
   const files = {};
   files[checker.script] = sha(join(here, checker.script));
   // Hash the helpers the runner loads: booking core, browser,
-  // full acceptance pair, or the stock/plan/loans teacher pair.
+  // full acceptance pair, or the stock/plan/loans/ballot teacher pair.
   // A missing helper is recorded unavailable, never skipped
   // silently: the teacher run below fails the same way.
   const helpers = TEACHER_HELPERS[checker.script] ?? TEACHER_HELPERS["stock-acceptance.mjs"];
@@ -510,7 +512,8 @@ function runOwnChecks(archive, image, logPath) {
 // <archive> <round> <image>. Booking 4-5: acceptance.mjs
 // <archive> <repair|transfer> <image>. Stock: stock-acceptance.mjs
 // <archive> <image-id>. Plan: plan-acceptance.mjs <archive> <image-id>. Loans:
-// loans-acceptance.mjs <archive> <image-id>. A missing checker script fails
+// loans-acceptance.mjs <archive> <image-id>. Ballot: ballot-acceptance.mjs
+// <archive> <image-id>. A missing checker script fails
 // unavailable, never passes.
 function runTeacherChecker(checker, archive, image, logPath) {
   const script = join(here, checker.script);

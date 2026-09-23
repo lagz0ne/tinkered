@@ -63,6 +63,8 @@ It records hashes and refuses a silent refresh.
   Stage 1 loads `plan/01-learning-plan.md`.
 - **Loans** — needs `--suite loans`.
   Stage 1 loads `loans/01-tool-library.md`.
+- **Ballot** — needs `--suite ballot`.
+  Stage 1 loads `ballot/01-team-poll.md`.
 
 The first command that registers models adds only the
 `writer-gateway` provider to Pi's model file.
