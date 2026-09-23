@@ -37,20 +37,60 @@ execFileSync("ln", ["-s", "/home/pwuser/toolchain/node_modules", join(base, "nod
 const goodTar = pack(base, join(work, "good.tar"));
 
 const run = (tar) => {
+  let out = "";
   try {
-    const out = execFileSync(
-      "node",
-      [join(repo, "tools/writer-trial/plan-acceptance.mjs"), tar, IMAGE],
-      { encoding: "utf8", maxBuffer: 8 * 1024 * 1024, timeout: 330000 },
-    );
+    out = execFileSync("node", [join(repo, "tools/writer-trial/plan-acceptance.mjs"), tar, IMAGE], {
+      encoding: "utf8",
+      maxBuffer: 8 * 1024 * 1024,
+      timeout: 330000,
+    });
     const line = out.split("\n").find((l) => l.startsWith("ACCEPTANCE"));
-    return { exit: 0, line };
+    const jsonLine = out.split("\n").find((l) => l.startsWith("RESULTS_JSON"));
+    return { exit: 0, line, out, json: jsonLine ?? "" };
   } catch (error) {
-    const out = `${error.stdout ?? ""}`;
+    out = `${error.stdout ?? ""}`;
     const line = out.split("\n").find((l) => l.startsWith("ACCEPTANCE"));
+    const jsonLine = out.split("\n").find((l) => l.startsWith("RESULTS_JSON"));
     const fails = out.split("\n").filter((l) => l.startsWith("FAIL"));
-    return { exit: error.status ?? 1, line, fails };
+    return { exit: error.status ?? 1, line, fails, out, json: jsonLine ?? "" };
   }
+};
+
+// Strict proof: exit code alone cannot pass. A canary passes only with
+// structured RESULTS_JSON, no load/boot failure, and the exact intended
+// behavioral failures named below. A compile error or timeout names
+// load-failed cases instead, so it fails this check honestly.
+const casesOf = (r) => {
+  const raw = (r.json ?? "").replace(/^RESULTS_JSON\s*/, "");
+  if (raw === "") throw new Error("missing RESULTS_JSON");
+  return JSON.parse(raw).cases;
+};
+const failedNames = (r) =>
+  casesOf(r)
+    .filter((c) => !c.pass)
+    .map((c) => c.name);
+const loadFailed = (r) =>
+  failedNames(r).filter((n) =>
+    (casesOf(r).find((c) => c.name === n)?.error ?? "").includes("load failed"),
+  );
+const failSet = (r) => new Set(failedNames(r));
+const missingFails = (r, want) => (want.mustFail ?? []).filter((n) => !failSet(r).has(n));
+const wrongPasses = (r, want) => (want.mustPass ?? []).filter((n) => failSet(r).has(n));
+const checkNames = (r, want) => {
+  if (want.allowLoadFail !== true && loadFailed(r).length > 0)
+    return `load/boot failure, not a behavioral proof: ${loadFailed(r).join(", ")}`;
+  const missing = missingFails(r, want);
+  if (missing.length > 0) return `want failure ${missing.join(", ")}`;
+  const wrong = wrongPasses(r, want);
+  if (wrong.length > 0) return `want pass ${wrong.join(", ")}, but it failed`;
+  return null;
+};
+const checkResult = (r, want) => {
+  if (r.exit !== want.exit) return `want exit ${want.exit}, got ${r.exit}`;
+  if (want.fullpass !== undefined) {
+    if (r.line !== want.fullpass) return `want ${want.fullpass}, got ${r.line ?? "(no summary)"}`;
+  }
+  return checkNames(r, want);
 };
 
 // An empty starter means no TypeScript under src/: the shape case names it.
@@ -69,14 +109,20 @@ const patch = (tar, name, fn) => {
   return pack(dir, join(work, `${name}.tar`));
 };
 
-// Long-cycle bug: only direct back-links are refused, so a three-course
-// cycle slips through.
+// Long-cycle bug: direct back-links are still refused, but a three-course
+// cycle slips through. Only the long-cycle case may fail.
 const cycleTar = patch(goodTar, "bad-cycle", (src) => {
   const p = join(src, "model.ts");
   const s = execFileSync("cat", [p], { encoding: "utf8" });
   const anchor = "    if (reaches(rows, prerequisiteId, courseId))";
   if (!s.includes(anchor)) throw new Error("cycle canary anchor moved; update the script");
-  writeFileSync(p, s.replace(anchor, "    if (course.prerequisiteIds.includes(courseId))"));
+  writeFileSync(
+    p,
+    s.replace(
+      anchor,
+      "    if (rows.some((row) => row.id === prerequisiteId && row.prerequisiteIds.includes(courseId)))",
+    ),
+  );
 });
 
 // Early-mutation bug: the course row is written before the cycle check,
@@ -96,16 +142,97 @@ const mutationTar = patch(goodTar, "bad-mutation", (src) => {
 // Stale-ready-filter bug: the Ready filter never updates, so newly
 // unblocked rows stay hidden.
 const filterTar = patch(goodTar, "bad-filter", (src) => {
+  const p = join(src, "model.ts");
+  const s = execFileSync("cat", [p], { encoding: "utf8" });
+  const anchor = "export const isReady = (rows: readonly Course[], row: Course): boolean =>";
+  if (!s.includes(anchor)) throw new Error("filter canary anchor moved; update the script");
+  const stale = [
+    "export const isReady = (_rows: readonly Course[], _row: Course): boolean => false;",
+    "export const isReadyUnused = (rows: readonly Course[], row: Course): boolean =>",
+  ].join("\n");
+  writeFileSync(p, s.replace(anchor, stale));
+});
+
+// Div-layout variant: same packet behavior with a different DOM shape —
+// section/div wrappers and the link form before the table. The checker
+// uses only scoped roles and names, so layout moves must still pass.
+const divTar = patch(goodTar, "good-div", (src) => {
   const p = join(src, "PlanApp.tsx");
   const s = execFileSync("cat", [p], { encoding: "utf8" });
-  const anchor = "  const isReady = (row: Course): boolean =>";
-  if (!s.includes(anchor)) throw new Error("filter canary anchor moved; update the script");
+  const anchor = "  return (\n    <main>";
+  if (!s.includes(anchor)) throw new Error("div canary anchor moved; update the script");
+  let out = s.replace(anchor, '  return (\n    <main>\n      <section aria-label="Plan forms">');
+  const tableAnchor = '      <table aria-label="Courses">';
+  if (!s.includes(tableAnchor)) throw new Error("div table anchor moved; update the script");
+  out = out.replace(
+    tableAnchor,
+    '      </section>\n      <section aria-label="Plan rows">\n      <table aria-label="Courses">',
+  );
+  const undoAnchor = '      <button type="button" onClick={() => undo.run()}>';
+  if (!s.includes(undoAnchor)) throw new Error("div undo anchor moved; update the script");
+  out = out.replace(
+    undoAnchor,
+    '      </section>\n      <div>\n      <button type="button" onClick={() => undo.run()}>',
+  );
+  const mainClose = "    </main>";
+  out = out.replace(mainClose, "      </div>\n    </main>");
+  writeFileSync(p, out);
+});
+
+// useId-labels variant: explicit htmlFor/id pairs via useId for the Title
+// field. Role + accessible name lookups must still pass; the packet
+// needs the same labeled Title, not one fixture DOM shape.
+const useIdTar = patch(goodTar, "good-useid", (src) => {
+  const p = join(src, "PlanApp.tsx");
+  const s = execFileSync("cat", [p], { encoding: "utf8" });
+  const importOld = 'import type { FormEvent, ReactElement } from "react";';
+  const importNew =
+    'import { useId } from "react";\nimport type { FormEvent, ReactElement } from "react";';
+  if (!s.includes(importOld))
+    throw new Error("useId canary import anchor moved; update the script");
+  const helperOld = "/** The new-course form: labeled Title input and Add course. */";
+  const helperNew = [
+    "/** Title field tied to its input by id. */",
+    "function TitleField(props: {",
+    "  readonly value: string;",
+    "  readonly onType: (value: string) => void;",
+    "}): ReactElement {",
+    "  const id = useId();",
+    "  return (",
+    "    <label htmlFor={id}>",
+    "      Title",
+    "      <input",
+    "        id={id}",
+    "        value={props.value}",
+    "        onChange={(event) => props.onType(event.target.value)}",
+    "      />",
+    "    </label>",
+    "  );",
+    "}",
+    "",
+    "/** The new-course form: labeled Title input and Add course. */",
+  ].join("\n");
+  if (!s.includes(helperOld))
+    throw new Error("useId canary helper anchor moved; update the script");
+  const labelOld = [
+    "      <label>",
+    "        Title",
+    "        <input",
+    "          value={form.title}",
+    "          onChange={(event) => type.run({ input: { value: event.target.value } })}",
+    "        />",
+    "      </label>",
+  ].join("\n");
+  const labelNew = [
+    "      <TitleField",
+    "        value={form.title}",
+    "        onType={(value) => type.run({ input: { value } })}",
+    "      />",
+  ].join("\n");
+  if (!s.includes(labelOld)) throw new Error("useId canary label anchor moved; update the script");
   writeFileSync(
     p,
-    s.replace(
-      anchor,
-      "  const isReady = (_row: Course): boolean =>\n    // stale filter: nothing is ever ready\n    false as boolean;\n  const isReadyUnused = (row: Course): boolean =>",
-    ),
+    s.replace(importOld, importNew).replace(helperOld, helperNew).replace(labelOld, labelNew),
   );
 });
 
@@ -126,21 +253,68 @@ const noticeTar = patch(goodTar, "bad-notice", (src) => {
 });
 
 const cases = [
-  ["good fixture accepts", goodTar, 0, null],
-  ["empty starter rejects", emptyTar, 1, null],
-  ["long-cycle bug rejects", cycleTar, 1, null],
-  ["early-mutation failure rejects", mutationTar, 1, null],
-  ["stale-ready-filter bug rejects", filterTar, 1, null],
-  ["notice-not-cleared rejects", noticeTar, 1, null],
+  {
+    label: "good fixture accepts",
+    tar: goodTar,
+    want: { exit: 0, fullpass: "ACCEPTANCE plan: 43/43 pass" },
+  },
+  {
+    label: "good div-layout variant accepts",
+    tar: divTar,
+    want: { exit: 0, fullpass: "ACCEPTANCE plan: 43/43 pass" },
+  },
+  {
+    label: "good useId-labels variant accepts",
+    tar: useIdTar,
+    want: { exit: 0, fullpass: "ACCEPTANCE plan: 43/43 pass" },
+  },
+  {
+    label: "empty starter rejects",
+    tar: emptyTar,
+    want: { exit: 1, allowLoadFail: true },
+  },
+  {
+    label: "long-cycle bug rejects",
+    tar: cycleTar,
+    want: {
+      exit: 1,
+      mustFail: ["core long cycle fails with unchanged snapshot and history"],
+      mustPass: ["core direct cycle fails with unchanged snapshot"],
+    },
+  },
+  {
+    label: "early-mutation failure rejects",
+    tar: mutationTar,
+    want: {
+      exit: 1,
+      mustFail: ["core failed link keeps courses and history atomic"],
+    },
+  },
+  {
+    label: "stale-ready-filter bug rejects",
+    tar: filterTar,
+    want: {
+      exit: 1,
+      mustFail: ["browser ready and done filters respond live"],
+    },
+  },
+  {
+    label: "notice-not-cleared rejects",
+    tar: noticeTar,
+    want: {
+      exit: 1,
+      mustFail: ["browser notices clear on typing, passing create, real no-op"],
+    },
+  },
 ];
 let failed = 0;
-for (const [label, tar, wantExit, wantLine] of cases) {
+for (const { label, tar, want } of cases) {
   const r = run(tar);
-  const lineOk = wantLine === null ? true : r.line === wantLine;
-  const ok = r.exit === wantExit && lineOk;
+  const problem = checkResult(r, want);
+  const ok = problem === null;
   if (!ok) failed++;
   console.log(
-    `${ok ? "CANARY-PASS" : "CANARY-FAIL"} ${label} — exit ${r.exit} — ${r.line ?? "(no summary)"} — ${tar}`,
+    `${ok ? "CANARY-PASS" : "CANARY-FAIL"} ${label} — exit ${r.exit} — ${r.line ?? "(no summary)"} — ${tar}${ok ? "" : ` — ${problem}`}`,
   );
   if (!ok && r.fails) for (const f of r.fails) console.log(`    ${f}`);
 }

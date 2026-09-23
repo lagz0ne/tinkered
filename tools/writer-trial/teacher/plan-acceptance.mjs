@@ -192,15 +192,33 @@ core("core unknown course id reports NotFound", async () => {
   try {
     const a = makeCourse(s, "Alpha");
     const before = snapCourses(s);
-    for (const failed of [
-      throws(s, app.addPrerequisite, { courseId: "gone", prerequisiteId: a.id }),
-      throws(s, app.addPrerequisite, { courseId: a.id, prerequisiteId: "gone" }),
-      throws(s, app.removePrerequisite, { courseId: "gone", prerequisiteId: a.id }),
-      throws(s, app.completeCourse, { id: "gone" }),
-      throws(s, app.reopenCourse, { id: "gone" }),
-    ]) {
-      assert.equal(failed.kind, "NotFound");
-    }
+    const addGone = throws(s, app.addPrerequisite, { courseId: "gone", prerequisiteId: a.id });
+    assert.equal(addGone.kind, "NotFound");
+    assert.deepStrictEqual(addGone.payload, { id: "gone" });
+    const addPrereqGone = throws(s, app.addPrerequisite, {
+      courseId: a.id,
+      prerequisiteId: "gone",
+    });
+    assert.equal(addPrereqGone.kind, "NotFound");
+    assert.deepStrictEqual(addPrereqGone.payload, { id: "gone" });
+    const removeGone = throws(s, app.removePrerequisite, {
+      courseId: "gone",
+      prerequisiteId: a.id,
+    });
+    assert.equal(removeGone.kind, "NotFound");
+    assert.deepStrictEqual(removeGone.payload, { id: "gone" });
+    const removePrereqGone = throws(s, app.removePrerequisite, {
+      courseId: a.id,
+      prerequisiteId: "gone",
+    });
+    assert.equal(removePrereqGone.kind, "NotFound");
+    assert.deepStrictEqual(removePrereqGone.payload, { id: "gone" });
+    const completeGone = throws(s, app.completeCourse, { id: "gone" });
+    assert.equal(completeGone.kind, "NotFound");
+    assert.deepStrictEqual(completeGone.payload, { id: "gone" });
+    const reopenGone = throws(s, app.reopenCourse, { id: "gone" });
+    assert.equal(reopenGone.kind, "NotFound");
+    assert.deepStrictEqual(reopenGone.payload, { id: "gone" });
     assert.deepStrictEqual(snapCourses(s), before);
     return "both link ids named; unknown ids NotFound";
   } finally {
@@ -501,6 +519,83 @@ core("core failed actions leave courses and history unchanged", async () => {
   }
 });
 
+core("core complete and reopen returns equal the saved state", async () => {
+  const s = coreMod.createScope();
+  try {
+    const a = makeCourse(s, "Alpha");
+    const b = makeCourse(s, "Beta");
+    link(s, b.id, a.id);
+    const done = s.run(app.completeCourse, { input: { id: a.id } });
+    assert.deepStrictEqual(
+      done,
+      courseRows(s).find((c) => c.id === a.id),
+    );
+    const doneAgain = s.run(app.completeCourse, { input: { id: a.id } });
+    assert.deepStrictEqual(
+      doneAgain,
+      courseRows(s).find((c) => c.id === a.id),
+    );
+    const open = s.run(app.reopenCourse, { input: { id: a.id } });
+    assert.deepStrictEqual(
+      open,
+      courseRows(s).find((c) => c.id === a.id),
+    );
+    assert.equal(open.done, false);
+    const linked = link(s, b.id, a.id);
+    assert.deepStrictEqual(
+      linked,
+      courseRows(s).find((c) => c.id === b.id),
+    );
+    const unlinked = s.run(app.removePrerequisite, {
+      input: { courseId: b.id, prerequisiteId: a.id },
+    });
+    assert.deepStrictEqual(
+      unlinked,
+      courseRows(s).find((c) => c.id === b.id),
+    );
+    return "returns match saved rows";
+  } finally {
+    await s.close();
+  }
+});
+
+core("core reopen success undoes to done", async () => {
+  const s = coreMod.createScope();
+  try {
+    const a = makeCourse(s, "Alpha");
+    s.run(app.completeCourse, { input: { id: a.id } });
+    s.run(app.reopenCourse, { input: { id: a.id } });
+    assert.equal(courseRows(s).find((c) => c.id === a.id)?.done, false);
+    s.run(app.undoPlan, {});
+    assert.equal(courseRows(s).find((c) => c.id === a.id)?.done, true);
+    s.run(app.undoPlan, {});
+    assert.equal(courseRows(s).find((c) => c.id === a.id)?.done, false);
+    return "reopen adds one undo step";
+  } finally {
+    await s.close();
+  }
+});
+
+core("core remove link undoes to exact prior link order", async () => {
+  const s = coreMod.createScope();
+  try {
+    const a = makeCourse(s, "Alpha");
+    const b = makeCourse(s, "Beta");
+    const c = makeCourse(s, "Gamma");
+    link(s, c.id, a.id);
+    link(s, c.id, b.id);
+    const beforeRemove = snapCourses(s);
+    s.run(app.removePrerequisite, { input: { courseId: c.id, prerequisiteId: a.id } });
+    assert.deepStrictEqual(courseRows(s).find((r) => r.id === c.id)?.prerequisiteIds, [b.id]);
+    s.run(app.undoPlan, {});
+    assert.deepStrictEqual(snapCourses(s), beforeRemove);
+    assert.deepStrictEqual(courseRows(s).find((r) => r.id === c.id)?.prerequisiteIds, [a.id, b.id]);
+    return "undo restores removed link in order";
+  } finally {
+    await s.close();
+  }
+});
+
 core("core scopes share no courses", async () => {
   const a = coreMod.createScope();
   const b = coreMod.createScope();
@@ -515,15 +610,25 @@ core("core scopes share no courses", async () => {
   }
 });
 
-core("core no premature mutation of returned courses", async () => {
+core("core failed link keeps courses and history atomic", async () => {
   const s = coreMod.createScope();
   try {
-    const a = makeCourse(s, "Alpha");
-    const listed = snapCourses(s);
-    assert.deepStrictEqual(listed, [{ ...a, prerequisiteIds: [] }]);
-    link(s, a.id, makeCourse(s, "Beta").id);
-    assert.deepStrictEqual(listed[0]?.prerequisiteIds, []);
-    return "clone snapshots, no aliases";
+    const basics = makeCourse(s, "Basics");
+    const reading = makeCourse(s, "Reading");
+    const practice = makeCourse(s, "Practice");
+    link(s, reading.id, basics.id);
+    link(s, practice.id, reading.id);
+    const before = snapCourses(s);
+    const failed = throws(s, app.addPrerequisite, {
+      courseId: basics.id,
+      prerequisiteId: practice.id,
+    });
+    assert.equal(failed.kind, "Cycle");
+    assert.deepStrictEqual(snapCourses(s), before);
+    for (let i = 0; i < 5; i++) s.run(app.undoPlan, {});
+    assert.deepStrictEqual(courseRows(s), []);
+    assert.equal(throwsVoid(s, app.undoPlan).kind, "EmptyUndo");
+    return "failed cycle adds no step, undo depth unchanged";
   } finally {
     await s.close();
   }
@@ -574,7 +679,8 @@ if (loadError) {
     "browser undo restores courses, keeps text and filter",
     "browser selected-removed id reports NotFound on link",
     "browser ready and done filters respond live",
-    "browser notices clear on typing, select, filter, no-op",
+    "browser notices clear on typing, passing create, real no-op",
+    "browser notices clear on select, filter, and undo",
     "browser two roots share nothing including query module",
   ];
   for (const name of names)
@@ -635,6 +741,16 @@ const titlesOf = async (table) => {
   return out;
 };
 
+// Scoped semantic picks: role + accessible name only, no layout fallback.
+// Option order is asserted separately from behavior; picks below use the
+// saved opaque ids where the packet needs identity, labels elsewhere.
+const courseBox = (scope) => scope.getByRole("combobox", { name: "Course", exact: true });
+const prereqBox = (scope) => scope.getByRole("combobox", { name: "Prerequisite", exact: true });
+const optionValues = async (box) =>
+  box.locator("option").evaluateAll((options) => options.map((o) => o.value));
+const optionLabels = async (box) =>
+  box.locator("option").evaluateAll((options) => options.map((o) => o.textContent?.trim() ?? ""));
+
 browser("browser loads form with empty title", async (page) => {
   assert.ok(booted === "server listens", booted);
   await page.goto("http://127.0.0.1:5173");
@@ -675,28 +791,28 @@ browser("browser requires shows titles joined, None when empty", async (page) =>
   await addCourse(page, "Basics");
   await addCourse(page, "Reading");
   await addCourse(page, "Practice");
-  await page
-    .locator("#root > main > form:nth-of-type(2) label:first-child select")
-    .selectOption({ index: 2 });
-  await page
-    .locator("#root > main > form:nth-of-type(2) label:nth-child(2) select")
-    .selectOption({ index: 1 });
+  const values = await optionValues(courseBox(page));
+  assert.equal(values.length, 4);
+  assert.equal(values[0], "");
+  assert.deepStrictEqual(await optionLabels(courseBox(page)), [
+    "Choose course",
+    "Basics",
+    "Reading",
+    "Practice",
+  ]);
+  const basicsId = values[1];
+  const readingId = values[2];
+  const practiceId = values[3];
+  await courseBox(page).selectOption(readingId);
+  await prereqBox(page).selectOption(basicsId);
   await page.getByRole("button", { name: "Add requirement", exact: true }).click();
   await page.getByRole("button", { name: "Complete Reading", exact: true }).waitFor();
   assert.deepStrictEqual(await visibleRowCells(table, 1, 3), ["Reading", "Blocked", "Basics"]);
-  await page
-    .locator("#root > main > form:nth-of-type(2) label:first-child select")
-    .selectOption({ index: 3 });
-  await page
-    .locator("#root > main > form:nth-of-type(2) label:nth-child(2) select")
-    .selectOption({ index: 1 });
+  await courseBox(page).selectOption(practiceId);
+  await prereqBox(page).selectOption(basicsId);
   await page.getByRole("button", { name: "Add requirement", exact: true }).click();
-  await page
-    .locator("#root > main > form:nth-of-type(2) label:first-child select")
-    .selectOption({ index: 3 });
-  await page
-    .locator("#root > main > form:nth-of-type(2) label:nth-child(2) select")
-    .selectOption({ index: 2 });
+  await courseBox(page).selectOption(practiceId);
+  await prereqBox(page).selectOption(readingId);
   await page.getByRole("button", { name: "Add requirement", exact: true }).click();
   assert.deepStrictEqual(await visibleRowCells(table, 2, 3), [
     "Practice",
@@ -726,12 +842,9 @@ browser("browser blocked complete shows PrerequisitesOpen", async (page) => {
   await table.waitFor();
   await addCourse(page, "Basics");
   await addCourse(page, "Reading");
-  await page
-    .locator("#root > main > form:nth-of-type(2) label:first-child select")
-    .selectOption({ index: 2 });
-  await page
-    .locator("#root > main > form:nth-of-type(2) label:nth-child(2) select")
-    .selectOption({ index: 1 });
+  const values = await optionValues(courseBox(page));
+  await courseBox(page).selectOption(values[2]);
+  await prereqBox(page).selectOption(values[1]);
   await page.getByRole("button", { name: "Add requirement", exact: true }).click();
   await page.getByRole("button", { name: "Complete Reading", exact: true }).click();
   await page.getByRole("alert").filter({ hasText: "PrerequisitesOpen" }).waitFor();
@@ -745,12 +858,9 @@ browser("browser link add shows requires, remove restores None", async (page) =>
   await table.waitFor();
   await addCourse(page, "Basics");
   await addCourse(page, "Reading");
-  await page
-    .locator("#root > main > form:nth-of-type(2) label:first-child select")
-    .selectOption({ index: 2 });
-  await page
-    .locator("#root > main > form:nth-of-type(2) label:nth-child(2) select")
-    .selectOption({ index: 1 });
+  const values = await optionValues(courseBox(page));
+  await courseBox(page).selectOption(values[2]);
+  await prereqBox(page).selectOption(values[1]);
   await page.getByRole("button", { name: "Add requirement", exact: true }).click();
   await page.getByRole("button", { name: "Complete Reading", exact: true }).waitFor();
   assert.deepStrictEqual(await visibleRowCells(table, 1, 3), ["Reading", "Blocked", "Basics"]);
@@ -770,12 +880,9 @@ browser("browser completed target refuses link change", async (page) => {
   await page.getByRole("button", { name: "Reopen Basics", exact: true }).waitFor();
   await page.getByRole("button", { name: "Complete Reading", exact: true }).click();
   await page.getByRole("button", { name: "Reopen Reading", exact: true }).waitFor();
-  await page
-    .locator("#root > main > form:nth-of-type(2) label:first-child select")
-    .selectOption({ index: 2 });
-  await page
-    .locator("#root > main > form:nth-of-type(2) label:nth-child(2) select")
-    .selectOption({ index: 1 });
+  const values = await optionValues(courseBox(page));
+  await courseBox(page).selectOption(values[2]);
+  await prereqBox(page).selectOption(values[1]);
   await page.getByRole("button", { name: "Add requirement", exact: true }).click();
   await page.getByRole("alert").filter({ hasText: "CourseDone" }).waitFor();
   assert.deepStrictEqual(await visibleRowCells(table, 1, 3), ["Reading", "Done", "None"]);
@@ -804,18 +911,15 @@ browser("browser selected-removed id reports NotFound on link", async (page) => 
   await table.waitFor();
   await addCourse(page, "Basics");
   await addCourse(page, "Reading");
-  await page
-    .locator("#root > main > form:nth-of-type(2) label:first-child select")
-    .selectOption({ index: 2 });
-  await page
-    .locator("#root > main > form:nth-of-type(2) label:nth-child(2) select")
-    .selectOption({ index: 1 });
+  const values = await optionValues(courseBox(page));
+  await courseBox(page).selectOption(values[2]);
+  await prereqBox(page).selectOption(values[1]);
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   assert.deepStrictEqual(await titlesOf(table), []);
   await page.getByRole("button", { name: "Add requirement", exact: true }).click();
   await page.getByRole("alert").filter({ hasText: "NotFound" }).waitFor();
-  const courseSelect = page.locator("#root > main > form:nth-of-type(2) label:first-child select");
+  const courseSelect = page.getByRole("combobox", { name: "Course", exact: true });
   const selectedLabel = await courseSelect.locator("option:checked").innerText();
   assert.equal(selectedLabel.trim(), "Removed course");
   return "kept id as Removed course, NotFound until changed";
@@ -827,12 +931,9 @@ browser("browser ready and done filters respond live", async (page) => {
   await table.waitFor();
   await addCourse(page, "Basics");
   await addCourse(page, "Reading");
-  await page
-    .locator("#root > main > form:nth-of-type(2) label:first-child select")
-    .selectOption({ index: 2 });
-  await page
-    .locator("#root > main > form:nth-of-type(2) label:nth-child(2) select")
-    .selectOption({ index: 1 });
+  const values = await optionValues(courseBox(page));
+  await courseBox(page).selectOption(values[2]);
+  await prereqBox(page).selectOption(values[1]);
   await page.getByRole("button", { name: "Add requirement", exact: true }).click();
   await page.getByRole("button", { name: "Complete Reading", exact: true }).waitFor();
   await page.getByRole("button", { name: "Ready", exact: true }).click();
@@ -851,7 +952,7 @@ browser("browser ready and done filters respond live", async (page) => {
   return "filters update without another click";
 });
 
-browser("browser notices clear on typing, select, filter, no-op", async (page) => {
+browser("browser notices clear on typing, passing create, real no-op", async (page) => {
   await page.goto("http://127.0.0.1:5173");
   await page.getByRole("table", { name: "Courses" }).waitFor();
   await page.getByLabel("Title", { exact: true }).fill("   ");
@@ -862,29 +963,66 @@ browser("browser notices clear on typing, select, filter, no-op", async (page) =
   await page.getByLabel("Title", { exact: true }).fill("   ");
   await page.getByRole("button", { name: "Add course", exact: true }).click();
   await page.getByRole("alert").filter({ hasText: "BlankTitle" }).waitFor();
-  await page
-    .locator("#root > main > form:nth-of-type(2) label:first-child select")
-    .selectOption({ index: 0 });
-  assert.equal(await noticeText(page), "");
   await addCourse(page, "Basics");
+  assert.equal(await noticeText(page), "");
   await addCourse(page, "Reading");
-  await page
-    .locator("#root > main > form:nth-of-type(2) label:first-child select")
-    .selectOption({ index: 2 });
-  await page
-    .locator("#root > main > form:nth-of-type(2) label:nth-child(2) select")
-    .selectOption({ index: 1 });
+  const values = await optionValues(courseBox(page));
+  const basicsId = values[1];
+  const readingId = values[2];
+  await courseBox(page).selectOption(readingId);
+  await prereqBox(page).selectOption(basicsId);
   await page.getByRole("button", { name: "Add requirement", exact: true }).click();
   await page.getByRole("button", { name: "Complete Reading", exact: true }).click();
   await page.getByRole("alert").filter({ hasText: "PrerequisitesOpen" }).waitFor();
+  // Real no-op: re-add the same link. Passes with no change or undo step.
+  await page.getByRole("button", { name: "Add requirement", exact: true }).click();
+  assert.equal(await noticeText(page), "");
+  assert.deepStrictEqual(
+    await visibleRowCells(page.getByRole("table", { name: "Courses" }), 1, 3),
+    ["Reading", "Blocked", "Basics"],
+  );
+  // Undo history unchanged by the failed complete and the no-op add:
+  // three undos clear the link and the two creates.
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  assert.deepStrictEqual(await titlesOf(page.getByRole("table", { name: "Courses" })), []);
+  return "typing, passing create, real no-op link clear";
+});
+
+browser("browser notices clear on select, filter, and undo", async (page) => {
+  await page.goto("http://127.0.0.1:5173");
+  await page.getByRole("table", { name: "Courses" }).waitFor();
+  await page.getByLabel("Title", { exact: true }).fill("   ");
+  await page.getByRole("button", { name: "Add course", exact: true }).click();
+  await page.getByRole("alert").filter({ hasText: "BlankTitle" }).waitFor();
+  await addCourse(page, "Basics");
+  await addCourse(page, "Reading");
+  const values = await optionValues(courseBox(page));
+  const basicsId = values[1];
+  const readingId = values[2];
+  // Real selection change clears the notice: pick Reading, then Basics.
+  await courseBox(page).selectOption(readingId);
+  await page.getByRole("button", { name: "Add course", exact: true }).click();
+  await page.getByLabel("Title", { exact: true }).fill("   ");
+  await page.getByRole("button", { name: "Add course", exact: true }).click();
+  await page.getByRole("alert").filter({ hasText: "BlankTitle" }).waitFor();
+  await courseBox(page).selectOption(basicsId);
+  assert.equal(await noticeText(page), "");
+  await page.getByLabel("Title", { exact: true }).fill("   ");
+  await page.getByRole("button", { name: "Add course", exact: true }).click();
+  await page.getByRole("alert").filter({ hasText: "BlankTitle" }).waitFor();
   await page.getByRole("button", { name: "Ready", exact: true }).click();
   assert.equal(await noticeText(page), "");
-  await page.getByRole("button", { name: "All", exact: true }).click();
-  await page.getByRole("button", { name: "Complete Reading", exact: true }).click();
-  await page.getByRole("alert").filter({ hasText: "PrerequisitesOpen" }).waitFor();
-  await page.getByRole("button", { name: "Complete Basics", exact: true }).click();
+  // EmptyUndo shows on screen; a passing undo clears the prior notice.
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page.getByRole("alert").filter({ hasText: "EmptyUndo" }).waitFor();
+  await addCourse(page, "Fixed");
   assert.equal(await noticeText(page), "");
-  return "typing, select, filter, passing action clear";
+  assert.deepStrictEqual(await titlesOf(page.getByRole("table", { name: "Courses" })), ["Fixed"]);
+  return "select, filter, passing undo clear";
 });
 
 // Runs inside the page: one ordinary async function passed directly to
@@ -969,28 +1107,113 @@ browser("browser two roots share nothing including query module", async (page) =
   try {
     await page.goto("http://127.0.0.1:5173");
     await page.getByLabel("Title", { exact: true }).waitFor();
-    await page.evaluate(mountSecondRoot);
     const first = page.locator("#root");
+    const firstTable = first.getByRole("table", { name: "Courses" });
+    // Seed the first root with real state: one done, one blocked,
+    // typed title text, and non-empty selections.
+    await page.getByLabel("Title", { exact: true }).fill("First done");
+    await page.getByRole("button", { name: "Add course", exact: true }).click();
+    await page.getByLabel("Title", { exact: true }).fill("First blocked");
+    await page.getByRole("button", { name: "Add course", exact: true }).click();
+    const firstValues = await optionValues(courseBox(first));
+    const firstDoneId = firstValues[1];
+    const firstBlockedId = firstValues[2];
+    await courseBox(first).selectOption(firstBlockedId);
+    await prereqBox(first).selectOption(firstDoneId);
+    await first.getByRole("button", { name: "Add requirement", exact: true }).click();
+    await first.getByRole("button", { name: "Complete First blocked", exact: true }).waitFor();
+    await page.getByLabel("Title", { exact: true }).fill("First kept");
+    // Seed asserts on the linked state: prereq Ready, blocked Blocked.
+    assert.deepStrictEqual(await visibleRowCells(firstTable, 0, 3), [
+      "First done",
+      "Ready",
+      "None",
+    ]);
+    assert.deepStrictEqual(await visibleRowCells(firstTable, 1, 3), [
+      "First blocked",
+      "Blocked",
+      "First done",
+    ]);
+    // Complete the prerequisite: the blocked row becomes Ready live.
+    // Both rows stay visible under All with the same links.
+    await first.getByRole("button", { name: "Complete First done", exact: true }).click();
+    await first.getByRole("button", { name: "Reopen First done", exact: true }).waitFor();
+    assert.deepStrictEqual(await visibleRowCells(firstTable, 0, 3), ["First done", "Done", "None"]);
+    assert.deepStrictEqual(await visibleRowCells(firstTable, 1, 3), [
+      "First blocked",
+      "Ready",
+      "First done",
+    ]);
+    // Undo the completion: the done row goes Ready and the blocked
+    // row goes Blocked again. Seeded state is ready + blocked.
+    await first.getByRole("button", { name: "Undo", exact: true }).click();
+    assert.deepStrictEqual(await visibleRowCells(firstTable, 0, 3), [
+      "First done",
+      "Ready",
+      "None",
+    ]);
+    assert.deepStrictEqual(await visibleRowCells(firstTable, 1, 3), [
+      "First blocked",
+      "Blocked",
+      "First done",
+    ]);
+    await first.getByRole("button", { name: "All", exact: true }).click();
+    await page.evaluate(mountSecondRoot);
     const secondScope = page.locator("#teacher-second-root");
     await secondScope.waitFor({ state: "attached" });
     await secondScope.getByLabel("Title", { exact: true }).waitFor({ state: "visible" });
+    // Change everything on the second root: records, selections,
+    // filter, form text, and an error notice.
     await secondScope.getByLabel("Title", { exact: true }).fill("Second");
     await secondScope.getByRole("button", { name: "Add course", exact: true }).click();
-    await secondScope.getByRole("button", { name: "Complete Second", exact: true }).waitFor();
-    await secondScope.getByRole("button", { name: "Ready", exact: true }).click();
-    await secondScope.getByLabel("Title", { exact: true }).fill("notice text");
-    await secondScope.getByRole("button", { name: "Add course", exact: true }).click();
+    await secondScope.getByRole("button", { name: "Complete Second", exact: true }).click();
+    await secondScope.getByRole("button", { name: "Reopen Second", exact: true }).waitFor();
+    const secondValues = await optionValues(courseBox(secondScope));
+    await courseBox(secondScope).selectOption(secondValues[1]);
+    await prereqBox(secondScope).selectOption(secondValues[1]);
+    await secondScope.getByRole("button", { name: "Done", exact: true }).click();
     await secondScope.getByLabel("Title", { exact: true }).fill("   ");
     await secondScope.getByRole("button", { name: "Add course", exact: true }).click();
     await secondScope.getByRole("alert").filter({ hasText: "BlankTitle" }).waitFor();
-    // The first root keeps its own empty courses, empty Title,
-    // All filter, and no notice.
-    assert.deepStrictEqual(
-      await first.getByRole("table", { name: "Courses" }).locator("tbody tr").count(),
-      0,
-    );
-    assert.equal(await first.getByLabel("Title", { exact: true }).inputValue(), "");
+    // The first root keeps its own visible rows, selections, text,
+    // filter, and no notice — same renderer module URL with query.
+    // Seeded state is ready + blocked (link made, prereq not done).
+    assert.deepStrictEqual(await titlesOf(firstTable), ["First done", "First blocked"]);
+    assert.deepStrictEqual(await visibleRowCells(firstTable, 0, 3), [
+      "First done",
+      "Ready",
+      "None",
+    ]);
+    assert.deepStrictEqual(await visibleRowCells(firstTable, 1, 3), [
+      "First blocked",
+      "Blocked",
+      "First done",
+    ]);
+    assert.equal(await courseBox(first).inputValue(), firstBlockedId);
+    assert.equal(await prereqBox(first).inputValue(), firstDoneId);
+    assert.equal(await first.getByLabel("Title", { exact: true }).inputValue(), "First kept");
     assert.equal(await noticeText(first), "");
+    // The first root keeps its own undo history: complete the prereq
+    // (blocked row goes Ready), then undo restores the seeded state.
+    await first.getByRole("button", { name: "Complete First done", exact: true }).click();
+    assert.deepStrictEqual(await visibleRowCells(firstTable, 0, 3), ["First done", "Done", "None"]);
+    assert.deepStrictEqual(await visibleRowCells(firstTable, 1, 3), [
+      "First blocked",
+      "Ready",
+      "First done",
+    ]);
+    await first.getByRole("button", { name: "Undo", exact: true }).click();
+    assert.deepStrictEqual(await visibleRowCells(firstTable, 0, 3), [
+      "First done",
+      "Ready",
+      "None",
+    ]);
+    assert.deepStrictEqual(await visibleRowCells(firstTable, 1, 3), [
+      "First blocked",
+      "Blocked",
+      "First done",
+    ]);
+    assert.equal(await courseBox(first).inputValue(), firstBlockedId);
     return "two roots truly separate";
   } finally {
     await page
