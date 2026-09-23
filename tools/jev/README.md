@@ -30,6 +30,9 @@ calibration found noisy: read it, no line owed.
 
 Which unit fits my words? → `blueprint suggest "<words>"` (`packages/blueprint`).
 
+Plain rules: `plain.mjs` checks the census rules the writer guidelines share (T01–T08, S02, S05, S06, S12, S13) on the syntax tree and its comment list, so text inside a string never counts.
+`lint.mjs` lists its rows; the writer-trial gate blocks on each one (ADR 0061).
+
 ## How to read a probability
 
 Jev returns a probability per yes/no. A judge's `threshold` (0.5 everywhere today) turns it into a hit.
