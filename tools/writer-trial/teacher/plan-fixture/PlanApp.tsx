@@ -22,18 +22,21 @@ import {
 import { submitComplete, submitReopen } from "./screen.ts";
 
 /** One course row in saved order. */
-function CourseRow(props: { readonly row: Course; readonly requires: string }): ReactElement {
-  const { row, requires } = props;
+function CourseRow(props: {
+  readonly row: Course;
+  readonly status: string;
+  readonly requires: string;
+}): ReactElement {
+  const { row, status, requires } = props;
   const complete = useRun(submitComplete);
   const reopen = useRun(submitReopen);
   const select = useRun(selectCourse);
   const selected = useData(selectedCourse);
-  const status = row.done ? "Done" : requires === "blocked" ? "Blocked" : "Ready";
   return (
     <tr aria-selected={selected === row.id}>
       <td>{row.title}</td>
       <td>{status}</td>
-      <td>{requires === "blocked" || requires === "" ? requires || "None" : requires}</td>
+      <td>{requires === "" ? "None" : requires}</td>
       <td>
         {row.done ? (
           <button type="button" onClick={() => reopen.run({ input: { id: row.id } })}>
@@ -159,10 +162,9 @@ function Plan(): ReactElement {
     if (row.prerequisiteIds.length === 0) return "";
     return row.prerequisiteIds.map((pid) => byId(pid)?.title ?? "Removed course").join(", ");
   };
-  const blockedText = (row: Course): string => {
-    if (row.done) return requiresText(row);
-    if (row.prerequisiteIds.length === 0) return "";
-    return isReady(row) ? requiresText(row) : "blocked";
+  const statusText = (row: Course): string => {
+    if (row.done) return "Done";
+    return isReady(row) ? "Ready" : "Blocked";
   };
   const shown =
     filter === "All" ? rows : filter === "Done" ? rows.filter((r) => r.done) : rows.filter(isReady);
@@ -181,7 +183,12 @@ function Plan(): ReactElement {
         </thead>
         <tbody>
           {shown.map((row) => (
-            <CourseRow key={row.id} row={row} requires={blockedText(row)} />
+            <CourseRow
+              key={row.id}
+              row={row}
+              status={statusText(row)}
+              requires={requiresText(row)}
+            />
           ))}
         </tbody>
       </table>

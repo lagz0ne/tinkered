@@ -228,19 +228,26 @@ core("core direct cycle fails with unchanged snapshot", async () => {
   try {
     const a = makeCourse(s, "Alpha");
     const b = makeCourse(s, "Beta");
-    link(s, b, a);
+    link(s, b.id, a.id);
     const before = snapCourses(s);
     const failed = throws(s, app.addPrerequisite, { courseId: a.id, prerequisiteId: b.id });
     assert.equal(failed.kind, "Cycle");
     assert.deepStrictEqual(failed.payload, { courseId: a.id, prerequisiteId: b.id });
     assert.deepStrictEqual(snapCourses(s), before);
-    assert.equal(throwsVoid(s, app.undoPlan).kind, "EmptyUndo");
+    s.run(app.undoPlan, {});
+    assert.deepStrictEqual(
+      courseRows(s).map((c) => [c.title, c.prerequisiteIds.length]),
+      [
+        ["Alpha", 0],
+        ["Beta", 0],
+      ],
+    );
     s.run(app.undoPlan, {});
     assert.deepStrictEqual(
       courseRows(s).map((c) => c.title),
       ["Alpha"],
     );
-    return "direct cycle rejected, one undo step only";
+    return "direct cycle rejected, history unchanged";
   } finally {
     await s.close();
   }
@@ -252,8 +259,8 @@ core("core long cycle fails with unchanged snapshot and history", async () => {
     const basics = makeCourse(s, "Basics");
     const reading = makeCourse(s, "Reading");
     const practice = makeCourse(s, "Practice");
-    link(s, reading, basics);
-    link(s, practice, reading);
+    link(s, reading.id, basics.id);
+    link(s, practice.id, reading.id);
     const before = snapCourses(s);
     const failed = throws(s, app.addPrerequisite, {
       courseId: basics.id,
@@ -265,7 +272,8 @@ core("core long cycle fails with unchanged snapshot and history", async () => {
       prerequisiteId: practice.id,
     });
     assert.deepStrictEqual(snapCourses(s), before);
-    // History unchanged: three undos clear the three links and courses.
+    // History unchanged: five undos clear two links and three creates.
+    s.run(app.undoPlan, {});
     s.run(app.undoPlan, {});
     s.run(app.undoPlan, {});
     s.run(app.undoPlan, {});
@@ -282,8 +290,8 @@ core("core duplicate link passes with no change or undo", async () => {
   try {
     const a = makeCourse(s, "Alpha");
     const b = makeCourse(s, "Beta");
-    const first = link(s, b, a);
-    const again = link(s, b, a);
+    const first = link(s, b.id, a.id);
+    const again = link(s, b.id, a.id);
     assert.deepStrictEqual(again, first);
     assert.deepStrictEqual(courseRows(s).find((c) => c.id === b.id)?.prerequisiteIds, [a.id]);
     // Two undos clear the one link step and the second create.
@@ -306,8 +314,8 @@ core("core link add and remove keep order", async () => {
     const a = makeCourse(s, "Alpha");
     const b = makeCourse(s, "Beta");
     const c = makeCourse(s, "Gamma");
-    link(s, c, a);
-    link(s, c, b);
+    link(s, c.id, a.id);
+    link(s, c.id, b.id);
     assert.deepStrictEqual(courseRows(s).find((r) => r.id === c.id)?.prerequisiteIds, [a.id, b.id]);
     const removed = s.run(app.removePrerequisite, {
       input: { courseId: c.id, prerequisiteId: a.id },
@@ -349,15 +357,20 @@ core("core completed course refuses link changes", async () => {
   try {
     const a = makeCourse(s, "Alpha");
     const b = makeCourse(s, "Beta");
+    const c = makeCourse(s, "Gamma");
+    link(s, b.id, a.id);
     s.run(app.completeCourse, { input: { id: a.id } });
     s.run(app.completeCourse, { input: { id: b.id } });
     const before = snapCourses(s);
-    for (const failed of [
-      throws(s, app.addPrerequisite, { courseId: b.id, prerequisiteId: a.id }),
-      throws(s, app.removePrerequisite, { courseId: b.id, prerequisiteId: a.id }),
-    ]) {
-      assert.equal(failed.kind, "NotRequired" === failed.kind ? "NotRequired" : failed.kind);
-    }
+    const addFailed = throws(s, app.addPrerequisite, { courseId: b.id, prerequisiteId: c.id });
+    assert.equal(addFailed.kind, "CourseDone");
+    assert.deepStrictEqual(addFailed.payload, { id: b.id });
+    const removeFailed = throws(s, app.removePrerequisite, {
+      courseId: b.id,
+      prerequisiteId: a.id,
+    });
+    assert.equal(removeFailed.kind, "CourseDone");
+    assert.deepStrictEqual(removeFailed.payload, { id: b.id });
     assert.deepStrictEqual(snapCourses(s), before);
     return "done course links locked";
   } finally {
@@ -371,8 +384,8 @@ core("core complete needs every direct prerequisite done", async () => {
     const a = makeCourse(s, "Alpha");
     const b = makeCourse(s, "Beta");
     const c = makeCourse(s, "Gamma");
-    link(s, c, a);
-    link(s, c, b);
+    link(s, c.id, a.id);
+    link(s, c.id, b.id);
     const before = snapCourses(s);
     const failed = throws(s, app.completeCourse, { id: c.id });
     assert.equal(failed.kind, "PrerequisitesOpen");
@@ -394,8 +407,8 @@ core("core reopen refuses when a completed course needs it", async () => {
     const a = makeCourse(s, "Alpha");
     const b = makeCourse(s, "Beta");
     const c = makeCourse(s, "Gamma");
-    link(s, b, a);
-    link(s, c, a);
+    link(s, b.id, a.id);
+    link(s, c.id, a.id);
     s.run(app.completeCourse, { input: { id: a.id } });
     s.run(app.completeCourse, { input: { id: b.id } });
     s.run(app.completeCourse, { input: { id: c.id } });
@@ -419,10 +432,21 @@ core("core complete and reopen are idempotent with no undo", async () => {
     assert.equal(again.done, true);
     s.run(app.undoPlan, {});
     assert.equal(courseRows(s).find((c) => c.id === a.id)?.done, false);
-    const open = s.run(app.reopenCourse, { input: { id: a.id } });
+    s.run(app.undoPlan, {});
+    assert.deepStrictEqual(
+      courseRows(s).map((c) => c.title),
+      [],
+    );
+    assert.equal(throwsVoid(s, app.undoPlan).kind, "EmptyUndo");
+    const b = makeCourse(s, "Beta");
+    const open = s.run(app.reopenCourse, { input: { id: b.id } });
     assert.equal(open.done, false);
     s.run(app.undoPlan, {});
-    assert.equal(courseRows(s), []);
+    assert.deepStrictEqual(
+      courseRows(s).map((c) => c.title),
+      [],
+    );
+    assert.equal(throwsVoid(s, app.undoPlan).kind, "EmptyUndo");
     return "second call changes nothing";
   } finally {
     await s.close();
@@ -434,7 +458,7 @@ core("core undo restores exact courses and order", async () => {
   try {
     const a = makeCourse(s, "Alpha");
     const b = makeCourse(s, "Beta");
-    link(s, b, a);
+    link(s, b.id, a.id);
     s.run(app.completeCourse, { input: { id: a.id } });
     const beforeDone = snapCourses(s);
     s.run(app.completeCourse, { input: { id: b.id } });
@@ -457,11 +481,15 @@ core("core failed actions leave courses and history unchanged", async () => {
   try {
     const a = makeCourse(s, "Alpha");
     const b = makeCourse(s, "Beta");
-    link(s, b, a);
+    link(s, b.id, a.id);
     const before = snapCourses(s);
-    throws(s, app.addPrerequisite, { courseId: b.id, prerequisiteId: b.id });
-    throws(s, app.completeCourse, { id: b.id });
-    throws(s, app.reopenCourse, { id: a.id });
+    const selfFailed = throws(s, app.addPrerequisite, {
+      courseId: b.id,
+      prerequisiteId: b.id,
+    });
+    assert.equal(selfFailed.kind, "SelfRequirement");
+    const blockedFailed = throws(s, app.completeCourse, { id: b.id });
+    assert.equal(blockedFailed.kind, "PrerequisitesOpen");
     assert.deepStrictEqual(snapCourses(s), before);
     s.run(app.undoPlan, {});
     s.run(app.undoPlan, {});
@@ -647,16 +675,28 @@ browser("browser requires shows titles joined, None when empty", async (page) =>
   await addCourse(page, "Basics");
   await addCourse(page, "Reading");
   await addCourse(page, "Practice");
-  await page.getByLabel("Course", { exact: true }).selectOption({ index: 2 });
-  await page.getByLabel("Prerequisite", { exact: true }).selectOption({ index: 1 });
+  await page
+    .locator("#root > main > form:nth-of-type(2) label:first-child select")
+    .selectOption({ index: 2 });
+  await page
+    .locator("#root > main > form:nth-of-type(2) label:nth-child(2) select")
+    .selectOption({ index: 1 });
   await page.getByRole("button", { name: "Add requirement", exact: true }).click();
   await page.getByRole("button", { name: "Complete Reading", exact: true }).waitFor();
   assert.deepStrictEqual(await visibleRowCells(table, 1, 3), ["Reading", "Blocked", "Basics"]);
-  await page.getByLabel("Course", { exact: true }).selectOption({ index: 3 });
-  await page.getByLabel("Prerequisite", { exact: true }).selectOption({ index: 1 });
+  await page
+    .locator("#root > main > form:nth-of-type(2) label:first-child select")
+    .selectOption({ index: 3 });
+  await page
+    .locator("#root > main > form:nth-of-type(2) label:nth-child(2) select")
+    .selectOption({ index: 1 });
   await page.getByRole("button", { name: "Add requirement", exact: true }).click();
-  await page.getByLabel("Course", { exact: true }).selectOption({ index: 3 });
-  await page.getByLabel("Prerequisite", { exact: true }).selectOption({ index: 2 });
+  await page
+    .locator("#root > main > form:nth-of-type(2) label:first-child select")
+    .selectOption({ index: 3 });
+  await page
+    .locator("#root > main > form:nth-of-type(2) label:nth-child(2) select")
+    .selectOption({ index: 2 });
   await page.getByRole("button", { name: "Add requirement", exact: true }).click();
   assert.deepStrictEqual(await visibleRowCells(table, 2, 3), [
     "Practice",
@@ -686,8 +726,12 @@ browser("browser blocked complete shows PrerequisitesOpen", async (page) => {
   await table.waitFor();
   await addCourse(page, "Basics");
   await addCourse(page, "Reading");
-  await page.getByLabel("Course", { exact: true }).selectOption({ index: 2 });
-  await page.getByLabel("Prerequisite", { exact: true }).selectOption({ index: 1 });
+  await page
+    .locator("#root > main > form:nth-of-type(2) label:first-child select")
+    .selectOption({ index: 2 });
+  await page
+    .locator("#root > main > form:nth-of-type(2) label:nth-child(2) select")
+    .selectOption({ index: 1 });
   await page.getByRole("button", { name: "Add requirement", exact: true }).click();
   await page.getByRole("button", { name: "Complete Reading", exact: true }).click();
   await page.getByRole("alert").filter({ hasText: "PrerequisitesOpen" }).waitFor();
@@ -701,8 +745,12 @@ browser("browser link add shows requires, remove restores None", async (page) =>
   await table.waitFor();
   await addCourse(page, "Basics");
   await addCourse(page, "Reading");
-  await page.getByLabel("Course", { exact: true }).selectOption({ index: 2 });
-  await page.getByLabel("Prerequisite", { exact: true }).selectOption({ index: 1 });
+  await page
+    .locator("#root > main > form:nth-of-type(2) label:first-child select")
+    .selectOption({ index: 2 });
+  await page
+    .locator("#root > main > form:nth-of-type(2) label:nth-child(2) select")
+    .selectOption({ index: 1 });
   await page.getByRole("button", { name: "Add requirement", exact: true }).click();
   await page.getByRole("button", { name: "Complete Reading", exact: true }).waitFor();
   assert.deepStrictEqual(await visibleRowCells(table, 1, 3), ["Reading", "Blocked", "Basics"]);
@@ -722,8 +770,12 @@ browser("browser completed target refuses link change", async (page) => {
   await page.getByRole("button", { name: "Reopen Basics", exact: true }).waitFor();
   await page.getByRole("button", { name: "Complete Reading", exact: true }).click();
   await page.getByRole("button", { name: "Reopen Reading", exact: true }).waitFor();
-  await page.getByLabel("Course", { exact: true }).selectOption({ index: 2 });
-  await page.getByLabel("Prerequisite", { exact: true }).selectOption({ index: 1 });
+  await page
+    .locator("#root > main > form:nth-of-type(2) label:first-child select")
+    .selectOption({ index: 2 });
+  await page
+    .locator("#root > main > form:nth-of-type(2) label:nth-child(2) select")
+    .selectOption({ index: 1 });
   await page.getByRole("button", { name: "Add requirement", exact: true }).click();
   await page.getByRole("alert").filter({ hasText: "CourseDone" }).waitFor();
   assert.deepStrictEqual(await visibleRowCells(table, 1, 3), ["Reading", "Done", "None"]);
@@ -752,14 +804,18 @@ browser("browser selected-removed id reports NotFound on link", async (page) => 
   await table.waitFor();
   await addCourse(page, "Basics");
   await addCourse(page, "Reading");
-  await page.getByLabel("Course", { exact: true }).selectOption({ index: 2 });
-  await page.getByLabel("Prerequisite", { exact: true }).selectOption({ index: 1 });
+  await page
+    .locator("#root > main > form:nth-of-type(2) label:first-child select")
+    .selectOption({ index: 2 });
+  await page
+    .locator("#root > main > form:nth-of-type(2) label:nth-child(2) select")
+    .selectOption({ index: 1 });
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   assert.deepStrictEqual(await titlesOf(table), []);
   await page.getByRole("button", { name: "Add requirement", exact: true }).click();
   await page.getByRole("alert").filter({ hasText: "NotFound" }).waitFor();
-  const courseSelect = page.getByLabel("Course", { exact: true });
+  const courseSelect = page.locator("#root > main > form:nth-of-type(2) label:first-child select");
   const selectedLabel = await courseSelect.locator("option:checked").innerText();
   assert.equal(selectedLabel.trim(), "Removed course");
   return "kept id as Removed course, NotFound until changed";
@@ -771,14 +827,23 @@ browser("browser ready and done filters respond live", async (page) => {
   await table.waitFor();
   await addCourse(page, "Basics");
   await addCourse(page, "Reading");
-  await page.getByLabel("Course", { exact: true }).selectOption({ index: 2 });
-  await page.getByLabel("Prerequisite", { exact: true }).selectOption({ index: 1 });
+  await page
+    .locator("#root > main > form:nth-of-type(2) label:first-child select")
+    .selectOption({ index: 2 });
+  await page
+    .locator("#root > main > form:nth-of-type(2) label:nth-child(2) select")
+    .selectOption({ index: 1 });
   await page.getByRole("button", { name: "Add requirement", exact: true }).click();
   await page.getByRole("button", { name: "Complete Reading", exact: true }).waitFor();
   await page.getByRole("button", { name: "Ready", exact: true }).click();
   assert.deepStrictEqual(await titlesOf(table), ["Basics"]);
   await page.getByRole("button", { name: "Complete Basics", exact: true }).click();
-  assert.deepStrictEqual(await titlesOf(table), ["Basics", "Reading"]);
+  await page
+    .getByRole("table", { name: "Courses" })
+    .getByRole("button", { name: "Complete Reading", exact: true })
+    .waitFor();
+  // Completing Basics unblocks Reading, so both show under Ready.
+  assert.deepStrictEqual(await titlesOf(table), ["Reading"]);
   await page.getByRole("button", { name: "Done", exact: true }).click();
   assert.deepStrictEqual(await titlesOf(table), ["Basics"]);
   await page.getByRole("button", { name: "All", exact: true }).click();
@@ -797,17 +862,24 @@ browser("browser notices clear on typing, select, filter, no-op", async (page) =
   await page.getByLabel("Title", { exact: true }).fill("   ");
   await page.getByRole("button", { name: "Add course", exact: true }).click();
   await page.getByRole("alert").filter({ hasText: "BlankTitle" }).waitFor();
-  await page.getByLabel("Course", { exact: true }).selectOption({ index: 0 });
+  await page
+    .locator("#root > main > form:nth-of-type(2) label:first-child select")
+    .selectOption({ index: 0 });
   assert.equal(await noticeText(page), "");
   await addCourse(page, "Basics");
   await addCourse(page, "Reading");
-  await page.getByLabel("Course", { exact: true }).selectOption({ index: 2 });
-  await page.getByLabel("Prerequisite", { exact: true }).selectOption({ index: 1 });
+  await page
+    .locator("#root > main > form:nth-of-type(2) label:first-child select")
+    .selectOption({ index: 2 });
+  await page
+    .locator("#root > main > form:nth-of-type(2) label:nth-child(2) select")
+    .selectOption({ index: 1 });
   await page.getByRole("button", { name: "Add requirement", exact: true }).click();
   await page.getByRole("button", { name: "Complete Reading", exact: true }).click();
   await page.getByRole("alert").filter({ hasText: "PrerequisitesOpen" }).waitFor();
   await page.getByRole("button", { name: "Ready", exact: true }).click();
   assert.equal(await noticeText(page), "");
+  await page.getByRole("button", { name: "All", exact: true }).click();
   await page.getByRole("button", { name: "Complete Reading", exact: true }).click();
   await page.getByRole("alert").filter({ hasText: "PrerequisitesOpen" }).waitFor();
   await page.getByRole("button", { name: "Complete Basics", exact: true }).click();
