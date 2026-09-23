@@ -1167,6 +1167,49 @@ test("releaseNs finishes a named diamond once, dependent before its pool", async
   await scope.close({ graceful: true });
 });
 
+test("releaseNs does not run a closing child's cleanup twice", async () => {
+  const ns = namespace();
+  let entered!: () => void;
+  const enteredCleanup = new Promise<void>((resolve) => (entered = resolve));
+  let finish!: () => void;
+  const gate = new Promise<void>((resolve) => (finish = resolve));
+  const ended: string[] = [];
+  const pool = resource({
+    label: "closing-named-pool",
+    target: "namespace",
+    factory: (_deps, ctx) => {
+      ctx.defer(() => {
+        ended.push("pool");
+      });
+      return {};
+    },
+  });
+  const client = resource({
+    label: "closing-named-client",
+    target: "session",
+    depends: { pool },
+    factory: ({ pool }, ctx) => {
+      ctx.defer(async () => {
+        ended.push("client");
+        entered();
+        await gate;
+      });
+      return pool;
+    },
+  });
+  const root = createScope();
+  const child = root.createSession({ ns });
+  child.resolve(client);
+  const closing = child.close({ graceful: true });
+  await enteredCleanup;
+  root.releaseNs(pool, ns);
+  finish();
+  await closing;
+  await root.settled();
+  expect(ended).toEqual(["client", "pool"]);
+  await root.close({ graceful: true });
+});
+
 test("closed sessions leave a root named pool usable for later clients", async () => {
   const ns = namespace();
   let pools = 0;

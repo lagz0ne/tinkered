@@ -3243,7 +3243,7 @@ function collectNamedRelease(pending: NsResourceState[]): Map<Layer, Released> {
   const affected = new Map<Layer, Released>();
   while (pending.length) {
     const state = pending.pop()!;
-    if (!isLiveNamedRelease(state)) continue;
+    if (state.owner.closed || !isLiveNamedRelease(state)) continue;
     for (const dependent of state.resourceDependents ?? []) pending.push(dependent);
     const released = affected.get(state.owner) ?? {
       instances: new Set<ResourceInstance>(),
