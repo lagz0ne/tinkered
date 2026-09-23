@@ -4,12 +4,20 @@ A cell is the shared unit; the source holds the truth; the transport is userland
 Both drivers are core extensions (ADR 0050): the composition root installs them, `ready` waits for the
 initial data set, and `resolve` delivers each value.
 
-```text
-shared:  const counter = data({ label: "counter", initial: 0, parse })
-         const todo = family({ label: "todo", initial: "", parse })          todo("7") → a cell
-source:  const src = source({ cells: [[counter, "counter"], [todo, "todo"]] }); createScope({ extensions: [src] })
-viewer:  const sub = subscribe(transport, { cells: [[counter, "counter"]] }); createScope({ extensions: [sub] })
-wire:    register ↑ · snapshot ↓         (userland: memoryPair | SSE+POST | WebSocket)
+```ts
+const counter = data({ label: "counter", initial: 0, parse });
+const todo = family({ label: "todo", initial: "", parse });
+const src = source({
+  cells: [
+    [counter, "counter"],
+    [todo, "todo"],
+  ],
+});
+const sub = subscribe(transport, { cells: [[todo, "todo"]] });
+const origin = createScope({ extensions: [src] });
+const guest = createScope({ extensions: [sub] });
+const seven = todo("7"); // a namespace, not a cell
+origin.controller(todo.cell, { ns: seven }).set("buy milk");
 ```
 
 Declare the shared cells once; hand each end its rows. A row is the cell
@@ -20,10 +28,15 @@ the browser. Drivers read no meta (ADR 0051 §3).
 
 ## Shared
 
-`family({ label, initial, parse })` builds a cell per id: `todo("7")` is an
-ordinary cell. A family row publishes its members under `${label}/${id}` of
-the row's label — registration is by identity: only the members the viewer
-holds go down, never the whole family.
+`family({ label, initial, parse, eq })` declares one cell, `todo.cell`.
+`todo("7")` returns a namespace, memoized by id. Read or write a member with
+`scope.resolve(todo.cell, { ns: todo("7") })` or
+`scope.controller(todo.cell, { ns: todo("7") }).set(value)`.
+The cell's `initial`, `parse`, and `eq` apply in every namespace.
+`members()` lists ids in creation order; `onMember` fires once per new id.
+A family row publishes its members under `${label}/${id}` of the row's
+label — registration is by identity: only the members the viewer holds go
+down, never the whole family. The label is a wire-key prefix, not a storage key.
 
 ## Source
 
@@ -35,8 +48,8 @@ unasked. Each `register { keys }` runs `sync register` inline in that
 session (span, one `sync register` log line with the key count): a
 registered key answers at once with its snapshot (current version and
 value), and a changed cell fans out only to the live transports registered
-for that key. A member the source does not hold yet is created there with
-its initial value. A key that is not published, a message in the wrong
+for that key. A member the source does not hold yet gets a namespace there;
+its cell reads its initial value. A key that is not published, a message in the wrong
 direction, or an unexpected throw inside the op closes the transport, no
 reply. The promise resolves with the session's close `Result` when the
 transport parts (`success`), or `cancelled` when a forced root close fells
@@ -54,9 +67,9 @@ every family member it already holds, and waits until every key of that
 registration holds its snapshot (a viewer wiring nothing is ready at
 once). `scope.resolve(sub)` delivers `{ close }`. A member created later
 (through `onMember`) registers at once; late members are not part of
-readiness. Each `snapshot` goes into its cell through the cell's `parse` —
+readiness. Each `snapshot` goes into the cell through its `parse` —
 an unregistered key that is `label/id` of a published family calls
-`family(id)` first, so the member exists before the value lands. Nothing
+`family(id)` first, then writes `family.cell` in that namespace. Nothing
 goes up in v1: a userland write on a viewer cell stays local until the
 next snapshot overwrites it.
 
@@ -138,7 +151,8 @@ export declare namespace Sync {
     close(): void;
   };
   export type Family<T> = {
-    (id: string): Data.Cell<T>;
+    (id: string): Namespace;
+    readonly cell: Data.Cell<T>;
     readonly label: string;
     members(): readonly string[];
     onMember(listener: (id: string) => void): () => void;

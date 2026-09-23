@@ -1,5 +1,5 @@
-import type { Data, Many, Scope } from "@tinker/core";
-import { data, extension, isError as isCoreError, readMany } from "@tinker/core";
+import type { Data, Many, Namespace, Scope } from "@tinker/core";
+import { data, extension, isError as isCoreError, namespace, readMany } from "@tinker/core";
 import { fail, isError, raise, type Errors } from "./errors.ts";
 
 export { isError };
@@ -39,10 +39,10 @@ export declare namespace Sync {
     onClose(listener: () => void): () => void;
     close(): void;
   };
-  /** A cell with an id: a memoized member factory plus the ids created so far
-   * in this process. */
+  /** One declared cell, with a memoized namespace for each member id. */
   export type Family<T> = {
-    (id: string): Data.Cell<T>;
+    (id: string): Namespace;
+    readonly cell: Data.Cell<T>;
     readonly label: string;
     members(): readonly string[];
     onMember(listener: (id: string) => void): () => void;
@@ -59,30 +59,30 @@ export declare namespace Sync {
   export type Subscription = { close(): void };
 }
 
-/** A cell with an id: members memoized per id in this process, each an
- * ordinary cell labelled `<label>/<id>`; `members()` lists the ids in
- * creation order; `onMember` fires once per new member, after it is created.
- * The publish key comes from the wiring row, not from the member. */
+/** One cell declared at construction, with one memoized namespace per id.
+ * `members()` lists ids in creation order; `onMember` fires once per new id,
+ * after its namespace exists. The publish key comes from the wiring row. */
 export function family<T>(config: {
   label: string;
   initial: T;
   parse?: Data.Parse<T>;
   eq?: (a: T, b: T) => boolean;
 }): Sync.Family<T> {
-  const found = new Map<string, Data.Cell<T>>();
+  const cell = data({
+    label: config.label,
+    initial: config.initial,
+    parse: config.parse,
+    eq: config.eq,
+  });
+  const found = new Map<string, Namespace>();
   const arrivals = new Set<(id: string) => void>();
-  function member(id: string): Data.Cell<T> {
+  function member(id: string): Namespace {
     const hit = found.get(id);
     if (hit !== undefined) return hit;
-    const cell = data({
-      label: `${config.label}/${id}`,
-      initial: config.initial,
-      parse: config.parse,
-      eq: config.eq,
-    });
-    found.set(id, cell);
+    const ns = namespace();
+    found.set(id, ns);
     for (const arrival of arrivals) arrival(id);
-    return cell;
+    return ns;
   }
   function members(): string[] {
     return [...found.keys()];
@@ -94,13 +94,14 @@ export function family<T>(config: {
     }
     return unlisten;
   }
-  return Object.assign(member, { label: config.label, members, onMember });
+  return Object.assign(member, { cell, label: config.label, members, onMember });
 }
 
 /** A row is a pair whose second half is its key or label: the smallest stable shape that
  * tells one row from a nested list of rows when `cells` is read. */
 function isRow(value: Sync.Row | readonly Many<Sync.Row>[]): value is Sync.Row {
-  return typeof value[1] === "string";
+  const [, name] = value;
+  return typeof name === "string";
 }
 
 /** A family is a function; a cell is an object: the smallest stable shape
@@ -111,52 +112,51 @@ export function isFamily(unit: Sync.Published): unit is Sync.Family<unknown> {
 
 /** The published set of one wiring by key: singletons now, family members
  * now and on arrival, and a lookup that creates a member for a `label/id`
- * key of a published family. `make` builds one entry per key; a second cell
- * under a known key raises `SyncConflict`. */
-function readPublished<E extends { cell: Data.Cell<unknown> }>(
+ * key of a published family. `make` builds one entry per key; a different
+ * cell or namespace under a known key raises `SyncConflict`. */
+function readPublished<E extends { cell: Data.Cell<unknown>; ns?: Namespace }>(
   cells: readonly Sync.Row[],
-  make: (key: string, cell: Data.Cell<unknown>) => E,
+  make: (key: string, cell: Data.Cell<unknown>, ns?: Namespace) => E,
 ): { entries: Map<string, E>; entryFor(key: string): E | undefined; stop(): void } {
-  type Gate = { make: (id: string) => Data.Cell<unknown>; label: string };
+  type Gate = { make: (id: string) => Namespace; cell: Data.Cell<unknown>; label: string };
   const entries = new Map<string, E>();
   const gates: Gate[] = [];
-  function register(key: string, cell: Data.Cell<unknown>): E {
+  function register(key: string, cell: Data.Cell<unknown>, ns?: Namespace): E {
     const known = entries.get(key);
     if (known !== undefined) {
-      if (known.cell === cell) return known;
+      if (known.cell === cell && known.ns === ns) return known;
       raise("SyncConflict", { key });
     }
-    const entry = make(key, cell);
+    const entry = make(key, cell, ns);
     entries.set(key, entry);
     return entry;
   }
-  function memberFor(key: string): Data.Cell<unknown> | undefined {
+  function memberFor(key: string): { cell: Data.Cell<unknown>; ns: Namespace } | undefined {
     const slash = key.indexOf("/");
     if (slash < 1 || slash + 1 >= key.length) return undefined;
     const head = key.slice(0, slash);
     const rest = key.slice(slash + 1);
     for (const gate of gates) {
-      if (gate.label === head) return gate.make(rest);
+      if (gate.label === head) return { cell: gate.cell, ns: gate.make(rest) };
     }
     return undefined;
   }
   function entryFor(key: string): E | undefined {
     const known = entries.get(key);
     if (known !== undefined) return known;
-    const cell = memberFor(key);
-    if (cell === undefined) return undefined;
-    return register(key, cell);
+    const member = memberFor(key);
+    if (member === undefined) return undefined;
+    return register(key, member.cell, member.ns);
   }
   const arrivals: Array<() => void> = [];
   for (const [unit, name] of cells) {
     if (isFamily(unit)) {
       const label = name;
-      const makeMember = (id: string): Data.Cell<unknown> => unit(id);
-      gates.push({ make: makeMember, label });
-      for (const id of unit.members()) register(`${label}/${id}`, makeMember(id));
+      gates.push({ make: unit, cell: unit.cell, label });
+      for (const id of unit.members()) register(`${label}/${id}`, unit.cell, unit(id));
       arrivals.push(
         unit.onMember((id) => {
-          register(`${label}/${id}`, makeMember(id));
+          register(`${label}/${id}`, unit.cell, unit(id));
         }),
       );
     } else {
@@ -167,6 +167,14 @@ function readPublished<E extends { cell: Data.Cell<unknown> }>(
     for (const release of arrivals) release();
   }
   return { entries, entryFor, stop };
+}
+
+function memberController(
+  scope: Scope.Handle,
+  cell: Data.Cell<unknown>,
+  ns?: Namespace,
+): Scope.DataController<unknown> {
+  return scope.controller(cell, ns === undefined ? undefined : { ns });
 }
 
 /** The source driver, an extension: `start` builds the registry and
@@ -193,7 +201,7 @@ export function source(wiring: Sync.Wiring): Scope.Extension<Sync.Source> {
   return extension<Sync.Source>({
     label: "sync.source",
     start: async (scope, _ctx, next) => {
-      type Entry = { cell: Data.Cell<unknown>; version: number };
+      type Entry = { cell: Data.Cell<unknown>; ns?: Namespace; version: number };
       const live = new Map<Sync.Transport, Set<string>>();
       closeSource = () => {
         for (const transport of live.keys()) transport.close();
@@ -204,7 +212,7 @@ export function source(wiring: Sync.Wiring): Scope.Extension<Sync.Source> {
           type: "snapshot",
           key,
           version: entry.version,
-          value: scope.controller(entry.cell).get(),
+          value: memberController(scope, entry.cell, entry.ns).get(),
         };
       }
       function fanout(key: string, entry: Entry): void {
@@ -213,9 +221,9 @@ export function source(wiring: Sync.Wiring): Scope.Extension<Sync.Source> {
           if (keys.has(key)) transport.send(out);
         }
       }
-      const published = readPublished(cells, (key, cell) => {
-        const entry: Entry = { cell, version: 0 };
-        scope.controller(cell).watch(() => {
+      const published = readPublished(cells, (key, cell, ns) => {
+        const entry: Entry = { cell, ns, version: 0 };
+        memberController(scope, cell, ns).watch(() => {
           entry.version += 1;
           fanout(key, entry);
         });
@@ -303,7 +311,7 @@ export function subscribe(
       let shut = false;
       let stopMessages: () => void = () => undefined;
       let stopParted: () => void = () => undefined;
-      const published = readPublished(cells, (_key, cell) => ({ cell }));
+      const published = readPublished(cells, (_key, cell, ns) => ({ cell, ns }));
       const stops: Array<() => void> = [];
       const first: string[] = [];
       for (const key of published.entries.keys()) first.push(key);
@@ -343,7 +351,7 @@ export function subscribe(
           return;
         }
         try {
-          scope.controller(entry.cell).set(value);
+          memberController(scope, entry.cell, entry.ns).set(value);
         } catch (error: unknown) {
           if (!isCoreError(error, "DataValidationFailed")) throw error;
           violate();

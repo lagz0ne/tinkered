@@ -46,21 +46,26 @@ function reached<T>(watch: (listener: (next: T) => void) => () => void, value: T
   });
 }
 
-test("family hands back the same cell for one id, in creation order", () => {
+test("family memoizes a namespace per id and declares one cell", () => {
   const notes = family({ label: "note", initial: "" });
   const first = notes("a");
+  const cell = notes.cell;
   expect(notes("a")).toBe(first);
   expect(notes("b")).not.toBe(first);
   notes("c");
+  expect(notes.cell).toBe(cell);
   expect(notes.members()).toEqual(["a", "b", "c"]);
 });
 
-test("a member reads and writes like an ordinary cell", () => {
+test("two members of one cell keep independent values", async () => {
   const scope = createScope();
-  expect(scope.resolve(todos("1"))).toBe("");
-  scope.controller(todos("1")).set("x");
-  expect(scope.resolve(todos("1"))).toBe("x");
-  return scope.close({ graceful: true });
+  const first = todos("1");
+  const second = todos("2");
+  scope.controller(todos.cell, { ns: first }).set("one");
+  scope.controller(todos.cell, { ns: second }).set("two");
+  expect(scope.resolve(todos.cell, { ns: first })).toBe("one");
+  expect(scope.resolve(todos.cell, { ns: second })).toBe("two");
+  await scope.close({ graceful: true });
 });
 
 test("isFamily tells a family from a cell", () => {
@@ -244,15 +249,15 @@ test("a viewer sees only what it registered", () => {
   guestTodos("7");
   const src = source({ cells: [[originTodos, "todo"]] });
   const origin = createScope({ extensions: [src] });
-  origin.controller(originTodos("7")).set("seven");
-  origin.controller(originTodos("9")).set("nine");
+  origin.controller(originTodos.cell, { ns: originTodos("7") }).set("seven");
+  origin.controller(originTodos.cell, { ns: originTodos("9") }).set("nine");
   return origin.ready.then(() => {
     const [near, far] = memoryPair();
     const done = origin.resolve(src).connect(near);
     const sub = subscribe(far, { cells: [[guestTodos, "todo"]] });
     const guest = createScope({ extensions: [sub] });
     return guest.ready.then(() => {
-      expect(guest.resolve(guestTodos("7"))).toBe("seven");
+      expect(guest.resolve(guestTodos.cell, { ns: guestTodos("7") })).toBe("seven");
       expect(guestTodos.members()).not.toContain("9");
       guest.resolve(sub).close();
       return done.then(() =>
@@ -260,6 +265,28 @@ test("a viewer sees only what it registered", () => {
       );
     });
   });
+});
+
+test("two family members stay independent over the wire", async () => {
+  const originTodos = family({ label: "two", initial: "" });
+  const guestTodos = family({ label: "two", initial: "" });
+  const src = source({ cells: [[originTodos, "two"]] });
+  const origin = createScope({ extensions: [src] });
+  origin.controller(originTodos.cell, { ns: originTodos("a") }).set("alpha");
+  origin.controller(originTodos.cell, { ns: originTodos("b") }).set("beta");
+  await origin.ready;
+  const [near, far] = memoryPair();
+  const sub = subscribe(far, { cells: [[guestTodos, "two"]] });
+  guestTodos("a");
+  guestTodos("b");
+  const guest = createScope({ extensions: [sub] });
+  const done = origin.resolve(src).connect(near);
+  await guest.ready;
+  expect(guest.resolve(guestTodos.cell, { ns: guestTodos("a") })).toBe("alpha");
+  expect(guest.resolve(guestTodos.cell, { ns: guestTodos("b") })).toBe("beta");
+  guest.resolve(sub).close();
+  await done;
+  await Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]);
 });
 
 test("a late member after ready gets its snapshot", () => {
@@ -275,12 +302,13 @@ test("a late member after ready gets its snapshot", () => {
     return guest.ready.then(() => {
       const member = guestTodos("3");
       const landed = reached(
-        (listener: (next: string) => void) => guest.controller(member).watch(listener),
+        (listener: (next: string) => void) =>
+          guest.controller(guestTodos.cell, { ns: member }).watch(listener),
         "later",
       );
-      origin.controller(originTodos("3")).set("later");
+      origin.controller(originTodos.cell, { ns: originTodos("3") }).set("later");
       return landed.then(() => {
-        expect(guest.resolve(member)).toBe("later");
+        expect(guest.resolve(guestTodos.cell, { ns: member })).toBe("later");
         guest.resolve(sub).close();
         return done.then(() =>
           Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]),
@@ -312,7 +340,7 @@ test("readiness spans the whole initial set", async () => {
   near.send({ type: "snapshot", key: "todo-t07-stage/7", version: 0, value: "seven" });
   await outcome;
   expect(guest.resolve(staged)).toBe(5);
-  expect(guest.resolve(stagedTodos("7"))).toBe("seven");
+  expect(guest.resolve(stagedTodos.cell, { ns: stagedTodos("7") })).toBe("seven");
   guest.resolve(sub).close();
   await guest.close({ graceful: true });
 });
@@ -429,7 +457,7 @@ test("a row for an unpublished key posted by a viewer still closes the transport
   const sub = subscribe(far, { cells: [[watched, "todo-t07-viewer"]] });
   const guest = createScope({ extensions: [sub] });
   await guest.ready;
-  expect(guest.resolve(watched("7"))).toBe("");
+  expect(guest.resolve(watched.cell, { ns: watched("7") })).toBe("");
   far.send({ type: "register", keys: ["todo-t07-viewer/7"] });
   await parted;
   const end = await done;
@@ -497,7 +525,7 @@ test("after ready a bad snapshot closes the wire and drops later snapshots", asy
   const sub = subscribe(far, { cells: [[guestTodos, "todo-t07-after"]] });
   const guest = createScope({ extensions: [sub] });
   await guest.ready;
-  expect(guest.resolve(guestTodos("7"))).toBe("");
+  expect(guest.resolve(guestTodos.cell, { ns: guestTodos("7") })).toBe("");
   const parted = new Promise<void>((resolve) => {
     near.onClose(() => resolve());
   });
@@ -505,7 +533,7 @@ test("after ready a bad snapshot closes the wire and drops later snapshots", asy
   near.send({ type: "snapshot", key: "todo-t07-after/7", version: 1, value: "new" });
   await parted;
   await setImmediate();
-  expect(guest.resolve(guestTodos("7"))).toBe("");
+  expect(guest.resolve(guestTodos.cell, { ns: guestTodos("7") })).toBe("");
   guest.resolve(sub).close();
   await done;
   await Promise.all([origin.close({ graceful: true }), guest.close({ graceful: true })]);
@@ -525,7 +553,7 @@ test("a source member the origin never held arrives with the source value", asyn
   const sub = subscribe(far, { cells: [[guestTodos, "todo-t07-made"]] });
   const guest = createScope({ extensions: [sub] });
   await guest.ready;
-  expect(guest.resolve(guestTodos(memberId))).toBe("src-init");
+  expect(guest.resolve(guestTodos.cell, { ns: guestTodos(memberId) })).toBe("src-init");
   expect(originTodos.members()).toEqual([memberId]);
   guest.resolve(sub).close();
   await done;
@@ -661,14 +689,15 @@ test("onMember fires once per new member with the id, after it exists", () => {
   const notes = family({ label: "note-arrive", initial: "" });
   const heard: string[] = [];
   const stop = notes.onMember((id) => {
-    heard.push(`${id}:${notes(id).label}`);
+    heard.push(id);
+    expect(notes.members()).toContain(id);
   });
   notes("a");
   notes("a");
   notes("b");
   stop();
   notes("c");
-  expect(heard).toEqual(["a:note-arrive/a", "b:note-arrive/b"]);
+  expect(heard).toEqual(["a", "b"]);
 });
 
 test("a viewer binding nothing is ready at once", () => {
