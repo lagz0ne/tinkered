@@ -7,6 +7,7 @@ import {
   createScope,
   isError as isCoreError,
   makeTestClock,
+  namespace,
   operation,
   type Observe,
 } from "@tinker/core";
@@ -41,7 +42,7 @@ function usersStore(
 }
 
 /** An op that inserts one name through the session transaction. */
-function insertOp(store: DrizzleStore.Frame<null, PgDatabase>) {
+function insertOp<Config>(store: DrizzleStore.Frame<Config, PgDatabase>) {
   return operation({
     label: "insertUser",
     input: (raw: unknown) => {
@@ -68,6 +69,64 @@ test("db opens once per scope and close runs on scope close", async () => {
   const client = (await scope.controller(store.db).resolve()).$client;
   await scope.close();
   expect(client.closed).toBe(true);
+});
+
+test("one store keeps each tenant database open across request transactions until scope close", async () => {
+  const opened: string[] = [];
+  const closed: string[] = [];
+  const transactions = { count: 0 };
+  const store = drizzleStore<string, PgDatabase>({
+    open: async (name, { logger }) => {
+      opened.push(name);
+      const db = drizzle(new PGlite(), { logger });
+      await db.execute(sql`create table users (id serial primary key, name text not null)`);
+      return countingDb(db, transactions);
+    },
+    close: async (db) => {
+      const rows = await db.select().from(users);
+      closed.push(rows.map((row) => row.name).join(","));
+      await db.$client.close();
+    },
+  });
+  expect(store.label).toBe("drizzle");
+  const a = namespace({ tags: [store.config("a")] });
+  const b = namespace({ tags: [store.config("b")] });
+  const scope = createScope();
+  await scope.session({ ns: a }, (s) => s.run(insertOp(store), { input: "ada" }));
+  await scope.session({ ns: a }, (s) => s.run(insertOp(store), { input: "grace" }));
+  await scope.session({ ns: b }, (s) => s.run(insertOp(store), { input: "hopper" }));
+  expect(opened).toEqual(["a", "b"]);
+  expect(transactions.count).toBe(3);
+  const first = await scope.controller(store.db, { ns: a }).resolve();
+  const second = await scope.controller(store.db, { ns: b }).resolve();
+  expect(first).not.toBe(second);
+  expect((await first.select().from(users)).map((row) => row.name)).toEqual(["ada", "grace"]);
+  expect((await second.select().from(users)).map((row) => row.name)).toEqual(["hopper"]);
+  expect(closed).toEqual([]);
+  await scope.close({ graceful: true });
+  expect(closed.sort()).toEqual(["ada,grace", "hopper"]);
+  expect(first.$client.closed).toBe(true);
+  expect(second.$client.closed).toBe(true);
+});
+
+test("a request config tag cannot replace its tenant database config", async () => {
+  const opened: string[] = [];
+  const store = drizzleStore<string, PgDatabase>({
+    open: async (name, { logger }) => {
+      opened.push(name);
+      const db = drizzle(new PGlite(), { logger });
+      await db.execute(sql`create table users (id serial primary key, name text not null)`);
+      return db;
+    },
+    close: (db) => db.$client.close(),
+  });
+  const tenant = namespace({ tags: [store.config("tenant")] });
+  const scope = createScope();
+  await scope.session({ ns: tenant, tags: [store.config("request")] }, (s) =>
+    s.run(insertOp(store), { input: "ada" }),
+  );
+  expect(opened).toEqual(["tenant"]);
+  await scope.close();
 });
 
 test("a session insert commits: a root read sees the row after success", async () => {

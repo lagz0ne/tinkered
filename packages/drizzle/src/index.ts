@@ -23,8 +23,8 @@ export declare namespace DrizzleStore {
   export type Tx<DB extends Transactional> = Parameters<Parameters<DB["transaction"]>[0]>[0];
   /** The tools `open` receives: a Drizzle logger bound to the db resource's `ctx.log`. */
   export type Tools = { readonly logger: Logger };
-  /** The frame `drizzleStore` returns: its label, its per-scope `config` tag, its scope
-   * `db` resource, and its session `tx` resource. */
+  /** The frame `drizzleStore` returns: its label, its `config` tag, its per-namespace
+   * `db` resource, and its per-session `tx` resource. */
   export type Frame<Config, DB extends Transactional> = {
     readonly label: string;
     readonly config: Tag.Handle<Config>;
@@ -34,8 +34,8 @@ export declare namespace DrizzleStore {
 }
 
 /** Build the frame: a `config` tag labelled `${label}.config` (no default — an unbound read
- * raises core's `MissingTag`), a `db` resource labelled `${label}.db` (`target: "scope"`,
- * `depends: { config }`, so `open` runs once per scope and `close` runs by `defer` when the
+ * raises core's `MissingTag`), a `db` resource labelled `${label}.db` (`target: "namespace"`,
+ * `depends: { config }`, so `open` runs once per namespace and `close` runs by `defer` when the
  * scope closes), and a `tx` resource labelled `${label}.tx` (`target: "session"`, `depends:
  * { db }`). The `tx` factory starts `db.transaction(cb)` and resolves the handle from INSIDE
  * the callback, holding the callback open on a promise the `defer` settles: `success` returns
@@ -46,18 +46,18 @@ export declare namespace DrizzleStore {
  * A root-level `tx` (no session) builds at the root: a graceful `scope.close()` commits it,
  * a forced close rolls it back like every other resource. */
 export function drizzleStore<Config, DB extends DrizzleStore.Transactional>(config: {
-  label: string;
+  label?: string;
   open: (config: Config, tools: DrizzleStore.Tools) => DB | PromiseLike<DB>;
   close?: (db: DB) => void | PromiseLike<void>;
   meta?: Tag.Bindings;
 }): DrizzleStore.Frame<Config, DB> {
   const openDb = config.open;
   const closeDb = config.close;
-  const frameLabel = config.label;
-  const configTag: Tag.Handle<Config> = tag({ label: `${config.label}.config` });
+  const frameLabel = config.label ?? "drizzle";
+  const configTag: Tag.Handle<Config> = tag({ label: `${frameLabel}.config` });
   const db: Resource.Handle<Promise<DB>> = resource({
-    label: `${config.label}.db`,
-    target: "scope",
+    label: `${frameLabel}.db`,
+    target: "namespace",
     depends: { config: configTag },
     meta: config.meta,
     factory: ({ config: bound }, ctx) => {
@@ -69,7 +69,7 @@ export function drizzleStore<Config, DB extends DrizzleStore.Transactional>(conf
     },
   });
   const tx: Resource.Handle<Promise<DrizzleStore.Tx<DB>>> = resource({
-    label: `${config.label}.tx`,
+    label: `${frameLabel}.tx`,
     target: "session",
     depends: { db },
     meta: config.meta,

@@ -1,12 +1,12 @@
 # @tinker/drizzle
 
-The client is a scope resource, the transaction a session resource whose commit is the
-session's success (ADR 0041).
+The client is a namespace resource, the transaction a session resource whose commit is the
+session's success (ADR 0041). One declared store can serve many tenants.
 
 ```text
-drizzleStore({ label, open, close? })
+drizzleStore({ label?, open, close? })
 ├── store.config   (tag, required)
-├── store.db       (resource, scope)      open(config, { logger }) once; defer → close(db)
+├── store.db       (resource, namespace)  open(config, { logger }) once per tenant
 └── store.tx       (resource, session)    db.transaction(cb) held open for the session
 ```
 
@@ -26,6 +26,23 @@ export const store = drizzleStore({
 });
 createScope({ tags: [store.config({ url: "memory://" })] });
 ```
+
+Without a namespace, `db` uses the root's default bucket: one database per scope,
+and one transaction per request session, as before. `label` defaults to `"drizzle"`;
+it names the graph nodes, not the tenant. To keep separate tenant databases in one
+scope, bind the same store's config once per namespace:
+
+```ts
+const a = namespace({ tags: [store.config({ url: "a" })] });
+const b = namespace({ tags: [store.config({ url: "b" })] });
+await scope.session({ ns: a }, (s) => s.run(addUser, { input: "ada" }));
+await scope.session({ ns: b }, (s) => s.run(addUser, { input: "grace" }));
+```
+
+Both requests for `a` reuse its database. Each request has its own transaction.
+A request tag cannot override the config used to open the tenant database:
+`db` reads the namespace's bindings and root tags, not the asking session's tags.
+Closing the scope closes each opened database once, after its transactions settle.
 
 A resource dependency is delivered as its built value (ADR 0044). An operation that writes
 declares `depends: { tx: store.tx }` and uses the transaction directly. Core waits for an async
