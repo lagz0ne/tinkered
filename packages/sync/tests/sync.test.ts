@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 import { setImmediate } from "node:timers/promises";
-import { createScope, data } from "@tinker/core";
+import { createScope, data, type Observe } from "@tinker/core";
 import {
   family,
   isError,
@@ -154,6 +154,32 @@ test("ready means the viewer holds its initial data set, no watch", () => {
       });
     });
   });
+});
+
+test("a registration logs its key count and its observed step carries elapsed time", async () => {
+  const lines: Observe.Log[] = [];
+  const src = source({ cells: [[counter, "counter"]] });
+  const origin = createScope({
+    extensions: [src],
+    observe: { history: 5, log: (entry) => lines.push(entry) },
+  });
+  await origin.ready;
+  const [near, far] = memoryPair();
+  const done = origin.resolve(src).connect(near);
+  const received = new Promise<Sync.Message>((resolve) => {
+    far.onMessage((message) => {
+      if (message.type === "snapshot") resolve(message);
+    });
+  });
+  far.send({ type: "register", keys: ["counter"] });
+  expect(await received).toMatchObject({ type: "snapshot", key: "counter" });
+  const register = lines.filter((line) => "count" in line.attributes);
+  expect(register.map((line) => line.attributes)).toEqual([{ count: 1 }]);
+  const step = lines.filter((line) => "outcome" in line.attributes);
+  expect(step.map((line) => line.attributes)).toEqual([{ outcome: "ok", ms: expect.any(Number) }]);
+  far.close();
+  await done;
+  await origin.close({ graceful: true });
 });
 
 test("resolve delivers the installed values: connect on the source, close on the viewer", () => {

@@ -243,7 +243,6 @@ export function source(wiring: Sync.Wiring): Scope.Extension<Sync.Source> {
             session.run({
               label: "sync register",
               run: (_deps, ctx) => {
-                const begin = ctx.clock.currentTimeMillis();
                 for (const key of wanted) {
                   const entry = published.entryFor(key);
                   if (entry === undefined) {
@@ -253,10 +252,7 @@ export function source(wiring: Sync.Wiring): Scope.Extension<Sync.Source> {
                   keys.add(key);
                   transport.send(snapshot(key, entry));
                 }
-                ctx.log("sync register", {
-                  count: wanted.length,
-                  ms: ctx.clock.currentTimeMillis() - begin,
-                });
+                ctx.log("sync register", { count: wanted.length });
               },
             });
           } catch {
