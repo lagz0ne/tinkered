@@ -4,8 +4,10 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   assembleGuidelines,
+  copyTrialTools,
   freezeTrial,
   frozenConfigFor,
   guidelineSourcesFor,
@@ -92,6 +94,20 @@ void describe("frozen copies", () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
       rmSync(stockRoot, { recursive: true, force: true });
+    }
+  });
+
+  void it("stages the frozen gate beside the broker so the worker broker loads", async () => {
+    const root = mkdtempSync(join(tmpdir(), "suite-tools-"));
+    const ext = mkdtempSync(join(tmpdir(), "suite-ext-"));
+    try {
+      const frozen = freezeTrial(root, "plan");
+      copyTrialTools(join(root, frozen.dir, "tools"), ext);
+      const broker = await import(pathToFileURL(join(ext, "broker.mjs")).href);
+      assert.equal(typeof broker.createBroker, "function");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(ext, { recursive: true, force: true });
     }
   });
 

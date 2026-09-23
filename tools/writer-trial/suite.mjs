@@ -33,6 +33,9 @@ export const SUITES = {
   },
 };
 
+// Worker extension tools: extension.mjs is staged as index.mjs.
+export const TRIAL_TOOLS = ["extension.mjs", "broker.mjs", "gate.mjs"];
+
 const JEV_FROZEN = [
   "lib.mjs",
   "bank.mjs",
@@ -119,7 +122,7 @@ export const freezeTrial = (root, suite) => {
   for (const task of taskSourcesFor(suite, SUITES[suite].rounds.at(-1)))
     put(join(trialDir, task), `tasks/${task.split("/").pop()}`);
   for (const guide of guidelineSourcesFor(suite)) put(join(trialDir, guide), `rules/${guide}`);
-  for (const tool of ["extension.mjs", "broker.mjs"]) put(join(trialDir, tool), `tools/${tool}`);
+  for (const tool of TRIAL_TOOLS) put(join(trialDir, tool), `tools/${tool}`);
   // Limits drift after create when stage reads live config.
   // New trials freeze config.json and read limits from the copy.
   put(join(trialDir, "config.json"), "config.json");
@@ -164,6 +167,18 @@ export const readFrozenGuidelines = (root, frozen, suite) =>
     .join("\n");
 
 export const readFrozenToolPath = (root, frozen, name) => join(root, frozen.dir, `tools/${name}`);
+
+// Copy the worker extension tools from one folder (a frozen tools/
+// copy or this checkout) into a worker's extension folder. The
+// broker imports gate.mjs; trials frozen before the gate have
+// neither the import nor the file, so its absence is skipped.
+export const copyTrialTools = (fromDir, ext) => {
+  for (const tool of TRIAL_TOOLS) {
+    const src = join(fromDir, tool);
+    if (tool === "gate.mjs" && !existsSync(src)) continue;
+    copyFileSync(src, join(ext, tool === "extension.mjs" ? "index.mjs" : tool));
+  }
+};
 
 export const listFiles = (dir) => {
   const out = [];

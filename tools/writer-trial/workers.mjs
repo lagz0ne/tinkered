@@ -1,22 +1,14 @@
-import {
-  readFileSync,
-  writeFileSync,
-  mkdirSync,
-  copyFileSync,
-  symlinkSync,
-  existsSync,
-  rmSync,
-} from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, symlinkSync, existsSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve, join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
+  copyTrialTools,
   freezeTrial,
   limitsFor,
   readFrozenGuidelines,
   readFrozenTask,
-  readFrozenToolPath,
   suiteFor,
   taskRounds,
   validRounds,
@@ -185,8 +177,7 @@ if (action === "create") {
       "Blank starter; no example code",
     ]);
     // Tool copies stay frozen: create must not read the repo.
-    copyFileSync(readFrozenToolPath(root, frozen, "extension.mjs"), join(ext, "index.mjs"));
-    copyFileSync(readFrozenToolPath(root, frozen, "broker.mjs"), join(ext, "broker.mjs"));
+    copyTrialTools(join(root, frozen.dir, "tools"), ext);
     writeFileSync(
       join(ext, "package.json"),
       '{"type":"module","pi":{"extensions":["./index.mjs"]}}\n',
@@ -270,19 +261,7 @@ if (action === "create") {
     run("docker", ["start", w.container]);
     run("docker", ["cp", taskFile, `${w.container}:/work/TASK.md`]);
     const ext = join(w.dir, ".pi/extensions/trial");
-    if (manifest.frozen) {
-      copyFileSync(
-        readFrozenToolPath(root, manifest.frozen, "extension.mjs"),
-        join(ext, "index.mjs"),
-      );
-      copyFileSync(
-        readFrozenToolPath(root, manifest.frozen, "broker.mjs"),
-        join(ext, "broker.mjs"),
-      );
-    } else {
-      for (const file of ["extension.mjs", "broker.mjs"])
-        copyFileSync(join(here, file), join(ext, file === "extension.mjs" ? "index.mjs" : file));
-    }
+    copyTrialTools(manifest.frozen ? join(root, manifest.frozen.dir, "tools") : here, ext);
     const cfgPath = join(ext, "worker.json");
     const cfg = JSON.parse(readFileSync(cfgPath));
     // Frozen trials read limits from the frozen copy, not live config.

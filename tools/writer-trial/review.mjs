@@ -9,11 +9,16 @@
 //     A second save without staged feedback refuses; it never
 //     invents a new attempt number.
 //   check <trial> <round> <worker> [--attempt N]
-//     Run own check, test, build AND the suite teacher checker,
-//     each recorded apart. An own failure still runs the teacher
-//     checks: every case result is scored. A missing checker
-//     script fails unavailable, never passes. Each repeat writes
-//     a named check-N folder with checker hashes and the image ID.
+//     Run own check, test, build, the suite teacher checker, AND
+//     the Jev gate, each recorded apart (ownExit, teacherExit,
+//     jevExit). An own failure still runs the teacher checks:
+//     every case result is scored. A missing checker script fails
+//     unavailable, never passes. The Jev gate reads the saved
+//     src/ and tests/ files (never runs them) with the frozen Jev
+//     copy and judge list, and writes jev.json. A shape finding or
+//     a hit on a proven judge blocks; an unavailable gate fails.
+//     machine-pass needs all three. Each repeat writes a named
+//     check-N folder with checker hashes and the image ID.
 //   feedback <trial> <round> <worker> --teacher <file>
 //     Preflight every path first (no overwrites), then copy ONLY
 //     teacher text into the attempt as feedback.md and into
@@ -22,14 +27,26 @@
 //     event log. Saved tries are kept. No model is launched here.
 //
 // Old trials without frozen/ keep working: save records the live task,
-// check uses the repo-local scripts, feedback skips the restage.
+// check uses the repo-local scripts and records jev "not-frozen",
+// feedback skips the restage.
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
+import {
+  copyFileSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
+  copyTrialTools,
   frozenConfigFor,
   readFrozenGuidelines,
   readFrozenTask,
@@ -47,6 +64,8 @@ import {
   nextCheckSeq,
   planSave,
 } from "./attempts.mjs";
+import { isJudgedPath, jevAsk, judgeSource } from "./broker.mjs";
+import { gateFiles, gateOf, machineVerdict } from "./gate.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const home = join(homedir(), ".local/share/tinker-writer-trial");
@@ -227,16 +246,32 @@ if (command === "save") {
     teacherExit = 1;
     writeFileSync(teacherLog, `${readFileSync(teacherLog, "utf8")}\n${error.message}\n`);
   }
-  const machine = ownExit === 0 && teacherExit === 0 ? "machine-pass" : "machine-fail";
+  // The Jev gate reads the saved snapshot with the frozen Jev copy
+  // and judge list. Old trials without frozen/ skip it: their
+  // verdict stays own + teacher, as before the gate.
+  let jevExit = null;
+  let gate = null;
+  const jevFile = join(checkDir, "jev.json");
+  if (manifest.frozen) {
+    const jev = await judgeSnapshot(row.archive);
+    gate = jev.gate;
+    jevExit = gate.status === "pass" ? 0 : 1;
+    writeFileSync(jevFile, JSON.stringify(jev, null, 2) + "\n");
+  }
+  const machine = machineVerdict({ ownExit, teacherExit, gate });
+  const jevStatus = gate === null ? "not-frozen" : gate.status;
   (row.checks ??= []).push({
     seq,
     dir: checkDir,
     machine,
     ownExit,
     teacherExit,
+    jevExit,
+    jev: jevStatus,
     evidence,
     ownLog,
     teacherLog,
+    jevFile: gate === null ? null : jevFile,
     checkedAt: new Date().toISOString(),
   });
   row.machine = machine;
@@ -245,12 +280,16 @@ if (command === "save") {
   // Machine checks are not acceptance; the lead review stays open.
   // Only the lead sets leadReview, never this command.
   row.leadReview = row.leadReview ?? "pending";
+  const jevReasons = gate === null ? [] : gate.reasons.map((reason) => `jev-reason: ${reason}\n`);
   writeFileSync(
     join(checkDir, "machine.txt"),
-    `${machine}\nown: ${ownExit}\nteacher: ${teacherExit}\nlead-review: ${row.leadReview}\n`,
+    `${machine}\nown: ${ownExit}\nteacher: ${teacherExit}\njev: ${jevExit ?? "not-frozen"} (${jevStatus})\n` +
+      jevReasons.join("") +
+      `lead-review: ${row.leadReview}\n`,
   );
   saveManifest();
-  if (machine !== "machine-pass") throw new Error(`Teacher or own checks failed; see ${checkDir}`);
+  if (machine !== "machine-pass")
+    throw new Error(`Own, teacher, or Jev gate checks failed; see ${checkDir}`);
   console.log(`${machine}: round ${round} worker ${workerNum} attempt ${want} ${checkName(seq)}.`);
 } else {
   const teacher = flag("teacher");
@@ -278,8 +317,7 @@ if (command === "save") {
     // The writer gets its own failures inside the project too.
     runText("docker", ["cp", feedbackFile, `${worker.container}:/work/FEEDBACK.md`]);
     const ext = join(worker.dir, ".pi/extensions/trial");
-    copyFileSync(frozenPath("tools/extension.mjs"), join(ext, "index.mjs"));
-    copyFileSync(frozenPath("tools/broker.mjs"), join(ext, "broker.mjs"));
+    copyTrialTools(frozenPath("tools"), ext);
     // Limits come from the frozen copy, never the live repo config.
     const frozenLimits = frozenConfigFor(root, manifest.frozen).limits;
     const extCfgPath = join(ext, "worker.json");
@@ -344,6 +382,57 @@ function checkerEvidence(checker, archive, image) {
   };
   if (unavailable) evidence.unavailable = unavailable;
   return evidence;
+}
+
+// The Jev gate over one saved snapshot, with the frozen Jev copy
+// and the frozen judge list. The archive's src/ and tests/ .ts(x)
+// files are extracted into a temp folder on the host and only read,
+// never run. Any failure is an unavailable gate, never a pass.
+async function judgeSnapshot(archive) {
+  const jevDir = frozenPath("jev");
+  const judges = frozenConfigFor(root, manifest.frozen).judges;
+  const tmp = mkdtempSync(join(tmpdir(), "writer-trial-jev-"));
+  try {
+    const files = extractJudged(archive, tmp);
+    const ask = await jevAsk(jevDir);
+    const reports = [];
+    for (const file of files) reports.push(await judgeFile(tmp, file, jevDir, judges, ask));
+    return { jevDir, judges, reports, gate: gateFiles(reports) };
+  } catch (error) {
+    return { jevDir, judges, reports: [], gate: gateOf({ file: null, error: error.message }) };
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+// Extract only the judged members; tar never writes anything else.
+function extractJudged(archive, tmp) {
+  const members = runText("tar", ["-tf", archive], undefined, 60000)
+    .split("\n")
+    .filter((name) => isJudgedPath(name.replace(/^\.\//, "")));
+  if (members.length)
+    runText(
+      "tar",
+      ["-xf", archive, "-C", tmp, "--no-same-owner", "--no-same-permissions", "--", ...members],
+      undefined,
+      60000,
+    );
+  return [...new Set(members.map((name) => name.replace(/^\.\//, "")))];
+}
+
+// One file's report, or an error report (unavailable). A link or a
+// path that leaves the temp folder is never followed.
+async function judgeFile(tmp, file, jevDir, judges, ask) {
+  const path = join(tmp, file);
+  try {
+    if (!lstatSync(path).isFile() || !realpathSync(path).startsWith(`${realpathSync(tmp)}/`))
+      return { file, error: "not a regular file inside the snapshot" };
+    const source = readFileSync(path, "utf8");
+    if (source.length > 40000) return { file, error: "file exceeds 40000 characters" };
+    return await judgeSource({ source, file, jevDir, judges, ask });
+  } catch (error) {
+    return { file, error: error.message };
+  }
 }
 
 // Own check/test/build from the archive inside the pinned image.

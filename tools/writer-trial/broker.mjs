@@ -3,10 +3,14 @@ import { appendFileSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { join } from "node:path";
+import { gateOf } from "./gate.mjs";
+
+/** A path Jev judges: a .ts or .tsx file below src/ or tests/, with no `..` part. */
+export const isJudgedPath = (file) =>
+  /^(src|tests)\/[a-zA-Z0-9_./-]+\.tsx?$/.test(file) && !file.split("/").includes("..");
 
 function validateSource(file) {
-  if (!/^(src|tests)\/[a-zA-Z0-9_./-]+\.tsx?$/.test(file) || file.split("/").includes(".."))
-    throw new Error("Choose a .ts or .tsx file below src/ or tests/");
+  if (!isJudgedPath(file)) throw new Error("Choose a .ts or .tsx file below src/ or tests/");
 }
 
 const unavailable = (why) => new Error(`Shape check unavailable: ${why}`);
@@ -50,6 +54,81 @@ export async function plainFindingsFor(source, file, jevDir) {
   const inspect = requireInspectShape(shape);
   const found = await runInspectShape(inspect, source, file);
   return requireFindingRows(found);
+}
+
+const importFrom = (dir, name) => import(pathToFileURL(join(dir, name)).href);
+
+/** The live Jev call through one jev dir's lib.mjs. A missing key throws unavailable. */
+export async function jevAsk(jevDir) {
+  const lib = await importFrom(jevDir, "lib.mjs");
+  if (!lib.loadKey()) throw new Error("Jev unavailable: missing credentials");
+  return (state, questions) => lib.ask(state, questions, 2);
+}
+
+// The state a test judge sees: the same shape tools/jev/tests.mjs
+// and label.mjs send, so the calibration applies to it.
+const testState = (test) => ({
+  title: test.title,
+  causes: test.causes,
+  asserts: test.asserts.map((a) => `${a.subject}${a.not ? ".not" : ""}.${a.matcher}(${a.arg})`),
+  narrows: test.narrows,
+  body: test.body,
+});
+
+/** Judge one source file with the judges named in `judges`, through the bank, extractor,
+ *  shape helper, and calibration in `jevDir`. `ask(state, questions)` returns Jev answers;
+ *  `allow()` returns a reason when no more calls may run (that unit is `not-run`). Shared
+ *  by the broker (live writer) and review.mjs check (saved snapshot). */
+export async function judgeSource({ source, file, jevDir, judges, ask, allow = () => null }) {
+  const lib = await importFrom(jevDir, "lib.mjs");
+  const bank = await importFrom(jevDir, "bank.mjs");
+  const extractor = await importFrom(jevDir, "extract.mjs");
+  const plainFindings = await plainFindingsFor(source, file, jevDir);
+  const selected = new Set(judges);
+  const calibration = lib.readCalibration();
+  const rows = [];
+  const judge = async (state, candidates, unit) => {
+    const questions = Object.fromEntries(
+      Object.entries(candidates)
+        .filter(([id]) => selected.has(id))
+        .map(([id, j]) => [id, j.q]),
+    );
+    if (!Object.keys(questions).length) return;
+    const stop = allow();
+    if (stop !== null) {
+      rows.push({ unit, status: "not-run", reason: stop });
+      return;
+    }
+    const answers = await ask(state, questions);
+    rows.push({
+      unit,
+      findings: Object.entries(answers).map(([id, answer]) => ({
+        id,
+        probability: answer.probability,
+        threshold: candidates[id].threshold,
+        hit: answer.probability >= candidates[id].threshold,
+        calibration: calibration[id]?.status ?? "uncalibrated",
+      })),
+    });
+  };
+  await judge({ file, code: source }, lib.JUDGES, file);
+  if (file.includes(".test.")) {
+    for (const test of extractor.tests(source, file))
+      await judge(testState(test), bank.TESTS, test.title);
+  } else {
+    for (const unit of bank.slice(source, file)) {
+      const fit = Object.fromEntries(
+        Object.entries(bank.LINT).filter(([, j]) => !j.applies || j.applies.includes(unit.kind)),
+      );
+      await judge(bank.forJev(unit), fit, unit.name);
+    }
+  }
+  return {
+    file,
+    sourceHash: createHash("sha256").update(source).digest("hex"),
+    rows,
+    plainFindings,
+  };
 }
 
 export function createBroker(config) {
@@ -131,57 +210,24 @@ export function createBroker(config) {
       if (result.code !== 0 || result.truncated)
         throw new Error("Cannot read source, or file exceeds 40000 characters");
       const source = result.output;
-      const lib = await import(pathToFileURL(join(config.jevDir, "lib.mjs")).href);
-      const bank = await import(pathToFileURL(join(config.jevDir, "bank.mjs")).href);
-      const extractor = await import(pathToFileURL(join(config.jevDir, "extract.mjs")).href);
-      const plainFindings = await plainFindingsFor(source, file, config.jevDir);
-      if (!lib.loadKey()) throw new Error("Jev unavailable: missing credentials");
-      const selected = new Set(config.judges);
-      const calibration = lib.readCalibration();
-      const rows = [];
-      const ask = async (state, candidates, unit) => {
-        const questions = Object.fromEntries(
-          Object.entries(candidates)
-            .filter(([id]) => selected.has(id))
-            .map(([id, j]) => [id, j.q]),
-        );
-        if (!Object.keys(questions).length) return;
-        if (jevLimitReached()) {
-          rows.push({ unit, status: "not-run", reason: "Jev call limit reached" });
-          return;
-        }
-        jevCalls++;
-        const answers = await lib.ask(state, questions, 2);
-        rows.push({
-          unit,
-          findings: Object.entries(answers).map(([id, answer]) => ({
-            id,
-            probability: answer.probability,
-            hit: answer.probability >= candidates[id].threshold,
-            calibration: calibration[id]?.status ?? "uncalibrated",
-          })),
-        });
-      };
-      await ask({ file, code: source }, lib.JUDGES, file);
-      if (file.includes(".test.")) {
-        for (const test of extractor.tests(source, file))
-          await ask({ title: test.title, body: test.body }, bank.TESTS, test.title);
-      } else {
-        for (const unit of bank.slice(source, file)) {
-          const judges = Object.fromEntries(
-            Object.entries(bank.LINT).filter(
-              ([, j]) => !j.applies || j.applies.includes(unit.kind),
-            ),
-          );
-          await ask(bank.forJev(unit), judges, unit.name);
-        }
-      }
-      const report = {
-        advisory: true,
+      const ask = await jevAsk(config.jevDir);
+      const judged = await judgeSource({
+        source,
         file,
-        sourceHash: createHash("sha256").update(source).digest("hex"),
-        rows,
-        plainFindings,
+        jevDir: config.jevDir,
+        judges: config.judges,
+        ask: (state, questions) => {
+          jevCalls++;
+          return ask(state, questions);
+        },
+        allow: () => (jevLimitReached() ? "Jev call limit reached" : null),
+      });
+      const gate = gateOf(judged);
+      // `advisory` stays for old readers: true while nothing blocks.
+      const report = {
+        advisory: gate.blocking.length === 0,
+        ...judged,
+        gate,
         callsUsed: jevCalls,
         usage: null,
         cost: null,
