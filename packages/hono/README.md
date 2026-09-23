@@ -81,6 +81,9 @@ import { namespace, resource, tag } from "@tinker/core";
 const database = tag<string>({ label: "database" });
 const alpha = namespace({ tags: [database("alpha-db")] });
 const beta = namespace({ tags: [database("beta-db")] });
+const tenants = new Map<string, typeof alpha>();
+tenants.set("alpha", alpha);
+tenants.set("beta", beta);
 const pool = resource({
   label: "pool",
   target: "namespace",
@@ -89,12 +92,14 @@ const pool = resource({
 });
 
 const { extension: web } = hono([route.get("/database", readDatabase)], {
-  ns: (c) => (c.req.header("x-tenant") === "beta" ? beta : alpha),
+  ns: (c) => tenants.get(c.req.header("x-tenant") ?? ""),
 });
 ```
 
 Here `readDatabase` is an operation that depends on `pool`.
-See `examples/hono/basic.ts` for a route driven by both tenants.
+An unknown tenant uses the default namespace, never another tenant's pool.
+Bind `database("public-db")` at the root if the default should answer this route.
+See `examples/hono/basic.ts` for a route driven by both tenants and an unknown header.
 
 Two `hono()` calls on one scope are two apps (two servers, one close):
 store each returned extension once (`const { extension: web } = hono(...)`),

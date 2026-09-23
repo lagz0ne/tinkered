@@ -9,6 +9,9 @@ export async function tour(): Promise<string> {
   const database = tag<string>({ label: "database" });
   const alpha = namespace({ tags: [database("alpha-db")] });
   const beta = namespace({ tags: [database("beta-db")] });
+  const tenants = new Map<string, typeof alpha>();
+  tenants.set("alpha", alpha);
+  tenants.set("beta", beta);
   const connection = resource({
     label: "connection",
     target: "namespace",
@@ -46,12 +49,12 @@ export async function tour(): Promise<string> {
       }),
     ],
     {
-      ns: (c) => (c.req.header("x-tenant") === "beta" ? beta : alpha),
+      ns: (c) => tenants.get(c.req.header("x-tenant") ?? ""),
       tags: (c) => [tenant(c.req.header("x-tenant") ?? "public")],
     },
   );
 
-  const scope = createScope({ tags: [tenant("acme")], extensions: [web] });
+  const scope = createScope({ tags: [tenant("acme"), database("public-db")], extensions: [web] });
   await scope.ready;
   const app = scope.resolve(web);
 
@@ -60,7 +63,8 @@ export async function tour(): Promise<string> {
   const ping = await app.request("/health");
   const alphaDb = await app.request("/database", { headers: { "x-tenant": "alpha" } });
   const betaDb = await app.request("/database", { headers: { "x-tenant": "beta" } });
+  const unknownDb = await app.request("/database", { headers: { "x-tenant": "unknown" } });
   const body = await (await app.request("/ticks")).text();
   await scope.close();
-  return `${scoped.status} ${fallback.status} ${ping.status} ${await alphaDb.json()} ${await betaDb.json()} ${body}`;
+  return `${scoped.status} ${fallback.status} ${ping.status} ${await alphaDb.json()} ${await betaDb.json()} ${await unknownDb.json()} ${body}`;
 }
