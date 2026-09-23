@@ -23,6 +23,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **graph/t01 core gated log line** — unparked 2026-09-23: in-container bench is acceptable with a large N (`bench/ab.sh`). Blocked by t02b-1 (both touch core).
+
 | Card                                                                                                                                                | Owner         | Next                                                                                                                                                            | Verify                                        |
 | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | tests/core-tag-read-split — `tag.read returns each unit's own binding on an operation, a resource, and a tag itself` proves three kinds in one body | lead (Claude) | Split three ways (one kind each) or keep one; it also overlaps `tag.read finds a unit's own binding` next door (the titles writer's delete-not-retitle finding) | one cause per test; core lane ≥ break         |
@@ -33,6 +35,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 | Card | Owner | Next | Verify |
 
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| namespace-v1/t02b-1 — one release protocol (ADR 0063): hooks and borrows tagged by instance; release unlinks; an unlinked instance finishes when no run or dependent holds it | writer sol 6 in `../tinkered-nsv1-t02b1`; lead reviews and runs the large A/B bench | writer builds; lead review + `N=61 bench/ab.sh` on op/opres/run | every existing core test green unchanged; N5 and dependent-hold tests; op/opres within noise; `core#mutate` alone ≥ 85 |
 | blueprint/v1 — `packages/blueprint`: a self-contained binary that judges a YAML blueprint of tinker units with Jev over question templates shipped in the package; built on `@tinker/core` + `@tinker/cli` (ADR 0052) | lead (Claude, session blueprint); next contributor for t04 | t01–t03 landed (34 tests, 7155 B gzip, mutation 75.09 alone; one real Jev run: 7 provisional findings on the example; [track](docs/roadmap/blueprint-v1/PROGRESS.md#landed)). Next: the t04 brief (evals, `status: proven`, reword `needsDefer` and `whyUnfulfilled`) to one contributor in `../tinkered-blueprint-t04` off `origin/main` | t01–t05 in the track; `blueprint check <file>` prints one line per plain check and per (node, template); evals gate which hits may block; `vp check` clean; mutation alone ≥ 75; no import from `tools/jev` |
 | docs/core-promises — a `Promises` appendix in the core README, one line per seam-test promise, grouped by unit | lead (Claude); contributor in `../tinkered-core-promises` (launched ~03:55 UTC) | Decision (user, 2026-09-21): an appendix, not prose — 151 gaps do not fit the sections; `promises.mjs core` is the check | `promises.mjs core` confident gaps → under 20; README-only diff |
 | tests/core-many-causes — the 31 core test flags: split, delete, or explain | lead (Claude); contributor in `../tinkered-core-tests` (launched ~03:50 UTC) | `tests.mjs core`: 18 manyCauses, 4 typeGuarantee, 4 helperAlone, 4 negativeTwin, 3 pairs, 1 `Object.isFrozen`; act on each, label each; core lane alone ≥ 75 | flags gone or explained; 270 → N tests each naming one promise; core mutation alone ≥ 75 |
@@ -44,15 +47,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Blocked
 
-- **namespace-v1/t02b-1 one release protocol (ADR 0063)** — can start (t03 landed); LANDING needs a `bench` run on the borrow path. Hooks and borrows tagged by instance; release unlinks; an unlinked instance finishes when no run or dependent holds it.
 - **namespace-v1/t02b-2 `releaseNs` verb** — blocked by t02b-1. Acceptance: the ref-tag release tests, adapted, plus N4 and N5.
 
 | Card | Waiting for | Next | Verify |
 | ---- | ----------- | ---- | ------ |
 
 ## Parked
-
-- **graph/t01 core gated log line** — parked: needs `bench` (the +2 ns budget) and `bench` is not on PATH in this container. Resume where `bench` runs.
 
 | Card                                                                                                                                      | Resume when                                                                  | Next                                                                                                                                                                                                                                                                                                 | Verify                                                                             |
 | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
