@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, namespace } from "../src/index.ts";
+import { createScope, data, namespace, resource, tag } from "../src/index.ts";
 
 test("named and chained cell watches notify only when their resolved value changes", async () => {
   const a = namespace();
@@ -21,5 +21,31 @@ test("named and chained cell watches notify only when their resolved value chang
   scope.controller(cell).set(9);
   expect(named).toEqual([[0, 3]]);
   expect(chain).toEqual([[0, 1], [1, 2], [2, 3]]);
+  await scope.close();
+});
+
+test("a failed named resource retries without leaking to a sibling chain", async () => {
+  const tenant = tag<string>({ label: "tenant" });
+  const a = namespace({ tags: [tenant("A")] });
+  const b = namespace({ tags: [tenant("B")] });
+  let fail = true;
+  const built: string[] = [];
+  const client = resource({
+    label: "client",
+    target: "session",
+    depends: { tenant },
+    factory: ({ tenant }) => {
+      built.push(tenant);
+      if (tenant === "A" && fail) throw new Error("not ready");
+      return tenant;
+    },
+  });
+  const scope = createScope();
+  expect(() => scope.resolve(client, { ns: a })).toThrow("not ready");
+  expect(scope.resolve(client, { ns: [b, a] })).toBe("B");
+  fail = false;
+  expect(scope.resolve(client, { ns: a })).toBe("A");
+  expect(scope.resolve(client, { ns: [b, a] })).toBe("B");
+  expect(built).toEqual(["A", "B", "A"]);
   await scope.close();
 });
