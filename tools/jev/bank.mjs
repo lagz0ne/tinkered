@@ -19,7 +19,8 @@ export function slice(src, file = "a.ts") {
 }
 
 /** The fields the decision depends on — nothing else rides into the state. */
-export const forJev = ({ kind, name, source }) => ({ kind, name, source });
+export const forJev = ({ kind, name, source, uses }) =>
+  uses?.length ? { kind, name, source, uses } : { kind, name, source };
 
 // ---------- lint: anti-goal judges (one boolean per rule grep cannot see) ----------
 // `applies` is the kind filter the code enforces; `threshold` is per question (Jev
@@ -214,19 +215,21 @@ Object.assign(LINT, {
 // the lead or a browser probe caught them and Jev did not. Worded with no domain nouns.
 Object.assign(LINT, {
   inputDefaultMasks: {
-    fix: "Raise the task's error for the bad value where you read it, before any other work. Keep the task's error payload types exactly; never widen a type to carry the raw value.",
     applies: ["operation", "function"],
-    // 0.85 from 56 labeled cases (2026-09-23): 17 of 18 true hit, 2 of 38 clean. The second
-    // wording names branch defaults: the first scored `if (blank) return 1` at 25%.
+    fix: "Raise the task's error for the bad value where you read it, before any other work. Keep the task's error payload types exactly; never widen a type to carry the raw value.",
+    // 0.85 kept (2026-09-23), with same-file `uses`: 0.8 caught 18 of 19 true on 58 labeled cases
+    // but blocked 5 clean units in the 20 accepted trial apps (optional-date defaults, raw-field
+    // readers whose callers live in another file); 0.85 blocks 1. `uses` still clears a helper
+    // that only fills a thrown error's payload (ballot-01 idText 0.84 → 0.36).
     threshold: 0.85,
     q: {
       type: "boolean",
       instructions:
-        "Look only at values that come from the user or the caller — form text, ctx.input, a raw input field. When such a value is missing, blank, the wrong type, or cannot be parsed, is there ANY path where this code keeps going with a made-up value instead of raising an error? Count an if-branch that returns or assigns a default for blank input, a ternary that picks a default, `??` or `||` on the input, String(x), or Number(x) without a check.",
+        "Look only at values that come from the user or the caller — form text, ctx.input, a raw input field. When such a value is missing, blank, the wrong type, or cannot be parsed, is there ANY path where this code keeps going with a made-up value instead of raising an error? Count an if-branch that returns or assigns a default for blank input, a ternary that picks a default, `??` or `||` on the input, String(x), or Number(x) without a check. When `uses` is given, it lists the lines in this file that call this helper: judge what happens to the returned value there.",
       criteria: {
         true: 'some path turns a missing, blank, wrong-typed, or unparseable user or caller value into a default ("", 0, 1, today, the first option, "undefined") and continues without an error',
         false:
-          "every path that meets a bad user or caller value raises an error, or the only defaults are for internal values (sort ranks, lookups in the app's own maps, display fallbacks, error names), or for optional settings",
+          "every path that meets a bad user or caller value raises an error, or the only defaults are for internal values (sort ranks, lookups in the app's own maps, display fallbacks, error names), or for optional settings, or `uses` shows the made-up value only goes into a thrown error's payload and no work continues with it",
       },
     },
   },

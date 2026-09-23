@@ -44,7 +44,8 @@ An unavailable check is never a pass.
 ## Results
 
 - **Added:** `inputDefaultMasks`
-  20 true / 39 false, 61 points, 99% ordered.
+  32 true / 61 false, 57 points, 99% ordered
+  (with caller-aware cases; threshold kept at 0.85).
   Reworded once: the first wording scored
   `if (blank) return 1` at 25%. The tool-library
   gate proof caught it; 11 cases were added.
@@ -71,6 +72,10 @@ An unavailable check is never a pass.
 - A cross-unit question (unknown errors swallowed
   through a helper) needs the helper in the state.
   That is an extraction change, not a wording change.
+- `jev/caller-context` (done): a helper unit carries
+  `uses`, its same-file calling lines. `idText` (only
+  fills a thrown payload) fell from 0.84 to 0.36.
+  Callers in another file are still unseen.
 - Arrow helpers (`const x = () => …`) in `.ts`
   files are not units, so a default inside one
   is never judged on its own (`extract.mjs`).

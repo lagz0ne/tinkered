@@ -184,14 +184,47 @@ function functionOf(src, node, file) {
 /** Every declared unit and every top-level function that declares none, in source order. */
 export function units(src, file = "a.ts") {
   const out = [];
-  for (const node of parse(file, src).body) {
+  const program = parse(file, src);
+  for (const node of program.body) {
     const decl = node.type === "ExportNamedDeclaration" ? node.declaration : node;
     const exported = node.type === "ExportNamedDeclaration";
     const declarators = decl?.type === "VariableDeclaration" ? decl.declarations : [];
     out.push(...declarators.map((d) => unitOf(src, d, exported)).filter(Boolean));
     out.push(...functionOf(src, node, file));
   }
-  return out;
+  return withUses(src, program, out);
+}
+
+const MAX_USES = 6;
+
+/** The plain name a call node calls (`name(…)`), or null. */
+const calledName = (node) =>
+  node.type === "CallExpression" && node.callee?.type === "Identifier" ? node.callee.name : null;
+
+/** Is this line inside the record's own body. */
+const insideOf = (record, line) =>
+  line >= record.line && line <= record.line + record.source.split("\n").length - 1;
+
+/** A helper function's `uses`: the lines of this file, outside its own body, that call it,
+ *  in source order, at most six. A judge sees what happens to the value it returns (a
+ *  `String(id)` that only fills a thrown error's payload is not a default that keeps going). */
+function withUses(src, program, records) {
+  const lines = src.split("\n");
+  const helpers = new Map(records.filter((r) => r.kind === "function").map((r) => [r.name, r]));
+  if (helpers.size === 0) return records;
+  const found = new Map();
+  walk(program, (node) => {
+    const helper = helpers.get(calledName(node));
+    const line = helper === undefined ? 0 : lineOf(src, node.start);
+    if (helper === undefined || insideOf(helper, line)) return;
+    found.set(helper.name, (found.get(helper.name) ?? new Set()).add(line));
+  });
+  return records.map((r) => {
+    const at = found.get(r.name);
+    if (r.kind !== "function" || at === undefined) return r;
+    const texts = [...at].sort((a, b) => a - b).map((line) => lines[line - 1].trim());
+    return { ...r, uses: [...new Set(texts)].slice(0, MAX_USES) };
+  });
 }
 
 // ---------- tests ----------
