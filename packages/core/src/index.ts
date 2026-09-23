@@ -2606,7 +2606,6 @@ function finishHook(
   if (!instance.finishing) {
     instance.finishing = true;
     instance.remaining = instance.hooks.length;
-    instance.owner.defers = instance.owner.defers.filter((entry) => entry.instance !== instance);
   }
   const run = (): Promise<void> | undefined => {
     const tail = runDefers(instance.owner, [fn], instance.end as Scope.End);
@@ -2619,13 +2618,7 @@ function finishHook(
     return undefined;
   };
   if (!prior) return run();
-  const queued = prior.then(run, run);
-  instance.owner.pending.add(queued);
-  queued.then(
-    () => instance.owner.pending.delete(queued),
-    () => instance.owner.pending.delete(queued),
-  );
-  return queued;
+  return prior.then(run, run);
 }
 
 function finishInstance(

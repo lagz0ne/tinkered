@@ -245,6 +245,169 @@ test("two dependency slots keep one hold on the same instance", async () => {
   await scope.close();
 });
 
+test("release awaits interleaved async hooks in reverse registration order", async () => {
+  let finishLast!: () => void;
+  const lastGate = new Promise<void>((resolve) => (finishLast = resolve));
+  let finishMiddle!: () => void;
+  const middleGate = new Promise<void>((resolve) => (finishMiddle = resolve));
+  const order: string[] = [];
+  const cell = data({ label: "cell", initial: 0 });
+  const scope = createScope();
+  const middle = resource({
+    label: "middle",
+    depends: { cell },
+    factory: (_deps, ctx) => {
+      ctx.defer(async () => {
+        order.push("middle");
+        await middleGate;
+      });
+      return {};
+    },
+  });
+  const outer = resource({
+    label: "outer",
+    depends: { cell },
+    factory: (_deps, ctx) => {
+      ctx.defer(() => void order.push("first"));
+      scope.resolve(middle);
+      ctx.defer(async () => {
+        order.push("last");
+        await lastGate;
+      });
+      return {};
+    },
+  });
+  scope.resolve(outer);
+  scope.release(cell);
+  expect(order).toEqual(["last"]);
+  finishLast();
+  for (let i = 0; i < 10 && order.length < 2; i++) await Promise.resolve();
+  expect(order).toEqual(["last", "middle"]);
+  finishMiddle();
+  await scope.settled();
+  expect(order).toEqual(["last", "middle", "first"]);
+  await scope.close();
+});
+
+test("a dependency stays open through every hook of its dependent", async () => {
+  let finish!: () => void;
+  const gate = new Promise<void>((resolve) => (finish = resolve));
+  const order: string[] = [];
+  const pool = resource({
+    label: "pool",
+    factory: (_deps, ctx) => {
+      const value = { closed: false };
+      ctx.defer(() => {
+        value.closed = true;
+        order.push("pool");
+      });
+      return value;
+    },
+  });
+  const client = resource({
+    label: "client",
+    depends: { pool },
+    factory: ({ pool }, ctx) => {
+      ctx.defer(async () => {
+        order.push("client-first");
+        expect(pool.closed).toBe(false);
+        await gate;
+        expect(pool.closed).toBe(false);
+      });
+      ctx.defer(() => void order.push("client-last"));
+      return {};
+    },
+  });
+  const scope = createScope();
+  scope.resolve(client);
+  scope.release(pool);
+  expect(order).toEqual(["client-last", "client-first"]);
+  finish();
+  await scope.settled();
+  expect(order).toEqual(["client-last", "client-first", "pool"]);
+  await scope.close();
+});
+
+test("close joins a release whose next hook is queued behind an async hook", async () => {
+  let finish!: () => void;
+  const gate = new Promise<void>((resolve) => (finish = resolve));
+  const order: string[] = [];
+  const cell = data({ label: "cell", initial: 0 });
+  const first = resource({
+    label: "first",
+    depends: { cell },
+    factory: (_deps, ctx) => {
+      ctx.defer(() => void order.push("first"));
+      return {};
+    },
+  });
+  const second = resource({
+    label: "second",
+    depends: { cell },
+    factory: (_deps, ctx) => {
+      ctx.defer(async () => {
+        order.push("second");
+        await gate;
+      });
+      return {};
+    },
+  });
+  const scope = createScope();
+  scope.resolve(first);
+  scope.resolve(second);
+  scope.release(cell);
+  const closed = scope.close({ graceful: true });
+  expect(order).toEqual(["second"]);
+  finish();
+  await closed;
+  expect(order).toEqual(["second", "first"]);
+});
+
+test("a released build keeps its end when it rejects after release", async () => {
+  let rejectBuild!: (error: Error) => void;
+  const gate = new Promise<void>((_resolve, reject) => (rejectBuild = reject));
+  const cause = new Error("late failure");
+  const ends: string[] = [];
+  const slow = resource({
+    label: "slow",
+    factory: async (_deps, ctx) => {
+      ctx.defer((end) => void ends.push(end.status));
+      await gate;
+    },
+  });
+  const scope = createScope();
+  const first = scope.resolve(slow);
+  scope.release(slow);
+  rejectBuild(cause);
+  await expect(first).rejects.toBe(cause);
+  await scope.settled();
+  expect(ends).toEqual(["released"]);
+  await scope.close();
+});
+
+test("release keeps its end when close joins a borrowed instance", async () => {
+  let finish!: () => void;
+  const gate = new Promise<void>((resolve) => (finish = resolve));
+  const ended: string[] = [];
+  const pool = resource({
+    label: "pool",
+    factory: (_deps, ctx) => {
+      ctx.defer((end) => void ended.push(end.status));
+      return {};
+    },
+  });
+  const hold = operation({ label: "hold", depends: { pool }, run: async () => gate });
+  const scope = createScope();
+  const running = scope.run(hold);
+  scope.release(pool);
+  const closing = scope.close({ graceful: true });
+  expect(ended).toEqual([]);
+  finish();
+  await running;
+  await closing;
+  expect(ended).toEqual(["released"]);
+});
+
 test("a late build gives its waiting run a value and ends its hook once as released", async () => {
   let finish!: () => void;
   const gate = new Promise<void>((resolve) => (finish = resolve));
