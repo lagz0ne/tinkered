@@ -81,15 +81,15 @@ test("a backend failure marks the child failed and logs one line", async () => {
   const send = spans.find((span) => span.parentId === op?.id && span.name === "http.send");
   const child = spans.find((span) => span.parentId === send?.id && span.name === "http.attempt");
   expect(child?.status).toBe("failed");
-  expect(logs.length).toBe(1);
-  expect(logs[0].message).toBe("http request failed");
-  expect(logs[0].attributes.method).toBe("GET");
-  expect(logs[0].attributes.url).toBe(url);
-  expect(logs[0].span?.id).toBe(child?.id);
+  const failures = logs.filter((entry) => entry.message === "http request failed");
+  expect(failures.length).toBe(1);
+  expect(failures[0].attributes.method).toBe("GET");
+  expect(failures[0].attributes.url).toBe(url);
+  expect(failures[0].span?.id).toBe(child?.id);
   await scope.close();
 });
 
-test("a rejected status marks the child failed and logs nothing", async () => {
+test("a rejected status marks the child failed without a transport failure log", async () => {
   const strictRepos = operation({
     label: "strict.repos",
     depends: { send },
@@ -111,7 +111,7 @@ test("a rejected status marks the child failed and logs nothing", async () => {
   expect(child?.kind).toBe("operation");
   expect(child?.status).toBe("failed");
   expect(child?.attributes.status).toBe(404);
-  expect(logs.length).toBe(0);
+  expect(logs.filter((entry) => entry.message === "http request failed")).toEqual([]);
   await scope.close();
 });
 
@@ -125,7 +125,7 @@ test("with observation off the request succeeds and no span is kept", async () =
   await scope.close();
 });
 
-test("a forced close while parked rejects with the abort reason, logs nothing, child failed", async () => {
+test("a forced close while parked rejects with the abort reason, no transport failure log, and a failed child", async () => {
   const parking: HttpClient.Backend = (_request, signal) =>
     new Promise<HttpResponse.Handle>((_resolve, reject) => {
       signal.addEventListener("abort", () => reject(signal.reason), { once: true });
@@ -146,7 +146,7 @@ test("a forced close while parked rejects with the abort reason, logs nothing, c
   expect(result.status).toBe("cancelled");
   if (result.status !== "cancelled") throw result;
   expect(outcome).toBe(result.reason);
-  expect(logs.length).toBe(0);
+  expect(logs.filter((entry) => entry.message === "http request failed")).toEqual([]);
   const child = scope.spans().find((span) => span.name === "http.attempt");
   expect(child?.status).toBe("failed");
 });

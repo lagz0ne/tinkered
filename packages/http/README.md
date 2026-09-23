@@ -77,7 +77,9 @@ createScope({
 Every try is one `attempt` subflow, so the trace reads `caller > send > attempt` with no span
 code anywhere. Each attempt span carries `method`, `url`, `attempt`, and `status`. It settles
 `ok` when the backend answered and `failed` when it did not or when the status was rejected.
-A transport failure also writes one log line, `http request failed`, with the method and url.
+A transport failure also writes one `http request failed` line with method and url.
+Each observed operation writes a separate core step line with its label, `ms`, and outcome.
+A rejected status or forced close writes no transport failure line; the step line still records failure.
 Nothing is recorded when observation is off.
 
 ## Status: a frame slot plus response-level readers
