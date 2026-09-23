@@ -66,7 +66,7 @@ node tools/jev/label.mjs <judge> t|f <file> --by <ticket>
   tenant's buckets (config, `namespace`-target pools) while the request stays its own lifetime.
   Probe through a real route: two tenants' requests share their own tenant pool, never each
   other's, and a request-scoped cell dies with its request.
-- **t04 ns docs + ADR 0059 Accepted** -- [ ] blocked by: t01, t02, t03
+- **t04 ns docs + ADR 0059 Accepted** -- [x] blocked by: t01, t02, t03
   A README line per new surface (`namespace`, `ns`, `releaseNs`, the chain rule), a glossary row, and
   ADR 0059 moves from proposed to accepted with the decided chain order and release rule stated.
 - **t05 drizzle onto ns** -- [x] blocked by: t02c
@@ -159,3 +159,16 @@ One line per ticket: tag -- sha -- tests -- size (B gzip) -- mutation -- Jev fla
   Lead review sent one round: the writer had deleted hono/ext's close-mid-bind explanation to quiet
   the style census (restored as a `/** */` block), and the example sent unknown tenants to alpha's
   database (now an explicit tenant map; unknown gets the default).
+
+- **t04** -- tag `namespace-v1/t04` -- docs only: a Namespaces section in the core README (key,
+  `ns` on every verb and subflow, ambient + per-call override, chains, layers-first order, the three
+  resource targets, `releaseNs` not built); a README line for every namespace test (25 gaps to 0;
+  core promise gaps 26 to 16); glossary rows; ADR 0059 accepted with its Open list resolved; ADR 0064
+  gains its Open question. Lead review corrected three claims (scope builds read the root's bindings;
+  the ns-absent path's timing is unmeasured since t01; drizzle's default target is `scope`).
+
+## Status 2026-09-23
+
+Built and documented: t01, t02a, t02c, t03, t04, t05, t06, t07, t08, t09.
+Waiting: t02b-1 (one release protocol, ADR 0063) needs a `bench` run to land; t02b-2 (`releaseNs`)
+follows it. Open design question: ADR 0064's chain-head keying (core feedback).

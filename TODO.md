@@ -23,8 +23,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **namespace-v1/t04 ns docs** -- unblocked (t03 landed). README + ADR 0059 Accepted.
-
 | Card                                                                                                                                                | Owner         | Next                                                                                                                                                            | Verify                                        |
 | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | tests/core-tag-read-split — `tag.read returns each unit's own binding on an operation, a resource, and a tag itself` proves three kinds in one body | lead (Claude) | Split three ways (one kind each) or keep one; it also overlaps `tag.read finds a unit's own binding` next door (the titles writer's delete-not-retitle finding) | one cause per test; core lane ≥ break         |
@@ -69,6 +67,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **namespace-v1/t04 docs + ADR 0059 accepted** — sol 6, lead review; tag `namespace-v1/t04`.
+  Namespace track built and documented except `releaseNs` (t02b, needs `bench`).
+  Proof: [namespace-v1 status](docs/roadmap/namespace-v1/PROGRESS.md).
 
 - **namespace-v1/t09 hono request namespace** — sol 6, lead review; tag `namespace-v1/t09`.
   `ns` hook on the per-request session; route = graph, session = lifetime, namespace = identity.
