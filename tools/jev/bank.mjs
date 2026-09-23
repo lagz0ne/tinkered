@@ -26,6 +26,7 @@ export const forJev = ({ kind, name, source }) => ({ kind, name, source });
 // probabilities are not comparable across questions). Rule numbers: docs/best-practices.md.
 export const LINT = {
   runForwardsToClosure: {
+    fix: "Write the multi-step work in run itself; helpers take plain values or a dep listed in depends.",
     applies: ["operation"],
     threshold: 0.5,
     q: {
@@ -40,6 +41,7 @@ export const LINT = {
     },
   },
   effectWithoutDefer: {
+    fix: "Start it in a resource factory and stop it from ctx.defer.",
     applies: ["resource", "operation", "function", "hook"],
     threshold: 0.5,
     q: {
@@ -54,6 +56,7 @@ export const LINT = {
     },
   },
   stateOutsideCell: {
+    fix: "Keep that state in a data cell; operations write it and views read it with useData.",
     applies: ["resource", "function", "hook"],
     threshold: 0.5,
     q: {
@@ -68,6 +71,7 @@ export const LINT = {
     },
   },
   configNotTag: {
+    fix: "Declare a tag, list it in depends, and bind its value at the root.",
     applies: ["resource", "operation"],
     threshold: 0.5,
     q: {
@@ -82,6 +86,7 @@ export const LINT = {
     },
   },
   handRolledLifetime: {
+    fix: "Let the scope own the order: a resource with defer, ctx.signal, or scope.ready.",
     applies: ["resource", "operation", "function", "hook"],
     threshold: 0.5,
     q: {
@@ -96,6 +101,7 @@ export const LINT = {
     },
   },
   stopOnlyInDefer: {
+    fix: "Watch ctx.signal (or call throwIfAborted) inside the running work so close can end it.",
     applies: ["resource", "operation"],
     threshold: 0.5,
     q: {
@@ -110,6 +116,7 @@ export const LINT = {
     },
   },
   ignoresAbortAfterAwait: {
+    fix: "Call signal.throwIfAborted() after each await, before starting new work.",
     applies: ["resource"],
     threshold: 0.7,
     q: {
@@ -129,6 +136,7 @@ export const LINT = {
 // and Scope.Handle props; Jev gets the five things grep cannot see.
 Object.assign(LINT, {
   readsMoreThanRendered: {
+    fix: "Pass useData a selector that picks the one item you render.",
     applies: ["component"],
     threshold: 0.5,
     q: {
@@ -143,6 +151,7 @@ Object.assign(LINT, {
     },
   },
   subscribesToWriteOnly: {
+    fix: "Run an operation for the write; do not read a cell you never render.",
     applies: ["component"],
     threshold: 0.5,
     q: {
@@ -156,6 +165,7 @@ Object.assign(LINT, {
     },
   },
   runDuringRender: {
+    fix: "Move the call into an event handler or callback.",
     applies: ["component"],
     threshold: 0.5,
     q: {
@@ -169,6 +179,7 @@ Object.assign(LINT, {
     },
   },
   domainLogicInRender: {
+    fix: "Pass the raw input to an operation with useRun; the operation parses, checks, and sets the notice; the view renders the notice.",
     applies: ["component"],
     // 0.6 from 45 labeled trial cases (2026-09-23): 1 of 42 clean hit, all 3 real bad cases hit.
     threshold: 0.6,
@@ -184,6 +195,7 @@ Object.assign(LINT, {
     },
   },
   effectOwnedByComponent: {
+    fix: "Move it into a resource or an operation; the view runs it with useRun.",
     applies: ["component"],
     threshold: 0.5,
     q: {
@@ -202,6 +214,7 @@ Object.assign(LINT, {
 // the lead or a browser probe caught them and Jev did not. Worded with no domain nouns.
 Object.assign(LINT, {
   inputDefaultMasks: {
+    fix: "Raise the task's error for the bad value where you read it, before any other work. Keep the task's error payload types exactly; never widen a type to carry the raw value.",
     applies: ["operation", "function"],
     // 0.85 from 56 labeled cases (2026-09-23): 17 of 18 true hit, 2 of 38 clean. The second
     // wording names branch defaults: the first scored `if (blank) return 1` at 25%.
@@ -218,6 +231,7 @@ Object.assign(LINT, {
     },
   },
   noOpRejected: {
+    fix: "Check 'already so' first and return the saved record with no change and no undo step; run status, lock, and limit guards only for a request that changes something.",
     applies: ["operation", "function"],
     // 0.6 from 45 labeled trial cases (2026-09-23): 0.5 hit 4 of 43 clean; 0.6 hits 1, both real bad cases.
     threshold: 0.6,

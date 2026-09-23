@@ -64,7 +64,7 @@ export default function (pi) {
     name: "jev",
     label: "Jev check",
     description:
-      "Ask teacher-selected Jev judges about one src/ or tests/ TypeScript file. Fix every finding under gate.blocking before reporting done; other findings are advice to fix or explain. Errors and gate.status unavailable are unavailable checks, never a pass.",
+      "Ask teacher-selected Jev judges about one src/ or tests/ TypeScript file. Fix every finding under gate.blocking before reporting done, the way its fix line says, keeping every task rule; other findings are advice to fix or explain. Errors and gate.status unavailable are unavailable checks, never a pass.",
     parameters: {
       type: "object",
       properties: { file: { type: "string" } },

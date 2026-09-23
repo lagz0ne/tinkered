@@ -78,6 +78,8 @@ No worked code is supplied.
 - Ask Jev about every changed file.
   A finding under `gate.blocking` must be fixed before you report done.
   It is a plain rule break, or a question the teacher proved reliable.
+  Clear it the way its `fix` line says, and keep every TASK.md rule.
+  If the fix and the task seem to conflict, report it; do not choose.
   Other findings are advice. Fix real issues.
   Explain each false hit in one line.
   Do not rename a good test just to lower a probability.

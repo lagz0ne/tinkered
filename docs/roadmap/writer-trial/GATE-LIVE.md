@@ -69,8 +69,10 @@ Times are writer event-log spans, not wall clock.
   Labeled `true`; `inputDefaultMasks` now 20 / 39,
   61 points, 99% ordered.
 - **Over-correction** — MiMo Pro obeyed the block
-  by breaking the task's payload type. A blocking
-  finding should say how to satisfy the rule.
+  by breaking the task's payload type. Fixed by
+  `writers/gate-howto`: every blocking item now
+  carries a `fix` line, and the rules say to keep
+  every task rule and report a conflict.
 
 ## Teacher bugs found by the live run
 

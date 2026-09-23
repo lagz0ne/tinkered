@@ -9,11 +9,15 @@
 //
 // The repo's own tools/jev stays advisory; this gate is trial-only.
 
+// Every blocking item says how to clear it: a plain rule's message names
+// the allowed form; a Jev judge carries its own `fix` line (older frozen
+// banks have none, so `fix` is null there).
 const shapeItem = (file, finding) => ({
   file,
   line: finding.line,
   rule: finding.id,
   message: finding.message,
+  fix: finding.message,
 });
 
 const jevItem = (file, row, finding) => ({
@@ -22,6 +26,7 @@ const jevItem = (file, row, finding) => ({
   judge: finding.id,
   probability: finding.probability,
   calibration: finding.calibration,
+  fix: finding.fix ?? null,
 });
 
 const listOf = (value) => (Array.isArray(value) ? value : []);

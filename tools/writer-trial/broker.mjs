@@ -108,6 +108,7 @@ export async function judgeSource({ source, file, jevDir, judges, ask, allow = (
         threshold: candidates[id].threshold,
         hit: answer.probability >= candidates[id].threshold,
         calibration: calibration[id]?.status ?? "uncalibrated",
+        fix: candidates[id].fix ?? null,
       })),
     });
   };

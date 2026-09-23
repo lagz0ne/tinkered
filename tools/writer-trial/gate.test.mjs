@@ -13,7 +13,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { judgeSource } from "./broker.mjs";
 import { gateFiles, gateOf, machineVerdict } from "./gate.mjs";
 
@@ -71,6 +71,7 @@ void describe("the Jev gate", () => {
         judge: "partialStub",
         probability: 0.8,
         calibration: "proven",
+        fix: null,
       },
     ]);
   });
@@ -102,7 +103,13 @@ void describe("the Jev gate", () => {
     const gate = gateOf(report({ plainFindings: [shape] }));
     assert.equal(gate.status, "block");
     assert.deepEqual(gate.blocking, [
-      { file: "src/app.ts", line: 4, rule: "no-scope-prop", message: "scope in view props" },
+      {
+        file: "src/app.ts",
+        line: 4,
+        rule: "no-scope-prop",
+        message: "scope in view props",
+        fix: "scope in view props",
+      },
     ]);
   });
 
@@ -146,6 +153,33 @@ void describe("the Jev gate", () => {
       gate.advice.map((item) => item.judge),
       ["leakedInternal"],
     );
+  });
+
+  void it("tells the writer how to clear a blocking Jev hit with the judge's fix line", async () => {
+    const judged = await judgeSource({
+      source: "export function add(a: number, b: number) { return a + b; }\n",
+      file: "src/add.ts",
+      jevDir,
+      judges: ["partialStub"],
+      ask: fakeAsk(["partialStub"]),
+    });
+    const bank = await import(pathToFileURL(join(jevDir, "lib.mjs")).href);
+    assert.deepEqual(
+      gateOf(judged).blocking.map((item) => item.fix),
+      [bank.JUDGES.partialStub.fix],
+    );
+  });
+
+  void it("tells the writer how to clear a plain rule break with its message", async () => {
+    const judged = await judgeSource({
+      source: 'test("x", () => {\n  expect(isError(e, "X")).toBe(true);\n});\n',
+      file: "tests/app.test.ts",
+      jevDir,
+      judges: [],
+      ask: fakeAsk([]),
+    });
+    const [item] = gateOf(judged).blocking;
+    assert.match(item.fix, /narrow with isError in an if/);
   });
 
   void it("blocks on isError inside expect in a test file (T08)", async () => {

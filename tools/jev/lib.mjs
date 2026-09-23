@@ -102,6 +102,7 @@ export function fileAt(range, path) {
 // cases (2026-09-18): judges separated bad from clean by 59–90%, so 0.5 is safe to start.
 export const JUDGES = {
   partialStub: {
+    fix: "Finish the required path, or remove it if the task does not need it.",
     threshold: 0.5,
     q: {
       type: "boolean",
@@ -114,6 +115,7 @@ export const JUDGES = {
     },
   },
   memoKeyIgnoresInput: {
+    fix: "Add every input the result depends on to the cache key.",
     threshold: 0.5,
     q: {
       type: "boolean",
@@ -126,6 +128,7 @@ export const JUDGES = {
     },
   },
   leakedInternal: {
+    fix: "Keep it out of the public exports; test it through the public API.",
     threshold: 0.5,
     q: {
       type: "boolean",

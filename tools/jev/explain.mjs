@@ -42,6 +42,7 @@ for (const [title, bank] of GROUPS) {
     }
     console.log(`${id}  [${where(id)}, threshold ${j.threshold}]`);
     console.log(`  question: ${q.instructions}`);
+    if (j.fix) console.log(`  fix: ${j.fix}`);
     console.log(`  true  → ${q.criteria.true}`);
     console.log(`  false → ${q.criteria.false}\n`);
   }
