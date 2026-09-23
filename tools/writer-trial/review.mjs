@@ -68,6 +68,21 @@ import { isJudgedPath, jevAsk, judgeSource } from "./broker.mjs";
 import { gateFiles, gateOf, machineVerdict } from "./gate.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
+
+// The teacher helpers each suite checker loads, hashed beside it.
+const TEACHER_HELPERS = {
+  "evaluate.mjs": ["teacher/check.mjs", "teacher/run.mjs", "teacher/browser.mjs"],
+  "acceptance.mjs": [
+    "teacher/acceptance.mjs",
+    "teacher/acceptance-shape.mjs",
+    "teacher/browser.mjs",
+    "teacher/check.mjs",
+    "teacher/run.mjs",
+  ],
+  "plan-acceptance.mjs": ["teacher/plan-acceptance.mjs", "teacher/acceptance-shape.mjs"],
+  "loans-acceptance.mjs": ["teacher/loans-acceptance.mjs", "teacher/acceptance-shape.mjs"],
+  "stock-acceptance.mjs": ["teacher/stock-acceptance.mjs", "teacher/acceptance-shape.mjs"],
+};
 const home = join(homedir(), ".local/share/tinker-writer-trial");
 const [command, name, roundText, workerText] = process.argv.slice(2);
 if (!["save", "check", "feedback"].includes(command ?? ""))
@@ -338,21 +353,6 @@ if (command === "save") {
   saveManifest();
   console.log(`Staged feedback for round ${round} worker ${workerNum}; next try is ${retry}.`);
 }
-
-// The teacher helpers each suite checker loads, hashed beside it.
-const TEACHER_HELPERS = {
-  "evaluate.mjs": ["teacher/check.mjs", "teacher/run.mjs", "teacher/browser.mjs"],
-  "acceptance.mjs": [
-    "teacher/acceptance.mjs",
-    "teacher/acceptance-shape.mjs",
-    "teacher/browser.mjs",
-    "teacher/check.mjs",
-    "teacher/run.mjs",
-  ],
-  "plan-acceptance.mjs": ["teacher/plan-acceptance.mjs", "teacher/acceptance-shape.mjs"],
-  "loans-acceptance.mjs": ["teacher/loans-acceptance.mjs", "teacher/acceptance-shape.mjs"],
-  "stock-acceptance.mjs": ["teacher/stock-acceptance.mjs", "teacher/acceptance-shape.mjs"],
-};
 
 // Checker source hashes plus the pinned image ID, written before
 // the run. A rerun after a teacher edit gets a new folder and new
