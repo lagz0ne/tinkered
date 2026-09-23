@@ -922,6 +922,102 @@ test("releaseNs rebuilds a hookless named client without touching its sibling", 
   await scope.close({ graceful: true });
 });
 
+test("a fallback client survives release of a different pool bucket, with or without hooks", async () => {
+  for (const hooked of [false, true]) {
+    const a = namespace();
+    const b = namespace();
+    let builds = 0;
+    const pool = hooked
+      ? resource({
+          label: "hookful-pool",
+          target: "session",
+          factory: (_deps, ctx) => {
+            ctx.defer(() => undefined);
+            return ++builds;
+          },
+        })
+      : resource({ label: "hookless-pool", target: "session", factory: () => ++builds });
+    const client = resource({
+      label: "fallback-client",
+      target: "session",
+      depends: { pool },
+      factory: ({ pool }) => ({ pool }),
+    });
+    const scope = createScope();
+    scope.resolve(pool, { ns: b });
+    const first = scope.resolve(client, { ns: [a, b] });
+    scope.resolve(pool, { ns: a });
+    scope.releaseNs(pool, a);
+    expect(scope.resolve(client, { ns: [a, b] })).toBe(first);
+    await scope.close({ graceful: true });
+  }
+});
+
+test("a fallback client rebuilds when its selected pool bucket is released, with or without hooks", async () => {
+  for (const hooked of [false, true]) {
+    const a = namespace();
+    const c = namespace();
+    let builds = 0;
+    const pool = hooked
+      ? resource({
+          label: "hookful-pool",
+          target: "session",
+          factory: (_deps, ctx) => {
+            ctx.defer(() => undefined);
+            return ++builds;
+          },
+        })
+      : resource({ label: "hookless-pool", target: "session", factory: () => ++builds });
+    const client = resource({
+      label: "fallback-client",
+      target: "session",
+      depends: { pool },
+      factory: ({ pool }) => ({ pool }),
+    });
+    const scope = createScope();
+    scope.resolve(pool, { ns: a });
+    const first = scope.resolve(client, { ns: [c, a] });
+    scope.releaseNs(pool, a);
+    const rebuilt = scope.resolve(client, { ns: [c, a] });
+    expect(rebuilt).not.toBe(first);
+    expect(rebuilt.pool).toBe(2);
+    await scope.close({ graceful: true });
+  }
+});
+
+test("a rebuilt client drops the named resource link from its failed build", async () => {
+  const a = namespace();
+  const b = namespace();
+  let builds = 0;
+  const pool = resource({
+    label: "generation-pool",
+    target: "session",
+    factory: () => ++builds,
+  });
+  let failing = true;
+  const client = resource({
+    label: "generation-client",
+    target: "session",
+    depends: { pool },
+    factory: ({ pool }) => {
+      if (failing) {
+        failing = false;
+        throw new Error("build failed");
+      }
+      return { pool };
+    },
+  });
+  const scope = createScope();
+  scope.resolve(pool, { ns: b });
+  expect(() => scope.resolve(client, { ns: [a, b] })).toThrow();
+  scope.releaseNs(client, a);
+  scope.resolve(pool, { ns: a });
+  const rebuilt = scope.resolve(client, { ns: [a, b] });
+  scope.releaseNs(pool, b);
+  expect(scope.resolve(client, { ns: [a, b] })).toBe(rebuilt);
+  await scope.close({ graceful: true });
+});
+
 test("releaseNs on a root pool unlinks child clients built on that namespace", async () => {
   const a = namespace();
   const b = namespace();

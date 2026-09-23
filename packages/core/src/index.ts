@@ -929,6 +929,8 @@ class NsResourceState {
   gen = 0;
   building = false;
   dataDependencies: Set<NsDataDependency> | undefined = undefined;
+  resourceDependents: Set<NsResourceState> | undefined = undefined;
+  resourceDependencies: Set<NsResourceState> | undefined = undefined;
   instance: ResourceInstance | undefined = undefined;
   constructor(owner: Layer, target: Resource.Handle<unknown>, key: Namespace) {
     this.owner = owner;
@@ -2338,7 +2340,13 @@ function resolveResourceDeps(
       if (node && !superseded()) addDependent(owner, node, target, chain, state);
     },
     chain,
-    selected,
+    state instanceof NsResourceState && chain !== undefined
+      ? (depOwner, depTarget, depState) => {
+          if (!superseded() && depState instanceof NsResourceState)
+            linkNsResourceDependent(depState, state);
+          selected?.(depOwner, depTarget, depState);
+        }
+      : selected,
   );
 }
 
@@ -3088,8 +3096,7 @@ function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): voi
       state.promise = undefined;
       state.failed = undefined;
       state.build = undefined;
-      detachNsDataDependencies(state);
-      state.dataDependencies = undefined;
+      detachNsDependencies(state);
     }
     s.nsResources = undefined;
   }
@@ -3234,21 +3241,19 @@ function drainRelease(affected: Map<Layer, Released>, notify?: () => void): void
 
 type NamedRelease = {
   owner: Layer;
-  state: ResourceState;
+  state: NsResourceState;
   target: Resource.Handle<unknown>;
 };
 
 function collectNamedRelease(pending: NamedRelease[]): Map<Layer, Released> {
   const affected = new Map<Layer, Released>();
-  const seen = new Set<ResourceState>();
+  const seen = new Set<NsResourceState>();
   while (pending.length) {
     const item = pending.pop()!;
-    if (seen.has(item.state)) continue;
+    if (!isLiveNamedRelease(item) || seen.has(item.state)) continue;
     seen.add(item.state);
     const instance = item.state.instance;
-    if (instance) enqueueNamedDependents(item.owner, instance, pending);
-    else if (item.state instanceof NsResourceState)
-      enqueueHooklessDependents(item.owner, item.target, item.state.key, pending);
+    queueLinkedDependents(item.state, pending);
     const released = affected.get(item.owner) ?? {
       instances: new Set<ResourceInstance>(),
       hooks: [],
@@ -3260,53 +3265,19 @@ function collectNamedRelease(pending: NamedRelease[]): Map<Layer, Released> {
   return affected;
 }
 
-function enqueueHooklessDependents(
-  owner: Layer,
-  target: Resource.Handle<unknown>,
-  key: Namespace,
-  pending: NamedRelease[],
-): void {
-  forEachDependent(owner, target, (target, owner) => {
-    const state = owner.nodes.get(target)?.nsResources?.get(key);
-    if (state) pending.push({ owner, state, target });
-  });
+function isLiveNamedRelease({ owner, target, state }: NamedRelease): boolean {
+  return owner.nodes.get(target)?.nsResources?.get(state.key) === state;
 }
 
-function enqueueNamedDependents(
-  owner: Layer,
-  dependency: ResourceInstance,
-  pending: NamedRelease[],
-): void {
-  const stack: Layer[] = [owner];
-  while (stack.length) {
-    const scope = stack.pop()!;
-    for (const [node, rec] of scope.nodes)
-      if (isResource(node)) enqueueNamedNode(scope, node, rec, dependency, pending);
-    for (const child of scope.children) stack.push(child);
-  }
-}
-
-function enqueueNamedNode(
-  owner: Layer,
-  target: Resource.Handle<unknown>,
-  rec: NodeState,
-  dependency: ResourceInstance,
-  pending: NamedRelease[],
-): void {
-  for (const state of [rec, ...(rec.nsResources?.values() ?? [])])
-    if (state.instance?.dependencies?.has(dependency)) pending.push({ owner, state, target });
+function queueLinkedDependents(state: NsResourceState, pending: NamedRelease[]): void {
+  for (const dependent of state.resourceDependents ?? [])
+    pending.push({ owner: dependent.owner, state: dependent, target: dependent.target });
 }
 
 function unlinkNamedState({ owner, state, target }: NamedRelease): void {
   const instance = state.instance;
-  if (state instanceof NsResourceState) {
-    owner.nodes.get(target)?.nsResources?.delete(state.key);
-    detachNsDataDependencies(state);
-    state.dataDependencies = undefined;
-  } else {
-    detachDependent(owner, target);
-    state.instance = undefined;
-  }
+  owner.nodes.get(target)?.nsResources?.delete(state.key);
+  detachNsDependencies(state);
   state.gen++;
   state.resource = undefined;
   state.promise = undefined;
@@ -3429,6 +3400,12 @@ function addNsDataDependent(
   return true;
 }
 
+function linkNsResourceDependent(selected: NsResourceState, dependent: NsResourceState): void {
+  if (selected.resourceDependents?.has(dependent)) return;
+  (selected.resourceDependents ??= new Set()).add(dependent);
+  (dependent.resourceDependencies ??= new Set()).add(selected);
+}
+
 function linkNsDataDependent(selected: NsDataDependency, dependent: NsResourceState): void {
   const dependents =
     selected.source.nsDataDependents?.get(selected.entry) ?? new Set<NsResourceState>();
@@ -3458,11 +3435,20 @@ function selectNsDataEntry(
 
 const DEFAULT_DATA_ENTRY = Symbol("default-data-entry");
 
-function detachNsDataDependencies(state: NsResourceState): void {
-  if (!state.dataDependencies) return;
-  for (const link of state.dataDependencies) {
+function detachNsDependencies(state: NsResourceState): void {
+  for (const link of state.dataDependencies ?? [])
     link.source.nsDataDependents?.get(link.entry)?.delete(state);
-  }
+  state.dataDependencies = undefined;
+  detachNsResourceLinks(state);
+}
+
+function detachNsResourceLinks(state: NsResourceState): void {
+  for (const dependency of state.resourceDependencies ?? [])
+    dependency.resourceDependents?.delete(state);
+  for (const dependent of state.resourceDependents ?? [])
+    dependent.resourceDependencies?.delete(state);
+  state.resourceDependencies = undefined;
+  state.resourceDependents = undefined;
 }
 
 function detachResourceDependencies(
@@ -3471,8 +3457,7 @@ function detachResourceDependencies(
   state: ResourceState,
 ): void {
   if (state instanceof NsResourceState) {
-    detachNsDataDependencies(state);
-    state.dataDependencies = undefined;
+    detachNsDependencies(state);
     return;
   }
   detachDependent(owner, dependent);
