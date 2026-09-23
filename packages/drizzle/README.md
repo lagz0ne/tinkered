@@ -73,7 +73,9 @@ the factory returns from the transaction callback — commit. On `failed`, `canc
 `released` it raises `Rollback` inside the callback — rollback. Nobody outside ever sees
 `Rollback`; the resource's `defer` handles that expected rollback. Other commit or cleanup
 failures remain in the close result; `scope.session(...)` rejects when cleanup fails. Await
-the completed session before publishing saved state to other readers.
+the completed session before publishing saved state to other readers. A failed request
+rejects with its operation error and rolls back only its own transaction; rows from
+prior successful requests remain saved.
 
 One transaction per request session (v1): a tagged call opens a child session, which would
 build its own `tx` — a second transaction, not a savepoint. Bind per-flow tags at the
