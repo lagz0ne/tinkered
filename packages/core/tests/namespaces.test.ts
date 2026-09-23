@@ -779,12 +779,22 @@ test("a chain watcher sees its fallback key but not an unrelated key", async () 
   const a = namespace();
   const b = namespace();
   const c = namespace();
-  const cell = data({ label: "fallback-watch", initial: 0 });
+  let comparisons = 0;
+  const cell = data({
+    label: "fallback-watch",
+    initial: 0,
+    eq: (left, right) => {
+      comparisons++;
+      return left === right;
+    },
+  });
   const scope = createScope();
   const seen: number[] = [];
   scope.controller(cell, { ns: [a, b] }).watch((next) => seen.push(next));
   scope.controller(cell, { ns: b }).set(1);
+  comparisons = 0;
   scope.controller(cell, { ns: c }).set(2);
+  expect(comparisons).toBe(1);
   expect(seen).toEqual([1]);
   await scope.close();
 });

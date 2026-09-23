@@ -914,6 +914,11 @@ type NsWatcher = Watcher & {
   notified: unknown;
 };
 
+type NsWatchers = {
+  all: Set<NsWatcher>;
+  byKey: Map<Namespace, Set<NsWatcher>>;
+};
+
 /** The exact data entry a named resource read. */
 type NsDataDependency = { source: NodeState; entry: Entry };
 
@@ -1007,9 +1012,9 @@ class NodeState {
   /** Named resource states keyed by the exact data entry they read. */
   nsDataDependents: Map<Entry, Set<NsResourceState>> | undefined = undefined;
   /** Namespaced watchers at this layer. Each owns its full chain and last observed value because
-   * two chains with the same write head can resolve through different fallback buckets. */
-  nsWatchers: Set<NsWatcher> | undefined = undefined;
-  nsWatchersByKey: Map<Namespace, Set<NsWatcher>> | undefined = undefined;
+   * two chains with the same write head can resolve through different fallback buckets. `byKey`
+   * selects only chains containing a changed named bucket; `all` serves default and child flushes. */
+  nsWatchers: NsWatchers | undefined = undefined;
 }
 
 /** Get-or-create this layer's record for a node. */
@@ -1333,9 +1338,9 @@ function ownNsCell(layer: Layer, target: Data.Cell<unknown>, key: Namespace, see
 /** A named bucket change can affect only chains containing its key at this layer. A default
  * change or a flush inherited by a child re-resolves all chains. */
 function flushNsWatchers(layer: Layer, target: Data.Cell<unknown>, key?: Namespace): void {
-  const rec = layer.nodes.get(target);
-  if (!rec) return;
-  const watchers = key === undefined ? rec.nsWatchers : rec.nsWatchersByKey?.get(key);
+  const nsWatchers = layer.nodes.get(target)?.nsWatchers;
+  if (!nsWatchers) return;
+  const watchers = key === undefined ? nsWatchers.all : nsWatchers.byKey.get(key);
   if (!watchers?.size) return;
   const pending = pendingNsWatchers(layer, target, watchers);
   for (const p of pending ?? []) p.fn(p.next, p.prev);
@@ -1539,8 +1544,9 @@ function addWatcherNs(
   ensureOpen(layer);
   const rec = nodeState(layer, target);
   const watcher: NsWatcher = { fn, chain, notified: readCell(layer, target, chain) };
-  (rec.nsWatchers ??= new Set()).add(watcher);
-  const byKey = (rec.nsWatchersByKey ??= new Map());
+  const nsWatchers = (rec.nsWatchers ??= { all: new Set(), byKey: new Map() });
+  nsWatchers.all.add(watcher);
+  const byKey = nsWatchers.byKey;
   for (const key of chain) {
     let watchers = byKey.get(key);
     if (!watchers) {
@@ -1550,7 +1556,7 @@ function addWatcherNs(
     watchers.add(watcher);
   }
   return () => {
-    rec.nsWatchers?.delete(watcher);
+    nsWatchers.all.delete(watcher);
     for (const key of chain) {
       const watchers = byKey.get(key);
       watchers?.delete(watcher);

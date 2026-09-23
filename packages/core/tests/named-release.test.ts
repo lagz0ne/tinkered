@@ -1312,7 +1312,15 @@ test("releaseNs notifies only chains containing the released key", async () => {
   const a = namespace();
   const b = namespace();
   const c = namespace();
-  const cell = data({ label: "selective-release", initial: 0 });
+  let comparisons = 0;
+  const cell = data({
+    label: "selective-release",
+    initial: 0,
+    eq: (left, right) => {
+      comparisons++;
+      return left === right;
+    },
+  });
   const scope = createScope();
   scope.controller(cell, { ns: a }).set(1);
   scope.controller(cell, { ns: b }).set(2);
@@ -1320,7 +1328,9 @@ test("releaseNs notifies only chains containing the released key", async () => {
   scope.controller(cell, { ns: [a, b] }).watch(() => seen.push("a-b"));
   scope.controller(cell, { ns: a }).watch(() => seen.push("a"));
   scope.controller(cell, { ns: c }).watch(() => seen.push("c"));
+  comparisons = 0;
   scope.releaseNs(cell, a);
+  expect(comparisons).toBe(2);
   expect(seen).toEqual(["a-b", "a"]);
   await scope.close({ graceful: true });
 });
