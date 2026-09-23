@@ -1308,6 +1308,23 @@ test("releaseNs on a root pool unlinks child clients built on that namespace", a
   await root.close({ graceful: true });
 });
 
+test("releaseNs notifies only chains containing the released key", async () => {
+  const a = namespace();
+  const b = namespace();
+  const c = namespace();
+  const cell = data({ label: "selective-release", initial: 0 });
+  const scope = createScope();
+  scope.controller(cell, { ns: a }).set(1);
+  scope.controller(cell, { ns: b }).set(2);
+  const seen: string[] = [];
+  scope.controller(cell, { ns: [a, b] }).watch(() => seen.push("a-b"));
+  scope.controller(cell, { ns: a }).watch(() => seen.push("a"));
+  scope.controller(cell, { ns: c }).watch(() => seen.push("c"));
+  scope.releaseNs(cell, a);
+  expect(seen).toEqual(["a-b", "a"]);
+  await scope.close({ graceful: true });
+});
+
 test("releaseNs notifies a chain watcher of its fallback value", async () => {
   const a = namespace();
   const b = namespace();

@@ -1009,6 +1009,7 @@ class NodeState {
   /** Namespaced watchers at this layer. Each owns its full chain and last observed value because
    * two chains with the same write head can resolve through different fallback buckets. */
   nsWatchers: Set<NsWatcher> | undefined = undefined;
+  nsWatchersByKey: Map<Namespace, Set<NsWatcher>> | undefined = undefined;
 }
 
 /** Get-or-create this layer's record for a node. */
@@ -1255,9 +1256,9 @@ function ownCell(
 /** Fire the changed cell's watchers on this layer, then on descendants that inherit it (a child that
  * shadows the cell, and everything under it, still sees its own value). One equality check against
  * the layer's last notified value, then every watcher runs in registration order. */
-function flushCell(layer: Layer, target: Data.Cell<unknown>): void {
+function flushCell(layer: Layer, target: Data.Cell<unknown>, key?: Namespace): void {
   flushOne(layer, target);
-  flushNsWatchers(layer, target);
+  flushNsWatchers(layer, target, key);
   for (const child of layer.children) {
     if (!child.nodes.get(target)?.cell) flushCell(child, target);
   }
@@ -1313,8 +1314,9 @@ function writeCellNs(
   const value = admit(target.label, target.parse, next);
   const current = readCell(layer, target, chain);
   if (cellEq(target, current, value)) return;
-  ownNsCell(layer, target, chain[0], current).value = value;
-  flushNsWatchers(layer, target);
+  const [key] = chain;
+  ownNsCell(layer, target, key, current).value = value;
+  flushNsWatchers(layer, target, key);
 }
 
 /** Get-or-create this layer's named bucket of a cell, seeded from the inherited value. */
@@ -1328,13 +1330,15 @@ function ownNsCell(layer: Layer, target: Data.Cell<unknown>, key: Namespace, see
   return bucket;
 }
 
-/** Re-resolve every namespaced watcher through its own full chain. A write to one bucket can
- * change any chain that falls through to it, while another chain with the same head may not change. */
-function flushNsWatchers(layer: Layer, target: Data.Cell<unknown>): void {
-  const watchers = layer.nodes.get(target)?.nsWatchers;
-  if (watchers === undefined || watchers.size === 0) return;
+/** A named bucket change can affect only chains containing its key at this layer. A default
+ * change or a flush inherited by a child re-resolves all chains. */
+function flushNsWatchers(layer: Layer, target: Data.Cell<unknown>, key?: Namespace): void {
+  const rec = layer.nodes.get(target);
+  if (!rec) return;
+  const watchers = key === undefined ? rec.nsWatchers : rec.nsWatchersByKey?.get(key);
+  if (!watchers?.size) return;
   const pending = pendingNsWatchers(layer, target, watchers);
-  if (pending) for (const p of pending) p.fn(p.next, p.prev);
+  for (const p of pending ?? []) p.fn(p.next, p.prev);
 }
 
 /** Snapshot the changed watchers BEFORE any callback fires: read and record each watcher's new value
@@ -1536,7 +1540,23 @@ function addWatcherNs(
   const rec = nodeState(layer, target);
   const watcher: NsWatcher = { fn, chain, notified: readCell(layer, target, chain) };
   (rec.nsWatchers ??= new Set()).add(watcher);
-  return () => void rec.nsWatchers?.delete(watcher);
+  const byKey = (rec.nsWatchersByKey ??= new Map());
+  for (const key of chain) {
+    let watchers = byKey.get(key);
+    if (!watchers) {
+      watchers = new Set();
+      byKey.set(key, watchers);
+    }
+    watchers.add(watcher);
+  }
+  return () => {
+    rec.nsWatchers?.delete(watcher);
+    for (const key of chain) {
+      const watchers = byKey.get(key);
+      watchers?.delete(watcher);
+      if (watchers?.size === 0) byKey.delete(key);
+    }
+  };
 }
 
 function resolveControllerEdge(
@@ -3236,7 +3256,7 @@ function releaseNamedData(owner: Layer, target: Data.Cell<unknown>, ns: Namespac
   const affected = collectNamedRelease(namedDataSeeds(rec, entry));
   rec.nsCells.delete(ns);
   rec.nsDataDependents?.delete(entry);
-  drainRelease(affected, () => flushCell(owner, target));
+  drainRelease(affected, () => flushCell(owner, target, ns));
 }
 
 function namedDataSeeds(rec: NodeState, entry: Entry): NsResourceState[] {

@@ -290,6 +290,10 @@ The namespace tests also pin these guarantees:
 - A re-registered named watcher refreshes its comparison value.
 - A namespace-blind watcher observes default storage, never ambient tenant storage.
 - A chained watcher compares against the full resolved namespace chain.
+- A named write compares only its namespace watcher among a thousand.
+- A chain watcher sees its fallback key but not an unrelated key.
+- Unsubscribing a chain watcher removes it from every named key.
+- `releaseNs` notifies only chains containing the released key.
 - An empty namespace chain is rejected with `InvalidDependency`.
 - A non-namespace `ns` value fails with `InvalidDependency`, not a silent key.
 - Invalid input rejects before dependencies build.

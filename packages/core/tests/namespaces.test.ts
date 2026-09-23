@@ -751,6 +751,58 @@ test.each(["head-first", "chain-first"] as const)(
   },
 );
 
+test("a named write compares only its namespace watcher among a thousand", async () => {
+  let comparisons = 0;
+  const cell = data({
+    label: "indexed-cell",
+    initial: 0,
+    eq: (a, b) => {
+      comparisons++;
+      return a === b;
+    },
+  });
+  const scope = createScope();
+  const seen: number[] = [];
+  const controllers = Array.from({ length: 1000 }, (_, index) => {
+    const ctl = scope.controller(cell, { ns: namespace() });
+    ctl.watch(() => seen.push(index));
+    return ctl;
+  });
+  comparisons = 0;
+  controllers[513].set(1);
+  expect(comparisons).toBe(2);
+  expect(seen).toEqual([513]);
+  await scope.close();
+});
+
+test("a chain watcher sees its fallback key but not an unrelated key", async () => {
+  const a = namespace();
+  const b = namespace();
+  const c = namespace();
+  const cell = data({ label: "fallback-watch", initial: 0 });
+  const scope = createScope();
+  const seen: number[] = [];
+  scope.controller(cell, { ns: [a, b] }).watch((next) => seen.push(next));
+  scope.controller(cell, { ns: b }).set(1);
+  scope.controller(cell, { ns: c }).set(2);
+  expect(seen).toEqual([1]);
+  await scope.close();
+});
+
+test("unsubscribing a chain watcher removes it from every named key", async () => {
+  const a = namespace();
+  const b = namespace();
+  const cell = data({ label: "unsubscribe-chain", initial: 0 });
+  const scope = createScope();
+  const seen: number[] = [];
+  const stop = scope.controller(cell, { ns: [a, b] }).watch((next) => seen.push(next));
+  stop();
+  scope.controller(cell, { ns: a }).set(1);
+  scope.controller(cell, { ns: b }).set(2);
+  expect(seen).toEqual([]);
+  await scope.close();
+});
+
 test("a chained watcher compares against the full resolved namespace chain", () => {
   const a = namespace();
   const b = namespace();
