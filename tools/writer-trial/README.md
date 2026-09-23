@@ -1,10 +1,12 @@
 # Writer trial
 
-Three suites, one repeatable flow per suite.
-Only core and React from Tinker.
-Booking grows over rounds 1-5.
-Stock is one fresh round.
-Plan is one fresh round with course prerequisites.
+Tools to run model writers on a task, in isolation, and score them.
+Writers use only core and React from Tinker.
+Three suites, one repeatable flow per suite:
+
+- **Booking** — grows over rounds 1-5.
+- **Stock** — one fresh round.
+- **Plan** — one fresh round with course prerequisites.
 
 ## What workers can see
 
@@ -50,12 +52,14 @@ node tools/writer-trial/workers.mjs \
 `create` freezes one suite into the trial:
 task, full rules, tool copies, limits, and the Jev copy.
 It records hashes and refuses a silent refresh.
-The default suite is booking; stock needs `--suite stock`.
-Stock stage 1 loads `stock/01-stock-moves.md`.
-Plan needs `--suite plan`.
-Plan stage 1 loads `plan/01-learning-plan.md`.
-Booking stages rounds 1-5 from frozen packets.
-Old trials without frozen files still stage rounds 1-4.
+
+- **Booking** — the default suite.
+  Stages rounds 1-5 from frozen packets.
+  Old trials without frozen files still stage rounds 1-4.
+- **Stock** — needs `--suite stock`.
+  Stage 1 loads `stock/01-stock-moves.md`.
+- **Plan** — needs `--suite plan`.
+  Stage 1 loads `plan/01-learning-plan.md`.
 
 The first command that registers models adds only the
 `writer-gateway` provider to Pi's model file.
@@ -102,8 +106,8 @@ Do not send future packets or teacher test bodies.
 ## Limits
 
 Teacher controls live in `config.json`.
-The user asked to finish testing before comparing budgets.
-`limits.disabled` is now `true`: trial stops are off.
+`limits.disabled` is now `true`: trial stops are off,
+because the user asked to finish testing before comparing budgets.
 The stored thresholds below apply only when it is `false`:
 
 - 45 minutes.
@@ -113,13 +117,16 @@ The stored thresholds below apply only when it is `false`:
 - 60 Jev requests, counted separately.
 - Each shell command has at most 120 seconds.
 
-When enabled, token and cost stops apply after completed model responses.
-One response may cross the limit; these are not billing caps.
+When enabled:
+
+- Token and cost stops apply after completed model responses.
+  One response may cross the limit; these are not billing caps.
+- The wall-clock stop aborts the agent and stops its container.
+  A stopped container keeps its `/work` volume for the next round.
+
 Costs use gateway catalog rates and are estimates.
-Jev usage and cost are recorded as unknown by the current adapter.
+The current adapter records Jev usage and cost as unknown.
 Its call limit still applies.
-When enabled, the wall-clock stop aborts the agent and stops its container.
-A stopped container keeps its `/work` volume for the next round.
 
 Teacher can change the enabled judge IDs in `config.json`.
 Record any change to that file as a new trial phase.
@@ -142,17 +149,18 @@ node tools/writer-trial/review.mjs feedback trial-02 1 1 \
   --teacher <teacher-notes.md>
 ```
 
-`save` stops the container, then saves one attempt:
-source archive, native session copy, report copy,
-event copy, and per-file hashes. It refuses overwrite.
-`check` runs the worker's own check, test, and build
-in a fresh pinned container, then the suite checker
-in a second one. It writes named `check-N` folders with
-checker hashes and the image ID beside exit codes.
-Repeats never reuse a folder.
-`feedback` copies only teacher text, restages frozen
-task, rules, tools, and limits, and starts a fresh
-event log. Saved tries are kept.
+- **`save`** — stops the container, then saves one attempt:
+  source archive, native session copy, report copy,
+  event copy, and per-file hashes. It refuses overwrite.
+- **`check`** — runs the worker's own check, test, and build
+  in a fresh pinned container, then the suite checker
+  in a second one. It writes named `check-N` folders with
+  checker hashes and the image ID beside exit codes.
+  Repeats never reuse a folder.
+- **`feedback`** — copies only teacher text, restages frozen
+  task, rules, tools, and limits, and starts a fresh
+  event log. Saved tries are kept.
+
 Machine pass or fail is recorded apart from lead review.
 Lead review stays pending until the lead sets it.
 A missing checker fails unavailable, never passes.
@@ -189,11 +197,12 @@ node tools/writer-trial/readiness.mjs
 node --test tools/writer-trial/limits-check.mjs
 ```
 
-The first checks all four containers, real browser clicks,
-package imports, tool versions, timeout, network isolation,
-missing host files, absent keys, and the Jev path boundary.
-The second proves tool blocking and stops for time and usage.
-Live model probes additionally check each route through Paseo,
+- `readiness.mjs` checks all four containers, real browser clicks,
+  package imports, tool versions, timeout, network isolation,
+  missing host files, absent keys, and the Jev path boundary.
+- `limits-check.mjs` proves tool blocking and stops for time and usage.
+
+Live model probes also check each route through Paseo,
 its shell tool, and its real Jev tool.
 Readiness uses a tiny disposable file, never the app task.
 

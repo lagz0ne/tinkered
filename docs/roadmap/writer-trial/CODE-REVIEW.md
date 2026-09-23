@@ -1,12 +1,13 @@
 # Code review: four writers and the issue tracker
 
-None of the four yet meets the tracker's core and React pattern.
-All four keep form text, filters, and notices in React state.
-The teacher's earlier checks passed chosen behavior cases.
-They did not prove that the code followed the requested state rules.
-
-This review found seven failed cases across four added checks per app.
+Trial 01's four apps, read against the issue tracker's core and React pattern.
+Bottom line: none of the four meets it yet.
+Four added checks per app found seven failed cases.
 The saved apps were not changed.
+
+All four keep form text, filters, and notices in React state.
+The teacher's earlier checks passed chosen behavior cases;
+they did not prove the code followed the requested state rules.
 DeepSeek remains fastest; speed did not make it the quality winner.
 
 ## Bugs to fix first
@@ -15,7 +16,7 @@ DeepSeek remains fastest; speed did not make it the quality winner.
 
 Open Alpha, type UNSAVED Alpha, then open Beta.
 The editor still shows UNSAVED Alpha, not Beta.
-The values are kept by React while the draft id changes.
+React keeps the values while the draft id changes.
 Saving now submits those old values for Beta.
 The task says opening a second id drops the first unsaved draft.
 
@@ -72,9 +73,9 @@ This is a lower-priority date edge case than the edit bugs above.
 The saved worker rules say: use core cells for app state.
 Each app has 13 useState calls: five edit fields and eight
 form, filter, and notice values.
-The core editDraft holds the opening copy, not each typed edit.
-A core-only test cannot see the draft text the user is editing.
-This is more than a naming choice; GLM's draft bug shows the risk.
+The core editDraft holds the opening copy, not each typed edit,
+so a core-only test cannot see the draft text being edited.
+GLM's draft bug shows this is more than a naming choice.
 
 - MiMo Flash: [worker 1: BookingApp.tsx:73](/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/src/BookingApp.tsx:73).
 - MiMo Pro: [worker 2: BookingApp.tsx:71](/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/src/BookingApp.tsx:71).
@@ -84,11 +85,15 @@ This is more than a naming choice; GLM's draft bug shows the risk.
 - Tracker: [tracker: client/App.tsx:44](/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx:44) reads a cell and runs a typing operation.
 - Tracker: [tracker: client/App.tsx:144](/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx:144) reads the current edit cell directly.
 
-The tracker has zero useState calls and 18 useRun calls.
-GLM uses useRun eight times, but still keeps the local state.
-The other writers use scope.run and hand-written error handling.
-Calling scope.run is a valid API use; the mismatch is with the
-requested thin-view pattern, not proof that scope.run is broken.
+Hook counts:
+
+- The tracker has zero useState calls and 18 useRun calls.
+- GLM uses useRun eight times but still keeps the local state.
+- The other writers use scope.run and hand-written error handling.
+
+Calling scope.run is a valid API use.
+The mismatch is with the requested thin-view pattern,
+not proof that scope.run is broken.
 
 ### Errors and tests also differ from the tracker
 
@@ -101,7 +106,8 @@ That can hide a coding error as a normal form failure.
 - [worker 3: app.tsx:49](/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-3/src/app.tsx:49) falls back to Unknown.
 - [worker 4: app.tsx:50](/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/app.tsx:50) accepts any string kind or returns Unknown.
 
-The strict style check flags all five code sets.
+The strict style check flags all five code sets
+(four writers plus the tracker).
 It is a review aid, not a count of bugs.
 
 - No mock or spy pattern was found in any set.
@@ -116,18 +122,20 @@ It is a review aid, not a count of bugs.
 - Regex match-array reads were counted as tuple reads in the writers.
   Those are noisy style hits, not the ordering bugs above.
 
-The full repo coding convention was not given to the writers.
+The writers never got the full repo coding convention.
 Their short GUIDELINES.md and task packets were the contract.
-Treat the extra test-style differences as gaps from today's tracker,
-not as undisclosed requirements they were expected to guess.
+So the extra test-style differences are gaps from today's tracker,
+not hidden requirements they were expected to guess.
 
 ## What Jev found, and what it missed
 
-I used the same current question bank and thresholds for all five sets.
-The source pass covered 44 files and 368 extracted units.
-The test pass covered 346 extracted test entries.
-The tracker has server, transport, and tool code the trial did not need.
-Its raw hit count is not a fair score against a small local app.
+All five sets used the same current question bank and thresholds.
+
+- Source pass: 44 files, 368 extracted units.
+- Test pass: 346 extracted test entries.
+
+The tracker has server, transport, and tool code the trial did not need,
+so its raw hit count is not a fair score against a small local app.
 
 - MiMo Flash: zero unit-judge hits; three shape hints.
 - MiMo Pro: two unit-judge hits; three shape hints.
@@ -141,23 +149,29 @@ MiMo Pro isName and isRoom, and DeepSeek toRoom.
 They read fixed lists and hold no changing state.
 No writer correctness bug listed above was detected by these judges.
 
-The parser labels all top-level functions as function.
-It never emits component, even for JSX components.
+The parser labels all top-level functions as function;
+it never emits component, even for JSX components.
 The React judges only apply to component.
 This affects both worker calls and the standard lint command.
 See [extract.mjs](/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/tools/jev/extract.mjs:63) and
 [React judge filter](/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/tools/jev/bank.mjs:145).
 
-I then explicitly marked the 30 JSX components as component
-and asked the existing React questions again, without editing the bank.
+Next, the 30 JSX components were marked as component by hand
+and the existing React questions asked again, bank unchanged.
 All returned below the hit threshold.
-Those questions still do not check useState; their source comment
+Those questions do not check useState; their source comment
 says plain code should check that pattern.
 The worker tool did not include that plain check.
 See [React question scope](/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/tools/jev/bank.mjs:127).
 
-The title judge flagged 5 MiMo Flash tests, 18 MiMo Pro tests,
-11 GLM tests, 19 DeepSeek tests, and 14 tracker tests.
+The title judge flagged tests:
+
+- MiMo Flash: 5.
+- MiMo Pro: 18.
+- GLM: 11.
+- DeepSeek: 19.
+- Tracker: 14.
+
 These are review hints, not measured test quality.
 For example, its blank-title warning on DeepSeek still points at
 an actual rejection test; a flag does not erase that test's value.
@@ -168,11 +182,11 @@ The tracker is a reference for state ownership, not a perfect answer.
 Its endpoint path literals are mostly fixed protocol paths,
 not missed environment settings.
 Transport cleanup and draft-stream warnings need their caller context.
-I have not declared the tracker free of lifetime bugs or rerun its app.
-Those broader warnings are kept in the raw evidence, outside the
-core-and-React comparison and outside the writer ranking.
+The tracker is not declared free of lifetime bugs; its app was not rerun.
+Those broader warnings stay in the raw evidence, outside the
+core-and-React comparison and the writer ranking.
 
-## What I would do next
+## What to do next
 
 Keep all four original submissions unchanged as evidence.
 Before another scored round, fix the teacher's blind spots:
@@ -188,23 +202,25 @@ Then run one repair round on each saved repo.
 Compare how much they fix, what they break, and how long it takes.
 This is a proposed next step; no repair agents were launched.
 
-MiMo Pro leads the narrow core checks added here.
-MiMo Flash is closer on unknown-error handling and test narrowing.
-GLM has the most serious visible draft bug.
-DeepSeek is still the speed pick, with known correctness gaps.
-None has earned acceptance against the full expected pattern.
+## Final call
+
+- MiMo Pro leads the narrow core checks added here.
+- MiMo Flash is closer on unknown-error handling and test narrowing.
+- GLM has the most serious visible draft bug.
+- DeepSeek is still the speed pick, with known correctness gaps.
+- None has earned acceptance against the full expected pattern.
 
 ## Proof and scope
 
-[Counts and source hashes](review-evidence/comparison.json).
-[Questions and calibration used](review-evidence/review-bank.json).
-[Extra file and React results](review-evidence/jev-supplement.json).
-[Probe source](review-evidence/probes.mjs).
-[Method and cleanup](review-evidence/method.json).
+- [Counts and source hashes](review-evidence/comparison.json).
+- [Questions and calibration used](review-evidence/review-bank.json).
+- [Extra file and React results](review-evidence/jev-supplement.json).
+- [Probe source](review-evidence/probes.mjs).
+- [Method and cleanup](review-evidence/method.json).
 
 Per-writer probe results, Jev output, and strict style logs
-are alongside those files in review-evidence/.
-The real saved app copies remain teacher-only under:
+sit beside those files in review-evidence/.
+The real saved app copies stay teacher-only under:
 
 ```text
 ~/.local/share/tinker-writer-trial/trial-01/review/
@@ -216,7 +232,7 @@ Each ran with no network in a disposable container.
 No submitted code ran on the host.
 All probe containers were removed; no projects were recreated.
 
-Style census: FAIL; findings reviewed, app code unchanged.
-
-Review artifact checks: vp check exited 0 with 19 existing warnings.
-Prose lint passed. The seven new failing cases remain unfixed.
+- Style census: FAIL; findings reviewed, app code unchanged.
+- vp check exited 0 with 19 existing warnings.
+- Prose lint passed.
+- The seven new failing cases remain unfixed.
