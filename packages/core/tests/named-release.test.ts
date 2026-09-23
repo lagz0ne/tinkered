@@ -1018,6 +1018,96 @@ test("a rebuilt client drops the named resource link from its failed build", asy
   await scope.close({ graceful: true });
 });
 
+test("releaseNs on a named pool drops a dependent's sticky async failure", async () => {
+  const a = namespace();
+  const b = namespace();
+  let builds = 0;
+  const pool = resource({
+    label: "failed-pool-dependency",
+    target: "session",
+    factory: () => ++builds,
+  });
+  let failing = true;
+  const client = resource({
+    label: "sticky-client",
+    target: "session",
+    depends: { pool },
+    factory: async ({ pool }) => {
+      if (failing) {
+        failing = false;
+        throw new Error("failed client");
+      }
+      return { pool };
+    },
+  });
+  const scope = createScope();
+  scope.resolve(pool, { ns: b });
+  const failed = scope.resolve(client, { ns: [a, b] });
+  await expect(failed).rejects.toThrow("failed client");
+  expect(scope.resolve(client, { ns: [a, b] })).toBe(failed);
+  scope.releaseNs(pool, b);
+  const rebuilt = scope.resolve(client, { ns: [a, b] });
+  expect(rebuilt).not.toBe(failed);
+  await expect(rebuilt).resolves.toEqual({ pool: 2 });
+  await scope.close({ graceful: true });
+});
+
+test("releaseNs finishes a named diamond once, dependent before its pool", async () => {
+  const a = namespace();
+  const b = namespace();
+  const ended: string[] = [];
+  const pool = resource({
+    label: "diamond-pool",
+    target: "session",
+    factory: (_deps, ctx) => {
+      ctx.defer(() => {
+        ended.push("pool");
+      });
+      return {};
+    },
+  });
+  const left = resource({
+    label: "diamond-left",
+    target: "session",
+    depends: { pool },
+    factory: ({ pool }, ctx) => {
+      ctx.defer(() => {
+        ended.push("left");
+      });
+      return pool;
+    },
+  });
+  const right = resource({
+    label: "diamond-right",
+    target: "session",
+    depends: { pool },
+    factory: ({ pool }, ctx) => {
+      ctx.defer(() => {
+        ended.push("right");
+      });
+      return pool;
+    },
+  });
+  const client = resource({
+    label: "diamond-client",
+    target: "session",
+    depends: { left, right },
+    factory: ({ left }, ctx) => {
+      ctx.defer(() => {
+        ended.push("client");
+      });
+      return left;
+    },
+  });
+  const scope = createScope();
+  scope.resolve(pool, { ns: b });
+  const first = scope.resolve(client, { ns: [a, b] });
+  scope.releaseNs(pool, b);
+  expect(ended).toEqual(["client", "right", "left", "pool"]);
+  expect(scope.resolve(client, { ns: [a, b] })).not.toBe(first);
+  await scope.close({ graceful: true });
+});
+
 test("releaseNs on a root pool unlinks child clients built on that namespace", async () => {
   const a = namespace();
   const b = namespace();
