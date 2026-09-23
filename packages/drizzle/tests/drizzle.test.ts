@@ -109,6 +109,27 @@ test("one store keeps each tenant database open across request transactions unti
   expect(second.$client.closed).toBe(true);
 });
 
+test("a failed tenant request rolls back without losing another request's commit", async () => {
+  const store = usersStore("users");
+  const tenant = namespace({ tags: [store.config(null)] });
+  const scope = createScope();
+  await scope.session({ ns: tenant }, (s) => s.run(insertOp(store), { input: "ada" }));
+  const insertThenThrow = operation({
+    label: "failedInsert",
+    depends: { tx: store.tx },
+    run: async ({ tx }) => {
+      await tx.insert(users).values({ name: "grace" });
+      throw new Error("request failed");
+    },
+  });
+  await expect(scope.session({ ns: tenant }, (s) => s.run(insertThenThrow))).rejects.toThrow(
+    "request failed",
+  );
+  const db = await scope.controller(store.db, { ns: tenant }).resolve();
+  expect((await db.select().from(users)).map((row) => row.name)).toEqual(["ada"]);
+  await scope.close();
+});
+
 test("a request config tag cannot replace its tenant database config", async () => {
   const opened: string[] = [];
   const store = drizzleStore<string, PgDatabase>({
