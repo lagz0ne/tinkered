@@ -49,15 +49,16 @@ test("a failed operation logs its failure at error level", () => {
 test("nested subflows log child before parent, once each", () => {
   const lines: Observe.Log[] = [];
   const child = operation({ label: "child", run: () => 2 });
+  const dep = resource({ label: "dep", factory: () => 1 });
   const parent = operation({
     label: "parent",
-    depends: { child },
-    run: ({ child }) => child.run(),
+    depends: { child, dep },
+    run: ({ child, dep }) => child.run() + dep,
   });
   const scope = createScope({
     observe: { history: 2, log: (line) => void lines.push(line) },
   });
-  expect(scope.run(parent)).toBe(2);
+  expect(scope.run(parent)).toBe(3);
   expect(lines.map((line) => line.message)).toEqual(["child", "parent"]);
   expect(lines[0].span?.parentId).toBe(lines[1].span?.id);
 });
