@@ -2148,7 +2148,9 @@ function operationController<T, I>(
     buildDepth++;
     try {
       ctx = new OperationCtx<I>(layer, target, call, obs, span);
-      const deps = readOpDeps(layer, target, span, sees, chain, held);
+      const deps = sees
+        ? readOpDeps(layer, target, span, held, chain)
+        : buildPlainDeps(layer, target.depends, span, chain);
       result = runBody(override, target, deps, ctx, parked);
     } catch (error) {
       closeSpan(obs, span, "failed");
@@ -2272,20 +2274,17 @@ function readOpDeps(
   layer: Layer,
   target: Operation.Handle<unknown, unknown>,
   span: Observe.Span | undefined,
-  sees: boolean,
+  held: HeldBorrows | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
-  held?: HeldBorrows,
 ): Record<string, unknown> {
-  return sees
-    ? buildDeps(
-        layer,
-        target.depends,
-        span,
-        undefined,
-        chain,
-        held && ((instance) => addBorrow(instance, held)),
-      )
-    : buildPlainDeps(layer, target.depends, span, chain);
+  return buildDeps(
+    layer,
+    target.depends,
+    span,
+    undefined,
+    chain,
+    held && ((instance) => addBorrow(instance, held)),
+  );
 }
 
 /** Await every parked build, then deliver the values into their slots. A rejected build rejects
