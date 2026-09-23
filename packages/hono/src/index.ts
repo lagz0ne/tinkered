@@ -325,7 +325,6 @@ function readRoute<T, I>(
     const method = c.req.method;
     const pattern = c.req.routePath;
     const path = c.req.path;
-    const started = ctx.clock.currentTimeMillis();
     const span = ctx.obs.span;
     if (span) {
       span.attributes.method = method;
@@ -339,7 +338,6 @@ function readRoute<T, I>(
         route: pattern,
         path,
         status: response.status,
-        ms: ctx.clock.currentTimeMillis() - started,
       });
       return response;
     };

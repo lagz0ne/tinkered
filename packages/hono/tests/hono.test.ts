@@ -283,30 +283,27 @@ test("one request yields a request span with the route op nested under it", asyn
 
 test("one request writes one http request log line on the request span", async () => {
   const logs: Observe.Log[] = [];
-  const clk = makeTestClock({ now: 0 });
   const { extension: web } = hono([
     route.get("/users/:id", getUser, { input: (c) => c.req.param("id") }),
   ]);
   const scope = createScope({
     tags: [tenant("acme")],
-    clock: clk,
     observe: { history: 20, log: (entry) => logs.push(entry) },
     extensions: [web],
   });
   await scope.ready;
   const app = scope.resolve(web);
   await app.request("/users/42");
-  expect(logs.length).toBe(1);
-  expect(logs[0].message).toBe("http request");
-  expect(logs[0].attributes).toEqual({
+  const requests = logs.filter((entry) => entry.message === "http request");
+  expect(requests.length).toBe(1);
+  expect(requests[0].attributes).toEqual({
     method: "GET",
     route: "/users/:id",
     path: "/users/42",
     status: 200,
-    ms: 0,
   });
   const head = scope.spans().find((s) => s.name === "GET /users/:id");
-  expect(logs[0].span).toBe(head);
+  expect(requests[0].span).toBe(head);
   await scope.close();
 });
 

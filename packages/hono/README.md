@@ -126,8 +126,11 @@ route.post("/users", () => createUser, {
 ```
 
 Each request runs as an inline operation (`"GET /users/:id"`) whose one dependency is the
-route's operation — so core's spans, one `http request` log line, clock, and signal come for
-free. The session closes gracefully (commit) after the handler; forced (rollback) on client
+route's operation — so core's spans, clock, and signal come for free.
+Hono writes one `http request` line with method, route, path, and status when it answers.
+Core writes a separate step line with the operation's label, `ms`, and outcome when its span closes.
+An unmapped error writes no `http request` line, but core still logs the failed step.
+The session closes gracefully (commit) after the handler; forced (rollback) on client
 abort; a `stream` route closes when the body ends. Outside the extension's
 middleware, `stream` raises `NoSession`.
 
@@ -159,13 +162,13 @@ start, since a later call cannot upgrade an in-progress graceful close.
 
 ## Errors
 
-| failure                                                                      | status                                    |
-| ---------------------------------------------------------------------------- | ----------------------------------------- |
-| the operation's `parse` threw (`DataValidationFailed`, raw error as `cause`) | 400                                       |
-| the async body read failed (`InputRejected`, raw error as `cause`)           | 400                                       |
-| request cancelled (abort)                                                    | 499 (logged, then Hono rejects as before) |
-| `MissingTag` / `NoSession`                                                   | 500                                       |
-| anything else                                                                | rethrown to Hono's `onError`, no log line |
+| failure                                                                      | status                                               |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------- |
+| the operation's `parse` threw (`DataValidationFailed`, raw error as `cause`) | 400                                                  |
+| the async body read failed (`InputRejected`, raw error as `cause`)           | 400                                                  |
+| request cancelled (abort)                                                    | 499 (logged, then Hono rejects as before)            |
+| `MissingTag` / `NoSession`                                                   | 500                                                  |
+| anything else                                                                | rethrown to Hono's `onError`, no `http request` line |
 
 `hono(routes, { onError: (e, c) => Response | undefined })` answers first; `undefined`
 falls through to the table. A mapped failure settles the request span `ok`.

@@ -110,7 +110,9 @@ test("a mounted app still takes request tags, a request span, and one log line",
   const res = await app.request("/users/42", { headers: { "x-tenant": "beta" } });
   expect(await res.json()).toEqual({ id: 42, tenant: "beta" });
   expect(scope.spans().find((s) => s.name === "GET /users/:id")?.kind).toBe("operation");
-  expect(logs.map((entry) => entry.message)).toEqual(["http request"]);
+  expect(
+    logs.filter((entry) => entry.message === "http request").map((entry) => entry.message),
+  ).toEqual(["http request"]);
   await scope.close();
 });
 

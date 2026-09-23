@@ -55,8 +55,9 @@ test("a parse failure answers 400 with the request span ok and the op span faile
   const leaf = scope.spans().find((s) => s.name === "getUser");
   expect(leaf?.parentId).toBe(head?.id);
   expect(leaf?.status).toBe("failed");
-  expect(logs.length).toBe(1);
-  expect(logs[0].attributes.status).toBe(400);
+  const requests = logs.filter((entry) => entry.message === "http request");
+  expect(requests.length).toBe(1);
+  expect(requests[0].attributes.status).toBe(400);
   await scope.close();
 });
 
@@ -78,8 +79,9 @@ test("a missing required tag answers 500 with the request span ok", async () => 
   const head = scope.spans().find((s) => s.name === "GET /secret");
   expect(head?.status).toBe("ok");
   expect(head?.attributes.status).toBe(500);
-  expect(logs.length).toBe(1);
-  expect(logs[0].attributes.status).toBe(500);
+  const requests = logs.filter((entry) => entry.message === "http request");
+  expect(requests.length).toBe(1);
+  expect(requests[0].attributes.status).toBe(500);
   await scope.close();
 });
 
@@ -109,13 +111,13 @@ test("a client abort answers nothing usable but logs one 499 line and cancels th
   const settled = await Promise.allSettled([pending]);
   expect(ends).toEqual(["cancelled"]);
   expect(settled[0].status).toBe("rejected");
-  expect(logs.length).toBe(1);
-  expect(logs[0].message).toBe("http request");
-  expect(logs[0].attributes.status).toBe(499);
+  const requests = logs.filter((entry) => entry.message === "http request");
+  expect(requests.length).toBe(1);
+  expect(requests[0].attributes.status).toBe(499);
   await scope.close();
 });
 
-test("an unmapped error reaches onError with the request span failed and no log line", async () => {
+test("an unmapped error reaches onError with the request span failed and no http request log", async () => {
   const logs: Observe.Log[] = [];
   const boom = operation({
     label: "boom",
@@ -141,7 +143,7 @@ test("an unmapped error reaches onError with the request span failed and no log 
   expect(seen.message).toBe("kaboom");
   const head = scope.spans().find((s) => s.name === "GET /boom");
   expect(head?.status).toBe("failed");
-  expect(logs.length).toBe(0);
+  expect(logs.filter((entry) => entry.message === "http request")).toEqual([]);
   await scope.close();
 });
 
@@ -174,14 +176,20 @@ test("onError answers first: a parse failure becomes 418 while MissingTag keeps 
   const head = scope.spans().find((s) => s.name === "GET /users/:id");
   expect(head?.status).toBe("ok");
   expect(head?.attributes.status).toBe(418);
-  expect(logs.length).toBe(1);
-  expect(logs[0].attributes.status).toBe(418);
+  expect(
+    logs
+      .filter((entry) => entry.message === "http request")
+      .map((entry) => entry.attributes.status),
+  ).toEqual([418]);
   const fallback = await app.request("/secret");
   expect(fallback.status).toBe(500);
   const secretHead = scope.spans().find((s) => s.name === "GET /secret");
   expect(secretHead?.status).toBe("ok");
   expect(secretHead?.attributes.status).toBe(500);
-  expect(logs.length).toBe(2);
-  expect(logs[1].attributes.status).toBe(500);
+  expect(
+    logs
+      .filter((entry) => entry.message === "http request")
+      .map((entry) => entry.attributes.status),
+  ).toEqual([418, 500]);
   await scope.close();
 });
