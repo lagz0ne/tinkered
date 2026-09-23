@@ -915,7 +915,7 @@ type NsWatcher = Watcher & {
 };
 
 /** The exact data entry a named resource read. */
-type NsDataDependency = { source: NodeState; entry: Entry };
+type NsDataDependency = { owner: Layer; source: NodeState; entry: Entry };
 
 /** One named resource bucket. Default resource state stays directly on {@link NodeState}. */
 class NsResourceState {
@@ -1045,6 +1045,8 @@ type Layer = {
   /** Single node-keyed store: cells, effective-cache, resources, builds, generations, build-flag,
    * borrowers, dependents, and cached controllers all live in one {@link NodeState} per node. */
   nodes: Map<object, NodeState>;
+  /** Named states linked to an ancestor's bucket, detached when this layer closes. */
+  nsLinked?: Set<NsResourceState>;
   /** Lazily allocated: empty unless the scope was seeded with presets/tags. */
   presets: Map<unknown, unknown> | undefined;
   tags: Map<Tag.Handle<unknown>, unknown[]> | undefined;
@@ -3387,6 +3389,7 @@ function addNsDataDependent(
 function linkNsResourceDependent(selected: NsResourceState, dependent: NsResourceState): void {
   (selected.resourceDependents ??= new Set()).add(dependent);
   (dependent.resourceDependencies ??= new Set()).add(selected);
+  if (selected.owner !== dependent.owner) (dependent.owner.nsLinked ??= new Set()).add(dependent);
 }
 
 function linkNsDataDependent(selected: NsDataDependency, dependent: NsResourceState): void {
@@ -3396,6 +3399,7 @@ function linkNsDataDependent(selected: NsDataDependency, dependent: NsResourceSt
   dependents.add(dependent);
   (selected.source.nsDataDependents ??= new Map()).set(selected.entry, dependents);
   (dependent.dataDependencies ??= new Set()).add(selected);
+  if (selected.owner !== dependent.owner) (dependent.owner.nsLinked ??= new Set()).add(dependent);
 }
 
 function selectNsDataEntry(
@@ -3409,7 +3413,7 @@ function selectNsDataEntry(
     (layer, key) => {
       const source = layer.nodes.get(target);
       const entry = source?.nsCells?.get(key);
-      return source && entry ? { source, entry } : undefined;
+      return source && entry ? { owner: layer, source, entry } : undefined;
     },
     (layer) => (layer.nodes.get(target)?.cell ? DEFAULT_DATA_ENTRY : undefined),
   );
@@ -3419,10 +3423,16 @@ function selectNsDataEntry(
 const DEFAULT_DATA_ENTRY = Symbol("default-data-entry");
 
 function detachNsDependencies(state: NsResourceState): void {
+  state.owner.nsLinked?.delete(state);
   for (const link of state.dataDependencies ?? [])
     link.source.nsDataDependents?.get(link.entry)?.delete(state);
   state.dataDependencies = undefined;
   detachNsResourceLinks(state);
+}
+
+function detachNsLinked(layer: Layer, linked: Set<NsResourceState>): void {
+  for (const state of linked) detachNsDependencies(state);
+  layer.nsLinked = undefined;
 }
 
 function detachNsResourceLinks(state: NsResourceState): void {
@@ -3737,6 +3747,7 @@ function fastClose(layer: Layer, force: boolean): Promise<Scope.Result> {
     layer.cancelled = true;
     settled = { status: "cancelled" };
   }
+  if (layer.nsLinked) detachNsLinked(layer, layer.nsLinked);
   layer.parent?.children.delete(layer);
   layer.closing = Promise.resolve(buildResult(settled, layer, undefined));
   return layer.closing;
@@ -3847,16 +3858,11 @@ function startClose(layer: Layer, force: boolean): Promise<Scope.Result> {
  * detached before the intervening scopes began their own close (F1 / grandchild). */
 function finishLayer(layer: Layer): unknown[] | undefined {
   const teardownErrors = layer.secondary.length ? [...layer.secondary] : undefined;
+  if (layer.nsLinked) detachNsLinked(layer, layer.nsLinked);
   const parent = layer.parent;
   if (parent) {
     parent.children.delete(layer);
-    if (layer.swept) {
-      for (const cause of layer.secondary) parent.secondary.push(cause);
-      /** A descendant's settled failure goes to a SEPARATE slot ranked BELOW the parent's OWN failure
-       * (body/owned-work): a real owned-work failure must still beat a failure a child merely inherited
-       * from the close request (a wished `failed` echoed back down and up). First descendant wins. */
-      if (layer.failure) parent.descendantFailure ??= layer.failure;
-    }
+    if (layer.swept) propagateSweptOutcome(layer, parent);
   }
   for (const s of layer.nodes.values()) s.eff = undefined;
   layer.nodes.clear();
@@ -3867,6 +3873,14 @@ function finishLayer(layer: Layer): unknown[] | undefined {
   layer.defers.length = 0;
   layer.secondary.length = 0;
   return teardownErrors;
+}
+
+function propagateSweptOutcome(layer: Layer, parent: Layer): void {
+  for (const cause of layer.secondary) parent.secondary.push(cause);
+  /** A descendant's settled failure goes to a SEPARATE slot ranked BELOW the parent's OWN failure
+   * (body/owned-work): a real owned-work failure must still beat a failure a child merely inherited
+   * from the close request (a wished `failed` echoed back down and up). First descendant wins. */
+  if (layer.failure) parent.descendantFailure ??= layer.failure;
 }
 
 function settleSession(

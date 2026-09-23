@@ -1167,6 +1167,68 @@ test("releaseNs finishes a named diamond once, dependent before its pool", async
   await scope.close({ graceful: true });
 });
 
+test("closed sessions leave a root named pool usable for later clients", async () => {
+  const ns = namespace();
+  let pools = 0;
+  let closed = 0;
+  const pool = resource({
+    label: "session-pool",
+    target: "namespace",
+    factory: () => ({ id: ++pools }),
+  });
+  const client = resource({
+    label: "session-client",
+    target: "session",
+    depends: { pool },
+    factory: ({ pool }, ctx) => {
+      ctx.defer(() => {
+        closed++;
+      });
+      return pool;
+    },
+  });
+  const root = createScope();
+  for (let i = 0; i < 3; i++) {
+    const child = root.createSession({ ns });
+    expect(child.resolve(client).id).toBe(1);
+    await child.close({ graceful: true });
+  }
+  root.releaseNs(pool, ns);
+  const next = root.createSession({ ns });
+  expect(next.resolve(client).id).toBe(2);
+  expect(closed).toBe(3);
+  await root.close({ graceful: true });
+});
+
+test("closed sessions leave a root named data entry usable for later clients", async () => {
+  const ns = namespace();
+  const cell = data({ label: "session-data", initial: 0 });
+  let closed = 0;
+  const client = resource({
+    label: "data-client",
+    target: "session",
+    depends: { cell },
+    factory: ({ cell }, ctx) => {
+      ctx.defer(() => {
+        closed++;
+      });
+      return cell;
+    },
+  });
+  const root = createScope();
+  root.controller(cell, { ns }).set(1);
+  for (let i = 0; i < 3; i++) {
+    const child = root.createSession({ ns });
+    expect(child.resolve(client)).toBe(1);
+    await child.close({ graceful: true });
+  }
+  root.releaseNs(cell, ns);
+  const next = root.createSession({ ns });
+  expect(next.resolve(client)).toBe(0);
+  expect(closed).toBe(3);
+  await root.close({ graceful: true });
+});
+
 test("releaseNs on a root pool unlinks child clients built on that namespace", async () => {
   const a = namespace();
   const b = namespace();
