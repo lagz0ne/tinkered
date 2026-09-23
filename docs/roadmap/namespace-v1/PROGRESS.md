@@ -34,19 +34,21 @@ node tools/jev/label.mjs <judge> t|f <file> --by <ticket>
   resource's data dependency links to the entry the read actually resolved (nearer default shadows a
   farther named). Close tears the ns buckets down through the base path. NO `releaseNs` verb -- that
   is t02b. This is the clean, additive half that lands.
-- **t02b ns resource release** -- [ ] blocked by: t02a
-  `scope.releaseNs(target, ns)` and its borrow/cleanup lifetime. The reference implementation lives at
-  tag `namespace-v1/t02-release-ref` (5 of 6 review findings fixed, with tests); it is NOT landable
-  as-is: one finding (N5 -- a resource released mid-async-build whose dependent forms later needs its
-  cleanup ordered after that dependent) needs a cleanup-completion mechanism, and mutation sits at
-  84.71 under the 85 floor. This ticket redesigns release from that reference with proper design time
-  -- the release lifetime is a bigger subsystem than one ticket (three review rounds churned on it).
-  Session-target resources key on `(owner, ns, handle)` via the same selector; scope-target resources
-  are blind to `ns` (one shared build; a tenant's tags never reach it). `scope.releaseNs(target, ns)`
-  drops one bucket now, running its `defer` once with `released`; siblings and the default stay;
-  layer close drains the rest once. Borrows key on `(owner, ns, handle)` -- a live run in one
-  namespace never blocks, and never frees, a bucket in another. Probes: one pool shared across two
-  clients; release runs one cleanup and leaves the sibling; no under-wait frees a held bucket.
+- **t02b-1 one release protocol (ADR 0063)** -- [ ] blocked by: t02a, t03
+  Every resource instance (default and named) goes through one lifetime: `ctx.defer` hooks and run
+  borrows are tagged with the instance, not the handle; `release` unlinks instances (cascading to
+  instances built on them); an unlinked instance finishes when no run and no dependent instance
+  holds it; a build that settles after its instance was unlinked is not a special case (the
+  superseded teardown path goes). No new public API. Acceptance: every existing core test green
+  (ADR 0026 ordering, borrow waits, sticky failures), plus N5 for the default path (a dependency
+  released mid-async-build, a dependent built on it later: cleanup runs dependent first). Landing
+  needs a `bench` run on the borrow path; `bench` is not on PATH here.
+- **t02b-2 `releaseNs` verb** -- [ ] blocked by: t02b-1
+  `scope.releaseNs(target, ns)` for resources and named data, on the t02b-1 protocol. Acceptance:
+  the release tests on tag `namespace-v1/t02-release-ref` (about 30), adapted, plus N4 (a watcher that
+  starts a run in a new namespace during a release must not join the old release's holders) and N5
+  for a named bucket.
+
 - **t03 ns correctness edges** -- [ ] blocked by: t01, t02
   A named cell write notifies a named watcher (not only the default). A synchronous factory failure
   does not poison a named bucket against a retry. `.all` on a tag keeps repeated bindings for a named
