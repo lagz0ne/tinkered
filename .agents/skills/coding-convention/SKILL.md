@@ -212,7 +212,7 @@ node tools/jev/preflight.mjs
 ```
 
 Fix every strict hit. Jev is advisory: it points, it never blocks. Fix the
-notes you agree with; explain the rest in the report's `jev pre-flight` line.
+flags you agree with; explain the rest (an `ℹ` note is a hint: no line owed) in the report's `jev pre-flight` line.
 
 Unsure which unit a piece of logic belongs in? Ask before writing it:
 

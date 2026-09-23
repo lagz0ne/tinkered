@@ -145,7 +145,7 @@ questions: `node tools/jev/explain.mjs`.
 - **Writer, before reporting:** `node tools/jev/preflight.mjs main..HEAD`; on touched packages
   `node tools/jev/tests.mjs <pkg>` and `node tools/jev/promises.mjs <pkg>`. Every hit is fixed or explained in
   one line, then labeled: `node tools/jev/label.mjs <judge> true|false <file>[#<unit|title>]`. A `~` hit is a
-  judge calibration found noisy: read it, no line owed.
+  judge calibration found noisy: read it, no line owed. An `ℹ` note is a hint: no line, no label.
 - **Lead, at review:** `review.mjs`, and a label for each nit a judge covers.
 - **Lead, at every landing that adds labels:** `node tools/jev/calibrate.mjs`, commit `calibration.json`
   (ADR 0054). Calibration re-asks every judge about every labeled case and grades it `proven`,

@@ -37,7 +37,7 @@ cd ../tinkered-<task> && vp install && git checkout -- pnpm-workspace.yaml && vp
 2. **Jev pre-flight** (advisory: it points, it never blocks; you never tune it):
    `node tools/jev/preflight.mjs main..HEAD`. For every flag write one line: `fixed <how>` or
    `explained <why it is not a defect here>`. A flag you cannot explain is a fix. A `~` hit is a judge
-   calibration found noisy: read it, no line owed. Do not add rules or special cases to `tools/jev/**`
+   calibration found noisy: read it, no line owed. An `ℹ` note is a hint: no line, no label. Do not add rules or special cases to `tools/jev/**`
    for your ticket.
    **Then label what you decided** — one line per flag; this is how the judges get calibrated:
    `node tools/jev/label.mjs <judge> true <file>#<unit> --by <ticket> --why "<what you fixed>"` for a
