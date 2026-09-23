@@ -323,7 +323,6 @@ async function runTurn<T, R, C extends Harness.Calls>(
   ctx: Operation.Ctx<T>,
 ): Promise<R> {
   if (ctx.signal.aborted) throw ctx.signal.reason;
-  const started = ctx.clock.currentTimeMillis();
   deps.status.set("running");
   deps.text.set("");
   const span = ctx.obs.span;
@@ -331,16 +330,13 @@ async function runTurn<T, R, C extends Harness.Calls>(
   try {
     const result = await deps.thread.run(ctx.input, calls);
     deps.status.set("done");
-    const ms = ctx.clock.currentTimeMillis() - started;
-    ctx.log("harness turn", { harness: frame.label, status: "done", ms });
+    ctx.log("harness turn", { harness: frame.label, status: "done" });
     return result;
   } catch (error) {
     if (!ctx.signal.aborted) deps.status.set("failed");
-    const ms = ctx.clock.currentTimeMillis() - started;
     ctx.log("harness turn", {
       harness: frame.label,
       status: ctx.signal.aborted ? "cancelled" : "failed",
-      ms,
     });
     throw error;
   }

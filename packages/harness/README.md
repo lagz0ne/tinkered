@@ -111,7 +111,9 @@ the result's own usage and cost land in `usage`, the session id lands in `id`, a
 message lands in `events` raw, including kinds the frame does not otherwise read, which never
 stop the turn. The author's own `run` maps the result before the turn delivers it — there is
 no frame-side mapping. With `observe`, the send span carries the adapter label and one
-`harness turn` line logs the outcome (`done`, `failed`, or `cancelled`). Only text deltas move `text`; any other stream event streams nothing. Only tool
+`harness turn` line logs the harness name and outcome (`done`, `failed`, or `cancelled`).
+Core's `send` step line carries elapsed `ms` and `ok` or `failed` when its span closes.
+Only text deltas move `text`; any other stream event streams nothing. Only tool
 calls add tool items and only tool answers add tool results, so a plain or trailing assistant
 message adds nothing. The `id` cell moves only on the init message and the result; any other
 system message leaves it alone. A stream that ends with no result rejects with `TurnEnded`.

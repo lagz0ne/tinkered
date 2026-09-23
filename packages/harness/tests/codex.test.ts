@@ -241,7 +241,9 @@ test("a failed turn rejects with TurnFailed and the harness turn line says faile
   expect(statusSeen).toEqual(["running", "failed"]);
   const lines = logs.filter((entry) => entry.message === "harness turn");
   expect(lines.length).toBe(1);
-  expect(lines[0].attributes.status).toBe("failed");
+  expect(lines[0].attributes).toEqual({ harness: "coder", status: "failed" });
+  const step = logs.find((entry) => entry.message === "coder.send");
+  expect(step?.attributes).toMatchObject({ outcome: "failed", ms: expect.any(Number) });
   await scope.close();
 });
 
@@ -311,8 +313,9 @@ test("with observe, the send span carries the adapter and one harness turn line 
   expect(send?.attributes.adapter).toBe("codex");
   const lines = logs.filter((entry) => entry.message === "harness turn");
   expect(lines.length).toBe(1);
-  expect(lines[0].attributes.status).toBe("done");
-  expect(lines[0].attributes.harness).toBe("coder");
+  expect(lines[0].attributes).toEqual({ harness: "coder", status: "done" });
+  const step = logs.find((entry) => entry.message === "coder.send");
+  expect(step?.attributes).toMatchObject({ outcome: "ok", ms: expect.any(Number) });
   await scope.close();
 });
 

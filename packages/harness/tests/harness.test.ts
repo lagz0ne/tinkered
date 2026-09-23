@@ -256,8 +256,9 @@ test("with observe, the send span carries the adapter and one harness turn line 
   expect(send?.attributes.adapter).toBe("claudeCode");
   const lines = logs.filter((entry) => entry.message === "harness turn");
   expect(lines.length).toBe(1);
-  expect(lines[0].attributes.status).toBe("done");
-  expect(lines[0].attributes.harness).toBe("coder");
+  expect(lines[0].attributes).toEqual({ harness: "coder", status: "done" });
+  const step = logs.find((entry) => entry.message === "coder.send");
+  expect(step?.attributes).toMatchObject({ outcome: "ok", ms: expect.any(Number) });
   await scope.close();
 });
 
