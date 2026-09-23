@@ -23,7 +23,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **graph/t01 core gated log line** — unparked 2026-09-23: in-container bench is acceptable with a large N (`bench/ab.sh`). Blocked by t02b-1 (both touch core).
+- **graph/t01 core gated log line** — unparked 2026-09-23: in-container bench is acceptable with a large N (`bench/ab.sh`). Unblocked: t02b-2 landed. Next: brief a sol 6 writer; lead review and N=61 bench.
 
 | Card                                                                                                                                                | Owner         | Next                                                                                                                                                            | Verify                                        |
 | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
@@ -46,8 +46,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Blocked
 
-- **namespace-v1/t02b-2 `releaseNs` verb** — unblocked (t02b-1 landed). Acceptance: the ref-tag release tests, adapted, plus N4 and N5.
-
 | Card | Waiting for | Next | Verify |
 | ---- | ----------- | ---- | ------ |
 
@@ -67,6 +65,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Done
 
+- **namespace-v1/t02b-2 `releaseNs` verb** — sol 6, lead review + N=61 bench; tag `namespace-v1/t02b-2`.
+  Exact named links; closed sessions unlink (fixes a t02a leak); mutation 85.11; create +2.0%.
+  The namespace track is complete. Proof: [namespace-v1 landed](docs/roadmap/namespace-v1/PROGRESS.md).
 - **namespace-v1/t02b-1 one release protocol** — sol 6, lead review + N=61 bench; tag `namespace-v1/t02b-1`.
   Operation paths 5–13% faster; lifecycle/cold/create within noise; mutation 85.08. ADR 0063 accepted.
 

@@ -43,7 +43,7 @@ node tools/jev/label.mjs <judge> t|f <file> --by <ticket>
   (ADR 0026 ordering, borrow waits, sticky failures), plus N5 for the default path (a dependency
   released mid-async-build, a dependent built on it later: cleanup runs dependent first). Landing
   needs a `bench` run on the borrow path; `bench` is not on PATH here.
-- **t02b-2 `releaseNs` verb** -- [ ] blocked by: t02b-1
+- **t02b-2 `releaseNs` verb** -- [x] blocked by: t02b-1
   `scope.releaseNs(target, ns)` for resources and named data, on the t02b-1 protocol. Acceptance:
   the release tests on tag `namespace-v1/t02-release-ref` (about 30), adapted, plus N4 (a watcher that
   starts a run in a new namespace during a release must not join the old release's holders) and N5
@@ -169,10 +169,20 @@ One line per ticket: tag -- sha -- tests -- size (B gzip) -- mutation -- Jev fla
 
 ## Status 2026-09-23
 
-Built and documented: t01, t02a, t02c, t03, t04, t05, t06, t07, t08, t09.
-Waiting: t02b-1 (one release protocol, ADR 0063) needs a `bench` run to land; t02b-2 (`releaseNs`)
-follows it. Open design question: ADR 0064's chain-head keying (core feedback).
+Built and documented: t01, t02a, t02b-1, t02b-2, t02c, t03, t04, t05, t06, t07, t08, t09.
+The namespace track is complete.
 
+- **t02b-2** -- tag `namespace-v1/t02b-2` -- `scope.releaseNs(target, ns)` for a resource or a
+  named data entry, through the same unlink and drain as `release`. A named build records the exact
+  named bucket it selected, resource or data; release follows only those links. A closing session is
+  skipped, as plain `release` skips it. When a session closes, it drops its links. Core 504 tests,
+  mutation 85.11. Every existing test unchanged; the ported N3 test expects `failed`, not `released`
+  (ADR 0063 keeps the first end after a failed build). Review rounds: the lead found an under-release
+  (a fallback client kept a released pool) beside the writer's over-release, then a leak (closed
+  sessions stayed linked from root buckets: 76 to 82 MB per 20k sessions, 0.3 after; the data half had
+  shipped with t02a), then a double cleanup when `releaseNs` met a closing session. N=61 A/B vs main:
+  lifecycle -1.5%, op 0.0%, opres +0.7% (noise); create +2.0% (13/61) and cold +0.9% (12/61), about
+  4 ns per scope or session, likely the new verb's closure on every handle.
 - **t02b-1** -- tag `namespace-v1/t02b-1` -- one release protocol: hooks and borrows tagged by
   instance, `release` unlinks, a dependent holds its dependencies, the separate late-build teardown
   gone; core 441+ tests, mutation 85.08. Every existing test unchanged. N=61 A/B vs main: every

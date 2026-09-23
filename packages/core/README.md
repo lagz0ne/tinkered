@@ -244,8 +244,17 @@ const tx = resource({
 });
 ```
 
-`release(target)` clears all of that resource's buckets. Releasing only one
-namespace's bucket (`releaseNs`) is **not built yet**; ADR 0063 proposes it.
+`release(target)` clears all of that resource's buckets.
+`releaseNs(target, ns)` clears one namespace's bucket
+of a resource or a data cell (ADR 0063).
+Resources built on that bucket are released with it.
+Other namespaces and the default bucket stay.
+A `scope` resource has no namespace buckets,
+so `releaseNs` leaves it built.
+
+```ts
+scope.releaseNs(pool, tenantA);
+```
 
 The namespace tests also pin these guarantees:
 
