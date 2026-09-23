@@ -57,8 +57,12 @@ Times are writer event-log spans, not wall clock.
 ## What the gate missed or caused
 
 - **T08 (`isError` in `expect`)** — plain code finds
-  it (the style census), but the gate does not run
-  the census test rules yet.
+  it; the gate did not run it then. Fixed by
+  `writers/gate-census`: `tools/jev/plain.mjs` runs
+  the census rules on the parser, and every row
+  blocks. Sweep over 12 accepted apps (3 domains):
+  0 false blocks, 1 real miss the lead had passed
+  (stock GLM test fixture imports `../../src/StockApp`).
 - **`idField` in MiMo Flash** — `String(id)` for a
   non-text id scored 0.81, under the 0.85 bar.
   Harmless here (it still ends in `NotFound`).
@@ -77,8 +81,9 @@ Times are writer event-log spans, not wall clock.
   cases. Fixed, new good canary (a5b3d26).
 - The task never defined the Available filter.
   Writers split two ways; the checker accepts both.
-- The census flags `../src/index` (public entry,
+- The census flagged `../src/index` (public entry,
   no extension) as a private import (T04).
+  `plain.mjs` allows it.
 
 ## Where things live
 
