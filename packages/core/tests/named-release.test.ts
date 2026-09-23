@@ -867,6 +867,72 @@ test("releaseNs unlinks a namespace-target resource at the root from a child", a
   await root.close({ graceful: true });
 });
 
+test("a rebuilt named data dependent leaves its old fallback entry", async () => {
+  const a = namespace();
+  const b = namespace();
+  const config = data({ label: "fallback-config", initial: 0 });
+  const ended: number[] = [];
+  const client = resource({
+    label: "fallback-client",
+    target: "session",
+    depends: { config },
+    factory: ({ config }, ctx) => {
+      ctx.defer(() => {
+        ended.push(config);
+      });
+      return { config };
+    },
+  });
+  const scope = createScope();
+  scope.controller(config, { ns: b }).set(2);
+  scope.resolve(client, { ns: [a, b] });
+  scope.releaseNs(client, a);
+  scope.controller(config, { ns: a }).set(1);
+  const rebuilt = scope.resolve(client, { ns: [a, b] });
+  scope.releaseNs(config, b);
+  expect(scope.resolve(client, { ns: [a, b] })).toBe(rebuilt);
+  expect(ended).toEqual([2]);
+  scope.releaseNs(config, a);
+  expect(ended).toEqual([2, 1]);
+  await scope.close({ graceful: true });
+});
+
+test("releaseNs on a root pool unlinks child clients built on that namespace", async () => {
+  const a = namespace();
+  const b = namespace();
+  const ended: string[] = [];
+  const pool = resource({
+    label: "tenant-pool",
+    target: "namespace",
+    factory: (_deps, ctx) => {
+      ctx.defer(() => {
+        ended.push("pool");
+      });
+      return {};
+    },
+  });
+  const client = resource({
+    label: "request-client",
+    target: "session",
+    depends: { pool },
+    factory: ({ pool }, ctx) => {
+      ctx.defer(() => {
+        ended.push("client");
+      });
+      return { pool };
+    },
+  });
+  const root = createScope();
+  const child = root.createSession();
+  const first = child.resolve(client, { ns: a });
+  const sibling = child.resolve(client, { ns: b });
+  root.releaseNs(pool, a);
+  expect(ended).toEqual(["client", "pool"]);
+  expect(child.resolve(client, { ns: a })).not.toBe(first);
+  expect(child.resolve(client, { ns: b })).toBe(sibling);
+  await root.close({ graceful: true });
+});
+
 test("releaseNs notifies a chain watcher of its fallback value", async () => {
   const a = namespace();
   const b = namespace();
