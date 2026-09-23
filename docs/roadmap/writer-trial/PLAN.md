@@ -40,7 +40,13 @@ One trial cannot prove that every model will follow the rules on every task.
 ## State
 
 Task saved in commit e6dfdb6.
-The contributor is building the runner and private checks.
+The runner and private checks are saved on the contributor branch.
+The lead reran eight checker proofs: all passed.
+Three valid layouts pass all 43 cases.
+The empty app and four deliberate faults fail as expected.
+Two review gaps remain: undo must clear an existing notice,
+and each app must keep its earlier undo history after another app changes.
+The contributor is adding those checks before launch.
 No plan writer has started.
 
 The lead saved all 13 enabled questions, their full text,
@@ -51,4 +57,3 @@ match the stock trial byte for byte.
 The plain source checker is the only planned tool change.
 Its writable-view rule was reviewed after the stock trial.
 Keep that difference explicit when comparing the two trials.
-

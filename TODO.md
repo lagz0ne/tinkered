@@ -32,7 +32,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **writers/transfer-plan** — owner: Codex.
   Try a learning plan with the same Jev questions and full rules.
-  Next: freeze the task and prove private checks before writer launch.
+  Next: close two undo-check gaps, then freeze and launch the trial.
   Verify: score all four first tries, keep repairs apart, review source,
   and keep all proof before removing trial projects.
 
