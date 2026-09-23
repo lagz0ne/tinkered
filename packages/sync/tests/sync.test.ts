@@ -173,9 +173,9 @@ test("a registration logs its key count and its observed step carries elapsed ti
   });
   far.send({ type: "register", keys: ["counter"] });
   expect(await received).toMatchObject({ type: "snapshot", key: "counter" });
-  const register = lines.filter((line) => "count" in line.attributes);
+  const register = lines.filter((line) => line.message === "sync keys");
   expect(register.map((line) => line.attributes)).toEqual([{ count: 1 }]);
-  const step = lines.filter((line) => "outcome" in line.attributes);
+  const step = lines.filter((line) => line.message === "sync register");
   expect(step.map((line) => line.attributes)).toEqual([{ outcome: "ok", ms: expect.any(Number) }]);
   far.close();
   await done;

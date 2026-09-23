@@ -46,9 +46,9 @@ down, never the whole family. The label is a wire-key prefix, not a storage key.
 `scope.resolve(src)` once `await scope.ready`. It holds the truth: one
 session per subscriber. `connect(transport)` listens: nothing is pushed
 unasked. Each `register { keys }` runs `sync register` inline in that
-session (span, one `sync register` line with the key count).
-A registration logs its key count, and its observed step carries elapsed `ms` and outcome.
-Both lines say `sync register`; the count belongs to the source line, `ms` to core's step line.
+session (span, one `sync keys` line with the key count).
+A registration logs its key count on `sync keys`; its observed `sync register` step
+carries elapsed `ms` and outcome.
 A registered key answers at once with its snapshot (current version and
 value), and a changed cell fans out only to the live transports registered
 for that key. A member the source does not hold yet gets a namespace there;

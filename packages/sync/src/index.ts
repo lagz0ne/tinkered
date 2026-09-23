@@ -252,7 +252,7 @@ export function source(wiring: Sync.Wiring): Scope.Extension<Sync.Source> {
                   keys.add(key);
                   transport.send(snapshot(key, entry));
                 }
-                ctx.log("sync register", { count: wanted.length });
+                ctx.log("sync keys", { count: wanted.length });
               },
             });
           } catch {
