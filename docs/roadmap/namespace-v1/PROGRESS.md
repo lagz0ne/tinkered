@@ -34,7 +34,7 @@ node tools/jev/label.mjs <judge> t|f <file> --by <ticket>
   resource's data dependency links to the entry the read actually resolved (nearer default shadows a
   farther named). Close tears the ns buckets down through the base path. NO `releaseNs` verb -- that
   is t02b. This is the clean, additive half that lands.
-- **t02b-1 one release protocol (ADR 0063)** -- [ ] blocked by: t02a, t03
+- **t02b-1 one release protocol (ADR 0063)** -- [x] blocked by: t02a, t03
   Every resource instance (default and named) goes through one lifetime: `ctx.defer` hooks and run
   borrows are tagged with the instance, not the handle; `release` unlinks instances (cascading to
   instances built on them); an unlinked instance finishes when no run and no dependent instance
@@ -172,3 +172,11 @@ One line per ticket: tag -- sha -- tests -- size (B gzip) -- mutation -- Jev fla
 Built and documented: t01, t02a, t02c, t03, t04, t05, t06, t07, t08, t09.
 Waiting: t02b-1 (one release protocol, ADR 0063) needs a `bench` run to land; t02b-2 (`releaseNs`)
 follows it. Open design question: ADR 0064's chain-head keying (core feedback).
+
+- **t02b-1** -- tag `namespace-v1/t02b-1` -- one release protocol: hooks and borrows tagged by
+  instance, `release` unlinks, a dependent holds its dependencies, the separate late-build teardown
+  gone; core 441+ tests, mutation 85.08. Every existing test unchanged. N=61 A/B vs main: every
+  operation path faster (op -6.8%, opres -13.1%), lifecycle/cold/create within noise. Review rounds:
+  a mutation lift (83.41 to 85.1, dead branches removed and checked with probes), then the lead's
+  bench caught `lifecycle` +145% (every resolved resource lost the fast close); the fix keeps
+  resources that cannot hook on the fast path. ADR 0063 accepted.

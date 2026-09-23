@@ -1,6 +1,6 @@
 # 0063 A resource instance is released like an unlinked file
 
-Date: 2026-09-23. Status: proposed. Refines: 0026 (teardown is reverse-registration LIFO), 0044 (a
+Date: 2026-09-23. Status: accepted (2026-09-23, tag `namespace-v1/t02b-1`). Refines: 0026 (teardown is reverse-registration LIFO), 0044 (a
 resource dep is its value), 0059 (namespaces). Replaces the separate "superseded build" teardown path.
 
 ## Context
@@ -49,6 +49,21 @@ invalidated at once, the resource is finalized when its last holder lets go.
    instances ready at the same moment, order stays reverse registration (LIFO). The hold gate only
    adds that a dependency waits for its dependents, which is what LIFO already produces when hooks are
    registered in dependency order.
+
+## As built
+
+- A release drains the instances it unlinked together, once that release's borrowers settle
+  (ADR 0026 Q2), dependents before dependencies and reverse registration otherwise. An instance
+  nothing holds does not finish ahead of the rest of its release.
+- A resource that cannot register a hook stays off the lifetime bookkeeping: its factory takes no
+  `ctx`, none of its resource dependencies can hook, and no layer carries a preset. It builds and
+  closes on the fast path, as before this decision. `factory.length >= 2` is the same signal core
+  already uses to hand a factory a real `ctx`.
+- Measured with `bench/ab.sh`, N=61 alternating runs pinned to one core, `origin/main` against the
+  branch: `op` -6.8%, `opres` (an operation borrowing a resource) -13.1%, `run` -5.9%, `inline`
+  -4.8% (faster in 61 of 61 pairs each); `lifecycle` +0.8%, `cold` -0.9%, `create` +1.0% (noise).
+  A first version cost `lifecycle` +145% by dropping the fast close for every resolved resource;
+  the bench caught it before landing.
 
 ## Consequences
 
