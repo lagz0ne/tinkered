@@ -66,6 +66,7 @@ import {
 } from "./attempts.mjs";
 import { isJudgedPath, jevAsk, judgeSource } from "./broker.mjs";
 import { gateFiles, gateOf, machineVerdict } from "./gate.mjs";
+import { reusedAnswer, writerAnswers } from "./answers.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 
@@ -270,7 +271,12 @@ if (command === "save") {
   let gate = null;
   const jevFile = join(checkDir, "jev.json");
   if (manifest.frozen) {
-    const jev = await judgeSnapshot(row.archive);
+    // The writer's answers for unchanged bytes, from every saved try.
+    const eventText = rows
+      .filter((a) => a.round === round && a.events && existsSync(a.events))
+      .map((a) => readFileSync(a.events, "utf8"))
+      .join("\n");
+    const jev = await judgeSnapshot(row.archive, writerAnswers(eventText));
     gate = jev.gate;
     jevExit = gate.status === "pass" ? 0 : 1;
     writeFileSync(jevFile, JSON.stringify(jev, null, 2) + "\n");
@@ -392,7 +398,7 @@ function checkerEvidence(checker, archive, image) {
 // and the frozen judge list. The archive's src/ and tests/ .ts(x)
 // files are extracted into a temp folder on the host and only read,
 // never run. Any failure is an unavailable gate, never a pass.
-async function judgeSnapshot(archive) {
+async function judgeSnapshot(archive, answers) {
   const jevDir = frozenPath("jev");
   const judges = frozenConfigFor(root, manifest.frozen).judges;
   const tmp = mkdtempSync(join(tmpdir(), "writer-trial-jev-"));
@@ -400,7 +406,8 @@ async function judgeSnapshot(archive) {
     const files = extractJudged(archive, tmp);
     const ask = await jevAsk(jevDir);
     const reports = [];
-    for (const file of files) reports.push(await judgeFile(tmp, file, jevDir, judges, ask));
+    for (const file of files)
+      reports.push(await judgeFile(tmp, file, { jevDir, judges, ask, answers }));
     return { jevDir, judges, reports, gate: gateFiles(reports) };
   } catch (error) {
     return { jevDir, judges, reports: [], gate: gateOf({ file: null, error: error.message }) };
@@ -426,14 +433,18 @@ function extractJudged(archive, tmp) {
 
 // One file's report, or an error report (unavailable). A link or a
 // path that leaves the temp folder is never followed.
-async function judgeFile(tmp, file, jevDir, judges, ask) {
+async function judgeFile(tmp, file, { jevDir, judges, ask, answers }) {
   const path = join(tmp, file);
   try {
     if (!lstatSync(path).isFile() || !realpathSync(path).startsWith(`${realpathSync(tmp)}/`))
       return { file, error: "not a regular file inside the snapshot" };
     const source = readFileSync(path, "utf8");
     if (source.length > 40000) return { file, error: "file exceeds 40000 characters" };
-    return await judgeSource({ source, file, jevDir, judges, ask });
+    // Same bytes the writer already asked about: keep the writer's answer.
+    return (
+      reusedAnswer(answers, file, source) ??
+      (await judgeSource({ source, file, jevDir, judges, ask }))
+    );
   } catch (error) {
     return { file, error: error.message };
   }
