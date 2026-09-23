@@ -24,7 +24,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 ## Ready
 
 - **namespace-v1/t04 ns docs** -- unblocked (t03 landed). README + ADR 0059 Accepted.
-- **namespace-v1/t09 hono request namespace** -- unblocked (t05 landed). Optional `ns` wiring hook on the per-request session.
 
 | Card                                                                                                                                                | Owner         | Next                                                                                                                                                            | Verify                                        |
 | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
@@ -70,6 +69,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **namespace-v1/t09 hono request namespace** — sol 6, lead review; tag `namespace-v1/t09`.
+  `ns` hook on the per-request session; route = graph, session = lifetime, namespace = identity.
+  Proof: [namespace-v1 landed](docs/roadmap/namespace-v1/PROGRESS.md).
 
 - **namespace-v1/t05 drizzle onto ns** — sol 6, lead review; tag `namespace-v1/t05`.
   `target` default `"scope"`, opt-in `"namespace"` per tenant. Mutation 98.31.

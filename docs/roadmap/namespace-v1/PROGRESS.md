@@ -60,7 +60,7 @@ node tools/jev/label.mjs <judge> t|f <file> --by <ticket>
   does not poison a named bucket against a retry. `.all` on a tag keeps repeated bindings for a named
   read. Inheritance completes: tagged subflows, inline operations, and imperative data/resource
   controllers all carry the ambient `ns`. Probes for each.
-- **t09 hono request namespace** -- [ ] blocked by: t05
+- **t09 hono request namespace** -- [x] blocked by: t05
   The hono extension already opens one session per request; add an optional wiring hook
   `ns: (c) => Namespace | undefined` passed to that session beside `tags`, so a route serves a
   tenant's buckets (config, `namespace`-target pools) while the request stays its own lifetime.
@@ -152,3 +152,10 @@ One line per ticket: tag -- sha -- tests -- size (B gzip) -- mutation -- Jev fla
   members are namespaces too — so one database with two agent runs opened 3 pools; the user chose
   "author picks, default shared". Review also found an open ADR 0064 question (a tenant pool reached
   through `[agent, tenant]` builds in the agent's bucket), logged in core feedback.
+
+- **t09** -- tag `namespace-v1/t09` -- hono: optional `ns` wiring hook on the per-request session.
+  Proven through real routes: route = graph, session = lifetime (a request's cell dies with it),
+  namespace = identity (each tenant's requests share its `namespace`-target pool). Mutation 78.90.
+  Lead review sent one round: the writer had deleted hono/ext's close-mid-bind explanation to quiet
+  the style census (restored as a `/** */` block), and the example sent unknown tenants to alpha's
+  database (now an explicit tenant map; unknown gets the default).
