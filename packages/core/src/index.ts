@@ -1775,7 +1775,8 @@ function isolate(run: () => unknown): void {
 
 function closeSpan(obs: Obs, span: Observe.Span | undefined, status: "ok" | "failed"): void {
   if (!span || span.end !== undefined) return;
-  span.end = obs.clock();
+  const end = obs.clock();
+  span.end = end;
   span.status = status;
   if (obs.historyMax > 0) {
     obs.history.push(span);
@@ -1783,6 +1784,23 @@ function closeSpan(obs: Obs, span: Observe.Span | undefined, status: "ok" | "fai
   }
   const sink = obs.export;
   if (sink) isolate(() => sink(span));
+  logStep(obs, span, status, end);
+}
+
+function logStep(obs: Obs, span: Observe.Span, status: "ok" | "failed", end: number): void {
+  const log = obs.log;
+  if (span.kind !== "operation" || !log) return;
+  const level = status === "ok" ? LEVELS.debug : LEVELS.error;
+  if (level < obs.level) return;
+  isolate(() =>
+    log({
+      time: end,
+      level,
+      message: span.name,
+      attributes: { ms: end - span.start, outcome: status },
+      span,
+    }),
+  );
 }
 
 function settleSpan(obs: Obs, span: Observe.Span, result: unknown): void {

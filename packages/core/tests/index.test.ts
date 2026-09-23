@@ -2246,7 +2246,7 @@ test("history is bounded and toggles independently of export and logging", () =>
   scope.run(op);
   scope.run(op);
   expect(scope.spans().length).toBe(2);
-  expect(logs).toEqual(["hi", "hi", "hi"]);
+  expect(logs).toEqual(["hi", "op", "hi", "op", "hi", "op"]);
 });
 
 test("observation on keeps the operation's returned value identity (behavior-neutral)", async () => {

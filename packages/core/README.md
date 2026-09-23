@@ -178,6 +178,9 @@ When a driver creates its own scope and returns only its result (as the CLI does
 as it ends, including spans that finish during close; save those spans outside the driver.
 Export works without retained history.
 
+Each observed operation writes one line with its label, elapsed `ms`, and `outcome` to the `log` sink.
+This needs observation (`export` or `history`) and a `log` sink.
+
 ## Namespaces
 
 `namespace(opts?)` makes a key, not a string name. Use its `tags` to bind settings
@@ -516,6 +519,13 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 
 ### Observation
 
+- An observed operation logs its label, elapsed time, outcome, level, and span.
+- A failed operation logs its failure at error level.
+- Nested subflows log child before parent, once each.
+- An info threshold drops ok step lines but keeps failed ones.
+- Logging without observation keeps `ctx.log` but emits no step line.
+- Observing without a log sink preserves operation and resource spans.
+- A throwing step log sink does not change the run result.
 - With observation off, the context carries no span and nothing is retained.
 - With observation on, values and instances keep their identity: measuring changes nothing.
 - A subflow nests its span under its caller; two interleaved async operations keep separate trees.
