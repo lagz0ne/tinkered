@@ -14,7 +14,7 @@ Every other question stays advice.
   writable `useData` in a view.
 - **`inputDefaultMasks`** — bad user input
   becomes a default instead of an error.
-  Threshold 0.7.
+  Threshold 0.85.
 - **`noOpRejected`** — a guard runs before the
   "already so" check, so a repeat request fails.
   Threshold 0.6.
@@ -44,7 +44,10 @@ An unavailable check is never a pass.
 ## Results
 
 - **Added:** `inputDefaultMasks`
-  14 true / 33 false, 55 points, 98% ordered.
+  19 true / 39 false, 58 points, 99% ordered.
+  Reworded once: the first wording scored
+  `if (blank) return 1` at 25%. The tool-library
+  gate proof caught it; 11 cases were added.
 - **Added:** `noOpRejected`
   6 / 44, 67 points, 100% ordered.
 - **Reworded:** `domainLogicInRender`
@@ -68,6 +71,9 @@ An unavailable check is never a pass.
 - A cross-unit question (unknown errors swallowed
   through a helper) needs the helper in the state.
   That is an extraction change, not a wording change.
+- Arrow helpers (`const x = () => …`) in `.ts`
+  files are not units, so a default inside one
+  is never judged on its own (`extract.mjs`).
 - No live trial has run with the gate yet.
 
 ## Where things live

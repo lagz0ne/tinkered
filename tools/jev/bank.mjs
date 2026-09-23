@@ -203,16 +203,17 @@ Object.assign(LINT, {
 Object.assign(LINT, {
   inputDefaultMasks: {
     applies: ["operation", "function"],
-    // 0.7 from 45 labeled trial cases (2026-09-23): 0.5 hit 10 of 32 clean; 0.7 hits 2 of 32 clean, 12 of 13 bad.
-    threshold: 0.7,
+    // 0.85 from 56 labeled cases (2026-09-23): 17 of 18 true hit, 2 of 38 clean. The second
+    // wording names branch defaults: the first scored `if (blank) return 1` at 25%.
+    threshold: 0.85,
     q: {
       type: "boolean",
       instructions:
-        'Look only at values that come from the user or the caller — form text, ctx.input, a raw input field. When such a value is missing, blank, the wrong type, or cannot be parsed, does this code quietly turn it into a default ("", 0, today, the first option, String(x)) and carry on, instead of rejecting it with an error?',
+        "Look only at values that come from the user or the caller — form text, ctx.input, a raw input field. When such a value is missing, blank, the wrong type, or cannot be parsed, is there ANY path where this code keeps going with a made-up value instead of raising an error? Count an if-branch that returns or assigns a default for blank input, a ternary that picks a default, `??` or `||` on the input, String(x), or Number(x) without a check.",
       criteria: {
-        true: "a user or caller value that is missing, blank, wrong-typed, or unparseable becomes a default via `??`, `||`, a fallback return, String(), or Number() with no error raised here",
+        true: 'some path turns a missing, blank, wrong-typed, or unparseable user or caller value into a default ("", 0, 1, today, the first option, "undefined") and continues without an error',
         false:
-          "every user or caller value is checked and rejected when bad, or the only defaults are for internal values (sort ranks, lookups in the app's own maps, display fallbacks, error names), or for optional settings",
+          "every path that meets a bad user or caller value raises an error, or the only defaults are for internal values (sort ranks, lookups in the app's own maps, display fallbacks, error names), or for optional settings",
       },
     },
   },

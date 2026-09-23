@@ -37,8 +37,8 @@ stops. A rule it cannot pass does.
 5. **First hardening run (2026-09-23).** 1,695 items from 21 saved trial snapshots in three
    domains; 835 labeled blind (the labeler never saw a Jev score), 4 lead overrides, 5 seeded
    cases (a real unit with one guard moved or one input rule planted in a view).
-   - **Added, `proven`:** `inputDefaultMasks` (14 true / 33 false, sep 55, ordered 98%,
-     threshold 0.7) and `noOpRejected` (6 / 44, sep 67, ordered 100%, threshold 0.6).
+   - **Added, `proven`:** `inputDefaultMasks` (19 true / 39 false, sep 58, ordered 99%,
+     threshold 0.85, after one reword that names branch defaults) and `noOpRejected` (6 / 44, sep 67, ordered 100%, threshold 0.6).
    - **Reworded, now `proven`:** `domainLogicInRender` names input checks in a view
      (6 / 43, sep 81, ordered 100%, threshold 0.6). The old wording scored its three real
      cases at a median of 19%.
