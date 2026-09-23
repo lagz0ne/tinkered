@@ -39,12 +39,18 @@ namespace  root          ns     namespace
 session    asking layer  ns     session x ns
 ```
 
-## Open
+## Decided: where a chain keeps a build (2026-09-23)
 
-A `namespace`-target resource reached through a chain that mixes kinds of namespace,
-such as `[agent, tenant]`, builds in the chain's head. The tenant's pool can then
-be built twice depending on call order. It is safe today when resolved in the
-tenant's own namespace. See `docs/roadmap/core-feedback.md`.
+A resolve keeps everything it stores in its resolve namespace: the first key of the chain. A node
+goes elsewhere only when its own declaration says so; today that is `target: "scope"`, which keeps
+it outside every namespace. Where a node's inputs came from never decides where it is kept.
+
+So `ns: [agent, tenant]` keeps a `namespace`-target pool under `agent`, even though its settings
+were read from `tenant`. A second agent builds its own. That duplicate is the accepted cost: it wastes
+a pool and never shares data. Keying by input source was rejected because a node with no namespace
+input (a per-tenant cache) would fall to the shared default and leak between tenants. Resolve a
+tenant resource in the tenant's own namespace. If a real pool must follow its configuring namespace,
+that becomes an option declared on the primitive, added when the case exists.
 
 ## Consequences
 
