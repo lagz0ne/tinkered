@@ -622,7 +622,17 @@ const cellsOf = async (row) => {
     .getByRole("cell")
     .or(row.getByRole("columnheader"))
     .or(row.getByRole("rowheader"));
-  return (await cells.allInnerTexts()).map((text) => text.trim());
+  // A cell's own text without its controls: the task names the buttons
+  // but not where they sit, so a Retire or Return button inside the
+  // Status or Member cell must not change what the cell says.
+  return cells.evaluateAll((all) =>
+    all.map((cell) => {
+      const copy = cell.cloneNode(true);
+      for (const control of copy.querySelectorAll("button, input, select, textarea, [role=button]"))
+        control.remove();
+      return (copy.textContent ?? "").replace(/\s+/g, " ").trim();
+    }),
+  );
 };
 // Rows of a named table by header text: the header row is the first row
 // naming every wanted column, whatever role its cells get. Extra columns

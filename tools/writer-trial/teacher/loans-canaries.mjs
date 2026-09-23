@@ -207,6 +207,28 @@ const layoutTar = patch("good-layout", "LibraryApp.tsx", [
   ],
 ]);
 
+// ---- good in-cell variant: no Actions column; each button sits
+// inside the last named cell (Status, Member), as a writer did in
+// loans-01. The task names the buttons, not where they go.
+const inCellTar = patch("good-in-cell", "LibraryApp.tsx", [
+  [
+    [
+      "      <td>{row.status}</td>",
+      "      <td>",
+      '        {row.status === "Retired" ? null : (',
+    ].join("\n"),
+    ["      <td>", "        {row.status}", '        {row.status === "Retired" ? null : ('].join(
+      "\n",
+    ),
+  ],
+  ["            <th>Status</th>\n            <th>Actions</th>", "            <th>Status</th>"],
+  [
+    "      <td>{row.member}</td>\n      <td>\n        <button",
+    "      <td>\n        {row.member}\n        <button",
+  ],
+  ["          <th>Member</th>\n          <th>Actions</th>", "          <th>Member</th>"],
+]);
+
 // ---- bad variants: each must fail its named case ----
 // (a) Blank copies text becomes 1 instead of BadCopies.
 const blankCopiesTar = patch("bad-blank-copies", "model.ts", [
@@ -284,6 +306,7 @@ const FULL = "ACCEPTANCE loans: 53/53 pass";
 const cases = [
   { label: "good fixture accepts", tar: goodTar, want: { exit: 0, fullpass: FULL } },
   { label: "good layout variant accepts", tar: layoutTar, want: { exit: 0, fullpass: FULL } },
+  { label: "good in-cell buttons accept", tar: inCellTar, want: { exit: 0, fullpass: FULL } },
   {
     label: "(a) blank copies becomes 1 rejects",
     tar: blankCopiesTar,
