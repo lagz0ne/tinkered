@@ -232,14 +232,10 @@ function countingDb(db: PgDatabase, counter: { count: number }): PgDatabase {
   });
 }
 
-/** A store that counts `transaction` calls: `open` builds the real PGlite database and counts
- * only `transaction`, so the count lives in the test. */
-function countingStore(
-  label: string,
-  counter: { count: number },
-): DrizzleStore.Frame<null, PgDatabase> {
-  return drizzleStore<null, PgDatabase>({
-    label,
+test("two sequential sessions open two transactions", async () => {
+  const counter = { count: 0 };
+  const store = drizzleStore<null, PgDatabase>({
+    label: "users",
     open: async (_config, { logger }) => {
       const inner = drizzle(new PGlite(), { logger });
       await inner.execute(
@@ -249,11 +245,6 @@ function countingStore(
     },
     close: (db) => db.$client.close(),
   });
-}
-
-test("two sequential sessions open two transactions", async () => {
-  const counter = { count: 0 };
-  const store = countingStore("users", counter);
   const scope = createScope({ tags: [store.config(null)] });
   await scope.session((s) => s.run(insertOp(store), { input: "ada" }));
   await scope.session((s) => s.run(insertOp(store), { input: "grace" }));
