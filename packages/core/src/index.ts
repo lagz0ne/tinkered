@@ -843,7 +843,7 @@ function seesResourceOf(target: Operation.Handle<unknown, unknown>): boolean {
 function seesResource(depends: Scope.Depends): boolean {
   for (const key in depends) {
     const dep = depends[key];
-    if (isResource(dep) || (isEdge(dep) && isResource(dep.target))) return true;
+    if (isResource(dep)) return true;
   }
   return false;
 }
@@ -2128,7 +2128,7 @@ function operationController<T, I>(
      * dep during resolution), released after the defer drain on BOTH the success and throwing paths.
      * A fully synchronous op runs and removes the borrow within `run()`, so a later release
      * sees no borrower and stays sync. */
-    const held = takeBorrows(layer, target, chain);
+    const held = takeBorrows(target);
     const releaseBorrow = (): void => {
       if (!held) return;
       for (const instance of held.list) removeBorrow(instance, held.done);
@@ -3221,15 +3221,6 @@ function depNode(dep: Scope.Dependency): Node | undefined {
   return undefined;
 }
 
-/** The resource handle an operation dependency borrows a built value from — a bare resource or any
- * resource edge (`required`/`optional`/`all`/`controller`) — so release can wait for in-flight
- * borrowers before physically tearing that resource down (ADR 0026 Q2). */
-function resourceDepHandle(dep: Scope.Dependency): Resource.Handle<unknown> | undefined {
-  if (isResource(dep)) return dep;
-  if (isEdge(dep) && isResource(dep.target)) return dep.target;
-  return undefined;
-}
-
 type HeldBorrows = { list: ResourceInstance[]; done: Promise<void>; settle: () => void };
 
 function addBorrow(instance: ResourceInstance, held: HeldBorrows): void {
@@ -3238,36 +3229,12 @@ function addBorrow(instance: ResourceInstance, held: HeldBorrows): void {
   (instance.borrowers ??= new Set()).add(held.done);
 }
 
-function borrowState(
-  owner: Layer,
-  target: Resource.Handle<unknown>,
-  chain: readonly Namespace[] | undefined,
-): ResourceState {
-  if (!hasResourceNs(target, chain)) return nodeState(owner, target);
-  const [head] = chain;
-  return selectNsResource(owner, target, chain) ?? ownNsResource(owner, target, head);
-}
-
-function takeBorrows(
-  layer: Layer,
-  target: Operation.Handle<unknown, unknown>,
-  chain: readonly Namespace[] | undefined,
-): HeldBorrows | undefined {
+function takeBorrows(target: Operation.Handle<unknown, unknown>): HeldBorrows | undefined {
   if ((target as BorrowFlag)[borrowSym] !== true) return undefined;
   const list: ResourceInstance[] = [];
   let settle: () => void = noop;
   const done = new Promise<void>((resolve) => (settle = resolve));
-  const held = { list, done, settle };
-  for (const key in target.depends) {
-    const dep = target.depends[key];
-    if (isResource(dep)) continue;
-    const res = resourceDepHandle(dep);
-    if (res === undefined) continue;
-    const owner = ownerOf(layer, res);
-    const state = borrowState(owner, res, chain);
-    addBorrow(instanceOf(owner, res, state), held);
-  }
-  return held;
+  return { list, done, settle };
 }
 
 function removeBorrow(instance: ResourceInstance, work: Promise<unknown>): void {
