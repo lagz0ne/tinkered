@@ -52,7 +52,9 @@ test("jsonLines writes every log line and only the failed spans", async () => {
     await scope.close({ graceful: true });
   }
   const lines = readLines(written);
-  expect(lines.filter((line) => line.kind === "log")).toMatchObject([{ message: "hello", n: 1 }]);
+  const logged = lines.filter((line) => line.kind === "log");
+  expect(logged.map((line) => line.message)).toEqual(["hello", "logs", "breaks"]);
+  expect(logged.filter((line) => line.message === "hello")).toMatchObject([{ n: 1 }]);
   const spans = lines.filter((line) => line.kind === "span");
   expect(spans.map((span) => span.name)).toEqual(["breaks"]);
   expect(spans[0]).toMatchObject({ status: "failed", unit: "operation" });
@@ -61,8 +63,8 @@ test("jsonLines writes every log line and only the failed spans", async () => {
 test("jsonLines survives a writer that throws: the scope keeps running", async () => {
   let calls = 0;
   const scope = createScope({
-    observe: jsonLines(() => {
-      calls += 1;
+    observe: jsonLines((line) => {
+      if (readLines([line])[0].message === "one") calls += 1;
       throw new Error("disk full");
     }),
   });
