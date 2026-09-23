@@ -55,7 +55,12 @@ All four starters were blank before launch.
 DeepSeek Flash passed first try: 37 own tests and 43 teacher cases.
 Source review found no blocking rule breaks. No repair was requested.
 Evidence: plan-01/results/round-1/worker-4-attempt-1/lead-review.json.
-MiMo Flash, MiMo Pro, and GLM Flash are running first attempts.
+GLM Flash passed 32 own tests and the 43 teacher cases.
+Source review found an existing-link no-op rejected on a completed course.
+A separate Docker probe fails for GLM and passes for DeepSeek.
+That probe is kept apart from the original 43-case score.
+GLM is fixing it and a test helper that replaces unknown errors.
+MiMo Flash and MiMo Pro are running first attempts.
 Queue time will not count as work time.
 The prep workspace is removed; its commits and proof are kept.
 
