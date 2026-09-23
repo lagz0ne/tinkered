@@ -52,8 +52,10 @@ SCIP was rebuilt; this work changes no public package symbol.
 
 Trial plan-01 is frozen and passed 32 readiness checks.
 All four starters were blank before launch.
-MiMo Flash, MiMo Pro, and DeepSeek Flash are running first attempts.
-GLM Flash is queued for the next free slot.
+DeepSeek Flash passed first try: 37 own tests and 43 teacher cases.
+Source review found no blocking rule breaks. No repair was requested.
+Evidence: plan-01/results/round-1/worker-4-attempt-1/lead-review.json.
+MiMo Flash, MiMo Pro, and GLM Flash are running first attempts.
 Queue time will not count as work time.
 The prep workspace is removed; its commits and proof are kept.
 
