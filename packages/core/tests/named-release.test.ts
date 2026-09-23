@@ -897,6 +897,31 @@ test("a rebuilt named data dependent leaves its old fallback entry", async () =>
   await scope.close({ graceful: true });
 });
 
+test("releaseNs rebuilds a hookless named client without touching its sibling", async () => {
+  const a = namespace();
+  const b = namespace();
+  let builds = 0;
+  const pool = resource({
+    label: "plain-pool",
+    target: "session",
+    factory: () => ++builds,
+  });
+  const client = resource({
+    label: "plain-client",
+    target: "session",
+    depends: { pool },
+    factory: ({ pool }) => ({ pool }),
+  });
+  const scope = createScope();
+  const first = scope.resolve(client, { ns: a });
+  const sibling = scope.resolve(client, { ns: b });
+  scope.releaseNs(pool, a);
+  expect(scope.resolve(client, { ns: a })).not.toBe(first);
+  expect(scope.resolve(client, { ns: a }).pool).toBe(3);
+  expect(scope.resolve(client, { ns: b })).toBe(sibling);
+  await scope.close({ graceful: true });
+});
+
 test("releaseNs on a root pool unlinks child clients built on that namespace", async () => {
   const a = namespace();
   const b = namespace();

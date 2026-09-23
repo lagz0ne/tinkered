@@ -3247,6 +3247,8 @@ function collectNamedRelease(pending: NamedRelease[]): Map<Layer, Released> {
     seen.add(item.state);
     const instance = item.state.instance;
     if (instance) enqueueNamedDependents(item.owner, instance, pending);
+    else if (item.state instanceof NsResourceState)
+      enqueueHooklessDependents(item.owner, item.target, item.state.key, pending);
     const released = affected.get(item.owner) ?? {
       instances: new Set<ResourceInstance>(),
       hooks: [],
@@ -3256,6 +3258,18 @@ function collectNamedRelease(pending: NamedRelease[]): Map<Layer, Released> {
     unlinkNamedState(item);
   }
   return affected;
+}
+
+function enqueueHooklessDependents(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  key: Namespace,
+  pending: NamedRelease[],
+): void {
+  forEachDependent(owner, target, (target, owner) => {
+    const state = owner.nodes.get(target)?.nsResources?.get(key);
+    if (state) pending.push({ owner, state, target });
+  });
 }
 
 function enqueueNamedDependents(
