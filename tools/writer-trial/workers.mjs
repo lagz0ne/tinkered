@@ -30,8 +30,8 @@ if (action === "create") {
   const suite = process.argv.includes("--suite")
     ? process.argv[process.argv.indexOf("--suite") + 1]
     : "booking";
-  if (!["booking", "stock", "plan"].includes(suite))
-    throw new Error("Use --suite booking, --suite stock, or --suite plan");
+  if (!["booking", "stock", "plan", "loans"].includes(suite))
+    throw new Error("Use --suite booking, --suite stock, --suite plan, or --suite loans");
   if (existsSync(manifestPath)) throw new Error("Trial already exists; inspect its manifest");
   mkdirSync(root, { recursive: true, mode: 0o700 });
   // Suite copies are the only source of staged rules, task, and tools.
@@ -113,7 +113,9 @@ if (action === "create") {
               ? "stock-moves-trial"
               : suite === "plan"
                 ? "learning-plan-trial"
-                : "room-booking-trial",
+                : suite === "loans"
+                  ? "tool-library-trial"
+                  : "room-booking-trial",
           private: true,
           type: "module",
           scripts: {

@@ -339,6 +339,21 @@ if (command === "save") {
   console.log(`Staged feedback for round ${round} worker ${workerNum}; next try is ${retry}.`);
 }
 
+// The teacher helpers each suite checker loads, hashed beside it.
+const TEACHER_HELPERS = {
+  "evaluate.mjs": ["teacher/check.mjs", "teacher/run.mjs", "teacher/browser.mjs"],
+  "acceptance.mjs": [
+    "teacher/acceptance.mjs",
+    "teacher/acceptance-shape.mjs",
+    "teacher/browser.mjs",
+    "teacher/check.mjs",
+    "teacher/run.mjs",
+  ],
+  "plan-acceptance.mjs": ["teacher/plan-acceptance.mjs", "teacher/acceptance-shape.mjs"],
+  "loans-acceptance.mjs": ["teacher/loans-acceptance.mjs", "teacher/acceptance-shape.mjs"],
+  "stock-acceptance.mjs": ["teacher/stock-acceptance.mjs", "teacher/acceptance-shape.mjs"],
+};
+
 // Checker source hashes plus the pinned image ID, written before
 // the run. A rerun after a teacher edit gets a new folder and new
 // hashes; an old pass claim cannot be reused silently.
@@ -347,23 +362,10 @@ function checkerEvidence(checker, archive, image) {
   const files = {};
   files[checker.script] = sha(join(here, checker.script));
   // Hash the helpers the runner loads: booking core, browser,
-  // full acceptance pair, or the stock/plan teacher pair.
+  // full acceptance pair, or the stock/plan/loans teacher pair.
   // A missing helper is recorded unavailable, never skipped
   // silently: the teacher run below fails the same way.
-  const helpers =
-    checker.script === "evaluate.mjs"
-      ? ["teacher/check.mjs", "teacher/run.mjs", "teacher/browser.mjs"]
-      : checker.script === "acceptance.mjs"
-        ? [
-            "teacher/acceptance.mjs",
-            "teacher/acceptance-shape.mjs",
-            "teacher/browser.mjs",
-            "teacher/check.mjs",
-            "teacher/run.mjs",
-          ]
-        : checker.script === "plan-acceptance.mjs"
-          ? ["teacher/plan-acceptance.mjs", "teacher/acceptance-shape.mjs"]
-          : ["teacher/stock-acceptance.mjs", "teacher/acceptance-shape.mjs"];
+  const helpers = TEACHER_HELPERS[checker.script] ?? TEACHER_HELPERS["stock-acceptance.mjs"];
   let unavailable = null;
   for (const helper of helpers) {
     const path = join(here, helper);
@@ -507,7 +509,8 @@ function runOwnChecks(archive, image, logPath) {
 // disposable pinned containers. Booking 1-3: evaluate.mjs
 // <archive> <round> <image>. Booking 4-5: acceptance.mjs
 // <archive> <repair|transfer> <image>. Stock: stock-acceptance.mjs
-// <archive> <image-id>. Plan: plan-acceptance.mjs <archive> <image-id>. A missing checker script fails
+// <archive> <image-id>. Plan: plan-acceptance.mjs <archive> <image-id>. Loans:
+// loans-acceptance.mjs <archive> <image-id>. A missing checker script fails
 // unavailable, never passes.
 function runTeacherChecker(checker, archive, image, logPath) {
   const script = join(here, checker.script);

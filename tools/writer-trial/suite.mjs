@@ -1,5 +1,5 @@
 // Suite defs for repeatable writer trials. No side effects on import.
-// Booking grows over rounds 1-5; stock and plan are one fresh round each.
+// Booking grows over rounds 1-5; stock, plan, and loans are one fresh round each.
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -31,6 +31,11 @@ export const SUITES = {
     tasks: ["plan/01-learning-plan.md"],
     guidelines: ["guidelines.md"],
   },
+  loans: {
+    rounds: [1],
+    tasks: ["loans/01-tool-library.md"],
+    guidelines: ["guidelines.md"],
+  },
 };
 
 // Worker extension tools: extension.mjs is staged as index.mjs.
@@ -58,14 +63,11 @@ export const roundsFor = (suite) => {
 
 export const taskRounds = (suite) => roundsFor(suite);
 
+// A fresh-round suite stages one task file, named as its frozen source.
 export const taskFileFor = (suite, round) => {
-  if (suite === "stock") {
-    if (round !== 1) throw new Error("Suite stock has no round " + round);
-    return "01-stock-moves.md";
-  }
-  if (suite === "plan") {
-    if (round !== 1) throw new Error("Suite plan has no round " + round);
-    return "01-learning-plan.md";
+  if (suite !== "booking" && SUITES[suite]) {
+    if (round !== 1) throw new Error(`Suite ${suite} has no round ${round}`);
+    return SUITES[suite].tasks[0].split("/").pop();
   }
   if (!SUITES[suite]) throw new Error(`Unknown suite: ${suite}`);
   const names = {
@@ -84,8 +86,7 @@ export const taskSourcesFor = (suite, round) => {
   if (!SUITES[suite].rounds.includes(round))
     throw new Error(`Suite ${suite} has no round ${round}`);
   if (suite === "booking") return SUITES.booking.tasks.slice(0, round);
-  if (suite === "stock") return [...SUITES.stock.tasks];
-  return [...SUITES.plan.tasks];
+  return [...SUITES[suite].tasks];
 };
 
 export const guidelineSourcesFor = (suite) => {
