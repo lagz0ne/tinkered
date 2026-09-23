@@ -62,6 +62,15 @@ run and controller when one session serves both.
 The same frame keeps each coder's messages,
 status, text, usage, settings, and inbox apart.
 A turn reads that namespace's tag bindings.
+With the default label, the span tree is:
+
+```text
+tinkerer.turn
+  tinkerer.http.step
+    http.send
+      http.attempt
+```
+
 `tools` and `gate` still shape the graph;
 build a separate frame if either differs.
 
