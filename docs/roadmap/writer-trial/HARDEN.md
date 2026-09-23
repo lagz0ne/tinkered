@@ -44,7 +44,7 @@ An unavailable check is never a pass.
 ## Results
 
 - **Added:** `inputDefaultMasks`
-  19 true / 39 false, 58 points, 99% ordered.
+  20 true / 39 false, 61 points, 99% ordered.
   Reworded once: the first wording scored
   `if (blank) return 1` at 25%. The tool-library
   gate proof caught it; 11 cases were added.
@@ -74,7 +74,7 @@ An unavailable check is never a pass.
 - Arrow helpers (`const x = () => …`) in `.ts`
   files are not units, so a default inside one
   is never judged on its own (`extract.mjs`).
-- No live trial has run with the gate yet.
+- Live run: [GATE-LIVE.md](GATE-LIVE.md).
 
 ## Where things live
 

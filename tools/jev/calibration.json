@@ -141,11 +141,11 @@
   },
   "inputDefaultMasks": {
     "status": "proven",
-    "trues": 19,
+    "trues": 20,
     "falses": 39,
     "medianTrue": 0.94,
-    "medianFalse": 0.36,
-    "separation": 0.58,
+    "medianFalse": 0.33,
+    "separation": 0.61,
     "ordered": 0.99,
     "at": "2026-09-23"
   },
