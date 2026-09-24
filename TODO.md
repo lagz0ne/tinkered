@@ -40,7 +40,6 @@ card at a time.
 
 - **no-wrapper fixes** (user pick A; Jev reported every site first: 35 code hits, 16 judge hits).
   Worktrees `../tinkered-nw-<name>`, briefs `/tmp/nw/f*.md`. Verify each: its Jev hits gone; gate.
-  - nw/blueprint-shell — deepseek `248680a4`
   - nw/tracker-commands — deepseek `a2ab3f69`
   - nw/tinkerer-ask — deepseek `20981a92`
   - nw/hono-stream — sol 6 `d086938d`
@@ -81,6 +80,7 @@ card at a time.
 
 ## Done
 
+- **nw/blueprint-shell** — deepseek + opus review; tag `nw/blueprint-shell`. The five CLI command operations declared once at module level (ADR 0057); Jev hits 10 → 0; CLI output unchanged. Adapter labels are named constants so the golden pair's `verify` skips them (comment + README say why).
 - **nw/examples** — deepseek + opus review; tag `nw/examples`. Every unit in 9 examples declared at module level (ADR 0057); Jev `unitCouldBeModuleLevel` hits 14 → 0; deterministic tours byte-identical; lazy routes still load once.
 
 - **perf/create-creep** — sol 6 + opus review; tag `perf/create-creep`. `create` crept up
