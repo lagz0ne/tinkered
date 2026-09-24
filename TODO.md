@@ -43,7 +43,6 @@ card at a time.
   Lift pairs, worktrees `../tinkered-mut-<pkg>`, every lane under `flock /tmp/mutation.lock`:
   - mut/blueprint-85 — 79.47, sol 6 `13012c7a`
   - mut/tinkerer-85 — 81.74, deepseek `b63525bf`
-  - mut/process-85 — 82.69, deepseek `a1f75179`
     Verify each: its lane alone ≥ 85, `[Killed]` per claimed row.
 
 | Card | Owner | Next | Verify |
@@ -79,6 +78,7 @@ card at a time.
 
 ## Done
 
+- **mut/process-85** — deepseek + opus review (one fix round); tag `mut/process-85`. Process mutation 82.69 → 95.51 alone: public-seam tests for help order (and equal names), partial io writers, graceful close, signal wiring, an unknown error, and `MissingTag` naming process tags outside `run`.
 - **mut/sync-85** — sol 6 + opus review (two fix rounds); tag `mut/sync-85`. Sync mutation 80.13 → 87.38 alone: 12 public-seam tests (malformed keys, registration rules, wrong-direction messages, a failed snapshot send, viewer close parts the source wire, a closed viewer sends nothing later).
 - **mut/hono-85** — sol 6 + opus review (one fix round); tag `mut/hono-85`. Hono mutation 80.09 → 86.88 alone: public-seam tests for PUT/PATCH/DELETE rows, a rejected body read, a closer object, byte chunks, a stream namespace, null input; the scope-close tests now check the whole result.
 - **mut/harness-85** — sol 6 + opus review (one fix round); tag `mut/harness-85`. Harness mutation 76.30 → 86.32 alone: tests at the public seam for raw approval parsing and for unset Codex options staying out of SDK calls; every claimed mutant `[Killed]`.
