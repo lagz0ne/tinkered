@@ -94,8 +94,8 @@ matching is by **family and identity** (the key `label/id`). Writes from the cli
   pushed unasked: the source keeps a key set per transport and fans a change out only to the transports
   registered for that key. A registered member the source does not hold yet is created there with its
   initial value. This replaces "a family is published whole" (§3).
-- Each `register` runs on the source as an inline operation `sync register` (span, one `sync register`
-  log line with the key count) inside the subscriber's session; a key that is not published, or a
+- Each `register` runs on the source as an inline operation `sync register` (span, one `sync keys`
+  log line with the key count; core's step line carries the time since graph/t01) inside the subscriber's session; a key that is not published, or a
   message in the wrong direction, closes the transport (protocol violation, as before).
 - A userland write on a client cell stays local in v1 (the next snapshot overwrites it); the README says so.
 - Unregister waits for `scope.onMount` (a member is memoized for the process's life); the core-feedback

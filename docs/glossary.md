@@ -216,6 +216,11 @@ New sections are lists, one term per item (vertical layout,
   `scope.spans()`. It fails when a step slips back
   into a plain function; the advisory judges only
   point.
+- **step line** — The log line core writes when an
+  operation's span closes: its label, `ms`, and
+  outcome; `debug` when ok, `error` when failed. It
+  needs observing and a `log` sink. A package's own
+  line keeps its domain fields and no `ms`.
 - **one mechanism per idea** — Per-call config is
   `tags` on the run (ADR 0038). A merge helper lives
   inside the unit that needs it, never at the call
