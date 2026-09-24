@@ -293,6 +293,8 @@ config, bound by the composition root.
 - An unknown command exits with a usage code.
 - `ask` joins the prompt words with spaces and
   drops `--flags`.
+- `ask` keeps a plain word after a boolean flag:
+  `ask --json hello` sends `hello`.
 
 ```ts
 const ask = operation({
@@ -304,7 +306,10 @@ const ask = operation({
     turn: coder.turn,
   },
   run: async ({ argv, io, text, turn }) => {
-    // read the prompt, stream the turn, exit
+    const prompt = positionals(argv, {
+      values: ["--cwd", "--mode"],
+    }).join(" ");
+    // stream the turn, exit
   },
 });
 

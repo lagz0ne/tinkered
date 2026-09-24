@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "vite-plus/test";
 import { operation } from "@tinker/core";
-import { argv, io, run, type Process } from "@tinker/process";
+import { argv, io, positionals, run, type Process } from "@tinker/process";
 import { backend, HttpResponse, type HttpClient, type HttpRequest } from "@tinker/http";
 import { tinkerer } from "../src/index.ts";
 
@@ -12,11 +12,10 @@ const replyText =
 
 const coder = tinkerer({ label: "coder" });
 
-/** The prompt from argv: the words that are not a `--flag` or a flag's value. */
+/** The prompt from argv: the plain words, with the values of `--cwd` and `--mode` skipped.
+ * Those two take a value; every other flag is boolean and drops alone. */
 function readPrompt(args: readonly string[]): string {
-  return args
-    .filter((word, at) => !word.startsWith("--") && args[at - 1]?.startsWith("--") !== true)
-    .join(" ");
+  return positionals(args, { values: ["--cwd", "--mode"] }).join(" ");
 }
 
 /** The `ask` command, declared by its author: one turn, the reply streamed through `io`, and
@@ -107,6 +106,16 @@ test("ask joins the prompt words with spaces and drops --flags with their values
     role: "user",
     content: "read the readme",
   });
+});
+
+test("ask keeps a plain word after a boolean flag: ask --json hello sends hello", async () => {
+  const seen: HttpRequest.Record[] = [];
+  const result = await run(shell(seen), ["ask", "--json", "hello"]);
+  expect(result.code).toBe(0);
+  const body = seen[0]?.body;
+  if (body === undefined || body.kind !== "text") throw new Error("expected a JSON body");
+  const parsed = JSON.parse(body.text) as { messages: { role: string; content: string }[] };
+  expect(parsed.messages[parsed.messages.length - 1]?.content).toBe("hello");
 });
 
 test("an unknown command exits 2 and lists ask in the usage", async () => {
