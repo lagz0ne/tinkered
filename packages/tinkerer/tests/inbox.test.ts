@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "vite-plus/test";
-import { createScope, namespace } from "@tinker/core";
+import { createScope, namespace, operation } from "@tinker/core";
 import { backend, HttpResponse, type HttpClient, type HttpRequest } from "@tinker/http";
-import { queue, steer, tinkerer } from "../src/index.ts";
+import { queue, steer, tinkerer, tool } from "../src/index.ts";
 
 const answer = readFileSync(new URL("./fixtures/answer.sse", import.meta.url));
 const enc = new TextEncoder();
@@ -163,6 +163,59 @@ const emptyThenLate = [
   'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n',
   "data: [DONE]\n\n",
 ].join("");
+
+/** One SSE body: a text delta carrying a tool-call piece, then a second piece that closes the
+ * arguments and the reply. A steer pushed before the first event drops everything after it. */
+const halfThenCall = [
+  'data: {"choices":[{"delta":{"content":"half","tool_calls":[{"index":0,"id":"c0","type":"function","function":{"name":"act","arguments":"{"}}]},"finish_reason":null}]}',
+  'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"}"}}]},"finish_reason":"tool_calls"}]}',
+  "data: [DONE]",
+]
+  .map((line) => `${line}\n\n`)
+  .join("");
+
+test("a steer with tool-call pieces in flight drops them and runs no tool", async () => {
+  const seen: HttpRequest.Record[] = [];
+  let runs = 0;
+  const act = operation({
+    label: "act",
+    input: (raw: unknown) => raw as Record<string, unknown>,
+    run: () => {
+      runs += 1;
+      return "ran";
+    },
+  });
+  const frame = tinkerer({
+    label: "coder",
+    tools: [tool(act, { description: "acts", schema: {} })],
+  });
+  let pushSteer: (() => void) | undefined;
+  const fake: HttpClient.Backend = async (request) => {
+    seen.push(request);
+    if (seen.length === 1) pushSteer?.();
+    return HttpResponse.make(request, {
+      status: 200,
+      body: seen.length === 1 ? halfThenCall : answer,
+    });
+  };
+  const s = createScope({
+    tags: [backend(fake), frame.config({ model: "m", baseUrl: "https://api" })],
+  });
+  const session = s.createSession();
+  pushSteer = () => session.controller(frame.inbox).update((list) => [...list, steer("stop that")]);
+  const reply = await session.run(frame.turn, { input: "go" });
+  expect(reply.message.content).toBe(replyText);
+  expect(runs).toBe(0);
+  expect(seen).toHaveLength(2);
+  expect(session.resolve(frame.messages)).toStrictEqual([
+    { role: "user", content: "go" },
+    { role: "assistant", content: "half" },
+    { role: "user", content: "stop that" },
+    { role: "assistant", content: replyText },
+  ]);
+  expect(session.resolve(frame.inbox)).toHaveLength(0);
+  await s.close();
+});
 
 test("a steer with no text in flight ends the stream early and adds no assistant message", async () => {
   const seen: HttpRequest.Record[] = [];

@@ -108,8 +108,9 @@ build a separate frame if either differs.
 - The wire name is `meta.name ?? op.label`.
 - Two rows with one wire name fail construction
   with `DuplicateTool`.
-- The request lists each row as a function
-  tool with its JSON schema.
+- The request lists each row's name,
+  description and JSON schema as a
+  function tool.
 - A reply with a tool call runs the tool
   as a subflow; the next step carries
   its result.
@@ -236,6 +237,8 @@ the entry is consumed.
   re-enters as a user message.
 - A steer carrying a mode patches the settings
   before the next step.
+- A steer drops the tool calls still streaming;
+  none of them runs.
 - A steer with no text in flight adds no
   assistant message.
 
