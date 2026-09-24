@@ -302,6 +302,20 @@ test("usage lands the provider's cached token count in the usage cell", async ()
   await scope.close();
 });
 
+test("a config with no optional fields seeds settings with only the model", async () => {
+  const seen: HttpRequest.Record[] = [];
+  const scope = createScope({
+    tags: [backend(recording(seen)), coder.config({ model: "m", baseUrl: "https://api" })],
+  });
+  const session = scope.createSession();
+  await session.run(coder.turn, { input: "hi" });
+  expect(session.resolve(coder.settings)).toStrictEqual({
+    mode: "read-only",
+    options: { model: "m" },
+  });
+  await scope.close();
+});
+
 test("a forced close during a turn rejects the turn and writes no failed status", async () => {
   const hanging: HttpClient.Backend = (_request, signal) =>
     new Promise((_resolve, reject) => {
