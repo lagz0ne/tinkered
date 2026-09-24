@@ -113,6 +113,8 @@ close reaps both listeners.
 `hono(rows, { mount: (app) => { … } })` runs after the rows, inside the same
 session middleware, so `stream` sees the request session.
 
+A rejected body read tells `onError` which operation and cause failed.
+
 The `input` callback may return a promise: the endpoint awaits it, then parses
 the value through the operation's `input`. Pass a JSON body read straight
 through — a rejected body read answers 400 like a parse failure: the request

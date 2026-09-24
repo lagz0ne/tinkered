@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, operation, tag, type Observe } from "@tinker/core";
-import { hono, route } from "../src/index.ts";
+import { hono, isError, route } from "../src/index.ts";
 
 /** A tenant tag: bound at the scope, rebound per request from a header. */
 const tenant = tag<string>({ label: "tenant" });
@@ -199,6 +199,27 @@ const createNamed = operation({
   label: "createNamed",
   input: parseNamed,
   run: (_deps, ctx) => ({ name: ctx.input }),
+});
+
+test("a rejected body read tells onError which route and cause failed", async () => {
+  const cause = new Error("body unavailable");
+  let seen: unknown;
+  const { extension: web } = hono(
+    [route.post("/named", createNamed, { input: () => Promise.reject(cause) })],
+    {
+      onError: (error) => {
+        seen = error;
+        return undefined;
+      },
+    },
+  );
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const res = await scope.resolve(web).request("/named", { method: "POST" });
+  expect(res.status).toBe(400);
+  if (!isError(seen, "InputRejected")) throw seen;
+  expect(seen.payload).toEqual({ label: "createNamed", cause });
+  await scope.close();
 });
 
 test("an async input read answers the parsed body; a malformed body takes the error map", async () => {
