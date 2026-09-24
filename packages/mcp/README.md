@@ -49,45 +49,62 @@ const server = scope.resolve(ext);
 await server.connect(new StdioServerTransport());
 ```
 
-The stdio entry through `@tinker/cli` (`examples/mcp/cli.ts`) — the same
-`search` row, then an entry command whose closure resolves the installed
-extension off the root (so the root does its own ≤ 30-line glue instead of
-`runMain`). A harness runs `node cli.ts mcp`:
+The stdio entry through `@tinker/process` (`examples/mcp/cli.ts`): one
+`mcp` command whose entry options install the MCP extension beside a
+`stdio` extension that resolves the server and connects the transport,
+then wait for that serving lifetime. A harness runs `node cli.ts mcp`:
 
 ```ts
-import { createScope } from "@tinker/core";
-import { cli, command } from "@tinker/cli";
+import { extension, operation } from "@tinker/core";
+import { main, type Process } from "@tinker/process";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
-const shell = cli({
+// ext = the mcp({ … }) extension built above.
+const stdio = extension({
+  label: "coder.stdio",
+  start: async (scope, ctx, next) => {
+    await next();
+    const server = scope.resolve(ext);
+    ctx.defer(() => server.close());
+    await server.connect(new StdioServerTransport());
+  },
+});
+
+/** A server command returns when it is told to stop. */
+const serveMcp = operation({
+  label: "mcp",
+  run: (_deps, ctx) =>
+    new Promise<number>((resolve) =>
+      ctx.signal.addEventListener("abort", () => resolve(0), { once: true }),
+    ),
+});
+
+const shell: Process.Shell = {
   name: "coder",
   version: "1.0.0",
   commands: [
-    command.entry("mcp", async () =>
-      serve(scope.resolve(searchMcp), { onClose: scope.onClose.bind(scope) }),
-    ),
+    {
+      name: "mcp",
+      entry: () => ({
+        op: serveMcp,
+        options: { extensions: [stdio, ext] },
+      }),
+    },
   ],
-});
-const scope = createScope({ extensions: [searchMcp, shell] });
-await scope.ready;
-const run = scope.resolve(shell);
+};
+await main(shell);
 ```
 
-The entry must wait for its serving lifetime. `connect()` only opens the transport;
-returning it alone makes `runMain` close the scope and exit before tool calls arrive.
-Here EOF or a transport close settles the entry; a CLI signal closes the scope and
-settles it too. The `finally` closes the transport in each case.
+The command must wait for its serving lifetime. `connect()` only opens the
+transport; returning it alone would let the process exit before tool calls
+arrive. This command returns on a signal; `cli.ts` also binds a `stopping`
+cell that stdin EOF and a server close set, and watches it beside the
+signal. The root's defer closes the transport.
 
-The CLI mirror: a command is a `command(name, op, { input })` row from
-`@tinker/cli`, so one operation can ride a CLI row and a separate MCP row
-at once:
-
-```ts
-const searchRow = command("search", search, {
-  description: "search the index",
-  input: (argv) => ({ q: argv[0] }),
-});
-const searchTool = expose(search, { description: "search the index", schema: searchShape });
-```
+The tool row rides the process too: the `mcp` command installs the driver
+extension and serves it. The MCP edge parses the zod shape; a command is an
+ordinary operation that reads the `argv` tag and owns its parse (ADR 0042,
+0056).
 
 Harness adapters share the readers: `readTool(op)` reads the `tool` meta off
 an op that still carries it (kept for harnesses until their own ticket), and
