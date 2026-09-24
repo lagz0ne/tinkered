@@ -1728,13 +1728,15 @@ const DEFAULT_OBS: Obs = {
   nextId: 1,
 };
 
-function makeObs(config: Observe.Config | undefined): Obs {
+/** Span and log times read `observe.clock` if set, else the scope's ambient clock, so a test clock
+ * freezes them too (ADR 0034). */
+function makeObs(config: Observe.Config | undefined, clock: Clock.Handle): Obs {
   if (!config) return DEFAULT_OBS;
   const c = config;
   const historyMax = c.history ?? 0;
   return {
     observing: c.export !== undefined || historyMax > 0,
-    clock: c.clock ?? Date.now,
+    clock: c.clock ?? (() => clock.currentTimeMillis()),
     export: c.export,
     historyMax,
     history: [],
@@ -3567,6 +3569,7 @@ function nsFor(
 function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
   const tags = seedTags(options?.tags);
   const { nodes, presets } = seedPresets(options?.presets);
+  const clock = clockFor(parent, options);
   const layer: Layer = {
     parent,
     children: new Set(),
@@ -3588,8 +3591,8 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     body: undefined,
     closed: false,
     closing: undefined,
-    obs: parent ? parent.obs : makeObs(options?.observe),
-    clock: clockFor(parent, options),
+    obs: parent ? parent.obs : makeObs(options?.observe, clock),
+    clock,
     random: randomFor(parent, options),
     emptyCtx: undefined,
     ns: nsFor(parent, options),

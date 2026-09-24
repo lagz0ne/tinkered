@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, makeTestClock, operation } from "../src/index.ts";
+import { createScope, makeTestClock, operation, type Observe } from "../src/index.ts";
 
 test("a test-clock sleep with an already-aborted signal rejects with the abort reason", async () => {
   const clock = makeTestClock({ now: 0 });
@@ -127,4 +127,34 @@ test("a test-clock sleep set into the past wakes at once", async () => {
   clock.setTime(2000);
   expect(await nap).toBe("woke");
   expect(seen).toEqual([2000]);
+});
+
+test("a span's start and end read the scope's test clock", () => {
+  const clock = makeTestClock({ now: 1000 });
+  const spans: Observe.Span[] = [];
+  const step = operation({
+    label: "step",
+    run: () => {
+      clock.advance(5);
+      return 1;
+    },
+  });
+  createScope({ clock, observe: { export: (s) => void spans.push(s) } }).run(step);
+  expect([spans[0].start, spans[0].end]).toEqual([1000, 1005]);
+});
+
+test("a log line's time reads the scope's test clock", () => {
+  const times: number[] = [];
+  const say = operation({ label: "say", run: (_deps, { log }) => log("hi") });
+  const observe = { log: (line: Observe.Log) => void times.push(line.time) };
+  createScope({ clock: makeTestClock({ now: 42 }), observe }).run(say);
+  expect(times).toEqual([42]);
+});
+
+test("an explicit observe clock wins over the scope's clock", () => {
+  const spans: Observe.Span[] = [];
+  const step = operation({ label: "step", run: () => 1 });
+  const observe = { clock: () => 7, export: (s: Observe.Span) => void spans.push(s) };
+  createScope({ clock: makeTestClock({ now: 1000 }), observe }).run(step);
+  expect(spans[0].start).toBe(7);
 });

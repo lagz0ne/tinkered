@@ -507,6 +507,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 ### Clock
 
 - An operation and a resource factory read the scope's clock.
+- Span and log times read the scope's clock, so a test clock freezes them too; an explicit
+  `observe.clock` wins over it.
 - The default clock reads real wall time; a test clock starts where built, moves on advance, jumps on
   set, and keeps precise nanos; a child session reads its parent's clock.
 - A test-clock sleep resolves only after virtual time passes it; a zero sleep resolves at once.

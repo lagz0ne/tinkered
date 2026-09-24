@@ -67,6 +67,8 @@ createScope({ clock: makeTestClock({ now: 0 }) }); // default is systemClock
   separate; the natural follow-up is to derive `Obs.clock` from the ambient clock
   so `TestClock` also freezes span timestamps. Deferred (YAGNI) — recorded here so
   we do not fork two clocks by accident.
+  **Update 2026-09-24: done.** `Obs.clock` now reads the scope's ambient clock
+  when `observe.clock` is unset; an explicit `observe.clock` still wins.
 - `currentTimeNanos` derives from `performance.timeOrigin + performance.now()`
   (universal), split into whole-ms + fractional-ns `BigInt` so it never exceeds
   `Number` precision; the test clock's virtual time uses the same conversion. It
