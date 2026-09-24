@@ -39,10 +39,6 @@ Pairs since 2026-09-23: a writer (sol 6 for hard, deepseek-v4.1-flash for simple
 reviewer per card; the lead runs mutation, bench, and `pnpm validate` alone at landing, one core
 card at a time.
 
-- **core/release-cell-ns** — sol 6 (agent `f3e0073b`), worktree `../tinkered-core-release-cell-ns`.
-  `release(cell)` also clears the cell's namespace entries (user pick A, 2026-09-24; ADR 0063).
-  Verify: the tests in the brief; gate; mutation alone; bench.
-
 | Card | Owner | Next | Verify |
 
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -76,6 +72,12 @@ card at a time.
 
 ## Done
 
+- **core/release-cell-ns** — sol 6 + opus review; tag `core/release-cell-ns`. `release(cell)`
+  now clears the cell's namespace entries at that layer (ADR 0063). It also stops releasing
+  resources built on a CHILD's own entry, which main did.
+  Gate green (core 533 tests); core mutation 85.47 alone; `pnpm validate` 43/43 PASS;
+  tagged promises 17. N=61 vs main `0a97d28`: op +0.0%, opres +0.4%, lifecycle -0.5%,
+  create +1.6% (35/61).
 - **core/ns-watch-child** — sol 6 + opus review; tag `core/ns-watch-child`. Named writes and
   `releaseNs` wake namespace watchers on child layers, unless the child shadows the value.
   Gate green (core 528 tests); core mutation 85.36 alone; `pnpm validate` 43/43 PASS;
