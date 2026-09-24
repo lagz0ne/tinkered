@@ -114,7 +114,9 @@ build a separate frame if either differs.
   as a subflow; the next step carries
   its result.
 - Streamed tool-call pieces accrue by index;
-  a piece may carry only its index.
+  a piece may carry only more arguments.
+- A piece with no id, name or arguments leaves
+  those three fields as empty strings.
 - An unknown tool answers not-found;
   the loop keeps going.
 - A tool call whose arguments are not JSON answers
@@ -336,9 +338,12 @@ reads `--cwd` and `--mode` into the `cwd` and
 A scope with a log sink sees one line per step.
 
 - `tinkerer tool { name, ok }` — one per tool
-  call; `ok` is false when the call never ran.
-- `tinkerer gate { name, allow }` — the gate's
-  decision for one call.
+  call.
+- Each executed tool call logs `ok` true.
+- A call that never runs logs `ok` false:
+  unknown, blocked, bad arguments, or cut.
+- `tinkerer gate { name, allow }` — the call's
+  name and whether the gate allowed it.
 - `tinkerer turn { finish, input, output }` —
   the turn's finish reason and output tokens.
 
@@ -362,9 +367,8 @@ share one wire name at construction.
 zero or several matches.
 `PathOutsideCwd { label, path }` — `read`
 was asked for a path outside `cwd`.
-`MissingTag { label }` — core's error when no
-scope bound the named tag, `coder.config` or
-`tinkerer.cwd`.
+An unbound tag fails with `MissingTag`, which
+names the tag: `coder.config`, `tinkerer.cwd`.
 
 `isError(value, kind)` is true only for an
 `Error` carrying that `kind`.
