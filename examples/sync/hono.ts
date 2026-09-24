@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import { createScope, data, operation, resource, type Scope } from "@tinker/core";
-import { hono, route, stream } from "@tinker/hono";
+import { emit, hono, route, stream } from "@tinker/hono";
 import { source, type Sync } from "@tinker/sync";
 import { z } from "zod";
 
@@ -54,50 +54,58 @@ const deliverRegister = operation({
   },
 });
 
+/** The down wire is a declared operation with its own dependencies. */
+const wireBody = operation({
+  label: "wireBody",
+  input: (raw: unknown) => raw as string,
+  depends: { emit: emit.required, origin: src, posts },
+  run: ({ emit, origin, posts }, { input: id, signal }) => {
+    let open = true;
+    const arrivals = new Set<(message: Sync.Message) => void>();
+    const partings = new Set<() => void>();
+    const transport: Sync.Transport = {
+      send: (message) => {
+        if (open) emit(frame(message));
+      },
+      onMessage: (listener) => {
+        arrivals.add(listener);
+        return () => {
+          arrivals.delete(listener);
+        };
+      },
+      onClose: (listener) => {
+        partings.add(listener);
+        return () => {
+          partings.delete(listener);
+        };
+      },
+      close: () => {
+        if (open === false) return;
+        open = false;
+        posts.delete(id);
+        for (const part of partings) part();
+      },
+    };
+    posts.set(id, (message) => {
+      for (const arrival of arrivals) arrival(message);
+    });
+    signal.addEventListener("abort", () => transport.close(), { once: true });
+    return origin.connect(transport).then(() => {
+      posts.delete(id);
+    });
+  },
+});
+
 /** The recipe: flat rows plus the source extension. One way: nothing is pushed
  * unasked. The stream goes down, the registration comes up. */
 const { extension: web } = hono([
   route.get("/sync", openWire, {
-    respond: (opened, c) => {
+    respond: (_opened, c) => {
       const id = c.req.query("client") ?? "guest";
       c.header("Content-Type", "text/event-stream");
       c.header("Cache-Control", "no-cache");
       c.header("Connection", "keep-alive");
-      return stream(c, (emit, ctx) => {
-        let open = true;
-        const arrivals = new Set<(message: Sync.Message) => void>();
-        const partings = new Set<() => void>();
-        const transport: Sync.Transport = {
-          send: (message) => {
-            if (open) emit(frame(message));
-          },
-          onMessage: (listener) => {
-            arrivals.add(listener);
-            return () => {
-              arrivals.delete(listener);
-            };
-          },
-          onClose: (listener) => {
-            partings.add(listener);
-            return () => {
-              partings.delete(listener);
-            };
-          },
-          close: () => {
-            if (open === false) return;
-            open = false;
-            opened.posts.delete(id);
-            for (const part of partings) part();
-          },
-        };
-        opened.posts.set(id, (message) => {
-          for (const arrival of arrivals) arrival(message);
-        });
-        ctx.signal.addEventListener("abort", () => transport.close(), { once: true });
-        return opened.origin.connect(transport).then(() => {
-          opened.posts.delete(id);
-        });
-      });
+      return stream(c, wireBody, { input: id });
     },
   }),
   route.post("/sync", deliverRegister, {

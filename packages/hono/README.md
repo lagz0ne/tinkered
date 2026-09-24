@@ -138,25 +138,38 @@ middleware, `stream` raises `NoSession`.
 
 ## Streaming
 
-A route that streams answers with `stream(c, write)`: the request session stays open until
-the body finishes or the client cancels, then closes (every other response closes after
-`next()`). The writer runs as its own inline operation (`"GET /path body"`), so `ctx.signal`,
-`ctx.clock`, `ctx.log`, and its span are all available while the request span has ended.
+A route answers with `stream(c, op, call?)`.
+The body is a declared operation, not a callback.
+It reads `emit` with `depends: { emit: emit.required }`.
+The call may carry `input` and `tags` as usual.
+The stream binds `emit` for this run.
+The body has its own span named by its label.
+Its signal, clock, and log remain available after the request span ends.
+The session closes when the body finishes or the client cancels.
 
 ```ts
-route.get("/ticks", () => ticks, {
-  respond: (ts, c) =>
-    stream(c, async (emit, { clock, signal }) => {
-      for (const t of ts) {
-        emit(`${t}\n`);
-        await clock.sleep(1000, signal);
-      }
-    }),
+import { operation } from "@tinker/core";
+import { emit, route, stream } from "@tinker/hono";
+
+const tickBody = operation({
+  label: "tickBody",
+  input: (raw: unknown) => raw as string[],
+  depends: { emit: emit.required },
+  run: async ({ emit }, { input, clock, signal }) => {
+    for (const t of input) {
+      emit(`${t}\n`);
+      await clock.sleep(1000, signal);
+    }
+  },
+});
+
+route.get("/ticks", ticks, {
+  respond: (ts, c) => stream(c, tickBody, { input: ts }),
 });
 ```
 
 If a test or shutdown leaves a stream open, use plain `await scope.close()` to force
-shutdown. The writer must respond to `ctx.signal` so it can settle. A graceful close waits
+shutdown. The body must respond to `ctx.signal` so it can settle. A graceful close waits
 for the body to end and can wait forever for a live stream; choose forced close from the
 start, since a later call cannot upgrade an in-progress graceful close.
 

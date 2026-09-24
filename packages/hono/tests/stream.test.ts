@@ -5,10 +5,23 @@ import {
   makeTestClock,
   operation,
   resource,
+  tag,
   type Clock,
   type Resource,
 } from "@tinker/core";
-import { hono, isError, request, route, stream } from "../src/index.ts";
+import { emit, hono, isError, request, route, stream } from "../src/index.ts";
+
+const body = operation({
+  label: "streamBody",
+  input: (raw: unknown) => raw as string[],
+  depends: { emit: emit.required },
+  run: async ({ emit }, { input, clock, signal }) => {
+    for (const ch of input) {
+      emit(ch);
+      await clock.sleep(10, signal);
+    }
+  },
+});
 
 /** A session-target resource delivering the request path; its defer records the end status.
  * Ops must READ it (resource deps build lazily on first access) for the defer to exist. */
@@ -30,13 +43,7 @@ function pathResource(ends: string[]): Resource.Handle<string> {
 function streamRow(path: Resource.Handle<string>) {
   const chunks = operation({ label: "chunks", depends: { path }, run: ({ path }) => [path, "b"] });
   return route.get("/stream", chunks, {
-    respond: (cs, c) =>
-      stream(c, async (emit, { clock, signal }) => {
-        for (const ch of cs) {
-          emit(ch);
-          await clock.sleep(10, signal);
-        }
-      }),
+    respond: (cs, c) => stream(c, body, { input: cs }),
   });
 }
 
@@ -68,13 +75,7 @@ test("the body yields each chunk as the clock advances, then ends", async () => 
   const chunks = operation({ label: "chunks", run: () => ["a", "b", "c"] });
   const { extension: web } = hono([
     route.get("/stream", chunks, {
-      respond: (cs, c) =>
-        stream(c, async (emit, { clock, signal }) => {
-          for (const ch of cs) {
-            emit(ch);
-            await clock.sleep(10, signal);
-          }
-        }),
+      respond: (cs, c) => stream(c, body, { input: cs }),
     }),
   ]);
   const scope = createScope({ clock: clk, extensions: [web] });
@@ -82,6 +83,38 @@ test("the body yields each chunk as the clock advances, then ends", async () => 
   const res = await scope.resolve(web).request("/stream");
   expect(res.status).toBe(200);
   expect(await readAll(readerOf(res), clk)).toEqual(["a", "b", "c"]);
+  await scope.close();
+});
+
+test("body uses its own label, input and per-call tags without leaking between requests", async () => {
+  const flavor = tag<string>({ label: "flavor" });
+  const labeledBody = operation({
+    label: "labeledBody",
+    input: (raw: unknown) => raw as string,
+    depends: { emit: emit.required, flavor: flavor.required },
+    run: ({ emit, flavor }, { input }) => emit(`${input}:${flavor}`),
+  });
+  const label = operation({ label: "label", run: () => "hello" });
+  const { extension: web } = hono([
+    route.get("/body", label, {
+      respond: (value, c) =>
+        stream(c, labeledBody, {
+          input: value,
+          tags: [flavor(c.req.header("x-flavor") ?? "plain")],
+        }),
+    }),
+  ]);
+  const scope = createScope({ observe: { history: 20 }, extensions: [web] });
+  await scope.ready;
+  const app = scope.resolve(web);
+  const [one, two] = await Promise.all([
+    app.request("/body", { headers: { "x-flavor": "vanilla" } }),
+    app.request("/body", { headers: { "x-flavor": "chocolate" } }),
+  ]);
+  expect(await one.text()).toBe("hello:vanilla");
+  expect(await two.text()).toBe("hello:chocolate");
+  expect(scope.spans().filter((span) => span.name === "labeledBody")).toHaveLength(2);
+  expect(scope.spans().some((span) => span.name === "GET /body body")).toBe(false);
   await scope.close();
 });
 
@@ -110,16 +143,21 @@ test("cancelling the reader mid-body force-closes the session and stops the writ
     run: ({ path }) => [path, "b", "c"],
   });
   let emitted = 0;
+  const counted = operation({
+    label: "countedBody",
+    input: (raw: unknown) => raw as string[],
+    depends: { emit: emit.required },
+    run: async ({ emit }, { input, clock, signal }) => {
+      for (const ch of input) {
+        emitted++;
+        emit(ch);
+        await clock.sleep(10, signal);
+      }
+    },
+  });
   const { extension: web } = hono([
     route.get("/stream", chunks, {
-      respond: (cs, c) =>
-        stream(c, async (emit, { clock, signal }) => {
-          for (const ch of cs) {
-            emitted++;
-            emit(ch);
-            await clock.sleep(10, signal);
-          }
-        }),
+      respond: (cs, c) => stream(c, counted, { input: cs }),
     }),
   ]);
   const scope = createScope({ clock: clk, extensions: [web] });
@@ -140,14 +178,19 @@ test("a throwing writer errors the body and the session settles failed", async (
   const path = pathResource(ends);
   const clk = makeTestClock({ now: 0 });
   const chunks = operation({ label: "chunks", depends: { path }, run: ({ path }) => [path] });
+  const broken = operation({
+    label: "brokenBody",
+    input: (raw: unknown) => raw as string[],
+    depends: { emit: emit.required },
+    run: async ({ emit }, { input, clock }) => {
+      emit(input[0] ?? "");
+      await clock.sleep(10);
+      throw boom;
+    },
+  });
   const { extension: web } = hono([
     route.get("/stream", chunks, {
-      respond: (cs, c) =>
-        stream(c, async (emit, { clock }) => {
-          emit(cs[0] ?? "");
-          await clock.sleep(10);
-          throw boom;
-        }),
+      respond: (cs, c) => stream(c, broken, { input: cs }),
     }),
   ]);
   const scope = createScope({ clock: clk, extensions: [web] });
@@ -246,12 +289,7 @@ test("the request session commits on success, rolls back on abort, fails on an u
 
 test("stream without the extension's middleware raises NoSession to onError", async () => {
   let seen: unknown;
-  const app = new Hono().get("/stream", (c) =>
-    stream(c, (emit) => {
-      emit("a");
-      return Promise.resolve();
-    }),
-  );
+  const app = new Hono().get("/stream", (c) => stream(c, body, { input: ["a"] }));
   app.onError((e, c) => {
     seen = e;
     return c.text("err", 500);

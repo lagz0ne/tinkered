@@ -1,5 +1,5 @@
-import { operation, tag, type Operation } from "@tinker/core";
-import type { Stream } from "@tinker/hono";
+import { operation, tag } from "@tinker/core";
+import { emit } from "@tinker/hono";
 import { claudeCode, harness, type ClaudeCode } from "@tinker/harness";
 import { fail, raise } from "../errors.ts";
 import { describeError } from "./observe.ts";
@@ -61,64 +61,65 @@ function draftFrame(event: Draft.Event): string {
   return `data: ${JSON.stringify(event)}\n\n`;
 }
 
-/** Start one draft run in the request session: checks the helper and the issue,
- * then hands back a `stream` closure over the delivered values (never the
- * scope) that emits text deltas and status as they land, then the terminal
- * frame. A client disconnect force-closes the request session, the turn's
- * signal aborts, and the turn rejects into a terminal `cancelled`. Every
- * emit after the client went away throws; the terminal emits share one
- * try/catch that returns instead. The body's `ctx` (the stream's own
- * operation) carries the signal and the log: a run that did not finish
- * writes one `draft failed` line with the model's error. */
+/** Check the helper and issue before sending headers; hand the checked input
+ * to the declared body operation. */
 export const startDraft = operation({
   label: "startDraft",
   input: parseDraftInput,
   depends: {
     draft: draftHelper,
     detail: readDetail,
+  },
+  run: async ({ draft, detail }, ctx) => {
+    if (draft.enabled === false) raise("DraftOff", {});
+    await detail.run({ input: ctx.input.id });
+    return ctx.input;
+  },
+});
+
+/** Emit text, status, and the terminal frame from the draft's own step.
+ * A client disconnect aborts the turn; a failed run logs once. */
+export const draftBody = operation({
+  label: "draftBody",
+  input: parseDraftInput,
+  depends: {
+    emit: emit.required,
     turn: draftTurn,
     text: triage.text.controller,
     status: triage.status.controller,
   },
-  run: async ({ draft, detail, turn, text, status }, ctx) => {
-    if (draft.enabled === false) raise("DraftOff", {});
-    await detail.run({ input: ctx.input.id });
-    const input = ctx.input;
-    return {
-      stream: async (emit: Stream.Emit, { signal, log }: Operation.Ctx<void>): Promise<void> => {
-        let live = "";
-        const unText = text.watch((next) => {
-          if (next.length > live.length) {
-            emit(draftFrame({ kind: "text", text: next.slice(live.length) }));
-            live = next;
-          }
-        });
-        const unStatus = status.watch((next) => {
-          if (next === "running") emit(draftFrame({ kind: "status", status: next }));
-        });
-        try {
-          const draftText = await turn.run({ input });
-          try {
-            emit(draftFrame({ kind: "status", status: "done" }));
-            emit(draftFrame({ kind: "done", draft: draftText }));
-            emit(draftFrame({ kind: "terminal", status: "done", draft: draftText }));
-          } catch {
-            return;
-          }
-        } catch (error) {
-          const outcome: Draft.Outcome = signal.aborted ? "cancelled" : "failed";
-          if (outcome === "failed") log("draft failed", { id: input.id, ...describeError(error) });
-          try {
-            emit(draftFrame({ kind: "status", status: outcome }));
-            emit(draftFrame({ kind: "terminal", status: outcome, draft: "" }));
-          } catch {
-            return;
-          }
-        } finally {
-          unText();
-          unStatus();
-        }
-      },
-    };
+  run: async ({ emit, turn, text, status }, { input, signal, log }) => {
+    let live = "";
+    const unText = text.watch((next) => {
+      if (next.length > live.length) {
+        emit(draftFrame({ kind: "text", text: next.slice(live.length) }));
+        live = next;
+      }
+    });
+    const unStatus = status.watch((next) => {
+      if (next === "running") emit(draftFrame({ kind: "status", status: next }));
+    });
+    try {
+      const draftText = await turn.run({ input });
+      try {
+        emit(draftFrame({ kind: "status", status: "done" }));
+        emit(draftFrame({ kind: "done", draft: draftText }));
+        emit(draftFrame({ kind: "terminal", status: "done", draft: draftText }));
+      } catch {
+        return;
+      }
+    } catch (error) {
+      const outcome: Draft.Outcome = signal.aborted ? "cancelled" : "failed";
+      if (outcome === "failed") log("draft failed", { id: input.id, ...describeError(error) });
+      try {
+        emit(draftFrame({ kind: "status", status: outcome }));
+        emit(draftFrame({ kind: "terminal", status: outcome, draft: "" }));
+      } catch {
+        return;
+      }
+    } finally {
+      unText();
+      unStatus();
+    }
   },
 });

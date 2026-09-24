@@ -10,7 +10,13 @@ import {
   tag,
   type Observe,
 } from "@tinker/core";
-import { hono, isError, request, route, stream } from "../src/index.ts";
+import { emit, hono, isError, request, route, stream } from "../src/index.ts";
+
+const noSessionBody = operation({
+  label: "noSessionBody",
+  depends: { emit: emit.required },
+  run: ({ emit }) => emit("a"),
+});
 
 /** A tenant tag: bound at the scope, rebound per request from a header. */
 const tenant = tag<string>({ label: "tenant" });
@@ -195,12 +201,7 @@ test("a client abort force-closes the session: the op settles cancelled", async 
 
 test("the extension mounts no session of its own: stream without rows raises NoSession to onError", async () => {
   let seen: unknown;
-  const app = new Hono().get("/stream", (c) =>
-    stream(c, (emit) => {
-      emit("a");
-      return Promise.resolve();
-    }),
-  );
+  const app = new Hono().get("/stream", (c) => stream(c, noSessionBody));
   app.onError((e, c) => {
     seen = e;
     return c.text("err", 500);

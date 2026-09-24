@@ -174,30 +174,42 @@ function serveRequests(scope: Scope.Handle, wiring: HonoScope.Wiring | undefined
 export declare namespace Stream {
   /** Write one body chunk into the streaming response. */
   export type Emit = (chunk: string | Uint8Array) => void;
-  /** The body producer: runs as its own inline operation, so it reads `ctx` (signal,
-   * clock, log, its span) while the request span has already ended with the headers. */
-  export type Write = (emit: Emit, ctx: Operation.Ctx<void>) => Promise<void>;
 }
 
-/** Answer a streaming body: keep the request session open until the body ends or the
- * client cancels, then close it — the middleware's `finally` skips its own close for this
- * request. Call from inside the extension's middleware (a route's `respond`); without the
- * session it raises `NoSession`. The writer runs as an inline operation (`"GET /path body"`) so
- * `ctx.signal` aborts on a forced close, `ctx.clock` is the scope clock (a TestClock
- * in tests), and its span is the body's own. The request span (the endpoint's inline op)
- * still ends when `respond` returns this Response. Close ownership: exactly one close
- * per request — a finished body closes graceful (resolved: defers see `success`;
- * rejected: the recorded body failure settles the outcome, defers see `failed`, while
- * the error itself already reached the reader), a cancelled body closes forced
- * (defers see `cancelled`); a client abort on `raw.signal` still force-closes through
- * the middleware's listener. Adds a `text/plain` content-type only when the caller set none;
- * headers stay the caller's. */
-export function stream(c: Context, write: Stream.Write): Response {
+/** The current streaming response's writer, bound only for the body run.
+ * A declared operation reads it with `depends: { emit: emit.required }`. */
+export const emit: Tag.Handle<Stream.Emit> = tag({ label: "hono.emit" });
+
+/** Answer a streaming body with a declared operation. Its usual call object supplies
+ * `input` and `tags`; this run also binds {@link emit}, read by the body with
+ * `depends: { emit: emit.required }`. Keep the request session open until the body
+ * ends or the client cancels; the middleware skips its own close for this request.
+ * Without the request session, raise `NoSession`. The body's own span uses the
+ * operation's label, while the request span ends when `respond` returns the Response.
+ * `ctx.signal` aborts on forced close and `ctx.clock` is the scope clock (a TestClock
+ * in tests). Exactly one close per request: finished bodies close graceful (success,
+ * or failed when the body rejected), cancelled bodies close forced (cancelled), and
+ * client abort on `raw.signal` force-closes through the middleware's listener.
+ * Add `text/plain` only when no content-type was set; keep the caller's headers. */
+export function stream<T>(
+  c: Context,
+  op: Operation.Handle<T, void>,
+  call?: Scope.Invocation<void>,
+): Response;
+export function stream<T, I>(
+  c: Context,
+  op: Operation.Handle<T, I>,
+  call: Scope.ProvideInput<I>,
+): Response;
+export function stream(
+  c: Context,
+  op: Operation.Handle<unknown, unknown>,
+  call?: Scope.Invocation<unknown>,
+): Response {
   const session = (c as Context<SessionEnv>).get("tinker.session");
   if (!session) raise("NoSession", { label: "stream" });
   (c as Context<SessionEnv>).set("tinker.kept", true);
   const encoder = new TextEncoder();
-  const label = `${c.req.method} ${c.req.routePath} body`;
   let closed = false;
   const closeOnce = (graceful: boolean): void => {
     if (closed) return;
@@ -206,27 +218,44 @@ export function stream(c: Context, write: Stream.Write): Response {
   };
   const readable = new ReadableStream<Uint8Array>({
     start(controller) {
-      const emit: Stream.Emit = (chunk) => {
+      const write: Stream.Emit = (chunk) => {
         controller.enqueue(typeof chunk === "string" ? encoder.encode(chunk) : chunk);
       };
-      const running = session.run({
-        label,
-        run: (_deps, ctx) => write(emit, ctx),
+      // Bind the writer on a child session for this response, but run the
+      // body without a tagged call: a caught failure in one of its subflows
+      // must not turn a successful terminal frame into a rejected body.
+      const body = session.createSession({
+        tags: [call?.tags, emit(write)],
+        ...(call?.ns === undefined ? {} : { ns: call.ns }),
       });
+      const running = body.run(op, {
+        input: call?.input,
+        rawInput: call?.rawInput,
+      } as Scope.ProvideInput<unknown>);
       const settled = Promise.resolve(running);
-      ignoreRejection(
-        settled.then(
-          () => {
-            controller.close();
-          },
-          (error: unknown) => {
-            controller.error(error);
-          },
-        ),
-      );
       const finish = settled.then(
-        () => closeOnce(true),
-        () => closeOnce(true),
+        async () => {
+          controller.close();
+          await body.close({ graceful: true });
+          closeOnce(true);
+        },
+        async (error: unknown) => {
+          await body.close({ graceful: true });
+          // Record an uncaught body error on the request too: its defers
+          // must see `failed` even though the bound child has closed.
+          try {
+            await session.run({
+              label: "stream failure",
+              run: async () => {
+                throw error;
+              },
+            });
+          } catch {
+            // The reader receives the original error below.
+          }
+          controller.error(error);
+          closeOnce(true);
+        },
       );
       ignoreRejection(finish);
     },

@@ -1,9 +1,9 @@
 import type { Context, ErrorHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { LEVELS, operation, type Observe } from "@tinker/core";
-import { route, stream, type HonoScope } from "@tinker/hono";
+import { emit, route, stream, type HonoScope } from "@tinker/hono";
 import { isError } from "../errors.ts";
-import { readCapability, startDraft } from "./draft.ts";
+import { draftBody, readCapability, startDraft } from "./draft.ts";
 import { describeError } from "./observe.ts";
 import { addComment, createIssue, editIssue, readDetail, readIssues } from "./operations.ts";
 import { registerViewer, src, sseTransport, viewers } from "./sync.ts";
@@ -75,6 +75,25 @@ const openWire = operation({
   run: ({ origin, wires }) => ({ origin, wires }),
 });
 
+/** Keep the sync wire alive until the source ends or the reader leaves. */
+const syncBody = operation({
+  label: "syncBody",
+  input: (raw: unknown) => raw as string,
+  depends: { emit: emit.required, origin: src, wires: viewers },
+  run: async ({ emit, origin, wires }, { input: id, signal, log }) => {
+    emit(": ready\n\n");
+    const wire = sseTransport(emit, signal);
+    const close = wires.open(id, wire.deliver);
+    try {
+      const ended = await origin.connect(wire);
+      if (ended.status === "failed")
+        log.error("sync wire failed", { client: id, ...describeError(ended.error) });
+    } finally {
+      close();
+    }
+  },
+});
+
 /** Every /api route as flat rows: the verb plus path, the domain operation,
  * and the request shape. Handed to `hono(routes)` in the composition root. */
 export const issueRoutes: readonly HonoScope.Row[] = [
@@ -101,7 +120,7 @@ export const issueRoutes: readonly HonoScope.Row[] = [
       c.header("Content-Type", "text/event-stream");
       c.header("Cache-Control", "no-cache");
       c.header("Connection", "keep-alive");
-      return stream(c, (emit, ctx) => started.stream(emit, ctx));
+      return stream(c, draftBody, { input: started });
     },
   }),
   route.post("/sync", registerViewer, {
@@ -112,23 +131,12 @@ export const issueRoutes: readonly HonoScope.Row[] = [
     respond: (_v, c) => c.text("ok"),
   }),
   route.get("/sync", openWire, {
-    respond: (opened, c) => {
+    respond: (_opened, c) => {
       const id = c.req.query("client") ?? "guest";
       c.header("Content-Type", "text/event-stream");
       c.header("Cache-Control", "no-cache");
       c.header("Connection", "keep-alive");
-      return stream(c, async (emit, ctx) => {
-        emit(": ready\n\n");
-        const wire = sseTransport(emit, ctx.signal);
-        const close = opened.wires.open(id, wire.deliver);
-        try {
-          const ended = await opened.origin.connect(wire);
-          if (ended.status === "failed")
-            ctx.log.error("sync wire failed", { client: id, ...describeError(ended.error) });
-        } finally {
-          close();
-        }
-      });
+      return stream(c, syncBody, { input: id });
     },
   }),
 ];
