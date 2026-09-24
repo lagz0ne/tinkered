@@ -604,7 +604,7 @@ test("two cells under one key reject startup with SyncConflict", async () => {
       expect.unreachable();
     },
     (error: unknown) => {
-      expect(isError(error, "SyncNotReady")).toBe(false);
+      if (isError(error, "SyncNotReady")) throw error;
       if (!isError(error, "SyncConflict")) throw error;
       expect(error.payload.key).toBe("t07-dup");
     },
