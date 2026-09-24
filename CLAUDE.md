@@ -15,7 +15,9 @@ wraps Vite, Rolldown, Vitest, tsdown, Oxlint, and Oxfmt.
 
 - `vp install` after a pull.
 - `vp run -r build` first: apps import the packages' built `dist`.
-- `vp check` and `vp test`.
+- `vp check` and `vp run -r test` (every package with its own config; a bare root
+  `vp test` runs them all under the root config and fails on react, drizzle, and the
+  playground).
 - `vp run prose` after editing any `.md` (it also runs on commit).
 
 ## Writing (every `.md`)
