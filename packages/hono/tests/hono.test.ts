@@ -414,6 +414,120 @@ test("one scope close stops both servers: two serve binds, one reap", async () =
   expect(stops.sort()).toEqual(["stopped:one", "stopped:two"]);
 });
 
+test("two servers share a scope resource: a write through one is seen by the other", async () => {
+  const audit = resource({
+    label: "audit",
+    target: "scope",
+    factory: () => ({ entries: [] as string[] }),
+  });
+  const record = operation({
+    label: "record",
+    depends: { audit },
+    run: ({ audit }) => {
+      audit.entries.push("app");
+      return audit.entries.length;
+    },
+  });
+  const readAudit = operation({
+    label: "readAudit",
+    depends: { audit },
+    run: ({ audit }) => [...audit.entries],
+  });
+  const { extension: appServer } = hono([route.post("/audit", record)]);
+  const { extension: adminServer } = hono([route.get("/audit", readAudit)]);
+  const scope = createScope({ extensions: [appServer, adminServer] });
+  await scope.ready;
+  const admin = scope.resolve(adminServer);
+  expect(await (await admin.request("/audit")).json()).toEqual([]);
+  const wrote = await scope.resolve(appServer).request("/audit", { method: "POST" });
+  expect(await wrote.json()).toBe(1);
+  // One scope-target instance for both servers: the app's write is the
+  // admin's next read, and neither server built its own copy.
+  expect(await (await admin.request("/audit")).json()).toEqual(["app"]);
+  await scope.close();
+});
+
+test("each server opens its own session: a cell written through one stays out of the other", async () => {
+  const draft = data({ initial: 0 });
+  const writeDraft = operation({
+    label: "writeDraft",
+    depends: { draft: draft.controller },
+    run: ({ draft }) => {
+      draft.set(7);
+      return draft.get();
+    },
+  });
+  const readDraft = operation({
+    label: "readDraft",
+    depends: { draft },
+    run: ({ draft }) => draft,
+  });
+  const { extension: appServer } = hono([route.post("/draft", writeDraft)]);
+  const { extension: adminServer } = hono([route.get("/draft", readDraft)]);
+  const scope = createScope({ extensions: [appServer, adminServer] });
+  await scope.ready;
+  const wrote = await scope.resolve(appServer).request("/draft", { method: "POST" });
+  expect(await wrote.json()).toBe(7);
+  // The write landed in the app request's session. The admin request is a
+  // different session, so it reads the initial value, never the 7.
+  expect(await (await scope.resolve(adminServer).request("/draft")).json()).toBe(0);
+  await scope.close();
+});
+
+test("two servers never share a session: each request builds its own session resource", async () => {
+  let builds = 0;
+  const perRequest = resource({
+    label: "perRequest",
+    target: "session",
+    factory: () => ({ id: ++builds }),
+  });
+  const who = operation({
+    label: "who",
+    depends: { perRequest },
+    run: ({ perRequest }) => perRequest.id,
+  });
+  const { extension: appServer } = hono([route.get("/who", who)]);
+  const { extension: adminServer } = hono([route.get("/who", who)]);
+  const scope = createScope({ extensions: [appServer, adminServer] });
+  await scope.ready;
+  const app = await (await scope.resolve(appServer).request("/who")).json();
+  const admin = await (await scope.resolve(adminServer).request("/who")).json();
+  expect([app, admin]).toEqual([1, 2]);
+  expect(builds).toBe(2);
+  await scope.close();
+});
+
+test("a path mounted on both servers answers from the server that got the request", async () => {
+  const appPing = operation({ label: "appPing", run: () => "app" });
+  const adminPing = operation({ label: "adminPing", run: () => "admin" });
+  const { extension: appServer } = hono([route.get("/ping", appPing)]);
+  const { extension: adminServer } = hono([route.get("/ping", adminPing)]);
+  const scope = createScope({ extensions: [appServer, adminServer] });
+  await scope.ready;
+  expect(await (await scope.resolve(appServer).request("/ping")).json()).toBe("app");
+  expect(await (await scope.resolve(adminServer).request("/ping")).json()).toBe("admin");
+  await scope.close();
+});
+
+test("a second scope close runs neither server's stop again", async () => {
+  const stops: string[] = [];
+  const serve = (name: string) => () => () => {
+    stops.push(name);
+  };
+  const ping = operation({ label: "ping", run: () => "pong" });
+  const { extension: appServer } = hono([route.get("/ping", ping)], { serve: serve("app") });
+  const { extension: adminServer } = hono([route.get("/ping", ping)], {
+    serve: serve("admin"),
+  });
+  const scope = createScope({ extensions: [appServer, adminServer] });
+  await scope.ready;
+  await scope.close();
+  await scope.close();
+  // Each server's own stop ran once, on the first close; a second close
+  // finds both already reaped.
+  expect(stops.sort()).toEqual(["admin", "app"]);
+});
+
 test("a serve bind returning a closer object closes its listener", async () => {
   let stops = 0;
   const { extension: web } = hono([], {

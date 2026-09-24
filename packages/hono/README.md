@@ -103,8 +103,21 @@ See `examples/hono/basic.ts` for a route driven by both tenants and an unknown h
 
 Two `hono()` calls on one scope are two apps (two servers, one close):
 store each returned extension once (`const { extension: web } = hono(...)`),
-install it, resolve it — a second call is a different identity. Each
-`serve` bind stops on `scope.close()` through the extension onion, so one
+install it, resolve it — a second call is a different identity.
+
+Two servers on one scope:
+
+- Both share a `target: "scope"` resource: a write through one
+  is the other's next read.
+- Each server opens its own session: a cell written through one
+  stays out of the other.
+- Each request builds its own session resource; the two never
+  share one.
+- A path mounted on both servers answers from the server that
+  got the request.
+- One close stops both; a second close runs neither stop again.
+
+Each `serve` bind stops on `scope.close()` through the extension onion, so one
 close reaps both listeners.
 A bind returning a closer object calls `close` on scope close.
 Without a `serve` bind, the scope still closes successfully.
