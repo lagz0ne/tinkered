@@ -4,7 +4,15 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
 import { createScope, type Scope } from "@tinker/core";
 import { run, type Process } from "@tinker/process";
-import { corpus, corpusPath, explain, isError, shell } from "../src/index.ts";
+import {
+  corpus,
+  corpusPath,
+  explain,
+  isError,
+  readCorpus,
+  readTemplate,
+  shell,
+} from "../src/index.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -27,6 +35,24 @@ async function loadFixture(name: string) {
     await scope.close({ graceful: true });
   }
 }
+
+test("corpus sorts author files by id even when supplied in reverse order", async () => {
+  const loaded = await loadFixture("corpus-print");
+  const ordered = readCorpus([...loaded.templates].reverse());
+  expect(ordered.templates.map((template) => template.id)).toEqual(["pick", "probe"]);
+});
+
+test("malformed template YAML reports the file and parser issue", () => {
+  try {
+    readTemplate("id: [broken\n", "broken.yaml");
+    expect.unreachable("must reject bad YAML");
+  } catch (error: unknown) {
+    if (!isError(error, "InvalidTemplate")) throw error;
+    expect(error.payload.file).toBe("broken.yaml");
+    expect(error.payload.issues[0]).toBeInstanceOf(Error);
+    expect(error.message).toContain("broken.yaml");
+  }
+});
 
 test("the shipped corpus holds 18 templates sorted by id", async () => {
   const loaded = await loadShipped();

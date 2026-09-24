@@ -321,7 +321,8 @@ shape.resource: const x = resource({ label: "x", target,
   keys, else the load fails `InvalidTemplate`.
 - An `applies` entry outside the four kinds, or a `needs` entry outside
   the ten fields, fails the load with `InvalidTemplate`.
-- The corpus loads every `*.yaml` once per scope, sorted by id. A node-scope
+- The corpus loads every `*.yaml` once per scope, sorted by id even if
+  supplied in reverse order. A node-scope
   template sits under `forKind(kind)`; a pair-scope template sits under
   `pairs` and never in a `forKind` list.
 - **Templates that need `body`** sit under `forKind(kind, { body: true
@@ -352,6 +353,9 @@ one law` (`unit:`) or `unclear (<pick> only <pct>)` (`target:`).
 
 ## Evals
 
+- Evals read only `.yaml` files; an absent `bad` or `clean` folder
+  counts as empty. The package's own source bodies add golden cases
+  only for templates that need `body`.
 - Every template ships with evals under `evals/<id>/{bad,clean}/*.yaml`
   — at least 2 bad and 2 clean files each, 5 and 5 before a status can
   read `proven`.
@@ -454,10 +458,12 @@ count):
   parser issue. The text is not yaml, or a node breaks the
   schema (an unknown key, a missing `why`, a dotted name). Carries the
   zod issues.
-- **InvalidTemplate** — a corpus file is not yaml, breaks the schema, or
+- **InvalidTemplate** — malformed YAML keeps the file and parser issue.
+  A corpus file is not yaml, breaks the schema, or
   a choice template's `shapes` names a key `choices` does not. Carries
   the file and the issues; the message names both.
-- **InvalidEval** — an eval file is not yaml, breaks the schema, names a
+- **InvalidEval** — malformed YAML keeps the file and parser issue.
+  An eval file is not yaml, breaks the schema, names a
   `target` no node in its own blueprint has, or (a pair template) is
   missing its second name. Carries the file and the issues.
 - **BlueprintRejected** — a plain check or a `proven` template blocked.

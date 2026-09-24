@@ -1,3 +1,5 @@
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
@@ -126,6 +128,18 @@ test("readEval parses the ADR's eval-file example", () => {
   expect(parsed.target).toEqual(["saveIssue"]);
   expect(parsed.expect).toBe(true);
   expect(parsed.graph.nodes.map((node) => node.name)).toEqual(["tx", "saveIssue"]);
+});
+
+test("malformed eval YAML reports the file and parser issue", () => {
+  try {
+    readEval("target: [broken\n", "broken.yaml");
+    expect.unreachable("must reject bad YAML");
+  } catch (error: unknown) {
+    if (!isError(error, "InvalidEval")) throw error;
+    expect(error.payload.file).toBe("broken.yaml");
+    expect(error.payload.issues[0]).toBeInstanceOf(Error);
+    expect(error.message).toContain("broken.yaml");
+  }
 });
 
 test("an eval file missing expect fails InvalidEval", () => {
@@ -400,6 +414,47 @@ test("goldenCasesOf yields every matching unordered pair, in file order, and non
   ]);
   expect(cases.every((c) => c.expect === false)).toBe(true);
   expect(cases.every((c) => c.file === "golden.yaml")).toBe(true);
+});
+
+test("evalSet reads YAML evals only and treats an absent side as empty", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "blueprint-eval-set-"));
+  mkdirSync(join(dir, "probe", "bad"), { recursive: true });
+  writeFileSync(join(dir, "probe", "bad", "one.yaml"), exampleEval);
+  writeFileSync(join(dir, "probe", "bad", "notes.txt"), "not YAML");
+  const scope = createScope({ tags: [corpusPath(provisionalCorpus), evalsPath(dir)] });
+  try {
+    const set = scope.resolve(evalSet).get("probe");
+    expect(set?.bad.map((item) => item.file)).toEqual([join(dir, "probe", "bad", "one.yaml")]);
+    expect(set?.clean).toEqual([]);
+  } finally {
+    await scope.close({ graceful: true });
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test("evalSet adds the package's own source bodies only for body templates", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "blueprint-eval-body-"));
+  mkdirSync(join(dir, "probeBody"));
+  writeFileSync(
+    join(dir, "golden.yaml"),
+    "- operation:\n    name: example\n    promise: p\n    why: w\n",
+  );
+  const scope = createScope({
+    tags: [corpusPath(join(here, "fixtures", "corpus-body-provisional")), evalsPath(dir)],
+  });
+  try {
+    const cases = scope.resolve(evalSet).get("probeBody")?.golden ?? [];
+    expect(cases.map((item) => item.file)).toContain("blueprint.yaml");
+    expect(cases.map((item) => item.file)).toContain("golden.yaml");
+    expect(
+      cases
+        .filter((item) => item.file === "blueprint.yaml")
+        .every((item) => item.body !== undefined),
+    ).toBe(true);
+  } finally {
+    await scope.close({ graceful: true });
+    rmSync(dir, { recursive: true });
+  }
 });
 
 test("evalSet attaches golden cases from evals/golden.yaml to every template it applies to", async () => {
