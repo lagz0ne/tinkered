@@ -2,11 +2,13 @@ import { readFileSync } from "node:fs";
 import { createScope, namespace } from "@tinker/core";
 import { tinkerer } from "@tinker/tinkerer";
 
+/** One frame, declared once (ADR 0057); each coder is a namespace on it (ADR 0059). */
+const coder = tinkerer();
+
 /** Two real coders from one graph (needs a Muse token; not run by tests). */
 export async function tour(): Promise<string> {
   const keyFile = process.env.MUSE_TOKEN_FILE ?? "/home/paseo/pilot/.muse-token";
   const key = readFileSync(keyFile, "utf8").trim();
-  const coder = tinkerer();
   const common = {
     model: "muse-spark-1.3-contributor",
     baseUrl: "https://api.meta.ai/v1",
