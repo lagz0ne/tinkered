@@ -302,7 +302,7 @@ The namespace tests also pin these guarantees:
 - Releasing a parent's named entry notifies a child watcher of its fallback.
 - `release(cell)` resets every named entry at its layer.
 - `release(cell)` notifies a named watcher of its reset value once.
-- `release(cell)` notifies an inheriting child's named watcher, not a child with its own entry.
+- `release(cell)` calls only the child watcher that inherits its named entry.
 - `release(cell)` unlinks clients of its named entries, not another layer's entries.
 - A new named client after `release(cell)` is still unlinked by `releaseNs`.
 - An empty namespace chain is rejected with `InvalidDependency`.

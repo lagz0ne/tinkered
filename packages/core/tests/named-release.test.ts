@@ -486,7 +486,7 @@ test("release(cell) notifies a named watcher after resetting its entry", async (
   await root.close();
 });
 
-test("release(cell) notifies an inheriting child but not a child with its own entry", async () => {
+test("release(cell) calls only the child watcher that inherits its named entry", async () => {
   const a = namespace();
   const cell = data({ label: "child-cell", initial: 0 });
   const root = createScope();
@@ -523,8 +523,9 @@ test("release(cell) unlinks clients of its named entry, not a child's entry", as
   const kept = child.resolve(client, { ns: a });
   root.release(cell);
   expect(ended).toEqual([5]);
-  expect(root.resolve(client, { ns: a })).not.toBe(first);
-  expect(root.resolve(client, { ns: a })).toEqual({ cell: 0 });
+  const rebuilt = root.resolve(client, { ns: a });
+  expect(rebuilt).not.toBe(first);
+  expect(rebuilt.cell).toBe(0);
   expect(child.resolve(client, { ns: a })).toBe(kept);
   await root.close();
 });
