@@ -12,7 +12,11 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, "../../..");
-const IMAGE = "sha256:2232d27e48ef2fd605928585fe42fb214bf779d66fcb72d3f27328ed4d65d5e9";
+// WRITER_TRIAL_IMAGE reruns these proofs on a rebuilt image (the pinned one can be lost
+// when the host is rebuilt); the pinned ID stays the default and the recorded evidence.
+const IMAGE =
+  process.env.WRITER_TRIAL_IMAGE ??
+  "sha256:2232d27e48ef2fd605928585fe42fb214bf779d66fcb72d3f27328ed4d65d5e9";
 const work = join(tmpdir(), "stock-canaries");
 rmSync(work, { recursive: true, force: true });
 mkdirSync(join(work, "proof", "src"), { recursive: true });
