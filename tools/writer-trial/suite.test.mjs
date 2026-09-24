@@ -31,6 +31,7 @@ void describe("suite defs", () => {
     assert.deepEqual(roundsFor("loans"), [1]);
     assert.deepEqual(roundsFor("ballot"), [1]);
     assert.deepEqual(roundsFor("kitchen"), [1]);
+    assert.deepEqual(roundsFor("locker"), [1]);
     assert.throws(() => roundsFor("nope"), /Unknown suite/);
   });
 
@@ -42,11 +43,13 @@ void describe("suite defs", () => {
     assert.deepEqual(taskSourcesFor("loans", 1), ["loans/01-tool-library.md"]);
     assert.deepEqual(taskSourcesFor("ballot", 1), ["ballot/01-team-poll.md"]);
     assert.deepEqual(taskSourcesFor("kitchen", 1), ["kitchen/01-kitchen-queue.md"]);
+    assert.deepEqual(taskSourcesFor("locker", 1), ["locker/01-parcel-locker.md"]);
     assert.throws(() => taskSourcesFor("stock", 2), /no round/);
     assert.throws(() => taskSourcesFor("plan", 2), /no round/);
     assert.throws(() => taskSourcesFor("loans", 2), /no round/);
     assert.throws(() => taskSourcesFor("ballot", 2), /no round/);
     assert.throws(() => taskSourcesFor("kitchen", 2), /no round/);
+    assert.throws(() => taskSourcesFor("locker", 2), /no round/);
   });
 
   void it("keeps booking clauses out of the default rules", () => {
@@ -62,6 +65,7 @@ void describe("suite defs", () => {
     assert.deepEqual(guidelineSourcesFor("loans"), ["guidelines.md"]);
     assert.deepEqual(guidelineSourcesFor("ballot"), ["guidelines.md"]);
     assert.deepEqual(guidelineSourcesFor("kitchen"), ["guidelines.md"]);
+    assert.deepEqual(guidelineSourcesFor("locker"), ["guidelines.md"]);
   });
 });
 
@@ -137,6 +141,17 @@ void describe("frozen copies", () => {
       } finally {
         rmSync(kitchenRoot, { recursive: true, force: true });
       }
+      const lockerRoot = mkdtempSync(join(tmpdir(), "suite-locker-"));
+      try {
+        const locker = freezeTrial(lockerRoot, "locker");
+        assert.match(readFrozenTask(lockerRoot, locker, "locker", 1), /Parcel locker/);
+        assert.match(
+          readFrozenGuidelines(lockerRoot, locker, "locker"),
+          /read `ctx.rawInput` and check every field/,
+        );
+      } finally {
+        rmSync(lockerRoot, { recursive: true, force: true });
+      }
     } finally {
       rmSync(root, { recursive: true, force: true });
       rmSync(stockRoot, { recursive: true, force: true });
@@ -182,12 +197,14 @@ void describe("frozen copies", () => {
     assert.equal(taskFileFor("loans", 1), "01-tool-library.md");
     assert.equal(taskFileFor("ballot", 1), "01-team-poll.md");
     assert.equal(taskFileFor("kitchen", 1), "01-kitchen-queue.md");
+    assert.equal(taskFileFor("locker", 1), "01-parcel-locker.md");
     assert.equal(taskFileFor("booking", 5), "05-rename-series.md");
     assert.throws(() => taskFileFor("stock", 2), /no round/);
     assert.throws(() => taskFileFor("plan", 2), /no round/);
     assert.throws(() => taskFileFor("loans", 2), /no round/);
     assert.throws(() => taskFileFor("ballot", 2), /no round/);
     assert.throws(() => taskFileFor("kitchen", 2), /no round/);
+    assert.throws(() => taskFileFor("locker", 2), /no round/);
     assert.deepEqual(validRounds({}), [1, 2, 3, 4]);
     assert.deepEqual(
       validRounds({ suite: "booking", frozen: { dir: "f", files: {} } }),

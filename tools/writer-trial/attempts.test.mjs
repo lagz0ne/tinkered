@@ -58,11 +58,16 @@ void describe("checker routing", () => {
       script: "kitchen-acceptance.mjs",
       args: [],
     });
+    assert.deepEqual(checkerFor("locker", 1), {
+      script: "locker-acceptance.mjs",
+      args: [],
+    });
     assert.throws(() => checkerFor("stock", 2), /No checker/);
     assert.throws(() => checkerFor("plan", 2), /No checker/);
     assert.throws(() => checkerFor("loans", 2), /No checker/);
     assert.throws(() => checkerFor("ballot", 2), /No checker/);
     assert.throws(() => checkerFor("kitchen", 2), /No checker/);
+    assert.throws(() => checkerFor("locker", 2), /No checker/);
     assert.throws(() => checkerFor("booking", 6), /No checker/);
   });
 });
