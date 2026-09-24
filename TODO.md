@@ -33,9 +33,6 @@ Pairs since 2026-09-23: a writer (sol 6 for hard, deepseek-v4.1-flash for simple
 reviewer per card; the lead runs mutation, bench, and `pnpm validate` alone at landing, one core
 card at a time.
 
-- **core/ns-watch-index** — sol 6. A named write wakes only watchers whose chain holds that key
-  (core-feedback, sync family fan-out). Verify: gate, family probe before/after, mutation alone.
-
 | Card | Owner | Next | Verify |
 
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -69,9 +66,18 @@ card at a time.
 
 ## Done
 
+- **core/ns-watch-index** — sol 6 + opus review; tag `core/ns-watch-index`. Named writes and
+  `releaseNs` wake only watchers indexed under the changed key. Gate green (core 522 tests);
+  core mutation 85.33 alone; `pnpm validate` 43/43 PASS; tagged promises 17.
+  N=61 vs main `2584f21`: op -0.1%, opres +0.6%, lifecycle -0.6%, create +1.4% (34/61).
+  Review found two old gaps, not from this branch (core-feedback row, first asker): a named write
+  on the root does not wake a named watcher on a child session; `release(cell)` does not wake
+  named watchers. Family probe (one cell, one namespace per watcher, median of 5), ns per write:
+  - 100 watchers: 7779 → 1730.
+  - 10,000 watchers: 430405 → 2409.
 - **core/tagged-promises** — sol 6 + opus review; tag `core/tagged-promises`. Close skips the empty
   `closeInstances` call; a tagged run is back to 17 promises. Rebased over obs-clock and rechecked:
-  gate green (core 1033 tests); core mutation 85.25 alone; `pnpm validate` 43/43 PASS.
+  gate green; core mutation 85.25 alone; `pnpm validate` 43/43 PASS.
   N=61 vs main `06b2b65`: lifecycle -0.0%, create +1.6% (34/61), run -0.2%, op +0.1%.
 - **clock-v1/obs-clock** — lead (Claude), `57bb9df`. Span and log times read the scope's clock
   unless `observe.clock` is set (ADR 0034 follow-up done). Two new tests fail on main, pass here;
