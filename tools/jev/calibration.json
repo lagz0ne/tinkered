@@ -152,12 +152,12 @@
   "noOpRejected": {
     "status": "proven",
     "trues": 6,
-    "falses": 44,
+    "falses": 45,
     "medianTrue": 0.83,
     "medianFalse": 0.17,
-    "separation": 0.67,
+    "separation": 0.66,
     "ordered": 1,
-    "at": "2026-09-23"
+    "at": "2026-09-24"
   },
   "partialStub": {
     "status": "provisional",

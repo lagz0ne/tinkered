@@ -236,8 +236,9 @@ Object.assign(LINT, {
   noOpRejected: {
     fix: "Check 'already so' first and return the saved record with no change and no undo step; run status, lock, and limit guards only for a request that changes something.",
     applies: ["operation", "function"],
-    // 0.6 from 45 labeled trial cases (2026-09-23): 0.5 hit 4 of 43 clean; 0.6 hits 1, both real bad cases.
-    threshold: 0.6,
+    // 0.7 since 2026-09-24: true cases score 0.77–0.88; kitchen-01 cancelTicket (no already-so
+    // path) scored 0.53–0.62 across runs and blocked a correct writer at 0.6. 0.7 keeps all 6 true.
+    threshold: 0.7,
     q: {
       type: "boolean",
       instructions:

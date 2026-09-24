@@ -159,3 +159,28 @@ The rawInput reports repeat the known input-guide issue above.
 The stock writers also saw missing package source-map warnings.
 Those warnings did not fail tests or builds.
 Proof stays under stock-01/results in the saved trial folder.
+
+## Typed input with no parser, 2026-09-24
+
+Four first attempts across three trials put a non-text id into a
+`{ id: string }` error payload. Each passed `tsc`.
+Three forms: a cast (GLM, ballot-01), an `unknown` payload parameter
+(MiMo Pro, loans-01, ballot-01, kitchen-01), and, in kitchen-01, GLM
+reading `ctx.input.ticketId` from an operation with no `input` parser.
+
+Measured on core (`dist`), an operation with no `input` parser:
+
+```text
+scope.run(op, { input: { id: 7 } })
+  → ctx.input.id is 7 (a number)
+scope.run(op, { rawInput: { id: 7 } })
+  → ctx.input is undefined
+```
+
+`input` is the typed path: core trusts it, and a typed caller cannot
+send a number there. Only untyped callers can (plain JS, a transport,
+the teacher checker). So core does not lie to typed code.
+Not a core ticket. It is a teaching gap: an operation that untyped code
+can reach should declare an `input` parser, or read `rawInput` and
+check it. Candidate for the writer guidelines and the core README.
+Proof: kitchen-01 worker-3-attempt-1 check-1, teacher 52/53.
