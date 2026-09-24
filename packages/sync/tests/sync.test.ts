@@ -604,7 +604,7 @@ test("two cells under one key reject startup with SyncConflict", async () => {
       expect.unreachable();
     },
     (error: unknown) => {
-      if (isError(error, "SyncNotReady")) throw error;
+      expect(isError(error, "SyncNotReady")).toBe(false);
       if (!isError(error, "SyncConflict")) throw error;
       expect(error.payload.key).toBe("t07-dup");
     },
@@ -752,6 +752,49 @@ test("a source sends changes only for keys registered by that viewer", async () 
   far.close();
   await done;
   await origin.close({ graceful: true });
+});
+
+test("closing the viewer scope parts the source wire", async () => {
+  const src = source({ cells: [[counter, "counter"]] });
+  const origin = createScope({ extensions: [src] });
+  await origin.ready;
+  const [near, far] = memoryPair();
+  const done = origin.resolve(src).connect(near);
+  const sub = subscribe(far, { cells: [[counter, "counter"]] });
+  const guest = createScope({ extensions: [sub] });
+  await guest.ready;
+  await guest.close({ graceful: true });
+  expect((await done).status).toBe("success");
+  await origin.close({ graceful: true });
+});
+
+test("a closed viewer sends nothing when a member arrives later", async () => {
+  const notes = family({ label: "note-closed", initial: "" });
+  const [, far] = memoryPair();
+  const sent: Sync.Message[] = [];
+  let closed = false;
+  const transport: Sync.Transport = {
+    send: (message) => {
+      sent.push(message);
+      far.send(message);
+    },
+    onMessage: (listener) => far.onMessage(listener),
+    onClose: (listener) =>
+      far.onClose(() => {
+        if (!closed) listener();
+      }),
+    close: () => {
+      closed = true;
+      far.close();
+    },
+  };
+  const sub = subscribe(transport, { cells: [[notes, "notes"]] });
+  const guest = createScope({ extensions: [sub] });
+  await guest.ready;
+  await guest.close({ graceful: true });
+  notes("late");
+  await setImmediate();
+  expect(sent).toEqual([{ type: "register", keys: [] }]);
 });
 
 test("a viewer closes after a wrong-direction message arrives after ready", async () => {

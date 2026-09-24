@@ -92,7 +92,10 @@ close aborts the wait — the start rejects with `SyncNotReady`
 `{ label: "subscribe", missing }` naming the keys still missing: `ready`
 rejects and the scope closes failed. `close()` detaches and closes the
 transport (safe to repeat); a close from the far side detaches without closing
-twice. A wrong-direction message after ready closes the viewer wire.
+twice. Closing the viewer scope also parts the source wire.
+A closed viewer sends no registration when a family member arrives later,
+even if its transport does not fire `onClose` for its own close.
+A wrong-direction message after ready closes the viewer wire.
 
 ## Wire it
 
