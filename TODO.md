@@ -33,8 +33,6 @@ Pairs since 2026-09-23: a writer (sol 6 for hard, deepseek-v4.1-flash for simple
 reviewer per card; the lead runs mutation, bench, and `pnpm validate` alone at landing, one core
 card at a time.
 
-- **core/tagged-promises** — sol 6. A tagged run allocates 19 promises (budget 17) since `144de99`
-  (t02b-1). Verify: `bench/promises.mjs` prints 17; gate; mutation alone.
 - **core/ns-watch-index** — sol 6. A named write wakes only watchers whose chain holds that key
   (core-feedback, sync family fan-out). Verify: gate, family probe before/after, mutation alone.
 
@@ -71,6 +69,10 @@ card at a time.
 
 ## Done
 
+- **core/tagged-promises** — sol 6 + opus review; tag `core/tagged-promises`. Close skips the empty
+  `closeInstances` call; a tagged run is back to 17 promises. Rebased over obs-clock and rechecked:
+  gate green (core 1033 tests); core mutation 85.25 alone; `pnpm validate` 43/43 PASS.
+  N=61 vs main `06b2b65`: lifecycle -0.0%, create +1.6% (34/61), run -0.2%, op +0.1%.
 - **clock-v1/obs-clock** — lead (Claude), `57bb9df`. Span and log times read the scope's clock
   unless `observe.clock` is set (ADR 0034 follow-up done). Two new tests fail on main, pass here;
   core 518 tests; `vp check` 0 errors; core mutation alone 86.75. `pnpm validate`: only the
