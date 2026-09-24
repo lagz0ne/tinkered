@@ -33,10 +33,6 @@ Pairs since 2026-09-23: a writer (sol 6 for hard, deepseek-v4.1-flash for simple
 reviewer per card; the lead runs mutation, bench, and `pnpm validate` alone at landing, one core
 card at a time.
 
-- **clock-v1/obs-clock** — lead (Claude). Span and log times read the scope's
-  clock when `observe.clock` is unset (ADR 0034 follow-up), so a test clock
-  freezes them too. Verify: a test that fails on main; gate; core mutation
-  alone ≥ 85.
 - **core/tagged-promises** — sol 6. A tagged run allocates 19 promises (budget 17) since `144de99`
   (t02b-1). Verify: `bench/promises.mjs` prints 17; gate; mutation alone.
 - **core/ns-watch-index** — sol 6. A named write wakes only watchers whose chain holds that key
@@ -75,6 +71,10 @@ card at a time.
 
 ## Done
 
+- **clock-v1/obs-clock** — lead (Claude), `57bb9df`. Span and log times read the scope's clock
+  unless `observe.clock` is set (ADR 0034 follow-up done). Two new tests fail on main, pass here;
+  core 518 tests; `vp check` 0 errors; core mutation alone 86.75. `pnpm validate`: only the
+  `promises` lane fails, 19 on main too (the `core/tagged-promises` card).
 - **tests/core-tag-read-split** — deepseek + opus review (one fix round); tag `tests/core-tag-read-split`.
   Two mixed `tag.read` tests became six one-cause tests, one README line each; the review restored
   the lost "skips another tag's binding" check. Core 515 tests.
