@@ -3182,6 +3182,7 @@ function invalidateData(owner: Layer, target: Data.Cell<unknown>): void {
     invalidateEff(owner, target);
   }
   if (s) {
+    s.nsCells = undefined;
     s.dependents = undefined;
     s.nsDataDependents = undefined;
   }
@@ -3215,10 +3216,6 @@ function visitDependents(
   visit: (target: Resource.Handle<unknown>, owner: Layer) => void,
 ): void {
   if (rec?.dependents) for (const target of rec.dependents) visit(target, owner);
-  if (!rec?.nsDataDependents) return;
-  for (const states of rec.nsDataDependents.values()) {
-    for (const state of states) visit(state.target, state.owner);
-  }
 }
 
 /** Walk dependents from a node (iterative; keyed on node+owner so diamonds collapse while the same
@@ -3262,7 +3259,16 @@ function releaseNode(layer: Layer, target: Node): void {
   const targetOwner = isResource(target) ? ownerOf(layer, target) : layer;
   ensureOpen(targetOwner);
   const affected = new Map<Layer, Released>();
-  const dataReleased = invalidateAffected(collectAffected(target, targetOwner), affected);
+  const order = collectAffected(target, targetOwner);
+  if (isData(target)) {
+    const rec = targetOwner.nodes.get(target);
+    if (rec?.nsCells) {
+      const seeds: NsResourceState[] = [];
+      for (const entry of rec.nsCells.values()) seeds.push(...namedDataSeeds(rec, entry));
+      collectNamedRelease(seeds, affected);
+    }
+  }
+  const dataReleased = invalidateAffected(order, affected);
   drainRelease(affected, () => {
     if (dataReleased && isData(target)) flushCell(layer, target);
   });
@@ -3281,7 +3287,7 @@ function releaseNamedData(owner: Layer, target: Data.Cell<unknown>, ns: Namespac
   if (!rec?.nsCells) return;
   const entry = rec.nsCells.get(ns);
   if (!entry) return;
-  const affected = collectNamedRelease(namedDataSeeds(rec, entry));
+  const affected = collectNamedRelease(namedDataSeeds(rec, entry), new Map());
   rec.nsCells.delete(ns);
   rec.nsDataDependents?.delete(entry);
   drainRelease(affected, () => flushInheritedNsWatchers(owner, target, ns));
@@ -3294,7 +3300,7 @@ function namedDataSeeds(rec: NodeState, entry: Entry): NsResourceState[] {
 function releaseNamedResource(owner: Layer, target: Resource.Handle<unknown>, ns: Namespace): void {
   const state = owner.nodes.get(target)?.nsResources?.get(ns);
   if (!state) return;
-  const affected = collectNamedRelease([state]);
+  const affected = collectNamedRelease([state], new Map());
   drainRelease(affected);
 }
 
@@ -3307,8 +3313,10 @@ function drainRelease(affected: Map<Layer, Released>, notify?: () => void): void
   }
 }
 
-function collectNamedRelease(pending: NsResourceState[]): Map<Layer, Released> {
-  const affected = new Map<Layer, Released>();
+function collectNamedRelease(
+  pending: NsResourceState[],
+  affected: Map<Layer, Released>,
+): Map<Layer, Released> {
   while (pending.length) {
     const state = pending.pop()!;
     if (state.owner.closed || !isLiveNamedRelease(state)) continue;

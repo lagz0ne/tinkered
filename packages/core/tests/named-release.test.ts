@@ -461,6 +461,98 @@ test("releaseNs keeps a dependency alive until its named dependent borrow ends",
   await scope.close();
 });
 
+test("release(cell) resets every named entry at its layer", async () => {
+  const a = namespace();
+  const b = namespace();
+  const cell = data({ label: "named-cell", initial: 0 });
+  const root = createScope();
+  root.controller(cell, { ns: a }).set(5);
+  root.controller(cell, { ns: b }).set(6);
+  root.release(cell);
+  expect(root.controller(cell, { ns: a }).get()).toBe(0);
+  expect(root.controller(cell, { ns: b }).get()).toBe(0);
+  await root.close();
+});
+
+test("release(cell) notifies a named watcher after resetting its entry", async () => {
+  const a = namespace();
+  const cell = data({ label: "watched-cell", initial: 0 });
+  const root = createScope();
+  root.controller(cell, { ns: a }).set(5);
+  const seen: number[] = [];
+  root.controller(cell, { ns: a }).watch((value) => seen.push(value));
+  root.release(cell);
+  expect(seen).toEqual([0]);
+  await root.close();
+});
+
+test("release(cell) notifies an inheriting child but not a child with its own entry", async () => {
+  const a = namespace();
+  const cell = data({ label: "child-cell", initial: 0 });
+  const root = createScope();
+  const inherited = root.createSession();
+  const shadowed = root.createSession();
+  root.controller(cell, { ns: a }).set(5);
+  shadowed.controller(cell, { ns: a }).set(7);
+  const seen: number[] = [];
+  inherited.controller(cell, { ns: a }).watch((value) => seen.push(value));
+  shadowed.controller(cell, { ns: a }).watch((value) => seen.push(value));
+  root.release(cell);
+  expect(seen).toEqual([0]);
+  await root.close();
+});
+
+test("release(cell) unlinks clients of its named entry, not a child's entry", async () => {
+  const a = namespace();
+  const cell = data({ label: "client-cell", initial: 0 });
+  const ended: number[] = [];
+  const client = resource({
+    label: "named-client",
+    target: "session",
+    depends: { cell },
+    factory: ({ cell }, ctx) => {
+      ctx.defer(() => void ended.push(cell));
+      return { cell };
+    },
+  });
+  const root = createScope();
+  const child = root.createSession();
+  root.controller(cell, { ns: a }).set(5);
+  const first = root.resolve(client, { ns: a });
+  child.controller(cell, { ns: a }).set(7);
+  const kept = child.resolve(client, { ns: a });
+  root.release(cell);
+  expect(ended).toEqual([5]);
+  expect(root.resolve(client, { ns: a })).not.toBe(first);
+  expect(root.resolve(client, { ns: a })).toEqual({ cell: 0 });
+  expect(child.resolve(client, { ns: a })).toBe(kept);
+  await root.close();
+});
+
+test("releaseNs still unlinks a new named client after release(cell)", async () => {
+  const a = namespace();
+  const cell = data({ label: "rewritten-cell", initial: 0 });
+  const ended: number[] = [];
+  const client = resource({
+    label: "rewritten-client",
+    target: "session",
+    depends: { cell },
+    factory: ({ cell }, ctx) => {
+      ctx.defer(() => void ended.push(cell));
+      return { cell };
+    },
+  });
+  const root = createScope();
+  root.controller(cell, { ns: a }).set(5);
+  root.release(cell);
+  root.controller(cell, { ns: a }).set(6);
+  const first = root.resolve(client, { ns: a });
+  root.releaseNs(cell, a);
+  expect(ended).toEqual([6]);
+  expect(root.resolve(client, { ns: a })).not.toBe(first);
+  await root.close();
+});
+
 test("releaseNs resets one data bucket and leaves its sibling and default", async () => {
   const a = namespace();
   const b = namespace();
