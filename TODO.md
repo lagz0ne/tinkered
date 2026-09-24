@@ -33,6 +33,11 @@ Pairs since 2026-09-23: a writer (sol 6 for hard, deepseek-v4.1-flash for simple
 reviewer per card; the lead runs mutation, bench, and `pnpm validate` alone at landing, one core
 card at a time.
 
+- **perf/async-subflow** — astra xhigh (agent `54a3d8bc`, user's pick), worktree `../tinkered-perf-asyncsub`.
+  An awaited async subflow costs 2184 ns per run, up from 1123 (+94.5%) since core/caught-subflow.
+  Win it back without weakening ADR 0066. Verify: a committed `asyncsub` bench scenario, N=61 A/B,
+  target within +15% of `2d2d75b`; other scenarios not slower; tests unchanged; mutation ≥ 85.
+
 | Card | Owner | Next | Verify |
 
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
