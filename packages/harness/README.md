@@ -226,7 +226,7 @@ const coder = harness({ label: "coder", adapter: claudeCode, approve });
 ## Tools
 
 A tool is an ordinary operation with `tool` meta from `@tinker/mcp` — the same declaration
-the MCP driver serves (`mcpServer(scope)`), shared with every MCP host. The operation's `run`
+the MCP driver serves (`mcp({ name, version, tools })`), shared with every MCP host. The operation's `run`
 is the handler, its `input` parse is the edge, and `tool.read(op)` gives any driver or adapter
 the facts (description, zod raw shape, name defaulting to the op's label, an optional `respond`
 that maps the value to a result — default one JSON text content). Pass tool ops in
@@ -266,7 +266,7 @@ const scope = createScope({
 ```
 
 The universal path is an external MCP server over the SDKs' own config — one `tools.ts` entry
-serving the same ops through `mcpServer(scope)`:
+serving the same ops through the `mcp` extension:
 
 ```ts
 // Claude: an MCP server entry beside the fast path
