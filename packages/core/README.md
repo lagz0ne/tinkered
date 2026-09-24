@@ -329,6 +329,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   neither it throws `MissingTag` naming the tag.
 - `tag.read` finds a data cell's own binding.
 - `tag.read` falls back to the tag's default when the unit has no binding.
+- `tag.read` skips another tag's binding and falls back to the default.
 - `tag.read` finds an operation's own binding.
 - `tag.read` finds a resource's own binding.
 - `tag.read` finds a tag's own binding.

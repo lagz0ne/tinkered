@@ -2624,6 +2624,13 @@ test("tag.read falls back to the tag's default when the unit has no binding", ()
   expect(group.read(port)).toEqual({ present: true, value: "misc" });
 });
 
+test("tag.read skips another tag's binding and falls back to the default", () => {
+  const ui = tag<string>({ label: "ui" });
+  const group = tag<string>({ label: "group", default: "misc" });
+  const port = data({ initial: 8080, parse: asNumber, meta: [ui("slider")] });
+  expect(group.read(port)).toEqual({ present: true, value: "misc" });
+});
+
 test("tag.read finds an operation's own binding", () => {
   const ui = tag<string>({ label: "ui" });
   const op = operation({ label: "op", run: () => 1, meta: [ui("button")] });
