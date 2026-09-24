@@ -16,6 +16,8 @@ export default defineConfig({
   },
   fmt: {},
   test: {
+    /** Skip Stryker's leftover sandbox copies of the tests (gitignored, not ours). */
+    exclude: ["**/node_modules/**", "**/dist/**", "**/.stryker-tmp/**"],
     /** PGlite boots in-process; its first start passes 5 s when many test lanes share the CPU. */
     testTimeout: 30_000,
     server: { deps: { inline: ["vite-plus"] } },

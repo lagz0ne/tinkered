@@ -26,6 +26,8 @@ export default defineConfig({
   },
   fmt: {},
   test: {
+    /** Skip Stryker's leftover sandbox copies of the tests (gitignored, not ours). */
+    exclude: ["**/node_modules/**", "**/dist/**", "**/.stryker-tmp/**"],
     server: { deps: { inline: ["vite-plus"] } },
   },
 });
