@@ -51,10 +51,13 @@ A registration logs its key count on `sync keys`; its observed `sync register` s
 carries elapsed `ms` and outcome.
 A registered key answers at once with its snapshot (current version and
 value), and a changed cell fans out only to the live transports registered
-for that key. A member the source does not hold yet gets a namespace there;
-its cell reads its initial value. A key that is not published, a message in the wrong
+for that key. A member created after startup keeps its version when it changes before registration.
+A member held before startup also keeps its version when it changes before registration.
+A member the source does not hold yet gets a namespace there;
+its cell reads its initial value.
+A family key missing its label or member id closes the source wire. A key that is not published, a message in the wrong
 direction, or an unexpected throw inside the op closes the transport, no
-reply. The promise resolves with the session's close `Result` when the
+reply. A snapshot sent to the source is in the wrong direction and closes the wire. The promise resolves with the session's close `Result` when the
 transport parts (`success`), or `cancelled` when a forced root close fells
 the session first — it never rejects (ADR 0027). The source start is sync,
 so the origin is ready at once; the source close hook closes every live

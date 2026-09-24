@@ -726,6 +726,75 @@ test("onMember fires once per new member with the id, after it exists", () => {
   expect(heard).toEqual(["a", "b"]);
 });
 
+test("a source rejects a snapshot sent in the register direction", async () => {
+  const src = source({ cells: [[counter, "counter"]] });
+  const origin = createScope({ extensions: [src] });
+  await origin.ready;
+  const [near, far] = memoryPair();
+  const done = origin.resolve(src).connect(near);
+  const parted = new Promise<void>((resolve) => far.onClose(resolve));
+  far.send({ type: "snapshot", key: "counter", version: 0, value: 9 });
+  await parted;
+  expect((await done).status).toBe("success");
+  await origin.close({ graceful: true });
+});
+
+test.each(["/a", "notes/"])(
+  "a source closes on a family key with a missing label or id: %s",
+  async (key) => {
+    const notes = family({ label: "note-key", initial: "" });
+    const src = source({ cells: [[notes, "notes"]] });
+    const origin = createScope({ extensions: [src] });
+    await origin.ready;
+    const [near, far] = memoryPair();
+    const done = origin.resolve(src).connect(near);
+    const parted = new Promise<void>((resolve) => far.onClose(resolve));
+    far.send({ type: "register", keys: [key] });
+    await parted;
+    expect((await done).status).toBe("success");
+    await origin.close({ graceful: true });
+  },
+);
+
+test("a source keeps a member's version when it changes before registration", async () => {
+  const notes = family({ label: "note-version", initial: "" });
+  const src = source({ cells: [[notes, "notes"]] });
+  const origin = createScope({ extensions: [src] });
+  await origin.ready;
+  origin.controller(notes.cell, { ns: notes("a") }).set("first");
+  origin.controller(notes.cell, { ns: notes("a") }).set("second");
+  const [near, far] = memoryPair();
+  const done = origin.resolve(src).connect(near);
+  const received = new Promise<Sync.Message>((resolve) => far.onMessage(resolve));
+  far.send({ type: "register", keys: ["notes/a"] });
+  expect(await received).toEqual({
+    type: "snapshot",
+    key: "notes/a",
+    version: 2,
+    value: "second",
+  });
+  far.close();
+  await done;
+  await origin.close({ graceful: true });
+});
+
+test("a source keeps versions of members held before startup", async () => {
+  const notes = family({ label: "note-early", initial: "" });
+  const member = notes("a");
+  const src = source({ cells: [[notes, "notes"]] });
+  const origin = createScope({ extensions: [src] });
+  await origin.ready;
+  origin.controller(notes.cell, { ns: member }).set("first");
+  const [near, far] = memoryPair();
+  const done = origin.resolve(src).connect(near);
+  const received = new Promise<Sync.Message>((resolve) => far.onMessage(resolve));
+  far.send({ type: "register", keys: ["notes/a"] });
+  expect(await received).toEqual({ type: "snapshot", key: "notes/a", version: 1, value: "first" });
+  far.close();
+  await done;
+  await origin.close({ graceful: true });
+});
+
 test("a viewer binding nothing is ready at once", () => {
   const sub = subscribe(memoryPair()[1], { cells: [] });
   const guest = createScope({ extensions: [sub] });
