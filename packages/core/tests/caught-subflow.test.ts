@@ -666,7 +666,7 @@ test("a non-function then rejection argument does not receive a subflow error", 
   await root.close({ graceful: true });
 });
 
-test("a catch on a handed-off result receives a later subflow failure", async () => {
+test("a catch on a handed-off result receives a later subflow failure without failing its session", async () => {
   const cause = new Error("handed off");
   let fail!: (error: Error) => void;
   const gate = new Promise<never>((_resolve, reject) => {
