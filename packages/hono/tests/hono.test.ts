@@ -414,6 +414,28 @@ test("one scope close stops both servers: two serve binds, one reap", async () =
   expect(stops.sort()).toEqual(["stopped:one", "stopped:two"]);
 });
 
+test("a serve bind returning a closer object closes its listener", async () => {
+  let stops = 0;
+  const { extension: web } = hono([], {
+    serve: () => ({
+      close: () => {
+        stops++;
+      },
+    }),
+  });
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  expect((await scope.close({ graceful: true })).status).toBe("success");
+  expect(stops).toBe(1);
+});
+
+test("a missing serve bind lets the scope close successfully", async () => {
+  const { extension: web } = hono([]);
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  expect((await scope.close({ graceful: true })).status).toBe("success");
+});
+
 test("a close landing mid-bind still reaps the listener exactly once", async () => {
   let stops = 0;
   let openGate!: () => void;

@@ -85,6 +85,21 @@ test("a missing required tag answers 500 with the request span ok", async () => 
   await scope.close();
 });
 
+test("a missing required tag answers internal in the response body", async () => {
+  const readSecret = operation({
+    label: "readSecret",
+    depends: { secret: secret.required },
+    run: ({ secret }) => secret,
+  });
+  const { extension: web } = hono([route.get("/secret", readSecret)]);
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const res = await scope.resolve(web).request("/secret");
+  expect(res.status).toBe(500);
+  expect(await res.text()).toBe("internal");
+  await scope.close();
+});
+
 test("a client abort answers nothing usable but logs one 499 line and cancels the op", async () => {
   const logs: Observe.Log[] = [];
   const ends: string[] = [];

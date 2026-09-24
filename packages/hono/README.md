@@ -106,6 +106,8 @@ store each returned extension once (`const { extension: web } = hono(...)`),
 install it, resolve it — a second call is a different identity. Each
 `serve` bind stops on `scope.close()` through the extension onion, so one
 close reaps both listeners.
+A bind returning a closer object calls `close` on scope close.
+Without a `serve` bind, the scope still closes successfully.
 
 ## Hand mounting
 
@@ -195,6 +197,8 @@ start, since a later call cannot upgrade an in-progress graceful close.
 | request cancelled (abort)                                                    | 499 (logged, then Hono rejects as before)            |
 | `MissingTag` / `NoSession`                                                   | 500                                                  |
 | anything else                                                                | rethrown to Hono's `onError`, no `http request` line |
+
+A missing required tag answers `internal` in the response body.
 
 `hono(routes, { onError: (e, c) => Response | undefined })` answers first; `undefined`
 falls through to the table. A mapped failure settles the request span `ok`.
