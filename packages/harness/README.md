@@ -225,9 +225,10 @@ const coder = harness({ label: "coder", adapter: claudeCode, approve });
 
 ## Tools
 
-A tool is an ordinary operation with `tool` meta from `@tinker/mcp` — the same declaration
-the MCP driver serves (`mcp({ name, version, tools })`), shared with every MCP host. The operation's `run`
-is the handler, its `input` parse is the edge, and `tool.read(op)` gives any driver or adapter
+A tool is an ordinary operation with `tool` meta from `@tinker/mcp` — the same facts the
+MCP driver serves as `expose(op, meta)` rows in `mcp({ name, version, tools })`, shared
+with every MCP host. The operation's `run` is the handler, its `input` parse is the edge,
+and `tool.read(op)` gives any driver or adapter
 the facts (description, zod raw shape, name defaulting to the op's label, an optional `respond`
 that maps the value to a result — default one JSON text content). Pass tool ops in
 `harness({ tools })`, and the send op depends on them: the call runs as a **subflow** of the
