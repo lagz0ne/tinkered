@@ -317,6 +317,8 @@ shape.resource: const x = resource({ label: "x", target,
 
 ## The corpus
 
+- Omitted template fields read as their defaults: node scope, no needs,
+  a 0.5 boolean threshold, or 0.6 choice confidence.
 - A template is one YAML file in `corpus/`: `id`, `scope` (`node` or
   `pair`), `applies` (node kinds), `needs` (state fields: `kind`, `name`,
   `promise`, `why`, `depends`, `work`, `target`, `uses`, `usedBy`,
@@ -421,6 +423,7 @@ blueprint:
   names no real code, so only the package's own pair can grade `body`.
 - **proven** — at least 5 bad and 5 clean cases, sep ≥ 0.30, ordered ≥
   0.90, and no golden hit at all.
+- Reversed judge answers make an otherwise clear grade noisy.
 - **noisy** — a golden hit exists (whatever the case count — a hit on
   the golden design outranks all), or enough cases on each side but the
   bar is missed.
@@ -493,6 +496,9 @@ count):
   dir.
 
 ## Running check
+
+A check trace shows the command, the operation it drives, and the
+resources it builds.
 
 ```bash
 AI_GATEWAY_API_KEY=… node \

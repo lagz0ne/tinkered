@@ -30,7 +30,7 @@ test("malformed YAML fails as InvalidBlueprint with the original text and parser
   } catch (error: unknown) {
     if (!isError(error, "InvalidBlueprint")) throw error;
     expect(error.payload.text).toBe(text);
-    expect(error.payload.issues[0]).toBeInstanceOf(Error);
+    expect(error.payload.issues[0]).toHaveProperty("code", "BAD_INDENT");
   }
 });
 

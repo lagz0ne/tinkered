@@ -90,7 +90,7 @@ test("a confident resource pick prints unit, shape, target, all", async () => {
   );
 });
 
-test("a pick at the confidence floor prints its shape and an unclear target", async () => {
+test("a pick at the confidence floor prints both its shape and target", async () => {
   const result = await answer(["suggest", "hold the connection"], {
     presets: [
       preset(judge, () =>

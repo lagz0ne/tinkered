@@ -49,7 +49,7 @@ test("malformed template YAML reports the file and parser issue", () => {
   } catch (error: unknown) {
     if (!isError(error, "InvalidTemplate")) throw error;
     expect(error.payload.file).toBe("broken.yaml");
-    expect(error.payload.issues[0]).toBeInstanceOf(Error);
+    expect(error.payload.issues[0]).toHaveProperty("code", "BAD_INDENT");
     expect(error.message).toContain("broken.yaml");
   }
 });
