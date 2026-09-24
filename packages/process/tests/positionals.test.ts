@@ -23,7 +23,7 @@ test("-- ends the flags, so every later word is plain", () => {
   ]);
 });
 
-test("- is a plain word and another single-dash word is a flag", () => {
+test("positionals keeps a lone dash as a plain word and drops a single-dash flag", () => {
   expect(positionals(["-", "-x", "b"])).toEqual(["-", "b"]);
 });
 
