@@ -88,7 +88,7 @@ export const draftBody = operation({
     text: triage.text.controller,
     status: triage.status.controller,
   },
-  run: async ({ emit, turn, text, status }, { input, signal, log }) => {
+  run: async ({ emit, turn, text, status }, { input, signal, log, defer }) => {
     let live = "";
     const unText = text.watch((next) => {
       if (next.length > live.length) {
@@ -98,6 +98,10 @@ export const draftBody = operation({
     });
     const unStatus = status.watch((next) => {
       if (next === "running") emit(draftFrame({ kind: "status", status: next }));
+    });
+    defer(() => {
+      unText();
+      unStatus();
     });
     try {
       const draftText = await turn.run({ input });
@@ -117,9 +121,6 @@ export const draftBody = operation({
       } catch {
         return;
       }
-    } finally {
-      unText();
-      unStatus();
     }
   },
 });

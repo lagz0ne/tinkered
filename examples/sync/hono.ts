@@ -59,7 +59,7 @@ const wireBody = operation({
   label: "wireBody",
   input: (raw: unknown) => raw as string,
   depends: { emit: emit.required, origin: src, posts },
-  run: ({ emit, origin, posts }, { input: id, signal }) => {
+  run: ({ emit, origin, posts }, { input: id, signal, defer }) => {
     let open = true;
     const arrivals = new Set<(message: Sync.Message) => void>();
     const partings = new Set<() => void>();
@@ -89,10 +89,13 @@ const wireBody = operation({
     posts.set(id, (message) => {
       for (const arrival of arrivals) arrival(message);
     });
-    signal.addEventListener("abort", () => transport.close(), { once: true });
-    return origin.connect(transport).then(() => {
-      posts.delete(id);
+    const onAbort = (): void => transport.close();
+    signal.addEventListener("abort", onAbort, { once: true });
+    defer(() => {
+      signal.removeEventListener("abort", onAbort);
+      transport.close();
     });
+    return origin.connect(transport);
   },
 });
 
