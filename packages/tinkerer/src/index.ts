@@ -12,7 +12,6 @@ import { write, writeDescription, writeInput } from "./tools/write.ts";
 
 export { bash, cwd, edit, read, write };
 export { persist, restore } from "./persist.ts";
-export { askCommand } from "./command.ts";
 
 export declare namespace Tinkerer {
   /** The provider's own request fields plus our two: baseUrl (e.g. "https://api.meta.ai/v1")

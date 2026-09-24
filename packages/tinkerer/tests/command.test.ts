@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "vite-plus/test";
-import { run, type Process } from "@tinker/process";
+import { operation } from "@tinker/core";
+import { argv, io, run, type Process } from "@tinker/process";
 import { backend, HttpResponse, type HttpClient, type HttpRequest } from "@tinker/http";
-import { askCommand, tinkerer } from "../src/index.ts";
+import { tinkerer } from "../src/index.ts";
 
 const answer = readFileSync(new URL("./fixtures/answer.sse", import.meta.url));
 
@@ -10,6 +11,40 @@ const replyText =
   "In `README.md`:\n\n```md\n# tinkered\n\nA tiny engine. Scope, session, operation, resource, data cell.\n```";
 
 const coder = tinkerer({ label: "coder" });
+
+/** The prompt from argv: the words that are not a `--flag` or a flag's value. */
+function readPrompt(args: readonly string[]): string {
+  return args
+    .filter((word, at) => !word.startsWith("--") && args[at - 1]?.startsWith("--") !== true)
+    .join(" ");
+}
+
+/** The `ask` command, declared by its author: one turn, the reply streamed through `io`, and
+ * the exit code owned here. The frame's cells and operations it depends on are public. */
+const ask = operation({
+  label: "ask",
+  depends: {
+    argv: argv.required,
+    io: io.required,
+    text: coder.text.controller,
+    turn: coder.turn,
+  },
+  run: async ({ argv: args, io: out, text, turn }) => {
+    const prompt = readPrompt(args);
+    if (prompt === "") {
+      out.error("usage: ask <prompt>\n");
+      return 2;
+    }
+    const stop = text.watch((next, previous) => out.write(next.slice(previous.length)));
+    try {
+      const reply = await turn.run({ input: prompt });
+      out.write("\n");
+      return reply.finish === "stop" ? 0 : 3;
+    } finally {
+      stop();
+    }
+  },
+});
 
 /** A backend that records every request and answers the recorded reply. */
 function recording(seen: HttpRequest.Record[]): HttpClient.Backend {
@@ -25,11 +60,16 @@ function shell(seen: HttpRequest.Record[] = []): Process.Shell {
     name: "tinkerer",
     version: "0.0.0",
     commands: [
-      askCommand(coder, {
-        options: {
-          tags: [backend(recording(seen)), coder.config({ model: "m", baseUrl: "https://api" })],
-        },
-      }),
+      {
+        name: "ask",
+        description: "run one turn and print the answer as it streams",
+        entry: () => ({
+          op: ask,
+          options: {
+            tags: [backend(recording(seen)), coder.config({ model: "m", baseUrl: "https://api" })],
+          },
+        }),
+      },
     ],
   };
 }
