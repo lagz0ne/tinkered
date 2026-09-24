@@ -461,6 +461,17 @@ test("releaseNs keeps a dependency alive until its named dependent borrow ends",
   await scope.close();
 });
 
+test("release passed point-free to forEach releases each cell", async () => {
+  const c1 = data({ label: "first", initial: 0 });
+  const c2 = data({ label: "second", initial: 0 });
+  const scope = createScope();
+  scope.controller(c1).set(1);
+  scope.controller(c2).set(2);
+  [c1, c2].forEach(scope.release);
+  expect([scope.resolve(c1), scope.resolve(c2)]).toEqual([0, 0]);
+  await scope.close();
+});
+
 test("release(cell) resets every named entry at its layer", async () => {
   const a = namespace();
   const b = namespace();

@@ -4312,10 +4312,11 @@ function handleFor(layer: Layer): Scope.Handle {
   const settled = async (): Promise<void> => {
     while (layer.pending.size) await Promise.all(layer.pending);
   };
-  // Both release forms share the layer capture; plain release still takes one argument.
-  const release = (target: Data.Cell<unknown> | Resource.Handle<unknown>, ns?: Namespace): void => {
-    if (ns === undefined) releaseNode(layer, target);
-    else releaseNamed(layer, target, ns);
+  // Both forms share the layer capture. A non-namespace second argument (such as a forEach index)
+  // is still a plain release.
+  const release = (target: Data.Cell<unknown> | Resource.Handle<unknown>, ns?: unknown): void => {
+    if (isNamespace(ns)) releaseNamed(layer, target, ns);
+    else releaseNode(layer, target);
   };
   const controllerOf = (
     target: Data.Cell<unknown> | Resource.Handle<unknown> | Operation.Handle<unknown, unknown>,
