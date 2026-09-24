@@ -454,6 +454,15 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A catch after finally receives the subflow error and leaves the session successful.
 - A then rejection handler receives the subflow error and leaves the session successful.
 - A catch after fulfillment-only then receives the subflow error and leaves the session successful.
+- A graceful close does not wait for an endless then callback after a successful subflow.
+- A forced close does not wait for an endless then callback after a successful subflow.
+- A graceful close reports the original error without waiting for an endless catch callback.
+- A forced close reports the original error without waiting for an endless catch callback.
+- A derived error after its session closes fails the still-open root scope.
+- Two fulfillment-only handlers pass the original subflow failure on to the layer.
+- A catch that rethrows the original subflow error still fails the session.
+- A fulfillment handler that throws fails the session with the handler's error.
+- A caller awaiting finally can catch the original error and leave the session successful.
 - A fake global timer installed after core loads cannot stall a caught or unreceived subflow close.
 - A subflow awaited and caught inside an operation defer does not fail the session.
 - Returning a subflow promise to an outer caller that awaits and catches it does not fail the session.

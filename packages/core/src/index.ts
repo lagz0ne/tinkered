@@ -1090,6 +1090,7 @@ type Layer = {
   secondary: unknown[];
   body: Promise<unknown> | undefined;
   closed: boolean;
+  finished?: boolean;
   closing: Promise<Scope.Result> | undefined;
   obs: Obs;
   clock: Clock.Handle;
@@ -1943,7 +1944,12 @@ function recordUsed(
 }
 
 /** A subflow failure is received by a rejection handler, or handed to a derived promise. */
-type Receipt = { received: boolean; handedOff: boolean };
+type Receipt = {
+  received: boolean;
+  handedOff: boolean;
+  settled?: boolean;
+  children?: Receipt[];
+};
 /** Subflow controllers only need an identity marker, shared by every run (even sync runs). */
 type RunState = Receipt;
 const SUBFLOW_CALLER: RunState = { received: false, handedOff: false };
@@ -1980,37 +1986,57 @@ class SubflowPromise<T> extends Promise<T> {
       receipt.handedOff = true;
       if (typeof onrejected === "function") receipt.received = true;
       const nextReceipt: Receipt = { received: false, handedOff: false };
+      (receipt.children ??= []).push(nextReceipt);
       next.own(owner, nextReceipt);
-      trackSubflow(owner, next, nextReceipt);
+      trackSubflow(owner, next, nextReceipt, undefined, false);
     }
     return next;
   }
 }
 
-/** Join through the next macrotask: all microtasks in the rejection turn may attach a receiver.
- * Keep the span's failure at settlement even if its error becomes a received value. */
+/** An unreceived rejection belongs to the nearest layer still open to report it. After the root
+ * finishes, hand it to the host's unhandled-rejection hook instead of losing it. */
+function failSubflow(layer: Layer, error: unknown): void {
+  let owner: Layer | undefined = layer;
+  while (owner?.finished) owner = owner.parent;
+  if (owner) asPrimary(owner)(error);
+  else hostSetTimeout(() => Promise.reject(error), 0);
+}
+
+function unreceived(receipt: Receipt): boolean {
+  if (!receipt.received && !receipt.handedOff) return true;
+  return receipt.received && (receipt.children?.some((child) => !child.settled) ?? false);
+}
+
+/** Root runs join their own work plus one timer turn after handing off; derived runs only join their
+ * rejection check. A user's callback that never settles cannot hold close open. */
 function trackSubflow(
   layer: Layer,
   result: Promise<unknown>,
   receipt: Receipt,
   onSettle?: (status: "ok" | "failed", error?: unknown) => void,
+  join = true,
 ): void {
   const tracked: Promise<unknown> = Promise.prototype.then.call(
     result,
-    () => {
+    async () => {
+      receipt.settled = true;
       onSettle?.("ok");
-      layer.pending.delete(tracked);
+      if (join && receipt.handedOff)
+        await new Promise<void>((resolve) => hostSetTimeout(resolve, 0));
+      if (join) layer.pending.delete(tracked);
     },
     async (error: unknown) => {
+      receipt.settled = true;
       onSettle?.("failed", error);
-      if (!receipt.received && !receipt.handedOff) {
+      if (!join) layer.pending.add(tracked);
+      if (join || unreceived(receipt))
         await new Promise<void>((resolve) => hostSetTimeout(resolve, 0));
-        if (!receipt.received && !receipt.handedOff) asPrimary(layer)(error);
-      }
+      if (unreceived(receipt) && !isCancel(layer, error)) failSubflow(layer, error);
       layer.pending.delete(tracked);
     },
   );
-  layer.pending.add(tracked);
+  if (join) layer.pending.add(tracked);
 }
 
 /** Track owned async work so `settled()`/`close` join it. `onReject` decides where a rejection
@@ -3980,6 +4006,7 @@ function canFastClose(layer: Layer): boolean {
  * skipping the async teardown protocol, the abort event dispatch, and `nodes.clear()`. */
 function fastClose(layer: Layer, force: boolean): Promise<Scope.Result> {
   layer.closed = true;
+  layer.finished = true;
   const forced = force || layer.aborted;
   let settled: Scope.Outcome = SUCCESS;
   if (forced) {
@@ -4102,6 +4129,7 @@ function startClose(layer: Layer, force: boolean): Promise<Scope.Result> {
  * collecting ancestor gathers descendant results at any depth even when a descendant finished and
  * detached before the intervening scopes began their own close (F1 / grandchild). */
 function finishLayer(layer: Layer): unknown[] | undefined {
+  layer.finished = true;
   const teardownErrors = layer.secondary.length ? [...layer.secondary] : undefined;
   if (layer.nsLinked) detachNsLinked(layer, layer.nsLinked);
   const parent = layer.parent;
