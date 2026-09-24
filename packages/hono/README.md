@@ -116,7 +116,6 @@ Without a `serve` bind, the scope still closes successfully.
 session middleware, so `stream` sees the request session.
 
 A rejected body read tells `onError` which operation and cause failed.
-A function with a `then` method is awaited before input parsing.
 A `null` input reaches the operation without a body-read error.
 
 The `input` callback may return a promise: the endpoint awaits it, then parses

@@ -425,7 +425,7 @@ test("a serve bind returning a closer object closes its listener", async () => {
   });
   const scope = createScope({ extensions: [web] });
   await scope.ready;
-  expect((await scope.close({ graceful: true })).status).toBe("success");
+  expect(await scope.close({ graceful: true })).toEqual({ status: "success" });
   expect(stops).toBe(1);
 });
 
@@ -433,7 +433,7 @@ test("a missing serve bind lets the scope close successfully", async () => {
   const { extension: web } = hono([]);
   const scope = createScope({ extensions: [web] });
   await scope.ready;
-  expect((await scope.close({ graceful: true })).status).toBe("success");
+  expect(await scope.close({ graceful: true })).toEqual({ status: "success" });
 });
 
 test("a close landing mid-bind still reaps the listener exactly once", async () => {

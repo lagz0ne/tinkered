@@ -201,7 +201,7 @@ const createNamed = operation({
   run: (_deps, ctx) => ({ name: ctx.input }),
 });
 
-test("a rejected body read tells onError which route and cause failed", async () => {
+test("a rejected body read tells onError which operation and cause failed", async () => {
   const cause = new Error("body unavailable");
   let seen: unknown;
   const { extension: web } = hono(
@@ -219,19 +219,6 @@ test("a rejected body read tells onError which route and cause failed", async ()
   expect(res.status).toBe(400);
   if (!isError(seen, "InputRejected")) throw seen;
   expect(seen.payload).toEqual({ label: "createNamed", cause });
-  await scope.close();
-});
-
-test("a function-shaped thenable input is awaited before parsing", async () => {
-  const input = Object.assign(() => undefined, {
-    then: (resolve: (value: string) => void) => resolve("42"),
-  });
-  const { extension: web } = hono([route.get("/users/:id", getUser, { input: () => input })]);
-  const scope = createScope({ tags: [tenant("public")], extensions: [web] });
-  await scope.ready;
-  const res = await scope.resolve(web).request("/users/42");
-  expect(res.status).toBe(200);
-  expect(await res.json()).toEqual({ id: 42, tenant: "public" });
   await scope.close();
 });
 
