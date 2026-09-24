@@ -122,6 +122,56 @@ test("write and edit refuse a path outside cwd before touching the disk", async 
   await scope.close();
 });
 
+test("read-only blocks write and edit in the same reply", async () => {
+  const dir = notesDir();
+  const coder = tinkerer({ label: "coder", tools: shippedTools });
+  const seen: HttpRequest.Record[] = [];
+  const reply = askingFor([
+    { name: "write", args: JSON.stringify({ path: "out.txt", content: "made" }) },
+    {
+      name: "edit",
+      args: JSON.stringify({ path: "notes.txt", oldText: "alpha", newText: "ALPHA" }),
+    },
+  ]);
+  const scope = createScope({
+    tags: [
+      backend(scripted(seen, [reply, answer])),
+      coder.config({ model: "m", baseUrl: "https://api" }),
+      cwd(dir),
+    ],
+  });
+  const session = scope.createSession();
+  await session.run(coder.turn, { input: "go" });
+  expect(toolMessages(session.resolve(coder.messages))).toEqual([
+    "Tool write is blocked: mode is read-only, it needs workspace-write",
+    "Tool edit is blocked: mode is read-only, it needs workspace-write",
+  ]);
+  expect(existsSync(join(dir, "out.txt"))).toBe(false);
+  await scope.close();
+});
+
+test("write and edit refuse a path that resolves to the parent folder itself", async () => {
+  const dir = notesDir();
+  const inner = join(dir, "inner");
+  mkdirSync(inner);
+  const scope = createScope({ tags: [cwd(inner)] });
+  const attempts: readonly [string, () => Promise<string>][] = [
+    ["write", () => scope.run(write, { rawInput: { path: "..", content: "x" } })],
+    ["edit", () => scope.run(edit, { rawInput: { path: "..", oldText: "a", newText: "b" } })],
+  ];
+  for (const [label, attempt] of attempts) {
+    try {
+      await attempt();
+      expect.unreachable();
+    } catch (error) {
+      if (!isError(error, "PathOutsideCwd")) throw error;
+      expect(error.payload).toEqual({ label, path: ".." });
+    }
+  }
+  expect(existsSync(join(dir, "x"))).toBe(false);
+  await scope.close();
+});
+
 test("bash runs the command in cwd and answers its merged output with a non-zero exit code", async () => {
   const dir = notesDir();
   const scope = createScope({ tags: [cwd(dir)] });
@@ -140,6 +190,41 @@ test("bash kills a command at its timeout and says so", async () => {
     rawInput: { command: "echo start; sleep 5", timeout: 100 },
   });
   expect(said).toBe("start\n\n[timed out after 100 ms]");
+  await scope.close();
+});
+
+test("bash keeps the tail of a large output and marks the cut", async () => {
+  const scope = createScope({ tags: [cwd(notesDir())] });
+  const said = await scope.run(bash, {
+    rawInput: { command: "head -c 25000 /dev/zero | tr '\\0' 'y'" },
+  });
+  expect(said.startsWith("…")).toBe(true);
+  expect(said.length).toBe(20001);
+  expect(said.endsWith("y")).toBe(true);
+  await scope.close();
+});
+
+test("bash keeps an output of exactly the cap whole", async () => {
+  const scope = createScope({ tags: [cwd(notesDir())] });
+  const said = await scope.run(bash, {
+    rawInput: { command: "head -c 20000 /dev/zero | tr '\\0' 'y'" },
+  });
+  expect(said.length).toBe(20000);
+  expect(said.startsWith("…")).toBe(false);
+  await scope.close();
+});
+
+test("bash gives the command no stdin so a reader returns at once", async () => {
+  const scope = createScope({ tags: [cwd(notesDir())] });
+  const said = await scope.run(bash, { rawInput: { command: "cat", timeout: 200 } });
+  expect(said).toBe("");
+  await scope.close();
+});
+
+test("bash names a signal when the command dies by one", async () => {
+  const scope = createScope({ tags: [cwd(notesDir())] });
+  const said = await scope.run(bash, { rawInput: { command: "kill -9 $$" } });
+  expect(said).toBe("\n[exit signal]");
   await scope.close();
 });
 

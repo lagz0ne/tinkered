@@ -148,6 +148,12 @@ Each shipped tool reads the `cwd` tag.
   merged output with a non-zero exit code.
 - `bash` kills a command at its timeout
   (default 30 s) and says so.
+- `bash` keeps the last 20000 characters of a
+  huge output and marks the cut with `…`.
+- `bash` gives the command no stdin, so `cat`
+  returns at once.
+- A command that dies by a signal answers
+  `[exit signal]`.
 - A forced close during `bash` kills the command
   and rejects the run.
 
