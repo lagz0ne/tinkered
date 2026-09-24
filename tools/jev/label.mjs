@@ -70,6 +70,7 @@ import {
   forSurvivorJev,
 } from "./bank.mjs";
 import { join } from "node:path";
+import { namedFunction } from "./extract.mjs";
 
 const flag = (name) => {
   const i = args.indexOf(name);
@@ -126,7 +127,8 @@ function readState() {
     console.error(`label: ${judge} is a unit judge; name the unit as ${file}#<name>`);
     process.exit(1);
   }
-  const unit = slice(code, file).find((u) => u.name === unitName);
+  const unit =
+    slice(code, file).find((u) => u.name === unitName) ?? namedFunction(code, file, unitName);
   if (!unit) {
     console.error(`label: no unit named ${unitName} in ${file}${ref ? ` at ${ref}` : ""}`);
     process.exit(1);

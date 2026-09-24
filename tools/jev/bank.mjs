@@ -25,6 +25,20 @@ export const forJev = ({ kind, name, source }) => ({ kind, name, source });
 // `applies` is the kind filter the code enforces; `threshold` is per question (Jev
 // probabilities are not comparable across questions). Rule numbers: docs/best-practices.md.
 export const LINT = {
+  wrapsCallersStep: {
+    applies: ["function"],
+    threshold: 0.5,
+    q: {
+      type: "boolean",
+      instructions:
+        "Does this function create an operation({ ... }) or inline session.run({ ... }) that runs the caller's step for them? A caller's step may be a callback or an operation from a frame parameter (possibly paired with a cell from that frame); putting that step in the new operation's depends is still a wrapper. The caller cannot give this new step its own label and depends. Answer false for a factory making its own frame units from plain config, an extension routing declared operations, or a helper that creates no operation.",
+      criteria: {
+        true: "this function constructs an operation or inline session.run whose run invokes the caller's callback or already-declared units as the work",
+        false:
+          "it makes its own frame units from config (including tools or open), routes or runs already-declared operations without wrapping them in a new operation, or creates no operation itself",
+      },
+    },
+  },
   runForwardsToClosure: {
     applies: ["operation"],
     threshold: 0.5,

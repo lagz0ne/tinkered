@@ -8,8 +8,9 @@
 //   (functions that call createScope) — all skipped by default
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { loadKey, ask, pct, readCalibration } from "./lib.mjs";
+import { loadKey, ask, pct, readCalibration, isTieError } from "./lib.mjs";
 import { slice, forJev, LINT, GUIDE } from "./bank.mjs";
+import { unitCouldBeModuleLevel } from "./extract.mjs";
 
 /** Per-judge status from `tools/jev/calibrate.mjs`: a `noisy` judge prints as a note (`~`), never as a flag. */
 const CALIBRATION = readCalibration();
@@ -82,20 +83,35 @@ const smallFunction = (u) => u.kind === "function" && u.source.length < MIN_FUNC
 const oneLiner = (u) => u.kind === "data" || u.kind === "tag";
 const wanted = (u) => all || !(isRoot(u) || smallFunction(u) || oneLiner(u));
 
-if (!loadKey()) process.exit(0);
+const hasKey = loadKey();
 const files = listFiles(paths.length ? paths : DEFAULT);
 const report = [];
 console.log(`jev lint (advisory) — ${files.length} file(s)\n`);
 for (const file of files) {
   if (report.length >= limit) break;
-  const units = slice(readFileSync(file, "utf8"), file).filter(wanted);
-  if (units.length === 0) continue;
+  const source = readFileSync(file, "utf8");
+  const codeHits = unitCouldBeModuleLevel(source, file);
+  const units = hasKey ? slice(source, file).filter(wanted) : [];
+  if (units.length === 0 && codeHits.length === 0) continue;
   console.log(file);
+  for (const hit of codeHits) {
+    const flags = ["unitCouldBeModuleLevel (code)"];
+    report.push({ file, kind: hit.kind, name: hit.functionName, line: hit.line, flags });
+    console.log(`  ⚠ ${hit.kind} (L${hit.line}) in ${hit.functionName}: ${flags[0]}`);
+  }
   for (const u of units) {
     if (report.length >= limit) break;
-    const answers = await ask(forJev(u), questionsFor(u.kind));
+    let answers;
+    try {
+      answers = await ask(forJev(u), questionsFor(u.kind));
+    } catch (error) {
+      if (!isTieError(error)) throw error;
+      // The optional kind pick tied. Retry the boolean judges; a hint cannot block flags.
+      const { unit: _unit, ...questions } = questionsFor(u.kind);
+      answers = Object.keys(questions).length ? await ask(forJev(u), questions) : {};
+    }
     const flags = flagsOf(answers);
-    const reads = readsAs(u.kind, answers.unit);
+    const reads = answers.unit ? readsAs(u.kind, answers.unit) : null;
     report.push({ file, kind: u.kind, name: u.name, line: u.line, flags, reads });
     printUnit(u, flags, reads);
   }
@@ -110,7 +126,7 @@ console.log(
   `\njev lint: ${report.length} unit(s), ${flagged} ⚠ flag(s), ${noted} ℹ note(s). By question: ${JSON.stringify(counts)}`,
 );
 console.log(
-  "Advisory only — every ⚠ is fixed or explained, then labeled (a ~ hit: read it, no line owed); an ℹ note is a hint, no fix or label owed. vp check / tests / the lead decide.",
+  "Advisory only — model ⚠ hits are fixed or explained, then labeled (a ~ hit: read it, no line owed); unitCouldBeModuleLevel (code) is deterministic and needs no label or calibration. vp check / tests / the lead decide.",
 );
 if (jsonOut) writeFileSync(jsonOut, JSON.stringify(report, null, 2));
 process.exit(0);

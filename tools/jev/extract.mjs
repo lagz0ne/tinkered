@@ -9,6 +9,12 @@
 import { parseSync } from "oxc-parser";
 
 const UNIT_KINDS = new Set(["data", "resource", "operation", "tag", "extension", "family"]);
+const STATIC_KINDS = new Set(["data", "resource", "operation", "tag"]);
+const FUNCTION_TYPES = new Set([
+  "FunctionDeclaration",
+  "FunctionExpression",
+  "ArrowFunctionExpression",
+]);
 
 /** Parse once; oxc is lenient, so a broken file still yields a program (errors are advisory). */
 export function parse(file, src) {
@@ -50,15 +56,6 @@ function unitOf(src, declarator, exported) {
   };
 }
 
-/** Does this subtree call one of the unit builders? (Then its function is a root or a tour.) */
-function declaresUnit(node) {
-  let found = false;
-  walk(node, (n) => {
-    if (isUnitCall(n)) found = true;
-  });
-  return found;
-}
-
 /** A top-level function as a unit record of kind "function". */
 const functionRecord = (src, node, name, exported) => ({
   kind: "function",
@@ -68,20 +65,20 @@ const functionRecord = (src, node, name, exported) => ({
   exported,
 });
 
-/** The name of a `.tsx` arrow component `const X = (…) => …` that declares no unit, else null. */
+/** The name of a top-level arrow function (including components). */
 function arrowName(decl) {
   const d = decl?.type === "VariableDeclaration" ? decl.declarations[0] : undefined;
   const isArrow = d?.init?.type === "ArrowFunctionExpression" && d.id.type === "Identifier";
-  return isArrow && !declaresUnit(d.init.body) ? d.id.name : null;
+  return isArrow ? d.id.name : null;
 }
 
-/** Top-level function declarations (and arrow consts in .tsx) that declare no unit. */
-function functionOf(src, node, file) {
+/** Top-level functions are also judged when they declare units: wrappers live there. */
+function functionOf(src, node) {
   const decl = node.type === "ExportNamedDeclaration" ? node.declaration : node;
   const exported = node.type === "ExportNamedDeclaration";
-  if (decl?.type === "FunctionDeclaration" && decl.id && !declaresUnit(decl.body))
+  if (decl?.type === "FunctionDeclaration" && decl.id)
     return functionRecord(src, node, decl.id.name, exported);
-  const arrow = file.endsWith(".tsx") ? arrowName(decl) : null;
+  const arrow = arrowName(decl);
   return arrow ? functionRecord(src, node, arrow, exported) : null;
 }
 
@@ -93,10 +90,165 @@ export function units(src, file = "a.ts") {
     const exported = node.type === "ExportNamedDeclaration";
     const declarators = decl?.type === "VariableDeclaration" ? decl.declarations : [];
     out.push(...declarators.map((d) => unitOf(src, d, exported)).filter(Boolean));
-    const fn = functionOf(src, node, file);
+    const fn = functionOf(src, node);
     if (fn) out.push(fn);
   }
   return out;
+}
+
+/** Names bound by a parameter or a local pattern, including destructuring. */
+function bindings(pattern) {
+  if (!pattern) return [];
+  if (pattern.type === "Identifier") return [pattern.name];
+  if (pattern.type === "RestElement" || pattern.type === "AssignmentPattern")
+    return bindings(pattern.argument ?? pattern.left);
+  if (pattern.type === "ArrayPattern") return pattern.elements.flatMap(bindings);
+  if (pattern.type === "ObjectPattern")
+    return pattern.properties.flatMap((p) => bindings(p.value ?? p.argument));
+  return [];
+}
+
+/** Identifier references, without property names, type syntax, or names shadowed in callbacks. */
+function references(node, shadow = new Set()) {
+  const out = new Set();
+  // AST node kinds each need their own reference handling.
+  // oxlint-disable-next-line complexity -- syntax cases are independent
+  function visit(n, hidden) {
+    if (!n || typeof n !== "object") return;
+    if (Array.isArray(n)) return n.forEach((v) => visit(v, hidden));
+    if (n.type === "Identifier") {
+      if (!hidden.has(n.name)) out.add(n.name);
+      return;
+    }
+    if (n.type?.startsWith("TS") || n.type === "TSTypeAnnotation") return;
+    if (FUNCTION_TYPES.has(n.type)) {
+      const scoped = new Set([...hidden, ...(n.params ?? []).flatMap(bindings)]);
+      if (n.id?.name) scoped.add(n.id.name);
+      visit(n.body, scoped);
+      return;
+    }
+    if (n.type === "VariableDeclarator") return visit(n.init, hidden);
+    // Writing a counter or cache has no effect on the value built from this initializer.
+    if (n.type === "AssignmentExpression" && n.left.type === "MemberExpression")
+      return visit(n.right, hidden);
+    if (n.type === "Property") {
+      if (n.computed) visit(n.key, hidden);
+      visit(n.value, hidden);
+      return;
+    }
+    if (n.type === "MemberExpression") {
+      visit(n.object, hidden);
+      if (n.computed) visit(n.property, hidden);
+      return;
+    }
+    for (const [key, value] of Object.entries(n))
+      if (!["id", "typeAnnotation", "returnType", "typeParameters", "typeArguments"].includes(key))
+        visit(value, hidden);
+  }
+  visit(node, shadow);
+  return out;
+}
+
+/** Locals in an enclosing function that may depend on its parameters, transitively. */
+function derivedNames(fn, before) {
+  const names = new Set((fn.params ?? []).flatMap(bindings));
+  const declarations = [];
+  // oxlint-disable-next-line complexity -- AST traversal has several node guards
+  function collect(n) {
+    if (!n || typeof n !== "object" || n.start >= before) return;
+    if (Array.isArray(n)) return n.forEach(collect);
+    if (FUNCTION_TYPES.has(n.type) && n !== fn) return;
+    if (n.type === "VariableDeclarator") declarations.push(n);
+    for (const value of Object.values(n)) if (value && typeof value === "object") collect(value);
+  }
+  collect(fn.body);
+  let changed;
+  do {
+    changed = false;
+    for (const d of declarations) {
+      if (![...references(d.init)].some((name) => names.has(name))) continue;
+      for (const name of bindings(d.id))
+        if (!names.has(name)) {
+          names.add(name);
+          changed = true;
+        }
+    }
+  } while (changed);
+  return names;
+}
+
+/** Calls made inside a function that can be declared once, without its parameters. */
+// oxlint-disable-next-line complexity -- import and function guards are separate AST cases
+export function unitCouldBeModuleLevel(src, file = "a.ts") {
+  if (/(?:^|\/)\w*\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|\/)(?:tests|__tests__)\//.test(file))
+    return [];
+  const program = parse(file, src);
+  const coreNames = new Set();
+  for (const n of program.body)
+    if (n.type === "ImportDeclaration" && n.source.value === "@tinker/core")
+      for (const s of n.specifiers)
+        if (s.type === "ImportSpecifier" && STATIC_KINDS.has(s.imported.name))
+          coreNames.add(s.local.name);
+  const out = [];
+  // oxlint-disable-next-line complexity -- nested function and call syntax needs separate guards
+  function visit(node, functions = [], name) {
+    if (!node || typeof node !== "object") return;
+    if (Array.isArray(node)) return node.forEach((n) => visit(n, functions, name));
+    if (node.type === "ExportNamedDeclaration") return visit(node.declaration, functions, name);
+    if (
+      node.type === "FunctionDeclaration" ||
+      node.type === "FunctionExpression" ||
+      node.type === "ArrowFunctionExpression"
+    ) {
+      const owner = node.id?.name ?? name ?? functions.at(-1)?.name ?? "<anonymous>";
+      return visit(node.body, [...functions, { node, name: owner }]);
+    }
+    if (node.type === "VariableDeclarator") {
+      visit(node.init, functions, node.id?.name);
+      return;
+    }
+    if (
+      node.type === "CallExpression" &&
+      functions.length &&
+      node.callee.type === "Identifier" &&
+      coreNames.has(node.callee.name) &&
+      node.arguments[0]?.type === "ObjectExpression"
+    ) {
+      const config = node.arguments[0];
+      const names = new Set(functions.flatMap(({ node: fn }) => [...derivedNames(fn, node.start)]));
+      if (![...references(config)].some((ref) => names.has(ref)))
+        out.push({
+          kind: node.callee.name,
+          line: lineOf(src, node.start),
+          functionName: functions.at(-1).name,
+        });
+    }
+    for (const value of Object.values(node))
+      if (value && typeof value === "object") visit(value, functions, name);
+  }
+  visit(program);
+  return out;
+}
+
+/** A named nested function, for labeling historical builders no longer in the current slice. */
+export function namedFunction(src, file, name) {
+  let match;
+  // oxlint-disable-next-line complexity -- nested declarations and arrow bindings differ
+  function visit(node) {
+    if (!node || typeof node !== "object" || match) return;
+    if (Array.isArray(node)) return node.forEach(visit);
+    if (node.type === "FunctionDeclaration" && node.id?.name === name)
+      match = functionRecord(src, node, name, false);
+    if (
+      node.type === "VariableDeclarator" &&
+      node.id?.name === name &&
+      FUNCTION_TYPES.has(node.init?.type)
+    )
+      match = functionRecord(src, node.init, name, false);
+    for (const value of Object.values(node)) if (value && typeof value === "object") visit(value);
+  }
+  visit(parse(file, src));
+  return match;
 }
 
 // ---------- tests ----------
