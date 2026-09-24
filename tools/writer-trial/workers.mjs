@@ -30,9 +30,9 @@ if (action === "create") {
   const suite = process.argv.includes("--suite")
     ? process.argv[process.argv.indexOf("--suite") + 1]
     : "booking";
-  if (!["booking", "stock", "plan", "loans", "ballot"].includes(suite))
+  if (!["booking", "stock", "plan", "loans", "ballot", "kitchen"].includes(suite))
     throw new Error(
-      "Use --suite booking, --suite stock, --suite plan, --suite loans, or --suite ballot",
+      "Use --suite booking, --suite stock, --suite plan, --suite loans, --suite ballot, or --suite kitchen",
     );
   if (existsSync(manifestPath)) throw new Error("Trial already exists; inspect its manifest");
   mkdirSync(root, { recursive: true, mode: 0o700 });
@@ -116,6 +116,7 @@ if (action === "create") {
               plan: "learning-plan-trial",
               loans: "tool-library-trial",
               ballot: "team-poll-trial",
+              kitchen: "kitchen-queue-trial",
             }[suite] ?? "room-booking-trial",
           private: true,
           type: "module",

@@ -65,6 +65,8 @@ It records hashes and refuses a silent refresh.
   Stage 1 loads `loans/01-tool-library.md`.
 - **Ballot** — needs `--suite ballot`.
   Stage 1 loads `ballot/01-team-poll.md`.
+- **Kitchen** — needs `--suite kitchen`.
+  Stage 1 loads `kitchen/01-kitchen-queue.md`.
 
 The first command that registers models adds only the
 `writer-gateway` provider to Pi's model file.

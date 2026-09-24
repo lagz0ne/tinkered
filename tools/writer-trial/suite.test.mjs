@@ -23,27 +23,30 @@ import {
 } from "./suite.mjs";
 
 void describe("suite defs", () => {
-  void it("defaults old trials to booking, keeps stock, plan, loans, and ballot single-round", () => {
+  void it("defaults old trials to booking, keeps every fresh suite single-round", () => {
     assert.equal(suiteFor({}), "booking");
     assert.deepEqual(roundsFor("booking"), [1, 2, 3, 4, 5]);
     assert.deepEqual(roundsFor("stock"), [1]);
     assert.deepEqual(roundsFor("plan"), [1]);
     assert.deepEqual(roundsFor("loans"), [1]);
     assert.deepEqual(roundsFor("ballot"), [1]);
+    assert.deepEqual(roundsFor("kitchen"), [1]);
     assert.throws(() => roundsFor("nope"), /Unknown suite/);
   });
 
-  void it("grows booking tasks round by round, freezes stock, plan, loans, and ballot tasks", () => {
+  void it("grows booking tasks round by round, freezes every fresh suite task", () => {
     assert.equal(taskSourcesFor("booking", 1).length, 1);
     assert.equal(taskSourcesFor("booking", 5).length, 5);
     assert.deepEqual(taskSourcesFor("stock", 1), ["stock/01-stock-moves.md"]);
     assert.deepEqual(taskSourcesFor("plan", 1), ["plan/01-learning-plan.md"]);
     assert.deepEqual(taskSourcesFor("loans", 1), ["loans/01-tool-library.md"]);
     assert.deepEqual(taskSourcesFor("ballot", 1), ["ballot/01-team-poll.md"]);
+    assert.deepEqual(taskSourcesFor("kitchen", 1), ["kitchen/01-kitchen-queue.md"]);
     assert.throws(() => taskSourcesFor("stock", 2), /no round/);
     assert.throws(() => taskSourcesFor("plan", 2), /no round/);
     assert.throws(() => taskSourcesFor("loans", 2), /no round/);
     assert.throws(() => taskSourcesFor("ballot", 2), /no round/);
+    assert.throws(() => taskSourcesFor("kitchen", 2), /no round/);
   });
 
   void it("keeps booking clauses out of the default rules", () => {
@@ -58,6 +61,7 @@ void describe("suite defs", () => {
     assert.deepEqual(guidelineSourcesFor("plan"), ["guidelines.md"]);
     assert.deepEqual(guidelineSourcesFor("loans"), ["guidelines.md"]);
     assert.deepEqual(guidelineSourcesFor("ballot"), ["guidelines.md"]);
+    assert.deepEqual(guidelineSourcesFor("kitchen"), ["guidelines.md"]);
   });
 });
 
@@ -122,6 +126,17 @@ void describe("frozen copies", () => {
       } finally {
         rmSync(ballotRoot, { recursive: true, force: true });
       }
+      const kitchenRoot = mkdtempSync(join(tmpdir(), "suite-kitchen-"));
+      try {
+        const kitchen = freezeTrial(kitchenRoot, "kitchen");
+        assert.match(readFrozenTask(kitchenRoot, kitchen, "kitchen", 1), /Kitchen queue/);
+        assert.match(
+          readFrozenGuidelines(kitchenRoot, kitchen, "kitchen"),
+          /useData and runs operations/,
+        );
+      } finally {
+        rmSync(kitchenRoot, { recursive: true, force: true });
+      }
     } finally {
       rmSync(root, { recursive: true, force: true });
       rmSync(stockRoot, { recursive: true, force: true });
@@ -166,11 +181,13 @@ void describe("frozen copies", () => {
     assert.equal(taskFileFor("plan", 1), "01-learning-plan.md");
     assert.equal(taskFileFor("loans", 1), "01-tool-library.md");
     assert.equal(taskFileFor("ballot", 1), "01-team-poll.md");
+    assert.equal(taskFileFor("kitchen", 1), "01-kitchen-queue.md");
     assert.equal(taskFileFor("booking", 5), "05-rename-series.md");
     assert.throws(() => taskFileFor("stock", 2), /no round/);
     assert.throws(() => taskFileFor("plan", 2), /no round/);
     assert.throws(() => taskFileFor("loans", 2), /no round/);
     assert.throws(() => taskFileFor("ballot", 2), /no round/);
+    assert.throws(() => taskFileFor("kitchen", 2), /no round/);
     assert.deepEqual(validRounds({}), [1, 2, 3, 4]);
     assert.deepEqual(
       validRounds({ suite: "booking", frozen: { dir: "f", files: {} } }),
