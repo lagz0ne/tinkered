@@ -4,7 +4,16 @@ import { join } from "node:path";
 import { expect, test } from "vite-plus/test";
 import { createScope, isError as isCoreError, operation } from "@tinker/core";
 import { backend, HttpResponse, type HttpClient, type HttpRequest } from "@tinker/http";
-import { cwd, isError, read, readTool, tinkerer, tool, type Tinkerer } from "../src/index.ts";
+import {
+  cwd,
+  isError,
+  read,
+  readTool,
+  shippedTools,
+  tinkerer,
+  tool,
+  type Tinkerer,
+} from "../src/index.ts";
 
 const ask = readFileSync(new URL("./fixtures/ask.sse", import.meta.url));
 const answer = readFileSync(new URL("./fixtures/answer.sse", import.meta.url));
@@ -364,6 +373,96 @@ test("a tool call whose arguments are not JSON answers the model with an error r
   const [content] = toolMessages(session.resolve(frame.messages));
   expect(content?.startsWith("Tool read: arguments are not JSON: ")).toBe(true);
   expect(runs).toBe(0);
+  await scope.close();
+});
+
+test("a frame with no tool rows sends no tools field at all", async () => {
+  const bare = tinkerer({ label: "bare" });
+  const seen: HttpRequest.Record[] = [];
+  const scope = createScope({
+    tags: [backend(scripted(seen, [answer])), bare.config({ model: "m", baseUrl: "https://api" })],
+  });
+  await scope.createSession().run(bare.turn, { input: "hi" });
+  expect("tools" in readBody(seen)).toBe(false);
+  await scope.close();
+});
+
+test("the request lists each shipped row with its own name, description and schema", async () => {
+  const shipped = tinkerer({ label: "shipped", tools: shippedTools });
+  const seen: HttpRequest.Record[] = [];
+  const scope = createScope({
+    tags: [
+      backend(scripted(seen, [answer])),
+      shipped.config({ model: "m", baseUrl: "https://api" }),
+    ],
+  });
+  await scope.createSession().run(shipped.turn, { input: "hi" });
+  const tools = readBody(seen)["tools"] as readonly {
+    function: {
+      name: string;
+      description: string;
+      parameters: { required?: readonly string[] };
+    };
+  }[];
+  expect(tools.map((row) => row.function.name)).toEqual(["read", "edit", "write", "bash"]);
+  expect(tools.map((row) => row.function.description)).toEqual([
+    "Read a file under cwd, optionally a window of lines",
+    "Replace one exact occurrence of oldText by newText in a file under cwd",
+    "Write a whole file under cwd, creating parent folders",
+    "Run a bash command in cwd; answers its combined output and exit code",
+  ]);
+  expect(tools[0]?.function.parameters.required).toEqual(["path"]);
+  expect(tools[3]?.function.parameters.required).toEqual(["command"]);
+  await scope.close();
+});
+
+test("an assistant message with tool calls and no text carries null content", async () => {
+  const seen: HttpRequest.Record[] = [];
+  const reply = askingFor([{ name: "read", args: '{"path":"README.md"}' }]);
+  const scope = createScope({
+    tags: [
+      backend(scripted(seen, [reply, answer])),
+      coder.config({ model: "m", baseUrl: "https://api" }),
+      cwd(readmeDir()),
+    ],
+  });
+  const session = scope.createSession();
+  await session.run(coder.turn, { input: "read it" });
+  expect(session.resolve(coder.messages)[1]).toEqual({
+    role: "assistant",
+    content: null,
+    tool_calls: [
+      {
+        id: "call_0",
+        type: "function",
+        function: { name: "read", arguments: '{"path":"README.md"}' },
+      },
+    ],
+  });
+  await scope.close();
+});
+
+test("a tool whose own input fails validation answers the cause's own message", async () => {
+  const picky = operation({
+    label: "picky",
+    input: (): never => {
+      throw new Error("needs a path");
+    },
+    run: () => "never",
+  });
+  const frame = tinkerer({ label: "picky", tools: [tool(picky, { description: "", schema: {} })] });
+  const seen: HttpRequest.Record[] = [];
+  const scope = createScope({
+    tags: [
+      backend(scripted(seen, [askingFor([{ name: "picky", args: "{}" }]), answer])),
+      frame.config({ model: "m", baseUrl: "https://api" }),
+    ],
+  });
+  const session = scope.createSession();
+  await session.run(frame.turn, { input: "go" });
+  expect(toolMessages(session.resolve(frame.messages))).toEqual([
+    "Tool picky failed: needs a path",
+  ]);
   await scope.close();
 });
 

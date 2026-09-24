@@ -126,6 +126,11 @@ build a separate frame if either differs.
   Results keep the model's order either way.
 - A tool's non-string value reaches the model as
   JSON; `undefined` as an empty string.
+- A tool whose own input fails validation answers
+  the model with the cause's message.
+- A reply whose tool calls carry no text sends
+  `null` as the assistant message's content.
+- A request with no rows carries no `tools` field.
 - `read` returns a window of lines and
   refuses a path outside `cwd`.
 
@@ -315,6 +320,23 @@ The composition root binds config and runs the
 shell with `run` or `main`, or by hand when it also
 reads `--cwd` and `--mode` into the `cwd` and
 `mode` tags.
+
+## Log lines
+
+A scope with a log sink sees one line per step.
+
+- `tinkerer tool { name, ok }` — one per tool
+  call; `ok` is false when the call never ran.
+- `tinkerer gate { name, allow }` — the gate's
+  decision for one call.
+- `tinkerer turn { finish, input, output }` —
+  the turn's finish reason and output tokens.
+
+```ts
+createScope({
+  observe: { log: (entry) => console.log(entry) },
+});
+```
 
 ## Errors
 
