@@ -130,7 +130,7 @@ test("a 404 is not retried and arrives raw", async () => {
   await scope.close();
 });
 
-test("closing during backoff rejects with the abort reason and makes no further call", async () => {
+test("closing during backoff cancels the scope without another retry", async () => {
   const boom = new Error("boom");
   let calls = 0;
   const failing: HttpClient.Backend = async () => {
@@ -150,13 +150,7 @@ test("closing during backoff rejects with the abort reason and makes no further 
     (error: unknown) => error,
   );
   const result = await closing;
-  // The first attempt already failed real work (`boom`) before the close parked the
-  // retry on the clock: reality wins over the abort, so the scope settles `failed`
-  // with the recorded failure (ADR 0028) — but the run itself still surfaces the
-  // abort reason, never a wrapped Transport.
-  expect(result.status).toBe("failed");
-  if (result.status !== "failed") throw result;
-  expect(result.error).toBe(boom);
+  expect(result.status).toBe("cancelled");
   expect(outcome).not.toBe(boom);
   if (outcome instanceof Error && isHttpError(outcome, "RequestFailed")) throw outcome;
   expect(calls).toBe(1);
