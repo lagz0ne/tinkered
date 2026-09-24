@@ -42,6 +42,13 @@ card at a time.
   Worktrees `../tinkered-nw-<name>`, briefs `/tmp/nw/f*.md`. Verify each: its Jev hits gone; gate.
   - nw/hono-stream — sol 6 `d086938d`
 
+- **core/caught-subflow** — sol 6 (agent `ba5faf1f`), worktree `../tinkered-core-caught-subflow`.
+  A caught subflow still fails its session and rejects a tagged run (found by the nw/hono-stream
+  review). User pick A: ADR 0066, a subflow failure belongs to its caller. Verify: the tests in
+  the brief; gate; mutation alone; bench; promises 17.
+- **nw/docs** — deepseek (agent `6cdb740c`), worktree `../tinkered-nw-docs`. Docs stop showing retired
+  wrappers. Verify: the grep list before/after; `vp run prose`.
+
 | Card | Owner | Next | Verify |
 
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -55,9 +62,6 @@ card at a time.
 | ---- | ----- | ---- | ------ |
 
 ## Blocked
-
-- **nw/docs** — waits for nw/tinkerer-ask and nw/hono-stream to land (docs name their new shapes).
-  Brief ready: `/tmp/nw/f6-docs.md`.
 
 | Card | Waiting for | Next | Verify |
 | ---- | ----------- | ---- | ------ |
