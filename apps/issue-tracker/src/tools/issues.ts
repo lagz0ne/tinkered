@@ -167,98 +167,88 @@ export const getRemote = operation({
   },
 });
 
-/** The `list` command: no argv to read, the saved issues out as one JSON line. */
-function listCommand(options: Scope.Options): Process.Route {
-  const op = operation({
-    label: "list",
-    depends: { io: io.required, remote: listRemote },
-    run: async ({ io: out, remote }) => {
-      out.write(jsonLine(await remote.run()) ?? "");
-      return 0;
-    },
-  });
-  return { name: "list", description: "list the saved issues", entry: () => ({ op, options }) };
-}
+/** The `list` command: no argv to read, the saved issues out as one JSON line. Declared once at
+ * module level (ADR 0057): its identity is its cache key, and it reads no root options. */
+const listCommand: Process.Command = operation({
+  label: "list",
+  depends: { io: io.required, remote: listRemote },
+  run: async ({ io: out, remote }) => {
+    out.write(jsonLine(await remote.run()) ?? "");
+    return 0;
+  },
+});
 
 /** The `create` command: `--title` and `--description` in, the saved issue out. */
-function createCommand(options: Scope.Options): Process.Route {
-  const op = operation({
-    label: "create",
-    depends: { argv: argv.required, io: io.required, remote: createRemote },
-    run: async ({ argv: args, io: out, remote }) => {
-      out.write(jsonLine(await remote.run({ rawInput: readCreateArgs(args) })) ?? "");
-      return 0;
-    },
-  });
-  return {
-    name: "create",
-    description: "create one issue: create --title T --description D",
-    entry: () => ({ op, options }),
-  };
-}
+const createCommand: Process.Command = operation({
+  label: "create",
+  depends: { argv: argv.required, io: io.required, remote: createRemote },
+  run: async ({ argv: args, io: out, remote }) => {
+    out.write(jsonLine(await remote.run({ rawInput: readCreateArgs(args) })) ?? "");
+    return 0;
+  },
+});
 
 /** The `update` command: the id plus `--base-revision` and the edited fields in. */
-function updateCommand(options: Scope.Options): Process.Route {
-  const op = operation({
-    label: "update",
-    depends: { argv: argv.required, io: io.required, remote: updateRemote },
-    run: async ({ argv: args, io: out, remote }) => {
-      out.write(jsonLine(await remote.run({ rawInput: readUpdateArgs(args) })) ?? "");
-      return 0;
-    },
-  });
-  return {
-    name: "update",
-    description:
-      "save an edit: update ID --base-revision N [--title T] [--status S] [--assignee A]",
-    entry: () => ({ op, options }),
-  };
-}
+const updateCommand: Process.Command = operation({
+  label: "update",
+  depends: { argv: argv.required, io: io.required, remote: updateRemote },
+  run: async ({ argv: args, io: out, remote }) => {
+    out.write(jsonLine(await remote.run({ rawInput: readUpdateArgs(args) })) ?? "");
+    return 0;
+  },
+});
 
 /** The `comment` command: the id plus `--author` and `--text` in. */
-function commentCommand(options: Scope.Options): Process.Route {
-  const op = operation({
-    label: "comment",
-    depends: { argv: argv.required, io: io.required, remote: commentRemote },
-    run: async ({ argv: args, io: out, remote }) => {
-      out.write(jsonLine(await remote.run({ rawInput: readCommentArgs(args) })) ?? "");
-      return 0;
-    },
-  });
-  return {
-    name: "comment",
-    description: "append a comment: comment ID --author A --text T",
-    entry: () => ({ op, options }),
-  };
-}
+const commentCommand: Process.Command = operation({
+  label: "comment",
+  depends: { argv: argv.required, io: io.required, remote: commentRemote },
+  run: async ({ argv: args, io: out, remote }) => {
+    out.write(jsonLine(await remote.run({ rawInput: readCommentArgs(args) })) ?? "");
+    return 0;
+  },
+});
 
 /** The `get` command: the id in, the saved issue with its detail out. */
-function getCommand(options: Scope.Options): Process.Route {
-  const op = operation({
-    label: "get",
-    depends: { argv: argv.required, io: io.required, remote: getRemote },
-    run: async ({ argv: args, io: out, remote }) => {
-      out.write(jsonLine(await remote.run({ rawInput: readGetArgs(args) })) ?? "");
-      return 0;
-    },
-  });
-  return {
-    name: "get",
-    description: "show one saved issue with its detail",
-    entry: () => ({ op, options }),
-  };
-}
+const getCommand: Process.Command = operation({
+  label: "get",
+  depends: { argv: argv.required, io: io.required, remote: getRemote },
+  run: async ({ argv: args, io: out, remote }) => {
+    out.write(jsonLine(await remote.run({ rawInput: readGetArgs(args) })) ?? "");
+    return 0;
+  },
+});
 
-/** The routes for the issue commands: each is a declared operation over its remote op,
- * carrying the root `options` its run needs (ADR 0056). Help lists them without
+/** The routes for the issue commands: plain rows, each naming one of the module-level operations
+ * above and carrying the root `options` its run needs (ADR 0056). Help lists them without
  * building a root, so it needs no backend. */
 export function issueCommands(options: Scope.Options = {}): readonly Process.Route[] {
   return [
-    listCommand(options),
-    createCommand(options),
-    updateCommand(options),
-    commentCommand(options),
-    getCommand(options),
+    {
+      name: "list",
+      description: "list the saved issues",
+      entry: () => ({ op: listCommand, options }),
+    },
+    {
+      name: "create",
+      description: "create one issue: create --title T --description D",
+      entry: () => ({ op: createCommand, options }),
+    },
+    {
+      name: "update",
+      description:
+        "save an edit: update ID --base-revision N [--title T] [--status S] [--assignee A]",
+      entry: () => ({ op: updateCommand, options }),
+    },
+    {
+      name: "comment",
+      description: "append a comment: comment ID --author A --text T",
+      entry: () => ({ op: commentCommand, options }),
+    },
+    {
+      name: "get",
+      description: "show one saved issue with its detail",
+      entry: () => ({ op: getCommand, options }),
+    },
   ];
 }
 
