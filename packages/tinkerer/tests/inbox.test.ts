@@ -164,7 +164,7 @@ const emptyThenLate = [
   "data: [DONE]\n\n",
 ].join("");
 
-test("a steer with no text in flight interrupts the step before the stream ends", async () => {
+test("a steer with no text in flight ends the stream early and adds no assistant message", async () => {
   const seen: HttpRequest.Record[] = [];
   let pushSteer: (() => void) | undefined;
   const fake: HttpClient.Backend = async (request) => {

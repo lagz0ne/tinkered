@@ -16,7 +16,7 @@ test("a frame names each tag and cell after its label", () => {
   expect(tinkerer().messages.label).toBe("tinkerer.messages");
 });
 
-test("a fresh frame's cells start at their listed values", async () => {
+test("a fresh frame's cells start empty, idle, and at zero usage", async () => {
   const coder = tinkerer();
   const scope = createScope();
   const session = scope.createSession();

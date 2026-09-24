@@ -243,7 +243,7 @@ test("a raw prompt of 42 fails validation with EmptyPrompt and sends no request"
   await scope.close();
 });
 
-test('a raw prompt of "hi" runs the turn and sends one request', async () => {
+test('a raw prompt of "hi" lands as the user message after the system prompt', async () => {
   const seen: HttpRequest.Record[] = [];
   const scope = scopeConfig(seen);
   const reply = await scope.createSession().run(coder.turn, { rawInput: "hi" });
