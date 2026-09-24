@@ -251,11 +251,13 @@ const scope = createScope({
 
 ## CLI
 
-`askCommand(frame)` is a `@tinker/cli` row: `<app>
-ask "<prompt>"` runs one turn and prints the answer.
-Model, base URL, key, `cwd`, and `mode` are the
-scope's config, bound by the composition root; the
-row reuses the same `turn` operation.
+The author declares the `ask` command:
+`<app> ask "<prompt>"` runs one turn and prints
+the answer. `text` and `turn` are public on the
+frame, so the command declares them itself; the
+route row is a `@tinker/process` route. Model,
+base URL, key, `cwd`, and `mode` are the scope's
+config, bound by the composition root.
 
 - `ask` runs one turn and prints the answer with
   exit code 0.
@@ -265,16 +267,38 @@ row reuses the same `turn` operation.
   drops `--flags`.
 
 ```ts
-const shell = cli({
+const ask = operation({
+  label: "ask",
+  depends: {
+    argv: argv.required,
+    io: io.required,
+    text: coder.text.controller,
+    turn: coder.turn,
+  },
+  run: async ({ argv, io, text, turn }) => {
+    // read the prompt, stream the turn, exit
+  },
+});
+
+const shell = {
   name: "tinkerer",
   version: "0.0.0",
-  commands: [askCommand(coder)],
-});
+  commands: [
+    {
+      name: "ask",
+      entry: () => ({
+        op: ask,
+        options: { tags: [config] },
+      }),
+    },
+  ],
+};
 ```
 
-The composition root binds config and runs it with
-`runMain`, or by hand when it also reads `--cwd`
-and `--mode` into the `cwd` and `mode` tags.
+The composition root binds config and runs the
+shell with `run` or `main`, or by hand when it also
+reads `--cwd` and `--mode` into the `cwd` and
+`mode` tags.
 
 ## Errors
 
