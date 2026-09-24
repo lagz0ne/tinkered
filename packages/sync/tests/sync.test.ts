@@ -756,6 +756,57 @@ test.each(["/a", "notes/"])(
   },
 );
 
+test("a source closes the wire if its transport cannot send a snapshot", async () => {
+  const src = source({ cells: [[counter, "counter"]] });
+  const origin = createScope({ extensions: [src] });
+  await origin.ready;
+  const [near, far] = memoryPair();
+  const broken: Sync.Transport = {
+    send: () => {
+      throw new Error("send failed");
+    },
+    onMessage: (listener) => near.onMessage(listener),
+    onClose: (listener) => near.onClose(listener),
+    close: () => near.close(),
+  };
+  const done = origin.resolve(src).connect(broken);
+  const parted = new Promise<void>((resolve) => far.onClose(resolve));
+  far.send({ type: "register", keys: ["counter"] });
+  await parted;
+  expect((await done).status).toBe("success");
+  await origin.close({ graceful: true });
+});
+
+test("a one-letter family label can register a member", async () => {
+  const notes = family({ label: "n", initial: "new" });
+  const src = source({ cells: [[notes, "n"]] });
+  const origin = createScope({ extensions: [src] });
+  await origin.ready;
+  const [near, far] = memoryPair();
+  const done = origin.resolve(src).connect(near);
+  const received = new Promise<Sync.Message>((resolve) => far.onMessage(resolve));
+  far.send({ type: "register", keys: ["n/a"] });
+  expect(await received).toEqual({ type: "snapshot", key: "n/a", version: 0, value: "new" });
+  far.close();
+  await done;
+  await origin.close({ graceful: true });
+});
+
+test("an empty family label cannot register a member", async () => {
+  const notes = family({ label: "empty", initial: "new" });
+  const src = source({ cells: [[notes, ""]] });
+  const origin = createScope({ extensions: [src] });
+  await origin.ready;
+  const [near, far] = memoryPair();
+  const done = origin.resolve(src).connect(near);
+  const parted = new Promise<void>((resolve) => far.onClose(resolve));
+  far.send({ type: "register", keys: ["/a"] });
+  await parted;
+  expect(notes.members()).toEqual([]);
+  await done;
+  await origin.close({ graceful: true });
+});
+
 test("a source keeps a member's version when it changes before registration", async () => {
   const notes = family({ label: "note-version", initial: "" });
   const src = source({ cells: [[notes, "notes"]] });

@@ -55,9 +55,12 @@ for that key. A member created after startup keeps its version when it changes b
 A member held before startup also keeps its version when it changes before registration.
 A member the source does not hold yet gets a namespace there;
 its cell reads its initial value.
-A family key missing its label or member id closes the source wire. A key that is not published, a message in the wrong
+A family key missing its label or member id closes the source wire.
+A one-letter family label can register its member.
+An empty family label cannot register a member. A key that is not published, a message in the wrong
 direction, or an unexpected throw inside the op closes the transport, no
-reply. A snapshot sent to the source is in the wrong direction and closes the wire. The promise resolves with the session's close `Result` when the
+reply. A snapshot sent to the source is in the wrong direction and closes the wire.
+A transport that fails to send a snapshot closes the source wire. The promise resolves with the session's close `Result` when the
 transport parts (`success`), or `cancelled` when a forced root close fells
 the session first — it never rejects (ADR 0027). The source start is sync,
 so the origin is ready at once; the source close hook closes every live
