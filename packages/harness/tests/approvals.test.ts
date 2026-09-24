@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, operation, preset, tag } from "@tinker/core";
+import { createScope, isError as isCoreError, operation, preset, tag } from "@tinker/core";
 import type {
   Options,
   PermissionResult,
@@ -44,6 +44,44 @@ async function readDecision(options: Options | undefined): Promise<PermissionRes
 }
 
 const policy = tag<"allow" | "deny">({ label: "policy", default: "allow" });
+
+const parseApproval = operation({
+  label: "parseApproval",
+  input: claudeCode.approval,
+  run: (_deps, ctx) => ctx.input,
+});
+
+test("a raw approval request keeps its tool name and input", () => {
+  const request = { toolName: "Read", input: { file_path: "/a" }, options: {} };
+  expect(createScope().run(parseApproval, { rawInput: request })).toBe(request);
+});
+
+function expectInvalidApproval(raw: unknown): void {
+  try {
+    createScope().run(parseApproval, { rawInput: raw });
+    expect.unreachable();
+  } catch (error) {
+    if (!isCoreError(error, "DataValidationFailed")) throw error;
+    if (!isError(error.payload.cause, "InvalidApproval")) throw error;
+    expect(error.payload.cause.payload.harness).toBe("claudeCode");
+  }
+}
+
+test.each([null, "Read", 1, {}])("a raw approval rejects a missing tool name: %s", (raw) => {
+  expectInvalidApproval(raw);
+});
+
+test.each([null, "file", undefined])("a raw approval rejects a non-record input: %s", (input) => {
+  expectInvalidApproval({ toolName: "Read", input });
+});
+
+test("a raw approval rejects a non-string tool name", () => {
+  expectInvalidApproval({ toolName: 123, input: {} });
+});
+
+test("a raw approval rejects a missing input", () => {
+  expectInvalidApproval({ toolName: "Read" });
+});
 
 test("an approve op that allows answers canUseTool as a subflow of the turn and lands in items", async () => {
   const seen: Seen = { decisions: [] };

@@ -195,6 +195,10 @@ it cannot be the only way to stop that turn. See core's
 
 ## Approvals
 
+A raw approval request keeps its tool name and input when parsed by `claudeCode.approval`.
+A raw approval rejects a missing or non-string tool name with `InvalidApproval`.
+A raw approval rejects a missing, null, or non-record input with `InvalidApproval`.
+
 Claude's `canUseTool` is answered by an ordinary operation: pass it as `approve` when you build the
 frame, and the send op depends on it — the approval runs as a **subflow** of the send (its span nests
 under the send's, it sees the session's bindings and the frame's cells). Its input is the SDK's own
