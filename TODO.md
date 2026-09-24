@@ -23,13 +23,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **validate/red-lanes** — `pnpm validate` fails on main beside the tagged promise count: `http pure
-universal bundle`, `process cast-free examples`, `process pure universal bundle`. Next: find the
-  landing that broke each (bisect with the lane's own command). Verify: those lanes PASS.
-  | Card                                                                                                                                                | Owner         | Next                                                                                                                                                            | Verify                                        |
-  | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-  | tests/core-tag-read-split — `tag.read returns each unit's own binding on an operation, a resource, and a tag itself` proves three kinds in one body | lead (Claude) | Split three ways (one kind each) or keep one; it also overlaps `tag.read finds a unit's own binding` next door (the titles writer's delete-not-retitle finding) | one cause per test; core lane ≥ break         |
-  | docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)                               | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean |
+| Card                                                                                                                                                | Owner         | Next                                                                                                                                                            | Verify                                        |
+| --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| tests/core-tag-read-split — `tag.read returns each unit's own binding on an operation, a resource, and a tag itself` proves three kinds in one body | lead (Claude) | Split three ways (one kind each) or keep one; it also overlaps `tag.read finds a unit's own binding` next door (the titles writer's delete-not-retitle finding) | one cause per test; core lane ≥ break         |
+| docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)                               | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean |
 
 ## Doing
 
@@ -75,6 +72,9 @@ card at a time.
 
 ## Done
 
+- **validate/red-lanes** — lead, direct (three stale checks). http's bundle check looked for the retired
+  `httpClient`, process's for the retired `command`; the cast check matched "as JSON" in two example
+  comments. `pnpm validate`: only the tagged promise count stays red (core/tagged-promises).
 - **graph/t01 core step log line** — sol 6 + opus review; tag `graph/t01`. Core writes one line per
   observed operation; six hand-derived `ms` gone (hono, mcp, harness, sync). op +0.1%; mutation
   85.28. Proof: [graph-v1 landed](docs/roadmap/graph-v1/PROGRESS.md).
