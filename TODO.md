@@ -44,7 +44,6 @@ card at a time.
   - nw/tracker-commands — deepseek `a2ab3f69`
   - nw/tinkerer-ask — deepseek `20981a92`
   - nw/hono-stream — sol 6 `d086938d`
-  - nw/examples — deepseek `6d9e27b2`
 
 | Card | Owner | Next | Verify |
 
@@ -81,6 +80,8 @@ card at a time.
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **nw/examples** — deepseek + opus review; tag `nw/examples`. Every unit in 9 examples declared at module level (ADR 0057); Jev `unitCouldBeModuleLevel` hits 14 → 0; deterministic tours byte-identical; lazy routes still load once.
 
 - **perf/create-creep** — sol 6 + opus review; tag `perf/create-creep`. `create` crept up
   at four core landings. Two causes:
