@@ -33,11 +33,6 @@ Pairs since 2026-09-23: a writer (sol 6 for hard, deepseek-v4.1-flash for simple
 reviewer per card; the lead runs mutation, bench, and `pnpm validate` alone at landing, one core
 card at a time.
 
-- **jev/wrapper-checks** — sol 6 (agent `3478b374`), reviewer opus `52671d8b`, worktree `../tinkered-jev-wrapper`. Jev learns
-  to see wrappers: a plain-code check `unitCouldBeModuleLevel` (ADR 0057) and a judge
-  `wrapsCallersStep` (ADR 0058). User rule (2026-09-24): Jev must report each wrapper before its fix.
-  Verify: its report on main flags every audit site and none of the allowed frames.
-
 - **core/caught-subflow** — sol 6 (agent `ba5faf1f`), worktree `../tinkered-core-caught-subflow`.
   A caught subflow still fails its session and rejects a tagged run (found by the nw/hono-stream
   review). User pick A: ADR 0066, a subflow failure belongs to its caller. Verify: the tests in
@@ -76,6 +71,7 @@ card at a time.
 
 ## Done
 
+- **jev/wrapper-checks** — sol 6 + opus review (two fix rounds); tag `jev/wrapper-checks`. Jev reports a wrapper before its fix: a plain-code check `unitCouldBeModuleLevel` (ADR 0057; 13 extractor tests, now in the gate) and a judge `wrapsCallersStep` (ADR 0058), now noisy after its false cases were labeled (prints `~`, advisory). It found every audit site first; five fix cards followed. Gate EXIT 0; no mutation lane (tools/jev); validate 43 PASS; calibrate: `wrapsCallersStep` noisy, sep 45%, ordered 85% (17 true, 12 false); no other judge changed status.
 - **nw/docs** — deepseek + opus review (one fix round); tag `nw/docs`. Glossary, best-practices, and the mcp/harness/blueprint/tracker/examples READMEs name today's shapes; ADR 0060 accepted with an As built line; ADR 0057 records `askCommand`'s deletion. Retired-name grep in living docs: only RETIRED lines and history remain. Gate EXIT 0; no mutation lane (docs); validate 43 PASS.
 - **nw/hono-stream** — sol 6 + opus review (one fix round); tag `nw/hono-stream`. `stream(c, op, call?)` runs a declared operation; the body reads `emit` from a tag and runs in its own child session (TSDoc + README say so); the trace names the body by its label. Tracker `draftBody` is its own operation with real depends. Jev hit gone. Gate EXIT 0; mutation 80.09 alone; validate 43 PASS.
 - **nw/tracker-commands** — deepseek + opus review; tag `nw/tracker-commands`. The five CLI command operations declared once at module level (ADR 0057); Jev hits 10 → 0; `serveMcp` removes its watch and listener in `ctx.defer` (a cleanup no test can see: the process exits right after). Gate EXIT 0; no mutation lane (app); validate 43 PASS.
