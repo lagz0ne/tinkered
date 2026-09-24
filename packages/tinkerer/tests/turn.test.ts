@@ -122,6 +122,7 @@ test("a stream with no finish reason fails the turn with StreamEnded and status 
     (error: unknown) => error,
   );
   if (!isError(failure, "StreamEnded")) throw failure;
+  expect(failure.payload).toEqual({ label: "coder" });
   expect(session.resolve(coder.status)).toBe("failed");
   await scope.close();
 });

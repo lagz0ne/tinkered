@@ -66,6 +66,24 @@ test("a queued entry continues the turn when the model would stop", async () => 
   await s.close();
 });
 
+test("a steer drained at turn start leaves a queued entry pending", async () => {
+  const seen: HttpRequest.Record[] = [];
+  const s = scope(seen, [answer, answer]);
+  const session = s.createSession();
+  session.controller(coder.inbox).update((list) => [...list, steer("now"), queue("more")]);
+  const reply = await session.run(coder.turn, { input: "first" });
+  expect(reply.message.content).toBe(replyText);
+  expect(seen).toHaveLength(2);
+  expect(session.resolve(coder.messages).map((message) => message.content)).toEqual([
+    "first",
+    "now",
+    replyText,
+    "more",
+    replyText,
+  ]);
+  await s.close();
+});
+
 test("a queued entry patches the settings the next step reads", async () => {
   const seen: HttpRequest.Record[] = [];
   const s = scope(seen, [answer, answer]);

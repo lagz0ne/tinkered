@@ -241,7 +241,10 @@ test("a reply cut by the token limit fails every tool call without running it", 
   const transcript = session.resolve(limited.messages);
   const toolMessage = transcript[transcript.length - 2];
   if (toolMessage?.role !== "tool") throw new Error("tinkerer: expected a tool message");
-  expect(toolMessage.content.startsWith('Tool call "read" was not executed')).toBe(true);
+  expect(toolMessage.content).toBe(
+    'Tool call "read" was not executed: the reply hit the token limit, ' +
+      "so its arguments may be cut. Re-issue the call with complete arguments.",
+  );
   expect(runs).toBe(0);
   await scope.close();
 });
