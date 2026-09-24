@@ -297,6 +297,7 @@ The namespace tests also pin these guarantees:
 - A child named watcher sees a parent's named write once.
 - A grandchild named watcher sees a root named write.
 - A child's own named entry shields its watcher from a parent's write.
+- A child's named entry skips comparisons in its subtree on a parent write.
 - A child's fallback chain sees its parent's write until the child shadows it.
 - Releasing a parent's named entry notifies a child watcher of its fallback.
 - An empty namespace chain is rejected with `InvalidDependency`.

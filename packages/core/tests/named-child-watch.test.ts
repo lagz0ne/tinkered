@@ -47,6 +47,31 @@ test("a child's own named entry shields its watcher from a parent's write", asyn
   await root.close({ graceful: true });
 });
 
+test("a child's named entry skips comparisons in its subtree on a parent write", async () => {
+  const a = namespace();
+  let comparisons = 0;
+  const cell = data({
+    label: "shadowed-subtree-watch",
+    initial: 0,
+    eq: (left, right) => {
+      comparisons++;
+      return left === right;
+    },
+  });
+  const root = createScope();
+  await root.ready;
+  const child = root.createSession();
+  child.controller(cell, { ns: a }).set(2);
+  const grandchild = child.createSession();
+  for (let i = 0; i < 5; i++) grandchild.controller(cell, { ns: a }).watch(() => undefined);
+  comparisons = 0;
+
+  root.controller(cell, { ns: a }).set(5);
+
+  expect(comparisons).toBe(1);
+  await root.close({ graceful: true });
+});
+
 test("a child's fallback chain sees its parent's write until the child shadows it", async () => {
   const a = namespace();
   const b = namespace();

@@ -1337,18 +1337,24 @@ function ownNsCell(layer: Layer, target: Data.Cell<unknown>, key: Namespace, see
 
 /** A named change reaches only watchers indexed under its key. Snapshot every affected layer
  * before firing: an earlier callback must not steal a descendant's inherited change. A default
- * cell shadow blocks the change for its entire subtree; named shadows are checked per chain. */
+ * cell shadow or an entry for this key blocks the change for its entire subtree; other named
+ * shadows are checked per watcher chain. */
 function flushInheritedNsWatchers(layer: Layer, target: Data.Cell<unknown>, key: Namespace): void {
   const pending: { fn: (n: unknown, p: unknown) => void; next: unknown; prev: unknown }[] = [];
   function collect(cur: Layer): void {
     const watchers = cur.nodes.get(target)?.nsWatchers?.byKey.get(key);
     if (watchers) pending.push(...(pendingNsWatchers(cur, target, watchers) ?? []));
     for (const child of cur.children) {
-      if (!child.nodes.get(target)?.cell) collect(child);
+      if (!shadowsNamedChange(child, target, key)) collect(child);
     }
   }
   collect(layer);
   for (const p of pending) p.fn(p.next, p.prev);
+}
+
+function shadowsNamedChange(layer: Layer, target: Data.Cell<unknown>, key: Namespace): boolean {
+  const rec = layer.nodes.get(target);
+  return !!rec?.cell || !!rec?.nsCells?.has(key);
 }
 
 /** A named bucket change can affect only chains containing its key at this layer. A default
