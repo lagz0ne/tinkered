@@ -1,7 +1,15 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, isError as isCoreError, preset, type Scope } from "@tinker/core";
 import { run, type Process } from "@tinker/process";
-import { isError, judge, readTemplate, shell, suggest, type Blueprint } from "../src/index.ts";
+import {
+  corpusPath,
+  isError,
+  judge,
+  readTemplate,
+  shell,
+  suggest,
+  type Blueprint,
+} from "../src/index.ts";
 
 /** Run the shell in-process: argv in, exit code and streams out. */
 async function answer(
@@ -29,6 +37,27 @@ function fake(
  * assert the print, not to re-derive it. */
 const resourceShape =
   'const x = resource({ label: "x", target, depends, factory: (deps, { defer, signal }) => { …; defer(() => stop()); return api; } })';
+
+test("suggest sends the full sentence with spaces to the judge", async () => {
+  const descriptions: string[] = [];
+  const recording: Blueprint.Judge = {
+    ask: async (state) => {
+      if ("description" in state) descriptions.push(state.description);
+      return {
+        unitFits: {
+          type: "choice",
+          choice: "data",
+          probabilities: { data: 0.8 },
+        },
+      };
+    },
+  };
+  const result = await answer(["suggest", "keep", "the", "latest", "list"], {
+    presets: [preset(judge, () => recording)],
+  });
+  expect(result.code).toBe(0);
+  expect(descriptions).toEqual(["keep the latest list"]);
+});
 
 test("a confident resource pick prints unit, shape, target, all", async () => {
   const result = await answer(["suggest", "poll the API every 10s and keep the latest list"], {
@@ -146,6 +175,27 @@ test("empty words raise NoWords, mapped to exit 2 through the cli", async () => 
     await scope.close({ graceful: true });
   }
   const result = await answer(["suggest"]);
+  expect(result.code).toBe(2);
+});
+
+test("suggest names the missing choice template in a rebound corpus", async () => {
+  const scope = createScope({
+    tags: [corpusPath(new URL("./fixtures/corpus-ok/", import.meta.url).pathname)],
+    presets: [preset(judge, () => fake({}))],
+  });
+  try {
+    await scope.run(suggest, { rawInput: { words: "hold the connection" } });
+    expect.unreachable("must reject a corpus without unitFits");
+  } catch (error: unknown) {
+    if (!isError(error, "NoTemplate")) throw error;
+    expect(error.payload.id).toBe("unitFits");
+  } finally {
+    await scope.close({ graceful: true });
+  }
+});
+
+test("whitespace alone is not a sentence to suggest a unit for", async () => {
+  const result = await answer(["suggest", "   "]);
   expect(result.code).toBe(2);
 });
 

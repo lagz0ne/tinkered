@@ -255,6 +255,8 @@ node packages/blueprint/dist/main.mjs \
 ok: 5 nodes, 6 units, 1 findings
 ```
 
+When a body template runs, no skip note prints.
+
 **With no key**, the plain lines print as above, then one more line:
 `body templates skipped: no key` (the old `@tinker/cli` row had no stderr
 channel for a code-0 command — see the ticket report's deviations).
@@ -346,9 +348,10 @@ shape.resource: const x = resource({ label: "x", target,
 
 ### `suggest`
 
+- `suggest` passes the full sentence, with spaces, to the judge.
 - `suggest "<words>"` asks `unitFits` once about the sentence; on a
   confident `resource` pick, it asks `target` once more. Empty words fail
-  `NoWords` (exit 2, a parse failure).
+  `NoWords` (exit 2, a parse failure); whitespace alone is empty.
 - `unit:`/`target:` print `<pick> (<pct>)` at or above the template's
   `minConfidence`, else `unclear (<pick> only <pct>) — decide with the
 one law` (`unit:`) or `unclear (<pick> only <pct>)` (`target:`).
@@ -482,7 +485,8 @@ count):
   `AI_GATEWAY_API_KEY` and no `--key-file`.
 - **JevUnavailable** — the judge gave up after five rate-limit retries.
 - **NoWords** — `suggest` ran with empty words.
-- **NoTemplate** — `suggest` needs `unitFits` or `target` in the loaded
+- **NoTemplate** — when a rebound corpus lacks `unitFits`, the error
+  names the missing template. `suggest` needs `unitFits` or `target` in the
   corpus; only reachable with `corpusPath` rebound to a folder missing
   one of the shipped seeds.
 - **NoSource** — `verify`'s source dir held no `*.ts` file. Carries the

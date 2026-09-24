@@ -370,6 +370,7 @@ test("a body-template hit prints with ~ and exits 0", async () => {
     expect(result.stdout).toContain(
       "~probeBody  op  the body does something work does not say (90%)",
     );
+    expect(result.stdout).not.toContain("body templates skipped: no key");
   } finally {
     rmSync(dir, { recursive: true });
   }
