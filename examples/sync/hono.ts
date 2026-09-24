@@ -32,12 +32,11 @@ const posts = resource({
  * object and the `/sync` row's op declares it in `depends`. */
 const src = source({ cells: [[counter, "counter"]] });
 
-/** Open one wire: the extension-as-dependency delivers `src`'s start value,
- * so the row needs no scope — `respond` reads the client id. */
+/** Check the source and inbox are up before sending the stream headers. */
 const openWire = operation({
   label: "openWire",
   depends: { origin: src, posts },
-  run: ({ origin, posts }) => ({ origin, posts }),
+  run: () => undefined,
 });
 
 /** One posted delivery at the door: the client id plus its register. */
@@ -103,7 +102,7 @@ const wireBody = operation({
  * unasked. The stream goes down, the registration comes up. */
 const { extension: web } = hono([
   route.get("/sync", openWire, {
-    respond: (_opened, c) => {
+    respond: (_ready, c) => {
       const id = c.req.query("client") ?? "guest";
       c.header("Content-Type", "text/event-stream");
       c.header("Cache-Control", "no-cache");

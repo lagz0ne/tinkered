@@ -1,6 +1,7 @@
 import type { Context, ErrorHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { LEVELS, operation, type Observe } from "@tinker/core";
+import { z } from "zod";
 import { emit, route, stream, type HonoScope } from "@tinker/hono";
 import { isError } from "../errors.ts";
 import { draftBody, readCapability, startDraft } from "./draft.ts";
@@ -67,18 +68,17 @@ async function readBody(c: Context, extra: Record<string, unknown>): Promise<unk
   return typeof body === "object" && body !== null ? { ...body, ...extra } : extra;
 }
 
-/** Open one wire: the extension-as-dependency from t01 delivers `src`'s start
- * value, so the row needs no scope — `respond` reads the client id. */
+/** Check the source and inbox are up before sending the stream headers. */
 const openWire = operation({
   label: "openWire",
   depends: { origin: src, wires: viewers },
-  run: ({ origin, wires }) => ({ origin, wires }),
+  run: () => undefined,
 });
 
 /** Keep the sync wire alive until the source ends or the reader leaves. */
 const syncBody = operation({
   label: "syncBody",
-  input: (raw: unknown) => raw as string,
+  input: z.string(),
   depends: { emit: emit.required, origin: src, wires: viewers },
   run: async ({ emit, origin, wires }, { input: id, signal, log, defer }) => {
     emit(": ready\n\n");
@@ -128,7 +128,7 @@ export const issueRoutes: readonly HonoScope.Row[] = [
     respond: (_v, c) => c.text("ok"),
   }),
   route.get("/sync", openWire, {
-    respond: (_opened, c) => {
+    respond: (_ready, c) => {
       const id = c.req.query("client") ?? "guest";
       c.header("Content-Type", "text/event-stream");
       c.header("Cache-Control", "no-cache");

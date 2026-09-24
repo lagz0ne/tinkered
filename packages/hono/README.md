@@ -143,6 +143,10 @@ The body is a declared operation, not a callback.
 It reads `emit` with `depends: { emit: emit.required }`.
 The call may carry `input` and `tags` as usual.
 The stream binds `emit` for this run.
+The body runs in its own child session, as a tagged call does (ADR 0038).
+A session-target resource the body reads is a new instance.
+It is not the instance the route operation read.
+Both sessions end when the request ends.
 The body has its own span named by its label.
 Its signal, clock, and log remain available after the request span ends.
 The session closes when the body finishes or the client cancels.

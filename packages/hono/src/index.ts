@@ -182,9 +182,12 @@ export const emit: Tag.Handle<Stream.Emit> = tag({ label: "hono.emit" });
 
 /** Answer a streaming body with a declared operation. Its usual call object supplies
  * `input` and `tags`; this run also binds {@link emit}, read by the body with
- * `depends: { emit: emit.required }`. Keep the request session open until the body
- * ends or the client cancels; the middleware skips its own close for this request.
- * Without the request session, raise `NoSession`. The body's own span uses the
+ * `depends: { emit: emit.required }`. The body runs in its own child session
+ * (as a tagged call does, ADR 0038). A session-target resource it reads is a
+ * new instance, not the route operation's instance. The request session stays
+ * open until the body ends or the client cancels; the middleware skips its own
+ * close for this request. Without the request session, raise `NoSession`.
+ * The body's own span uses the
  * operation's label, while the request span ends when `respond` returns the Response.
  * `ctx.signal` aborts on forced close and `ctx.clock` is the scope clock (a TestClock
  * in tests). Exactly one close per request: finished bodies close graceful (success,
@@ -234,25 +237,11 @@ export function stream(
       } as Scope.ProvideInput<unknown>);
       const settled = Promise.resolve(running);
       const finish = settled.then(
-        async () => {
+        () => {
           controller.close();
-          await body.close({ graceful: true });
           closeOnce(true);
         },
-        async (error: unknown) => {
-          await body.close({ graceful: true });
-          // Record an uncaught body error on the request too: its defers
-          // must see `failed` even though the bound child has closed.
-          try {
-            await session.run({
-              label: "stream failure",
-              run: async () => {
-                throw error;
-              },
-            });
-          } catch {
-            // The reader receives the original error below.
-          }
+        (error: unknown) => {
           controller.error(error);
           closeOnce(true);
         },

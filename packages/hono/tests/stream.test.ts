@@ -78,11 +78,14 @@ test("the body yields each chunk as the clock advances, then ends", async () => 
       respond: (cs, c) => stream(c, body, { input: cs }),
     }),
   ]);
-  const scope = createScope({ clock: clk, extensions: [web] });
+  const scope = createScope({ clock: clk, observe: { history: 20 }, extensions: [web] });
   await scope.ready;
   const res = await scope.resolve(web).request("/stream");
   expect(res.status).toBe(200);
+  expect(scope.spans().find((span) => span.name === "GET /stream")?.status).toBe("ok");
   expect(await readAll(readerOf(res), clk)).toEqual(["a", "b", "c"]);
+  expect(scope.spans().find((span) => span.name === "streamBody")?.status).toBe("ok");
+  expect(scope.spans().some((span) => span.name === "GET /stream body")).toBe(false);
   await scope.close();
 });
 
@@ -115,6 +118,49 @@ test("body uses its own label, input and per-call tags without leaking between r
   expect(await two.text()).toBe("hello:chocolate");
   expect(scope.spans().filter((span) => span.name === "labeledBody")).toHaveLength(2);
   expect(scope.spans().some((span) => span.name === "GET /body body")).toBe(false);
+  await scope.close();
+});
+
+test("route and body have separate session resources that both end with the request", async () => {
+  let builds = 0;
+  const ends: string[] = [];
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    factory: (_deps, { defer }) => {
+      const id = ++builds;
+      defer((end) => {
+        ends.push(`${id}:${end.status}`);
+      });
+      return id;
+    },
+  });
+  const start = operation({ label: "start", depends: { tx }, run: ({ tx }) => tx });
+  const readBody = operation({
+    label: "readBodyTx",
+    input: (raw: unknown) => raw as number,
+    depends: { tx, emit: emit.required },
+    run: async ({ tx, emit }, { input, clock, signal }) => {
+      emit(`${input}:${tx}`);
+      await clock.sleep(10, signal);
+    },
+  });
+  const { extension: web } = hono([
+    route.get("/stream", start, { respond: (id, c) => stream(c, readBody, { input: id }) }),
+  ]);
+  const clock = makeTestClock({ now: 0 });
+  const scope = createScope({ clock, extensions: [web] });
+  await scope.ready;
+  const res = await scope.resolve(web).request("/stream");
+  expect(builds).toBe(2);
+  expect(ends).toEqual([]);
+  const reader = readerOf(res);
+  expect(new TextDecoder().decode((await reader.read()).value)).toBe("1:2");
+  const last = reader.read();
+  clock.advance(10);
+  expect((await last).done).toBe(true);
+  for (let i = 0; i < 100 && ends.length < 2; i++) await Promise.resolve();
+  expect(ends.sort()).toEqual(["1:success", "2:success"]);
   await scope.close();
 });
 
@@ -172,6 +218,98 @@ test("cancelling the reader mid-body force-closes the session and stops the writ
   await scope.close();
 });
 
+test("raw request abort cancels the body and both sessions", async () => {
+  const clock = makeTestClock({ now: 0 });
+  const requestEnds: string[] = [];
+  const bodyEnds: string[] = [];
+  const path = pathResource(requestEnds);
+  const start = operation({ label: "start", depends: { path }, run: ({ path }) => path });
+  const held = operation({
+    label: "heldBody",
+    input: (raw: unknown) => raw as string,
+    depends: { emit: emit.required },
+    run: async ({ emit }, { input, signal, clock, defer }) => {
+      defer((end) => {
+        bodyEnds.push(`${end.status}:${signal.aborted}`);
+      });
+      emit(input);
+      await clock.sleep(10_000, signal);
+    },
+  });
+  const { extension: web } = hono([
+    route.get("/stream", start, { respond: (path, c) => stream(c, held, { input: path }) }),
+  ]);
+  const scope = createScope({ clock, extensions: [web] });
+  await scope.ready;
+  const ac = new AbortController();
+  const res = await scope.resolve(web).request("/stream", { signal: ac.signal });
+  const reader = readerOf(res);
+  expect(new TextDecoder().decode((await reader.read()).value)).toBe("/stream");
+  ac.abort();
+  for (let i = 0; i < 100 && (requestEnds.length === 0 || bodyEnds.length === 0); i++)
+    await Promise.resolve();
+  expect(bodyEnds).toEqual(["cancelled:true"]);
+  expect(requestEnds).toEqual(["cancelled"]);
+  expect((await scope.close()).status).toBe("cancelled");
+});
+
+test("stream keeps an explicit content-type and defaults to text/plain", async () => {
+  const send = operation({
+    label: "send",
+    depends: { emit: emit.required },
+    run: ({ emit }) => emit("ok"),
+  });
+  const ready = operation({ label: "ready", run: () => undefined });
+  const { extension: web } = hono([
+    route.get("/event", ready, {
+      respond: (_value, c) => {
+        c.header("Content-Type", "text/event-stream");
+        return stream(c, send);
+      },
+    }),
+    route.get("/plain", ready, { respond: (_value, c) => stream(c, send) }),
+  ]);
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const app = scope.resolve(web);
+  const event = await app.request("/event");
+  const plain = await app.request("/plain");
+  expect(event.headers.get("content-type")).toBe("text/event-stream");
+  expect(plain.headers.get("content-type")).toBe("text/plain; charset=UTF-8");
+  expect(await event.text()).toBe("ok");
+  expect(await plain.text()).toBe("ok");
+  await scope.close();
+});
+
+test("a body can catch a failing subflow and finish its stream", async () => {
+  const fail = operation({
+    label: "fail",
+    run: async () => {
+      throw new Error("caught");
+    },
+  });
+  const recover = operation({
+    label: "recover",
+    depends: { emit: emit.required, fail },
+    run: async ({ emit, fail }) => {
+      try {
+        await fail.run();
+      } catch {
+        emit("recovered");
+      }
+    },
+  });
+  const start = operation({ label: "start", run: () => undefined });
+  const { extension: web } = hono([
+    route.get("/stream", start, { respond: (_value, c) => stream(c, recover) }),
+  ]);
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const res = await scope.resolve(web).request("/stream");
+  expect(await res.text()).toBe("recovered");
+  await scope.close();
+});
+
 test("a throwing writer errors the body and the session settles failed", async () => {
   const boom = new Error("kaboom");
   const ends: string[] = [];
@@ -193,7 +331,7 @@ test("a throwing writer errors the body and the session settles failed", async (
       respond: (cs, c) => stream(c, broken, { input: cs }),
     }),
   ]);
-  const scope = createScope({ clock: clk, extensions: [web] });
+  const scope = createScope({ clock: clk, observe: { history: 20 }, extensions: [web] });
   await scope.ready;
   const res = await scope.resolve(web).request("/stream");
   expect(res.status).toBe(200);
@@ -209,6 +347,8 @@ test("a throwing writer errors the body and the session settles failed", async (
   expect(outcome).toBe(boom);
   for (let i = 0; i < 50 && ends.length === 0; i++) await Promise.resolve();
   expect(ends).toEqual(["failed"]);
+  expect(scope.spans().find((span) => span.name === "brokenBody")?.status).toBe("failed");
+  expect(scope.spans().some((span) => span.name === "stream failure")).toBe(false);
   await scope.close();
 });
 
