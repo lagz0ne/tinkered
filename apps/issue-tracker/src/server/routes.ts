@@ -80,17 +80,14 @@ const syncBody = operation({
   label: "syncBody",
   input: (raw: unknown) => raw as string,
   depends: { emit: emit.required, origin: src, wires: viewers },
-  run: async ({ emit, origin, wires }, { input: id, signal, log }) => {
+  run: async ({ emit, origin, wires }, { input: id, signal, log, defer }) => {
     emit(": ready\n\n");
     const wire = sseTransport(emit, signal);
     const close = wires.open(id, wire.deliver);
-    try {
-      const ended = await origin.connect(wire);
-      if (ended.status === "failed")
-        log.error("sync wire failed", { client: id, ...describeError(ended.error) });
-    } finally {
-      close();
-    }
+    defer(close);
+    const ended = await origin.connect(wire);
+    if (ended.status === "failed")
+      log.error("sync wire failed", { client: id, ...describeError(ended.error) });
   },
 });
 
