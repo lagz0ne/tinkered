@@ -2612,28 +2612,40 @@ test("a resource preset receives the resolved deps, delivered untyped (narrow at
   expect(scope.resolve(conn)).toBe(141);
 });
 
-test("tag.read finds a unit's own binding", () => {
+test("tag.read finds a data cell's own binding", () => {
   const ui = tag<string>({ label: "ui" });
-  const group = tag<string>({ label: "group", default: "misc" });
   const port = data({ initial: 8080, parse: asNumber, meta: [ui("slider")] });
   expect(ui.read(port)).toEqual({ present: true, value: "slider" });
+});
+
+test("tag.read falls back to the tag's default when the unit has no binding", () => {
+  const group = tag<string>({ label: "group", default: "misc" });
+  const port = data({ initial: 8080, parse: asNumber });
   expect(group.read(port)).toEqual({ present: true, value: "misc" });
+});
+
+test("tag.read finds an operation's own binding", () => {
+  const ui = tag<string>({ label: "ui" });
+  const op = operation({ label: "op", run: () => 1, meta: [ui("button")] });
+  expect(ui.read(op)).toEqual({ present: true, value: "button" });
+});
+
+test("tag.read finds a resource's own binding", () => {
+  const ui = tag<string>({ label: "ui" });
+  const res = resource({ label: "res", factory: () => 1, meta: [ui("panel")] });
+  expect(ui.read(res)).toEqual({ present: true, value: "panel" });
+});
+
+test("tag.read finds a tag's own binding", () => {
+  const ui = tag<string>({ label: "ui" });
+  const secret = tag<string>({ label: "secret", meta: [ui("password")] });
+  expect(ui.read(secret)).toEqual({ present: true, value: "password" });
 });
 
 test("tag.read misses a tag the unit never bound", () => {
   const other = tag<string>({ label: "other" });
   const port = data({ initial: 8080, parse: asNumber });
   expect(other.read(port)).toEqual({ present: false });
-});
-
-test("tag.read returns each unit's own binding on an operation, a resource, and a tag itself", () => {
-  const ui = tag<string>({ label: "ui" });
-  const op = operation({ label: "op", run: () => 1, meta: [ui("button")] });
-  const res = resource({ label: "res", factory: () => 1, meta: [ui("panel")] });
-  const secret = tag<string>({ label: "secret", meta: [ui("password")] });
-  expect(ui.read(op)).toEqual({ present: true, value: "button" });
-  expect(ui.read(res)).toEqual({ present: true, value: "panel" });
-  expect(ui.read(secret)).toEqual({ present: true, value: "password" });
 });
 
 test("meta is static and never affects resolution", () => {

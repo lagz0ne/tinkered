@@ -325,8 +325,13 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 
 ### Tags
 
-- A tag reads the nearest binding, in an operation or through the seam, or its default; with neither it
-  throws `MissingTag` naming the tag.
+- A tag edge reads the nearest binding, in an operation or through the seam, or its default; with
+  neither it throws `MissingTag` naming the tag.
+- `tag.read` finds a data cell's own binding.
+- `tag.read` falls back to the tag's default when the unit has no binding.
+- `tag.read` finds an operation's own binding.
+- `tag.read` finds a resource's own binding.
+- `tag.read` finds a tag's own binding.
 - Resolving a tag edge delivers its form: `all` lists nearest-first, `optional` reports presence,
   `required` reads or throws.
 - `optional` tells absent apart from an undefined default: the default reads present, the missing reads
