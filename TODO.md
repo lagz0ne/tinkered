@@ -23,6 +23,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **perf/create-creep** — `create` (createScope) crept up at four core landings in two days:
+  t02b-2 +2.0%, ns-watch-index +1.4%, tagged-promises +1.6%, ns-watch-child +2.5% (each alone
+  under the bar). Next: one N=61 `bench/ab.sh` run, `create cold`, main vs tag
+  `namespace-v1/t02b-1`, then find what each landing added to scope creation. Verify: the total
+  and each cause named; a fix brings `create` within 2% of `namespace-v1/t02b-1`.
+
 | Card                                                                                                                  | Owner         | Next                                                                                                                                                            | Verify                                        |
 | --------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout) | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean |
