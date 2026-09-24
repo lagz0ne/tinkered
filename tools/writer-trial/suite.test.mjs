@@ -147,7 +147,7 @@ void describe("frozen copies", () => {
         assert.match(readFrozenTask(lockerRoot, locker, "locker", 1), /Parcel locker/);
         assert.match(
           readFrozenGuidelines(lockerRoot, locker, "locker"),
-          /read `ctx.rawInput` and check every field/,
+          /`ctx.rawInput` holds the caller.s\s+value/,
         );
       } finally {
         rmSync(lockerRoot, { recursive: true, force: true });

@@ -153,9 +153,9 @@
     "status": "proven",
     "trues": 6,
     "falses": 45,
-    "medianTrue": 0.83,
-    "medianFalse": 0.17,
-    "separation": 0.66,
+    "medianTrue": 0.78,
+    "medianFalse": 0.16,
+    "separation": 0.62,
     "ordered": 1,
     "at": "2026-09-24"
   },

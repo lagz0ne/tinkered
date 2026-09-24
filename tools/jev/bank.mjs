@@ -236,17 +236,19 @@ Object.assign(LINT, {
   noOpRejected: {
     fix: "Check 'already so' first and return the saved record with no change and no undo step; run status, lock, and limit guards only for a request that changes something.",
     applies: ["operation", "function"],
-    // 0.7 since 2026-09-24: true cases score 0.77–0.88; kitchen-01 cancelTicket (no already-so
-    // path) scored 0.53–0.62 across runs and blocked a correct writer at 0.6. 0.7 keeps all 6 true.
-    threshold: 0.7,
+    // 0.66 since 2026-09-24 (first wording + one line: a create or a remove has no already-so
+    // state). Averaged over two runs on 45 labeled cases, 3 planted proof bugs, and 2 locker
+    // reference units: true min 0.70, clean max 0.61. locker-01 receiveParcel 0.69 -> 0.32;
+    // kitchen-01 cancelTicket -> 0.54. A wider rewording dropped the locker plant to 0.54.
+    threshold: 0.66,
     q: {
       type: "boolean",
       instructions:
-        "Can this code reject a request that would change nothing — the record is already in the requested state (the link already exists, the item is already done, the value is already set) — because a guard such as a status, lock, or limit check runs BEFORE the check for 'already so'?",
+        "Can this code reject a request that would change nothing — the record is already in the requested state (the link already exists, the item is already done, the value is already set) — because a guard such as a status, lock, or limit check runs BEFORE the check for 'already so'? Code that only creates a new record, or only removes one, has no 'already so' state, so its guards cannot reject a no-op.",
       criteria: {
         true: "a guard that throws or fails comes before the already-so check, so repeating an already-applied request fails",
         false:
-          "the already-so check runs first and returns without change, or no repeat-of-current-state path exists",
+          "the already-so check runs first and returns without change, or no repeat-of-current-state path exists, or the code only creates a new record or only removes one",
       },
     },
   },
