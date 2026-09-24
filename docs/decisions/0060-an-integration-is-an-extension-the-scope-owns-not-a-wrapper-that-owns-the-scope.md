@@ -49,9 +49,9 @@ appServer, adminServer] })`. Because the scope owns the extensions rather than t
 
 - `@tinker/hono` flips from `hono(scope, wiring)` (takes scope) to `hono(routes)` (returns an
   extension). The route table, match loop, and `answerRoute` are unchanged; one signature moves. The
-  same shape gives express and fastify adapters, and `@tinker/process` a CLI bridge (argv in, exit
-  code out) that no longer needs `main(scope)` to own the run.
-- Dual servers, admin ports, and many MCP servers in one process become ordinary, not special.
+  same shape gives express and fastify adapters. `@tinker/process` did not become a bridge: a command
+  is the whole process lifetime, so it builds one root per command (ADR 0056; see As built).
+- Dual servers, admin ports, and many MCP servers in one process become ordinary, not special. (Tested by hono/two-servers and mcp/two-servers.)
 - With 0059, every integration -- http client, llm, agent, server, CLI -- is either a declared unit or
   an extension the scope owns. Nothing is a wrapper that owns the scope. That is "no wrapper again"
   stated in full.

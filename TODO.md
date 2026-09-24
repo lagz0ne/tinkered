@@ -42,6 +42,15 @@ card at a time.
   One `positionals(argv, { values })` helper in `@tinker/process` (core-feedback row, second asker
   nw/tinkerer-ask); blueprint and tinkerer use it; fixes `ask --json hello` dropping `hello`.
 
+- **bridge gaps (ADR 0060)** — user go 2026-09-24:
+  - core/ext-hooks-every-layer — sol 6 `247fb6ec`: extension `run`/`write` hooks wrap every run and
+    write at every layer (core-feedback rows, two askers). Verify: tests; bench; mutation ≥ 85.
+  - hono/two-servers — deepseek `3f281128`; mcp/two-servers — deepseek `1399691a`: two servers of a
+    kind on one scope. Verify: tests; mutation ≥ 85.
+  - ADR 0060 no longer promises a process bridge (done with this card).
+- **perf/async-subflow** review — opus `97fac83b`: −27% landed so far; the rest is the subclass
+  `await` that ADR 0066 receipt tracking needs.
+
 | Card | Owner | Next | Verify |
 
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
