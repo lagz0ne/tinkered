@@ -30,7 +30,7 @@ calibration found noisy: read it, no line owed.
 
 Which unit fits my words? → `blueprint suggest "<words>"` (`packages/blueprint`).
 
-Plain rules: `plain.mjs` checks the census rules the writer guidelines share (T01–T08, S02, S05, S06, S12, S13) on the syntax tree and its comment list, so text inside a string never counts. S17 (a type assertion in source, except `as const` and `[] as T[]`) runs in writer mode only: the gate asks for it; the repo's own packages allow a plain cast. A helper function's unit also carries `uses`: the lines of its own file that call it, so a judge sees what happens to the value it returns.
+Plain rules: `plain.mjs` checks the census rules the writer guidelines share (T01–T08, S02, S05, S06, S12, S13) on the syntax tree and its comment list, so text inside a string never counts. S17 (a type assertion in source, except `as const` and `[] as T[]`) runs in writer mode only: the gate asks for it; the repo's own packages allow a plain cast. Arrow and function-expression consts are units in every file, like `function` declarations. A helper function's unit also carries `uses`: the lines of its own file that call it, so a judge sees what happens to the value it returns.
 `lint.mjs` lists its rows; the writer-trial gate blocks on each one (ADR 0061).
 
 ## How to read a probability

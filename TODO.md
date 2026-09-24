@@ -23,11 +23,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-| Card                                                                                                                                                | Owner         | Next                                                                                                                                                            | Verify                                                                              |
-| --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| jev/arrow-units — `extract.mjs` treats `const x = () => …` helpers in `.ts` as units                                                                | lead (Claude) | Slice top-level arrow and function-expression consts like function declarations; rerun `shape.test.mjs` and the fixture eval                                    | a default inside an arrow helper is judged on its own; `evals/lint.mjs` still 27/27 |
-| tests/core-tag-read-split — `tag.read returns each unit's own binding on an operation, a resource, and a tag itself` proves three kinds in one body | lead (Claude) | Split three ways (one kind each) or keep one; it also overlaps `tag.read finds a unit's own binding` next door (the titles writer's delete-not-retitle finding) | one cause per test; core lane ≥ break                                               |
-| docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)                               | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean                                       |
+| Card                                                                                                                                                | Owner         | Next                                                                                                                                                            | Verify                                        |
+| --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| tests/core-tag-read-split — `tag.read returns each unit's own binding on an operation, a resource, and a tag itself` proves three kinds in one body | lead (Claude) | Split three ways (one kind each) or keep one; it also overlaps `tag.read finds a unit's own binding` next door (the titles writer's delete-not-retitle finding) | one cause per test; core lane ≥ break         |
+| docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)                               | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean |
 
 ## Doing
 
@@ -64,6 +63,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Done
 
+- **jev/arrow-units** — top-level `const x = () => …` and function-expression helpers in `.ts` are units (before: `.tsx` only), with `uses`.
+  Proof: 106/106 tool tests (4 new); both gate proofs pass; eval 27/27; sweep over 20 accepted apps: +23 units, 1 real catch (stock-01 DeepSeek `readId` → `""`), 0 false blocks.
 - **jev/caller-context** — a helper function unit carries `uses` (its same-file calling lines); `inputDefaultMasks` judges the value at those lines. ballot-01 `idText` 0.84 → 0.36; loans-01 `idField` stays a hit.
   Proof: 102/102 tool tests (4 new extract tests); 34 caller-aware cases added; `inputDefaultMasks` proven, 32/61, sep 57, ordered 99%. A 0.8 bar caught more but blocked 5 clean units in 20 accepted apps, so 0.85 stays. Eval 27/27 twice (one earlier run 26/27: a noisy case). Cross-file callers are not seen yet.
 - **writers/cast-rule** — plain rule S17 blocks a type assertion in writer source (except `as const` and `[] as T[]`); writer mode only, the repo's own lint is unchanged (~100 plain casts in packages).

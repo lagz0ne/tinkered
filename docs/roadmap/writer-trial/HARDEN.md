@@ -76,9 +76,11 @@ An unavailable check is never a pass.
   `uses`, its same-file calling lines. `idText` (only
   fills a thrown payload) fell from 0.84 to 0.36.
   Callers in another file are still unseen.
-- Arrow helpers (`const x = () => …`) in `.ts`
-  files are not units, so a default inside one
-  is never judged on its own (`extract.mjs`).
+- `jev/arrow-units` (done): `const x = () => …`
+  helpers in `.ts` are units too. 23 more units
+  across 20 accepted apps; 1 real catch (stock
+  DeepSeek `readId` turns a missing id into `""`
+  and looks it up), 0 false blocks.
 - Live run: [GATE-LIVE.md](GATE-LIVE.md).
 
 ## Where things live

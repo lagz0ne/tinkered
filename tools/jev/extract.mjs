@@ -165,7 +165,8 @@ function namedRecords(src, node, exported, tsx, decl) {
 
 /** Top-level functions that declare no unit: a component when the body returns JSX
  *  (fragments count, nesting in the returned tree counts), a plain helper otherwise. Arrow
- *  and function-expression consts only read as units in `.tsx`/`.jsx`, where JSX parses. */
+ *  and function-expression consts are units in every file: a default hidden in
+ *  `const readId = (v) => …` is judged the same as one in `function readId(v) { … }`. */
 function functionOf(src, node, file) {
   const decl =
     node.type === "ExportNamedDeclaration" || node.type === "ExportDefaultDeclaration"
@@ -175,7 +176,6 @@ function functionOf(src, node, file) {
     node.type === "ExportNamedDeclaration" || node.type === "ExportDefaultDeclaration";
   const tsx = file.endsWith(".tsx") || file.endsWith(".jsx");
   if (decl?.type === "FunctionDeclaration") return namedRecords(src, node, exported, tsx, decl);
-  if (!tsx) return [];
   return fnsOf(decl, node)
     .filter((found) => !declaresUnit(found.body))
     .map((found) => fnRecord(src, exported, tsx, found));
