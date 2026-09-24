@@ -90,7 +90,7 @@ The lead, per ticket:
 2. Review: `node tools/jev/review.mjs main..HEAD` shows where to read first.
    Read the diff. Ask for one fix round.
 3. Land: re-run every gate by exit code. Fast-forward `main`. Run the
-   package's mutation lane alone (floor 75; core and react 85). Push.
+   package's mutation lane alone (floor 85, every package). Push.
    Remove the worktree and branch.
 4. Record Core feedback in `docs/roadmap/core-feedback.md`. A row becomes a
    core ticket at its second asker, or at once if the workaround is dishonest.
