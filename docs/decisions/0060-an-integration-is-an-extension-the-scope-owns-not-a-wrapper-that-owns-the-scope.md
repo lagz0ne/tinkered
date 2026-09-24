@@ -1,6 +1,6 @@
 # 0060 An integration is an extension the scope owns, not a wrapper that owns the scope
 
-Date: 2026-09-22. Status: proposed. Builds on: 0051 (the session onion), 0056 (process is tags,
+Date: 2026-09-22. Status: accepted (2026-09-24, tags `http/t07`, `hono/ext`). Builds on: 0051 (the session onion), 0056 (process is tags,
 routing is outside the scope), the extension model. Pairs with 0059 (namespace) as the other half of
 "no wrapper again".
 
@@ -40,6 +40,10 @@ appServer, adminServer] })`. Because the scope owns the extensions rather than t
 4. **Lifecycle is the extension protocol, not hand-work.** `start` returns after `next()` so listeners
    bind inside-out; `ctx.defer` registers teardown; `close` unwinds it. The integration writes none of
    this -- it binds in `start`, defers its stop, and the onion does the ordering (ADR 0051).
+
+## As built
+
+- hono, mcp, and sync are extensions the scope owns; process builds one root per command (ADR 0056), not a bridge extension.
 
 ## Consequences
 

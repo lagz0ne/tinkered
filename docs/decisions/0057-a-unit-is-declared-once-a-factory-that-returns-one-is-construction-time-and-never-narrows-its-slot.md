@@ -80,8 +80,9 @@ identity, and that was declared elsewhere.
 4. **A builder may never narrow its slot.** If a slot takes a unit, the way to fill it is the unit.
    A package may add a builder only when it wires something the user cannot reach — deps it owns,
    cells it owns, a label it must control. A builder that only closes over a callback narrows the
-   slot; delete it. `command(name, op, sugar)`, `persist`, and `askCommand` pass this test (each
-   wires cells or deps the user has no handle on). `gate()` does not, and goes.
+   slot; delete it. `command(name, op, sugar)` and `persist` pass this test (each wires cells or deps
+   the user has no handle on). `askCommand` was deleted (nw/tinkerer-ask, 2026-09-24): it only used
+   public frame parts. `gate()` does not pass, and goes.
 5. **An operation's input type may be declared by its slot.** `const g: Tinkerer.Gate =
 operation({ label, run })` types `ctx.input` with no parse and no cast, because the annotation
    flows into the generic. This is the supported way to write a unit whose input is built by a frame
