@@ -222,6 +222,34 @@ test("a rejected body read tells onError which route and cause failed", async ()
   await scope.close();
 });
 
+test("a function-shaped thenable input is awaited before parsing", async () => {
+  const input = Object.assign(() => undefined, {
+    then: (resolve: (value: string) => void) => resolve("42"),
+  });
+  const { extension: web } = hono([route.get("/users/:id", getUser, { input: () => input })]);
+  const scope = createScope({ tags: [tenant("public")], extensions: [web] });
+  await scope.ready;
+  const res = await scope.resolve(web).request("/users/42");
+  expect(res.status).toBe(200);
+  expect(await res.json()).toEqual({ id: 42, tenant: "public" });
+  await scope.close();
+});
+
+test("a null input reaches the operation without a body-read error", async () => {
+  const echo = operation({
+    label: "echo",
+    input: (raw: unknown) => raw,
+    run: (_deps, ctx) => ctx.input,
+  });
+  const { extension: web } = hono([route.post("/echo", echo, { input: () => null })]);
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const res = await scope.resolve(web).request("/echo", { method: "POST" });
+  expect(res.status).toBe(200);
+  expect(await res.json()).toBeNull();
+  await scope.close();
+});
+
 test("an async input read answers the parsed body; a malformed body takes the error map", async () => {
   const { extension: web } = hono([
     route.post("/named", createNamed, {
