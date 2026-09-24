@@ -137,6 +137,44 @@ test("a steer interrupts the step in flight, keeps the partial text, and re-ente
   await s.close();
 });
 
+/** One SSE body: a no-content delta, then `late` text, then a stop. A steer pushed before the
+ * second event must drop the events after the first and keep no partial text. */
+const emptyThenLate = [
+  'data: {"choices":[{"delta":{}}]}\n\n',
+  'data: {"choices":[{"delta":{"content":"late"}}]}\n\n',
+  'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n',
+  "data: [DONE]\n\n",
+].join("");
+
+test("a steer with no text in flight interrupts the step before the stream ends", async () => {
+  const seen: HttpRequest.Record[] = [];
+  let pushSteer: (() => void) | undefined;
+  const fake: HttpClient.Backend = async (request) => {
+    seen.push(request);
+    if (seen.length === 1) pushSteer?.();
+    return HttpResponse.make(request, {
+      status: 200,
+      body: seen.length === 1 ? emptyThenLate : answer,
+    });
+  };
+  const s = createScope({
+    tags: [backend(fake), coder.config({ model: "m", baseUrl: "https://api" })],
+  });
+  const session = s.createSession();
+  pushSteer = () =>
+    session.controller(coder.inbox).update((list) => [...list, steer("switch tack")]);
+  const reply = await session.run(coder.turn, { input: "start" });
+  expect(reply.message.content).toBe(replyText);
+  expect(seen).toHaveLength(2);
+  expect(session.resolve(coder.messages)).toEqual([
+    { role: "user", content: "start" },
+    { role: "user", content: "switch tack" },
+    { role: "assistant", content: replyText },
+  ]);
+  expect(session.resolve(coder.inbox)).toHaveLength(0);
+  await s.close();
+});
+
 test("a steer for one coder does not interrupt the other coder", async () => {
   const first = gatedPartial();
   const a = namespace({ tags: [coder.config({ model: "a", baseUrl: "https://a" })] });

@@ -455,11 +455,15 @@ function toolParameters(schema: Tinkerer.Tool["meta"]["schema"]): Record<string,
 
 type AccruedCall = { readonly id: string; readonly name: string; readonly args: string };
 
-type FoldedStep = {
-  readonly finish: string | undefined;
-  readonly calls: readonly AccruedCall[];
-  readonly steered: boolean;
-};
+/** A steered fold drops the calls it accrued: the loop re-enters before it reads them, so only
+ * the unsteered branch carries them. */
+type FoldedStep =
+  | { readonly finish: string | undefined; readonly steered: true }
+  | {
+      readonly finish: string | undefined;
+      readonly calls: readonly AccruedCall[];
+      readonly steered: false;
+    };
 
 async function foldStep(
   events: AsyncIterable<HttpResponse.SseEvent>,
@@ -471,7 +475,7 @@ async function foldStep(
   for await (const event of events) {
     if (event.data !== "[DONE]")
       finish = foldChunk(JSON.parse(event.data) as Tinkerer.Chunk, deps, parts, finish);
-    if (steerPending(inbox)) return { finish, calls: [...parts.values()], steered: true };
+    if (steerPending(inbox)) return { finish, steered: true };
   }
   return { finish, calls: [...parts.values()], steered: false };
 }

@@ -215,6 +215,8 @@ the entry is consumed.
   re-enters as a user message.
 - A steer carrying a mode patches the settings
   before the next step.
+- A steer with no text in flight adds no
+  assistant message.
 
 ```ts
 const box = session.controller(coder.inbox);
