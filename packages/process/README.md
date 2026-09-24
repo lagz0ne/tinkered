@@ -57,6 +57,10 @@ answer out through `io`, the code owned.
 
 - Help lists the routes sorted with their
   descriptions and loads nothing.
+- Help orders the routes by name, whatever
+  order they were declared in.
+- `help` and `--help` print the usage with
+  exit 0.
 - `--version` answers the version with exit 0.
 - An unknown command prints usage to stderr with
   exit 2 and loads nothing.
@@ -76,6 +80,8 @@ answer out through `io`, the code owned.
   `io` writes are collected in order.
 - A command that throws a non-Error prints it as
   JSON with exit 1.
+- A command that throws `undefined` prints
+  `unknown` with exit 1.
 - `jsonLine` answers one JSON line and stays
   undefined for a void value.
 
@@ -95,6 +101,8 @@ watcher above it.
 - A throwing run leaves the next run unaffected.
 - The `env` tag reads an empty record when there
   is no process.
+- A command that answers closes its root
+  gracefully; an abort forces it instead.
 
 ## Signals
 
@@ -138,6 +146,10 @@ const result = await run(shell, ["check", "a"]);
 expect(result.code).toBe(0);
 ```
 
+- A partial `io` may supply either writer alone.
+- `execute` with no usage answers 2 on a parse
+  failure and prints nothing.
+
 ## Main
 
 `main(shell)` is the process edge and the only
@@ -147,6 +159,8 @@ one abort, exit with the code. Never returns.
 - `main` reads argv off the process, writes to its
   streams, wires both signals, and exits with the
   code.
+- `main` turns a fired signal into one abort, so
+  a running command force-closes.
 - `main` passes explicit args through instead of
   the process argv.
 - `main` exits 2 on an unknown command and prints
