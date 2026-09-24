@@ -185,6 +185,65 @@ test("a subflow with a catch handler does not fail its session", async () => {
   await root.close({ graceful: true });
 });
 
+test("a host timer lets caught and unreceived subflow closes finish under a fake global timer", async () => {
+  const hostTimer = globalThis.setTimeout;
+  const blocked: (() => void)[] = [];
+  const bounded = <T>(work: Promise<T>): Promise<T> =>
+    Promise.race([
+      work,
+      new Promise<never>((_resolve, reject) => {
+        hostTimer(() => reject(new Error("close did not settle")), 100);
+      }),
+    ]);
+  globalThis.setTimeout = ((callback: () => void) => {
+    blocked.push(callback);
+    return {} as ReturnType<typeof setTimeout>;
+  }) as typeof setTimeout;
+  try {
+    const cause = new Error("inner failed");
+    const inner = operation({
+      label: "inner",
+      run: async () => {
+        throw cause;
+      },
+    });
+    const caught = operation({
+      label: "caught",
+      depends: { sub: inner },
+      run: async ({ sub }) => {
+        try {
+          await sub.run();
+        } catch (error) {
+          if (error !== cause) throw error;
+        }
+        return "caught";
+      },
+    });
+    const unreceived = operation({
+      label: "unreceived",
+      depends: { sub: inner },
+      run: ({ sub }) => {
+        void sub.run();
+        return "unreceived";
+      },
+    });
+    const root = createScope();
+    const first = root.createSession();
+    expect(await first.run(caught)).toBe("caught");
+    expect((await bounded(first.close({ graceful: true }))).status).toBe("success");
+    const second = root.createSession();
+    expect(second.run(unreceived)).toBe("unreceived");
+    expect(await bounded(second.close({ graceful: true }))).toMatchObject({
+      status: "failed",
+      error: cause,
+    });
+    await root.close({ graceful: true });
+    expect(blocked).toEqual([]);
+  } finally {
+    globalThis.setTimeout = hostTimer;
+  }
+});
+
 test("a subflow failure caught in an operation defer does not fail the session", async () => {
   const cause = new Error("deferred");
   const inner = operation({

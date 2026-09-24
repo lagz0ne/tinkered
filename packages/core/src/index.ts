@@ -1650,6 +1650,8 @@ function resolveDep(
 }
 
 const noop = (): void => undefined;
+/** Receipt checks use the host timer even if a caller later installs fake timers. */
+const hostSetTimeout = globalThis.setTimeout;
 
 /** Attach a rejection handler to a fire-and-forget close so an internally started close (from a
  * teardown hook) is never an unhandled rejection; the promise keeps its rejection for a later
@@ -1953,11 +1955,12 @@ class SubflowPromise<T> extends Promise<T> {
     super((resolve, reject) => source.then(resolve, reject));
     this.receipt = receipt;
     /** The layer tracks a panic itself, so the runtime must not report the rejection twice. */
-    ignoreRejection(Promise.prototype.then.call(this, undefined, () => undefined));
+    void Promise.prototype.then.call(this, undefined, noop);
   }
   static get [Symbol.species](): PromiseConstructor {
     return Promise;
   }
+  // oxlint-disable-next-line unicorn/no-thenable -- a Promise subclass observes receipt (ADR 0066)
   override then<TResult1 = T, TResult2 = never>(
     onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null,
     onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
@@ -1982,8 +1985,10 @@ function trackSubflow(
     },
     async (error: unknown) => {
       onSettle?.("failed", error);
-      await new Promise<void>((resolve) => setTimeout(resolve, 0));
-      if (!receipt.received) asPrimary(layer)(error);
+      if (!receipt.received) {
+        await new Promise<void>((resolve) => hostSetTimeout(resolve, 0));
+        if (!receipt.received) asPrimary(layer)(error);
+      }
       layer.pending.delete(tracked);
     },
   );
