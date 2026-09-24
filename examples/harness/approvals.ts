@@ -21,18 +21,20 @@ const approve = operation({
       : { behavior: "deny", message: "denied by policy" },
 });
 
+// Units first, declared once at module level (ADR 0057); `tour` wires a scope and runs them.
+const coder = harness({ label: "coder", adapter: claudeCode, approve });
+const ask = operation({
+  label: "coder.ask",
+  input: parsePrompt,
+  depends: { send: coder.send },
+  run: async ({ send }, ctx) => {
+    const result = await send.run({ input: { prompt: ctx.input } });
+    return result;
+  },
+});
+
 /** The real adapter (needs Claude Code auth — not run by tests): every tool call asks `approve`. */
 export async function tour(): Promise<string> {
-  const coder = harness({ label: "coder", adapter: claudeCode, approve });
-  const ask = operation({
-    label: "coder.ask",
-    input: parsePrompt,
-    depends: { send: coder.send },
-    run: async ({ send }, ctx) => {
-      const result = await send.run({ input: { prompt: ctx.input } });
-      return result;
-    },
-  });
   const scope = createScope({ tags: [claudeCode.options({ cwd: process.cwd() })] });
   const session = scope.createSession({ tags: [policy("allow")] });
   await session.run(ask, { input: "list the files here" });

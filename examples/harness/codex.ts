@@ -7,18 +7,20 @@ function parsePrompt(raw: unknown): string {
   return raw;
 }
 
+// Units first, declared once at module level (ADR 0057); `tour` wires a scope and runs them.
+const coder = harness({ label: "coder", adapter: codex });
+const ask = operation({
+  label: "coder.ask",
+  input: parsePrompt,
+  depends: { send: coder.send },
+  run: async ({ send }, ctx) => {
+    const result = await send.run({ input: { input: ctx.input } });
+    return result;
+  },
+});
+
 /** The real adapter (needs Codex auth — not run by tests): prints `text` while streaming. */
 export async function tour(): Promise<string> {
-  const coder = harness({ label: "coder", adapter: codex });
-  const ask = operation({
-    label: "coder.ask",
-    input: parsePrompt,
-    depends: { send: coder.send },
-    run: async ({ send }, ctx) => {
-      const result = await send.run({ input: { input: ctx.input } });
-      return result;
-    },
-  });
   const scope = createScope({
     tags: [codex.options({ workingDirectory: process.cwd(), sandboxMode: "read-only" })],
   });

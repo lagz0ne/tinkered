@@ -33,15 +33,26 @@ const count = operation({
   },
 });
 
-/** A lazily loaded operation: the dynamic import in practice. */
-async function loadCheck(): Promise<typeof check> {
-  return check;
+/** The lazily loaded command, declared once at module level: its route loads and returns it. */
+const lazyCheckCommand = operation({
+  label: "lazy-check",
+  depends: { argv: argv.required, io: io.required, check },
+  run: ({ argv: args, io: out, check: op }) => {
+    const value = op.run({ rawInput: args[0] });
+    out.write(jsonLine(value) ?? "");
+    return 0;
+  },
+});
+
+/** A lazily loaded command: the dynamic import in practice. */
+async function loadCheck(): Promise<typeof lazyCheckCommand> {
+  return lazyCheckCommand;
 }
 
 /** A route whose `entry` awaits the loader on first selection — the old sugar's home, now plain. */
 function lazyCheckRoute(): Process.Route {
-  let cached: Promise<typeof check> | undefined;
-  const once = (): Promise<typeof check> => {
+  let cached: Promise<typeof lazyCheckCommand> | undefined;
+  const once = (): Promise<typeof lazyCheckCommand> => {
     cached ??= Promise.resolve(loadCheck()).catch((error: unknown) => {
       cached = undefined;
       throw error;
@@ -51,20 +62,7 @@ function lazyCheckRoute(): Process.Route {
   return {
     name: "lazy-check",
     description: "check a file, loaded lazily",
-    entry: async () => {
-      const flow = await once();
-      return {
-        op: operation({
-          label: "lazy-check",
-          depends: { argv: argv.required, io: io.required, check: flow },
-          run: ({ argv: args, io: out, check: op }) => {
-            const value = op.run({ rawInput: args[0] });
-            out.write(jsonLine(value) ?? "");
-            return 0;
-          },
-        }),
-      };
-    },
+    entry: async () => ({ op: await once() }),
   };
 }
 

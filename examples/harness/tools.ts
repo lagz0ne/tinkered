@@ -27,18 +27,20 @@ const search = operation({
   }),
 });
 
+// Units first, declared once at module level (ADR 0057); `tour` wires a scope and runs them.
+const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
+const ask = operation({
+  label: "coder.ask",
+  input: parsePrompt,
+  depends: { send: coder.send },
+  run: async ({ send }, ctx) => {
+    const result = await send.run({ input: { prompt: ctx.input } });
+    return result;
+  },
+});
+
 /** The real adapter (needs Claude Code auth — not run by tests): the model may call `search`. */
 export async function tour(): Promise<string> {
-  const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
-  const ask = operation({
-    label: "coder.ask",
-    input: parsePrompt,
-    depends: { send: coder.send },
-    run: async ({ send }, ctx) => {
-      const result = await send.run({ input: { prompt: ctx.input } });
-      return result;
-    },
-  });
   const scope = createScope({
     tags: [claudeCode.options({ cwd: process.cwd(), allowedTools: ["mcp__coder__search"] })],
   });

@@ -10,6 +10,16 @@ const double = operation({
 
 const ping = operation({ label: "ping", run: () => "pong" });
 
+/** The `ping` command, declared once at module level: the route's `entry` loads and returns it. */
+const pingCommand = operation({
+  label: "ping",
+  depends: { io: io.required, ping },
+  run: ({ io: out, ping: flow }) => {
+    out.write(`${JSON.stringify(flow.run())}\n`);
+    return 0;
+  },
+});
+
 /** The `double` command, declared by its author: argv[0] in, the answer out in JSON, code owned. */
 const doubleCommand = operation({
   label: "double",
@@ -20,16 +30,16 @@ const doubleCommand = operation({
   },
 });
 
-/** A lazily loaded operation: the dynamic import in practice. */
-async function loadPing(): Promise<typeof ping> {
-  return ping;
+/** A lazily loaded command: the dynamic import in practice. */
+async function loadPingCommand(): Promise<typeof pingCommand> {
+  return pingCommand;
 }
 
 /** A route whose `entry` awaits the loader on first selection, memoized like the old sugar. */
 function lazyPingRoute(loads: { count: number }): Process.Route {
-  let cached: Promise<typeof ping> | undefined;
-  const once = (): Promise<typeof ping> => {
-    cached ??= Promise.resolve(loadPing())
+  let cached: Promise<typeof pingCommand> | undefined;
+  const once = (): Promise<typeof pingCommand> => {
+    cached ??= Promise.resolve(loadPingCommand())
       .then((flow) => {
         loads.count += 1;
         return flow;
@@ -42,16 +52,7 @@ function lazyPingRoute(loads: { count: number }): Process.Route {
   };
   return {
     name: "ping",
-    entry: async () => ({
-      op: operation({
-        label: "ping",
-        depends: { io: io.required, ping: await once() },
-        run: ({ io: out, ping: flow }) => {
-          out.write(`${JSON.stringify(flow.run())}\n`);
-          return 0;
-        },
-      }),
-    }),
+    entry: async () => ({ op: await once() }),
   };
 }
 

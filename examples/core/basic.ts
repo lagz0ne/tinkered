@@ -1,34 +1,35 @@
 import { createScope, data, makeTestClock, operation, resource, tag } from "@tinker/core";
 
+// Units first, declared once at module level (ADR 0057); `tour` wires a scope and runs them.
+const region = tag<string>({ label: "region" });
+const count = data({ label: "count", initial: 0 });
+
+const doubled = operation({
+  label: "doubled",
+  depends: { n: count },
+  run: ({ n }) => n * 2,
+});
+
+const store = resource({
+  label: "store",
+  factory: (_deps, { defer }) => {
+    const rows: string[] = [];
+    defer((end) => {
+      if (end.status !== "success") rows.length = 0;
+    });
+    return { add: (row: string) => rows.push(row), size: () => rows.length };
+  },
+});
+
+// Time is an ambient capability on every ctx; inject a controllable clock at the scope so this
+// reads a fixed instant with no `Date.now` mock and no fake timers.
+const stamp = operation({
+  label: "stamp",
+  run: (_deps, { clock }) => clock.currentTimeMillis(),
+});
+
 /** A cast-free tour of the public API: every value's type is INFERRED — no `as`, no non-null `!`. */
 export async function tour(): Promise<number> {
-  const region = tag<string>({ label: "region" });
-  const count = data({ label: "count", initial: 0 });
-
-  const doubled = operation({
-    label: "doubled",
-    depends: { n: count },
-    run: ({ n }) => n * 2,
-  });
-
-  const store = resource({
-    label: "store",
-    factory: (_deps, { defer }) => {
-      const rows: string[] = [];
-      defer((end) => {
-        if (end.status !== "success") rows.length = 0;
-      });
-      return { add: (row: string) => rows.push(row), size: () => rows.length };
-    },
-  });
-
-  // Time is an ambient capability on every ctx; inject a controllable clock at the scope so this
-  // reads a fixed instant with no `Date.now` mock and no fake timers.
-  const stamp = operation({
-    label: "stamp",
-    run: (_deps, { clock }) => clock.currentTimeMillis(),
-  });
-
   const scope = createScope({ tags: [region("eu")], clock: makeTestClock({ now: 0 }) });
   const c = scope.controller(count);
   c.set(21);
