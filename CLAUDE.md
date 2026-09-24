@@ -68,7 +68,8 @@ lanes. The rules:
 4. **Done needs proof you saw:**
    - code: `vp check` and the right tests green; for `core`, also
      `scripts/ticket.sh`;
-   - a size or speed claim: `pnpm validate`; timing only via `bench`;
+   - a size or speed claim: `pnpm validate`; timing via
+     `N=61 bench/ab.sh` (or more) on an idle host;
    - a bug fix: a test that fails without the fix;
    - "it works": the output that shows it.
 5. **Keep it true.** Blocked names what is missing. Parked names what would
