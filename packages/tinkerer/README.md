@@ -113,6 +113,8 @@ build a separate frame if either differs.
 - A reply with a tool call runs the tool
   as a subflow; the next step carries
   its result.
+- Streamed tool-call pieces accrue by index;
+  a piece may carry only its index.
 - An unknown tool answers not-found;
   the loop keeps going.
 - A tool call whose arguments are not JSON answers

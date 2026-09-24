@@ -466,6 +466,33 @@ test("a tool whose own input fails validation answers the cause's own message", 
   await scope.close();
 });
 
+test("a streamed tool-call piece with no id, name or arguments still shapes the call", async () => {
+  const pieces = [
+    JSON.stringify({
+      choices: [{ delta: { tool_calls: [{ index: 0 }] }, finish_reason: null }],
+    }),
+    JSON.stringify({ choices: [{ delta: {}, finish_reason: "tool_calls" }] }),
+  ];
+  const reply = `${pieces.map((data) => `data: ${data}\n\n`).join("")}data: [DONE]\n\n`;
+  const seen: HttpRequest.Record[] = [];
+  const scope = createScope({
+    tags: [
+      backend(scripted(seen, [reply, answer])),
+      coder.config({ model: "m", baseUrl: "https://api" }),
+      cwd(readmeDir()),
+    ],
+  });
+  const session = scope.createSession();
+  await session.run(coder.turn, { input: "go" });
+  expect(session.resolve(coder.messages)[1]).toEqual({
+    role: "assistant",
+    content: null,
+    tool_calls: [{ id: "", type: "function", function: { name: "", arguments: "" } }],
+  });
+  expect(toolMessages(session.resolve(coder.messages))).toEqual(["Tool  not found"]);
+  await scope.close();
+});
+
 test("a sequential row runs a reply's calls one at a time and results keep the model's order", async () => {
   const order: string[] = [];
   const slow = operation({
