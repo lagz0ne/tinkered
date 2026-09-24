@@ -286,7 +286,7 @@ const shell = {
   commands: [
     {
       name: "ask",
-      description: "run one turn and print the answer as it streams",
+      description: "run one turn and stream the answer",
       entry: () => ({
         op: ask,
         options: {
