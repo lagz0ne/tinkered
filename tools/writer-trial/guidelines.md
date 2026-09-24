@@ -49,6 +49,14 @@ No worked code is supplied.
 - Parsing may run in the operation body when needed to preserve
   the task's error kinds.
   Do not mask invalid input with defaults.
+- A public operation can be called by untyped code: tests, plain JS,
+  or a transport. There, `ctx.input` is only a claim: core passes
+  `{ input }` through unchecked. Give the operation an `input`
+  parser, or read `ctx.rawInput` and check every field you use.
+- Error payload types are exact. A value that does not fit the type,
+  such as a non-text id for `{ id: string }`, stops the operation
+  with the task's error and a value of the right type. Never widen a
+  payload type, add an `unknown` parameter, or cast to carry it.
 - Preserve creation order when sort keys tie,
   including after edits and undo.
 - Opening another draft drops the first draft's unsaved text.
