@@ -124,10 +124,10 @@ each later turn resumes that namespace's last session id, so one thread is one c
 
 ## Codex
 
-An unconfigured Codex thread passes no option keys to either SDK call.
 The same frame on the Codex SDK: options are the SDK's own `CodexOptions & ThreadOptions`
 (split at thread start — the `Codex` constructor takes its six keys, `startThread` the rest),
 turns carry the SDK's input plus its per-turn output schema, and results are the SDK's turns.
+Unset keys are left out: an unconfigured Codex thread passes no option keys to either SDK call.
 Continuity is by thread id (`resumeThread` on the session's `resume` binding). Each turn folds
 the event stream into the result and the ambient cells. Agent text streams into `text` as it
 grows — Codex reports the whole text so far, so a rewrite restreams whole and only the last
@@ -196,10 +196,6 @@ it cannot be the only way to stop that turn. See core's
 
 ## Approvals
 
-A raw approval request keeps its tool name and input when parsed by `claudeCode.approval`.
-A raw approval rejects a missing or non-string tool name with `InvalidApproval`.
-A raw approval rejects a missing, null, or non-record input with `InvalidApproval`.
-
 Claude's `canUseTool` is answered by an ordinary operation: pass it as `approve` when you build the
 frame, and the send op depends on it — the approval runs as a **subflow** of the send (its span nests
 under the send's, it sees the session's bindings and the frame's cells). Its input is the SDK's own
@@ -210,6 +206,12 @@ with that same error, not wrapped as `TurnFailed`.
 An `approve` op overrides a `canUseTool` bound in `claudeCode.options`; without one, a bound
 `canUseTool` still applies. Codex has no approval callback (only `approvalPolicy`), so `approve` is a
 compile error for the `codex` adapter.
+
+With `rawInput`, `claudeCode.approval` parses the value as an approval request.
+A raw approval request keeps its tool name and input.
+A raw approval rejects a request that is not an object with `InvalidApproval`.
+A raw approval rejects a missing or non-string tool name with `InvalidApproval`.
+A raw approval rejects a missing, null, or non-record input with `InvalidApproval`.
 
 ```ts
 import { createScope, operation, tag } from "@tinker/core";

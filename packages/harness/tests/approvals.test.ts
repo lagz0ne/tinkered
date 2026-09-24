@@ -67,8 +67,15 @@ function expectInvalidApproval(raw: unknown): void {
   }
 }
 
-test.each([null, "Read", 1, {}])("a raw approval rejects a missing tool name: %s", (raw) => {
-  expectInvalidApproval(raw);
+test.each([null, "Read", 1])(
+  "a raw approval rejects a request that is not an object: %s",
+  (raw) => {
+    expectInvalidApproval(raw);
+  },
+);
+
+test("a raw approval rejects a missing tool name", () => {
+  expectInvalidApproval({ input: {} });
 });
 
 test.each([null, "file", undefined])("a raw approval rejects a non-record input: %s", (input) => {
