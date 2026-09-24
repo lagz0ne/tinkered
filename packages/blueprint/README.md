@@ -245,7 +245,11 @@ ok: 5 nodes, 6 units, 1 findings
 for a code-0 command — see the ticket report's deviations).
 
 **The golden pair** — `packages/blueprint/blueprint.yaml` describes
-every unit in `packages/blueprint/src` (ADR 0055 §5):
+every library unit in `packages/blueprint/src` (ADR 0055 §5). The
+five command adapters in `src/index.ts` are not nodes: each drives
+the library operation it shares a name with, and `readUnits` skips a
+unit whose `label` is not a literal, so the pair keeps one unit per
+node:
 
 ```bash
 node packages/blueprint/dist/main.mjs \
