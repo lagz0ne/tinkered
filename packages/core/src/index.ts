@@ -133,6 +133,8 @@ export declare namespace Observe {
     readonly start: number;
     end: number | undefined;
     status: "ok" | "failed" | undefined;
+    /** The cause for a failed operation, when the run supplied one. */
+    error?: unknown;
     readonly attributes: Record<string, unknown>;
     readonly events: Event[];
   };
@@ -1083,8 +1085,8 @@ type Layer = {
   bodyEnd: Promise<Scope.Outcome> | undefined;
   failure: { cause: unknown } | undefined;
   descendantFailure: { cause: unknown } | undefined;
-  /** A tagged subflow's child session reports its failure to the calling run first. */
-  failureOwner?: RunState;
+  /** A tagged subflow reports its failed child session through its returned promise. */
+  failureOwner?: Receipt;
   secondary: unknown[];
   body: Promise<unknown> | undefined;
   closed: boolean;
@@ -1841,11 +1843,17 @@ function isolate(run: () => unknown): void {
   }
 }
 
-function closeSpan(obs: Obs, span: Observe.Span | undefined, status: "ok" | "failed"): void {
+function closeSpan(
+  obs: Obs,
+  span: Observe.Span | undefined,
+  status: "ok" | "failed",
+  error?: unknown,
+): void {
   if (!span || span.end !== undefined) return;
   const end = obs.clock();
   span.end = end;
   span.status = status;
+  if (status === "failed") span.error = error;
   if (obs.historyMax > 0) {
     obs.history.push(span);
     if (obs.history.length > obs.historyMax) obs.history.shift();
@@ -1932,10 +1940,55 @@ function recordUsed(
   }
 }
 
-/** While a run has not settled, its subflows' failures go to it, not the layer (ADR 0066). */
-type RunState = { settled: boolean };
-/** A run without subflow deps needs no per-call state; nobody can read this shared sentinel. */
-const NO_SUBFLOW_RUN: RunState = { settled: true };
+/** A subflow's failed promise becomes a received value when a handler is attached (ADR 0066). */
+type Receipt = { received: boolean };
+/** Subflow controllers only need an identity marker, shared by every run (even sync runs). */
+type RunState = Receipt;
+const SUBFLOW_CALLER: RunState = { received: false };
+
+/** Only async subflows get this result; sync subflows still return a plain value. */
+class SubflowPromise<T> extends Promise<T> {
+  private receipt: Receipt;
+  constructor(source: Promise<T>, receipt: Receipt) {
+    super((resolve, reject) => source.then(resolve, reject));
+    this.receipt = receipt;
+    /** The layer tracks a panic itself, so the runtime must not report the rejection twice. */
+    ignoreRejection(Promise.prototype.then.call(this, undefined, () => undefined));
+  }
+  static get [Symbol.species](): PromiseConstructor {
+    return Promise;
+  }
+  override then<TResult1 = T, TResult2 = never>(
+    onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null,
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+  ): Promise<TResult1 | TResult2> {
+    this.receipt.received = true;
+    return super.then(onfulfilled, onrejected);
+  }
+}
+
+/** Join through the next macrotask: all microtasks in the rejection turn may attach a receiver.
+ * Keep the span's failure at settlement even if its error becomes a received value. */
+function trackSubflow(
+  layer: Layer,
+  result: Promise<unknown>,
+  receipt: Receipt,
+  onSettle?: (status: "ok" | "failed", error?: unknown) => void,
+): void {
+  const tracked = result.then(
+    () => {
+      onSettle?.("ok");
+      layer.pending.delete(tracked);
+    },
+    async (error: unknown) => {
+      onSettle?.("failed", error);
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      if (!receipt.received) asPrimary(layer)(error);
+      layer.pending.delete(tracked);
+    },
+  );
+  layer.pending.add(tracked);
+}
 
 /** Track owned async work so `settled()`/`close` join it. `onReject` decides where a rejection
  * goes: the owner's primary failure (operations, current-generation builds) or the secondary
@@ -2169,12 +2222,16 @@ function runTagged<T, I>(
   const chain = call.ns === undefined ? inheritedChain : nsChainOf(call.ns);
   const inner: Scope.Invocation<I> | undefined =
     call.input === undefined && call.rawInput === undefined ? undefined : stripTags(call);
-  return runSessionWith(
+  const receipt: Receipt | undefined = caller ? { received: false } : undefined;
+  const tagged = runSessionWith(
     layer,
     { tags, ns: chain },
     (child) => runUntagged(child, target, parent, inner, chain),
-    caller,
+    receipt,
   ) as Promise<Awaited<T>>;
+  if (!receipt) return tagged;
+  trackSubflow(layer, tagged, receipt);
+  return new SubflowPromise(tagged, receipt);
 }
 
 /** Run `target` in the call's namespace (ADR 0059). The real layer remains the owner of
@@ -2206,6 +2263,28 @@ function stripTags<I>(call: Scope.Invocation<I>): Scope.Invocation<I> {
   return { rawInput: call.rawInput };
 }
 
+function finishAsyncRun<T>(
+  layer: Layer,
+  result: T,
+  caller: RunState | undefined,
+  obs: Obs,
+  span: Observe.Span | undefined,
+  finishDefers: (status: "ok" | "failed", error?: unknown) => void,
+): unknown {
+  const onSettle = (status: "ok" | "failed", error?: unknown): void => {
+    if (span) closeSpan(obs, span, status, error);
+    finishDefers(status, error);
+  };
+  if (caller) {
+    const receipt: Receipt = { received: false };
+    const promise = Promise.resolve(result);
+    trackSubflow(layer, promise, receipt, onSettle);
+    return new SubflowPromise(promise, receipt);
+  }
+  track(layer, result, asPrimary(layer), onSettle);
+  return result;
+}
+
 function operationController<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
@@ -2227,9 +2306,7 @@ function operationController<T, I>(
         target,
         parent,
         caller,
-        call as Scope.Invocation<I> & {
-          readonly tags: Scope.Bindings;
-        },
+        call as Scope.Invocation<I> & { readonly tags: Scope.Bindings },
         chain,
       );
     if (hasCallNs(call))
@@ -2243,7 +2320,7 @@ function operationController<T, I>(
     ensureOpen(layer);
     const obs = layer.obs;
     const span = openSpan(obs, parent, target.label, "operation");
-    const runState: RunState = hasSubflow ? { settled: false } : NO_SUBFLOW_RUN;
+    const runState: RunState | undefined = hasSubflow ? SUBFLOW_CALLER : undefined;
     const override = presetFor(layer, target) as Operation.Handle<T, I>["run"] | undefined;
     /** Hold a borrow across the op's WHOLE lifetime — body settle (or a throw) AND its own `defer`
      * drain — so a release waits for the op's cleanup (which may still touch the resource) before
@@ -2277,32 +2354,18 @@ function operationController<T, I>(
         : buildPlainDeps(layer, target.depends, span, chain, runState);
       result = runBody(override, target, deps, ctx, parked);
     } catch (error) {
-      runState.settled = true;
-      closeSpan(obs, span, "failed");
+      closeSpan(obs, span, "failed", error);
       finishDefers("failed", error);
       throw error;
     } finally {
       buildDepth--;
     }
     if (!isThenable(result)) {
-      runState.settled = true;
       if (span) closeSpan(obs, span, "ok");
       finishDefers("ok");
-    } else {
-      track(
-        layer,
-        result,
-        (error) => {
-          if (caller?.settled !== false) asPrimary(layer)(error);
-        },
-        (status, error) => {
-          runState.settled = true;
-          if (span) closeSpan(obs, span, status);
-          finishDefers(status, error);
-        },
-      );
+      return result;
     }
-    return result;
+    return finishAsyncRun(layer, result, caller, obs, span, finishDefers);
   };
   return { run } as Scope.OperationController<T, I>;
 }
@@ -4039,8 +4102,7 @@ function propagateSweptOutcome(layer: Layer, parent: Layer): void {
   /** A descendant's settled failure goes to a SEPARATE slot ranked BELOW the parent's OWN failure
    * (body/owned-work): a real owned-work failure must still beat a failure a child merely inherited
    * from the close request (a wished `failed` echoed back down and up). First descendant wins. */
-  if (layer.failure && layer.failureOwner?.settled !== false)
-    parent.descendantFailure ??= layer.failure;
+  if (layer.failure && layer.failureOwner === undefined) parent.descendantFailure ??= layer.failure;
 }
 
 function settleSession(

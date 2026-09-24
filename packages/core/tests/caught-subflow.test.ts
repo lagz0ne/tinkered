@@ -99,7 +99,7 @@ test("a subflow failure that escapes its caller fails the session", async () => 
   await root.close({ graceful: true });
 });
 
-test("a subflow that fails after its caller returns still fails the session", async () => {
+test("an unreceived subflow that fails after its caller returns fails the session", async () => {
   const cause = new Error("late boom");
   let fail!: (error: Error) => void;
   const gate = new Promise<never>((_resolve, reject) => {
@@ -110,7 +110,7 @@ test("a subflow that fails after its caller returns still fails the session", as
     label: "outer",
     depends: { sub: inner },
     run: ({ sub }) => {
-      sub.run().catch(() => undefined);
+      void sub.run();
       return "returned";
     },
   });
@@ -120,6 +120,191 @@ test("a subflow that fails after its caller returns still fails the session", as
   const closing = session.close({ graceful: true });
   fail(cause);
   expect(await closing).toEqual({ status: "failed", error: cause, teardownErrors: undefined });
+  await root.close({ graceful: true });
+});
+
+test("an unreceived subflow fails while its caller is still running", async () => {
+  const cause = new Error("panic");
+  let fail!: (error: Error) => void;
+  let finish!: () => void;
+  const innerGate = new Promise<never>((_resolve, reject) => {
+    fail = reject;
+  });
+  const outerGate = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const inner = operation({ label: "inner", run: () => innerGate });
+  const outer = operation({
+    label: "outer",
+    depends: { sub: inner },
+    run: async ({ sub }) => {
+      void sub.run();
+      await outerGate;
+      return "done";
+    },
+  });
+  const spans: Observe.Span[] = [];
+  const root = createScope({ observe: { export: (span) => void spans.push(span) } });
+  const session = root.createSession();
+  const running = session.run(outer);
+  const closing = session.close({ graceful: true });
+  fail(cause);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  finish();
+  expect(await running).toBe("done");
+  expect(await closing).toMatchObject({ status: "failed", error: cause });
+  expect(spans.find((span) => span.name === "inner")).toMatchObject({
+    status: "failed",
+    error: cause,
+  });
+  await root.close({ graceful: true });
+});
+
+test("a subflow with a catch handler does not fail its session", async () => {
+  const cause = new Error("received");
+  const inner = operation({
+    label: "inner",
+    run: async () => {
+      throw cause;
+    },
+  });
+  const outer = operation({
+    label: "outer",
+    depends: { sub: inner },
+    run: ({ sub }) => {
+      sub.run().catch((error: unknown) => {
+        if (error !== cause) throw error;
+      });
+      return "done";
+    },
+  });
+  const root = createScope();
+  const session = root.createSession();
+  expect(session.run(outer)).toBe("done");
+  expect((await session.close({ graceful: true })).status).toBe("success");
+  await root.close({ graceful: true });
+});
+
+test("a subflow failure caught in an operation defer does not fail the session", async () => {
+  const cause = new Error("deferred");
+  const inner = operation({
+    label: "inner",
+    run: async () => {
+      throw cause;
+    },
+  });
+  const outer = operation({
+    label: "outer",
+    depends: { sub: inner },
+    run: ({ sub }, { defer }) => {
+      defer(async () => {
+        try {
+          await sub.run();
+        } catch (error) {
+          if (error !== cause) throw error;
+        }
+      });
+      return "done";
+    },
+  });
+  const root = createScope();
+  const session = root.createSession();
+  expect(session.run(outer)).toBe("done");
+  expect((await session.close({ graceful: true })).status).toBe("success");
+  await root.close({ graceful: true });
+});
+
+test("a returned subflow result received by an outer caller does not fail the session", async () => {
+  const cause = new Error("returned");
+  const inner = operation({
+    label: "inner",
+    run: async () => {
+      throw cause;
+    },
+  });
+  const mid = operation({ label: "mid", depends: { sub: inner }, run: ({ sub }) => sub.run() });
+  const outer = operation({
+    label: "outer",
+    depends: { mid },
+    run: async ({ mid }) => {
+      try {
+        await mid.run();
+      } catch (error) {
+        if (error !== cause) throw error;
+      }
+      return "caught";
+    },
+  });
+  const root = createScope();
+  const session = root.createSession();
+  expect(await session.run(outer)).toBe("caught");
+  expect((await session.close({ graceful: true })).status).toBe("success");
+  await root.close({ graceful: true });
+});
+
+test("Promise.all receives both subflow errors when its caller catches them", async () => {
+  const cause = new Error("all");
+  const a = operation({
+    label: "a",
+    run: async () => {
+      throw cause;
+    },
+  });
+  const b = operation({
+    label: "b",
+    run: async () => {
+      throw cause;
+    },
+  });
+  const outer = operation({
+    label: "outer",
+    depends: { a, b },
+    run: async ({ a, b }) => {
+      try {
+        await Promise.all([a.run(), b.run()]);
+      } catch (error) {
+        if (error !== cause) throw error;
+      }
+      return "caught";
+    },
+  });
+  const root = createScope();
+  const session = root.createSession();
+  expect(await session.run(outer)).toBe("caught");
+  expect((await session.close({ graceful: true })).status).toBe("success");
+  await root.close({ graceful: true });
+});
+
+test("a handler attached by a later timer cannot undo an unreceived failure", async () => {
+  const cause = new Error("late handler");
+  let fail!: (error: Error) => void;
+  let returned!: Promise<never>;
+  const gate = new Promise<never>((_resolve, reject) => {
+    fail = reject;
+  });
+  const inner = operation({ label: "inner", run: () => gate });
+  const outer = operation({
+    label: "outer",
+    depends: { sub: inner },
+    run: ({ sub }) => {
+      returned = sub.run();
+      return "done";
+    },
+  });
+  const root = createScope();
+  const session = root.createSession();
+  expect(session.run(outer)).toBe("done");
+  const closing = session.close({ graceful: true });
+  fail(cause);
+  await Promise.resolve();
+  const later = new Promise<void>((resolve) =>
+    setTimeout(() => {
+      returned.catch(() => undefined);
+      resolve();
+    }, 0),
+  );
+  expect((await closing).status).toBe("failed");
+  await later;
   await root.close({ graceful: true });
 });
 
@@ -150,6 +335,7 @@ test("a caught subflow closes its own span failed and its caller span ok", async
     ["inner", "failed"],
     ["outer", "ok"],
   ]);
+  expect(spans.find((span) => span.name === "inner")?.error).toBe(cause);
   await scope.close({ graceful: true });
 });
 

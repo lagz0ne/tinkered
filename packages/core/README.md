@@ -446,8 +446,15 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A tagged session run that catches a failed subflow returns normally without failing either session.
 - A graceful parent close stays successful when the still-running tagged subflow fails and its caller catches it.
 - A subflow failure that escapes its caller fails the session with that cause.
-- A subflow that fails after its caller returns still fails its session as owned work.
-- A failed subflow closes its span failed even when its caller catches it and closes ok.
+- An unreceived subflow failure fails the session even after its caller returns.
+- An unreceived subflow failure also fails the session while its caller is still running.
+- A subflow with a catch handler is received and does not fail its session.
+- A subflow awaited and caught inside an operation defer does not fail the session.
+- Returning a subflow promise to an outer caller that awaits and catches it does not fail the session.
+- Promise.all receives both subflow errors; a caller that catches them leaves the session successful.
+- A handler added from a later timer cannot undo an unreceived failure already settled.
+- A failed subflow's span keeps its error when caught, while its caller's span closes ok.
+- A failed unreceived subflow's span keeps its error even though its caller finishes normally.
 - A forced close after a caught real subflow failure cancels the session, rather than failing it.
 - A caller two subflows deep can catch a failure without failing the session.
 - `settled` stays pending until owned work finishes.
