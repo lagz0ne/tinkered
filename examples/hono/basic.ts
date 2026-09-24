@@ -34,7 +34,7 @@ const ticks = operation({ label: "ticks", run: () => ["a", "b"] });
 
 const tickBody = operation({
   label: "tickBody",
-  input: (raw: unknown) => raw as string[],
+  input: z.array(z.string()),
   depends: { emit: emit.required },
   run: ({ emit }, { input }) => {
     for (const t of input) emit(t);

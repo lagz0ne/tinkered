@@ -57,7 +57,7 @@ const deliverRegister = operation({
 /** The down wire is a declared operation with its own dependencies. */
 const wireBody = operation({
   label: "wireBody",
-  input: (raw: unknown) => raw as string,
+  input: z.string(),
   depends: { emit: emit.required, origin: src, posts },
   run: ({ emit, origin, posts }, { input: id, signal, defer }) => {
     let open = true;
