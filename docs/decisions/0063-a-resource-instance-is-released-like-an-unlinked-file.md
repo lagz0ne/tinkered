@@ -64,6 +64,10 @@ invalidated at once, the resource is finalized when its last holder lets go.
   -4.8% (faster in 61 of 61 pairs each); `lifecycle` +0.8%, `cold` -0.9%, `create` +1.0% (noise).
   A first version cost `lifecycle` +145% by dropping the fast close for every resolved resource;
   the bench caught it before landing.
+- `release(cell)` clears the cell's namespace entries at that layer too, not only its default
+  value (user, 2026-09-24). One rule for both kinds: `release(resource)` already clears every
+  namespace copy. Resources built on those entries are unlinked, and namespace watchers that read
+  them fire. `releaseNs(cell, ns)` still clears one namespace.
 
 ## Consequences
 
