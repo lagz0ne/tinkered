@@ -35,7 +35,7 @@ const lanes = [
   ],
   [
     "http pure universal bundle",
-    `bash -c 'grep -qE "from \\"node:" packages/http/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/http/dist/index.mjs\\").then(m=>process.exit(m.httpClient?0:1))"'`,
+    `bash -c 'grep -qE "from \\"node:" packages/http/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/http/dist/index.mjs\\").then(m=>process.exit(m.send&&m.attempt?0:1))"'`,
   ],
   // @tinker/hono (ADR 0039/0040/0051, drivers t03): same promises; `hono` is a peer import, `node:` is not.
   ["hono tests", `${VP} run --no-cache hono#test`],
@@ -68,7 +68,7 @@ const lanes = [
   ],
   [
     "process pure universal bundle",
-    `bash -c 'grep -qE "from \\"node:" packages/process/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/process/dist/index.mjs\\").then(m=>process.exit(m.command&&m.run&&m.main?0:1))"'`,
+    `bash -c 'grep -qE "from \\"node:" packages/process/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/process/dist/index.mjs\\").then(m=>process.exit(m.run&&m.main?0:1))"'`,
   ],
   // @tinker/blueprint (ADR 0052, blueprint-v1 t01/t05): the size promise; zod, yaml,
   // and @tinker/* stay out of dist at runtime; the binary ships its corpus and evals.

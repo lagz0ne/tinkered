@@ -4,7 +4,7 @@ import { z } from "zod";
 
 const ping = operation({ label: "ping", run: () => "pong" });
 
-/** The `ping` command: no input to read, the answer out as JSON. */
+/** The `ping` command: no input to read, the answer out in JSON. */
 const pingCommand = operation({
   label: "ping",
   depends: { io: io.required, ping },

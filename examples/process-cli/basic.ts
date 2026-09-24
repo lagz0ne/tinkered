@@ -10,7 +10,7 @@ const double = operation({
 
 const ping = operation({ label: "ping", run: () => "pong" });
 
-/** The `double` command, declared by its author: argv[0] in, the answer out as JSON, code owned. */
+/** The `double` command, declared by its author: argv[0] in, the answer out in JSON, code owned. */
 const doubleCommand = operation({
   label: "double",
   depends: { argv: argv.required, io: io.required, double },
