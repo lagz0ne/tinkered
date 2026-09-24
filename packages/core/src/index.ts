@@ -3,7 +3,6 @@ import { isError, raise } from "./errors.ts";
 const cell: unique symbol = Symbol("data");
 const operationSym: unique symbol = Symbol("operation");
 const borrowSym: unique symbol = Symbol("borrow");
-const subflowSym: unique symbol = Symbol("subflow");
 const tagSym: unique symbol = Symbol("tag");
 const edge: unique symbol = Symbol("edge");
 const resourceSym: unique symbol = Symbol("resource");
@@ -834,12 +833,10 @@ export function operation<
   return Object.assign(base, {
     controller: edgeTo("controller", base),
     [borrowSym]: seesResource(base.depends),
-    [subflowSym]: seesSubflow(base.depends),
   });
 }
 
 type BorrowFlag = { readonly [borrowSym]?: boolean };
-type SubflowFlag = { readonly [subflowSym]?: boolean };
 
 /** Read the declaration-time flag: does this operation's `depends` name a resource? Ops without one
  * skip every per-dep resource check on the call path (ADR 0044 keeps `op`/`run` untouched). */
@@ -852,15 +849,6 @@ function seesResource(depends: Scope.Depends): boolean {
   for (const key in depends) {
     const dep = depends[key];
     if (isResource(dep)) return true;
-  }
-  return false;
-}
-
-function seesSubflow(depends: Scope.Depends): boolean {
-  for (const key in depends) {
-    const dep = depends[key];
-    if (isOperation(dep) || (isEdge(dep) && dep.kind === "controller" && isOperation(dep.target)))
-      return true;
   }
   return false;
 }
@@ -1086,7 +1074,7 @@ type Layer = {
   failure: { cause: unknown } | undefined;
   descendantFailure: { cause: unknown } | undefined;
   /** A tagged subflow reports its failed child session through its returned promise. */
-  failureOwner?: Receipt;
+  failureOwner?: RunState;
   secondary: unknown[];
   body: Promise<unknown> | undefined;
   closed: boolean;
@@ -1943,11 +1931,12 @@ function recordUsed(
   }
 }
 
-/** A subflow failure is received by a rejection handler, or handed to a derived promise. */
-type Receipt = { received: boolean; handedOff: boolean };
+/** A then/catch/finally hands the failure to its derived promise; a rejection handler there
+ * decides whether that promise rejects. */
+type Receipt = { handedOff: boolean };
 /** Subflow controllers only need an identity marker, shared by every run (even sync runs). */
-type RunState = Receipt;
-const SUBFLOW_CALLER: RunState = { received: false, handedOff: false };
+type RunState = object;
+const SUBFLOW_CALLER: RunState = {};
 
 /** Only async subflows get this result; sync subflows still return a plain value. */
 class SubflowPromise<T> extends Promise<T> {
@@ -1979,8 +1968,7 @@ class SubflowPromise<T> extends Promise<T> {
     const owner = this.owner;
     if (receipt && owner) {
       receipt.handedOff = true;
-      if (typeof onrejected === "function") receipt.received = true;
-      const nextReceipt: Receipt = { received: false, handedOff: false };
+      const nextReceipt: Receipt = { handedOff: false };
       next.own(owner, nextReceipt);
       trackSubflow(owner, next, nextReceipt, undefined, false);
     }
@@ -1998,7 +1986,7 @@ function failSubflow(layer: Layer, error: unknown): void {
 }
 
 function unreceived(receipt: Receipt): boolean {
-  return !receipt.received && !receipt.handedOff;
+  return !receipt.handedOff;
 }
 
 /** Root runs join their own work plus one timer turn after handing off; derived runs only join their
@@ -2014,13 +2002,12 @@ function trackSubflow(
     result,
     async () => {
       onSettle?.("ok");
-      if (join && receipt.handedOff)
-        await new Promise<void>((resolve) => hostSetTimeout(resolve, 0));
-      if (join) layer.pending.delete(tracked);
+      if (receipt.handedOff) await new Promise<void>((resolve) => hostSetTimeout(resolve, 0));
+      layer.pending.delete(tracked);
     },
     async (error: unknown) => {
       onSettle?.("failed", error);
-      if (!join) layer.pending.add(tracked);
+      layer.pending.add(tracked);
       if (join || unreceived(receipt))
         await new Promise<void>((resolve) => hostSetTimeout(resolve, 0));
       if (unreceived(receipt) && !isCancel(layer, error)) failSubflow(layer, error);
@@ -2262,7 +2249,7 @@ function runTagged<T, I>(
   const chain = call.ns === undefined ? inheritedChain : nsChainOf(call.ns);
   const inner: Scope.Invocation<I> | undefined =
     call.input === undefined && call.rawInput === undefined ? undefined : stripTags(call);
-  const receipt: Receipt | undefined = caller ? { received: false, handedOff: false } : undefined;
+  const receipt: Receipt | undefined = caller ? { handedOff: false } : undefined;
   const tagged = runSessionWith(
     layer,
     { tags, ns: chain },
@@ -2316,7 +2303,7 @@ function finishAsyncRun<T>(
     finishDefers(status, error);
   };
   if (caller) {
-    const receipt: Receipt = { received: false, handedOff: false };
+    const receipt: Receipt = { handedOff: false };
     const promise = Promise.resolve(result);
     trackSubflow(layer, promise, receipt, onSettle);
     return SubflowPromise.from(promise, layer, receipt);
@@ -2338,7 +2325,6 @@ function operationController<T, I>(
    * extra frame or call on the hot path. The implementation signature stays broad (one input
    * shape would mean no overload — rule 9); the two public overloads type the fork. */
   const sees = seesResourceOf(target);
-  const hasSubflow = (target as SubflowFlag)[subflowSym] === true;
   const run = (call?: Scope.Invocation<I>): unknown => {
     if (hasCallTags(call))
       return runTagged(
@@ -2360,7 +2346,7 @@ function operationController<T, I>(
     ensureOpen(layer);
     const obs = layer.obs;
     const span = openSpan(obs, parent, target.label, "operation");
-    const runState: RunState | undefined = hasSubflow ? SUBFLOW_CALLER : undefined;
+    const runState = SUBFLOW_CALLER;
     const override = presetFor(layer, target) as Operation.Handle<T, I>["run"] | undefined;
     /** Hold a borrow across the op's WHOLE lifetime — body settle (or a throw) AND its own `defer`
      * drain — so a release waits for the op's cleanup (which may still touch the resource) before
