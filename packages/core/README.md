@@ -452,6 +452,11 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A controller subflow caught by its caller leaves the session successful.
 - An unreceived controller subflow fails its session.
 - An unreceived tagged subflow fails its parent session.
+- A non-function then rejection argument does not receive a subflow error; the session fails.
+- A catch on a handed-off result receives a later subflow failure and leaves the session successful.
+- A fulfillment-only hand-off reports the original failure once.
+- A derived rejection after the root closes reaches the host once.
+- Close waits for a handed-off success to report its failed callback.
 - A finally callback passes an unreceived subflow failure to its returned promise, failing the layer.
 - A fulfillment-only then passes an unreceived subflow failure to its returned promise, failing the layer.
 - A catch after finally receives the subflow error and leaves the session successful.

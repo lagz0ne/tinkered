@@ -211,6 +211,73 @@ test("a caller awaiting finally can catch the original subflow error", async () 
   await root.close({ graceful: true });
 });
 
+test("close waits for a handed-off success to report its failed callback", async () => {
+  const cause = new Error("callback panic");
+  let finish!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const sub = operation({
+    label: "sub",
+    run: async () => {
+      await gate;
+      return 1;
+    },
+  });
+  const outer = operation({
+    label: "outer",
+    depends: { sub },
+    run: ({ sub }) => {
+      void sub.run().then(() => {
+        throw cause;
+      });
+      return "done";
+    },
+  });
+  const root = createScope();
+  const session = root.createSession();
+  expect(session.run(outer)).toBe("done");
+  const closing = session.close({ graceful: true });
+  finish();
+  expect(await bounded(closing)).toMatchObject({ status: "failed", error: cause });
+  await root.close({ graceful: true });
+});
+
+test("a derived rejection after the root closes reaches the host once", async () => {
+  const cause = new Error("host panic");
+  let rejectGate!: (cause: Error) => void;
+  const gate = new Promise<never>((_resolve, reject) => {
+    rejectGate = reject;
+  });
+  const sub = operation({ label: "sub", run: async () => 1 });
+  const outer = operation({
+    label: "outer",
+    depends: { sub },
+    run: ({ sub }) => {
+      void sub.run().then(() => gate);
+      return "done";
+    },
+  });
+  const root = createScope();
+  expect(root.run(outer)).toBe("done");
+  expect((await bounded(root.close({ graceful: true }))).status).toBe("success");
+  const originalReject = Reflect.get(Promise, "reject") as typeof Promise.reject;
+  const received: unknown[] = [];
+  // Core's host callback calls Promise.reject after every layer is closed. Catch that
+  // one call before it becomes an unhandled process rejection in the test runner.
+  Promise.reject = (error?: unknown): Promise<never> => {
+    received.push(error);
+    return new Promise<never>(() => undefined);
+  };
+  try {
+    rejectGate(cause);
+    await new Promise<void>((resolve) => hostTimer(resolve, 25));
+    expect(received).toEqual([cause]);
+  } finally {
+    Promise.reject = originalReject;
+  }
+});
+
 test("a derived rejection after its session closes fails its still-open root", async () => {
   const cause = new Error("late callback");
   let reject!: (cause: Error) => void;

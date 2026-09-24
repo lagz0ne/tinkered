@@ -643,6 +643,85 @@ test("an unreceived tagged subflow fails its parent session", async () => {
   await root.close({ graceful: true });
 });
 
+test("a non-function then rejection argument does not receive a subflow error", async () => {
+  const cause = new Error("invalid handler");
+  const inner = operation({
+    label: "inner",
+    run: async () => {
+      throw cause;
+    },
+  });
+  const outer = operation({
+    label: "outer",
+    depends: { sub: inner },
+    run: ({ sub }) => {
+      void sub.run().then(() => undefined, "not a function" as never);
+      return "done";
+    },
+  });
+  const root = createScope();
+  const session = root.createSession();
+  expect(session.run(outer)).toBe("done");
+  expect(await session.close({ graceful: true })).toMatchObject({ status: "failed", error: cause });
+  await root.close({ graceful: true });
+});
+
+test("a catch on a handed-off result receives a later subflow failure", async () => {
+  const cause = new Error("handed off");
+  let fail!: (error: Error) => void;
+  const gate = new Promise<never>((_resolve, reject) => {
+    fail = reject;
+  });
+  const inner = operation({ label: "inner", run: () => gate });
+  const outer = operation({
+    label: "outer",
+    depends: { sub: inner },
+    run: ({ sub }) => {
+      sub
+        .run()
+        .then(() => undefined)
+        .catch((error: unknown) => {
+          if (error !== cause) throw error;
+        });
+      return "done";
+    },
+  });
+  const root = createScope();
+  const session = root.createSession();
+  expect(session.run(outer)).toBe("done");
+  const closing = session.close({ graceful: true });
+  fail(cause);
+  expect((await closing).status).toBe("success");
+  await root.close({ graceful: true });
+});
+
+test("a fulfillment-only hand-off reports the original failure once", async () => {
+  const cause = new Error("one panic");
+  const spans: Observe.Span[] = [];
+  const inner = operation({
+    label: "inner",
+    run: async () => {
+      throw cause;
+    },
+  });
+  const outer = operation({
+    label: "outer",
+    depends: { sub: inner },
+    run: ({ sub }) => {
+      void sub.run().then(() => undefined);
+      return "done";
+    },
+  });
+  const root = createScope({ observe: { export: (span) => void spans.push(span) } });
+  const session = root.createSession();
+  expect(session.run(outer)).toBe("done");
+  expect(await session.close({ graceful: true })).toMatchObject({ status: "failed", error: cause });
+  expect(spans.filter((span) => span.status === "failed").map((span) => span.error)).toEqual([
+    cause,
+  ]);
+  await root.close({ graceful: true });
+});
+
 test("a caught failure two subflows deep does not fail the session", async () => {
   const cause = new Error("leaf boom");
   const leaf = operation({
