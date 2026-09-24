@@ -1087,6 +1087,9 @@ type Layer = {
   /** The ambient namespace chain of this layer (ADR 0059): set from the scope/session options,
    * inherited by child sessions, overridden per call through a view layer. Undefined = default. */
   ns: readonly Namespace[] | undefined;
+  /** Inherited extension chains; absent when no extension declares the hook. */
+  runners: readonly Scope.Extension<unknown>[] | undefined;
+  writers: readonly Scope.Extension<unknown>[] | undefined;
 };
 
 type ExtRec = { settled: boolean; value: unknown };
@@ -1521,6 +1524,22 @@ function refreshNotified(layer: Layer, target: Data.Cell<unknown>, rec: NodeStat
   if (!cellEq(target, rec.notified, next)) rec.notified = next;
 }
 
+function writeWithHooks<T>(
+  layer: Layer,
+  target: Data.Cell<T>,
+  value: T,
+  chain: readonly Namespace[] | undefined = layer.ns,
+): void {
+  const writers = layer.writers;
+  if (writers === undefined) return writeCell(layer, target, value, chain);
+  ensureOpen(layer);
+  const at = (index: number): void => {
+    if (index === writers.length) return writeCell(layer, target, value, chain);
+    writers[index].write?.(target, value, () => at(index + 1));
+  };
+  at(0);
+}
+
 function dataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataController<T> {
   const rec = nodeState(layer, target);
   const get = (): T => {
@@ -1530,10 +1549,10 @@ function dataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataContro
   };
   return {
     get,
-    set: (value: T) => writeCell(layer, target, value),
+    set: (value: T) => writeWithHooks(layer, target, value),
     update: (fn: (previous: T) => T) => {
       ensureOpen(layer);
-      writeCell(layer, target, fn(get()));
+      writeWithHooks(layer, target, fn(get()));
     },
     watch: (listener: (next: T, prev: T) => void) =>
       addWatcher(layer, target, rec, listener as (next: unknown, prev: unknown) => void),
@@ -1551,10 +1570,10 @@ function dataControllerNs<T>(
   const get = (): T => readCell(layer, target, chain) as T;
   return {
     get,
-    set: (value: T) => writeCell(layer, target, value, chain),
+    set: (value: T) => writeWithHooks(layer, target, value, chain),
     update: (fn: (previous: T) => T) => {
       ensureOpen(layer);
-      writeCell(layer, target, fn(get()), chain);
+      writeWithHooks(layer, target, fn(get()), chain);
     },
     watch: (listener: (next: T, prev: T) => void) =>
       addWatcherNs(layer, target, chain, listener as (next: unknown, prev: unknown) => void),
@@ -2318,6 +2337,8 @@ function operationController<T, I>(
   parent: Observe.Span | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
+  hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I> = target,
+  replay = false,
 ): Scope.OperationController<T, I> {
   /** The single entry every run takes — declared, subflow, and inline alike. A call carrying
    * `tags` opens a child session for the run (ADR 0038, always async); anything else runs the
@@ -2325,7 +2346,7 @@ function operationController<T, I>(
    * extra frame or call on the hot path. The implementation signature stays broad (one input
    * shape would mean no overload — rule 9); the two public overloads type the fork. */
   const sees = seesResourceOf(target);
-  const run = (call?: Scope.Invocation<I>): unknown => {
+  const execute = (call?: Scope.Invocation<I>): unknown => {
     if (hasCallTags(call))
       return runTagged(
         layer,
@@ -2393,6 +2414,22 @@ function operationController<T, I>(
     }
     return finishAsyncRun(layer, result, caller, obs, span, finishDefers);
   };
+  const run = (call?: Scope.Invocation<I>): unknown => {
+    const runners = layer.runners;
+    if (runners === undefined || replay) return execute(call);
+    ensureOpen(layer);
+    const at = (index: number): unknown => {
+      if (index === runners.length) return execute(call);
+      return runners[index].run?.(
+        hookTarget as
+          | Operation.Handle<unknown, unknown>
+          | Scope.Inline<Scope.Depends, unknown, unknown>,
+        call,
+        () => at(index + 1),
+      );
+    };
+    return at(0);
+  };
   return { run } as Scope.OperationController<T, I>;
 }
 
@@ -2414,6 +2451,8 @@ function runUntagged<T, I>(
     parent,
     chain,
     caller,
+    target,
+    true,
   ) as { run(call?: Scope.Invocation<I>): T };
   return untagged.run(call);
 }
@@ -2648,55 +2687,6 @@ class EmptyCtx implements Resource.Ctx {
   get signal(): AbortSignal {
     return signalOf(this.owner);
   }
-}
-
-function writeThrough(
-  layer: Layer,
-  writers: readonly Scope.Extension<unknown>[],
-  plain: Scope.Handle,
-): Scope.Handle["controller"] {
-  const cache = new Map<Data.Cell<unknown>, Scope.DataController<unknown>>();
-  const chained = (
-    target: Data.Cell<unknown> | Resource.Handle<unknown> | Operation.Handle<unknown, unknown>,
-    ns?: Scope.NsArg,
-  ): unknown => {
-    ensureOpen(layer);
-    if (isData(target)) {
-      const hit = ns === undefined ? cache.get(target) : undefined;
-      if (hit !== undefined) return hit;
-      const plainCtl = plain.controller(target, ns);
-      const at = (value: unknown, index: number): void => {
-        if (index >= writers.length) {
-          plainCtl.set(value);
-          return;
-        }
-        const writer = writers[index];
-        if (writer.write === undefined) {
-          at(value, index + 1);
-          return;
-        }
-        writer.write(target, value, () => at(value, index + 1));
-      };
-      const wrapped: Scope.DataController<unknown> = {
-        get: () => plainCtl.get(),
-        set: (value: unknown) => {
-          ensureOpen(layer);
-          at(value, 0);
-        },
-        update: (fn: (previous: unknown) => unknown) => {
-          ensureOpen(layer);
-          at(fn(plainCtl.get()), 0);
-        },
-        watch: (listener: (next: unknown, prev: unknown) => void) => plainCtl.watch(listener),
-      };
-      if (ns === undefined) cache.set(target, wrapped);
-      return wrapped;
-    }
-    if (isResource(target)) return plain.controller(target, ns);
-    return plain.controller(target, ns);
-  };
-  /** One cast: the broad internal entry covers every overload the public face types. */
-  return chained as Scope.Handle["controller"];
 }
 
 /** Wrap the structural close in the extensions' `close` onion (ADR 0050): first registered is
@@ -3818,8 +3808,12 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     random: randomFor(parent, options),
     emptyCtx: undefined,
     ns: nsFor(parent, options),
+    runners: undefined,
+    writers: undefined,
   };
   if (parent) {
+    layer.runners = parent.runners;
+    layer.writers = parent.writers;
     parent.children.add(layer);
     /** Born into a subtree already being collected by an active ancestor close: inherit `swept` so this
      * late child's real failure + teardown errors still push up to the collecting ancestor when it
@@ -4351,6 +4345,8 @@ function extendHandle(
   const resolvers = exts.filter((ext) => ext.resolve !== undefined);
   const runners = exts.filter((ext) => ext.run !== undefined);
   const writers = exts.filter((ext) => ext.write !== undefined);
+  if (runners.length > 0) layer.runners = runners;
+  if (writers.length > 0) layer.writers = writers;
   const sessions = exts.filter((ext) => ext.session !== undefined);
   if (sessions.length > 0) SESSIONS.set(layer, sessions);
   let settleReady: () => void = noop;
@@ -4366,8 +4362,6 @@ function extendHandle(
     ready,
   };
   if (resolvers.length > 0) extended.resolve = resolveThrough(layer, resolvers);
-  if (runners.length > 0) extended.run = runThrough(layer, runners, plain);
-  if (writers.length > 0) extended.controller = writeThrough(layer, writers, plain);
   if (sessions.length > 0)
     extended.createSession = (options?: Scope.Options) => wrapSession(layer, options, sessions);
   runStartChain(layer, extended, exts, settleReady, failReady);
@@ -4407,35 +4401,6 @@ function resolveThrough(
     return at(target, 0, chain);
   };
   return chained as Scope.Handle["resolve"];
-}
-
-/** The `run` onion (ADR 0050, core/t34): registration order, first is outermost. The innermost
- * `next` is the plain handle's `run`, so declared operations and inline configs keep today's path,
- * including the tagged-call child session; `call` passes through unchanged. A hook that skips
- * `next` refuses the call. Root handle only in v1: sessions keep the plain dispatch. */
-function runThrough(
-  layer: Layer,
-  runners: readonly Scope.Extension<unknown>[],
-  plain: Scope.Handle,
-): Scope.Handle["run"] {
-  type OnionOp = Operation.Handle<unknown, unknown> | Scope.Inline<Scope.Depends, unknown, unknown>;
-  type OnionCall = Scope.Invocation<unknown> | undefined;
-  /** One cast: read the overloaded `run` as a plain function property, so the chain holds a callable instead of an unbound method. */
-  const plainView = plain as { readonly run: (op: OnionOp, call?: OnionCall) => unknown };
-  const at = (op: OnionOp, call: OnionCall, index: number): unknown => {
-    if (index >= runners.length) return plainView.run(op, call);
-    const next = (): unknown => at(op, call, index + 1);
-    const { run: hook } = runners[index] as {
-      run?: (op: OnionOp, call: OnionCall, next: () => unknown) => unknown;
-    };
-    if (hook === undefined) return next();
-    return hook(op, call, next);
-  };
-  const chained = (op: OnionOp, call?: OnionCall): unknown => {
-    ensureOpen(layer);
-    return at(op, call, 0);
-  };
-  return chained as Scope.Handle["run"];
 }
 
 /** A namespaced resolve keeps the real layer and passes the storage chain explicitly. */
@@ -4537,9 +4502,8 @@ function handleFor(layer: Layer): Scope.Handle {
     /** The controller's public face is two overloads, but this entry already holds a broad
      * `Invocation<I>` — one untyped dispatch, no per-shape narrowing. The overloads still type
      * every userland call site; the seam cast below only widens this internal entry. */
-    const dispatch = operationController(layer, handle, undefined).run as (
-      call?: Scope.Invocation<I>,
-    ) => R | Promise<Awaited<R>>;
+    const dispatch = operationController(layer, handle, undefined, layer.ns, undefined, inline)
+      .run as (call?: Scope.Invocation<I>) => R | Promise<Awaited<R>>;
     return call === undefined ? dispatch() : dispatch(call);
   };
   return {

@@ -68,8 +68,8 @@ const gate = extension({
 });
 ```
 
-A `run` hook wraps operation calls on the root handle (first registered is outermost; skip
-`next()` to refuse a call with a substitute):
+A `run` hook wraps every operation call, on the root or in a session (first registered is
+outermost; skip `next()` to refuse a call with a substitute):
 
 ```ts
 const audit = extension({
@@ -85,8 +85,8 @@ const audit = extension({
 
 Await `ready` before the first `resolve(ext)`.
 
-A `write` hook wraps cell writes on the root handle (first registered is outermost; skip
-`next()` to refuse a write, leaving the value and watchers unchanged):
+A `write` hook wraps cell writes at every layer (first registered is outermost; skip `next()`
+to refuse a write, leaving the value and watchers unchanged):
 
 ```ts
 const even = extension({
@@ -97,10 +97,16 @@ const even = extension({
 });
 ```
 
-A request's reads, calls, and writes are not wrapped yet: sessions created from an extended
-scope read, run, and write with the plain dispatch (the v1 limit). A write that reaches the cell
-through a `depends: { x: cell.controller }` edge inside an operation runs on the layer directly
-and is not wrapped either (the v1 limit).
+A session read still skips `resolve` hooks; its runs and writes use inherited `run` and `write` hooks.
+A root run and a session run each invoke the `run` hook once.
+A tagged run invokes its `run` hook once with the original call, not again on its child session.
+A subflow invokes `run` hooks once even when its caller is another operation.
+An inline run in a session passes its original inline config to the `run` hook.
+A `run` hook that skips `next()` stops a subflow and returns its substitute to the caller.
+A root write and a session write each invoke the `write` hook once.
+A write through a `depends: { x: cell.controller }` edge invokes the `write` hook.
+A namespaced write invokes the `write` hook once and stores its value in that namespace.
+Two hooks keep registration order for both runs and writes on child layers.
 
 ## Resource cleanup
 

@@ -5034,7 +5034,7 @@ test("a tagged call opens its child session under the run hook", async () => {
   await scope.close();
 });
 
-test("a session run from an extended scope bypasses the run hook", async () => {
+test("a session run from an extended scope passes through the run hook", async () => {
   let calls = 0;
   const op = operation({ label: "op", run: () => "ran" });
   const count = extension({
@@ -5048,7 +5048,7 @@ test("a session run from an extended scope bypasses the run hook", async () => {
   await scope.ready;
   const session = scope.createSession();
   expect(session.run(op)).toBe("ran");
-  expect(calls).toBe(0);
+  expect(calls).toBe(1);
   await scope.close();
 });
 
@@ -5196,7 +5196,7 @@ test("an operation controller from the extended handle stays plain", async () =>
   await scope.close();
 });
 
-test("a session write from an extended scope bypasses the write hook", async () => {
+test("a session write from an extended scope passes through the write hook", async () => {
   let writes = 0;
   const cell = data({ initial: 0, parse: asNumber });
   const count = extension({
@@ -5211,11 +5211,11 @@ test("a session write from an extended scope bypasses the write hook", async () 
   const session = scope.createSession();
   session.controller(cell).set(1);
   expect(session.controller(cell).get()).toBe(1);
-  expect(writes).toBe(0);
+  expect(writes).toBe(1);
   await scope.close();
 });
 
-test("an op writing through a depends controller edge is not wrapped (v1 limit)", async () => {
+test("a dependency controller write passes through the layer's write hook", async () => {
   let writes = 0;
   const cell = data({ initial: 0, parse: asNumber });
   const count = extension({
@@ -5233,7 +5233,7 @@ test("an op writing through a depends controller edge is not wrapped (v1 limit)"
   const scope = createScope({ extensions: [count] });
   await scope.ready;
   scope.run(bump);
-  expect(writes).toBe(0);
+  expect(writes).toBe(1);
   expect(scope.controller(cell).get()).toBe(5);
   await scope.close();
 });
