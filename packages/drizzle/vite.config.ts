@@ -16,6 +16,8 @@ export default defineConfig({
   },
   fmt: {},
   test: {
+    /** PGlite boots in-process; its first start passes 5 s when many test lanes share the CPU. */
+    testTimeout: 30_000,
     server: { deps: { inline: ["vite-plus"] } },
   },
 });
