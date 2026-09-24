@@ -87,6 +87,32 @@ answer out through `io`, the code owned.
 - `jsonLine` answers one JSON line and stays
   undefined for a void value.
 
+## Positionals
+
+`positionals(argv, opts?)` answers the plain
+words of argv, in order, so a row never filters
+by hand. A `--name` is a flag. A flag named in
+`opts.values` takes the next word as its value.
+`--name=value` is one word, so it is a flag.
+
+```ts
+const [file, dir] = positionals(argv, {
+  values: ["--key-file"],
+});
+```
+
+- `positionals` keeps the plain words in order
+  and drops a `--flag`.
+- A flag named in `values` drops its value too.
+- `--name=value` is one flag, so it drops with
+  no word after it.
+- `--` ends the flags, so every later word is
+  plain.
+- `-` is a plain word and another single-dash
+  word is a flag.
+- A value flag at the end with no next word
+  drops nothing.
+
 ## Roots
 
 Every run builds one root for the routed command,

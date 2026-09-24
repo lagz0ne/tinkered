@@ -196,6 +196,45 @@ export async function main(shell: Process.Shell, args?: readonly string[]): Prom
   return proc.exit(result.code);
 }
 
+/** A `-` is stdin, a plain word; any other word that starts with `-` is a flag. */
+function isFlag(word: string): boolean {
+  return word.startsWith("-") && word !== "-";
+}
+
+/** Whether this flag takes the word after it: it is named in `values`, and there is one. */
+function takesValue(values: readonly string[], word: string, after: number): boolean {
+  return values.includes(word) && after > 0;
+}
+
+/** The plain words of `argv`, in order. A `--name` is a flag; a flag named in `values` takes
+ * the next word as its value; `--name=value` is one word; `--` ends the flags. `-` is plain;
+ * a value flag at the end with no next word takes nothing. */
+export function positionals(
+  argv: readonly string[],
+  opts?: { readonly values?: readonly string[] },
+): string[] {
+  const values = opts?.values ?? [];
+  const words: string[] = [];
+  let flags = true;
+  for (let at = 0; at < argv.length; at += 1) {
+    const word = argv[at];
+    if (!flags) {
+      words.push(word);
+      continue;
+    }
+    if (word === "--") {
+      flags = false;
+      continue;
+    }
+    if (!isFlag(word)) {
+      words.push(word);
+      continue;
+    }
+    if (takesValue(values, word, argv.length - at - 1)) at += 1;
+  }
+  return words;
+}
+
 /** One value as a JSON line: `undefined` stays `undefined`, so a void value prints nothing.
  * An author who wants the old default output writes `out.write(jsonLine(value))` — through
  * the same guard the sugar used to apply invisibly. */
