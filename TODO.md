@@ -38,12 +38,6 @@ card at a time.
   review). User pick A: ADR 0066, a subflow failure belongs to its caller. Verify: the tests in
   the brief; gate; mutation alone; bench; promises 17.
 
-- **mutation/floor-85** — user 2026-09-24: "Mutation is always 85, set that everywhere" (commit
-  `2b53dd5`). Census (opus `8758de3f`, reports `/tmp/mut-reports/`): mcp 85.29 ✓, http 85.05 ✓.
-  Lift pairs, worktrees `../tinkered-mut-<pkg>`, every lane under `flock /tmp/mutation.lock`:
-  - mut/blueprint-85 — 79.47, sol 6 `13012c7a`
-    Verify each: its lane alone ≥ 85, `[Killed]` per claimed row.
-
 | Card | Owner | Next | Verify |
 
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -77,6 +71,8 @@ card at a time.
 
 ## Done
 
+- **mutation/floor-85** — every package's lane ≥ 85 (user, 2026-09-24): harness 86.32, hono 86.88, sync 87.38, process 95.51, tinkerer 96.12, blueprint 86.48; already ≥ 85: mcp 85.29, http 85.05, drizzle 96.61, utils 100, core, react.
+- **mut/blueprint-85** — sol 6 + opus review (one fix round); tag `mut/blueprint-85`. Blueprint mutation 79.47 → 86.48 alone; public-seam tests for data writers, verify edges, bad YAML, evals, explain, suggest; tests on YAML parse issues check what our code owns, not the library's error code.
 - **mut/tinkerer-85** — deepseek + opus review (one fix round); tag `mut/tinkerer-85`. Tinkerer mutation 81.74 → 96.12 alone; 31 public-seam tests (steer and queue, tool rows and gates, persist, bash, log lines, frame labels); one unreachable `calls` field on the steered branch removed (the loop never read it).
 - **mut/process-85** — deepseek + opus review (one fix round); tag `mut/process-85`. Process mutation 82.69 → 95.51 alone: public-seam tests for help order (and equal names), partial io writers, graceful close, signal wiring, an unknown error, and `MissingTag` naming process tags outside `run`.
 - **mut/sync-85** — sol 6 + opus review (two fix rounds); tag `mut/sync-85`. Sync mutation 80.13 → 87.38 alone: 12 public-seam tests (malformed keys, registration rules, wrong-direction messages, a failed snapshot send, viewer close parts the source wire, a closed viewer sends nothing later).
