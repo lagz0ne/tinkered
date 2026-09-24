@@ -56,13 +56,23 @@ function unitOf(src, declarator, exported) {
   };
 }
 
-/** A top-level function as a unit record of kind "function". */
-const functionRecord = (src, node, name, exported) => ({
+/** Does this function declare a unit, rather than only use one? */
+function declaresUnit(node) {
+  let found = false;
+  walk(node, (n) => {
+    if (isUnitCall(n)) found = true;
+  });
+  return found;
+}
+
+/** A top-level function as a unit record; wrappers need a narrower set of questions. */
+const functionRecord = (src, node, name, exported, wrapperOnly = false) => ({
   kind: "function",
   name,
   line: lineOf(src, node.start),
   source: text(src, node),
   exported,
+  wrapperOnly,
 });
 
 /** The name of a top-level arrow function (including components). */
@@ -73,13 +83,15 @@ function arrowName(decl) {
 }
 
 /** Top-level functions are also judged when they declare units: wrappers live there. */
-function functionOf(src, node) {
+function functionOf(src, node, file) {
   const decl = node.type === "ExportNamedDeclaration" ? node.declaration : node;
   const exported = node.type === "ExportNamedDeclaration";
   if (decl?.type === "FunctionDeclaration" && decl.id)
-    return functionRecord(src, node, decl.id.name, exported);
+    return functionRecord(src, node, decl.id.name, exported, declaresUnit(decl.body));
   const arrow = arrowName(decl);
-  return arrow ? functionRecord(src, node, arrow, exported) : null;
+  return arrow
+    ? functionRecord(src, node, arrow, exported, !file.endsWith(".tsx") || declaresUnit(decl))
+    : null;
 }
 
 /** Every declared unit and every top-level function that declares none, in source order. */
@@ -90,7 +102,7 @@ export function units(src, file = "a.ts") {
     const exported = node.type === "ExportNamedDeclaration";
     const declarators = decl?.type === "VariableDeclaration" ? decl.declarations : [];
     out.push(...declarators.map((d) => unitOf(src, d, exported)).filter(Boolean));
-    const fn = functionOf(src, node);
+    const fn = functionOf(src, node, file);
     if (fn) out.push(fn);
   }
   return out;
@@ -118,6 +130,10 @@ function references(node, shadow = new Set()) {
     if (Array.isArray(n)) return n.forEach((v) => visit(v, hidden));
     if (n.type === "Identifier") {
       if (!hidden.has(n.name)) out.add(n.name);
+      return;
+    }
+    if (n.type === "ThisExpression") {
+      out.add("this");
       return;
     }
     if (n.type?.startsWith("TS") || n.type === "TSTypeAnnotation") return;
@@ -149,25 +165,35 @@ function references(node, shadow = new Set()) {
   return out;
 }
 
-/** Locals in an enclosing function that may depend on its parameters, transitively. */
-function derivedNames(fn, before) {
-  const names = new Set((fn.params ?? []).flatMap(bindings));
-  const declarations = [];
-  // oxlint-disable-next-line complexity -- AST traversal has several node guards
+/** All enclosing scopes contribute to one fixed point, including writes and loop bindings. */
+function derivedNames(functions, before) {
+  const names = new Set(functions.flatMap(({ node: fn }) => (fn.params ?? []).flatMap(bindings)));
+  const edges = [];
+  // oxlint-disable-next-line complexity -- each binding form has its own source
   function collect(n) {
     if (!n || typeof n !== "object" || n.start >= before) return;
     if (Array.isArray(n)) return n.forEach(collect);
-    if (FUNCTION_TYPES.has(n.type) && n !== fn) return;
-    if (n.type === "VariableDeclarator") declarations.push(n);
+    if (n.type === "FunctionDeclaration") {
+      if (n.id) edges.push({ names: bindings(n.id), value: n });
+      return;
+    }
+    if (FUNCTION_TYPES.has(n.type)) return;
+    if (n.type === "VariableDeclarator") edges.push({ names: bindings(n.id), value: n.init });
+    if (n.type === "ForOfStatement" || n.type === "ForInStatement") {
+      const left = n.left.type === "VariableDeclaration" ? n.left.declarations[0]?.id : n.left;
+      edges.push({ names: bindings(left), value: n.right });
+    }
+    if (n.type === "AssignmentExpression" && n.left.type === "Identifier")
+      edges.push({ names: bindings(n.left), value: n.right });
     for (const value of Object.values(n)) if (value && typeof value === "object") collect(value);
   }
-  collect(fn.body);
+  for (const { node: fn } of functions) collect(fn.body);
   let changed;
   do {
     changed = false;
-    for (const d of declarations) {
-      if (![...references(d.init)].some((name) => names.has(name))) continue;
-      for (const name of bindings(d.id))
+    for (const edge of edges) {
+      if (![...references(edge.value)].some((name) => names.has(name))) continue;
+      for (const name of edge.names)
         if (!names.has(name)) {
           names.add(name);
           changed = true;
@@ -180,8 +206,7 @@ function derivedNames(fn, before) {
 /** Calls made inside a function that can be declared once, without its parameters. */
 // oxlint-disable-next-line complexity -- import and function guards are separate AST cases
 export function unitCouldBeModuleLevel(src, file = "a.ts") {
-  if (/(?:^|\/)\w*\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|\/)(?:tests|__tests__)\//.test(file))
-    return [];
+  if (/\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|\/)(?:test|tests|__tests__)\//.test(file)) return [];
   const program = parse(file, src);
   const coreNames = new Set();
   for (const n of program.body)
@@ -191,20 +216,23 @@ export function unitCouldBeModuleLevel(src, file = "a.ts") {
           coreNames.add(s.local.name);
   const out = [];
   // oxlint-disable-next-line complexity -- nested function and call syntax needs separate guards
-  function visit(node, functions = [], name) {
+  function visit(node, functions = [], name, locals = []) {
     if (!node || typeof node !== "object") return;
-    if (Array.isArray(node)) return node.forEach((n) => visit(n, functions, name));
-    if (node.type === "ExportNamedDeclaration") return visit(node.declaration, functions, name);
+    if (Array.isArray(node)) return node.forEach((n) => visit(n, functions, name, locals));
+    if (node.type === "ExportNamedDeclaration")
+      return visit(node.declaration, functions, name, locals);
+    if (node.type === "CatchClause")
+      return visit(node.body, functions, name, [...locals, ...bindings(node.param)]);
     if (
       node.type === "FunctionDeclaration" ||
       node.type === "FunctionExpression" ||
       node.type === "ArrowFunctionExpression"
     ) {
       const owner = node.id?.name ?? name ?? functions.at(-1)?.name ?? "<anonymous>";
-      return visit(node.body, [...functions, { node, name: owner }]);
+      return visit(node.body, [...functions, { node, name: owner }], undefined, locals);
     }
     if (node.type === "VariableDeclarator") {
-      visit(node.init, functions, node.id?.name);
+      visit(node.init, functions, node.id?.name, locals);
       return;
     }
     if (
@@ -215,8 +243,10 @@ export function unitCouldBeModuleLevel(src, file = "a.ts") {
       node.arguments[0]?.type === "ObjectExpression"
     ) {
       const config = node.arguments[0];
-      const names = new Set(functions.flatMap(({ node: fn }) => [...derivedNames(fn, node.start)]));
-      if (![...references(config)].some((ref) => names.has(ref)))
+      const names = derivedNames(functions, node.start);
+      for (const local of locals) names.add(local);
+      const refs = references(config);
+      if (!refs.has("this") && ![...refs].some((ref) => names.has(ref)))
         out.push({
           kind: node.callee.name,
           line: lineOf(src, node.start),
@@ -224,10 +254,19 @@ export function unitCouldBeModuleLevel(src, file = "a.ts") {
         });
     }
     for (const value of Object.values(node))
-      if (value && typeof value === "object") visit(value, functions, name);
+      if (value && typeof value === "object") visit(value, functions, name, locals);
   }
   visit(program);
   return out;
+}
+
+/** An inline request run of a declared op is routing, not a new declared step. */
+export function routesDeclaredOperation(source) {
+  return (
+    !/\boperation\s*\(/.test(source) &&
+    /\bdepends\s*:\s*\{\s*op\s*\}/.test(source) &&
+    /\.run\s*\(\s*\{/.test(source)
+  );
 }
 
 /** A named nested function, for labeling historical builders no longer in the current slice. */

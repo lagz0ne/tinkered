@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "preflight": "node preflight.mjs",
+    "test": "node --test extract.test.mjs",
     "review": "node review.mjs",
     "lint": "node lint.mjs",
     "tests": "node tests.mjs",

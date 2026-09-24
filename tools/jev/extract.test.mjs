@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
-import { unitCouldBeModuleLevel, units } from "./extract.mjs";
+import { unitCouldBeModuleLevel, routesDeclaredOperation, units } from "./extract.mjs";
 
 const core = 'import { operation, resource, data, tag, operation as op } from "@tinker/core";\n';
 
@@ -52,5 +52,64 @@ void test("tests are excluded; functions that declare units remain judge candida
   const src =
     core + "export function ask(frame) { return operation({ depends: { turn: frame.turn } }); }";
   assert.deepEqual(unitCouldBeModuleLevel(src, "a.test.ts"), []);
-  assert.ok(units(src).some((u) => u.kind === "function" && u.name === "ask"));
+  assert.ok(units(src).some((u) => u.kind === "function" && u.name === "ask" && u.wrapperOnly));
+  assert.ok(
+    units(core + "function plain() { return 1; }").some(
+      (u) => u.name === "plain" && !u.wrapperOnly,
+    ),
+  );
+});
+
+void test("inner locals derived from outer parameters stay dynamic", () => {
+  const src =
+    core +
+    "function outer(x) { return () => { const y = x; return operation({ depends: { y } }); }; }";
+  assert.deepEqual(unitCouldBeModuleLevel(src), []);
+});
+
+void test("a for-of or for-in binding derived from input stays dynamic", () => {
+  for (const loop of ["of", "in"]) {
+    const src =
+      core +
+      `function f(items) { for (const item ${loop} items) operation({ label: item.name }); }`;
+    assert.deepEqual(unitCouldBeModuleLevel(src), []);
+  }
+});
+
+void test("a nested function that closes over an input keeps its operation dynamic", () => {
+  const src = core + "function f(x) { function h() { return x; } return operation({ run: h }); }";
+  assert.deepEqual(unitCouldBeModuleLevel(src), []);
+});
+
+void test("a reassigned local derived from an input stays dynamic", () => {
+  const src = core + "function f(x) { let y; y = x; return operation({ depends: { y } }); }";
+  assert.deepEqual(unitCouldBeModuleLevel(src), []);
+});
+
+void test("a catch parameter used by a unit config stays dynamic", () => {
+  const src = core + "function f() { try {} catch (e) { operation({ label: e.message }); } }";
+  assert.deepEqual(unitCouldBeModuleLevel(src), []);
+});
+
+void test("dotted and dashed test filenames and test directories are excluded", () => {
+  const src = core + "function f() { operation({ label: 'x' }); }";
+  for (const file of ["a.b.test.ts", "foo-bar.spec.tsx", "pkg/tests/a.ts", "pkg/test/a.ts"])
+    assert.deepEqual(unitCouldBeModuleLevel(src, file), []);
+});
+
+void test("inline routing of a declared op is not a new declared step", () => {
+  assert.equal(
+    routesDeclaredOperation("session.run({ depends: { op }, run: ({ op }) => op.run() })"),
+    true,
+  );
+  assert.equal(
+    routesDeclaredOperation("operation({ depends: { op }, run: ({ op }) => op.run() })"),
+    false,
+  );
+  assert.equal(routesDeclaredOperation("session.run({ label, run: () => write() })"), false);
+});
+
+void test("this is not a module-level value", () => {
+  const src = core + "class A { make() { return operation({ run: () => this.value }); } }";
+  assert.deepEqual(unitCouldBeModuleLevel(src), []);
 });

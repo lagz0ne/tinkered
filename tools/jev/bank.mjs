@@ -12,8 +12,8 @@
 import { units as extractUnits, tests as extractTests } from "./extract.mjs";
 import { JUDGES } from "./lib.mjs";
 
-/** Every declared unit plus each top-level function that declares none (a function that
- *  declares units is a composition root or a tour, not a primitive candidate). */
+/** Every declared unit and top-level function. New builder/arrow records are marked
+ *  wrapperOnly so existing function judges and the kind guide keep their old scope. */
 export function slice(src, file = "a.ts") {
   return extractUnits(src, file);
 }
@@ -27,15 +27,16 @@ export const forJev = ({ kind, name, source }) => ({ kind, name, source });
 export const LINT = {
   wrapsCallersStep: {
     applies: ["function"],
+    unitBuilders: true,
     threshold: 0.5,
     q: {
       type: "boolean",
       instructions:
-        "Does this function create an operation({ ... }) or inline session.run({ ... }) that runs the caller's step for them? A caller's step may be a callback or an operation from a frame parameter (possibly paired with a cell from that frame); putting that step in the new operation's depends is still a wrapper. The caller cannot give this new step its own label and depends. Answer false for a factory making its own frame units from plain config, an extension routing declared operations, or a helper that creates no operation.",
+        "First distinguish a caller-provided callback from an already-declared operation. If a request handler in an extension or driver uses an inline session.run({ depends: { op }, run: ({ op }) => op.run(...) }) to invoke an already-declared op, answer FALSE: it is only routing that op, even with logging, error mapping or a new request label. Otherwise, does this function build a NEW declared operation({ depends, run }) around an existing operation (including a frame's turn and text, a module's op, or a lazy-loaded op), so the caller cannot give the wrapper its own label and depends? Answer TRUE for that command-builder shape, even when the run body also parses arguments, formats output, or handles errors; returning a route whose entry names this newly built op is still a wrapper. Also TRUE for an inline run whose body executes a caller-provided callback. A frame factory making its own units from plain config is false.",
       criteria: {
-        true: "this function constructs an operation or inline session.run whose run invokes the caller's callback or already-declared units as the work",
+        true: "a new declared operation wraps an existing operation or callback as the step, or an inline run wraps the caller's callback as its step",
         false:
-          "it makes its own frame units from config (including tools or open), routes or runs already-declared operations without wrapping them in a new operation, or creates no operation itself",
+          "a driver or extension uses an inline run only to route an already-declared operation per request, it makes its own units from plain config, or it creates no operation",
       },
     },
   },

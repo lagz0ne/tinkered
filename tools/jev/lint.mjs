@@ -10,7 +10,7 @@ import { execSync } from "node:child_process";
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { loadKey, ask, pct, readCalibration, isTieError } from "./lib.mjs";
 import { slice, forJev, LINT, GUIDE } from "./bank.mjs";
-import { unitCouldBeModuleLevel } from "./extract.mjs";
+import { unitCouldBeModuleLevel, routesDeclaredOperation } from "./extract.mjs";
 
 /** Per-judge status from `tools/jev/calibrate.mjs`: a `noisy` judge prints as a note (`~`), never as a flag. */
 const CALIBRATION = readCalibration();
@@ -40,9 +40,15 @@ function listFiles(specs) {
   return [...direct, ...listed.split("\n")].filter((f) => f && !/\.test\.tsx?$|\.d\.ts$/.test(f));
 }
 
-function questionsFor(kind) {
-  const qs = { unit: GUIDE.unit.q };
-  for (const [id, j] of Object.entries(LINT)) if (j.applies.includes(kind)) qs[id] = j.q;
+function questionsFor(u) {
+  const qs = u.wrapperOnly ? {} : { unit: GUIDE.unit.q };
+  for (const [id, j] of Object.entries(LINT))
+    if (
+      j.applies.includes(u.kind) &&
+      (!u.wrapperOnly || j.unitBuilders) &&
+      !(id === "wrapsCallersStep" && routesDeclaredOperation(u.source))
+    )
+      qs[id] = j.q;
   return qs;
 }
 
@@ -103,11 +109,11 @@ for (const file of files) {
     if (report.length >= limit) break;
     let answers;
     try {
-      answers = await ask(forJev(u), questionsFor(u.kind));
+      answers = await ask(forJev(u), questionsFor(u));
     } catch (error) {
       if (!isTieError(error)) throw error;
       // The optional kind pick tied. Retry the boolean judges; a hint cannot block flags.
-      const { unit: _unit, ...questions } = questionsFor(u.kind);
+      const { unit: _unit, ...questions } = questionsFor(u);
       answers = Object.keys(questions).length ? await ask(forJev(u), questions) : {};
     }
     const flags = flagsOf(answers);

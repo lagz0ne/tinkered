@@ -12,13 +12,13 @@ const CALIBRATION = readCalibration();
 import { loadKey, ask, changedSources, fileAt, JUDGES, pct, readCalibration } from "./lib.mjs";
 
 const range = process.argv.slice(2).find((a) => !a.startsWith("--")) ?? "HEAD";
-if (!loadKey()) process.exit(0);
+const hasKey = loadKey();
 
 console.log(`jev pre-flight (advisory) — clear or explain these before reporting\n`);
 let flags = 0;
 const files = changedSources(range);
 if (files.length === 0) console.log("(no source files changed)");
-for (const f of files) {
+for (const f of hasKey ? files : []) {
   const code = fileAt(range, f);
   if (!code.trim()) continue;
   const answers = await ask(
