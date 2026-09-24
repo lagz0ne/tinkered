@@ -40,7 +40,6 @@ card at a time.
 
 - **no-wrapper fixes** (user pick A; Jev reported every site first: 35 code hits, 16 judge hits).
   Worktrees `../tinkered-nw-<name>`, briefs `/tmp/nw/f*.md`. Verify each: its Jev hits gone; gate.
-  - nw/tracker-commands — deepseek `a2ab3f69`
   - nw/hono-stream — sol 6 `d086938d`
 
 | Card | Owner | Next | Verify |
@@ -79,6 +78,7 @@ card at a time.
 
 ## Done
 
+- **nw/tracker-commands** — deepseek + opus review; tag `nw/tracker-commands`. The five CLI command operations declared once at module level (ADR 0057); Jev hits 10 → 0; `serveMcp` removes its watch and listener in `ctx.defer` (a cleanup no test can see: the process exits right after). Gate EXIT 0; no mutation lane (app); validate 43 PASS.
 - **nw/tinkerer-ask** — deepseek + opus review (two fix rounds); tag `nw/tinkerer-ask`. `askCommand` deleted (ADR 0058: a frame never builds the author's operation); the test and README declare the ask operation on `@tinker/process`; `@tinker/process` is a dev dependency only. Jev hit gone. Gate EXIT 0; mutation 81.74 alone; validate 43 PASS.
 - **nw/blueprint-shell** — deepseek + opus review; tag `nw/blueprint-shell`. The five CLI command operations declared once at module level (ADR 0057); Jev hits 10 → 0; CLI output unchanged. Adapter labels are named constants so the golden pair's `verify` skips them (comment + README say why).
 - **nw/examples** — deepseek + opus review; tag `nw/examples`. Every unit in 9 examples declared at module level (ADR 0057); Jev `unitCouldBeModuleLevel` hits 14 → 0; deterministic tours byte-identical; lazy routes still load once.
