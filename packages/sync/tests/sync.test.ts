@@ -604,6 +604,7 @@ test("two cells under one key reject startup with SyncConflict", async () => {
       expect.unreachable();
     },
     (error: unknown) => {
+      if (isError(error, "SyncNotReady")) throw error;
       if (!isError(error, "SyncConflict")) throw error;
       expect(error.payload.key).toBe("t07-dup");
     },
@@ -765,9 +766,13 @@ test("a viewer closes after a wrong-direction message arrives after ready", asyn
   await guest.close({ graceful: true });
 });
 
-test("a source rejects a snapshot sent in the register direction", async () => {
+test("a source rejects a snapshot without starting a registration", async () => {
+  const lines: Observe.Log[] = [];
   const src = source({ cells: [[counter, "counter"]] });
-  const origin = createScope({ extensions: [src] });
+  const origin = createScope({
+    extensions: [src],
+    observe: { history: 5, log: (entry) => lines.push(entry) },
+  });
   await origin.ready;
   const [near, far] = memoryPair();
   const done = origin.resolve(src).connect(near);
@@ -775,6 +780,7 @@ test("a source rejects a snapshot sent in the register direction", async () => {
   far.send({ type: "snapshot", key: "counter", version: 0, value: 9 });
   await parted;
   expect((await done).status).toBe("success");
+  expect(lines.filter((line) => line.message === "sync register")).toEqual([]);
   await origin.close({ graceful: true });
 });
 

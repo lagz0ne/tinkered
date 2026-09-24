@@ -60,7 +60,7 @@ A family key missing its label or member id closes the source wire.
 A one-letter family label can register its member.
 An empty family label cannot register a member. A key that is not published, a message in the wrong
 direction, or an unexpected throw inside the op closes the transport, no
-reply. A snapshot sent to the source is in the wrong direction and closes the wire.
+reply. A snapshot sent to the source is in the wrong direction and closes the wire without starting a registration step.
 A transport that fails to send a snapshot closes the source wire. The promise resolves with the session's close `Result` when the
 transport parts (`success`), or `cancelled` when a forced root close fells
 the session first — it never rejects (ADR 0027). The source start is sync,
