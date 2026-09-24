@@ -2410,13 +2410,32 @@ function resolveResourceDeps(
       if (node && !superseded()) addDependent(owner, node, target, chain, state);
     },
     chain,
-    state instanceof NsResourceState
-      ? (depOwner, depTarget, depState) => {
-          if (!superseded() && depState instanceof NsResourceState)
-            linkNsResourceDependent(depState, state);
-          selected?.(depOwner, depTarget, depState);
-        }
-      : selected,
+    selected,
+  );
+}
+
+/** Only named builds need to link the exact resource bucket selected by a dependency. */
+function resolveNamedResourceDeps(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  span: Observe.Span | undefined,
+  superseded: () => boolean,
+  chain: readonly Namespace[] | undefined,
+  state: ResourceState,
+  selected: SelectedResource | undefined,
+): Record<string, unknown> {
+  return resolveResourceDeps(
+    owner,
+    target,
+    span,
+    superseded,
+    chain,
+    state,
+    (depOwner, depTarget, depState) => {
+      if (!superseded() && state instanceof NsResourceState && depState instanceof NsResourceState)
+        linkNsResourceDependent(depState, state);
+      selected?.(depOwner, depTarget, depState);
+    },
   );
 }
 
@@ -2849,6 +2868,7 @@ function buildHooklessResource<T>(
   parent: Observe.Span | undefined,
   chain: readonly Namespace[] | undefined,
   rec: ResourceState,
+  resolveDeps: typeof resolveResourceDeps,
 ): unknown {
   const gen = rec.gen;
   const superseded = (): boolean => rec.gen !== gen;
@@ -2858,7 +2878,7 @@ function buildHooklessResource<T>(
   rec.building = true;
   buildDepth++;
   try {
-    const deps = resolveResourceDeps(owner, target, span, superseded, chain, rec, undefined);
+    const deps = resolveDeps(owner, target, span, superseded, chain, rec, undefined);
     const pending = parked;
     const ctx = emptyCtxFor(owner);
     const fn = target.factory;
@@ -2893,6 +2913,7 @@ function buildResource<T>(
   parent: Observe.Span | undefined,
   chain: readonly Namespace[] | undefined,
   rec: ResourceState,
+  resolveDeps: typeof resolveResourceDeps = resolveResourceDeps,
 ): unknown {
   if (rec.building) raise("CircularResource", { label: target.label });
   if (
@@ -2900,8 +2921,8 @@ function buildResource<T>(
     rec.instance === undefined &&
     !hasPresetLayers(owner)
   )
-    return buildHooklessResource(owner, target, parent, chain, rec);
-  return buildTrackedResource(owner, target, parent, chain, rec);
+    return buildHooklessResource(owner, target, parent, chain, rec, resolveDeps);
+  return buildTrackedResource(owner, target, parent, chain, rec, resolveDeps);
 }
 
 function buildTrackedResource<T>(
@@ -2910,6 +2931,7 @@ function buildTrackedResource<T>(
   parent: Observe.Span | undefined,
   chain: readonly Namespace[] | undefined,
   rec: ResourceState,
+  resolveDeps: typeof resolveResourceDeps,
 ): unknown {
   let instance: ResourceInstance | undefined;
   const gen = rec.gen;
@@ -2924,7 +2946,7 @@ function buildTrackedResource<T>(
     const override = presetFor(owner, target) as Resource.Handle<T>["factory"] | undefined;
     const fn = override ?? target.factory;
     instance = startBuildInstance(owner, target, rec, fn.length >= 2);
-    const deps = resolveResourceDeps(
+    const deps = resolveDeps(
       owner,
       target,
       span,
@@ -3141,7 +3163,7 @@ function readResourceState(
   if (state.failed) return state.failed.promise;
   if (state.build) return state.build;
   if (state.building) raise("CircularResource", { label: target.label });
-  return buildResource(owner, target, parent, chain, state);
+  return buildResource(owner, target, parent, chain, state, resolveNamedResourceDeps);
 }
 
 type Affected = { node: Node; owner: Layer };
