@@ -241,8 +241,8 @@ ok: 5 nodes, 6 units, 1 findings
 ```
 
 **With no key**, the plain lines print as above, then one more line:
-`body templates skipped: no key` (`@tinker/cli` has no stderr channel
-for a code-0 command — see the ticket report's deviations).
+`body templates skipped: no key` (the old `@tinker/cli` row had no stderr
+channel for a code-0 command — see the ticket report's deviations).
 
 **The golden pair** — `packages/blueprint/blueprint.yaml` describes
 every library unit in `packages/blueprint/src` (ADR 0055 §5). The

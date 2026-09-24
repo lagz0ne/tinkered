@@ -166,8 +166,8 @@ The app is built from the public libraries:
   its cells from snapshots.
 - [`@tinker/react`](../../packages/react/src/index.ts): providers and
   hooks — the page reads cells with `useData` and saves with `useRun`.
-- [`@tinker/cli`](../../packages/cli/src/index.ts): the `issues` command
-  entry — argv rows over the same HTTP operations.
+- [`@tinker/process`](../../packages/process/src/index.ts): the entrypoint —
+  the `issues` commands and the `mcp` stdio server in `src/tools/main.ts`.
 - [`@tinker/mcp`](../../packages/mcp/src/index.ts): the same five actions
   as MCP tools over stdio.
 - [`@tinker/harness`](../../packages/harness/src/index.ts): the optional
