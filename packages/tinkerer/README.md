@@ -286,9 +286,17 @@ const shell = {
   commands: [
     {
       name: "ask",
+      description: "run one turn and print the answer as it streams",
       entry: () => ({
         op: ask,
-        options: { tags: [config] },
+        options: {
+          tags: [
+            coder.config({
+              model: "m",
+              baseUrl: "https://api",
+            }),
+          ],
+        },
       }),
     },
   ],
