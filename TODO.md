@@ -41,7 +41,6 @@ card at a time.
 - **mutation/floor-85** — user 2026-09-24: "Mutation is always 85, set that everywhere" (commit
   `2b53dd5`). Census (opus `8758de3f`, reports `/tmp/mut-reports/`): mcp 85.29 ✓, http 85.05 ✓.
   Lift pairs, worktrees `../tinkered-mut-<pkg>`, every lane under `flock /tmp/mutation.lock`:
-  - mut/harness-85 — 76.30, sol 6 `47f88657`
   - mut/blueprint-85 — 79.47, sol 6 `13012c7a`
   - mut/sync-85 — 80.13, sol 6 `868a31df`
   - mut/hono-85 — 80.09, sol 6 `fa5ec7c3`
@@ -82,6 +81,7 @@ card at a time.
 
 ## Done
 
+- **mut/harness-85** — sol 6 + opus review (one fix round); tag `mut/harness-85`. Harness mutation 76.30 → 86.32 alone: tests at the public seam for raw approval parsing and for unset Codex options staying out of SDK calls; every claimed mutant `[Killed]`.
 - **jev/wrapper-checks** — sol 6 + opus review (two fix rounds); tag `jev/wrapper-checks`. Jev reports a wrapper before its fix: a plain-code check `unitCouldBeModuleLevel` (ADR 0057; 13 extractor tests, now in the gate) and a judge `wrapsCallersStep` (ADR 0058), now noisy after its false cases were labeled (prints `~`, advisory). It found every audit site first; five fix cards followed. Gate EXIT 0; no mutation lane (tools/jev); validate 43 PASS; calibrate: `wrapsCallersStep` noisy, sep 45%, ordered 85% (17 true, 12 false); no other judge changed status.
 - **nw/docs** — deepseek + opus review (one fix round); tag `nw/docs`. Glossary, best-practices, and the mcp/harness/blueprint/tracker/examples READMEs name today's shapes; ADR 0060 accepted with an As built line; ADR 0057 records `askCommand`'s deletion. Retired-name grep in living docs: only RETIRED lines and history remain. Gate EXIT 0; no mutation lane (docs); validate 43 PASS.
 - **nw/hono-stream** — sol 6 + opus review (one fix round); tag `nw/hono-stream`. `stream(c, op, call?)` runs a declared operation; the body reads `emit` from a tag and runs in its own child session (TSDoc + README say so); the trace names the body by its label. Tracker `draftBody` is its own operation with real depends. Jev hit gone. Gate EXIT 0; mutation 80.09 alone; validate 43 PASS.
