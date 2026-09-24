@@ -38,10 +38,6 @@ card at a time.
   `wrapsCallersStep` (ADR 0058). User rule (2026-09-24): Jev must report each wrapper before its fix.
   Verify: its report on main flags every audit site and none of the allowed frames.
 
-- **no-wrapper fixes** (user pick A; Jev reported every site first: 35 code hits, 16 judge hits).
-  Worktrees `../tinkered-nw-<name>`, briefs `/tmp/nw/f*.md`. Verify each: its Jev hits gone; gate.
-  - nw/hono-stream — sol 6 `d086938d`
-
 - **core/caught-subflow** — sol 6 (agent `ba5faf1f`), worktree `../tinkered-core-caught-subflow`.
   A caught subflow still fails its session and rejects a tagged run (found by the nw/hono-stream
   review). User pick A: ADR 0066, a subflow failure belongs to its caller. Verify: the tests in
@@ -82,6 +78,7 @@ card at a time.
 
 ## Done
 
+- **nw/hono-stream** — sol 6 + opus review (one fix round); tag `nw/hono-stream`. `stream(c, op, call?)` runs a declared operation; the body reads `emit` from a tag and runs in its own child session (TSDoc + README say so); the trace names the body by its label. Tracker `draftBody` is its own operation with real depends. Jev hit gone. Gate EXIT 0; mutation 80.09 alone; validate 43 PASS.
 - **nw/tracker-commands** — deepseek + opus review; tag `nw/tracker-commands`. The five CLI command operations declared once at module level (ADR 0057); Jev hits 10 → 0; `serveMcp` removes its watch and listener in `ctx.defer` (a cleanup no test can see: the process exits right after). Gate EXIT 0; no mutation lane (app); validate 43 PASS.
 - **nw/tinkerer-ask** — deepseek + opus review (two fix rounds); tag `nw/tinkerer-ask`. `askCommand` deleted (ADR 0058: a frame never builds the author's operation); the test and README declare the ask operation on `@tinker/process`; `@tinker/process` is a dev dependency only. Jev hit gone. Gate EXIT 0; mutation 81.74 alone; validate 43 PASS.
 - **nw/blueprint-shell** — deepseek + opus review; tag `nw/blueprint-shell`. The five CLI command operations declared once at module level (ADR 0057); Jev hits 10 → 0; CLI output unchanged. Adapter labels are named constants so the golden pair's `verify` skips them (comment + README say why).
