@@ -39,7 +39,9 @@ const stdio = extension({
 
 /** The `mcp` command: a server is a command that returns when it is told to
  * stop (ADR 0056). It waits for the transport to finish or for the signal —
- * either way the answer is 0, because for a server a signal is the normal stop. */
+ * either way the answer is 0, because for a server a signal is the normal stop.
+ * The wait is one watch on the stop cell plus one abort listener; `defer` takes
+ * both off when the run settles. */
 const serveMcp = operation({
   label: "mcp",
   depends: { stopping: stopping.controller },
@@ -50,9 +52,13 @@ const serveMcp = operation({
         answer();
         return;
       }
-      ctx.signal.addEventListener("abort", answer, { once: true });
-      deps.stopping.watch((next) => {
+      const unwatch = deps.stopping.watch((next) => {
         if (next) answer();
+      });
+      ctx.signal.addEventListener("abort", answer, { once: true });
+      ctx.defer(() => {
+        unwatch();
+        ctx.signal.removeEventListener("abort", answer);
       });
     }),
 });
