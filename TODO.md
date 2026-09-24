@@ -33,12 +33,6 @@ Pairs since 2026-09-23: a writer (sol 6 for hard, deepseek-v4.1-flash for simple
 reviewer per card; the lead runs mutation, bench, and `pnpm validate` alone at landing, one core
 card at a time.
 
-- **perf/create-creep** — sol 6 (agent `d2cecb98`), worktree `../tinkered-perf-create`. `create` (createScope) crept up at four core landings in two days:
-  t02b-2 +2.0%, ns-watch-index +1.4%, tagged-promises +1.6%, ns-watch-child +2.5% (each alone
-  under the bar). Next: one N=61 `bench/ab.sh` run, `create cold`, main vs tag
-  `namespace-v1/t02b-1`, then find what each landing added to scope creation. Verify: the total
-  and each cause named; a fix brings `create` within 2% of `namespace-v1/t02b-1`.
-
 | Card | Owner | Next | Verify |
 
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -72,6 +66,19 @@ card at a time.
 
 ## Done
 
+- **perf/create-creep** — sol 6 + opus review; tag `perf/create-creep`. `create` crept up
+  at four core landings. Two causes:
+  - each scope built its own `releaseNs` closure; now `release` and `releaseNs` share one
+    function.
+  - every build did the named-link work; now only named builds do.
+    Gate green (core 534 tests); core mutation 85.46 alone; `pnpm validate` 43/43 PASS;
+    tagged promises 17. N=61, vs tag `namespace-v1/t02b-1`:
+  - create -0.4%.
+  - cold -2.2%.
+    N=61, vs main `c400cf5`:
+  - op -0.1%.
+  - opres +0.4%.
+  - lifecycle -2.5%.
 - **core/release-cell-ns** — sol 6 + opus review; tag `core/release-cell-ns`. `release(cell)`
   now clears the cell's namespace entries at that layer (ADR 0063). It also stops releasing
   resources built on a CHILD's own entry, which main did.
