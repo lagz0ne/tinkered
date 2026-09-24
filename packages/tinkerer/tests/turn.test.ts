@@ -227,7 +227,7 @@ test("an empty raw prompt fails validation with EmptyPrompt as the cause, no req
   await scope.close();
 });
 
-test("a non-string raw prompt fails validation with EmptyPrompt before any request", async () => {
+test("a raw prompt of 42 fails validation with EmptyPrompt and sends no request", async () => {
   const seen: HttpRequest.Record[] = [];
   const scope = scopeConfig(seen);
   try {
@@ -243,7 +243,7 @@ test("a non-string raw prompt fails validation with EmptyPrompt before any reque
   await scope.close();
 });
 
-test("a non-empty string passed as the raw prompt runs the turn", async () => {
+test('a raw prompt of "hi" runs the turn and sends one request', async () => {
   const seen: HttpRequest.Record[] = [];
   const scope = scopeConfig(seen);
   const reply = await scope.createSession().run(coder.turn, { rawInput: "hi" });

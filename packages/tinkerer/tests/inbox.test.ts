@@ -66,7 +66,7 @@ test("a queued entry continues the turn when the model would stop", async () => 
   await s.close();
 });
 
-test("a steer drained at turn start leaves a queued entry pending", async () => {
+test("a steer pushed before the turn is injected first and the queue still runs", async () => {
   const seen: HttpRequest.Record[] = [];
   const s = scope(seen, [answer, answer]);
   const session = s.createSession();

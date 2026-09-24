@@ -204,7 +204,7 @@ test("bash keeps the tail of a large output and marks the cut", async () => {
   await scope.close();
 });
 
-test("bash keeps an output of exactly the cap whole", async () => {
+test("bash keeps an output of exactly 20000 characters whole", async () => {
   const scope = createScope({ tags: [cwd(notesDir())] });
   const said = await scope.run(bash, {
     rawInput: { command: "head -c 20000 /dev/zero | tr '\\0' 'y'" },
@@ -221,7 +221,7 @@ test("bash gives the command no stdin so a reader returns at once", async () => 
   await scope.close();
 });
 
-test("bash names a signal when the command dies by one", async () => {
+test("bash answers [exit signal] when the command dies by a signal", async () => {
   const scope = createScope({ tags: [cwd(notesDir())] });
   const said = await scope.run(bash, { rawInput: { command: "kill -9 $$" } });
   expect(said).toBe("\n[exit signal]");

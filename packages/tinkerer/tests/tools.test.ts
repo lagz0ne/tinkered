@@ -469,7 +469,7 @@ test("a tool whose own input fails validation answers the cause's own message", 
   await scope.close();
 });
 
-test("a streamed tool-call piece with no id, name or arguments still shapes the call", async () => {
+test("a tool-call piece with no id, name or arguments yields empty strings in the call", async () => {
   const pieces = [
     JSON.stringify({
       choices: [{ delta: { tool_calls: [{ index: 0 }] }, finish_reason: null }],

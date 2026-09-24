@@ -161,7 +161,7 @@ test("a reply cut by the token limit logs ok false for every call", async () => 
   await scope.close();
 });
 
-test("a gate decision logs the tool name and whether it allowed", async () => {
+test("a refusing gate logs the tool name and allow false", async () => {
   const logs: Observe.Log[] = [];
   const act = operation({
     label: "act",
