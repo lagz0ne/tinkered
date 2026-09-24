@@ -201,11 +201,6 @@ function isFlag(word: string): boolean {
   return word.startsWith("-") && word !== "-";
 }
 
-/** Whether this flag takes the word after it: it is named in `values`, and there is one. */
-function takesValue(values: readonly string[], word: string, after: number): boolean {
-  return values.includes(word) && after > 0;
-}
-
 /** The plain words of `argv`, in order. A `--name` is a flag; a flag named in `values` takes
  * the next word as its value; `--name=value` is one word; `--` ends the flags. `-` is plain;
  * a value flag at the end with no next word takes nothing. */
@@ -230,7 +225,7 @@ export function positionals(
       words.push(word);
       continue;
     }
-    if (takesValue(values, word, argv.length - at - 1)) at += 1;
+    if (values.includes(word)) at += 1;
   }
   return words;
 }
