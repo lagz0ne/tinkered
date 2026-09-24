@@ -72,6 +72,10 @@ card at a time.
 
 ## Done
 
+- **docs/simplify-workflows** — Claude; `CLAUDE.md` 155 → 109 lines.
+  ADR 0065: an impact block only across packages; a Jev label is the note.
+  Proof: `vp check` green; `vp run prose` clean.
+
 - **validate/red-lanes** — lead, direct (three stale checks). http's bundle check looked for the retired
   `httpClient`, process's for the retired `command`; the cast check matched "as JSON" in two example
   comments. `pnpm validate`: only the tagged promise count stays red (core/tagged-promises).

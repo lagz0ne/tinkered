@@ -42,10 +42,12 @@ over at least 5 labeled cases a side (ADR 0054); `provisional` means fewer cases
 
 ## The workflow around it
 
-1. Writer: pre-flight, then `tests.mjs` and `promises.mjs` on touched packages. Every non-`~` hit: fixed or
-   explained in one line, then labeled (`label.mjs … true` for fixed, `… false` for explained).
-2. Lead: `review.mjs` on the branch; each fix-round nit a judge covers gets labeled true.
-3. Lead, every ~10 new cases: `calibrate.mjs`, commit `calibration.json`. A noisy judge's hits print as `~`.
+1. Writer: pre-flight, then `tests.mjs` and `promises.mjs` on touched packages. Every `⚠` gets one
+   label, and the label is the answer: `label.mjs … true --why "<fixed how>"`, or
+   `… false --why "<why not a defect>"` (ADR 0065).
+2. Lead: `review.mjs` on the branch; label a flag when you disagree with the writer's label.
+3. Lead, at every landing that adds labels: `calibrate.mjs`, commit `calibration.json` (ADR 0054). A
+   noisy judge's hits print as `~`.
 4. Never block on a judge that is not `proven` (none blocks today). Never add a rule for one ticket.
 
 ## The judges
