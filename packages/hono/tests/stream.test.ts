@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import {
   createScope,
   makeTestClock,
+  namespace,
   operation,
   resource,
   tag,
@@ -86,6 +87,43 @@ test("the body yields each chunk as the clock advances, then ends", async () => 
   expect(await readAll(readerOf(res), clk)).toEqual(["a", "b", "c"]);
   expect(scope.spans().find((span) => span.name === "streamBody")?.status).toBe("ok");
   expect(scope.spans().some((span) => span.name === "GET /stream body")).toBe(false);
+  await scope.close();
+});
+
+test("emit passes byte chunks unchanged to the reader", async () => {
+  const bytes = new Uint8Array([0, 128, 255]);
+  const send = operation({
+    label: "sendBytes",
+    depends: { emit: emit.required },
+    run: ({ emit }) => emit(bytes),
+  });
+  const ready = operation({ label: "ready", run: () => undefined });
+  const { extension: web } = hono([
+    route.get("/bytes", ready, { respond: (_value, c) => stream(c, send) }),
+  ]);
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const res = await scope.resolve(web).request("/bytes");
+  expect(new Uint8Array(await res.arrayBuffer())).toEqual(bytes);
+  await scope.close();
+});
+
+test("a stream call namespace selects the body's namespace bindings", async () => {
+  const flavor = tag<string>({ label: "flavor" });
+  const alpha = namespace({ tags: [flavor("alpha")] });
+  const send = operation({
+    label: "sendFlavor",
+    depends: { emit: emit.required, flavor: flavor.required },
+    run: ({ emit, flavor }) => emit(flavor),
+  });
+  const ready = operation({ label: "ready", run: () => undefined });
+  const { extension: web } = hono([
+    route.get("/flavor", ready, { respond: (_value, c) => stream(c, send, { ns: alpha }) }),
+  ]);
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const res = await scope.resolve(web).request("/flavor");
+  expect(await res.text()).toBe("alpha");
   await scope.close();
 });
 
