@@ -1932,13 +1932,14 @@ function recordUsed(
   }
 }
 
-/** Track owned async work so `settled()`/`close` join it. `onReject` decides where a rejection
- * goes: the owner's primary failure (operations, current-generation builds) or the secondary
- * bucket (release/abandoned cleanups) which never changes the outcome (ADR 0017). */
+/** While a run has not settled, its subflows' failures go to it, not the layer (ADR 0066). */
 type RunState = { settled: boolean };
 /** A run without subflow deps needs no per-call state; nobody can read this shared sentinel. */
 const NO_SUBFLOW_RUN: RunState = { settled: true };
 
+/** Track owned async work so `settled()`/`close` join it. `onReject` decides where a rejection
+ * goes: the owner's primary failure (operations, current-generation builds) or the secondary
+ * bucket (release/abandoned cleanups) which never changes the outcome (ADR 0017). */
 function track(
   layer: Layer,
   result: unknown,

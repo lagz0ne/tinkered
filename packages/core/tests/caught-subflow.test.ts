@@ -33,12 +33,22 @@ for (const kind of ["scope", "session"] as const) {
   }
 }
 
-test("a caller can catch a failed tagged subflow session", async () => {
+test("a graceful parent close keeps success when a running tagged subflow is caught", async () => {
   const zone = tag<string>({ label: "zone" });
   const cause = new Error("tagged boom");
+  let started!: () => void;
+  let release!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
   const inner = operation({
     label: "inner",
     run: async () => {
+      started();
+      await gate;
       throw cause;
     },
   });
@@ -56,8 +66,12 @@ test("a caller can catch a failed tagged subflow session", async () => {
   });
   const root = createScope();
   const session = root.createSession();
-  expect(await session.run(outer)).toBe("caught");
-  expect((await session.close({ graceful: true })).status).toBe("success");
+  const running = session.run(outer);
+  await ready;
+  const closing = session.close({ graceful: true });
+  release();
+  expect(await running).toBe("caught");
+  expect((await closing).status).toBe("success");
   await root.close({ graceful: true });
 });
 
@@ -139,37 +153,43 @@ test("a caught subflow closes its own span failed and its caller span ok", async
   await scope.close({ graceful: true });
 });
 
-test("a forced close during a caught subflow cancels instead of failing", async () => {
+test("a forced close after a caught real subflow failure cancels the session", async () => {
+  const cause = new Error("real");
   let started!: () => void;
   const ready = new Promise<void>((resolve) => {
     started = resolve;
   });
   const inner = operation({
     label: "inner",
-    run: async (_deps, { signal }) => {
-      started();
-      await new Promise<void>((_resolve, reject) => {
-        signal.addEventListener("abort", () => reject(signal.reason), { once: true });
-      });
+    run: async () => {
+      throw cause;
     },
   });
   const outer = operation({
     label: "outer",
     depends: { sub: inner },
-    run: async ({ sub }) => {
+    run: async ({ sub }, { signal }) => {
       try {
         await sub.run();
-      } catch {
-        return "caught";
+      } catch (error) {
+        if (error !== cause) throw error;
       }
+      await new Promise<void>((_resolve, reject) => {
+        signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+        started();
+      });
     },
   });
   const root = createScope();
   const session = root.createSession();
   const running = session.run(outer);
   await ready;
+  const interrupted = running.then(
+    () => false,
+    () => true,
+  );
   const closing = session.close();
-  expect(await running).toBe("caught");
+  expect(await interrupted).toBe(true);
   expect((await closing).status).toBe("cancelled");
   await root.close();
 });
