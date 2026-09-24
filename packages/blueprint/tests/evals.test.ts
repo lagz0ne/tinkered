@@ -149,6 +149,7 @@ test("an eval file missing expect fails InvalidEval", () => {
   } catch (error: unknown) {
     if (!isError(error, "InvalidEval")) throw error;
     expect(error.payload.file).toBe("bad.yaml");
+    expect(error.message).toContain("expect:");
   }
 });
 
@@ -259,7 +260,7 @@ test("gradeTemplate fails InvalidEval when source names no unit labeled target",
 
 test("median sorts numerically before finding the middle, not lexicographically", () => {
   expect(median([])).toBeNaN();
-  expect(median([10, 2, 1])).toBe(2);
+  expect(median([2, 10, 1])).toBe(2);
   expect(median([1, 2, 3, 4])).toBe(2.5);
 });
 
@@ -294,6 +295,16 @@ test("gradeTemplate grades provisional with fewer than five cases on a side", as
       clean: [booleanEval("CLEAN", 1), booleanEval("CLEAN", 2)],
       golden: [],
     },
+    fakeJudge(),
+    signal,
+  );
+  expect(grade.status).toBe("provisional");
+});
+
+test("gradeTemplate stays provisional when four bad cases face five clean cases", async () => {
+  const grade = await gradeTemplate(
+    probeTemplate,
+    { bad: fiveBad.slice(0, 4), clean: fiveClean, golden: [] },
     fakeJudge(),
     signal,
   );
@@ -432,7 +443,7 @@ test("evalSet reads YAML evals only and treats an absent side as empty", async (
   }
 });
 
-test("evalSet adds the package's own source bodies only for body templates", async () => {
+test("evalSet adds the package's own golden pair for body templates", async () => {
   const dir = mkdtempSync(join(tmpdir(), "blueprint-eval-body-"));
   mkdirSync(join(dir, "probeBody"));
   writeFileSync(
@@ -446,11 +457,23 @@ test("evalSet adds the package's own source bodies only for body templates", asy
     const cases = scope.resolve(evalSet).get("probeBody")?.golden ?? [];
     expect(cases.map((item) => item.file)).toContain("blueprint.yaml");
     expect(cases.map((item) => item.file)).toContain("golden.yaml");
-    expect(
-      cases
-        .filter((item) => item.file === "blueprint.yaml")
-        .every((item) => item.body !== undefined),
-    ).toBe(true);
+  } finally {
+    await scope.close({ graceful: true });
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test("evalSet gives the own golden pair only to the body template in a mixed corpus", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "blueprint-eval-mixed-"));
+  mkdirSync(join(dir, "probe"));
+  mkdirSync(join(dir, "probeBody"));
+  const scope = createScope({
+    tags: [corpusPath(join(here, "fixtures", "corpus-body-mix")), evalsPath(dir)],
+  });
+  try {
+    const set = scope.resolve(evalSet);
+    expect(set.get("probe")?.golden).toEqual([]);
+    expect(set.get("probeBody")?.golden.map((item) => item.file)).toContain("blueprint.yaml");
   } finally {
     await scope.close({ graceful: true });
     rmSync(dir, { recursive: true });

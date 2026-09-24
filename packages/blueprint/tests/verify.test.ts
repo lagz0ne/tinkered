@@ -4,14 +4,16 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
-import { preset, type Scope } from "@tinker/core";
+import { createScope, isError as isCoreError, preset, type Scope } from "@tinker/core";
 import { run, type Process } from "@tinker/process";
 import {
   bodyJudge,
   corpusPath,
+  isError,
   readBlueprint,
   readUnits,
   shell,
+  verify,
   verifyChecks,
   type Blueprint,
 } from "../src/index.ts";
@@ -246,6 +248,31 @@ test("targetMismatch: the file's target differs from the code's", () => {
   ]);
 });
 
+test("a rejected verify carries each mismatch as a separate line", async () => {
+  const scope = createScope();
+  try {
+    await scope.run(verify, {
+      input: {
+        graph: readBlueprint(
+          "- resource:\n    name: box\n    target: session\n    depends: [db]\n    promise: p\n    why: w\n",
+        ),
+        units: readUnits('const box = resource({ label: "box" });', "box.ts"),
+        json: false,
+      },
+    });
+    expect.unreachable("must reject mismatches");
+  } catch (error: unknown) {
+    if (!isError(error, "BlueprintRejected")) throw error;
+    expect(error.payload.findings).toEqual([
+      "dependsMismatch  box  the file names [db]; the code names []",
+      "targetMismatch  box  the file says session; box.ts:1 declares scope",
+    ]);
+    expect(error.message).toContain(error.payload.findings.join("\n"));
+  } finally {
+    await scope.close({ graceful: true });
+  }
+});
+
 test("verify on the golden pair with no key prints zero findings and the skip note, exit 0", async () => {
   const result = await answer(["verify", blueprintYaml, srcDir]);
   expect(result.code).toBe(0);
@@ -280,6 +307,17 @@ test("a dir with no *.ts file answers exit 2, NoSource", async () => {
   try {
     const result = await answer(["verify", yamlPath, dir]);
     expect(result.code).toBe(2);
+    const scope = createScope();
+    try {
+      await scope.run(verify, { rawInput: { text: "[]", units: [], dir } });
+      expect.unreachable("must reject empty source");
+    } catch (error: unknown) {
+      if (!isCoreError(error, "DataValidationFailed")) throw error;
+      if (!isError(error.payload.cause, "NoSource")) throw error;
+      expect(error.payload.cause.payload.dir).toBe(dir);
+    } finally {
+      await scope.close({ graceful: true });
+    }
   } finally {
     rmSync(dir, { recursive: true });
   }

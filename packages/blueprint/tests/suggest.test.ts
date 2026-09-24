@@ -166,6 +166,8 @@ test("a shapes map with a key outside choices fails the corpus load", () => {
     expect.unreachable("the load must fail");
   } catch (error: unknown) {
     if (!isError(error, "InvalidTemplate")) throw error;
-    expect(JSON.stringify(error.payload.issues)).toContain("shapes");
+    expect(error.payload.issues).toEqual([
+      expect.objectContaining({ path: ["shapes"], message: "shapes keys must equal choices keys" }),
+    ]);
   }
 });

@@ -1,0 +1,15 @@
+id: pick
+scope: node
+applies: [resource, operation]
+needs: [kind, body]
+status: provisional
+ask: Which one?
+kind: choice
+compare: kind
+minConfidence: 0.6
+choices:
+  resource: holds a connection
+  operation: performs a call
+shapes:
+  resource: resource with factory
+  operation: operation with run

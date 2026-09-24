@@ -150,6 +150,8 @@ dataNoWriter   issueList  no operation
 ok: 5 nodes, 2 findings
 ```
 
+- A boolean answer right at its threshold hits. A choice answer right
+  at its confidence floor hits too.
 - A **boolean** template hits at or above its `threshold`. A **choice**
   template hits when the pick differs from the node's `compare` field, at
   or above `minConfidence`; below `minConfidence`, or a pick that matches
@@ -157,6 +159,8 @@ ok: 5 nodes, 2 findings
   `"a, b"`, in file order — in plain output and in `--json`.
 - **`~`** marks a hit from a template that is not `proven`: it prints, it
   never sets the exit code.
+- A rejected check keeps each blocking finding as its own line in the
+  error payload and message.
 - A hit blocks (sets the exit code) when its template is `proven`, or it
   is a plain check — `unknownDepends`, `duplicateName`, `dataNoWriter` —
   which always blocks.
@@ -225,6 +229,8 @@ ok: 5 nodes, 6 units, 5 findings
   nothing else.
 - **Exit 0** — every plain check passed and no body-template hit is
   `proven` (a `~` hit still prints).
+- A rejected verify keeps each mismatch as its own line in the error
+  payload and message.
 - **Exit 1** — a plain check failed (always blocks; there is no `~`),
   or a body-template hit is `proven`.
 - **Exit 2** — the yaml file is not a blueprint, or the dir holds no
@@ -273,6 +279,9 @@ body templates skipped: no key
 
 ## explain, evals
 
+- With no markdown flag, `explain` uses plain text. Choice templates
+  print their comparison and shape for each choice in either format;
+  lists of fields keep their commas.
 - `explain` prints every template verbatim, one block per template, a
   blank line between; `explain --md` prints the same as a markdown list.
   A choice template's shape (see "The corpus" below) prints as
@@ -355,7 +364,7 @@ one law` (`unit:`) or `unclear (<pick> only <pct>)` (`target:`).
 
 - Evals read only `.yaml` files; an absent `bad` or `clean` folder
   counts as empty. The package's own source bodies add golden cases
-  only for templates that need `body`.
+  only for templates that need `body`, even in a mixed corpus.
 - Every template ships with evals under `evals/<id>/{bad,clean}/*.yaml`
   — at least 2 bad and 2 clean files each, 5 and 5 before a status can
   read `proven`.
@@ -394,6 +403,7 @@ blueprint:
   boolean's own probability, or a choice's `1 - probabilities
 [declaredKind]` (0 when the judge's answer is missing). `bad` cases
   should score high, `clean` cases low.
+- With four bad cases and five clean cases, the grade stays provisional.
 - **sep** — `median(bad) - median(clean)`; `median` sorts its values
   numerically, never lexicographically, before taking the middle one.
   **ordered** — the share of

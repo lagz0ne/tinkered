@@ -99,6 +99,40 @@ test("a proven hit blocks: BlueprintRejected, exit 1, the line on stderr without
   }
 });
 
+test("a boolean answer at its threshold makes a provisional finding", async () => {
+  const scope = createScope({
+    tags: [corpusPath(provisionalCorpus)],
+    presets: [preset(judge, () => fake({ probe: { type: "boolean", probability: 0.5 } }))],
+  });
+  try {
+    const result = await scope.run(check, {
+      input: { graph: readBlueprint(oneOperation), json: false },
+    });
+    expect(result.report.findings.map((finding) => finding.check)).toEqual(["probe"]);
+  } finally {
+    await scope.close({ graceful: true });
+  }
+});
+
+test("a choice answer at its confidence floor makes a provisional finding", async () => {
+  const scope = createScope({
+    tags: [corpusPath(provisionalCorpus)],
+    presets: [
+      preset(judge, () =>
+        fake({ pick: { type: "choice", choice: "operation", probabilities: { operation: 0.6 } } }),
+      ),
+    ],
+  });
+  try {
+    const result = await scope.run(check, {
+      input: { graph: readBlueprint(oneResource), json: false },
+    });
+    expect(result.report.findings.map((finding) => finding.check)).toEqual(["pick"]);
+  } finally {
+    await scope.close({ graceful: true });
+  }
+});
+
 test("a choice below minConfidence makes no finding", async () => {
   const scope = createScope({
     tags: [corpusPath(provisionalCorpus)],
@@ -247,6 +281,33 @@ test("a plain finding still blocks, regardless of any template", async () => {
     );
   } finally {
     rmSync(dirname(path), { recursive: true });
+  }
+});
+
+test("a rejected check carries each blocking finding as a separate line", async () => {
+  const scope = createScope({
+    tags: [corpusPath(provisionalCorpus)],
+    presets: [preset(judge, () => fake({}))],
+  });
+  try {
+    await scope.run(check, {
+      input: {
+        graph: readBlueprint(
+          "- operation:\n    name: save\n    depends: [missing, absent]\n    promise: p\n    why: w\n",
+        ),
+        json: false,
+      },
+    });
+    expect.unreachable("must reject missing dependencies");
+  } catch (error: unknown) {
+    if (!isError(error, "BlueprintRejected")) throw error;
+    expect(error.payload.findings).toEqual([
+      'unknownDepends  save  depends on "missing": no such node',
+      'unknownDepends  save  depends on "absent": no such node',
+    ]);
+    expect(error.message).toContain(error.payload.findings.join("\n"));
+  } finally {
+    await scope.close({ graceful: true });
   }
 });
 

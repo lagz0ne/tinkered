@@ -136,6 +136,16 @@ test("a pair template sits in pairs and in no forKind list", async () => {
     expect(loaded.forKind(kind).map((template) => template.id)).not.toContain("whyDuplicate");
 });
 
+test("explain uses plain text when no markdown flag is given", async () => {
+  const scope = createScope();
+  try {
+    const report = scope.run(explain, { rawInput: null });
+    expect(report.md).toBe(false);
+  } finally {
+    await scope.close({ graceful: true });
+  }
+});
+
 test("explain answers every template beside the flag", async () => {
   const scope = createScope();
   try {
@@ -183,6 +193,32 @@ async function answer(
 ): Promise<Process.Result> {
   return run(shell(options), argv);
 }
+
+test("explain prints choice comparison, both shapes, and lists of fields", async () => {
+  const result = await answer(["explain"], {
+    tags: [corpusPath(join(here, "fixtures", "corpus-detail"))],
+  });
+  expect(result.code).toBe(0);
+  expect(result.stdout).toContain("applies: resource, operation\nneeds: kind, body\n");
+  expect(result.stdout).toContain("compare: kind\n");
+  expect(result.stdout).toContain(
+    "resource: holds a connection\nshape.resource: resource with factory\n" +
+      "operation: performs a call\nshape.operation: operation with run\n",
+  );
+});
+
+test("explain --md includes the choice comparison and both shapes", async () => {
+  const result = await answer(["explain", "--md"], {
+    tags: [corpusPath(join(here, "fixtures", "corpus-detail"))],
+  });
+  expect(result.code).toBe(0);
+  expect(result.stdout).toContain("  applies: resource, operation\n  needs: kind, body\n");
+  expect(result.stdout).toContain("  compare: kind\n");
+  expect(result.stdout).toContain(
+    "  resource: holds a connection\n  shape.resource: resource with factory\n" +
+      "  operation: performs a call\n  shape.operation: operation with run\n",
+  );
+});
 
 test("explain prints a template as its file's fields, one per line", async () => {
   const options = { tags: [corpusPath(join(here, "fixtures", "corpus-print"))] };
