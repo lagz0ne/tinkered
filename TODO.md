@@ -23,10 +23,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-| Card                                                                                                                                                | Owner         | Next                                                                                                                                                            | Verify                                        |
-| --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| tests/core-tag-read-split — `tag.read returns each unit's own binding on an operation, a resource, and a tag itself` proves three kinds in one body | lead (Claude) | Split three ways (one kind each) or keep one; it also overlaps `tag.read finds a unit's own binding` next door (the titles writer's delete-not-retitle finding) | one cause per test; core lane ≥ break         |
-| docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)                               | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean |
+| Card                                                                                                                  | Owner         | Next                                                                                                                                                            | Verify                                        |
+| --------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout) | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean |
 
 ## Doing
 
@@ -72,6 +71,9 @@ card at a time.
 
 ## Done
 
+- **tests/core-tag-read-split** — deepseek + opus review (one fix round); tag `tests/core-tag-read-split`.
+  Two mixed `tag.read` tests became six one-cause tests, one README line each; the review restored
+  the lost "skips another tag's binding" check. Core 515 tests.
 - **docs/simplify-workflows** — Claude; `CLAUDE.md` 155 → 109 lines.
   ADR 0065: an impact block only across packages; a Jev label is the note.
   Proof: `vp check` green; `vp run prose` clean.
