@@ -61,6 +61,31 @@ test("a confident resource pick prints unit, shape, target, all", async () => {
   );
 });
 
+test("a pick at the confidence floor prints its shape and an unclear target", async () => {
+  const result = await answer(["suggest", "hold the connection"], {
+    presets: [
+      preset(judge, () =>
+        fake({
+          unitFits: {
+            type: "choice",
+            choice: "resource",
+            probabilities: { data: 0.1, operation: 0.2, resource: 0.6, tag: 0.1 },
+          },
+          target: {
+            type: "choice",
+            choice: "session",
+            probabilities: { scope: 0.4, session: 0.6 },
+          },
+        }),
+      ),
+    ],
+  });
+  expect(result.code).toBe(0);
+  expect(result.stdout).toContain(`shape:   ${resourceShape}`);
+  expect(result.stdout).toContain("target:  session (60%)");
+  expect(result.stdout).toContain("all:     resource 60%, operation 20%");
+});
+
 test("an unconfident pick prints unclear, with no shape or target line", async () => {
   const result = await answer(["suggest", "poll the API every 10s and keep the latest list"], {
     presets: [

@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -48,6 +48,55 @@ function writeBodyCase(): { readonly dir: string; readonly yamlPath: string } {
   return { dir, yamlPath };
 }
 
+test("readUnits reads an unexported const with quoted keys and a function body", () => {
+  const units = readUnits(
+    'const job = operation({ "label": "job", "depends": { "db": engine.optional, ...extra }, run: function () { return 1; } });',
+    "ops.ts",
+  );
+  expect(units).toEqual([
+    {
+      kind: "operation",
+      label: "job",
+      file: "ops.ts",
+      line: 1,
+      depends: ["engine"],
+      target: undefined,
+      body: "function () { return 1; }",
+    },
+  ]);
+});
+
+test("readUnits skips calls that do not declare a named const unit", () => {
+  const units = readUnits(
+    [
+      'import { operation } from "@tinker/core";',
+      'let mutable = operation({ label: "mutable" });',
+      'const wrong = make({ label: "wrong" });',
+      'const member = factory.operation({ label: "member" });',
+      "const spread = operation(...args);",
+      "const empty = operation();",
+      'function hidden() { return operation({ label: "hidden" }); }',
+      'const found = operation({ label: "found" });',
+    ].join("\n"),
+    "ops.ts",
+  );
+  expect(units.map((unit) => unit.label)).toEqual(["found"]);
+});
+
+test("readUnits reads only a literal string label and a literal session target", () => {
+  const units = readUnits(
+    "const dynamic = resource({ label: variable });\n" +
+      "const number = resource({ label: 12 });\n" +
+      'const task = resource({ label: "task", target: currentTarget });\n' +
+      'const session = resource({ label: "session", target: "session" });',
+    "ops.ts",
+  );
+  expect(units.map((unit) => [unit.label, unit.target])).toEqual([
+    ["task", "scope"],
+    ["session", "session"],
+  ]);
+});
+
 test("readUnits reads a resource's depends value, target, and factory body", () => {
   const src = [
     'export const corpusPath = tag({ label: "corpusPath" });',
@@ -79,6 +128,32 @@ test("readUnits resolves engine.optional to engine and keeps store.tx as written
 test("a unit without a literal label is skipped", () => {
   const units = readUnits('export const x = data({ promise: "p" });\n', "a.ts");
   expect(units).toEqual([]);
+});
+
+test("depends mismatch reports a replaced dependency even when counts match", () => {
+  const graph = readBlueprint(
+    "- operation:\n    name: save\n    depends: [store]\n    promise: p\n    why: w\n",
+  );
+  const units = readUnits(
+    'export const save = operation({ label: "save", depends: { clock } });',
+    "ops.ts",
+  );
+  expect(verifyChecks(graph, units).map((finding) => finding.check)).toEqual(["dependsMismatch"]);
+});
+
+test("a resource missing from source is reported without a target check", () => {
+  const graph = readBlueprint(
+    "- resource:\n    name: tx\n    target: session\n    promise: p\n    why: w\n",
+  );
+  expect(verifyChecks(graph, [])).toEqual([
+    {
+      source: "plain",
+      check: "missingUnit",
+      node: "tx",
+      detail: 'no unit labeled "tx"',
+      blocking: true,
+    },
+  ]);
 });
 
 test("missingUnit: a node with no unit of that label", () => {
@@ -178,6 +253,24 @@ test("verify on the golden pair with no key prints zero findings and the skip no
     "ok: 12 nodes, 12 units, 0 findings\nbody templates skipped: no key\n",
   );
   expect(result.stderr).toBe("");
+});
+
+test("verify walks nested source and ignores test and declaration files", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "blueprint-verify-walk-"));
+  const yamlPath = join(dir, "case.yaml");
+  mkdirSync(join(dir, "nested"));
+  writeFileSync(yamlPath, "- data:\n    name: box\n    promise: p\n    why: w\n");
+  writeFileSync(join(dir, "nested", "box.ts"), 'export const box = data({ label: "box" });');
+  writeFileSync(join(dir, "extra.test.ts"), 'export const extra = data({ label: "extra" });');
+  writeFileSync(join(dir, "extra.d.ts"), 'export const extra = data({ label: "extra" });');
+  writeFileSync(join(dir, "extra.js"), 'export const extra = data({ label: "extra" });');
+  try {
+    const result = await answer(["verify", yamlPath, dir, "--json"]);
+    expect(result.code).toBe(0);
+    expect(JSON.parse(result.stdout)).toEqual({ nodes: 1, units: 1, findings: [] });
+  } finally {
+    rmSync(dir, { recursive: true });
+  }
 });
 
 test("a dir with no *.ts file answers exit 2, NoSource", async () => {

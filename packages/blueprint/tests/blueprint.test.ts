@@ -22,6 +22,18 @@ test("the ADR example parses to 5 nodes in file order with edges both ways", () 
   expect(graph.usedBy("db").map((node) => node.name)).toEqual(["tx"]);
 });
 
+test("malformed YAML fails as InvalidBlueprint with the original text and parser issue", () => {
+  const text = "- data: [oops\n";
+  try {
+    readBlueprint(text);
+    expect.unreachable("must reject malformed YAML");
+  } catch (error: unknown) {
+    if (!isError(error, "InvalidBlueprint")) throw error;
+    expect(error.payload.text).toBe(text);
+    expect(error.payload.issues).toHaveLength(1);
+  }
+});
+
 test("a dotted name is rejected with InvalidBlueprint and an issue that names the dot", () => {
   try {
     readBlueprint("- data:\n    name: a.b\n    promise: p\n    why: w\n");
@@ -95,6 +107,13 @@ test("duplicateName produces one finding per repeated name", () => {
       blocking: true,
     },
   ]);
+});
+
+test("data used only by another data node still needs a writer", () => {
+  const graph = readBlueprint(
+    "- data:\n    name: source\n    promise: p\n    why: w\n- data:\n    name: view\n    depends: [source]\n    promise: p\n    why: w\n- operation:\n    name: refresh\n    depends: [view]\n    promise: p\n    why: w\n",
+  );
+  expect(plainChecks(graph).map((finding) => finding.node)).toEqual(["source"]);
 });
 
 test("dataNoWriter produces one finding per data node with no writer", () => {

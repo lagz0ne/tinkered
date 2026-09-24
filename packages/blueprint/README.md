@@ -104,6 +104,7 @@ ok: 2 nodes, 2 units, 0 findings
   `scope`.
 - A name holds letters, digits, and `_`. A dot in a name is an error.
 - Unknown keys are an error: a typo is a typo.
+- Data used only by other data still needs an operation or resource writer.
 - Nodes keep file order. `uses` reads what a node names; `usedBy` reads
   what names it. A name nothing has, or a dangling `depends` entry, reads
   as no nodes — `uses`/`usedBy` never throw.
@@ -179,6 +180,12 @@ unlike `check`.
   `check` uses to read a node, applied to code instead of yaml.
 - `src-dir` is walked recursively for every `*.ts` file, skipping
   `*.test.ts` and `*.d.ts`; each file is parsed once with `oxc-parser`.
+  Nested source counts, while tests, declarations, and JS files do not.
+- Unexported top-level `const` units count too; a quoted `label` or
+  `depends` key works. Spread dependencies are not named units.
+- Calls that are not named top-level `const` units are skipped.
+- Only literal string labels count; a resource's non-literal target
+  reads as `scope`.
 - A unit is one `const x = data|resource|operation|tag({ … })`, read for
   its `kind`, `label`, `depends`, `target`, and (`operation`/`resource`
   only) its `run`/`factory` body text. A unit without a literal `label`
@@ -200,11 +207,13 @@ targetMismatch   tx           the file says
 ok: 5 nodes, 6 units, 5 findings
 ```
 
-- **missingUnit** — a node with no unit of that label.
+- **missingUnit** — a node with no unit of that label. A missing resource
+  reports this without a target check.
 - **undeclaredUnit** — a unit with no node of that label; named by
   `file:line`. A plain function or glue code is never a unit.
 - **kindMismatch** — the node's kind differs from the unit's.
-- **dependsMismatch** — the node's `depends` set differs from the
+- **dependsMismatch** — a swapped dependency is a mismatch even when
+  both sets have the same size. The node's `depends` set differs from the
   unit's, compared as sets (order is not a promise), both sides sorted
   in the line. A `depends` value's identifier root resolves to a
   variable's own unit, when the source set has one; a value that names
@@ -336,6 +345,8 @@ one law` (`unit:`) or `unclear (<pick> only <pct>)` (`target:`).
 - `shape:` prints the picked unit's shape text, only on a confident pick.
   `target:` prints only for a confident `resource` pick.
 - `all:` lists every choice's share, widest first.
+- A pick at the confidence floor is confident: it prints the shape and
+  the target pick at its floor. `all:` sorts shares from largest to least.
 - A confident `resource` pick prints all four lines — `unit:`, `shape:`,
   `target:`, `all:` — as the "The agent loop" example above shows.
 
@@ -439,7 +450,8 @@ count):
 
 ## Errors
 
-- **InvalidBlueprint** — the text is not yaml, or a node breaks the
+- **InvalidBlueprint** — malformed YAML keeps the original text and
+  parser issue. The text is not yaml, or a node breaks the
   schema (an unknown key, a missing `why`, a dotted name). Carries the
   zod issues.
 - **InvalidTemplate** — a corpus file is not yaml, breaks the schema, or
