@@ -124,6 +124,7 @@ each later turn resumes that namespace's last session id, so one thread is one c
 
 ## Codex
 
+An unconfigured Codex thread passes no option keys to either SDK call.
 The same frame on the Codex SDK: options are the SDK's own `CodexOptions & ThreadOptions`
 (split at thread start — the `Codex` constructor takes its six keys, `startThread` the rest),
 turns carry the SDK's input plus its per-turn output schema, and results are the SDK's turns.

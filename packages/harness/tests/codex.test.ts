@@ -97,6 +97,24 @@ test("options split into the constructor's keys and the thread's keys", async ()
   await scope.close();
 });
 
+test("an unconfigured Codex thread passes no option keys to either SDK call", async () => {
+  const seen: CodexSeen = { turns: [], clients: [] };
+  const coder = harness({ adapter: codex });
+  const ask = operation({
+    label: "ask",
+    input: parsePrompt,
+    depends: { send: coder.send },
+    run: ({ send }, ctx) => send.run({ input: { input: ctx.input } }),
+  });
+  const scope = createScope({
+    presets: [preset(codex.sdk, async () => readCodexSdk([readCodexScript()], seen))],
+  });
+  await scope.createSession().run(ask, { input: "hello" });
+  expect(seen.clients[0].options).toStrictEqual({});
+  expect(seen.clients[0].started).toStrictEqual([{}]);
+  await scope.close();
+});
+
 test("every option key reaches its SDK side: the constructor's six, the thread's eleven", async () => {
   const seen: CodexSeen = { turns: [], clients: [] };
   const coder = harness({ label: "coder", adapter: codex });
