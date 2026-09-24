@@ -34,8 +34,7 @@
   },
   "dependencies": {
     "@tinker/core": "workspace:*",
-    "@tinker/http": "workspace:*",
-    "@tinker/process": "workspace:*"
+    "@tinker/http": "workspace:*"
   },
   "devDependencies": {
     "@stryker-mutator/core": "catalog:",

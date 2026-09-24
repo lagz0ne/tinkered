@@ -4,7 +4,7 @@ export default defineConfig({
   pack: {
     deps: {
       resolveDepSubpath: true,
-      neverBundle: ["@tinker/core", "@tinker/http", "@tinker/process", "zod"],
+      neverBundle: ["@tinker/core", "@tinker/http", "zod"],
     },
     dts: {
       generator: "tsgo",
