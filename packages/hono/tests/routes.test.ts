@@ -60,6 +60,36 @@ test("an app built from flat rows answers two verbs", async () => {
   await scope.close();
 });
 
+test("a PUT row answers PUT requests, not GET requests", async () => {
+  const { extension: web } = hono([route.put("/users", createUser)]);
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const app = scope.resolve(web);
+  expect(await (await app.request("/users", { method: "PUT" })).json()).toEqual({ id: 7 });
+  expect((await app.request("/users")).status).toBe(404);
+  await scope.close();
+});
+
+test("a PATCH row answers PATCH requests, not GET requests", async () => {
+  const { extension: web } = hono([route.patch("/users", createUser)]);
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const app = scope.resolve(web);
+  expect(await (await app.request("/users", { method: "PATCH" })).json()).toEqual({ id: 7 });
+  expect((await app.request("/users")).status).toBe(404);
+  await scope.close();
+});
+
+test("a DELETE row answers DELETE requests, not GET requests", async () => {
+  const { extension: web } = hono([route.delete("/users", createUser)]);
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const app = scope.resolve(web);
+  expect(await (await app.request("/users", { method: "DELETE" })).json()).toEqual({ id: 7 });
+  expect((await app.request("/users")).status).toBe(404);
+  await scope.close();
+});
+
 test("routes take nested lists and false: every reachable row is mounted", async () => {
   const flags = { admin: false };
   const { extension: web } = hono([

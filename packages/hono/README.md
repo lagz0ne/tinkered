@@ -125,6 +125,10 @@ route.post("/users", () => createUser, {
 });
 ```
 
+A `route.put` row answers PUT requests, not GET requests.
+A `route.patch` row answers PATCH requests, not GET requests.
+A `route.delete` row answers DELETE requests, not GET requests.
+
 Each request runs as an inline operation (`"GET /users/:id"`) whose one dependency is the
 route's operation — so core's spans, clock, and signal come for free.
 Hono writes one `http request` line with method, route, path, and status when it answers.
