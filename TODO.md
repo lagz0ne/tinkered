@@ -33,11 +33,6 @@ Pairs since 2026-09-23: a writer (sol 6 for hard, deepseek-v4.1-flash for simple
 reviewer per card; the lead runs mutation, bench, and `pnpm validate` alone at landing, one core
 card at a time.
 
-- **core/caught-subflow** — sol 6 (agent `ba5faf1f`), worktree `../tinkered-core-caught-subflow`.
-  A caught subflow still fails its session and rejects a tagged run (found by the nw/hono-stream
-  review). User pick A: ADR 0066, a subflow failure belongs to its caller. Verify: the tests in
-  the brief; gate; mutation alone; bench; promises 17.
-
 | Card | Owner | Next | Verify |
 
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -71,6 +66,11 @@ card at a time.
 
 ## Done
 
+- **core/caught-subflow** — sol 6 + opus review (five fix rounds, then a mutation lift); tag `core/caught-subflow`. ADR 0066: a subflow failure belongs to whoever receives it; an unreceived one fails the layer; an async subflow returns a promise that tracks receipt.
+  - Gate EXIT 0; tagged promises 17; validate 43 PASS.
+  - Mutation alone: core 85.60, http 85.05.
+  - N=61 vs main: op -5.3% (0/61 slower), opres -4.1% (1/61), run -3.9% (1/61), inline -1.1% (14/61), session +0.3% (37/61), tagged -0.5% (28/61), lifecycle +0.1% (29/61).
+  - Async op awaiting one async subflow, 200,000 runs, median of 7: main 1122.8 ns, branch 2184.4 ns (+1061.6 ns, +94.5%). No bar; reported.
 - **mutation/floor-85** — every package's lane ≥ 85 (user, 2026-09-24): harness 86.32, hono 86.88, sync 87.38, process 95.51, tinkerer 96.12, blueprint 86.48; already ≥ 85: mcp 85.29, http 85.05, drizzle 96.61, utils 100, core, react.
 - **mut/blueprint-85** — sol 6 + opus review (one fix round); tag `mut/blueprint-85`. Blueprint mutation 79.47 → 86.48 alone; public-seam tests for data writers, verify edges, bad YAML, evals, explain, suggest; tests on YAML parse issues check what our code owns, not the library's error code.
 - **mut/tinkerer-85** — deepseek + opus review (one fix round); tag `mut/tinkerer-85`. Tinkerer mutation 81.74 → 96.12 alone; 31 public-seam tests (steer and queue, tool rows and gates, persist, bash, log lines, frame labels); one unreachable `calls` field on the steered branch removed (the loop never read it).
