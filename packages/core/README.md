@@ -294,6 +294,11 @@ The namespace tests also pin these guarantees:
 - A chain watcher sees its fallback key but not an unrelated key.
 - Unsubscribing a chain watcher removes it from every named key.
 - `releaseNs` notifies only chains containing the released key.
+- A child named watcher sees a parent's named write once.
+- A grandchild named watcher sees a root named write.
+- A child's own named entry shields its watcher from a parent's write.
+- A child's fallback chain sees its parent's write until the child shadows it.
+- Releasing a parent's named entry notifies a child watcher of its fallback.
 - An empty namespace chain is rejected with `InvalidDependency`.
 - A non-namespace `ns` value fails with `InvalidDependency`, not a silent key.
 - Invalid input rejects before dependencies build.

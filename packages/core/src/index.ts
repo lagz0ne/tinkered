@@ -1308,7 +1308,7 @@ function writeCell<T>(
 
 /** A namespaced write lands at `(this layer, first key)` (ADR 0059 decision 3), seeded from the
  * current effective value (write-what-differs). The default bucket and its watchers are untouched;
- * namespaced watchers at this layer re-resolve their own chains (cross-layer inheritance is t03). */
+ * namespaced watchers below this layer re-resolve their own chains. */
 function writeCellNs(
   layer: Layer,
   target: Data.Cell<unknown>,
@@ -1321,7 +1321,7 @@ function writeCellNs(
   if (cellEq(target, current, value)) return;
   const [key] = chain;
   ownNsCell(layer, target, key, current).value = value;
-  flushNsWatchers(layer, target, key);
+  flushInheritedNsWatchers(layer, target, key);
 }
 
 /** Get-or-create this layer's named bucket of a cell, seeded from the inherited value. */
@@ -1333,6 +1333,22 @@ function ownNsCell(layer: Layer, target: Data.Cell<unknown>, key: Namespace, see
     (rec.nsCells ??= new Map()).set(key, bucket);
   }
   return bucket;
+}
+
+/** A named change reaches only watchers indexed under its key. Snapshot every affected layer
+ * before firing: an earlier callback must not steal a descendant's inherited change. A default
+ * cell shadow blocks the change for its entire subtree; named shadows are checked per chain. */
+function flushInheritedNsWatchers(layer: Layer, target: Data.Cell<unknown>, key: Namespace): void {
+  const pending: { fn: (n: unknown, p: unknown) => void; next: unknown; prev: unknown }[] = [];
+  function collect(cur: Layer): void {
+    const watchers = cur.nodes.get(target)?.nsWatchers?.byKey.get(key);
+    if (watchers) pending.push(...(pendingNsWatchers(cur, target, watchers) ?? []));
+    for (const child of cur.children) {
+      if (!child.nodes.get(target)?.cell) collect(child);
+    }
+  }
+  collect(layer);
+  for (const p of pending) p.fn(p.next, p.prev);
 }
 
 /** A named bucket change can affect only chains containing its key at this layer. A default
@@ -3262,7 +3278,7 @@ function releaseNamedData(owner: Layer, target: Data.Cell<unknown>, ns: Namespac
   const affected = collectNamedRelease(namedDataSeeds(rec, entry));
   rec.nsCells.delete(ns);
   rec.nsDataDependents?.delete(entry);
-  drainRelease(affected, () => flushCell(owner, target, ns));
+  drainRelease(affected, () => flushInheritedNsWatchers(owner, target, ns));
 }
 
 function namedDataSeeds(rec: NodeState, entry: Entry): NsResourceState[] {
