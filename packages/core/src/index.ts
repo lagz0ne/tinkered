@@ -3,6 +3,7 @@ import { isError, raise } from "./errors.ts";
 const cell: unique symbol = Symbol("data");
 const operationSym: unique symbol = Symbol("operation");
 const borrowSym: unique symbol = Symbol("borrow");
+const subflowSym: unique symbol = Symbol("subflow");
 const tagSym: unique symbol = Symbol("tag");
 const edge: unique symbol = Symbol("edge");
 const resourceSym: unique symbol = Symbol("resource");
@@ -831,10 +832,12 @@ export function operation<
   return Object.assign(base, {
     controller: edgeTo("controller", base),
     [borrowSym]: seesResource(base.depends),
+    [subflowSym]: seesSubflow(base.depends),
   });
 }
 
 type BorrowFlag = { readonly [borrowSym]?: boolean };
+type SubflowFlag = { readonly [subflowSym]?: boolean };
 
 /** Read the declaration-time flag: does this operation's `depends` name a resource? Ops without one
  * skip every per-dep resource check on the call path (ADR 0044 keeps `op`/`run` untouched). */
@@ -847,6 +850,15 @@ function seesResource(depends: Scope.Depends): boolean {
   for (const key in depends) {
     const dep = depends[key];
     if (isResource(dep)) return true;
+  }
+  return false;
+}
+
+function seesSubflow(depends: Scope.Depends): boolean {
+  for (const key in depends) {
+    const dep = depends[key];
+    if (isOperation(dep) || (isEdge(dep) && dep.kind === "controller" && isOperation(dep.target)))
+      return true;
   }
   return false;
 }
@@ -1071,6 +1083,8 @@ type Layer = {
   bodyEnd: Promise<Scope.Outcome> | undefined;
   failure: { cause: unknown } | undefined;
   descendantFailure: { cause: unknown } | undefined;
+  /** A tagged subflow's child session reports its failure to the calling run first. */
+  failureOwner?: RunState;
   secondary: unknown[];
   body: Promise<unknown> | undefined;
   closed: boolean;
@@ -1592,12 +1606,13 @@ function resolveControllerEdge(
   target: unknown,
   parent: Observe.Span | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
+  caller?: RunState,
 ): unknown {
   if (isData(target))
     return chain !== undefined
       ? dataControllerNs(layer, target, chain)
       : dataController(layer, target);
-  if (isOperation(target)) return operationController(layer, target, parent, chain);
+  if (isOperation(target)) return operationController(layer, target, parent, chain, caller);
   raise("InvalidDependency", { label: "edge", reason: "unknown controller target" });
 }
 
@@ -1606,8 +1621,10 @@ function resolveEdge(
   dep: Edge<string, unknown>,
   parent: Observe.Span | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
+  caller?: RunState,
 ): unknown {
-  if (dep.kind === "controller") return resolveControllerEdge(layer, dep.target, parent, chain);
+  if (dep.kind === "controller")
+    return resolveControllerEdge(layer, dep.target, parent, chain, caller);
   const target = dep.target as Tag.Handle<unknown>;
   if (dep.kind === "all") return tagAll(layer, target, chain);
   if (dep.kind === "optional") return tagFind(layer, target, chain);
@@ -1619,11 +1636,12 @@ function resolveDep(
   dep: Scope.Dependency,
   parent: Observe.Span | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
+  caller?: RunState,
 ): unknown {
-  if (isEdge(dep)) return resolveEdge(layer, dep, parent, chain);
+  if (isEdge(dep)) return resolveEdge(layer, dep, parent, chain, caller);
   if (isData(dep)) return readCell(layer, dep, chain);
   if (isTag(dep)) return tagRequired(layer, dep, chain);
-  if (isOperation(dep)) return operationController(layer, dep, parent, chain);
+  if (isOperation(dep)) return operationController(layer, dep, parent, chain, caller);
   if (isResource(dep)) return resourceSlot(layer, dep, parent, chain);
   if (isExtension(dep)) return resolveExtension(layer, dep);
   raise("InvalidDependency", { label: "unknown", reason: "unknown dependency" });
@@ -1917,6 +1935,10 @@ function recordUsed(
 /** Track owned async work so `settled()`/`close` join it. `onReject` decides where a rejection
  * goes: the owner's primary failure (operations, current-generation builds) or the secondary
  * bucket (release/abandoned cleanups) which never changes the outcome (ADR 0017). */
+type RunState = { settled: boolean };
+/** A run without subflow deps needs no per-call state; nobody can read this shared sentinel. */
+const NO_SUBFLOW_RUN: RunState = { settled: true };
+
 function track(
   layer: Layer,
   result: unknown,
@@ -2138,6 +2160,7 @@ function runTagged<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
   parent: Observe.Span | undefined,
+  caller: RunState | undefined,
   call: Scope.Invocation<I> & { readonly tags: Scope.Bindings },
   inheritedChain: readonly Namespace[] | undefined,
 ): Promise<Awaited<T>> {
@@ -2145,8 +2168,11 @@ function runTagged<T, I>(
   const chain = call.ns === undefined ? inheritedChain : nsChainOf(call.ns);
   const inner: Scope.Invocation<I> | undefined =
     call.input === undefined && call.rawInput === undefined ? undefined : stripTags(call);
-  return runSessionWith(layer, { tags, ns: chain }, (child) =>
-    runUntagged(child, target, parent, inner, chain),
+  return runSessionWith(
+    layer,
+    { tags, ns: chain },
+    (child) => runUntagged(child, target, parent, inner, chain),
+    caller,
   ) as Promise<Awaited<T>>;
 }
 
@@ -2156,10 +2182,11 @@ function runNsCall<I>(
   layer: Layer,
   target: Operation.Handle<unknown, I>,
   parent: Observe.Span | undefined,
+  caller: RunState | undefined,
   call: Scope.Invocation<I> & { readonly ns: Ns },
 ): unknown {
   ensureOpen(layer);
-  return runUntagged(layer, target, parent, stripNs(call), nsChainOf(call.ns));
+  return runUntagged(layer, target, parent, stripNs(call), nsChainOf(call.ns), caller);
 }
 
 /** The ns-stripped call a namespaced run replays on its view layer: the same `input`/`rawInput`
@@ -2183,6 +2210,7 @@ function operationController<T, I>(
   target: Operation.Handle<T, I>,
   parent: Observe.Span | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
+  caller?: RunState,
 ): Scope.OperationController<T, I> {
   /** The single entry every run takes — declared, subflow, and inline alike. A call carrying
    * `tags` opens a child session for the run (ADR 0038, always async); anything else runs the
@@ -2190,22 +2218,31 @@ function operationController<T, I>(
    * extra frame or call on the hot path. The implementation signature stays broad (one input
    * shape would mean no overload — rule 9); the two public overloads type the fork. */
   const sees = seesResourceOf(target);
+  const hasSubflow = (target as SubflowFlag)[subflowSym] === true;
   const run = (call?: Scope.Invocation<I>): unknown => {
     if (hasCallTags(call))
       return runTagged(
         layer,
         target,
         parent,
+        caller,
         call as Scope.Invocation<I> & {
           readonly tags: Scope.Bindings;
         },
         chain,
       );
     if (hasCallNs(call))
-      return runNsCall(layer, target, parent, call as Scope.Invocation<I> & { readonly ns: Ns });
+      return runNsCall(
+        layer,
+        target,
+        parent,
+        caller,
+        call as Scope.Invocation<I> & { readonly ns: Ns },
+      );
     ensureOpen(layer);
     const obs = layer.obs;
     const span = openSpan(obs, parent, target.label, "operation");
+    const runState: RunState = hasSubflow ? { settled: false } : NO_SUBFLOW_RUN;
     const override = presetFor(layer, target) as Operation.Handle<T, I>["run"] | undefined;
     /** Hold a borrow across the op's WHOLE lifetime — body settle (or a throw) AND its own `defer`
      * drain — so a release waits for the op's cleanup (which may still touch the resource) before
@@ -2235,10 +2272,11 @@ function operationController<T, I>(
     try {
       ctx = new OperationCtx<I>(layer, target, call, obs, span);
       const deps = sees
-        ? readOpDeps(layer, target, span, held, chain)
-        : buildPlainDeps(layer, target.depends, span, chain);
+        ? readOpDeps(layer, target, span, held, chain, runState)
+        : buildPlainDeps(layer, target.depends, span, chain, runState);
       result = runBody(override, target, deps, ctx, parked);
     } catch (error) {
+      runState.settled = true;
       closeSpan(obs, span, "failed");
       finishDefers("failed", error);
       throw error;
@@ -2246,13 +2284,22 @@ function operationController<T, I>(
       buildDepth--;
     }
     if (!isThenable(result)) {
+      runState.settled = true;
       if (span) closeSpan(obs, span, "ok");
       finishDefers("ok");
     } else {
-      track(layer, result, asPrimary(layer), (status, error) => {
-        if (span) closeSpan(obs, span, status);
-        finishDefers(status, error);
-      });
+      track(
+        layer,
+        result,
+        (error) => {
+          if (caller?.settled !== false) asPrimary(layer)(error);
+        },
+        (status, error) => {
+          runState.settled = true;
+          if (span) closeSpan(obs, span, status);
+          finishDefers(status, error);
+        },
+      );
     }
     return result;
   };
@@ -2269,12 +2316,14 @@ function runUntagged<T, I>(
   parent: Observe.Span | undefined,
   call: Scope.Invocation<I> | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
+  caller?: RunState,
 ): T {
   const untagged: { run(call?: Scope.Invocation<I>): T } = operationController(
     layer,
     target,
     parent,
     chain,
+    caller,
   ) as { run(call?: Scope.Invocation<I>): T };
   return untagged.run(call);
 }
@@ -2315,10 +2364,11 @@ function resolveSelectedDep(
   span: Observe.Span | undefined,
   chain: readonly Namespace[] | undefined,
   selected: SelectedResource | undefined,
+  caller?: RunState,
 ): unknown {
   return selected && isResource(dep)
     ? resourceSlot(layer, dep, span, chain, selected)
-    : resolveDep(layer, dep, span, chain);
+    : resolveDep(layer, dep, span, chain, caller);
 }
 
 function buildDeps(
@@ -2328,6 +2378,7 @@ function buildDeps(
   registerEdge: RegisterEdge,
   chain: readonly Namespace[] | undefined = layer.ns,
   selected?: SelectedResource,
+  caller?: RunState,
 ): Record<string, unknown> {
   const deps: Record<string, unknown> = {};
   let pending: PendingSlot[] | undefined;
@@ -2336,8 +2387,8 @@ function buildDeps(
     registerEdge?.(dep);
     const value =
       selected === undefined
-        ? resolveDep(layer, dep, span, chain)
-        : resolveSelectedDep(layer, dep, span, chain, selected);
+        ? resolveDep(layer, dep, span, chain, caller)
+        : resolveSelectedDep(layer, dep, span, chain, selected, caller);
     if (isThenable(value) && isResource(dep)) {
       (pending ??= []).push({ key, build: Promise.resolve(value) });
     }
@@ -2354,9 +2405,10 @@ function buildPlainDeps(
   depends: Scope.Depends,
   span: Observe.Span | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
+  caller?: RunState,
 ): Record<string, unknown> {
   const deps: Record<string, unknown> = {};
-  for (const key in depends) deps[key] = resolveDep(layer, depends[key], span, chain);
+  for (const key in depends) deps[key] = resolveDep(layer, depends[key], span, chain, caller);
   parked = undefined;
   return deps;
 }
@@ -2370,6 +2422,7 @@ function readOpDeps(
   span: Observe.Span | undefined,
   held: HeldBorrows | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
+  caller?: RunState,
 ): Record<string, unknown> {
   return buildDeps(
     layer,
@@ -2378,6 +2431,7 @@ function readOpDeps(
     undefined,
     chain,
     held && ((owner, res, state) => addBorrow(instanceOf(owner, res, state), held)),
+    caller,
   );
 }
 
@@ -3984,7 +4038,8 @@ function propagateSweptOutcome(layer: Layer, parent: Layer): void {
   /** A descendant's settled failure goes to a SEPARATE slot ranked BELOW the parent's OWN failure
    * (body/owned-work): a real owned-work failure must still beat a failure a child merely inherited
    * from the close request (a wished `failed` echoed back down and up). First descendant wins. */
-  if (layer.failure) parent.descendantFailure ??= layer.failure;
+  if (layer.failure && layer.failureOwner?.settled !== false)
+    parent.descendantFailure ??= layer.failure;
 }
 
 function settleSession(
@@ -4009,11 +4064,13 @@ async function runSessionWith<R>(
   parent: Layer,
   options: Scope.Options | undefined,
   body: (child: Layer, handle: Scope.Handle) => R | PromiseLike<R>,
+  caller?: RunState,
 ): Promise<R> {
   ensureOpen(parent);
   const sessions = sessionsFor(parent);
-  if (sessions !== undefined) return runSessionWrapped(parent, options, body, sessions);
+  if (sessions !== undefined) return runSessionWrapped(parent, options, body, sessions, caller);
   const child = makeLayer(parent, options);
+  child.failureOwner = caller;
   const started = runBodyWith(child, body);
   child.body = started;
   child.bodyEnd = started.then(
@@ -4043,8 +4100,10 @@ async function runSessionWrapped<R>(
   options: Scope.Options | undefined,
   body: (child: Layer, handle: Scope.Handle) => R | PromiseLike<R>,
   sessions: readonly Scope.Extension<unknown>[],
+  caller?: RunState,
 ): Promise<R> {
   const child = makeLayer(parent, options);
+  child.failureOwner = caller;
   const handle = withSessionCreate(handleFor(child), child, sessions);
   const wrapped = await sessionThrough(sessions, handle, () =>
     runSessionEnded(child, (c) => runBodyWithTo(c, handle, body)),

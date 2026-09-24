@@ -440,6 +440,16 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   a void-input operation is always a callable subflow, never a value.
 - An async operation runs to its awaited value.
 - A rejecting operation rejects with its cause, and `settled` still drains when it finishes.
+- A scope run that catches a failed subflow returns normally without failing its scope.
+- A tagged scope run that catches a failed subflow returns normally without failing its child session.
+- A session run that catches a failed subflow returns normally without failing its session.
+- A tagged session run that catches a failed subflow returns normally without failing either session.
+- A caller can catch a failed tagged subflow without failing the enclosing session.
+- A subflow failure that escapes its caller fails the session with that cause.
+- A subflow that fails after its caller returns still fails its session as owned work.
+- A failed subflow closes its span failed even when its caller catches it and closes ok.
+- A forced close during a caught subflow cancels the session, rather than failing it.
+- A caller two subflows deep can catch a failure without failing the session.
 - `settled` stays pending until owned work finishes.
 - An operation preset replaces the run for a direct call, a downstream subflow, and an inline config.
 - An inline run resolves deps, delivers the full context, and shares nothing between runs; with no call,
