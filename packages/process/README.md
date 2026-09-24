@@ -146,7 +146,10 @@ const result = await run(shell, ["check", "a"]);
 expect(result.code).toBe(0);
 ```
 
-- A partial `io` may supply either writer alone.
+- A run given only an error writer still collects
+  stdout.
+- A run given only a write writer still collects
+  stderr.
 - `execute` with no usage answers 2 on a parse
   failure and prints nothing.
 
@@ -159,8 +162,8 @@ one abort, exit with the code. Never returns.
 - `main` reads argv off the process, writes to its
   streams, wires both signals, and exits with the
   code.
-- `main` turns a fired signal into one abort, so
-  a running command force-closes.
+- `main` turns a fired signal into one abort,
+  so the run exits 130.
 - `main` passes explicit args through instead of
   the process argv.
 - `main` exits 2 on an unknown command and prints

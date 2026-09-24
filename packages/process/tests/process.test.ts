@@ -267,13 +267,17 @@ test("a command answers its own exit code and its io writes are collected in ord
   expect(seen).toEqual(["one ", "two "]);
 });
 
-test("a run given only one writer still collects both streams", async () => {
+test("a run given only an error writer still collects stdout", async () => {
   const table = shell([routeFor("double", doubleCommand)]);
   expect(await run(table, ["double", "4"], { error: () => undefined })).toEqual({
     code: 0,
     stdout: "8\n",
     stderr: "",
   });
+});
+
+test("a run given only a write writer still collects stderr", async () => {
+  const table = shell([routeFor("double", doubleCommand)]);
   expect(await run(table, ["nope"], { write: () => undefined })).toEqual({
     code: 2,
     stdout: "",
@@ -466,31 +470,19 @@ test("main passes explicit args through instead of the process argv", async () =
   expect(ran.out).toBe("2\n");
 });
 
-test("a fired signal force-closes a running command", async () => {
-  let started = (): void => undefined;
-  const began = new Promise<void>((resolve) => {
-    started = resolve;
-  });
-  const wait = operation({
-    label: "wait",
-    run: (_deps, ctx) =>
-      new Promise<number>((resolve) => {
-        ctx.signal.addEventListener("abort", () => resolve(0), { once: true });
-        started();
-      }),
-  });
-  const table = shell([routeFor("wait", wait)]);
+test("main turns a fired signal into one abort of the run", async () => {
+  const quit = operation({ label: "quit", run: () => 0 });
+  const table = shell([routeFor("quit", quit)]);
   const ran = await underFakeProcess(
-    ["wait"],
+    ["quit"],
     async (s, proc) => {
       const pending = main(s);
-      await began;
       proc.emit("SIGINT");
       return pending;
     },
     table,
   );
-  expect(ran.code).toBe(0);
+  expect(ran.code).toBe(130);
 });
 
 test("main exits 2 on an unknown command and prints usage to the process stderr", async () => {
