@@ -4290,6 +4290,11 @@ function handleFor(layer: Layer): Scope.Handle {
   const settled = async (): Promise<void> => {
     while (layer.pending.size) await Promise.all(layer.pending);
   };
+  // Both release forms share the layer capture; plain release still takes one argument.
+  const release = (target: Data.Cell<unknown> | Resource.Handle<unknown>, ns?: Namespace): void => {
+    if (ns === undefined) releaseNode(layer, target);
+    else releaseNamed(layer, target, ns);
+  };
   const controllerOf = (
     target: Data.Cell<unknown> | Resource.Handle<unknown> | Operation.Handle<unknown, unknown>,
   ): unknown => {
@@ -4381,9 +4386,8 @@ function handleFor(layer: Layer): Scope.Handle {
         raise("InvalidDependency", { label: "session", reason: "session(options, fn) needs fn" });
       return runSession(layer, a, b);
     }) as Scope.Handle["session"],
-    release: (target: Data.Cell<unknown> | Resource.Handle<unknown>) => releaseNode(layer, target),
-    releaseNs: (target: Data.Cell<unknown> | Resource.Handle<unknown>, ns: Namespace) =>
-      releaseNamed(layer, target, ns),
+    release,
+    releaseNs: release as Scope.Handle["releaseNs"],
     spans: () => layer.obs.history.slice(),
     onClose: (fn: () => void | PromiseLike<void>) => {
       ensureOpen(layer);
