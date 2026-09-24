@@ -81,7 +81,7 @@ test("ask runs one turn and prints the answer with exit code 0", async () => {
   expect(result.stderr).toBe("");
 });
 
-test("ask streams the answer in pieces through io while the turn runs", async () => {
+test("ask writes the reply to io in pieces that join to the reply and a newline", async () => {
   const written: string[] = [];
   const result = await run(shell(), ["ask", "read it"], { write: (s) => written.push(s) });
   expect(result.code).toBe(0);
