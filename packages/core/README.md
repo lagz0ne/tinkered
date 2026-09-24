@@ -449,6 +449,9 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - An unreceived subflow failure fails the session even after its caller returns.
 - An unreceived subflow failure also fails the session while its caller is still running.
 - A subflow with a catch handler is received and does not fail its session.
+- A controller subflow caught by its caller leaves the session successful.
+- An unreceived controller subflow fails its session.
+- An unreceived tagged subflow fails its parent session.
 - A finally callback passes an unreceived subflow failure to its returned promise, failing the layer.
 - A fulfillment-only then passes an unreceived subflow failure to its returned promise, failing the layer.
 - A catch after finally receives the subflow error and leaves the session successful.

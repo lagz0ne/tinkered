@@ -569,6 +569,80 @@ test("a forced close after a caught real subflow failure cancels the session", a
   await root.close();
 });
 
+test("a controller subflow caught by its caller leaves the session successful", async () => {
+  const cause = new Error("controller child");
+  const inner = operation({
+    label: "inner",
+    run: async () => {
+      throw cause;
+    },
+  });
+  const outer = operation({
+    label: "outer",
+    depends: { sub: inner.controller },
+    run: async ({ sub }) => {
+      try {
+        await sub.run();
+      } catch (error) {
+        if (error !== cause) throw error;
+      }
+      return "caught";
+    },
+  });
+  const root = createScope();
+  const session = root.createSession();
+  expect(await session.run(outer)).toBe("caught");
+  expect((await session.close({ graceful: true })).status).toBe("success");
+  await root.close({ graceful: true });
+});
+
+test("an unreceived controller subflow fails its session", async () => {
+  const cause = new Error("controller panic");
+  const inner = operation({
+    label: "inner",
+    run: async () => {
+      throw cause;
+    },
+  });
+  const outer = operation({
+    label: "outer",
+    depends: { sub: inner.controller },
+    run: ({ sub }) => {
+      void sub.run();
+      return "done";
+    },
+  });
+  const root = createScope();
+  const session = root.createSession();
+  expect(session.run(outer)).toBe("done");
+  expect(await session.close({ graceful: true })).toMatchObject({ status: "failed", error: cause });
+  await root.close({ graceful: true });
+});
+
+test("an unreceived tagged subflow fails its parent session", async () => {
+  const zone = tag<string>({ label: "zone" });
+  const cause = new Error("tagged panic");
+  const inner = operation({
+    label: "inner",
+    run: async () => {
+      throw cause;
+    },
+  });
+  const outer = operation({
+    label: "outer",
+    depends: { sub: inner },
+    run: ({ sub }) => {
+      void sub.run({ tags: [zone("x")] });
+      return "done";
+    },
+  });
+  const root = createScope();
+  const session = root.createSession();
+  expect(session.run(outer)).toBe("done");
+  expect(await session.close({ graceful: true })).toMatchObject({ status: "failed", error: cause });
+  await root.close({ graceful: true });
+});
+
 test("a caught failure two subflows deep does not fail the session", async () => {
   const cause = new Error("leaf boom");
   const leaf = operation({
