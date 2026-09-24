@@ -1942,31 +1942,48 @@ function recordUsed(
   }
 }
 
-/** A subflow's failed promise becomes a received value when a handler is attached (ADR 0066). */
-type Receipt = { received: boolean };
+/** A subflow failure is received by a rejection handler, or handed to a derived promise. */
+type Receipt = { received: boolean; handedOff: boolean };
 /** Subflow controllers only need an identity marker, shared by every run (even sync runs). */
 type RunState = Receipt;
-const SUBFLOW_CALLER: RunState = { received: false };
+const SUBFLOW_CALLER: RunState = { received: false, handedOff: false };
 
 /** Only async subflows get this result; sync subflows still return a plain value. */
 class SubflowPromise<T> extends Promise<T> {
-  private receipt: Receipt;
-  constructor(source: Promise<T>, receipt: Receipt) {
-    super((resolve, reject) => source.then(resolve, reject));
+  private receipt?: Receipt;
+  private owner?: Layer;
+  static from<T>(source: Promise<T>, owner: Layer, receipt: Receipt): SubflowPromise<T> {
+    const result = new SubflowPromise<T>((resolve, reject) => {
+      void source.then(resolve, reject);
+    });
+    result.own(owner, receipt);
+    return result;
+  }
+  private own(owner: Layer, receipt: Receipt): void {
+    this.owner = owner;
     this.receipt = receipt;
     /** The layer tracks a panic itself, so the runtime must not report the rejection twice. */
     void Promise.prototype.then.call(this, undefined, noop);
   }
   static get [Symbol.species](): PromiseConstructor {
-    return Promise;
+    return SubflowPromise;
   }
   // oxlint-disable-next-line unicorn/no-thenable -- a Promise subclass observes receipt (ADR 0066)
   override then<TResult1 = T, TResult2 = never>(
     onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null,
     onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
   ): Promise<TResult1 | TResult2> {
-    this.receipt.received = true;
-    return super.then(onfulfilled, onrejected);
+    const next = super.then(onfulfilled, onrejected) as SubflowPromise<TResult1 | TResult2>;
+    const receipt = this.receipt;
+    const owner = this.owner;
+    if (receipt && owner) {
+      receipt.handedOff = true;
+      if (typeof onrejected === "function") receipt.received = true;
+      const nextReceipt: Receipt = { received: false, handedOff: false };
+      next.own(owner, nextReceipt);
+      trackSubflow(owner, next, nextReceipt);
+    }
+    return next;
   }
 }
 
@@ -1978,16 +1995,17 @@ function trackSubflow(
   receipt: Receipt,
   onSettle?: (status: "ok" | "failed", error?: unknown) => void,
 ): void {
-  const tracked = result.then(
+  const tracked: Promise<unknown> = Promise.prototype.then.call(
+    result,
     () => {
       onSettle?.("ok");
       layer.pending.delete(tracked);
     },
     async (error: unknown) => {
       onSettle?.("failed", error);
-      if (!receipt.received) {
+      if (!receipt.received && !receipt.handedOff) {
         await new Promise<void>((resolve) => hostSetTimeout(resolve, 0));
-        if (!receipt.received) asPrimary(layer)(error);
+        if (!receipt.received && !receipt.handedOff) asPrimary(layer)(error);
       }
       layer.pending.delete(tracked);
     },
@@ -2227,7 +2245,7 @@ function runTagged<T, I>(
   const chain = call.ns === undefined ? inheritedChain : nsChainOf(call.ns);
   const inner: Scope.Invocation<I> | undefined =
     call.input === undefined && call.rawInput === undefined ? undefined : stripTags(call);
-  const receipt: Receipt | undefined = caller ? { received: false } : undefined;
+  const receipt: Receipt | undefined = caller ? { received: false, handedOff: false } : undefined;
   const tagged = runSessionWith(
     layer,
     { tags, ns: chain },
@@ -2236,7 +2254,7 @@ function runTagged<T, I>(
   ) as Promise<Awaited<T>>;
   if (!receipt) return tagged;
   trackSubflow(layer, tagged, receipt);
-  return new SubflowPromise(tagged, receipt);
+  return SubflowPromise.from(tagged, layer, receipt);
 }
 
 /** Run `target` in the call's namespace (ADR 0059). The real layer remains the owner of
@@ -2281,10 +2299,10 @@ function finishAsyncRun<T>(
     finishDefers(status, error);
   };
   if (caller) {
-    const receipt: Receipt = { received: false };
+    const receipt: Receipt = { received: false, handedOff: false };
     const promise = Promise.resolve(result);
     trackSubflow(layer, promise, receipt, onSettle);
-    return new SubflowPromise(promise, receipt);
+    return SubflowPromise.from(promise, layer, receipt);
   }
   track(layer, result, asPrimary(layer), onSettle);
   return result;

@@ -449,6 +449,11 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - An unreceived subflow failure fails the session even after its caller returns.
 - An unreceived subflow failure also fails the session while its caller is still running.
 - A subflow with a catch handler is received and does not fail its session.
+- A finally callback passes an unreceived subflow failure to its returned promise, failing the layer.
+- A fulfillment-only then passes an unreceived subflow failure to its returned promise, failing the layer.
+- A catch after finally receives the subflow error and leaves the session successful.
+- A then rejection handler receives the subflow error and leaves the session successful.
+- A catch after fulfillment-only then receives the subflow error and leaves the session successful.
 - A fake global timer installed after core loads cannot stall a caught or unreceived subflow close.
 - A subflow awaited and caught inside an operation defer does not fail the session.
 - Returning a subflow promise to an outer caller that awaits and catches it does not fail the session.
