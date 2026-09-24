@@ -81,7 +81,12 @@ build a separate frame if either differs.
 - A turn sends the transcript first with
   the system prompt and wire fields.
 - A second turn keeps the transcript going.
-- Usage lands from the last chunk as done.
+- Usage lands from the last chunk as done,
+  the provider's cached tokens included.
+- A fresh frame starts with empty messages and
+  text, `idle` status, and zero usage.
+- Each tag and cell is named after the frame's
+  label: `coder.messages`, `coder.mode`.
 - A stream with no finish fails the turn.
 - A nearer config binding wins per key.
 - A missing model fails fast, no request.
@@ -90,8 +95,9 @@ build a separate frame if either differs.
   names and asks for usage.
 - A config without system starts the transcript with
   the user prompt.
-- An empty raw prompt fails validation with EmptyPrompt
-  as the cause; no request is sent.
+- A raw prompt that is not a non-empty string
+  fails validation with EmptyPrompt as the
+  cause; no request is sent.
 - A forced close during a turn rejects the turn and
   writes no failed status.
 
@@ -324,6 +330,12 @@ share one wire name at construction.
 zero or several matches.
 `PathOutsideCwd { label, path }` — `read`
 was asked for a path outside `cwd`.
+`MissingTag { label }` — core's error when no
+scope bound the named tag, `coder.config` or
+`tinkerer.cwd`.
+
+`isError(value, kind)` is true only for an
+`Error` carrying that `kind`.
 
 ## Test recipe
 

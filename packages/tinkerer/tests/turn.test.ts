@@ -226,6 +226,82 @@ test("an empty raw prompt fails validation with EmptyPrompt as the cause, no req
   await scope.close();
 });
 
+test("a non-string raw prompt fails validation with EmptyPrompt before any request", async () => {
+  const seen: HttpRequest.Record[] = [];
+  const scope = scopeConfig(seen);
+  try {
+    await scope.createSession().run(coder.turn, { rawInput: 42 });
+    expect.unreachable();
+  } catch (error) {
+    if (!isCoreError(error, "DataValidationFailed")) throw error;
+    const cause = error.payload.cause;
+    if (!isError(cause, "EmptyPrompt")) throw error;
+    expect(cause.payload.label).toBe("coder");
+  }
+  expect(seen).toHaveLength(0);
+  await scope.close();
+});
+
+test("a non-empty string passed as the raw prompt runs the turn", async () => {
+  const seen: HttpRequest.Record[] = [];
+  const scope = scopeConfig(seen);
+  const reply = await scope.createSession().run(coder.turn, { rawInput: "hi" });
+  expect(reply.finish).toBe("stop");
+  expect(seen).toHaveLength(1);
+  expect(readBody(seen)["messages"]).toEqual([
+    { role: "system", content: "be brief" },
+    { role: "user", content: "hi" },
+  ]);
+  await scope.close();
+});
+
+test("a nearer config binding wins each provider key on its own", async () => {
+  const seen: HttpRequest.Record[] = [];
+  const scope = createScope({
+    tags: [
+      backend(recording(seen)),
+      coder.config({
+        model: "m",
+        baseUrl: "https://far",
+        system: "far brief",
+        max_completion_tokens: 64,
+      }),
+    ],
+  });
+  await scope
+    .createSession({
+      tags: [
+        coder.config({ baseUrl: "https://near", system: "near brief", max_completion_tokens: 8 }),
+      ],
+    })
+    .run(coder.turn, { input: "hi" });
+  const request = seen[0];
+  if (request === undefined) throw new Error("tinkerer: expected one request");
+  expect(request.url).toBe("https://near/chat/completions");
+  const body = readBody(seen);
+  expect(body["max_completion_tokens"]).toBe(8);
+  const messages = body["messages"] as readonly Tinkerer.Message[];
+  expect(messages[0]).toEqual({ role: "system", content: "near brief" });
+  await scope.close();
+});
+
+test("usage lands the provider's cached token count in the usage cell", async () => {
+  const metered = [
+    'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":null,"index":0}]}',
+    'data: {"choices":[{"delta":{},"finish_reason":"stop","index":0}],"usage":{"completion_tokens":2,"prompt_tokens":10,"prompt_tokens_details":{"cached_tokens":7}}}',
+    "data: [DONE]",
+  ]
+    .map((line) => `${line}\n\n`)
+    .join("");
+  const scope = createScope({
+    tags: [backend(recording([], metered)), coder.config({ model: "m", baseUrl: "https://api" })],
+  });
+  const session = scope.createSession();
+  await session.run(coder.turn, { input: "hi" });
+  expect(session.resolve(coder.usage)).toEqual({ input: 10, cached: 7, output: 2 });
+  await scope.close();
+});
+
 test("a forced close during a turn rejects the turn and writes no failed status", async () => {
   const hanging: HttpClient.Backend = (_request, signal) =>
     new Promise((_resolve, reject) => {
