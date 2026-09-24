@@ -185,11 +185,13 @@ unlike `check`.
 - `src-dir` is walked recursively for every `*.ts` file, skipping
   `*.test.ts` and `*.d.ts`; each file is parsed once with `oxc-parser`.
   Nested source counts, while tests, declarations, and JS files do not.
-- Unexported top-level `const` units count too; a quoted `label` or
-  `depends` key works. Spread dependencies are not named units.
+- An unexported top-level `const` unit counts.
+- Quoted `label` and `depends` keys work.
+- A function expression's body text is read as the unit's body.
+- Spread entries in `depends` are skipped.
 - Calls that are not named top-level `const` units are skipped.
-- Only literal string labels count; a resource's non-literal target
-  reads as `scope`.
+- A unit without a literal string label is skipped.
+- A resource's non-literal target reads as `scope`.
 - A unit is one `const x = data|resource|operation|tag({ … })`, read for
   its `kind`, `label`, `depends`, `target`, and (`operation`/`resource`
   only) its `run`/`factory` body text. A unit without a literal `label`
@@ -216,13 +218,13 @@ ok: 5 nodes, 6 units, 5 findings
 - **undeclaredUnit** — a unit with no node of that label; named by
   `file:line`. A plain function or glue code is never a unit.
 - **kindMismatch** — the node's kind differs from the unit's.
-- **dependsMismatch** — a swapped dependency is a mismatch even when
-  both sets have the same size. The node's `depends` set differs from the
+- **dependsMismatch** — the node's `depends` set differs from the
   unit's, compared as sets (order is not a promise), both sides sorted
   in the line. A `depends` value's identifier root resolves to a
   variable's own unit, when the source set has one; a value that names
   no unit — a frame's part, such as `store.tx` — reads as its own text,
-  which never equals a label.
+  which never equals a label. A swapped dependency is a mismatch even
+  when both sets have the same size.
 - **targetMismatch** — a `resource` node's `target` differs from the
   unit's (`resource`-only; absent reads as `scope` on both sides).
 - `--json` prints the report — `{ nodes, units, findings }` — and
@@ -334,10 +336,10 @@ shape.resource: const x = resource({ label: "x", target,
   keys, else the load fails `InvalidTemplate`.
 - An `applies` entry outside the four kinds, or a `needs` entry outside
   the ten fields, fails the load with `InvalidTemplate`.
-- The corpus loads every `*.yaml` once per scope, sorted by id even if
-  supplied in reverse order. A node-scope
+- The corpus loads every `*.yaml` once per scope, sorted by id. A node-scope
   template sits under `forKind(kind)`; a pair-scope template sits under
   `pairs` and never in a `forKind` list.
+- The loaded templates stay sorted even when supplied in reverse order.
 - **Templates that need `body`** sit under `forKind(kind, { body: true
 })`, never under the plain `forKind(kind)` `check` asks — `body` is
   code, and `check` has none (ADR 0055 §4; `verify`, above).
@@ -361,7 +363,7 @@ one law` (`unit:`) or `unclear (<pick> only <pct>)` (`target:`).
   `target:` prints only for a confident `resource` pick.
 - `all:` lists every choice's share, widest first.
 - A pick at the confidence floor is confident: it prints the shape and
-  the target pick at its floor. `all:` sorts shares from largest to least.
+  the target pick at its floor.
 - A confident `resource` pick prints all four lines — `unit:`, `shape:`,
   `target:`, `all:` — as the "The agent loop" example above shows.
 
@@ -470,28 +472,27 @@ count):
 
 ## Errors
 
-- **InvalidBlueprint** — malformed YAML keeps the original text and
-  parser issue. The text is not yaml, or a node breaks the
+- **InvalidBlueprint** — the text is not yaml, or a node breaks the
   schema (an unknown key, a missing `why`, a dotted name). Carries the
-  zod issues.
-- **InvalidTemplate** — malformed YAML keeps the file and parser issue.
-  A corpus file is not yaml, breaks the schema, or
+  zod issues. Malformed YAML keeps the original text and parser issue.
+- **InvalidTemplate** — a corpus file is not yaml, breaks the schema, or
   a choice template's `shapes` names a key `choices` does not. Carries
-  the file and the issues; the message names both.
-- **InvalidEval** — malformed YAML keeps the file and parser issue.
-  An eval file is not yaml, breaks the schema, names a
+  the file and the issues; the message names both. Malformed YAML keeps
+  the file and parser issue.
+- **InvalidEval** — an eval file is not yaml, breaks the schema, names a
   `target` no node in its own blueprint has, or (a pair template) is
-  missing its second name. Carries the file and the issues.
+  missing its second name. Carries the file and the issues. Malformed
+  YAML keeps the file and parser issue.
 - **BlueprintRejected** — a plain check or a `proven` template blocked.
   Carries the finding lines; the message holds one line per finding.
 - **NoKey** — `check`, `evals`, or `suggest` ran with no
   `AI_GATEWAY_API_KEY` and no `--key-file`.
 - **JevUnavailable** — the judge gave up after five rate-limit retries.
 - **NoWords** — `suggest` ran with empty words.
-- **NoTemplate** — when a rebound corpus lacks `unitFits`, the error
-  names the missing template. `suggest` needs `unitFits` or `target` in the
+- **NoTemplate** — `suggest` needs `unitFits` or `target` in the loaded
   corpus; only reachable with `corpusPath` rebound to a folder missing
-  one of the shipped seeds.
+  one of the shipped seeds. When the rebound corpus lacks `unitFits`,
+  the error names the missing template.
 - **NoSource** — `verify`'s source dir held no `*.ts` file. Carries the
   dir.
 

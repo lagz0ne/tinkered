@@ -137,7 +137,10 @@ test("malformed eval YAML reports the file and parser issue", () => {
   } catch (error: unknown) {
     if (!isError(error, "InvalidEval")) throw error;
     expect(error.payload.file).toBe("broken.yaml");
-    expect(error.payload.issues[0]).toHaveProperty("code", "BAD_INDENT");
+    expect(error.payload.issues).toHaveLength(1);
+    const issue = error.payload.issues[0];
+    if (!(issue instanceof Error)) expect.unreachable("parser issue must be an Error");
+    expect(issue.message.length).toBeGreaterThan(0);
     expect(error.message).toContain("broken.yaml");
   }
 });

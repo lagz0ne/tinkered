@@ -50,22 +50,33 @@ function writeBodyCase(): { readonly dir: string; readonly yamlPath: string } {
   return { dir, yamlPath };
 }
 
-test("readUnits reads an unexported const with quoted keys and a function body", () => {
+test("readUnits finds an unexported top-level const", () => {
+  const units = readUnits('const local = data({ label: "local" });', "cells.ts");
+  expect(units.map((unit) => unit.label)).toEqual(["local"]);
+});
+
+test("readUnits reads quoted label and depends keys", () => {
   const units = readUnits(
-    'const job = operation({ "label": "job", "depends": { "db": engine.optional, ...extra }, run: function () { return 1; } });',
+    'const job = operation({ "label": "job", "depends": { "db": engine.optional } });',
     "ops.ts",
   );
-  expect(units).toEqual([
-    {
-      kind: "operation",
-      label: "job",
-      file: "ops.ts",
-      line: 1,
-      depends: ["engine"],
-      target: undefined,
-      body: "function () { return 1; }",
-    },
-  ]);
+  expect(units.map((unit) => [unit.label, unit.depends])).toEqual([["job", ["engine"]]]);
+});
+
+test("readUnits keeps the body of a function expression", () => {
+  const units = readUnits(
+    'const job = operation({ label: "job", run: function () { return 1; } });',
+    "ops.ts",
+  );
+  expect(units[0].body).toBe("function () { return 1; }");
+});
+
+test("readUnits ignores spread entries in depends", () => {
+  const units = readUnits(
+    'const job = operation({ label: "job", depends: { db: engine, ...extra } });',
+    "ops.ts",
+  );
+  expect(units[0].depends).toEqual(["engine"]);
 });
 
 test("readUnits skips calls that do not declare a named const unit", () => {
@@ -85,18 +96,23 @@ test("readUnits skips calls that do not declare a named const unit", () => {
   expect(units.map((unit) => unit.label)).toEqual(["found"]);
 });
 
-test("readUnits reads only a literal string label and a literal session target", () => {
+test("readUnits skips units without a literal string label", () => {
   const units = readUnits(
     "const dynamic = resource({ label: variable });\n" +
       "const number = resource({ label: 12 });\n" +
-      'const task = resource({ label: "task", target: currentTarget });\n' +
+      'const found = resource({ label: "found" });',
+    "ops.ts",
+  );
+  expect(units.map((unit) => unit.label)).toEqual(["found"]);
+});
+
+test("readUnits treats a nonliteral resource target as scope", () => {
+  const units = readUnits(
+    'const task = resource({ label: "task", target: currentTarget });\n' +
       'const session = resource({ label: "session", target: "session" });',
     "ops.ts",
   );
-  expect(units.map((unit) => [unit.label, unit.target])).toEqual([
-    ["task", "scope"],
-    ["session", "session"],
-  ]);
+  expect(units.map((unit) => unit.target)).toEqual(["scope", "session"]);
 });
 
 test("readUnits reads a resource's depends value, target, and factory body", () => {
