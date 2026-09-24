@@ -84,6 +84,7 @@ Each ticket blocks the next one.
   streaming `ask` command that watches `text` and
   writes through the `io` tag) and the examples
   (`examples/cli/**`, `examples/mcp/cli.ts`).
+  `askCommand` deleted by nw/tinkerer-ask, 2026-09-24.
 - **process/t05** — [x]
   Delete `packages/cli`; drop its lanes from
   `scripts/validate.mjs` and add the process lanes;

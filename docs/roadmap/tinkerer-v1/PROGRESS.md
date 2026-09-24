@@ -221,6 +221,7 @@ One line per ticket: tag — sha — tests — size (B gzip) — mutation — no
   `ask "…"` printed the answer, code 0. Also
   formatted a pre-existing unformatted blueprint ADR
   so `vp check` is green on main.
+  `askCommand` deleted by nw/tinkerer-ask, 2026-09-24.
 - **tinkerer/t07** — `5007d2a` — the gate (ADR
   0053's deferred human-in-the-loop slot):
   `gate((request) => decision)` runs as a subflow
