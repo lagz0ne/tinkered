@@ -18,26 +18,35 @@ run: async ({ sub }) => {
 ```
 
 A session running `outer` closes `failed` although `outer` returned. A tagged run
-(ADR 0038, a child session) rejects with the inner error. `@tinker/hono` had to add a fake
-failure step to the stream body to keep its trace readable. Found by the nw/hono-stream review.
+(ADR 0038, a child session) rejects with the inner error. `@tinker/hono` works around it by
+running a stream body as an untagged run on a child session it builds itself. Found by the
+nw/hono-stream review.
 
 ## Decision
 
-A subflow is a function call (the precedent: an exception thrown by a called function goes to
-its caller, which may catch it; structured concurrency keeps the same rule for an awaited call).
+Errors work as in Go (user, 2026-09-24): an error someone receives is a value its receiver
+controls; an error nobody receives is a panic. The library must know which one each failure is,
+and it records where every failure happened, because observation needs the location either way.
 
-- A subflow's failure goes to the run that called it. If the caller catches it and returns,
-  the layer does not fail.
-- A failure that escapes a layer's own run (the top of `scope.run`, a session body, a tagged
-  run) fails that layer, as ADR 0017 says.
-- Work nobody awaits is still owned work: a subflow that settles failed after its caller has
-  already settled, with no one left to receive it, fails the layer.
+- **Received:** the subflow's result is awaited, or has `.then` / `.catch` attached. The error is
+  the receiver's value. If the receiver handles it and returns, the layer does not fail and a
+  tagged run resolves.
+- **Not received (a panic):** a subflow failure nobody received by the time it settles fails the
+  layer, like Node's unhandled-rejection rule. This holds whether the caller is still running or
+  has already returned. A failure that escapes the layer's own run (the top of `scope.run`, a
+  session body, a tagged run) fails the layer, as ADR 0017 says.
+- **Always located:** every failed subflow keeps its failure on its own span (status `failed`,
+  the error), received or not, so a trace shows where each error happened.
 - Cancellation stays as it is: a branded cancel reason on an aborted layer is `cancelled`,
   never `failed`.
 
+The precedent: Go's `error` value vs `panic`, and Node's unhandled-rejection rule for how a
+runtime knows a promise's failure was received.
+
 ## Consequences
 
-- A caught subflow no longer fails its session or rejects a tagged run.
-- `@tinker/hono`'s stream body can drop its workaround.
+- A received subflow failure no longer fails its session or rejects a tagged run.
+- A failure nobody receives always fails the layer; none can vanish silently.
+- `@tinker/hono`'s stream body could run as a plain tagged run again (a follow-up).
 - The span of the failed subflow still closes `failed`: the trace shows what failed even
   when the caller handled it.
