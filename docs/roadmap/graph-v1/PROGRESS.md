@@ -49,9 +49,7 @@ tools already print.
   - [ ] `examples/http/basic.ts`, and any harness example the change reaches.
   - [ ] one span-tree test in the tracker: a real request shows
         `caller > api.send > api.attempt`.
-- **graph/t01** -- [ ] core's gated log line
-  Blocked by: nothing, but held: `bench` is not on PATH in this container,
-  so the +2 ns budget cannot be measured here. Start it where `bench` runs.
+- **graph/t01** -- [x] core's gated log line
 - **graph/t03** -- [x] `harness`
   Blocked by: t02b (same pattern, proven once).
   The turn builder goes; the author declares the turn operation on
@@ -165,3 +163,17 @@ One line per ticket: tag -- sha -- tests -- size (B gzip) -- mutation -- Jev fla
   span-tree test per package that declares
   operations. The bar the track existed for now
   fails a regression at the gate, not in review.
+
+- **graph/t01** -- landed `graph/t01` -- core 511
+  tests, full suite 1072 green -- 85.28 mutation
+  alone. Core writes a step line when an observed
+  operation's span closes (label, `ms`, outcome;
+  debug ok, error failed). hono, mcp, harness, and
+  sync drop their hand-derived `ms`; no hand-derived
+  `ms` is left in a log line. N=61 A/B vs main: op
+  +0.1% (budget +2 ns), opres/run/inline/lifecycle
+  within noise. Sol 6 writer, Opus 5.5 reviewer (one
+  fix round: harness first-send timing noted, sync's
+  line renamed `sync keys`, three titles). Open: the
+  step `ms` reads the observe clock, not the scope
+  clock (core feedback).

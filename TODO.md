@@ -23,10 +23,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-| Card                                                                                                                                                | Owner         | Next                                                                                                                                                            | Verify                                        |
-| --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| tests/core-tag-read-split — `tag.read returns each unit's own binding on an operation, a resource, and a tag itself` proves three kinds in one body | lead (Claude) | Split three ways (one kind each) or keep one; it also overlaps `tag.read finds a unit's own binding` next door (the titles writer's delete-not-retitle finding) | one cause per test; core lane ≥ break         |
-| docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)                               | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean |
+- **validate/red-lanes** — `pnpm validate` fails on main beside the tagged promise count: `http pure
+universal bundle`, `process cast-free examples`, `process pure universal bundle`. Next: find the
+  landing that broke each (bisect with the lane's own command). Verify: those lanes PASS.
+  | Card                                                                                                                                                | Owner         | Next                                                                                                                                                            | Verify                                        |
+  | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+  | tests/core-tag-read-split — `tag.read returns each unit's own binding on an operation, a resource, and a tag itself` proves three kinds in one body | lead (Claude) | Split three ways (one kind each) or keep one; it also overlaps `tag.read finds a unit's own binding` next door (the titles writer's delete-not-retitle finding) | one cause per test; core lane ≥ break         |
+  | docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)                               | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean |
 
 ## Doing
 
@@ -34,8 +37,6 @@ Pairs since 2026-09-23: a writer (sol 6 for hard, deepseek-v4.1-flash for simple
 reviewer per card; the lead runs mutation, bench, and `pnpm validate` alone at landing, one core
 card at a time.
 
-- **graph/t01 core step log line** — sol 6; core + its consumers (http, hono, mcp drop hand-derived
-  `ms`). Next: consumer fix round, then reviewer. Verify: gate, mutation alone, N=61 bench.
 - **core/tagged-promises** — sol 6. A tagged run allocates 19 promises (budget 17) since `144de99`
   (t02b-1). Verify: `bench/promises.mjs` prints 17; gate; mutation alone.
 - **core/ns-watch-index** — sol 6. A named write wakes only watchers whose chain holds that key
@@ -74,6 +75,9 @@ card at a time.
 
 ## Done
 
+- **graph/t01 core step log line** — sol 6 + opus review; tag `graph/t01`. Core writes one line per
+  observed operation; six hand-derived `ms` gone (hono, mcp, harness, sync). op +0.1%; mutation
+  85.28. Proof: [graph-v1 landed](docs/roadmap/graph-v1/PROGRESS.md).
 - **jev/unit-note** — deepseek flash + opus review (one fix round); tag `jev/unit-note`. The
   unit-kind note prints `ℹ`, never `⚠`; the brief, CLAUDE.md, and the coding skill say it owes no
   line or label. Gate green (1064 tests).
