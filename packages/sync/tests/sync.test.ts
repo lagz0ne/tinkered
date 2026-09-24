@@ -100,6 +100,9 @@ test("close reaches both sides once and drops later sends", () => {
   right.onMessage(() => {
     heard += 1;
   });
+  left.onMessage(() => {
+    heard += 1;
+  });
   const parted = new Promise<unknown>((resolve) => {
     left.onClose(() => {
       leftClosed += 1;
@@ -724,6 +727,42 @@ test("onMember fires once per new member with the id, after it exists", () => {
   stop();
   notes("c");
   expect(heard).toEqual(["a", "b"]);
+});
+
+test("a source sends changes only for keys registered by that viewer", async () => {
+  const other = data({ label: "other", initial: 0 });
+  const src = source({
+    cells: [
+      [counter, "counter"],
+      [other, "other"],
+    ],
+  });
+  const origin = createScope({ extensions: [src] });
+  await origin.ready;
+  const [near, far] = memoryPair();
+  const done = origin.resolve(src).connect(near);
+  const seen: Sync.Message[] = [];
+  far.onMessage((message) => seen.push(message));
+  far.send({ type: "register", keys: ["counter"] });
+  await setImmediate();
+  origin.controller(other).set(3);
+  await setImmediate();
+  expect(seen).toEqual([{ type: "snapshot", key: "counter", version: 0, value: 0 }]);
+  far.close();
+  await done;
+  await origin.close({ graceful: true });
+});
+
+test("a viewer closes after a wrong-direction message arrives after ready", async () => {
+  const [near, far] = memoryPair();
+  const sub = subscribe(far, { cells: [[counter, "counter"]] });
+  const guest = createScope({ extensions: [sub] });
+  near.send({ type: "snapshot", key: "counter", version: 0, value: 1 });
+  await guest.ready;
+  const parted = new Promise<void>((resolve) => near.onClose(resolve));
+  near.send({ type: "register", keys: ["counter"] });
+  await parted;
+  await guest.close({ graceful: true });
 });
 
 test("a source rejects a snapshot sent in the register direction", async () => {

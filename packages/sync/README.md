@@ -51,7 +51,8 @@ A registration logs its key count on `sync keys`; its observed `sync register` s
 carries elapsed `ms` and outcome.
 A registered key answers at once with its snapshot (current version and
 value), and a changed cell fans out only to the live transports registered
-for that key. A member created after startup keeps its version when it changes before registration.
+for that key. Changes to other keys do not reach that viewer.
+A member created after startup keeps its version when it changes before registration.
 A member held before startup also keeps its version when it changes before registration.
 A member the source does not hold yet gets a namespace there;
 its cell reads its initial value.
@@ -91,7 +92,7 @@ close aborts the wait — the start rejects with `SyncNotReady`
 `{ label: "subscribe", missing }` naming the keys still missing: `ready`
 rejects and the scope closes failed. `close()` detaches and closes the
 transport (safe to repeat); a close from the far side detaches without closing
-twice.
+twice. A wrong-direction message after ready closes the viewer wire.
 
 ## Wire it
 
