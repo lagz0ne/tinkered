@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
-import { unitCouldBeModuleLevel, routesDeclaredOperation, units } from "./extract.mjs";
+import { unitCouldBeModuleLevel, units } from "./extract.mjs";
 
 const core = 'import { operation, resource, data, tag, operation as op } from "@tinker/core";\n';
 
@@ -95,18 +95,6 @@ void test("dotted and dashed test filenames and test directories are excluded", 
   const src = core + "function f() { operation({ label: 'x' }); }";
   for (const file of ["a.b.test.ts", "foo-bar.spec.tsx", "pkg/tests/a.ts", "pkg/test/a.ts"])
     assert.deepEqual(unitCouldBeModuleLevel(src, file), []);
-});
-
-void test("inline routing of a declared op is not a new declared step", () => {
-  assert.equal(
-    routesDeclaredOperation("session.run({ depends: { op }, run: ({ op }) => op.run() })"),
-    true,
-  );
-  assert.equal(
-    routesDeclaredOperation("operation({ depends: { op }, run: ({ op }) => op.run() })"),
-    false,
-  );
-  assert.equal(routesDeclaredOperation("session.run({ label, run: () => write() })"), false);
 });
 
 void test("this is not a module-level value", () => {

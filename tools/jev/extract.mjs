@@ -260,15 +260,6 @@ export function unitCouldBeModuleLevel(src, file = "a.ts") {
   return out;
 }
 
-/** An inline request run of a declared op is routing, not a new declared step. */
-export function routesDeclaredOperation(source) {
-  return (
-    !/\boperation\s*\(/.test(source) &&
-    /\bdepends\s*:\s*\{\s*op\s*\}/.test(source) &&
-    /\.run\s*\(\s*\{/.test(source)
-  );
-}
-
 /** A named nested function, for labeling historical builders no longer in the current slice. */
 export function namedFunction(src, file, name) {
   let match;

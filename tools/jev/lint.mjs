@@ -10,7 +10,7 @@ import { execSync } from "node:child_process";
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { loadKey, ask, pct, readCalibration, isTieError } from "./lib.mjs";
 import { slice, forJev, LINT, GUIDE } from "./bank.mjs";
-import { unitCouldBeModuleLevel, routesDeclaredOperation } from "./extract.mjs";
+import { unitCouldBeModuleLevel } from "./extract.mjs";
 
 /** Per-judge status from `tools/jev/calibrate.mjs`: a `noisy` judge prints as a note (`~`), never as a flag. */
 const CALIBRATION = readCalibration();
@@ -43,12 +43,7 @@ function listFiles(specs) {
 function questionsFor(u) {
   const qs = u.wrapperOnly ? {} : { unit: GUIDE.unit.q };
   for (const [id, j] of Object.entries(LINT))
-    if (
-      j.applies.includes(u.kind) &&
-      (!u.wrapperOnly || j.unitBuilders) &&
-      !(id === "wrapsCallersStep" && routesDeclaredOperation(u.source))
-    )
-      qs[id] = j.q;
+    if (j.applies.includes(u.kind) && (!u.wrapperOnly || j.unitBuilders)) qs[id] = j.q;
   return qs;
 }
 
