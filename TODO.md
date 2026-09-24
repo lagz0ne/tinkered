@@ -42,7 +42,6 @@ card at a time.
   `2b53dd5`). Census (opus `8758de3f`, reports `/tmp/mut-reports/`): mcp 85.29 ✓, http 85.05 ✓.
   Lift pairs, worktrees `../tinkered-mut-<pkg>`, every lane under `flock /tmp/mutation.lock`:
   - mut/blueprint-85 — 79.47, sol 6 `13012c7a`
-  - mut/sync-85 — 80.13, sol 6 `868a31df`
   - mut/tinkerer-85 — 81.74, deepseek `b63525bf`
   - mut/process-85 — 82.69, deepseek `a1f75179`
     Verify each: its lane alone ≥ 85, `[Killed]` per claimed row.
@@ -80,6 +79,7 @@ card at a time.
 
 ## Done
 
+- **mut/sync-85** — sol 6 + opus review (two fix rounds); tag `mut/sync-85`. Sync mutation 80.13 → 87.38 alone: 12 public-seam tests (malformed keys, registration rules, wrong-direction messages, a failed snapshot send, viewer close parts the source wire, a closed viewer sends nothing later).
 - **mut/hono-85** — sol 6 + opus review (one fix round); tag `mut/hono-85`. Hono mutation 80.09 → 86.88 alone: public-seam tests for PUT/PATCH/DELETE rows, a rejected body read, a closer object, byte chunks, a stream namespace, null input; the scope-close tests now check the whole result.
 - **mut/harness-85** — sol 6 + opus review (one fix round); tag `mut/harness-85`. Harness mutation 76.30 → 86.32 alone: tests at the public seam for raw approval parsing and for unset Codex options staying out of SDK calls; every claimed mutant `[Killed]`.
 - **jev/wrapper-checks** — sol 6 + opus review (two fix rounds); tag `jev/wrapper-checks`. Jev reports a wrapper before its fix: a plain-code check `unitCouldBeModuleLevel` (ADR 0057; 13 extractor tests, now in the gate) and a judge `wrapsCallersStep` (ADR 0058), now noisy after its false cases were labeled (prints `~`, advisory). It found every audit site first; five fix cards followed. Gate EXIT 0; no mutation lane (tools/jev); validate 43 PASS; calibrate: `wrapsCallersStep` noisy, sep 45%, ordered 85% (17 true, 12 false); no other judge changed status.
