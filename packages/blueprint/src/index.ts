@@ -7,7 +7,7 @@ import {
   type Scope,
   type Tag,
 } from "@tinker/core";
-import { argv, io, jsonLine, type Process } from "@tinker/process";
+import { argv, io, jsonLine, positionals, type Process } from "@tinker/process";
 import {
   createGateway,
   experimental_evaluate as evaluate,
@@ -412,15 +412,10 @@ function walk(dir: string): readonly Blueprint.Unit[] {
   );
 }
 
-/** Every argv entry that is neither a flag nor `--key-file`'s value, in order — the root
- * reads the key before the row sees argv, so the path must not read as a positional. */
-function positionals(argv: readonly string[]): readonly string[] {
-  return argv.filter((arg, i) => !arg.startsWith("--") && argv[i - 1] !== "--key-file");
-}
-
-/** The two non-flag argv entries `verify` takes: the blueprint file, then the source dir. */
+/** The two non-flag argv entries `verify` takes: the blueprint file, then the source dir. The
+ * root reads `--key-file`'s path before the row sees argv, so that path must not read as one. */
 function verifyArgs(argv: readonly string[]): { readonly file: string; readonly dir: string } {
-  const [file, dir] = positionals(argv);
+  const [file, dir] = positionals(argv, { values: ["--key-file"] });
   return { file: file ?? "", dir: dir ?? "" };
 }
 
@@ -577,7 +572,7 @@ function suggestLines(result: {
 
 /** The first argv entry that is not a flag and is not `--key-file`'s value. */
 function fileArg(argv: readonly string[]): string | undefined {
-  return positionals(argv)[0];
+  return positionals(argv, { values: ["--key-file"] })[0];
 }
 
 /** Each command's name, read once: the row's `name` and the operation's span label take the same
