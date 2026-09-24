@@ -33,10 +33,18 @@ Pairs since 2026-09-23: a writer (sol 6 for hard, deepseek-v4.1-flash for simple
 reviewer per card; the lead runs mutation, bench, and `pnpm validate` alone at landing, one core
 card at a time.
 
-- **jev/wrapper-checks** — sol 6 (agent `3478b374`), worktree `../tinkered-jev-wrapper`. Jev learns
+- **jev/wrapper-checks** — sol 6 (agent `3478b374`), reviewer opus `52671d8b`, worktree `../tinkered-jev-wrapper`. Jev learns
   to see wrappers: a plain-code check `unitCouldBeModuleLevel` (ADR 0057) and a judge
   `wrapsCallersStep` (ADR 0058). User rule (2026-09-24): Jev must report each wrapper before its fix.
   Verify: its report on main flags every audit site and none of the allowed frames.
+
+- **no-wrapper fixes** (user pick A; Jev reported every site first: 35 code hits, 16 judge hits).
+  Worktrees `../tinkered-nw-<name>`, briefs `/tmp/nw/f*.md`. Verify each: its Jev hits gone; gate.
+  - nw/blueprint-shell — deepseek `248680a4`
+  - nw/tracker-commands — deepseek `a2ab3f69`
+  - nw/tinkerer-ask — deepseek `20981a92`
+  - nw/hono-stream — sol 6 `d086938d`
+  - nw/examples — deepseek `6d9e27b2`
 
 | Card | Owner | Next | Verify |
 
@@ -52,11 +60,8 @@ card at a time.
 
 ## Blocked
 
-- **no-wrapper fixes** (user pick A, 2026-09-24) — waiting for jev/wrapper-checks' report. Six cards:
-  blueprint `shell` units to module level; tracker `issueCommands` units to module level; tinkerer
-  deletes `askCommand`; hono `stream` takes a declared operation; examples declare units at
-  module level; docs drop retired wrappers (glossary, best-practices, mcp/tinkerer/harness
-  READMEs, ADR 0060 status). Verify each: Jev's hit is gone, gate green.
+- **nw/docs** — waits for nw/tinkerer-ask and nw/hono-stream to land (docs name their new shapes).
+  Brief ready: `/tmp/nw/f6-docs.md`.
 
 | Card | Waiting for | Next | Verify |
 | ---- | ----------- | ---- | ------ |
