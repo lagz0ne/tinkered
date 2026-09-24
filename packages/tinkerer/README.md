@@ -260,6 +260,8 @@ namespace. Never share a file between coders.
   file and appends only what is new.
 - `restore(file)` reads a JSONL file into messages;
   a missing file reads as an empty transcript.
+- A session with no file to read keeps the
+  messages it inherited.
 - Two files under one scope keep two transcripts
   apart.
 

@@ -115,3 +115,15 @@ test("two files under one scope keep two transcripts apart", async () => {
   expect(lines(one).map((message) => message.content)).toEqual(["first", replyText]);
   expect(lines(two).map((message) => message.content)).toEqual(["second", replyText]);
 });
+
+test("a session with a missing file keeps the messages it inherited", async () => {
+  const file = tempFile();
+  const scope = createScope({
+    tags: [backend(recording([])), coder.config({ model: "m", baseUrl: "https://api" })],
+    extensions: [persist({ frame: coder, file })],
+  });
+  scope.controller(coder.messages).set([{ role: "user", content: "kept" }]);
+  const session = scope.createSession();
+  expect(session.resolve(coder.messages)).toEqual([{ role: "user", content: "kept" }]);
+  await scope.close();
+});
