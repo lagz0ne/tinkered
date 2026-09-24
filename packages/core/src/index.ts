@@ -1944,12 +1944,7 @@ function recordUsed(
 }
 
 /** A subflow failure is received by a rejection handler, or handed to a derived promise. */
-type Receipt = {
-  received: boolean;
-  handedOff: boolean;
-  settled?: boolean;
-  children?: Receipt[];
-};
+type Receipt = { received: boolean; handedOff: boolean };
 /** Subflow controllers only need an identity marker, shared by every run (even sync runs). */
 type RunState = Receipt;
 const SUBFLOW_CALLER: RunState = { received: false, handedOff: false };
@@ -1986,7 +1981,6 @@ class SubflowPromise<T> extends Promise<T> {
       receipt.handedOff = true;
       if (typeof onrejected === "function") receipt.received = true;
       const nextReceipt: Receipt = { received: false, handedOff: false };
-      (receipt.children ??= []).push(nextReceipt);
       next.own(owner, nextReceipt);
       trackSubflow(owner, next, nextReceipt, undefined, false);
     }
@@ -2004,8 +1998,7 @@ function failSubflow(layer: Layer, error: unknown): void {
 }
 
 function unreceived(receipt: Receipt): boolean {
-  if (!receipt.received && !receipt.handedOff) return true;
-  return receipt.received && (receipt.children?.some((child) => !child.settled) ?? false);
+  return !receipt.received && !receipt.handedOff;
 }
 
 /** Root runs join their own work plus one timer turn after handing off; derived runs only join their
@@ -2020,14 +2013,12 @@ function trackSubflow(
   const tracked: Promise<unknown> = Promise.prototype.then.call(
     result,
     async () => {
-      receipt.settled = true;
       onSettle?.("ok");
       if (join && receipt.handedOff)
         await new Promise<void>((resolve) => hostSetTimeout(resolve, 0));
       if (join) layer.pending.delete(tracked);
     },
     async (error: unknown) => {
-      receipt.settled = true;
       onSettle?.("failed", error);
       if (!join) layer.pending.add(tracked);
       if (join || unreceived(receipt))

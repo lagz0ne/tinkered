@@ -57,13 +57,52 @@ for (const graceful of [true, false]) {
     const root = createScope();
     const session = root.createSession();
     expect(await session.run(outer)).toBe("x");
-    expect(await bounded(session.close(graceful ? { graceful: true } : undefined))).toMatchObject({
-      status: "failed",
-      error: cause,
-    });
+    expect((await bounded(session.close(graceful ? { graceful: true } : undefined))).status).toBe(
+      graceful ? "success" : "cancelled",
+    );
     await root.close({ graceful: true });
   });
 }
+
+test("an awaited slow rejection handler receives the error while its gate is closed", async () => {
+  const cause = new Error("received");
+  let entered!: () => void;
+  let release!: () => void;
+  const inside = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const sub = operation({
+    label: "sub",
+    run: async () => {
+      throw cause;
+    },
+  });
+  const outer = operation({
+    label: "outer",
+    depends: { sub },
+    run: async ({ sub }) => {
+      await sub.run().catch(async (error: unknown) => {
+        if (error !== cause) throw error;
+        entered();
+        await gate;
+      });
+      return "caught";
+    },
+  });
+  const root = createScope();
+  const session = root.createSession();
+  const running = session.run(outer);
+  await inside;
+  const closing = session.close({ graceful: true });
+  await new Promise<void>((resolve) => hostTimer(resolve, 10));
+  release();
+  expect(await bounded(running)).toBe("caught");
+  expect((await bounded(closing)).status).toBe("success");
+  await root.close({ graceful: true });
+});
 
 test("two fulfillment-only handlers pass the original subflow failure on", async () => {
   const cause = new Error("sub failed");
