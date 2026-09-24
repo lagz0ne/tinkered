@@ -33,10 +33,6 @@ Pairs since 2026-09-23: a writer (sol 6 for hard, deepseek-v4.1-flash for simple
 reviewer per card; the lead runs mutation, bench, and `pnpm validate` alone at landing, one core
 card at a time.
 
-- **core/ns-watch-child** — sol 6 (agent `1b4a16ea`), worktree `../tinkered-core-ns-watch-child`. A
-  child's namespace watcher misses a parent's namespace write (lead-verified). Verify: the five
-  tests in the brief; gate; mutation alone; bench.
-
 - **core/release-cell-ns** — sol 6 (agent `f3e0073b`), worktree `../tinkered-core-release-cell-ns`.
   `release(cell)` also clears the cell's namespace entries (user pick A, 2026-09-24; ADR 0063).
   Verify: the tests in the brief; gate; mutation alone; bench.
@@ -74,6 +70,12 @@ card at a time.
 
 ## Done
 
+- **core/ns-watch-child** — sol 6 + opus review; tag `core/ns-watch-child`. Named writes and
+  `releaseNs` wake namespace watchers on child layers, unless the child shadows the value.
+  Gate green (core 528 tests); core mutation 85.36 alone; `pnpm validate` 43/43 PASS;
+  tagged promises 17. N=61 vs main `2bab231`: op +0.0%, opres +0.6%, lifecycle -0.1%,
+  create +2.5% (41/61). Review found two old behaviors, the same on main (core-feedback row,
+  first asker).
 - **core/ns-watch-index** — sol 6 + opus review; tag `core/ns-watch-index`. Named writes and
   `releaseNs` wake only watchers indexed under the changed key. Gate green (core 522 tests);
   core mutation 85.33 alone; `pnpm validate` 43/43 PASS; tagged promises 17.
