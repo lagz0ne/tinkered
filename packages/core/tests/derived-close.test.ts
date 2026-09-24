@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
 import { promisify } from "node:util";
 import { expect, test } from "vite-plus/test";
 import { createScope, operation } from "../src/index.ts";
@@ -270,12 +271,13 @@ test("a derived rejection after the root closes reaches the host once", async ()
     if (ended.status !== "success") throw new Error("root did not close");
     rejectGate(cause);
   `;
+  const packageDir = existsSync(new URL("../dist/index.mjs", import.meta.url))
+    ? new URL("..", import.meta.url)
+    : new URL("../../../", import.meta.url);
   const { stdout } = await promisify(execFile)(
     process.execPath,
     ["--input-type=module", "-e", script],
-    {
-      cwd: new URL("..", import.meta.url),
-    },
+    { cwd: packageDir },
   );
   expect(stdout.trim()).toBe(JSON.stringify({ count: 1, message: "host panic" }));
 });
