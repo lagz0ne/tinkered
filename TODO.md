@@ -42,7 +42,6 @@ card at a time.
   `2b53dd5`). Census (opus `8758de3f`, reports `/tmp/mut-reports/`): mcp 85.29 ✓, http 85.05 ✓.
   Lift pairs, worktrees `../tinkered-mut-<pkg>`, every lane under `flock /tmp/mutation.lock`:
   - mut/blueprint-85 — 79.47, sol 6 `13012c7a`
-  - mut/tinkerer-85 — 81.74, deepseek `b63525bf`
     Verify each: its lane alone ≥ 85, `[Killed]` per claimed row.
 
 | Card | Owner | Next | Verify |
@@ -78,6 +77,7 @@ card at a time.
 
 ## Done
 
+- **mut/tinkerer-85** — deepseek + opus review (one fix round); tag `mut/tinkerer-85`. Tinkerer mutation 81.74 → 96.12 alone; 31 public-seam tests (steer and queue, tool rows and gates, persist, bash, log lines, frame labels); one unreachable `calls` field on the steered branch removed (the loop never read it).
 - **mut/process-85** — deepseek + opus review (one fix round); tag `mut/process-85`. Process mutation 82.69 → 95.51 alone: public-seam tests for help order (and equal names), partial io writers, graceful close, signal wiring, an unknown error, and `MissingTag` naming process tags outside `run`.
 - **mut/sync-85** — sol 6 + opus review (two fix rounds); tag `mut/sync-85`. Sync mutation 80.13 → 87.38 alone: 12 public-seam tests (malformed keys, registration rules, wrong-direction messages, a failed snapshot send, viewer close parts the source wire, a closed viewer sends nothing later).
 - **mut/hono-85** — sol 6 + opus review (one fix round); tag `mut/hono-85`. Hono mutation 80.09 → 86.88 alone: public-seam tests for PUT/PATCH/DELETE rows, a rejected body read, a closer object, byte chunks, a stream namespace, null input; the scope-close tests now check the whole result.
