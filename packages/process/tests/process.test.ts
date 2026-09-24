@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
-import { extension, operation, tag } from "@tinker/core";
+import { createScope, extension, isError as isCoreError, operation, tag } from "@tinker/core";
 import {
   argv,
   env,
@@ -151,6 +151,13 @@ test("help orders the routes by name whatever order they were declared in", asyn
   ]);
   expect((await run(table, ["help"])).stdout).toBe(
     "usage: tk <command>\n  alpha  first\n  beta  second\n  middle  middle\n  zeta  last\n",
+  );
+});
+
+test("help lists routes that share a name in declared order", async () => {
+  const table = shell([routeFor("same", three, "first"), routeFor("same", three, "second")]);
+  expect((await run(table, ["help"])).stdout).toBe(
+    "usage: tk <command>\n  same  first\n  same  second\n",
   );
 });
 
@@ -333,6 +340,31 @@ test("the argv and env tags carry the rest of argv and the process environment",
   ]);
   expect(result.stdout).toBe("a+--b yes");
 });
+
+/** Each process tag with the label a missing-tag error names it by. */
+const processTags = [
+  [io, "process.io"],
+  [argv, "process.argv"],
+  [env, "process.env"],
+] as const;
+
+test.each(processTags)(
+  "a command run outside a process run fails with MissingTag naming the process tag",
+  (processTag, label) => {
+    const cmd = operation({
+      label: "probe",
+      depends: { probe: processTag.required },
+      run: () => 0,
+    });
+    try {
+      createScope().run(cmd);
+      expect.unreachable();
+    } catch (error: unknown) {
+      if (!isCoreError(error, "MissingTag")) throw error;
+      expect(error.payload.label).toBe(label);
+    }
+  },
+);
 
 test("a command that answers closes its root gracefully", async () => {
   const modes: (boolean | undefined)[] = [];

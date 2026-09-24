@@ -59,6 +59,8 @@ answer out through `io`, the code owned.
   descriptions and loads nothing.
 - Help orders the routes by name, whatever
   order they were declared in.
+- Help lists routes that share a name in
+  declared order.
 - `help` and `--help` print the usage with
   exit 0.
 - `--version` answers the version with exit 0.
@@ -101,8 +103,10 @@ watcher above it.
 - A throwing run leaves the next run unaffected.
 - The `env` tag reads an empty record when there
   is no process.
+- A command run outside a process run fails with
+  `MissingTag` naming the process tag.
 - A command that answers closes its root
-  gracefully; an abort forces it instead.
+  gracefully.
 
 ## Signals
 
