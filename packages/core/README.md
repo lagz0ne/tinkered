@@ -456,6 +456,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A catch on a handed-off result receives a later subflow failure and leaves the session successful.
 - A fulfillment-only hand-off reports the original failure once.
 - A derived rejection after the root closes reaches the host once.
+- An async subflow that succeeds exports an ok span.
 - Close waits for a handed-off success to report its failed callback.
 - A finally callback passes an unreceived subflow failure to its returned promise, failing the layer.
 - A fulfillment-only then passes an unreceived subflow failure to its returned promise, failing the layer.

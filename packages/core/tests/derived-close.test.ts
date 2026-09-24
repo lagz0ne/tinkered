@@ -1,3 +1,5 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { expect, test } from "vite-plus/test";
 import { createScope, operation } from "../src/index.ts";
 
@@ -244,38 +246,38 @@ test("close waits for a handed-off success to report its failed callback", async
 });
 
 test("a derived rejection after the root closes reaches the host once", async () => {
-  const cause = new Error("host panic");
-  let rejectGate!: (cause: Error) => void;
-  const gate = new Promise<never>((_resolve, reject) => {
-    rejectGate = reject;
-  });
-  const sub = operation({ label: "sub", run: async () => 1 });
-  const outer = operation({
-    label: "outer",
-    depends: { sub },
-    run: ({ sub }) => {
-      void sub.run().then(() => gate);
-      return "done";
-    },
-  });
-  const root = createScope();
-  expect(root.run(outer)).toBe("done");
-  expect((await bounded(root.close({ graceful: true }))).status).toBe("success");
-  const originalReject = Reflect.get(Promise, "reject") as typeof Promise.reject;
-  const received: unknown[] = [];
-  // Core's host callback calls Promise.reject after every layer is closed. Catch that
-  // one call before it becomes an unhandled process rejection in the test runner.
-  Promise.reject = (error?: unknown): Promise<never> => {
-    received.push(error);
-    return new Promise<never>(() => undefined);
-  };
-  try {
+  const script = `
+    import { createScope, operation } from "@tinker/core";
+    const cause = new Error("host panic");
+    let rejectGate;
+    const gate = new Promise((_resolve, reject) => { rejectGate = reject; });
+    const sub = operation({ label: "sub", run: async () => 1 });
+    const outer = operation({
+      label: "outer",
+      depends: { sub },
+      run: ({ sub }) => {
+        void sub.run().then(() => gate);
+        return "done";
+      },
+    });
+    let count = 0;
+    process.on("unhandledRejection", (error) => {
+      console.log(JSON.stringify({ count: ++count, message: error.message }));
+    });
+    const root = createScope();
+    if (root.run(outer) !== "done") throw new Error("run did not return");
+    const ended = await root.close({ graceful: true });
+    if (ended.status !== "success") throw new Error("root did not close");
     rejectGate(cause);
-    await new Promise<void>((resolve) => hostTimer(resolve, 25));
-    expect(received).toEqual([cause]);
-  } finally {
-    Promise.reject = originalReject;
-  }
+  `;
+  const { stdout } = await promisify(execFile)(
+    process.execPath,
+    ["--input-type=module", "-e", script],
+    {
+      cwd: new URL("..", import.meta.url),
+    },
+  );
+  expect(stdout.trim()).toBe(JSON.stringify({ count: 1, message: "host panic" }));
 });
 
 test("a derived rejection after its session closes fails its still-open root", async () => {

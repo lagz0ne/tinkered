@@ -722,6 +722,20 @@ test("a fulfillment-only hand-off reports the original failure once", async () =
   await root.close({ graceful: true });
 });
 
+test("an async subflow that succeeds exports an ok span", async () => {
+  const inner = operation({ label: "inner", run: async () => "inner value" });
+  const outer = operation({
+    label: "outer",
+    depends: { sub: inner },
+    run: async ({ sub }) => sub.run(),
+  });
+  const spans: Observe.Span[] = [];
+  const root = createScope({ observe: { export: (span) => void spans.push(span) } });
+  expect(await root.run(outer)).toBe("inner value");
+  expect(spans.find((span) => span.name === "inner")?.status).toBe("ok");
+  await root.close({ graceful: true });
+});
+
 test("a caught failure two subflows deep does not fail the session", async () => {
   const cause = new Error("leaf boom");
   const leaf = operation({
