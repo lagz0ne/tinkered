@@ -2096,11 +2096,12 @@ function recover(layer: Layer, error: unknown): void {
   layer.panics = left.length === 0 ? undefined : left;
 }
 
-/** A layer's first real failure: a stuck panic, when there is one, came before any `failure`. */
+/** A layer's first real failure: a stuck panic, when there is one, came before any `failure`.
+ * Indexed, not destructured: array destructuring runs the iterator protocol, which made this
+ * hot check too big for V8 to inline into close. */
 function failureOf(layer: Layer): { cause: unknown } | undefined {
-  if (layer.panics === undefined) return layer.failure;
-  const [cause] = layer.panics;
-  return { cause };
+  const panics = layer.panics;
+  return panics === undefined ? layer.failure : { cause: panics[0] };
 }
 
 /** Track owned async work so `settled()`/`close` join it. `onReject` decides where a rejection
@@ -4290,11 +4291,7 @@ async function runSessionWith<R>(
    * (with the cause / abort reason), a clean run resolves the body value; teardown errors aggregate
    * into `TeardownFailed` either way. The self-close is FORCED — the body is done, so any still-running
    * owned work is aborted rather than awaited; the body's own outcome decides success/cancelled. */
-  const ended = await closeLayer(child, true);
-  const teardownCauses = ended.teardownErrors ? [...ended.teardownErrors] : undefined;
-  if (ended.status === "failed") settleSession(true, ended.error, teardownCauses);
-  else if (ended.status === "cancelled") settleSession(true, ended.reason, teardownCauses);
-  else settleSession(false, undefined, teardownCauses);
+  settleSessionEnded(await closeLayer(child, true));
   return result as R;
 }
 
