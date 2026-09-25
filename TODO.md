@@ -48,10 +48,6 @@ Pairs since 2026-09-23: a writer (sol 6 for hard, deepseek-v4.1-flash for simple
 reviewer per card; the lead runs mutation, bench, and `pnpm validate` alone at landing, one core
 card at a time.
 
-- **bridge gaps (ADR 0060)** — user go 2026-09-24:
-  - core/ext-hooks-every-layer — sol 6 `247fb6ec`: extension `run`/`write` hooks wrap every run and
-    write at every layer (core-feedback rows, two askers). Verify: tests; bench; mutation ≥ 85.
-  - ADR 0060 no longer promises a process bridge (done with this card).
     | Card | Owner | Next | Verify |
 
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -85,6 +81,9 @@ card at a time.
 
 ## Done
 
+- **core/ext-hooks-every-layer** — sol 6 + opus review (one fix round); tag `core/ext-hooks-every-layer`. Extension `run`/`write` hooks wrap every run and write at every layer (sessions, tagged runs, subflows, inline runs, dependency writes); 72 lines of root-handle wrappers removed; no-hook path unchanged. Review fix: an async hook on a dropped failing subflow no longer escapes as an unhandled rejection.
+  - Gate EXIT 0; promises_tagged 17; core mutation 85.83; validate 43 PASS; speed from the writer's N=61 run (tagged +2.1% in 40/61, inline +1.1%); Jev calibrate owed (gateway 402).
+- **bridge gaps (ADR 0060)** — done 2026-09-25: core/ext-hooks-every-layer landed; ADR 0060 no longer promises a process bridge.
 - **perf/async-subflow** — stopped, not landed (user 2026-09-25: no cooked promise, ever). It cut
   the subclass cost 28% (asyncsub 1807 → 1298 ns, 61/61 pairs); errors/t01 removes the subclass
   instead. Its `asyncsub` probe (commit `354914f`, branch `perf/async-subflow`) is reused there.
