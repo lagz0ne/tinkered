@@ -28,9 +28,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   `pnpm validate`. Next: find the test(s), make timing tests measure relative cost or move them to
   the bench lane. Verify: the core lane passes 5 of 5 beside a mutation run.
 
-- **errors/t02 packages recover through settle** — after t01: each `catch` around a `.run` that
-  recovers on purpose moves to `settle` (hono, mcp, process, tinkerer, harness, http, sync,
-  blueprint). One writer per package. Verify: behavior unchanged; tests green.
 - **errors/t03 core: panics are sticky** — after t02: a panic fails its layer even if caught;
   `settle` recovers; ADR 0066 tests rewritten to 0067. Verify: tests; promises 17; mutation ≥ 85.
 
@@ -45,6 +42,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-23: a writer (sol 6 for hard, deepseek-v4.1-flash for simple) and an Opus 5.5
 reviewer per card; the lead runs mutation, bench, and `pnpm validate` alone at landing, one core
 card at a time.
+
+- **errors/t02 packages recover through settle** (ADR 0067) — opus high writers, fable reviewers;
+  worktrees `../tinkered-e2-<pkg>`, briefs `~/.cache/tinkered-briefs/errors-t02-<pkg>.md`. Each
+  deliberate `catch` around a `.run` moves to `settle` before t03 makes panics sticky.
+  - hono `ccb9bf57` · mcp `e77682de` · process `1b2c2322`
+  - tinkerer `05ba5321` · harness `24d456f3` · http `f47eea68`
+    Verify each: behavior unchanged; a panic and a managed error both still recovered; mutation ≥ 85.
 
 | Card                                                                                                                                                                                                                      | Owner                                                                           | Next                                                                                                                                                                                                                                                                                                                                      | Verify                                                                                                                                                                                                      |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
