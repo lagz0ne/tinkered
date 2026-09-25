@@ -155,9 +155,11 @@ A caller's `try/catch` does not undo it: the layer still closes `failed`.
 `settle` is the one recover: a panic it receives does not fail the layer.
 That holds at any depth, and for a panic in the received error's `cause` chain.
 A panic caught before it reaches `settle` stays sticky.
-An error is a value: a caller that catches it leaves the layer fine.
+An error thrown by a run is a value: a caller that catches it leaves the layer fine.
+A failed build still fails its layer, whatever its error's kind.
 A dropped subflow's panic fails the layer, even while its caller still runs.
 A dropped subflow's error stays with its caller and shows on its span.
+A root run's dropped error goes to the host as an unhandled rejection; the layer stays fine.
 A forced close after a sticky panic settles `failed`, not `cancelled`.
 
 ## Resource cleanup

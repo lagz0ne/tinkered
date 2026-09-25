@@ -1104,7 +1104,8 @@ type Layer = {
   bodyEnd: Promise<Scope.Outcome> | undefined;
   failure: { cause: unknown } | undefined;
   /** Panics stuck to this layer before any recorded `failure`, in failure order; a `settle` that
-   * receives one takes it back (ADR 0067). Absent until the first panic. */
+   * receives one takes it back (ADR 0067). Absent until the first panic. A subflow under a run hook
+   * sticks its panic twice (the hook's promise and the run's own); `recover` drops every copy. */
   panics?: unknown[];
   descendantFailure: { cause: unknown } | undefined;
   /** A tagged subflow reports its failed child session through its returned promise. */
