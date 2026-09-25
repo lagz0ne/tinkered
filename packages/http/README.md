@@ -68,7 +68,8 @@ a session retries, the scope does not.
 A backend rejection becomes `RequestFailed` (reason `Transport`) inside the attempt.
 Retry receives each try through core's `settle` (ADR 0067) and retries only that error.
 A panic (a throwing `accept`) is thrown unchanged and never retried.
-A response delivered after a forced close is dropped; the send rejects with the abort reason.
+A response delivered after a forced close is returned, as `run` returns it; the close still reports `cancelled`.
+A backend failure that a forced close lands on rejects with the abort reason, not `RequestFailed`.
 
 ```ts
 createScope({

@@ -179,7 +179,7 @@ test("a forced close while the backend parks on the signal rejects with the abor
   expect(outcome).toBe(result.reason);
 });
 
-test("a response delivered after a forced close is dropped for the abort reason", async () => {
+test("a response delivered after a forced close is returned; the close still reports cancelled", async () => {
   let deliver: (() => void) | undefined;
   const late: HttpClient.Backend = (request) =>
     new Promise<HttpResponse.Handle>((resolve) => {
@@ -196,11 +196,32 @@ test("a response delivered after a forced close is dropped for the abort reason"
   if (deliver === undefined) throw new Error("the backend was never reached");
   const closing = scope.close();
   deliver();
-  const outcome = await running.then(
+  const received = await running;
+  expect(received.status).toBe(200);
+  expect((await closing).status).toBe("cancelled");
+});
+
+test("a backend failure the forced close lands on rejects with the abort reason", async () => {
+  const cause = new Error("connection reset");
+  const failing: HttpClient.Backend = () => Promise.reject(cause);
+  const scope = createScope({
+    observe: {
+      log: (entry) => {
+        if (entry.message === "http request failed") void scope.close();
+      },
+    },
+    tags: [backend(failing)],
+  });
+  const call = operation({
+    label: "call",
+    depends: { send },
+    run: ({ send: sendIt }) => sendIt.run({ input: HttpRequest.get("https://api/users") }),
+  });
+  const outcome = await scope.run(call).then(
     () => "resolved",
     (error: unknown) => error,
   );
-  const result = await closing;
+  const result = await scope.close();
   if (result.status !== "cancelled") throw result;
   expect(outcome).toBe(result.reason);
 });
