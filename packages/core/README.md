@@ -454,34 +454,27 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A tagged session run that catches a failed subflow returns normally without failing either session.
 - A graceful parent close stays successful when the still-running tagged subflow fails and its caller catches it.
 - A subflow failure that escapes its caller fails the session with that cause.
-- An unreceived subflow failure fails the session even after its caller returns.
-- An unreceived subflow failure also fails the session while its caller is still running.
-- A subflow with a catch handler is received and does not fail its session.
+- An orphan fails the session: its subflow failed after the caller finished.
+- Until errors/t03, a subflow failure while its caller runs stays with that caller.
+- An awaited subflow catch leaves the session successful.
 - A controller subflow caught by its caller leaves the session successful.
-- An unreceived controller subflow fails its session.
-- An unreceived tagged subflow fails its parent session.
-- A non-function then rejection argument does not receive a subflow error; the session fails.
-- A catch on a handed-off result receives a later subflow failure and leaves the session successful.
-- A fulfillment-only hand-off reports the original failure once.
-- A derived rejection after the root closes reaches the host once.
+- An orphan through a controller edge fails its session.
+- A tagged orphan fails its parent session.
+- A catch after its caller returns does not undo an orphan failure.
+- An orphan reports the original failure once on its own span.
+- A detached callback rejection after its root closes belongs to the host.
+- A detached callback rejection after its session closes belongs to the host, not the root.
 - An async subflow that succeeds exports an ok span.
-- Close waits for a handed-off success to report its failed callback.
-- A finally callback passes an unreceived subflow failure to its returned promise, failing the layer.
-- A fulfillment-only then passes an unreceived subflow failure to its returned promise, failing the layer.
-- A catch after finally receives the subflow error and leaves the session successful.
-- A then rejection handler receives the subflow error and leaves the session successful.
-- A catch after fulfillment-only then receives the subflow error and leaves the session successful.
+- An awaited catch after finally leaves the session successful.
+- An awaited then rejection handler leaves the session successful.
+- An awaited catch after fulfillment-only then leaves the session successful.
 - A graceful close does not wait for an endless then callback after a successful subflow.
 - A forced close does not wait for an endless then callback after a successful subflow.
-- A graceful close succeeds without waiting for an endless catch callback that received the error.
-- A forced close cancels without waiting for an endless catch callback that received the error.
+- A graceful close reports an orphan without joining its endless catch callback.
+- A forced close reports an orphan without joining its endless catch callback.
 - An awaited slow rejection handler keeps the session successful even before its own work finishes.
-- A derived error after its session closes fails the still-open root scope.
-- Two fulfillment-only handlers pass the original subflow failure on to the layer.
-- A catch that rethrows the original subflow error still fails the session.
-- A fulfillment handler that throws fails the session with the handler's error.
 - A caller awaiting finally can catch the original error and leave the session successful.
-- A fake global timer installed after core loads cannot stall a caught or unreceived subflow close.
+- An async subflow returns a native promise that `Promise.resolve` keeps unchanged.
 - A subflow awaited and caught inside an operation defer does not fail the session.
 - Returning a subflow promise to an outer caller that awaits and catches it does not fail the session.
 - Promise.all receives both subflow errors; a caller that catches them leaves the session successful.

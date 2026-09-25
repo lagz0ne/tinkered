@@ -1658,8 +1658,6 @@ function resolveDep(
 }
 
 const noop = (): void => undefined;
-/** Receipt checks use the host timer even if a caller later installs fake timers. */
-const hostSetTimeout = globalThis.setTimeout;
 
 /** Attach a rejection handler to a fire-and-forget close so an internally started close (from a
  * teardown hook) is never an unhandled rejection; the promise keeps its rejection for a later
@@ -1950,90 +1948,13 @@ function recordUsed(
   }
 }
 
-/** A then/catch/finally hands the failure to its derived promise; a rejection handler there
- * decides whether that promise rejects. */
-type Receipt = { handedOff: boolean };
-/** Subflow controllers only need an identity marker, shared by every run (even sync runs). */
-type RunState = object;
-const SUBFLOW_CALLER: RunState = {};
+type RunState = { settled: boolean };
 
-/** Only async subflows get this result; sync subflows still return a plain value. */
-class SubflowPromise<T> extends Promise<T> {
-  private receipt?: Receipt;
-  private owner?: Layer;
-  static from<T>(source: Promise<T>, owner: Layer, receipt: Receipt): SubflowPromise<T> {
-    const result = new SubflowPromise<T>((resolve, reject) => {
-      void source.then(resolve, reject);
-    });
-    result.own(owner, receipt);
-    return result;
-  }
-  private own(owner: Layer, receipt: Receipt): void {
-    this.owner = owner;
-    this.receipt = receipt;
-    /** The layer tracks a panic itself, so the runtime must not report the rejection twice. */
-    void Promise.prototype.then.call(this, undefined, noop);
-  }
-  static get [Symbol.species](): PromiseConstructor {
-    return SubflowPromise;
-  }
-  // oxlint-disable-next-line unicorn/no-thenable -- a Promise subclass observes receipt (ADR 0066)
-  override then<TResult1 = T, TResult2 = never>(
-    onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null,
-    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
-  ): Promise<TResult1 | TResult2> {
-    const next = super.then(onfulfilled, onrejected) as SubflowPromise<TResult1 | TResult2>;
-    const receipt = this.receipt;
-    const owner = this.owner;
-    if (receipt && owner) {
-      receipt.handedOff = true;
-      const nextReceipt: Receipt = { handedOff: false };
-      next.own(owner, nextReceipt);
-      trackSubflow(owner, next, nextReceipt, undefined, false);
-    }
-    return next;
-  }
-}
-
-/** An unreceived rejection belongs to the nearest layer still open to report it. After the root
- * finishes, hand it to the host's unhandled-rejection hook instead of losing it. */
-function failSubflow(layer: Layer, error: unknown): void {
-  let owner: Layer | undefined = layer;
-  while (owner?.finished) owner = owner.parent;
-  if (owner) asPrimary(owner)(error);
-  else hostSetTimeout(() => Promise.reject(error), 0);
-}
-
-function unreceived(receipt: Receipt): boolean {
-  return !receipt.handedOff;
-}
-
-/** Root runs join their own work plus one timer turn after handing off; derived runs only join their
- * rejection check. A user's callback that never settles cannot hold close open. */
-function trackSubflow(
-  layer: Layer,
-  result: Promise<unknown>,
-  receipt: Receipt,
-  onSettle?: (status: "ok" | "failed", error?: unknown) => void,
-  join = true,
-): void {
-  const tracked: Promise<unknown> = Promise.prototype.then.call(
-    result,
-    async () => {
-      onSettle?.("ok");
-      if (receipt.handedOff) await new Promise<void>((resolve) => hostSetTimeout(resolve, 0));
-      layer.pending.delete(tracked);
-    },
-    async (error: unknown) => {
-      onSettle?.("failed", error);
-      layer.pending.add(tracked);
-      if (join || unreceived(receipt))
-        await new Promise<void>((resolve) => hostSetTimeout(resolve, 0));
-      if (unreceived(receipt) && !isCancel(layer, error)) failSubflow(layer, error);
-      layer.pending.delete(tracked);
-    },
-  );
-  if (join) layer.pending.add(tracked);
+function runFailure(layer: Layer, caller: RunState | undefined): (error: unknown) => void {
+  if (caller === undefined) return asPrimary(layer);
+  return (error) => {
+    if (caller.settled) asPrimary(layer)(error);
+  };
 }
 
 /** Track owned async work so `settled()`/`close` join it. `onReject` decides where a rejection
@@ -2268,16 +2189,14 @@ function runTagged<T, I>(
   const chain = call.ns === undefined ? inheritedChain : nsChainOf(call.ns);
   const inner: Scope.Invocation<I> | undefined =
     call.input === undefined && call.rawInput === undefined ? undefined : stripTags(call);
-  const receipt: Receipt | undefined = caller ? { handedOff: false } : undefined;
   const tagged = runSessionWith(
     layer,
     { tags, ns: chain },
     (child) => runUntagged(child, target, parent, inner, chain),
-    receipt,
+    caller,
   ) as Promise<Awaited<T>>;
-  if (!receipt) return tagged;
-  trackSubflow(layer, tagged, receipt);
-  return SubflowPromise.from(tagged, layer, receipt);
+  if (caller) track(layer, tagged, runFailure(layer, caller));
+  return tagged;
 }
 
 /** Run `target` in the call's namespace (ADR 0059). The real layer remains the owner of
@@ -2321,14 +2240,9 @@ function finishAsyncRun<T>(
     if (span) closeSpan(obs, span, status, error);
     finishDefers(status, error);
   };
-  if (caller) {
-    const receipt: Receipt = { handedOff: false };
-    const promise = Promise.resolve(result);
-    trackSubflow(layer, promise, receipt, onSettle);
-    return SubflowPromise.from(promise, layer, receipt);
-  }
-  track(layer, result, asPrimary(layer), onSettle);
-  return result;
+  const promise = Promise.resolve(result);
+  track(layer, promise, runFailure(layer, caller), onSettle);
+  return promise;
 }
 
 function operationController<T, I>(
@@ -2367,7 +2281,7 @@ function operationController<T, I>(
     ensureOpen(layer);
     const obs = layer.obs;
     const span = openSpan(obs, parent, target.label, "operation");
-    const runState = SUBFLOW_CALLER;
+    const runState: RunState = { settled: false };
     const override = presetFor(layer, target) as Operation.Handle<T, I>["run"] | undefined;
     /** Hold a borrow across the op's WHOLE lifetime — body settle (or a throw) AND its own `defer`
      * drain — so a release waits for the op's cleanup (which may still touch the resource) before
@@ -2377,6 +2291,7 @@ function operationController<T, I>(
      * sees no borrower and stays sync. */
     const held = takeBorrows(target);
     const releaseBorrow = (): void => {
+      runState.settled = true;
       if (!held) return;
       for (const instance of held.list) removeBorrow(instance, held.done);
       held.settle();
@@ -2429,14 +2344,10 @@ function operationController<T, I>(
       );
     };
     const result = at(0);
-    if (caller === undefined || !isThenable(result) || result instanceof SubflowPromise)
-      return result;
-    /** An async hook adopts the inner SubflowPromise and marks it handed off. Its own promise
-     * needs a receipt so a dropped rejection still belongs to this layer, not the host. */
-    const receipt: Receipt = { handedOff: false };
+    if (!isThenable(result)) return result;
     const promise = Promise.resolve(result);
-    trackSubflow(layer, promise, receipt);
-    return SubflowPromise.from(promise, layer, receipt);
+    if (caller) track(layer, promise, runFailure(layer, caller));
+    return promise;
   };
   return { run } as Scope.OperationController<T, I>;
 }

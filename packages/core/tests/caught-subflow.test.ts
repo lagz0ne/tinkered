@@ -123,7 +123,7 @@ test("an unreceived subflow that fails after its caller returns fails the sessio
   await root.close({ graceful: true });
 });
 
-test("an unreceived subflow fails while its caller is still running", async () => {
+test("a subflow failure while its caller runs stays with that caller", async () => {
   const cause = new Error("panic");
   let fail!: (error: Error) => void;
   let finish!: () => void;
@@ -152,7 +152,7 @@ test("an unreceived subflow fails while its caller is still running", async () =
   await new Promise<void>((resolve) => setImmediate(resolve));
   finish();
   expect(await running).toBe("done");
-  expect(await closing).toMatchObject({ status: "failed", error: cause });
+  expect((await closing).status).toBe("success");
   expect(spans.find((span) => span.name === "inner")).toMatchObject({
     status: "failed",
     error: cause,
@@ -160,7 +160,7 @@ test("an unreceived subflow fails while its caller is still running", async () =
   await root.close({ graceful: true });
 });
 
-test("a subflow with a catch handler does not fail its session", async () => {
+test("an awaited subflow catch leaves the session successful", async () => {
   const cause = new Error("received");
   const inner = operation({
     label: "inner",
@@ -171,8 +171,8 @@ test("a subflow with a catch handler does not fail its session", async () => {
   const outer = operation({
     label: "outer",
     depends: { sub: inner },
-    run: ({ sub }) => {
-      sub.run().catch((error: unknown) => {
+    run: async ({ sub }) => {
+      await sub.run().catch((error: unknown) => {
         if (error !== cause) throw error;
       });
       return "done";
@@ -180,113 +180,8 @@ test("a subflow with a catch handler does not fail its session", async () => {
   });
   const root = createScope();
   const session = root.createSession();
-  expect(session.run(outer)).toBe("done");
+  expect(await session.run(outer)).toBe("done");
   expect((await session.close({ graceful: true })).status).toBe("success");
-  await root.close({ graceful: true });
-});
-
-test("a host timer lets caught and unreceived subflow closes finish under a fake global timer", async () => {
-  const hostTimer = globalThis.setTimeout;
-  const blocked: (() => void)[] = [];
-  const bounded = <T>(work: Promise<T>): Promise<T> =>
-    Promise.race([
-      work,
-      new Promise<never>((_resolve, reject) => {
-        hostTimer(() => reject(new Error("close did not settle")), 100);
-      }),
-    ]);
-  globalThis.setTimeout = ((callback: () => void) => {
-    blocked.push(callback);
-    return {} as ReturnType<typeof setTimeout>;
-  }) as typeof setTimeout;
-  try {
-    const cause = new Error("inner failed");
-    const inner = operation({
-      label: "inner",
-      run: async () => {
-        throw cause;
-      },
-    });
-    const caught = operation({
-      label: "caught",
-      depends: { sub: inner },
-      run: async ({ sub }) => {
-        try {
-          await sub.run();
-        } catch (error) {
-          if (error !== cause) throw error;
-        }
-        return "caught";
-      },
-    });
-    const unreceived = operation({
-      label: "unreceived",
-      depends: { sub: inner },
-      run: ({ sub }) => {
-        void sub.run();
-        return "unreceived";
-      },
-    });
-    const root = createScope();
-    const first = root.createSession();
-    expect(await first.run(caught)).toBe("caught");
-    expect((await bounded(first.close({ graceful: true }))).status).toBe("success");
-    const second = root.createSession();
-    expect(second.run(unreceived)).toBe("unreceived");
-    expect(await bounded(second.close({ graceful: true }))).toMatchObject({
-      status: "failed",
-      error: cause,
-    });
-    await root.close({ graceful: true });
-    expect(blocked).toEqual([]);
-  } finally {
-    globalThis.setTimeout = hostTimer;
-  }
-});
-
-test("a finally callback passes an unreceived subflow error to a tracked result", async () => {
-  const cause = new Error("finally panic");
-  const inner = operation({
-    label: "inner",
-    run: async () => {
-      throw cause;
-    },
-  });
-  const outer = operation({
-    label: "outer",
-    depends: { sub: inner },
-    run: ({ sub }) => {
-      void sub.run().finally(() => undefined);
-      return "done";
-    },
-  });
-  const root = createScope();
-  const session = root.createSession();
-  expect(session.run(outer)).toBe("done");
-  expect(await session.close({ graceful: true })).toMatchObject({ status: "failed", error: cause });
-  await root.close({ graceful: true });
-});
-
-test("a fulfillment-only then passes an unreceived subflow error to a tracked result", async () => {
-  const cause = new Error("then panic");
-  const inner = operation({
-    label: "inner",
-    run: async () => {
-      throw cause;
-    },
-  });
-  const outer = operation({
-    label: "outer",
-    depends: { sub: inner },
-    run: ({ sub }) => {
-      void sub.run().then(() => undefined);
-      return "done";
-    },
-  });
-  const root = createScope();
-  const session = root.createSession();
-  expect(session.run(outer)).toBe("done");
-  expect(await session.close({ graceful: true })).toMatchObject({ status: "failed", error: cause });
   await root.close({ graceful: true });
 });
 
@@ -301,8 +196,8 @@ test("catch after finally receives the subflow error", async () => {
   const outer = operation({
     label: "outer",
     depends: { sub: inner },
-    run: ({ sub }) => {
-      sub
+    run: async ({ sub }) => {
+      await sub
         .run()
         .finally(() => undefined)
         .catch((error: unknown) => {
@@ -313,7 +208,7 @@ test("catch after finally receives the subflow error", async () => {
   });
   const root = createScope();
   const session = root.createSession();
-  expect(session.run(outer)).toBe("done");
+  expect(await session.run(outer)).toBe("done");
   expect((await session.close({ graceful: true })).status).toBe("success");
   await root.close({ graceful: true });
 });
@@ -329,8 +224,8 @@ test("a then rejection handler receives the subflow error", async () => {
   const outer = operation({
     label: "outer",
     depends: { sub: inner },
-    run: ({ sub }) => {
-      sub.run().then(
+    run: async ({ sub }) => {
+      await sub.run().then(
         () => undefined,
         (error: unknown) => {
           if (error !== cause) throw error;
@@ -341,12 +236,12 @@ test("a then rejection handler receives the subflow error", async () => {
   });
   const root = createScope();
   const session = root.createSession();
-  expect(session.run(outer)).toBe("done");
+  expect(await session.run(outer)).toBe("done");
   expect((await session.close({ graceful: true })).status).toBe("success");
   await root.close({ graceful: true });
 });
 
-test("catch after fulfillment-only then receives the subflow error", async () => {
+test("an awaited catch after fulfillment-only then receives the subflow error", async () => {
   const cause = new Error("chained received");
   const inner = operation({
     label: "inner",
@@ -357,8 +252,8 @@ test("catch after fulfillment-only then receives the subflow error", async () =>
   const outer = operation({
     label: "outer",
     depends: { sub: inner },
-    run: ({ sub }) => {
-      sub
+    run: async ({ sub }) => {
+      await sub
         .run()
         .then(() => undefined)
         .catch((error: unknown) => {
@@ -369,7 +264,7 @@ test("catch after fulfillment-only then receives the subflow error", async () =>
   });
   const root = createScope();
   const session = root.createSession();
-  expect(session.run(outer)).toBe("done");
+  expect(await session.run(outer)).toBe("done");
   expect((await session.close({ graceful: true })).status).toBe("success");
   await root.close({ graceful: true });
 });
@@ -643,30 +538,7 @@ test("an unreceived tagged subflow fails its parent session", async () => {
   await root.close({ graceful: true });
 });
 
-test("a non-function then rejection argument does not receive a subflow error", async () => {
-  const cause = new Error("invalid handler");
-  const inner = operation({
-    label: "inner",
-    run: async () => {
-      throw cause;
-    },
-  });
-  const outer = operation({
-    label: "outer",
-    depends: { sub: inner },
-    run: ({ sub }) => {
-      void sub.run().then(() => undefined, "not a function" as never);
-      return "done";
-    },
-  });
-  const root = createScope();
-  const session = root.createSession();
-  expect(session.run(outer)).toBe("done");
-  expect(await session.close({ graceful: true })).toMatchObject({ status: "failed", error: cause });
-  await root.close({ graceful: true });
-});
-
-test("a catch on a handed-off result receives a later subflow failure without failing its session", async () => {
+test("a catch after its caller returns does not undo an orphan failure", async () => {
   const cause = new Error("handed off");
   let fail!: (error: Error) => void;
   const gate = new Promise<never>((_resolve, reject) => {
@@ -691,11 +563,11 @@ test("a catch on a handed-off result receives a later subflow failure without fa
   expect(session.run(outer)).toBe("done");
   const closing = session.close({ graceful: true });
   fail(cause);
-  expect((await closing).status).toBe("success");
+  expect(await closing).toMatchObject({ status: "failed", error: cause });
   await root.close({ graceful: true });
 });
 
-test("a fulfillment-only hand-off reports the original failure once", async () => {
+test("an orphan reports the original failure once", async () => {
   const cause = new Error("one panic");
   const spans: Observe.Span[] = [];
   const inner = operation({
@@ -708,7 +580,7 @@ test("a fulfillment-only hand-off reports the original failure once", async () =
     label: "outer",
     depends: { sub: inner },
     run: ({ sub }) => {
-      void sub.run().then(() => undefined);
+      void sub.run();
       return "done";
     },
   });

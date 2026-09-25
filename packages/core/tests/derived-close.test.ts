@@ -3,23 +3,23 @@ import { promisify } from "node:util";
 import { expect, test } from "vite-plus/test";
 import { createScope, operation } from "../src/index.ts";
 
-const hostTimer = globalThis.setTimeout;
-
-function bounded<T>(work: Promise<T>): Promise<T> {
-  return Promise.race([
-    work,
-    new Promise<never>((_resolve, reject) => {
-      hostTimer(() => reject(new Error("close did not settle")), 150);
-    }),
-  ]);
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((done, fail) => {
+    resolve = done;
+    reject = fail;
+  });
+  return { promise, resolve, reject };
 }
 
 for (const graceful of [true, false]) {
   test(`${graceful ? "graceful" : "forced"} close does not join a never-ending then callback`, async () => {
+    const { promise: gate, resolve: finish } = deferred<void>();
     const sub = operation({
       label: "sub",
       run: async () => {
-        await new Promise<void>((resolve) => hostTimer(resolve, 2));
+        await gate;
         return 1;
       },
     });
@@ -34,20 +34,16 @@ for (const graceful of [true, false]) {
     const root = createScope();
     const session = root.createSession();
     expect(await session.run(outer)).toBe("x");
-    const result = await bounded(session.close(graceful ? { graceful: true } : undefined));
-    expect(result.status).toBe(graceful ? "success" : "cancelled");
+    const closing = session.close(graceful ? { graceful: true } : undefined);
+    finish();
+    expect((await closing).status).toBe(graceful ? "success" : "cancelled");
     await root.close({ graceful: true });
   });
 
-  test(`${graceful ? "graceful" : "forced"} close does not join a never-ending catch callback`, async () => {
+  test(`${graceful ? "graceful" : "forced"} close reports an orphan without joining its never-ending catch callback`, async () => {
     const cause = new Error("sub failed");
-    const sub = operation({
-      label: "sub",
-      run: async () => {
-        await new Promise<void>((resolve) => hostTimer(resolve, 2));
-        throw cause;
-      },
-    });
+    const { promise: gate, reject: fail } = deferred<never>();
+    const sub = operation({ label: "sub", run: () => gate });
     const outer = operation({
       label: "outer",
       depends: { sub },
@@ -59,23 +55,17 @@ for (const graceful of [true, false]) {
     const root = createScope();
     const session = root.createSession();
     expect(await session.run(outer)).toBe("x");
-    expect((await bounded(session.close(graceful ? { graceful: true } : undefined))).status).toBe(
-      graceful ? "success" : "cancelled",
-    );
+    const closing = session.close(graceful ? { graceful: true } : undefined);
+    fail(cause);
+    expect(await closing).toMatchObject({ status: "failed", error: cause });
     await root.close({ graceful: true });
   });
 }
 
 test("an awaited slow rejection handler receives the error while its gate is closed", async () => {
   const cause = new Error("received");
-  let entered!: () => void;
-  let release!: () => void;
-  const inside = new Promise<void>((resolve) => {
-    entered = resolve;
-  });
-  const gate = new Promise<void>((resolve) => {
-    release = resolve;
-  });
+  const { promise: inside, resolve: entered } = deferred<void>();
+  const { promise: gate, resolve: release } = deferred<void>();
   const sub = operation({
     label: "sub",
     run: async () => {
@@ -99,90 +89,9 @@ test("an awaited slow rejection handler receives the error while its gate is clo
   const running = session.run(outer);
   await inside;
   const closing = session.close({ graceful: true });
-  await new Promise<void>((resolve) => hostTimer(resolve, 10));
   release();
-  expect(await bounded(running)).toBe("caught");
-  expect((await bounded(closing)).status).toBe("success");
-  await root.close({ graceful: true });
-});
-
-test("two fulfillment-only handlers pass the original subflow failure on", async () => {
-  const cause = new Error("sub failed");
-  const sub = operation({
-    label: "sub",
-    run: async () => {
-      throw cause;
-    },
-  });
-  const outer = operation({
-    label: "outer",
-    depends: { sub },
-    run: ({ sub }) => {
-      void sub
-        .run()
-        .then(() => undefined)
-        .then(() => undefined);
-      return "x";
-    },
-  });
-  const root = createScope();
-  const session = root.createSession();
-  expect(session.run(outer)).toBe("x");
-  expect(await bounded(session.close({ graceful: true }))).toMatchObject({
-    status: "failed",
-    error: cause,
-  });
-  await root.close({ graceful: true });
-});
-
-test("a catch that rethrows the subflow error still fails the session", async () => {
-  const cause = new Error("sub failed");
-  const sub = operation({
-    label: "sub",
-    run: async () => {
-      throw cause;
-    },
-  });
-  const outer = operation({
-    label: "outer",
-    depends: { sub },
-    run: ({ sub }) => {
-      void sub.run().catch((error: unknown) => {
-        throw error;
-      });
-      return "x";
-    },
-  });
-  const root = createScope();
-  const session = root.createSession();
-  expect(session.run(outer)).toBe("x");
-  expect(await bounded(session.close({ graceful: true }))).toMatchObject({
-    status: "failed",
-    error: cause,
-  });
-  await root.close({ graceful: true });
-});
-
-test("an error thrown by a fulfillment handler fails the session with that error", async () => {
-  const cause = new Error("handler failed");
-  const sub = operation({ label: "sub", run: async () => 1 });
-  const outer = operation({
-    label: "outer",
-    depends: { sub },
-    run: ({ sub }) => {
-      void sub.run().then(() => {
-        throw cause;
-      });
-      return "x";
-    },
-  });
-  const root = createScope();
-  const session = root.createSession();
-  expect(session.run(outer)).toBe("x");
-  expect(await bounded(session.close({ graceful: true }))).toMatchObject({
-    status: "failed",
-    error: cause,
-  });
+  expect(await running).toBe("caught");
+  expect((await closing).status).toBe("success");
   await root.close({ graceful: true });
 });
 
@@ -209,96 +118,55 @@ test("a caller awaiting finally can catch the original subflow error", async () 
   const root = createScope();
   const session = root.createSession();
   expect(await session.run(outer)).toBe("caught");
-  expect((await bounded(session.close({ graceful: true }))).status).toBe("success");
+  expect((await session.close({ graceful: true })).status).toBe("success");
   await root.close({ graceful: true });
 });
 
-test("close waits for a handed-off success to report its failed callback", async () => {
-  const cause = new Error("callback panic");
-  let finish!: () => void;
-  const gate = new Promise<void>((resolve) => {
-    finish = resolve;
-  });
-  const sub = operation({
-    label: "sub",
-    run: async () => {
-      await gate;
-      return 1;
-    },
-  });
-  const outer = operation({
-    label: "outer",
-    depends: { sub },
-    run: ({ sub }) => {
-      void sub.run().then(() => {
-        throw cause;
+for (const owner of ["root", "session"]) {
+  test(`a detached callback rejection after its ${owner} closes belongs to the host`, async () => {
+    const entry = new URL("../src/index.ts", import.meta.url).href;
+    const script = `
+      import { createScope, operation } from ${JSON.stringify(entry)};
+      const cause = new Error("host panic");
+      const { promise: gate, reject: fail } = Promise.withResolvers();
+      const sub = operation({ label: "sub", run: async () => 1 });
+      const outer = operation({
+        label: "outer",
+        depends: { sub },
+        run: ({ sub }) => {
+          void sub.run().then(() => gate);
+          return "done";
+        },
       });
-      return "done";
-    },
+      let count = 0;
+      process.on("unhandledRejection", (error) => {
+        console.log(JSON.stringify({ count: ++count, message: error.message }));
+      });
+      const root = createScope();
+      const scope = ${owner === "root" ? "root" : "root.createSession()"};
+      if (scope.run(outer) !== "done") throw new Error("run did not return");
+      const ended = await scope.close({ graceful: true });
+      if (ended.status !== "success") throw new Error("scope did not close");
+      fail(cause);
+      await new Promise(setImmediate);
+      if ((await root.close({ graceful: true })).status !== "success")
+        throw new Error("callback failed the root");
+    `;
+    const { stdout } = await promisify(execFile)(process.execPath, [
+      "--input-type=module",
+      "-e",
+      script,
+    ]);
+    expect(stdout.trim()).toBe(JSON.stringify({ count: 1, message: "host panic" }));
   });
-  const root = createScope();
-  const session = root.createSession();
-  expect(session.run(outer)).toBe("done");
-  const closing = session.close({ graceful: true });
-  finish();
-  expect(await bounded(closing)).toMatchObject({ status: "failed", error: cause });
-  await root.close({ graceful: true });
-});
+}
 
-test("a derived rejection after the root closes reaches the host once", async () => {
-  const entry = new URL("../src/index.ts", import.meta.url).href;
-  const script = `
-    import { createScope, operation } from ${JSON.stringify(entry)};
-    const cause = new Error("host panic");
-    let rejectGate;
-    const gate = new Promise((_resolve, reject) => { rejectGate = reject; });
-    const sub = operation({ label: "sub", run: async () => 1 });
-    const outer = operation({
-      label: "outer",
-      depends: { sub },
-      run: ({ sub }) => {
-        void sub.run().then(() => gate);
-        return "done";
-      },
-    });
-    let count = 0;
-    process.on("unhandledRejection", (error) => {
-      console.log(JSON.stringify({ count: ++count, message: error.message }));
-    });
-    const root = createScope();
-    if (root.run(outer) !== "done") throw new Error("run did not return");
-    const ended = await root.close({ graceful: true });
-    if (ended.status !== "success") throw new Error("root did not close");
-    rejectGate(cause);
-  `;
-  const { stdout } = await promisify(execFile)(process.execPath, [
-    "--input-type=module",
-    "-e",
-    script,
-  ]);
-  expect(stdout.trim()).toBe(JSON.stringify({ count: 1, message: "host panic" }));
-});
-
-test("a derived rejection after its session closes fails its still-open root", async () => {
-  const cause = new Error("late callback");
-  let reject!: (cause: Error) => void;
-  const gate = new Promise<never>((_resolve, fail) => {
-    reject = fail;
-  });
+test("an async subflow returns a native promise that Promise.resolve keeps", async () => {
   const sub = operation({ label: "sub", run: async () => 1 });
-  const outer = operation({
-    label: "outer",
-    depends: { sub },
-    run: ({ sub }) => {
-      void sub.run().then(() => gate);
-      return "x";
-    },
-  });
-  const root = createScope();
-  const session = root.createSession();
-  expect(session.run(outer)).toBe("x");
-  expect((await bounded(session.close({ graceful: true }))).status).toBe("success");
-  reject(cause);
-  await new Promise<void>((resolve) => hostTimer(resolve, 10));
-  expect(await root.close({ graceful: true })).toMatchObject({ status: "failed", error: cause });
+  const outer = operation({ label: "outer", depends: { sub }, run: ({ sub }) => sub.run() });
+  const scope = createScope();
+  const result = scope.run(outer);
+  expect(Promise.resolve(result)).toBe(result);
+  await result;
+  await scope.close({ graceful: true });
 });
