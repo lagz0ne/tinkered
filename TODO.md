@@ -89,6 +89,9 @@ card at a time.
 
 ## Done
 
+- **errors/t01b** — opus high + fable review (no fix round); tag `errors/t01b`. `settle` reports what `run` would do: a value returned under a forced close is `success` (POSIX: the exit code the program returned wins); a cancel reason on an aborted scope is `cancelled`; anything else `failed`. Found by errors/t02-process.
+  - Gate EXIT 0; core 619 tests; promises_tagged 17; core mutation 86.14; validate 43 PASS; no Jev labels added.
+  - Speed vs origin/main, N=61: op +0.0% (27/61 slower), run +0.0% (28/61), session +0.5% (33/61).
 - **errors/t02-harness** — opus high + fable review (no fix round); tag `errors/t02-harness`. A Claude tool call goes through `settle`, so a tool failure the SDK reports to the model is received (not sticky under t03); `origin` stays the tool (tested).
   - Gate EXIT 0; harness 66 tests (4 new), tracker 51; harness mutation 86.34; validate 43 PASS.
   - 4 Jev labels; `calibration.json` refreshed.
