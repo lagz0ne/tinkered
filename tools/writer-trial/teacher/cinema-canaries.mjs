@@ -273,10 +273,16 @@ const releaseTwiceErrorTar = patch("bad-release-twice-error", "model.ts", [
 // (d) Buy sells seat by seat, one undo step per seat.
 const buyStepsTar = patch("bad-buy-step-per-seat", "model.ts", [
   [
-    "    saveStep(cells);\n    cells.seats.set(sold.reduce(replaceSeat, rows));\n",
+    [
+      "    const step = cells.seats.get();",
+      "    cells.history.update((steps) => [...steps, step]);",
+      "    cells.seats.set(sold.reduce(replaceSeat, rows));",
+      "",
+    ].join("\n"),
     [
       "    for (const seat of sold) {",
-      "      saveStep(cells);",
+      "      const step = cells.seats.get();",
+      "      cells.history.update((steps) => [...steps, step]);",
       "      cells.seats.update((now) => replaceSeat(now, seat));",
       "    }",
       "",

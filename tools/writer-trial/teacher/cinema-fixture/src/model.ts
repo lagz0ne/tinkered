@@ -3,7 +3,7 @@
  * core declarations only; never copied into a worker image or context.
  */
 import { data, operation } from "@tinker/core";
-import type { Data, Operation, Scope } from "@tinker/core";
+import type { Data, Operation } from "@tinker/core";
 import { fail } from "./errors.ts";
 
 /** One seat row letter. */
@@ -46,17 +46,7 @@ const history: Data.Cell<readonly (readonly Seat[])[]> = data({
   initial: [],
 });
 
-type Cells = {
-  seats: Scope.DataController<readonly Seat[]>;
-  history: Scope.DataController<readonly (readonly Seat[])[]>;
-};
-
 const mapCells = { seats: seats.controller, history: history.controller };
-
-const saveStep = (cells: Cells): void => {
-  const step = cells.seats.get();
-  cells.history.update((steps) => [...steps, step]);
-};
 
 type RawCall = { readonly [field: string]: unknown };
 
@@ -110,7 +100,8 @@ export const holdSeat: Operation.Handle<Seat, { row: string; number: string; cus
       if (seat.state === "sold") throw fail("SeatSold", { id: seat.id });
       if (seat.customer !== null) throw fail("SeatTaken", { id: seat.id, customer: seat.customer });
       const changed: Seat = { ...seat, state: "held", customer };
-      saveStep(cells);
+      const step = cells.seats.get();
+      cells.history.update((steps) => [...steps, step]);
       cells.seats.set(replaceSeat(rows, changed));
       return changed;
     },
@@ -126,7 +117,8 @@ export const buySeats: Operation.Handle<readonly Seat[], { customer: string }> =
     const mine = rows.filter((seat) => seat.state === "held" && seat.customer === customer);
     if (mine.length === 0) throw fail("NothingHeld", { customer });
     const sold = mine.map((seat): Seat => ({ ...seat, state: "sold" }));
-    saveStep(cells);
+    const step = cells.seats.get();
+    cells.history.update((steps) => [...steps, step]);
     cells.seats.set(sold.reduce(replaceSeat, rows));
     return sold;
   },
@@ -142,7 +134,8 @@ export const releaseSeat: Operation.Handle<Seat, { seatId: string }> = operation
     if (seat.state === "free") return seat;
     if (seat.state === "sold") throw fail("SeatSold", { id: seat.id });
     const changed: Seat = { ...seat, state: "free", customer: null };
-    saveStep(cells);
+    const step = cells.seats.get();
+    cells.history.update((steps) => [...steps, step]);
     cells.seats.set(replaceSeat(rows, changed));
     return changed;
   },
