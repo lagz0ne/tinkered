@@ -8,7 +8,10 @@ const repo = resolve(here, "../..");
 const config = JSON.parse(readFileSync(join(here, "config.json")));
 const home = join(homedir(), ".local/share/tinker-writer-trial");
 mkdirSync(home, { recursive: true, mode: 0o700 });
-const context = join(home, "image");
+// One build folder per image tag: a new tag never rewrites an older
+// image's saved context. `image` is the 20260922 build's folder.
+const tag = config.image.split(":").at(-1);
+const context = join(home, tag === "20260922" ? "image" : `image-${tag}`);
 mkdirSync(context, { recursive: true });
 for (const name of ["core", "react"]) {
   const dir = join(context, name);

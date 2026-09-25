@@ -14,14 +14,15 @@ import { randomUUID } from "node:crypto";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, "../../..");
-// tinker-writer-trial:20260922 rebuilt on 2026-09-24 from the unchanged
-// frozen context in ~/.local/share/tinker-writer-trial/image: the earlier
-// build (sha256:2232d27e…) is no longer on this host.
+// tinker-writer-trial:20260925, built 2026-09-25 from the current core and
+// react builds (context: ~/.local/share/tinker-writer-trial/image-20260925).
+// Earlier pins: sha256:91630289… (20260922 rebuilt 2026-09-24) and
+// sha256:2232d27e… (20260922, no longer on this host).
 // WRITER_TRIAL_IMAGE reruns these proofs on a rebuilt image (the pinned one can be lost
 // when the host is rebuilt); the pinned ID stays the default and the recorded evidence.
 const IMAGE =
   process.env.WRITER_TRIAL_IMAGE ??
-  "sha256:91630289b0b742330f6d31ed61f96f4418793526895b252dccb4b6cf0529787c";
+  "sha256:ac6b1e42b3f428180c6f5109a76b238a2da5a1f4874d3750b8c1088ba36e9881";
 const TOOLCHAIN = "/home/pwuser/toolchain/node_modules";
 const work = join(tmpdir(), `cinema-canaries-${randomUUID()}`);
 rmSync(work, { recursive: true, force: true });

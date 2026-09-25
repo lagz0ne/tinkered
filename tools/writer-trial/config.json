@@ -2,7 +2,7 @@
   "version": 2,
   "models": ["deepseek/deepseek-v4.1-flash"],
   "provider": "writer-gateway",
-  "image": "tinker-writer-trial:20260922",
+  "image": "tinker-writer-trial:20260925",
   "limits": {
     "seconds": 2700,
     "toolCalls": 160,
