@@ -23,13 +23,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **errors/t01 core: no cooked promise; settle, Result, origin, ctx.raise (ADR 0067)** — remove
-  the Promise subclass (runs return native promises); add `op.settle(call)` / `scope.settle(op, call)`,
-  `originOf(error)`, origin on session close's failed Result, and `ctx.raise(kind, payload)` on
-  operation and resource ctx. Interim rule until t03: a caught failure does not fail the layer; an
-  orphan still does. Writer astra xhigh; reuse the `asyncsub` probe (commit `354914f` on branch
-  `perf/async-subflow`). Verify: `asyncsub` near ~750 ns (N=61); tests per field; promises 17;
-  mutation ≥ 85.
+- **tests/busy-host-flake** — a core test fails when the host is busy (a mutation run beside the
+  gate): landers saw `cache.bench.test.ts` at 41 ms vs a 13 ms limit, and one unnamed core failure in
+  `pnpm validate`. Next: find the test(s), make timing tests measure relative cost or move them to
+  the bench lane. Verify: the core lane passes 5 of 5 beside a mutation run.
+
 - **errors/t02 packages recover through settle** — after t01: each `catch` around a `.run` that
   recovers on purpose moves to `settle` (hono, mcp, process, tinkerer, harness, http, sync,
   blueprint). One writer per package. Verify: behavior unchanged; tests green.
@@ -48,7 +46,15 @@ Pairs since 2026-09-23: a writer (sol 6 for hard, deepseek-v4.1-flash for simple
 reviewer per card; the lead runs mutation, bench, and `pnpm validate` alone at landing, one core
 card at a time.
 
-    | Card | Owner | Next | Verify |
+    - **errors/t01 core: no cooked promise; settle, Result, origin, ctx.raise (ADR 0067)** — remove
+
+the Promise subclass (runs return native promises); add `op.settle(call)` / `scope.settle(op, call)`,
+`originOf(error)`, origin on session close's failed Result, and `ctx.raise(kind, payload)` on
+operation and resource ctx. Interim rule until t03: a caught failure does not fail the layer; an
+orphan still does. Writer astra xhigh (agent `a6e86729`, worktree `../tinkered-errors-t01`); reuse the `asyncsub` probe (commit `354914f` on branch
+`perf/async-subflow`). Verify: `asyncsub` near ~750 ns (N=61); tests per field; promises 17;
+mutation ≥ 85.
+| Card | Owner | Next | Verify |
 
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | blueprint/v1 — `packages/blueprint`: a self-contained binary that judges a YAML blueprint of tinker units with Jev over question templates shipped in the package; built on `@tinker/core` + `@tinker/process` (ADR 0052) | lead (Claude, session blueprint); next contributor for t04 | t01–t03 landed (34 tests, 7155 B gzip, mutation 75.09 alone; one real Jev run: 7 provisional findings on the example; [track](docs/roadmap/blueprint-v1/PROGRESS.md#landed)). Next: the t04 brief (evals, `status: proven`, reword `needsDefer` and `whyUnfulfilled`) to one contributor in `../tinkered-blueprint-t04` off `origin/main` | t01–t05 in the track; `blueprint check <file>` prints one line per plain check and per (node, template); evals gate which hits may block; `vp check` clean; mutation alone ≥ 75; no import from `tools/jev` |
