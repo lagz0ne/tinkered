@@ -85,6 +85,7 @@ const TEACHER_HELPERS = {
   "ballot-acceptance.mjs": ["teacher/ballot-acceptance.mjs", "teacher/acceptance-shape.mjs"],
   "kitchen-acceptance.mjs": ["teacher/kitchen-acceptance.mjs", "teacher/acceptance-shape.mjs"],
   "locker-acceptance.mjs": ["teacher/locker-acceptance.mjs", "teacher/acceptance-shape.mjs"],
+  "cinema-acceptance.mjs": ["teacher/cinema-acceptance.mjs", "teacher/acceptance-shape.mjs"],
   "stock-acceptance.mjs": ["teacher/stock-acceptance.mjs", "teacher/acceptance-shape.mjs"],
 };
 const home = join(homedir(), ".local/share/tinker-writer-trial");
@@ -372,7 +373,7 @@ function checkerEvidence(checker, archive, image) {
   const files = {};
   files[checker.script] = sha(join(here, checker.script));
   // Hash the helpers the runner loads: booking core, browser,
-  // full acceptance pair, or the stock/plan/loans/ballot/kitchen/locker teacher pair.
+  // full acceptance pair, or the stock/plan/loans/ballot/kitchen/locker/cinema teacher pair.
   // A missing helper is recorded unavailable, never skipped
   // silently: the teacher run below fails the same way.
   const helpers = TEACHER_HELPERS[checker.script] ?? TEACHER_HELPERS["stock-acceptance.mjs"];
@@ -527,7 +528,8 @@ function runOwnChecks(archive, image, logPath) {
 // <archive> <image-id>. Plan: plan-acceptance.mjs <archive> <image-id>. Loans:
 // loans-acceptance.mjs <archive> <image-id>. Ballot: ballot-acceptance.mjs
 // <archive> <image-id>. Kitchen: kitchen-acceptance.mjs <archive> <image-id>.
-// Locker: locker-acceptance.mjs <archive> <image-id>.
+// Locker: locker-acceptance.mjs <archive> <image-id>. Cinema: cinema-acceptance.mjs
+// <archive> <image-id>.
 // A missing checker script fails
 // unavailable, never passes.
 function runTeacherChecker(checker, archive, image, logPath) {

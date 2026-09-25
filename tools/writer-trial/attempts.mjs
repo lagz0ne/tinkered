@@ -6,7 +6,7 @@ import { join } from "node:path";
 // Which teacher checker scores one suite round.
 // Booking rounds 1-3 use the round runner.
 // Round 4 adds repair acceptance; round 5 uses transfer.
-// Stock, plan, loans, ballot, kitchen, and locker each use one fresh-round entry checker.
+// Stock, plan, loans, ballot, kitchen, locker, and cinema each use one fresh-round entry checker.
 const bookingChecker = (round) => {
   if ([1, 2, 3].includes(round)) return { script: "evaluate.mjs", args: [String(round)] };
   if (round === 4) return { script: "acceptance.mjs", args: ["repair"] };
@@ -21,6 +21,7 @@ const FRESH_CHECKERS = {
   ballot: "ballot-acceptance.mjs",
   kitchen: "kitchen-acceptance.mjs",
   locker: "locker-acceptance.mjs",
+  cinema: "cinema-acceptance.mjs",
 };
 export const checkerFor = (suite, round) => {
   if (suite === "booking") return bookingChecker(round);

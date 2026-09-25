@@ -32,6 +32,7 @@ void describe("suite defs", () => {
     assert.deepEqual(roundsFor("ballot"), [1]);
     assert.deepEqual(roundsFor("kitchen"), [1]);
     assert.deepEqual(roundsFor("locker"), [1]);
+    assert.deepEqual(roundsFor("cinema"), [1]);
     assert.throws(() => roundsFor("nope"), /Unknown suite/);
   });
 
@@ -44,12 +45,14 @@ void describe("suite defs", () => {
     assert.deepEqual(taskSourcesFor("ballot", 1), ["ballot/01-team-poll.md"]);
     assert.deepEqual(taskSourcesFor("kitchen", 1), ["kitchen/01-kitchen-queue.md"]);
     assert.deepEqual(taskSourcesFor("locker", 1), ["locker/01-parcel-locker.md"]);
+    assert.deepEqual(taskSourcesFor("cinema", 1), ["cinema/01-seat-map.md"]);
     assert.throws(() => taskSourcesFor("stock", 2), /no round/);
     assert.throws(() => taskSourcesFor("plan", 2), /no round/);
     assert.throws(() => taskSourcesFor("loans", 2), /no round/);
     assert.throws(() => taskSourcesFor("ballot", 2), /no round/);
     assert.throws(() => taskSourcesFor("kitchen", 2), /no round/);
     assert.throws(() => taskSourcesFor("locker", 2), /no round/);
+    assert.throws(() => taskSourcesFor("cinema", 2), /no round/);
   });
 
   void it("keeps booking clauses out of the default rules", () => {
@@ -66,6 +69,7 @@ void describe("suite defs", () => {
     assert.deepEqual(guidelineSourcesFor("ballot"), ["guidelines.md"]);
     assert.deepEqual(guidelineSourcesFor("kitchen"), ["guidelines.md"]);
     assert.deepEqual(guidelineSourcesFor("locker"), ["guidelines.md"]);
+    assert.deepEqual(guidelineSourcesFor("cinema"), ["guidelines.md"]);
   });
 });
 
@@ -152,6 +156,17 @@ void describe("frozen copies", () => {
       } finally {
         rmSync(lockerRoot, { recursive: true, force: true });
       }
+      const cinemaRoot = mkdtempSync(join(tmpdir(), "suite-cinema-"));
+      try {
+        const cinema = freezeTrial(cinemaRoot, "cinema");
+        assert.match(readFrozenTask(cinemaRoot, cinema, "cinema", 1), /Seat map/);
+        assert.match(
+          readFrozenGuidelines(cinemaRoot, cinema, "cinema"),
+          /`ctx.rawInput` holds the caller.s\s+value/,
+        );
+      } finally {
+        rmSync(cinemaRoot, { recursive: true, force: true });
+      }
     } finally {
       rmSync(root, { recursive: true, force: true });
       rmSync(stockRoot, { recursive: true, force: true });
@@ -198,6 +213,7 @@ void describe("frozen copies", () => {
     assert.equal(taskFileFor("ballot", 1), "01-team-poll.md");
     assert.equal(taskFileFor("kitchen", 1), "01-kitchen-queue.md");
     assert.equal(taskFileFor("locker", 1), "01-parcel-locker.md");
+    assert.equal(taskFileFor("cinema", 1), "01-seat-map.md");
     assert.equal(taskFileFor("booking", 5), "05-rename-series.md");
     assert.throws(() => taskFileFor("stock", 2), /no round/);
     assert.throws(() => taskFileFor("plan", 2), /no round/);
@@ -205,6 +221,7 @@ void describe("frozen copies", () => {
     assert.throws(() => taskFileFor("ballot", 2), /no round/);
     assert.throws(() => taskFileFor("kitchen", 2), /no round/);
     assert.throws(() => taskFileFor("locker", 2), /no round/);
+    assert.throws(() => taskFileFor("cinema", 2), /no round/);
     assert.deepEqual(validRounds({}), [1, 2, 3, 4]);
     assert.deepEqual(
       validRounds({ suite: "booking", frozen: { dir: "f", files: {} } }),
