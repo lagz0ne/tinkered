@@ -274,6 +274,52 @@ test("a failed call recovers through settle: a panic and a raised error answer i
   await scope.close({ graceful: true });
 });
 
+test("a throwing respond answers isError with one ok:true line, a failed span, and a success session", async () => {
+  const logs: Observe.Log[] = [];
+  const closed: string[] = [];
+  const sessions = extension({
+    label: "sessions",
+    session: async (_handle, next) => {
+      const ended = await next();
+      closed.push(ended.status);
+      return ended;
+    },
+  });
+  const ext = mcp({
+    name: "coder",
+    version: "1.0.0",
+    tools: [
+      expose(search, {
+        description: "a broken answer",
+        schema: searchShape,
+        respond: () => {
+          throw new Error("respond broke");
+        },
+      }),
+    ],
+  });
+  const scope = createScope({
+    extensions: [sessions, ext],
+    observe: {
+      history: 20,
+      log: (entry) => {
+        logs.push(entry);
+      },
+    },
+  });
+  const client = await linkClient(scope, ext);
+  const answered = await client.callTool({ name: "search", arguments: { q: "owls" } });
+  expect(answered.isError).toBe(true);
+  expect(answered.content).toEqual([{ type: "text", text: "Error: respond broke" }]);
+  const tools = logs.filter((entry) => entry.message === "mcp tool");
+  expect(tools.length).toBe(1);
+  expect(tools[0].attributes).toEqual({ tool: "search", ok: true });
+  const head = scope.spans().find((span) => span.name === "mcp search");
+  expect(head?.status).toBe("failed");
+  expect(closed).toEqual(["success"]);
+  await scope.close({ graceful: true });
+});
+
 test("the op's deps see a tag bound on the scope", async () => {
   const index = tag<string>({ label: "index" });
   const lookup = operation({
