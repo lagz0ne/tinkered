@@ -3,31 +3,31 @@
     "status": "provisional",
     "trues": 3,
     "falses": 8,
-    "medianTrue": 0.95,
+    "medianTrue": 0.92,
     "medianFalse": 0.12,
-    "separation": 0.83,
+    "separation": 0.81,
     "ordered": 0.92,
-    "at": "2026-09-24"
+    "at": "2026-09-25"
   },
   "effectWithoutDefer": {
     "status": "provisional",
     "trues": 2,
     "falses": 18,
     "medianTrue": 0.81,
-    "medianFalse": 0.5,
-    "separation": 0.31,
+    "medianFalse": 0.52,
+    "separation": 0.3,
     "ordered": 0.81,
-    "at": "2026-09-24"
+    "at": "2026-09-25"
   },
   "stateOutsideCell": {
     "status": "provisional",
     "trues": 2,
     "falses": 12,
     "medianTrue": 0.9,
-    "medianFalse": 0.59,
-    "separation": 0.31,
+    "medianFalse": 0.6,
+    "separation": 0.3,
     "ordered": 1,
-    "at": "2026-09-24"
+    "at": "2026-09-25"
   },
   "configNotTag": {
     "status": "provisional",
@@ -37,67 +37,67 @@
     "medianFalse": 0.69,
     "separation": 0.18,
     "ordered": 0.89,
-    "at": "2026-09-24"
+    "at": "2026-09-25"
   },
   "handRolledLifetime": {
     "status": "provisional",
     "trues": 3,
     "falses": 4,
-    "medianTrue": 0.78,
+    "medianTrue": 0.8,
     "medianFalse": 0.04,
-    "separation": 0.74,
+    "separation": 0.77,
     "ordered": 0.92,
-    "at": "2026-09-24"
+    "at": "2026-09-25"
   },
   "stopOnlyInDefer": {
     "status": "provisional",
     "trues": 1,
     "falses": 5,
     "medianTrue": 0.86,
-    "medianFalse": 0.53,
-    "separation": 0.33,
+    "medianFalse": 0.55,
+    "separation": 0.31,
     "ordered": 1,
-    "at": "2026-09-24"
+    "at": "2026-09-25"
   },
   "ignoresAbortAfterAwait": {
     "status": "provisional",
     "trues": 1,
     "falses": 1,
-    "medianTrue": 0.8,
-    "medianFalse": 0.22,
-    "separation": 0.58,
+    "medianTrue": 0.83,
+    "medianFalse": 0.32,
+    "separation": 0.51,
     "ordered": 1,
-    "at": "2026-09-24"
+    "at": "2026-09-25"
   },
   "readsMoreThanRendered": {
     "status": "provisional",
     "trues": 1,
     "falses": 2,
-    "medianTrue": 0.91,
-    "medianFalse": 0.23,
-    "separation": 0.68,
+    "medianTrue": 0.92,
+    "medianFalse": 0.25,
+    "separation": 0.67,
     "ordered": 1,
-    "at": "2026-09-24"
+    "at": "2026-09-25"
   },
   "subscribesToWriteOnly": {
     "status": "provisional",
     "trues": 1,
     "falses": 1,
-    "medianTrue": 0.94,
-    "medianFalse": 0.12,
-    "separation": 0.82,
+    "medianTrue": 0.95,
+    "medianFalse": 0.1,
+    "separation": 0.85,
     "ordered": 1,
-    "at": "2026-09-24"
+    "at": "2026-09-25"
   },
   "runDuringRender": {
     "status": "provisional",
     "trues": 1,
     "falses": 1,
-    "medianTrue": 0.96,
-    "medianFalse": 0.16,
-    "separation": 0.8,
+    "medianTrue": 0.95,
+    "medianFalse": 0.18,
+    "separation": 0.77,
     "ordered": 1,
-    "at": "2026-09-24"
+    "at": "2026-09-25"
   },
   "domainLogicInRender": {
     "status": "provisional",
@@ -107,7 +107,7 @@
     "medianFalse": 0.05,
     "separation": 0.88,
     "ordered": 1,
-    "at": "2026-09-24"
+    "at": "2026-09-25"
   },
   "effectOwnedByComponent": {
     "status": "provisional",
@@ -117,46 +117,46 @@
     "medianFalse": 0.05,
     "separation": 0.91,
     "ordered": 1,
-    "at": "2026-09-24"
+    "at": "2026-09-25"
   },
   "leakedInternal": {
     "status": "provisional",
     "trues": 1,
     "falses": 5,
-    "medianTrue": 0.7,
-    "medianFalse": 0.71,
-    "separation": -0.01,
-    "ordered": 0.4,
-    "at": "2026-09-24"
+    "medianTrue": 0.71,
+    "medianFalse": 0.69,
+    "separation": 0.02,
+    "ordered": 0.6,
+    "at": "2026-09-25"
   },
   "survivorMatters": {
     "status": "proven",
     "trues": 6,
     "falses": 7,
     "medianTrue": 0.83,
-    "medianFalse": 0.19,
-    "separation": 0.65,
+    "medianFalse": 0.17,
+    "separation": 0.66,
     "ordered": 0.98,
-    "at": "2026-09-24"
+    "at": "2026-09-25"
   },
   "titleVague": {
-    "status": "provisional",
-    "trues": 2,
-    "falses": 65,
-    "medianTrue": 0.72,
-    "medianFalse": 0.59,
-    "separation": 0.13,
-    "ordered": 0.79,
-    "at": "2026-09-24"
+    "status": "noisy",
+    "trues": 6,
+    "falses": 85,
+    "medianTrue": 0.68,
+    "medianFalse": 0.6,
+    "separation": 0.08,
+    "ordered": 0.57,
+    "at": "2026-09-25"
   },
   "wrapsCallersStep": {
     "status": "noisy",
     "trues": 17,
     "falses": 12,
-    "medianTrue": 0.74,
+    "medianTrue": 0.78,
     "medianFalse": 0.29,
-    "separation": 0.45,
-    "ordered": 0.85,
-    "at": "2026-09-24"
+    "separation": 0.49,
+    "ordered": 0.84,
+    "at": "2026-09-25"
   }
 }

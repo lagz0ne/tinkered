@@ -23,6 +23,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **jev/titleVague-reword** — calibration 2026-09-25 made `titleVague` noisy (true 6 med 68%, false 85
+  med 60%, sep 8%, ordered 57%). ADR 0054: reword once, then retire if still noisy. Next: reword the
+  question from the 91 labeled cases, recalibrate. Verify: `proven`/`provisional`, or retired.
+
 - **tests/busy-host-flake** — a core test fails when the host is busy (a mutation run beside the
   gate): landers saw `cache.bench.test.ts` at 41 ms vs a 13 ms limit, and one unnamed core failure in
   `pnpm validate`. Next: find the test(s), make timing tests measure relative cost or move them to
