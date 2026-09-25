@@ -1,5 +1,5 @@
 import { createScope, isError as isCoreError, tag } from "@tinker/core";
-import type { Operation, Scope, Tag } from "@tinker/core";
+import type { Operation, RunResult, Scope, Tag } from "@tinker/core";
 import { isError, raise } from "./errors.ts";
 import type { Errors } from "./errors.ts";
 
@@ -69,8 +69,9 @@ export async function execute(
   signal?.addEventListener("abort", stop, { once: true });
   try {
     await scope.ready;
-    return await scope.run(entry.op);
+    return readResult(await scope.settle(entry.op), out, cancelled(), opts?.usage);
   } catch (error: unknown) {
+    /** Only a failed start or a closed root lands here: `settle` itself never throws. */
     return readFailure(error, out, cancelled(), opts?.usage);
   } finally {
     signal?.removeEventListener("abort", stop);
@@ -84,6 +85,19 @@ function rootFor(entry: Process.Entry, rest: readonly string[], out: Process.Io)
     ...entry.options,
     tags: [argv(rest), env(readEnv()), io(out), entry.options?.tags],
   });
+}
+
+/** What a settled run answers: its own code, 130 when cancelled, else what its failure answers.
+ * A panic and a managed error answer the same: the process is the last place to recover. */
+function readResult(
+  result: RunResult<number>,
+  out: Process.Io,
+  cancelled: boolean,
+  usage: string | undefined,
+): number {
+  if (result.status === "success") return result.value;
+  if (result.status === "cancelled") return 130;
+  return readFailure(result.error, out, cancelled, usage);
 }
 
 /** What a failed run answers: a cancelled run is 130, a parse failure is a usage error (2),
