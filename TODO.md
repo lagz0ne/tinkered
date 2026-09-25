@@ -81,7 +81,7 @@ card at a time.
 ## Done
 
 - **process/positionals** — deepseek + opus review (one fix round); tag `process/positionals`. `positionals(argv, { values })` in `@tinker/process`: plain words in order; value flags take the next word; `--k=v` is one word; `--` ends flags. blueprint `verify` and tinkerer `ask` use it; fixes `ask --json hello` dropping `hello` (test fails on main).
-  - Gate EXIT 0; validate 43 PASS.
+  - Gate EXIT 0; validate 43 PASS. Jev calibrate owed (service 503).
   - Mutation alone: process 95.90, blueprint 88.31, tinkerer 96.28.
 - **hono/two-servers** — deepseek + opus review (one fix round); tag `hono/two-servers`. Two hono extensions on one scope: shared scope data, separate per-request sessions, the same path answers from the server that got the request, one close stops both once (ADR 0060). No bug found.
   - Gate EXIT 0; hono mutation 86.88; validate 43 PASS. Calibrate owed: the Jev gateway answered 503 five times; the next landing that adds labels runs it.
