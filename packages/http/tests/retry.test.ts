@@ -192,11 +192,31 @@ async function retryInSession(thrown: unknown): Promise<[string, string]> {
   return [text, closed.status];
 }
 
-test("a backend panic is retried and its session still closes success", async () => {
+test("a backend TypeError is retried as Transport and its session still closes success", async () => {
   expect(await retryInSession(new TypeError("fetch failed"))).toEqual(["[]", "success"]);
 });
 
 test("a backend managed error is retried and its session still closes success", async () => {
   const offline = Object.assign(new Error("Offline"), { kind: "Offline", payload: {} });
   expect(await retryInSession(offline)).toEqual(["[]", "success"]);
+});
+
+test("a throwing accept is thrown unchanged and never retried", async () => {
+  const bug = new TypeError("bug in accept");
+  let calls = 0;
+  const ok: HttpClient.Backend = async (request) => {
+    calls += 1;
+    return HttpResponse.make(request, { status: 200, body: "x" });
+  };
+  const accept = (): boolean => {
+    throw bug;
+  };
+  const scope = createScope({ tags: [backend(ok), config({ retry: retryingRetry, accept })] });
+  const outcome = await scope.run(retryingText).then(
+    () => "resolved",
+    (error: unknown) => error,
+  );
+  expect(outcome).toBe(bug);
+  expect(calls).toBe(1);
+  await scope.close();
 });

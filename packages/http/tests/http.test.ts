@@ -179,6 +179,32 @@ test("a forced close while the backend parks on the signal rejects with the abor
   expect(outcome).toBe(result.reason);
 });
 
+test("a response delivered after a forced close is dropped for the abort reason", async () => {
+  let deliver: (() => void) | undefined;
+  const late: HttpClient.Backend = (request) =>
+    new Promise<HttpResponse.Handle>((resolve) => {
+      deliver = () => resolve(HttpResponse.make(request, { status: 200, body: "late" }));
+    });
+  const scope = createScope({ tags: [backend(late)] });
+  const call = operation({
+    label: "call",
+    depends: { send },
+    run: ({ send: sendIt }) => sendIt.run({ input: HttpRequest.get("https://api/users") }),
+  });
+  const running = scope.run(call);
+  for (let i = 0; i < 100 && deliver === undefined; i += 1) await Promise.resolve();
+  if (deliver === undefined) throw new Error("the backend was never reached");
+  const closing = scope.close();
+  deliver();
+  const outcome = await running.then(
+    () => "resolved",
+    (error: unknown) => error,
+  );
+  const result = await closing;
+  if (result.status !== "cancelled") throw result;
+  expect(outcome).toBe(result.reason);
+});
+
 test("streaming a bodiless response rejects NoBody with the status", async () => {
   const nodata = operation({
     label: "github.nodata",

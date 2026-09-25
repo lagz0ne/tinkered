@@ -7,7 +7,7 @@ import {
   type Scope,
   type Tag,
 } from "@tinker/core";
-import { isError, raiseFrom } from "./errors.ts";
+import { isError, raiseFrom, type Errors } from "./errors.ts";
 import { HttpRequest } from "./request.ts";
 import { HttpResponse } from "./response.ts";
 
@@ -213,9 +213,9 @@ export const send: Operation.Handle<
 });
 
 /** The retry loop: each try is one `attempt` subflow, so each gets its own nested span. A
- * transient status or a rejected backend tries again until `retry.times + 1` is spent. Each try
- * is received through `settle` (ADR 0067); a panic retries like an error, because `fetch`
- * rejects a transport failure with a plain `TypeError`. */
+ * transient status or a rejected backend (`RequestFailed/Transport`, raised by the attempt) tries
+ * again until `retry.times + 1` is spent; the last one is thrown as it is. Each try is received
+ * through `settle` (ADR 0067). */
 async function runSend(
   attempt: Scope.OperationController<Promise<HttpResponse.Handle>, HttpClient.Attempt>,
   request: HttpRequest.Record,
@@ -236,26 +236,27 @@ async function runSend(
       if (retriesStatus(settled.value.status, n, tries)) continue;
       return settled.value;
     }
-    const error = readTransportFailure(settled, ctx);
+    const failure = readTransportFailure(settled, ctx);
     if (n < tries) continue;
-    raiseFrom(ctx, "RequestFailed", { request, reason: "Transport", cause: error });
+    throw failure;
   }
 }
 
-/** A try that did not deliver, as a transport failure worth another try. What ends the send
- * instead is thrown: core's `Disposed` as it is (the scope closed before the backend was reached —
- * a cancellation, never a transport failure that blames a network nobody touched, even when the
- * close's abort lands before `settle` hands it back), then the abort reason once the caller
- * aborted, then a rejected status as it is. */
+/** A try that did not deliver, as the attempt's `RequestFailed/Transport`: the one failure worth
+ * another try. What ends the send instead is thrown: core's `Disposed` as it is (the scope closed
+ * before the backend was reached — a cancellation, never a transport failure that blames a network
+ * nobody touched, even when the close's abort lands before `settle` hands it back), then the abort
+ * reason once the caller aborted, then anything else as it is — a rejected status, or a panic (a
+ * throwing `accept`), which is never retried. */
 function readTransportFailure(
   settled: Exclude<RunResult<HttpResponse.Handle>, { status: "success" }>,
   ctx: Operation.Ctx<HttpRequest.Record>,
-): unknown {
+): Errors.Of<"RequestFailed"> {
   const error = settled.status === "failed" ? settled.error : settled.reason;
   if (isCoreError(error, "Disposed")) throw error;
   if (ctx.signal.aborted) throw ctx.signal.reason;
-  if (isError(error, "ResponseFailed")) throw error;
-  return error;
+  if (isError(error, "RequestFailed")) return error;
+  throw error;
 }
 
 /** The frame's default status policy: accept every status. */
@@ -289,8 +290,8 @@ function retriesStatus(status: number, attempt: number, tries: number): boolean 
 }
 
 /** One attempt inside its own manual child span (`http <METHOD> <url>`, attributes method/url/status
- * plus the 1-based `attempt`): a backend rejection logs one line and rethrows raw (the loop wraps
- * it); a received transient status with attempts remaining returns raw — that attempt's span
+ * plus the 1-based `attempt`): a backend rejection logs one line and raises
+ * `RequestFailed/Transport` with it as the cause (the loop retries only that); a received transient status with attempts remaining returns raw — that attempt's span
  * settles `"ok"` (the transport succeeded, the retry is policy) — otherwise `accept` runs inside
  * the span, so a rejected status settles it `"failed"`. */
 async function sendOnce(
@@ -312,7 +313,7 @@ async function sendOnce(
   } catch (error) {
     if (ctx.signal.aborted) throw ctx.signal.reason;
     ctx.log.error("http request failed", { method: request.method, url });
-    throw error;
+    raiseFrom(ctx, "RequestFailed", { request, reason: "Transport", cause: error });
   }
   if (span !== undefined) span.attributes.status = delivered.status;
   if (retriesStatus(delivered.status, attempt, tries)) return delivered;
