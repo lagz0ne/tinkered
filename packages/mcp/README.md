@@ -138,6 +138,8 @@ Core writes a separate step line with the operation's label, `ms`, and outcome.
 The value goes back
 through `respond` (default: one JSON text content); a failure answers
 `{ isError: true, content: [text] }` — a parse failure answers `invalid input`.
+The call recovers through `settle` (ADR 0067): a panic or a raised error
+answers the same way, and the call's session closes `success`.
 
 Point a harness at the process. Claude:
 

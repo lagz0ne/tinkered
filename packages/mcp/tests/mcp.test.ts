@@ -1,6 +1,7 @@
 import { expect, test } from "vite-plus/test";
 import {
   createScope,
+  extension,
   isError as isCoreError,
   operation,
   tag,
@@ -228,6 +229,48 @@ test("a throwing op answers isError with the thrown text", async () => {
   const answered = await client.callTool({ name: "broken", arguments: { q: "owls" } });
   expect(answered.isError).toBe(true);
   expect(answered.content).toEqual([{ type: "text", text: "Error: boom" }]);
+  await scope.close({ graceful: true });
+});
+
+test("a failed call recovers through settle: a panic and a raised error answer isError and the session closes success", async () => {
+  const closed: string[] = [];
+  const sessions = extension({
+    label: "sessions",
+    session: async (_handle, next) => {
+      const ended = await next();
+      closed.push(ended.status);
+      return ended;
+    },
+  });
+  const panics = operation({
+    label: "panics",
+    input: parseSearch,
+    run: () => {
+      throw new Error("boom");
+    },
+  });
+  const refuses = operation({
+    label: "refuses",
+    input: parseSearch,
+    run: (_deps, ctx) => ctx.raise("Refused", { q: ctx.input.q }),
+  });
+  const ext = mcp({
+    name: "coder",
+    version: "1.0.0",
+    tools: [
+      expose(panics, { description: "panics", schema: searchShape }),
+      expose(refuses, { description: "raises an error", schema: searchShape }),
+    ],
+  });
+  const scope = createScope({ extensions: [sessions, ext] });
+  const client = await linkClient(scope, ext);
+  const panicked = await client.callTool({ name: "panics", arguments: { q: "owls" } });
+  expect(panicked.isError).toBe(true);
+  expect(panicked.content).toEqual([{ type: "text", text: "Error: boom" }]);
+  const refused = await client.callTool({ name: "refuses", arguments: { q: "owls" } });
+  expect(refused.isError).toBe(true);
+  expect(refused.content).toEqual([{ type: "text", text: "Error: Refused" }]);
+  expect(closed).toEqual(["success", "success"]);
   await scope.close({ graceful: true });
 });
 
