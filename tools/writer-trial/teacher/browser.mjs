@@ -1,6 +1,18 @@
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
 
+// A field by its label. The exact accessible label first; else the control inside a <label>
+// whose own words equal the name. A <select> inside its label adds its option text to the
+// label ("Room Cedar Maple"), which is valid labeling the task allows (grow-01, 2026-09-25).
+const labeled = (scope, name) =>
+  scope
+    .getByLabel(name, { exact: true })
+    .or(
+      scope.locator(
+        `xpath=.//label[text()[normalize-space(.)="${name}"]]//*[self::select or self::input or self::textarea]`,
+      ),
+    );
+
 const base = new URL(process.env.BASE_URL ?? "http://127.0.0.1:5173");
 assert.ok(
   ["127.0.0.1", "localhost", "[::1]"].includes(base.hostname),
@@ -14,24 +26,24 @@ page.setDefaultTimeout(5000);
 const cancel = (title) => page.getByRole("button", { name: `Cancel ${title}`, exact: true });
 
 async function form(title, room, start, end) {
-  await page.getByLabel("Title", { exact: true }).fill(title);
-  const roomField = page.getByLabel("Room", { exact: true });
+  await labeled(page, "Title").fill(title);
+  const roomField = labeled(page, "Room");
   const tag = await roomField.evaluate((el) => el.tagName);
   if (tag === "SELECT") await roomField.selectOption({ label: room });
   else await roomField.fill(room);
-  await page.getByLabel("Start time", { exact: true }).fill(start);
-  await page.getByLabel("End time", { exact: true }).fill(end);
+  await labeled(page, "Start time").fill(start);
+  await labeled(page, "End time").fill(end);
 }
 
 async function firstRound() {
   await form("Browser A", "Cedar", "09:00", "10:00");
   await page.getByRole("button", { name: "Book", exact: true }).click();
   await cancel("Browser A").waitFor();
-  assert.equal(await page.getByLabel("Title", { exact: true }).inputValue(), "");
+  assert.equal(await labeled(page, "Title").inputValue(), "");
   await form("Browser clash", "Cedar", "09:30", "10:30");
   await page.getByRole("button", { name: "Book", exact: true }).click();
   await page.getByRole("alert").filter({ hasText: "Clash" }).waitFor();
-  assert.equal(await page.getByLabel("Title", { exact: true }).inputValue(), "Browser clash");
+  assert.equal(await labeled(page, "Title").inputValue(), "Browser clash");
   assert.equal(await cancel("Browser clash").count(), 0);
   await page.getByRole("button", { name: "Maple", exact: true }).click();
   await cancel("Browser A").waitFor({ state: "hidden" });
@@ -42,12 +54,12 @@ async function firstRound() {
 
 async function secondRound() {
   await page.getByRole("button", { name: "Edit Browser A", exact: true }).click();
-  await page.getByLabel("Edit title", { exact: true }).fill("Discarded");
+  await labeled(page, "Edit title").fill("Discarded");
   await page.getByRole("button", { name: "Discard", exact: true }).click();
   await cancel("Browser A").waitFor();
   assert.equal(await cancel("Discarded").count(), 0);
   await page.getByRole("button", { name: "Edit Browser A", exact: true }).click();
-  await page.getByLabel("Edit title", { exact: true }).fill("Browser renamed");
+  await labeled(page, "Edit title").fill("Browser renamed");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await cancel("Browser renamed").waitFor();
   await page.getByRole("button", { name: "Save", exact: true }).waitFor({ state: "hidden" });
@@ -56,8 +68,8 @@ async function secondRound() {
 
 async function thirdRound() {
   await form("Browser series", "Maple", "11:00", "12:00");
-  await page.getByLabel("Date", { exact: true }).fill("2026-10-06");
-  await page.getByLabel("Weeks", { exact: true }).fill("3");
+  await labeled(page, "Date").fill("2026-10-06");
+  await labeled(page, "Weeks").fill("3");
   await page.getByRole("button", { name: "Book series", exact: true }).click();
   await cancel("Browser series").nth(2).waitFor();
   assert.equal(await cancel("Browser series").count(), 3);
@@ -68,11 +80,11 @@ async function thirdRound() {
 }
 
 async function fourthRound() {
-  await page.getByLabel("Title", { exact: true }).fill("Keep this draft");
+  await labeled(page, "Title").fill("Keep this draft");
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await cancel("Browser series").first().waitFor();
   assert.equal(await cancel("Browser series").count(), 3);
-  assert.equal(await page.getByLabel("Title", { exact: true }).inputValue(), "Keep this draft");
+  assert.equal(await labeled(page, "Title").inputValue(), "Keep this draft");
   await page.reload();
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await page.getByRole("alert").filter({ hasText: "EmptyUndo" }).waitFor();

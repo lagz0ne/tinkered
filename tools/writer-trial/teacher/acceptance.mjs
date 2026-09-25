@@ -3,6 +3,18 @@ import { createServer } from "vite-plus";
 import { chromium } from "playwright";
 import { shapeCases } from "./acceptance-shape.mjs";
 
+// A field by its label. The exact accessible label first; else the control inside a <label>
+// whose own words equal the name. A <select> inside its label adds its option text to the
+// label ("Room Cedar Maple"), which is valid labeling the task allows (grow-01, 2026-09-25).
+const labeled = (scope, name) =>
+  scope
+    .getByLabel(name, { exact: true })
+    .or(
+      scope.locator(
+        `xpath=.//label[text()[normalize-space(.)="${name}"]]//*[self::select or self::input or self::textarea]`,
+      ),
+    );
+
 // Isolated teacher acceptance. Runs only inside the disposable container:
 // submitted code is imported here, never on the host. Case-level results;
 // any error or missing check fails its case, never passes.
@@ -608,21 +620,21 @@ try {
 browser("browser loads app", async (page) => {
   assert.ok(booted === "server listens", booted);
   await page.goto("http://127.0.0.1:5173");
-  await page.getByLabel("Title", { exact: true }).waitFor();
+  await labeled(page, "Title").waitFor();
   return "form shows";
 });
 
 const fillRoom = async (page, room) => {
-  const field = page.getByLabel("Room", { exact: true });
+  const field = labeled(page, "Room");
   const tag = await field.evaluate((el) => el.tagName);
   if (tag === "SELECT") await field.selectOption({ label: room });
   else await field.fill(room);
 };
 const bookOne = async (page, title, room, start, end) => {
-  await page.getByLabel("Title", { exact: true }).fill(title);
+  await labeled(page, "Title").fill(title);
   await fillRoom(page, room);
-  await page.getByLabel("Start time", { exact: true }).fill(start);
-  await page.getByLabel("End time", { exact: true }).fill(end);
+  await labeled(page, "Start time").fill(start);
+  await labeled(page, "End time").fill(end);
   await page.getByRole("button", { name: "Book", exact: true }).click();
   await page.getByRole("button", { name: `Cancel ${title}`, exact: true }).waitFor();
 };
@@ -631,14 +643,14 @@ const cancel = (page, title) => page.getByRole("button", { name: `Cancel ${title
 browser("browser r1: book, clash keeps form, filter preserves", async (page) => {
   await page.goto("http://127.0.0.1:5173");
   await bookOne(page, "Browser A", "Cedar", "09:00", "10:00");
-  assert.equal(await page.getByLabel("Title", { exact: true }).inputValue(), "");
-  await page.getByLabel("Title", { exact: true }).fill("Browser clash");
+  assert.equal(await labeled(page, "Title").inputValue(), "");
+  await labeled(page, "Title").fill("Browser clash");
   await fillRoom(page, "Cedar");
-  await page.getByLabel("Start time", { exact: true }).fill("09:30");
-  await page.getByLabel("End time", { exact: true }).fill("10:30");
+  await labeled(page, "Start time").fill("09:30");
+  await labeled(page, "End time").fill("10:30");
   await page.getByRole("button", { name: "Book", exact: true }).click();
   await page.getByRole("alert").filter({ hasText: "Clash" }).waitFor();
-  assert.equal(await page.getByLabel("Title", { exact: true }).inputValue(), "Browser clash");
+  assert.equal(await labeled(page, "Title").inputValue(), "Browser clash");
   assert.equal(await cancel(page, "Browser clash").count(), 0);
   await page.getByRole("button", { name: "Maple", exact: true }).click();
   await cancel(page, "Browser A").waitFor({ state: "hidden" });
@@ -650,14 +662,14 @@ browser("browser r1: book, clash keeps form, filter preserves", async (page) => 
 
 browser("browser r2: switch drafts drops unsaved, discard, save", async (page) => {
   await page.getByRole("button", { name: "Edit Browser A", exact: true }).click();
-  await page.getByLabel("Edit title", { exact: true }).fill("UNSAVED A");
+  await labeled(page, "Edit title").fill("UNSAVED A");
   await page.getByRole("button", { name: "Edit Beta", exact: true }).click();
-  assert.equal(await page.getByLabel("Edit title", { exact: true }).inputValue(), "Beta");
+  assert.equal(await labeled(page, "Edit title").inputValue(), "Beta");
   await page.getByRole("button", { name: "Discard", exact: true }).click();
   await cancel(page, "Beta").waitFor();
   assert.equal(await cancel(page, "UNSAVED A").count(), 0);
   await page.getByRole("button", { name: "Edit Beta", exact: true }).click();
-  await page.getByLabel("Edit title", { exact: true }).fill("Browser renamed");
+  await labeled(page, "Edit title").fill("Browser renamed");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await cancel(page, "Browser renamed").waitFor();
   await page.getByRole("button", { name: "Save", exact: true }).waitFor({ state: "hidden" });
@@ -667,17 +679,17 @@ browser("browser r2: switch drafts drops unsaved, discard, save", async (page) =
 browser("browser r2: failed save keeps draft open", async (page) => {
   try {
     await page.getByRole("button", { name: "Edit Browser A", exact: true }).click();
-    await page.getByLabel("Edit start time", { exact: true }).fill("11:30");
-    await page.getByLabel("Edit end time", { exact: true }).fill("12:30");
-    await page.getByLabel("Edit room", { exact: true }).fill("Maple");
+    await labeled(page, "Edit start time").fill("11:30");
+    await labeled(page, "Edit end time").fill("12:30");
+    await labeled(page, "Edit room").fill("Maple");
     await page.getByRole("button", { name: "Save", exact: true }).click();
-    await page.getByLabel("Edit title", { exact: true }).waitFor();
+    await labeled(page, "Edit title").waitFor();
     const alertText = await page
       .getByRole("alert")
       .innerText()
       .catch(() => "");
     assert.match(alertText, /Clash/, "failed save shows Clash");
-    assert.equal(await page.getByLabel("Edit title", { exact: true }).inputValue(), "Browser A");
+    assert.equal(await labeled(page, "Edit title").inputValue(), "Browser A");
     await page.getByRole("button", { name: "Discard", exact: true }).click();
     await cancel(page, "Browser A").waitFor();
     return "failed save keeps draft";
@@ -691,12 +703,12 @@ browser("browser r2: failed save keeps draft open", async (page) => {
 });
 
 browser("browser r3: series create and cancel whole series", async (page) => {
-  await page.getByLabel("Title", { exact: true }).fill("Browser series");
+  await labeled(page, "Title").fill("Browser series");
   await fillRoom(page, "Maple");
-  await page.getByLabel("Date", { exact: true }).fill("2026-10-06");
-  await page.getByLabel("Start time", { exact: true }).fill("11:00");
-  await page.getByLabel("End time", { exact: true }).fill("12:00");
-  await page.getByLabel("Weeks", { exact: true }).fill("3");
+  await labeled(page, "Date").fill("2026-10-06");
+  await labeled(page, "Start time").fill("11:00");
+  await labeled(page, "End time").fill("12:00");
+  await labeled(page, "Weeks").fill("3");
   await page.getByRole("button", { name: "Book series", exact: true }).click();
   await cancel(page, "Browser series").nth(2).waitFor();
   assert.equal(await cancel(page, "Browser series").count(), 3);
@@ -708,11 +720,11 @@ browser("browser r3: series create and cancel whole series", async (page) => {
 
 browser("browser regression: cleared Date is BadDate and saves nothing", async (page) => {
   await page.goto("http://127.0.0.1:5173");
-  await page.getByLabel("Title", { exact: true }).fill("BlankDate");
+  await labeled(page, "Title").fill("BlankDate");
   await fillRoom(page, "Cedar");
-  await page.getByLabel("Start time", { exact: true }).fill("09:00");
-  await page.getByLabel("End time", { exact: true }).fill("10:00");
-  await page.getByLabel("Date", { exact: true }).fill("");
+  await labeled(page, "Start time").fill("09:00");
+  await labeled(page, "End time").fill("10:00");
+  await labeled(page, "Date").fill("");
   await page.getByRole("button", { name: "Book", exact: true }).click();
   await page.waitForFunction(
     () =>
@@ -732,14 +744,14 @@ browser("browser r4: undo keeps draft text and filter choice", async (page) => {
   await bookOne(page, "Undo B", "Maple", "11:00", "12:00");
   await bookOne(page, "Undo C", "Maple", "13:00", "14:00");
   await page.getByRole("button", { name: "Edit Undo A", exact: true }).click();
-  await page.getByLabel("Edit title", { exact: true }).fill("Unsaved A");
+  await labeled(page, "Edit title").fill("Unsaved A");
   await page.getByRole("button", { name: "Maple", exact: true }).click();
   assert.equal(await cancel(page, "Undo A").count(), 0);
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await cancel(page, "Undo C").waitFor({ state: "hidden" });
   assert.equal(await cancel(page, "Undo B").count(), 1);
   assert.equal(await cancel(page, "Undo A").count(), 0);
-  assert.equal(await page.getByLabel("Edit title", { exact: true }).inputValue(), "Unsaved A");
+  assert.equal(await labeled(page, "Edit title").inputValue(), "Unsaved A");
   await page.getByRole("button", { name: "All", exact: true }).click();
   await cancel(page, "Undo A").waitFor();
   assert.equal(await cancel(page, "Undo B").count(), 1);
@@ -753,12 +765,12 @@ browser("browser r4: undo keeps draft text and filter choice", async (page) => {
 
 if (mode === "transfer") {
   const bookSeries = async (page, title, room, date, start, end, weeks) => {
-    await page.getByLabel("Title", { exact: true }).fill(title);
+    await labeled(page, "Title").fill(title);
     await fillRoom(page, room);
-    await page.getByLabel("Date", { exact: true }).fill(date);
-    await page.getByLabel("Start time", { exact: true }).fill(start);
-    await page.getByLabel("End time", { exact: true }).fill(end);
-    await page.getByLabel("Weeks", { exact: true }).fill(weeks);
+    await labeled(page, "Date").fill(date);
+    await labeled(page, "Start time").fill(start);
+    await labeled(page, "End time").fill(end);
+    await labeled(page, "Weeks").fill(weeks);
     await page.getByRole("button", { name: "Book series", exact: true }).click();
     await page
       .getByRole("button", { name: `Cancel ${title}`, exact: true })
@@ -767,7 +779,7 @@ if (mode === "transfer") {
   };
   const renameBtn = (page, title) =>
     page.getByRole("button", { name: `Rename series ${title}`, exact: true });
-  const seriesTitle = (page) => page.getByLabel("Series title", { exact: true });
+  const seriesTitle = (page) => labeled(page, "Series title");
 
   browser("browser transfer: rename setup", async (page) => {
     await page.goto("http://127.0.0.1:5173");
@@ -782,12 +794,12 @@ if (mode === "transfer") {
 
   browser("browser transfer: save renames whole series only", async (page) => {
     await renameBtn(page, "Rone").first().click();
-    assert.equal(await page.getByLabel("Series title", { exact: true }).count(), 1);
+    assert.equal(await labeled(page, "Series title").count(), 1);
     assert.equal(await seriesTitle(page).inputValue(), "Rone");
     await seriesTitle(page).fill("Gamma");
     await page.getByRole("button", { name: "Save series title", exact: true }).click();
     await page.getByRole("button", { name: "Cancel Gamma", exact: true }).nth(1).waitFor();
-    assert.equal(await page.getByLabel("Series title", { exact: true }).count(), 0);
+    assert.equal(await labeled(page, "Series title").count(), 0);
     assert.equal(await cancel(page, "Gamma").count(), 2);
     assert.equal(await cancel(page, "Rone").count(), 0);
     assert.equal(await cancel(page, "Solo").count(), 1);
@@ -803,7 +815,7 @@ if (mode === "transfer") {
     assert.equal(await seriesTitle(page).inputValue(), "   ");
     assert.equal(await cancel(page, "Gamma").count(), 2);
     await page.getByRole("button", { name: "Discard series title", exact: true }).click();
-    await page.getByLabel("Series title", { exact: true }).waitFor({ state: "hidden" });
+    await labeled(page, "Series title").waitFor({ state: "hidden" });
     return "editor kept, BlankTitle shown";
   });
 
@@ -811,7 +823,7 @@ if (mode === "transfer") {
     await renameBtn(page, "Gamma").first().click();
     await seriesTitle(page).fill("Unsaved text");
     await page.getByRole("button", { name: "Discard series title", exact: true }).click();
-    await page.getByLabel("Series title", { exact: true }).waitFor({ state: "hidden" });
+    await labeled(page, "Series title").waitFor({ state: "hidden" });
     assert.equal(await cancel(page, "Gamma").count(), 2);
     assert.equal(await cancel(page, "Unsaved text").count(), 0);
     return "discard drops text";
@@ -823,19 +835,19 @@ if (mode === "transfer") {
     await renameBtn(page, "DoneB").first().click();
     assert.equal(await seriesTitle(page).inputValue(), "DoneB");
     await page.getByRole("button", { name: "Discard series title", exact: true }).click();
-    await page.getByLabel("Series title", { exact: true }).waitFor({ state: "hidden" });
+    await labeled(page, "Series title").waitFor({ state: "hidden" });
     return "second series wins";
   });
 
   browser("browser transfer: editor seeds from clicked row", async (page) => {
     await page.getByRole("button", { name: "Edit Alpha", exact: true }).nth(1).click();
-    await page.getByLabel("Edit title", { exact: true }).fill("Beta");
+    await labeled(page, "Edit title").fill("Beta");
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await renameBtn(page, "Beta").waitFor();
     await renameBtn(page, "Beta").click();
     assert.equal(await seriesTitle(page).inputValue(), "Beta");
     await page.getByRole("button", { name: "Discard series title", exact: true }).click();
-    await page.getByLabel("Series title", { exact: true }).waitFor({ state: "hidden" });
+    await labeled(page, "Series title").waitFor({ state: "hidden" });
     return "Series title is Beta";
   });
 }
@@ -914,20 +926,20 @@ const mountSecondRoot = async () => {
 browser("browser: two roots on one page share nothing", async (page) => {
   try {
     await page.goto("http://127.0.0.1:5173");
-    await page.getByLabel("Title", { exact: true }).waitFor();
+    await labeled(page, "Title").waitFor();
     await page.evaluate(mountSecondRoot);
     const secondScope = page.locator("#teacher-second-root");
     await secondScope.waitFor({ state: "attached" });
     // Labels use `for` without an accessible-name link in one repair; fall
     // back to positional inputs inside the second root so a missing link
     // is a lead-review note, never a false isolation failure.
-    let secondTitle = secondScope.getByLabel("Title", { exact: true });
+    let secondTitle = labeled(secondScope, "Title");
     if ((await secondTitle.count()) === 0) secondTitle = secondScope.locator("input").first();
-    let secondRoom = secondScope.getByLabel("Room", { exact: true });
+    let secondRoom = labeled(secondScope, "Room");
     if ((await secondRoom.count()) === 0) secondRoom = secondScope.locator("input").nth(1);
-    let secondStart = secondScope.getByLabel("Start time", { exact: true });
+    let secondStart = labeled(secondScope, "Start time");
     if ((await secondStart.count()) === 0) secondStart = secondScope.locator("input").nth(3);
-    let secondEnd = secondScope.getByLabel("End time", { exact: true });
+    let secondEnd = labeled(secondScope, "End time");
     if ((await secondEnd.count()) === 0) secondEnd = secondScope.locator("input").nth(4);
     await secondTitle.waitFor({ state: "visible" });
     await secondTitle.fill("Root Two");
