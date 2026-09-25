@@ -5,7 +5,7 @@
  * course/link/complete/reopen/undo operations, and a labeled screen.
  */
 import { data, operation } from "@tinker/core";
-import type { Data, Operation, Scope } from "@tinker/core";
+import type { Data, Operation } from "@tinker/core";
 import { fail } from "./errors.ts";
 
 export type Course = {
@@ -27,12 +27,6 @@ const undoHistory: Data.Cell<readonly (readonly Course[])[]> = data({
 
 const issuedIds: Data.Cell<readonly string[]> = data({ label: "issuedIds", initial: [] });
 
-type CourseCells = {
-  courses: Scope.DataController<readonly Course[]>;
-  history: Scope.DataController<readonly (readonly Course[])[]>;
-  issued: Scope.DataController<readonly string[]>;
-};
-
 const cloneCourses = (rows: readonly Course[]): Course[] =>
   rows.map((row) => ({ ...row, prerequisiteIds: [...row.prerequisiteIds] }));
 
@@ -44,15 +38,10 @@ const savedById = (rows: readonly Course[], id: string): Course => {
   return found;
 };
 
-const pushStep = (cells: CourseCells): void => {
-  cells.history.update((prev) => [...prev, cloneCourses(cells.courses.get())]);
-};
-
-const freshId = (issued: Scope.DataController<readonly string[]>): string => {
+/** A random id that is not among the ids already issued. */
+const freshId = (issued: readonly string[]): string => {
   const id = globalThis.crypto.randomUUID();
-  if (issued.get().includes(id)) return freshId(issued);
-  issued.set([...issued.get(), id]);
-  return id;
+  return issued.includes(id) ? freshId(issued) : id;
 };
 
 const titleOf = (raw: unknown): string => {
@@ -90,13 +79,15 @@ export const createCourse: Operation.Handle<Course, { title: string }> = operati
   },
   run: ({ courses: coursesCell, history, issued }, ctx) => {
     const title = titleOf(ctx.input.title);
+    const id = freshId(issued.get());
+    issued.set([...issued.get(), id]);
     const saved: Course = {
-      id: freshId(issued),
+      id,
       title,
       done: false,
       prerequisiteIds: [],
     };
-    pushStep({ courses: coursesCell, history, issued });
+    history.update((prev) => [...prev, cloneCourses(coursesCell.get())]);
     coursesCell.set([...coursesCell.get(), saved]);
     return cloneOne(saved);
   },
@@ -108,12 +99,8 @@ export const addPrerequisite: Operation.Handle<
   { courseId: string; prerequisiteId: string }
 > = operation({
   label: "addPrerequisite",
-  depends: {
-    courses: courses.controller,
-    history: undoHistory.controller,
-    issued: issuedIds.controller,
-  },
-  run: ({ courses: coursesCell, history, issued }, ctx) => {
+  depends: { courses: courses.controller, history: undoHistory.controller },
+  run: ({ courses: coursesCell, history }, ctx) => {
     const { courseId, prerequisiteId } = ctx.input;
     const rows = coursesCell.get();
     const course = savedById(rows, courseId);
@@ -122,7 +109,7 @@ export const addPrerequisite: Operation.Handle<
     if (course.done) throw fail("CourseDone", { id: courseId });
     if (course.prerequisiteIds.includes(prerequisiteId)) return cloneOne(course);
     if (reaches(rows, prerequisiteId, courseId)) throw fail("Cycle", { courseId, prerequisiteId });
-    pushStep({ courses: coursesCell, history, issued });
+    history.update((prev) => [...prev, cloneCourses(coursesCell.get())]);
     const changed: Course = {
       ...course,
       prerequisiteIds: [...course.prerequisiteIds, prerequisiteId],
@@ -138,12 +125,8 @@ export const removePrerequisite: Operation.Handle<
   { courseId: string; prerequisiteId: string }
 > = operation({
   label: "removePrerequisite",
-  depends: {
-    courses: courses.controller,
-    history: undoHistory.controller,
-    issued: issuedIds.controller,
-  },
-  run: ({ courses: coursesCell, history, issued }, ctx) => {
+  depends: { courses: courses.controller, history: undoHistory.controller },
+  run: ({ courses: coursesCell, history }, ctx) => {
     const { courseId, prerequisiteId } = ctx.input;
     const rows = coursesCell.get();
     const course = savedById(rows, courseId);
@@ -151,7 +134,7 @@ export const removePrerequisite: Operation.Handle<
     if (course.done) throw fail("CourseDone", { id: courseId });
     if (!course.prerequisiteIds.includes(prerequisiteId))
       throw fail("NotRequired", { courseId, prerequisiteId });
-    pushStep({ courses: coursesCell, history, issued });
+    history.update((prev) => [...prev, cloneCourses(coursesCell.get())]);
     const changed: Course = {
       ...course,
       prerequisiteIds: course.prerequisiteIds.filter((id) => id !== prerequisiteId),
@@ -164,19 +147,15 @@ export const removePrerequisite: Operation.Handle<
 /** Complete a course only when its direct prerequisites are done. */
 export const completeCourse: Operation.Handle<Course, { id: string }> = operation({
   label: "completeCourse",
-  depends: {
-    courses: courses.controller,
-    history: undoHistory.controller,
-    issued: issuedIds.controller,
-  },
-  run: ({ courses: coursesCell, history, issued }, ctx) => {
+  depends: { courses: courses.controller, history: undoHistory.controller },
+  run: ({ courses: coursesCell, history }, ctx) => {
     const { id } = ctx.input;
     const rows = coursesCell.get();
     const course = savedById(rows, id);
     if (course.done) return cloneOne(course);
     const open = course.prerequisiteIds.filter((pid) => !savedById(rows, pid).done);
     if (open.length > 0) throw fail("PrerequisitesOpen", { id, prerequisiteIds: [...open] });
-    pushStep({ courses: coursesCell, history, issued });
+    history.update((prev) => [...prev, cloneCourses(coursesCell.get())]);
     const changed: Course = { ...course, prerequisiteIds: [...course.prerequisiteIds], done: true };
     coursesCell.set(rows.map((row) => (row.id === id ? changed : row)));
     return cloneOne(changed);
@@ -186,12 +165,8 @@ export const completeCourse: Operation.Handle<Course, { id: string }> = operatio
 /** Reopen a course only when no completed course directly requires it. */
 export const reopenCourse: Operation.Handle<Course, { id: string }> = operation({
   label: "reopenCourse",
-  depends: {
-    courses: courses.controller,
-    history: undoHistory.controller,
-    issued: issuedIds.controller,
-  },
-  run: ({ courses: coursesCell, history, issued }, ctx) => {
+  depends: { courses: courses.controller, history: undoHistory.controller },
+  run: ({ courses: coursesCell, history }, ctx) => {
     const { id } = ctx.input;
     const rows = coursesCell.get();
     const course = savedById(rows, id);
@@ -200,7 +175,7 @@ export const reopenCourse: Operation.Handle<Course, { id: string }> = operation(
       .filter((row) => row.done && row.prerequisiteIds.includes(id))
       .map((row) => row.id);
     if (dependents.length > 0) throw fail("DependentsDone", { id, dependentIds: dependents });
-    pushStep({ courses: coursesCell, history, issued });
+    history.update((prev) => [...prev, cloneCourses(coursesCell.get())]);
     const changed: Course = {
       ...course,
       prerequisiteIds: [...course.prerequisiteIds],
