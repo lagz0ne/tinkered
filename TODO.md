@@ -51,7 +51,7 @@ card at a time.
 - **errors/t02 packages recover through settle** (ADR 0067) — opus high writers, fable reviewers;
   worktrees `../tinkered-e2-<pkg>`, briefs `~/.cache/tinkered-briefs/errors-t02-<pkg>.md`. Each
   deliberate `catch` around a `.run` moves to `settle` before t03 makes panics sticky.
-  - hono `ccb9bf57` · mcp `e77682de` · process `1b2c2322`
+  - hono `ccb9bf57` · mcp ✓ `errors/t02-mcp` · process `1b2c2322`
   - tinkerer `05ba5321` · harness `24d456f3` · http `f47eea68`
     Verify each: behavior unchanged; a panic and a managed error both still recovered; mutation ≥ 85.
 
@@ -87,6 +87,8 @@ card at a time.
 
 ## Done
 
+- **errors/t02-mcp** — opus high + fable review (one fix round); tag `errors/t02-mcp`. A tool call recovers through `settle`: the client's answer is unchanged, the call's session now closes success; a throwing `respond` logs one ok line (pinned by a test).
+  - Gate EXIT 0; mcp 16 tests, harness 62, issue-tracker 51; mcp mutation 85.54; validate 43 PASS; no Jev labels added.
 - **errors/t01** — astra xhigh then opus high + fable review (two fix rounds); tag `errors/t01`. No cooked promise (the subclass is gone; runs return native promises); `settle` returns a Result; `originOf(error)` and origin stamps (sync and async); `ctx.raise(kind, payload)`; a failed close carries `origin`. asyncsub 809 ns (+9.1% vs pre-0066).
   - Gate EXIT 0; promises_tagged 17; core mutation 86.18; validate 43 PASS; no Jev labels added.
   - Speed vs origin/main, N=61: session +1.5% (44/61 slower), lifecycle −0.6% (27/61), inline +0.0% (30/61), run −1.3% (11/61).
