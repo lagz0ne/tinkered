@@ -49,6 +49,8 @@ with a `Cause` that is a `Fail` or a `Die`).
 - errors/t01 (2026-09-25): settle, Result, origin, ctx.raise, native promises; until t03 a
   dropped subflow's failure (panic or error) that settles while its caller runs stays with the
   caller and shows only on its span.
+- errors/t01b (2026-09-25): `settle` reports what `run` would do. A value returned under a forced
+  close is `success`, as a program that catches SIGINT and exits 0 exits 0.
 
 ## Consequences
 

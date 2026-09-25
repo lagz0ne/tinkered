@@ -103,16 +103,98 @@ test("settle returns a primitive panic without an origin", async () => {
   await scope.close();
 });
 
-test("settle reports cancellation when an operation returns under a forced close", async () => {
+test("settle returns the value when an operation returns under a forced close", async () => {
   const { promise, resolve } = deferred<number>();
   const op = operation({ label: "ignores", run: () => promise });
   const scope = createScope();
   const running = scope.settle(op);
   const closing = scope.close();
   resolve(1);
-  const ended = await closing;
+  expect((await closing).status).toBe("cancelled");
+  expect(await running).toEqual({ status: "success", value: 1 });
+});
+
+test("settle returns what run returns when a body answers its abort with a value", async () => {
+  const serve = operation({
+    label: "serve",
+    run: (_deps, { signal }) =>
+      new Promise<number>((resolve) =>
+        signal.addEventListener("abort", () => resolve(0), { once: true }),
+      ),
+  });
+  const a = createScope();
+  const ran = a.run(serve);
+  void a.close();
+  const b = createScope();
+  const settled = b.settle(serve);
+  void b.close();
+  expect(await ran).toBe(0);
+  expect(await settled).toEqual({ status: "success", value: 0 });
+});
+
+test("settle reports cancellation when a body rejects with its abort reason", async () => {
+  const op = operation({
+    label: "rethrows",
+    run: (_deps, { signal }) =>
+      new Promise<never>((_resolve, reject) =>
+        signal.addEventListener("abort", () => reject(signal.reason), { once: true }),
+      ),
+  });
+  const scope = createScope();
+  const running = scope.settle(op);
+  const ended = await scope.close();
   if (ended.status !== "cancelled") throw ended;
   expect(await running).toEqual({ status: "cancelled", reason: ended.reason });
+});
+
+test("settle mirrors run for a sync operation under a forced close", async () => {
+  const aborted = operation({ label: "aborted", run: (_deps, { signal }) => signal.aborted });
+  const rethrows = operation({
+    label: "rethrows",
+    run: (_deps, { signal }) => {
+      throw signal.reason;
+    },
+  });
+  const scope = createScope();
+  const gate = deferred<void>();
+  const results: unknown[] = [];
+  const inside = scope.session(async (session) => {
+    await gate.promise;
+    results.push(session.settle(aborted), session.settle(rethrows));
+  });
+  const closing = scope.close();
+  gate.resolve();
+  await inside.catch(() => undefined);
+  const ended = await closing;
+  if (ended.status !== "cancelled") throw ended;
+  expect(results).toEqual([
+    { status: "success", value: true },
+    { status: "cancelled", reason: ended.reason },
+  ]);
+});
+
+test("settle reports a cancel reason from another scope as a failure", async () => {
+  const other = createScope();
+  const wait = operation({
+    label: "wait",
+    run: (_deps, { signal }) =>
+      new Promise<never>((_resolve, reject) =>
+        signal.addEventListener("abort", () => reject(signal.reason), { once: true }),
+      ),
+  });
+  const waiting = other.run(wait);
+  void other.close();
+  const reason = await waiting.catch((error: unknown) => error);
+  const scope = createScope();
+  const op = operation({
+    label: "relays",
+    run: () => {
+      throw reason;
+    },
+  });
+  const result = scope.settle(op);
+  expect(result).toMatchObject({ status: "failed", error: reason });
+  await scope.close();
 });
 
 test("settle reports cancellation when a forced close aborts its operation", async () => {

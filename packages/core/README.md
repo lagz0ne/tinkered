@@ -136,6 +136,10 @@ if (r.status === "failed") log(r.kind, r.origin);
 - `failed` carries `error`, `kind` (`"error"` or `"panic"`), and `origin` when known.
 - `cancelled` carries the abort `reason`.
 
+The Result says what `run` would do.
+A value returned under a forced close is `success`, as `run` returns it.
+Only the abort `reason` thrown on an aborted scope is `cancelled`.
+
 `scope.settle(op, call)` and a controller's `settle(call)` take the same calls as `run`.
 A sync operation settles at once. A tagged call settles through a promise.
 
@@ -547,8 +551,12 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - `settle` classifies a non-`Error` object, an `Error` with no `payload`, or one whose `kind`
   is not a string, as a panic.
 - `settle` returns a primitive panic without an origin.
-- `settle` reports cancellation when an operation returns under a forced close.
+- `settle` returns the value when an operation returns under a forced close.
+- `settle` returns what `run` returns when a body answers its abort with a value.
 - `settle` reports cancellation when a forced close aborts its operation.
+- `settle` reports cancellation when a body rejects with its abort reason.
+- `settle` mirrors `run` for a sync operation under a forced close.
+- `settle` reports a cancel reason from another scope as a failure.
 - `settle` returns a sync Result for an untagged sync operation.
 - `settle` returns a promise for a tagged sync operation.
 - `scope.settle` accepts a typed inline call without making it async.

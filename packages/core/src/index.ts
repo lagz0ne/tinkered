@@ -1983,8 +1983,10 @@ const RECOVERED: unique symbol = Symbol("recovered");
 /** Who receives a subflow's failure: the calling run's ctx, or `settle`. */
 type RunState = OperationCtx<unknown> | typeof RECOVERED;
 
-function failedRun(error: unknown): RunResult<never> {
-  if (isCancelReason(error)) return { status: "cancelled", reason: error };
+/** `settle`'s Result for what `run` threw or rejected with: a cancel reason on an aborted layer is
+ * `cancelled`; anything else is `failed`. */
+function failedRun(layer: Layer, error: unknown): RunResult<never> {
+  if (isCancel(layer, error)) return { status: "cancelled", reason: error };
   closeOrigin(error);
   const origin = originOf(error);
   const result: RunResult<never> = { status: "failed", error, kind: failureKind(error) };
@@ -1992,6 +1994,8 @@ function failedRun(error: unknown): RunResult<never> {
   return result;
 }
 
+/** `run` that never throws: what `run` returns or resolves to is `success`, even under a forced
+ * close (a program that catches SIGINT and exits 0 exits 0); what it throws goes to `failedRun`. */
 function settleRun(
   layer: Layer,
   run: () => unknown,
@@ -2000,14 +2004,11 @@ function settleRun(
     const result = run();
     if (!isThenable(result)) return { status: "success", value: result };
     return Promise.resolve(result).then(
-      (value): RunResult<unknown> =>
-        layer.aborted
-          ? { status: "cancelled", reason: layer.abortReason }
-          : { status: "success", value },
-      failedRun,
+      (value): RunResult<unknown> => ({ status: "success", value }),
+      (error: unknown) => failedRun(layer, error),
     );
   } catch (error) {
-    return failedRun(error);
+    return failedRun(layer, error);
   }
 }
 
