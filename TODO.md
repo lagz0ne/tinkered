@@ -62,9 +62,8 @@ card at a time.
 
 ## Review
 
-| Card                                                                                                                       | Owner                                                                                                                             | Next                                                                                                                                                                                                                                                                                  | Verify                                                                                      |
-| -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| writers/gym-live — a sixth unseen task (gym class waitlist) run by DeepSeek, checkers proven on 5 layouts before the trial | lead (Claude); helper builds the checker, reference app on the kit, canaries, gate proof in `../tinkered-gym` (branch `lead/gym`) | Suite landed (a24fb7f): canaries 5 layouts × 43/43, 16 bad variants caught, gate proof exit 0. gym-01 created and staged; DeepSeek writer running in Paseo workspace `wks_768d4cd9f5c091d3` (2026-09-25). Next: on finish, `save-check.sh gym-01 1 first`, score, write `GYM-LIVE.md` | canaries pass 5 layouts, bad variants fail, gate proof passes; gym-01 scored and written up |
+| Card | Owner | Next | Verify |
+| ---- | ----- | ---- | ------ |
 
 ## Blocked
 
@@ -87,6 +86,7 @@ card at a time.
 
 ## Done
 
+- **writers/gym-live** — sixth unseen task (gym class waitlist), checkers proven on 5 layouts first (16 planted bugs caught, gate proof exit 0). gym-01: DeepSeek passed on its first try, 43/43, 16.6 min, 2 `inputDefaultMasks` blocks fixed by the writer; no checker broke. [Results](docs/roadmap/writer-trial/GYM-LIVE.md). Trial cleaned up.
 - **errors/t02** — all six packages recover through `settle` (hono, mcp, process, tinkerer, harness,
   http); tags `errors/t02-<pkg>`. Along the way: core fix errors/t01b (`settle` reports what `run` would
   do), cards errors/settle-types, errors/raise-types, harness/approve-real-sdk.
