@@ -57,8 +57,10 @@ export type RunResult<T> =
 /** A run or resource ctx: where a failure can be stamped. */
 type Site = Pick<Resource.Ctx, "label" | "obs">;
 
-/** The origin a failure carries, and the ctx that raised it (its own run adds no label). */
-type Stamp = { origin: Origin; by?: Site };
+/** The origin a failure carries, and the ctx that raised it (its own run adds no label). `open`
+ * while the error is in flight from its first throw: only then does an enclosing run add its label,
+ * so a rethrown error keeps its first path. */
+type Stamp = { origin: Origin; by?: Site; open: boolean };
 
 const stamps = new WeakMap<object, Stamp>();
 
@@ -82,19 +84,32 @@ function firstOrigin(label: string, span: { id: number } | undefined): Origin {
   return span === undefined ? { label, path: [label] } : { label, span: span.id, path: [label] };
 }
 
-/** Stamp one failed run: the first stamp keeps its label and span; each later run adds its label
- * to the front of the path, except the run whose own ctx raised the error. */
+/** Stamp one failed run: the first stamp keeps its label and span; each enclosing run adds its
+ * label to the front of the path while the flight is open, except the run whose own ctx raised the
+ * error. The run that `ends` the flight (a root run, or a `settle`) closes it. */
 export function stampOrigin(
   error: unknown,
   label: string,
   span: { id: number } | undefined,
   ctx: Site | undefined,
+  ends: boolean,
 ): void {
   if (!isObject(error)) return;
   const stamp = stamps.get(error);
-  if (stamp === undefined) stamps.set(error, { origin: firstOrigin(label, span) });
-  else if (ctx === undefined || stamp.by !== ctx)
+  if (stamp === undefined) {
+    stamps.set(error, { origin: firstOrigin(label, span), open: !ends });
+    return;
+  }
+  if (!stamp.open) return;
+  if (ctx === undefined || stamp.by !== ctx)
     stamp.origin = { ...stamp.origin, path: [label, ...stamp.origin.path] };
+  if (ends) stamp.open = false;
+}
+
+/** End an error's flight where a caller receives it as a value (`settle`). */
+export function closeOrigin(error: unknown): void {
+  const stamp = isObject(error) ? stamps.get(error) : undefined;
+  if (stamp) stamp.open = false;
 }
 
 /** Classify the managed error shape shared by package registries. */
@@ -113,6 +128,6 @@ export function raiseFrom<K extends string, P extends object>(
   payload: P,
 ): never {
   const error = Object.assign(new Error(kind), { kind, payload });
-  if (ctx) stamps.set(error, { origin: firstOrigin(ctx.label, ctx.obs.span), by: ctx });
+  if (ctx) stamps.set(error, { origin: firstOrigin(ctx.label, ctx.obs.span), by: ctx, open: true });
   throw error;
 }

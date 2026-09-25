@@ -142,6 +142,7 @@ A sync operation settles at once. A tagged call settles through a promise.
 `originOf(error)` reads where an error was first thrown: `{ label, span?, path }`.
 `span` is the failed span's id when the scope observes.
 `path` lists the failed runs, outermost first.
+It grows only while the error is in flight: a rethrown error keeps its first path.
 A primitive throw has no origin. A failed session close carries `origin` too.
 
 Until errors/t03, a subflow failure goes to its caller.
@@ -562,6 +563,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - Three failed runs build a root-first origin path.
 - `originOf` follows cause chains to a stamped error.
 - Rethrowing an already-stamped error keeps its first origin.
+- A sentinel error thrown on every settle keeps a one-run path.
+- A sibling rethrow does not extend the first path.
 - An observed origin carries the failed run's span id.
 - An unobserved origin has no span id.
 - A destructured operation `raise` sets kind, payload, and message at the throw site.

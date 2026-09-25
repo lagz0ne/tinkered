@@ -330,7 +330,37 @@ test("rethrowing an already-stamped error keeps its first origin", async () => {
   const scope = createScope();
   scope.settle(first);
   scope.settle(second);
-  expect(originOf(error)?.label).toBe("first");
+  expect(originOf(error)).toEqual({ label: "first", path: ["first"] });
+  await scope.close();
+});
+
+test("a sentinel error thrown on every settle keeps a one-run path", async () => {
+  const sentinel = new Error("not ready");
+  const op = operation({
+    label: "poll",
+    run: async () => {
+      throw sentinel;
+    },
+  });
+  const scope = createScope();
+  for (let i = 0; i < 5; i++) await scope.settle(op);
+  expect(originOf(sentinel)).toEqual({ label: "poll", path: ["poll"] });
+  await scope.close();
+});
+
+test("a sibling rethrow does not extend the first path", async () => {
+  const error = new Error("shared");
+  const a = operation({
+    label: "a",
+    run: () => {
+      throw error;
+    },
+  });
+  const b = operation({ label: "b", depends: { a }, run: ({ a }) => a.run() });
+  const scope = createScope();
+  scope.settle(b);
+  scope.settle(b);
+  expect(originOf(error)).toEqual({ label: "a", path: ["b", "a"] });
   await scope.close();
 });
 

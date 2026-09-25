@@ -1,5 +1,5 @@
 import { isError, raise } from "./errors.ts";
-import { failureKind, originOf, raiseFrom, stampOrigin } from "./errors.ts";
+import { closeOrigin, failureKind, originOf, raiseFrom, stampOrigin } from "./errors.ts";
 import type { Origin, RunResult } from "./errors.ts";
 
 export { originOf };
@@ -1985,6 +1985,7 @@ type RunState = OperationCtx<unknown> | typeof RECOVERED;
 
 function failedRun(error: unknown): RunResult<never> {
   if (isCancelReason(error)) return { status: "cancelled", reason: error };
+  closeOrigin(error);
   const origin = originOf(error);
   const result: RunResult<never> = { status: "failed", error, kind: failureKind(error) };
   if (origin) result.origin = origin;
@@ -2010,8 +2011,8 @@ function settleRun(
   }
 }
 
-/** An operation's controller: `run` is an own field callers destructure; `settle` is built on first
- * read, so a controller made for one run pays nothing for it. */
+/** An operation's controller: `run` is an own field callers destructure; `settle` is built on its
+ * first read and kept, so a controller made for one run pays nothing for it. */
 class OperationControl<T, I> {
   /** `declare`: assigned once in the constructor, so the build emits no field that is written twice. */
   declare readonly run: (call?: Scope.Invocation<I>) => unknown;
@@ -2021,6 +2022,9 @@ class OperationControl<T, I> {
   declare private chain: readonly Namespace[] | undefined;
   declare private hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>;
   declare private replay: boolean;
+  /** Set on the first `settle` read only; `declare` keeps them off the constructor's shape. */
+  declare private twin: OperationControl<T, I> | undefined;
+  declare private settler: ((call?: Scope.Invocation<I>) => unknown) | undefined;
   constructor(
     run: (call?: Scope.Invocation<I>) => unknown,
     layer: Layer,
@@ -2039,13 +2043,17 @@ class OperationControl<T, I> {
     this.replay = replay;
   }
   get settle(): (call?: Scope.Invocation<I>) => unknown {
-    const layer = this.layer;
-    const twin = OperationControl.recovered(this);
-    return (call) => settleRun(layer, () => twin.run(call));
+    if (this.settler === undefined) {
+      const layer = this.layer;
+      const twin = OperationControl.recovered(this);
+      this.settler = (call) => settleRun(layer, () => twin.run(call));
+    }
+    return this.settler;
   }
-  /** The same controller with `settle`'s caller, so `run` itself carries no receiver. */
+  /** The same controller with `settle`'s caller, built on first use and kept, so `run` itself
+   * carries no receiver. */
   static recovered<U, J>(control: OperationControl<U, J>): OperationControl<U, J> {
-    return operationController(
+    return (control.twin ??= operationController(
       control.layer,
       control.target,
       control.parent,
@@ -2053,7 +2061,7 @@ class OperationControl<T, I> {
       RECOVERED,
       control.hookTarget,
       control.replay,
-    ) as OperationControl<U, J>;
+    ) as OperationControl<U, J>);
   }
 }
 
@@ -2364,17 +2372,24 @@ function drainAsync(
   ignoreRejection(tail.then(end, end));
 }
 
+/** A run whose failure leaves core: a root run, or a `settle`. A tagged or namespaced replay is
+ * inside its caller's run, so the caller's run ends the flight. */
+function endsFlight(caller: RunState | undefined, replay: boolean): boolean {
+  return caller === RECOVERED || (caller === undefined && !replay);
+}
+
 function finishAsyncRun<T>(
   layer: Layer,
   result: T,
   caller: RunState | undefined,
+  replay: boolean,
   obs: Obs,
   span: Observe.Span | undefined,
   ctx: OperationCtx<unknown>,
   finishDefers: (status: "ok" | "failed", error?: unknown) => void,
 ): unknown {
   const onSettle = (status: "ok" | "failed", error?: unknown): void => {
-    if (status === "failed") stampOrigin(error, ctx.label, span, ctx);
+    if (status === "failed") stampOrigin(error, ctx.label, span, ctx, endsFlight(caller, replay));
     if (span) closeSpan(obs, span, status, error);
     OperationCtx.hold(ctx, false);
     finishDefers(status, error);
@@ -2454,7 +2469,7 @@ function operationController<T, I>(
         : buildPlainDeps(layer, target.depends, span, chain, ctx);
       result = runBody(override, target, deps, ctx, parked);
     } catch (error) {
-      stampOrigin(error, target.label, span, ctx);
+      stampOrigin(error, target.label, span, ctx, endsFlight(caller, replay));
       closeSpan(obs, span, "failed", error);
       finishDefers("failed", error);
       throw error;
@@ -2466,7 +2481,7 @@ function operationController<T, I>(
       finishDefers("ok");
       return result;
     }
-    return finishAsyncRun(layer, result, caller, obs, span, ctx, finishDefers);
+    return finishAsyncRun(layer, result, caller, replay, obs, span, ctx, finishDefers);
   };
   const runners = layer.runners;
   if (runners === undefined || replay)
