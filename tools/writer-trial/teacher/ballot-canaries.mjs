@@ -41,7 +41,6 @@ mkdirSync(base, { recursive: true });
 cpSync(join(fixture, "src"), join(base, "src"), { recursive: true });
 cpSync(join(fixture, "index.html"), join(base, "index.html"));
 execFileSync("ln", ["-s", TOOLCHAIN, join(base, "node_modules")]);
-const goodTar = pack(base, join(work, "good.tar"));
 
 // One edit to one fixture file. Each anchor must match exactly once, so a
 // moved fixture line fails loudly instead of proving nothing.
@@ -117,125 +116,28 @@ const checkResult = (r, want) => {
   return checkNames(r, want);
 };
 
-// ---- good layout variant: same roles and names, different DOM ----
-// Sections and divs wrap the parts, the Votes table comes first, the Polls
-// columns are reordered with the question as a row header, and the
-// Question input is tied to its label by useId.
-const layoutTar = patch("good-layout", "PollApp.tsx", [
-  [
-    'import type { FormEvent, ReactElement } from "react";',
-    'import { useId } from "react";\nimport type { FormEvent, ReactElement } from "react";',
-  ],
-  [
-    "  const submit = useRun(submitPoll);\n  return (",
-    "  const submit = useRun(submitPoll);\n  const questionId = useId();\n  return (",
-  ],
-  [
-    [
-      "      <label>",
-      "        Question",
-      "        <input",
-      "          value={draft.question}",
-      "          onChange={(event) => question.run({ input: { value: event.target.value } })}",
-      "        />",
-      "      </label>",
-    ].join("\n"),
-    [
-      "      <div>",
-      "        <label htmlFor={questionId}>Question</label>",
-      "      </div>",
-      "      <input",
-      "        id={questionId}",
-      "        value={draft.question}",
-      "        onChange={(event) => question.run({ input: { value: event.target.value } })}",
-      "      />",
-    ].join("\n"),
-  ],
-  [
-    [
-      "      <td>{row.question}</td>",
-      "      <td>{row.votes}</td>",
-      "      <td>{row.leader}</td>",
-      "      <td>{row.status}</td>",
-      "      <td>",
-    ].join("\n"),
-    [
-      "      <td>",
-      "        <span>{row.status}</span>",
-      "      </td>",
-      "      <td>{row.leader}</td>",
-      '      <th scope="row">{row.question}</th>',
-      "      <td>{row.votes}</td>",
-      "      <td>",
-    ].join("\n"),
-  ],
-  [
-    [
-      "            <th>Question</th>",
-      "            <th>Votes</th>",
-      "            <th>Leader</th>",
-      "            <th>Status</th>",
-      "            <th>Actions</th>",
-    ].join("\n"),
-    [
-      '            <th scope="col">Status</th>',
-      '            <th scope="col">Leader</th>',
-      '            <th scope="col">Question</th>',
-      '            <th scope="col">Votes</th>',
-      '            <th scope="col">Actions</th>',
-    ].join("\n"),
-  ],
-  [
-    [
-      "      <main>",
-      "        <PollForm />",
-      "        <Notice />",
-      "        <PollTable />",
-      "        <VoteForm />",
-      "        <VoteTable />",
-      "      </main>",
-    ].join("\n"),
-    [
-      "      <div>",
-      '        <section aria-label="Votes area">',
-      "          <VoteTable />",
-      "          <VoteForm />",
-      "        </section>",
-      '        <section aria-label="Polls area">',
-      "          <div>",
-      "            <PollTable />",
-      "          </div>",
-      "          <PollForm />",
-      "        </section>",
-      "        <footer>",
-      "          <Notice />",
-      "        </footer>",
-      "      </div>",
-    ].join("\n"),
-  ],
-]);
-
-// ---- good in-cell variant: no Actions column; Close sits inside the
-// Status cell and Withdraw inside the Choice cell. The task names the
-// buttons, not where they go.
-const inCellTar = patch("good-in-cell", "PollApp.tsx", [
-  [
-    [
-      "      <td>{row.status}</td>",
-      "      <td>",
-      '        {row.status === "Closed" ? null : (',
-    ].join("\n"),
-    ["      <td>", "        {row.status}", '        {row.status === "Closed" ? null : ('].join(
-      "\n",
-    ),
-  ],
-  ["            <th>Status</th>\n            <th>Actions</th>", "            <th>Status</th>"],
-  [
-    "      <td>{row.choice}</td>\n      <td>\n        <button",
-    "      <td>\n        {row.choice}\n        <button",
-  ],
-  ["          <th>Choice</th>\n          <th>Actions</th>", "          <th>Choice</th>"],
-]);
+// ---- good layouts: the same app in every kit layout ----
+// The kit (src/layout.tsx) names its layouts in LAYOUTS. Each one packs the
+// fixture with src/layout-choice.ts pointing at it, and every layout must
+// pass every case: the task names fields, tables, buttons, and the alert,
+// not where they sit or how they are labeled. Bad variants below run on
+// the baseline layout.
+const kitText = readFileSync(join(fixture, "src", "layout.tsx"), "utf8");
+const layoutBlock = /export const LAYOUTS[^=]*= \{\n([\s\S]*?)\n\};/.exec(kitText);
+if (layoutBlock === null) throw new Error("LAYOUTS not found in layout.tsx; update the script");
+const LAYOUT_NAMES = [...layoutBlock[1].matchAll(/^ {2}(\w+): \{$/gm)].map((m) => m[1]);
+if (LAYOUT_NAMES.length < 5 || !LAYOUT_NAMES.includes("baseline"))
+  throw new Error(`found layouts ${LAYOUT_NAMES.join(", ")}; update the script`);
+const layoutTar = (name) => {
+  const dir = join(work, `layout-${name}`);
+  rmSync(dir, { recursive: true, force: true });
+  cpSync(base, dir, { recursive: true, verbatimSymlinks: true });
+  writeFileSync(
+    join(dir, "src", "layout-choice.ts"),
+    `export const LAYOUT_NAME: string = "${name}";\n`,
+  );
+  return pack(dir, join(work, `layout-${name}.tar`));
+};
 
 // ---- bad variants: each must fail its named case ----
 // (a) Blank limit text becomes 10 instead of BadLimit.
@@ -329,9 +231,11 @@ const starterTar = pack(starterDir, join(work, "starter.tar"));
 const UNDO_CASE = "browser undo restores records and keeps form text, selections, and filter";
 const FULL = "ACCEPTANCE ballot: 57/57 pass";
 const cases = [
-  { label: "good fixture accepts", tar: goodTar, want: { exit: 0, fullpass: FULL } },
-  { label: "good layout variant accepts", tar: layoutTar, want: { exit: 0, fullpass: FULL } },
-  { label: "good in-cell buttons accept", tar: inCellTar, want: { exit: 0, fullpass: FULL } },
+  ...LAYOUT_NAMES.map((name) => ({
+    label: `layout ${name} accepts`,
+    tar: layoutTar(name),
+    want: { exit: 0, fullpass: FULL },
+  })),
   {
     label: "(a) blank limit becomes 10 rejects",
     tar: blankLimitTar,
