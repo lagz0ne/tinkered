@@ -184,7 +184,7 @@ test("a caught panic in an inline run fails the scope it ran in", async () => {
   });
 });
 
-test("a panic caught inside a tagged run fails the run's session and its caller's layer", async () => {
+test("a panic caught inside a tagged run fails the run's own session", async () => {
   const cause = new Error("tagged bug");
   const inner = operation({
     label: "inner",
@@ -199,7 +199,34 @@ test("a panic caught inside a tagged run fails the run's session and its caller'
   });
   const root = createScope();
   await expect(root.run(outer, { tags: zone("x") })).rejects.toBe(cause);
-  expect(await root.close({ graceful: true })).toMatchObject({ status: "failed", error: cause });
+  expect((await root.close({ graceful: true })).status).toBe("success");
+});
+
+test("a tagged subflow's panic fails its caller's layer even when the caller catches it", async () => {
+  const cause = new Error("tagged subflow bug");
+  const inner = operation({
+    label: "inner",
+    run: async () => {
+      throw cause;
+    },
+  });
+  const outer = operation({
+    label: "outer",
+    depends: { inner },
+    run: ({ inner }) =>
+      inner.run({ tags: zone("x") }).then(
+        () => "ran",
+        (error: unknown) => {
+          if (error !== cause) throw error;
+          return "caught";
+        },
+      ),
+  });
+  const root = createScope();
+  const session = root.createSession();
+  expect(await session.run(outer)).toBe("caught");
+  expect(await session.close({ graceful: true })).toMatchObject({ status: "failed", error: cause });
+  await root.close({ graceful: true });
 });
 
 test("a forced close after a caught panic settles failed, not cancelled", async () => {

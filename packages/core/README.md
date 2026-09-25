@@ -605,7 +605,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A managed error caught with `try/catch` leaves its layer successful.
 - A caught panic in a session run fails that session and not its parent.
 - A caught panic in an inline run fails the scope it ran in.
-- A panic caught inside a tagged run fails the run's session and its caller's layer.
+- A panic caught inside a tagged run fails the run's own session.
+- A tagged subflow's panic fails its caller's layer even when the caller catches it.
 - A forced close after a caught panic settles `failed`, not `cancelled`.
 
 ### Scopes, sessions, and close

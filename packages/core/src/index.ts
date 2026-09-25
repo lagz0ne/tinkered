@@ -2337,7 +2337,7 @@ function runTagged<T, I>(
     (child) => runUntagged(child, target, parent, inner, chain, undefined, caller !== undefined),
     caller,
   ) as Promise<Awaited<T>>;
-  track(layer, tagged, runFailure(layer, caller));
+  if (caller) track(layer, tagged, runFailure(layer, caller));
   return tagged;
 }
 
@@ -2513,16 +2513,10 @@ function operationController<T, I>(
         () => at(index + 1),
       );
     };
-    let result: unknown;
-    try {
-      result = at(0);
-    } catch (error) {
-      if (caller !== RECOVERED) stick(layer, error);
-      throw error;
-    }
+    const result = at(0);
     if (!isThenable(result)) return result;
     const promise = Promise.resolve(result);
-    track(layer, promise, runFailure(layer, caller));
+    if (caller) track(layer, promise, runFailure(layer, caller));
     return promise;
   };
   return new OperationControl(

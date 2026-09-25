@@ -56,7 +56,8 @@ with a `Cause` that is a `Fail` or a `Die`).
   a panic anywhere up the stack. A panic caught before `settle` stays sticky.
 - errors/t03: a managed error never fails a layer, dropped or not. So "work nobody owns" now
   means a panic, and core no longer tracks whether a caller still runs.
-- errors/t03: a tagged run's panic fails its own session and its caller's layer.
+- errors/t03: a tagged run's panic fails its own session. A tagged subflow's panic also fails its
+  caller's layer; a root tagged run has no caller run, so its parent stays fine.
 
 ## Consequences
 
