@@ -125,6 +125,8 @@ to verify its entrypoint. No new helper or core ticket was requested.
 | A `.then` promise whose async handler rejects after close stopped waiting, but before the layer is finished, may miss the close result; after the root finishes it reaches the host's unhandled-rejection hook, so it is not silent. | core/caught-subflow review 2026-09-24 | candidate |
 | `tools/jev/promises.mjs` misses a README bullet whose key words fall on its second line, though wrapped bullets are the house style: `- A value flag at the end with no next word` / `  drops nothing.` scored 77% "no line", and 93% once unwrapped. Wanted: join a bullet's continuation lines before matching. | process/positionals 2026-09-25 (first asker) | candidate |
 | `settle` on an op typed `Handle<unknown, unknown>` is typed as a sync `RunResult` (`Settled<unknown>` collapses), so callers wrap it in `Promise.resolve` to satisfy `await-thenable`. Wanted: `Settled<unknown>` = `RunResult<unknown> \| Promise<RunResult<unknown>>`. | errors/t02-mcp review 2026-09-25 | **ticket** — errors/settle-types (second asker errors/t02-hono) |
+| An error's `origin.path` stops at the `settle` that received it (settle closes the flight): http's final error reads label `http.attempt`, path `[http.attempt]` (before: `http.send`, `[call, http.send]`). By design. | errors/t02-http review 2026-09-25 | note |
+| `settle` adds one tick on a sync throw where `run` does not; a close in that tick lands before the caller reads the Result (http checks `Disposed` first). | errors/t02-http review 2026-09-25 | note |
 
 ## Writer learning round, 2026-09-22
 

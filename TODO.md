@@ -57,7 +57,7 @@ card at a time.
   worktrees `../tinkered-e2-<pkg>`, briefs `~/.cache/tinkered-briefs/errors-t02-<pkg>.md`. Each
   deliberate `catch` around a `.run` moves to `settle` before t03 makes panics sticky.
   - hono ✓ `errors/t02-hono` · mcp ✓ `errors/t02-mcp` · process `1b2c2322`
-  - tinkerer ✓ `errors/t02-tinkerer` · harness ✓ `errors/t02-harness` · http `f47eea68`
+  - tinkerer ✓ `errors/t02-tinkerer` · harness ✓ `errors/t02-harness` · http ✓ `errors/t02-http`
     Verify each: behavior unchanged; a panic and a managed error both still recovered; mutation ≥ 85.
 
 | Card                                                                                                                                                                                                                      | Owner                                                                           | Next                                                                                                                                                                                                                                                                                                                                      | Verify                                                                                                                                                                                                      |
@@ -92,6 +92,8 @@ card at a time.
 
 ## Done
 
+- **errors/t02-http** — opus high + fable review (two rounds); tag `errors/t02-http`. Retry takes each try through `settle`; a backend failure is a managed `RequestFailed`/`Transport` raised in the attempt and is the only thing retried; a panic passes through after one call; a response delivered after a forced close is returned (as on main); five public-seam tests for margin.
+  - Gate EXIT 0; http 83 tests (10 new), tinkerer 89, issue-tracker 51; http mutation 89.62; validate 43 PASS; no Jev labels added.
 - **errors/t02-hono** — opus high + fable review (no fix round); tag `errors/t02-hono`. A route takes its operation through `settle`: `onError` first for any failure, the default map for managed kinds, an unanswered panic rethrown unchanged; responses and log lines match main in 16 cases.
   - Gate EXIT 0; hono 61 tests (3 new), sync 45, issue-tracker 51; hono mutation 87.34; validate 43 PASS; no Jev labels added.
 - **errors/t01b** — opus high + fable review (no fix round); tag `errors/t01b`. `settle` reports what `run` would do: a value returned under a forced close is `success` (POSIX: the exit code the program returned wins); a cancel reason on an aborted scope is `cancelled`; anything else `failed`. Found by errors/t02-process.
