@@ -3098,6 +3098,7 @@ test("close keeps a child's real failure and cleanup error while waiting for its
   const closing = root.close();
   expect(await child.close()).toEqual({
     status: "failed",
+    origin: { label: "failer", path: ["failer"] },
     error: failure,
     teardownErrors: [cleanup],
   });
@@ -3105,7 +3106,12 @@ test("close keeps a child's real failure and cleanup error while waiting for its
   const result = await closing;
   await parentClosing;
   await session;
-  expect(result).toEqual({ status: "failed", error: failure, teardownErrors: [cleanup] });
+  expect(result).toEqual({
+    status: "failed",
+    error: failure,
+    origin: { label: "failer", path: ["failer"] },
+    teardownErrors: [cleanup],
+  });
 });
 
 test("close keeps a grandchild's real failure while its ancestor awaits its body", async () => {
@@ -3136,6 +3142,7 @@ test("close keeps a grandchild's real failure while its ancestor awaits its body
   const rootClosing = root.close();
   expect(await leaf.close()).toEqual({
     status: "failed",
+    origin: { label: "failer", path: ["failer"] },
     error: failure,
     teardownErrors: [cleanup],
   });
@@ -3143,7 +3150,12 @@ test("close keeps a grandchild's real failure while its ancestor awaits its body
   const result = await parentClosing;
   await rootClosing;
   await session;
-  expect(result).toEqual({ status: "failed", error: failure, teardownErrors: [cleanup] });
+  expect(result).toEqual({
+    status: "failed",
+    error: failure,
+    origin: { label: "failer", path: ["failer"] },
+    teardownErrors: [cleanup],
+  });
 });
 
 test("close keeps a session grandchild's failure while its ancestor awaits its body (Q5)", async () => {
@@ -3214,6 +3226,7 @@ test("close collects a child born and finished during its ancestor's body wait",
       void late.run(failer).catch(() => undefined);
       expect(await late.close()).toEqual({
         status: "failed",
+        origin: { label: "failer", path: ["failer"] },
         error: failure,
         teardownErrors: [cleanup],
       });
@@ -3228,7 +3241,12 @@ test("close collects a child born and finished during its ancestor's body wait",
   const result = await closing;
   await running;
   await root.close();
-  expect(result).toEqual({ status: "failed", error: failure, teardownErrors: [cleanup] });
+  expect(result).toEqual({
+    status: "failed",
+    error: failure,
+    origin: { label: "failer", path: ["failer"] },
+    teardownErrors: [cleanup],
+  });
 });
 
 test("close collects a session child born and finished during its ancestor's body wait", async () => {
@@ -3290,7 +3308,12 @@ test("a parent close preserves a real owned failure in an interrupted child", as
   const result = await root.close();
   await rejected;
   expect(seen).toEqual([{ status: "failed", error: cause }]);
-  expect(result).toEqual({ status: "failed", error: cause, teardownErrors: undefined });
+  expect(result).toEqual({
+    status: "failed",
+    error: cause,
+    origin: { label: "bad", path: ["bad"] },
+    teardownErrors: undefined,
+  });
 });
 
 test("a collecting parent gets a child's winning body failure, not its caught owned-work error", async () => {
@@ -3390,7 +3413,12 @@ for (const graceful of [false, true]) {
     const childResult = await watched;
     const rootResult = await rootClosing;
     expect(childResult.status).toBe("failed");
-    expect(rootResult).toEqual({ status: "failed", error: cause, teardownErrors: [cleanup] });
+    expect(rootResult).toEqual({
+      status: "failed",
+      error: cause,
+      origin: { label: "failer", path: ["failer"] },
+      teardownErrors: [cleanup],
+    });
   });
 }
 

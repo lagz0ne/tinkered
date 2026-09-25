@@ -110,6 +110,44 @@ A write through a `depends: { x: cell.controller }` edge invokes the `write` hoo
 A namespaced write invokes the `write` hook once and stores its value in that namespace.
 Two hooks keep registration order for both runs and writes on child layers.
 
+## Errors and panics
+
+ADR 0067 splits failures in two:
+
+- **error** — a managed error: an `Error` with a string `kind` and a `payload`.
+- **panic** — anything else thrown: a `TypeError`, a bug, a primitive.
+
+`ctx.raise(kind, payload)` throws an error. Operation and resource ctx both have it:
+
+```ts
+run: ({ users }, { input, raise }) =>
+  users.get(input.id) ??
+  raise("NotFound", { id: input.id }),
+```
+
+`settle` runs like `run` but never throws. It returns a Result:
+
+```ts
+const r = await scope.settle(op, { input });
+if (r.status === "failed") log(r.kind, r.origin);
+```
+
+- `success` carries `value`.
+- `failed` carries `error`, `kind` (`"error"` or `"panic"`), and `origin` when known.
+- `cancelled` carries the abort `reason`.
+
+`scope.settle(op, call)` and a controller's `settle(call)` take the same calls as `run`.
+A sync operation settles at once. A tagged call settles through a promise.
+
+`originOf(error)` reads where an error was first thrown: `{ label, span?, path }`.
+`span` is the failed span's id when the scope observes.
+`path` lists the failed runs, outermost first.
+A primitive throw has no origin. A failed session close carries `origin` too.
+
+Until errors/t03, a subflow failure goes to its caller.
+If the caller catches it and returns, the layer does not fail.
+A subflow that fails after its caller finished (an orphan) fails the layer.
+
 ## Resource cleanup
 
 Stop in-flight work through `ctx.signal`. A forced close aborts the signal, waits for
@@ -499,6 +537,37 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A rejected promise with an `undefined` cause keeps that cause; a primitive body cause still settles the
   session.
 - A preset is scoped to its scope: another scope still builds the real value.
+
+### Errors and panics
+
+- `settle` returns an async operation's success value.
+- `settle` classifies a registry-shaped `Error` as an error.
+- `settle` classifies a plain `Error` as a panic.
+- `settle` returns a primitive panic without an origin.
+- `settle` reports cancellation when an operation returns under a forced close.
+- `settle` reports cancellation when a forced close aborts its operation.
+- `settle` returns a sync Result for an untagged sync operation.
+- `settle` returns a promise for a tagged sync operation.
+- `scope.settle` accepts a typed inline call without making it async.
+- `scope.settle` runs a tagged inline config asynchronously.
+- `settle` recovers a root operation's panic without failing the layer.
+- `settle` recovers through a controller edge and through a bare operation dependency.
+- A settle call remains recovered when its caller finishes first.
+- A tagged settle failure does not bubble through a graceful parent close.
+- `settle` returns a closed-scope error rather than throwing.
+- A sync throw gets the innermost run's origin.
+- An async rejection gets the innermost run's origin.
+- Three failed runs build a root-first origin path.
+- `originOf` follows cause chains to a stamped error.
+- Rethrowing an already-stamped error keeps its first origin.
+- An observed origin carries the failed run's span id.
+- An unobserved origin has no span id.
+- A destructured operation `raise` sets kind, payload, and message at the throw site.
+- A resource `raise` stamps the resource ctx before a run receives it.
+- An escaping operation `raise` adds its own run label only once.
+- An empty ctx `raise` gets its origin from the run it reaches.
+- An extension `raise` stamps the start ctx.
+- A failed session close carries its error's origin.
 
 ### Scopes, sessions, and close
 

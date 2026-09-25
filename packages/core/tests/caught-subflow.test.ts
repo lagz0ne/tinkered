@@ -94,6 +94,7 @@ test("a subflow failure that escapes its caller fails the session", async () => 
   expect(await session.close({ graceful: true })).toEqual({
     status: "failed",
     error: cause,
+    origin: { label: "inner", path: ["outer", "inner"] },
     teardownErrors: undefined,
   });
   await root.close({ graceful: true });
@@ -119,7 +120,12 @@ test("an unreceived subflow that fails after its caller returns fails the sessio
   expect(session.run(outer)).toBe("returned");
   const closing = session.close({ graceful: true });
   fail(cause);
-  expect(await closing).toEqual({ status: "failed", error: cause, teardownErrors: undefined });
+  expect(await closing).toEqual({
+    status: "failed",
+    error: cause,
+    origin: { label: "inner", path: ["inner"] },
+    teardownErrors: undefined,
+  });
   await root.close({ graceful: true });
 });
 

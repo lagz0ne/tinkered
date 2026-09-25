@@ -1,4 +1,8 @@
-import { isError, raise } from "./errors.ts";
+import { failureKind, isError, originOf, raise, raiseFrom, stampOrigin } from "./errors.ts";
+import type { Origin, RunResult } from "./errors.ts";
+
+export { originOf };
+export type { Origin, RunResult };
 
 const cell: unique symbol = Symbol("data");
 const operationSym: unique symbol = Symbol("operation");
@@ -232,6 +236,7 @@ export declare namespace Operation {
     readonly label: string;
     readonly rawInput: unknown;
     readonly input: I;
+    readonly raise: <K extends string, P extends object>(kind: K, payload: P) => never;
     readonly signal: AbortSignal;
     readonly defer: (fn: (end: Scope.End) => void | PromiseLike<void>) => void;
     readonly obs: Observe.Ctx;
@@ -259,6 +264,7 @@ export declare namespace Resource {
    * back/release when the owner settles or the resource is released); `signal` aborts on close. */
   export type Ctx = {
     readonly label: string;
+    readonly raise: <K extends string, P extends object>(kind: K, payload: P) => never;
     readonly defer: (fn: (end: Scope.End) => void | PromiseLike<void>) => void;
     readonly signal: AbortSignal;
     readonly obs: Observe.Ctx;
@@ -349,7 +355,16 @@ export declare namespace Scope {
   export type OperationController<T, I> = {
     run(...call: TaggedCall<I>): Promise<Awaited<T>>;
     run(...call: CallArgs<I>): T;
+    settle(...call: TaggedCall<I>): Promise<RunResult<Awaited<T>>>;
+    settle(...call: CallArgs<I>): Settled<T>;
   };
+
+  /** Async runs settle asynchronously; a sync run returns its Result directly. */
+  export type Settled<T> = [T] extends [never]
+    ? RunResult<T>
+    : T extends PromiseLike<unknown>
+      ? Promise<RunResult<Awaited<T>>>
+      : RunResult<T>;
 
   /** The tag bindings a call may carry. Present on a call, they open a child session bound
    * with them for that run (ADR 0038): the run's own tag reads, its subflows, and session-target
@@ -530,6 +545,7 @@ export declare namespace Scope {
     | {
         readonly status: "failed";
         readonly error: unknown;
+        readonly origin?: Origin;
         readonly teardownErrors?: readonly unknown[];
       };
 
@@ -574,6 +590,20 @@ export declare namespace Scope {
       inline: Inline<D, R, I>,
       ...call: InlineCall<I>
     ): R;
+    /** Run without throwing: return a value, failure with its origin, or cancellation. */
+    settle<T, I>(
+      op: Operation.Handle<T, I>,
+      ...call: TaggedCall<I>
+    ): Promise<RunResult<Awaited<T>>>;
+    settle<T, I>(op: Operation.Handle<T, I>, ...call: CallArgs<I>): Settled<T>;
+    settle<const D extends Depends = Record<string, never>, R = unknown, I = void>(
+      inline: Inline<D, R, I>,
+      ...call: TaggedInlineCall<I>
+    ): Promise<RunResult<Awaited<R>>>;
+    settle<const D extends Depends = Record<string, never>, R = unknown, I = void>(
+      inline: Inline<D, R, I>,
+      ...call: InlineCall<I>
+    ): Settled<R>;
     /** Open a child session: it inherits this scope's data and tags, and shadows on write. */
     createSession(options?: Options): Handle;
     /** Run `fn` in a fresh child session: normal return = success, a thrown error = failed(cause),
@@ -1078,7 +1108,6 @@ type Layer = {
   secondary: unknown[];
   body: Promise<unknown> | undefined;
   closed: boolean;
-  finished?: boolean;
   closing: Promise<Scope.Result> | undefined;
   obs: Obs;
   clock: Clock.Handle;
@@ -1949,6 +1978,52 @@ function recordUsed(
 }
 
 type RunState = { settled: boolean };
+/** The receiver `settle` passes: it never settles, so a failure it receives never fails the layer.
+ * A run takes no other receiver, so a stray second argument (`list.map(op.run)`) changes nothing. */
+const RECOVERED: RunState = { settled: false };
+
+function failedRun(error: unknown): RunResult<never> {
+  if (isCancelReason(error)) return { status: "cancelled", reason: error };
+  const origin = originOf(error);
+  const result: RunResult<never> = { status: "failed", error, kind: failureKind(error) };
+  if (origin) result.origin = origin;
+  return result;
+}
+
+function settleRun(
+  layer: Layer,
+  run: () => unknown,
+): RunResult<unknown> | Promise<RunResult<unknown>> {
+  try {
+    const result = run();
+    if (!isThenable(result)) return { status: "success", value: result };
+    return Promise.resolve(result).then(
+      (value): RunResult<unknown> =>
+        layer.aborted
+          ? { status: "cancelled", reason: layer.abortReason }
+          : { status: "success", value },
+      failedRun,
+    );
+  } catch (error) {
+    return failedRun(error);
+  }
+}
+
+/** An operation's controller: `run` is an own field callers destructure; `settle` is built on first
+ * read, so a controller made for one run pays nothing for it. */
+class OperationControl<I> {
+  readonly run: (call?: Scope.Invocation<I>, receiver?: RunState) => unknown;
+  private layer: Layer;
+  constructor(layer: Layer, run: (call?: Scope.Invocation<I>, receiver?: RunState) => unknown) {
+    this.layer = layer;
+    this.run = run;
+  }
+  get settle(): (call?: Scope.Invocation<I>) => unknown {
+    const layer = this.layer;
+    const run = this.run;
+    return (call) => settleRun(layer, () => run(call, RECOVERED));
+  }
+}
 
 function runFailure(layer: Layer, caller: RunState | undefined): (error: unknown) => void {
   if (caller === undefined) return asPrimary(layer);
@@ -2147,6 +2222,9 @@ class OperationCtx<I> implements Operation.Ctx<I> {
   readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
     (this.defers ??= []).push(fn);
   };
+  get raise(): Operation.Ctx<I>["raise"] {
+    return (kind, payload) => raiseFrom(this, kind, payload);
+  }
   static defersOf<J>(
     ctx: OperationCtx<J>,
   ): ((end: Scope.End) => void | PromiseLike<void>)[] | undefined {
@@ -2234,9 +2312,11 @@ function finishAsyncRun<T>(
   caller: RunState | undefined,
   obs: Obs,
   span: Observe.Span | undefined,
+  ctx: OperationCtx<unknown>,
   finishDefers: (status: "ok" | "failed", error?: unknown) => void,
 ): unknown {
   const onSettle = (status: "ok" | "failed", error?: unknown): void => {
+    if (status === "failed") stampOrigin(error, ctx.label, span, ctx);
     if (span) closeSpan(obs, span, status, error);
     finishDefers(status, error);
   };
@@ -2260,13 +2340,14 @@ function operationController<T, I>(
    * extra frame or call on the hot path. The implementation signature stays broad (one input
    * shape would mean no overload — rule 9); the two public overloads type the fork. */
   const sees = seesResourceOf(target);
-  const execute = (call?: Scope.Invocation<I>): unknown => {
+  const execute = (call?: Scope.Invocation<I>, recovered?: RunState): unknown => {
+    const receiver = recovered === RECOVERED ? recovered : caller;
     if (hasCallTags(call))
       return runTagged(
         layer,
         target,
         parent,
-        caller,
+        receiver,
         call as Scope.Invocation<I> & { readonly tags: Scope.Bindings },
         chain,
       );
@@ -2275,7 +2356,7 @@ function operationController<T, I>(
         layer,
         target,
         parent,
-        caller,
+        receiver,
         call as Scope.Invocation<I> & { readonly ns: Ns },
       );
     ensureOpen(layer);
@@ -2316,6 +2397,7 @@ function operationController<T, I>(
         : buildPlainDeps(layer, target.depends, span, chain, runState);
       result = runBody(override, target, deps, ctx, parked);
     } catch (error) {
+      stampOrigin(error, target.label, span, ctx);
       closeSpan(obs, span, "failed", error);
       finishDefers("failed", error);
       throw error;
@@ -2327,14 +2409,16 @@ function operationController<T, I>(
       finishDefers("ok");
       return result;
     }
-    return finishAsyncRun(layer, result, caller, obs, span, finishDefers);
+    return finishAsyncRun(layer, result, receiver, obs, span, ctx, finishDefers);
   };
   const runners = layer.runners;
-  if (runners === undefined || replay) return { run: execute } as Scope.OperationController<T, I>;
-  const run = (call?: Scope.Invocation<I>): unknown => {
+  if (runners === undefined || replay)
+    return new OperationControl(layer, execute) as Scope.OperationController<T, I>;
+  const run = (call?: Scope.Invocation<I>, recovered?: RunState): unknown => {
+    const receiver = recovered === RECOVERED ? recovered : caller;
     ensureOpen(layer);
     const at = (index: number): unknown => {
-      if (index === runners.length) return execute(call);
+      if (index === runners.length) return execute(call, receiver);
       return runners[index].run?.(
         hookTarget as
           | Operation.Handle<unknown, unknown>
@@ -2346,10 +2430,10 @@ function operationController<T, I>(
     const result = at(0);
     if (!isThenable(result)) return result;
     const promise = Promise.resolve(result);
-    if (caller) track(layer, promise, runFailure(layer, caller));
+    if (receiver) track(layer, promise, runFailure(layer, receiver));
     return promise;
   };
-  return { run } as Scope.OperationController<T, I>;
+  return new OperationControl(layer, run) as Scope.OperationController<T, I>;
 }
 
 /** Run `target` on the tagged call's session layer with the tag-stripped call (ADR 0038) — a
@@ -2570,6 +2654,9 @@ class ResourceCtx implements Resource.Ctx {
     this.instance.hooks.push(fn);
     this.instance.owner.defers.push({ fn, instance: this.instance });
   };
+  get raise(): Resource.Ctx["raise"] {
+    return (kind, payload) => raiseFrom(this, kind, payload);
+  }
   get signal(): AbortSignal {
     return signalOf(this.owner);
   }
@@ -2588,6 +2675,10 @@ function buildCtx(
   return new ResourceCtx(instance, obs, span, isSettled);
 }
 
+/** The empty ctx has no label, so its `raise` leaves the stamp to the run the error reaches. */
+const raiseUnstamped: Resource.Ctx["raise"] = (kind, payload) =>
+  raiseFrom(undefined, kind, payload);
+
 class EmptyCtx implements Resource.Ctx {
   readonly label = "";
   readonly obs = OFF_OBS;
@@ -2603,6 +2694,7 @@ class EmptyCtx implements Resource.Ctx {
   readonly defer = (): void => {
     raise("Disposed", { reason: "resource factory declared no ctx" });
   };
+  readonly raise = raiseUnstamped;
   get signal(): AbortSignal {
     return signalOf(this.owner);
   }
@@ -2679,6 +2771,9 @@ class ExtensionCtx implements Resource.Ctx {
   readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
     this.owner.defers.push({ fn, instance: undefined });
   };
+  get raise(): Resource.Ctx["raise"] {
+    return (kind, payload) => raiseFrom(this, kind, payload);
+  }
   get signal(): AbortSignal {
     return signalOf(this.owner);
   }
@@ -3896,7 +3991,6 @@ function canFastClose(layer: Layer): boolean {
  * skipping the async teardown protocol, the abort event dispatch, and `nodes.clear()`. */
 function fastClose(layer: Layer, force: boolean): Promise<Scope.Result> {
   layer.closed = true;
-  layer.finished = true;
   const forced = force || layer.aborted;
   let settled: Scope.Outcome = SUCCESS;
   if (forced) {
@@ -3936,8 +4030,11 @@ function buildResult(
   layer: Layer,
   teardownErrors: readonly unknown[] | undefined,
 ): Scope.Result {
-  if (settled.status === "failed")
-    return { status: "failed", error: settled.error, teardownErrors };
+  if (settled.status === "failed") {
+    const result: Scope.Result = { status: "failed", error: settled.error, teardownErrors };
+    const origin = originOf(settled.error);
+    return origin ? { ...result, origin } : result;
+  }
   if (settled.status === "cancelled") {
     return { status: "cancelled", reason: layer.abortReason, teardownErrors };
   }
@@ -4019,7 +4116,6 @@ function startClose(layer: Layer, force: boolean): Promise<Scope.Result> {
  * collecting ancestor gathers descendant results at any depth even when a descendant finished and
  * detached before the intervening scopes began their own close (F1 / grandchild). */
 function finishLayer(layer: Layer): unknown[] | undefined {
-  layer.finished = true;
   const teardownErrors = layer.secondary.length ? [...layer.secondary] : undefined;
   if (layer.nsLinked) detachNsLinked(layer, layer.nsLinked);
   const parent = layer.parent;
@@ -4394,11 +4490,14 @@ function handleFor(layer: Layer): Scope.Handle {
     if (isExtension(target)) return resolveExtension(layer, target);
     return tagRequired(layer, target as Tag.Handle<unknown>);
   }) as Scope.Handle["resolve"];
-  const run = (<T, I>(op: unknown, call?: Scope.Invocation<I>): unknown => {
+  const run = <T, I>(op: unknown, call?: Scope.Invocation<I>, receiver?: RunState): unknown => {
     ensureOpen(layer);
-    if (!isOperation(op)) return runInline(op as Scope.Inline<Scope.Depends, T, I>, call);
-    return (controllerOf(op) as { run(call?: Scope.Invocation<I>): T }).run(call);
-  }) as Scope.Handle["run"];
+    if (!isOperation(op)) return runInline(op as Scope.Inline<Scope.Depends, T, I>, call, receiver);
+    return (controllerOf(op) as { run(call?: Scope.Invocation<I>, receiver?: RunState): T }).run(
+      call,
+      receiver,
+    );
+  };
   /** Run an inline config (ADR 0037): a throwaway `Operation.Handle` through the operation
    * controller path — one handle + one controller per call, nothing cached in the layer
    * (no `nodeState`/`controllerOf` residue). `input` lands on `ctx.input`/`ctx.rawInput`
@@ -4407,6 +4506,7 @@ function handleFor(layer: Layer): Scope.Handle {
   const runInline = <R, I>(
     inline: Scope.Inline<Scope.Depends, R, I>,
     call: Scope.Invocation<I> | undefined,
+    receiver?: RunState,
   ): R | Promise<Awaited<R>> => {
     /** A throwaway `Operation.Handle` through the controller path — one handle + one controller
      * per call, nothing cached in the layer (no `nodeState`/`controllerOf` residue). The body's
@@ -4421,14 +4521,16 @@ function handleFor(layer: Layer): Scope.Handle {
     /** The controller's public face is two overloads, but this entry already holds a broad
      * `Invocation<I>` — one untyped dispatch, no per-shape narrowing. The overloads still type
      * every userland call site; the seam cast below only widens this internal entry. */
-    const dispatch = operationController(layer, handle, undefined, layer.ns, undefined, inline)
+    const dispatch = operationController(layer, handle, undefined, layer.ns, receiver, inline)
       .run as (call?: Scope.Invocation<I>) => R | Promise<Awaited<R>>;
     return call === undefined ? dispatch() : dispatch(call);
   };
   return {
     controller,
     resolve,
-    run,
+    run: run as Scope.Handle["run"],
+    settle: ((op: unknown, call?: Scope.Invocation<unknown>) =>
+      settleRun(layer, () => run(op, call, RECOVERED))) as Scope.Handle["settle"],
     createSession: (options?: Scope.Options) => {
       ensureOpen(layer);
       return handleFor(makeLayer(layer, options));
