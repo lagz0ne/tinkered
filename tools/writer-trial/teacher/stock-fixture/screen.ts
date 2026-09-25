@@ -1,5 +1,5 @@
 import { data, operation } from "@tinker/core";
-import type { Data, Operation, Scope } from "@tinker/core";
+import type { Data, Operation } from "@tinker/core";
 import { discardMoveEdit, moveStock, openMoveEdit, saveMoveEdit } from "./model.ts";
 import { errorKind, fail } from "./errors.ts";
 import type { Name } from "./errors.ts";
@@ -31,18 +31,6 @@ export const notice: Data.Cell<Name | undefined> = data({
   label: "notice",
   initial: undefined,
 });
-
-/** Run one body, showing the first managed error's kind and rethrowing. */
-const withNotice = <R>(body: () => R, cell: Scope.DataController<Name | undefined>): R => {
-  try {
-    return body();
-  } catch (error) {
-    const kind = errorKind(error);
-    if (kind === undefined) throw error;
-    cell.set(kind);
-    throw error;
-  }
-};
 
 const withText = <F extends string, T extends Readonly<Record<F, string>>>(
   record: T,
@@ -101,8 +89,8 @@ export const submitMove: Operation.Handle<void, void> = operation({
     noticeCell: notice.controller,
     move: moveStock.controller,
   },
-  run: ({ form, noticeCell, move }) =>
-    withNotice(() => {
+  run: ({ form, noticeCell, move }) => {
+    try {
       const text = form.get();
       move.run({
         input: {
@@ -113,7 +101,13 @@ export const submitMove: Operation.Handle<void, void> = operation({
         },
       });
       noticeCell.set(undefined);
-    }, noticeCell),
+    } catch (error) {
+      const kind = errorKind(error);
+      if (kind === undefined) throw error;
+      noticeCell.set(kind);
+      throw error;
+    }
+  },
 });
 
 /** Open a move for edit and seed the editor text from the saved row.
@@ -125,8 +119,8 @@ export const openEditor: Operation.Handle<void, { id: string }> = operation({
     open: openMoveEdit.controller,
     noticeCell: notice.controller,
   },
-  run: ({ edit, open, noticeCell }, ctx) =>
-    withNotice(() => {
+  run: ({ edit, open, noticeCell }, ctx) => {
+    try {
       const saved = open.run({ input: { id: ctx.input.id } });
       edit.set({
         id: saved.id,
@@ -136,7 +130,13 @@ export const openEditor: Operation.Handle<void, { id: string }> = operation({
         quantity: String(saved.quantity),
       });
       noticeCell.set(undefined);
-    }, noticeCell),
+    } catch (error) {
+      const kind = errorKind(error);
+      if (kind === undefined) throw error;
+      noticeCell.set(kind);
+      throw error;
+    }
+  },
 });
 
 /** Save the typed edit. Failure keeps the typed text. */
@@ -147,8 +147,8 @@ export const submitEditSave: Operation.Handle<void, void> = operation({
     noticeCell: notice.controller,
     save: saveMoveEdit.controller,
   },
-  run: ({ edit, noticeCell, save }) =>
-    withNotice(() => {
+  run: ({ edit, noticeCell, save }) => {
+    try {
       const text = edit.get();
       if (text === undefined) throw fail("NotFound", { id: "closed" });
       save.run({
@@ -162,7 +162,13 @@ export const submitEditSave: Operation.Handle<void, void> = operation({
       });
       edit.set(undefined);
       noticeCell.set(undefined);
-    }, noticeCell),
+    } catch (error) {
+      const kind = errorKind(error);
+      if (kind === undefined) throw error;
+      noticeCell.set(kind);
+      throw error;
+    }
+  },
 });
 
 /** Discard the typed edit. */
@@ -173,10 +179,16 @@ export const submitEditDiscard: Operation.Handle<void, { id: string }> = operati
     noticeCell: notice.controller,
     discard: discardMoveEdit.controller,
   },
-  run: ({ edit, noticeCell, discard }, ctx) =>
-    withNotice(() => {
+  run: ({ edit, noticeCell, discard }, ctx) => {
+    try {
       discard.run({ input: { id: ctx.input.id } });
       edit.set(undefined);
       noticeCell.set(undefined);
-    }, noticeCell),
+    } catch (error) {
+      const kind = errorKind(error);
+      if (kind === undefined) throw error;
+      noticeCell.set(kind);
+      throw error;
+    }
+  },
 });

@@ -5,7 +5,7 @@
  * move/open/save/discard/undo operations, and a labeled screen.
  */
 import { data, operation } from "@tinker/core";
-import type { Data, Operation, Scope } from "@tinker/core";
+import type { Data, Operation } from "@tinker/core";
 import { fail } from "./errors.ts";
 
 export type Item = "Cable" | "Stand";
@@ -84,13 +84,6 @@ const checked = (raw: {
   return { item, from, to, quantity };
 };
 
-type Cells = {
-  stock: Scope.DataController<readonly Stock[]>;
-  moves: Scope.DataController<readonly Move[]>;
-  history: Scope.DataController<readonly { stock: readonly Stock[]; moves: readonly Move[] }[]>;
-  issued: Scope.DataController<readonly string[]>;
-};
-
 const shifted = (
   rows: readonly Stock[],
   item: Item,
@@ -115,15 +108,10 @@ const shifted = (
   });
 };
 
-const pushStep = (cells: Cells): void => {
-  cells.history.update((prev) => [...prev, { stock: cells.stock.get(), moves: cells.moves.get() }]);
-};
-
-const freshId = (issued: Scope.DataController<readonly string[]>): string => {
+/** A random id that is not among the ids already issued. */
+const freshId = (issued: readonly string[]): string => {
   const id = globalThis.crypto.randomUUID();
-  if (issued.get().includes(id)) return freshId(issued);
-  issued.set([...issued.get(), id]);
-  return id;
+  return issued.includes(id) ? freshId(issued) : id;
 };
 
 /** Move stock between places. Fails leave everything unchanged. */
@@ -139,14 +127,16 @@ export const moveStock: Operation.Handle<Move, MoveInput> = operation({
     const field = checked(ctx.input);
     const current = stockCell.get();
     const next = shifted(current, field.item, field.from, field.to, field.quantity);
+    const id = freshId(issued.get());
+    issued.set([...issued.get(), id]);
     const move: Move = {
-      id: freshId(issued),
+      id,
       item: field.item,
       from: field.from,
       to: field.to,
       quantity: field.quantity,
     };
-    pushStep({ stock: stockCell, moves: movesCell, history, issued });
+    history.update((prev) => [...prev, { stock: stockCell.get(), moves: movesCell.get() }]);
     stockCell.set(next);
     movesCell.set([...movesCell.get(), move]);
     return move;
@@ -175,9 +165,8 @@ export const saveMoveEdit: Operation.Handle<Move, EditMoveInput> = operation({
     moves: moves.controller,
     draft: editDraft.controller,
     history: undoHistory.controller,
-    issued: issuedIds.controller,
   },
-  run: ({ stock: stockCell, moves: movesCell, draft, history, issued }, ctx) => {
+  run: ({ stock: stockCell, moves: movesCell, draft, history }, ctx) => {
     const id = ctx.input.id;
     const open = draft.get();
     if (open === undefined || open.id !== id) throw fail("NotFound", { id });
@@ -194,7 +183,7 @@ export const saveMoveEdit: Operation.Handle<Move, EditMoveInput> = operation({
       to: field.to,
       quantity: field.quantity,
     };
-    pushStep({ stock: stockCell, moves: movesCell, history, issued });
+    history.update((prev) => [...prev, { stock: stockCell.get(), moves: movesCell.get() }]);
     stockCell.set(next);
     movesCell.set(movesCell.get().map((m) => (m.id === id ? replaced : m)));
     draft.set(undefined);
