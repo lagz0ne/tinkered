@@ -23,7 +23,8 @@ vp run -r build
 - `vp run -r build` before every check: a stale `dist` shows fake errors.
 - A red check is "already on main" only after you run it on `main`
   (`git worktree add /tmp/main-check main`).
-- Never run a full mutation lane. The lead runs it alone at landing.
+- Run a full mutation lane only when your ticket says so, and then always under
+  `flock /tmp/mutation.lock` (one mutation or timing run at a time on this machine).
 - For `pnpm validate` only: set `allowBuilds: esbuild: true` in
   `pnpm-workspace.yaml`, run, then `git checkout -- pnpm-workspace.yaml`.
   Never commit that file.
