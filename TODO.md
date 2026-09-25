@@ -27,6 +27,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 | --------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout) | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean |
 
+- **ext/start-order** — two servers of a kind fail with `NotResolved {"label":"mcp"}` when the serving extension is listed after the server: `start` runs in the extension onion, so a `start` can only read extensions listed after it. Next: a core README line saying so, and `mcp()` / `hono()` extension labels that carry the server's name. Verify: the error names the server; README line present.
+
 ## Doing
 
 Pairs since 2026-09-23: a writer (sol 6 for hard, deepseek-v4.1-flash for simple) and an Opus 5.5
@@ -41,8 +43,6 @@ card at a time.
 - **bridge gaps (ADR 0060)** — user go 2026-09-24:
   - core/ext-hooks-every-layer — sol 6 `247fb6ec`: extension `run`/`write` hooks wrap every run and
     write at every layer (core-feedback rows, two askers). Verify: tests; bench; mutation ≥ 85.
-  - mcp/two-servers — deepseek `1399691a`: two servers of a kind on one scope. Verify: tests;
-    mutation ≥ 85.
   - ADR 0060 no longer promises a process bridge (done with this card).
 - **perf/async-subflow** review — opus `97fac83b`: −27% landed so far; the rest is the subclass
   `await` that ADR 0066 receipt tracking needs.
@@ -80,6 +80,8 @@ card at a time.
 
 ## Done
 
+- **mcp/two-servers** — deepseek + opus review (one fix round); tag `mcp/two-servers`. Two mcp extensions on one scope: shared scope data, one session per call, one close stops both (each server's `isConnected()` false after), the same tool name answers from the server that got the call (ADR 0060). Found: a serving extension must be listed before the server it resolves; card ext/start-order.
+  - Gate EXIT 0; mcp mutation 85.29; validate 43 PASS; Jev calibrate owed (service 503).
 - **process/positionals** — deepseek + opus review (one fix round); tag `process/positionals`. `positionals(argv, { values })` in `@tinker/process`: plain words in order; value flags take the next word; `--k=v` is one word; `--` ends flags. blueprint `verify` and tinkerer `ask` use it; fixes `ask --json hello` dropping `hello` (test fails on main).
   - Gate EXIT 0; validate 43 PASS. Jev calibrate owed (service 503).
   - Mutation alone: process 95.90, blueprint 88.31, tinkerer 96.28.
