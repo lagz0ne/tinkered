@@ -45,8 +45,8 @@ card at a time.
 - **bridge gaps (ADR 0060)** — user go 2026-09-24:
   - core/ext-hooks-every-layer — sol 6 `247fb6ec`: extension `run`/`write` hooks wrap every run and
     write at every layer (core-feedback rows, two askers). Verify: tests; bench; mutation ≥ 85.
-  - hono/two-servers — deepseek `3f281128`; mcp/two-servers — deepseek `1399691a`: two servers of a
-    kind on one scope. Verify: tests; mutation ≥ 85.
+  - mcp/two-servers — deepseek `1399691a`: two servers of a kind on one scope. Verify: tests;
+    mutation ≥ 85.
   - ADR 0060 no longer promises a process bridge (done with this card).
 - **perf/async-subflow** review — opus `97fac83b`: −27% landed so far; the rest is the subclass
   `await` that ADR 0066 receipt tracking needs.
@@ -84,6 +84,8 @@ card at a time.
 
 ## Done
 
+- **hono/two-servers** — deepseek + opus review (one fix round); tag `hono/two-servers`. Two hono extensions on one scope: shared scope data, separate per-request sessions, the same path answers from the server that got the request, one close stops both once (ADR 0060). No bug found.
+  - Gate EXIT 0; hono mutation 86.88; validate 43 PASS. Calibrate owed: the Jev gateway answered 503 five times; the next landing that adds labels runs it.
 - **tinkerer/v1** and **process/v1** — both tracks finished (tinkerer t01–t06; process t01–t05); stale
   Doing rows closed 2026-09-24. Since then: tinkerer onto namespaces (namespace-v1/t07), `askCommand`
   deleted (nw/tinkerer-ask), mutation 96.12 (mut/tinkerer-85); the argv helper is card
