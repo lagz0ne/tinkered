@@ -160,7 +160,7 @@ for (const kind of ["panic", "error"] as const) {
     const running = session.run(outer);
     const closing = session.close({ graceful: true });
     fail(cause);
-    await new Promise<void>((resolve) => setImmediate(resolve));
+    while (!spans.some((span) => span.name === "inner")) await Promise.resolve();
     finish();
     expect(await running).toBe("done");
     expect((await closing).status).toBe(kind === "panic" ? "failed" : "success");
