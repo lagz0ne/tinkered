@@ -824,28 +824,51 @@ browser("browser loads form with initial text", async (page) => {
   return "Cable, East, West, 1";
 });
 
-// Data cells of the VISIBLE rows only: filtering hides rows without
-// deleting them, so hidden rows never count toward rendered comparisons.
-// The Moves table carries the Edit button in its own trailing action cell,
-// which is not one of the packet's data columns.
-const visibleRows = (table) => table.locator("tbody tr:visible");
-const visibleRowCells = (table, row, count) =>
-  visibleRows(table)
-    .nth(row)
-    .locator("th, td")
-    .allInnerTexts()
-    .then((cells) => cells.slice(0, count));
-const visibleRowCount = (table) => visibleRows(table).count();
+// A cell's own text without its controls: the task names the Edit move
+// button but not where it sits, so a button inside a cell must not change
+// what the cell says.
+const cellsOf = (row) =>
+  row
+    .getByRole("cell")
+    .or(row.getByRole("columnheader"))
+    .or(row.getByRole("rowheader"))
+    .evaluateAll((all) =>
+      all.map((cell) => {
+        const copy = cell.cloneNode(true);
+        for (const control of copy.querySelectorAll(
+          "button, input, select, textarea, [role=button]",
+        ))
+          control.remove();
+        return (copy.textContent ?? "").replace(/\s+/g, " ").trim();
+      }),
+    );
+// Rows of a named table by header text, in task column order: the header
+// row is the first row naming every column, whatever role its cells get.
+// Column order and extra columns are free; filtering hides rows without
+// deleting them, and rows hidden from the accessibility tree are skipped
+// by role.
+const STOCK_COLUMNS = ["Item", "Place", "Quantity"];
+const MOVE_COLUMNS = ["Item", "From", "To", "Quantity"];
+const shownRows = async (table, columns) => {
+  const rows = [];
+  for (const row of await table.getByRole("row").all()) rows.push(await cellsOf(row));
+  const head = rows.findIndex((cells) => columns.every((column) => cells.includes(column)));
+  assert.ok(head >= 0, `want columns ${columns.join(", ")}; found ${rows[0]?.join(", ") ?? ""}`);
+  const at = columns.map((column) => rows[head].indexOf(column));
+  return rows.slice(head + 1).map((cells) => at.map((i) => cells[i]));
+};
+const visibleRowCells = async (table, row, columns) => (await shownRows(table, columns))[row] ?? [];
+const visibleRowCount = async (table, columns) => (await shownRows(table, columns)).length;
 
 browser("browser stock table shows four rows in order", async (page) => {
   await page.goto("http://127.0.0.1:5173");
   const table = page.getByRole("table", { name: "Stock" });
   await table.waitFor();
-  assert.deepStrictEqual(await visibleRowCells(table, 0, 3), ["Cable", "East", "8"]);
-  assert.deepStrictEqual(await visibleRowCells(table, 1, 3), ["Cable", "West", "2"]);
-  assert.deepStrictEqual(await visibleRowCells(table, 2, 3), ["Stand", "East", "3"]);
-  assert.deepStrictEqual(await visibleRowCells(table, 3, 3), ["Stand", "West", "1"]);
-  assert.equal(await visibleRowCount(table), 4);
+  assert.deepStrictEqual(await visibleRowCells(table, 0, STOCK_COLUMNS), ["Cable", "East", "8"]);
+  assert.deepStrictEqual(await visibleRowCells(table, 1, STOCK_COLUMNS), ["Cable", "West", "2"]);
+  assert.deepStrictEqual(await visibleRowCells(table, 2, STOCK_COLUMNS), ["Stand", "East", "3"]);
+  assert.deepStrictEqual(await visibleRowCells(table, 3, STOCK_COLUMNS), ["Stand", "West", "1"]);
+  assert.equal(await visibleRowCount(table, STOCK_COLUMNS), 4);
   return "four rows in order";
 });
 
@@ -856,8 +879,13 @@ browser("browser move appends one row in list order", async (page) => {
   await page.getByRole("button", { name: "Move stock", exact: true }).click();
   await moves.getByRole("button", { name: "Edit move", exact: true }).waitFor();
   assert.equal(await moves.getByRole("button", { name: "Edit move", exact: true }).count(), 1);
-  assert.equal(await visibleRowCount(moves), 1);
-  assert.deepStrictEqual(await visibleRowCells(moves, 0, 4), ["Cable", "East", "West", "1"]);
+  assert.equal(await visibleRowCount(moves, MOVE_COLUMNS), 1);
+  assert.deepStrictEqual(await visibleRowCells(moves, 0, MOVE_COLUMNS), [
+    "Cable",
+    "East",
+    "West",
+    "1",
+  ]);
   return "one move row with Edit move";
 });
 
@@ -896,17 +924,37 @@ browser("browser filter hides rows without deleting", async (page) => {
   const moves = page.getByRole("table", { name: "Moves" });
   await moves.getByRole("button", { name: "Edit move", exact: true }).nth(1).waitFor();
   await page.getByRole("button", { name: "Cable", exact: true }).click();
-  assert.deepStrictEqual(await visibleRowCells(moves, 0, 4), ["Cable", "East", "West", "1"]);
-  assert.equal(await visibleRowCount(moves), 1);
+  assert.deepStrictEqual(await visibleRowCells(moves, 0, MOVE_COLUMNS), [
+    "Cable",
+    "East",
+    "West",
+    "1",
+  ]);
+  assert.equal(await visibleRowCount(moves, MOVE_COLUMNS), 1);
   const stock = page.getByRole("table", { name: "Stock" });
-  assert.deepStrictEqual(await visibleRowCells(stock, 0, 3), ["Cable", "East", "7"]);
-  assert.deepStrictEqual(await visibleRowCells(stock, 1, 3), ["Cable", "West", "3"]);
+  assert.deepStrictEqual(await visibleRowCells(stock, 0, STOCK_COLUMNS), ["Cable", "East", "7"]);
+  assert.deepStrictEqual(await visibleRowCells(stock, 1, STOCK_COLUMNS), ["Cable", "West", "3"]);
   await page.getByRole("button", { name: "All", exact: true }).click();
-  assert.deepStrictEqual(await visibleRowCells(moves, 0, 4), ["Cable", "East", "West", "1"]);
-  assert.deepStrictEqual(await visibleRowCells(moves, 1, 4), ["Stand", "East", "West", "1"]);
+  assert.deepStrictEqual(await visibleRowCells(moves, 0, MOVE_COLUMNS), [
+    "Cable",
+    "East",
+    "West",
+    "1",
+  ]);
+  assert.deepStrictEqual(await visibleRowCells(moves, 1, MOVE_COLUMNS), [
+    "Stand",
+    "East",
+    "West",
+    "1",
+  ]);
   await page.getByRole("button", { name: "Stand", exact: true }).click();
-  assert.deepStrictEqual(await visibleRowCells(moves, 0, 4), ["Stand", "East", "West", "1"]);
-  assert.equal(await visibleRowCount(moves), 1);
+  assert.deepStrictEqual(await visibleRowCells(moves, 0, MOVE_COLUMNS), [
+    "Stand",
+    "East",
+    "West",
+    "1",
+  ]);
+  assert.equal(await visibleRowCount(moves, MOVE_COLUMNS), 1);
   return "filter hides, All restores";
 });
 
@@ -926,8 +974,18 @@ browser("browser switching rows drops unsaved text", async (page) => {
   assert.equal(await page.getByLabel("Edit from", { exact: true }).inputValue(), "East");
   assert.equal(await page.getByLabel("Edit to", { exact: true }).inputValue(), "West");
   assert.equal(await page.getByLabel("Edit quantity", { exact: true }).inputValue(), "2");
-  assert.deepStrictEqual(await visibleRowCells(moves, 0, 4), ["Cable", "East", "West", "1"]);
-  assert.deepStrictEqual(await visibleRowCells(moves, 1, 4), ["Stand", "East", "West", "2"]);
+  assert.deepStrictEqual(await visibleRowCells(moves, 0, MOVE_COLUMNS), [
+    "Cable",
+    "East",
+    "West",
+    "1",
+  ]);
+  assert.deepStrictEqual(await visibleRowCells(moves, 1, MOVE_COLUMNS), [
+    "Stand",
+    "East",
+    "West",
+    "2",
+  ]);
   return "second row replaces all unsaved text";
 });
 
@@ -954,8 +1012,8 @@ browser("browser failed save keeps text, passing save clears notice", async (pag
   await page.getByRole("button", { name: "Save move", exact: true }).waitFor({ state: "hidden" });
   assert.equal(await noticeText(page), "");
   const stock = page.getByRole("table", { name: "Stock" });
-  assert.deepStrictEqual(await visibleRowCells(stock, 0, 3), ["Cable", "East", "6"]);
-  assert.deepStrictEqual(await visibleRowCells(stock, 1, 3), ["Cable", "West", "4"]);
+  assert.deepStrictEqual(await visibleRowCells(stock, 0, STOCK_COLUMNS), ["Cable", "East", "6"]);
+  assert.deepStrictEqual(await visibleRowCells(stock, 1, STOCK_COLUMNS), ["Cable", "West", "4"]);
   return "failure keeps text, success clears";
 });
 
@@ -980,22 +1038,37 @@ browser("browser undo keeps filter and form text", async (page) => {
     .getByRole("button", { name: "Edit move", exact: true })
     .nth(1)
     .waitFor({ state: "hidden" });
-  assert.deepStrictEqual(await visibleRowCells(moves, 0, 4), ["Cable", "East", "West", "1"]);
-  assert.equal(await visibleRowCount(moves), 1);
+  assert.deepStrictEqual(await visibleRowCells(moves, 0, MOVE_COLUMNS), [
+    "Cable",
+    "East",
+    "West",
+    "1",
+  ]);
+  assert.equal(await visibleRowCount(moves, MOVE_COLUMNS), 1);
   const stock = page.getByRole("table", { name: "Stock" });
-  assert.deepStrictEqual(await visibleRowCells(stock, 0, 3), ["Cable", "East", "7"]);
-  assert.deepStrictEqual(await visibleRowCells(stock, 1, 3), ["Cable", "West", "3"]);
-  assert.deepStrictEqual(await visibleRowCells(stock, 2, 3), ["Stand", "East", "1"]);
-  assert.deepStrictEqual(await visibleRowCells(stock, 3, 3), ["Stand", "West", "3"]);
+  assert.deepStrictEqual(await visibleRowCells(stock, 0, STOCK_COLUMNS), ["Cable", "East", "7"]);
+  assert.deepStrictEqual(await visibleRowCells(stock, 1, STOCK_COLUMNS), ["Cable", "West", "3"]);
+  assert.deepStrictEqual(await visibleRowCells(stock, 2, STOCK_COLUMNS), ["Stand", "East", "1"]);
+  assert.deepStrictEqual(await visibleRowCells(stock, 3, STOCK_COLUMNS), ["Stand", "West", "3"]);
   assert.equal(await page.getByLabel("Item", { exact: true }).inputValue(), "typed text");
   assert.equal(
     await page.getByLabel("Edit quantity", { exact: true }).inputValue(),
     "unsaved edit",
   );
   await page.getByRole("button", { name: "All", exact: true }).click();
-  assert.equal(await visibleRowCount(moves), 2);
-  assert.deepStrictEqual(await visibleRowCells(moves, 0, 4), ["Cable", "East", "West", "1"]);
-  assert.deepStrictEqual(await visibleRowCells(moves, 1, 4), ["Stand", "East", "West", "2"]);
+  assert.equal(await visibleRowCount(moves, MOVE_COLUMNS), 2);
+  assert.deepStrictEqual(await visibleRowCells(moves, 0, MOVE_COLUMNS), [
+    "Cable",
+    "East",
+    "West",
+    "1",
+  ]);
+  assert.deepStrictEqual(await visibleRowCells(moves, 1, MOVE_COLUMNS), [
+    "Stand",
+    "East",
+    "West",
+    "2",
+  ]);
   return "undo data only, filter and text kept";
 });
 
@@ -1009,9 +1082,14 @@ browser("browser discard drops the draft and writes nothing", async (page) => {
   await page.getByRole("button", { name: "Discard move", exact: true }).click();
   await page.getByRole("button", { name: "Save move", exact: true }).waitFor({ state: "hidden" });
   const stock = page.getByRole("table", { name: "Stock" });
-  assert.deepStrictEqual(await visibleRowCells(stock, 0, 3), ["Cable", "East", "7"]);
-  assert.deepStrictEqual(await visibleRowCells(stock, 1, 3), ["Cable", "West", "3"]);
-  assert.deepStrictEqual(await visibleRowCells(moves, 0, 4), ["Cable", "East", "West", "1"]);
+  assert.deepStrictEqual(await visibleRowCells(stock, 0, STOCK_COLUMNS), ["Cable", "East", "7"]);
+  assert.deepStrictEqual(await visibleRowCells(stock, 1, STOCK_COLUMNS), ["Cable", "West", "3"]);
+  assert.deepStrictEqual(await visibleRowCells(moves, 0, MOVE_COLUMNS), [
+    "Cable",
+    "East",
+    "West",
+    "1",
+  ]);
   return "discard drops text";
 });
 
@@ -1115,13 +1193,13 @@ browser("browser two roots share no stock, form, or notice", async (page) => {
       .nth(1)
       .waitFor();
     const secondMoves = secondScope.getByRole("table", { name: "Moves" });
-    assert.deepStrictEqual(await visibleRowCells(secondMoves, 0, 4), [
+    assert.deepStrictEqual(await visibleRowCells(secondMoves, 0, MOVE_COLUMNS), [
       "Cable",
       "East",
       "West",
       "1",
     ]);
-    assert.deepStrictEqual(await visibleRowCells(secondMoves, 1, 4), [
+    assert.deepStrictEqual(await visibleRowCells(secondMoves, 1, MOVE_COLUMNS), [
       "Stand",
       "East",
       "West",
@@ -1135,11 +1213,30 @@ browser("browser two roots share no stock, form, or notice", async (page) => {
     // The first root keeps its own initial stock, empty moves, initial
     // form text, and no notice or editor.
     const firstStock = first.getByRole("table", { name: "Stock" });
-    assert.deepStrictEqual(await visibleRowCells(firstStock, 0, 3), ["Cable", "East", "8"]);
-    assert.deepStrictEqual(await visibleRowCells(firstStock, 1, 3), ["Cable", "West", "2"]);
-    assert.deepStrictEqual(await visibleRowCells(firstStock, 2, 3), ["Stand", "East", "3"]);
-    assert.deepStrictEqual(await visibleRowCells(firstStock, 3, 3), ["Stand", "West", "1"]);
-    assert.equal(await visibleRowCount(first.getByRole("table", { name: "Moves" })), 0);
+    assert.deepStrictEqual(await visibleRowCells(firstStock, 0, STOCK_COLUMNS), [
+      "Cable",
+      "East",
+      "8",
+    ]);
+    assert.deepStrictEqual(await visibleRowCells(firstStock, 1, STOCK_COLUMNS), [
+      "Cable",
+      "West",
+      "2",
+    ]);
+    assert.deepStrictEqual(await visibleRowCells(firstStock, 2, STOCK_COLUMNS), [
+      "Stand",
+      "East",
+      "3",
+    ]);
+    assert.deepStrictEqual(await visibleRowCells(firstStock, 3, STOCK_COLUMNS), [
+      "Stand",
+      "West",
+      "1",
+    ]);
+    assert.equal(
+      await visibleRowCount(first.getByRole("table", { name: "Moves" }), MOVE_COLUMNS),
+      0,
+    );
     assert.equal(await first.getByLabel("Item", { exact: true }).inputValue(), "Cable");
     assert.equal(await first.getByLabel("From", { exact: true }).inputValue(), "East");
     assert.equal(await first.getByLabel("To", { exact: true }).inputValue(), "West");

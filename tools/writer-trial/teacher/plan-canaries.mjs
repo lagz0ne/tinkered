@@ -166,7 +166,8 @@ const layoutBlock = kitText.slice(kitText.indexOf("export const LAYOUTS"));
 const LAYOUT_NAMES = [
   ...layoutBlock.slice(0, layoutBlock.indexOf("\n};")).matchAll(/^ {2}(\w+): \{$/gm),
 ].map((m) => m[1]);
-if (LAYOUT_NAMES.length < 5) throw new Error(`found layouts ${LAYOUT_NAMES}; update the script`);
+if (LAYOUT_NAMES.length < 5)
+  throw new Error(`found layouts ${LAYOUT_NAMES.join(", ")}; update the script`);
 const layoutTar = (name) =>
   patch(goodTar, `layout-${name}`, (src) =>
     writeFileSync(

@@ -5,7 +5,7 @@
 // Proof tars land in /tmp and are rebuilt on every run; only the printed
 // case lines and exit codes are the evidence (root saves them).
 import { execFileSync } from "node:child_process";
-import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,13 +23,10 @@ const IMAGE =
   "sha256:ac6b1e42b3f428180c6f5109a76b238a2da5a1f4874d3750b8c1088ba36e9881";
 const work = join(tmpdir(), "stock-canaries");
 rmSync(work, { recursive: true, force: true });
-mkdirSync(join(work, "proof", "src"), { recursive: true });
 mkdirSync(join(work, "proof", "tests"), { recursive: true });
 
 const fixture = join(here, "stock-fixture");
-for (const name of ["model.ts", "screen.ts", "errors.ts", "StockApp.tsx", "index.ts", "main.tsx"]) {
-  cpSync(join(fixture, name), join(work, "proof", "src", name));
-}
+cpSync(join(fixture, "src"), join(work, "proof", "src"), { recursive: true });
 cpSync(join(fixture, "index.html"), join(work, "proof", "index.html"));
 
 const pack = (dir, tar) => {
@@ -50,7 +47,7 @@ const run = (tar) => {
       { encoding: "utf8", maxBuffer: 8 * 1024 * 1024 },
     );
     const line = out.split("\n").find((l) => l.startsWith("ACCEPTANCE"));
-    return { exit: 0, line };
+    return { exit: 0, line, fails: [] };
   } catch (error) {
     const out = `${error.stdout ?? ""}`;
     const line = out.split("\n").find((l) => l.startsWith("ACCEPTANCE"));
@@ -113,22 +110,63 @@ const draftTar = patch(goodTar, "bad-draft", (src) => {
   writeFileSync(p, out);
 });
 
+// ---- good layouts: the fixture once per kit layout (layout-kit/README.md) ----
+// Every name in the kit's LAYOUTS, read from the fixture's own copy, packs
+// the same app with src/layout-choice.ts overwritten to that name.
+const kitText = readFileSync(join(fixture, "src", "layout.tsx"), "utf8");
+const layoutBlock = kitText.slice(kitText.indexOf("export const LAYOUTS"));
+const LAYOUT_NAMES = [
+  ...layoutBlock.slice(0, layoutBlock.indexOf("\n};")).matchAll(/^ {2}(\w+): \{$/gm),
+].map((m) => m[1]);
+if (LAYOUT_NAMES.length < 5)
+  throw new Error(`found layouts ${LAYOUT_NAMES.join(", ")}; update the script`);
+const layoutTar = (name) =>
+  patch(goodTar, `layout-${name}`, (src) =>
+    writeFileSync(
+      join(src, "layout-choice.ts"),
+      `export const LAYOUT_NAME: string = ${JSON.stringify(name)};\n`,
+    ),
+  );
+
 // Hidden-rows variant: keeps every move row in the DOM and hides
 // non-matching ones with the hidden attribute. Filtering hides without
-// deleting, so the visible-row assertions must still pass.
+// deleting, so the visible-row assertions must still pass. Not a layout:
+// the kit's NamedTable leaves filtered rows out, so this one table is
+// drawn by hand.
 const hiddenTar = patch(goodTar, "good-hidden", (src) => {
   const p = join(src, "StockApp.tsx");
-  const s = execFileSync("cat", [p], { encoding: "utf8" });
+  const s = readFileSync(p, "utf8");
   const shownOld = '  const shown = filter === "All" ? all : all.filter((m) => m.item === filter);';
   const shownNew =
     '  const hidden = (m: { item: string }): boolean => filter !== "All" && m.item !== filter;';
   if (!s.includes(shownOld)) throw new Error("hidden canary anchor moved; update the script");
   const rowsOld = [
-    "          {shown.map((move) => (",
-    "            <MoveRow key={move.id} move={move} onEdit={(id) => open.run({ input: { id } })} />",
-    "          ))}",
+    "      <NamedTable",
+    '        name="Moves"',
+    '        headers={["Item", "From", "To", "Quantity"]}',
+    "        rows={shown.map((move) => ({",
+    "          key: move.id,",
+    "          cells: [move.item, move.from, move.to, move.quantity],",
+    "          actions: (",
+    '            <button type="button" onClick={() => open.run({ input: { id: move.id } })}>',
+    "              Edit move",
+    "            </button>",
+    "          ),",
+    "        }))}",
+    "      />",
   ].join("\n");
   const rowsNew = [
+    '      <table aria-label="Moves">',
+    "        <thead>",
+    "          <tr>",
+    "            <th>Item</th>",
+    "            <th>From</th>",
+    "            <th>To</th>",
+    "            <th>Quantity</th>",
+    "            <th>Actions</th>",
+    "          </tr>",
+    "        </thead>",
+    "        <tbody>",
     "          {all.map((move) => (",
     "            <tr key={move.id} hidden={hidden(move) || undefined}>",
     "              <td>{move.item}</td>",
@@ -136,132 +174,63 @@ const hiddenTar = patch(goodTar, "good-hidden", (src) => {
     "              <td>{move.to}</td>",
     "              <td>{move.quantity}</td>",
     "              <td>",
-    '                <button type="button" aria-label="Edit move" onClick={() => open.run({ input: { id: move.id } })}>',
+    '                <button type="button" onClick={() => open.run({ input: { id: move.id } })}>',
     "                  Edit move",
     "                </button>",
     "              </td>",
     "            </tr>",
     "          ))}",
+    "        </tbody>",
+    "      </table>",
   ].join("\n");
   if (!s.includes(rowsOld)) throw new Error("hidden rows anchor moved; update the script");
   writeFileSync(p, s.replace(shownOld, shownNew).replace(rowsOld, rowsNew));
 });
 
-// useId-labels variant: explicit htmlFor/id pairs via useId, like the
-// saved worker app. A second React copy resets useId counters, so both
-// roots share ids and the scoped label lookup fails. The nested-label
-// fixture never trips this; this variant does.
-const useIdTar = patch(goodTar, "good-useid", (src) => {
-  const p = join(src, "StockApp.tsx");
-  const s = execFileSync("cat", [p], { encoding: "utf8" });
-  const importOld = 'import type { FormEvent, ReactElement } from "react";';
-  const importNew =
-    'import { useId } from "react";\nimport type { FormEvent, ReactElement } from "react";';
-  if (!s.includes(importOld))
-    throw new Error("useId canary import anchor moved; update the script");
-  const helperOld = "/** The move form: labeled text inputs with the packet's initial text. */";
-  const helperNew = [
-    "/** Label tied to its input by id, so two roots need distinct ids. */",
-    "function LabeledField(props: {",
-    "  readonly label: string;",
-    "  readonly value: string;",
-    "  readonly onType: (value: string) => void;",
-    "}): ReactElement {",
-    "  const id = useId();",
-    "  return (",
-    "    <label htmlFor={id}>",
-    "      {props.label}",
-    "      <input",
-    "        id={id}",
-    "        value={props.value}",
-    "        onChange={(event) => props.onType(event.target.value)}",
-    "      />",
-    "    </label>",
-    "  );",
-    "}",
-    "",
-    "/** The move form: labeled text inputs with the packet's initial text. */",
-  ].join("\n");
-  if (!s.includes(helperOld))
-    throw new Error("useId canary helper anchor moved; update the script");
-  const labelsOld = [
-    "      <label>",
-    "        Item",
-    "        <input",
-    "          value={form.item}",
-    '          onChange={(event) => type.run({ input: { field: "item", value: event.target.value } })}',
-    "        />",
-    "      </label>",
-    "      <label>",
-    "        From",
-    "        <input",
-    "          value={form.from}",
-    '          onChange={(event) => type.run({ input: { field: "from", value: event.target.value } })}',
-    "        />",
-    "      </label>",
-    "      <label>",
-    "        To",
-    "        <input",
-    "          value={form.to}",
-    '          onChange={(event) => type.run({ input: { field: "to", value: event.target.value } })}',
-    "        />",
-    "      </label>",
-    "      <label>",
-    "        Quantity",
-    "        <input",
-    "          value={form.quantity}",
-    "          onChange={(event) =>",
-    '            type.run({ input: { field: "quantity", value: event.target.value } })',
-    "          }",
-    "        />",
-    "      </label>",
-  ].join("\n");
-  const labelsNew = [
-    "      <LabeledField",
-    '        label="Item"',
-    "        value={form.item}",
-    '        onType={(value) => type.run({ input: { field: "item", value } })}',
-    "      />",
-    "      <LabeledField",
-    '        label="From"',
-    "        value={form.from}",
-    '        onType={(value) => type.run({ input: { field: "from", value } })}',
-    "      />",
-    "      <LabeledField",
-    '        label="To"',
-    "        value={form.to}",
-    '        onType={(value) => type.run({ input: { field: "to", value } })}',
-    "      />",
-    "      <LabeledField",
-    '        label="Quantity"',
-    "        value={form.quantity}",
-    '        onType={(value) => type.run({ input: { field: "quantity", value } })}',
-    "      />",
-  ].join("\n");
-  if (!s.includes(labelsOld))
-    throw new Error("useId canary labels anchor moved; update the script");
-  writeFileSync(
-    p,
-    s.replace(importOld, importNew).replace(helperOld, helperNew).replace(labelsOld, labelsNew),
-  );
-});
-
 const cases = [
-  ["good fixture accepts", goodTar, 0, "ACCEPTANCE stock: 44/44 pass"],
+  ...LAYOUT_NAMES.map((name) => [
+    `good layout ${name} accepts`,
+    layoutTar(name),
+    0,
+    "ACCEPTANCE stock: 44/44 pass",
+  ]),
   ["hidden-rows variant accepts", hiddenTar, 0, "ACCEPTANCE stock: 44/44 pass"],
-  ["useId-labels variant accepts", useIdTar, 0, "ACCEPTANCE stock: 44/44 pass"],
-  ["empty starter rejects", emptyTar, 1, null],
-  ["broken reversal atomicity rejects", atomicTar, 1, null],
-  ["wrong clicked-draft text rejects", draftTar, 1, null],
+  ["empty starter rejects", emptyTar, 1, null, ["shape: src present"]],
+  [
+    "broken reversal atomicity rejects",
+    atomicTar,
+    1,
+    null,
+    ["core reversal shortage is atomic, draft stays open"],
+  ],
+  [
+    "wrong clicked-draft text rejects",
+    draftTar,
+    1,
+    null,
+    ["browser switching rows drops unsaved text"],
+  ],
 ];
+// A bad variant passes only when each named case is among the FAIL lines.
+const missingFails = (r, mustFail) =>
+  mustFail.filter((name) => !r.fails.some((f) => f.startsWith(`FAIL ${name} — `)));
+// `--only <label prefix>` runs a subset while tuning; a full run is the proof.
+const only = process.argv.includes("--only")
+  ? process.argv[process.argv.indexOf("--only") + 1]
+  : "";
 let failed = 0;
-for (const [label, tar, wantExit, wantLine] of cases) {
+for (const [label, tar, wantExit, wantLine, mustFail = []] of cases.filter(([l]) =>
+  l.startsWith(only),
+)) {
   const r = run(tar);
   const lineOk = wantLine === null ? true : r.line === wantLine;
-  const ok = r.exit === wantExit && lineOk;
+  const missing = missingFails(r, mustFail);
+  const ok = r.exit === wantExit && lineOk && missing.length === 0;
   if (!ok) failed++;
+  const caughtBy = mustFail.length > 0 ? ` — caught by: ${mustFail.join("; ")}` : "";
+  const problem = missing.length > 0 ? ` — want failure ${missing.join(", ")}` : "";
   console.log(
-    `${ok ? "CANARY-PASS" : "CANARY-FAIL"} ${label} — exit ${r.exit} — ${r.line ?? "(no summary)"} — ${tar}`,
+    `${ok ? "CANARY-PASS" : "CANARY-FAIL"} ${label} — exit ${r.exit} — ${r.line ?? "(no summary)"} — ${tar}${ok ? caughtBy : problem}`,
   );
   if (!ok && r.fails) for (const f of r.fails) console.log(`    ${f}`);
 }
