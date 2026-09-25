@@ -446,6 +446,24 @@ test("a server that returns on the signal exits with its own code, not 130", asy
   expect(result.code).toBe(0);
 });
 
+test("a root force-closed from inside exits 130 and prints nothing", async () => {
+  let held: { close(): unknown } | undefined;
+  const closer = extension({
+    label: "closer",
+    start: (scope, _c, next) => {
+      held = scope;
+      return next();
+    },
+  });
+  const pending = run(
+    shell([{ name: "hang", entry: () => ({ op: hang, options: { extensions: [closer] } }) }]),
+    ["hang"],
+  );
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  void held?.close();
+  expect(await pending).toEqual({ code: 130, stdout: "", stderr: "" });
+});
+
 test("an already-aborted signal exits 130 with empty streams and no root", async () => {
   let roots = 0;
   const spy = extension({

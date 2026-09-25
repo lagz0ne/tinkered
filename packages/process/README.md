@@ -150,6 +150,8 @@ or let the cancellation throw (a one-shot: 130).
   its own code, not 130.
 - A one-shot that throws its own error on the
   signal exits 130 and prints nothing.
+- A root force-closed from inside (an extension
+  holding it) exits 130 and prints nothing.
 - An already-aborted signal exits 130 with empty
   streams and no root.
 

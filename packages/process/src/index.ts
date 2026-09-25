@@ -87,8 +87,9 @@ function rootFor(entry: Process.Entry, rest: readonly string[], out: Process.Io)
   });
 }
 
-/** What a settled run answers: its own code, 130 when cancelled, else what its failure answers.
- * A panic and a managed error answer the same: the process is the last place to recover. */
+/** What a settled run answers: its own code, 130 when cancelled (by the signal, or by a forced
+ * close from inside the root), else what its failure answers. A panic and a managed error answer
+ * the same: the process is the last place to recover. */
 function readResult(
   result: RunResult<number>,
   out: Process.Io,
