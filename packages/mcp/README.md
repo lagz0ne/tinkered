@@ -101,6 +101,22 @@ arrive. This command returns on a signal; `cli.ts` also binds a `stopping`
 cell that stdin EOF and a server close set, and watches it beside the
 signal. The root's defer closes the transport.
 
+Two `mcp()` extensions on one scope are two servers (ADR 0060):
+
+- Both share a `target: "scope"` resource: a write through one
+  is the other's next read.
+- Every call opens its own session, so per-call state never
+  crosses between the two.
+- One `scope.close()` closes both, each server's own close running
+  once; a second close runs neither again.
+- A tool name declared on both answers from the server that got
+  the request.
+
+A root extension that serves a server goes before it in the list
+(`[stdio, ext]` above): its `next()` then settles that server's
+`start` before `scope.resolve(ext)` reads it. One such extension per
+server, all on the one scope, gives the two-server shape.
+
 The tool row rides the process too: the `mcp` command installs the driver
 extension and serves it. The MCP edge parses the zod shape; a command is an
 ordinary operation that reads the `argv` tag and owns its parse (ADR 0042,
