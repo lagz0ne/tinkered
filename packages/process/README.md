@@ -132,6 +132,8 @@ watcher above it.
   `MissingTag` naming the process tag.
 - A command that answers closes its root
   gracefully.
+- A command whose dependency panics or raises
+  exits 1, and its root still closes success.
 
 ## Signals
 

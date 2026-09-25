@@ -3,7 +3,14 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
-import { createScope, extension, isError as isCoreError, operation, tag } from "@tinker/core";
+import {
+  createScope,
+  extension,
+  isError as isCoreError,
+  operation,
+  resource,
+  tag,
+} from "@tinker/core";
 import {
   argv,
   env,
@@ -236,6 +243,40 @@ test("a throwing operation prints its error to stderr with exit 1", async () => 
   });
   const result = await run(shell([routeFor("boom", boom)]), ["boom"]);
   expect(result).toEqual({ code: 1, stdout: "", stderr: "Error: boom\n" });
+});
+
+test("a command whose dependency panics or raises exits 1 and its root still closes success", async () => {
+  const ends: string[] = [];
+  const probe = resource({
+    label: "probe",
+    factory: (_deps, ctx) => {
+      ctx.defer((end) => void ends.push(end.status));
+      return true;
+    },
+  });
+  const panic = operation({
+    label: "panic",
+    run: (): number => {
+      throw new Error("bug");
+    },
+  });
+  const refused = operation({
+    label: "refused",
+    run: (_deps, ctx): number => ctx.raise("Refused", { why: "no" }),
+  });
+  const over = (label: string, dependency: typeof panic): Process.Command =>
+    operation({ label, depends: { probe, dependency }, run: ({ dependency: d }) => d.run() });
+  const table = shell([
+    routeFor("panic", over("panicky", panic)),
+    routeFor("refused", over("refusing", refused)),
+  ]);
+  expect(await run(table, ["panic"])).toEqual({ code: 1, stdout: "", stderr: "Error: bug\n" });
+  expect(await run(table, ["refused"])).toEqual({
+    code: 1,
+    stdout: "",
+    stderr: "Error: Refused\n",
+  });
+  expect(ends).toEqual(["success", "success"]);
 });
 
 test("a throwing loader is the run's failure with exit 1 and the next run retries it", async () => {
