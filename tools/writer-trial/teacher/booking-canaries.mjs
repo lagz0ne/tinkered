@@ -150,21 +150,40 @@ const clearedDateTar = variant("bad-cleared-date-defaults", {
 
 // (d) Every label links to its control by one fixed id, so a second mounted
 // app's labels point at the first app's fields.
-const fixedIdTar = variant("bad-fixed-label-ids", {
-  "layout.tsx": [
+const FIXED_ID_SWAPS = [
+  [
+    ["  return (", "    <label>", "      {name}", "      {control}", "    </label>", "  );"].join(
+      "\n",
+    ),
     [
-      ["  return (", "    <label>", "      {name}", "      {control}", "    </label>", "  );"].join(
-        "\n",
-      ),
+      '  const fixedId = `field-${name.replaceAll(" ", "-")}`;',
+      "  return (",
+      "    <span>",
+      "      <label htmlFor={fixedId}>{name}</label>",
+      "      {cloneElement(control, { id: fixedId })}",
+      "    </span>",
+      "  );",
+    ].join("\n"),
+  ],
+];
+
+const fixedIdTar = variant("bad-fixed-label-ids", { "layout.tsx": FIXED_ID_SWAPS });
+
+// (d2) The same fixed ids with Room as a text input, so the fields sit in the
+// order a positional fallback would guess.
+const fixedIdTextRoomTar = variant("bad-fixed-label-ids-text-room", {
+  "layout.tsx": FIXED_ID_SWAPS,
+  "BookingApp.tsx": [
+    [
       [
-        '  const fixedId = `field-${name.replaceAll(" ", "-")}`;',
-        "  return (",
-        "    <span>",
-        "      <label htmlFor={fixedId}>{name}</label>",
-        "      {cloneElement(control, { id: fixedId })}",
-        "    </span>",
-        "  );",
+        '        name="Room"',
+        "        control={",
+        '          <select value={text.room} onChange={typed("room")}>',
+        "            <RoomOptions />",
+        "          </select>",
+        "        }",
       ].join("\n"),
+      '        name="Room"\n        control={<input value={text.room} onChange={typed("room")} />}',
     ],
   ],
 });
@@ -217,10 +236,25 @@ const newestGrow = () => {
   if (attempts.length === 0) throw new Error(`no grow-01 round-5 archive under ${growRound5}`);
   return join(growRound5, attempts.at(-1)[0], "archive.tar");
 };
+// learn-01 worker-4 links each label to its field by a useId id. useId repeats in every
+// separately mounted root, so its second root's labels name the first root's fields: the
+// break guidelines.md forbids since grow-01 (4a362c5) and variant (d) plants. The old
+// two-roots case passed it only through a positional-input fallback, which also let (d)
+// through whenever Room is a text input (d2). That one case is its known, named failure;
+// every other case of all five rounds must pass.
+const TWO_ROOTS = "browser: two roots on one page share nothing";
 const SAVED = [
-  ["learn-01 transfer-1 worker-3", join(trials, "learn-01/results/transfer-1/worker-3.tar")],
-  ["learn-01 transfer-2 worker-4", join(trials, "learn-01/results/transfer-2/worker-4.tar")],
-  ["grow-01 round-5 final", newestGrow()],
+  {
+    label: "learn-01 transfer-1 worker-3",
+    tar: join(trials, "learn-01/results/transfer-1/worker-3.tar"),
+    known: {},
+  },
+  {
+    label: "learn-01 transfer-2 worker-4",
+    tar: join(trials, "learn-01/results/transfer-2/worker-4.tar"),
+    known: { "round 4 repair": [TWO_ROOTS], "round 5 transfer": [TWO_ROOTS] },
+  },
+  { label: "grow-01 round-5 final", tar: newestGrow(), known: {} },
 ];
 
 // ---- running one check ----
@@ -285,16 +319,32 @@ const evidence = (r) =>
       .slice(0, 6),
   ].map((l) => `    ${l.slice(0, 400)}`);
 
-const goodJobs = (label, tar) =>
+// `known` names, per check label, the exact cases a saved app is known to fail; the run
+// then holds only when those cases, and no others, fail.
+const sameSet = (a, b) => a.length === b.length && a.every((n) => b.includes(n));
+const judgeKnown = (r, fails, expected) => {
+  const ok = r.exit !== 0 && sameSet(fails, expected);
+  const tail = ok
+    ? `known FAIL ${expected.join("; ")}`
+    : `want only FAIL ${expected.join("; ")}; FAIL ${fails.join("; ") || "(none)"}`;
+  return { ok, tail: ` — ${tail}` };
+};
+const judgeFull = (check, r, fails) => {
+  const ok = check.full(r);
+  if (ok) return { ok, tail: "" };
+  const listed = fails.length ? `; FAIL ${fails.join("; ")}` : "";
+  return { ok, tail: ` — want full pass${listed}${r.out.trim() === "" ? "; no output" : ""}` };
+};
+const goodJobs = (label, tar, known = {}) =>
   ROUND_CHECKS.map((check) => ({
     label: `${label} — ${check.label}`,
     go: async () => {
       const r = await check.run(tar);
-      const ok = check.full(r);
       const fails = [...casesOf(r.out)].filter(([, pass]) => !pass).map(([name]) => name);
-      const tail = ok
-        ? ""
-        : ` — want full pass${fails.length ? `; FAIL ${fails.join("; ")}` : ""}${r.out.trim() === "" ? "; no output" : ""}`;
+      const expected = known[check.label] ?? [];
+      const { ok, tail } = expected.length
+        ? judgeKnown(r, fails, expected)
+        : judgeFull(check, r, fails);
       return { ok, line: `${check.summary(r)}${tail}`, more: ok ? [] : evidence(r) };
     },
   }));
@@ -336,7 +386,11 @@ const jobs = [
     mustPass: ["core r3: invalid and blank dates BadDate, bad weeks BadCount"],
   }),
   badJob("(d) labels linked by one fixed id across roots", fixedIdTar, {
-    mustFail: ["browser: two roots on one page share nothing"],
+    mustFail: [TWO_ROOTS],
+    mustPass: ["browser r1: book, clash keeps form, filter preserves"],
+  }),
+  badJob("(d2) fixed label ids with a text Room input", fixedIdTextRoomTar, {
+    mustFail: [TWO_ROOTS],
     mustPass: ["browser r1: book, clash keeps form, filter preserves"],
   }),
   badJob("(e1) undo resets the filter", undoFilterTar, {
@@ -346,7 +400,7 @@ const jobs = [
   badJob("(e2) undo clears the draft text", undoDraftTextTar, { mustFail: [R4] }),
   badJob("(e3) undo clears the form title", undoFormTextTar, { mustFail: [R4] }),
   badJob("(f) empty app", emptyTar, { mustFail: ["shape: src present"] }),
-  ...SAVED.flatMap(([label, tar]) => goodJobs(`saved ${label}`, tar)),
+  ...SAVED.flatMap(({ label, tar, known }) => goodJobs(`saved ${label}`, tar, known)),
 ];
 
 // `--only <label prefix>` runs a subset while tuning; a full run is the proof.
