@@ -51,6 +51,12 @@ with a `Cause` that is a `Fail` or a `Die`).
   caller and shows only on its span.
 - errors/t01b (2026-09-25): `settle` reports what `run` would do. A value returned under a forced
   close is `success`, as a program that catches SIGINT and exits 0 exits 0.
+- errors/t03 (2026-09-25): a panic sticks to its run's layer the moment the run fails. `settle`
+  recovers a panic it receives, at any depth and along the `cause` chain, as Go's `recover` stops
+  a panic anywhere up the stack. A panic caught before `settle` stays sticky.
+- errors/t03: a managed error never fails a layer, dropped or not. So "work nobody owns" now
+  means a panic, and core no longer tracks whether a caller still runs.
+- errors/t03: a tagged run's panic fails its own session and its caller's layer.
 
 ## Consequences
 

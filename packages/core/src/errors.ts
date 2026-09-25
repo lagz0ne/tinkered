@@ -80,6 +80,17 @@ export function originOf(error: unknown): Origin | undefined {
   return undefined;
 }
 
+/** An error and each `cause` below it, once each; a value with no `cause` ends the chain. */
+export function causesOf(error: unknown): unknown[] {
+  const chain: unknown[] = [];
+  while (!chain.includes(error)) {
+    chain.push(error);
+    if (!isObject(error) || !("cause" in error)) break;
+    error = error.cause;
+  }
+  return chain;
+}
+
 function firstOrigin(label: string, span: { id: number } | undefined): Origin {
   return span === undefined ? { label, path: [label] } : { label, span: span.id, path: [label] };
 }

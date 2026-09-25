@@ -1,11 +1,15 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, operation, tag, type Observe } from "../src/index.ts";
 
+function managed(message: string): Error {
+  return Object.assign(new Error(message), { kind: "Caught", payload: { message } });
+}
+
 for (const kind of ["scope", "session"] as const) {
   for (const tagged of [false, true]) {
-    test(`${kind} ${tagged ? "tagged" : "untagged"} run resolves when its caller catches a failed subflow`, async () => {
+    test(`${kind} ${tagged ? "tagged" : "untagged"} run resolves when its caller catches a managed subflow error`, async () => {
       const zone = tag<string>({ label: "zone" });
-      const cause = new Error("inner boom");
+      const cause = managed("inner boom");
       const inner = operation({
         label: "inner",
         run: async () => {
@@ -33,9 +37,9 @@ for (const kind of ["scope", "session"] as const) {
   }
 }
 
-test("a graceful parent close keeps success when a running tagged subflow is caught", async () => {
+test("a graceful parent close keeps success when a running tagged subflow's managed error is caught", async () => {
   const zone = tag<string>({ label: "zone" });
-  const cause = new Error("tagged boom");
+  const cause = managed("tagged boom");
   let started!: () => void;
   let release!: () => void;
   const ready = new Promise<void>((resolve) => {
@@ -129,45 +133,47 @@ test("an unreceived subflow that fails after its caller returns fails the sessio
   await root.close({ graceful: true });
 });
 
-test("a subflow failure while its caller runs stays with that caller", async () => {
-  const cause = new Error("panic");
-  let fail!: (error: Error) => void;
-  let finish!: () => void;
-  const innerGate = new Promise<never>((_resolve, reject) => {
-    fail = reject;
+for (const kind of ["panic", "error"] as const) {
+  test(`a dropped subflow's ${kind} while its caller runs ${kind === "panic" ? "fails" : "does not fail"} the session`, async () => {
+    const cause = kind === "panic" ? new Error("dropped") : managed("dropped");
+    let fail!: (error: Error) => void;
+    let finish!: () => void;
+    const innerGate = new Promise<never>((_resolve, reject) => {
+      fail = reject;
+    });
+    const outerGate = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const inner = operation({ label: "inner", run: () => innerGate });
+    const outer = operation({
+      label: "outer",
+      depends: { sub: inner },
+      run: async ({ sub }) => {
+        void sub.run();
+        await outerGate;
+        return "done";
+      },
+    });
+    const spans: Observe.Span[] = [];
+    const root = createScope({ observe: { export: (span) => void spans.push(span) } });
+    const session = root.createSession();
+    const running = session.run(outer);
+    const closing = session.close({ graceful: true });
+    fail(cause);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    finish();
+    expect(await running).toBe("done");
+    expect((await closing).status).toBe(kind === "panic" ? "failed" : "success");
+    expect(spans.find((span) => span.name === "inner")).toMatchObject({
+      status: "failed",
+      error: cause,
+    });
+    await root.close({ graceful: true });
   });
-  const outerGate = new Promise<void>((resolve) => {
-    finish = resolve;
-  });
-  const inner = operation({ label: "inner", run: () => innerGate });
-  const outer = operation({
-    label: "outer",
-    depends: { sub: inner },
-    run: async ({ sub }) => {
-      void sub.run();
-      await outerGate;
-      return "done";
-    },
-  });
-  const spans: Observe.Span[] = [];
-  const root = createScope({ observe: { export: (span) => void spans.push(span) } });
-  const session = root.createSession();
-  const running = session.run(outer);
-  const closing = session.close({ graceful: true });
-  fail(cause);
-  await new Promise<void>((resolve) => setImmediate(resolve));
-  finish();
-  expect(await running).toBe("done");
-  expect((await closing).status).toBe("success");
-  expect(spans.find((span) => span.name === "inner")).toMatchObject({
-    status: "failed",
-    error: cause,
-  });
-  await root.close({ graceful: true });
-});
+}
 
-test("an awaited subflow catch leaves the session successful", async () => {
-  const cause = new Error("received");
+test("an awaited catch of a managed subflow error leaves the session successful", async () => {
+  const cause = managed("received");
   const inner = operation({
     label: "inner",
     run: async () => {
@@ -191,8 +197,8 @@ test("an awaited subflow catch leaves the session successful", async () => {
   await root.close({ graceful: true });
 });
 
-test("catch after finally receives the subflow error", async () => {
-  const cause = new Error("finally received");
+test("catch after finally receives the managed subflow error", async () => {
+  const cause = managed("finally received");
   const inner = operation({
     label: "inner",
     run: async () => {
@@ -219,8 +225,8 @@ test("catch after finally receives the subflow error", async () => {
   await root.close({ graceful: true });
 });
 
-test("a then rejection handler receives the subflow error", async () => {
-  const cause = new Error("then received");
+test("a then rejection handler receives the managed subflow error", async () => {
+  const cause = managed("then received");
   const inner = operation({
     label: "inner",
     run: async () => {
@@ -247,8 +253,8 @@ test("a then rejection handler receives the subflow error", async () => {
   await root.close({ graceful: true });
 });
 
-test("an awaited catch after fulfillment-only then receives the subflow error", async () => {
-  const cause = new Error("chained received");
+test("an awaited catch after fulfillment-only then receives the managed subflow error", async () => {
+  const cause = managed("chained received");
   const inner = operation({
     label: "inner",
     run: async () => {
@@ -275,8 +281,8 @@ test("an awaited catch after fulfillment-only then receives the subflow error", 
   await root.close({ graceful: true });
 });
 
-test("a subflow failure caught in an operation defer does not fail the session", async () => {
-  const cause = new Error("deferred");
+test("a managed subflow error caught in an operation defer does not fail the session", async () => {
+  const cause = managed("deferred");
   const inner = operation({
     label: "inner",
     run: async () => {
@@ -304,8 +310,8 @@ test("a subflow failure caught in an operation defer does not fail the session",
   await root.close({ graceful: true });
 });
 
-test("a returned subflow result received by an outer caller does not fail the session", async () => {
-  const cause = new Error("returned");
+test("a returned managed subflow error received by an outer caller does not fail the session", async () => {
+  const cause = managed("returned");
   const inner = operation({
     label: "inner",
     run: async () => {
@@ -332,8 +338,8 @@ test("a returned subflow result received by an outer caller does not fail the se
   await root.close({ graceful: true });
 });
 
-test("Promise.all receives both subflow errors when its caller catches them", async () => {
-  const cause = new Error("all");
+test("Promise.all receives both managed subflow errors when its caller catches them", async () => {
+  const cause = managed("all");
   const a = operation({
     label: "a",
     run: async () => {
@@ -429,8 +435,8 @@ test("a caught subflow closes its own span failed and its caller span ok", async
   await scope.close({ graceful: true });
 });
 
-test("a forced close after a caught real subflow failure cancels the session", async () => {
-  const cause = new Error("real");
+test("a forced close after a caught managed subflow error cancels the session", async () => {
+  const cause = managed("real");
   let started!: () => void;
   const ready = new Promise<void>((resolve) => {
     started = resolve;
@@ -470,8 +476,8 @@ test("a forced close after a caught real subflow failure cancels the session", a
   await root.close();
 });
 
-test("a controller subflow caught by its caller leaves the session successful", async () => {
-  const cause = new Error("controller child");
+test("a controller subflow's managed error caught by its caller leaves the session successful", async () => {
+  const cause = managed("controller child");
   const inner = operation({
     label: "inner",
     run: async () => {
@@ -614,8 +620,8 @@ test("an async subflow that succeeds exports an ok span", async () => {
   await root.close({ graceful: true });
 });
 
-test("a caught failure two subflows deep does not fail the session", async () => {
-  const cause = new Error("leaf boom");
+test("a caught managed error two subflows deep does not fail the session", async () => {
+  const cause = managed("leaf boom");
   const leaf = operation({
     label: "leaf",
     run: async () => {

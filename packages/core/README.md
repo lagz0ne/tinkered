@@ -149,9 +149,16 @@ A sync operation settles at once. A tagged call settles through a promise.
 It grows only while the error is in flight: a rethrown error keeps its first path.
 A primitive throw has no origin. A failed session close carries `origin` too.
 
-Until errors/t03, a subflow failure goes to its caller.
-If the caller catches it and returns, the layer does not fail.
-A subflow that fails after its caller finished (an orphan) fails the layer.
+A panic is sticky.
+It fails the layer its run ran in, at the moment the run fails.
+A caller's `try/catch` does not undo it: the layer still closes `failed`.
+`settle` is the one recover: a panic it receives does not fail the layer.
+That holds at any depth, and for a panic in the received error's `cause` chain.
+A panic caught before it reaches `settle` stays sticky.
+An error is a value: a caller that catches it leaves the layer fine.
+A dropped subflow's panic fails the layer, even while its caller still runs.
+A dropped subflow's error stays with its caller and shows on its span.
+A forced close after a sticky panic settles `failed`, not `cancelled`.
 
 ## Resource cleanup
 
@@ -491,16 +498,19 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   a void-input operation is always a callable subflow, never a value.
 - An async operation runs to its awaited value.
 - A rejecting operation rejects with its cause, and `settled` still drains when it finishes.
-- A scope run that catches a failed subflow returns normally without failing its scope.
-- A tagged scope run that catches a failed subflow returns normally without failing its child session.
-- A session run that catches a failed subflow returns normally without failing its session.
-- A tagged session run that catches a failed subflow returns normally without failing either session.
-- A graceful parent close stays successful when the still-running tagged subflow fails and its caller catches it.
+- A scope run that catches a subflow's managed error returns normally without failing its scope.
+- A tagged scope run that catches a subflow's managed error returns normally without failing its child
+  session.
+- A session run that catches a subflow's managed error returns normally without failing its session.
+- A tagged session run that catches a subflow's managed error returns normally without failing either
+  session.
+- A graceful parent close stays successful when a still-running tagged subflow's managed error is caught.
 - A subflow failure that escapes its caller fails the session with that cause.
 - An orphan fails the session: its subflow failed after the caller finished.
-- Until errors/t03, a subflow failure while its caller runs stays with that caller.
-- An awaited subflow catch leaves the session successful.
-- A controller subflow caught by its caller leaves the session successful.
+- A dropped subflow's panic fails the session while its caller still runs.
+- A dropped subflow's managed error does not fail the session; its span keeps the error.
+- An awaited catch of a managed subflow error leaves the session successful.
+- A controller subflow's managed error caught by its caller leaves the session successful.
 - An orphan through a controller edge fails its session.
 - A tagged orphan fails its parent session.
 - A catch after its caller returns does not undo an orphan failure.
@@ -508,24 +518,28 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A detached callback rejection after its root closes belongs to the host.
 - A detached callback rejection after its session closes belongs to the host, not the root.
 - An async subflow that succeeds exports an ok span.
-- An awaited catch after finally leaves the session successful.
-- An awaited then rejection handler leaves the session successful.
-- An awaited catch after fulfillment-only then leaves the session successful.
+- An awaited catch after finally receives a managed subflow error and leaves the session successful.
+- An awaited then rejection handler receives a managed subflow error and leaves the session successful.
+- An awaited catch after fulfillment-only then receives a managed subflow error and leaves the session
+  successful.
 - A graceful close does not wait for an endless then callback after a successful subflow.
 - A forced close does not wait for an endless then callback after a successful subflow.
 - A graceful close reports an orphan without joining its endless catch callback.
 - A forced close reports an orphan without joining its endless catch callback.
-- An awaited slow rejection handler keeps the session successful even before its own work finishes.
-- A caller awaiting finally can catch the original error and leave the session successful.
+- An awaited slow rejection handler receives a managed error and keeps the session successful even
+  before its own work finishes.
+- A caller awaiting finally can catch the original managed error and leave the session successful.
 - An async subflow returns a native promise that `Promise.resolve` keeps unchanged.
-- A subflow awaited and caught inside an operation defer does not fail the session.
-- Returning a subflow promise to an outer caller that awaits and catches it does not fail the session.
-- Promise.all receives both subflow errors; a caller that catches them leaves the session successful.
+- A managed subflow error awaited and caught inside an operation defer does not fail the session.
+- Returning a subflow promise to an outer caller that awaits and catches its managed error does not fail
+  the session.
+- Promise.all receives both managed subflow errors; a caller that catches them leaves the session
+  successful.
 - A handler added from a later timer cannot undo an unreceived failure already settled.
 - A failed subflow's span keeps its error when caught, while its caller's span closes ok.
 - A failed unreceived subflow's span keeps its error even though its caller finishes normally.
-- A forced close after a caught real subflow failure cancels the session, rather than failing it.
-- A caller two subflows deep can catch a failure without failing the session.
+- A forced close after a caught managed subflow error cancels the session, rather than failing it.
+- A caller two subflows deep can catch a managed error without failing the session.
 - `settled` stays pending until owned work finishes.
 - An operation preset replaces the run for a direct call, a downstream subflow, and an inline config.
 - An inline run resolves deps, delivers the full context, and shares nothing between runs; with no call,
@@ -583,6 +597,16 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - An empty ctx `raise` gets its origin from the run it reaches.
 - An extension `raise` stamps the start ctx.
 - A failed session close carries its error's origin.
+- A panic caught with `try/catch` still fails its layer, with the panic and its origin.
+- A panic received through `settle` leaves its layer successful.
+- `settle` recovers a panic that a nested subflow threw.
+- `settle` recovers a panic carried as the cause of the error it receives.
+- A panic swallowed inside a settled run still fails the layer.
+- A managed error caught with `try/catch` leaves its layer successful.
+- A caught panic in a session run fails that session and not its parent.
+- A caught panic in an inline run fails the scope it ran in.
+- A panic caught inside a tagged run fails the run's session and its caller's layer.
+- A forced close after a caught panic settles `failed`, not `cancelled`.
 
 ### Scopes, sessions, and close
 

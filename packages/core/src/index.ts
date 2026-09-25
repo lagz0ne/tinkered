@@ -1,5 +1,5 @@
 import { isError, raise } from "./errors.ts";
-import { closeOrigin, failureKind, originOf, raiseFrom, stampOrigin } from "./errors.ts";
+import { causesOf, closeOrigin, failureKind, originOf, raiseFrom, stampOrigin } from "./errors.ts";
 import type { Origin, RunResult } from "./errors.ts";
 
 export { originOf };
@@ -1103,6 +1103,9 @@ type Layer = {
   swept: boolean;
   bodyEnd: Promise<Scope.Outcome> | undefined;
   failure: { cause: unknown } | undefined;
+  /** Panics stuck to this layer before any recorded `failure`, in failure order; a `settle` that
+   * receives one takes it back (ADR 0067). Absent until the first panic. */
+  panics?: unknown[];
   descendantFailure: { cause: unknown } | undefined;
   /** A tagged subflow reports its failed child session through its returned promise. */
   failureOwner?: RunState;
@@ -1987,6 +1990,7 @@ type RunState = OperationCtx<unknown> | typeof RECOVERED;
  * `cancelled`; anything else is `failed`. */
 function failedRun(layer: Layer, error: unknown): RunResult<never> {
   if (isCancel(layer, error)) return { status: "cancelled", reason: error };
+  recover(layer, error);
   closeOrigin(error);
   const origin = originOf(error);
   const result: RunResult<never> = { status: "failed", error, kind: failureKind(error) };
@@ -2066,12 +2070,37 @@ class OperationControl<T, I> {
   }
 }
 
+/** Where a failed run's error goes: a `settle` receives it as a value; any other run sticks it. */
 function runFailure(layer: Layer, caller: RunState | undefined): (error: unknown) => void {
-  if (caller === undefined) return asPrimary(layer);
   if (caller === RECOVERED) return noop;
-  return (error) => {
-    if (OperationCtx.isDone(caller)) asPrimary(layer)(error);
-  };
+  return (error) => stick(layer, error);
+}
+
+/** A panic sticks to the layer its run ran in, the moment the run fails (ADR 0067): a later
+ * `try/catch` cannot undo it; only a `settle` that receives it can. A managed error is a value and
+ * a cancel reason is a cancellation, so neither sticks. A layer already failing keeps its first
+ * failure (ADR 0028), so a panic after that needs no record. */
+function stick(layer: Layer, error: unknown): void {
+  if (layer.failure !== undefined || isCancel(layer, error) || failureKind(error) === "error")
+    return;
+  const panics = (layer.panics ??= []);
+  if (!panics.includes(error)) panics.push(error);
+}
+
+/** `settle` received `error`: each stuck panic on its cause chain is recovered (Go's `recover`). */
+function recover(layer: Layer, error: unknown): void {
+  const panics = layer.panics;
+  if (panics === undefined) return;
+  const chain = causesOf(error);
+  const left = panics.filter((panic) => !chain.includes(panic));
+  layer.panics = left.length === 0 ? undefined : left;
+}
+
+/** A layer's first real failure: a stuck panic, when there is one, came before any `failure`. */
+function failureOf(layer: Layer): { cause: unknown } | undefined {
+  if (layer.panics === undefined) return layer.failure;
+  const [cause] = layer.panics;
+  return { cause };
 }
 
 /** Track owned async work so `settled()`/`close` join it. `onReject` decides where a rejection
@@ -2120,13 +2149,6 @@ function isCancelReason(error: unknown): boolean {
 function isCancel(layer: Layer, error: unknown): boolean {
   return layer.aborted && isCancelReason(error);
 }
-
-const asPrimary =
-  (layer: Layer) =>
-  (error: unknown): void => {
-    if (isCancel(layer, error)) return;
-    layer.failure ??= { cause: error };
-  };
 
 /** The `defer` end for work that rejected: an abort-caused rejection is `cancelled`, else `failed`. */
 function rejectEnd(layer: Layer, error: unknown): Scope.End {
@@ -2233,7 +2255,6 @@ function runBody<T, I>(
 class OperationCtx<I> implements Operation.Ctx<I> {
   private owner: Layer;
   private defers: ((end: Scope.End) => void | PromiseLike<void>)[] | undefined = undefined;
-  private running = false;
   readonly label: string;
   readonly rawInput: unknown;
   readonly input: I;
@@ -2272,15 +2293,6 @@ class OperationCtx<I> implements Operation.Ctx<I> {
     ctx: OperationCtx<J>,
   ): ((end: Scope.End) => void | PromiseLike<void>)[] | undefined {
     return ctx.defers;
-  }
-  /** An async body or an async defer drain is in flight. A sync run never sets it: a subflow
-   * failure reaches its handler in a later microtask, when a sync run is already over. */
-  static hold<J>(ctx: OperationCtx<J>, running: boolean): void {
-    ctx.running = running;
-  }
-  /** The run is over, so a subflow failing now is an orphan (ADR 0067). */
-  static isDone<J>(ctx: OperationCtx<J>): boolean {
-    return !ctx.running;
   }
   get signal(): AbortSignal {
     return signalOf(this.owner);
@@ -2325,7 +2337,7 @@ function runTagged<T, I>(
     (child) => runUntagged(child, target, parent, inner, chain, undefined, caller !== undefined),
     caller,
   ) as Promise<Awaited<T>>;
-  if (caller) track(layer, tagged, runFailure(layer, caller));
+  track(layer, tagged, runFailure(layer, caller));
   return tagged;
 }
 
@@ -2358,19 +2370,10 @@ function stripTags<I>(call: Scope.Invocation<I>): Scope.Invocation<I> {
   return { rawInput: call.rawInput };
 }
 
-/** Keep a run marked running until its async defer drain ends, then release its borrow. Its own
- * function, so the run's hot closure captures nothing extra. */
-function drainAsync(
-  tail: Promise<void>,
-  ctx: OperationCtx<unknown> | undefined,
-  release: () => void,
-): void {
-  if (ctx) OperationCtx.hold(ctx, true);
-  const end = (): void => {
-    if (ctx) OperationCtx.hold(ctx, false);
-    release();
-  };
-  ignoreRejection(tail.then(end, end));
+/** Release a run's borrow once its async defer drain ends. Its own function, so the run's hot
+ * closure captures nothing extra. */
+function drainAsync(tail: Promise<void>, release: () => void): void {
+  ignoreRejection(tail.then(release, release));
 }
 
 /** How a controller replays a tagged or namespaced call: not at all, as a root run, or inside a
@@ -2396,10 +2399,8 @@ function finishAsyncRun<T>(
   const onSettle = (status: "ok" | "failed", error?: unknown): void => {
     if (status === "failed") stampOrigin(error, ctx.label, span, ctx, endsFlight(caller, replay));
     if (span) closeSpan(obs, span, status, error);
-    OperationCtx.hold(ctx, false);
     finishDefers(status, error);
   };
-  OperationCtx.hold(ctx, true);
   const promise = Promise.resolve(result);
   track(layer, promise, runFailure(layer, caller), onSettle);
   return promise;
@@ -2462,7 +2463,7 @@ function operationController<T, I>(
         return;
       }
       const tail = runDefers(layer, fns, endFor(layer, status, error));
-      if (tail) drainAsync(tail, ctx, releaseBorrow);
+      if (tail) drainAsync(tail, releaseBorrow);
       else releaseBorrow();
     };
     let result: T;
@@ -2475,6 +2476,7 @@ function operationController<T, I>(
       result = runBody(override, target, deps, ctx, parked);
     } catch (error) {
       stampOrigin(error, target.label, span, ctx, endsFlight(caller, replay));
+      if (caller !== RECOVERED) stick(layer, error);
       closeSpan(obs, span, "failed", error);
       finishDefers("failed", error);
       throw error;
@@ -2511,10 +2513,16 @@ function operationController<T, I>(
         () => at(index + 1),
       );
     };
-    const result = at(0);
+    let result: unknown;
+    try {
+      result = at(0);
+    } catch (error) {
+      if (caller !== RECOVERED) stick(layer, error);
+      throw error;
+    }
     if (!isThenable(result)) return result;
     const promise = Promise.resolve(result);
-    if (caller) track(layer, promise, runFailure(layer, caller));
+    track(layer, promise, runFailure(layer, caller));
     return promise;
   };
   return new OperationControl(
@@ -4035,9 +4043,9 @@ function settleOutcome(layer: Layer, body: Scope.Outcome | undefined): Scope.Out
     layer.failure = { cause: body.error };
     return body;
   }
-  const owned = layer.failure ?? layer.descendantFailure;
+  const owned = failureOf(layer) ?? layer.descendantFailure;
   if (owned) {
-    layer.failure ??= owned;
+    layer.failure = owned;
     return { status: "failed", error: owned.cause };
   }
   if (layer.cancelled) return { status: "cancelled" };
@@ -4047,7 +4055,8 @@ function settleOutcome(layer: Layer, body: Scope.Outcome | undefined): Scope.Out
 /** A best-effort outcome for a re-entrant close ack before the layer has settled: whatever real state
  * is already known (a recorded failure, then an interrupted body), else success. */
 function bestEffort(layer: Layer): Scope.Outcome {
-  if (layer.failure) return { status: "failed", error: layer.failure.cause };
+  const failure = failureOf(layer);
+  if (failure) return { status: "failed", error: failure.cause };
   return layer.cancelled ? { status: "cancelled" } : SUCCESS;
 }
 
@@ -4058,7 +4067,7 @@ function bestEffort(layer: Layer): Scope.Outcome {
  * `finishLayer` (swept push), so a child that already finished and detached still reaches its ancestor. */
 async function closeChildren(layer: Layer, force: boolean): Promise<void> {
   for (const child of Array.from(layer.children)) {
-    await closeLayer(child, force || (layer.failure ?? layer.descendantFailure) !== undefined);
+    await closeLayer(child, force || (failureOf(layer) ?? layer.descendantFailure) !== undefined);
   }
 }
 
@@ -4073,7 +4082,7 @@ function canFastClose(layer: Layer): boolean {
     layer.pending.size + layer.resourceHolds === 0 &&
     layer.defers.length + layer.secondary.length === 0 &&
     layer.body === undefined &&
-    layer.failure === undefined &&
+    failureOf(layer) === undefined &&
     layer.descendantFailure === undefined &&
     !closeWouldReenter(layer)
   );
@@ -4154,7 +4163,9 @@ function buildResult(
  * under a graceful close (transaction-abort). */
 function rollsBack(layer: Layer, forced: boolean, body: Scope.Outcome | undefined): boolean {
   return (
-    forced || body?.status === "failed" || (layer.failure ?? layer.descendantFailure) !== undefined
+    forced ||
+    body?.status === "failed" ||
+    (failureOf(layer) ?? layer.descendantFailure) !== undefined
   );
 }
 

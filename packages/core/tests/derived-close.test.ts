@@ -3,6 +3,10 @@ import { promisify } from "node:util";
 import { expect, test } from "vite-plus/test";
 import { createScope, operation } from "../src/index.ts";
 
+function managed(message: string): Error {
+  return Object.assign(new Error(message), { kind: "Caught", payload: { message } });
+}
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (error: unknown) => void;
@@ -62,8 +66,8 @@ for (const graceful of [true, false]) {
   });
 }
 
-test("an awaited slow rejection handler receives the error while its gate is closed", async () => {
-  const cause = new Error("received");
+test("an awaited slow rejection handler receives a managed error while its gate is closed", async () => {
+  const cause = managed("received");
   const { promise: inside, resolve: entered } = deferred<void>();
   const { promise: gate, resolve: release } = deferred<void>();
   const sub = operation({
@@ -95,8 +99,8 @@ test("an awaited slow rejection handler receives the error while its gate is clo
   await root.close({ graceful: true });
 });
 
-test("a caller awaiting finally can catch the original subflow error", async () => {
-  const cause = new Error("sub failed");
+test("a caller awaiting finally can catch the original managed subflow error", async () => {
+  const cause = managed("sub failed");
   const sub = operation({
     label: "sub",
     run: async () => {
