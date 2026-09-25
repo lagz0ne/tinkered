@@ -14,7 +14,9 @@ harness: mcpServers: { coder: { command: "node", args: ["tools.ts"] } }   ← ev
 
 Declare a tool row — an ordinary operation plus its static facts. `Mcp.Tool`
 is `description` plus the zod shape, with optional `name` (defaults to the
-operation label) and optional `respond` (defaults to one JSON text content):
+operation label) and optional `respond` (defaults to one JSON text content).
+`tools` takes a `Many` list: nested lists and `false` rows are legal, and
+only the reachable rows register.
 
 ```ts
 import { operation } from "@tinker/core";
@@ -48,6 +50,9 @@ await scope.ready;
 const server = scope.resolve(ext);
 await server.connect(new StdioServerTransport());
 ```
+
+`listTools` answers one entry per registered row: its name, its
+description, and its schema keys.
 
 The stdio entry through `@tinker/process` (`examples/mcp/cli.ts`): one
 `mcp` command whose entry options install the MCP extension beside a
@@ -162,4 +167,5 @@ await client.callTool({ name: "search", arguments: { q: "owls" } });
 
 The MCP SDK and zod are peers, never bundled. The `tool` meta tag stays
 exported for harnesses: `tool({ description, schema })` on an op is read by
-`readTool` until the harness ticket migrates it.
+`readTool` until the harness ticket migrates it. An op with no `tool` meta
+cannot be advertised, so `readTool` throws `ToolUndeclared` with its label.
