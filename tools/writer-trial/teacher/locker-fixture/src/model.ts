@@ -3,7 +3,7 @@
  * core declarations only; never copied into a worker image or context.
  */
 import { data, operation } from "@tinker/core";
-import type { Data, Operation, Scope } from "@tinker/core";
+import type { Data, Operation } from "@tinker/core";
 import { fail } from "./errors.ts";
 
 /** A parcel or locker size. S is smallest, L is largest. */
@@ -49,27 +49,10 @@ const RANK: Readonly<Record<Size, number>> = { S: 1, M: 2, L: 3 };
 const MAX_OPEN = 3;
 const ONE_DIGIT = /^[0-9]$/;
 
-type Cells = {
-  parcels: Scope.DataController<readonly Parcel[]>;
-  history: Scope.DataController<readonly (readonly Parcel[])[]>;
-  issued: Scope.DataController<number>;
-};
-
 const deskCells = {
   parcels: parcels.controller,
   history: history.controller,
   issued: issued.controller,
-};
-
-const saveStep = (cells: Cells): void => {
-  const step = cells.parcels.get();
-  cells.history.update((steps) => [...steps, step]);
-};
-
-const nextId = (cells: Cells): string => {
-  const next = cells.issued.get() + 1;
-  cells.issued.set(next);
-  return `parcel-${next}`;
 };
 
 type RawCall = { readonly [field: string]: unknown };
@@ -121,8 +104,10 @@ export const receiveParcel: Operation.Handle<Parcel, { recipient: string; size: 
       const rows = cells.parcels.get();
       const open = rows.filter((row) => row.recipient === recipient && row.state !== "collected");
       if (open.length >= MAX_OPEN) throw fail("TooManyParcels", { recipient });
-      const saved: Parcel = { id: nextId(cells), recipient, size, locker: null, state: "held" };
-      saveStep(cells);
+      const next = cells.issued.get() + 1;
+      cells.issued.set(next);
+      const saved: Parcel = { id: `parcel-${next}`, recipient, size, locker: null, state: "held" };
+      cells.history.update((steps) => [...steps, rows]);
       cells.parcels.set([...rows, saved]);
       return saved;
     },
@@ -146,7 +131,7 @@ export const storeParcel: Operation.Handle<Parcel, { parcelId: string; locker: s
       if (RANK[locker.size] < RANK[parcel.size])
         throw fail("TooSmall", { locker: locker.number, size: parcel.size });
       const changed: Parcel = { ...parcel, locker: locker.number, state: "stored" };
-      saveStep(cells);
+      cells.history.update((steps) => [...steps, rows]);
       cells.parcels.set(replaceParcel(rows, changed));
       return changed;
     },
@@ -162,7 +147,7 @@ export const collectParcel: Operation.Handle<Parcel, { parcelId: string }> = ope
     if (parcel.state === "collected") return parcel;
     if (parcel.state === "held") throw fail("NotStored", { id: parcel.id });
     const changed: Parcel = { ...parcel, locker: null, state: "collected" };
-    saveStep(cells);
+    cells.history.update((steps) => [...steps, rows]);
     cells.parcels.set(replaceParcel(rows, changed));
     return changed;
   },
@@ -178,7 +163,7 @@ export const returnToDesk: Operation.Handle<Parcel, { parcelId: string }> = oper
     if (parcel.state === "held") return parcel;
     if (parcel.state === "collected") throw fail("Collected", { id: parcel.id });
     const changed: Parcel = { ...parcel, locker: null, state: "held" };
-    saveStep(cells);
+    cells.history.update((steps) => [...steps, rows]);
     cells.parcels.set(replaceParcel(rows, changed));
     return changed;
   },
