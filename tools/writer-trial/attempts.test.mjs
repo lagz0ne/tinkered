@@ -66,6 +66,10 @@ void describe("checker routing", () => {
       script: "cinema-acceptance.mjs",
       args: [],
     });
+    assert.deepEqual(checkerFor("gym", 1), {
+      script: "gym-acceptance.mjs",
+      args: [],
+    });
     assert.throws(() => checkerFor("stock", 2), /No checker/);
     assert.throws(() => checkerFor("plan", 2), /No checker/);
     assert.throws(() => checkerFor("loans", 2), /No checker/);
@@ -73,6 +77,7 @@ void describe("checker routing", () => {
     assert.throws(() => checkerFor("kitchen", 2), /No checker/);
     assert.throws(() => checkerFor("locker", 2), /No checker/);
     assert.throws(() => checkerFor("cinema", 2), /No checker/);
+    assert.throws(() => checkerFor("gym", 2), /No checker/);
     assert.throws(() => checkerFor("booking", 6), /No checker/);
   });
 });

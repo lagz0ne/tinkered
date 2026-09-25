@@ -71,6 +71,8 @@ It records hashes and refuses a silent refresh.
   Stage 1 loads `locker/01-parcel-locker.md`.
 - **Cinema** — needs `--suite cinema`.
   Stage 1 loads `cinema/01-seat-map.md`.
+- **Gym** — needs `--suite gym`.
+  Stage 1 loads `gym/01-class-waitlist.md`.
 
 The first command that registers models adds only the
 `writer-gateway` provider to Pi's model file.

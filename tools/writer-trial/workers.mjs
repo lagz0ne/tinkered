@@ -31,10 +31,12 @@ if (action === "create") {
     ? process.argv[process.argv.indexOf("--suite") + 1]
     : "booking";
   if (
-    !["booking", "stock", "plan", "loans", "ballot", "kitchen", "locker", "cinema"].includes(suite)
+    !["booking", "stock", "plan", "loans", "ballot", "kitchen", "locker", "cinema", "gym"].includes(
+      suite,
+    )
   )
     throw new Error(
-      "Use --suite booking, --suite stock, --suite plan, --suite loans, --suite ballot, --suite kitchen, --suite locker, or --suite cinema",
+      "Use --suite booking, --suite stock, --suite plan, --suite loans, --suite ballot, --suite kitchen, --suite locker, --suite cinema, or --suite gym",
     );
   if (existsSync(manifestPath)) throw new Error("Trial already exists; inspect its manifest");
   mkdirSync(root, { recursive: true, mode: 0o700 });
@@ -121,6 +123,7 @@ if (action === "create") {
               kitchen: "kitchen-queue-trial",
               locker: "parcel-locker-trial",
               cinema: "seat-map-trial",
+              gym: "class-waitlist-trial",
             }[suite] ?? "room-booking-trial",
           private: true,
           type: "module",

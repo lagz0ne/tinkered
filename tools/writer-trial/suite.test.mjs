@@ -33,6 +33,7 @@ void describe("suite defs", () => {
     assert.deepEqual(roundsFor("kitchen"), [1]);
     assert.deepEqual(roundsFor("locker"), [1]);
     assert.deepEqual(roundsFor("cinema"), [1]);
+    assert.deepEqual(roundsFor("gym"), [1]);
     assert.throws(() => roundsFor("nope"), /Unknown suite/);
   });
 
@@ -46,6 +47,7 @@ void describe("suite defs", () => {
     assert.deepEqual(taskSourcesFor("kitchen", 1), ["kitchen/01-kitchen-queue.md"]);
     assert.deepEqual(taskSourcesFor("locker", 1), ["locker/01-parcel-locker.md"]);
     assert.deepEqual(taskSourcesFor("cinema", 1), ["cinema/01-seat-map.md"]);
+    assert.deepEqual(taskSourcesFor("gym", 1), ["gym/01-class-waitlist.md"]);
     assert.throws(() => taskSourcesFor("stock", 2), /no round/);
     assert.throws(() => taskSourcesFor("plan", 2), /no round/);
     assert.throws(() => taskSourcesFor("loans", 2), /no round/);
@@ -53,6 +55,7 @@ void describe("suite defs", () => {
     assert.throws(() => taskSourcesFor("kitchen", 2), /no round/);
     assert.throws(() => taskSourcesFor("locker", 2), /no round/);
     assert.throws(() => taskSourcesFor("cinema", 2), /no round/);
+    assert.throws(() => taskSourcesFor("gym", 2), /no round/);
   });
 
   void it("keeps booking clauses out of the default rules", () => {
@@ -70,6 +73,7 @@ void describe("suite defs", () => {
     assert.deepEqual(guidelineSourcesFor("kitchen"), ["guidelines.md"]);
     assert.deepEqual(guidelineSourcesFor("locker"), ["guidelines.md"]);
     assert.deepEqual(guidelineSourcesFor("cinema"), ["guidelines.md"]);
+    assert.deepEqual(guidelineSourcesFor("gym"), ["guidelines.md"]);
   });
 });
 
@@ -167,6 +171,17 @@ void describe("frozen copies", () => {
       } finally {
         rmSync(cinemaRoot, { recursive: true, force: true });
       }
+      const gymRoot = mkdtempSync(join(tmpdir(), "suite-gym-"));
+      try {
+        const gym = freezeTrial(gymRoot, "gym");
+        assert.match(readFrozenTask(gymRoot, gym, "gym", 1), /Class waitlist/);
+        assert.match(
+          readFrozenGuidelines(gymRoot, gym, "gym"),
+          /`ctx.rawInput` holds the caller.s\s+value/,
+        );
+      } finally {
+        rmSync(gymRoot, { recursive: true, force: true });
+      }
     } finally {
       rmSync(root, { recursive: true, force: true });
       rmSync(stockRoot, { recursive: true, force: true });
@@ -214,6 +229,7 @@ void describe("frozen copies", () => {
     assert.equal(taskFileFor("kitchen", 1), "01-kitchen-queue.md");
     assert.equal(taskFileFor("locker", 1), "01-parcel-locker.md");
     assert.equal(taskFileFor("cinema", 1), "01-seat-map.md");
+    assert.equal(taskFileFor("gym", 1), "01-class-waitlist.md");
     assert.equal(taskFileFor("booking", 5), "05-rename-series.md");
     assert.throws(() => taskFileFor("stock", 2), /no round/);
     assert.throws(() => taskFileFor("plan", 2), /no round/);
@@ -222,6 +238,7 @@ void describe("frozen copies", () => {
     assert.throws(() => taskFileFor("kitchen", 2), /no round/);
     assert.throws(() => taskFileFor("locker", 2), /no round/);
     assert.throws(() => taskFileFor("cinema", 2), /no round/);
+    assert.throws(() => taskFileFor("gym", 2), /no round/);
     assert.deepEqual(validRounds({}), [1, 2, 3, 4]);
     assert.deepEqual(
       validRounds({ suite: "booking", frozen: { dir: "f", files: {} } }),
