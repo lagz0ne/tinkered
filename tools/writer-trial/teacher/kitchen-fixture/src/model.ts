@@ -3,7 +3,7 @@
  * core declarations only; never copied into a worker image or context.
  */
 import { data, operation } from "@tinker/core";
-import type { Data, Operation, Scope } from "@tinker/core";
+import type { Data, Operation } from "@tinker/core";
 import { fail } from "./errors.ts";
 
 /** Where one ticket is in the kitchen. */
@@ -32,29 +32,11 @@ const MAX_QTY = 9;
 const MAX_SIZE = 5;
 const PLAIN_DIGITS = /^[0-9]+$/;
 
-type Cells = {
-  tickets: Scope.DataController<readonly Ticket[]>;
-  stove: Scope.DataController<number>;
-  history: Scope.DataController<readonly Kitchen[]>;
-  issued: Scope.DataController<number>;
-};
-
 const kitchenCells = {
   tickets: tickets.controller,
   stove: stove.controller,
   history: history.controller,
   issued: issued.controller,
-};
-
-const saveStep = (cells: Cells): void => {
-  const step = { tickets: cells.tickets.get(), stove: cells.stove.get() };
-  cells.history.update((steps) => [...steps, step]);
-};
-
-const nextId = (cells: Cells): string => {
-  const next = cells.issued.get() + 1;
-  cells.issued.set(next);
-  return `ticket-${next}`;
 };
 
 function readTable(raw: unknown): number {
@@ -117,12 +99,16 @@ export const addTicket: Operation.Handle<Ticket, { table: string; dish: string; 
         const total = open.qty + qty;
         if (total > MAX_QTY) throw fail("TooMany", { id: open.id, qty: total });
         const merged: Ticket = { ...open, qty: total };
-        saveStep(cells);
+        const step = { tickets: cells.tickets.get(), stove: cells.stove.get() };
+        cells.history.update((steps) => [...steps, step]);
         cells.tickets.set(replaceTicket(rows, merged));
         return merged;
       }
-      const saved: Ticket = { id: nextId(cells), table, dish, qty, state: "waiting" };
-      saveStep(cells);
+      const next = cells.issued.get() + 1;
+      cells.issued.set(next);
+      const saved: Ticket = { id: `ticket-${next}`, table, dish, qty, state: "waiting" };
+      const step = { tickets: cells.tickets.get(), stove: cells.stove.get() };
+      cells.history.update((steps) => [...steps, step]);
       cells.tickets.set([...rows, saved]);
       return saved;
     },
@@ -140,7 +126,8 @@ export const startCooking: Operation.Handle<Ticket, { ticketId: string }> = oper
     const size = cells.stove.get();
     if (cookingCount(rows) >= size) throw fail("StoveFull", { size });
     const changed: Ticket = { ...ticket, state: "cooking" };
-    saveStep(cells);
+    const step = { tickets: cells.tickets.get(), stove: cells.stove.get() };
+    cells.history.update((steps) => [...steps, step]);
     cells.tickets.set(replaceTicket(rows, changed));
     return changed;
   },
@@ -156,7 +143,8 @@ export const serveTicket: Operation.Handle<Ticket, { ticketId: string }> = opera
     if (ticket.state === "served") return ticket;
     if (ticket.state === "waiting") throw fail("NotCooking", { id: ticket.id });
     const changed: Ticket = { ...ticket, state: "served" };
-    saveStep(cells);
+    const step = { tickets: cells.tickets.get(), stove: cells.stove.get() };
+    cells.history.update((steps) => [...steps, step]);
     cells.tickets.set(replaceTicket(rows, changed));
     return changed;
   },
@@ -170,7 +158,8 @@ export const cancelTicket: Operation.Handle<void, { ticketId: string }> = operat
     const rows = cells.tickets.get();
     const ticket = findTicket(rows, input.ticketId);
     if (ticket.state !== "waiting") throw fail("CannotCancel", { id: ticket.id });
-    saveStep(cells);
+    const step = { tickets: cells.tickets.get(), stove: cells.stove.get() };
+    cells.history.update((steps) => [...steps, step]);
     cells.tickets.set(rows.filter((row) => row.id !== ticket.id));
   },
 });
@@ -184,7 +173,8 @@ export const setStove: Operation.Handle<number, { size: string }> = operation({
     if (size === cells.stove.get()) return size;
     const cooking = cookingCount(cells.tickets.get());
     if (size < cooking) throw fail("BelowCooking", { size, cooking });
-    saveStep(cells);
+    const step = { tickets: cells.tickets.get(), stove: cells.stove.get() };
+    cells.history.update((steps) => [...steps, step]);
     cells.stove.set(size);
     return size;
   },
