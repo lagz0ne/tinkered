@@ -249,7 +249,10 @@ under the frame's own label the frame's server wins),
 one SDK tool per tool op, and maps the value with `answerTool` exactly as the driver does.
 The model needs `allowedTools: ["mcp__coder__search"]` (or an `approve` op) to call it
 without a prompt. With both `approve` and `tools`, one turn answers the approval and still
-calls the tool. Codex has no in-process tools (MCP servers are config for an external
+calls the tool.
+A tool op that fails with a managed error or a panic is reported to the model; the turn and session succeed.
+The frame calls a tool through `settle`, so a tool failure is received at the tool call: rethrown later, its origin stays the tool.
+Codex has no in-process tools (MCP servers are config for an external
 process), so `tools` is a compile error for the `codex` adapter.
 
 ```ts

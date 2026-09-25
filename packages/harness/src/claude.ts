@@ -209,10 +209,14 @@ function readTurnOptions(
 }
 
 /** The in-process MCP server for a frame's tools, named after the frame: one SDK tool per
- * tool op, read off its `tool` meta, whose handler runs the op as a subflow of the turn that is
- * running — the op's own parse is the edge (the SDK validated the args against the schema
- * first), and the value answers exactly as the MCP driver maps it. A thrown op rejects the
- * handler; the SDK reports the tool error to the model. */
+ * tool op, read off its `tool` meta, whose handler settles the op as a subflow of the turn that
+ * is running — the op's own parse is the edge (the SDK validated the args against the schema
+ * first), and the value answers exactly as the MCP driver maps it. A failed op (a managed error
+ * or a panic alike) rejects the handler with its own error, and the SDK reports it to the model:
+ * the call runs through `settle` because the SDK recovers it, so the failure does not fail the
+ * session (ADR 0067). A cancelled op rejects with its reason. A tool op's value type is
+ * `unknown`, so core types its settle as sync; the op may be async, so `Promise.resolve` takes
+ * either (it hands back a native promise as is). */
 function readServer(
   sdk: ClaudeCode.Sdk,
   label: string,
@@ -221,9 +225,11 @@ function readServer(
   return sdk.createSdkMcpServer({
     name: label,
     tools: tools.map(({ op, meta, run }) =>
-      sdk.tool(meta.name ?? op.label, meta.description, meta.schema, async (args) =>
-        answerTool(meta, await run.run({ rawInput: args })),
-      ),
+      sdk.tool(meta.name ?? op.label, meta.description, meta.schema, async (args) => {
+        const result = await Promise.resolve(run.settle({ rawInput: args }));
+        if (result.status === "success") return answerTool(meta, result.value);
+        throw result.status === "failed" ? result.error : result.reason;
+      }),
     ),
   });
 }
