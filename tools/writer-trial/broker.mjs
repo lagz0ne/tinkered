@@ -77,6 +77,33 @@ const testState = (test) => ({
   body: test.body,
 });
 
+// Jev is not deterministic: one answer on a blocking judge can land on either side of its bar
+// (locker storeParcel: 0.60–0.82 against 0.66). An answer from a `proven` judge within
+// NEAR_BAR of its threshold is asked twice more, and the gate uses the median of the three.
+// Clear answers cost no extra call.
+export const NEAR_BAR = 0.1;
+
+const median3 = (xs) => [...xs].sort((a, b) => a - b)[1];
+
+/** The probability per judge: the first answer, or for a proven judge near its bar the
+ *  median of three asks. `askMore(questions)` asks only the near-bar questions again. */
+export async function confirmNearBar(answers, candidates, calibration, askMore) {
+  const probabilities = Object.fromEntries(
+    Object.entries(answers).map(([id, a]) => [id, a.probability]),
+  );
+  const near = Object.keys(answers).filter(
+    (id) =>
+      calibration[id]?.status === "proven" &&
+      Math.abs(probabilities[id] - candidates[id].threshold) < NEAR_BAR,
+  );
+  if (near.length === 0) return probabilities;
+  const qs = Object.fromEntries(near.map((id) => [id, candidates[id].q]));
+  const [second, third] = [await askMore(qs), await askMore(qs)];
+  for (const id of near)
+    probabilities[id] = median3([probabilities[id], second[id].probability, third[id].probability]);
+  return probabilities;
+}
+
 /** Judge one source file with the judges named in `judges`, through the bank, extractor,
  *  shape helper, and calibration in `jevDir`. `ask(state, questions)` returns Jev answers;
  *  `allow()` returns a reason when no more calls may run (that unit is `not-run`). Shared
@@ -102,13 +129,16 @@ export async function judgeSource({ source, file, jevDir, judges, ask, allow = (
       return;
     }
     const answers = await ask(state, questions);
+    const probabilities = await confirmNearBar(answers, candidates, calibration, (qs) =>
+      ask(state, qs),
+    );
     rows.push({
       unit,
-      findings: Object.entries(answers).map(([id, answer]) => ({
+      findings: Object.entries(answers).map(([id]) => ({
         id,
-        probability: answer.probability,
+        probability: probabilities[id],
         threshold: candidates[id].threshold,
-        hit: answer.probability >= candidates[id].threshold,
+        hit: probabilities[id] >= candidates[id].threshold,
         calibration: calibration[id]?.status ?? "uncalibrated",
         fix: candidates[id].fix ?? null,
       })),

@@ -14,7 +14,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { judgeSource } from "./broker.mjs";
+import { confirmNearBar, judgeSource } from "./broker.mjs";
 import { gateFiles, gateOf, machineVerdict } from "./gate.mjs";
 
 const jevSource = fileURLToPath(new URL("../jev/", import.meta.url));
@@ -259,5 +259,48 @@ void describe("the machine verdict", () => {
 
   void it("keeps an old trial with no frozen Jev copy on own and teacher exits", () => {
     assert.equal(machineVerdict({ ownExit: 0, teacherExit: 0, gate: null }), "machine-pass");
+  });
+});
+
+void describe("a blocking answer near its bar", () => {
+  const candidates = {
+    noOp: { threshold: 0.66, q: { type: "boolean" } },
+    advice: { threshold: 0.5, q: { type: "boolean" } },
+  };
+  const calibration = { noOp: { status: "proven" }, advice: { status: "provisional" } };
+  const asker = (answers) => {
+    const asked = [];
+    const next = async (qs) => {
+      asked.push(Object.keys(qs));
+      const p = answers.shift();
+      return Object.fromEntries(Object.keys(qs).map((id) => [id, { probability: p }]));
+    };
+    return { asked, next };
+  };
+
+  void it("uses the median of three asks for a proven judge within the margin", async () => {
+    const { asked, next } = asker([0.8, 0.7]);
+    const p = await confirmNearBar({ noOp: { probability: 0.6 } }, candidates, calibration, next);
+    assert.equal(p.noOp, 0.7);
+    assert.deepEqual(asked, [["noOp"], ["noOp"]]);
+  });
+
+  void it("asks nothing more when the answer is clear of the bar", async () => {
+    const { asked, next } = asker([]);
+    const p = await confirmNearBar({ noOp: { probability: 0.9 } }, candidates, calibration, next);
+    assert.equal(p.noOp, 0.9);
+    assert.deepEqual(asked, []);
+  });
+
+  void it("asks nothing more for a judge that is not proven", async () => {
+    const { asked, next } = asker([]);
+    const p = await confirmNearBar(
+      { advice: { probability: 0.52 } },
+      candidates,
+      calibration,
+      next,
+    );
+    assert.equal(p.advice, 0.52);
+    assert.deepEqual(asked, []);
   });
 });
