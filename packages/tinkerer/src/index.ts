@@ -636,6 +636,9 @@ function settleCall(
   return runRow(deps, ctx, row, call, raw);
 }
 
+/** Ask the gate, then run the tool through `settle` (ADR 0067): its value, a managed error, a panic,
+ * or a cancel all become the text the model sees. A tool may be sync or async, so its Result is
+ * awaited through `Promise.resolve`. */
 async function runRow(
   deps: CallDeps & ToolSlots & GateSlot,
   ctx: Operation.Ctx<string>,
@@ -645,12 +648,10 @@ async function runRow(
 ): Promise<string> {
   const declined = await askGate(deps, ctx, call, raw);
   if (declined !== undefined) return declined;
-  try {
-    const value = await deps[`tool:${rowName(row)}`].run({ rawInput: raw });
-    return logTool(ctx, call, true, readValue(value));
-  } catch (error) {
-    return logTool(ctx, call, false, `Tool ${call.name} failed: ${readFailure(error)}`);
-  }
+  const settled = await Promise.resolve(deps[`tool:${rowName(row)}`].settle({ rawInput: raw }));
+  if (settled.status === "success") return logTool(ctx, call, true, readValue(settled.value));
+  const failure = settled.status === "failed" ? settled.error : settled.reason;
+  return logTool(ctx, call, false, `Tool ${call.name} failed: ${readFailure(failure)}`);
 }
 
 /** Run the gate (when present) for one call: its `Decision` allows or blocks. A block answers the
@@ -782,7 +783,8 @@ async function runLoop(
     const assistant = pushAssistant(deps.messages, deps.text.get(), folded.calls);
     if (folded.calls.length === 0) {
       if (drainInbox(deps, steerAndQueue)) continue;
-      if (folded.finish === undefined) raise("StreamEnded", { label: cfg.label });
+      if (folded.finish === undefined)
+        ctx.raise("StreamEnded", { label: cfg.label } satisfies Errors.Payload<"StreamEnded">);
       return closeTurn(deps, ctx, cfg.label, folded.finish, assistant);
     }
     await runCalls(deps, ctx, cfg.rows, folded.calls, folded.finish);

@@ -2,7 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { operation } from "@tinker/core";
 import type { Operation } from "@tinker/core";
 import { z } from "zod";
-import { raise } from "../errors.ts";
+import type { Errors } from "../errors.ts";
 import { cwd } from "./read.ts";
 import { resolveUnder } from "./path.ts";
 
@@ -33,7 +33,12 @@ export const edit: Operation.Handle<Promise<string>, EditInput> = operation({
     const target = resolveUnder(cwd, ctx.input.path, "edit");
     const text = await readFile(target, "utf8");
     const count = countMatches(text, ctx.input.oldText);
-    if (count !== 1) raise("EditMiss", { label: "edit", path: ctx.input.path, count });
+    if (count !== 1)
+      ctx.raise("EditMiss", {
+        label: "edit",
+        path: ctx.input.path,
+        count,
+      } satisfies Errors.Payload<"EditMiss">);
     await writeFile(
       target,
       text.replace(ctx.input.oldText, () => ctx.input.newText),
