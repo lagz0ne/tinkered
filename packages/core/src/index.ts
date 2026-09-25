@@ -1978,8 +1978,7 @@ function recordUsed(
   }
 }
 
-/** The receiver `settle` passes: a failure it receives never fails the layer. A run takes no other
- * receiver, so a stray second argument (`list.map(op.run)`) changes nothing. */
+/** The caller a `settle` twin controller runs for: a failure it receives never fails the layer. */
 const RECOVERED: unique symbol = Symbol("recovered");
 /** Who receives a subflow's failure: the calling run's ctx, or `settle`. */
 type RunState = OperationCtx<unknown> | typeof RECOVERED;
@@ -2013,18 +2012,48 @@ function settleRun(
 
 /** An operation's controller: `run` is an own field callers destructure; `settle` is built on first
  * read, so a controller made for one run pays nothing for it. */
-class OperationControl<I> {
+class OperationControl<T, I> {
   /** `declare`: assigned once in the constructor, so the build emits no field that is written twice. */
-  declare readonly run: (call?: Scope.Invocation<I>, receiver?: RunState) => unknown;
+  declare readonly run: (call?: Scope.Invocation<I>) => unknown;
   declare private layer: Layer;
-  constructor(layer: Layer, run: (call?: Scope.Invocation<I>, receiver?: RunState) => unknown) {
-    this.layer = layer;
+  declare private target: Operation.Handle<T, I>;
+  declare private parent: Observe.Span | undefined;
+  declare private chain: readonly Namespace[] | undefined;
+  declare private hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>;
+  declare private replay: boolean;
+  constructor(
+    run: (call?: Scope.Invocation<I>) => unknown,
+    layer: Layer,
+    target: Operation.Handle<T, I>,
+    parent: Observe.Span | undefined,
+    chain: readonly Namespace[] | undefined,
+    hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
+    replay: boolean,
+  ) {
     this.run = run;
+    this.layer = layer;
+    this.target = target;
+    this.parent = parent;
+    this.chain = chain;
+    this.hookTarget = hookTarget;
+    this.replay = replay;
   }
   get settle(): (call?: Scope.Invocation<I>) => unknown {
     const layer = this.layer;
-    const run = this.run;
-    return (call) => settleRun(layer, () => run(call, RECOVERED));
+    const twin = OperationControl.recovered(this);
+    return (call) => settleRun(layer, () => twin.run(call));
+  }
+  /** The same controller with `settle`'s caller, so `run` itself carries no receiver. */
+  static recovered<U, J>(control: OperationControl<U, J>): OperationControl<U, J> {
+    return operationController(
+      control.layer,
+      control.target,
+      control.parent,
+      control.chain,
+      RECOVERED,
+      control.hookTarget,
+      control.replay,
+    ) as OperationControl<U, J>;
   }
 }
 
@@ -2320,6 +2349,21 @@ function stripTags<I>(call: Scope.Invocation<I>): Scope.Invocation<I> {
   return { rawInput: call.rawInput };
 }
 
+/** Keep a run marked running until its async defer drain ends, then release its borrow. Its own
+ * function, so the run's hot closure captures nothing extra. */
+function drainAsync(
+  tail: Promise<void>,
+  ctx: OperationCtx<unknown> | undefined,
+  release: () => void,
+): void {
+  if (ctx) OperationCtx.hold(ctx, true);
+  const end = (): void => {
+    if (ctx) OperationCtx.hold(ctx, false);
+    release();
+  };
+  ignoreRejection(tail.then(end, end));
+}
+
 function finishAsyncRun<T>(
   layer: Layer,
   result: T,
@@ -2356,14 +2400,13 @@ function operationController<T, I>(
    * extra frame or call on the hot path. The implementation signature stays broad (one input
    * shape would mean no overload — rule 9); the two public overloads type the fork. */
   const sees = seesResourceOf(target);
-  const execute = (call?: Scope.Invocation<I>, recovered?: RunState): unknown => {
-    const receiver = recovered === RECOVERED ? recovered : caller;
+  const execute = (call?: Scope.Invocation<I>): unknown => {
     if (hasCallTags(call))
       return runTagged(
         layer,
         target,
         parent,
-        receiver,
+        caller,
         call as Scope.Invocation<I> & { readonly tags: Scope.Bindings },
         chain,
       );
@@ -2372,7 +2415,7 @@ function operationController<T, I>(
         layer,
         target,
         parent,
-        receiver,
+        caller,
         call as Scope.Invocation<I> & { readonly ns: Ns },
       );
     ensureOpen(layer);
@@ -2399,17 +2442,8 @@ function operationController<T, I>(
         return;
       }
       const tail = runDefers(layer, fns, endFor(layer, status, error));
-      if (tail === undefined) {
-        releaseBorrow();
-        return;
-      }
-      const running = ctx;
-      if (running) OperationCtx.hold(running, true);
-      const endRun = (): void => {
-        if (running) OperationCtx.hold(running, false);
-        releaseBorrow();
-      };
-      ignoreRejection(tail.then(endRun, endRun));
+      if (tail) drainAsync(tail, ctx, releaseBorrow);
+      else releaseBorrow();
     };
     let result: T;
     buildDepth++;
@@ -2432,16 +2466,23 @@ function operationController<T, I>(
       finishDefers("ok");
       return result;
     }
-    return finishAsyncRun(layer, result, receiver, obs, span, ctx, finishDefers);
+    return finishAsyncRun(layer, result, caller, obs, span, ctx, finishDefers);
   };
   const runners = layer.runners;
   if (runners === undefined || replay)
-    return new OperationControl(layer, execute) as Scope.OperationController<T, I>;
-  const run = (call?: Scope.Invocation<I>, recovered?: RunState): unknown => {
-    const receiver = recovered === RECOVERED ? recovered : caller;
+    return new OperationControl(
+      execute,
+      layer,
+      target,
+      parent,
+      chain,
+      hookTarget,
+      replay,
+    ) as Scope.OperationController<T, I>;
+  const run = (call?: Scope.Invocation<I>): unknown => {
     ensureOpen(layer);
     const at = (index: number): unknown => {
-      if (index === runners.length) return execute(call, receiver);
+      if (index === runners.length) return execute(call);
       return runners[index].run?.(
         hookTarget as
           | Operation.Handle<unknown, unknown>
@@ -2453,10 +2494,18 @@ function operationController<T, I>(
     const result = at(0);
     if (!isThenable(result)) return result;
     const promise = Promise.resolve(result);
-    if (receiver) track(layer, promise, runFailure(layer, receiver));
+    if (caller) track(layer, promise, runFailure(layer, caller));
     return promise;
   };
-  return new OperationControl(layer, run) as Scope.OperationController<T, I>;
+  return new OperationControl(
+    run,
+    layer,
+    target,
+    parent,
+    chain,
+    hookTarget,
+    replay,
+  ) as Scope.OperationController<T, I>;
 }
 
 /** Run `target` on the tagged call's session layer with the tag-stripped call (ADR 0038) — a
@@ -4513,14 +4562,21 @@ function handleFor(layer: Layer): Scope.Handle {
     if (isExtension(target)) return resolveExtension(layer, target);
     return tagRequired(layer, target as Tag.Handle<unknown>);
   }) as Scope.Handle["resolve"];
-  const run = <T, I>(op: unknown, call?: Scope.Invocation<I>, receiver?: RunState): unknown => {
+  const run = (<T, I>(op: unknown, call?: Scope.Invocation<I>): unknown => {
     ensureOpen(layer);
-    if (!isOperation(op)) return runInline(op as Scope.Inline<Scope.Depends, T, I>, call, receiver);
-    return (controllerOf(op) as { run(call?: Scope.Invocation<I>, receiver?: RunState): T }).run(
-      call,
-      receiver,
-    );
-  };
+    if (!isOperation(op)) return runInline(op as Scope.Inline<Scope.Depends, T, I>, call);
+    return (controllerOf(op) as { run(call?: Scope.Invocation<I>): T }).run(call);
+  }) as Scope.Handle["run"];
+  /** `settle` runs through a twin controller whose caller is RECOVERED; `run` stays as it was. */
+  const settle = ((op: unknown, call?: Scope.Invocation<unknown>) =>
+    settleRun(layer, () => {
+      ensureOpen(layer);
+      if (!isOperation(op))
+        return runInline(op as Scope.Inline<Scope.Depends, unknown, unknown>, call, RECOVERED);
+      return OperationControl.recovered(controllerOf(op) as OperationControl<unknown, unknown>).run(
+        call,
+      );
+    })) as Scope.Handle["settle"];
   /** Run an inline config (ADR 0037): a throwaway `Operation.Handle` through the operation
    * controller path — one handle + one controller per call, nothing cached in the layer
    * (no `nodeState`/`controllerOf` residue). `input` lands on `ctx.input`/`ctx.rawInput`
@@ -4551,9 +4607,8 @@ function handleFor(layer: Layer): Scope.Handle {
   return {
     controller,
     resolve,
-    run: run as Scope.Handle["run"],
-    settle: ((op: unknown, call?: Scope.Invocation<unknown>) =>
-      settleRun(layer, () => run(op, call, RECOVERED))) as Scope.Handle["settle"],
+    run,
+    settle,
     createSession: (options?: Scope.Options) => {
       ensureOpen(layer);
       return handleFor(makeLayer(layer, options));
