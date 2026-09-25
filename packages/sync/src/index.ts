@@ -239,25 +239,22 @@ export function source(wiring: Sync.Wiring): Scope.Extension<Sync.Source> {
             return;
           }
           const wanted = message.keys;
-          try {
-            session.run({
-              label: "sync register",
-              run: (_deps, ctx) => {
-                for (const key of wanted) {
-                  const entry = published.entryFor(key);
-                  if (entry === undefined) {
-                    transport.close();
-                    return;
-                  }
-                  keys.add(key);
-                  transport.send(snapshot(key, entry));
+          const registered = session.settle({
+            label: "sync register",
+            run: (_deps, ctx) => {
+              for (const key of wanted) {
+                const entry = published.entryFor(key);
+                if (entry === undefined) {
+                  transport.close();
+                  return;
                 }
-                ctx.log("sync keys", { count: wanted.length });
-              },
-            });
-          } catch {
-            transport.close();
-          }
+                keys.add(key);
+                transport.send(snapshot(key, entry));
+              }
+              ctx.log("sync keys", { count: wanted.length });
+            },
+          });
+          if (registered.status !== "success") transport.close();
         });
         const parted = new Promise<void>((resolve) => {
           transport.onClose(() => {
