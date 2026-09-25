@@ -52,7 +52,7 @@ card at a time.
   worktrees `../tinkered-e2-<pkg>`, briefs `~/.cache/tinkered-briefs/errors-t02-<pkg>.md`. Each
   deliberate `catch` around a `.run` moves to `settle` before t03 makes panics sticky.
   - hono `ccb9bf57` · mcp ✓ `errors/t02-mcp` · process `1b2c2322`
-  - tinkerer `05ba5321` · harness `24d456f3` · http `f47eea68`
+  - tinkerer ✓ `errors/t02-tinkerer` · harness `24d456f3` · http `f47eea68`
     Verify each: behavior unchanged; a panic and a managed error both still recovered; mutation ≥ 85.
 
 | Card                                                                                                                                                                                                                      | Owner                                                                           | Next                                                                                                                                                                                                                                                                                                                                      | Verify                                                                                                                                                                                                      |
@@ -87,6 +87,8 @@ card at a time.
 
 ## Done
 
+- **errors/t02-tinkerer** — opus high + fable review (no fix round); tag `errors/t02-tinkerer`. A tool call's failure reaches the model through `settle` (byte-identical results to main); `EditMiss` and `StreamEnded` raised via `ctx.raise`.
+  - Gate EXIT 0; tinkerer 89 tests; tinkerer mutation 96.01; validate 43 PASS; 1 Jev label, calibration committed.
 - **errors/t02-mcp** — opus high + fable review (one fix round); tag `errors/t02-mcp`. A tool call recovers through `settle`: the client's answer is unchanged, the call's session now closes success; a throwing `respond` logs one ok line (pinned by a test).
   - Gate EXIT 0; mcp 16 tests, harness 62, issue-tracker 51; mcp mutation 85.54; validate 43 PASS; no Jev labels added.
 - **errors/t01** — astra xhigh then opus high + fable review (two fix rounds); tag `errors/t01`. No cooked promise (the subclass is gone; runs return native promises); `settle` returns a Result; `originOf(error)` and origin stamps (sync and async); `ctx.raise(kind, payload)`; a failed close carries `origin`. asyncsub 809 ns (+9.1% vs pre-0066).
