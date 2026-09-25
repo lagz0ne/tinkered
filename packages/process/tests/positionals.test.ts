@@ -23,10 +23,14 @@ test("-- ends the flags, so every later word is plain", () => {
   ]);
 });
 
-test("positionals keeps a lone dash as a plain word and drops a single-dash flag", () => {
-  expect(positionals(["-", "-x", "b"])).toEqual(["-", "b"]);
+test("positionals keeps a lone dash as a plain word", () => {
+  expect(positionals(["-", "b"])).toEqual(["-", "b"]);
 });
 
-test("a value flag at the end with no next word drops nothing", () => {
+test("positionals drops a single-dash flag", () => {
+  expect(positionals(["-x", "b"])).toEqual(["b"]);
+});
+
+test("a value flag at the end takes no word and drops alone", () => {
   expect(positionals(["a", "--key-file"], { values: ["--key-file"] })).toEqual(["a"]);
 });

@@ -108,9 +108,9 @@ const [file, dir] = positionals(argv, {
   no word after it.
 - `--` ends the flags, so every later word is
   plain.
-- `positionals` keeps a lone `-` as a plain word
-  and drops a single-dash flag.
-- A value flag at the end drops nothing.
+- `positionals` keeps a lone `-` as a plain word.
+- `positionals` drops a single-dash flag.
+- A value flag at the end takes no word and drops alone.
 
 ## Roots
 
