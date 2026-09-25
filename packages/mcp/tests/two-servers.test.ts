@@ -93,7 +93,7 @@ test("two extensions on one scope share a scope resource: a write through one is
 test("every call opens its own session: per-call state never crosses between two servers", async () => {
   let builds = 0;
   const perCall = resource({
-    label: "mcp.call",
+    label: "call",
     target: "session",
     factory: () => ({ id: ++builds }),
   });
@@ -137,10 +137,17 @@ test("one scope close closes both servers: each server's close runs once", async
     extensions: [serve(app, "app", closes), app, serve(admin, "admin", closes), admin],
   });
   await scope.ready;
+  const appServer = scope.resolve(app);
+  const adminServer = scope.resolve(admin);
+  expect(appServer.isConnected()).toBe(true);
+  expect(adminServer.isConnected()).toBe(true);
   await scope.close({ graceful: true });
   expect(closes.sort()).toEqual(["admin", "app"]);
+  // The first close reaped both connections, each server's own close once.
+  expect(appServer.isConnected()).toBe(false);
+  expect(adminServer.isConnected()).toBe(false);
   await scope.close({ graceful: true });
-  // The first close reaped both; a second close runs neither server's close.
+  // A second close runs neither server's close again.
   expect(closes.sort()).toEqual(["admin", "app"]);
 });
 
