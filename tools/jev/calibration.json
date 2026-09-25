@@ -22,10 +22,10 @@
   "stateOutsideCell": {
     "status": "provisional",
     "trues": 2,
-    "falses": 61,
-    "medianTrue": 0.91,
-    "medianFalse": 0.1,
-    "separation": 0.81,
+    "falses": 62,
+    "medianTrue": 0.9,
+    "medianFalse": 0.12,
+    "separation": 0.78,
     "ordered": 1,
     "at": "2026-09-25"
   },
