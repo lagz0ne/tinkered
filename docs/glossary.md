@@ -337,6 +337,9 @@ New sections are lists, one term per item.
 - **settle** — `op.settle(call)`: runs like `run`
   but never throws; returns a Result. The one way
   to recover a panic.
+- **raise** — `ctx.raise(kind, payload)`: the
+  official way to throw an error; an ambient
+  tool like `ctx.clock`. Stamps the origin.
 - **origin** — Where an error was first thrown:
   `{ label, span?, path }`, stamped by `.run`,
   read with `originOf(error)`.

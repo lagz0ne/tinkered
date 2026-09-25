@@ -37,7 +37,12 @@ with a `Cause` that is a `Fail` or a `Die`).
 - **Work nobody owns:** a subflow that settles failed after its caller has settled, not through
   `settle`, fails the layer (0066's orphan rule, unchanged).
 - Cancellation is unchanged: a cancel reason on an aborted layer is `cancelled`, never a panic.
-- No promise subclass: every run returns a native promise, so `await` keeps its fast path.
+- **No cooked promise, ever** (user, 2026-09-25): core never returns a Promise subclass or a
+  custom thenable. Every run returns a native promise, so `await` keeps its fast path.
+- **`ctx.raise(kind, payload)` is the official way to raise an error** (user, 2026-09-25), an
+  ambient tool beside `ctx.clock`, `ctx.random`, and `ctx.log` on operation and resource ctx. It
+  throws a managed error and stamps its origin from the ctx it came from, at the throw site.
+  `.run` still stamps any error that reaches it unstamped.
 
 ## Consequences
 

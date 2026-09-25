@@ -23,17 +23,18 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **errors/t01 core: settle, Result, origin (ADR 0067, add only)** — `op.settle(call)` /
-  `scope.settle(op, call)` return `{ status, value | error, kind, origin }`; `.run` stamps the
-  origin on sync throws and async rejections; `originOf(error)`; session close's failed Result
-  gains `origin`. No rule change yet (the subclass stays). Writer astra xhigh. Starts after
-  perf/async-subflow lands. Verify: tests per field; promises 17; bench not slower; mutation ≥ 85.
+- **errors/t01 core: no cooked promise; settle, Result, origin, ctx.raise (ADR 0067)** — remove
+  the Promise subclass (runs return native promises); add `op.settle(call)` / `scope.settle(op, call)`,
+  `originOf(error)`, origin on session close's failed Result, and `ctx.raise(kind, payload)` on
+  operation and resource ctx. Interim rule until t03: a caught failure does not fail the layer; an
+  orphan still does. Writer astra xhigh; reuse the `asyncsub` probe (commit `354914f` on branch
+  `perf/async-subflow`). Verify: `asyncsub` near ~750 ns (N=61); tests per field; promises 17;
+  mutation ≥ 85.
 - **errors/t02 packages recover through settle** — after t01: each `catch` around a `.run` that
   recovers on purpose moves to `settle` (hono, mcp, process, tinkerer, harness, http, sync,
   blueprint). One writer per package. Verify: behavior unchanged; tests green.
-- **errors/t03 core: panics are sticky; the subclass goes** — after t02: a panic fails its layer
-  even if caught; `settle` recovers; runs return native promises; ADR 0066 tests rewritten to 0067.
-  Verify: `asyncsub` back near its pre-0066 ~750 ns (N=61); promises 17; mutation ≥ 85.
+- **errors/t03 core: panics are sticky** — after t02: a panic fails its layer even if caught;
+  `settle` recovers; ADR 0066 tests rewritten to 0067. Verify: tests; promises 17; mutation ≥ 85.
 
 | Card                                                                                                                  | Owner         | Next                                                                                                                                                            | Verify                                        |
 | --------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
@@ -47,19 +48,11 @@ Pairs since 2026-09-23: a writer (sol 6 for hard, deepseek-v4.1-flash for simple
 reviewer per card; the lead runs mutation, bench, and `pnpm validate` alone at landing, one core
 card at a time.
 
-- **perf/async-subflow** — astra xhigh (agent `54a3d8bc`, user's pick), worktree `../tinkered-perf-asyncsub`.
-  An awaited async subflow costs 2184 ns per run, up from 1123 (+94.5%) since core/caught-subflow.
-  Win it back without weakening ADR 0066. Verify: a committed `asyncsub` bench scenario, N=61 A/B,
-  target within +15% of `2d2d75b`; other scenarios not slower; tests unchanged; mutation ≥ 85.
-
 - **bridge gaps (ADR 0060)** — user go 2026-09-24:
   - core/ext-hooks-every-layer — sol 6 `247fb6ec`: extension `run`/`write` hooks wrap every run and
     write at every layer (core-feedback rows, two askers). Verify: tests; bench; mutation ≥ 85.
   - ADR 0060 no longer promises a process bridge (done with this card).
-- **perf/async-subflow** review — opus `97fac83b`: −27% landed so far; the rest is the subclass
-  `await` that ADR 0066 receipt tracking needs.
-
-| Card | Owner | Next | Verify |
+    | Card | Owner | Next | Verify |
 
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | blueprint/v1 — `packages/blueprint`: a self-contained binary that judges a YAML blueprint of tinker units with Jev over question templates shipped in the package; built on `@tinker/core` + `@tinker/process` (ADR 0052) | lead (Claude, session blueprint); next contributor for t04 | t01–t03 landed (34 tests, 7155 B gzip, mutation 75.09 alone; one real Jev run: 7 provisional findings on the example; [track](docs/roadmap/blueprint-v1/PROGRESS.md#landed)). Next: the t04 brief (evals, `status: proven`, reword `needsDefer` and `whyUnfulfilled`) to one contributor in `../tinkered-blueprint-t04` off `origin/main` | t01–t05 in the track; `blueprint check <file>` prints one line per plain check and per (node, template); evals gate which hits may block; `vp check` clean; mutation alone ≥ 75; no import from `tools/jev` |
@@ -92,6 +85,9 @@ card at a time.
 
 ## Done
 
+- **perf/async-subflow** — stopped, not landed (user 2026-09-25: no cooked promise, ever). It cut
+  the subclass cost 28% (asyncsub 1807 → 1298 ns, 61/61 pairs); errors/t01 removes the subclass
+  instead. Its `asyncsub` probe (commit `354914f`, branch `perf/async-subflow`) is reused there.
 - **mcp/two-servers** — deepseek + opus review (one fix round); tag `mcp/two-servers`. Two mcp extensions on one scope: shared scope data, one session per call, one close stops both (each server's `isConnected()` false after), the same tool name answers from the server that got the call (ADR 0060). Found: a serving extension must be listed before the server it resolves; card ext/start-order.
   - Gate EXIT 0; mcp mutation 85.29; validate 43 PASS; Jev calibrate owed (service 503).
 - **process/positionals** — deepseek + opus review (one fix round); tag `process/positionals`. `positionals(argv, { values })` in `@tinker/process`: plain words in order; value flags take the next word; `--k=v` is one word; `--` ends flags. blueprint `verify` and tinkerer `ask` use it; fixes `ask --json hello` dropping `hello` (test fails on main).
