@@ -2414,9 +2414,9 @@ function operationController<T, I>(
     }
     return finishAsyncRun(layer, result, caller, obs, span, finishDefers);
   };
+  const runners = layer.runners;
+  if (runners === undefined || replay) return { run: execute } as Scope.OperationController<T, I>;
   const run = (call?: Scope.Invocation<I>): unknown => {
-    const runners = layer.runners;
-    if (runners === undefined || replay) return execute(call);
     ensureOpen(layer);
     const at = (index: number): unknown => {
       if (index === runners.length) return execute(call);
