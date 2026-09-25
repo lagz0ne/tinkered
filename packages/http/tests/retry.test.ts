@@ -175,3 +175,28 @@ test("without retry a rejecting backend fails Transport after one call with its 
   expect(calls).toBe(1);
   await scope.close();
 });
+
+/** Run `retryingText` in a session whose backend throws `thrown` once, then answers "[]". */
+async function retryInSession(thrown: unknown): Promise<[string, string]> {
+  let calls = 0;
+  const once: HttpClient.Backend = async (request) => {
+    calls += 1;
+    if (calls === 1) throw thrown;
+    return HttpResponse.make(request, { status: 200, body: "[]" });
+  };
+  const scope = createScope({ tags: [backend(once), config({ retry: retryingRetry })] });
+  const session = scope.createSession();
+  const text = await session.run(retryingText);
+  const closed = await session.close({ graceful: true });
+  await scope.close();
+  return [text, closed.status];
+}
+
+test("a backend panic is retried and its session still closes success", async () => {
+  expect(await retryInSession(new TypeError("fetch failed"))).toEqual(["[]", "success"]);
+});
+
+test("a backend managed error is retried and its session still closes success", async () => {
+  const offline = Object.assign(new Error("Offline"), { kind: "Offline", payload: {} });
+  expect(await retryInSession(offline)).toEqual(["[]", "success"]);
+});

@@ -1,3 +1,4 @@
+import type { Operation } from "@tinker/core";
 import type { HttpRequest } from "./request.ts";
 import type { HttpResponse } from "./response.ts";
 
@@ -41,9 +42,19 @@ export function makeError<N extends Errors.Name>(
   return error;
 }
 
-/** Throw a registry error. The only throw site in the package. */
+/** Throw a registry error where no run ctx is in scope (a body reader). */
 export function raise<N extends Errors.Name>(kind: N, payload: Errors.Payload<N>): never {
   throw makeError(kind, payload);
+}
+
+/** Throw a registry error through a run's `ctx.raise`, so core stamps its origin at the throw
+ * site (ADR 0067). */
+export function raiseFrom<N extends Errors.Name>(
+  ctx: Pick<Operation.Ctx<unknown>, "raise">,
+  kind: N,
+  payload: Errors.Payload<N>,
+): never {
+  return ctx.raise(kind, payload);
 }
 
 /** Narrow an unknown error to one registry entry; callers rethrow on mismatch. */

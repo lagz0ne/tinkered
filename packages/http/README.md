@@ -65,6 +65,9 @@ only: a backend failure, or status 408, 429, 5xx. A non-transient status is neve
 and an aborted signal never retries. Backoff sleeps on the caller's `ctx.clock`, so a
 `makeTestClock` drives it deterministically in tests. Merged nearest-wins like `baseUrl`:
 a session retries, the scope does not.
+Each try is received through core's `settle` (ADR 0067).
+A backend panic (a thrown `TypeError`, as `fetch` throws) retries like a managed error.
+A recovered try never fails the caller's session.
 
 ```ts
 createScope({
