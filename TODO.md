@@ -23,6 +23,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **repo/lint-staged-no-stash** — the commit hook's lint-staged backs up through `git stash`, and every
+  worktree shares one stash list, so parallel writers' commits collide ("automatic backup is
+  missing"). Next: run lint-staged without its stash backup (it only formats staged files), or give
+  each worktree its own. Verify: two worktrees commit at once, 5 times, no collision.
+
 - **tests/busy-host-flake** — a core test fails when the host is busy (a mutation run beside the
   gate): landers saw `cache.bench.test.ts` at 41 ms vs a 13 ms limit, and one unnamed core failure in
   `pnpm validate`. Next: find the test(s), make timing tests measure relative cost or move them to
