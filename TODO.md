@@ -23,6 +23,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **harness/approve-real-sdk** — the README (`packages/harness/README.md:204`) says a throwing approve op rejects the turn, and the fake-SDK test proves it; the real Claude SDK catches a throwing `canUseTool` and writes an error control response, so the turn goes on (same on main). Under t03 an approve panic fails the session instead. Next: decide the promise (settle the approve op and deny, or document the SDK behavior) and test against the real SDK's handling. Verify: README and a test agree with the real SDK.
+
 - **repo/lint-staged-no-stash** — the commit hook's lint-staged backs up through `git stash`, and every
   worktree shares one stash list, so parallel writers' commits collide ("automatic backup is
   missing"). Next: run lint-staged without its stash backup (it only formats staged files), or give
@@ -52,7 +54,7 @@ card at a time.
   worktrees `../tinkered-e2-<pkg>`, briefs `~/.cache/tinkered-briefs/errors-t02-<pkg>.md`. Each
   deliberate `catch` around a `.run` moves to `settle` before t03 makes panics sticky.
   - hono `ccb9bf57` · mcp ✓ `errors/t02-mcp` · process `1b2c2322`
-  - tinkerer ✓ `errors/t02-tinkerer` · harness `24d456f3` · http `f47eea68`
+  - tinkerer ✓ `errors/t02-tinkerer` · harness ✓ `errors/t02-harness` · http `f47eea68`
     Verify each: behavior unchanged; a panic and a managed error both still recovered; mutation ≥ 85.
 
 | Card                                                                                                                                                                                                                      | Owner                                                                           | Next                                                                                                                                                                                                                                                                                                                                      | Verify                                                                                                                                                                                                      |
@@ -87,6 +89,9 @@ card at a time.
 
 ## Done
 
+- **errors/t02-harness** — opus high + fable review (no fix round); tag `errors/t02-harness`. A Claude tool call goes through `settle`, so a tool failure the SDK reports to the model is received (not sticky under t03); `origin` stays the tool (tested).
+  - Gate EXIT 0; harness 66 tests (4 new), tracker 51; harness mutation 86.34; validate 43 PASS.
+  - 4 Jev labels; `calibration.json` refreshed.
 - **errors/t02-tinkerer** — opus high + fable review (no fix round); tag `errors/t02-tinkerer`. A tool call's failure reaches the model through `settle` (byte-identical results to main); `EditMiss` and `StreamEnded` raised via `ctx.raise`.
   - Gate EXIT 0; tinkerer 89 tests; tinkerer mutation 96.01; validate 43 PASS; 1 Jev label, calibration committed.
 - **errors/t02-mcp** — opus high + fable review (one fix round); tag `errors/t02-mcp`. A tool call recovers through `settle`: the client's answer is unchanged, the call's session now closes success; a throwing `respond` logs one ok line (pinned by a test).
