@@ -467,6 +467,48 @@ test("an already-aborted signal exits 130 with empty streams and no root", async
   expect(roots).toBe(0);
 });
 
+test("a one-shot that throws its own error on the signal exits 130 and prints nothing", async () => {
+  const stubborn = operation({
+    label: "stubborn",
+    run: (_deps, ctx) =>
+      new Promise<number>((_resolve, reject) => {
+        ctx.signal.addEventListener("abort", () => reject(new Error("stopped")), { once: true });
+      }),
+  });
+  const result = await run(
+    shell([{ name: "stubborn", entry: () => ({ op: stubborn }) }]),
+    ["stubborn"],
+    undefined,
+    later(20),
+  );
+  expect(result).toEqual({ code: 130, stdout: "", stderr: "" });
+});
+
+test("an extension whose start fails prints its error with exit 1 and never runs the command", async () => {
+  let ran = 0;
+  const counted = operation({
+    label: "counted",
+    run: () => {
+      ran += 1;
+      return 0;
+    },
+  });
+  const broken = extension({
+    label: "broken",
+    start: () => {
+      throw new Error("no start");
+    },
+  });
+  let stderr = "";
+  const code = await execute({ op: counted, options: { extensions: [broken] } }, [], {
+    write: () => undefined,
+    error: (s) => {
+      stderr += s;
+    },
+  });
+  expect({ code, stderr, ran }).toEqual({ code: 1, stderr: "Error: no start\n", ran: 0 });
+});
+
 test("a throwing run leaves the next run unaffected", async () => {
   const boom = operation({
     label: "boom",

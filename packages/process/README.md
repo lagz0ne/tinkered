@@ -134,6 +134,8 @@ watcher above it.
   gracefully.
 - A command whose dependency panics or raises
   exits 1, and its root still closes success.
+- An extension whose start fails prints its
+  error with exit 1 and never runs the command.
 
 ## Signals
 
@@ -146,6 +148,8 @@ or let the cancellation throw (a one-shot: 130).
   one-shot exits 130.
 - A server that returns on the signal exits with
   its own code, not 130.
+- A one-shot that throws its own error on the
+  signal exits 130 and prints nothing.
 - An already-aborted signal exits 130 with empty
   streams and no root.
 
