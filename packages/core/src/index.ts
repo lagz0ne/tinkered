@@ -1978,10 +1978,11 @@ function recordUsed(
   }
 }
 
-type RunState = { settled: boolean };
-/** The receiver `settle` passes: it never settles, so a failure it receives never fails the layer.
- * A run takes no other receiver, so a stray second argument (`list.map(op.run)`) changes nothing. */
-const RECOVERED: RunState = { settled: false };
+/** The receiver `settle` passes: a failure it receives never fails the layer. A run takes no other
+ * receiver, so a stray second argument (`list.map(op.run)`) changes nothing. */
+const RECOVERED: unique symbol = Symbol("recovered");
+/** Who receives a subflow's failure: the calling run's ctx, or `settle`. */
+type RunState = OperationCtx<unknown> | typeof RECOVERED;
 
 function failedRun(error: unknown): RunResult<never> {
   if (isCancelReason(error)) return { status: "cancelled", reason: error };
@@ -2013,8 +2014,9 @@ function settleRun(
 /** An operation's controller: `run` is an own field callers destructure; `settle` is built on first
  * read, so a controller made for one run pays nothing for it. */
 class OperationControl<I> {
-  readonly run: (call?: Scope.Invocation<I>, receiver?: RunState) => unknown;
-  private layer: Layer;
+  /** `declare`: assigned once in the constructor, so the build emits no field that is written twice. */
+  declare readonly run: (call?: Scope.Invocation<I>, receiver?: RunState) => unknown;
+  declare private layer: Layer;
   constructor(layer: Layer, run: (call?: Scope.Invocation<I>, receiver?: RunState) => unknown) {
     this.layer = layer;
     this.run = run;
@@ -2028,8 +2030,9 @@ class OperationControl<I> {
 
 function runFailure(layer: Layer, caller: RunState | undefined): (error: unknown) => void {
   if (caller === undefined) return asPrimary(layer);
+  if (caller === RECOVERED) return noop;
   return (error) => {
-    if (caller.settled) asPrimary(layer)(error);
+    if (OperationCtx.isDone(caller)) asPrimary(layer)(error);
   };
 }
 
@@ -2192,6 +2195,7 @@ function runBody<T, I>(
 class OperationCtx<I> implements Operation.Ctx<I> {
   private owner: Layer;
   private defers: ((end: Scope.End) => void | PromiseLike<void>)[] | undefined = undefined;
+  private running = false;
   readonly label: string;
   readonly rawInput: unknown;
   readonly input: I;
@@ -2230,6 +2234,15 @@ class OperationCtx<I> implements Operation.Ctx<I> {
     ctx: OperationCtx<J>,
   ): ((end: Scope.End) => void | PromiseLike<void>)[] | undefined {
     return ctx.defers;
+  }
+  /** An async body or an async defer drain is in flight. A sync run never sets it: a subflow
+   * failure reaches its handler in a later microtask, when a sync run is already over. */
+  static hold<J>(ctx: OperationCtx<J>, running: boolean): void {
+    ctx.running = running;
+  }
+  /** The run is over, so a subflow failing now is an orphan (ADR 0067). */
+  static isDone<J>(ctx: OperationCtx<J>): boolean {
+    return !ctx.running;
   }
   get signal(): AbortSignal {
     return signalOf(this.owner);
@@ -2319,8 +2332,10 @@ function finishAsyncRun<T>(
   const onSettle = (status: "ok" | "failed", error?: unknown): void => {
     if (status === "failed") stampOrigin(error, ctx.label, span, ctx);
     if (span) closeSpan(obs, span, status, error);
+    OperationCtx.hold(ctx, false);
     finishDefers(status, error);
   };
+  OperationCtx.hold(ctx, true);
   const promise = Promise.resolve(result);
   track(layer, promise, runFailure(layer, caller), onSettle);
   return promise;
@@ -2363,7 +2378,6 @@ function operationController<T, I>(
     ensureOpen(layer);
     const obs = layer.obs;
     const span = openSpan(obs, parent, target.label, "operation");
-    const runState: RunState = { settled: false };
     const override = presetFor(layer, target) as Operation.Handle<T, I>["run"] | undefined;
     /** Hold a borrow across the op's WHOLE lifetime — body settle (or a throw) AND its own `defer`
      * drain — so a release waits for the op's cleanup (which may still touch the resource) before
@@ -2373,7 +2387,6 @@ function operationController<T, I>(
      * sees no borrower and stays sync. */
     const held = takeBorrows(target);
     const releaseBorrow = (): void => {
-      runState.settled = true;
       if (!held) return;
       for (const instance of held.list) removeBorrow(instance, held.done);
       held.settle();
@@ -2386,16 +2399,25 @@ function operationController<T, I>(
         return;
       }
       const tail = runDefers(layer, fns, endFor(layer, status, error));
-      if (tail) ignoreRejection(tail.then(releaseBorrow, releaseBorrow));
-      else releaseBorrow();
+      if (tail === undefined) {
+        releaseBorrow();
+        return;
+      }
+      const running = ctx;
+      if (running) OperationCtx.hold(running, true);
+      const endRun = (): void => {
+        if (running) OperationCtx.hold(running, false);
+        releaseBorrow();
+      };
+      ignoreRejection(tail.then(endRun, endRun));
     };
     let result: T;
     buildDepth++;
     try {
       ctx = new OperationCtx<I>(layer, target, call, obs, span);
       const deps = sees
-        ? readOpDeps(layer, target, span, held, chain, runState)
-        : buildPlainDeps(layer, target.depends, span, chain, runState);
+        ? readOpDeps(layer, target, span, held, chain, ctx)
+        : buildPlainDeps(layer, target.depends, span, chain, ctx);
       result = runBody(override, target, deps, ctx, parked);
     } catch (error) {
       stampOrigin(error, target.label, span, ctx);
