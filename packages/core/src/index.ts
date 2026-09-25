@@ -1,4 +1,5 @@
-import { failureKind, isError, originOf, raise, raiseFrom, stampOrigin } from "./errors.ts";
+import { isError, raise } from "./errors.ts";
+import { failureKind, originOf, raiseFrom, stampOrigin } from "./errors.ts";
 import type { Origin, RunResult } from "./errors.ts";
 
 export { originOf };

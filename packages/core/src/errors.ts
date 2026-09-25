@@ -1,5 +1,50 @@
 import type { Data, Resource } from "./index.ts";
 
+/** Payload type for each core error. The registry is the only place core throws. */
+type Payloads = {
+  DataValidationFailed: { label: string; cause: unknown };
+  SchemaRejected: { issues: readonly Data.SchemaIssue[] };
+  SchemaAsync: { vendor: string };
+  InvalidDependency: { label: string; reason: string };
+  MissingTag: { label: string };
+  Disposed: { reason: string };
+  TeardownFailed: { causes: unknown[] };
+  NotResolved: { label: string };
+  CircularResource: { label: string };
+};
+
+export declare namespace Errors {
+  /** Every core error name. */
+  export type Name = keyof Payloads;
+  /** The typed payload carried by one error name. */
+  export type Payload<N extends Name> = Payloads[N];
+  /** A core error: identified by `kind`, carrying a typed `payload`. */
+  export type Of<N extends Name = Name> = Error & {
+    readonly kind: N;
+    readonly payload: Payloads[N];
+  };
+}
+
+/** Build a registry error without throwing (for rejecting a promise). */
+export function makeError<N extends Errors.Name>(
+  kind: N,
+  payload: Errors.Payload<N>,
+): Errors.Of<N> {
+  const error = new Error(kind) as Errors.Of<N>;
+  Object.assign(error, { kind, payload });
+  return error;
+}
+
+/** Throw a registry error. The only throw site in the package. */
+export function raise<N extends Errors.Name>(kind: N, payload: Errors.Payload<N>): never {
+  throw makeError(kind, payload);
+}
+
+/** Narrow an unknown error to one registry entry; callers rethrow on mismatch. */
+export function isError<N extends Errors.Name>(value: unknown, kind: N): value is Errors.Of<N> {
+  return value instanceof Error && (value as Partial<Errors.Of>).kind === kind;
+}
+
 /** Where a failure first arose, with enclosing run labels in root-first order. */
 export type Origin = { label: string; span?: number; path: string[] };
 
@@ -70,49 +115,4 @@ export function raiseFrom<K extends string, P extends object>(
   const error = Object.assign(new Error(kind), { kind, payload });
   if (ctx) stamps.set(error, { origin: firstOrigin(ctx.label, ctx.obs.span), by: ctx });
   throw error;
-}
-
-/** Payload type for each core error. The registry is the only place core throws. */
-type Payloads = {
-  DataValidationFailed: { label: string; cause: unknown };
-  SchemaRejected: { issues: readonly Data.SchemaIssue[] };
-  SchemaAsync: { vendor: string };
-  InvalidDependency: { label: string; reason: string };
-  MissingTag: { label: string };
-  Disposed: { reason: string };
-  TeardownFailed: { causes: unknown[] };
-  NotResolved: { label: string };
-  CircularResource: { label: string };
-};
-
-export declare namespace Errors {
-  /** Every core error name. */
-  export type Name = keyof Payloads;
-  /** The typed payload carried by one error name. */
-  export type Payload<N extends Name> = Payloads[N];
-  /** A core error: identified by `kind`, carrying a typed `payload`. */
-  export type Of<N extends Name = Name> = Error & {
-    readonly kind: N;
-    readonly payload: Payloads[N];
-  };
-}
-
-/** Build a registry error without throwing (for rejecting a promise). */
-export function makeError<N extends Errors.Name>(
-  kind: N,
-  payload: Errors.Payload<N>,
-): Errors.Of<N> {
-  const error = new Error(kind) as Errors.Of<N>;
-  Object.assign(error, { kind, payload });
-  return error;
-}
-
-/** Throw a registry error. The only throw site in the package. */
-export function raise<N extends Errors.Name>(kind: N, payload: Errors.Payload<N>): never {
-  throw makeError(kind, payload);
-}
-
-/** Narrow an unknown error to one registry entry; callers rethrow on mismatch. */
-export function isError<N extends Errors.Name>(value: unknown, kind: N): value is Errors.Of<N> {
-  return value instanceof Error && (value as Partial<Errors.Of>).kind === kind;
 }
