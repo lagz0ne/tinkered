@@ -3,7 +3,7 @@
  * core declarations only; never copied into a worker image or context.
  */
 import { data, operation } from "@tinker/core";
-import type { Data, Operation, Scope } from "@tinker/core";
+import type { Data, Operation } from "@tinker/core";
 import { fail } from "./errors.ts";
 
 /** One poll with its choices in typed order. */
@@ -35,29 +35,11 @@ const MAX_CHOICES = 6;
 const MAX_LIMIT = 50;
 const PLAIN_DIGITS = /^[0-9]+$/;
 
-type Cells = {
-  polls: Scope.DataController<readonly Poll[]>;
-  votes: Scope.DataController<readonly Vote[]>;
-  history: Scope.DataController<readonly Ballot[]>;
-  issued: Scope.DataController<number>;
-};
-
 const ballotCells = {
   polls: polls.controller,
   votes: votes.controller,
   history: history.controller,
   issued: issued.controller,
-};
-
-const saveStep = (cells: Cells): void => {
-  const step = { polls: cells.polls.get(), votes: cells.votes.get() };
-  cells.history.update((steps) => [...steps, step]);
-};
-
-const nextId = (cells: Cells, prefix: string): string => {
-  const next = cells.issued.get() + 1;
-  cells.issued.set(next);
-  return `${prefix}-${next}`;
 };
 
 function readQuestion(raw: unknown): string {
@@ -122,8 +104,11 @@ export const createPoll: Operation.Handle<
     const question = readQuestion(input.question);
     const choices = readChoices(input.choices);
     const limit = readLimit(input.limit);
-    const saved: Poll = { id: nextId(cells, "poll"), question, choices, limit, closed: false };
-    saveStep(cells);
+    const next = cells.issued.get() + 1;
+    cells.issued.set(next);
+    const saved: Poll = { id: `poll-${next}`, question, choices, limit, closed: false };
+    const step = { polls: cells.polls.get(), votes: cells.votes.get() };
+    cells.history.update((steps) => [...steps, step]);
     cells.polls.set([...cells.polls.get(), saved]);
     return saved;
   },
@@ -141,7 +126,8 @@ export const setLimit: Operation.Handle<Poll, { pollId: string; limit: string }>
     const count = voteCount(cells.votes.get(), poll.id);
     if (limit < count) throw fail("BelowVotes", { id: poll.id, votes: count });
     const changed: Poll = { ...poll, limit };
-    saveStep(cells);
+    const step = { polls: cells.polls.get(), votes: cells.votes.get() };
+    cells.history.update((steps) => [...steps, step]);
     cells.polls.set(replacePoll(cells.polls.get(), changed));
     return changed;
   },
@@ -156,7 +142,8 @@ export const closePoll: Operation.Handle<Poll, { pollId: string }> = operation({
     if (poll.closed) return poll;
     if (voteCount(cells.votes.get(), poll.id) === 0) throw fail("NoVotes", { id: poll.id });
     const changed: Poll = { ...poll, closed: true };
-    saveStep(cells);
+    const step = { polls: cells.polls.get(), votes: cells.votes.get() };
+    cells.history.update((steps) => [...steps, step]);
     cells.polls.set(replacePoll(cells.polls.get(), changed));
     return changed;
   },
@@ -177,13 +164,17 @@ export const castVote: Operation.Handle<Vote, { pollId: string; voter: string; c
       if (poll.closed) throw fail("PollClosed", { id: poll.id });
       if (held !== undefined) {
         const changed: Vote = { ...held, choice };
-        saveStep(cells);
+        const step = { polls: cells.polls.get(), votes: cells.votes.get() };
+        cells.history.update((steps) => [...steps, step]);
         cells.votes.set(rows.map((vote) => (vote.id === held.id ? changed : vote)));
         return changed;
       }
       if (voteCount(rows, poll.id) >= poll.limit) throw fail("PollFull", { id: poll.id });
-      const vote: Vote = { id: nextId(cells, "vote"), pollId: poll.id, voter, choice };
-      saveStep(cells);
+      const next = cells.issued.get() + 1;
+      cells.issued.set(next);
+      const vote: Vote = { id: `vote-${next}`, pollId: poll.id, voter, choice };
+      const step = { polls: cells.polls.get(), votes: cells.votes.get() };
+      cells.history.update((steps) => [...steps, step]);
       cells.votes.set([...rows, vote]);
       return vote;
     },
@@ -199,7 +190,8 @@ export const withdrawVote: Operation.Handle<void, { voteId: string }> = operatio
     if (vote === undefined) throw fail("NotFound", { id: textOf(input.voteId) });
     const poll = findPoll(cells.polls.get(), vote.pollId);
     if (poll.closed) throw fail("PollClosed", { id: poll.id });
-    saveStep(cells);
+    const step = { polls: cells.polls.get(), votes: cells.votes.get() };
+    cells.history.update((steps) => [...steps, step]);
     cells.votes.set(rows.filter((row) => row.id !== vote.id));
   },
 });
