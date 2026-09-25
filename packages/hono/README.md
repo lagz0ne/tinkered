@@ -172,7 +172,7 @@ Both sessions end when the request ends.
 The body has its own span named by its label.
 Its signal, clock, and log remain available after the request span ends.
 The session closes when the body finishes or the client cancels.
-A body may catch a failing subflow and still finish its stream without a reader error.
+A body may settle a failing subflow and still finish its stream without a reader error.
 An explicit content-type, such as `text/event-stream`, stays unchanged.
 Without one, `stream` sets `text/plain; charset=UTF-8`.
 

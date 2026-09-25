@@ -319,22 +319,20 @@ test("stream keeps an explicit content-type and defaults to text/plain", async (
   await scope.close();
 });
 
-test("a body can catch a failing subflow and finish its stream", async () => {
+test("a body can settle a failing subflow and finish its stream", async () => {
+  const ends: string[] = [];
+  const path = pathResource(ends);
   const fail = operation({
     label: "fail",
     run: async () => {
-      throw new Error("caught");
+      throw new Error("settled");
     },
   });
   const recover = operation({
     label: "recover",
-    depends: { emit: emit.required, fail },
-    run: async ({ emit, fail }) => {
-      try {
-        await fail.run();
-      } catch {
-        emit("recovered");
-      }
+    depends: { emit: emit.required, fail, path },
+    run: async ({ emit, fail, path }) => {
+      if ((await fail.settle()).status === "failed") emit(`recovered ${path}`);
     },
   });
   const start = operation({ label: "start", run: () => undefined });
@@ -344,7 +342,9 @@ test("a body can catch a failing subflow and finish its stream", async () => {
   const scope = createScope({ extensions: [web] });
   await scope.ready;
   const res = await scope.resolve(web).request("/stream");
-  expect(await res.text()).toBe("recovered");
+  expect(await res.text()).toBe("recovered /stream");
+  for (let i = 0; i < 50 && ends.length === 0; i++) await Promise.resolve();
+  expect(ends).toEqual(["success"]);
   await scope.close();
 });
 
