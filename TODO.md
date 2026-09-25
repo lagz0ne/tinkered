@@ -23,6 +23,18 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **errors/t01 core: settle, Result, origin (ADR 0067, add only)** — `op.settle(call)` /
+  `scope.settle(op, call)` return `{ status, value | error, kind, origin }`; `.run` stamps the
+  origin on sync throws and async rejections; `originOf(error)`; session close's failed Result
+  gains `origin`. No rule change yet (the subclass stays). Writer astra xhigh. Starts after
+  perf/async-subflow lands. Verify: tests per field; promises 17; bench not slower; mutation ≥ 85.
+- **errors/t02 packages recover through settle** — after t01: each `catch` around a `.run` that
+  recovers on purpose moves to `settle` (hono, mcp, process, tinkerer, harness, http, sync,
+  blueprint). One writer per package. Verify: behavior unchanged; tests green.
+- **errors/t03 core: panics are sticky; the subclass goes** — after t02: a panic fails its layer
+  even if caught; `settle` recovers; runs return native promises; ADR 0066 tests rewritten to 0067.
+  Verify: `asyncsub` back near its pre-0066 ~750 ns (N=61); promises 17; mutation ≥ 85.
+
 | Card                                                                                                                  | Owner         | Next                                                                                                                                                            | Verify                                        |
 | --------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout) | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean |

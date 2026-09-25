@@ -324,3 +324,19 @@ New sections are lists, one term per item.
   blueprint.yaml` and `packages/blueprint/src`.
   `verify` on it prints nothing; its nodes are the
   clean cases for every `body` template.
+
+## Errors and panics (ADR 0067)
+
+- **error** — A managed error: an `Error` with a
+  string `kind` and a `payload`, built by a
+  package's `makeError`. A value: a caller may
+  catch it, and the layer is fine if it does.
+- **panic** — Anything else thrown in a run (a
+  `TypeError`, a bug). Sticky: it fails the layer
+  it ran in, even if a caller catches it.
+- **settle** — `op.settle(call)`: runs like `run`
+  but never throws; returns a Result. The one way
+  to recover a panic.
+- **origin** — Where an error was first thrown:
+  `{ label, span?, path }`, stamped by `.run`,
+  read with `originOf(error)`.

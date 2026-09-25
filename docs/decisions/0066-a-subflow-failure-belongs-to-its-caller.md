@@ -1,6 +1,6 @@
 # 0066 A subflow failure belongs to its caller
 
-Date: 2026-09-24. Status: accepted. Refines: 0017 (failure bubbles inside-out).
+Date: 2026-09-24. Status: accepted; its receipt tracking is superseded by 0067. Refines: 0017 (failure bubbles inside-out).
 
 ## Context
 
