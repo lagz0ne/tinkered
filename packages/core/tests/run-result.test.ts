@@ -140,7 +140,7 @@ test("settle returns a promise for a tagged sync operation", async () => {
   const scope = createScope();
   const result = scope.controller(op).settle({ tags: zone("away") });
   expectTypeOf(result).toEqualTypeOf<Promise<RunResult<string>>>();
-  expect(result).toBeInstanceOf(Promise);
+  expect(Promise.resolve(result)).toBe(result);
   expect(await result).toEqual({ status: "success", value: "away" });
   await scope.close();
 });
@@ -160,7 +160,7 @@ test("scope settle runs a tagged inline config asynchronously", async () => {
     { input: 2, tags: zone("away") },
   );
   expectTypeOf(result).toEqualTypeOf<Promise<RunResult<string>>>();
-  expect(result).toBeInstanceOf(Promise);
+  expect(Promise.resolve(result)).toBe(result);
   expect(await result).toEqual({ status: "success", value: "away:2" });
   await scope.close();
 });
