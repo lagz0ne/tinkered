@@ -109,13 +109,11 @@ Two servers on one scope:
 
 - Both share a `target: "scope"` resource: a write through one
   is the other's next read.
-- Each server opens its own session: a cell written through one
-  stays out of the other.
-- Each request builds its own session resource; the two never
-  share one.
+- Each request opens its own session: a cell written through one
+  server stays out of the other.
 - A path mounted on both servers answers from the server that
   got the request.
-- One close stops both; a second close runs neither stop again.
+- A second close runs neither server's stop again.
 
 Each `serve` bind stops on `scope.close()` through the extension onion, so one
 close reaps both listeners.
