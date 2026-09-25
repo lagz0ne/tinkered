@@ -44,6 +44,12 @@ with a `Cause` that is a `Fail` or a `Die`).
   throws a managed error and stamps its origin from the ctx it came from, at the throw site.
   `.run` still stamps any error that reaches it unstamped.
 
+## As built
+
+- errors/t01 (2026-09-25): settle, Result, origin, ctx.raise, native promises; until t03 a
+  dropped subflow's failure (panic or error) that settles while its caller runs stays with the
+  caller and shows only on its span.
+
 ## Consequences
 
 - An author who expects a failure raises a managed error, or calls through `settle`. A stray
