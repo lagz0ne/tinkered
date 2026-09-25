@@ -55,4 +55,6 @@ writeFileSync(
   join(root, "readiness-checks.json"),
   JSON.stringify({ checkedAt: new Date().toISOString(), results }, null, 2),
 );
-console.log(`${results.length} readiness checks passed across four workers`);
+console.log(
+  `${results.length} readiness checks passed across ${manifest.workers.length} worker(s)`,
+);

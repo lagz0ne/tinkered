@@ -1,11 +1,6 @@
 {
   "version": 2,
-  "models": [
-    "xiaomi/mimo-v2.6-flash",
-    "xiaomi/mimo-v2.6-pro",
-    "zai/glm-5.3-flash",
-    "deepseek/deepseek-v4.1-flash"
-  ],
+  "models": ["deepseek/deepseek-v4.1-flash"],
   "provider": "writer-gateway",
   "image": "tinker-writer-trial:20260922",
   "limits": {

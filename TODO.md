@@ -44,9 +44,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Blocked
 
-| Card                                                                                                                                                             | Waiting for                                                                       | Next                                                                                                                                                   | Verify                                                                                |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| writers/input-rule — fourth trial (parcel locker, `locker-01`): DeepSeek, MiMo Flash, MiMo Pro accepted first try, 50/50, no payload miss; GLM stopped mid-round | Vercel AI Gateway credit (402 insufficient_funds, 2026-09-25); it also serves Jev | Top up the gateway, then resume GLM in a fresh session on its saved `/work` (613 src lines, 4 test files, trial not cleaned up), save, check, clean up | GLM scored; payload miss counted for all four; `workers.mjs cleanup locker-01` exit 0 |
+| Card | Waiting for | Next | Verify |
+| ---- | ----------- | ---- | ------ |
 
 ## Parked
 
@@ -64,6 +63,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Done
 
+- **writers/input-rule** — two writer rules (read and check `ctx.rawInput`; exact payload types), checked against core first; fourth trial (parcel locker): DeepSeek, MiMo Flash, MiMo Pro accepted first try, 50/50, no payload miss (was 2 repairs per trial). GLM not scored (gateway credit), then dropped. `noOpRejected` reworded (creates/removes), bar 0.66. [Results](docs/roadmap/writer-trial/LOCKER-LIVE.md). Writers: DeepSeek v4.1 Flash only from 2026-09-25 (cost).
 - **writers/kitchen-live** — third live gate trial (kitchen queue, `kitchen-01`): all four accepted; DeepSeek and MiMo Flash first try, GLM and MiMo Pro one repair each (non-text id in a string payload). 6 blocks, 5 real, 1 false (`cancelTicket`; `noOpRejected` bar 0.6 → 0.7). Image rebuilt and proven equal (f324d3e). [Results](docs/roadmap/writer-trial/KITCHEN-LIVE.md). Trial cleaned up.
 - **jev/arrow-units** — top-level `const x = () => …` and function-expression helpers in `.ts` are units (before: `.tsx` only), with `uses`.
   Proof: 106/106 tool tests (4 new); both gate proofs pass; eval 27/27; sweep over 20 accepted apps: +23 units, 1 real catch (stock-01 DeepSeek `readId` → `""`), 0 false blocks.

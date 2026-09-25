@@ -92,21 +92,20 @@ Neither command starts an agent.
 
 Use the workspace IDs in the trial's `manifest.json`.
 Start one fresh agent per model per round.
-Provider names begin with `pi/writer-gateway/`:
+The writer is `pi/writer-gateway/deepseek/deepseek-v4.1-flash`
+(`models` in `config.json`). MiMo Flash, MiMo Pro, and GLM Flash
+ran in trials up to locker-01; they were dropped for cost on
+2026-09-25.
 
-- `xiaomi/mimo-v2.6-flash`
-- `xiaomi/mimo-v2.6-pro`
-- `zai/glm-5.3-flash`
-- `deepseek/deepseek-v4.1-flash`
-
-Use thinking `high` for all four, as in readiness checks.
+Use thinking `high`, as in readiness checks.
 Send this prompt:
 
 > Read TASK.md and GUIDELINES.md through work_shell.
 > Restate the rules briefly, then finish this round.
 > Use only the current task and allowed tools.
 > Run check, test, and build; use Jev on changed source and tests.
-> Fix or explain findings. Report actual results, then stop.
+> Fix every finding under gate.blocking before you report done.
+> Fix or explain other findings. Report actual results, then stop.
 
 Record the returned agent ID in the manifest.
 Let Paseo report completion; do not poll running agents.
