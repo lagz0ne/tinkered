@@ -602,6 +602,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - `settle` recovers a panic that a nested subflow threw.
 - `settle` recovers a panic carried as the cause of the error it receives.
 - A panic swallowed inside a settled run still fails the layer.
+- `settle` recovers only the panic it receives, not one swallowed earlier.
+- A caught panic after an earlier failure leaves the first failure as the layer's error.
 - A managed error caught with `try/catch` leaves its layer successful.
 - A caught panic in a session run fails that session and not its parent.
 - A caught panic in an inline run fails the scope it ran in.

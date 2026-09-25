@@ -2083,8 +2083,7 @@ function runFailure(layer: Layer, caller: RunState | undefined): (error: unknown
 function stick(layer: Layer, error: unknown): void {
   if (layer.failure !== undefined || isCancel(layer, error) || failureKind(error) === "error")
     return;
-  const panics = (layer.panics ??= []);
-  if (!panics.includes(error)) panics.push(error);
+  (layer.panics ??= []).push(error);
 }
 
 /** `settle` received `error`: each stuck panic on its cause chain is recovered (Go's `recover`). */

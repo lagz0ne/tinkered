@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, operation, tag } from "../src/index.ts";
+import { createScope, operation, resource, tag } from "../src/index.ts";
 
 const zone = tag<string>({ label: "zone" });
 
@@ -121,6 +121,61 @@ test("a panic swallowed inside a settled run still fails the layer", async () =>
   const scope = createScope();
   expect(scope.settle(mid)).toEqual({ status: "success", value: "swallowed" });
   expect(await scope.close({ graceful: true })).toMatchObject({ status: "failed", error: cause });
+});
+
+test("settle recovers only the panic it receives, not one swallowed earlier", async () => {
+  const swallowed = new Error("swallowed");
+  const received = new Error("received");
+  const leaf = operation({
+    label: "leaf",
+    run: () => {
+      throw swallowed;
+    },
+  });
+  const scope = createScope();
+  const kept = scope.run({
+    depends: { leaf },
+    run: ({ leaf }) => {
+      try {
+        leaf.run();
+      } catch (error) {
+        if (error !== swallowed) throw error;
+      }
+      return "kept";
+    },
+  });
+  expect(kept).toBe("kept");
+  const settled = scope.settle({
+    run: () => {
+      throw received;
+    },
+  });
+  expect(settled).toMatchObject({ status: "failed", error: received });
+  expect(await scope.close({ graceful: true })).toMatchObject({
+    status: "failed",
+    error: swallowed,
+  });
+});
+
+test("a caught panic after an earlier failure leaves the first failure as the layer's error", async () => {
+  const first = new Error("build failed");
+  const later = new Error("later bug");
+  const broken = resource({
+    label: "broken",
+    factory: async () => {
+      throw first;
+    },
+  });
+  const scope = createScope();
+  await expect(scope.resolve(broken)).rejects.toBe(first);
+  expect(() =>
+    scope.run({
+      run: () => {
+        throw later;
+      },
+    }),
+  ).toThrow(later);
+  expect(await scope.close({ graceful: true })).toMatchObject({ status: "failed", error: first });
 });
 
 test("a managed error caught with try/catch leaves its layer successful", async () => {
