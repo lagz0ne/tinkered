@@ -1,0 +1,18 @@
+{
+  "round": 2,
+  "phase": "completion",
+  "worker": 4,
+  "teacherVersion": 2,
+  "exitCode": 0,
+  "core": "pass",
+  "browser": "pass",
+  "sourceLines": 662,
+  "testLines": 798,
+  "tokens": 1283758,
+  "estimatedDollars": 0.08186295199999999,
+  "turns": 30,
+  "stopReason": "stop",
+  "jevRequests": 6,
+  "jevTokens": null,
+  "jevDollars": null
+}

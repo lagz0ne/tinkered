@@ -1,0 +1,38 @@
+{
+  "checkedAt": "2026-09-22T09:20:53.956026+00:00",
+  "mainProjectKept": true,
+  "workers": [
+    {
+      "worker": 1,
+      "projectGone": true,
+      "containerGone": true,
+      "volumeGone": true,
+      "directoryGone": true,
+      "trustGone": true
+    },
+    {
+      "worker": 2,
+      "projectGone": true,
+      "containerGone": true,
+      "volumeGone": true,
+      "directoryGone": true,
+      "trustGone": true
+    },
+    {
+      "worker": 3,
+      "projectGone": true,
+      "containerGone": true,
+      "volumeGone": true,
+      "directoryGone": true,
+      "trustGone": true
+    },
+    {
+      "worker": 4,
+      "projectGone": true,
+      "containerGone": true,
+      "volumeGone": true,
+      "directoryGone": true,
+      "trustGone": true
+    }
+  ]
+}

@@ -11,6 +11,7 @@ import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { loadKey, ask, pct, readCalibration, isTieError } from "./lib.mjs";
 import { slice, forJev, LINT, GUIDE } from "./bank.mjs";
 import { unitCouldBeModuleLevel } from "./extract.mjs";
+import { inspectShape } from "./shape.mjs";
 
 /** Per-judge status from `tools/jev/calibrate.mjs`: a `noisy` judge prints as a note (`~`), never as a flag. */
 const CALIBRATION = readCalibration();
@@ -76,6 +77,11 @@ function printUnit(u, flags, reads) {
   else console.log(reads ? `  ℹ ${head}: ${reads}` : `  ✓ ${head}`);
 }
 
+/** Deterministic shape rows for one file: same { id, line, message } the JSON carries. */
+function shapeOf(src, file) {
+  return inspectShape(src, file);
+}
+
 // Skipped by default: data/tag one-liners and tiny functions (type guards, predicates).
 const MIN_FUNCTION = 150;
 // A function that calls createScope is a composition root (rule 1), not a primitive candidate.
@@ -93,13 +99,24 @@ for (const file of files) {
   const source = readFileSync(file, "utf8");
   const codeHits = unitCouldBeModuleLevel(source, file);
   const units = hasKey ? slice(source, file).filter(wanted) : [];
-  if (units.length === 0 && codeHits.length === 0) continue;
+  const shape = shapeOf(source, file);
+  if (units.length === 0 && codeHits.length === 0 && shape.length === 0) continue;
   console.log(file);
   for (const hit of codeHits) {
     const flags = ["unitCouldBeModuleLevel (code)"];
     report.push({ file, kind: hit.kind, name: hit.functionName, line: hit.line, flags });
     console.log(`  ⚠ ${hit.kind} (L${hit.line}) in ${hit.functionName}: ${flags[0]}`);
   }
+  for (const r of shape) console.log(`  ▪ L${r.line} ${r.id}: ${r.message}`);
+  for (const row of shape)
+    report.push({
+      file,
+      kind: "shape",
+      name: row.id,
+      line: row.line,
+      flags: [],
+      reads: row.message,
+    });
   for (const u of units) {
     if (report.length >= limit) break;
     let answers;

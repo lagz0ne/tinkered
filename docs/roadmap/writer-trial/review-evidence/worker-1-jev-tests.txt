@@ -1,0 +1,95 @@
+/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/rules.test.ts
+  ✓ L38 lists the two rooms
+  ✓ L42 starts every scope with an empty list
+  ✓ L48 saves a trimmed booking and returns it
+  ✓ L62 rejects blank titles and keeps the list empty
+  ✓ L76 rejects an unknown room
+  ✓ L86 rejects times outside 0..1439 or that are not integers
+  ✓ L108 rejects an end at or before the start with EmptySlot and saves nothing
+  ✓ L122 rejects an overlap in one room and leaves bookings unchanged
+  ✓ L139 books Maple at Cedar's taken times and keeps both bookings in the list
+  ✓ L149 books a slot that starts when another ends: back-to-back is not a clash
+  ✓ L156 lists by start time, then creation order
+  ✓ L164 creates exactly one booking when the same slot is called twice
+  ✓ L178 gives every booking a unique id
+  ✓ L187 rawInput with start "noon" fails with BadTime, not DataValidationFailed
+  ✓ L199 keeps two scopes independent
+  ✓ L208 removes the booking and frees its slot
+  ✓ L220 reports NotFound on a second cancel and on an unknown id
+  ⚠ L234 opens with a copy that never changes the saved booking  — toBeThenToEqual
+  ✓ L248 reports NotFound for an unknown id
+  ✓ L255 keeps one draft: opening a second id closes the first
+  ✓ L277 saves a passing draft over the booking
+  ✓ L298 keeps the booking and the draft when a save fails
+  ✓ L317 keeps its own slot on save but blocks another booking's slot
+  ✓ L343 discardEdit clears editDraft and leaves the saved booking exactly as it was
+  ✓ L355 reports NotFound for save or discard on a closed or missing draft
+  ✓ L386 reports NotFound when saving an id that is gone
+  ✓ L402 closes the draft when its booking is canceled
+  ✓ L414 keeps list order after a save that moves the start time
+/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/screen.test.ts  ⚠ sleep, helpers 12 > 3
+  ✓ L109 starts empty, books a slot, shows the row, and clears the title
+  ✓ L123 shows the error kind on a clash and keeps the form values
+  ⚠ L137 books the other room and a back-to-back slot; filters hide rows without deleting them  — titleVague 53%
+  ✓ L155 cancels a row, frees its slot, and starts fresh on reload
+  ✓ L172 shows UnknownRoom in the role=alert block and keeps the entered title
+  ✓ L183 Save replaces the row title and removes the edit inputs
+  ✓ L199 discards an edit and leaves the row unchanged
+  ✓ L212 a failing Save shows Clash in role=alert, keeps the edit inputs open, and the row keeps its old times
+  ✓ L232 canceling the drafted booking removes its row and its edit inputs
+  ✓ L245 the Date input starts at 2026-10-01 and the Weeks input starts at 1
+  ✓ L251 a row shows its booked date 2026-10-06 and the same slot on 2026-10-07 saves too
+  ✓ L270 shows BadDate in the role=alert block and keeps the form values
+  ✓ L282 Book series with Weeks 3 yields rows dated 2026-10-06, 2026-10-13, and 2026-10-20
+  ✓ L299 Cancel series frees every date of the series
+  ✓ L317 one occurrence's Cancel button removes only that day
+  ✓ L334 a clash on one series date leaves only the pre-existing row and keeps Title as Weekly
+  ✓ L347 shows BadCount in role=alert for a bad Weeks value and keeps the form values
+  ✓ L359 Edit date starts at 2026-10-01 and Save moves the row to 2026-10-05
+  ✓ L376 Undo removes the last row and keeps the form text and the filter as they were
+  ✓ L396 two Undos empty the list and a third shows EmptyUndo in the role=alert block
+  ⚠ L416 Undo restores a canceled row together with its Cancel button  — titleVague 62%
+  ✓ L434 Undo leaves an open draft open, and its Discard still closes it
+/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/series.test.ts
+  ✓ L39 an input without a date saves the booking on 2026-10-01
+  ✓ L48 input carrying date 2026-10-07 saves that date on the booking
+  ✓ L56 rejects a date that is not a real YYYY-MM-DD day with BadDate
+  ✓ L95 keeps leap days and month edges as real days
+  ✓ L109 never clashes the same slot on two dates
+  ✓ L121 partial overlap on 2026-10-01 reports Clash while Maple on 2026-10-01 and Cedar on 2026-10-05 both save
+  ✓ L145 lists by date, then start time, then creation order
+  ✓ L167 books weeks dates seven days apart under one seriesId
+  ✓ L179 gives a one-off booking no seriesId key
+  ⚠ L188 books one date when weeks is 1  — titleVague 55%
+  ✓ L197 rejects weeks outside 1..12 or that are not integers with BadCount
+  ✓ L225 reports BadCount from rawInput weeks, not a schema failure
+  ✓ L238 books nothing when any date clashes: the whole series fails with Clash
+  ⚠ L253 rejects a blank title, unknown room, out-of-range time, empty slot, and bad date with that kind  — titleVague 59%
+  ✓ L293 two series in different rooms at one time both save: four rows, two dates
+  ✓ L312 cancels one occurrence by id and leaves the rest of its series
+  ✓ L334 cancels every occurrence by the series id
+  ✓ L348 cancelSeries drops its two ids and keeps the other series plus the one-off
+  ✓ L367 reports NotFound with the id on an unknown or already-canceled series id
+  ✓ L384 closes the draft when its series is canceled
+  ✓ L398 after Save moves Mover from 2026-10-04 to 2026-10-06 the list reads 2026-10-05 first, then 2026-10-06
+  ✓ L414 clashes a save against the target room and date but never against itself
+  ✓ L441 rejects a bad date in a save and keeps the booking and draft
+  ✓ L458 defaults an omitted save date to 2026-10-01
+/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/tests/undo.test.ts
+  ✓ L40 reports EmptyUndo with an empty payload when no change was made
+  ✓ L54 returns nothing for a passing undo
+  ✓ L60 removes the last booking first: book A, book B, undo drops B then A, then EmptyUndo
+  ✓ L73 restores the exact prior booking state, id included
+  ✓ L87 a clash after one book leaves one step: the undo drops that book and the next undo reports EmptyUndo
+  ✓ L100 adds no step for draft moves: open, save, and discard are not changes
+  ✓ L117 reverses an edit save: Planning undone brings Standup back
+  ✓ L132 adds no step for a failed save
+  ✓ L153 undoing one canceled occurrence restores all three series dates, and the restored middle day clashes again
+  ✓ L173 one undo removes all three occurrences of a 3-week series book, and the next undo reports EmptyUndo
+  ✓ L184 reverses a series cancel in one step, restoring every occurrence
+  ✓ L198 lets a new change after an undo become the next step
+  ⚠ L213 leaves an open draft alone: undo restores booking data only  — titleVague 53%
+  ✓ L232 keeps undo history per scope: two scopes share no steps
+  ✓ L246 keeps list order after an undo restores an earlier state
+
+jev tests: 6/89 entries flagged. Each ⚠ is delete, merge, or explain — the convention says over-testing is a defect. Not a gate.

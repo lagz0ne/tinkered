@@ -23,10 +23,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **jev/titleVague-reword** — calibration 2026-09-25 made `titleVague` noisy (true 6 med 68%, false 85
-  med 60%, sep 8%, ordered 57%). ADR 0054: reword once, then retire if still noisy. Next: reword the
-  question from the 91 labeled cases, recalibrate. Verify: `proven`/`provisional`, or retired.
-
 - **tests/busy-host-flake** — a core test fails when the host is busy (a mutation run beside the
   gate): landers saw `cache.bench.test.ts` at 41 ms vs a 13 ms limit, and one unnamed core failure in
   `pnpm validate`. Next: find the test(s), make timing tests measure relative cost or move them to
@@ -91,6 +87,10 @@ mutation ≥ 85.
 
 ## Done
 
+- **jev/titleVague-reword** — answered by retirement (ADR 0054 rule 1). The writer-trial
+  branch reworded `titleVague` once on 120 labeled tests: still noisy (sep 19, ordered 68%), so it
+  is retired; main's 2026-09-25 calibration agreed (sep 8%, ordered 57%). All labels stay in
+  `cases.jsonl`. [HARDEN](docs/roadmap/writer-trial/HARDEN.md).
 - **core/ext-hooks-every-layer** — sol 6 + opus review (one fix round); tag `core/ext-hooks-every-layer`. Extension `run`/`write` hooks wrap every run and write at every layer (sessions, tagged runs, subflows, inline runs, dependency writes); 72 lines of root-handle wrappers removed; no-hook path unchanged. Review fix: an async hook on a dropped failing subflow no longer escapes as an unhandled rejection.
   - Gate EXIT 0; promises_tagged 17; core mutation 85.83; validate 43 PASS; speed from the writer's N=61 run (tagged +2.1% in 40/61, inline +1.1%); Jev calibrate owed (gateway 402).
 - **bridge gaps (ADR 0060)** — done 2026-09-25: core/ext-hooks-every-layer landed; ADR 0060 no longer promises a process bridge.
@@ -264,6 +264,59 @@ mutation ≥ 85.
   views; native full screen and fit fallback both checked.
 - **playground/visuals** — complete: solid tiles, wave lift,
   four turns, live controls, and phone frame scan pass.
+- **writers/cinema-live** — fifth live gate trial (cinema seat map, `cinema-01`), DeepSeek only: accepted first try in 8 min, 41/41, gate pass, 0 blocks, no payload miss. [Results](docs/roadmap/writer-trial/CINEMA-LIVE.md). Trial cleaned up.
+- **writers/input-rule** — two writer rules (read and check `ctx.rawInput`; exact payload types), checked against core first; fourth trial (parcel locker): DeepSeek, MiMo Flash, MiMo Pro accepted first try, 50/50, no payload miss (was 2 repairs per trial). GLM not scored (gateway credit), then dropped. `noOpRejected` reworded (creates/removes), bar 0.66. [Results](docs/roadmap/writer-trial/LOCKER-LIVE.md). Writers: DeepSeek v4.1 Flash only from 2026-09-25 (cost).
+- **writers/kitchen-live** — third live gate trial (kitchen queue, `kitchen-01`): all four accepted; DeepSeek and MiMo Flash first try, GLM and MiMo Pro one repair each (non-text id in a string payload). 6 blocks, 5 real, 1 false (`cancelTicket`; `noOpRejected` bar 0.6 → 0.7). Image rebuilt and proven equal (f324d3e). [Results](docs/roadmap/writer-trial/KITCHEN-LIVE.md). Trial cleaned up.
+- **jev/arrow-units** — top-level `const x = () => …` and function-expression helpers in `.ts` are units (before: `.tsx` only), with `uses`.
+  Proof: 106/106 tool tests (4 new); both gate proofs pass; eval 27/27; sweep over 20 accepted apps: +23 units, 1 real catch (stock-01 DeepSeek `readId` → `""`), 0 false blocks.
+- **jev/caller-context** — a helper function unit carries `uses` (its same-file calling lines); `inputDefaultMasks` judges the value at those lines. ballot-01 `idText` 0.84 → 0.36; loans-01 `idField` stays a hit.
+  Proof: 102/102 tool tests (4 new extract tests); 34 caller-aware cases added; `inputDefaultMasks` proven, 32/61, sep 57, ordered 99%. A 0.8 bar caught more but blocked 5 clean units in 20 accepted apps, so 0.85 stays. Eval 27/27 twice (one earlier run 26/27: a noisy case). Cross-file callers are not seen yet.
+- **writers/cast-rule** — plain rule S17 blocks a type assertion in writer source (except `as const` and `[] as T[]`); writer mode only, the repo's own lint is unchanged (~100 plain casts in packages).
+  Proof: 98/98 tool tests (broker path blocks a planted cast); sweep over 20 accepted apps in 5 domains: 0 false blocks after exempting `[] as T[]`; GLM ballot-01 attempt 1 blocks on `value as string`. Not covered: widening a type to `unknown` without a cast (MiMo Pro). [Notes](docs/roadmap/writer-trial/BALLOT-LIVE.md#what-this-run-found).
+- **writers/ballot-live** — second live gate trial (team poll, `ballot-01`): all four accepted. DeepSeek and MiMo Flash first try; GLM and MiMo Pro one repair each (same payload-type miss). 6 blocks, all `inputDefaultMasks`; the teacher gate now reuses the writer's answers for unchanged bytes (6db1985). [Results](docs/roadmap/writer-trial/BALLOT-LIVE.md). Trial cleaned up.
+- **writers/gate-howto** — every blocking gate item carries a `fix` line: each Jev judge has one in the bank; a plain rule uses its message. The writer rules say: clear it that way, keep every task rule, report a conflict.
+  Proof: 87/87 tool tests (two new: judge fix line and plain-rule fix reach `gate.blocking`). `inputDefaultMasks` fix names the MiMo Pro trap (keep payload types). Takes effect for trials frozen after this commit.
+- **writers/gate-census** — the gate runs the style-census rules as parser-based plain code (`tools/jev/plain.mjs`; T01–T08, S02, S05, S06, S12, S13); every row blocks in the writer loop.
+  Proof: 85/85 tool tests; planted `expect(isError(…))` blocks; sweep over 12 accepted apps in 3 domains: 0 false blocks, 1 real miss found; T04 no longer flags `../src/index`. [Results](docs/roadmap/writer-trial/GATE-LIVE.md#what-the-gate-missed-or-caused).
+- **writers/gate-live** — first live trial with the Jev gate (tool library, `loans-01`): all four accepted.
+  GLM and MiMo Flash first try; DeepSeek and MiMo Pro one repair each. The gate raised 9 blocking findings during writing; 2 teacher bugs fixed (34c25b2, a5b3d26). [Results](docs/roadmap/writer-trial/GATE-LIVE.md). Trial cleaned up.
+- **writers/harden** — Jev questions hardened on trial code; the writer loop blocks on trusted findings.
+  Proof: 835 blind labels + 5 seeded; `calibrate.mjs`: `inputDefaultMasks`, `noOpRejected`, `domainLogicInRender` `proven`; `evals/lint.mjs` 27/27; `titleVague` retired; gate tests 63/63; `vp check` 0 errors. [Results](docs/roadmap/writer-trial/HARDEN.md), [ADR 0068](docs/decisions/0068-in-the-writer-loop-a-proven-jev-hit-and-a-plain-shape-finding-block-done.md).
+- **writers/transfer-plan** — all four learning-plan apps accepted.
+  Same 13 Jev questions and rules; two first passes, two one-repair passes.
+  All final apps pass 43 teacher cases plus the separate no-op check.
+  Own tests, builds, and source review pass. Every attempt is kept.
+  All four worker projects and containers removed after export.
+  [Results, evidence, and limits](docs/roadmap/writer-trial/PLAN.md).
+- **writers/repeat** — all four stock apps accepted.
+  MiMo Pro passed first try; the other three needed two repairs.
+  Each passes 44 teacher checks plus two notice checks and source review.
+  Frozen rules, saved attempts, and the review loop are in place.
+  New writable-view check: 48 tooling tests pass; repo check has no errors.
+  All worker projects removed; every saved result kept.
+  [Results and limits](docs/roadmap/writer-trial/REPEAT.md#final-call).
+- **writers/learn** — all four pass repair and fresh work.
+  Source review, 29 repair checks, 43 fresh checks, own tests/builds pass.
+  Trial projects and workspaces are removed; every saved attempt is kept.
+  Repo check: 0 errors; report prose check passes.
+  [Results and cleanup](docs/roadmap/writer-trial/LEARNING.md#final-call).
+- **writers/review** — owner: Codex.
+  Jev comparison and source review saved; four new checks per writer.
+  Seven failed cases found, plus state-rule gaps in all four apps.
+  No app edits; probe containers removed.
+  Proof: [code review](docs/roadmap/writer-trial/CODE-REVIEW.md).
+- **writers/trial** — owner: Codex.
+  All four final apps pass core, browser, type, test, and build checks.
+  Saved five stages per writer, including capped attempts.
+  Temporary projects and workspaces removed; cleanup checked.
+  Proof: [results](docs/roadmap/writer-trial/REPORT.md).
+- **writers/prep** — model routes, shell, Jev, browser,
+  limits, file access, and cleanup checks passed.
+  Four task packets and private teacher checks reviewed.
+  The isolated teacher runner rejects an empty app.
+  No scored rounds started.
+  Proof: [readiness](docs/roadmap/writer-trial/readiness.json)
+  and [review](docs/roadmap/writer-trial/PROGRESS.md).
 
 | Card | Evidence |
 | random-v1/t03 — docs + ambient-read lint | core README `### Random` (5 promise lines), glossary `random` + `TestRandom` rows, ADR 0062 → accepted, `scripts/check-ambient.mjs` + `pnpm validate` lane (package src/examples read time+random off ctx; only `systemClock`/`systemRandom` lines marked `ambient-source`). `vp check`/`vp run core#test` EXIT 0; `node scripts/check-ambient.mjs` exit 0 (negative test exit 1); `vp run prose` clean. [track](docs/roadmap/random-v1/PROGRESS.md) |

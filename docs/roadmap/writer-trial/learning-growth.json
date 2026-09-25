@@ -1,0 +1,123 @@
+[
+  {
+    "worker": 1,
+    "model": "xiaomi/mimo-v2.6-flash",
+    "stage": "repair-1",
+    "sourceFiles": 7,
+    "sourceLines": 1344,
+    "testFiles": 6,
+    "testLines": 1877,
+    "shellCalls": 99,
+    "jevCalls": 14
+  },
+  {
+    "worker": 1,
+    "model": "xiaomi/mimo-v2.6-flash",
+    "stage": "transfer-1",
+    "sourceFiles": 7,
+    "sourceLines": 1554,
+    "testFiles": 7,
+    "testLines": 2272,
+    "shellCalls": 35,
+    "jevCalls": 7
+  },
+  {
+    "worker": 1,
+    "model": "xiaomi/mimo-v2.6-flash",
+    "stage": "transfer-2",
+    "sourceFiles": 7,
+    "sourceLines": 1556,
+    "testFiles": 7,
+    "testLines": 2291,
+    "shellCalls": 25,
+    "jevCalls": 3
+  },
+  {
+    "worker": 2,
+    "model": "xiaomi/mimo-v2.6-pro",
+    "stage": "repair-1",
+    "sourceFiles": 6,
+    "sourceLines": 1011,
+    "testFiles": 7,
+    "testLines": 2042,
+    "shellCalls": 29,
+    "jevCalls": 0
+  },
+  {
+    "worker": 2,
+    "model": "xiaomi/mimo-v2.6-pro",
+    "stage": "repair-2",
+    "sourceFiles": 7,
+    "sourceLines": 1348,
+    "testFiles": 7,
+    "testLines": 2202,
+    "shellCalls": 70,
+    "jevCalls": 10
+  },
+  {
+    "worker": 2,
+    "model": "xiaomi/mimo-v2.6-pro",
+    "stage": "transfer-1",
+    "sourceFiles": 7,
+    "sourceLines": 1575,
+    "testFiles": 8,
+    "testLines": 2722,
+    "shellCalls": 27,
+    "jevCalls": 7
+  },
+  {
+    "worker": 3,
+    "model": "zai/glm-5.3-flash",
+    "stage": "repair-1",
+    "sourceFiles": 6,
+    "sourceLines": 1129,
+    "testFiles": 3,
+    "testLines": 1073,
+    "shellCalls": 46,
+    "jevCalls": 4
+  },
+  {
+    "worker": 3,
+    "model": "zai/glm-5.3-flash",
+    "stage": "transfer-1",
+    "sourceFiles": 6,
+    "sourceLines": 1286,
+    "testFiles": 3,
+    "testLines": 1330,
+    "shellCalls": 33,
+    "jevCalls": 4
+  },
+  {
+    "worker": 4,
+    "model": "deepseek/deepseek-v4.1-flash",
+    "stage": "repair-1",
+    "sourceFiles": 6,
+    "sourceLines": 1361,
+    "testFiles": 8,
+    "testLines": 2082,
+    "shellCalls": 37,
+    "jevCalls": 11
+  },
+  {
+    "worker": 4,
+    "model": "deepseek/deepseek-v4.1-flash",
+    "stage": "transfer-1",
+    "sourceFiles": 6,
+    "sourceLines": 1560,
+    "testFiles": 10,
+    "testLines": 2757,
+    "shellCalls": 46,
+    "jevCalls": 6
+  },
+  {
+    "worker": 4,
+    "model": "deepseek/deepseek-v4.1-flash",
+    "stage": "transfer-2",
+    "sourceFiles": 6,
+    "sourceLines": 1556,
+    "testFiles": 10,
+    "testLines": 2788,
+    "shellCalls": 22,
+    "jevCalls": 3
+  }
+]

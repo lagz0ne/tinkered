@@ -89,6 +89,7 @@ const stems = (s) =>
   );
 
 async function judgeTest(t) {
+  if (!Object.keys(TESTS).length) return [];
   const facts = {
     title: t.title,
     causes: t.causes,

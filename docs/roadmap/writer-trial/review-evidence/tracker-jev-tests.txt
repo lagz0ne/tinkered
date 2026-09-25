@@ -1,0 +1,63 @@
+apps/issue-tracker/tests/browser-helper.test.ts  ⚠ helpers 5 > 3
+  ⚠ L53 cancelling a held draft keeps partial text and saves nothing  — titleVague 51%
+  ✓ L98 posting a draft saves one comment and one activity
+  ✓ L143 closing the issue view cancels the held draft turn
+  ✓ L183 discarding a ready draft clears it and saves nothing
+  ✓ L226 a held draft post disables posting controls then saves once
+  ✓ L293 a broken draft frame shows a plain notice and saves nothing
+  ⚠ L363 shutdown with a live wire and held turn joins cleanly  — titleVague 71%
+apps/issue-tracker/tests/client.test.ts
+  ✓ L108 typing then submitting the create form posts once and clears the draft
+  ✓ L133 selecting an issue with a preset detail fills the detail cell and seeds the edit draft
+  ✓ L150 saving an edit over a stale revision keeps the draft and stores the conflict
+  ✓ L184 posting a comment clears the draft text
+  ⚠ L210 checking the helper writes off when it answers disabled  — titleVague 58%
+  ✓ L225 checking the helper writes failed when it answers an error
+  ⚠ L239 starting a draft streams text into the run cell until ready  — titleVague 61%
+  ✓ L265 posting a ready draft saves one comment and quiets the run
+  ✓ L292 a broken frame fails the run, cancels the stream, and saves nothing
+  ✓ L320 discarding a run quiets the cell without posting
+apps/issue-tracker/tests/draft.test.ts  ⚠ helpers 5 > 3
+  ✓ L49 the draft helper is off by default and needs no account
+  ⚠ L77 a draft streams text and finishes without saving anything  — titleVague 79%
+  ✓ L141 an explicit post sends the generated draft and appends once
+  ✓ L189 a model error result and a thrown model error both fail without a draft
+  ⚠ L228 a draft for a missing issue answers gone and runs no model  — titleVague 59%
+  ✓ L250 an aborted caller runs no model turn
+  ⚠ L275 ordinary saves continue while a draft turn holds  — titleVague 64%
+  ✓ L323 an HTTP disconnect cancels the model and saves nothing
+  ✓ L369 root close with a live caller aborts the model and settles cancelled
+  ✓ L425 overlapping drafts on two issues stay isolated through one live app
+  ✓ L503 startDraft runs without Hono: off answers DraftOff, a missing issue answers gone
+apps/issue-tracker/tests/issues.test.ts  ⚠ helpers 4 > 3
+  ✓ L39 a session save commits a row the root list read sees
+  ✓ L50 creating a valid issue saves it and a second viewer sees it
+  ✓ L73 reopening against the same database restores the saved issue
+  ✓ L91 the HTTP routes save through app.request
+  ⚠ L120 one row plus one extension answers a read with no composition root  — titleVague 72%
+  ⚠ L136 publishAfterCommit republishes after a POST and keeps the cell on a 400  — titleVague 65%
+  ✓ L161 an edit saves with the opened revision and records activity
+  ✓ L195 a stale edit is rejected with the current saved issue and writes nothing
+  ✓ L225 two concurrent edits on one revision settle exactly one winner
+  ✓ L248 comments append without a revision and show with activity
+  ✓ L272 two back-to-back comments both survive in the detail
+  ✓ L286 a stale edit publishes no new snapshot to a live viewer
+  ✓ L314 a rejected comment writes nothing and records no activity
+  ✓ L332 edited details, comments, and activity survive a restart
+  ✓ L363 a publish that fails after the commit keeps the 201, saves the row, and logs one line
+  ⚠ L392 the detail and conflict routes answer through app.request  — titleVague 84%
+  ✓ L429 a register for a gone tab answers gone and a bad message answers bad
+apps/issue-tracker/tests/observe.test.ts
+  ✓ L16 describeError reads a registry error, a plain Error with a cause, and a non-error
+  ✓ L32 jsonLines writes every log line and only the failed spans
+  ✓ L61 jsonLines survives a writer that throws: the scope keeps running
+  ✓ L84 an error no route maps answers 500 and one `request failed` line names it
+apps/issue-tracker/tests/span-tree.test.ts
+  ⚠ L21 the graph produces the trace: a caller, its send, and its attempt  — titleVague 65%
+apps/issue-tracker/tests/tools.test.ts  ⚠ helpers 5 > 3
+  ⚠ L76 missing and blank revisions report command usage  — titleVague 74%
+  ⚠ L91 help lists the issue commands with no backend  — titleVague 57%
+  ⚠ L105 CLI drives the saved create/list/update/comment/get through real HTTP  — titleVague 72%
+  ✓ L186 MCP tools save through the same server and answer conflicts as errors
+
+jev tests: 14/54 entries flagged. Each ⚠ is delete, merge, or explain — the convention says over-testing is a defect. Not a gate.

@@ -1,0 +1,39 @@
+{
+  "version": 2,
+  "models": ["deepseek/deepseek-v4.1-flash"],
+  "provider": "writer-gateway",
+  "image": "tinker-writer-trial:20260922",
+  "limits": {
+    "seconds": 2700,
+    "toolCalls": 160,
+    "modelTurns": 80,
+    "tokens": 300000,
+    "estimatedDollars": 3,
+    "jevCalls": 60,
+    "disabled": true
+  },
+  "smokeLimits": {
+    "seconds": 300,
+    "toolCalls": 12,
+    "modelTurns": 8,
+    "tokens": 30000,
+    "estimatedDollars": 0.25,
+    "jevCalls": 2
+  },
+  "judges": [
+    "partialStub",
+    "memoKeyIgnoresInput",
+    "leakedInternal",
+    "runForwardsToClosure",
+    "effectWithoutDefer",
+    "stateOutsideCell",
+    "configNotTag",
+    "readsMoreThanRendered",
+    "subscribesToWriteOnly",
+    "runDuringRender",
+    "domainLogicInRender",
+    "effectOwnedByComponent",
+    "inputDefaultMasks",
+    "noOpRejected"
+  ]
+}

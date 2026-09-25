@@ -1,0 +1,59 @@
+{
+  "checkedAt": "2026-09-22T06:24:07.711682+00:00",
+  "workers": [
+    {
+      "model": "xiaomi/mimo-v2.6-flash",
+      "projectId": "prj_e869bdd680cc1066",
+      "workspaceId": "wks_0e2c9f597c4e391b",
+      "projectAbsent": true,
+      "workspaceAbsent": true,
+      "containerAbsent": true,
+      "volumeAbsent": true,
+      "folderAbsent": true,
+      "trustAbsent": true,
+      "finalArchiveSaved": true,
+      "allStageArchivesSaved": true
+    },
+    {
+      "model": "xiaomi/mimo-v2.6-pro",
+      "projectId": "prj_3a1f4050d1ea5d80",
+      "workspaceId": "wks_333073b369aa95b5",
+      "projectAbsent": true,
+      "workspaceAbsent": true,
+      "containerAbsent": true,
+      "volumeAbsent": true,
+      "folderAbsent": true,
+      "trustAbsent": true,
+      "finalArchiveSaved": true,
+      "allStageArchivesSaved": true
+    },
+    {
+      "model": "zai/glm-5.3-flash",
+      "projectId": "prj_78a3e6349a878402",
+      "workspaceId": "wks_c6f75f7539fb5588",
+      "projectAbsent": true,
+      "workspaceAbsent": true,
+      "containerAbsent": true,
+      "volumeAbsent": true,
+      "folderAbsent": true,
+      "trustAbsent": true,
+      "finalArchiveSaved": true,
+      "allStageArchivesSaved": true
+    },
+    {
+      "model": "deepseek/deepseek-v4.1-flash",
+      "projectId": "prj_c9b6cf150611ad72",
+      "workspaceId": "wks_0b66d60b378fc33e",
+      "projectAbsent": true,
+      "workspaceAbsent": true,
+      "containerAbsent": true,
+      "volumeAbsent": true,
+      "folderAbsent": true,
+      "trustAbsent": true,
+      "finalArchiveSaved": true,
+      "allStageArchivesSaved": true
+    }
+  ],
+  "mainProjectPreserved": true,
+  "finalSourceAndTestsMatchCheckedArchives": true
+}

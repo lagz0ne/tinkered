@@ -1,0 +1,18 @@
+{
+  "at": "2026-09-22T06:33:51.327711+00:00",
+  "baselineCommit": "dd26aa48cc3a609c14165789c05787f650349f1d",
+  "judgeModel": "typesafe-ai/jev",
+  "teacherOnly": true,
+  "workersRelaunched": false,
+  "sourceExecutedOnHost": false,
+  "sourceRevision": "final round-4 archives",
+  "toolHashes": {
+    "tools/jev/lib.mjs": "aad832062d222c5708bac205e715c051ffdb17e028c8bc639912373cdbcb4027",
+    "tools/jev/bank.mjs": "7197737fb14d8dad1df3063ae719007eca12840208519221ce9a598093b578a5",
+    "tools/jev/extract.mjs": "bdb3d64c01bffe3f233b7d52f3d356137bdbd0ff55cd7921ff5a55713e398880",
+    "tools/jev/lint.mjs": "223334818d69c620cd573e9d354b6acfab50864fda8890d64399caaaa0b0d2e8",
+    "tools/jev/tests.mjs": "187f68a0fe713fa7fbe1346700fc3bfdd07545750a808871c05cadceb2d20aca",
+    "tools/jev/calibration.json": "bbc6ba8b54b672c44578245006a783142efa8d9d07b1967f501bcb53271dbad9"
+  },
+  "probeContainersRemaining": []
+}

@@ -1,0 +1,2152 @@
+[
+  {
+    "group": "worker-1",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/src/BookingApp.tsx",
+    "sourceHash": "6ea70438bde8a4f59e25e1b05b20b81bbe21ae13e22951de331974686b9b95cb",
+    "pass": "files",
+    "unit": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/src/BookingApp.tsx",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.1,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.07,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-1",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/src/BookingApp.tsx",
+    "sourceHash": "6ea70438bde8a4f59e25e1b05b20b81bbe21ae13e22951de331974686b9b95cb",
+    "pass": "react",
+    "unit": "EditForm",
+    "line": 71,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.06,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.11,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.07,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.07,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-1",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/src/BookingApp.tsx",
+    "sourceHash": "6ea70438bde8a4f59e25e1b05b20b81bbe21ae13e22951de331974686b9b95cb",
+    "pass": "react",
+    "unit": "BookingScreen",
+    "line": 146,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.15,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.47,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.14,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.09,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.06,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-1",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/src/BookingApp.tsx",
+    "sourceHash": "6ea70438bde8a4f59e25e1b05b20b81bbe21ae13e22951de331974686b9b95cb",
+    "pass": "react",
+    "unit": "BookingApp",
+    "line": 354,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.08,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.24,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.05,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.07,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-1",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/src/errors.ts",
+    "sourceHash": "8cc48d2d2183c730cc973672eae66b2d44e1b6bccf8a3998909d4dede9b1d733",
+    "pass": "files",
+    "unit": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/src/errors.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.21,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-1",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/src/index.ts",
+    "sourceHash": "563699a7946e247d3bdf476cffdf8cb6d295743b920d7d463404e544c34f3dbe",
+    "pass": "files",
+    "unit": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/src/index.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.11,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.19,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-1",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/src/main.tsx",
+    "sourceHash": "0546eaa1f45f0ae3191362817ee673e075747d79982c6680bcac9834c18dcdfb",
+    "pass": "files",
+    "unit": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/src/main.tsx",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.1,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.04,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-1",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/src/model.ts",
+    "sourceHash": "10eaf6e5c98cdbd0ab68681e1bbb104778b02e214f194805ed179bc1a454fd4f",
+    "pass": "files",
+    "unit": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-1/src/model.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.06,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.06,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.24,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-2",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/src/BookingApp.tsx",
+    "sourceHash": "1d3df6909a2f0d2a261fda8ba9c7f3575bc2ffbce4b1213244ec0e2735c0f675",
+    "pass": "files",
+    "unit": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/src/BookingApp.tsx",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.09,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.05,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.07,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-2",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/src/BookingApp.tsx",
+    "sourceHash": "1d3df6909a2f0d2a261fda8ba9c7f3575bc2ffbce4b1213244ec0e2735c0f675",
+    "pass": "react",
+    "unit": "EditForm",
+    "line": 64,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.03,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.19,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.06,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.04,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-2",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/src/BookingApp.tsx",
+    "sourceHash": "1d3df6909a2f0d2a261fda8ba9c7f3575bc2ffbce4b1213244ec0e2735c0f675",
+    "pass": "react",
+    "unit": "BookingScreen",
+    "line": 137,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.16,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.35,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.12,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.11,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.07,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-2",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/src/BookingApp.tsx",
+    "sourceHash": "1d3df6909a2f0d2a261fda8ba9c7f3575bc2ffbce4b1213244ec0e2735c0f675",
+    "pass": "react",
+    "unit": "BookingApp",
+    "line": 352,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.09,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.24,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.05,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.07,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-2",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/src/errors.ts",
+    "sourceHash": "bf6a6b8884d344bf8ec2f5f6ae51008a87bed338542b47debef3c5f8ed64066f",
+    "pass": "files",
+    "unit": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/src/errors.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.14,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-2",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/src/index.ts",
+    "sourceHash": "a5182e1e673d0350a70f7facefd00bd860ebf11b28cbc334a176389cedfa6bb6",
+    "pass": "files",
+    "unit": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/src/index.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.11,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.05,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.2,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-2",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/src/main.tsx",
+    "sourceHash": "87cc67a7bab070ed8331b6807936bb0ba8153f34d1285047be83b3d65bd7b7c7",
+    "pass": "files",
+    "unit": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/src/main.tsx",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.08,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.04,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-2",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/src/model.ts",
+    "sourceHash": "426f3333f3bc3fcbcbd4456cca7dfa51ef948dfbb288c3dc4b258570dd354b8f",
+    "pass": "files",
+    "unit": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/src/model.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.08,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.27,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-2",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/src/ops.ts",
+    "sourceHash": "cc6d54c359130ea2ebcab0dd3faf8804875f22e053a5dca67c6bdcd08d69a8df",
+    "pass": "files",
+    "unit": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/src/ops.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.06,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.05,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.1,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-3",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-3/src/app.tsx",
+    "sourceHash": "30957310a8bb5255d85807ba8961baa4ca29ccc9ffd1855fe9dd8d497db3dd9c",
+    "pass": "files",
+    "unit": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-3/src/app.tsx",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.13,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.08,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.09,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-3",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-3/src/app.tsx",
+    "sourceHash": "30957310a8bb5255d85807ba8961baa4ca29ccc9ffd1855fe9dd8d497db3dd9c",
+    "pass": "react",
+    "unit": "Row",
+    "line": 53,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.08,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.04,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-3",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-3/src/app.tsx",
+    "sourceHash": "30957310a8bb5255d85807ba8961baa4ca29ccc9ffd1855fe9dd8d497db3dd9c",
+    "pass": "react",
+    "unit": "DraftEditor",
+    "line": 86,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.03,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.14,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.2,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.04,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-3",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-3/src/app.tsx",
+    "sourceHash": "30957310a8bb5255d85807ba8961baa4ca29ccc9ffd1855fe9dd8d497db3dd9c",
+    "pass": "react",
+    "unit": "BookingScreen",
+    "line": 156,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.09,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.35,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.17,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.31,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.07,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-3",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-3/src/app.tsx",
+    "sourceHash": "30957310a8bb5255d85807ba8961baa4ca29ccc9ffd1855fe9dd8d497db3dd9c",
+    "pass": "react",
+    "unit": "BookingApp",
+    "line": 335,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.08,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.19,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.05,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.08,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-3",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-3/src/bookings.ts",
+    "sourceHash": "01bee3700815edeacbf91c9d3da36cd7e2c28141e7342fda19b824b3ec1edef9",
+    "pass": "files",
+    "unit": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-3/src/bookings.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.05,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.22,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-3",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-3/src/errors.ts",
+    "sourceHash": "ae692abb48db6599ca83800c56fa6c22cc92273fe95fa10f0cca8872e902095b",
+    "pass": "files",
+    "unit": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-3/src/errors.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.19,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-3",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-3/src/index.ts",
+    "sourceHash": "e2e18133d41d99f5ed69f93b4bf203b99c21294ff7ee490de3caa85b68d3b0b8",
+    "pass": "files",
+    "unit": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-3/src/index.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.11,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.15,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-3",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-3/src/main.tsx",
+    "sourceHash": "d7be1ce5ce5c049baa8c949f50925b141b60341d207fce5026f7a14d79835f5b",
+    "pass": "files",
+    "unit": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-3/src/main.tsx",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.08,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.03,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.04,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-4",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/app.tsx",
+    "sourceHash": "4e3bfaa895a989835989d0cc17297025dd73996c5b73b436b7e23bcf1d4aa20e",
+    "pass": "files",
+    "unit": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/app.tsx",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.06,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.05,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.07,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-4",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/app.tsx",
+    "sourceHash": "4e3bfaa895a989835989d0cc17297025dd73996c5b73b436b7e23bcf1d4aa20e",
+    "pass": "react",
+    "unit": "FilterBar",
+    "line": 62,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.06,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.03,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.03,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-4",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/app.tsx",
+    "sourceHash": "4e3bfaa895a989835989d0cc17297025dd73996c5b73b436b7e23bcf1d4aa20e",
+    "pass": "react",
+    "unit": "BookingRow",
+    "line": 86,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.03,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.08,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.05,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.03,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-4",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/app.tsx",
+    "sourceHash": "4e3bfaa895a989835989d0cc17297025dd73996c5b73b436b7e23bcf1d4aa20e",
+    "pass": "react",
+    "unit": "EditForm",
+    "line": 125,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.1,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.19,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.07,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-4",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/app.tsx",
+    "sourceHash": "4e3bfaa895a989835989d0cc17297025dd73996c5b73b436b7e23bcf1d4aa20e",
+    "pass": "react",
+    "unit": "BookingScreen",
+    "line": 218,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.12,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.45,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.13,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.14,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.07,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-4",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/app.tsx",
+    "sourceHash": "4e3bfaa895a989835989d0cc17297025dd73996c5b73b436b7e23bcf1d4aa20e",
+    "pass": "react",
+    "unit": "BookingApp",
+    "line": 407,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.09,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.23,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.05,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.07,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-4",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/errors.ts",
+    "sourceHash": "2c620094d44fcf93665c33769f9c0c7f4564603dcb562919e182d173d939c87d",
+    "pass": "files",
+    "unit": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/errors.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.37,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-4",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "sourceHash": "474da688554bdf64f75f55f958e5477f72e90cbae594ba65ad86330762f3db7e",
+    "pass": "files",
+    "unit": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.06,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.22,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "worker-4",
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/main.tsx",
+    "sourceHash": "23b94f2669c80cb01bf04df94683fa8fa1ab4574e76b0688c1915454424dc43a",
+    "pass": "files",
+    "unit": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/main.tsx",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.06,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.04,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "sourceHash": "77854d681b2352b5dcfc0f082bd3c72c4f94bb8b250ca4b08d8efa2f8342d786",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.06,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.1,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.13,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "sourceHash": "77854d681b2352b5dcfc0f082bd3c72c4f94bb8b250ca4b08d8efa2f8342d786",
+    "pass": "react",
+    "unit": "IssueForm",
+    "line": 43,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.03,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.07,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.17,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.12,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.06,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "sourceHash": "77854d681b2352b5dcfc0f082bd3c72c4f94bb8b250ca4b08d8efa2f8342d786",
+    "pass": "react",
+    "unit": "IssueFilters",
+    "line": 88,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.06,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.07,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.13,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.04,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "sourceHash": "77854d681b2352b5dcfc0f082bd3c72c4f94bb8b250ca4b08d8efa2f8342d786",
+    "pass": "react",
+    "unit": "IssueList",
+    "line": 111,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.11,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.29,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.15,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.09,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.06,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "sourceHash": "77854d681b2352b5dcfc0f082bd3c72c4f94bb8b250ca4b08d8efa2f8342d786",
+    "pass": "react",
+    "unit": "EditForm",
+    "line": 143,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.15,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.17,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.12,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.06,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "sourceHash": "77854d681b2352b5dcfc0f082bd3c72c4f94bb8b250ca4b08d8efa2f8342d786",
+    "pass": "react",
+    "unit": "CommentForm",
+    "line": 222,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.06,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.19,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.19,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.08,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.06,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "sourceHash": "77854d681b2352b5dcfc0f082bd3c72c4f94bb8b250ca4b08d8efa2f8342d786",
+    "pass": "react",
+    "unit": "DetailView",
+    "line": 266,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.1,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.05,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.13,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.06,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "sourceHash": "77854d681b2352b5dcfc0f082bd3c72c4f94bb8b250ca4b08d8efa2f8342d786",
+    "pass": "react",
+    "unit": "SelectedDetail",
+    "line": 273,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.25,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.1,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.19,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.09,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.07,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "sourceHash": "77854d681b2352b5dcfc0f082bd3c72c4f94bb8b250ca4b08d8efa2f8342d786",
+    "pass": "react",
+    "unit": "DetailPending",
+    "line": 319,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.03,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.05,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.03,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.03,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "sourceHash": "77854d681b2352b5dcfc0f082bd3c72c4f94bb8b250ca4b08d8efa2f8342d786",
+    "pass": "react",
+    "unit": "LiveState",
+    "line": 330,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.06,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.14,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.03,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.08,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "sourceHash": "77854d681b2352b5dcfc0f082bd3c72c4f94bb8b250ca4b08d8efa2f8342d786",
+    "pass": "react",
+    "unit": "ReloadButton",
+    "line": 349,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.28,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.12,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.03,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.07,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "sourceHash": "77854d681b2352b5dcfc0f082bd3c72c4f94bb8b250ca4b08d8efa2f8342d786",
+    "pass": "react",
+    "unit": "App",
+    "line": 360,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.08,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.13,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.07,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.05,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.06,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/App.tsx",
+    "sourceHash": "77854d681b2352b5dcfc0f082bd3c72c4f94bb8b250ca4b08d8efa2f8342d786",
+    "pass": "react",
+    "unit": "ScopedApp",
+    "line": 375,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.07,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.08,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.04,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/DraftView.tsx",
+    "sourceHash": "19fb7abce0fa7bf42e8c405eecf36d108a0aa6523427cf867ed71287ad2f657c",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/DraftView.tsx",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.08,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.07,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.09,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/DraftView.tsx",
+    "sourceHash": "19fb7abce0fa7bf42e8c405eecf36d108a0aa6523427cf867ed71287ad2f657c",
+    "pass": "react",
+    "unit": "ReadyView",
+    "line": 23,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.03,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.08,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.09,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.05,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.05,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/DraftView.tsx",
+    "sourceHash": "19fb7abce0fa7bf42e8c405eecf36d108a0aa6523427cf867ed71287ad2f657c",
+    "pass": "react",
+    "unit": "RetryView",
+    "line": 56,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.03,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.06,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.03,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.06,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/DraftView.tsx",
+    "sourceHash": "19fb7abce0fa7bf42e8c405eecf36d108a0aa6523427cf867ed71287ad2f657c",
+    "pass": "react",
+    "unit": "DraftBody",
+    "line": 84,
+    "findings": [
+      {
+        "id": "readsMoreThanRendered",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "subscribesToWriteOnly",
+        "probability": 0.06,
+        "hit": false
+      },
+      {
+        "id": "runDuringRender",
+        "probability": 0.08,
+        "hit": false
+      },
+      {
+        "id": "domainLogicInRender",
+        "probability": 0.05,
+        "hit": false
+      },
+      {
+        "id": "effectOwnedByComponent",
+        "probability": 0.06,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "sourceHash": "e4782fbebc118b8e2afa6aef4752bbfe0f5e7a5fe105918f1e1b03b7ed93205e",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/actions.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.06,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.09,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.4,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/api.ts",
+    "sourceHash": "b9f272f49df37f3219001610c7ddebea116692ab0f575a9d00e2857dca8e6e3a",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/api.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.06,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.03,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.18,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/connection.ts",
+    "sourceHash": "efcb422569480da2ec2f3229cdce893db09315d4b16be82c2789f32e33a5c632",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/connection.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.05,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.05,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.18,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/drafter.ts",
+    "sourceHash": "58e679ba3511074470344a87452452fd0294405c1689fe4454fe97822c1c578a",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/drafter.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.05,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.05,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.12,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/main.tsx",
+    "sourceHash": "06c700a87163df83c9e83f4405db2858f5ace414612f5ce84070ce85861390f3",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/main.tsx",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.08,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.03,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.09,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/services.ts",
+    "sourceHash": "df9a95ccd9363983fcda38d9b9cc51e7261ec2c999a4b39fc79e5bd98da21dd0",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/services.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.08,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.12,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.14,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "sourceHash": "c1e7c1e09536a054d74954976b4ce9b9cf40757ce8027db36b36d87ed3e2a870",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/client/state.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.08,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.32,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/errors.ts",
+    "sourceHash": "1c88937d0d82cf8150b330658f9337f855344a0953a1c10e9d5e72590a2e82ec",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/errors.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.05,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.27,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/index.ts",
+    "sourceHash": "cbcfecf88eda55e60b24b63d7ad8f890beb16c8d1d327afd49b8aa261316bbae",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/index.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.14,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.09,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.67,
+        "hit": true
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/app.ts",
+    "sourceHash": "eef924018e454331c178220e89d7328c499a78fa8302750dc33eff9acacd3cad",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/app.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.07,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.05,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.15,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/draft.ts",
+    "sourceHash": "0de8d9c7a400a3c511f72d3d090bab5cd3050a77a64a73f0007eaf3fe8970535",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/draft.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.1,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.78,
+        "hit": true
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/main.ts",
+    "sourceHash": "46b4964b99bd65d511280c8d36861e533f894c7b2133d00598b037241be85e54",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/main.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.07,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.03,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.14,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/observe.ts",
+    "sourceHash": "8b30702bd84f72a6674e1907fd9932374a79ef4d07b5091177437ef9afed4997",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/observe.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.02,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.16,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/operations.ts",
+    "sourceHash": "96950f2dd5cab9cba4d57c7d61b69c10833026e227745aae23bd46ecb2ebce1d",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/operations.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.05,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.08,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.26,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/publish.ts",
+    "sourceHash": "bff8acb36784cd0efd6f733468683c68bc73a139a8d66456c46a58027bc79195",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/publish.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.06,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.11,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/routes.ts",
+    "sourceHash": "128d4302e1ac84032bb8c81eb4cd9b4b2f24b1ed05571a13fdbfb74e30b94ebf",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/routes.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.08,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.46,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/store.ts",
+    "sourceHash": "c81745f665ca1da66163bde9f261a02a041760402a6cf94ac284d25c43bfc8b8",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/store.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.08,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.06,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.24,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/sync.ts",
+    "sourceHash": "348503875c40354a9664013aabe447cbbef7d219fe0bd3d8e380644661c8f55f",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/server/sync.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.09,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.29,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/draft.ts",
+    "sourceHash": "a6622ddc8a6b760d64eda60fb30bc3f33f04ba3d9fcc358714fef98f6c8b07b4",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/draft.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.07,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.03,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.14,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "sourceHash": "194d5e86060f2ff0dff27e1849266cf4825c439455cf9b7d5b045e92ae90c3b8",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/shared/issues.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.06,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.03,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.14,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/issues.ts",
+    "sourceHash": "fd97f6dbf924ef1bbd19b93762c9304fe2e79680a25d886f00b903b1be520343",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/issues.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.11,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.21,
+        "hit": false
+      }
+    ]
+  },
+  {
+    "group": "tracker",
+    "file": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/main.ts",
+    "sourceHash": "fb9a88f1dac840e7ee541180924c1adcf073ea5eaae7bf93504d1947c40096e0",
+    "pass": "files",
+    "unit": "/home/paseo/.paseo/worktrees/1ub87qpb/plastic-wasp/apps/issue-tracker/src/tools/main.ts",
+    "line": 1,
+    "findings": [
+      {
+        "id": "partialStub",
+        "probability": 0.07,
+        "hit": false
+      },
+      {
+        "id": "memoKeyIgnoresInput",
+        "probability": 0.04,
+        "hit": false
+      },
+      {
+        "id": "leakedInternal",
+        "probability": 0.13,
+        "hit": false
+      }
+    ]
+  }
+]

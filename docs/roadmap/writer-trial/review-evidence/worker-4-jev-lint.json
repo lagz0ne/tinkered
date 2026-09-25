@@ -1,0 +1,258 @@
+[
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/app.tsx",
+    "kind": "function",
+    "name": "formatTime",
+    "line": 25,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/app.tsx",
+    "kind": "function",
+    "name": "parseTime",
+    "line": 32,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/app.tsx",
+    "kind": "function",
+    "name": "errorKind",
+    "line": 50,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/app.tsx",
+    "kind": "function",
+    "name": "FilterBar",
+    "line": 62,
+    "flags": [],
+    "reads": "reads like a view (99%)"
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/app.tsx",
+    "kind": "function",
+    "name": "BookingRow",
+    "line": 86,
+    "flags": [],
+    "reads": "reads like a view (100%)"
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/app.tsx",
+    "kind": "function",
+    "name": "EditForm",
+    "line": 125,
+    "flags": [],
+    "reads": "reads like a view (90%)"
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/app.tsx",
+    "kind": "function",
+    "name": "BookingScreen",
+    "line": 218,
+    "flags": [],
+    "reads": "reads like a view (97%)"
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/app.tsx",
+    "kind": "function",
+    "name": "BookingApp",
+    "line": 407,
+    "flags": [],
+    "reads": "reads like a view (62%)"
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/errors.ts",
+    "kind": "function",
+    "name": "makeError",
+    "line": 45,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/errors.ts",
+    "kind": "function",
+    "name": "isError",
+    "line": 53,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "kind": "data",
+    "name": "bookings",
+    "line": 68,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "kind": "data",
+    "name": "editDraft",
+    "line": 74,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "kind": "data",
+    "name": "history",
+    "line": 83,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "kind": "function",
+    "name": "pushHistory",
+    "line": 91,
+    "flags": [],
+    "reads": "reads like a operation (65%)"
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "kind": "function",
+    "name": "nextId",
+    "line": 99,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "kind": "function",
+    "name": "toRoom",
+    "line": 104,
+    "flags": ["stateOutsideCell 63%"],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "kind": "function",
+    "name": "checkTime",
+    "line": 114,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "kind": "function",
+    "name": "checkDate",
+    "line": 124,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "kind": "function",
+    "name": "addDays",
+    "line": 147,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "kind": "function",
+    "name": "validateFields",
+    "line": 168,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "kind": "function",
+    "name": "overlaps",
+    "line": 192,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "kind": "function",
+    "name": "hasConflict",
+    "line": 202,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "kind": "function",
+    "name": "sortBookings",
+    "line": 220,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "kind": "function",
+    "name": "copyBooking",
+    "line": 229,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "kind": "operation",
+    "name": "bookBooking",
+    "line": 245,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "kind": "operation",
+    "name": "cancelBooking",
+    "line": 262,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "kind": "operation",
+    "name": "openEdit",
+    "line": 284,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "kind": "operation",
+    "name": "saveEdit",
+    "line": 302,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "kind": "operation",
+    "name": "discardEdit",
+    "line": 342,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "kind": "operation",
+    "name": "bookSeries",
+    "line": 355,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "kind": "operation",
+    "name": "cancelSeries",
+    "line": 391,
+    "flags": [],
+    "reads": null
+  },
+  {
+    "file": "/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/src/index.ts",
+    "kind": "operation",
+    "name": "undoChange",
+    "line": 418,
+    "flags": [],
+    "reads": null
+  }
+]

@@ -124,3 +124,76 @@ to verify its entrypoint. No new helper or core ticket was requested.
 | The commit hook's `vp check --fix` reflows TypeScript inside `.md` code fences to the formatter's 100-character width, so the writing-style rule "code fences under 60 characters" cannot hold: a fence broken at 60 is joined back (probe: `ctx.signal.addEventListener("abort", () => resolve(0), { once: true }),`, 74 characters, now in `packages/mcp/README.md`). The prose lint does not check lines inside fences. Wanted: the formatter skips `.md` fences, or runs with a 60 width for them, or the prose lint reports long fence lines. | nw/docs 2026-09-24 (first asker) | candidate |
 | A `.then` promise whose async handler rejects after close stopped waiting, but before the layer is finished, may miss the close result; after the root finishes it reaches the host's unhandled-rejection hook, so it is not silent. | core/caught-subflow review 2026-09-24 | candidate |
 | `tools/jev/promises.mjs` misses a README bullet whose key words fall on its second line, though wrapped bullets are the house style: `- A value flag at the end with no next word` / `  drops nothing.` scored 77% "no line", and 93% once unwrapped. Wanted: join a bullet's continuation lines before matching. | process/positionals 2026-09-25 (first asker) | candidate |
+
+## Writer learning round, 2026-09-22
+
+- DeepSeek thought useRun error state was forbidden by the learning rules.
+  It added screen operations to put notices in cells.
+  That works, but a derived message from useRun is also valid.
+  The tracker uses both forms. This is teaching feedback, not a core bug.
+- DeepSeek found that rawInput without an input parser leaves ctx.input unset.
+  The existing core input guide covers this rule.
+  No new core ticket; the worker can use typed input or add a real parser.
+- GLM blamed stored sorting for needing a creation-order record.
+  Creation order is a separate fact, even with a computed sorted view.
+  Its new cell is valid app state. No core change is needed.
+
+Reports and source checks are saved in
+`~/.local/share/tinker-writer-trial/learn-01/results/repair-1/`.
+
+MiMo Flash reported the same useRun error-state concern as DeepSeek.
+Its repair used the earlier rules; the fresh task includes the shared fix:
+a message read from useRun.error is allowed.
+This is a second report of unclear teaching, not a missing core feature.
+It also noted verbose controller types, without a failing public example.
+Keep that as a first request for simpler types, not a core change yet.
+
+MiMo Pro also found input shaping and raw error payloads awkward.
+Its saved code already reads ctx.rawInput through its source helper.
+The fresh action and raw-value checks pass; no failing core example was given.
+Keep this with the input-guide feedback above, not as a new API change.
+
+## Fresh stock writers, 2026-09-22
+
+MiMo Flash and DeepSeek both named writable useData as a trap.
+GLM also used it despite the operation-owned typing rule.
+The public hook permits that code; it is not a runtime bug.
+The teacher is adding a plain Jev finding for this forbidden view shape.
+No React API removal is approved by this trial.
+
+GLM and DeepSeek both missed notice clearing on successful filter changes.
+Their fixes use the existing cell and operation APIs.
+A shared success hook was suggested without a failing core example.
+Keep that as design feedback, not an approved core change.
+
+The rawInput reports repeat the known input-guide issue above.
+The stock writers also saw missing package source-map warnings.
+Those warnings did not fail tests or builds.
+Proof stays under stock-01/results in the saved trial folder.
+
+## Typed input with no parser, 2026-09-24
+
+Four first attempts across three trials put a non-text id into a
+`{ id: string }` error payload. Each passed `tsc`.
+Three forms: a cast (GLM, ballot-01), an `unknown` payload parameter
+(MiMo Pro, loans-01, ballot-01, kitchen-01), and, in kitchen-01, GLM
+reading `ctx.input.ticketId` from an operation with no `input` parser.
+
+Measured on core (`dist`), an operation with no `input` parser:
+
+```text
+scope.run(op, { input: { id: 7 } })
+  → ctx.input.id is 7 (a number)
+scope.run(op, { rawInput: { id: 7 } })
+  → ctx.input is undefined
+```
+
+`input` is the typed path: core trusts it, and a typed caller cannot
+send a number there. Only untyped callers can (plain JS, a transport,
+the teacher checker). So core does not lie to typed code.
+Not a core ticket. It is a teaching gap, now closed in the writer
+rules (42a7e00): a `{ input }` call skips an `input` parser, and a
+throwing parser surfaces as DataValidationFailed, so an operation that
+untyped code can reach reads `ctx.rawInput` (set for both call styles)
+and checks it. locker-01 and cinema-01: no payload miss.
+Proof: kitchen-01 worker-3-attempt-1 check-1, teacher 52/53.

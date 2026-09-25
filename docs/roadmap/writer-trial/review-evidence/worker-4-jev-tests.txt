@@ -1,0 +1,73 @@
+/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/tests/booking.test.ts
+  ✓ L25 saves a booking with the trimmed title
+  ✓ L41 starts with an empty list
+  ⚠ L46 rejects a blank title  — titleVague 63%
+  ⚠ L60 rejects an unknown room  — titleVague 56%
+  ✓ L74 rejects non-integer and out-of-range times
+  ⚠ L87 rejects an end at or before the start  — titleVague 55%
+  ⚠ L106 clashes on overlap within one room  — titleVague 69%
+  ⚠ L125 allows the same slot in another room  — titleVague 53%
+  ✓ L138 allows back-to-back bookings in one room
+  ✓ L145 keeps the list order: start time, then creation order
+  ✓ L169 creates exactly one booking for a contended slot
+  ✓ L180 removes a booking and frees its slot
+  ✓ L194 reports NotFound on a second cancel
+  ⚠ L216 returns a copy that does not alias the saved booking  — toBeThenToEqual
+  ✓ L232 reports NotFound for an unknown id
+  ✓ L242 keeps only one draft open at a time
+  ⚠ L265 blocks nothing until save  — titleVague 56%
+  ✓ L288 replaces the booking and closes the draft
+  ⚠ L311 allows keeping the booking's own slot  — titleVague 66%
+  ✓ L333 reports Clash against another booking and keeps the draft open
+  ⚠ L366 uses the same title and time rules as booking  — titleVague 82%
+  ✓ L413 reports NotFound when the draft is closed
+  ✓ L442 leaves the booking unchanged and closes the draft
+  ✓ L456 reports NotFound for an unknown id
+  ✓ L468 closes the draft of a canceled booking
+  ✓ L494 two scopes share nothing
+/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/tests/round3.test.ts
+  ✓ L21 defaults to 2026-10-01 when no date is given
+  ✓ L33 saves an explicit date
+  ✓ L45 rejects an unreal or malformed date with BadDate
+  ✓ L67 never clashes across dates but does clash within one date
+  ✓ L99 sorts by date, then start, then creation order
+  ✓ L139 books one occurrence per week, sharing a seriesId
+  ✓ L162 books nothing when any date clashes, reporting Clash
+  ⚠ L189 reports BadCount for a weeks value outside 1..12 or not an integer  — titleVague 50%
+  ✓ L214 one occurrence cancel leaves the rest of its series
+  ✓ L237 cancelSeries removes every occurrence
+  ✓ L253 cancelSeries reports NotFound for an unknown id
+  ✓ L266 allows the same series slot in another room on the same dates
+/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/tests/round4.test.ts
+  ⚠ L29 removes the newest booking and keeps the earlier one  — titleVague 68%
+  ✓ L63 reports EmptyUndo on a fresh scope
+  ✓ L73 restores the prior booking after an edit save
+  ✓ L97 removes every occurrence of a series in one undo step
+  ⚠ L113 restores every occurrence after a series cancel  — titleVague 63%
+  ✓ L142 restores one cancelled occurrence
+  ✓ L163 records no undo step when a booking fails to save
+  ✓ L183 leaves the open edit draft untouched when undoing a booking
+  ✓ L199 keeps the draft closed when undoing a cancel that had closed it
+  ⚠ L216 restores the exact prior state and pops only one entry per undo  — titleVague 51%
+  ✓ L237 frees a slot again after undoing a cancel
+  ⚠ L253 keeps each scope’s undo history separate  — titleVague 69%
+/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/tests/screen.test.tsx  ⚠ helpers 9 > 3
+  ✓ L93 books a row, clears the title, and keeps the form
+  ✓ L115 shows Clash beside the form and keeps the form values
+  ⚠ L139 allows the same slot in another room and back-to-back times  — titleVague 59%
+  ✓ L167 filters rows without deleting them
+  ✓ L195 cancels a row and frees its slot
+  ✓ L221 discards an edit, then saves one
+  ⚠ L251 keeps the draft open on a clashing save  — titleVague 67%
+  ⚠ L280 starts fresh after a reload  — titleVague 52%
+/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/tests/screen3.test.tsx  ⚠ helpers 6 > 3
+  ✓ L70 defaults the date and books a weekly series
+  ✓ L94 shows BadCount for a bad weeks value without booking
+  ✓ L110 cancels a whole series from one row
+  ⚠ L131 shows BadDate beside the form for an unreal date  — titleVague 55%
+/home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-4/tests/screen4.test.tsx  ⚠ helpers 8 > 3
+  ✓ L87 undoes the last booking, then the earlier one, then shows EmptyUndo
+  ⚠ L110 restores a cancelled row and frees its slot again  — titleVague 53%
+  ⚠ L129 keeps form text and the active filter through an undo  — titleVague 50%
+
+jev tests: 20/65 entries flagged. Each ⚠ is delete, merge, or explain — the convention says over-testing is a defect. Not a gate.

@@ -19,7 +19,8 @@ export function slice(src, file = "a.ts") {
 }
 
 /** The fields the decision depends on — nothing else rides into the state. */
-export const forJev = ({ kind, name, source }) => ({ kind, name, source });
+export const forJev = ({ kind, name, source, uses }) =>
+  uses?.length ? { kind, name, source, uses } : { kind, name, source };
 
 // ---------- lint: anti-goal judges (one boolean per rule grep cannot see) ----------
 // `applies` is the kind filter the code enforces; `threshold` is per question (Jev
@@ -27,6 +28,7 @@ export const forJev = ({ kind, name, source }) => ({ kind, name, source });
 export const LINT = {
   wrapsCallersStep: {
     applies: ["function"],
+    fix: "Declare the operation once at module level with its own label and depends; callers run it with useRun or scope.run. A builder function never creates an operation.",
     unitBuilders: true,
     threshold: 0.5,
     q: {
@@ -41,6 +43,7 @@ export const LINT = {
     },
   },
   runForwardsToClosure: {
+    fix: "Write the multi-step work in run itself; helpers take plain values or a dep listed in depends.",
     applies: ["operation"],
     threshold: 0.5,
     q: {
@@ -55,6 +58,7 @@ export const LINT = {
     },
   },
   effectWithoutDefer: {
+    fix: "Start it in a resource factory and stop it from ctx.defer.",
     applies: ["resource", "operation", "function", "hook"],
     threshold: 0.5,
     q: {
@@ -69,6 +73,7 @@ export const LINT = {
     },
   },
   stateOutsideCell: {
+    fix: "Keep that state in a data cell; operations write it and views read it with useData.",
     applies: ["resource", "function", "hook"],
     threshold: 0.5,
     q: {
@@ -83,19 +88,22 @@ export const LINT = {
     },
   },
   configNotTag: {
+    fix: "Declare a tag, list it in depends, and bind its value at the root.",
     applies: ["resource", "operation"],
     threshold: 0.5,
     q: {
       type: "boolean",
       instructions:
-        "Does this unit read an environment choice — a URL, port, path, flag, or feature switch — from process.env, a hard-coded literal, a struct field, or a closure argument instead of a tag in its depends?",
+        "Does this unit read a setting that changes per environment — a URL, host, port, file path, credential, or feature switch — from process.env, a hard-coded value, or a parameter, instead of a tag in its depends?",
       criteria: {
-        true: "an environment value comes from process.env, a literal, a field, or a parameter",
-        false: "environment values arrive through a tag in depends, or none are used",
+        true: "an environment setting (URL, host, port, path, key, flag) is read from process.env or written as a literal or argument",
+        false:
+          "no environment setting is used; labels, error kinds, UI text, ids, limits, and other app rules are not environment settings",
       },
     },
   },
   handRolledLifetime: {
+    fix: "Let the scope own the order: a resource with defer, ctx.signal, or scope.ready.",
     applies: ["resource", "operation", "function", "hook"],
     threshold: 0.5,
     q: {
@@ -110,6 +118,7 @@ export const LINT = {
     },
   },
   stopOnlyInDefer: {
+    fix: "Watch ctx.signal (or call throwIfAborted) inside the running work so close can end it.",
     applies: ["resource", "operation"],
     threshold: 0.5,
     q: {
@@ -124,6 +133,7 @@ export const LINT = {
     },
   },
   ignoresAbortAfterAwait: {
+    fix: "Call signal.throwIfAborted() after each await, before starting new work.",
     applies: ["resource"],
     threshold: 0.7,
     q: {
@@ -143,6 +153,7 @@ export const LINT = {
 // and Scope.Handle props; Jev gets the five things grep cannot see.
 Object.assign(LINT, {
   readsMoreThanRendered: {
+    fix: "Pass useData a selector that picks the one item you render.",
     applies: ["component"],
     threshold: 0.5,
     q: {
@@ -157,6 +168,7 @@ Object.assign(LINT, {
     },
   },
   subscribesToWriteOnly: {
+    fix: "Run an operation for the write; do not read a cell you never render.",
     applies: ["component"],
     threshold: 0.5,
     q: {
@@ -170,6 +182,7 @@ Object.assign(LINT, {
     },
   },
   runDuringRender: {
+    fix: "Move the call into an event handler or callback.",
     applies: ["component"],
     threshold: 0.5,
     q: {
@@ -183,20 +196,23 @@ Object.assign(LINT, {
     },
   },
   domainLogicInRender: {
+    fix: "Pass the raw input to an operation with useRun; the operation parses, checks, and sets the notice; the view renders the notice.",
     applies: ["component"],
-    threshold: 0.5,
+    // 0.6 from 45 labeled trial cases (2026-09-23): 1 of 42 clean hit, all 3 real bad cases hit.
+    threshold: 0.6,
     q: {
       type: "boolean",
       instructions:
-        "Does this component decide a domain rule itself — a conflict, a merge, validity against saved data, a revision check — instead of rendering a notice or flag that an operation wrote to a cell?",
+        "Does this component decide an app rule itself — parse or validate user input and pick an error, detect a conflict, merge, or check against saved data — instead of passing the raw input to an operation and rendering the notice the operation writes?",
       criteria: {
-        true: "the component compares saved and draft data or applies a business rule to decide what happens",
+        true: "the component parses or validates input and chooses an error or blocks the action, or compares saved and draft data to decide what happens",
         false:
-          "the component renders cells plus view-only formatting (labels, disabled while pending, empty-text checks); rules live in operations",
+          "the component passes raw input to operations with useRun and only formats values for display (labels, sorting for display, disabled while pending, empty-text checks)",
       },
     },
   },
   effectOwnedByComponent: {
+    fix: "Move it into a resource or an operation; the view runs it with useRun.",
     applies: ["component"],
     threshold: 0.5,
     q: {
@@ -206,6 +222,49 @@ Object.assign(LINT, {
       criteria: {
         true: "fetch, setInterval, setTimeout, addEventListener, EventSource, or a websocket is created in the component",
         false: "the component only runs operations with useRun and reads cells or resources",
+      },
+    },
+  },
+});
+
+// Input and guard-order judges (ADR 0068): found by the writer trials in three domains, where
+// the lead or a browser probe caught them and Jev did not. Worded with no domain nouns.
+Object.assign(LINT, {
+  inputDefaultMasks: {
+    applies: ["operation", "function"],
+    fix: "Raise the task's error for the bad value where you read it, before any other work. Keep the task's error payload types exactly; never widen a type to carry the raw value.",
+    // 0.85 kept (2026-09-23), with same-file `uses`: 0.8 caught 18 of 19 true on 58 labeled cases
+    // but blocked 5 clean units in the 20 accepted trial apps (optional-date defaults, raw-field
+    // readers whose callers live in another file); 0.85 blocks 1. `uses` still clears a helper
+    // that only fills a thrown error's payload (ballot-01 idText 0.84 → 0.36).
+    threshold: 0.85,
+    q: {
+      type: "boolean",
+      instructions:
+        "Look only at values that come from the user or the caller — form text, ctx.input, a raw input field. When such a value is missing, blank, the wrong type, or cannot be parsed, is there ANY path where this code keeps going with a made-up value instead of raising an error? Count an if-branch that returns or assigns a default for blank input, a ternary that picks a default, `??` or `||` on the input, String(x), or Number(x) without a check. When `uses` is given, it lists the lines in this file that call this helper: judge what happens to the returned value there.",
+      criteria: {
+        true: 'some path turns a missing, blank, wrong-typed, or unparseable user or caller value into a default ("", 0, 1, today, the first option, "undefined") and continues without an error',
+        false:
+          "every path that meets a bad user or caller value raises an error, or the only defaults are for internal values (sort ranks, lookups in the app's own maps, display fallbacks, error names), or for optional settings, or `uses` shows the made-up value only goes into a thrown error's payload and no work continues with it",
+      },
+    },
+  },
+  noOpRejected: {
+    fix: "Check 'already so' first and return the saved record with no change and no undo step; run status, lock, and limit guards only for a request that changes something.",
+    applies: ["operation", "function"],
+    // 0.66 since 2026-09-24 (first wording + one line: a create or a remove has no already-so
+    // state). Averaged over two runs on 45 labeled cases, 3 planted proof bugs, and 2 locker
+    // reference units: true min 0.70, clean max 0.61. locker-01 receiveParcel 0.69 -> 0.32;
+    // kitchen-01 cancelTicket -> 0.54. A wider rewording dropped the locker plant to 0.54.
+    threshold: 0.66,
+    q: {
+      type: "boolean",
+      instructions:
+        "Can this code reject a request that would change nothing — the record is already in the requested state (the link already exists, the item is already done, the value is already set) — because a guard such as a status, lock, or limit check runs BEFORE the check for 'already so'? Code that only creates a new record, or only removes one, has no 'already so' state, so its guards cannot reject a no-op.",
+      criteria: {
+        true: "a guard that throws or fails comes before the already-so check, so repeating an already-applied request fails",
+        false:
+          "the already-so check runs first and returns without change, or no repeat-of-current-state path exists, or the code only creates a new record or only removes one",
       },
     },
   },
@@ -271,21 +330,10 @@ export const SHAPE = {
 // ---------- tests: the convention's "over-testing is a defect" rules a grep cannot see ----------
 // State per test: { title, body }. Pairwise state: { a: { title, body }, b: { title, body } }.
 // Rule text: .agents/skills/coding-convention/SKILL.md "Tests".
-export const TESTS = {
-  titleVague: {
-    threshold: 0.5,
-    q: {
-      type: "boolean",
-      instructions:
-        "Does the title fail to name the outcome the body's decisive assertion checks — a vague verb (works, handles, supports, correctly), a mechanism instead of a result, or a claim the body never asserts?",
-      criteria: {
-        true: "a reader cannot tell from the title alone what value, state, error, or exit the body proves, or the title claims something the assertions do not check",
-        false:
-          "the title states the cause and the checked outcome in plain words, and the decisive assertion checks exactly that",
-      },
-    },
-  },
-};
+// Retired 2026-09-23 by ADR 0054 rule 1: `titleVague` was noisy on 120 labeled tests
+// (sep 27, ordered 60% on trial code) and a second wording stayed noisy (sep 19, ordered 68%).
+// Its cases stay in cases.jsonl. A new test judge enters only with a crisp `true`.
+export const TESTS = {};
 
 /** Each `test("…", …)` / `it("…", …)` call: title, body, line, and its causes/asserts/narrows. */
 export function sliceTests(src, file = "a.test.ts") {

@@ -1,0 +1,253 @@
+{
+  "banks": {
+    "files": {
+      "partialStub": {
+        "threshold": 0.5,
+        "q": {
+          "type": "boolean",
+          "instructions": "Does the code leave required work unfinished — a placeholder body, a thrown not-implemented, or a TODO on the main path?",
+          "criteria": {
+            "true": "a required path is stubbed, throws not-implemented, or is marked TODO/FIXME",
+            "false": "every required path has a real implementation"
+          }
+        }
+      },
+      "memoKeyIgnoresInput": {
+        "threshold": 0.5,
+        "q": {
+          "type": "boolean",
+          "instructions": "Is a cached or memoized result stored under a key that omits an input the result depends on, so a later call with a different value returns the earlier cached result?",
+          "criteria": {
+            "true": "the key leaves out an input that changes the correct result",
+            "false": "the key includes every input the result depends on, or there is no caching"
+          }
+        }
+      },
+      "leakedInternal": {
+        "threshold": 0.5,
+        "q": {
+          "type": "boolean",
+          "instructions": "Does this file expose, through a public or exported API, a symbol whose name or role marks it as internal (helper, impl detail, underscore-prefixed, \"internal\", \"unsafe\")?",
+          "criteria": {
+            "true": "a public export exposes an internal-looking symbol",
+            "false": "only intentionally-public symbols cross the public surface"
+          }
+        }
+      }
+    },
+    "react": {
+      "readsMoreThanRendered": {
+        "applies": ["component"],
+        "threshold": 0.5,
+        "q": {
+          "type": "boolean",
+          "instructions": "Does this component read a whole list or collection from a cell with useData, and then use only one item of it — found by id, key, or index — with no selector argument?",
+          "criteria": {
+            "true": "useData(cell) returns a whole list and the component picks one item out of it by id, key, or index",
+            "false": "useData gets a selector for the item, the component renders the list it reads, or the cell holds a single record or form draft whose fields are rendered"
+          }
+        }
+      },
+      "subscribesToWriteOnly": {
+        "applies": ["component"],
+        "threshold": 0.5,
+        "q": {
+          "type": "boolean",
+          "instructions": "Does this component subscribe to a cell it only writes — useData, or useData with writable — where the read value never appears in the output?",
+          "criteria": {
+            "true": "a cell is read with useData but only its setter is used; the value is never rendered",
+            "false": "every value read is rendered, or write-only access goes through useController"
+          }
+        }
+      },
+      "runDuringRender": {
+        "applies": ["component"],
+        "threshold": 0.5,
+        "q": {
+          "type": "boolean",
+          "instructions": "Does this component call run, runAsync, set, or update directly in its render body — outside any event handler, callback, or effect?",
+          "criteria": {
+            "true": "a run or a cell write sits in the function body and executes on every render",
+            "false": "every run or write is inside an onClick, onChange, onSubmit, or other callback"
+          }
+        }
+      },
+      "domainLogicInRender": {
+        "applies": ["component"],
+        "threshold": 0.5,
+        "q": {
+          "type": "boolean",
+          "instructions": "Does this component decide a domain rule itself — a conflict, a merge, validity against saved data, a revision check — instead of rendering a notice or flag that an operation wrote to a cell?",
+          "criteria": {
+            "true": "the component compares saved and draft data or applies a business rule to decide what happens",
+            "false": "the component renders cells plus view-only formatting (labels, disabled while pending, empty-text checks); rules live in operations"
+          }
+        }
+      },
+      "effectOwnedByComponent": {
+        "applies": ["component"],
+        "threshold": 0.5,
+        "q": {
+          "type": "boolean",
+          "instructions": "Does this component itself start a fetch, timer, listener, socket, or stream — in its body or in a handler — instead of running an operation with useRun or reading a resource?",
+          "criteria": {
+            "true": "fetch, setInterval, setTimeout, addEventListener, EventSource, or a websocket is created in the component",
+            "false": "the component only runs operations with useRun and reads cells or resources"
+          }
+        }
+      }
+    }
+  },
+  "calibration": {
+    "runForwardsToClosure": {
+      "status": "provisional",
+      "trues": 3,
+      "falses": 5,
+      "medianTrue": 0.95,
+      "medianFalse": 0.08,
+      "separation": 0.87,
+      "ordered": 1,
+      "at": "2026-09-22"
+    },
+    "effectWithoutDefer": {
+      "status": "provisional",
+      "trues": 2,
+      "falses": 7,
+      "medianTrue": 0.82,
+      "medianFalse": 0.43,
+      "separation": 0.39,
+      "ordered": 0.86,
+      "at": "2026-09-22"
+    },
+    "stateOutsideCell": {
+      "status": "provisional",
+      "trues": 2,
+      "falses": 7,
+      "medianTrue": 0.9,
+      "medianFalse": 0.58,
+      "separation": 0.32,
+      "ordered": 1,
+      "at": "2026-09-22"
+    },
+    "configNotTag": {
+      "status": "provisional",
+      "trues": 2,
+      "falses": 14,
+      "medianTrue": 0.87,
+      "medianFalse": 0.64,
+      "separation": 0.23,
+      "ordered": 0.89,
+      "at": "2026-09-22"
+    },
+    "handRolledLifetime": {
+      "status": "provisional",
+      "trues": 3,
+      "falses": 4,
+      "medianTrue": 0.79,
+      "medianFalse": 0.04,
+      "separation": 0.75,
+      "ordered": 0.92,
+      "at": "2026-09-22"
+    },
+    "stopOnlyInDefer": {
+      "status": "provisional",
+      "trues": 1,
+      "falses": 3,
+      "medianTrue": 0.86,
+      "medianFalse": 0.6,
+      "separation": 0.26,
+      "ordered": 1,
+      "at": "2026-09-22"
+    },
+    "ignoresAbortAfterAwait": {
+      "status": "provisional",
+      "trues": 1,
+      "falses": 1,
+      "medianTrue": 0.75,
+      "medianFalse": 0.28,
+      "separation": 0.47,
+      "ordered": 1,
+      "at": "2026-09-22"
+    },
+    "readsMoreThanRendered": {
+      "status": "provisional",
+      "trues": 1,
+      "falses": 2,
+      "medianTrue": 0.92,
+      "medianFalse": 0.21,
+      "separation": 0.71,
+      "ordered": 1,
+      "at": "2026-09-22"
+    },
+    "subscribesToWriteOnly": {
+      "status": "provisional",
+      "trues": 1,
+      "falses": 1,
+      "medianTrue": 0.95,
+      "medianFalse": 0.09,
+      "separation": 0.86,
+      "ordered": 1,
+      "at": "2026-09-22"
+    },
+    "runDuringRender": {
+      "status": "provisional",
+      "trues": 1,
+      "falses": 1,
+      "medianTrue": 0.96,
+      "medianFalse": 0.18,
+      "separation": 0.78,
+      "ordered": 1,
+      "at": "2026-09-22"
+    },
+    "domainLogicInRender": {
+      "status": "provisional",
+      "trues": 1,
+      "falses": 1,
+      "medianTrue": 0.94,
+      "medianFalse": 0.05,
+      "separation": 0.89,
+      "ordered": 1,
+      "at": "2026-09-22"
+    },
+    "effectOwnedByComponent": {
+      "status": "provisional",
+      "trues": 1,
+      "falses": 1,
+      "medianTrue": 0.95,
+      "medianFalse": 0.05,
+      "separation": 0.9,
+      "ordered": 1,
+      "at": "2026-09-22"
+    },
+    "leakedInternal": {
+      "status": "provisional",
+      "trues": 1,
+      "falses": 4,
+      "medianTrue": 0.69,
+      "medianFalse": 0.48,
+      "separation": 0.21,
+      "ordered": 0.5,
+      "at": "2026-09-22"
+    },
+    "survivorMatters": {
+      "status": "proven",
+      "trues": 6,
+      "falses": 7,
+      "medianTrue": 0.84,
+      "medianFalse": 0.19,
+      "separation": 0.65,
+      "ordered": 0.95,
+      "at": "2026-09-22"
+    },
+    "titleVague": {
+      "status": "provisional",
+      "trues": 2,
+      "falses": 40,
+      "medianTrue": 0.72,
+      "medianFalse": 0.59,
+      "separation": 0.13,
+      "ordered": 0.76,
+      "at": "2026-09-22"
+    }
+  }
+}

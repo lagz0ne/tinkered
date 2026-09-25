@@ -1,0 +1,322 @@
+{
+  "unknownErrorSwallowed": {
+    "verdict": "not added: the catch usually hands the error to a helper outside the unit, so one unit cannot show the defect",
+    "cases": [
+      {
+        "where": "stock-w1-attempt-1:src/operations.ts#submitMoveForm",
+        "label": false,
+        "jev": 0.92,
+        "why": "Catch calls report(error, deps.notice), a helper not shown; cannot tell whether it narrows and rethrows.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-orig-w1:src/BookingApp.tsx#BookingScreen",
+        "label": false,
+        "jev": 0.91,
+        "why": "Every catch passes the value to errorKind(thrown), a helper not shown; cannot tell whether it rethrows unknowns.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-orig-w2:src/BookingApp.tsx#BookingScreen",
+        "label": true,
+        "jev": 0.91,
+        "why": "lead: catch maps every error through a helper that returns \"Unknown\"/\"Error\" for unrecognized values (errorKind/shownKind in the same app), never rethrows",
+        "by": "lead"
+      },
+      {
+        "where": "booking-orig-w4:src/app.tsx#EditForm",
+        "label": true,
+        "jev": 0.91,
+        "why": "lead: catch maps every error through a helper that returns \"Unknown\"/\"Error\" for unrecognized values (errorKind/shownKind in the same app), never rethrows",
+        "by": "lead"
+      },
+      {
+        "where": "stock-w1-attempt-1:src/operations.ts#undoMove",
+        "label": false,
+        "jev": 0.91,
+        "why": "Catch calls report(error, deps.notice), a helper not shown; cannot tell.",
+        "by": "blind"
+      },
+      {
+        "where": "stock-w1-attempt-1:src/operations.ts#submitEditForm",
+        "label": false,
+        "jev": 0.91,
+        "why": "Catch calls report(error, deps.notice), a helper not shown; cannot tell.",
+        "by": "blind"
+      },
+      {
+        "where": "plan-w3-attempt-1:src/plan.ts#removePrerequisite",
+        "label": false,
+        "jev": 0.91,
+        "why": "Catch calls report(notice, error), a helper not shown; cannot tell.",
+        "by": "blind"
+      },
+      {
+        "where": "plan-w3-attempt-1:src/plan.ts#addPrerequisite",
+        "label": false,
+        "jev": 0.91,
+        "why": "Catch calls report(notice, error), a helper not shown; cannot tell.",
+        "by": "blind"
+      },
+      {
+        "where": "plan-w3-attempt-1:src/plan.ts#reopenCourse",
+        "label": false,
+        "jev": 0.91,
+        "why": "Catch calls report(notice, error), a helper not shown; cannot tell.",
+        "by": "blind"
+      },
+      {
+        "where": "plan-w3-attempt-1:src/plan.ts#undoPlan",
+        "label": false,
+        "jev": 0.91,
+        "why": "Catch calls report(notice, error), a helper not shown; cannot tell.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-orig-w4:src/app.tsx#BookingScreen",
+        "label": true,
+        "jev": 0.9,
+        "why": "lead: catch maps every error through a helper that returns \"Unknown\"/\"Error\" for unrecognized values (errorKind/shownKind in the same app), never rethrows",
+        "by": "lead"
+      },
+      {
+        "where": "booking-final-w4:src/ops.ts#discardDraft",
+        "label": false,
+        "jev": 0.9,
+        "why": "Catch sets noticeStore to errorKind(error), a helper not shown; cannot tell whether it rethrows unknowns.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-final-w4:src/ops.ts#submitUndo",
+        "label": false,
+        "jev": 0.9,
+        "why": "Catch sets noticeStore to errorKind(error), a helper not shown; cannot tell whether unknowns are rethrown.",
+        "by": "blind"
+      },
+      {
+        "where": "stock-w1-attempt-1:src/operations.ts#discardMoveEdit",
+        "label": false,
+        "jev": 0.9,
+        "why": "Catch calls report(error, deps.notice), a helper not shown; cannot tell.",
+        "by": "blind"
+      },
+      {
+        "where": "plan-w3-attempt-1:src/plan.ts#createCourse",
+        "label": false,
+        "jev": 0.9,
+        "why": "Catch calls report(notice, error), a helper not shown; cannot tell.",
+        "by": "blind"
+      },
+      {
+        "where": "plan-w3-attempt-1:src/plan.ts#completeCourse",
+        "label": false,
+        "jev": 0.9,
+        "why": "Catch calls report(notice, error), a helper not shown; cannot tell.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-orig-w1:src/BookingApp.tsx#EditForm",
+        "label": false,
+        "jev": 0.89,
+        "why": "Catches forward the value to the onFailure prop, which is not shown; cannot tell.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-final-w4:src/ops.ts#requestCancel",
+        "label": false,
+        "jev": 0.89,
+        "why": "Catch sets noticeStore to errorKind(error), a helper not shown; cannot tell.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-final-w4:src/ops.ts#submitSeriesTitle",
+        "label": false,
+        "jev": 0.89,
+        "why": "Catch sets noticeStore to errorKind(error), a helper not shown; cannot tell.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-final-w4:src/ops.ts#requestCancelSeries",
+        "label": false,
+        "jev": 0.88,
+        "why": "Catch sets noticeStore to errorKind(error), a helper not shown; cannot tell.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-final-w4:src/ops.ts#requestRename",
+        "label": false,
+        "jev": 0.88,
+        "why": "Catch sets noticeStore to errorKind(error), a helper not shown; cannot tell.",
+        "by": "blind"
+      },
+      {
+        "where": "stock-w1-attempt-1:src/operations.ts#openMoveEdit",
+        "label": false,
+        "jev": 0.88,
+        "why": "Catch calls report(error, deps.notice), a helper not shown; cannot tell.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-orig-w3:src/app.tsx#kindOf",
+        "label": true,
+        "jev": 0.44,
+        "why": "kindOf maps any error errorKind does not recognize to the string \"Unknown\" (errorKind(error) ?? \"Unknown\") instead of rethrowing it.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-final-w3:src/screen.ts#withNotice",
+        "label": false,
+        "jev": 0.04,
+        "why": "withNotice rethrows when errorKind(error) is undefined and rethrows after setting the notice.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-final-w2:src/screen.ts#submitBook",
+        "label": false,
+        "jev": 0.05,
+        "why": "Catch rethrows when bookingFailure(caught) is undefined and only sets a notice for recognized kinds.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-final-w1:src/screen.ts#pressCancelSeries",
+        "label": false,
+        "jev": 0.85,
+        "why": "Catch sets the alert and then rethrows the caught value (throw thrown).",
+        "by": "blind"
+      },
+      {
+        "where": "stock-w3-attempt-1:src/desk.ts#undoMove",
+        "label": false,
+        "jev": 0.83,
+        "why": "Catch calls fail(deps, error), a helper not shown; cannot tell.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-final-w1:src/screen.ts#pressEdit",
+        "label": false,
+        "jev": 0.82,
+        "why": "Catch sets the alert and then rethrows the caught value (throw thrown).",
+        "by": "blind"
+      },
+      {
+        "where": "booking-final-w1:src/screen.ts#pressRenameSeries",
+        "label": false,
+        "jev": 0.8,
+        "why": "Catch sets the alert and then rethrows the caught value (throw thrown).",
+        "by": "blind"
+      },
+      {
+        "where": "stock-w3-attempt-1:src/desk.ts#saveMoveEdit",
+        "label": false,
+        "jev": 0.8,
+        "why": "Catch calls fail(deps, error), a helper not shown; cannot tell.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-final-w2:src/screen.ts#submitCancelSeries",
+        "label": false,
+        "jev": 0.06,
+        "why": "Catch rethrows when goneFailure(caught) is undefined.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-final-w4:src/ops.ts#openDraft",
+        "label": false,
+        "jev": 0.87,
+        "why": "Catch sets noticeStore to errorKind(error), a helper not shown; cannot tell.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-final-w1:src/screen.ts#pressUndo",
+        "label": false,
+        "jev": 0.84,
+        "why": "Catch sets the alert and then rethrows the caught value (throw thrown).",
+        "by": "blind"
+      },
+      {
+        "where": "plan-w3-attempt-1:src/view.tsx#CourseRow",
+        "label": false,
+        "jev": 0.04,
+        "why": "No catch; the component only calls run in onClick handlers.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-orig-w2:src/ops.ts#cancelBooking",
+        "label": false,
+        "jev": 0.04,
+        "why": "No catch; errors are raised with appError and propagate.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-final-w2:src/screen.ts#submitSeriesTitle",
+        "label": false,
+        "jev": 0.06,
+        "why": "Catch rethrows when renameFailure(caught) is undefined.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-orig-w3:src/app.tsx#timeLabel",
+        "label": false,
+        "jev": 0.03,
+        "why": "No catch; timeLabel only formats minutes.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-orig-w2:src/ops.ts#bookBooking",
+        "label": false,
+        "jev": 0.05,
+        "why": "No catch; errors like clash(fields) are thrown and propagate.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-orig-w4:src/index.ts#overlaps",
+        "label": false,
+        "jev": 0.03,
+        "why": "No catch; overlaps is a pure comparison.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-orig-w2:src/ops.ts#undoChange",
+        "label": false,
+        "jev": 0.04,
+        "why": "No catch; EmptyUndo is thrown and propagates.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-orig-w1:src/model.ts#seriesDates",
+        "label": false,
+        "jev": 0.06,
+        "why": "No catch; bad dates raise appError(\"BadDate\").",
+        "by": "blind"
+      },
+      {
+        "where": "booking-orig-w3:src/bookings.ts#isMinute",
+        "label": false,
+        "jev": 0.04,
+        "why": "No catch; isMinute is a pure type guard.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-orig-w1:src/model.ts#parseDate",
+        "label": false,
+        "jev": 0.06,
+        "why": "No catch; parseDate returns null for bad text, not a caught error.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-orig-w1:src/model.ts#readFields",
+        "label": false,
+        "jev": 0.06,
+        "why": "No catch; readFields only copies fields from raw input.",
+        "by": "blind"
+      },
+      {
+        "where": "booking-orig-w3:src/bookings.ts#saveEdit",
+        "label": false,
+        "jev": 0.05,
+        "why": "No catch; failures are thrown with fail(...) and propagate.",
+        "by": "blind"
+      }
+    ]
+  }
+}

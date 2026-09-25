@@ -41,3 +41,4 @@ by a new decision that names the old one.
 | [0065](0065-fewer-fixed-steps-impact-only-across-packages-a-label-is-the-note.md) | Fewer fixed steps: an impact block only across packages; a Jev label is the writer's note; a shorter report |
 | [0066](0066-a-subflow-failure-belongs-to-its-caller.md) | A subflow failure belongs to its caller: a caught subflow does not fail the session |
 | [0067](0067-an-error-is-a-value-a-panic-is-stamped-at-its-origin-and-settle-recovers.md) | An error (managed, `kind` + `payload`) is a value; anything else is a panic: stamped at its origin, sticky; `settle` recovers and returns a Result |
+| [0068](0068-in-the-writer-loop-a-proven-jev-hit-and-a-plain-shape-finding-block-done.md) | In the writer loop, a plain shape finding and a `proven` Jev hit block "done"; the repo's own Jev tools stay advisory; first hardening adds `inputDefaultMasks` and `noOpRejected`, retires `titleVague` |

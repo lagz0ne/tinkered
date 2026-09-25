@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "lib": ["es2023", "dom", "dom.iterable"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "paths": {
+      "@tinker/core": ["../../../../packages/core/dist/index.d.mts"],
+      "@tinker/react": ["../../../../packages/react/dist/index.d.mts"],
+      "react": ["../../../../node_modules/.pnpm/@types+react@19.3.0/node_modules/@types/react"],
+      "react-dom/client": [
+        "../../../../node_modules/.pnpm/@types+react-dom@19.3.0_@types+react@19.3.0/node_modules/@types/react-dom/client"
+      ],
+      "react/jsx-runtime": [
+        "../../../../node_modules/.pnpm/@types+react@19.3.0/node_modules/@types/react/jsx-runtime"
+      ]
+    }
+  },
+  "include": ["."]
+}

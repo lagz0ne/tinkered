@@ -65,47 +65,179 @@ function declaresUnit(node) {
   return found;
 }
 
-/** A top-level function as a unit record; wrappers need a narrower set of questions. */
-const functionRecord = (src, node, name, exported, wrapperOnly = false) => ({
-  kind: "function",
+/** Function node types: returns or JSX inside one of these belong to the inner function. */
+const FN_TYPES = new Set(["ArrowFunctionExpression", "FunctionExpression", "FunctionDeclaration"]);
+
+/** Ranges of nested function bodies under root — the root itself is never one of them. */
+function innerBodies(root) {
+  const out = [];
+  walk(root, (n) => {
+    if (n === root) return;
+    if (!FN_TYPES.has(n.type)) return;
+    if (!n.body || n.body.start === undefined) return;
+    out.push([n.body.start, n.body.end]);
+  });
+  return out;
+}
+
+/** Is this offset inside one of the ranges? */
+function insideAny(ranges, pos) {
+  return ranges.some(([from, to]) => from <= pos && pos <= to);
+}
+
+/** Any JSX element or fragment in root outside nested function bodies. */
+function rendersOutside(root) {
+  const hidden = innerBodies(root);
+  let found = false;
+  walk(root, (n) => {
+    if (found) return;
+    if (n.type !== "JSXElement" && n.type !== "JSXFragment") return;
+    if (n.start !== undefined && !insideAny(hidden, n.start)) found = true;
+  });
+  return found;
+}
+
+/** Does this function body return JSX — through `if`/`switch`/`try` branches too? An arrow
+ *  expression body is its return. Returns inside a nested function do not count, so a helper
+ *  holding `const render = () => <p/>` but returning a value stays a helper. */
+function returnsJsx(body) {
+  if (!body) return false;
+  if (body.type !== "BlockStatement") return rendersOutside(body);
+  const hidden = innerBodies(body);
+  let found = false;
+  walk(body, (n) => {
+    if (found || n.type !== "ReturnStatement") return;
+    if (n.start === undefined || !n.argument) return;
+    if (insideAny(hidden, n.start)) return;
+    if (rendersOutside(n.argument)) found = true;
+  });
+  return found;
+}
+
+/** A top-level function as a unit record: kind "component" when it returns JSX, else plain
+ *  "function". One declarator of `const A = …, B = …` owns only its own span — name, line,
+ *  and source — so a judge never reads a sibling. A function that declares units (a wrapper
+ *  or builder) is `wrapperOnly`: only judges marked `unitBuilders` ask about it. */
+const functionRecord = (src, span, name, exported, kind, wrapperOnly = false) => ({
+  kind,
   name,
-  line: lineOf(src, node.start),
-  source: text(src, node),
+  line: lineOf(src, span.start),
+  source: src.slice(span.start, span.end),
   exported,
   wrapperOnly,
 });
 
-/** The name of a top-level arrow function (including components). */
-function arrowName(decl) {
-  const d = decl?.type === "VariableDeclaration" ? decl.declarations[0] : undefined;
-  const isArrow = d?.init?.type === "ArrowFunctionExpression" && d.id.type === "Identifier";
-  return isArrow ? d.id.name : null;
+/** The functions one declaration holds — { name, body } each. Covers a named `function`,
+ *  an anonymous default-exported function (which reads as "default"), and
+ *  `const X = (…) => …` / `const X = function …`. */
+function isFnInit(init) {
+  return init?.type === "ArrowFunctionExpression" || init?.type === "FunctionExpression";
 }
 
-/** Top-level functions are also judged when they declare units: wrappers live there. */
+/** The function declarators of one `const` — each keeps its own name, body, and span. */
+function constFns(decl) {
+  return decl.declarations
+    .filter((d) => d.id.type === "Identifier" && isFnInit(d.init))
+    .map((d) => ({ name: d.id.name, body: d.init.body, span: d }));
+}
+
+/** The named `function` or bare arrow one declaration holds, or null. */
+function singleFn(decl, node) {
+  if (decl?.type === "FunctionDeclaration" && decl.body)
+    return { name: decl.id?.name ?? "default", body: decl.body, span: node };
+  if (isFnInit(decl)) return { name: "default", body: decl.body, span: node };
+  return null;
+}
+
+/** Every function a declaration holds, in order: the named `function` or bare arrow, or each
+ *  function declarator of a `const A = …, B = …` (the unit keeps its own const name). */
+function fnsOf(decl, node) {
+  const single = singleFn(decl, node);
+  if (single !== null) return [single];
+  if (decl?.type !== "VariableDeclaration") return [];
+  return constFns(decl);
+}
+
+/** One unit record for a declared function: a component when `.tsx` JSX returns, else a helper. */
+function fnRecord(src, exported, tsx, found) {
+  const kind = tsx && returnsJsx(found.body) ? "component" : "function";
+  return functionRecord(src, found.span, found.name, exported, kind);
+}
+
+/** One record for a found function: a `wrapperOnly` function when it declares units (a
+ *  wrapper or builder, judged only by `unitBuilders` judges), else a component or helper. */
+function recordOf(src, exported, tsx, found) {
+  if (declaresUnit(found.body))
+    return functionRecord(src, found.span, found.name, exported, "function", true);
+  return fnRecord(src, exported, tsx, found);
+}
+
+/** The unit record for one named `function` declaration, or none. */
+function namedRecords(src, node, exported, tsx, decl) {
+  const found = fnsOf(decl, node)[0];
+  return found ? [recordOf(src, exported, tsx, found)] : [];
+}
+
+/** Top-level functions: a component when the body returns JSX (fragments count, nesting in
+ *  the returned tree counts), a plain helper otherwise, and a `wrapperOnly` function when it
+ *  declares units. Arrow and function-expression consts are units in every file: a default
+ *  hidden in `const readId = (v) => …` is judged the same as one in `function readId(v)`. */
 function functionOf(src, node, file) {
-  const decl = node.type === "ExportNamedDeclaration" ? node.declaration : node;
-  const exported = node.type === "ExportNamedDeclaration";
-  if (decl?.type === "FunctionDeclaration" && decl.id)
-    return functionRecord(src, node, decl.id.name, exported, declaresUnit(decl.body));
-  const arrow = arrowName(decl);
-  return arrow
-    ? functionRecord(src, node, arrow, exported, !file.endsWith(".tsx") || declaresUnit(decl))
-    : null;
+  const decl =
+    node.type === "ExportNamedDeclaration" || node.type === "ExportDefaultDeclaration"
+      ? node.declaration
+      : node;
+  const exported =
+    node.type === "ExportNamedDeclaration" || node.type === "ExportDefaultDeclaration";
+  const tsx = file.endsWith(".tsx") || file.endsWith(".jsx");
+  if (decl?.type === "FunctionDeclaration") return namedRecords(src, node, exported, tsx, decl);
+  return fnsOf(decl, node).map((found) => recordOf(src, exported, tsx, found));
 }
 
 /** Every declared unit and every top-level function that declares none, in source order. */
 export function units(src, file = "a.ts") {
   const out = [];
-  for (const node of parse(file, src).body) {
+  const program = parse(file, src);
+  for (const node of program.body) {
     const decl = node.type === "ExportNamedDeclaration" ? node.declaration : node;
     const exported = node.type === "ExportNamedDeclaration";
     const declarators = decl?.type === "VariableDeclaration" ? decl.declarations : [];
     out.push(...declarators.map((d) => unitOf(src, d, exported)).filter(Boolean));
-    const fn = functionOf(src, node, file);
-    if (fn) out.push(fn);
+    out.push(...functionOf(src, node, file));
   }
-  return out;
+  return withUses(src, program, out);
+}
+
+const MAX_USES = 6;
+
+/** The plain name a call node calls (`name(…)`), or null. */
+const calledName = (node) =>
+  node.type === "CallExpression" && node.callee?.type === "Identifier" ? node.callee.name : null;
+
+/** Is this line inside the record's own body. */
+const insideOf = (record, line) =>
+  line >= record.line && line <= record.line + record.source.split("\n").length - 1;
+
+/** A helper function's `uses`: the lines of this file, outside its own body, that call it,
+ *  in source order, at most six. A judge sees what happens to the value it returns (a
+ *  `String(id)` that only fills a thrown error's payload is not a default that keeps going). */
+function withUses(src, program, records) {
+  const lines = src.split("\n");
+  const helpers = new Map(records.filter((r) => r.kind === "function").map((r) => [r.name, r]));
+  if (helpers.size === 0) return records;
+  const found = new Map();
+  walk(program, (node) => {
+    const helper = helpers.get(calledName(node));
+    const line = helper === undefined ? 0 : lineOf(src, node.start);
+    if (helper === undefined || insideOf(helper, line)) return;
+    found.set(helper.name, (found.get(helper.name) ?? new Set()).add(line));
+  });
+  return records.map((r) => {
+    const at = found.get(r.name);
+    if (r.kind !== "function" || at === undefined) return r;
+    const texts = [...at].sort((a, b) => a - b).map((line) => lines[line - 1].trim());
+    return { ...r, uses: [...new Set(texts)].slice(0, MAX_USES) };
+  });
 }
 
 /** Names bound by a parameter or a local pattern, including destructuring. */

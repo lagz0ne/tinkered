@@ -235,6 +235,80 @@ const cache = resource({
 });`,
     ),
   },
+  inputDefaultMasks: {
+    bad: unit(
+      "operation",
+      "scheduleNote",
+      `
+const scheduleNote = operation({
+  label: "scheduleNote",
+  depends: { notes: notes.controller },
+  run: ({ notes }, ctx) => {
+    const raw = ctx.input;
+    const due = parseDay(raw.due) ?? today();
+    const repeat = Number(raw.repeat) || 1;
+    const note = { id: nextId(), text: String(raw.text ?? ""), due, repeat };
+    notes.set([...notes.get(), note]);
+    return note;
+  },
+});`,
+    ),
+    clean: unit(
+      "operation",
+      "scheduleNote",
+      `
+const scheduleNote = operation({
+  label: "scheduleNote",
+  depends: { notes: notes.controller, rank: noteRank.controller },
+  run: ({ notes, rank }, ctx) => {
+    const raw = ctx.input;
+    if (typeof raw.text !== "string" || raw.text.trim() === "") throw fail("BlankText", {});
+    const due = parseDay(raw.due);
+    if (due === undefined) throw fail("BadDay", { value: raw.due });
+    const order = rank.get()[raw.after] ?? 0;
+    const note = { id: nextId(), text: raw.text.trim(), due, order };
+    notes.set([...notes.get(), note]);
+    return note;
+  },
+});`,
+    ),
+  },
+  noOpRejected: {
+    bad: unit(
+      "operation",
+      "archiveTask",
+      `
+const archiveTask = operation({
+  label: "archiveTask",
+  depends: { tasks: tasks.controller },
+  run: ({ tasks }, ctx) => {
+    const task = findTask(tasks.get(), ctx.input.id);
+    if (task.locked) throw fail("Locked", { id: task.id });
+    if (task.archived) return task;
+    const next = { ...task, archived: true };
+    tasks.set(replaceTask(tasks.get(), next));
+    return next;
+  },
+});`,
+    ),
+    clean: unit(
+      "operation",
+      "archiveTask",
+      `
+const archiveTask = operation({
+  label: "archiveTask",
+  depends: { tasks: tasks.controller },
+  run: ({ tasks }, ctx) => {
+    const task = findTask(tasks.get(), ctx.input.id);
+    if (task.archived) return task;
+    if (task.locked) throw fail("Locked", { id: task.id });
+    const next = { ...task, archived: true };
+    tasks.set(replaceTask(tasks.get(), next));
+    return next;
+  },
+});`,
+    ),
+  },
 };
 
 // React judges: components cut to the tracker's shapes (kind "component").

@@ -1,0 +1,95 @@
+id    count  label
+S01       0  #private field or method
+S02       0  cast through unknown
+S03       0  Any-prefixed type name
+S04       0  swallowed promise
+S05       0  bare throw new Error / TypeError
+S06       0  console in source
+S07       0  enum declaration
+S08       0  Reflect call
+S09       0  layer word in a name
+S10       0  line comment (only TSDoc allowed)
+S11       0  block comment that is not TSDoc
+S12       0  ts-ignore / ts-expect-error
+S13       0  lint disable
+S14       6  tuple index read x[N]
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/src/BookingApp.tsx:44:  const hour = Number(match[1]);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/src/BookingApp.tsx:45:  const minute = Number(match[2]);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/src/model.ts:110:  const year = Number(match[1]);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/src/model.ts:111:  const month = Number(match[2]);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/src/model.ts:112:  const day = Number(match[3]);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/src/model.ts:138:  time.setUTCFullYear(parts[0], parts[1] - 1, parts[2] + days);
+S15       0  Object.freeze of a value (empty-literal sentinel allowed)
+S16       0  preset() call in source (test-only API)
+T01       0  mock or spy
+T02       0  sleeping in a test
+T03       0  only / skip left in
+T04       0  import of a private source module
+T05       0  internals asserted
+T06       0  cast through unknown
+T08      47  isError inside expect (guard used as assertion)
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/series.test.ts:93:      expect(isError(error, "BadCount"), String(weeks)).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/series.test.ts:110:    expect(isError(notNumber, "BadCount")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/series.test.ts:167:    expect(isError(error, "Clash")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/series.test.ts:188:    expect(isError(error, "BlankTitle")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/series.test.ts:206:    expect(isError(error, "BadDate")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/series.test.ts:297:    expect(isError(error, "NotFound")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/series.test.ts:320:    expect(isError(error, "NotFound")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/series.test.ts:353:    expect(isError(saveError, "NotFound")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/series.test.ts:387:    expect(isError(closed, "NotFound")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/edit.test.ts:42:    expect(isError(error, "NotFound")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/edit.test.ts:62:    expect(isError(error, "NotFound")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/edit.test.ts:80:    expect(isError(closed, "NotFound")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/edit.test.ts:91:    expect(isError(error, "NotFound")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/edit.test.ts:179:    expect(isError(error, "Clash")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/edit.test.ts:208:    expect(isError(blank, "BlankTitle")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/edit.test.ts:214:    expect(isError(badRoom, "UnknownRoom")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/edit.test.ts:220:    expect(isError(badTime, "BadTime")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/edit.test.ts:226:    expect(isError(empty, "EmptySlot")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/edit.test.ts:241:    expect(isError(closed, "NotFound")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/edit.test.ts:250:    expect(isError(missing, "NotFound")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/edit.test.ts:269:    expect(isError(error, "NotFound")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/edit.test.ts:273:    expect(isError(gone, "NotFound")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/undo.test.ts:39:    expect(isError(error, "EmptyUndo")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/undo.test.ts:49:    expect(isError(error, "EmptyUndo")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/undo.test.ts:135:    expect(isError(error, "EmptyUndo")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/undo.test.ts:189:    expect(isError(clash, "Clash")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/undo.test.ts:190:    expect(isError(capture(() =>
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/undo.test.ts:195:    expect(isError(capture(() =>
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/undo.test.ts:204:    expect(isError(empty, "EmptyUndo")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/undo.test.ts:223:    expect(isError(empty, "EmptyUndo")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/dates.test.ts:62:      expect(isError(error, "BadDate"), date).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/dates.test.ts:78:    expect(isError(notText, "BadDate")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/dates.test.ts:107:    expect(isError(clash, "Clash")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/dates.test.ts:250:    expect(isError(clash, "Clash")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/dates.test.ts:311:    expect(isError(error, "BadDate")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/book-cancel.test.ts:43:    expect(isError(clash, "Clash")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/book-cancel.test.ts:77:      expect(isError(error, "BlankTitle"), title).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/book-cancel.test.ts:92:    expect(isError(error, "UnknownRoom")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/book-cancel.test.ts:108:      expect(isError(error, "BadTime"), String(start)).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/book-cancel.test.ts:118:    expect(isError(badEnd, "BadTime")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/book-cancel.test.ts:127:    expect(isError(notNumbers, "BadTime")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/book-cancel.test.ts:145:      expect(isError(error, "EmptySlot"), `${start}-${end}`).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/book-cancel.test.ts:163:    expect(isError(inside, "Clash")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/book-cancel.test.ts:226:    expect(isError(first, "Clash")).toBe(false);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/book-cancel.test.ts:232:    expect(isError(second, "Clash")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/book-cancel.test.ts:262:    expect(isError(error, "NotFound")).toBe(true);
+    /home/paseo/.local/share/tinker-writer-trial/trial-01/review/worker-2/tests/book-cancel.test.ts:273:    expect(isError(error, "NotFound")).toBe(true);
+T09       0  mutation-score or coverage named in a test title
+T07       0  instanceof or message assert around an error
+P01       0  accessor in an object literal (class + prototype accessor)
+P02       0  constructor parameter property (strip-types rejects)
+P04       0  Set/Map seeded from an array literal (use add/set)
+W10       0  Proxy creation (share one trap object)
+W12       0  Object.defineProperty (never on a hot path)
+W11       0  bind(this) (arrow field instead)
+W01      53  readonly modifier
+W02       1  as const
+W03       0  satisfies
+W04       0  non-null assertion x!
+W05       0  explicit any
+W06       0  let x!: definite assignment
+W07       0  line longer than 100 chars
+W09       0  interface declaration (type preferred)
+W08      83  test count (watch: many small tests)
+Style census: FAIL (S14 T08)
