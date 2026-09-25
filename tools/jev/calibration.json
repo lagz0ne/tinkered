@@ -142,10 +142,10 @@
   "inputDefaultMasks": {
     "status": "proven",
     "trues": 32,
-    "falses": 61,
-    "medianTrue": 0.94,
-    "medianFalse": 0.35,
-    "separation": 0.59,
+    "falses": 62,
+    "medianTrue": 0.92,
+    "medianFalse": 0.34,
+    "separation": 0.57,
     "ordered": 0.99,
     "at": "2026-09-25"
   },

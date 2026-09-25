@@ -237,15 +237,18 @@ Object.assign(LINT, {
     // but blocked 5 clean units in the 20 accepted trial apps (optional-date defaults, raw-field
     // readers whose callers live in another file); 0.85 blocks 1. `uses` still clears a helper
     // that only fills a thrown error's payload (ballot-01 idText 0.84 → 0.36).
+    // Third wording (2026-09-25): a default only for an absent field, with a present bad value
+    // still raising, reads clean (grow-01 withDefaultDate 0.94 -> 0.78; the booking task
+    // mandates an omitted-date default). At 0.85: clean 0/61 (was 1), true 28/32 (unchanged).
     threshold: 0.85,
     q: {
       type: "boolean",
       instructions:
-        "Look only at values that come from the user or the caller — form text, ctx.input, a raw input field. When such a value is missing, blank, the wrong type, or cannot be parsed, is there ANY path where this code keeps going with a made-up value instead of raising an error? Count an if-branch that returns or assigns a default for blank input, a ternary that picks a default, `??` or `||` on the input, String(x), or Number(x) without a check. When `uses` is given, it lists the lines in this file that call this helper: judge what happens to the returned value there.",
+        "Look only at values that come from the user or the caller — form text, ctx.input, a raw input field. When such a value is missing, blank, the wrong type, or cannot be parsed, is there ANY path where this code keeps going with a made-up value instead of raising an error? Count an if-branch that returns or assigns a default for blank input, a ternary that picks a default, `??` or `||` on the input, String(x), or Number(x) without a check. When `uses` is given, it lists the lines in this file that call this helper: judge what happens to the returned value there. A default for a field the caller left out entirely, where a present but bad value still raises, is not masking.",
       criteria: {
         true: 'some path turns a missing, blank, wrong-typed, or unparseable user or caller value into a default ("", 0, 1, today, the first option, "undefined") and continues without an error',
         false:
-          "every path that meets a bad user or caller value raises an error, or the only defaults are for internal values (sort ranks, lookups in the app's own maps, display fallbacks, error names), or for optional settings, or `uses` shows the made-up value only goes into a thrown error's payload and no work continues with it",
+          "every path that meets a bad user or caller value raises an error, or the only defaults are for internal values (sort ranks, lookups in the app's own maps, display fallbacks, error names), or for optional settings, or `uses` shows the made-up value only goes into a thrown error's payload and no work continues with it, or the default applies only when the field is absent from the input (the key is missing) while a present bad value still raises",
       },
     },
   },

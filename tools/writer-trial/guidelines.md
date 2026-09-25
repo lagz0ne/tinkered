@@ -24,7 +24,10 @@ No worked code is supplied.
 - Do not get a scope with useScope in a view.
   Do not pass a scope, session, or controller through view props.
 - The root view owns a fresh scope through ScopeProvider create.
-  useId is allowed for unique input labels across mounted roots.
+  Do not link a label to its control by a useId id: useId repeats in
+  every separately mounted root, so a second app's labels would point
+  at the first app's fields. Wrap the control in its label, or give
+  the control an aria-label.
 - A view renders values and formats them for display.
   It does not decide rules, manage drafts, or catch every error.
 - Typing, choosing a filter, opening, saving, and discarding are actions.

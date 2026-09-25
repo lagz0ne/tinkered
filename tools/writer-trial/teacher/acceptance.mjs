@@ -6,6 +6,15 @@ import { shapeCases } from "./acceptance-shape.mjs";
 // A field by its label. The exact accessible label first; else the control inside a <label>
 // whose own words equal the name. A <select> inside its label adds its option text to the
 // label ("Room Cedar Maple"), which is valid labeling the task allows (grow-01, 2026-09-25).
+// Set a field the way its element takes a value: the task says "inputs named Room / Edit room"
+// and the round runner already accepts a <select> for Room, so a room <select> is chosen by
+// label and anything else is filled (grow-01 round 4, 2026-09-25).
+const setField = async (field, value) => {
+  const tag = await field.evaluate((el) => el.tagName);
+  if (tag === "SELECT") await field.selectOption({ label: value });
+  else await field.fill(value);
+};
+
 const labeled = (scope, name) =>
   scope
     .getByLabel(name, { exact: true })
@@ -681,7 +690,7 @@ browser("browser r2: failed save keeps draft open", async (page) => {
     await page.getByRole("button", { name: "Edit Browser A", exact: true }).click();
     await labeled(page, "Edit start time").fill("11:30");
     await labeled(page, "Edit end time").fill("12:30");
-    await labeled(page, "Edit room").fill("Maple");
+    await setField(labeled(page, "Edit room"), "Maple");
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await labeled(page, "Edit title").waitFor();
     const alertText = await page
@@ -943,7 +952,7 @@ browser("browser: two roots on one page share nothing", async (page) => {
     if ((await secondEnd.count()) === 0) secondEnd = secondScope.locator("input").nth(4);
     await secondTitle.waitFor({ state: "visible" });
     await secondTitle.fill("Root Two");
-    await secondRoom.fill("Cedar");
+    await setField(secondRoom, "Cedar");
     await secondStart.fill("09:00");
     await secondEnd.fill("10:00");
     await page
