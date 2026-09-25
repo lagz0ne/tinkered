@@ -25,6 +25,9 @@ vp run -r build
   (`git worktree add /tmp/main-check main`).
 - Run a full mutation lane only when your ticket says so, and then always under
   `flock /tmp/mutation.lock` (one mutation or timing run at a time on this machine).
+- Run every long job (a mutation lane, a timing run, the gate) in the foreground and wait for it
+  in the same turn. Never end a turn while a job runs in the background: it can die with the
+  turn, and nobody wakes you when it ends.
 - For `pnpm validate` only: set `allowBuilds: esbuild: true` in
   `pnpm-workspace.yaml`, run, then `git checkout -- pnpm-workspace.yaml`.
   Never commit that file.
