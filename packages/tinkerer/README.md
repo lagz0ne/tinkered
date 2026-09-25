@@ -126,6 +126,9 @@ build a separate frame if either differs.
   every call without running it.
 - A throwing tool answers failed; the loop
   keeps going.
+- A tool's panic and its managed error both
+  answer failed through `settle`; the session
+  still closes `success`.
 - Without a sequential row a reply's calls run at
   once; a `sequential` row runs them one at a time.
   Results keep the model's order either way.

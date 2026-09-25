@@ -277,6 +277,45 @@ test("a tool that throws answers the model with a failed result and the loop con
   await scope.close();
 });
 
+test("a tool's panic and its managed error both answer failed and the session closes success", async () => {
+  const crash = operation({
+    label: "crash",
+    run: async () => {
+      throw new Error("boom");
+    },
+  });
+  const refuse = operation({
+    label: "refuse",
+    run: async (_deps, { raise }) => raise("Refused", { reason: "no" }),
+  });
+  const frame = tinkerer({
+    label: "failing",
+    tools: [
+      tool(crash, { description: "", schema: {} }),
+      tool(refuse, { description: "", schema: {} }),
+    ],
+  });
+  const calls = [
+    { name: "crash", args: "{}" },
+    { name: "refuse", args: "{}" },
+  ];
+  const seen: HttpRequest.Record[] = [];
+  const scope = createScope({
+    tags: [
+      backend(scripted(seen, [askingFor(calls), answer])),
+      frame.config({ model: "m", baseUrl: "https://api" }),
+    ],
+  });
+  const session = scope.createSession();
+  await session.run(frame.turn, { input: "go" });
+  expect(toolMessages(session.resolve(frame.messages))).toEqual([
+    "Tool crash failed: boom",
+    "Tool refuse failed: Refused",
+  ]);
+  expect((await session.close({ graceful: true })).status).toBe("success");
+  await scope.close();
+});
+
 test("read returns a window of lines and refuses a path outside cwd", async () => {
   const dir = readmeDir();
   const scope = createScope({ tags: [cwd(dir)] });
