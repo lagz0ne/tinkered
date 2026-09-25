@@ -4117,16 +4117,24 @@ function closeLayer(layer: Layer, force = true): Promise<Scope.Result> {
 
 /** Build the `close()` Result from the settled outcome, the layer's abort reason (for a cancel), and
  * the teardown errors — never throws (ADR 0027). */
+/** A failed close `Result`, with the error's origin when it has one. Its own function, so the
+ * success path of {@link buildResult} stays as small as before. */
+function failedResult(
+  error: unknown,
+  teardownErrors: readonly unknown[] | undefined,
+): Scope.Result {
+  const origin = originOf(error);
+  return origin
+    ? { status: "failed", error, origin, teardownErrors }
+    : { status: "failed", error, teardownErrors };
+}
+
 function buildResult(
   settled: Scope.Outcome,
   layer: Layer,
   teardownErrors: readonly unknown[] | undefined,
 ): Scope.Result {
-  if (settled.status === "failed") {
-    const result: Scope.Result = { status: "failed", error: settled.error, teardownErrors };
-    const origin = originOf(settled.error);
-    return origin ? { ...result, origin } : result;
-  }
+  if (settled.status === "failed") return failedResult(settled.error, teardownErrors);
   if (settled.status === "cancelled") {
     return { status: "cancelled", reason: layer.abortReason, teardownErrors };
   }
@@ -4530,6 +4538,36 @@ function controllerNs(
   return operationController(layer, target, undefined, chain);
 }
 
+/** Run an inline config (ADR 0037): a throwaway `Operation.Handle` through the operation
+ * controller path — one handle + one controller per call, nothing cached in the layer
+ * (no `nodeState`/`controllerOf` residue). `input` lands on `ctx.input`/`ctx.rawInput`
+ * unchanged (no parse); `tags` open the run's child session exactly as for a declared
+ * operation (ADR 0038). Discrimination is the brand only. A module function, so a handle builds
+ * no closure for it. */
+function runInline<R, I>(
+  layer: Layer,
+  inline: Scope.Inline<Scope.Depends, R, I>,
+  call: Scope.Invocation<I> | undefined,
+  receiver?: RunState,
+): R | Promise<Awaited<R>> {
+  /** A throwaway `Operation.Handle` through the controller path — one handle + one controller
+   * per call, nothing cached in the layer (no `nodeState`/`controllerOf` residue). The body's
+   * `input` is replayed as the invocation's `input`, landing on `ctx.input`/`ctx.rawInput`
+   * unchanged (no parse — ADR 0037); `tags` open the run's child session exactly as for a
+   * declared operation (ADR 0038). Discrimination is the brand only. */
+  const handle: Operation.Handle<R, I> = operation({
+    label: inline.label ?? "inline",
+    depends: inline.depends,
+    run: inline.run,
+  });
+  /** The controller's public face is two overloads, but this entry already holds a broad
+   * `Invocation<I>` — one untyped dispatch, no per-shape narrowing. The overloads still type
+   * every userland call site; the seam cast below only widens this internal entry. */
+  const dispatch = operationController(layer, handle, undefined, layer.ns, receiver, inline)
+    .run as (call?: Scope.Invocation<I>) => R | Promise<Awaited<R>>;
+  return call === undefined ? dispatch() : dispatch(call);
+}
+
 function handleFor(layer: Layer): Scope.Handle {
   const settled = async (): Promise<void> => {
     while (layer.pending.size) await Promise.all(layer.pending);
@@ -4584,7 +4622,7 @@ function handleFor(layer: Layer): Scope.Handle {
   }) as Scope.Handle["resolve"];
   const run = (<T, I>(op: unknown, call?: Scope.Invocation<I>): unknown => {
     ensureOpen(layer);
-    if (!isOperation(op)) return runInline(op as Scope.Inline<Scope.Depends, T, I>, call);
+    if (!isOperation(op)) return runInline(layer, op as Scope.Inline<Scope.Depends, T, I>, call);
     return (controllerOf(op) as { run(call?: Scope.Invocation<I>): T }).run(call);
   }) as Scope.Handle["run"];
   /** `settle` runs through a twin controller whose caller is RECOVERED; `run` stays as it was. */
@@ -4592,38 +4630,16 @@ function handleFor(layer: Layer): Scope.Handle {
     settleRun(layer, () => {
       ensureOpen(layer);
       if (!isOperation(op))
-        return runInline(op as Scope.Inline<Scope.Depends, unknown, unknown>, call, RECOVERED);
+        return runInline(
+          layer,
+          op as Scope.Inline<Scope.Depends, unknown, unknown>,
+          call,
+          RECOVERED,
+        );
       return OperationControl.recovered(controllerOf(op) as OperationControl<unknown, unknown>).run(
         call,
       );
     })) as Scope.Handle["settle"];
-  /** Run an inline config (ADR 0037): a throwaway `Operation.Handle` through the operation
-   * controller path — one handle + one controller per call, nothing cached in the layer
-   * (no `nodeState`/`controllerOf` residue). `input` lands on `ctx.input`/`ctx.rawInput`
-   * unchanged (no parse); `tags` open the run's child session exactly as for a declared
-   * operation (ADR 0038). Discrimination is the brand only. */
-  const runInline = <R, I>(
-    inline: Scope.Inline<Scope.Depends, R, I>,
-    call: Scope.Invocation<I> | undefined,
-    receiver?: RunState,
-  ): R | Promise<Awaited<R>> => {
-    /** A throwaway `Operation.Handle` through the controller path — one handle + one controller
-     * per call, nothing cached in the layer (no `nodeState`/`controllerOf` residue). The body's
-     * `input` is replayed as the invocation's `input`, landing on `ctx.input`/`ctx.rawInput`
-     * unchanged (no parse — ADR 0037); `tags` open the run's child session exactly as for a
-     * declared operation (ADR 0038). Discrimination is the brand only. */
-    const handle: Operation.Handle<R, I> = operation({
-      label: inline.label ?? "inline",
-      depends: inline.depends,
-      run: inline.run,
-    });
-    /** The controller's public face is two overloads, but this entry already holds a broad
-     * `Invocation<I>` — one untyped dispatch, no per-shape narrowing. The overloads still type
-     * every userland call site; the seam cast below only widens this internal entry. */
-    const dispatch = operationController(layer, handle, undefined, layer.ns, receiver, inline)
-      .run as (call?: Scope.Invocation<I>) => R | Promise<Awaited<R>>;
-    return call === undefined ? dispatch() : dispatch(call);
-  };
   return {
     controller,
     resolve,
