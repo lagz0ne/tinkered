@@ -38,10 +38,6 @@ card at a time.
   Win it back without weakening ADR 0066. Verify: a committed `asyncsub` bench scenario, N=61 A/B,
   target within +15% of `2d2d75b`; other scenarios not slower; tests unchanged; mutation ≥ 85.
 
-- **process/positionals** — deepseek (agent `0c487aa0`), worktree `../tinkered-process-positionals`.
-  One `positionals(argv, { values })` helper in `@tinker/process` (core-feedback row, second asker
-  nw/tinkerer-ask); blueprint and tinkerer use it; fixes `ask --json hello` dropping `hello`.
-
 - **bridge gaps (ADR 0060)** — user go 2026-09-24:
   - core/ext-hooks-every-layer — sol 6 `247fb6ec`: extension `run`/`write` hooks wrap every run and
     write at every layer (core-feedback rows, two askers). Verify: tests; bench; mutation ≥ 85.
@@ -84,6 +80,9 @@ card at a time.
 
 ## Done
 
+- **process/positionals** — deepseek + opus review (one fix round); tag `process/positionals`. `positionals(argv, { values })` in `@tinker/process`: plain words in order; value flags take the next word; `--k=v` is one word; `--` ends flags. blueprint `verify` and tinkerer `ask` use it; fixes `ask --json hello` dropping `hello` (test fails on main).
+  - Gate EXIT 0; validate 43 PASS.
+  - Mutation alone: process 95.90, blueprint 88.31, tinkerer 96.28.
 - **hono/two-servers** — deepseek + opus review (one fix round); tag `hono/two-servers`. Two hono extensions on one scope: shared scope data, separate per-request sessions, the same path answers from the server that got the request, one close stops both once (ADR 0060). No bug found.
   - Gate EXIT 0; hono mutation 86.88; validate 43 PASS. Calibrate owed: the Jev gateway answered 503 five times; the next landing that adds labels runs it.
 - **tinkerer/v1** and **process/v1** — both tracks finished (tinkerer t01–t06; process t01–t05); stale
