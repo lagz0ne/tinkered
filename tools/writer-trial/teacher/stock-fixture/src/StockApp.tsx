@@ -1,7 +1,7 @@
 import type { FormEvent, ReactElement } from "react";
 import { createScope } from "@tinker/core";
 import { ScopeProvider, useData, useRun } from "@tinker/react";
-import { Field, NamedTable, Notice } from "./layout.tsx";
+import { Field, NamedTable, Notice, Page } from "./layout.tsx";
 import { editDraft, moves, stock, undoMove } from "./model.ts";
 import {
   bookingForm,
@@ -152,7 +152,7 @@ function Desk(): ReactElement {
   const pick = useRun(chooseFilter);
   const shown = filter === "All" ? all : all.filter((m) => m.item === filter);
   return (
-    <main>
+    <Page>
       <MoveForm />
       <Notice text={alert} />
       <NamedTable
@@ -191,7 +191,7 @@ function Desk(): ReactElement {
       <button type="button" onClick={() => undo.run()}>
         Undo
       </button>
-    </main>
+    </Page>
   );
 }
 

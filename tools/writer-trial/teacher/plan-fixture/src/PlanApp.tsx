@@ -1,7 +1,7 @@
 import type { FormEvent, ReactElement } from "react";
 import { createScope } from "@tinker/core";
 import { ScopeProvider, useData, useRun } from "@tinker/react";
-import { Field, NamedTable, Notice } from "./layout.tsx";
+import { Field, NamedTable, Notice, Page } from "./layout.tsx";
 import { courses } from "./model.ts";
 import type { Course } from "./model.ts";
 import {
@@ -160,7 +160,7 @@ function Plan(): ReactElement {
         ? rows.filter((r) => r.done)
         : rows.filter((r) => isReady(rows, r));
   return (
-    <main>
+    <Page>
       <CourseForm />
       <Notice text={alert} />
       <NamedTable
@@ -187,7 +187,7 @@ function Plan(): ReactElement {
       <button type="button" onClick={() => undo.run()}>
         Undo
       </button>
-    </main>
+    </Page>
   );
 }
 

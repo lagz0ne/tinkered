@@ -21,7 +21,7 @@ import {
   typeName,
 } from "./screen.ts";
 import type { LoanRow, ToolFilter, ToolRow } from "./screen.ts";
-import { Field, NamedTable, Notice } from "./layout.tsx";
+import { Field, NamedTable, Notice, Page } from "./layout.tsx";
 
 const filters: readonly ToolFilter[] = ["All", "Available", "Retired"];
 
@@ -195,13 +195,13 @@ function NoticeBar(): ReactElement {
 export function LibraryApp(): ReactElement {
   return (
     <ScopeProvider create={() => createScope()}>
-      <main>
+      <Page>
         <ToolForm />
         <NoticeBar />
         <ToolTable />
         <LendForm />
         <LoanTable />
-      </main>
+      </Page>
     </ScopeProvider>
   );
 }

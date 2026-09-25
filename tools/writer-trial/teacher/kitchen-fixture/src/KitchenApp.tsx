@@ -21,7 +21,7 @@ import {
   typeTable,
 } from "./screen.ts";
 import type { TicketFilter, TicketRow } from "./screen.ts";
-import { Field, NamedTable, Notice } from "./layout.tsx";
+import { Field, NamedTable, Notice, Page } from "./layout.tsx";
 
 const filters: readonly TicketFilter[] = ["All", "Waiting", "Cooking", "Served"];
 
@@ -184,12 +184,12 @@ function NoticeBar(): ReactElement {
 export function KitchenApp(): ReactElement {
   return (
     <ScopeProvider create={() => createScope()}>
-      <main>
+      <Page>
         <TicketForm />
         <StoveForm />
         <NoticeBar />
         <TicketTable />
-      </main>
+      </Page>
     </ScopeProvider>
   );
 }

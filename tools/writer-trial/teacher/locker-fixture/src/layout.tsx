@@ -5,11 +5,14 @@
  * buttons, and the alert, not where they sit or how they are labeled.
  * Copied byte-for-byte into each fixture's src/ (kit-sync test).
  */
-import { cloneElement } from "react";
+import { Children, cloneElement } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { LAYOUT_NAME } from "./layout-choice.ts";
 
-/** One layout: how labels, table names, row buttons, row headers, columns, and the alert look. */
+/**
+ * One layout: how labels, table names, row buttons, row headers, columns, and the alert look,
+ * and whether the page shows its parts in task order or reversed, each in its own section.
+ */
 export type Layout = {
   readonly label: "wrap" | "for" | "aria";
   readonly tableName: "caption" | "aria";
@@ -17,6 +20,7 @@ export type Layout = {
   readonly rowHeader: boolean;
   readonly reversed: boolean;
   readonly alert: "conditional" | "always";
+  readonly parts: "task" | "reversed";
 };
 
 /** Five layouts; every value of every dimension appears at least once. */
@@ -28,6 +32,7 @@ export const LAYOUTS: Readonly<Record<string, Layout>> = {
     rowHeader: false,
     reversed: false,
     alert: "conditional",
+    parts: "task",
   },
   L1: {
     label: "for",
@@ -36,6 +41,7 @@ export const LAYOUTS: Readonly<Record<string, Layout>> = {
     rowHeader: false,
     reversed: false,
     alert: "always",
+    parts: "reversed",
   },
   L2: {
     label: "aria",
@@ -44,6 +50,7 @@ export const LAYOUTS: Readonly<Record<string, Layout>> = {
     rowHeader: true,
     reversed: true,
     alert: "conditional",
+    parts: "task",
   },
   L3: {
     label: "wrap",
@@ -52,6 +59,7 @@ export const LAYOUTS: Readonly<Record<string, Layout>> = {
     rowHeader: false,
     reversed: true,
     alert: "always",
+    parts: "task",
   },
   L4: {
     label: "for",
@@ -60,6 +68,7 @@ export const LAYOUTS: Readonly<Record<string, Layout>> = {
     rowHeader: true,
     reversed: false,
     alert: "conditional",
+    parts: "reversed",
   },
 };
 
@@ -171,4 +180,18 @@ export function Notice(props: { readonly text: string | null | undefined }): Rea
   const { text } = props;
   if (layout.alert === "always") return <div role="alert">{text ?? ""}</div>;
   return text ? <p role="alert">{text}</p> : null;
+}
+
+/** The page: its parts in task order, or reversed with each part in its own section. */
+export function Page(props: { readonly children: ReactNode }): ReactElement {
+  const { children } = props;
+  const parts = Children.toArray(children);
+  if (layout.parts === "task") return <main>{parts}</main>;
+  return (
+    <div>
+      {[...parts].reverse().map((part, i) => (
+        <section key={i}>{part}</section>
+      ))}
+    </div>
+  );
 }

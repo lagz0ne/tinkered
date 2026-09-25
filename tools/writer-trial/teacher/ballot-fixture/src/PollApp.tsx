@@ -25,7 +25,7 @@ import {
   voteRows,
 } from "./screen.ts";
 import type { PollFilter, PollRow, VoteRow } from "./screen.ts";
-import { Field, NamedTable, Notice } from "./layout.tsx";
+import { Field, NamedTable, Notice, Page } from "./layout.tsx";
 
 const filters: readonly PollFilter[] = ["All", "Open", "Closed"];
 
@@ -226,13 +226,13 @@ function NoticeBar(): ReactElement {
 export function PollApp(): ReactElement {
   return (
     <ScopeProvider create={() => createScope()}>
-      <main>
+      <Page>
         <PollForm />
         <NoticeBar />
         <PollTable />
         <VoteForm />
         <VoteTable />
-      </main>
+      </Page>
     </ScopeProvider>
   );
 }

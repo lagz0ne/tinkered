@@ -27,7 +27,7 @@ import {
   typeSeriesTitle,
 } from "./screen.ts";
 import type { BookField, BookingLine, EditField, Filter } from "./screen.ts";
-import { Field, NamedTable, Notice } from "./layout.tsx";
+import { Field, NamedTable, Notice, Page } from "./layout.tsx";
 
 const filters: readonly Filter[] = ["All", ...rooms];
 
@@ -251,13 +251,13 @@ function NoticeArea(): ReactElement {
 export function BookingApp(): ReactElement {
   return (
     <ScopeProvider create={() => createScope()}>
-      <main>
+      <Page>
         <BookingForm />
         <NoticeArea />
         <EditPanel />
         <SeriesTitlePanel />
         <BookingList />
-      </main>
+      </Page>
     </ScopeProvider>
   );
 }

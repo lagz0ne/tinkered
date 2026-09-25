@@ -1,7 +1,7 @@
 import type { FormEvent, ReactElement } from "react";
 import { createScope } from "@tinker/core";
 import { ScopeProvider, useData, useRun } from "@tinker/react";
-import { Field, NamedTable, Notice } from "./layout.tsx";
+import { Field, NamedTable, Notice, Page } from "./layout.tsx";
 import { parcels } from "./model.ts";
 import {
   chooseFilter,
@@ -174,12 +174,12 @@ function NoticeBar(): ReactElement {
 export function LockerApp(): ReactElement {
   return (
     <ScopeProvider create={() => createScope()}>
-      <main>
+      <Page>
         <ReceiveForm />
         <StoreForm />
         <NoticeBar />
         <ParcelTable />
-      </main>
+      </Page>
     </ScopeProvider>
   );
 }
