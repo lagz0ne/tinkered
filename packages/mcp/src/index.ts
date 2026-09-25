@@ -1,4 +1,4 @@
-import type { Many, Operation, Scope, Tag } from "@tinker/core";
+import type { Many, Operation, RunResult, Scope, Tag } from "@tinker/core";
 import { extension, isError as isCoreError, readMany, tag } from "@tinker/core";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
@@ -65,11 +65,27 @@ export function answerTool(meta: Mcp.Tool, value: unknown): CallToolResult {
   return textResult(JSON.stringify(value));
 }
 
+/** Map a failed call to a tool error result: a parse failure answers `invalid input`, any
+ * other failure its text. */
+function failCall(error: unknown): CallToolResult {
+  if (isCoreError(error, "DataValidationFailed")) return failureResult("invalid input");
+  return failureResult(String(error));
+}
+
+/** Map a settled call to a tool result: the inline op's answer, or its failure as a tool error. */
+function answerCall(settled: RunResult<CallToolResult>): CallToolResult {
+  if (settled.status === "success") return settled.value;
+  if (settled.status === "failed") return failCall(settled.error);
+  return failCall(settled.reason);
+}
+
 /** Run one tool call: a session with an inline op `mcp <name>`, the tool op as
  * its subflow (a bare operation in `depends` delivers a controller; `rawInput`
- * runs the op's own parse). One `mcp tool` log line on both paths; a throw logs
- * then rethrows so the session settles failed, and the outer catch maps the
- * outcome to a tool result. */
+ * runs the op's own parse). The subflow runs through `settle`: one `mcp tool`
+ * log line on both paths, and a failure is rethrown so the inline op's span
+ * settles failed. The session receives the inline op through `settle` too, so a
+ * failed call is recovered, maps to a tool error result, and the session closes
+ * `success` (ADR 0067). */
 function readCall(
   scope: Scope.Handle,
   name: string,
@@ -79,34 +95,24 @@ function readCall(
   return (args) =>
     scope
       .session((s) =>
-        s.run(
+        s.settle(
           {
             label: `mcp ${name}`,
             depends: { op },
             run: async ({ op: flow }, ctx) => {
-              try {
-                const value = await flow.run({ rawInput: args });
-                ctx.log("mcp tool", {
-                  tool: name,
-                  ok: true,
-                });
-                return answerTool(meta, value);
-              } catch (error: unknown) {
-                ctx.log("mcp tool", {
-                  tool: name,
-                  ok: false,
-                });
-                throw error;
-              }
+              const settled = await Promise.resolve(flow.settle({ rawInput: args }));
+              ctx.log("mcp tool", {
+                tool: name,
+                ok: settled.status === "success",
+              });
+              if (settled.status === "success") return answerTool(meta, settled.value);
+              throw settled.status === "failed" ? settled.error : settled.reason;
             },
           },
           { input: args },
         ),
       )
-      .catch((error: unknown) => {
-        if (isCoreError(error, "DataValidationFailed")) return failureResult("invalid input");
-        return failureResult(String(error));
-      });
+      .then(answerCall, failCall);
 }
 
 /** Read the tool facts off one tool op: the `tool` meta's facts, read by the
