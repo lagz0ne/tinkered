@@ -41,7 +41,6 @@ mkdirSync(base, { recursive: true });
 cpSync(join(fixture, "src"), join(base, "src"), { recursive: true });
 cpSync(join(fixture, "index.html"), join(base, "index.html"));
 execFileSync("ln", ["-s", TOOLCHAIN, join(base, "node_modules")]);
-const goodTar = pack(base, join(work, "good.tar"));
 
 // One edit to one fixture file. Each anchor must match exactly once, so a
 // moved fixture line fails loudly instead of proving nothing.
@@ -117,141 +116,25 @@ const checkResult = (r, want) => {
   return checkNames(r, want);
 };
 
-// ---- good layout variant: same roles and names, different DOM ----
-// Sections and divs wrap the parts, the Seats table comes first, its
-// columns are reordered with the seat id as a row header, and the Number
-// input is tied to its label by useId.
-const layoutTar = patch("good-layout", "SeatApp.tsx", [
-  [
-    'import type { FormEvent, ReactElement } from "react";',
-    'import { useId } from "react";\nimport type { FormEvent, ReactElement } from "react";',
-  ],
-  [
-    "  const buy = useRun(submitBuy);\n  return (",
-    "  const buy = useRun(submitBuy);\n  const numberId = useId();\n  return (",
-  ],
-  [
-    [
-      "      <label>",
-      "        Number",
-      "        <input",
-      "          value={draft.number}",
-      "          onChange={(event) => number.run({ input: { value: event.target.value } })}",
-      "        />",
-      "      </label>",
-    ].join("\n"),
-    [
-      "      <div>",
-      "        <label htmlFor={numberId}>Number</label>",
-      "      </div>",
-      "      <input",
-      "        id={numberId}",
-      "        value={draft.number}",
-      "        onChange={(event) => number.run({ input: { value: event.target.value } })}",
-      "      />",
-    ].join("\n"),
-  ],
-  [
-    [
-      "      <td>{line.id}</td>",
-      "      <td>{line.state}</td>",
-      "      <td>{line.customer}</td>",
-      "      <td>",
-    ].join("\n"),
-    [
-      "      <td>{line.customer}</td>",
-      "      <td>",
-      "        <span>{line.state}</span>",
-      "      </td>",
-      '      <th scope="row">{line.id}</th>',
-      "      <td>",
-    ].join("\n"),
-  ],
-  [
-    [
-      "            <th>Seat</th>",
-      "            <th>State</th>",
-      "            <th>Customer</th>",
-      "            <th>Actions</th>",
-    ].join("\n"),
-    [
-      '            <th scope="col">Customer</th>',
-      '            <th scope="col">State</th>',
-      '            <th scope="col">Seat</th>',
-      '            <th scope="col">Actions</th>',
-    ].join("\n"),
-  ],
-  [
-    [
-      "      <main>",
-      "        <SeatForm />",
-      "        <Notice />",
-      "        <SeatTable />",
-      "      </main>",
-    ].join("\n"),
-    [
-      "      <div>",
-      '        <section aria-label="Seat area">',
-      "          <div>",
-      "            <SeatTable />",
-      "          </div>",
-      "        </section>",
-      '        <section aria-label="Sale area">',
-      "          <SeatForm />",
-      "        </section>",
-      "        <footer>",
-      "          <Notice />",
-      "        </footer>",
-      "      </div>",
-    ].join("\n"),
-  ],
-]);
-
-// ---- good in-cell variant: no Actions column; Release sits inside the
-// State cell. The task names the button, not where it goes.
-const inCellTar = patch("good-in-cell", "SeatApp.tsx", [
-  [
-    [
-      "      <td>{line.state}</td>",
-      "      <td>{line.customer}</td>",
-      "      <td>",
-      "        <RowButtons line={line} />",
-      "      </td>",
-    ].join("\n"),
-    [
-      "      <td>",
-      "        {line.state}",
-      "        <RowButtons line={line} />",
-      "      </td>",
-      "      <td>{line.customer}</td>",
-    ].join("\n"),
-  ],
-  ["            <th>Customer</th>\n            <th>Actions</th>", "            <th>Customer</th>"],
-]);
-
-// ---- good seat-cell variant: no Actions column; Release sits inside the
-// Seat cell, next to the id (cinema-02 DeepSeek's layout).
-const seatCellTar = patch("good-seat-cell", "SeatApp.tsx", [
-  [
-    [
-      "      <td>{line.id}</td>",
-      "      <td>{line.state}</td>",
-      "      <td>{line.customer}</td>",
-      "      <td>",
-      "        <RowButtons line={line} />",
-      "      </td>",
-    ].join("\n"),
-    [
-      "      <td>",
-      "        {line.id}",
-      "        <RowButtons line={line} />",
-      "      </td>",
-      "      <td>{line.state}</td>",
-      "      <td>{line.customer}</td>",
-    ].join("\n"),
-  ],
-  ["            <th>Customer</th>\n            <th>Actions</th>", "            <th>Customer</th>"],
-]);
+// ---- good layouts: the fixture once per kit layout (layout-kit/README.md) ----
+// Every name in the kit's LAYOUTS, read from the fixture's own copy, packs
+// the same app with src/layout-choice.ts overwritten to that name.
+const kitText = readFileSync(join(fixture, "src", "layout.tsx"), "utf8");
+const layoutBlock = kitText.slice(kitText.indexOf("export const LAYOUTS"));
+const LAYOUT_NAMES = [
+  ...layoutBlock.slice(0, layoutBlock.indexOf("\n};")).matchAll(/^ {2}(\w+): \{$/gm),
+].map((m) => m[1]);
+if (LAYOUT_NAMES.length < 5) throw new Error(`found layouts ${LAYOUT_NAMES}; update the script`);
+const layoutTar = (name) => {
+  const dir = join(work, `layout-${name}`);
+  rmSync(dir, { recursive: true, force: true });
+  cpSync(base, dir, { recursive: true, verbatimSymlinks: true });
+  writeFileSync(
+    join(dir, "src", "layout-choice.ts"),
+    `export const LAYOUT_NAME: string = ${JSON.stringify(name)};\n`,
+  );
+  return pack(dir, join(work, `layout-${name}.tar`));
+};
 
 // ---- bad variants: each must fail its named case ----
 // (a) Blank number text becomes number 1 instead of BadNumber.
@@ -408,10 +291,11 @@ const INPUT_ID = "core a non-text seatId passed as { input } reports NotFound wi
 const RAW_ID = "core a non-text seatId passed as { rawInput } reports NotFound with a text id";
 const FULL = "ACCEPTANCE cinema: 41/41 pass";
 const cases = [
-  { label: "good fixture accepts", tar: goodTar, want: { exit: 0, fullpass: FULL } },
-  { label: "good layout variant accepts", tar: layoutTar, want: { exit: 0, fullpass: FULL } },
-  { label: "good in-cell buttons accept", tar: inCellTar, want: { exit: 0, fullpass: FULL } },
-  { label: "good seat-cell buttons accept", tar: seatCellTar, want: { exit: 0, fullpass: FULL } },
+  ...LAYOUT_NAMES.map((name) => ({
+    label: `good layout ${name} accepts`,
+    tar: layoutTar(name),
+    want: { exit: 0, fullpass: FULL },
+  })),
   {
     label: "(a) blank number becomes 1 rejects",
     tar: blankNumberTar,
