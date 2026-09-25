@@ -103,6 +103,8 @@ A tagged run invokes its `run` hook once with the original call, not again on it
 A subflow invokes `run` hooks once even when its caller is another operation.
 An inline run in a session passes its original inline config to the `run` hook.
 A `run` hook that skips `next()` stops a subflow and returns its substitute to the caller.
+A `run` hook that throws stops a subflow before its body and throws to its caller.
+An async `run` hook keeps a dropped subflow's rejection on the scope, not the host.
 A root write and a session write each invoke the `write` hook once.
 A write through a `depends: { x: cell.controller }` edge invokes the `write` hook.
 A namespaced write invokes the `write` hook once and stores its value in that namespace.

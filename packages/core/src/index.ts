@@ -2428,7 +2428,15 @@ function operationController<T, I>(
         () => at(index + 1),
       );
     };
-    return at(0);
+    const result = at(0);
+    if (caller === undefined || !isThenable(result) || result instanceof SubflowPromise)
+      return result;
+    /** An async hook adopts the inner SubflowPromise and marks it handed off. Its own promise
+     * needs a receipt so a dropped rejection still belongs to this layer, not the host. */
+    const receipt: Receipt = { handedOff: false };
+    const promise = Promise.resolve(result);
+    trackSubflow(layer, promise, receipt);
+    return SubflowPromise.from(promise, layer, receipt);
   };
   return { run } as Scope.OperationController<T, I>;
 }
