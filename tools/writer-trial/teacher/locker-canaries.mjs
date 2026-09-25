@@ -41,7 +41,6 @@ mkdirSync(base, { recursive: true });
 cpSync(join(fixture, "src"), join(base, "src"), { recursive: true });
 cpSync(join(fixture, "index.html"), join(base, "index.html"));
 execFileSync("ln", ["-s", TOOLCHAIN, join(base, "node_modules")]);
-const goodTar = pack(base, join(work, "good.tar"));
 
 // One edit to one fixture file. Each anchor must match exactly once, so a
 // moved fixture line fails loudly instead of proving nothing.
@@ -117,111 +116,25 @@ const checkResult = (r, want) => {
   return checkNames(r, want);
 };
 
-// ---- good layout variant: same roles and names, different DOM ----
-// Sections and divs wrap the parts, the Parcels table comes first, its
-// columns are reordered with the recipient as a row header, and the
-// Locker input is tied to its label by useId.
-const layoutTar = patch("good-layout", "LockerApp.tsx", [
-  [
-    'import type { FormEvent, ReactElement } from "react";',
-    'import { useId } from "react";\nimport type { FormEvent, ReactElement } from "react";',
-  ],
-  [
-    "  const submit = useRun(submitStore);\n  return (",
-    "  const submit = useRun(submitStore);\n  const lockerId = useId();\n  return (",
-  ],
-  [
-    [
-      "      <label>",
-      "        Locker",
-      "        <input",
-      "          value={draft.locker}",
-      "          onChange={(event) => locker.run({ input: { value: event.target.value } })}",
-      "        />",
-      "      </label>",
-    ].join("\n"),
-    [
-      "      <div>",
-      "        <label htmlFor={lockerId}>Locker</label>",
-      "      </div>",
-      "      <input",
-      "        id={lockerId}",
-      "        value={draft.locker}",
-      "        onChange={(event) => locker.run({ input: { value: event.target.value } })}",
-      "      />",
-    ].join("\n"),
-  ],
-  [
-    [
-      "      <td>{row.recipient}</td>",
-      "      <td>{row.size}</td>",
-      '      <td>{row.locker ?? "None"}</td>',
-      "      <td>{row.state}</td>",
-      "      <td>",
-    ].join("\n"),
-    [
-      "      <td>",
-      "        <span>{row.state}</span>",
-      "      </td>",
-      '      <td>{row.locker ?? "None"}</td>',
-      '      <th scope="row">{row.recipient}</th>',
-      "      <td>{row.size}</td>",
-      "      <td>",
-    ].join("\n"),
-  ],
-  [
-    [
-      "            <th>Recipient</th>",
-      "            <th>Size</th>",
-      "            <th>Locker</th>",
-      "            <th>State</th>",
-      "            <th>Actions</th>",
-    ].join("\n"),
-    [
-      '            <th scope="col">State</th>',
-      '            <th scope="col">Locker</th>',
-      '            <th scope="col">Recipient</th>',
-      '            <th scope="col">Size</th>',
-      '            <th scope="col">Actions</th>',
-    ].join("\n"),
-  ],
-  [
-    [
-      "      <main>",
-      "        <ReceiveForm />",
-      "        <StoreForm />",
-      "        <Notice />",
-      "        <ParcelTable />",
-      "      </main>",
-    ].join("\n"),
-    [
-      "      <div>",
-      '        <section aria-label="Parcel area">',
-      "          <div>",
-      "            <ParcelTable />",
-      "          </div>",
-      "        </section>",
-      '        <section aria-label="Desk area">',
-      "          <StoreForm />",
-      "          <ReceiveForm />",
-      "        </section>",
-      "        <footer>",
-      "          <Notice />",
-      "        </footer>",
-      "      </div>",
-    ].join("\n"),
-  ],
-]);
-
-// ---- good in-cell variant: no Actions column; Collect and Return sit
-// inside the State cell. The task names the buttons, not where they go.
-const inCellTar = patch("good-in-cell", "LockerApp.tsx", [
-  [
-    "      <td>{row.state}</td>\n      <td>\n        <RowButtons row={row} />",
-    "      <td>\n        {row.state}\n        <RowButtons row={row} />",
-  ],
-  ["            <th>State</th>\n            <th>Actions</th>", "            <th>State</th>"],
-]);
+// ---- good layouts: the fixture once per kit layout (layout-kit/README.md) ----
+// Every name in the kit's LAYOUTS, read from the fixture's own copy, packs
+// the same app with src/layout-choice.ts overwritten to that name.
+const kitText = readFileSync(join(fixture, "src", "layout.tsx"), "utf8");
+const layoutBlock = kitText.slice(kitText.indexOf("export const LAYOUTS"));
+const LAYOUT_NAMES = [
+  ...layoutBlock.slice(0, layoutBlock.indexOf("\n};")).matchAll(/^ {2}(\w+): \{$/gm),
+].map((m) => m[1]);
+if (LAYOUT_NAMES.length < 5) throw new Error(`found layouts ${LAYOUT_NAMES}; update the script`);
+const layoutTar = (name) => {
+  const dir = join(work, `layout-${name}`);
+  rmSync(dir, { recursive: true, force: true });
+  cpSync(base, dir, { recursive: true, verbatimSymlinks: true });
+  writeFileSync(
+    join(dir, "src", "layout-choice.ts"),
+    `export const LAYOUT_NAME: string = ${JSON.stringify(name)};\n`,
+  );
+  return pack(dir, join(work, `layout-${name}.tar`));
+};
 
 // ---- bad variants: each must fail its named case ----
 // (a) Blank locker text becomes locker 1 instead of BadLocker.
@@ -366,9 +279,11 @@ const INPUT_ID = "core a non-text parcelId passed as { input } reports NotFound 
 const RAW_ID = "core a non-text parcelId passed as { rawInput } reports NotFound with a text id";
 const FULL = "ACCEPTANCE locker: 50/50 pass";
 const cases = [
-  { label: "good fixture accepts", tar: goodTar, want: { exit: 0, fullpass: FULL } },
-  { label: "good layout variant accepts", tar: layoutTar, want: { exit: 0, fullpass: FULL } },
-  { label: "good in-cell buttons accept", tar: inCellTar, want: { exit: 0, fullpass: FULL } },
+  ...LAYOUT_NAMES.map((name) => ({
+    label: `good layout ${name} accepts`,
+    tar: layoutTar(name),
+    want: { exit: 0, fullpass: FULL },
+  })),
   {
     label: "(a) blank locker becomes 1 rejects",
     tar: blankLockerTar,
