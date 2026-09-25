@@ -229,6 +229,30 @@ const inCellTar = patch("good-in-cell", "SeatApp.tsx", [
   ["            <th>Customer</th>\n            <th>Actions</th>", "            <th>Customer</th>"],
 ]);
 
+// ---- good seat-cell variant: no Actions column; Release sits inside the
+// Seat cell, next to the id (cinema-02 DeepSeek's layout).
+const seatCellTar = patch("good-seat-cell", "SeatApp.tsx", [
+  [
+    [
+      "      <td>{line.id}</td>",
+      "      <td>{line.state}</td>",
+      "      <td>{line.customer}</td>",
+      "      <td>",
+      "        <RowButtons line={line} />",
+      "      </td>",
+    ].join("\n"),
+    [
+      "      <td>",
+      "        {line.id}",
+      "        <RowButtons line={line} />",
+      "      </td>",
+      "      <td>{line.state}</td>",
+      "      <td>{line.customer}</td>",
+    ].join("\n"),
+  ],
+  ["            <th>Customer</th>\n            <th>Actions</th>", "            <th>Customer</th>"],
+]);
+
 // ---- bad variants: each must fail its named case ----
 // (a) Blank number text becomes number 1 instead of BadNumber.
 const blankNumberTar = patch("bad-blank-number", "model.ts", [
@@ -387,6 +411,7 @@ const cases = [
   { label: "good fixture accepts", tar: goodTar, want: { exit: 0, fullpass: FULL } },
   { label: "good layout variant accepts", tar: layoutTar, want: { exit: 0, fullpass: FULL } },
   { label: "good in-cell buttons accept", tar: inCellTar, want: { exit: 0, fullpass: FULL } },
+  { label: "good seat-cell buttons accept", tar: seatCellTar, want: { exit: 0, fullpass: FULL } },
   {
     label: "(a) blank number becomes 1 rejects",
     tar: blankNumberTar,

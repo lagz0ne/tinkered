@@ -635,10 +635,17 @@ const tableWith = (changes = {}) =>
   SEAT_IDS.map((id) => [id, ...(changes[id] ?? ["Free", "None"])]);
 // The row with a cell named exactly by one seat id. Row text alone is not
 // enough: cells join with no space, so "D6" can run into "Held".
+// A seat's row: the row with a cell holding a text node equal to the id outside any button.
+// The task names the Release button but not where it sits, so a button inside the Seat cell
+// (its accessible name then reads "D6 Release D6") must still find the row (cinema-02).
 const rowOf = (scope, id) => {
   const table = seatsTable(scope);
-  const named = (role) => table.page().getByRole(role, { name: id, exact: true });
-  return table.getByRole("row").filter({ has: named("cell").or(named("rowheader")) });
+  const cell = table
+    .page()
+    .locator(
+      `xpath=.//*[self::td or self::th][.//text()[normalize-space(.)="${id}" and not(ancestor::button)]]`,
+    );
+  return table.getByRole("row").filter({ has: cell });
 };
 
 // One shared alert block: more than one role=alert fails. Empty or absent
