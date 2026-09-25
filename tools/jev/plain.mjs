@@ -19,6 +19,8 @@ function kindOf(file) {
 }
 
 const MESSAGES = {
+  S18: "unit built inside a function: declare every data, operation, resource, and tag once at module level; a builder function never creates one",
+  S19: "helper takes a controller, scope, or session: a helper works on plain values; read and write cells inside the operation body",
   T01: "mock or spy in a test: drive the real public API and check what it returns or shows",
   T02: "fixed sleep in a test: wait for the state you need (an awaited promise, a locator assert, expect.poll)",
   T03: "only or skip left in a test: remove it so every test runs",
@@ -290,6 +292,100 @@ function parseRow(errors, starts) {
   };
 }
 
+// ---------- no wrapper (ADR 0060, best-practices rules 3 and "helpers over values") ----------
+// Writer policy only: S18 and S19 run when `writer` is set, like S17.
+
+const UNIT_BUILDERS = new Set(["data", "operation", "resource", "tag", "family", "extension"]);
+const HANDLE_TYPE = /\b(DataController|Controller|Scope\.Handle|Scope\.Session|Session)\b/;
+const FN_NODE = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"]);
+
+/** Is this import statement the `@tinker/core` module. */
+const isCoreImport = (n) => n.type === "ImportDeclaration" && n.source.value === "@tinker/core";
+
+/** Is this specifier one of the unit builders, imported by name. */
+const isBuilderSpec = (sp) => sp.type === "ImportSpecifier" && UNIT_BUILDERS.has(sp.imported?.name);
+
+/** Local names the file imports from @tinker/core for the unit builders. */
+function builderNames(program) {
+  const specs = program.body.filter(isCoreImport).flatMap((n) => n.specifiers ?? []);
+  return new Set(specs.filter(isBuilderSpec).map((sp) => sp.local.name));
+}
+
+/** Is this node a call to one of the named builders. */
+const callsBuilder = (node, names) =>
+  node.type === "CallExpression" &&
+  node.callee?.type === "Identifier" &&
+  names.has(node.callee.name);
+
+/** The object children of a node, skipping the parent link. */
+const childrenOf = (node) =>
+  Object.entries(node)
+    .filter(([k, v]) => k !== "parent" && v && typeof v === "object")
+    .map(([, v]) => v);
+
+/** S18: every builder call that sits inside some function body. */
+function builderCallsInFunctions(program, names) {
+  const hits = [];
+  const visit = (node, depth) => {
+    if (!node) return;
+    if (Array.isArray(node)) return node.forEach((n) => visit(n, depth));
+    if (depth > 0 && callsBuilder(node, names)) hits.push(["S18", node.start]);
+    const inner = FN_NODE.has(node.type) ? depth + 1 : depth;
+    for (const child of childrenOf(node)) visit(child, inner);
+  };
+  visit(program.body, 0);
+  return hits;
+}
+
+/** Same-file type aliases whose body names a controller, scope, or session. */
+function handleAliases(source, program) {
+  const names = [];
+  for (const n0 of program.body) {
+    const n = n0.type === "ExportNamedDeclaration" ? n0.declaration : n0;
+    if (
+      n?.type === "TSTypeAliasDeclaration" &&
+      HANDLE_TYPE.test(source.slice(n.typeAnnotation.start, n.typeAnnotation.end))
+    )
+      names.push(n.id.name);
+  }
+  return names;
+}
+
+/** A top-level statement without its export wrapper. */
+const unexported = (n) =>
+  n.type === "ExportNamedDeclaration" || n.type === "ExportDefaultDeclaration" ? n.declaration : n;
+
+/** The functions one top-level statement declares: itself, or its function-valued consts. */
+function fnsIn(n) {
+  if (n?.type === "FunctionDeclaration") return [n];
+  if (n?.type !== "VariableDeclaration") return [];
+  return n.declarations.filter((d) => FN_NODE.has(d.init?.type)).map((d) => d.init);
+}
+
+/** The top-level functions of a file: declarations and function-valued consts. */
+const topFunctions = (program) => program.body.flatMap((n) => fnsIn(unexported(n)));
+
+/** S19: a top-level helper whose parameter type holds a controller, scope, or session. */
+function handleParams(source, program) {
+  const aliases = handleAliases(source, program);
+  const holds = (t) => HANDLE_TYPE.test(t) || aliases.some((a) => new RegExp(`\\b${a}\\b`).test(t));
+  const hits = [];
+  for (const fn of topFunctions(program))
+    for (const p of fn.params ?? []) {
+      const ann = p.typeAnnotation ?? p.left?.typeAnnotation;
+      if (ann && holds(source.slice(ann.start, ann.end))) hits.push(["S19", p.start]);
+    }
+  return hits;
+}
+
+/** The writer-mode no-wrapper rows of one source file: [id, offset] pairs. */
+function noWrapperHits(source, program) {
+  return [
+    ...builderCallsInFunctions(program, builderNames(program)),
+    ...handleParams(source, program),
+  ];
+}
+
 /** Every plain rule break in one file, in source order. */
 export function inspectPlain(source, file = "a.ts", { writer = false } = {}) {
   const { program, comments, errors } = parseSync(file, source);
@@ -300,6 +396,8 @@ export function inspectPlain(source, file = "a.ts", { writer = false } = {}) {
   walk(program, (node) => {
     for (const id of rules(node, writer)) rows.push(row(id, lineAt(starts, node.start)));
   });
+  if (writer && kindOf(file) === "src")
+    for (const [id, at] of noWrapperHits(source, program)) rows.push(row(id, lineAt(starts, at)));
   rows.sort((a, b) => a.line - b.line || (a.id < b.id ? -1 : 1));
   return rows;
 }

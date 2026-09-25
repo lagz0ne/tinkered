@@ -116,6 +116,52 @@ void describe("plain rules in a source file", () => {
     assert.deepEqual(hits("const a = v as string;\n", TEST), []);
   });
 
+  void it("S18 fires on a unit builder called inside a function", () => {
+    const src = [
+      'import { operation } from "@tinker/core";',
+      "function textAction(label: string) {",
+      "  return operation({ label, run: () => 1 });",
+      "}",
+    ].join("\n");
+    assert.deepEqual(hits(src, SRC), [["S18", 3]]);
+  });
+
+  void it("S18 leaves a module-level unit and a non-core function alone", () => {
+    const src = [
+      'import { operation } from "@tinker/core";',
+      'export const op = operation({ label: "op", run: () => 1 });',
+      "const operationLike = (f: () => number) => f();",
+      "function build() {\n  return operationLike(() => 1);\n}",
+    ].join("\n");
+    assert.deepEqual(hits(src, SRC), []);
+  });
+
+  void it("S19 fires on a helper that takes a controller, directly or through a type alias", () => {
+    const src = [
+      'import type { Scope } from "@tinker/core";',
+      "type Cells = { notice: Scope.DataController<string> };",
+      "function fail(n: Scope.DataController<string>) {}",
+      "const save = (cells: Cells) => cells;",
+    ].join("\n");
+    assert.deepEqual(hits(src, SRC), [
+      ["S19", 3],
+      ["S19", 4],
+    ]);
+  });
+
+  void it("S19 leaves a helper over plain values alone", () => {
+    assert.deepEqual(
+      hits("const next = (list: readonly number[], n: number) => [...list, n];\n", SRC),
+      [],
+    );
+  });
+
+  void it("S18 and S19 are writer policy: the repo's own lint does not report them", () => {
+    const src =
+      'import { operation } from "@tinker/core";\nfunction f() { return operation({ label: "x", run: () => 1 }); }\n';
+    assert.deepEqual(hits(src, SRC, false), []);
+  });
+
   void it("S06 fires on a console call", () => {
     assert.deepEqual(hits('\nconsole.log("x");\n', SRC), [["S06", 2]]);
   });

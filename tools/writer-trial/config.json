@@ -34,6 +34,7 @@
     "domainLogicInRender",
     "effectOwnedByComponent",
     "inputDefaultMasks",
-    "noOpRejected"
+    "noOpRejected",
+    "wrapsCallersStep"
   ]
 }

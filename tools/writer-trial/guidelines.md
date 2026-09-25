@@ -30,7 +30,12 @@ No worked code is supplied.
 - Typing, choosing a filter, opening, saving, and discarding are actions.
   Operations own their state changes.
   Keep reads and writes inside the scope that owns them.
-- Keep pure helpers for repeated work over plain values.
+- Declare every data cell, operation, and resource once, at module
+  level. A function never creates one: no builder like
+  `makeTypeOp(cell)` that returns a new operation.
+- A helper takes plain values and returns a value. It never takes a
+  controller, a scope, or a session. Read and write cells inside the
+  operation body, even when several operations repeat the same write.
   Do not put the whole operation in an outside closure.
 - A resource owns any work that needs cleanup.
   Use defer and the abort signal where needed.
