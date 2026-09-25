@@ -35,10 +35,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   `pnpm validate`. Next: find the test(s), make timing tests measure relative cost or move them to
   the bench lane. Verify: the core lane passes 5 of 5 beside a mutation run.
 
-- **errors/t03 core: panics are sticky** — after t02: a panic fails its layer even if caught;
-  `settle` recovers; ADR 0066 tests rewritten to 0067. Verify: tests; promises 17; mutation ≥ 85.
-  Must also change `packages/hono/tests/stream.test.ts:322` (a body catching a failing subflow's plain Error with try/catch) to `fail.settle()` + a session defer asserting the body session ends success, and reword hono README :175 to 'A body may settle a failing subflow and still finish its stream without a reader error.'
-
 - **errors/settle-types** — `settle` needs a cast at call sites: on `Handle<unknown, unknown>` it types as a sync `RunResult` (mcp, tinkerer, harness wrap in `Promise.resolve`), and on a generic `T` `Settled<T>` does not reduce (hono's `settleFlow` needs a double cast). Two askers. Next: type `settle` as one non-overloaded call, or make `Settled<T>` = `RunResult<Awaited<T>> | Promise<RunResult<Awaited<T>>>` for generic/unknown `T`. Verify: the four call sites compile with no cast or `Promise.resolve`.
 
 | Card                                                                                                                  | Owner         | Next                                                                                                                                                            | Verify                                        |
@@ -53,12 +49,10 @@ Pairs since 2026-09-23: a writer (sol 6 for hard, deepseek-v4.1-flash for simple
 reviewer per card; the lead runs mutation, bench, and `pnpm validate` alone at landing, one core
 card at a time.
 
-- **errors/t02 packages recover through settle** (ADR 0067) — opus high writers, fable reviewers;
-  worktrees `../tinkered-e2-<pkg>`, briefs `~/.cache/tinkered-briefs/errors-t02-<pkg>.md`. Each
-  deliberate `catch` around a `.run` moves to `settle` before t03 makes panics sticky.
-  - hono ✓ `errors/t02-hono` · mcp ✓ `errors/t02-mcp` · process ✓ `errors/t02-process`
-  - tinkerer ✓ `errors/t02-tinkerer` · harness ✓ `errors/t02-harness` · http ✓ `errors/t02-http`
-    Verify each: behavior unchanged; a panic and a managed error both still recovered; mutation ≥ 85.
+- **errors/t03 core: panics are sticky** — opus high writer, fable reviewer; worktree `../tinkered-errors-t03`,
+  brief `~/.cache/tinkered-briefs/errors-t03.md`. after t02: a panic fails its layer even if caught;
+  `settle` recovers; ADR 0066 tests rewritten to 0067. Verify: tests; promises 17; mutation ≥ 85.
+  Must also change `packages/hono/tests/stream.test.ts:322` (a body catching a failing subflow's plain Error with try/catch) to `fail.settle()` + a session defer asserting the body session ends success, and reword hono README :175 to 'A body may settle a failing subflow and still finish its stream without a reader error.'
 
 | Card                                                                                                                                                                                                                      | Owner                                                                           | Next                                                                                                                                                                                                                                                                                                                                      | Verify                                                                                                                                                                                                      |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -92,6 +86,9 @@ card at a time.
 
 ## Done
 
+- **errors/t02** — all six packages recover through `settle` (hono, mcp, process, tinkerer, harness,
+  http); tags `errors/t02-<pkg>`. Along the way: core fix errors/t01b (`settle` reports what `run` would
+  do), cards errors/settle-types, errors/raise-types, harness/approve-real-sdk.
 - **errors/t02-process** — opus high + fable review (one fix round); tag `errors/t02-process`. A command's exit code comes through `settle`: success → its value (a server that returns on the signal keeps its code), cancelled → 130, failed → print and 1; a root force-closed from inside now exits 130 and prints nothing (main printed `{}` and exited 1).
   - Gate EXIT 0; process 48 tests (4 new), blueprint 112, tinkerer 89, issue-tracker 51; process mutation 96.10; validate 43 PASS.
   - 1 Jev label; `calibration.json` refreshed for `stateOutsideCell` only (the full run passed 9 min).
