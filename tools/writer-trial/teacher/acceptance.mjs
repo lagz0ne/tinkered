@@ -693,11 +693,13 @@ browser("browser r2: failed save keeps draft open", async (page) => {
     await setField(labeled(page, "Edit room"), "Maple");
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await labeled(page, "Edit title").waitFor();
-    const alertText = await page
+    // Wait for the text: an alert block that is always present (empty until an error) is a
+    // valid layout, so reading the first alert at once could read it before Clash lands.
+    await page
       .getByRole("alert")
-      .innerText()
-      .catch(() => "");
-    assert.match(alertText, /Clash/, "failed save shows Clash");
+      .filter({ hasText: "Clash" })
+      .waitFor()
+      .catch(() => assert.fail("failed save shows Clash"));
     assert.equal(await labeled(page, "Edit title").inputValue(), "Browser A");
     await page.getByRole("button", { name: "Discard", exact: true }).click();
     await cancel(page, "Browser A").waitFor();
@@ -754,10 +756,12 @@ browser("browser r4: undo keeps draft text and filter choice", async (page) => {
   await bookOne(page, "Undo C", "Maple", "13:00", "14:00");
   await page.getByRole("button", { name: "Edit Undo A", exact: true }).click();
   await labeled(page, "Edit title").fill("Unsaved A");
+  await labeled(page, "Title").fill("Keep this title");
   await page.getByRole("button", { name: "Maple", exact: true }).click();
   assert.equal(await cancel(page, "Undo A").count(), 0);
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await cancel(page, "Undo C").waitFor({ state: "hidden" });
+  assert.equal(await labeled(page, "Title").inputValue(), "Keep this title");
   assert.equal(await cancel(page, "Undo B").count(), 1);
   assert.equal(await cancel(page, "Undo A").count(), 0);
   assert.equal(await labeled(page, "Edit title").inputValue(), "Unsaved A");
@@ -939,18 +943,16 @@ browser("browser: two roots on one page share nothing", async (page) => {
     await page.evaluate(mountSecondRoot);
     const secondScope = page.locator("#teacher-second-root");
     await secondScope.waitFor({ state: "attached" });
-    // Labels use `for` without an accessible-name link in one repair; fall
-    // back to positional inputs inside the second root so a missing link
-    // is a lead-review note, never a false isolation failure.
-    let secondTitle = labeled(secondScope, "Title");
-    if ((await secondTitle.count()) === 0) secondTitle = secondScope.locator("input").first();
-    let secondRoom = labeled(secondScope, "Room");
-    if ((await secondRoom.count()) === 0) secondRoom = secondScope.locator("input").nth(1);
-    let secondStart = labeled(secondScope, "Start time");
-    if ((await secondStart.count()) === 0) secondStart = secondScope.locator("input").nth(3);
-    let secondEnd = labeled(secondScope, "End time");
-    if ((await secondEnd.count()) === 0) secondEnd = secondScope.locator("input").nth(4);
-    await secondTitle.waitFor({ state: "visible" });
+    // Every field is found by its label inside the second root, never by position: labels
+    // linked by an id the two roots share (a fixed id, or useId) name the first root's
+    // fields, which is the isolation break this case exists to catch (guidelines.md).
+    const secondTitle = labeled(secondScope, "Title");
+    const secondRoom = labeled(secondScope, "Room");
+    const secondStart = labeled(secondScope, "Start time");
+    const secondEnd = labeled(secondScope, "End time");
+    await secondTitle
+      .waitFor({ state: "visible" })
+      .catch(() => assert.fail("second root has no field labeled Title of its own"));
     await secondTitle.fill("Root Two");
     await setField(secondRoom, "Cedar");
     await secondStart.fill("09:00");

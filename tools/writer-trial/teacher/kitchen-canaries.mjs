@@ -41,7 +41,6 @@ mkdirSync(base, { recursive: true });
 cpSync(join(fixture, "src"), join(base, "src"), { recursive: true });
 cpSync(join(fixture, "index.html"), join(base, "index.html"));
 execFileSync("ln", ["-s", TOOLCHAIN, join(base, "node_modules")]);
-const goodTar = pack(base, join(work, "good.tar"));
 
 // One edit to one fixture file. Each anchor must match exactly once, so a
 // moved fixture line fails loudly instead of proving nothing.
@@ -117,111 +116,28 @@ const checkResult = (r, want) => {
   return checkNames(r, want);
 };
 
-// ---- good layout variant: same roles and names, different DOM ----
-// Sections and divs wrap the parts, the Tickets table comes first, its
-// columns are reordered with the table number as a row header, and the
-// Table input is tied to its label by useId.
-const layoutTar = patch("good-layout", "KitchenApp.tsx", [
-  [
-    'import type { FormEvent, ReactElement } from "react";',
-    'import { useId } from "react";\nimport type { FormEvent, ReactElement } from "react";',
-  ],
-  [
-    "  const submit = useRun(submitTicket);\n  return (",
-    "  const submit = useRun(submitTicket);\n  const tableId = useId();\n  return (",
-  ],
-  [
-    [
-      "      <label>",
-      "        Table",
-      "        <input",
-      "          value={draft.table}",
-      "          onChange={(event) => table.run({ input: { value: event.target.value } })}",
-      "        />",
-      "      </label>",
-    ].join("\n"),
-    [
-      "      <div>",
-      "        <label htmlFor={tableId}>Table</label>",
-      "      </div>",
-      "      <input",
-      "        id={tableId}",
-      "        value={draft.table}",
-      "        onChange={(event) => table.run({ input: { value: event.target.value } })}",
-      "      />",
-    ].join("\n"),
-  ],
-  [
-    [
-      "      <td>{row.table}</td>",
-      "      <td>{row.dish}</td>",
-      "      <td>{row.qty}</td>",
-      "      <td>{row.state}</td>",
-      "      <td>",
-    ].join("\n"),
-    [
-      "      <td>",
-      "        <span>{row.state}</span>",
-      "      </td>",
-      "      <td>{row.dish}</td>",
-      '      <th scope="row">{row.table}</th>',
-      "      <td>{row.qty}</td>",
-      "      <td>",
-    ].join("\n"),
-  ],
-  [
-    [
-      "            <th>Table</th>",
-      "            <th>Dish</th>",
-      "            <th>Qty</th>",
-      "            <th>State</th>",
-      "            <th>Actions</th>",
-    ].join("\n"),
-    [
-      '            <th scope="col">State</th>',
-      '            <th scope="col">Dish</th>',
-      '            <th scope="col">Table</th>',
-      '            <th scope="col">Qty</th>',
-      '            <th scope="col">Actions</th>',
-    ].join("\n"),
-  ],
-  [
-    [
-      "      <main>",
-      "        <TicketForm />",
-      "        <StoveForm />",
-      "        <Notice />",
-      "        <TicketTable />",
-      "      </main>",
-    ].join("\n"),
-    [
-      "      <div>",
-      '        <section aria-label="Queue area">',
-      "          <div>",
-      "            <TicketTable />",
-      "          </div>",
-      "        </section>",
-      '        <section aria-label="Order area">',
-      "          <StoveForm />",
-      "          <TicketForm />",
-      "        </section>",
-      "        <footer>",
-      "          <Notice />",
-      "        </footer>",
-      "      </div>",
-    ].join("\n"),
-  ],
-]);
-
-// ---- good in-cell variant: no Actions column; Cook, Cancel, and Serve
-// sit inside the State cell. The task names the buttons, not where they go.
-const inCellTar = patch("good-in-cell", "KitchenApp.tsx", [
-  [
-    "      <td>{row.state}</td>\n      <td>\n        <RowButtons row={row} />",
-    "      <td>\n        {row.state}\n        <RowButtons row={row} />",
-  ],
-  ["            <th>State</th>\n            <th>Actions</th>", "            <th>State</th>"],
-]);
+// ---- good layouts: the same app in every kit layout ----
+// The kit (src/layout.tsx) names its layouts in LAYOUTS. Each one packs the
+// fixture with src/layout-choice.ts pointing at it, and every layout must
+// pass every case: the task names fields, tables, buttons, and the alert,
+// not where they sit or how they are labeled. Bad variants below run on
+// the baseline layout.
+const kitText = readFileSync(join(fixture, "src", "layout.tsx"), "utf8");
+const layoutBlock = /export const LAYOUTS[^=]*= \{\n([\s\S]*?)\n\};/.exec(kitText);
+if (layoutBlock === null) throw new Error("LAYOUTS not found in layout.tsx; update the script");
+const LAYOUT_NAMES = [...layoutBlock[1].matchAll(/^ {2}(\w+): \{$/gm)].map((m) => m[1]);
+if (LAYOUT_NAMES.length < 5 || !LAYOUT_NAMES.includes("baseline"))
+  throw new Error(`found layouts ${LAYOUT_NAMES.join(", ")}; update the script`);
+const layoutTar = (name) => {
+  const dir = join(work, `layout-${name}`);
+  rmSync(dir, { recursive: true, force: true });
+  cpSync(base, dir, { recursive: true, verbatimSymlinks: true });
+  writeFileSync(
+    join(dir, "src", "layout-choice.ts"),
+    `export const LAYOUT_NAME: string = "${name}";\n`,
+  );
+  return pack(dir, join(work, `layout-${name}.tar`));
+};
 
 // ---- bad variants: each must fail its named case ----
 // (a) Blank qty text becomes 1 instead of BadQty.
@@ -319,9 +235,11 @@ const UNDO_CASE =
 const SERVE_NOOP = "core serving a served ticket passes with no change or undo step";
 const FULL = "ACCEPTANCE kitchen: 53/53 pass";
 const cases = [
-  { label: "good fixture accepts", tar: goodTar, want: { exit: 0, fullpass: FULL } },
-  { label: "good layout variant accepts", tar: layoutTar, want: { exit: 0, fullpass: FULL } },
-  { label: "good in-cell buttons accept", tar: inCellTar, want: { exit: 0, fullpass: FULL } },
+  ...LAYOUT_NAMES.map((name) => ({
+    label: `layout ${name} accepts`,
+    tar: layoutTar(name),
+    want: { exit: 0, fullpass: FULL },
+  })),
   {
     label: "(a) blank qty becomes 1 rejects",
     tar: blankQtyTar,

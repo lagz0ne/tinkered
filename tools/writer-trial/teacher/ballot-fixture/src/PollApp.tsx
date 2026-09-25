@@ -25,6 +25,7 @@ import {
   voteRows,
 } from "./screen.ts";
 import type { PollFilter, PollRow, VoteRow } from "./screen.ts";
+import { Field, NamedTable, Notice } from "./layout.tsx";
 
 const filters: readonly PollFilter[] = ["All", "Open", "Closed"];
 
@@ -42,54 +43,50 @@ function PollForm(): ReactElement {
         submit.run();
       }}
     >
-      <label>
-        Question
-        <input
-          value={draft.question}
-          onChange={(event) => question.run({ input: { value: event.target.value } })}
-        />
-      </label>
-      <label>
-        Choices
-        <input
-          value={draft.choices}
-          onChange={(event) => choices.run({ input: { value: event.target.value } })}
-        />
-      </label>
-      <label>
-        Limit
-        <input
-          value={draft.limit}
-          onChange={(event) => limit.run({ input: { value: event.target.value } })}
-        />
-      </label>
+      <Field
+        name="Question"
+        control={
+          <input
+            value={draft.question}
+            onChange={(event) => question.run({ input: { value: event.target.value } })}
+          />
+        }
+      />
+      <Field
+        name="Choices"
+        control={
+          <input
+            value={draft.choices}
+            onChange={(event) => choices.run({ input: { value: event.target.value } })}
+          />
+        }
+      />
+      <Field
+        name="Limit"
+        control={
+          <input
+            value={draft.limit}
+            onChange={(event) => limit.run({ input: { value: event.target.value } })}
+          />
+        }
+      />
       <button type="submit">Create poll</button>
     </form>
   );
 }
 
-/** One Polls row; a poll that is not closed has its Close button. */
-function PollLine(props: { readonly row: PollRow }): ReactElement {
+/** The Close button of one Polls row. */
+function CloseButton(props: { readonly row: PollRow }): ReactElement {
   const { row } = props;
   const close = useRun(submitClose);
   return (
-    <tr>
-      <td>{row.question}</td>
-      <td>{row.votes}</td>
-      <td>{row.leader}</td>
-      <td>{row.status}</td>
-      <td>
-        {row.status === "Closed" ? null : (
-          <button type="button" onClick={() => close.run({ input: { pollId: row.id } })}>
-            Close {row.question}
-          </button>
-        )}
-      </td>
-    </tr>
+    <button type="button" onClick={() => close.run({ input: { pollId: row.id } })}>
+      Close {row.question}
+    </button>
   );
 }
 
-/** The filter buttons and the Polls table. */
+/** The filter buttons and the Polls table; a poll that is not closed has its Close button. */
 function PollTable(): ReactElement {
   const saved = useData(polls);
   const cast = useData(votes);
@@ -109,22 +106,15 @@ function PollTable(): ReactElement {
           </button>
         ))}
       </div>
-      <table aria-label="Polls">
-        <thead>
-          <tr>
-            <th>Question</th>
-            <th>Votes</th>
-            <th>Leader</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {pollRows(saved, cast, filter).map((row) => (
-            <PollLine key={row.id} row={row} />
-          ))}
-        </tbody>
-      </table>
+      <NamedTable
+        name="Polls"
+        headers={["Question", "Votes", "Leader", "Status"]}
+        rows={pollRows(saved, cast, filter).map((row) => ({
+          key: row.id,
+          cells: [row.question, row.votes, row.leader, row.status],
+          actions: row.status === "Closed" ? undefined : <CloseButton row={row} />,
+        }))}
+      />
     </>
   );
 }
@@ -144,94 +134,87 @@ function VoteForm(): ReactElement {
         vote.run();
       }}
     >
-      <label>
-        Poll
-        <select
-          value={draft.pollId}
-          onChange={(event) => pick.run({ input: { pollId: event.target.value } })}
-        >
-          <option value="">Choose poll</option>
-          {pollOptions(saved, draft.pollId).map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Voter
-        <input
-          value={draft.voter}
-          onChange={(event) => voter.run({ input: { value: event.target.value } })}
-        />
-      </label>
-      <label>
-        Choice
-        <select
-          value={draft.choice}
-          onChange={(event) => choose.run({ input: { choice: event.target.value } })}
-        >
-          <option value="">Choose choice</option>
-          {choiceOptions(saved, draft.pollId).map((choice) => (
-            <option key={choice} value={choice}>
-              {choice}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Field
+        name="Poll"
+        control={
+          <select
+            value={draft.pollId}
+            onChange={(event) => pick.run({ input: { pollId: event.target.value } })}
+          >
+            <option value="">Choose poll</option>
+            {pollOptions(saved, draft.pollId).map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        }
+      />
+      <Field
+        name="Voter"
+        control={
+          <input
+            value={draft.voter}
+            onChange={(event) => voter.run({ input: { value: event.target.value } })}
+          />
+        }
+      />
+      <Field
+        name="Choice"
+        control={
+          <select
+            value={draft.choice}
+            onChange={(event) => choose.run({ input: { choice: event.target.value } })}
+          >
+            <option value="">Choose choice</option>
+            {choiceOptions(saved, draft.pollId).map((choice) => (
+              <option key={choice} value={choice}>
+                {choice}
+              </option>
+            ))}
+          </select>
+        }
+      />
       <button type="submit">Vote</button>
     </form>
   );
 }
 
-/** One Votes row with its Withdraw button. */
-function VoteLine(props: { readonly row: VoteRow }): ReactElement {
+/** The Withdraw button of one Votes row. */
+function WithdrawButton(props: { readonly row: VoteRow }): ReactElement {
   const { row } = props;
   const withdraw = useRun(submitWithdraw);
   return (
-    <tr>
-      <td>{row.question}</td>
-      <td>{row.voter}</td>
-      <td>{row.choice}</td>
-      <td>
-        <button type="button" onClick={() => withdraw.run({ input: { voteId: row.id } })}>
-          Withdraw {row.voter} from {row.question}
-        </button>
-      </td>
-    </tr>
+    <button type="button" onClick={() => withdraw.run({ input: { voteId: row.id } })}>
+      Withdraw {row.voter} from {row.question}
+    </button>
   );
 }
 
-/** The Votes table in saved vote order. */
+/** The Votes table in saved vote order, each row with its Withdraw button. */
 function VoteTable(): ReactElement {
   const saved = useData(polls);
   const cast = useData(votes);
   return (
-    <table aria-label="Votes">
-      <thead>
-        <tr>
-          <th>Poll</th>
-          <th>Voter</th>
-          <th>Choice</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {voteRows(saved, cast).map((row) => (
-          <VoteLine key={row.id} row={row} />
-        ))}
-      </tbody>
-    </table>
+    <NamedTable
+      name="Votes"
+      headers={["Poll", "Voter", "Choice"]}
+      rows={voteRows(saved, cast).map((row) => ({
+        key: row.id,
+        cells: [row.question, row.voter, row.choice],
+        actions: <WithdrawButton row={row} />,
+      }))}
+    />
   );
 }
 
 /** The shared notice and the Undo button. */
-function Notice(): ReactElement {
+function NoticeBar(): ReactElement {
   const shown = useData(notice);
   const undo = useRun(submitUndo);
   return (
     <>
-      <div role="alert">{shown}</div>
+      <Notice text={shown} />
       <button type="button" onClick={() => undo.run()}>
         Undo
       </button>
@@ -245,7 +228,7 @@ export function PollApp(): ReactElement {
     <ScopeProvider create={() => createScope()}>
       <main>
         <PollForm />
-        <Notice />
+        <NoticeBar />
         <PollTable />
         <VoteForm />
         <VoteTable />

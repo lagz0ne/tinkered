@@ -710,16 +710,40 @@ try {
   booted = error?.message ?? String(error);
 }
 
-// Data cells of the VISIBLE rows only: filtering hides rows without
-// deleting them, so hidden rows never count toward rendered comparisons.
-const visibleRows = (table) => table.locator("tbody tr:visible");
-const visibleRowCells = (table, row, count) =>
-  visibleRows(table)
-    .nth(row)
-    .locator("th, td")
-    .allInnerTexts()
-    .then((cells) => cells.slice(0, count));
-const visibleRowCount = (table) => visibleRows(table).count();
+// A cell's own text without its controls: the task names the row buttons
+// but not where they sit, so a Complete or Reopen button inside a cell must
+// not change what the cell says.
+const cellsOf = (row) =>
+  row
+    .getByRole("cell")
+    .or(row.getByRole("columnheader"))
+    .or(row.getByRole("rowheader"))
+    .evaluateAll((all) =>
+      all.map((cell) => {
+        const copy = cell.cloneNode(true);
+        for (const control of copy.querySelectorAll(
+          "button, input, select, textarea, [role=button]",
+        ))
+          control.remove();
+        return (copy.textContent ?? "").replace(/\s+/g, " ").trim();
+      }),
+    );
+// Course rows by header text, in task column order: the header row is the
+// first row naming every column, whatever role its cells get. Column order
+// and extra columns are free; filtering hides rows without deleting them,
+// and rows hidden from the accessibility tree are skipped by role.
+const COLUMNS = ["Title", "Status", "Requires"];
+const shownRows = async (table) => {
+  const rows = [];
+  for (const row of await table.getByRole("row").all()) rows.push(await cellsOf(row));
+  const head = rows.findIndex((cells) => COLUMNS.every((column) => cells.includes(column)));
+  assert.ok(head >= 0, `want columns ${COLUMNS.join(", ")}; found ${rows[0]?.join(", ") ?? ""}`);
+  const at = COLUMNS.map((column) => rows[head].indexOf(column));
+  return rows.slice(head + 1).map((cells) => at.map((i) => cells[i]));
+};
+const visibleRowCells = async (table, row, count) =>
+  ((await shownRows(table))[row] ?? []).slice(0, count);
+const visibleRowCount = async (table) => (await shownRows(table)).length;
 
 // A persistent empty role=alert is allowed: cleared means no error text,
 // whether the block is empty or absent.
@@ -734,12 +758,7 @@ const addCourse = async (page, title) => {
   await page.getByRole("button", { name: "Add course", exact: true }).click();
 };
 
-const titlesOf = async (table) => {
-  const count = await visibleRowCount(table);
-  const out = [];
-  for (let i = 0; i < count; i++) out.push((await visibleRowCells(table, i, 1))[0]);
-  return out;
-};
+const titlesOf = async (table) => (await shownRows(table)).map(([title]) => title);
 
 // Scoped semantic picks: role + accessible name only, no layout fallback.
 // Option order is asserted separately from behavior; picks below use the

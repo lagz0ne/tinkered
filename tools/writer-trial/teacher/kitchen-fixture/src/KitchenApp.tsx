@@ -21,6 +21,7 @@ import {
   typeTable,
 } from "./screen.ts";
 import type { TicketFilter, TicketRow } from "./screen.ts";
+import { Field, NamedTable, Notice } from "./layout.tsx";
 
 const filters: readonly TicketFilter[] = ["All", "Waiting", "Cooking", "Served"];
 
@@ -38,34 +39,40 @@ function TicketForm(): ReactElement {
         submit.run();
       }}
     >
-      <label>
-        Table
-        <input
-          value={draft.table}
-          onChange={(event) => table.run({ input: { value: event.target.value } })}
-        />
-      </label>
-      <label>
-        Dish
-        <select
-          value={draft.dish}
-          onChange={(event) => dish.run({ input: { dish: event.target.value } })}
-        >
-          <option value="">Choose dish</option>
-          {MENU.map((name) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Qty
-        <input
-          value={draft.qty}
-          onChange={(event) => qty.run({ input: { value: event.target.value } })}
-        />
-      </label>
+      <Field
+        name="Table"
+        control={
+          <input
+            value={draft.table}
+            onChange={(event) => table.run({ input: { value: event.target.value } })}
+          />
+        }
+      />
+      <Field
+        name="Dish"
+        control={
+          <select
+            value={draft.dish}
+            onChange={(event) => dish.run({ input: { dish: event.target.value } })}
+          >
+            <option value="">Choose dish</option>
+            {MENU.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        }
+      />
+      <Field
+        name="Qty"
+        control={
+          <input
+            value={draft.qty}
+            onChange={(event) => qty.run({ input: { value: event.target.value } })}
+          />
+        }
+      />
       <button type="submit">Add ticket</button>
     </form>
   );
@@ -85,13 +92,15 @@ function StoveForm(): ReactElement {
       }}
     >
       <p>Stove: {size}</p>
-      <label>
-        Stove size
-        <input
-          value={draft}
-          onChange={(event) => type.run({ input: { value: event.target.value } })}
-        />
-      </label>
+      <Field
+        name="Stove size"
+        control={
+          <input
+            value={draft}
+            onChange={(event) => type.run({ input: { value: event.target.value } })}
+          />
+        }
+      />
       <button type="submit">Set stove</button>
     </form>
   );
@@ -125,23 +134,7 @@ function RowButtons(props: { readonly row: TicketRow }): ReactElement | null {
   return null;
 }
 
-/** One Tickets row. */
-function TicketLine(props: { readonly row: TicketRow }): ReactElement {
-  const { row } = props;
-  return (
-    <tr>
-      <td>{row.table}</td>
-      <td>{row.dish}</td>
-      <td>{row.qty}</td>
-      <td>{row.state}</td>
-      <td>
-        <RowButtons row={row} />
-      </td>
-    </tr>
-  );
-}
-
-/** The filter buttons and the Tickets table. */
+/** The filter buttons and the Tickets table, each row with the buttons its state has. */
 function TicketTable(): ReactElement {
   const saved = useData(tickets);
   const filter = useData(ticketFilter);
@@ -160,33 +153,26 @@ function TicketTable(): ReactElement {
           </button>
         ))}
       </div>
-      <table aria-label="Tickets">
-        <thead>
-          <tr>
-            <th>Table</th>
-            <th>Dish</th>
-            <th>Qty</th>
-            <th>State</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {ticketRows(saved, filter).map((row) => (
-            <TicketLine key={row.id} row={row} />
-          ))}
-        </tbody>
-      </table>
+      <NamedTable
+        name="Tickets"
+        headers={["Table", "Dish", "Qty", "State"]}
+        rows={ticketRows(saved, filter).map((row) => ({
+          key: row.id,
+          cells: [row.table, row.dish, row.qty, row.state],
+          actions: <RowButtons row={row} />,
+        }))}
+      />
     </>
   );
 }
 
 /** The shared notice and the Undo button. */
-function Notice(): ReactElement {
+function NoticeBar(): ReactElement {
   const shown = useData(notice);
   const undo = useRun(submitUndo);
   return (
     <>
-      <div role="alert">{shown}</div>
+      <Notice text={shown} />
       <button type="button" onClick={() => undo.run()}>
         Undo
       </button>
@@ -201,7 +187,7 @@ export function KitchenApp(): ReactElement {
       <main>
         <TicketForm />
         <StoveForm />
-        <Notice />
+        <NoticeBar />
         <TicketTable />
       </main>
     </ScopeProvider>

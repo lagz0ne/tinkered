@@ -1,6 +1,7 @@
 import type { FormEvent, ReactElement } from "react";
 import { createScope } from "@tinker/core";
 import { ScopeProvider, useData, useRun } from "@tinker/react";
+import { Field, NamedTable, Notice } from "./layout.tsx";
 import { seats } from "./model.ts";
 import {
   chooseFilter,
@@ -35,27 +36,33 @@ function SeatForm(): ReactElement {
         hold.run();
       }}
     >
-      <label>
-        Row
-        <input
-          value={draft.row}
-          onChange={(event) => row.run({ input: { value: event.target.value } })}
-        />
-      </label>
-      <label>
-        Number
-        <input
-          value={draft.number}
-          onChange={(event) => number.run({ input: { value: event.target.value } })}
-        />
-      </label>
-      <label>
-        Customer
-        <input
-          value={draft.customer}
-          onChange={(event) => customer.run({ input: { value: event.target.value } })}
-        />
-      </label>
+      <Field
+        name="Row"
+        control={
+          <input
+            value={draft.row}
+            onChange={(event) => row.run({ input: { value: event.target.value } })}
+          />
+        }
+      />
+      <Field
+        name="Number"
+        control={
+          <input
+            value={draft.number}
+            onChange={(event) => number.run({ input: { value: event.target.value } })}
+          />
+        }
+      />
+      <Field
+        name="Customer"
+        control={
+          <input
+            value={draft.customer}
+            onChange={(event) => customer.run({ input: { value: event.target.value } })}
+          />
+        }
+      />
       <button type="submit">Hold</button>
       <button type="button" onClick={() => buy.run()}>
         Buy
@@ -64,30 +71,14 @@ function SeatForm(): ReactElement {
   );
 }
 
-/** The button one seat row has: Release for a held seat only. */
-function RowButtons(props: { readonly line: SeatLine }): ReactElement | null {
+/** The button a held seat row has: Release. */
+function ReleaseButton(props: { readonly line: SeatLine }): ReactElement {
   const { line } = props;
   const release = useRun(submitRelease);
-  if (line.state !== "Held") return null;
   return (
     <button type="button" onClick={() => release.run({ input: { seatId: line.id } })}>
       Release {line.id}
     </button>
-  );
-}
-
-/** One Seats row. */
-function SeatRow(props: { readonly line: SeatLine }): ReactElement {
-  const { line } = props;
-  return (
-    <tr>
-      <td>{line.id}</td>
-      <td>{line.state}</td>
-      <td>{line.customer}</td>
-      <td>
-        <RowButtons line={line} />
-      </td>
-    </tr>
   );
 }
 
@@ -110,32 +101,26 @@ function SeatTable(): ReactElement {
           </button>
         ))}
       </div>
-      <table aria-label="Seats">
-        <thead>
-          <tr>
-            <th>Seat</th>
-            <th>State</th>
-            <th>Customer</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {seatLines(saved, filter).map((line) => (
-            <SeatRow key={line.id} line={line} />
-          ))}
-        </tbody>
-      </table>
+      <NamedTable
+        name="Seats"
+        headers={["Seat", "State", "Customer"]}
+        rows={seatLines(saved, filter).map((line) => ({
+          key: line.id,
+          cells: [line.id, line.state, line.customer],
+          actions: line.state === "Held" ? <ReleaseButton line={line} /> : undefined,
+        }))}
+      />
     </>
   );
 }
 
 /** The shared notice and the Undo button. */
-function Notice(): ReactElement {
+function NoticeBar(): ReactElement {
   const shown = useData(notice);
   const undo = useRun(submitUndo);
   return (
     <>
-      <div role="alert">{shown}</div>
+      <Notice text={shown} />
       <button type="button" onClick={() => undo.run()}>
         Undo
       </button>
@@ -149,7 +134,7 @@ export function SeatApp(): ReactElement {
     <ScopeProvider create={() => createScope()}>
       <main>
         <SeatForm />
-        <Notice />
+        <NoticeBar />
         <SeatTable />
       </main>
     </ScopeProvider>

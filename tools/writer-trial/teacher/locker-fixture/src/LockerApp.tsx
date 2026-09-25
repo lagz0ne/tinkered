@@ -1,6 +1,7 @@
 import type { FormEvent, ReactElement } from "react";
 import { createScope } from "@tinker/core";
 import { ScopeProvider, useData, useRun } from "@tinker/react";
+import { Field, NamedTable, Notice } from "./layout.tsx";
 import { parcels } from "./model.ts";
 import {
   chooseFilter,
@@ -37,20 +38,24 @@ function ReceiveForm(): ReactElement {
         submit.run();
       }}
     >
-      <label>
-        Recipient
-        <input
-          value={draft.recipient}
-          onChange={(event) => recipient.run({ input: { value: event.target.value } })}
-        />
-      </label>
-      <label>
-        Size
-        <input
-          value={draft.size}
-          onChange={(event) => size.run({ input: { value: event.target.value } })}
-        />
-      </label>
+      <Field
+        name="Recipient"
+        control={
+          <input
+            value={draft.recipient}
+            onChange={(event) => recipient.run({ input: { value: event.target.value } })}
+          />
+        }
+      />
+      <Field
+        name="Size"
+        control={
+          <input
+            value={draft.size}
+            onChange={(event) => size.run({ input: { value: event.target.value } })}
+          />
+        }
+      />
       <button type="submit">Receive</button>
     </form>
   );
@@ -70,38 +75,41 @@ function StoreForm(): ReactElement {
         submit.run();
       }}
     >
-      <label>
-        Parcel
-        <select
-          value={draft.parcelId}
-          onChange={(event) => choose.run({ input: { parcelId: event.target.value } })}
-        >
-          <option value="">Choose parcel</option>
-          {parcelChoices(saved, draft.parcelId).map((choice) => (
-            <option key={choice.value} value={choice.value}>
-              {choice.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Locker
-        <input
-          value={draft.locker}
-          onChange={(event) => locker.run({ input: { value: event.target.value } })}
-        />
-      </label>
+      <Field
+        name="Parcel"
+        control={
+          <select
+            value={draft.parcelId}
+            onChange={(event) => choose.run({ input: { parcelId: event.target.value } })}
+          >
+            <option value="">Choose parcel</option>
+            {parcelChoices(saved, draft.parcelId).map((choice) => (
+              <option key={choice.value} value={choice.value}>
+                {choice.label}
+              </option>
+            ))}
+          </select>
+        }
+      />
+      <Field
+        name="Locker"
+        control={
+          <input
+            value={draft.locker}
+            onChange={(event) => locker.run({ input: { value: event.target.value } })}
+          />
+        }
+      />
       <button type="submit">Store</button>
     </form>
   );
 }
 
-/** The buttons one parcel row has: Collect and Return for a stored parcel only. */
-function RowButtons(props: { readonly row: ParcelRow }): ReactElement | null {
+/** The buttons a stored parcel row has: Collect and Return. */
+function RowButtons(props: { readonly row: ParcelRow }): ReactElement {
   const { row } = props;
   const collect = useRun(submitCollect);
   const back = useRun(submitReturn);
-  if (row.state !== "Stored") return null;
   const input = { parcelId: row.id };
   const name = `${row.recipient} from locker ${row.locker}`;
   return (
@@ -113,22 +121,6 @@ function RowButtons(props: { readonly row: ParcelRow }): ReactElement | null {
         Return {name}
       </button>
     </>
-  );
-}
-
-/** One Parcels row. */
-function ParcelLine(props: { readonly row: ParcelRow }): ReactElement {
-  const { row } = props;
-  return (
-    <tr>
-      <td>{row.recipient}</td>
-      <td>{row.size}</td>
-      <td>{row.locker ?? "None"}</td>
-      <td>{row.state}</td>
-      <td>
-        <RowButtons row={row} />
-      </td>
-    </tr>
   );
 }
 
@@ -151,33 +143,26 @@ function ParcelTable(): ReactElement {
           </button>
         ))}
       </div>
-      <table aria-label="Parcels">
-        <thead>
-          <tr>
-            <th>Recipient</th>
-            <th>Size</th>
-            <th>Locker</th>
-            <th>State</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {parcelRows(saved, filter).map((row) => (
-            <ParcelLine key={row.id} row={row} />
-          ))}
-        </tbody>
-      </table>
+      <NamedTable
+        name="Parcels"
+        headers={["Recipient", "Size", "Locker", "State"]}
+        rows={parcelRows(saved, filter).map((row) => ({
+          key: row.id,
+          cells: [row.recipient, row.size, row.locker ?? "None", row.state],
+          actions: row.state === "Stored" ? <RowButtons row={row} /> : undefined,
+        }))}
+      />
     </>
   );
 }
 
 /** The shared notice and the Undo button. */
-function Notice(): ReactElement {
+function NoticeBar(): ReactElement {
   const shown = useData(notice);
   const undo = useRun(submitUndo);
   return (
     <>
-      <div role="alert">{shown}</div>
+      <Notice text={shown} />
       <button type="button" onClick={() => undo.run()}>
         Undo
       </button>
@@ -192,7 +177,7 @@ export function LockerApp(): ReactElement {
       <main>
         <ReceiveForm />
         <StoreForm />
-        <Notice />
+        <NoticeBar />
         <ParcelTable />
       </main>
     </ScopeProvider>
