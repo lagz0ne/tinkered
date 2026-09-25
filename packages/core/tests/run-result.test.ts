@@ -68,6 +68,28 @@ test("settle classifies a plain Error as a panic", async () => {
   await scope.close();
 });
 
+const notManaged: [string, object][] = [
+  ["a non-Error object with a kind and a payload", { kind: "Missing", payload: {} }],
+  ["an Error with a kind but no payload", Object.assign(new Error("half"), { kind: "Missing" })],
+  [
+    "an Error whose kind is not a string",
+    Object.assign(new Error("odd"), { kind: 7, payload: {} }),
+  ],
+];
+for (const [shape, error] of notManaged) {
+  test(`settle classifies ${shape} as a panic`, async () => {
+    const op = operation({
+      label: "shape",
+      run: () => {
+        throw error;
+      },
+    });
+    const scope = createScope();
+    expect(scope.settle(op)).toMatchObject({ status: "failed", kind: "panic" });
+    await scope.close();
+  });
+}
+
 test("settle returns a primitive panic without an origin", async () => {
   const op = operation({
     label: "primitive",

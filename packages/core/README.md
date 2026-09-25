@@ -543,6 +543,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - `settle` returns an async operation's success value.
 - `settle` classifies a registry-shaped `Error` as an error.
 - `settle` classifies a plain `Error` as a panic.
+- `settle` classifies a non-`Error` object, an `Error` with no `payload`, or one whose `kind`
+  is not a string, as a panic.
 - `settle` returns a primitive panic without an origin.
 - `settle` reports cancellation when an operation returns under a forced close.
 - `settle` reports cancellation when a forced close aborts its operation.
