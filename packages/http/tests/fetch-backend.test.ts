@@ -77,6 +77,19 @@ test("fetchBackend sends no body for a GET record", async () => {
   expect(seen[0].body).toBe("");
 });
 
+test("fetchBackend sends no body for a GET or HEAD record that carries one", async () => {
+  const seen: Echo[] = [];
+  using server = await startEcho(seen);
+  const body = { body: HttpRequest.bodyText("ignored") };
+  const signal = new AbortController().signal;
+  await fetchBackend(HttpRequest.modify(HttpRequest.get(`${server.origin}/a`), body), signal);
+  await fetchBackend(HttpRequest.modify(HttpRequest.head(`${server.origin}/b`), body), signal);
+  expect(seen.map((echo) => [echo.method, echo.body])).toEqual([
+    ["GET", ""],
+    ["HEAD", ""],
+  ]);
+});
+
 test("fetchBackend sends bytes bodies with the octet-stream content type", async () => {
   const seen: Echo[] = [];
   using server = await startEcho(seen);

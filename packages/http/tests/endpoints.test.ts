@@ -234,6 +234,20 @@ test("modify, appendUrl, and setHeader derive the record the backend sees", asyn
   await scope.close();
 });
 
+test("modify keeps the fragment and body the options leave out, and replaces a set fragment", () => {
+  const base = HttpRequest.post("https://api/a", { hash: "top", body: HttpRequest.bodyText("b") });
+  const kept = HttpRequest.modify(base, { headers: { x: "1" } });
+  const moved = HttpRequest.modify(base, { hash: "end" });
+  expect(HttpRequest.toUrl(kept)).toBe("https://api/a#top");
+  expect(kept.body).toBe(base.body);
+  expect(HttpRequest.toUrl(moved)).toBe("https://api/a#end");
+});
+
+test("modify with acceptJson sets the accept header", () => {
+  const derived = HttpRequest.modify(HttpRequest.get("https://api/a"), { acceptJson: true });
+  expect(derived.headers["accept"]).toBe("application/json");
+});
+
 test("setUrlParams replaces the pairs the backend sees", async () => {
   const seen: HttpRequest.Record[] = [];
   const scope = createScope({
@@ -337,6 +351,35 @@ test("matchStatus dispatches a received status to its class bucket", async () =>
   });
   expect(await scope.run(open)).toBe("server");
   await scope.close();
+});
+
+test("filterStatusOk passes 200 through 299 and rejects 300", () => {
+  const request = HttpRequest.get("https://api/a");
+  const passes = [200, 299, 300].map((status) => {
+    try {
+      HttpResponse.filterStatusOk(HttpResponse.make(request, { status }));
+      return true;
+    } catch (error) {
+      if (!isHttpError(error, "ResponseFailed")) throw error;
+      return false;
+    }
+  });
+  expect(passes).toEqual([true, true, false]);
+});
+
+test("matchStatus sends each status to its own class bucket", () => {
+  const request = HttpRequest.get("https://api/a");
+  const cases = {
+    "2xx": () => "2xx",
+    "3xx": () => "3xx",
+    "4xx": () => "4xx",
+    "5xx": () => "5xx",
+    orElse: () => "else",
+  };
+  const picked = [204, 302, 418, 503].map((status) =>
+    HttpResponse.matchStatus(HttpResponse.make(request, { status }), cases),
+  );
+  expect(picked).toEqual(["2xx", "3xx", "4xx", "5xx"]);
 });
 
 test("an exact status beats its class bucket and anything unmatched falls to orElse", async () => {

@@ -57,6 +57,9 @@ const onboard = operation({
 });
 ```
 
+`HttpRequest.modify(req, options)` keeps the fragment and body the options leave out.
+`HttpRequest.modify` with `acceptJson: true` sets the `accept` header to `application/json`.
+
 ## Retry: a config value
 
 `config({ retry: { times, delay? } })` — `times` extra attempts after the first (default 0),
@@ -116,6 +119,9 @@ return HttpResponse.matchStatus(res, {
 });
 ```
 
+`filterStatusOk` passes 200 through 299; 300 raises `ResponseFailed/StatusCode`.
+Each class bucket catches only its own hundreds: 204 is `2xx`, 302 `3xx`, 418 `4xx`, 503 `5xx`.
+
 ## Config: one tag, three levels, same merge rule
 
 `mergeConfig` takes a `.all` list (nearest first): `baseUrl` is the nearest binding that has
@@ -145,6 +151,7 @@ A call with `tags` opens a child session for that run (ADR 0038, always a promis
 depends on the bare `backend` tag, so deps resolve at the requesting layer (ADR 0018):
 a session-bound or call-bound `backend` is seen by that flow, while the root scope keeps its own.
 Preset `attempt` to swap the transport in tests.
+The default `fetchBackend` never sends a body with GET or HEAD, even when the record carries one.
 
 ## Test recipe: a closure backend
 
