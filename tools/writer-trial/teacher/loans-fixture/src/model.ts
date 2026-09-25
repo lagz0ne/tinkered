@@ -3,7 +3,7 @@
  * core declarations only; never copied into a worker image or context.
  */
 import { data, operation } from "@tinker/core";
-import type { Data, Operation, Scope } from "@tinker/core";
+import type { Data, Operation } from "@tinker/core";
 import { fail } from "./errors.ts";
 
 /** One tool in the library. */
@@ -27,29 +27,11 @@ const issued: Data.Cell<number> = data({ label: "issued", initial: 0 });
 const MEMBER_LIMIT = 3;
 const PLAIN_DIGITS = /^[0-9]+$/;
 
-type Cells = {
-  tools: Scope.DataController<readonly Tool[]>;
-  loans: Scope.DataController<readonly Loan[]>;
-  history: Scope.DataController<readonly Library[]>;
-  issued: Scope.DataController<number>;
-};
-
 const libraryCells = {
   tools: tools.controller,
   loans: loans.controller,
   history: history.controller,
   issued: issued.controller,
-};
-
-const saveStep = (cells: Cells): void => {
-  const step = { tools: cells.tools.get(), loans: cells.loans.get() };
-  cells.history.update((steps) => [...steps, step]);
-};
-
-const nextId = (cells: Cells, prefix: string): string => {
-  const next = cells.issued.get() + 1;
-  cells.issued.set(next);
-  return `${prefix}-${next}`;
 };
 
 function readName(raw: unknown): string {
@@ -90,8 +72,11 @@ export const addTool: Operation.Handle<Tool, { name: string; copies: string }> =
   run: (cells, { input }) => {
     const name = readName(input.name);
     const copies = readCopies(input.copies);
-    const saved: Tool = { id: nextId(cells, "tool"), name, copies, retired: false };
-    saveStep(cells);
+    const next = cells.issued.get() + 1;
+    cells.issued.set(next);
+    const saved: Tool = { id: `tool-${next}`, name, copies, retired: false };
+    const step = { tools: cells.tools.get(), loans: cells.loans.get() };
+    cells.history.update((steps) => [...steps, step]);
     cells.tools.set([...cells.tools.get(), saved]);
     return saved;
   },
@@ -109,7 +94,8 @@ export const setCopies: Operation.Handle<Tool, { toolId: string; copies: string 
     const onLoan = loansOf(cells.loans.get(), tool.id).length;
     if (copies < onLoan) throw fail("BelowLoans", { id: tool.id, onLoan });
     const changed: Tool = { ...tool, copies };
-    saveStep(cells);
+    const step = { tools: cells.tools.get(), loans: cells.loans.get() };
+    cells.history.update((steps) => [...steps, step]);
     cells.tools.set(replaceTool(cells.tools.get(), changed));
     return changed;
   },
@@ -125,7 +111,8 @@ export const retireTool: Operation.Handle<Tool, { toolId: string }> = operation(
     const loanIds = loansOf(cells.loans.get(), tool.id).map((loan) => loan.id);
     if (loanIds.length > 0) throw fail("OnLoan", { id: tool.id, loanIds });
     const changed: Tool = { ...tool, retired: true };
-    saveStep(cells);
+    const step = { tools: cells.tools.get(), loans: cells.loans.get() };
+    cells.history.update((steps) => [...steps, step]);
     cells.tools.set(replaceTool(cells.tools.get(), changed));
     return changed;
   },
@@ -145,8 +132,11 @@ export const lendTool: Operation.Handle<Loan, { toolId: string; member: string }
     if (loansOf(rows, tool.id).length >= tool.copies) throw fail("NoCopyLeft", { id: tool.id });
     if (rows.filter((loan) => loan.member === member).length >= MEMBER_LIMIT)
       throw fail("MemberLimit", { member });
-    const loan: Loan = { id: nextId(cells, "loan"), toolId: tool.id, member };
-    saveStep(cells);
+    const next = cells.issued.get() + 1;
+    cells.issued.set(next);
+    const loan: Loan = { id: `loan-${next}`, toolId: tool.id, member };
+    const step = { tools: cells.tools.get(), loans: cells.loans.get() };
+    cells.history.update((steps) => [...steps, step]);
     cells.loans.set([...rows, loan]);
     return loan;
   },
@@ -160,7 +150,8 @@ export const returnLoan: Operation.Handle<void, { loanId: string }> = operation(
     const rows = cells.loans.get();
     if (!rows.some((loan) => loan.id === input.loanId))
       throw fail("NotFound", { id: input.loanId });
-    saveStep(cells);
+    const step = { tools: cells.tools.get(), loans: cells.loans.get() };
+    cells.history.update((steps) => [...steps, step]);
     cells.loans.set(rows.filter((loan) => loan.id !== input.loanId));
   },
 });
