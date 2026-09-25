@@ -1,6 +1,7 @@
 import type { FormEvent, ReactElement } from "react";
 import { createScope } from "@tinker/core";
 import { ScopeProvider, useData, useRun } from "@tinker/react";
+import { Field, NamedTable, Notice } from "./layout.tsx";
 import { courses } from "./model.ts";
 import type { Course } from "./model.ts";
 import {
@@ -21,32 +22,19 @@ import {
 import { submitComplete, submitReopen } from "./screen.ts";
 import { isReady } from "./model.ts";
 
-/** One course row in saved order. */
-function CourseRow(props: {
-  readonly row: Course;
-  readonly status: string;
-  readonly requires: string;
-}): ReactElement {
-  const { row, status, requires } = props;
+/** The button one course row has: Reopen when complete, Complete otherwise. */
+function CourseButton(props: { readonly row: Course }): ReactElement {
+  const { row } = props;
   const complete = useRun(submitComplete);
   const reopen = useRun(submitReopen);
-  return (
-    <tr>
-      <td>{row.title}</td>
-      <td>{status}</td>
-      <td>{requires === "" ? "None" : requires}</td>
-      <td>
-        {row.done ? (
-          <button type="button" onClick={() => reopen.run({ input: { id: row.id } })}>
-            Reopen {row.title}
-          </button>
-        ) : (
-          <button type="button" onClick={() => complete.run({ input: { id: row.id } })}>
-            Complete {row.title}
-          </button>
-        )}
-      </td>
-    </tr>
+  return row.done ? (
+    <button type="button" onClick={() => reopen.run({ input: { id: row.id } })}>
+      Reopen {row.title}
+    </button>
+  ) : (
+    <button type="button" onClick={() => complete.run({ input: { id: row.id } })}>
+      Complete {row.title}
+    </button>
   );
 }
 
@@ -62,13 +50,15 @@ function CourseForm(): ReactElement {
         submit.run();
       }}
     >
-      <label>
-        Title
-        <input
-          value={form.title}
-          onChange={(event) => type.run({ input: { value: event.target.value } })}
-        />
-      </label>
+      <Field
+        name="Title"
+        control={
+          <input
+            value={form.title}
+            onChange={(event) => type.run({ input: { value: event.target.value } })}
+          />
+        }
+      />
       <button type="submit">Add course</button>
     </form>
   );
@@ -95,34 +85,38 @@ function LinkForm(props: { readonly rows: readonly Course[] }): ReactElement {
       : [...rows.map((row) => row.id), selected];
   return (
     <form>
-      <label>
-        Course
-        <select
-          value={courseId}
-          onChange={(event) => pickOne.run({ input: { id: event.target.value } })}
-        >
-          <option value="">Choose course</option>
-          {courseOptions(courseId).map((id) => (
-            <option key={id} value={optionValue(id)}>
-              {optionLabel(id)}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Prerequisite
-        <select
-          value={prerequisiteId}
-          onChange={(event) => pickTwo.run({ input: { id: event.target.value } })}
-        >
-          <option value="">Choose course</option>
-          {courseOptions(prerequisiteId).map((id) => (
-            <option key={id} value={optionValue(id)}>
-              {optionLabel(id)}
-            </option>
-          ))}
-        </select>
-      </label>
+      <Field
+        name="Course"
+        control={
+          <select
+            value={courseId}
+            onChange={(event) => pickOne.run({ input: { id: event.target.value } })}
+          >
+            <option value="">Choose course</option>
+            {courseOptions(courseId).map((id) => (
+              <option key={id} value={optionValue(id)}>
+                {optionLabel(id)}
+              </option>
+            ))}
+          </select>
+        }
+      />
+      <Field
+        name="Prerequisite"
+        control={
+          <select
+            value={prerequisiteId}
+            onChange={(event) => pickTwo.run({ input: { id: event.target.value } })}
+          >
+            <option value="">Choose course</option>
+            {courseOptions(prerequisiteId).map((id) => (
+              <option key={id} value={optionValue(id)}>
+                {optionLabel(id)}
+              </option>
+            ))}
+          </select>
+        }
+      />
       <button
         type="button"
         onClick={() => {
@@ -152,7 +146,7 @@ function Plan(): ReactElement {
   const undo = useRun(submitUndo);
   const byId = (id: string): Course | undefined => rows.find((row) => row.id === id);
   const requiresText = (row: Course): string => {
-    if (row.prerequisiteIds.length === 0) return "";
+    if (row.prerequisiteIds.length === 0) return "None";
     return row.prerequisiteIds.map((pid) => byId(pid)?.title ?? "Removed course").join(", ");
   };
   const statusText = (row: Course): string => {
@@ -168,27 +162,16 @@ function Plan(): ReactElement {
   return (
     <main>
       <CourseForm />
-      <div role="alert">{alert === undefined ? "" : alert}</div>
-      <table aria-label="Courses">
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Status</th>
-            <th>Requires</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {shown.map((row) => (
-            <CourseRow
-              key={row.id}
-              row={row}
-              status={statusText(row)}
-              requires={requiresText(row)}
-            />
-          ))}
-        </tbody>
-      </table>
+      <Notice text={alert} />
+      <NamedTable
+        name="Courses"
+        headers={["Title", "Status", "Requires"]}
+        rows={shown.map((row) => ({
+          key: row.id,
+          cells: [row.title, statusText(row), requiresText(row)],
+          actions: <CourseButton row={row} />,
+        }))}
+      />
       <div>
         <button type="button" onClick={() => pick.run({ input: "All" })}>
           All

@@ -6,7 +6,7 @@
 // rebuilt on every run; only the printed case lines and exit codes are
 // the evidence (root saves them).
 import { execFileSync } from "node:child_process";
-import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,13 +25,10 @@ const IMAGE =
   "sha256:ac6b1e42b3f428180c6f5109a76b238a2da5a1f4874d3750b8c1088ba36e9881";
 const work = join(tmpdir(), `plan-canaries-${randomUUID()}`);
 rmSync(work, { recursive: true, force: true });
-mkdirSync(join(work, "proof", "src"), { recursive: true });
 mkdirSync(join(work, "proof", "tests"), { recursive: true });
 
 const fixture = join(here, "plan-fixture");
-for (const name of ["model.ts", "screen.ts", "errors.ts", "PlanApp.tsx", "index.ts", "main.tsx"]) {
-  cpSync(join(fixture, name), join(work, "proof", "src", name));
-}
+cpSync(join(fixture, "src"), join(work, "proof", "src"), { recursive: true });
 cpSync(join(fixture, "index.html"), join(work, "proof", "index.html"));
 
 const pack = (dir, tar) => {
@@ -161,88 +158,22 @@ const filterTar = patch(goodTar, "bad-filter", (src) => {
   writeFileSync(p, s.replace(anchor, stale));
 });
 
-// Div-layout variant: same packet behavior with a different DOM shape —
-// section/div wrappers and the link form before the table. The checker
-// uses only scoped roles and names, so layout moves must still pass.
-const divTar = patch(goodTar, "good-div", (src) => {
-  const p = join(src, "PlanApp.tsx");
-  const s = execFileSync("cat", [p], { encoding: "utf8" });
-  const anchor = "  return (\n    <main>";
-  if (!s.includes(anchor)) throw new Error("div canary anchor moved; update the script");
-  let out = s.replace(anchor, '  return (\n    <main>\n      <section aria-label="Plan forms">');
-  const tableAnchor = '      <table aria-label="Courses">';
-  if (!s.includes(tableAnchor)) throw new Error("div table anchor moved; update the script");
-  out = out.replace(
-    tableAnchor,
-    '      </section>\n      <section aria-label="Plan rows">\n      <table aria-label="Courses">',
+// ---- good layouts: the fixture once per kit layout (layout-kit/README.md) ----
+// Every name in the kit's LAYOUTS, read from the fixture's own copy, packs
+// the same app with src/layout-choice.ts overwritten to that name.
+const kitText = readFileSync(join(fixture, "src", "layout.tsx"), "utf8");
+const layoutBlock = kitText.slice(kitText.indexOf("export const LAYOUTS"));
+const LAYOUT_NAMES = [
+  ...layoutBlock.slice(0, layoutBlock.indexOf("\n};")).matchAll(/^ {2}(\w+): \{$/gm),
+].map((m) => m[1]);
+if (LAYOUT_NAMES.length < 5) throw new Error(`found layouts ${LAYOUT_NAMES}; update the script`);
+const layoutTar = (name) =>
+  patch(goodTar, `layout-${name}`, (src) =>
+    writeFileSync(
+      join(src, "layout-choice.ts"),
+      `export const LAYOUT_NAME: string = ${JSON.stringify(name)};\n`,
+    ),
   );
-  const undoAnchor = '      <button type="button" onClick={() => undo.run()}>';
-  if (!s.includes(undoAnchor)) throw new Error("div undo anchor moved; update the script");
-  out = out.replace(
-    undoAnchor,
-    '      </section>\n      <div>\n      <button type="button" onClick={() => undo.run()}>',
-  );
-  const mainClose = "    </main>";
-  out = out.replace(mainClose, "      </div>\n    </main>");
-  writeFileSync(p, out);
-});
-
-// useId-labels variant: explicit htmlFor/id pairs via useId for the Title
-// field. Role + accessible name lookups must still pass; the packet
-// needs the same labeled Title, not one fixture DOM shape.
-const useIdTar = patch(goodTar, "good-useid", (src) => {
-  const p = join(src, "PlanApp.tsx");
-  const s = execFileSync("cat", [p], { encoding: "utf8" });
-  const importOld = 'import type { FormEvent, ReactElement } from "react";';
-  const importNew =
-    'import { useId } from "react";\nimport type { FormEvent, ReactElement } from "react";';
-  if (!s.includes(importOld))
-    throw new Error("useId canary import anchor moved; update the script");
-  const helperOld = "/** The new-course form: labeled Title input and Add course. */";
-  const helperNew = [
-    "/** Title field tied to its input by id. */",
-    "function TitleField(props: {",
-    "  readonly value: string;",
-    "  readonly onType: (value: string) => void;",
-    "}): ReactElement {",
-    "  const id = useId();",
-    "  return (",
-    "    <label htmlFor={id}>",
-    "      Title",
-    "      <input",
-    "        id={id}",
-    "        value={props.value}",
-    "        onChange={(event) => props.onType(event.target.value)}",
-    "      />",
-    "    </label>",
-    "  );",
-    "}",
-    "",
-    "/** The new-course form: labeled Title input and Add course. */",
-  ].join("\n");
-  if (!s.includes(helperOld))
-    throw new Error("useId canary helper anchor moved; update the script");
-  const labelOld = [
-    "      <label>",
-    "        Title",
-    "        <input",
-    "          value={form.title}",
-    "          onChange={(event) => type.run({ input: { value: event.target.value } })}",
-    "        />",
-    "      </label>",
-  ].join("\n");
-  const labelNew = [
-    "      <TitleField",
-    "        value={form.title}",
-    "        onType={(value) => type.run({ input: { value } })}",
-    "      />",
-  ].join("\n");
-  if (!s.includes(labelOld)) throw new Error("useId canary label anchor moved; update the script");
-  writeFileSync(
-    p,
-    s.replace(importOld, importNew).replace(helperOld, helperNew).replace(labelOld, labelNew),
-  );
-});
 
 // Notice bug: typing no longer clears the alert, so an old error sticks.
 const noticeTar = patch(goodTar, "bad-notice", (src) => {
@@ -261,25 +192,15 @@ const noticeTar = patch(goodTar, "bad-notice", (src) => {
 });
 
 const cases = [
-  {
-    label: "good fixture accepts",
-    tar: goodTar,
+  ...LAYOUT_NAMES.map((name) => ({
+    label: `good layout ${name} accepts`,
+    tar: layoutTar(name),
     want: { exit: 0, fullpass: "ACCEPTANCE plan: 43/43 pass" },
-  },
-  {
-    label: "good div-layout variant accepts",
-    tar: divTar,
-    want: { exit: 0, fullpass: "ACCEPTANCE plan: 43/43 pass" },
-  },
-  {
-    label: "good useId-labels variant accepts",
-    tar: useIdTar,
-    want: { exit: 0, fullpass: "ACCEPTANCE plan: 43/43 pass" },
-  },
+  })),
   {
     label: "empty starter rejects",
     tar: emptyTar,
-    want: { exit: 1, allowLoadFail: true },
+    want: { exit: 1, allowLoadFail: true, mustFail: ["shape: src present"] },
   },
   {
     label: "long-cycle bug rejects",
@@ -315,8 +236,12 @@ const cases = [
     },
   },
 ];
+// `--only <label prefix>` runs a subset while tuning; a full run is the proof.
+const only = process.argv.includes("--only")
+  ? process.argv[process.argv.indexOf("--only") + 1]
+  : "";
 let failed = 0;
-for (const { label, tar, want } of cases) {
+for (const { label, tar, want } of cases.filter((c) => c.label.startsWith(only))) {
   const r = run(tar);
   const problem = checkResult(r, want);
   const ok = problem === null;
