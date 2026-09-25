@@ -21,6 +21,7 @@ import {
   typeName,
 } from "./screen.ts";
 import type { LoanRow, ToolFilter, ToolRow } from "./screen.ts";
+import { Field, NamedTable, Notice } from "./layout.tsx";
 
 const filters: readonly ToolFilter[] = ["All", "Available", "Retired"];
 
@@ -37,47 +38,41 @@ function ToolForm(): ReactElement {
         submit.run();
       }}
     >
-      <label>
-        Name
-        <input
-          value={draft.name}
-          onChange={(event) => name.run({ input: { value: event.target.value } })}
-        />
-      </label>
-      <label>
-        Copies
-        <input
-          value={draft.copies}
-          onChange={(event) => copies.run({ input: { value: event.target.value } })}
-        />
-      </label>
+      <Field
+        name="Name"
+        control={
+          <input
+            value={draft.name}
+            onChange={(event) => name.run({ input: { value: event.target.value } })}
+          />
+        }
+      />
+      <Field
+        name="Copies"
+        control={
+          <input
+            value={draft.copies}
+            onChange={(event) => copies.run({ input: { value: event.target.value } })}
+          />
+        }
+      />
       <button type="submit">Add tool</button>
     </form>
   );
 }
 
-/** One Tools row; a tool that is not retired has its Retire button. */
-function ToolLine(props: { readonly row: ToolRow }): ReactElement {
+/** The Retire button of one Tools row. */
+function RetireButton(props: { readonly row: ToolRow }): ReactElement {
   const { row } = props;
   const retire = useRun(submitRetire);
   return (
-    <tr>
-      <td>{row.name}</td>
-      <td>{row.copies}</td>
-      <td>{row.out}</td>
-      <td>{row.status}</td>
-      <td>
-        {row.status === "Retired" ? null : (
-          <button type="button" onClick={() => retire.run({ input: { toolId: row.id } })}>
-            Retire {row.name}
-          </button>
-        )}
-      </td>
-    </tr>
+    <button type="button" onClick={() => retire.run({ input: { toolId: row.id } })}>
+      Retire {row.name}
+    </button>
   );
 }
 
-/** The filter buttons and the Tools table. */
+/** The filter buttons and the Tools table; a tool that is not retired has its Retire button. */
 function ToolTable(): ReactElement {
   const saved = useData(tools);
   const open = useData(loans);
@@ -97,22 +92,15 @@ function ToolTable(): ReactElement {
           </button>
         ))}
       </div>
-      <table aria-label="Tools">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Copies</th>
-            <th>Out</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {toolRows(saved, open, filter).map((row) => (
-            <ToolLine key={row.id} row={row} />
-          ))}
-        </tbody>
-      </table>
+      <NamedTable
+        name="Tools"
+        headers={["Name", "Copies", "Out", "Status"]}
+        rows={toolRows(saved, open, filter).map((row) => ({
+          key: row.id,
+          cells: [row.name, row.copies, row.out, row.status],
+          actions: row.status === "Retired" ? undefined : <RetireButton row={row} />,
+        }))}
+      />
     </>
   );
 }
@@ -131,78 +119,71 @@ function LendForm(): ReactElement {
         lend.run();
       }}
     >
-      <label>
-        Tool
-        <select
-          value={draft.toolId}
-          onChange={(event) => choose.run({ input: { toolId: event.target.value } })}
-        >
-          <option value="">Choose tool</option>
-          {saved.map((tool) => (
-            <option key={tool.id} value={tool.id}>
-              {tool.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Member
-        <input
-          value={draft.member}
-          onChange={(event) => member.run({ input: { value: event.target.value } })}
-        />
-      </label>
+      <Field
+        name="Tool"
+        control={
+          <select
+            value={draft.toolId}
+            onChange={(event) => choose.run({ input: { toolId: event.target.value } })}
+          >
+            <option value="">Choose tool</option>
+            {saved.map((tool) => (
+              <option key={tool.id} value={tool.id}>
+                {tool.name}
+              </option>
+            ))}
+          </select>
+        }
+      />
+      <Field
+        name="Member"
+        control={
+          <input
+            value={draft.member}
+            onChange={(event) => member.run({ input: { value: event.target.value } })}
+          />
+        }
+      />
       <button type="submit">Lend</button>
     </form>
   );
 }
 
-/** One Loans row with its Return button. */
-function LoanLine(props: { readonly row: LoanRow }): ReactElement {
+/** The Return button of one Loans row. */
+function ReturnButton(props: { readonly row: LoanRow }): ReactElement {
   const { row } = props;
   const giveBack = useRun(submitReturn);
   return (
-    <tr>
-      <td>{row.toolName}</td>
-      <td>{row.member}</td>
-      <td>
-        <button type="button" onClick={() => giveBack.run({ input: { loanId: row.id } })}>
-          Return {row.toolName} from {row.member}
-        </button>
-      </td>
-    </tr>
+    <button type="button" onClick={() => giveBack.run({ input: { loanId: row.id } })}>
+      Return {row.toolName} from {row.member}
+    </button>
   );
 }
 
-/** The Loans table in saved loan order. */
+/** The Loans table in saved loan order, each row with its Return button. */
 function LoanTable(): ReactElement {
   const saved = useData(tools);
   const open = useData(loans);
   return (
-    <table aria-label="Loans">
-      <thead>
-        <tr>
-          <th>Tool</th>
-          <th>Member</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {loanRows(saved, open).map((row) => (
-          <LoanLine key={row.id} row={row} />
-        ))}
-      </tbody>
-    </table>
+    <NamedTable
+      name="Loans"
+      headers={["Tool", "Member"]}
+      rows={loanRows(saved, open).map((row) => ({
+        key: row.id,
+        cells: [row.toolName, row.member],
+        actions: <ReturnButton row={row} />,
+      }))}
+    />
   );
 }
 
 /** The shared notice and the Undo button. */
-function Notice(): ReactElement {
+function NoticeBar(): ReactElement {
   const shown = useData(notice);
   const undo = useRun(submitUndo);
   return (
     <>
-      <div role="alert">{shown}</div>
+      <Notice text={shown} />
       <button type="button" onClick={() => undo.run()}>
         Undo
       </button>
@@ -216,7 +197,7 @@ export function LibraryApp(): ReactElement {
     <ScopeProvider create={() => createScope()}>
       <main>
         <ToolForm />
-        <Notice />
+        <NoticeBar />
         <ToolTable />
         <LendForm />
         <LoanTable />
