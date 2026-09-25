@@ -216,3 +216,7 @@ A missing required tag answers `internal` in the response body.
 
 `hono(routes, { onError: (e, c) => Response | undefined })` answers first; `undefined`
 falls through to the table. A mapped failure settles the request span `ok`.
+
+The route runs its operation through `settle`.
+A failure `onError` answers, a panic included, closes the request session `success`.
+An operation that finishes after a client abort still answers its value and logs 200.

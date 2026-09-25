@@ -4,10 +4,12 @@ import {
   isError as isCoreError,
   makeTestClock,
   operation,
+  resource,
   tag,
   type Observe,
+  type Operation,
 } from "@tinker/core";
-import { hono, route } from "../src/index.ts";
+import { hono, request, route } from "../src/index.ts";
 
 const tenant = tag<string>({ label: "tenant" });
 const secret = tag<string>({ label: "secret" });
@@ -16,6 +18,30 @@ function parseId(raw: unknown): number {
   const id = Number(raw);
   if (Number.isNaN(id)) throw new Error("bad id");
   return id;
+}
+
+/** Serve one route whose `onError` answers every failure 503, recording each request
+ * session's close status through a session resource the operation reads. */
+async function serveRecovering(fail: (ctx: Operation.Ctx<void>) => unknown) {
+  const ends: string[] = [];
+  const tx = resource({
+    label: "tx",
+    target: "session",
+    depends: { req: request },
+    factory: (_deps, ctx) => {
+      ctx.defer((end) => {
+        ends.push(end.status);
+      });
+      return "tx";
+    },
+  });
+  const failing = operation({ label: "failing", depends: { tx }, run: (_deps, ctx) => fail(ctx) });
+  const { extension: web } = hono([route.get("/fail", failing)], {
+    onError: (_error, c) => c.text("unavailable", 503),
+  });
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  return { app: scope.resolve(web), ends, scope };
 }
 
 const getUser = operation({
@@ -206,5 +232,57 @@ test("onError answers first: a parse failure becomes 418 while MissingTag keeps 
       .filter((entry) => entry.message === "http request")
       .map((entry) => entry.attributes.status),
   ).toEqual([418, 500]);
+  await scope.close();
+});
+
+test("onError recovers a panic from the operation and the request session closes success", async () => {
+  const { app, ends, scope } = await serveRecovering(() => {
+    throw new Error("kaboom");
+  });
+  const res = await app.request("/fail");
+  expect(res.status).toBe(503);
+  for (let i = 0; i < 50 && ends.length === 0; i++) await Promise.resolve();
+  expect(ends).toEqual(["success"]);
+  await scope.close();
+});
+
+test("onError recovers a raised error from the operation and the request session closes success", async () => {
+  const { app, ends, scope } = await serveRecovering(({ raise }) =>
+    raise("Busy", { retryAfter: 1 }),
+  );
+  const res = await app.request("/fail");
+  expect(res.status).toBe(503);
+  for (let i = 0; i < 50 && ends.length === 0; i++) await Promise.resolve();
+  expect(ends).toEqual(["success"]);
+  await scope.close();
+});
+
+test("an operation that finishes after a client abort answers its value and logs 200", async () => {
+  const logs: Observe.Log[] = [];
+  let release: (value: string) => void = () => undefined;
+  const late = operation({
+    label: "late",
+    run: () =>
+      new Promise<string>((resolve) => {
+        release = resolve;
+      }),
+  });
+  const { extension: web } = hono([route.get("/late", late)]);
+  const scope = createScope({
+    observe: { history: 20, log: (entry) => logs.push(entry) },
+    extensions: [web],
+  });
+  await scope.ready;
+  const ac = new AbortController();
+  const pending = scope.resolve(web).request("/late", { signal: ac.signal });
+  ac.abort();
+  release("done");
+  const res = await pending;
+  expect(await res.json()).toBe("done");
+  expect(
+    logs
+      .filter((entry) => entry.message === "http request")
+      .map((entry) => entry.attributes.status),
+  ).toEqual([200]);
   await scope.close();
 });

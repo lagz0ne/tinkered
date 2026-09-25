@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
 import type { Context, MiddlewareHandler as Middleware } from "hono";
-import type { Many, Namespace, Operation, Scope, Tag } from "@tinker/core";
+import type { Many, Namespace, Operation, RunResult, Scope, Tag } from "@tinker/core";
 import { extension, isError as isCoreError, readMany, tag } from "@tinker/core";
 import { isError, raise } from "./errors.ts";
 
@@ -320,16 +320,25 @@ function answerRoute<T, I>(op: Operation.Handle<T, I>, route: HonoScope.Route<I,
   };
   return run;
 }
-/** Run a void-input subflow with no call object. The one cast in the package: a
- * void-input controller's overloaded `run` cannot shed its call shapes generically. */
-function runVoid<T, I>(flow: Scope.OperationController<T, I>): T {
-  return (flow.run as () => T)();
+/** Settle the route's subflow: a raw-input call, or none for a void input. The package's
+ * casts: a controller's overloaded `settle` cannot shed its call shapes generically, and
+ * its generic `Settled<T>` does not reduce to the Result it is. */
+function settleFlow<T, I>(
+  flow: Scope.OperationController<T, I>,
+  call: Scope.Invocation<I> | undefined,
+): RunResult<Awaited<T>> | Promise<RunResult<Awaited<T>>> {
+  return (flow.settle as (call?: Scope.Invocation<I>) => Scope.Settled<T>)(call) as
+    | RunResult<Awaited<T>>
+    | Promise<RunResult<Awaited<T>>>;
 }
 
 /** Build the request run: input to op subflow to respond to status + one log line.
- * `onError` answers first; otherwise the default map turns a handled failure into
- * a Response (400/500, request span `ok`) and rethrows the rest — the unmapped
- * path is Hono's, so it writes no log line (Hono's `onError` decides that status). */
+ * The subflow runs through `settle` (ADR 0067), so a failure answered here, a panic
+ * included, never fails the request session; a value returned after a client
+ * abort still answers, as `run` would. `onError` answers first;
+ * otherwise the default map turns a handled failure into a Response (400/500,
+ * request span `ok`) and rethrows the rest — the unmapped path is Hono's, so it
+ * writes no log line (Hono's `onError` decides that status). */
 function readRoute<T, I>(
   route: HonoScope.Route<I, T>,
   c: Context,
@@ -361,26 +370,28 @@ function readRoute<T, I>(
     };
     const respond: HonoScope.Respond<T> = route.respond ?? defaultRespond;
     const readInput = route.input;
+    const fail = async (error: unknown): Promise<Response> => {
+      const mapped = await mapError(error, c, onError, ctx.signal);
+      if (mapped === undefined) {
+        done(new Response(null, { status: 499 }));
+        throw error;
+      }
+      return done(mapped);
+    };
     const answer = async (): Promise<Response> => {
-      let value: Awaited<T>;
+      let settled: RunResult<Awaited<T>>;
       try {
         const raw = readInput !== undefined ? readInput(c) : undefined;
-        const ran =
+        const call =
           readInput !== undefined
-            ? isThenable(raw)
-              ? flow.run({ rawInput: await readBody(raw, label) })
-              : flow.run({ rawInput: raw })
-            : runVoid(flow);
-        value = await ran;
+            ? { rawInput: isThenable(raw) ? await readBody(raw, label) : raw }
+            : undefined;
+        settled = await settleFlow(flow, call);
       } catch (error: unknown) {
-        const mapped = await mapError(error, c, onError, ctx.signal);
-        if (mapped === undefined) {
-          done(new Response(null, { status: 499 }));
-          throw error;
-        }
-        return done(mapped);
+        return fail(error);
       }
-      return done(await respond(value, c));
+      if (settled.status === "success") return done(await respond(settled.value, c));
+      return fail(settled.status === "failed" ? settled.error : settled.reason);
     };
     return answer();
   };
