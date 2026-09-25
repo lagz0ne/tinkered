@@ -62,8 +62,9 @@ card at a time.
 
 ## Review
 
-| Card | Owner | Next | Verify |
-| ---- | ----- | ---- | ------ |
+| Card                                                                                                                       | Owner                                                                                                                             | Next                                                                                                                          | Verify                                                                                      |
+| -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| writers/gym-live — a sixth unseen task (gym class waitlist) run by DeepSeek, checkers proven on 5 layouts before the trial | lead (Claude); helper builds the checker, reference app on the kit, canaries, gate proof in `../tinkered-gym` (branch `lead/gym`) | Task written (`tools/writer-trial/gym/01-class-waitlist.md`). Next: helper builds the suite; then launch gym-01 with DeepSeek | canaries pass 5 layouts, bad variants fail, gate proof passes; gym-01 scored and written up |
 
 ## Blocked
 
