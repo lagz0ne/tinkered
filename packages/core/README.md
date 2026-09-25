@@ -565,6 +565,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - Rethrowing an already-stamped error keeps its first origin.
 - A sentinel error thrown on every settle keeps a one-run path.
 - A sibling rethrow does not extend the first path.
+- A sentinel thrown by a tagged or namespaced root run five times keeps a one-run path.
+- A tagged subflow keeps its caller in the path.
 - An observed origin carries the failed run's span id.
 - An unobserved origin has no span id.
 - A destructured operation `raise` sets kind, payload, and message at the throw site.

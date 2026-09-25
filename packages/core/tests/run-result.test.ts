@@ -3,6 +3,7 @@ import {
   createScope,
   extension,
   makeTestClock,
+  namespace,
   operation,
   originOf,
   resource,
@@ -345,6 +346,50 @@ test("a sentinel error thrown on every settle keeps a one-run path", async () =>
   const scope = createScope();
   for (let i = 0; i < 5; i++) await scope.settle(op);
   expect(originOf(sentinel)).toEqual({ label: "poll", path: ["poll"] });
+  await scope.close();
+});
+
+for (const via of ["tagged", "namespaced"] as const) {
+  test(`a sentinel thrown by a ${via} root run five times keeps a one-run path`, async () => {
+    const sentinel = new Error("not ready");
+    const top = operation({
+      label: "top",
+      run: () => {
+        throw sentinel;
+      },
+    });
+    const scope = createScope();
+    const ns = namespace();
+    const runTop = (): unknown =>
+      via === "tagged" ? scope.run(top, { tags: zone("away") }) : scope.run(top, { ns });
+    for (let i = 0; i < 5; i++) {
+      try {
+        await runTop();
+      } catch (error) {
+        if (error !== sentinel) throw error;
+      }
+    }
+    expect(originOf(sentinel)).toEqual({ label: "top", path: ["top"] });
+    await scope.close();
+  });
+}
+
+test("a tagged subflow keeps its caller in the path", async () => {
+  const error = new Error("tagged");
+  const inner = operation({
+    label: "inner",
+    run: () => {
+      throw error;
+    },
+  });
+  const outer = operation({
+    label: "outer",
+    depends: { inner },
+    run: ({ inner }) => inner.run({ tags: zone("away") }),
+  });
+  const scope = createScope();
+  await expect(scope.run(outer)).rejects.toBe(error);
+  expect(originOf(error)).toEqual({ label: "inner", path: ["outer", "inner"] });
   await scope.close();
 });
 

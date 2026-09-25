@@ -2021,7 +2021,7 @@ class OperationControl<T, I> {
   declare private parent: Observe.Span | undefined;
   declare private chain: readonly Namespace[] | undefined;
   declare private hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>;
-  declare private replay: boolean;
+  declare private replay: Replay;
   /** Set on the first `settle` read only; `declare` keeps them off the constructor's shape. */
   declare private twin: OperationControl<T, I> | undefined;
   declare private settler: ((call?: Scope.Invocation<I>) => unknown) | undefined;
@@ -2032,7 +2032,7 @@ class OperationControl<T, I> {
     parent: Observe.Span | undefined,
     chain: readonly Namespace[] | undefined,
     hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
-    replay: boolean,
+    replay: Replay,
   ) {
     this.run = run;
     this.layer = layer;
@@ -2321,7 +2321,7 @@ function runTagged<T, I>(
   const tagged = runSessionWith(
     layer,
     { tags, ns: chain },
-    (child) => runUntagged(child, target, parent, inner, chain),
+    (child) => runUntagged(child, target, parent, inner, chain, undefined, caller !== undefined),
     caller,
   ) as Promise<Awaited<T>>;
   if (caller) track(layer, tagged, runFailure(layer, caller));
@@ -2372,17 +2372,21 @@ function drainAsync(
   ignoreRejection(tail.then(end, end));
 }
 
-/** A run whose failure leaves core: a root run, or a `settle`. A tagged or namespaced replay is
- * inside its caller's run, so the caller's run ends the flight. */
-function endsFlight(caller: RunState | undefined, replay: boolean): boolean {
-  return caller === RECOVERED || (caller === undefined && !replay);
+/** How a controller replays a tagged or namespaced call: not at all, as a root run, or inside a
+ * caller's run (a tagged subflow runs on its child session without its caller). */
+type Replay = false | "root" | "nested";
+
+/** A run whose failure leaves core: a `settle`, or a run with no caller around it. A nested replay
+ * is inside its caller's run, so the caller's run ends the flight. */
+function endsFlight(caller: RunState | undefined, replay: Replay): boolean {
+  return caller === RECOVERED || (caller === undefined && replay !== "nested");
 }
 
 function finishAsyncRun<T>(
   layer: Layer,
   result: T,
   caller: RunState | undefined,
-  replay: boolean,
+  replay: Replay,
   obs: Obs,
   span: Observe.Span | undefined,
   ctx: OperationCtx<unknown>,
@@ -2407,7 +2411,7 @@ function operationController<T, I>(
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
   hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I> = target,
-  replay = false,
+  replay: Replay = false,
 ): Scope.OperationController<T, I> {
   /** The single entry every run takes — declared, subflow, and inline alike. A call carrying
    * `tags` opens a child session for the run (ADR 0038, always async); anything else runs the
@@ -2534,6 +2538,7 @@ function runUntagged<T, I>(
   call: Scope.Invocation<I> | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
+  nested = false,
 ): T {
   const untagged: { run(call?: Scope.Invocation<I>): T } = operationController(
     layer,
@@ -2542,7 +2547,7 @@ function runUntagged<T, I>(
     chain,
     caller,
     target,
-    true,
+    nested ? "nested" : "root",
   ) as { run(call?: Scope.Invocation<I>): T };
   return untagged.run(call);
 }
