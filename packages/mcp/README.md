@@ -140,11 +140,16 @@ an operation carries no meta.
 Each call runs as a session with an inline operation `mcp search` (span, one
 `mcp tool` line with tool and ok, the operation as its subflow).
 Core writes a separate step line with the operation's label, `ms`, and outcome.
+The inline operation's input is the call's arguments: an extension `run` hook
+sees them.
 The value goes back
-through `respond` (default: one JSON text content); a failure answers
+through `respond` (default: one JSON text content; `undefined` answers no
+content); a failure answers
 `{ isError: true, content: [text] }` — a parse failure answers `invalid input`.
 The call recovers through `settle` (ADR 0067): a panic or a raised error
 answers the same way, and the call's session closes `success`.
+A call cut short by a forced `scope.close()` answers `isError` with the
+cancel reason's text; the `mcp search` span fails with that reason.
 
 Point a harness at the process. Claude:
 

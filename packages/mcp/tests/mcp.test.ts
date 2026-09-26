@@ -12,7 +12,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { expose, mcp } from "../src/index.ts";
+import { answerTool, expose, mcp } from "../src/index.ts";
 
 /** The op edge and the declaration share one source: parse through the object
  * built from the raw shape. A named function, not a method pull. */
@@ -317,6 +317,71 @@ test("a throwing respond answers isError with one ok:true line, a failed span, a
   const head = scope.spans().find((span) => span.name === "mcp search");
   expect(head?.status).toBe("failed");
   expect(closed).toEqual(["success"]);
+  await scope.close({ graceful: true });
+});
+
+test("answerTool answers undefined with no content and a value with one JSON text", () => {
+  const meta = { description: "search the index", schema: searchShape };
+  expect(answerTool(meta, undefined)).toEqual({ content: [] });
+  expect(answerTool(meta, ["hit"])).toEqual({ content: [{ type: "text", text: '["hit"]' }] });
+});
+
+test("a call cut short by a forced close answers isError and fails its span with the cancel reason", async () => {
+  let markStarted = (): void => undefined;
+  const started = new Promise<void>((resolve) => {
+    markStarted = resolve;
+  });
+  const seen: unknown[] = [];
+  const waits = operation({
+    label: "waits",
+    input: parseSearch,
+    run: (_deps, { signal }) =>
+      new Promise<never>((_resolve, reject) => {
+        signal.addEventListener("abort", () => {
+          seen.push(signal.reason);
+          reject(signal.reason);
+        });
+        markStarted();
+      }),
+  });
+  const ext = mcp({
+    name: "coder",
+    version: "1.0.0",
+    tools: [expose(waits, { description: "waits for close", schema: searchShape })],
+  });
+  const scope = createScope({ observe: { history: 20 }, extensions: [ext] });
+  const client = await linkClient(scope, ext);
+  const call = client.callTool({ name: "waits", arguments: { q: "owls" } });
+  await started;
+  const closing = scope.close();
+  const answered = await call;
+  expect(seen.length).toBe(1);
+  expect(answered.isError).toBe(true);
+  expect(answered.content).toEqual([{ type: "text", text: String(seen[0]) }]);
+  await closing;
+  const head = scope.spans().find((span) => span.name === "mcp waits");
+  expect(head?.status).toBe("failed");
+  expect(head?.error).toBe(seen[0]);
+});
+
+test("an extension run hook sees the call's arguments as the mcp op's input", async () => {
+  const inputs: unknown[] = [];
+  const watch = extension({
+    label: "watch",
+    run: (op, call, next) => {
+      if (op.label === "mcp search") inputs.push(call?.input);
+      return next();
+    },
+  });
+  const ext = mcp({
+    name: "coder",
+    version: "1.0.0",
+    tools: [expose(search, { description: "search the index", schema: searchShape })],
+  });
+  const scope = createScope({ extensions: [watch, ext] });
+  const client = await linkClient(scope, ext);
+  await client.callTool({ name: "search", arguments: { q: "owls" } });
+  expect(inputs).toEqual([{ q: "owls" }]);
   await scope.close({ graceful: true });
 });
 
