@@ -43,16 +43,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **ext/start-order** — two servers of a kind fail with `NotResolved {"label":"mcp"}` when the serving extension is listed after the server: `start` runs in the extension onion, so a `start` can only read extensions listed after it. Next: a core README line saying so, and `mcp()` / `hono()` extension labels that carry the server's name. Verify: the error names the server; README line present.
 
+- **core/slot-guard** — a deterministic `pnpm validate` lane: parse the built `packages/core/dist/index.mjs` (oxc-parser), count module-scope declarations in order, and fail when any top-level name declared before the release block (source line of `invalidateResource`, via the source map) sits above slot 255; print the count and the headroom (5 names today). Pure count, no timing. Verify: the lane fails if one name is added before the block, passes on main.
+
 ## Doing
 
 Pairs since 2026-09-23: a writer (sol 6 for hard, deepseek-v4.1-flash for simple) and an Opus 5.5
 reviewer per card; the lead runs mutation, bench, and `pnpm validate` alone at landing, one core
 card at a time.
-
-- **perf/session-slots** — the last perf card (user, 2026-09-26: "all in, but that's the last
-  thing"). Opus high writer, fable review; worktree `../tinkered-perf-slots`. Give the hot paths the
-  cheap module slots (over 255 top-level names widens bytecode). Verify: quiet host (load < 1.5),
-  N=121: `session` within +0.5% of `5ccfcc0`; nothing >1% slower than main; lander reproduces.
 
 | Card                                                                                                                                                                                                                      | Owner                                                                           | Next                                                                                                                                                                                                                                                                                                                                      | Verify                                                                                                                                                                                                      |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -61,6 +58,8 @@ card at a time.
 | tests/core-many-causes — the 31 core test flags: split, delete, or explain                                                                                                                                                | lead (Claude); contributor in `../tinkered-core-tests` (launched ~03:50 UTC)    | `tests.mjs core`: 18 manyCauses, 4 typeGuarantee, 4 helperAlone, 4 negativeTwin, 3 pairs, 1 `Object.isFrozen`; act on each, label each; core lane alone ≥ 75                                                                                                                                                                              | flags gone or explained; 270 → N tests each naming one promise; core mutation alone ≥ 75                                                                                                                    |
 
 ## Review
+
+- **perf/session-slots** — landed as code, timing owed (tag `perf/session-slots`). The release/invalidation block moved to the end of index.ts (a pure move) so hot paths read no module slot above 255: wide slot reads on the hot path 18 → 0, store-write path 3 → 0; `runSessionWith` 304 → 284 bytecode bytes. Gates: GATE=0 (core 635 tests), promises 17, core mutation 86.34 alone, `pnpm validate` 43 PASS. Next: time it through `benchd` (`bench/queued.sh`, N=121, vs `5ccfcc0` and vs main) once the queue is reachable from the agent container. Verify: `benchctl ab` says session is not slower than `5ccfcc0`.
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
