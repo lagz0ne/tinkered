@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Big-sample alternating A/B of bench/core-probe.mjs: N process runs per tree per scenario on one pinned core.
-# usage: N=31 CORE=6 A=/tmp/tinkered-base bench/ab.sh   → /tmp/ab.csv (tree,scenario,ns,bytes); summarize with a short python/awk.
+# usage: through the queue, N=61 A=../tinkered-base bench/queued.sh → .bench/ab.csv (tree,scenario,ns,bytes); summarize with a short python/awk.
 # Alternating A/B, one pinned core, N process runs per tree per scenario. Output: CSV tree,scenario,ns,bytes
 set -u
-A=${A:-/tmp/tinkered-base}            # baseline worktree: git worktree add /tmp/tinkered-base <sha>; link node_modules; vp pack in packages/core
+A=${A:-../tinkered-base}            # baseline worktree under /home/paseo (benchd cannot see /tmp): git worktree add ../tinkered-base <sha>; build packages/core
 B=${B:-$(git rev-parse --show-toplevel)}   # the tree under test
 N=${N:-31}
 CORE=${CORE:-6}
-OUT=/tmp/ab.csv
+OUT=${OUT:-/tmp/ab.csv}          # set OUT when /tmp is not shared, e.g. under benchd
 : > "$OUT"
 for s in op run opres inline session tagged create cold warm lifecycle; do
   for i in $(seq 1 $N); do

@@ -47,3 +47,4 @@ scratch/
 
 # declaration artifacts a package build emits beside an example its tests import
 examples/**/*.d.ts
+.bench/

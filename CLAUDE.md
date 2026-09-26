@@ -71,13 +71,60 @@ lanes. The rules:
    - code: `vp check` and the right tests green; for `core`, also
      `scripts/ticket.sh`;
    - a size or speed claim: `pnpm validate`; timing via
-     `N=61 bench/ab.sh` (or more) on an idle host;
+     `N=61 bench/queued.sh` (or more), never a bare `ab.sh`;
    - a bug fix: a test that fails without the fix;
    - "it works": the output that shows it.
 5. **Keep it true.** Blocked names what is missing. Parked names what would
    restart it. Never start parked work just to clear the board.
 
 Ticket detail and proof go in the track's `docs/roadmap/<track>/PROGRESS.md`.
+
+## Timing: send it to the queue
+
+This box shares 8 cores with about 46 other containers. Two
+benchmarks at once ruin both. `benchd` is the queue that
+stops that: one job runs at a time, the rest wait.
+
+Never time code by hand, and never run `bench/ab.sh`
+straight. Use the wrapper.
+
+```bash
+git worktree add ../tinkered-base <sha>
+N=61 A=../tinkered-base bench/queued.sh
+```
+
+- Same settings as `ab.sh` — `N`, `CORE`, `A`, `OUT`.
+- Rows land in `.bench/ab.csv`: tree, scenario, ns, bytes.
+- `benchctl status` — what is running, how many wait.
+
+Each job gets one core, no network, no secrets, a read-only
+root, and only its own tree writable. So a benchmark cannot
+reach the internet or read a token by accident.
+
+### A plain wall-clock number
+
+When the probe is not the point, skip `ab.sh`:
+
+```bash
+benchctl run --runs 10 -- node bench/deep.mjs
+benchctl ab --a "node a.mjs" --b "node b.mjs"
+```
+
+`run` prints min, median, MAD, max, spread.
+`ab` runs the two sides turn by turn, flipping the order
+each round, then says one of:
+
+- **b is faster** — the gap held up.
+- **b is slower** — the gap held up.
+- **no difference we can see** — it did not.
+
+Put that verdict on the card, not a raw millisecond count.
+
+### What the queue cannot do
+
+It keeps our benchmarks off each other. It cannot quiet the
+other containers, and no core can be reserved on this box.
+So read the median, and believe a gap only when `ab` does.
 
 ## Helper writers
 
