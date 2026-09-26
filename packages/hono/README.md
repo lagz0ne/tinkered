@@ -105,6 +105,12 @@ Two `hono()` calls on one scope are two apps (two servers, one close):
 store each returned extension once (`const { extension: web } = hono(...)`),
 install it, resolve it — a second call is a different identity.
 
+A root extension that reads a server in `start` goes before it:
+`[warmOne, one, warmTwo, two]`.
+Pass `name` in the wiring to label the extension `hono:<name>`.
+A root listed after `two` then fails `ready` with
+`NotResolved {"label":"hono:two"}`.
+
 Two servers on one scope:
 
 - Both share a `target: "scope"` resource: a write through one

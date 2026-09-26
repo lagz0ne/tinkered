@@ -122,6 +122,10 @@ A root extension that serves a server goes before it in the list
 `start` before `scope.resolve(ext)` reads it. One such extension per
 server, all on the one scope, gives the two-server shape.
 
+Two servers start in the order `[stdioApp, app, stdioAdmin, admin]`.
+Each label is `mcp:<name>`: a root listed after `admin` fails `ready` with
+`NotResolved {"label":"mcp:admin"}`.
+
 The tool row rides the process too: the `mcp` command installs the driver
 extension and serves it. The MCP edge parses the zod shape; a command is an
 ordinary operation that reads the `argv` tag and owns its parse (ADR 0042,
