@@ -23,6 +23,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **sync/source-stop** — `source` never calls `published.stop()`, so after its scope closes a new family member throws `Disposed {"reason":"scope is closed"}` (`subscribe` does stop). Found by drivers/t08b, reproduced on main. Next: call `published.stop()` in `closeSource`, with a test that closes a scope with `source({ cells: [[family, key]] })` then creates a member. Verify: that test fails on main and passes.
 - **perf/op-parity** — Compare operation call cost. The runner it waited for is here: `bench/queued.sh`
   sends `bench/ab.sh` through `benchd`, this box's benchmark queue, so one job runs at a time on one
   core with no network and no secrets. Next: pin the baseline and current SHAs, build the baseline
@@ -38,14 +39,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
-
-- **drivers/t08** — remove `meta` from core units ([impact list](docs/roadmap/drivers-v1/PLAN.md),
-  refreshed 2026-09-26: the harness is still the only reader). Two tickets, in order:
-  - t08a: landed (tag `drivers/t08a`, harness mutation 85.29). The harness takes `expose` rows
-    like mcp; issue-tracker and examples moved to rows.
-  - t08b: core, mcp, drizzle, and harness drop `meta`; ADR 0023 superseded; timing through benchd.
-    Owner: lead. Verify: `grep -rn "\bmeta\b" packages/*/src apps examples` finds only row fields;
-    every mutation lane ≥ 85.
 
 ## Review
 
@@ -80,6 +73,8 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 ## Done
 
+- **drivers/t08** — opus high + fable review; tags `drivers/t08a`, `drivers/t08b`. Units have no `meta`: the harness takes `expose` rows like mcp (t08a), then core drops `meta`, `Tag.Handle.read`, `Tag.Metaed`, `metaFind`; mcp drops the `tool` tag, `readTool`, `ToolUndeclared`, and its dead `isError`; drizzle and harness drop the pass-through (t08b). ADR 0023 superseded; 0046 and 0048 marked superseded in part. 13 meta-only tests deleted, one type test and three mcp seam tests added.
+  - t08b: Gate EXIT 0; core 625 tests; mutation core 86.22, mcp 98.51, drizzle 93.22, harness 85.29; promises 17; validate 44 PASS; slot headroom 6; timing N=61 through benchd vs f2edf9e: inline 204.7 → 193.3 ns (−5.57%, B slower 0/61); every other scenario within 1%; 5 Jev labels, calibration refreshed. First landing stopped at mcp mutation 83.56; one fix round.
 - **drivers/t08a** — opus high + fable review (no fix round); tag `drivers/t08a`. The harness takes `expose` rows, the same `Mcp.Row` mcp takes; nothing reads unit `meta` any more (mcp's `readTool` is left with its own tests only; t08b removes it). A bare op or a row without its facts is a type error (the runtime `ToolUndeclared` path is gone). issue-tracker shares `listTool` / `getTool` rows between its mcp server and its triage harness; examples/harness moved to rows.
   - Gate EXIT 0; harness 72 tests, issue-tracker 51; harness mutation 85.29; validate 44 PASS; 2 Jev labels, calibration refreshed.
 - **ext/start-order** — opus high + fable review (one fix round); tag `ext/start-order`. A server started before the extension that reads it now fails with a label that names it: `mcp:<name>` (the wiring's MCP name) and `hono:<name>` (new optional `HonoScope.Wiring.name`; no name keeps `hono`). Core README: a `start` can read, after `await next()`, only extensions listed after it. mcp and hono READMEs show the working order. The new tests fail on main (`Expected "mcp:admin" Received "mcp"`).

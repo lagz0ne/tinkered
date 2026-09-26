@@ -129,6 +129,7 @@ to verify its entrypoint. No new helper or core ticket was requested.
 | `settle` adds one tick on a sync throw where `run` does not; a close in that tick lands before the caller reads the Result (http checks `Disposed` first). | errors/t02-http review 2026-09-25 | note |
 | A generic caller cannot pass "a call or none" to an overloaded `settle`: `flow.settle(call)` with `call: Scope.Invocation<I> \| undefined` fails (TS2769), so hono's `settleFlow` casts the argument. `{ rawInput: undefined }` compiles but sends a call object where a void route sends none. | errors/settle-types review 2026-09-26 (hono, first asker) | open |
 | `NotResolved` raised inside a `start` names only the target label, not the reader: `{"label":"mcp"}` with two `mcp()` extensions said neither which server nor who read too early. Wanted: `{"label":"mcp:admin","reader":"admin.serve"}` (the reading extension's label from its `ExtensionCtx`). Workaround: unique labels per driver instance (`mcp:<name>`, `hono:<name>`), which every driver must remember. | ext/start-order (mcp + hono) 2026-09-26 | open — first asker |
+| A forced close's cancel reason is a plain object marked by a hidden symbol, so `String(reason)` is `[object Object]`: an mcp tool call cut short answers the text `[object Object]`. Wanted: a reason with a readable message (such as an `Error` subclass or a `toString`). | drivers/t08b fix round (mcp) 2026-09-26 | open — first asker |
 
 ## Writer learning round, 2026-09-22
 
