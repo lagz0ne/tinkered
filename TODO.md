@@ -39,8 +39,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
-- **sync/source-stop** — `source` never calls `published.stop()`, so after its scope closes a new family member throws `Disposed {"reason":"scope is closed"}` (`subscribe` does stop). Found by drivers/t08b, reproduced on main. Owner: lead; writer agent `2d41bdf9` in `../tinkered-source-stop` (brief `sync-source-stop.md`). Next: call `published.stop()` in `closeSource`, with a test that closes a scope with `source({ cells: [[family, key]] })` then creates a member. Verify: that test fails on main and passes.
-
 ## Review
 
 | Card | Owner | Next | Verify |
@@ -74,6 +72,8 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 ## Done
 
+- **sync/source-stop** — opus high + fable review (no fix round); tag `sync/source-stop`. A closing `source` now stops its published set (as `subscribe` does) and drops each watch, so a new family member after close no longer throws `Disposed`. Also fixed: a start that failed with `SyncConflict` left an earlier family row's listener attached; `readPublished` attaches family listeners only after every row registers (shared with `subscribe`). Three new tests fail on main with `Disposed`.
+  - Gate EXIT 0; sync 48 tests; sync mutation 88.24; validate 44 PASS; 2 Jev labels, calibration refreshed.
 - **drivers/t08** — opus high + fable review; tags `drivers/t08a`, `drivers/t08b`. Units have no `meta`: the harness takes `expose` rows like mcp (t08a), then core drops `meta`, `Tag.Handle.read`, `Tag.Metaed`, `metaFind`; mcp drops the `tool` tag, `readTool`, `ToolUndeclared`, and its dead `isError`; drizzle and harness drop the pass-through (t08b). ADR 0023 superseded; 0046 and 0048 marked superseded in part. 13 meta-only tests deleted, one type test and three mcp seam tests added.
   - t08b: Gate EXIT 0; core 625 tests; mutation core 86.22, mcp 98.51, drizzle 93.22, harness 85.29; promises 17; validate 44 PASS; slot headroom 6; timing N=61 through benchd vs f2edf9e: inline 204.7 → 193.3 ns (−5.57%, B slower 0/61); every other scenario within 1%; 5 Jev labels, calibration refreshed. First landing stopped at mcp mutation 83.56; one fix round.
 - **drivers/t08a** — opus high + fable review (no fix round); tag `drivers/t08a`. The harness takes `expose` rows, the same `Mcp.Row` mcp takes; nothing reads unit `meta` any more (mcp's `readTool` is left with its own tests only; t08b removes it). A bare op or a row without its facts is a type error (the runtime `ToolUndeclared` path is gone). issue-tracker shares `listTool` / `getTool` rows between its mcp server and its triage harness; examples/harness moved to rows.
