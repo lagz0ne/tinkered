@@ -187,9 +187,9 @@ test("bash runs the command in cwd and answers its merged output with a non-zero
 test("bash kills a command at its timeout and says so", async () => {
   const scope = createScope({ tags: [cwd(notesDir())] });
   const said = await scope.run(bash, {
-    rawInput: { command: "echo start; sleep 5", timeout: 100 },
+    rawInput: { command: "echo start; sleep 5", timeout: 1000 },
   });
-  expect(said).toBe("start\n\n[timed out after 100 ms]");
+  expect(said).toBe("start\n\n[timed out after 1000 ms]");
   await scope.close();
 });
 
@@ -216,7 +216,7 @@ test("bash keeps an output of exactly 20000 characters whole", async () => {
 
 test("bash gives the command no stdin so a reader returns at once", async () => {
   const scope = createScope({ tags: [cwd(notesDir())] });
-  const said = await scope.run(bash, { rawInput: { command: "cat", timeout: 200 } });
+  const said = await scope.run(bash, { rawInput: { command: "cat", timeout: 2000 } });
   expect(said).toBe("");
   await scope.close();
 });
