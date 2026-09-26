@@ -20,6 +20,8 @@ vp run -r build
 - Work only in your worktree. Never push. Never `--no-verify`.
 - Never use `git stash`: every worktree shares one stash list, so another writer's stash or pop
   can take your work. Compare with main through a separate worktree or `git diff origin/main`.
+  The commit hook does not stash either: it runs `vp staged --no-stash`.
+  It refuses a partly staged file: stage the whole file, or commit it by path.
 - Commit by explicit path after every green step. A dropped connection then
   loses one step at most.
 - `vp run -r build` before every check: a stale `dist` shows fake errors.
