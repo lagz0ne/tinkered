@@ -112,12 +112,13 @@ export function isFamily(unit: Sync.Published): unit is Sync.Family<unknown> {
 /** The published set of one wiring by key: singletons now, family members
  * now and on arrival, and a lookup that creates a member for a `label/id`
  * key of a published family. `make` builds one entry per key; a different
- * cell or namespace under a known key raises `SyncConflict`. */
+ * cell or namespace under a known key raises `SyncConflict`. Arrivals attach
+ * only after every row registered, so a conflict leaves no listener behind. */
 function readPublished<E extends { cell: Data.Cell<unknown>; ns?: Namespace }>(
   cells: readonly Sync.Row[],
   make: (key: string, cell: Data.Cell<unknown>, ns?: Namespace) => E,
 ): { entries: Map<string, E>; entryFor(key: string): E | undefined; stop(): void } {
-  type Gate = { make: (id: string) => Namespace; cell: Data.Cell<unknown>; label: string };
+  type Gate = { make: Sync.Family<unknown>; cell: Data.Cell<unknown>; label: string };
   const entries = new Map<string, E>();
   const gates: Gate[] = [];
   function register(key: string, cell: Data.Cell<unknown>, ns?: Namespace): E {
@@ -147,20 +148,23 @@ function readPublished<E extends { cell: Data.Cell<unknown>; ns?: Namespace }>(
     if (member === undefined) return undefined;
     return register(key, member.cell, member.ns);
   }
-  const arrivals: Array<() => void> = [];
   for (const [unit, name] of cells) {
     if (isFamily(unit)) {
       const label = name;
       gates.push({ make: unit, cell: unit.cell, label });
       for (const id of unit.members()) register(`${label}/${id}`, unit.cell, unit(id));
-      arrivals.push(
-        unit.onMember((id) => {
-          register(`${label}/${id}`, unit.cell, unit(id));
-        }),
-      );
     } else {
       register(name, unit);
     }
+  }
+  const arrivals: Array<() => void> = [];
+  for (const gate of gates) {
+    const { make, cell, label } = gate;
+    arrivals.push(
+      make.onMember((id) => {
+        register(`${label}/${id}`, cell, make(id));
+      }),
+    );
   }
   function stop(): void {
     for (const release of arrivals) release();

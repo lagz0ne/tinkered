@@ -972,3 +972,31 @@ test("a second scope's source still publishes new members after the first closed
   expect((await done).status).toBe("success");
   await origin.close({ graceful: true });
 });
+
+test("a source whose startup fails with SyncConflict lets go of its family", async () => {
+  const todo = family({ label: "todo-conflict", initial: "" });
+  const firstCell = data({ label: "conflict-a", initial: 0 });
+  const secondCell = data({ label: "conflict-b", initial: 1 });
+  const origin = createScope({
+    extensions: [
+      source({
+        cells: [
+          [todo, "todo"],
+          [firstCell, "conflict"],
+          [secondCell, "conflict"],
+        ],
+      }),
+    ],
+  });
+  await origin.ready.then(
+    () => {
+      expect.unreachable();
+    },
+    (error: unknown) => {
+      if (!isError(error, "SyncConflict")) throw error;
+    },
+  );
+  await origin.close();
+  todo("7");
+  expect(todo.members()).toEqual(["7"]);
+});
