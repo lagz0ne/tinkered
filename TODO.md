@@ -23,7 +23,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **sync/source-stop** — `source` never calls `published.stop()`, so after its scope closes a new family member throws `Disposed {"reason":"scope is closed"}` (`subscribe` does stop). Found by drivers/t08b, reproduced on main. Next: call `published.stop()` in `closeSource`, with a test that closes a scope with `source({ cells: [[family, key]] })` then creates a member. Verify: that test fails on main and passes.
 - **perf/op-parity** — Compare operation call cost. The runner it waited for is here: `bench/queued.sh`
   sends `bench/ab.sh` through `benchd`, this box's benchmark queue, so one job runs at a time on one
   core with no network and no secrets. Next: pin the baseline and current SHAs, build the baseline
@@ -39,6 +38,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
+
+- **sync/source-stop** — `source` never calls `published.stop()`, so after its scope closes a new family member throws `Disposed {"reason":"scope is closed"}` (`subscribe` does stop). Found by drivers/t08b, reproduced on main. Owner: lead; writer agent `2d41bdf9` in `../tinkered-source-stop` (brief `sync-source-stop.md`). Next: call `published.stop()` in `closeSource`, with a test that closes a scope with `source({ cells: [[family, key]] })` then creates a member. Verify: that test fails on main and passes.
 
 ## Review
 
