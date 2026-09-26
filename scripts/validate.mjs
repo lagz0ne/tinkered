@@ -127,12 +127,10 @@ for (const [name, cmd] of lanes) {
   } catch (e) {
     failed++;
     console.log(`FAIL  ${name}`);
-    const out = `${e.stdout ?? ""}${e.stderr ?? ""}`
-      .toString()
-      .trim()
-      .split("\n")
-      .slice(-3)
-      .join("\n");
+    const lines = `${e.stdout ?? ""}${e.stderr ?? ""}`.toString().trim().split("\n");
+    // Name each failed test (vitest's ` FAIL ` rows), then the tail: a tail alone can hide the name.
+    const named = lines.filter((line) => /^\s*FAIL\s/.test(line));
+    const out = [...new Set([...named, ...lines.slice(-3)])].join("\n");
     if (out) console.log(out.replace(/^/gm, "        "));
   }
 }
@@ -140,7 +138,8 @@ console.log(
   `\nMutation lanes: run \`${VP} run --no-cache core#mutate\` and \`${VP} run --no-cache http#mutate\` and \`${VP} run --no-cache hono#mutate\` and \`${VP} run --no-cache drizzle#mutate\` and \`${VP} run --no-cache process#mutate\` and \`${VP} run --no-cache harness#mutate\` and \`${VP} run --no-cache mcp#mutate\` and \`${VP} run --no-cache sync#mutate\` ALONE (break >= 85 for every package (user, 2026-09-24); measured alone 2026-09-21: core 86.07, react 93.16; 2026-09-20: http 90.77, hono 77.66, drizzle ~96, process 83.43, harness 76.05, mcp 82.86, sync 79.67).`,
 );
 console.log(
-  `Timing lanes:  run via \`bench -- ${strip} bench/<lane>.mjs\` in a clean worktree (not in-container).`,
+  `Timing lanes:  run via \`benchctl exec -- ${strip} bench/<lane>.mjs\` from a clean worktree (the queue; never by hand).\n` +
+    `               bench/warm-read.mjs: a warm read is O(1) in chain depth (moved out of core#test, tests/busy-host-flake).`,
 );
 console.log(
   failed ? `\n${failed} lane(s) FAILED` : `\nAll deterministic budget lanes PASS (${lanes.length})`,
