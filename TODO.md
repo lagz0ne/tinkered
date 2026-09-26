@@ -39,6 +39,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
+- **core/cancel-reason** — a forced close's cancel reason is `{ [cancelBrand]: true }` with no message,
+  so an mcp tool cut short answers the model `[object Object]` (core-feedback row). Precedent: the
+  web's `AbortError`. Owner: lead; writer agent `b845ec4d` in `../tinkered-cancel-reason` (brief
+  `core-cancel-reason.md`). Next: count how often a reason is minted on the hot path, then pick the
+  shape. Verify: `String(reason)` reads `AbortError: …`; a foreign `AbortError` is still not ours;
+  timing through benchd shows no scenario slower.
+
 ## Review
 
 | Card | Owner | Next | Verify |
