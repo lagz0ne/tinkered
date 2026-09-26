@@ -3410,299 +3410,6 @@ function readResourceState(
   return buildResource(owner, target, parent, chain, state, resolveNamedResourceDeps);
 }
 
-type Affected = { node: Node; owner: Layer };
-
-/** Unlink every occupied bucket at this owner and clear its selection state. */
-function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): void {
-  const s = nodeState(owner, target);
-  if (s.instance) {
-    unlinkInstance(s.instance, RELEASED);
-    s.instance = undefined;
-  }
-  s.gen += 1;
-  s.resource = undefined;
-  s.promise = undefined;
-  s.failed = undefined;
-  s.build = undefined;
-  if (s.nsResources) {
-    for (const state of s.nsResources.values()) {
-      if (state.instance) unlinkInstance(state.instance, RELEASED);
-      state.gen += 1;
-      state.resource = undefined;
-      state.promise = undefined;
-      state.failed = undefined;
-      state.build = undefined;
-      detachNsDependencies(state);
-    }
-    s.nsResources = undefined;
-  }
-  detachDependent(owner, target);
-  s.dependents = undefined;
-}
-
-/** Drop a cell's shadow (revert to inherited/initial) and edges without notifying watchers. */
-function invalidateData(owner: Layer, target: Data.Cell<unknown>): void {
-  const s = owner.nodes.get(target);
-  if (s?.cell) {
-    s.cell = undefined;
-    invalidateEff(owner, target);
-  }
-  if (s) {
-    s.nsCells = undefined;
-    s.dependents = undefined;
-    s.nsDataDependents = undefined;
-  }
-}
-
-/** Whether a node's dependents can live below its owner: root-owned resources and data cells
- * are shared down the chain; a `session` resource is only used by its own layer. */
-function spansDescendants(node: Node): boolean {
-  return !isResource(node) || node.target !== "session";
-}
-
-/** Visit each (dependent resource, its owner) that depends on `node`. Root-owned nodes search
- * the owner's whole subtree (to reach session instances); a session node searches only its owner. */
-function forEachDependent(
-  nodeOwner: Layer,
-  node: Node,
-  visit: (target: Resource.Handle<unknown>, owner: Layer) => void,
-): void {
-  const deep = spansDescendants(node);
-  const stack: Layer[] = [nodeOwner];
-  while (stack.length) {
-    const scope = stack.pop() as Layer;
-    visitDependents(scope.nodes.get(node), scope, visit);
-    if (deep) for (const child of scope.children) stack.push(child);
-  }
-}
-
-function visitDependents(
-  rec: NodeState | undefined,
-  owner: Layer,
-  visit: (target: Resource.Handle<unknown>, owner: Layer) => void,
-): void {
-  if (rec?.dependents) for (const target of rec.dependents) visit(target, owner);
-}
-
-/** Walk dependents from a node (iterative; keyed on node+owner so diamonds collapse while the same
- * handle in two sessions stays distinct) → every affected (node, owner), in release order. */
-function collectAffected(target: Node, targetOwner: Layer): Affected[] {
-  const seen = new Map<Node, Set<Layer>>();
-  const order: Affected[] = [];
-  const stack: Affected[] = [{ node: target, owner: targetOwner }];
-  while (stack.length) {
-    const item = stack.pop() as Affected;
-    let owners = seen.get(item.node);
-    if (!owners) {
-      owners = new Set();
-      seen.set(item.node, owners);
-    }
-    if (owners.has(item.owner)) continue;
-    owners.add(item.owner);
-    order.push(item);
-    forEachDependent(item.owner, item.node, (t, owner) => stack.push({ node: t, owner }));
-  }
-  return order;
-}
-
-/** A released owner's affected resources and their OLD defers, extracted up front. */
-type Released = {
-  instances: Set<ResourceInstance>;
-  hooks: DeferEntry[];
-};
-
-/** Release a node and cascade to its dependents across owners. Two phases so a throwing/closing/
- * rebuilding callback can never strand a dependent or sweep up a fresh value: first collect every
- * affected (node, owner), drop all their caches, and EXTRACT their old defers up front (keeps a
- * rebuild's fresh defer out of the drain — r10); then notify watchers and drain the pre-extracted
- * defers. Owners drain DESCENDANTS-FIRST (ledger invariant 6: children before parents), each chained
- * after the prior via `prev`, so a dependency — always at a same-or-ancestor owner — tears down after
- * its dependents (and after that owner's full, incl. async, drain); within an owner it is reverse-
- * registration order. Each owner's drain waits for in-flight OPERATIONS borrowing its resources
- * (ADR 0026 Q2). */
-function releaseNode(layer: Layer, target: Node): void {
-  ensureOpen(layer);
-  const targetOwner = isResource(target) ? ownerOf(layer, target) : layer;
-  ensureOpen(targetOwner);
-  const affected = new Map<Layer, Released>();
-  const order = collectAffected(target, targetOwner);
-  if (isData(target)) {
-    const rec = targetOwner.nodes.get(target);
-    if (rec?.nsCells) {
-      const seeds: NsResourceState[] = [];
-      for (const entry of rec.nsCells.values()) seeds.push(...namedDataSeeds(rec, entry));
-      collectNamedRelease(seeds, affected);
-    }
-  }
-  const dataReleased = invalidateAffected(order, affected);
-  drainRelease(affected, () => {
-    if (dataReleased && isData(target)) flushCell(layer, target);
-  });
-}
-
-function releaseNamed(layer: Layer, target: Node, ns: Namespace): void {
-  ensureOpen(layer);
-  const owner = isResource(target) ? ownerOf(layer, target) : layer;
-  ensureOpen(owner);
-  if (isData(target)) releaseNamedData(owner, target, ns);
-  else if (target.target !== "scope") releaseNamedResource(owner, target, ns);
-}
-
-function releaseNamedData(owner: Layer, target: Data.Cell<unknown>, ns: Namespace): void {
-  const rec = owner.nodes.get(target);
-  if (!rec?.nsCells) return;
-  const entry = rec.nsCells.get(ns);
-  if (!entry) return;
-  const affected = collectNamedRelease(namedDataSeeds(rec, entry), new Map());
-  rec.nsCells.delete(ns);
-  rec.nsDataDependents?.delete(entry);
-  drainRelease(affected, () => flushInheritedNsWatchers(owner, target, ns));
-}
-
-function namedDataSeeds(rec: NodeState, entry: Entry): NsResourceState[] {
-  return [...(rec.nsDataDependents?.get(entry) ?? [])];
-}
-
-function releaseNamedResource(owner: Layer, target: Resource.Handle<unknown>, ns: Namespace): void {
-  const state = owner.nodes.get(target)?.nsResources?.get(ns);
-  if (!state) return;
-  const affected = collectNamedRelease([state], new Map());
-  drainRelease(affected);
-}
-
-function drainRelease(affected: Map<Layer, Released>, notify?: () => void): void {
-  for (const [owner, released] of affected) orderReleased(owner, released);
-  try {
-    notify?.();
-  } finally {
-    drainReleased(affected);
-  }
-}
-
-function collectNamedRelease(
-  pending: NsResourceState[],
-  affected: Map<Layer, Released>,
-): Map<Layer, Released> {
-  while (pending.length) {
-    const state = pending.pop()!;
-    if (state.owner.closed || !isLiveNamedRelease(state)) continue;
-    for (const dependent of state.resourceDependents ?? []) pending.push(dependent);
-    const released = affected.get(state.owner) ?? {
-      instances: new Set<ResourceInstance>(),
-      hooks: [],
-    };
-    if (state.instance) released.instances.add(state.instance);
-    affected.set(state.owner, released);
-    unlinkNamedState(state);
-  }
-  return affected;
-}
-
-function isLiveNamedRelease(state: NsResourceState): boolean {
-  return state.owner.nodes.get(state.target)?.nsResources?.get(state.key) === state;
-}
-
-function unlinkNamedState(state: NsResourceState): void {
-  const instance = state.instance;
-  state.owner.nodes.get(state.target)?.nsResources?.delete(state.key);
-  detachNsDependencies(state);
-  state.gen++;
-  state.resource = undefined;
-  state.promise = undefined;
-  state.failed = undefined;
-  state.build = undefined;
-  if (instance) unlinkInstance(instance, RELEASED);
-}
-
-function isHeld(instance: ResourceInstance): boolean {
-  return instance.dependents > 0 || instance.building || !!instance.borrowers?.size;
-}
-
-function drainReleasedOwner(
-  entry: Released,
-  previous: Promise<void> | undefined,
-): Promise<void> | undefined {
-  let prev = previous;
-  const borrowed = [...entry.instances].flatMap((instance) => [...(instance.borrowers ?? [])]);
-  const gate = borrowed.length ? Promise.allSettled(borrowed).then(() => undefined) : undefined;
-  for (const hook of entry.hooks) {
-    const instance = hook.instance as ResourceInstance;
-    if (isHeld(instance)) continue;
-    prev = finishHook(instance, hook.fn, gate ?? prev) ?? prev;
-  }
-  return drainHookless(entry.instances, gate ?? prev);
-}
-
-function drainHookless(
-  instances: Set<ResourceInstance>,
-  previous: Promise<void> | undefined,
-): Promise<void> | undefined {
-  let prev = previous;
-  for (const instance of instances) {
-    if (instance.hooks.length || isHeld(instance)) continue;
-    prev = finishInstance(instance, prev) ?? prev;
-  }
-  return prev;
-}
-
-function drainReleased(affected: Map<Layer, Released>): void {
-  let prev: Promise<void> | undefined;
-  for (const [, entry] of byDepthDesc(affected)) prev = drainReleasedOwner(entry, prev);
-}
-
-/** Affected owners deepest-first (descendants before ancestors): a released dependency lives at a
- * same-or-ancestor owner of its dependents, so this order tears dependents down before dependencies. */
-function byDepthDesc(affected: Map<Layer, Released>): [Layer, Released][] {
-  return [...affected].sort(([ownerA], [ownerB]) => layerDepth(ownerB) - layerDepth(ownerA));
-}
-
-function layerDepth(layer: Layer): number {
-  let depth = 0;
-  for (let cur = layer.parent; cur; cur = cur.parent) depth++;
-  return depth;
-}
-
-/** Drop every affected node's cache at its owner, then extract each affected owner's OLD defers (in
- * registration order) BEFORE any cleanup or watcher runs. Returns whether any data cell was reset (so
- * the caller flushes watchers). Extracting up front keeps a rebuild's fresh defer out of the drain. */
-function collectReleasedInstances(
-  owner: Layer,
-  target: Resource.Handle<unknown>,
-  affected: Map<Layer, Released>,
-): void {
-  const state = nodeState(owner, target);
-  const entry = affected.get(owner) ?? { instances: new Set(), hooks: [] };
-  if (state.instance) entry.instances.add(state.instance);
-  if (state.nsResources)
-    for (const bucket of state.nsResources.values()) {
-      if (bucket.instance) entry.instances.add(bucket.instance);
-    }
-  affected.set(owner, entry);
-  invalidateResource(owner, target);
-}
-
-function orderReleased(owner: Layer, entry: Released): void {
-  for (const hook of owner.defers.toReversed()) {
-    if (hook.instance && entry.instances.has(hook.instance)) entry.hooks.push(hook);
-  }
-  owner.defers = owner.defers.filter(
-    (hook) => !hook.instance || !entry.instances.has(hook.instance),
-  );
-}
-
-function invalidateAffected(order: Affected[], affected: Map<Layer, Released>): boolean {
-  let dataReleased = false;
-  for (const { node, owner } of order) {
-    if (owner.closed) continue;
-    if (isResource(node)) collectReleasedInstances(owner, node, affected);
-    else {
-      invalidateData(owner, node);
-      dataReleased = true;
-    }
-  }
-  return dataReleased;
-}
-
 function addDependent(
   owner: Layer,
   node: Node,
@@ -4681,6 +4388,299 @@ export function createScope(options?: Scope.Options): Scope.Handle {
   const exts = readMany(options?.extensions);
   if (exts.length === 0) return plain;
   return extendHandle(layer, plain, exts);
+}
+
+type Affected = { node: Node; owner: Layer };
+
+/** Unlink every occupied bucket at this owner and clear its selection state. */
+function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): void {
+  const s = nodeState(owner, target);
+  if (s.instance) {
+    unlinkInstance(s.instance, RELEASED);
+    s.instance = undefined;
+  }
+  s.gen += 1;
+  s.resource = undefined;
+  s.promise = undefined;
+  s.failed = undefined;
+  s.build = undefined;
+  if (s.nsResources) {
+    for (const state of s.nsResources.values()) {
+      if (state.instance) unlinkInstance(state.instance, RELEASED);
+      state.gen += 1;
+      state.resource = undefined;
+      state.promise = undefined;
+      state.failed = undefined;
+      state.build = undefined;
+      detachNsDependencies(state);
+    }
+    s.nsResources = undefined;
+  }
+  detachDependent(owner, target);
+  s.dependents = undefined;
+}
+
+/** Drop a cell's shadow (revert to inherited/initial) and edges without notifying watchers. */
+function invalidateData(owner: Layer, target: Data.Cell<unknown>): void {
+  const s = owner.nodes.get(target);
+  if (s?.cell) {
+    s.cell = undefined;
+    invalidateEff(owner, target);
+  }
+  if (s) {
+    s.nsCells = undefined;
+    s.dependents = undefined;
+    s.nsDataDependents = undefined;
+  }
+}
+
+/** Whether a node's dependents can live below its owner: root-owned resources and data cells
+ * are shared down the chain; a `session` resource is only used by its own layer. */
+function spansDescendants(node: Node): boolean {
+  return !isResource(node) || node.target !== "session";
+}
+
+/** Visit each (dependent resource, its owner) that depends on `node`. Root-owned nodes search
+ * the owner's whole subtree (to reach session instances); a session node searches only its owner. */
+function forEachDependent(
+  nodeOwner: Layer,
+  node: Node,
+  visit: (target: Resource.Handle<unknown>, owner: Layer) => void,
+): void {
+  const deep = spansDescendants(node);
+  const stack: Layer[] = [nodeOwner];
+  while (stack.length) {
+    const scope = stack.pop() as Layer;
+    visitDependents(scope.nodes.get(node), scope, visit);
+    if (deep) for (const child of scope.children) stack.push(child);
+  }
+}
+
+function visitDependents(
+  rec: NodeState | undefined,
+  owner: Layer,
+  visit: (target: Resource.Handle<unknown>, owner: Layer) => void,
+): void {
+  if (rec?.dependents) for (const target of rec.dependents) visit(target, owner);
+}
+
+/** Walk dependents from a node (iterative; keyed on node+owner so diamonds collapse while the same
+ * handle in two sessions stays distinct) → every affected (node, owner), in release order. */
+function collectAffected(target: Node, targetOwner: Layer): Affected[] {
+  const seen = new Map<Node, Set<Layer>>();
+  const order: Affected[] = [];
+  const stack: Affected[] = [{ node: target, owner: targetOwner }];
+  while (stack.length) {
+    const item = stack.pop() as Affected;
+    let owners = seen.get(item.node);
+    if (!owners) {
+      owners = new Set();
+      seen.set(item.node, owners);
+    }
+    if (owners.has(item.owner)) continue;
+    owners.add(item.owner);
+    order.push(item);
+    forEachDependent(item.owner, item.node, (t, owner) => stack.push({ node: t, owner }));
+  }
+  return order;
+}
+
+/** A released owner's affected resources and their OLD defers, extracted up front. */
+type Released = {
+  instances: Set<ResourceInstance>;
+  hooks: DeferEntry[];
+};
+
+/** Release a node and cascade to its dependents across owners. Two phases so a throwing/closing/
+ * rebuilding callback can never strand a dependent or sweep up a fresh value: first collect every
+ * affected (node, owner), drop all their caches, and EXTRACT their old defers up front (keeps a
+ * rebuild's fresh defer out of the drain — r10); then notify watchers and drain the pre-extracted
+ * defers. Owners drain DESCENDANTS-FIRST (ledger invariant 6: children before parents), each chained
+ * after the prior via `prev`, so a dependency — always at a same-or-ancestor owner — tears down after
+ * its dependents (and after that owner's full, incl. async, drain); within an owner it is reverse-
+ * registration order. Each owner's drain waits for in-flight OPERATIONS borrowing its resources
+ * (ADR 0026 Q2). */
+function releaseNode(layer: Layer, target: Node): void {
+  ensureOpen(layer);
+  const targetOwner = isResource(target) ? ownerOf(layer, target) : layer;
+  ensureOpen(targetOwner);
+  const affected = new Map<Layer, Released>();
+  const order = collectAffected(target, targetOwner);
+  if (isData(target)) {
+    const rec = targetOwner.nodes.get(target);
+    if (rec?.nsCells) {
+      const seeds: NsResourceState[] = [];
+      for (const entry of rec.nsCells.values()) seeds.push(...namedDataSeeds(rec, entry));
+      collectNamedRelease(seeds, affected);
+    }
+  }
+  const dataReleased = invalidateAffected(order, affected);
+  drainRelease(affected, () => {
+    if (dataReleased && isData(target)) flushCell(layer, target);
+  });
+}
+
+function releaseNamed(layer: Layer, target: Node, ns: Namespace): void {
+  ensureOpen(layer);
+  const owner = isResource(target) ? ownerOf(layer, target) : layer;
+  ensureOpen(owner);
+  if (isData(target)) releaseNamedData(owner, target, ns);
+  else if (target.target !== "scope") releaseNamedResource(owner, target, ns);
+}
+
+function releaseNamedData(owner: Layer, target: Data.Cell<unknown>, ns: Namespace): void {
+  const rec = owner.nodes.get(target);
+  if (!rec?.nsCells) return;
+  const entry = rec.nsCells.get(ns);
+  if (!entry) return;
+  const affected = collectNamedRelease(namedDataSeeds(rec, entry), new Map());
+  rec.nsCells.delete(ns);
+  rec.nsDataDependents?.delete(entry);
+  drainRelease(affected, () => flushInheritedNsWatchers(owner, target, ns));
+}
+
+function namedDataSeeds(rec: NodeState, entry: Entry): NsResourceState[] {
+  return [...(rec.nsDataDependents?.get(entry) ?? [])];
+}
+
+function releaseNamedResource(owner: Layer, target: Resource.Handle<unknown>, ns: Namespace): void {
+  const state = owner.nodes.get(target)?.nsResources?.get(ns);
+  if (!state) return;
+  const affected = collectNamedRelease([state], new Map());
+  drainRelease(affected);
+}
+
+function drainRelease(affected: Map<Layer, Released>, notify?: () => void): void {
+  for (const [owner, released] of affected) orderReleased(owner, released);
+  try {
+    notify?.();
+  } finally {
+    drainReleased(affected);
+  }
+}
+
+function collectNamedRelease(
+  pending: NsResourceState[],
+  affected: Map<Layer, Released>,
+): Map<Layer, Released> {
+  while (pending.length) {
+    const state = pending.pop()!;
+    if (state.owner.closed || !isLiveNamedRelease(state)) continue;
+    for (const dependent of state.resourceDependents ?? []) pending.push(dependent);
+    const released = affected.get(state.owner) ?? {
+      instances: new Set<ResourceInstance>(),
+      hooks: [],
+    };
+    if (state.instance) released.instances.add(state.instance);
+    affected.set(state.owner, released);
+    unlinkNamedState(state);
+  }
+  return affected;
+}
+
+function isLiveNamedRelease(state: NsResourceState): boolean {
+  return state.owner.nodes.get(state.target)?.nsResources?.get(state.key) === state;
+}
+
+function unlinkNamedState(state: NsResourceState): void {
+  const instance = state.instance;
+  state.owner.nodes.get(state.target)?.nsResources?.delete(state.key);
+  detachNsDependencies(state);
+  state.gen++;
+  state.resource = undefined;
+  state.promise = undefined;
+  state.failed = undefined;
+  state.build = undefined;
+  if (instance) unlinkInstance(instance, RELEASED);
+}
+
+function isHeld(instance: ResourceInstance): boolean {
+  return instance.dependents > 0 || instance.building || !!instance.borrowers?.size;
+}
+
+function drainReleasedOwner(
+  entry: Released,
+  previous: Promise<void> | undefined,
+): Promise<void> | undefined {
+  let prev = previous;
+  const borrowed = [...entry.instances].flatMap((instance) => [...(instance.borrowers ?? [])]);
+  const gate = borrowed.length ? Promise.allSettled(borrowed).then(() => undefined) : undefined;
+  for (const hook of entry.hooks) {
+    const instance = hook.instance as ResourceInstance;
+    if (isHeld(instance)) continue;
+    prev = finishHook(instance, hook.fn, gate ?? prev) ?? prev;
+  }
+  return drainHookless(entry.instances, gate ?? prev);
+}
+
+function drainHookless(
+  instances: Set<ResourceInstance>,
+  previous: Promise<void> | undefined,
+): Promise<void> | undefined {
+  let prev = previous;
+  for (const instance of instances) {
+    if (instance.hooks.length || isHeld(instance)) continue;
+    prev = finishInstance(instance, prev) ?? prev;
+  }
+  return prev;
+}
+
+function drainReleased(affected: Map<Layer, Released>): void {
+  let prev: Promise<void> | undefined;
+  for (const [, entry] of byDepthDesc(affected)) prev = drainReleasedOwner(entry, prev);
+}
+
+/** Affected owners deepest-first (descendants before ancestors): a released dependency lives at a
+ * same-or-ancestor owner of its dependents, so this order tears dependents down before dependencies. */
+function byDepthDesc(affected: Map<Layer, Released>): [Layer, Released][] {
+  return [...affected].sort(([ownerA], [ownerB]) => layerDepth(ownerB) - layerDepth(ownerA));
+}
+
+function layerDepth(layer: Layer): number {
+  let depth = 0;
+  for (let cur = layer.parent; cur; cur = cur.parent) depth++;
+  return depth;
+}
+
+/** Drop every affected node's cache at its owner, then extract each affected owner's OLD defers (in
+ * registration order) BEFORE any cleanup or watcher runs. Returns whether any data cell was reset (so
+ * the caller flushes watchers). Extracting up front keeps a rebuild's fresh defer out of the drain. */
+function collectReleasedInstances(
+  owner: Layer,
+  target: Resource.Handle<unknown>,
+  affected: Map<Layer, Released>,
+): void {
+  const state = nodeState(owner, target);
+  const entry = affected.get(owner) ?? { instances: new Set(), hooks: [] };
+  if (state.instance) entry.instances.add(state.instance);
+  if (state.nsResources)
+    for (const bucket of state.nsResources.values()) {
+      if (bucket.instance) entry.instances.add(bucket.instance);
+    }
+  affected.set(owner, entry);
+  invalidateResource(owner, target);
+}
+
+function orderReleased(owner: Layer, entry: Released): void {
+  for (const hook of owner.defers.toReversed()) {
+    if (hook.instance && entry.instances.has(hook.instance)) entry.hooks.push(hook);
+  }
+  owner.defers = owner.defers.filter(
+    (hook) => !hook.instance || !entry.instances.has(hook.instance),
+  );
+}
+
+function invalidateAffected(order: Affected[], affected: Map<Layer, Released>): boolean {
+  let dataReleased = false;
+  for (const { node, owner } of order) {
+    if (owner.closed) continue;
+    if (isResource(node)) collectReleasedInstances(owner, node, affected);
+    else {
+      invalidateData(owner, node);
+      dataReleased = true;
+    }
+  }
+  return dataReleased;
 }
 
 export { isError };
