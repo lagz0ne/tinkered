@@ -226,7 +226,7 @@ function readServer(
     name: label,
     tools: tools.map(({ op, meta, run }) =>
       sdk.tool(meta.name ?? op.label, meta.description, meta.schema, async (args) => {
-        const result = await Promise.resolve(run.settle({ rawInput: args }));
+        const result = await run.settle({ rawInput: args });
         if (result.status === "success") return answerTool(meta, result.value);
         throw result.status === "failed" ? result.error : result.reason;
       }),

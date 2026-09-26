@@ -321,15 +321,13 @@ function answerRoute<T, I>(op: Operation.Handle<T, I>, route: HonoScope.Route<I,
   return run;
 }
 /** Settle the route's subflow: a raw-input call, or none for a void input. The package's
- * casts: a controller's overloaded `settle` cannot shed its call shapes generically, and
- * its generic `Settled<T>` does not reduce to the Result it is. */
+ * cast: a controller's overloaded `settle` cannot take "a call or none" on a generic input,
+ * and passing `{ rawInput: undefined }` instead would hand extensions a call object. */
 function settleFlow<T, I>(
   flow: Scope.OperationController<T, I>,
   call: Scope.Invocation<I> | undefined,
 ): RunResult<Awaited<T>> | Promise<RunResult<Awaited<T>>> {
-  return (flow.settle as (call?: Scope.Invocation<I>) => Scope.Settled<T>)(call) as
-    | RunResult<Awaited<T>>
-    | Promise<RunResult<Awaited<T>>>;
+  return (flow.settle as (call?: Scope.Invocation<I>) => Scope.Settled<T>)(call);
 }
 
 /** Build the request run: input to op subflow to respond to status + one log line.

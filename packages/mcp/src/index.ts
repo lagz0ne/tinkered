@@ -100,7 +100,7 @@ function readCall(
             label: `mcp ${name}`,
             depends: { op },
             run: async ({ op: flow }, ctx) => {
-              const settled = await Promise.resolve(flow.settle({ rawInput: args }));
+              const settled = await flow.settle({ rawInput: args });
               ctx.log("mcp tool", {
                 tool: name,
                 ok: settled.status === "success",

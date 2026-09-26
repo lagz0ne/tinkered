@@ -638,7 +638,7 @@ function settleCall(
 
 /** Ask the gate, then run the tool through `settle` (ADR 0067): its value, a managed error, a panic,
  * or a cancel all become the text the model sees. A tool may be sync or async, so its Result is
- * awaited through `Promise.resolve`. */
+ * awaited either way. */
 async function runRow(
   deps: CallDeps & ToolSlots & GateSlot,
   ctx: Operation.Ctx<string>,
@@ -648,7 +648,7 @@ async function runRow(
 ): Promise<string> {
   const declined = await askGate(deps, ctx, call, raw);
   if (declined !== undefined) return declined;
-  const settled = await Promise.resolve(deps[`tool:${rowName(row)}`].settle({ rawInput: raw }));
+  const settled = await deps[`tool:${rowName(row)}`].settle({ rawInput: raw });
   if (settled.status === "success") return logTool(ctx, call, true, readValue(settled.value));
   const failure = settled.status === "failed" ? settled.error : settled.reason;
   return logTool(ctx, call, false, `Tool ${call.name} failed: ${readFailure(failure)}`);
