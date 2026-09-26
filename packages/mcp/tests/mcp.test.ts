@@ -12,7 +12,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { expose, isError, mcp, readTool } from "../src/index.ts";
+import { expose, mcp } from "../src/index.ts";
 
 /** The op edge and the declaration share one source: parse through the object
  * built from the raw shape. A named function, not a method pull. */
@@ -365,17 +365,6 @@ test("a renamed row answers under its own name with one session per call", async
   expect(calls.length).toBe(2);
   expect(calls[0]?.id).not.toBe(calls[1]?.id);
   await scope.close({ graceful: true });
-});
-
-test("readTool on an op without tool meta throws ToolUndeclared with its label", async () => {
-  const bare = operation({ label: "bare", run: () => "hi" });
-  try {
-    readTool(bare);
-    expect.unreachable();
-  } catch (error: unknown) {
-    if (!isError(error, "ToolUndeclared")) throw error;
-    expect(error.payload.label).toBe("bare");
-  }
 });
 
 test("resolving the server before ready fails with NotResolved", async () => {

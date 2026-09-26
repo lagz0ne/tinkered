@@ -4,7 +4,7 @@ The client is a scope resource by default; the transaction is a session resource
 commit is the session's success (ADR 0041). A store can also serve many tenants.
 
 ```text
-drizzleStore({ label?, target?, open, close?, meta? })
+drizzleStore({ label?, target?, open, close? })
 ├── store.config   (tag, required)
 ├── store.db       (resource, scope or namespace)  open(config, { logger })
 └── store.tx       (resource, session)             db.transaction(cb) per request

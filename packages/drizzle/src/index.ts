@@ -51,7 +51,6 @@ export function drizzleStore<Config, DB extends DrizzleStore.Transactional>(conf
   target?: "scope" | "namespace";
   open: (config: Config, tools: DrizzleStore.Tools) => DB | PromiseLike<DB>;
   close?: (db: DB) => void | PromiseLike<void>;
-  meta?: Tag.Bindings;
 }): DrizzleStore.Frame<Config, DB> {
   const openDb = config.open;
   const closeDb = config.close;
@@ -61,7 +60,6 @@ export function drizzleStore<Config, DB extends DrizzleStore.Transactional>(conf
     label: `${frameLabel}.db`,
     target: config.target ?? "scope",
     depends: { config: configTag },
-    meta: config.meta,
     factory: ({ config: bound }, ctx) => {
       const opened = openDb(bound, { logger: readLogger(ctx) });
       return Promise.resolve(opened).then((instance) => {
@@ -74,7 +72,6 @@ export function drizzleStore<Config, DB extends DrizzleStore.Transactional>(conf
     label: `${frameLabel}.tx`,
     target: "session",
     depends: { db },
-    meta: config.meta,
     factory: ({ db: client }, ctx) => {
       const started = readTransaction(client);
       ctx.defer((end) => settleTransaction(started, end));

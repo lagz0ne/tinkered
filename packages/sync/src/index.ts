@@ -9,8 +9,7 @@ export type { Errors } from "./errors.ts";
  * userland's (ADR 0048, one way). This package holds the `family` member
  * factory, the message protocol with its `Transport` and the in-memory pair,
  * plus the source driver and the subscribe driver. Both drivers read the flat
- * wiring rows handed to their constructors, never scope tags or meta
- * (ADR 0051 §3: drivers read no meta). */
+ * wiring rows handed to their constructors, never scope tags (ADR 0051 §3). */
 export declare namespace Sync {
   /** One published unit: a cell under its key, or a family under its label.
    * A family row publishes its members under `${label}/${id}`, the row's

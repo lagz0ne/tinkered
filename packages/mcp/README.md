@@ -4,7 +4,7 @@ A tool is an operation plus its description facts; harnesses reach it over MCP
 through a driver (ADR 0046, ADR 0051).
 
 ```text
-operation({ label: "search", input: z.object(schema).parse, depends, run })   ← a plain op, no meta
+operation({ label: "search", input: z.object(schema).parse, depends, run })   ← a plain op
 expose(search, { description, schema })                ← one wiring row: the op + its tool facts
 scope = createScope({ extensions: [mcp({ name, version, tools: rows })] })    ← the driver
 await scope.ready; server = scope.resolve(ext) → McpServer                   ← start registers one tool per row
@@ -132,10 +132,10 @@ extension and serves it. The MCP edge parses the zod shape; a command is an
 ordinary operation that reads the `argv` tag and owns its parse (ADR 0042,
 0056).
 
-Harness adapters share the readers: `readTool(op)` reads the `tool` meta off
-an op that still carries it (kept for harnesses until their own ticket), and
+Harness adapters take the same `expose` rows and share one reader:
 `answerTool(meta, value)` maps a value to a tool result exactly the way the
-driver answers a call.
+driver answers a call. `meta` here is the row's tool facts, not a unit field:
+an operation carries no meta.
 
 Each call runs as a session with an inline operation `mcp search` (span, one
 `mcp tool` line with tool and ok, the operation as its subflow).
@@ -172,7 +172,5 @@ await client.listTools();
 await client.callTool({ name: "search", arguments: { q: "owls" } });
 ```
 
-The MCP SDK and zod are peers, never bundled. The `tool` meta tag stays
-exported for harnesses: `tool({ description, schema })` on an op is read by
-`readTool` until the harness ticket migrates it. An op with no `tool` meta
-cannot be advertised, so `readTool` throws `ToolUndeclared` with its label.
+The MCP SDK and zod are peers, never bundled. A tool is always a row: an op
+not handed in as an `expose` row is never advertised.

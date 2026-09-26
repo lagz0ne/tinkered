@@ -1,17 +1,16 @@
-import type { Many, Operation, RunResult, Scope, Tag } from "@tinker/core";
-import { extension, isError as isCoreError, readMany, tag } from "@tinker/core";
+import type { Many, Operation, RunResult, Scope } from "@tinker/core";
+import { extension, isError as isCoreError, readMany } from "@tinker/core";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { ZodTypeAny } from "zod";
-import { isError, raise } from "./errors.ts";
+import { isError } from "./errors.ts";
 
 export { isError };
 export type { Errors } from "./errors.ts";
 
 /** A tool is an operation plus its description facts: the wiring row names the
  * operation and carries the facts, the driver registers one MCP tool per row
- * (ADR 0051). The `tool` meta tag stays exported — harnesses read it off bound
- * ops until their own ticket. */
+ * (ADR 0051). A harness takes the same rows. */
 export declare namespace Mcp {
   /** One zod schema per input field: the language the SDK turns into JSON
    * Schema. A plain record of zod types — no `Any`-prefixed alias in src. */
@@ -36,11 +35,6 @@ export declare namespace Mcp {
     readonly tools: Many<Row>;
   };
 }
-
-/** The meta tag an operation carries to declare itself a tool:
- * `meta: [tool({ description, schema })]`. Harnesses read it until their own
- * ticket; the MCP driver reads the `expose` rows below, not this tag. */
-export const tool: Tag.Handle<Mcp.Tool> = tag({ label: "mcp.tool" });
 
 /** Name one tool row: the operation plus its description facts. Hand the rows
  * to `mcp({ tools })` — plain data, not a scope tag. */
@@ -113,15 +107,6 @@ function readCall(
         ),
       )
       .then(answerCall, failCall);
-}
-
-/** Read the tool facts off one tool op: the `tool` meta's facts, read by the
- * harness adapters until their own ticket (ADR 0046). An op without meta cannot
- * be advertised, so this throws `ToolUndeclared` with the op's label. */
-export function readTool(op: Operation.Handle<unknown, unknown>): Mcp.Tool {
-  const found = tool.read(op);
-  if (!found.present) raise("ToolUndeclared", { label: op.label });
-  return found.value;
 }
 
 /** The MCP driver, an extension (ADR 0051): `start` resolves its hand once

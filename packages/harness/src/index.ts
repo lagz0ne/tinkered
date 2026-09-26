@@ -206,7 +206,6 @@ export function harness<O, T, R, C extends Harness.Calls>(config: {
   adapter: Harness.Adapter<O, T, R, C>;
   approve?: Harness.ApproveOp<C>;
   tools?: Many<Harness.Tool<C>>;
-  meta?: Tag.Bindings;
 }): Harness.Frame<O, T, R, C> {
   const adapter = config.adapter;
   const label = config.label ?? "harness";
@@ -219,7 +218,7 @@ export function harness<O, T, R, C extends Harness.Calls>(config: {
   });
   const id = data<string | undefined>({ label: `${label}.id`, initial: undefined });
   const events = data<readonly unknown[]>({ label: `${label}.events`, initial: noEvents });
-  const resume = tag<string>({ label: `${label}.resume`, meta: config.meta });
+  const resume = tag<string>({ label: `${label}.resume` });
   const thread: Resource.Handle<Promise<Harness.Thread<T, R, C>>> = resource({
     label: `${label}.thread`,
     target: "session",
@@ -233,7 +232,6 @@ export function harness<O, T, R, C extends Harness.Calls>(config: {
       id: id.controller,
       events: events.controller,
     },
-    meta: config.meta,
     factory: async ({ backend, options, resume: resumed, text, items, usage, id, events }, ctx) => {
       const merged = adapter.merge(options);
       const hooks: Harness.Hooks = {
@@ -269,7 +267,6 @@ export function harness<O, T, R, C extends Harness.Calls>(config: {
           text: text.controller,
           ...toolDeps,
         },
-        meta: config.meta,
         run: (deps, ctx) => runTurn(frame, deps, readCalls(deps, entries, undefined), ctx),
       })
     : operation({
@@ -281,7 +278,6 @@ export function harness<O, T, R, C extends Harness.Calls>(config: {
           approve,
           ...toolDeps,
         },
-        meta: config.meta,
         run: (deps, ctx) => runTurn(frame, deps, readCalls(deps, entries, deps.approve), ctx),
       });
   return {

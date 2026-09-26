@@ -24,7 +24,7 @@ Declare the shared cells once; hand each end its rows. A row is the cell
 (or family) beside its key: `[counter, "counter"]`, `[todo, "todo"]`. The
 source owns the truth, the viewer mirrors what it registered, and the wire
 between them is yours: `memoryPair` in tests, SSE + POST or a WebSocket in
-the browser. Drivers read no meta (ADR 0051 §3).
+the browser. A driver reads rows, never unit meta: units have none (ADR 0051 §3).
 
 ## Shared
 

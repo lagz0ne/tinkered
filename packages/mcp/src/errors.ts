@@ -1,7 +1,6 @@
-/** Payload type for each mcp error. The registry is the only place this package throws. */
-type Payloads = {
-  ToolUndeclared: { label: string };
-};
+/** Payload type for each mcp error. The registry is the only place this package throws; it
+ * is empty today (a call's failure answers `isError`, it never throws). */
+type Payloads = Record<never, never>;
 
 export declare namespace Errors {
   /** Every mcp error name. */
