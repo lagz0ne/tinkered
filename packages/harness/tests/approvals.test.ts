@@ -33,43 +33,52 @@ type Seen = { decisions: PermissionResult[]; errors: unknown[] };
  * `control_response`, and keeps streaming; an aborted query stops with the SDK's abort error. */
 type Mode = "throw-through" | "real";
 
-/** A fake SDK module whose `query` asks `canUseTool` for `Bash ls` mid-stream (tool-use id
- * `tu-1`), then yields the tool use, the tool result only when allowed, and the result. */
-function fakeSdk(seen: Seen, mode: Mode = "real"): ClaudeCode.Sdk {
-  return { ...readToolSdk(), query: ({ options }) => readStream(options, seen, mode) };
+/** A fake SDK module whose `query` asks `canUseTool` for `Bash ls` mid-stream, once per tool-use
+ * id and all at once, as the CLI asks for parallel tool calls (default one ask, `tu-1`), then
+ * yields the tool use, the tool result only when every ask allowed, and the result. */
+function fakeSdk(seen: Seen, mode: Mode = "real", toolUseIDs = ["tu-1"]): ClaudeCode.Sdk {
+  return {
+    ...readToolSdk(),
+    query: ({ options }) => readStream(options, seen, mode, toolUseIDs),
+  };
 }
 
-/** The recorded turn as an SDK stream: init, the permission prompt, then the messages. */
+/** The recorded turn as an SDK stream: init, the permission prompts, then the messages. */
 async function* readStream(
   options: Options | undefined,
   seen: Seen,
   mode: Mode,
+  toolUseIDs: readonly string[],
 ): AsyncGenerator<SDKMessage> {
   yield readSystemInit();
-  const decision = await readDecision(options, seen, mode);
-  if (decision !== null) seen.decisions.push(decision);
-  if (mode === "real" && options?.abortController?.signal.aborted === true)
-    throw new Error("Claude Code process aborted by user");
+  const signal = options?.abortController?.signal ?? new AbortController().signal;
+  const decisions = await Promise.all(
+    toolUseIDs.map((toolUseID) => readDecision(options, signal, seen, mode, toolUseID)),
+  );
+  if (mode === "real" && signal.aborted) throw new Error("Claude Code process aborted by user");
   yield readToolUse();
-  if (decision?.behavior === "allow") yield readToolResult();
+  if (decisions.every((decision) => decision?.behavior === "allow")) yield readToolResult();
   yield readResult("Hello");
 }
 
-/** Ask the query's `canUseTool` for `Bash ls` the way the SDK would; null when none is bound, or
- * when a `real` fake caught its throw. */
+/** Ask the query's `canUseTool` for `Bash ls` the way the SDK would and keep its decision; null
+ * when none is bound, or when a `real` fake caught its throw. */
 async function readDecision(
   options: Options | undefined,
+  signal: AbortSignal,
   seen: Seen,
   mode: Mode,
+  toolUseID: string,
 ): Promise<PermissionResult | null> {
   const ask = options?.canUseTool;
   if (ask === undefined) return null;
-  const signal = options?.abortController?.signal ?? new AbortController().signal;
-  const asked = ask("Bash", { command: "ls" }, { signal, toolUseID: "tu-1", requestId: "r-1" });
-  if (mode === "throw-through") return asked;
+  const asked = ask("Bash", { command: "ls" }, { signal, toolUseID, requestId: `r-${toolUseID}` });
   try {
-    return await asked;
+    const decision = await asked;
+    if (decision !== null) seen.decisions.push(decision);
+    return decision;
   } catch (error) {
+    if (mode === "throw-through") throw error;
     seen.errors.push(error);
     return null;
   }
@@ -269,6 +278,63 @@ test("no tool runs after a failed approval: the SDK hears a deny", async () => {
   await expect(session.run(coder.send, { input: { prompt: "hello" } })).rejects.toThrow();
   expect(seen.decisions.map((decision) => decision.behavior)).toEqual(["deny"]);
   expect(session.resolve(coder.items).filter((item) => item.kind === "tool_result")).toEqual([]);
+  await scope.close();
+});
+
+test("an approval still running when another fails answers deny and lands no allow item", async () => {
+  const seen: Seen = { decisions: [], errors: [] };
+  const approve = operation({
+    label: "approve",
+    input: claudeCode.approval,
+    run: async (_deps, ctx): Promise<PermissionResult> => {
+      const { options } = ctx.input;
+      if (options.toolUseID === "tu-1") ctx.raise("PolicyDown", { tool: ctx.input.toolName });
+      await new Promise((resolve) => {
+        options.signal.addEventListener("abort", resolve, { once: true });
+      });
+      return { behavior: "allow" };
+    },
+  });
+  const coder = harness({ label: "coder", adapter: claudeCode, approve });
+  const scope = createScope({
+    presets: [preset(claudeCode.sdk, async () => fakeSdk(seen, "real", ["tu-1", "tu-2"]))],
+  });
+  const session = scope.createSession();
+  const outcome = await session.run(coder.send, { input: { prompt: "hello" } }).then(
+    () => "resolved",
+    (error: unknown) => error,
+  );
+  expect(outcome).toMatchObject({ kind: "PolicyDown" });
+  expect(seen.decisions.map((decision) => decision.behavior)).toEqual(["deny", "deny"]);
+  expect(session.resolve(coder.items).filter((item) => item.status === "allow")).toEqual([]);
+  await scope.close();
+});
+
+test("a forced close while the SDK waits on canUseTool settles the close cancelled", async () => {
+  const asked: string[] = [];
+  const coder = harness({ label: "coder", adapter: claudeCode });
+  const scope = createScope({
+    tags: [
+      claudeCode.options({
+        canUseTool: (toolName, _input, { signal }) => {
+          asked.push(toolName);
+          return new Promise((resolve) => {
+            const deny = (): void => resolve({ behavior: "deny", message: "closed" });
+            signal.addEventListener("abort", deny, { once: true });
+          });
+        },
+      }),
+    ],
+    presets: [preset(claudeCode.sdk, async () => fakeSdk({ decisions: [], errors: [] }))],
+  });
+  const session = scope.createSession();
+  const settled = session.run(coder.send, { input: { prompt: "hello" } }).then(
+    () => "resolved",
+    () => "rejected",
+  );
+  await expect.poll(() => asked).toEqual(["Bash"]);
+  expect((await session.close()).status).toBe("cancelled");
+  expect(await settled).toBe("rejected");
   await scope.close();
 });
 

@@ -161,7 +161,6 @@ type TurnStop = {
  * session id. The thread stops when its own aborter fires — wired to the session's signal
  * BEFORE the turn starts, since a defer runs after the turn settled — and forwards to the
  * running turn's aborter. */
-
 function startClaude(
   sdk: ClaudeCode.Sdk,
   options: Options,
@@ -220,7 +219,9 @@ function readTurnOptions(
 
 /** Run one `query` to its result: feed every message to `mapClaudeMessage` and resolve with the
  * result message. A failed approval wins over whatever the SDK does next: the next message, the
- * stream's end, or the SDK's own abort error all reject with the approval's own error. */
+ * stream's end, or the SDK's own abort error all reject with the approval's own error. Otherwise,
+ * once the session's signal fired, the SDK's own abort error rejects with the session's cancel
+ * reason, so a forced close still settles `cancelled`. */
 async function runQuery(
   sdk: ClaudeCode.Sdk,
   turn: ClaudeCode.Turn,
@@ -239,11 +240,19 @@ async function runQuery(
       }
     }
   } catch (error) {
-    if (stop.failure === undefined) throw error;
+    throw readThrown(error, stop, hooks);
   }
   if (stop.failure !== undefined) throw stop.failure.error;
   if (hooks.signal.aborted) throw hooks.signal.reason;
   raise("TurnEnded", { harness: "claudeCode" });
+}
+
+/** What a turn rejects with when its stream threw: a kept approval failure first, then the
+ * session's cancel reason once its signal fired, else the stream's own error. */
+function readThrown(error: unknown, stop: TurnStop, hooks: Harness.Hooks): unknown {
+  if (stop.failure !== undefined) return stop.failure.error;
+  if (hooks.signal.aborted) return hooks.signal.reason;
+  return error;
 }
 
 /** The in-process MCP server for a frame's tools, named after the frame: one SDK tool per
@@ -271,20 +280,25 @@ function readServer(
   });
 }
 
+/** The message of the `deny` the SDK hears once an approval of the turn failed. */
+const approvalFailed = "approval failed";
+
 /** Answer the SDK's permission prompt through the approval subflow: the request goes in as the
  * op's input, the op's decision goes back as the SDK's `PermissionResult`, and the decision lands
  * in `items` (`kind: "approval"`, `status` = the behavior, the SDK's tool-use id when it gives
  * one, `source` = request + result). A failed approve op does not throw at the SDK: the SDK
  * (0.3.275, `Query.handleControlRequest`) catches a throw, answers the CLI with an error, and the
  * turn goes on. So the failure is kept for the turn, the turn's aborter stops the `query`, and the
- * SDK hears a `deny`; the turn then rejects with that same error. `run`, not `settle`: a panic
- * still fails its layer (ADR 0067). */
+ * SDK hears a `deny`; the turn then rejects with that same error. Once a failure is kept, every
+ * other approval of the turn (asked in parallel, or still running) answers that same `deny` and
+ * lands no item. `run`, not `settle`: a panic still fails its layer (ADR 0067). */
 function readCanUseTool(
   approve: NonNullable<Harness.TurnCalls<ClaudeCode.Calls>["approve"]>,
   stop: TurnStop,
   hooks: Harness.Hooks,
 ): CanUseTool {
   return async (toolName, input, options) => {
+    if (stop.failure !== undefined) return { behavior: "deny", message: approvalFailed };
     const request: ClaudeCode.Approval = { toolName, input, options };
     let result: ClaudeCode.Decision;
     try {
@@ -292,8 +306,9 @@ function readCanUseTool(
     } catch (error) {
       stop.failure ??= { error };
       stop.aborter.abort();
-      return { behavior: "deny", message: "approval failed" };
+      return { behavior: "deny", message: approvalFailed };
     }
+    if (stop.failure !== undefined) return { behavior: "deny", message: approvalFailed };
     hooks.item({
       kind: "approval",
       id: options.toolUseID,
