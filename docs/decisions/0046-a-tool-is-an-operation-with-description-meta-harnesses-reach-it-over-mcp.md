@@ -3,7 +3,9 @@
 Date: 2026-09-18. Status: accepted. Refines: 0043 (harness; t04's in-process tools become the
 Claude fast path), 0042 (routing is scope config; the same rule will move CLI commands onto
 operation meta), 0040 (a server request is an inline operation — the MCP call is one too).
-Retires: the adapter-owned tool builder (`claudeCode.tool`, harness/t04).
+Retires: the adapter-owned tool builder (`claudeCode.tool`, harness/t04). Superseded in part by
+0051: the facts ride on an `expose(op, { description, schema })` row, not on meta; since
+drivers/t08a the harness takes the same rows (`harness({ tools: [row] })`).
 
 ## Context
 
