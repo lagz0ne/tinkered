@@ -39,8 +39,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
-- **core/slot-guard** — a deterministic `pnpm validate` lane: parse the built `packages/core/dist/index.mjs` (oxc-parser), count module-scope declarations in order, and fail when any top-level name declared before the release block (source line of `invalidateResource`, via the source map) sits above slot 255; print the count and the headroom (5 names today). Pure count, no timing. Owner: lead; writer agent `8a96a512` in `../tinkered-slot-guard` (brief `core-slot-guard.md`); lands first. Verify: the lane fails if one name is added before the block, passes on main.
-
 - **ext/start-order** — two servers of a kind fail with `NotResolved {"label":"mcp"}` when the serving extension is listed after the server: `start` runs in the extension onion, so a `start` can only read extensions listed after it. Owner: lead; writer agent `848a510d` in `../tinkered-start-order` (brief `ext-start-order.md`); lands after core/slot-guard. Next: a core README line saying so, and `mcp()` / `hono()` extension labels that carry the server's name. Verify: the error names the server; README line present.
 
 ## Review
@@ -77,6 +75,8 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 ## Done
 
+- **core/slot-guard** — opus high + fable review (no fix round); tag `core/slot-guard`. A deterministic `pnpm validate` lane, `scripts/check-slots.mjs`: it counts the context slots V8 gives core's built `dist/index.mjs` (from slot 3; imports, exports, and names used only at top level take none; file order) and fails when a name before the release block (anchor: the dist name the source map ties to `function invalidateResource`) sits past slot 255. Matches `--print-bytecode` slot for slot (272 names, 3–274). Headroom 5 names. It fails on 6 added names (slot 256) and on a renamed anchor.
+  - Gate EXIT 0; validate 44 PASS; promises 17; no mutation (comment-only core change).
 - **tests/busy-host-flake** — opus high + fable review (no fix round); tag `tests/busy-host-flake`. Under load only core's two "warm read … O(1) in chain depth" wall-clock tests failed (18 loaded runs); they move to `bench/warm-read.mjs`, a timing lane run through benchd (fastest of 15 rounds; it fails on a broken read cache: ~1900 ns vs ~250 ns limit). The unnamed validate failure was a cut-off name: `scripts/validate.mjs` now prints every `FAIL` line. Two tinkerer timeouts widen (100→1000 ms, 200→2000 ms); every other wall-clock check was read and kept with a reason.
   - Gate EXIT 0; load proof 5 of 5 EXIT 0 inside one queue job (3 spinners on its core); mutation core 86.34, tinkerer 96.01; promises 17; validate 43 PASS; warm-read lane exit 0.
 - **harness/approve-real-sdk** — opus high + fable review (one fix round); tag `harness/approve-real-sdk`. The real SDK (0.3.275) catches a throwing `canUseTool` and goes on, so the README promise "a throwing approve op rejects the turn" held only against the fake. Now a failed approval saves its error, aborts that turn's own controller (not the thread), answers the SDK `deny` (every later approval too), and the turn rejects with the approve error; a forced close still settles `cancelled`. The fake gained a `real` mode that copies the SDK's catch-and-continue.
