@@ -39,8 +39,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
-- **ext/start-order** — two servers of a kind fail with `NotResolved {"label":"mcp"}` when the serving extension is listed after the server: `start` runs in the extension onion, so a `start` can only read extensions listed after it. Owner: lead; writer agent `848a510d` in `../tinkered-start-order` (brief `ext-start-order.md`); lands after core/slot-guard. Next: a core README line saying so, and `mcp()` / `hono()` extension labels that carry the server's name. Verify: the error names the server; README line present.
-
 ## Review
 
 | Card | Owner | Next | Verify |
@@ -75,6 +73,8 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 ## Done
 
+- **ext/start-order** — opus high + fable review (one fix round); tag `ext/start-order`. A server started before the extension that reads it now fails with a label that names it: `mcp:<name>` (the wiring's MCP name) and `hono:<name>` (new optional `HonoScope.Wiring.name`; no name keeps `hono`). Core README: a `start` can read, after `await next()`, only extensions listed after it. mcp and hono READMEs show the working order. The new tests fail on main (`Expected "mcp:admin" Received "mcp"`).
+  - Gate EXIT 0; mcp 17 tests, hono 62 tests; mutation mcp 85.54, hono 88.03; validate 44 PASS; no Jev labels.
 - **core/slot-guard** — opus high + fable review (no fix round); tag `core/slot-guard`. A deterministic `pnpm validate` lane, `scripts/check-slots.mjs`: it counts the context slots V8 gives core's built `dist/index.mjs` (from slot 3; imports, exports, and names used only at top level take none; file order) and fails when a name before the release block (anchor: the dist name the source map ties to `function invalidateResource`) sits past slot 255. Matches `--print-bytecode` slot for slot (272 names, 3–274). Headroom 5 names. It fails on 6 added names (slot 256) and on a renamed anchor.
   - Gate EXIT 0; validate 44 PASS; promises 17; no mutation (comment-only core change).
 - **tests/busy-host-flake** — opus high + fable review (no fix round); tag `tests/busy-host-flake`. Under load only core's two "warm read … O(1) in chain depth" wall-clock tests failed (18 loaded runs); they move to `bench/warm-read.mjs`, a timing lane run through benchd (fastest of 15 rounds; it fails on a broken read cache: ~1900 ns vs ~250 ns limit). The unnamed validate failure was a cut-off name: `scripts/validate.mjs` now prints every `FAIL` line. Two tinkerer timeouts widen (100→1000 ms, 200→2000 ms); every other wall-clock check was read and kept with a reason.
