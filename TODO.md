@@ -32,11 +32,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **harness/approve-real-sdk** — the README (`packages/harness/README.md:204`) says a throwing approve op rejects the turn, and the fake-SDK test proves it; the real Claude SDK catches a throwing `canUseTool` and writes an error control response, so the turn goes on (same on main). Under t03 an approve panic fails the session instead. Next: decide the promise (settle the approve op and deny, or document the SDK behavior) and test against the real SDK's handling. Verify: README and a test agree with the real SDK.
 
-- **repo/lint-staged-no-stash** — the commit hook's lint-staged backs up through `git stash`, and every
-  worktree shares one stash list, so parallel writers' commits collide ("automatic backup is
-  missing"). Next: run lint-staged without its stash backup (it only formats staged files), or give
-  each worktree its own. Verify: two worktrees commit at once, 5 times, no collision.
-
 - **tests/busy-host-flake** — a core test fails when the host is busy (a mutation run beside the
   gate): landers saw `cache.bench.test.ts` at 41 ms vs a 13 ms limit, and one unnamed core failure in
   `pnpm validate`. Next: find the test(s), make timing tests measure relative cost or move them to
@@ -54,6 +49,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
+
+- **repo/lint-staged-no-stash** — the commit hook's lint-staged backs up through `git stash`, and every
+  worktree shares one stash list, so parallel writers' commits collide ("automatic backup is
+  missing"). Owner: lead; writer agent `25ee390b` in `../tinkered-lint-staged` (brief
+  `repo-lint-staged-no-stash.md`). Next: `vp staged --no-stash`, keep partly staged commits honest,
+  proofs in a throwaway clone; then the Fable review. Verify: two worktrees commit at once, 5 times, no collision.
 
 | Card                                                                                                                                                                                                                      | Owner                                                                           | Next                                                                                                                                                                                                                                                                                                                                      | Verify                                                                                                                                                                                                      |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
