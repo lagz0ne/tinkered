@@ -574,6 +574,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - `settle` reports a cancel reason from another scope as a failure.
 - A forced close's cancel reason reads as `AbortError` text.
 - A forced close's cancel reason is named `AbortError`.
+- A forced close's cancel reason inspects as `AbortError` text.
 - `settle` reports a foreign `AbortError` rejecting during a forced close as a failure.
 - `settle` returns a sync Result for an untagged sync operation.
 - `settle` returns a promise for a tagged sync operation.

@@ -2130,6 +2130,10 @@ class CancelReason {
   toString(): string {
     return `${this.name}: ${this.message}`;
   }
+
+  [Symbol.for("nodejs.util.inspect.custom")](): string {
+    return this.toString();
+  }
 }
 
 function isCancelReason(error: unknown): boolean {

@@ -1,3 +1,4 @@
+import { inspect } from "node:util";
 import { expect, expectTypeOf, test } from "vite-plus/test";
 import {
   createScope,
@@ -226,6 +227,12 @@ test("a forced close's cancel reason is named AbortError", async () => {
   const ended = await createScope().close();
   if (ended.status !== "cancelled") throw ended;
   expect(ended.reason).toHaveProperty("name", "AbortError");
+});
+
+test("a forced close's cancel reason inspects as AbortError text", async () => {
+  const ended = await createScope().close();
+  if (ended.status !== "cancelled") throw ended;
+  expect(inspect(ended.reason)).toBe("AbortError: The scope closed before this work finished.");
 });
 
 test("settle reports a foreign AbortError rejecting during a forced close as a failure", async () => {
