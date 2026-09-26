@@ -41,8 +41,8 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 - **drivers/t08** — remove `meta` from core units ([impact list](docs/roadmap/drivers-v1/PLAN.md),
   refreshed 2026-09-26: the harness is still the only reader). Two tickets, in order:
-  - t08a: harness takes `expose` rows like mcp; issue-tracker and examples move to rows. Writer
-    agent `ccdcee4e` in `../tinkered-t08a` (brief `drivers-t08a.md`).
+  - t08a: landed (tag `drivers/t08a`, harness mutation 85.29). The harness takes `expose` rows
+    like mcp; issue-tracker and examples moved to rows.
   - t08b: core, mcp, drizzle, and harness drop `meta`; ADR 0023 superseded; timing through benchd.
     Owner: lead. Verify: `grep -rn "\bmeta\b" packages/*/src apps examples` finds only row fields;
     every mutation lane ≥ 85.
@@ -80,6 +80,8 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 ## Done
 
+- **drivers/t08a** — opus high + fable review (no fix round); tag `drivers/t08a`. The harness takes `expose` rows, the same `Mcp.Row` mcp takes; nothing reads unit `meta` any more (mcp's `readTool` is left with its own tests only; t08b removes it). A bare op or a row without its facts is a type error (the runtime `ToolUndeclared` path is gone). issue-tracker shares `listTool` / `getTool` rows between its mcp server and its triage harness; examples/harness moved to rows.
+  - Gate EXIT 0; harness 72 tests, issue-tracker 51; harness mutation 85.29; validate 44 PASS; 2 Jev labels, calibration refreshed.
 - **ext/start-order** — opus high + fable review (one fix round); tag `ext/start-order`. A server started before the extension that reads it now fails with a label that names it: `mcp:<name>` (the wiring's MCP name) and `hono:<name>` (new optional `HonoScope.Wiring.name`; no name keeps `hono`). Core README: a `start` can read, after `await next()`, only extensions listed after it. mcp and hono READMEs show the working order. The new tests fail on main (`Expected "mcp:admin" Received "mcp"`).
   - Gate EXIT 0; mcp 17 tests, hono 62 tests; mutation mcp 85.54, hono 88.03; validate 44 PASS; no Jev labels.
 - **core/slot-guard** — opus high + fable review (no fix round); tag `core/slot-guard`. A deterministic `pnpm validate` lane, `scripts/check-slots.mjs`: it counts the context slots V8 gives core's built `dist/index.mjs` (from slot 3; imports, exports, and names used only at top level take none; file order) and fails when a name before the release block (anchor: the dist name the source map ties to `function invalidateResource`) sits past slot 255. Matches `--print-bytecode` slot for slot (272 names, 3–274). Headroom 5 names. It fails on 6 added names (slot 256) and on a renamed anchor.
