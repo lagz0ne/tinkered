@@ -148,6 +148,8 @@ content); a failure answers
 `{ isError: true, content: [text] }` — a parse failure answers `invalid input`.
 The call recovers through `settle` (ADR 0067): a panic or a raised error
 answers the same way, and the call's session closes `success`.
+A `respond` that throws answers `isError` with its text; the `mcp tool` line
+still says `ok: true` (the operation succeeded), and the `mcp search` span fails.
 A call cut short by a forced `scope.close()` answers `isError` with the
 cancel reason's text; the `mcp search` span fails with that reason.
 
