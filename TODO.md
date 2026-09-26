@@ -75,6 +75,15 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 ## Parked
 
+- **errors/errorMap** — an `errorMap` field on an operation that turns its panics into managed
+  errors in one place (user idea, 2026-09-26; parked by the user). Not needed now: 9 catch-then-raise
+  spots in 4 packages each wrap one call with details only that spot has, and drivers (hono,
+  process, mcp) already `settle` each op and turn a panic into a 500, exit 1, or a tool error —
+  Go's `recover` at the request edge. Resume when: two packages want every throw in an op
+  converted and neither `try/catch` + `ctx.raise` nor `settle` can do it. Next: the three open
+  questions (panics only? return `{ kind, payload }`? any depth?). Verify: both askers drop their
+  workaround.
+
 | Card                                                                                                                                      | Resume when                                                                  | Next                                                                                                                                                                                                                                                                                                 | Verify                                                                |
 | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | blueprint/devtool — a devtool extension that draws and edits a blueprint graph from the YAML (nodes, `depends` edges, `why` on each node) | blueprint/t05 landed and the YAML shape has held for two apps                | Decide the host (browser devtool vs a Paseo plugin); the file stays the truth, the tool only reads and writes it                                                                                                                                                                                     | A blueprint round-trips through the tool with no diff                 |
