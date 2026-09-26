@@ -30,11 +30,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   `.bench/ab.csv`, each gap taken from `benchctl ab`'s verdict, recorded in the
   [budget table](docs/roadmap/core-v1/budgets.md).
 
-- **tests/busy-host-flake** — a core test fails when the host is busy (a mutation run beside the
-  gate): landers saw `cache.bench.test.ts` at 41 ms vs a 13 ms limit, and one unnamed core failure in
-  `pnpm validate`. Next: find the test(s), make timing tests measure relative cost or move them to
-  the bench lane. Verify: the core lane passes 5 of 5 beside a mutation run.
-
 | Card                                                                                                                  | Owner         | Next                                                                                                                                                            | Verify                                        |
 | --------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout) | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean |
@@ -47,6 +42,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
+
+- **tests/busy-host-flake** — a core test fails when the host is busy (a mutation run beside the
+  gate): landers saw `cache.bench.test.ts` at 41 ms vs a 13 ms limit, and one unnamed core failure in
+  `pnpm validate`. Owner: lead; writer agent `a9e6783b` in `../tinkered-busy-flake` (brief
+  `tests-busy-host-flake.md`). Next: list every wall-clock assert, make each deterministic or move it
+  to a timing lane run through benchd; prove it under load inside one queue job. Verify: the core lane passes 5 of 5 beside a mutation run.
 
 | Card                                                                                                                                                                                                                      | Owner                                                                           | Next                                                                                                                                                                                                                                                                                                                                      | Verify                                                                                                                                                                                                      |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
