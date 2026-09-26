@@ -3,12 +3,15 @@ import { Hono } from "hono";
 import {
   createScope,
   data,
+  extension,
+  isError as isCoreError,
   makeTestClock,
   namespace,
   operation,
   resource,
   tag,
   type Observe,
+  type Scope,
 } from "@tinker/core";
 import { emit, hono, isError, request, route, stream } from "../src/index.ts";
 
@@ -366,6 +369,8 @@ test("resolving the extension before ready raises NotResolved", async () => {
   } catch (e) {
     const { isError: isCoreError } = await import("@tinker/core");
     if (!isCoreError(e, "NotResolved")) throw e;
+    // No `name` in the wiring: the label is the bare driver name.
+    expect(e.payload.label).toBe("hono");
   }
   await scope.ready;
   const app = scope.resolve(web);
@@ -416,6 +421,42 @@ test("one scope close stops both servers once; a second close stops neither agai
   await scope.close();
   // The second close finds both already reaped: neither stop runs again.
   expect(stops).toEqual([]);
+});
+
+test("a root extension listed after the server it reads fails ready with NotResolved naming that server; listed first, both start", async () => {
+  const pinged: string[] = [];
+  /** A root extension that reads its server in `start`: one warm-up request once `next()` settles it. */
+  const warm = (ext: Scope.Extension<Hono>, name: string): Scope.Extension<unknown> =>
+    extension({
+      label: `${name}.warm`,
+      start: async (scope, _ctx, next) => {
+        await next();
+        pinged.push(await (await scope.resolve(ext).request("/ping")).text());
+      },
+    });
+  const one = operation({ label: "one", run: () => "one" });
+  const two = operation({ label: "two", run: () => "two" });
+  const { extension: first } = hono([route.get("/ping", one)], { name: "one" });
+  const { extension: second } = hono([route.get("/ping", two)], { name: "two" });
+  // The first pair is in order; the second root sits after its server, so its
+  // `next()` cannot settle that server's `start` before the resolve.
+  const wrong = createScope({
+    extensions: [warm(first, "one"), first, second, warm(second, "two")],
+  });
+  const error = await wrong.ready.then(
+    () => undefined,
+    (reason: unknown) => reason,
+  );
+  if (!isCoreError(error, "NotResolved")) throw error;
+  expect(error.payload.label).toBe("hono:two");
+  await wrong.close();
+  pinged.length = 0;
+  const right = createScope({
+    extensions: [warm(first, "one"), first, warm(second, "two"), second],
+  });
+  await right.ready;
+  expect(pinged.sort()).toEqual(['"one"', '"two"']);
+  await right.close();
 });
 
 test("two servers share a scope resource: a write through one is seen by the other", async () => {

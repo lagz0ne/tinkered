@@ -129,10 +129,11 @@ export function readTool(op: Operation.Handle<unknown, unknown>): Mcp.Tool {
  * the one `McpServer` — one tool per wiring row, each call answered through the
  * row's operation. The value is the server. This `start` is the extension's ONE
  * use of the scope: per call it opens a session from the captured root handle.
- * Connecting a transport is the root's job. */
+ * Connecting a transport is the root's job. The label is `mcp:<name>`, so a
+ * `NotResolved` names which server was not ready. */
 export function mcp(wiring: Mcp.Wiring): Scope.Extension<McpServer> {
   return extension<McpServer>({
-    label: "mcp",
+    label: `mcp:${wiring.name}`,
     start: async (scope, _ctx, next) => {
       await next();
       const server = new McpServer({ name: wiring.name, version: wiring.version });

@@ -390,7 +390,7 @@ test("resolving the server before ready fails with NotResolved", async () => {
     expect.unreachable();
   } catch (error: unknown) {
     if (!isCoreError(error, "NotResolved")) throw error;
-    expect(error.payload.label).toBe("mcp");
+    expect(error.payload.label).toBe("mcp:coder");
   }
   await scope.close({ graceful: true });
 });

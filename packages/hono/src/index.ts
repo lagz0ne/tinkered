@@ -52,6 +52,9 @@ export declare namespace HonoScope {
   /** Wiring for {@link hono}: request-derived tag bindings, first-hand
    * errors, hand-mounted extras, and the process-edge bind. */
   export type Wiring = {
+    /** Name the server: the extension label becomes `hono:<name>`, so a
+     * `NotResolved` names which server was not ready. Absent: `hono`. */
+    readonly name?: string;
     readonly onError?: OnError;
     readonly tags?: (c: Context) => Tag.Bindings;
     /** Select the request's namespace; absent or undefined uses the default. */
@@ -104,7 +107,7 @@ export function hono(
 ): { readonly extension: Scope.Extension<Hono> } {
   return {
     extension: extension<Hono>({
-      label: "hono",
+      label: wiring?.name === undefined ? "hono" : `hono:${wiring.name}`,
       start: async (scope, ctx, next) => {
         await next();
         const mounted = await Promise.all(

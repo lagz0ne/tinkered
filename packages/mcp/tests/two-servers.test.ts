@@ -1,5 +1,12 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, extension, operation, resource, type Scope } from "@tinker/core";
+import {
+  createScope,
+  extension,
+  isError as isCoreError,
+  operation,
+  resource,
+  type Scope,
+} from "@tinker/core";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -149,6 +156,31 @@ test("one scope close closes both servers: each server's close runs once", async
   await scope.close({ graceful: true });
   // A second close runs neither server's close again.
   expect(closes.sort()).toEqual(["admin", "app"]);
+});
+
+test("a serving extension listed after its server fails ready with NotResolved naming that server; listed first, both start", async () => {
+  const closes: string[] = [];
+  const app = mcp({ name: "app", version: "1.0.0", tools: [] });
+  const admin = mcp({ name: "admin", version: "1.0.0", tools: [] });
+  // The app pair is in order; the admin root sits after its server, so its
+  // `next()` cannot settle that server's `start` before the resolve.
+  const wrong = createScope({
+    extensions: [serve(app, "app", closes), app, admin, serve(admin, "admin", closes)],
+  });
+  const error = await wrong.ready.then(
+    () => undefined,
+    (reason: unknown) => reason,
+  );
+  if (!isCoreError(error, "NotResolved")) throw error;
+  expect(error.payload.label).toBe("mcp:admin");
+  await wrong.close({ graceful: true });
+  const right = createScope({
+    extensions: [serve(app, "app", closes), app, serve(admin, "admin", closes), admin],
+  });
+  await right.ready;
+  expect(right.resolve(app).isConnected()).toBe(true);
+  expect(right.resolve(admin).isConnected()).toBe(true);
+  await right.close({ graceful: true });
 });
 
 test("a tool name declared on both extensions answers from the server that got the request", async () => {
