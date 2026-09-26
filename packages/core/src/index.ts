@@ -25,7 +25,7 @@ export type Edge<K extends string, Target> = {
 
 /** A list as authored (the `clsx` / ESLint flat-config shape): one item, nothing
  * (`null`/`undefined`/`false` — so `cond && item` reads as one), or a list of those to any depth.
- * Every list a config takes — `tags`, `meta`, `presets`, `extensions`, a driver's rows — is one,
+ * Every list a config takes — `tags`, `presets`, `extensions`, a driver's rows — is one,
  * read once and flat where it lands (see {@link readMany}), so optional and grouped items need no
  * spread: `tags: [request(raw), audit && trace(true), shared]`. Only `false`, never `0`/`""`: a
  * `count && x` slip stays a type error. */
@@ -64,8 +64,6 @@ export declare namespace Data {
     readonly initial: T;
     readonly parse: Parse<T> | undefined;
     eq(a: T, b: T): boolean;
-    /** Static metadata bindings, read off the handle (never affects resolution). */
-    readonly meta: readonly Tag.Binding<unknown>[];
     /** Depend on this cell in write mode: delivered as a controller. */
     readonly controller: Edge<"controller", Cell<T>>;
   };
@@ -80,12 +78,9 @@ export declare namespace Tag {
   /** One value bound to a tag, seeded on a scope. `Handle<any>` is the callable-variance escape hatch. */
   export type Binding<T> = { readonly tag: Handle<any>; readonly value: T };
 
-  /** Bindings as authored: a unit's `meta`, a scope's `tags`, a call's `tags` — a {@link Many}
+  /** Bindings as authored: a scope's `tags`, a session's `tags`, a call's `tags` — a {@link Many}
    * of bindings, read once and flat where it lands. */
   export type Bindings = Many<Binding<unknown>>;
-
-  /** Any unit carrying static metadata bindings (data/operation/resource/tag). */
-  export type Metaed = { readonly meta: readonly Binding<unknown>[] };
 
   /** Ambient metadata read through the scope chain. Callable to bind a value. */
   export type Handle<T> = {
@@ -95,13 +90,9 @@ export declare namespace Tag {
     readonly def: T | undefined;
     readonly parse: Data.Parse<T> | undefined;
     eq(a: T, b: T): boolean;
-    /** Static metadata bindings on the tag itself (a tag can be tagged). */
-    readonly meta: readonly Binding<unknown>[];
     readonly required: Edge<"required", Handle<T>>;
     readonly optional: Edge<"optional", Handle<T>>;
     readonly all: Edge<"all", Handle<T>>;
-    /** Read this tag's static value off a unit's `meta` (nearest binding, else default, else absent). */
-    read(unit: Metaed): Presence<T>;
     (value: T): Binding<T>;
   };
 }
@@ -253,8 +244,6 @@ export declare namespace Operation {
     readonly input: Data.Parse<I> | undefined;
     readonly depends: Scope.Depends;
     run(deps: Record<string, unknown>, ctx: Ctx<I>): T;
-    /** Static metadata bindings, read off the handle (never affects resolution). */
-    readonly meta: readonly Tag.Binding<unknown>[];
     /** Depend on this operation: delivered as a callable controller. */
     readonly controller: Edge<"controller", Handle<T, I>>;
   };
@@ -282,8 +271,6 @@ export declare namespace Resource {
     readonly target: "scope" | "namespace" | "session";
     readonly depends: Scope.Depends;
     factory(deps: Record<string, unknown>, ctx: Ctx): T;
-    /** Static metadata bindings, read off the handle (never affects resolution). */
-    readonly meta: readonly Tag.Binding<unknown>[];
   };
 }
 
@@ -757,16 +744,6 @@ export function readMany<T>(
   return out.length === 0 ? NO_ITEMS : out;
 }
 
-/** Read a tag's static value off a unit's `meta`: the nearest matching binding, else the tag's
- * default, else absent. Static (no scope chain) — this is definition-time metadata. */
-function metaFind<T>(unit: Tag.Metaed, target: Tag.Handle<T>): Tag.Presence<T> {
-  for (let i = unit.meta.length - 1; i >= 0; i--) {
-    const binding = unit.meta[i];
-    if (binding.tag === target) return { present: true, value: binding.value as T };
-  }
-  return target.hasDefault ? { present: true, value: target.def as T } : { present: false };
-}
-
 /** Declare a reactive value cell. `parse` validates the initial value once. */
 
 export function data<T>(config: {
@@ -774,7 +751,6 @@ export function data<T>(config: {
   initial: T;
   parse?: Data.Parse<T>;
   eq?: (a: T, b: T) => boolean;
-  meta?: Tag.Bindings;
 }): Data.Cell<T> {
   const label = config.label ?? "anon";
   const base = {
@@ -783,7 +759,6 @@ export function data<T>(config: {
     initial: admit(label, config.parse, config.initial),
     parse: config.parse,
     eq: config.eq ?? Object.is,
-    meta: readMany(config.meta),
   } as Data.Cell<T>;
   return Object.assign(base, { controller: edgeTo("controller", base) });
 }
@@ -794,7 +769,6 @@ export function tag<T>(config: {
   default?: T;
   parse?: Data.Parse<T>;
   eq?: (a: T, b: T) => boolean;
-  meta?: Tag.Bindings;
 }): Tag.Handle<T> {
   const parser = config.parse;
   const label = config.label;
@@ -809,8 +783,6 @@ export function tag<T>(config: {
     def: config.default,
     parse: parser,
     eq: config.eq ?? Object.is,
-    meta: readMany(config.meta),
-    read: (unit: Tag.Metaed): Tag.Presence<T> => metaFind(unit, handle),
   }) as Tag.Handle<T>;
   return Object.assign(handle, {
     required: edgeTo("required", handle),
@@ -856,7 +828,6 @@ export function operation<
   input?: Data.Parse<I>;
   depends?: D;
   run: (deps: Scope.SlotValues<D>, ctx: Operation.Ctx<I>) => R & Scope.AsyncBody<D>;
-  meta?: Tag.Bindings;
 }): Operation.Handle<R, I> {
   const base = {
     [operationSym]: true,
@@ -864,7 +835,6 @@ export function operation<
     input: config.input,
     depends: config.depends ?? {},
     run: config.run as Operation.Handle<R, I>["run"],
-    meta: readMany(config.meta),
   } as Operation.Handle<R, I>;
   return Object.assign(base, {
     controller: edgeTo("controller", base),
@@ -898,7 +868,6 @@ export function resource<
   target?: "scope" | "namespace" | "session";
   depends?: D;
   factory: (deps: Scope.SlotValues<D>, ctx: Resource.Ctx) => T & Scope.AsyncBody<D>;
-  meta?: Tag.Bindings;
 }): Resource.Handle<T> {
   const depends: Scope.Depends = config.depends ?? {};
   const mayHook =
@@ -913,7 +882,6 @@ export function resource<
     target: config.target ?? "scope",
     depends,
     factory: config.factory as Resource.Handle<T>["factory"],
-    meta: readMany(config.meta),
   } as Resource.Handle<T>;
 }
 

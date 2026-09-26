@@ -215,14 +215,14 @@ A custom binding builder names the value types it can return in `Tag.Binding<T>`
 with a narrower value type can be assigned to one with a wider union of value types.
 
 Every list a config takes is a `Many<T>`: one item, nothing (`null`, `undefined`, or `false`),
-or a list of those to any depth. That covers a unit's `meta`, a scope's or session's `tags`, a
+or a list of those to any depth. That covers a scope's or session's `tags`, a
 call's `tags`, `presets`, `extensions`, and every driver's rows (`routes`, `tools`, `commands`,
 `cells`). Core reads it once, flat, in authored order, so optional and grouped items need no
 spread:
 
 ```ts
 const shared = [group("net"), audit && trace(true)]; // only `false` is "nothing", never 0 or ""
-const port = data({ initial: 8080, meta: [ui("slider"), shared] });
+createScope({ tags: [region("eu"), shared] });
 scope.run(op, { tags: zone("us") }); // a single binding is a tagged call
 scope.createSession({ tags: [request(raw), wiring.tags?.(c)] }); // an absent group is skipped
 createScope({ extensions: [scope?.extensions, ext] }); // same for extensions and presets
@@ -398,7 +398,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A data preset replaces the cell for the whole scope; reads see it.
 - `isError` rejects a plain error with no kind.
 - `isError` rejects a real error of the wrong kind.
-- An empty nested meta list reads frozen.
+- An empty nested list reads frozen.
 - A data controller get reads the latest write.
 - A scope with empty tag bindings reads defaults.
 - An operation depending on a non-unit fails with `InvalidDependency`.
@@ -407,20 +407,13 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 
 - A tag edge reads the nearest binding, in an operation or through the seam, or its default; with
   neither it throws `MissingTag` naming the tag.
-- `tag.read` finds a data cell's own binding.
-- `tag.read` falls back to the tag's default when the unit has no binding.
-- `tag.read` skips another tag's binding and falls back to the default.
-- `tag.read` finds an operation's own binding.
-- `tag.read` finds a resource's own binding.
-- `tag.read` finds a tag's own binding.
 - Resolving a tag edge delivers its form: `all` lists nearest-first, `optional` reports presence,
   `required` reads or throws.
 - `optional` tells absent apart from an undefined default: the default reads present, the missing reads
   absent.
 - A tag binding runs through `parse`; a bad value throws `DataValidationFailed` naming the tag.
-- A unit carries static tag meta, readable off its handle.
-- Meta never affects resolution; no meta reads as empty.
-- The shared empty meta is frozen: pushing to one unit's meta cannot leak into others.
+- A unit takes no meta: the option is a type error and the handle has no field. Tags bind on a
+  scope, a session, or a call; a driver takes rows.
 
 ### Resources
 

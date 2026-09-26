@@ -1,16 +1,16 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, isError, operation, tag } from "../src/index.ts";
+import { createScope, data, isError, operation, readMany, tag } from "../src/index.ts";
 
 const asNumber = (v: unknown): number => {
   if (typeof v !== "number") throw new Error("not a number");
   return v;
 };
 
-test("an empty nested meta list reads frozen", () => {
-  const cell = data({ initial: 0, meta: [[], []] });
+test("an empty nested list reads frozen", () => {
+  const items = readMany<number>([[], []]);
   let threw = false;
   try {
-    (cell.meta as unknown[]).push("x");
+    (items as number[]).push(1);
   } catch {
     threw = true;
   }

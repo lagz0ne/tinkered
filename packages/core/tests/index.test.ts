@@ -2612,76 +2612,13 @@ test("a resource preset receives the resolved deps, delivered untyped (narrow at
   expect(scope.resolve(conn)).toBe(141);
 });
 
-test("tag.read finds a data cell's own binding", () => {
-  const ui = tag<string>({ label: "ui" });
-  const port = data({ initial: 8080, parse: asNumber, meta: [ui("slider")] });
-  expect(ui.read(port)).toEqual({ present: true, value: "slider" });
-});
-
-test("tag.read falls back to the tag's default when the unit has no binding", () => {
-  const group = tag<string>({ label: "group", default: "misc" });
-  const port = data({ initial: 8080, parse: asNumber });
-  expect(group.read(port)).toEqual({ present: true, value: "misc" });
-});
-
-test("tag.read skips another tag's binding and falls back to the default", () => {
-  const ui = tag<string>({ label: "ui" });
-  const group = tag<string>({ label: "group", default: "misc" });
-  const port = data({ initial: 8080, parse: asNumber, meta: [ui("slider")] });
-  expect(group.read(port)).toEqual({ present: true, value: "misc" });
-});
-
-test("tag.read finds an operation's own binding", () => {
-  const ui = tag<string>({ label: "ui" });
-  const op = operation({ label: "op", run: () => 1, meta: [ui("button")] });
-  expect(ui.read(op)).toEqual({ present: true, value: "button" });
-});
-
-test("tag.read finds a resource's own binding", () => {
-  const ui = tag<string>({ label: "ui" });
-  const res = resource({ label: "res", factory: () => 1, meta: [ui("panel")] });
-  expect(ui.read(res)).toEqual({ present: true, value: "panel" });
-});
-
-test("tag.read finds a tag's own binding", () => {
-  const ui = tag<string>({ label: "ui" });
-  const secret = tag<string>({ label: "secret", meta: [ui("password")] });
-  expect(ui.read(secret)).toEqual({ present: true, value: "password" });
-});
-
-test("tag.read misses a tag the unit never bound", () => {
-  const other = tag<string>({ label: "other" });
-  const port = data({ initial: 8080, parse: asNumber });
-  expect(other.read(port)).toEqual({ present: false });
-});
-
-test("meta is static and never affects resolution", () => {
-  const ui = tag<string>({ label: "ui" });
-  const count = data({ initial: 5, parse: asNumber, meta: [ui("slider")] });
-  const read = operation({ label: "read", depends: { count }, run: ({ count }) => count });
-  expect(createScope().controller(read).run()).toBe(5);
-});
-
-test("a bare unit's meta list is empty", () => {
-  expect(operation({ label: "bare", run: () => 0 }).meta).toEqual([]);
-});
-
-test("meta is authored as a binding, nothing, or a nested list, and reads flat in order", () => {
-  const ui = tag<string>({ label: "ui" });
-  const group = tag<string>({ label: "group" });
-  const flags = { audit: false };
-  const shared = [group("net"), null, flags.audit && ui("never")];
-  const port = data({ initial: 1, meta: [undefined, ui("slider"), [shared, [ui("dial")]]] });
-  expect(port.meta).toEqual([ui("slider"), group("net"), ui("dial")]);
-  expect(ui.read(port)).toEqual({ present: true, value: "dial" });
-});
-
-test("one binding is one entry; all-nothing reads as empty", () => {
-  const ui = tag<string>({ label: "ui" });
-  const single = operation({ label: "single", run: () => 1, meta: ui("button") });
-  const nothing = resource({ label: "nothing", factory: () => 1, meta: [null, [undefined, []]] });
-  expect(ui.read(single)).toEqual({ present: true, value: "button" });
-  expect(nothing.meta).toEqual([]);
+test("a unit takes no meta: the option is a type error and the handle has no field", () => {
+  const author = (): void => {
+    // @ts-expect-error — units have no meta (drivers/t08); a driver takes rows instead
+    operation({ label: "op", run: () => 1, meta: [] });
+  };
+  expectTypeOf(author).toBeFunction();
+  expectTypeOf<Operation.Handle<number, void>>().not.toHaveProperty("meta");
 });
 
 test("scope and session tags take the same authored shape: a binding, nothing, or a nested list", () => {
@@ -2722,18 +2659,6 @@ test("presets and extensions take the same authored shape: nested lists and fals
   expect(scope.resolve(count)).toBe(5);
   expect(seen).toEqual(["a", "b"]);
   await scope.close();
-});
-
-test("a write through the public seam does not leak into another unit's meta", () => {
-  const ui = tag<string>({ label: "ui" });
-  const leaked = data({ initial: "clean", meta: [ui("owned")] });
-  const other = resource({ label: "b", factory: () => 0 });
-  const scope = createScope();
-  scope.controller(leaked).set("changed");
-  expect(scope.controller(leaked).get()).toBe("changed");
-  expect(ui.read(leaked)).toEqual({ present: true, value: "owned" });
-  expect(ui.read(other)).toEqual({ present: false });
-  void scope.close();
 });
 
 test("close runs defers in reverse registration order (LIFO)", async () => {
