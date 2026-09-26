@@ -85,6 +85,7 @@ card at a time.
 
 ## Done
 
+- **writers/dev-server** — `npm run dev` and any `vite.config.ts` failed in trials: Vite writes `node_modules/.vite*`, and `node_modules` is read-only. Image `tinker-writer-trial:20260925.1` (same core/react builds, vite 8.3.1) links both to `/tmp`; recipe in `prepare.mjs`; readiness check "vite cache folders writable" (fails on 20260925, passes on .1; 9/9 on a fresh trial). The host had deleted every unused trial image; a keeper container and a saved copy now hold it. All canaries re-pinned and green.
 - **errors/t03** — opus high + fable review (one fix round); tag `errors/t03`. A panic is sticky: it fails the layer it ran in even if caught; `settle` is the only recover; a run's managed error never fails a layer (a resource build's still does). Closes the interim gap for panics. The ADR 0067 rollout is complete.
   - Gate EXIT 0; core 633 tests, sync 45, hono 61; mutation core 86.40, sync 87.46, hono 87.34; promises 17; validate 43 PASS.
   - Timing N=61 vs `origin/main`: op +0.2% (31/61 slower), opres +0.1% (35), run +0.5% (33), inline −0.8% (23), session +2.3% (44), tagged +1.0% (35), lifecycle +1.2% (38), asyncsub −2.8% (14). None over both bars.

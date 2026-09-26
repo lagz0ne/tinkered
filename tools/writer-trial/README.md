@@ -80,10 +80,26 @@ It uses a command to read the existing token file at request time.
 No token value is saved in this repo or the worker setup.
 
 The image installs tools beneath `/home/pwuser/toolchain`.
+Its `node_modules` is read-only, so Vite's cache folders
+(`node_modules/.vite`, `.vite-temp`) link to `/tmp`.
+A writer can run `npm run dev` or add a `vite.config.ts`.
 The host keeps setup and results beneath
 `~/.local/share/tinker-writer-trial/`.
 Each trial manifest records its exact image ID and source commit.
 Keep the same image for all rounds and writers.
+The host deletes images no container uses, so one idle
+container keeps the trial image:
+
+```bash
+docker run -d --name tinker-writer-trial-keep \
+  --restart unless-stopped --network none \
+  --read-only --memory 64m \
+  tinker-writer-trial:20260925.1
+```
+
+A copy sits in
+`~/.local/share/tinker-writer-trial/image-20260925.1/`
+(`image.tar.gz`); `docker load` restores the same ID.
 Do not rebuild halfway through a comparison.
 
 Creation adds four Paseo projects and workspaces.
@@ -217,7 +233,8 @@ node --test tools/writer-trial/limits-check.mjs
 ```
 
 - `readiness.mjs` checks all four containers, real browser clicks,
-  package imports, tool versions, timeout, network isolation,
+  package imports, tool versions, writable Vite cache folders,
+  timeout, network isolation,
   missing host files, absent keys, and the Jev path boundary.
 - `limits-check.mjs` proves tool blocking and stops for time and usage.
 

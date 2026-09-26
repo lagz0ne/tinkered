@@ -38,6 +38,11 @@ for (const w of manifest.workers) {
       "compiler and test runner",
       "./node_modules/.bin/tsc --version && ./node_modules/.bin/vitest --version && ./node_modules/.bin/vite --version && echo PASS",
     ],
+    [
+      // `vite` dev and a vite.config.ts write here; node_modules itself is read-only.
+      "vite cache folders writable",
+      "for d in node_modules/.vite node_modules/.vite-temp; do mkdir -p $d/ready-$$ && rmdir $d/ready-$$ || exit 1; done && echo PASS",
+    ],
   ];
   for (const [name, command] of checks) {
     const result = await broker.shell(command, undefined, 30);

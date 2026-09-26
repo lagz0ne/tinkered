@@ -62,6 +62,8 @@ COPY --chown=pwuser:pwuser . /home/pwuser/toolchain/
 USER pwuser
 WORKDIR /home/pwuser/toolchain
 RUN npm install --ignore-scripts --no-audit --no-fund
+# node_modules is read-only in a trial; Vite's cache folders go to the writable /tmp.
+RUN ln -s /tmp node_modules/.vite && ln -s /tmp node_modules/.vite-temp
 ENV PATH="/home/pwuser/toolchain/node_modules/.bin:$PATH"
 WORKDIR /work
 RUN mkdir src tests docs && ln -s /home/pwuser/toolchain/node_modules node_modules
