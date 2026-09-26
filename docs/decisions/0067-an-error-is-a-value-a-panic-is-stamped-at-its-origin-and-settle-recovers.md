@@ -59,6 +59,10 @@ with a `Cause` that is a `Fail` or a `Die`).
 - errors/t03: a failed build still fails its layer, whatever the error's kind (unchanged).
 - errors/t03: a tagged run's panic fails its own session. A tagged subflow's panic also fails its
   caller's layer; a root tagged run has no caller run, so its parent stays fine.
+- `ctx.raise` stays untyped (user, 2026-09-26): any string kind, any object payload. JavaScript
+  lets any code throw anything, so a typed kind list would promise what it cannot hold. Core's
+  job is the call site: `ctx.raise` stamps the origin where it runs. A package may keep its own
+  typed helper around it (http's `raiseFrom`).
 
 ## Consequences
 

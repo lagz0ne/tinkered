@@ -42,8 +42,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
   `pnpm validate`. Next: find the test(s), make timing tests measure relative cost or move them to
   the bench lane. Verify: the core lane passes 5 of 5 beside a mutation run.
 
-- **errors/raise-types** — `ctx.raise(kind, payload)` accepts any string kind and payload, so http (`raiseFrom`) and tinkerer (`satisfies Errors.Payload<…>`) each wrote a typed wrapper (two askers). Next: the user picks the shape: a kind map each package extends (as `addEventListener` types known event names), or a typed raiser core builds per package. Verify: `ctx.raise("RequestFailed", { reason: "Typo" })` fails to compile in http; the two wrappers are gone.
-
 | Card                                                                                                                  | Owner         | Next                                                                                                                                                            | Verify                                        |
 | --------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout) | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean |
