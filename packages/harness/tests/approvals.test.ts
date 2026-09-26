@@ -1,5 +1,12 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, isError as isCoreError, operation, preset, tag } from "@tinker/core";
+import {
+  createScope,
+  isError as isCoreError,
+  operation,
+  originOf,
+  preset,
+  tag,
+} from "@tinker/core";
 import type {
   Options,
   PermissionResult,
@@ -16,31 +23,56 @@ import {
   readToolSdk,
 } from "./fixtures.ts";
 
-/** What one fake turn saw: the decision the SDK's `canUseTool` got back, if it was asked. */
-type Seen = { decisions: PermissionResult[] };
+/** What one fake turn saw: the decisions the SDK's `canUseTool` got back, and the errors a
+ * `real` fake caught from it. */
+type Seen = { decisions: PermissionResult[]; errors: unknown[] };
+
+/** How the fake treats a throwing `canUseTool` and an abort. `throw-through` lets the throw out of
+ * the stream and ignores the abort. `real` does what `@anthropic-ai/claude-agent-sdk` 0.3.275 does
+ * (`sdk.mjs`, `Query.handleControlRequest`): it catches the throw, answers the CLI with an error
+ * `control_response`, and keeps streaming; an aborted query stops with the SDK's abort error. */
+type Mode = "throw-through" | "real";
 
 /** A fake SDK module whose `query` asks `canUseTool` for `Bash ls` mid-stream (tool-use id
  * `tu-1`), then yields the tool use, the tool result only when allowed, and the result. */
-function fakeSdk(seen: Seen): ClaudeCode.Sdk {
-  return { ...readToolSdk(), query: ({ options }) => readStream(options, seen) };
+function fakeSdk(seen: Seen, mode: Mode = "real"): ClaudeCode.Sdk {
+  return { ...readToolSdk(), query: ({ options }) => readStream(options, seen, mode) };
 }
 
 /** The recorded turn as an SDK stream: init, the permission prompt, then the messages. */
-async function* readStream(options: Options | undefined, seen: Seen): AsyncGenerator<SDKMessage> {
+async function* readStream(
+  options: Options | undefined,
+  seen: Seen,
+  mode: Mode,
+): AsyncGenerator<SDKMessage> {
   yield readSystemInit();
-  const decision = await readDecision(options);
+  const decision = await readDecision(options, seen, mode);
   if (decision !== null) seen.decisions.push(decision);
+  if (mode === "real" && options?.abortController?.signal.aborted === true)
+    throw new Error("Claude Code process aborted by user");
   yield readToolUse();
   if (decision?.behavior === "allow") yield readToolResult();
   yield readResult("Hello");
 }
 
-/** Ask the query's `canUseTool` for `Bash ls` the way the SDK would; null when none is bound. */
-async function readDecision(options: Options | undefined): Promise<PermissionResult | null> {
+/** Ask the query's `canUseTool` for `Bash ls` the way the SDK would; null when none is bound, or
+ * when a `real` fake caught its throw. */
+async function readDecision(
+  options: Options | undefined,
+  seen: Seen,
+  mode: Mode,
+): Promise<PermissionResult | null> {
   const ask = options?.canUseTool;
   if (ask === undefined) return null;
   const signal = options?.abortController?.signal ?? new AbortController().signal;
-  return ask("Bash", { command: "ls" }, { signal, toolUseID: "tu-1", requestId: "r-1" });
+  const asked = ask("Bash", { command: "ls" }, { signal, toolUseID: "tu-1", requestId: "r-1" });
+  if (mode === "throw-through") return asked;
+  try {
+    return await asked;
+  } catch (error) {
+    seen.errors.push(error);
+    return null;
+  }
 }
 
 const policy = tag<"allow" | "deny">({ label: "policy", default: "allow" });
@@ -91,7 +123,7 @@ test("a raw approval rejects a missing input", () => {
 });
 
 test("an approve op that allows answers canUseTool as a subflow of the turn and lands in items", async () => {
-  const seen: Seen = { decisions: [] };
+  const seen: Seen = { decisions: [], errors: [] };
   const approve = operation({
     label: "approve",
     input: claudeCode.approval,
@@ -127,7 +159,7 @@ test("an approve op that allows answers canUseTool as a subflow of the turn and 
 });
 
 test("an approve op that denies stops the tool: no tool result, the deny lands in items", async () => {
-  const seen: Seen = { decisions: [] };
+  const seen: Seen = { decisions: [], errors: [] };
   const requests: ClaudeCode.Approval[] = [];
   const approve = operation({
     label: "approve",
@@ -159,7 +191,7 @@ test("an approve op that denies stops the tool: no tool result, the deny lands i
 });
 
 test("the approve op sees the session's own bindings: one session allows, another denies", async () => {
-  const seen: Seen = { decisions: [] };
+  const seen: Seen = { decisions: [], errors: [] };
   const approve = operation({
     label: "approve",
     input: claudeCode.approval,
@@ -184,39 +216,101 @@ test("the approve op sees the session's own bindings: one session allows, anothe
   await scope.close();
 });
 
-test("a failed approval rejects the turn, and the error is not a TurnFailed", async () => {
-  const seen: Seen = { decisions: [] };
-  const boom = new Error("policy down");
+const modes: Mode[] = ["throw-through", "real"];
+
+test.each(modes)(
+  "a failed approval rejects the turn, and the error is not a TurnFailed: %s SDK",
+  async (mode) => {
+    const seen: Seen = { decisions: [], errors: [] };
+    const boom = new Error("policy down");
+    const approve = operation({
+      label: "approve",
+      input: claudeCode.approval,
+      run: (): PermissionResult => {
+        throw boom;
+      },
+    });
+    const coder = harness({ label: "coder", adapter: claudeCode, approve });
+    const ask = operation({
+      label: "coder.ask",
+      input: parsePrompt,
+      depends: { send: coder.send },
+      run: async ({ send }, ctx) => {
+        const result = await send.run({ input: { prompt: ctx.input } });
+        return result;
+      },
+    });
+    const scope = createScope({
+      presets: [preset(claudeCode.sdk, async () => fakeSdk(seen, mode))],
+    });
+    const session = scope.createSession();
+    const outcome = await session.run(ask, { input: "hello" }).then(
+      () => "resolved",
+      (error: unknown) => error,
+    );
+    expect(outcome).toBe(boom);
+    if (isError(outcome, "TurnFailed")) throw new Error("an approval throw reads as TurnFailed");
+    await scope.close();
+  },
+);
+
+test("no tool runs after a failed approval: the SDK hears a deny", async () => {
+  const seen: Seen = { decisions: [], errors: [] };
   const approve = operation({
     label: "approve",
     input: claudeCode.approval,
     run: (): PermissionResult => {
-      throw boom;
+      throw new Error("policy down");
     },
   });
   const coder = harness({ label: "coder", adapter: claudeCode, approve });
-  const ask = operation({
-    label: "coder.ask",
-    input: parsePrompt,
-    depends: { send: coder.send },
-    run: async ({ send }, ctx) => {
-      const result = await send.run({ input: { prompt: ctx.input } });
-      return result;
-    },
-  });
   const scope = createScope({ presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))] });
   const session = scope.createSession();
-  const outcome = await session.run(ask, { input: "hello" }).then(
-    () => "resolved",
-    (error: unknown) => error,
-  );
-  expect(outcome).toBe(boom);
-  if (isError(outcome, "TurnFailed")) throw new Error("an approval throw reads as TurnFailed");
+  await expect(session.run(coder.send, { input: { prompt: "hello" } })).rejects.toThrow();
+  expect(seen.decisions.map((decision) => decision.behavior)).toEqual(["deny"]);
+  expect(session.resolve(coder.items).filter((item) => item.kind === "tool_result")).toEqual([]);
   await scope.close();
 });
 
+const panics = operation({
+  label: "approve",
+  input: claudeCode.approval,
+  run: (): PermissionResult => {
+    throw new Error("policy down");
+  },
+});
+
+const raises = operation({
+  label: "approve",
+  input: claudeCode.approval,
+  run: (_deps, ctx): PermissionResult => ctx.raise("PolicyDown", { tool: ctx.input.toolName }),
+});
+
+const failures = [
+  { failure: "a managed error", approve: raises, close: "success" },
+  { failure: "a panic", approve: panics, close: "failed" },
+];
+
+test.each(failures)(
+  "an approval that fails with $failure rejects the turn with it; the session closes $close",
+  async ({ approve, close }) => {
+    const coder = harness({ label: "coder", adapter: claudeCode, approve });
+    const scope = createScope({
+      presets: [preset(claudeCode.sdk, async () => fakeSdk({ decisions: [], errors: [] }))],
+    });
+    const session = scope.createSession();
+    const outcome = await session.run(coder.send, { input: { prompt: "hello" } }).then(
+      () => "resolved",
+      (error: unknown) => error,
+    );
+    expect(originOf(outcome)).toMatchObject({ label: "approve" });
+    expect((await session.close({ graceful: true })).status).toBe(close);
+    await scope.close();
+  },
+);
+
 test("the approval item keeps the request and the decision as its source", async () => {
-  const seen: Seen = { decisions: [] };
+  const seen: Seen = { decisions: [], errors: [] };
   const approve = operation({
     label: "approve",
     input: claudeCode.approval,
@@ -272,7 +366,7 @@ test("without an approve op a canUseTool bound in options still answers", async 
         },
       }),
     ],
-    presets: [preset(claudeCode.sdk, async () => fakeSdk({ decisions: [] }))],
+    presets: [preset(claudeCode.sdk, async () => fakeSdk({ decisions: [], errors: [] }))],
   });
   const session = scope.createSession();
   await session.run(ask, { input: "hello" });
@@ -308,7 +402,7 @@ test("an approve op overrides a canUseTool bound in options", async () => {
         },
       }),
     ],
-    presets: [preset(claudeCode.sdk, async () => fakeSdk({ decisions: [] }))],
+    presets: [preset(claudeCode.sdk, async () => fakeSdk({ decisions: [], errors: [] }))],
   });
   const session = scope.createSession();
   await session.run(ask, { input: "hello" });

@@ -203,6 +203,9 @@ request (`ClaudeCode.Approval`: `toolName`, `input`, the SDK's options), its res
 `PermissionResult`. Each decision lands in `items` as `{ kind: "approval", status: "allow" | "deny" }`,
 keeping the SDK request and the decision as its `source`. A throwing approve op rejects the turn
 with that same error, not wrapped as `TurnFailed`.
+The real SDK catches a throwing `canUseTool` and goes on, so the adapter stops the turn itself: the SDK hears a `deny`.
+No tool runs after a failed approval.
+An approval that fails with a managed error leaves the session `success` once the caller handles the rejection; a panic fails the session.
 An `approve` op overrides a `canUseTool` bound in `claudeCode.options`; without one, a bound
 `canUseTool` still applies. Codex has no approval callback (only `approvalPolicy`), so `approve` is a
 compile error for the `codex` adapter.

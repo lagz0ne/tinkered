@@ -143,14 +143,24 @@ export const claudeCode: ClaudeCode.Adapter = {
   approval,
 };
 
-/** Start a Claude thread on merged options and hooks: each `run({ prompt })` opens one `query`,
- * feeds every message to `mapClaudeMessage`, and resolves with the result message; later runs
- * resume the last session id. The thread stops when its own aborter fires — wired to the
- * session's signal BEFORE the turn starts, since a defer runs after the turn settled. */
 /** What one thread remembers between turns: the last session id (resumed by the next `query`)
  * and its in-process tool server, built on the first turn that carries tools and reused after
  * (the tools do not change between turns). */
 type ThreadState = { lastId: string | undefined; server: McpServerConfig | undefined };
+
+/** What stops one turn: the `query`'s own aborter, a child of the thread's (so a failed approval
+ * stops this turn's process and the thread still runs the next turn), and the approval failure
+ * that stopped it, kept as a box because a panic may be any value, `undefined` too. */
+type TurnStop = {
+  readonly aborter: AbortController;
+  failure: { readonly error: unknown } | undefined;
+};
+
+/** Start a Claude thread on merged options and hooks: each `run({ prompt })` opens one `query`
+ * under its own turn aborter and resolves with the result message; later runs resume the last
+ * session id. The thread stops when its own aborter fires — wired to the session's signal
+ * BEFORE the turn starts, since a defer runs after the turn settled — and forwards to the
+ * running turn's aborter. */
 
 function startClaude(
   sdk: ClaudeCode.Sdk,
@@ -166,16 +176,16 @@ function startClaude(
   const state: ThreadState = { lastId: undefined, server: undefined };
   return {
     run: async (turn, calls) => {
-      const opened = readTurnOptions(sdk, options, state, aborter, calls, hooks);
-      for await (const message of sdk.query({ prompt: turn.prompt, options: opened })) {
-        const result = mapClaudeMessage(message, hooks);
-        if (result !== undefined) {
-          state.lastId = result.session_id;
-          return result;
-        }
+      const stop: TurnStop = { aborter: new AbortController(), failure: undefined };
+      const forward = (): void => stop.aborter.abort(aborter.signal.reason);
+      if (aborter.signal.aborted) forward();
+      else aborter.signal.addEventListener("abort", forward, { once: true });
+      try {
+        const opened = readTurnOptions(sdk, options, state, stop, calls, hooks);
+        return await runQuery(sdk, turn, opened, stop, state, hooks);
+      } finally {
+        aborter.signal.removeEventListener("abort", forward);
       }
-      if (hooks.signal.aborted) throw hooks.signal.reason;
-      raise("TurnEnded", { harness: "claudeCode" });
     },
     close: () => {
       aborter.abort();
@@ -184,7 +194,7 @@ function startClaude(
 }
 
 /** The options one `query` opens with: the merged options, the last session id to resume, the
- * thread's aborter; when the frame was built with an `approve` op, a `canUseTool` that answers
+ * turn's aborter; when the frame was built with an `approve` op, a `canUseTool` that answers
  * through it (overriding a `canUseTool` bound in `claudeCode.options`; without an `approve` op
  * a bound one still applies); when it was built with tools, the thread's in-process server
  * under the frame's label beside any `mcpServers` bound in the options. */
@@ -192,20 +202,48 @@ function readTurnOptions(
   sdk: ClaudeCode.Sdk,
   options: Options,
   state: ThreadState,
-  aborter: AbortController,
+  stop: TurnStop,
   calls: Harness.TurnCalls<ClaudeCode.Calls>,
   hooks: Harness.Hooks,
 ): Options {
   const opened: Options =
     state.lastId === undefined
-      ? { ...options, abortController: aborter }
-      : { ...options, resume: state.lastId, abortController: aborter };
-  if (calls.approve !== undefined) opened.canUseTool = readCanUseTool(calls.approve, hooks);
+      ? { ...options, abortController: stop.aborter }
+      : { ...options, resume: state.lastId, abortController: stop.aborter };
+  if (calls.approve !== undefined) opened.canUseTool = readCanUseTool(calls.approve, stop, hooks);
   if (calls.tools !== undefined) {
     state.server ??= readServer(sdk, hooks.label, calls.tools);
     opened.mcpServers = { ...options.mcpServers, [hooks.label]: state.server };
   }
   return opened;
+}
+
+/** Run one `query` to its result: feed every message to `mapClaudeMessage` and resolve with the
+ * result message. A failed approval wins over whatever the SDK does next: the next message, the
+ * stream's end, or the SDK's own abort error all reject with the approval's own error. */
+async function runQuery(
+  sdk: ClaudeCode.Sdk,
+  turn: ClaudeCode.Turn,
+  opened: Options,
+  stop: TurnStop,
+  state: ThreadState,
+  hooks: Harness.Hooks,
+): Promise<ClaudeCode.Result> {
+  try {
+    for await (const message of sdk.query({ prompt: turn.prompt, options: opened })) {
+      if (stop.failure !== undefined) break;
+      const result = mapClaudeMessage(message, hooks);
+      if (result !== undefined) {
+        state.lastId = result.session_id;
+        return result;
+      }
+    }
+  } catch (error) {
+    if (stop.failure === undefined) throw error;
+  }
+  if (stop.failure !== undefined) throw stop.failure.error;
+  if (hooks.signal.aborted) throw hooks.signal.reason;
+  raise("TurnEnded", { harness: "claudeCode" });
 }
 
 /** The in-process MCP server for a frame's tools, named after the frame: one SDK tool per
@@ -236,14 +274,26 @@ function readServer(
 /** Answer the SDK's permission prompt through the approval subflow: the request goes in as the
  * op's input, the op's decision goes back as the SDK's `PermissionResult`, and the decision lands
  * in `items` (`kind: "approval"`, `status` = the behavior, the SDK's tool-use id when it gives
- * one, `source` = request + result). */
+ * one, `source` = request + result). A failed approve op does not throw at the SDK: the SDK
+ * (0.3.275, `Query.handleControlRequest`) catches a throw, answers the CLI with an error, and the
+ * turn goes on. So the failure is kept for the turn, the turn's aborter stops the `query`, and the
+ * SDK hears a `deny`; the turn then rejects with that same error. `run`, not `settle`: a panic
+ * still fails its layer (ADR 0067). */
 function readCanUseTool(
   approve: NonNullable<Harness.TurnCalls<ClaudeCode.Calls>["approve"]>,
+  stop: TurnStop,
   hooks: Harness.Hooks,
 ): CanUseTool {
   return async (toolName, input, options) => {
     const request: ClaudeCode.Approval = { toolName, input, options };
-    const result = await approve.run({ input: request });
+    let result: ClaudeCode.Decision;
+    try {
+      result = await approve.run({ input: request });
+    } catch (error) {
+      stop.failure ??= { error };
+      stop.aborter.abort();
+      return { behavior: "deny", message: "approval failed" };
+    }
     hooks.item({
       kind: "approval",
       id: options.toolUseID,
