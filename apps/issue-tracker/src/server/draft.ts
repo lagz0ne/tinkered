@@ -4,7 +4,7 @@ import { claudeCode, harness, type ClaudeCode } from "@tinker/harness";
 import { fail, raise } from "../errors.ts";
 import { describeError } from "./observe.ts";
 import { parseDraftInput, type Draft } from "../shared/draft.ts";
-import { getRemote, listRemote } from "../tools/issues.ts";
+import { getTool, listTool } from "../tools/issues.ts";
 import { readDetail } from "./operations.ts";
 
 /** Draft helper config: off unless the root binds it on. Read by
@@ -31,7 +31,7 @@ export const triage = harness({
   label: "triage",
   adapter: claudeCode,
   approve: denyUnexpected,
-  tools: [listRemote, getRemote],
+  tools: [listTool, getTool],
 });
 
 export const draftGuardrails = claudeCode.options({

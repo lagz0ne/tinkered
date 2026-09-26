@@ -2,7 +2,7 @@ import { operation } from "@tinker/core";
 import type { Scope } from "@tinker/core";
 import { argv, io, jsonLine, type Process } from "@tinker/process";
 import { isError as isHttpError } from "@tinker/http";
-import { expose, mcp, tool, type Mcp } from "@tinker/mcp";
+import { expose, mcp, type Mcp } from "@tinker/mcp";
 import { z } from "zod";
 import { getDetail, getIssues, patchIssue, postComment, postIssue } from "../client/api.ts";
 import { fail } from "../errors.ts";
@@ -90,12 +90,9 @@ function readRemoteError(error: unknown, fallbackId: string): unknown {
   return error;
 }
 
-/** List the saved issues through the running server. The `tool` meta stays until
- * the harness ticket: the harness reads it off this op, while MCP reads the
- * `issueTools` rows and the CLI reads the `issueCommands` rows below. */
+/** List the saved issues through the running server. */
 export const listRemote = operation({
   label: "list",
-  meta: [tool({ description: "list the saved issues", schema: {} })],
   depends: { issues: getIssues },
   run: async ({ issues }) => {
     try {
@@ -148,15 +145,10 @@ export const commentRemote = operation({
   },
 });
 
-/** Show one saved issue with its comments, activity, and revision. The `tool` meta
- * stays until the harness ticket: the harness reads it off this op, while MCP
- * reads the `issueTools` rows and the CLI reads the `issueCommands` rows below. */
+/** Show one saved issue with its comments, activity, and revision. */
 export const getRemote = operation({
   label: "get",
   input: parseGetInput,
-  meta: [
-    tool({ description: "show one saved issue with comments and activity", schema: getShape }),
-  ],
   depends: { detail: getDetail },
   run: async ({ detail }, ctx) => {
     try {
@@ -252,11 +244,22 @@ export function issueCommands(options: Scope.Options = {}): readonly Process.Rou
   ];
 }
 
-/** The MCP wiring rows for the same issue actions: the operation plus its tool
- * facts, handed to `mcp({ tools })`. The MCP driver reads these rows; the
- * harness reads the `tool` meta still on `listRemote` and `getRemote`. */
+/** The `list` tool row: MCP serves it, and the draft harness takes it too. */
+export const listTool: Mcp.Row = expose(listRemote, {
+  description: "list the saved issues",
+  schema: {},
+});
+
+/** The `get` tool row: MCP serves it, and the draft harness takes it too. */
+export const getTool: Mcp.Row = expose(getRemote, {
+  description: "show one saved issue with comments and activity",
+  schema: getShape,
+});
+
+/** The MCP wiring rows for the issue actions: the operation plus its tool
+ * facts, handed to `mcp({ tools })`. */
 export const issueTools: readonly Mcp.Row[] = [
-  expose(listRemote, { description: "list the saved issues", schema: {} }),
+  listTool,
   expose(createRemote, { description: "create one issue", schema: createShape }),
   expose(updateRemote, {
     description: "save an edit guarded by the opened revision",
@@ -266,10 +269,7 @@ export const issueTools: readonly Mcp.Row[] = [
     description: "append a comment without an edit revision",
     schema: commentShape,
   }),
-  expose(getRemote, {
-    description: "show one saved issue with comments and activity",
-    schema: getShape,
-  }),
+  getTool,
 ];
 
 /** The issue MCP driver: installed on the scope `runMain` creates, resolved in

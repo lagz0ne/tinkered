@@ -1,5 +1,5 @@
 import { createScope, operation, tag } from "@tinker/core";
-import { tool } from "@tinker/mcp";
+import { expose } from "@tinker/mcp";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { claudeCode, harness } from "@tinker/harness";
@@ -15,20 +15,23 @@ const index = tag<string>({ label: "index", default: "docs" });
 
 const searchShape = { q: z.string() };
 
-/** A tool is an ordinary operation with `tool` meta: the model calls `search`, the op runs
- * inside the turn; the same declaration serves the MCP driver. */
+/** A tool is an ordinary operation plus a row with its facts: the model calls `search`, the
+ * op runs inside the turn; the same row serves the MCP driver. */
 const search = operation({
   label: "search",
   input: z.object(searchShape),
   depends: { index },
-  meta: [tool({ description: "find a phrase in the current index", schema: searchShape })],
   run: ({ index }, ctx): CallToolResult => ({
     content: [{ type: "text", text: `${index}: ${ctx.input.q}` }],
   }),
 });
+const searchTool = expose(search, {
+  description: "find a phrase in the current index",
+  schema: searchShape,
+});
 
 // Units first, declared once at module level (ADR 0057); `tour` wires a scope and runs them.
-const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
+const coder = harness({ label: "coder", adapter: claudeCode, tools: [searchTool] });
 const ask = operation({
   label: "coder.ask",
   input: parsePrompt,
