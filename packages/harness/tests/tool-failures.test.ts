@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, operation, preset } from "@tinker/core";
-import { tool } from "@tinker/mcp";
+import { expose } from "@tinker/mcp";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
@@ -33,12 +33,11 @@ function reportingSdk(reported: unknown[]): ClaudeCode.Sdk {
 
 const searchShape = { q: z.string() };
 const parseSearch = (raw: unknown): { q: string } => z.object(searchShape).parse(raw);
-const meta = [tool({ description: "find things", schema: searchShape })];
+const facts = { description: "find things", schema: searchShape };
 
 const panics = operation({
   label: "search",
   input: parseSearch,
-  meta,
   run: (): string => {
     throw new Error("index down");
   },
@@ -47,7 +46,6 @@ const panics = operation({
 const raises = operation({
   label: "search",
   input: parseSearch,
-  meta,
   run: (_deps, ctx): string => ctx.raise("SearchDown", { q: ctx.input.q }),
 });
 
@@ -60,7 +58,7 @@ test.each(failures)(
   "a tool op that fails with $failure is reported to the model; the turn and session succeed",
   async ({ op }) => {
     const reported: unknown[] = [];
-    const coder = harness({ label: "coder", adapter: claudeCode, tools: [op] });
+    const coder = harness({ label: "coder", adapter: claudeCode, tools: [expose(op, facts)] });
     const scope = createScope({
       presets: [preset(claudeCode.sdk, async () => reportingSdk(reported))],
     });
@@ -77,7 +75,7 @@ test.each(failures)(
   "a tool failure ($failure) is received at the tool call: rethrown later, its origin stays the tool",
   async ({ op, kind }) => {
     const reported: unknown[] = [];
-    const coder = harness({ label: "coder", adapter: claudeCode, tools: [op] });
+    const coder = harness({ label: "coder", adapter: claudeCode, tools: [expose(op, facts)] });
     const ask = operation({
       label: "coder.ask",
       input: parsePrompt,

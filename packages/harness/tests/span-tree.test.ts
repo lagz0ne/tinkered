@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, operation, preset, type Observe } from "@tinker/core";
-import { tool } from "@tinker/mcp";
+import { expose } from "@tinker/mcp";
 import type { Options, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
@@ -80,13 +80,15 @@ test("the graph produces the trace: the author's op over the frame's send", asyn
   await scope.close();
 });
 
-/** One tool the turn calls: a plain-value op with `tool` meta. */
-const search = operation({
-  label: "search",
-  input: z.object({ q: z.string() }),
-  meta: [tool({ description: "find things", schema: { q: z.string() } })],
-  run: (_deps, ctx) => `hit:${(ctx.input as { q: string }).q}`,
-});
+/** One tool the turn calls: a plain-value op, exposed as a row with its facts. */
+const search = expose(
+  operation({
+    label: "search",
+    input: z.object({ q: z.string() }),
+    run: (_deps, ctx) => `hit:${(ctx.input as { q: string }).q}`,
+  }),
+  { description: "find things", schema: { q: z.string() } },
+);
 
 test("the graph produces the trace: the tool nests under the send", async () => {
   const seen: {

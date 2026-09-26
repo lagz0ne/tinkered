@@ -1,6 +1,6 @@
-import { expect, test } from "vite-plus/test";
+import { expect, expectTypeOf, test } from "vite-plus/test";
 import { createScope, operation, preset, tag } from "@tinker/core";
-import { expose, isError, mcp, readTool, tool } from "@tinker/mcp";
+import { expose, mcp } from "@tinker/mcp";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import type {
@@ -11,7 +11,7 @@ import type {
 } from "@anthropic-ai/claude-agent-sdk";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import { claudeCode, harness, type ClaudeCode } from "../src/index.ts";
+import { claudeCode, harness, type ClaudeCode, type Harness } from "../src/index.ts";
 import {
   parsePrompt,
   readResult,
@@ -66,18 +66,20 @@ const index = tag<string>({ label: "index", default: "base" });
 const searchShape = { q: z.string() };
 const parseSearch = (raw: unknown): { q: string } => z.object(searchShape).parse(raw);
 
-/** One declaration for every harness: a plain-value op with `tool` meta — the same shape
- * `@tinker/mcp`'s tests declare. The MCP driver and the Claude fast path map the value. */
+/** A plain-value op: the row below carries its tool facts. */
 const search = operation({
   label: "search",
   input: parseSearch,
-  meta: [tool({ description: "find things", schema: searchShape })],
   run: (_deps, ctx) => `hit:${ctx.input.q}`,
 });
 
+/** One row for every harness: the same `expose` row `@tinker/mcp`'s tests declare. The MCP
+ * driver and the Claude fast path map the value. */
+const searchTool = expose(search, { description: "find things", schema: searchShape });
+
 test("a tool op runs as a subflow of the send and answers the mapped value", async () => {
   const seen: Seen = { servers: [], queries: [], results: [] };
-  const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
+  const coder = harness({ label: "coder", adapter: claudeCode, tools: [searchTool] });
   const ask = operation({
     label: "coder.ask",
     input: parsePrompt,
@@ -103,7 +105,7 @@ test("a tool op runs as a subflow of the send and answers the mapped value", asy
 
 test("the in-process server is built once per thread and reused across turns", async () => {
   const seen: Seen = { servers: [], queries: [], results: [] };
-  const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
+  const coder = harness({ label: "coder", adapter: claudeCode, tools: [searchTool] });
   const ask = operation({
     label: "coder.ask",
     input: parsePrompt,
@@ -126,7 +128,7 @@ test("the in-process server is built once per thread and reused across turns", a
 
 test("a user-bound mcpServers entry survives beside the frame's server", async () => {
   const seen: Seen = { servers: [], queries: [], results: [] };
-  const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
+  const coder = harness({ label: "coder", adapter: claudeCode, tools: [searchTool] });
   const ask = operation({
     label: "coder.ask",
     input: parsePrompt,
@@ -151,10 +153,13 @@ test("a tool op sees the session's own bindings", async () => {
     label: "search",
     input: parseSearch,
     depends: { index },
-    meta: [tool({ description: "find things", schema: searchShape })],
     run: ({ index }, ctx) => `${index}:${ctx.input.q}`,
   });
-  const coder = harness({ label: "coder", adapter: claudeCode, tools: [lookup] });
+  const coder = harness({
+    label: "coder",
+    adapter: claudeCode,
+    tools: [expose(lookup, { description: "find things", schema: searchShape })],
+  });
   const ask = operation({
     label: "coder.ask",
     input: parsePrompt,
@@ -175,20 +180,21 @@ test("a tool op sees the session's own bindings", async () => {
   await scope.close();
 });
 
-test("a tool op without tool meta throws ToolUndeclared with its label", async () => {
+test("a tool is a row: a bare op or a row without its facts does not compile", () => {
   const bare = operation({ label: "bare", run: () => "hi" });
-  try {
-    harness({ label: "coder", adapter: claudeCode, tools: [bare] });
-    expect.unreachable();
-  } catch (error: unknown) {
-    if (!isError(error, "ToolUndeclared")) throw error;
-    expect(error.payload.label).toBe("bare");
-  }
+  expectTypeOf(bare).not.toExtend<Harness.Tool<ClaudeCode.Calls>>();
+  expectTypeOf(expose(bare, { description: "say hi", schema: {} })).toExtend<
+    Harness.Tool<ClaudeCode.Calls>
+  >();
+  // @ts-expect-error — a row needs its `description`
+  expose(bare, { schema: searchShape });
+  // @ts-expect-error — a row needs its `schema`
+  expose(bare, { description: "say hi" });
 });
 
 test("one declaration serves the MCP driver and the Claude fast path", async () => {
   const seen: Seen = { servers: [], queries: [], results: [] };
-  const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
+  const coder = harness({ label: "coder", adapter: claudeCode, tools: [searchTool] });
   const ask = operation({
     label: "coder.ask",
     input: parsePrompt,
@@ -198,7 +204,7 @@ test("one declaration serves the MCP driver and the Claude fast path", async () 
       return result;
     },
   });
-  const ext = mcp({ name: "coder", version: "0", tools: [expose(search, readTool(search))] });
+  const ext = mcp({ name: "coder", version: "0", tools: [searchTool] });
   const scope = createScope({
     extensions: [ext],
     presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))],
@@ -224,7 +230,7 @@ test("a frame with approve and tools answers the approval and still calls the to
     input: claudeCode.approval,
     run: (): PermissionResult => ({ behavior: "allow" }),
   });
-  const coder = harness({ label: "coder", adapter: claudeCode, approve, tools: [search] });
+  const coder = harness({ label: "coder", adapter: claudeCode, approve, tools: [searchTool] });
   const ask = operation({
     label: "coder.ask",
     input: parsePrompt,
@@ -274,15 +280,18 @@ async function* readApproving(
   yield* readStream(options, seen);
 }
 
-test("a named tool registers under its meta name, not the op label", async () => {
+test("a named tool registers under its row's name, not the op label", async () => {
   const seen: Seen = { servers: [], queries: [], results: [] };
   const named = operation({
     label: "search",
     input: parseSearch,
-    meta: [tool({ description: "find things", schema: searchShape, name: "lookup" })],
     run: (_deps, ctx) => `hit:${(ctx.input as { q: string }).q}`,
   });
-  const coder = harness({ label: "coder", adapter: claudeCode, tools: [named] });
+  const coder = harness({
+    label: "coder",
+    adapter: claudeCode,
+    tools: [expose(named, { description: "find things", schema: searchShape, name: "lookup" })],
+  });
   const ask = operation({
     label: "coder.ask",
     input: parsePrompt,
@@ -303,7 +312,7 @@ test("a named tool registers under its meta name, not the op label", async () =>
 
 test("the frame server wins over a user server bound under the frame label", async () => {
   const seen: Seen = { servers: [], queries: [], results: [] };
-  const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
+  const coder = harness({ label: "coder", adapter: claudeCode, tools: [searchTool] });
   const ask = operation({
     label: "coder.ask",
     input: parsePrompt,
@@ -328,10 +337,10 @@ test("two tools register under their own names", async () => {
   const lookup = operation({
     label: "lookup",
     input: parseSearch,
-    meta: [tool({ description: "find things", schema: searchShape })],
     run: (_deps, ctx) => `hit:${(ctx.input as { q: string }).q}`,
   });
-  const coder = harness({ label: "coder", adapter: claudeCode, tools: [search, lookup] });
+  const lookupTool = expose(lookup, { description: "find things", schema: searchShape });
+  const coder = harness({ label: "coder", adapter: claudeCode, tools: [searchTool, lookupTool] });
   const ask = operation({
     label: "coder.ask",
     input: parsePrompt,
@@ -355,13 +364,13 @@ test("tools take nested lists and false: every reachable tool registers", async 
   const lookup = operation({
     label: "lookup",
     input: parseSearch,
-    meta: [tool({ description: "find things", schema: searchShape })],
     run: (_deps, ctx) => `hit:${(ctx.input as { q: string }).q}`,
   });
+  const lookupTool = expose(lookup, { description: "find things", schema: searchShape });
   const coder = harness({
     label: "coder",
     adapter: claudeCode,
-    tools: [null, [search], flags.lookup && lookup],
+    tools: [null, [searchTool], flags.lookup && lookupTool],
   });
   const ask = operation({
     label: "coder.ask",

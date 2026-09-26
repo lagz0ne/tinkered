@@ -238,21 +238,20 @@ const coder = harness({ label: "coder", adapter: claudeCode, approve });
 
 ## Tools
 
-A tool is an ordinary operation with `tool` meta from `@tinker/mcp` — the same facts the
-MCP driver serves as `expose(op, meta)` rows in `mcp({ name, version, tools })`, shared
-with every MCP host. The operation's `run` is the handler, its `input` parse is the edge,
-and `tool.read(op)` gives any driver or adapter
-the facts (description, zod raw shape, name defaulting to the op's label, an optional `respond`
-that maps the value to a result — default one JSON text content). Pass tool ops in
-`harness({ tools })`, and the send op depends on them: the call runs as a **subflow** of the
-send (its span nests under the send's, it sees the session's bindings). Each op registers
-under its `tool` meta name, defaulting to the op's label. A bound op without
-`tool` meta throws `ToolUndeclared` at construction, naming the op's label.
+A tool is a row: `expose(op, { description, schema })` from `@tinker/mcp`, the same row the
+MCP driver serves in `mcp({ name, version, tools })`, shared with every MCP host. The
+operation is ordinary: its `run` is the handler, its `input` parse is the edge. The row
+carries the facts: description, zod raw shape, name defaulting to the op's label, and an
+optional `respond` that maps the value to a result (default: one JSON text content). Pass
+rows in `harness({ tools })`, and the send op depends on their ops: the call runs as a
+**subflow** of the send (its span nests under the send's, it sees the session's bindings).
+A named tool registers under its row's name, not the op label.
+A tool is a row: a bare op or a row without its facts does not compile.
 
 The in-process path is Claude's zero-process fast path: the adapter registers one in-process
 MCP server named after the frame (built once per thread, beside any `mcpServers` you bound —
 under the frame's own label the frame's server wins),
-one SDK tool per tool op, and maps the value with `answerTool` exactly as the driver does.
+one SDK tool per row, and maps the value with `answerTool` exactly as the driver does.
 The model needs `allowedTools: ["mcp__coder__search"]` (or an `approve` op) to call it
 without a prompt. With both `approve` and `tools`, one turn answers the approval and still
 calls the tool.
@@ -263,7 +262,7 @@ process), so `tools` is a compile error for the `codex` adapter.
 
 ```ts
 import { createScope, operation, tag } from "@tinker/core";
-import { tool } from "@tinker/mcp";
+import { expose } from "@tinker/mcp";
 import { claudeCode, harness } from "@tinker/harness";
 import { z } from "zod";
 
@@ -273,17 +272,24 @@ const search = operation({
   label: "search",
   input: (raw: unknown) => z.object(searchShape).parse(raw),
   depends: { index },
-  meta: [tool({ description: "find a phrase in the index", schema: searchShape })],
   run: ({ index }, ctx) => `${index}: ${ctx.input.q}`,
 });
-const coder = harness({ label: "coder", adapter: claudeCode, tools: [search] });
+const searchTool = expose(search, {
+  description: "find a phrase in the index",
+  schema: searchShape,
+});
+const coder = harness({
+  label: "coder",
+  adapter: claudeCode,
+  tools: [searchTool],
+});
 const scope = createScope({
   tags: [claudeCode.options({ cwd: "/work", allowedTools: ["mcp__coder__search"] })],
 });
 ```
 
 The universal path is an external MCP server over the SDKs' own config — one `tools.ts` entry
-serving the same ops through the `mcp` extension:
+serving the same rows through the `mcp` extension:
 
 ```ts
 // Claude: an MCP server entry beside the fast path

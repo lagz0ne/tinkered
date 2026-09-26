@@ -256,7 +256,7 @@ function readThrown(error: unknown, stop: TurnStop, hooks: Harness.Hooks): unkno
 }
 
 /** The in-process MCP server for a frame's tools, named after the frame: one SDK tool per
- * tool op, read off its `tool` meta, whose handler settles the op as a subflow of the turn that
+ * tool row, named by its facts, whose handler settles the op as a subflow of the turn that
  * is running — the op's own parse is the edge (the SDK validated the args against the schema
  * first), and the value answers exactly as the MCP driver maps it. A failed op (a managed error
  * or a panic alike) rejects the handler with its own error, and the SDK reports it to the model:

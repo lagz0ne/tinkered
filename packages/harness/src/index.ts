@@ -1,4 +1,4 @@
-import { readTool, type Mcp } from "@tinker/mcp";
+import type { Mcp } from "@tinker/mcp";
 import {
   data,
   operation,
@@ -54,26 +54,25 @@ export declare namespace Harness {
   };
   /** What a harness lets userland answer during a turn, as the SDK's OWN types (ADR 0043): an
    * approval (`request` → `decision`) and a tool (`result` = the SDK-side result the adapter
-   * maps values to — Claude: the MCP `CallToolResult`). The definition IS the operation's
-   * `tool` meta from `@tinker/mcp` (ADR 0046): a tool op returns whatever value it returns and
-   * maps it at the edge, so one declaration serves every harness. Its presence is what admits
+   * maps values to — Claude: the MCP `CallToolResult`). The definition IS the `Mcp.Row` from
+   * `@tinker/mcp`'s `expose` (ADR 0051): a tool op returns whatever value it returns and the
+   * adapter maps it at the edge, so one row serves every harness and the MCP driver. Its presence is what admits
    * `tools` — an adapter without the hook says `never`, so the frame rejects a `tools` list
    * for it at compile time. A type-level record only — no runtime value. */
   export type Calls = {
     readonly approval: { readonly request: unknown; readonly decision: unknown };
     readonly tool: { readonly result: unknown };
   };
-  /** One tool a frame exposes in-process: an operation carrying `tool` meta (it returns
-   * whatever value it returns — the adapter maps it at the edge), attached at frame construction so the turn op depends on it
+  /** One tool a frame exposes in-process: an `expose(op, { description, schema })` row, the
+   * same `Mcp.Row` the MCP driver takes. The op returns whatever value it returns — the adapter
+   * maps it at the edge. Attached at frame construction so the turn op depends on the row's op
    * and the call is a SUBFLOW of the turn. The presence of `C["tool"]` keeps the compile-time
    * gate: an adapter whose `Calls.tool` is `never` rejects `tools`. */
-  export type Tool<C extends Calls> = [C["tool"]] extends [never]
-    ? never
-    : Operation.Handle<unknown, unknown>;
-  /** One tool as the thread receives it per turn: the op, its meta facts, and its subflow
+  export type Tool<C extends Calls> = [C["tool"]] extends [never] ? never : Mcp.Row;
+  /** One tool as the thread receives it per turn: the row's op, its facts, and its subflow
    * controller. */
   export type ToolCall<C extends Calls> = {
-    readonly op: Tool<C>;
+    readonly op: Tool<C>["op"];
     readonly meta: Mcp.Tool;
     readonly run: Scope.OperationController<unknown, unknown>;
   };
@@ -154,23 +153,19 @@ type ToolDeps = Record<`tool:${string}`, Operation.Handle<unknown, unknown>>;
 /** The controllers those slots deliver, read back by the same keys. */
 type ToolSlots<C extends Harness.Calls> = Record<`tool:${string}`, Harness.ToolCall<C>["run"]>;
 
-/** One tool's facts, read once at frame construction: the op, its `tool` meta, and its dep key. */
+/** One tool's facts, read once at frame construction: the row's op, its facts, and its dep key. */
 type ToolEntry<C extends Harness.Calls> = {
-  readonly op: Harness.Tool<C>;
+  readonly op: Harness.Tool<C>["op"];
   readonly meta: Mcp.Tool;
   readonly key: `tool:${string}`;
 };
 
-/** Read the `tool` meta off every tool op once, through mcp's `readTool` (a bound op
- * without meta cannot run, so the frame throws `ToolUndeclared` with the op's label). The dep
- * key is the meta name, defaulting to the op's label. */
+/** Read every tool row once: its op, its facts, and its dep key — the facts' name, defaulting
+ * to the op's label. A row always carries its facts, so nothing here can fail. */
 function readToolEntries<C extends Harness.Calls>(
   tools: readonly Harness.Tool<C>[],
 ): readonly ToolEntry<C>[] {
-  return tools.map((op) => {
-    const meta = readTool(op);
-    return { op, meta, key: `tool:${meta.name ?? op.label}` };
-  });
+  return tools.map(({ op, meta }) => ({ op, meta, key: `tool:${meta.name ?? op.label}` }));
 }
 
 /** One `tool:<name>` slot per tool, built once at frame construction. */
