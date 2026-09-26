@@ -138,6 +138,7 @@ if (r.status === "failed") log(r.kind, r.origin);
 - `success` carries `value`.
 - `failed` carries `error`, `kind` (`"error"` or `"panic"`), and `origin` when known.
 - `cancelled` carries the abort `reason`.
+  It reads like the web's `AbortError`: `String(reason)` is `"AbortError: The scope closed before this work finished."`.
 
 The Result says what `run` would do.
 A value returned under a forced close is `success`, as `run` returns it.
@@ -571,6 +572,9 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - `settle` reports cancellation when a body rejects with its abort reason.
 - `settle` mirrors `run` for a sync operation under a forced close.
 - `settle` reports a cancel reason from another scope as a failure.
+- A forced close's cancel reason reads as `AbortError` text.
+- A forced close's cancel reason is named `AbortError`.
+- `settle` reports a foreign `AbortError` rejecting during a forced close as a failure.
 - `settle` returns a sync Result for an untagged sync operation.
 - `settle` returns a promise for a tagged sync operation.
 - `scope.settle` accepts a typed inline call without making it async.

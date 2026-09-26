@@ -71,6 +71,10 @@ reducer literally: **any real (non-cancel) body rejection wins, and its cause is
 regardless of where it came from. A caught owned-work error is not the body's outcome and does not
 override it; an uncaught owned-work error _is_ the body's rejection and wins as the body cause.
 
+## As built
+
+- A forced close's cancel reason reads like the web's `AbortError` (`name`, `message`, `String(reason)`); a hidden brand, not the name, marks it as core's own cancel.
+
 ## Consequences
 
 - The teardown implementation is a **single per-layer defer list drained in reverse, sequentially,
