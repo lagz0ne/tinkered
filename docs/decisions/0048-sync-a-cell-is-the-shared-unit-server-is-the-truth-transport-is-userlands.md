@@ -4,6 +4,10 @@ Date: 2026-09-18. Status: accepted; **amended 2026-09-19 (one way, registration 
 inline operation — a sync write is one too), 0042/0046 (config on the scope; static facts ride on
 the unit's `meta`), 0006 (the parse is the edge — a snapshot from the wire is raw input).
 
+> Superseded in part by 0051 and drivers/t08 (2026-09-26).
+> A synced cell is a `[cell, key]` row handed to `source`/`subscribe`.
+> Units carry no meta.
+
 ## Context
 
 Client and server should share the data itself: the same `data` cell module imported on both
