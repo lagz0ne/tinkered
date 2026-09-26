@@ -8,7 +8,9 @@ import {
   originOf,
   resource,
   tag,
+  type Operation,
   type RunResult,
+  type Scope,
 } from "../src/index.ts";
 
 const zone = tag({ label: "zone", default: "home" });
@@ -245,6 +247,42 @@ test("scope settle runs a tagged inline config asynchronously", async () => {
   expectTypeOf(result).toEqualTypeOf<Promise<RunResult<string>>>();
   expect(Promise.resolve(result)).toBe(result);
   expect(await result).toEqual({ status: "success", value: "away:2" });
+  await scope.close();
+});
+
+test("settle on an unknown-typed operation types as a Result or a promise of one", async () => {
+  const op: Operation.Handle<unknown, unknown> = operation({
+    label: "opaque",
+    input: Number,
+    run: async (_deps, { input }) => input + 1,
+  });
+  const scope = createScope();
+  const result = scope.settle(op, { rawInput: "2" });
+  expectTypeOf(result).toEqualTypeOf<RunResult<unknown> | Promise<RunResult<unknown>>>();
+  expectTypeOf(scope.controller(op).settle({ rawInput: "2" })).toEqualTypeOf(result);
+  expect(await result).toEqual({ status: "success", value: 3 });
+  await scope.close();
+});
+
+test("settle on a generic operation assigns to a Result or a promise of one", async () => {
+  const settleRaw = <T, I>(
+    scope: Scope.Handle,
+    op: Operation.Handle<T, I>,
+    raw: unknown,
+  ): RunResult<Awaited<T>> | Promise<RunResult<Awaited<T>>> => scope.settle(op, { rawInput: raw });
+  const op = operation({ label: "generic", input: Number, run: (_deps, { input }) => input * 2 });
+  const scope = createScope();
+  const result = settleRaw(scope, op, "4");
+  expectTypeOf(result).toEqualTypeOf<RunResult<number> | Promise<RunResult<number>>>();
+  expect(result).toEqual({ status: "success", value: 8 });
+  await scope.close();
+});
+
+test("scope settle keeps an unknown-typed inline a Result or a promise of one", async () => {
+  const scope = createScope();
+  const result = scope.settle({ run: (): unknown => "sync" });
+  expectTypeOf(result).toEqualTypeOf<RunResult<unknown> | Promise<RunResult<unknown>>>();
+  expect(result).toEqual({ status: "success", value: "sync" });
   await scope.close();
 });
 

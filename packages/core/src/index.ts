@@ -360,12 +360,17 @@ export declare namespace Scope {
     settle(...call: CallArgs<I>): Settled<T>;
   };
 
-  /** Async runs settle asynchronously; a sync run returns its Result directly. */
+  /** Async runs settle asynchronously; a sync run returns its Result directly. A `T` not known
+   * to be either (`unknown`, `any`) may be both. Every branch is written in `Awaited<T>`, so on
+   * a generic `T` the type is assignable to `RunResult<Awaited<T>> | Promise<RunResult<Awaited<T>>>`
+   * with no cast. */
   export type Settled<T> = [T] extends [never]
-    ? RunResult<T>
-    : T extends PromiseLike<unknown>
-      ? Promise<RunResult<Awaited<T>>>
-      : RunResult<T>;
+    ? RunResult<never>
+    : unknown extends T
+      ? RunResult<Awaited<T>> | Promise<RunResult<Awaited<T>>>
+      : T extends PromiseLike<unknown>
+        ? Promise<RunResult<Awaited<T>>>
+        : RunResult<Awaited<T>>;
 
   /** The tag bindings a call may carry. Present on a call, they open a child session bound
    * with them for that run (ADR 0038): the run's own tag reads, its subflows, and session-target

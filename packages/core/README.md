@@ -142,6 +142,8 @@ Only the abort `reason` thrown on an aborted scope is `cancelled`.
 
 `scope.settle(op, call)` and a controller's `settle(call)` take the same calls as `run`.
 A sync operation settles at once. A tagged call settles through a promise.
+An operation typed `unknown` may do either, so its type is a Result or a promise of one.
+`await` it.
 
 `originOf(error)` reads where an error was first thrown: `{ label, span?, path }`.
 `span` is the failed span's id when the scope observes.
@@ -577,6 +579,9 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - `settle` returns a promise for a tagged sync operation.
 - `scope.settle` accepts a typed inline call without making it async.
 - `scope.settle` runs a tagged inline config asynchronously.
+- `settle` on an unknown-typed operation types as a Result or a promise of one.
+- `settle` on a generic operation assigns to a Result or a promise of one.
+- `scope.settle` keeps an unknown-typed inline a Result or a promise of one.
 - `settle` recovers a root operation's panic without failing the layer.
 - `settle` recovers through a controller edge and through a bare operation dependency.
 - A settle call remains recovered when its caller finishes first.
