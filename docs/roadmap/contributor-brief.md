@@ -22,6 +22,7 @@ vp run -r build
   can take your work. Compare with main through a separate worktree or `git diff origin/main`.
   The commit hook does not stash either: it runs `vp staged --no-stash`.
   It refuses a partly staged file: stage the whole file, or commit it by path.
+  After a by-path commit that the hook reformatted, run `git add <file>`: the index keeps the old text.
 - Commit by explicit path after every green step. A dropped connection then
   loses one step at most.
 - `vp run -r build` before every check: a stale `dist` shows fake errors.
