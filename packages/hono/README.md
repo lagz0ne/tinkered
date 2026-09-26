@@ -107,6 +107,7 @@ install it, resolve it — a second call is a different identity.
 
 A root extension that reads a server in `start` goes before it:
 `[warmOne, one, warmTwo, two]`.
+Here `warmOne` is a root extension that reads `one` in `start`.
 Pass `name` in the wiring to label the extension `hono:<name>`.
 A root listed after `two` then fails `ready` with
 `NotResolved {"label":"hono:two"}`.

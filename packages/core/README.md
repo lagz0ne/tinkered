@@ -85,7 +85,7 @@ const audit = extension({
 
 Await `ready` before the first `resolve(ext)`.
 
-A `start` can read only extensions listed after it.
+A `start` can read, after `await next()`, only extensions listed after it.
 So list an extension that reads a server before that server: `[serve, server]`.
 
 A `write` hook wraps cell writes at every layer (first registered is outermost; skip `next()`

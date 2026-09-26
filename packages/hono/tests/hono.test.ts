@@ -367,7 +367,6 @@ test("resolving the extension before ready raises NotResolved", async () => {
     scope.resolve(web);
     throw new Error("unreachable");
   } catch (e) {
-    const { isError: isCoreError } = await import("@tinker/core");
     if (!isCoreError(e, "NotResolved")) throw e;
     // No `name` in the wiring: the label is the bare driver name.
     expect(e.payload.label).toBe("hono");

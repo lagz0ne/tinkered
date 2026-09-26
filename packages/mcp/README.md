@@ -122,7 +122,8 @@ A root extension that serves a server goes before it in the list
 `start` before `scope.resolve(ext)` reads it. One such extension per
 server, all on the one scope, gives the two-server shape.
 
-Two servers start in the order `[stdioApp, app, stdioAdmin, admin]`.
+Two servers start in the order `[stdioApp, app, stdioAdmin, admin]`:
+one stdio root per `mcp()` server, each root before its server.
 Each label is `mcp:<name>`: a root listed after `admin` fails `ready` with
 `NotResolved {"label":"mcp:admin"}`.
 
