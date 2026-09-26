@@ -3,71 +3,71 @@
     "status": "provisional",
     "trues": 3,
     "falses": 53,
-    "medianTrue": 0.95,
+    "medianTrue": 0.94,
     "medianFalse": 0.04,
-    "separation": 0.91,
+    "separation": 0.9,
     "ordered": 0.99,
-    "at": "2026-09-25"
+    "at": "2026-09-26"
   },
   "effectWithoutDefer": {
     "status": "provisional",
     "trues": 2,
     "falses": 64,
-    "medianTrue": 0.83,
+    "medianTrue": 0.84,
     "medianFalse": 0.03,
-    "separation": 0.8,
+    "separation": 0.81,
     "ordered": 0.95,
-    "at": "2026-09-25"
+    "at": "2026-09-26"
   },
   "stateOutsideCell": {
     "status": "provisional",
     "trues": 2,
-    "falses": 62,
+    "falses": 63,
     "medianTrue": 0.9,
-    "medianFalse": 0.12,
-    "separation": 0.78,
+    "medianFalse": 0.16,
+    "separation": 0.74,
     "ordered": 1,
-    "at": "2026-09-25"
+    "at": "2026-09-26"
   },
   "configNotTag": {
     "status": "provisional",
     "trues": 2,
     "falses": 73,
-    "medianTrue": 0.62,
+    "medianTrue": 0.63,
     "medianFalse": 0.06,
     "separation": 0.56,
     "ordered": 0.86,
-    "at": "2026-09-25"
+    "at": "2026-09-26"
   },
   "handRolledLifetime": {
     "status": "provisional",
     "trues": 3,
     "falses": 49,
-    "medianTrue": 0.77,
+    "medianTrue": 0.84,
     "medianFalse": 0.03,
-    "separation": 0.74,
+    "separation": 0.81,
     "ordered": 0.99,
-    "at": "2026-09-25"
+    "at": "2026-09-26"
   },
   "stopOnlyInDefer": {
     "status": "provisional",
     "trues": 1,
     "falses": 50,
-    "medianTrue": 0.84,
+    "medianTrue": 0.88,
     "medianFalse": 0.19,
-    "separation": 0.65,
+    "separation": 0.69,
     "ordered": 1,
-    "at": "2026-09-25"
+    "at": "2026-09-26"
   },
   "ignoresAbortAfterAwait": {
     "status": "provisional",
     "trues": 1,
     "falses": 1,
-    "medianTrue": 0.83,
-    "medianFalse": 0.32,
-    "separation": 0.51,
+    "medianTrue": 0.84,
+    "medianFalse": 0.4,
+    "separation": 0.44,
     "ordered": 1,
-    "at": "2026-09-25"
+    "at": "2026-09-26"
   },
   "readsMoreThanRendered": {
     "status": "provisional",
@@ -77,17 +77,17 @@
     "medianFalse": 0.04,
     "separation": 0.87,
     "ordered": 1,
-    "at": "2026-09-25"
+    "at": "2026-09-26"
   },
   "subscribesToWriteOnly": {
     "status": "provisional",
     "trues": 1,
     "falses": 46,
     "medianTrue": 0.95,
-    "medianFalse": 0.12,
-    "separation": 0.83,
+    "medianFalse": 0.11,
+    "separation": 0.84,
     "ordered": 1,
-    "at": "2026-09-25"
+    "at": "2026-09-26"
   },
   "runDuringRender": {
     "status": "provisional",
@@ -97,7 +97,7 @@
     "medianFalse": 0.17,
     "separation": 0.79,
     "ordered": 1,
-    "at": "2026-09-25"
+    "at": "2026-09-26"
   },
   "domainLogicInRender": {
     "status": "proven",
@@ -105,29 +105,29 @@
     "falses": 43,
     "medianTrue": 0.88,
     "medianFalse": 0.06,
-    "separation": 0.81,
+    "separation": 0.82,
     "ordered": 1,
-    "at": "2026-09-25"
+    "at": "2026-09-26"
   },
   "effectOwnedByComponent": {
     "status": "provisional",
     "trues": 1,
     "falses": 46,
-    "medianTrue": 0.96,
+    "medianTrue": 0.95,
     "medianFalse": 0.05,
-    "separation": 0.91,
+    "separation": 0.9,
     "ordered": 1,
-    "at": "2026-09-25"
+    "at": "2026-09-26"
   },
   "leakedInternal": {
     "status": "provisional",
     "trues": 1,
     "falses": 50,
-    "medianTrue": 0.69,
-    "medianFalse": 0.16,
-    "separation": 0.53,
-    "ordered": 0.94,
-    "at": "2026-09-25"
+    "medianTrue": 0.73,
+    "medianFalse": 0.17,
+    "separation": 0.56,
+    "ordered": 0.96,
+    "at": "2026-09-26"
   },
   "survivorMatters": {
     "status": "proven",
@@ -137,27 +137,27 @@
     "medianFalse": 0.18,
     "separation": 0.66,
     "ordered": 1,
-    "at": "2026-09-25"
+    "at": "2026-09-26"
   },
   "inputDefaultMasks": {
     "status": "proven",
     "trues": 32,
     "falses": 64,
     "medianTrue": 0.92,
-    "medianFalse": 0.35,
-    "separation": 0.57,
+    "medianFalse": 0.37,
+    "separation": 0.55,
     "ordered": 0.99,
-    "at": "2026-09-25"
+    "at": "2026-09-26"
   },
   "noOpRejected": {
     "status": "proven",
     "trues": 6,
     "falses": 45,
-    "medianTrue": 0.79,
-    "medianFalse": 0.17,
-    "separation": 0.62,
+    "medianTrue": 0.81,
+    "medianFalse": 0.16,
+    "separation": 0.65,
     "ordered": 1,
-    "at": "2026-09-25"
+    "at": "2026-09-26"
   },
   "partialStub": {
     "status": "provisional",
@@ -167,7 +167,7 @@
     "medianFalse": 0.07,
     "separation": null,
     "ordered": 0,
-    "at": "2026-09-25"
+    "at": "2026-09-26"
   },
   "memoKeyIgnoresInput": {
     "status": "provisional",
@@ -177,16 +177,16 @@
     "medianFalse": 0.04,
     "separation": null,
     "ordered": 0,
-    "at": "2026-09-25"
+    "at": "2026-09-26"
   },
   "wrapsCallersStep": {
     "status": "noisy",
     "trues": 17,
     "falses": 12,
-    "medianTrue": 0.79,
-    "medianFalse": 0.3,
+    "medianTrue": 0.78,
+    "medianFalse": 0.29,
     "separation": 0.49,
     "ordered": 0.86,
-    "at": "2026-09-25"
+    "at": "2026-09-26"
   }
 }
