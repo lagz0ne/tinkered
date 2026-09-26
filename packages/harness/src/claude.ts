@@ -215,8 +215,7 @@ function readTurnOptions(
  * or a panic alike) rejects the handler with its own error, and the SDK reports it to the model:
  * the call runs through `settle` because the SDK recovers it, so the failure does not fail the
  * session (ADR 0067). A cancelled op rejects with its reason. A tool op's value type is
- * `unknown`, so core types its settle as sync; the op may be async, so `Promise.resolve` takes
- * either (it hands back a native promise as is). */
+ * `unknown`, so its settle is a Result or a promise of one, and `await` takes either. */
 function readServer(
   sdk: ClaudeCode.Sdk,
   label: string,
