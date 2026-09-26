@@ -93,7 +93,8 @@ git worktree add ../tinkered-base <sha>
 N=61 A=../tinkered-base bench/queued.sh
 ```
 
-- Same settings as `ab.sh` — `N`, `CORE`, `A`, `OUT`.
+- Same settings as `ab.sh` — `N`, `CORE`, `A`, `OUT`, `SCEN`.
+- One queue job per scenario: the queue stops a job at 1 hour.
 - Rows land in `.bench/ab.csv`: tree, scenario, ns, bytes.
 - `benchctl status` — what is running, how many wait.
 
