@@ -319,3 +319,50 @@ test("a forced close after a caught panic settles failed, not cancelled", async 
   expect(await closing).toMatchObject({ status: "failed", error: cause });
   await root.close();
 });
+
+test("two caught panics in one layer leave the first as the layer's error", async () => {
+  const first = new Error("first bug");
+  const second = new Error("second bug");
+  const firstOp = operation({
+    label: "firstOp",
+    run: () => {
+      throw first;
+    },
+  });
+  const secondOp = operation({
+    label: "secondOp",
+    run: () => {
+      throw second;
+    },
+  });
+  const scope = createScope();
+  expect(() => scope.run(firstOp)).toThrow(first);
+  expect(() => scope.run(secondOp)).toThrow(second);
+  expect(await scope.close({ graceful: true })).toEqual({
+    status: "failed",
+    error: first,
+    origin: { label: "firstOp", path: ["firstOp"] },
+    teardownErrors: undefined,
+  });
+});
+
+test("a caught panic before a failed resource build stays the layer's error", async () => {
+  const panic = new Error("bug");
+  const later = new Error("build failed");
+  const buggy = operation({
+    label: "buggy",
+    run: () => {
+      throw panic;
+    },
+  });
+  const broken = resource({
+    label: "broken",
+    factory: async () => {
+      throw later;
+    },
+  });
+  const scope = createScope();
+  expect(() => scope.run(buggy)).toThrow(panic);
+  await expect(scope.resolve(broken)).rejects.toBe(later);
+  expect(await scope.close({ graceful: true })).toMatchObject({ status: "failed", error: panic });
+});
