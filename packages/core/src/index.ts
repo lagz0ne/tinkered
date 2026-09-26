@@ -4398,7 +4398,7 @@ export function createScope(options?: Scope.Options): Scope.Handle {
 /** A node to release and the layer that owns it. Release and invalidation sit at the END of this
  * file on purpose: every top-level name takes a module slot in the bundle, and a slot above 255
  * needs a wider bytecode on each use. Cold code goes last so the hot paths keep the cheap slots:
- * add new hot-path names above this block. */
+ * add new hot-path names above this block. `pnpm validate` checks it (`scripts/check-slots.mjs`). */
 type Affected = { node: Node; owner: Layer };
 
 /** Unlink every occupied bucket at this owner and clear its selection state. */

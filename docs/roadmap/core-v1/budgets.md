@@ -76,6 +76,7 @@ census rows are gates (`pnpm validate` runs `bench/promises.mjs` and `bench/heap
   are wall-clock and must run via `bench -- node --experimental-strip-types bench/<lane>.mjs` from a
   clean worktree; report median/p95. Not run in-container (host-noise). The heap lane is a memory delta
   and runs in-container (recorded above); its authoritative value also comes from `bench`.
+- **Hot names at V8 slot ≤ 255.** `scripts/check-slots.mjs` (a `pnpm validate` lane) fails when a name above the release block in `index.ts` gets a slot over 255; 5 names of headroom on 2026-09-26.
 - **Warm read is O(1) in chain depth.** It lives in `bench/warm-read.mjs`, not in core's tests.
 - A wall-clock ratio in the default test run failed by luck on a busy box (tests/busy-host-flake).
 - Run it through the queue: `benchctl exec -- node --experimental-strip-types bench/warm-read.mjs`.
