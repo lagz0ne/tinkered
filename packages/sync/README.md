@@ -66,7 +66,8 @@ transport parts (`success`), or `cancelled` when a forced root close fells
 the session first — it never rejects (ADR 0027). The source start is sync,
 so the origin is ready at once; the source close hook closes every live
 transport first (their sessions resolve), then the scope closes.
-A closed source lets go of its families and watchers, so a member made after close still works.
+A closed source, or one whose start failed, lets go of its families and watchers.
+A member made after that still works, and another scope's source still publishes it.
 
 ## Subscribe
 
