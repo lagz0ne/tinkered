@@ -13,12 +13,9 @@ const lanes = [
   ["live-heap-per-request", `node --expose-gc --experimental-strip-types bench/heap.mjs`],
   ["CRAP ceiling", `node scripts/check-crap.mjs ${process.argv[2] ?? 0.6}`],
   // perf/session-slots: V8 gives each top-level name of the bundle a slot; above 255 every use
-  // takes a wide bytecode. Names above the release block stay at or below 255. Shows its headroom.
-  [
-    "core hot names at V8 slot <= 255 (release block last)",
-    "node scripts/check-slots.mjs",
-    { show: true },
-  ],
+  // takes a wide bytecode. Names above the release block stay at or below 255. "show" prints
+  // the lane's output on PASS too: the headroom.
+  ["core hot names at V8 slot <= 255 (release block last)", "node scripts/check-slots.mjs", "show"],
   // The graph produces the trace (ADR 0058): no hand-rolled span outside core, and a package
   // that declares operations ships a span-tree test.
   ["graph (span-tree per package, no hand-rolled span)", `${strip} scripts/check-graph.mjs`],
@@ -127,11 +124,11 @@ const lanes = [
 ];
 
 let failed = 0;
-for (const [name, cmd, opts] of lanes) {
+for (const [name, cmd, show] of lanes) {
   try {
     const out = execSync(cmd, { stdio: "pipe", cwd: process.cwd() }).toString().trim();
     console.log(`PASS  ${name}`);
-    if (opts?.show && out) console.log(out.replace(/^/gm, "        "));
+    if (show === "show" && out) console.log(out.replace(/^/gm, "        "));
   } catch (e) {
     failed++;
     console.log(`FAIL  ${name}`);
