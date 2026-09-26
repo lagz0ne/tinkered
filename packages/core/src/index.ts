@@ -2109,8 +2109,27 @@ function track(
  * own reason, and its awaiting parent must still read that as a clean cancel, not a failure (r11). */
 const cancelBrand: unique symbol = Symbol("cancel");
 
-function makeCancelReason(): { [cancelBrand]: true } {
-  return { [cancelBrand]: true };
+/** A forced close's cancel reason. It reads like the web's `AbortError` — `name`, `message`, and
+ * `String(reason)` → `"AbortError: …"` — so text built from it says why the work stopped. The brand
+ * sits on the prototype, so `isCancelReason` still tells it from a foreign `AbortError` and an
+ * instance holds no own field. Not an `Error`: every forced close (each session close) mints one,
+ * and a stack capture there costs. */
+class CancelReason {
+  get [cancelBrand](): true {
+    return true;
+  }
+
+  get name(): string {
+    return "AbortError";
+  }
+
+  get message(): string {
+    return "The scope closed before this work finished.";
+  }
+
+  toString(): string {
+    return `${this.name}: ${this.message}`;
+  }
 }
 
 function isCancelReason(error: unknown): boolean {
@@ -3645,7 +3664,7 @@ function markAborted(layer: Layer, reason: unknown): void {
 }
 
 function abortSubtree(root: Layer): void {
-  const reason = root.aborted ? root.abortReason : makeCancelReason();
+  const reason = root.aborted ? root.abortReason : new CancelReason();
   markAborted(root, reason);
   const stack: Layer[] = [...root.children];
   while (stack.length) {
@@ -3771,7 +3790,7 @@ function fastClose(layer: Layer, force: boolean): Promise<Scope.Result> {
   const forced = force || layer.aborted;
   let settled: Scope.Outcome = SUCCESS;
   if (forced) {
-    markAborted(layer, layer.aborted ? layer.abortReason : makeCancelReason());
+    markAborted(layer, layer.aborted ? layer.abortReason : new CancelReason());
     layer.cancelled = true;
     settled = { status: "cancelled" };
   }

@@ -199,6 +199,51 @@ test("settle reports a cancel reason from another scope as a failure", async () 
   await scope.close();
 });
 
+test("a forced close's cancel reason reads as AbortError text", async () => {
+  const seen: unknown[] = [];
+  const wait = operation({
+    label: "wait",
+    run: (_deps, { signal }) =>
+      new Promise<never>((_resolve, reject) =>
+        signal.addEventListener(
+          "abort",
+          () => {
+            seen.push(signal.reason);
+            reject(signal.reason);
+          },
+          { once: true },
+        ),
+      ),
+  });
+  const scope = createScope();
+  const running = scope.settle(wait);
+  await scope.close();
+  await running;
+  expect(String(seen[0])).toBe("AbortError: The scope closed before this work finished.");
+});
+
+test("a forced close's cancel reason is named AbortError", async () => {
+  const ended = await createScope().close();
+  if (ended.status !== "cancelled") throw ended;
+  expect(ended.reason).toHaveProperty("name", "AbortError");
+});
+
+test("settle reports a foreign AbortError rejecting during a forced close as a failure", async () => {
+  const foreign = new AbortController();
+  foreign.abort();
+  const wait = operation({
+    label: "wait",
+    run: (_deps, { signal }) =>
+      new Promise<never>((_resolve, reject) =>
+        signal.addEventListener("abort", () => reject(foreign.signal.reason), { once: true }),
+      ),
+  });
+  const scope = createScope();
+  const running = scope.settle(wait);
+  await scope.close();
+  expect(await running).toMatchObject({ status: "failed", error: foreign.signal.reason });
+});
+
 test("settle reports cancellation when a forced close aborts its operation", async () => {
   const op = operation({
     label: "wait",
