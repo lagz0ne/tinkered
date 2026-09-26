@@ -1,6 +1,5 @@
-/** Payload type for each mcp error. The registry is empty: this package throws nothing today
- * (a call's failure answers `isError`). `isError` narrows nothing yet and stays for the public
- * surface. */
+/** Payload type for each mcp error. The registry is empty: this package throws nothing (a
+ * call's failure answers a tool error result), so it exports no `isError` to narrow with. */
 type Payloads = Record<never, never>;
 
 export declare namespace Errors {
@@ -13,9 +12,4 @@ export declare namespace Errors {
     readonly kind: N;
     readonly payload: Payloads[N];
   };
-}
-
-/** Narrow an unknown error to one registry entry; callers rethrow on mismatch. */
-export function isError<N extends Errors.Name>(value: unknown, kind: N): value is Errors.Of<N> {
-  return value instanceof Error && (value as Partial<Errors.Of>).kind === kind;
 }

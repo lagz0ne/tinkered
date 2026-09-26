@@ -3,9 +3,6 @@ import { extension, isError as isCoreError, readMany } from "@tinker/core";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { ZodTypeAny } from "zod";
-import { isError } from "./errors.ts";
-
-export { isError };
 export type { Errors } from "./errors.ts";
 
 /** A tool is an operation plus its description facts: the wiring row names the
