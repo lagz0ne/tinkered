@@ -939,3 +939,36 @@ test("a viewer binding nothing is ready at once", () => {
   const guest = createScope({ extensions: [sub] });
   return guest.ready.then(() => guest.close({ graceful: true }));
 });
+
+test("a source lets go of its family on a forced close: a new member still works", async () => {
+  const todo = family({ label: "todo-closed", initial: "" });
+  const origin = createScope({
+    extensions: [source({ cells: [[todo, "todo"]] })],
+  });
+  await origin.ready;
+  await origin.close();
+  todo("7");
+  expect(todo.members()).toEqual(["7"]);
+});
+
+test("a second scope's source still publishes new members after the first closed", async () => {
+  const todo = family({ label: "todo-second", initial: "", parse: parseText });
+  const first = createScope({ extensions: [source({ cells: [[todo, "todo"]] })] });
+  await first.ready;
+  await first.close({ graceful: true });
+  const src = source({ cells: [[todo, "todo"]] });
+  const origin = createScope({ extensions: [src] });
+  await origin.ready;
+  const [near, far] = memoryPair();
+  const done = origin.resolve(src).connect(near);
+  const sub = subscribe(far, { cells: [[todo, "todo"]] });
+  const guest = createScope({ extensions: [sub] });
+  await guest.ready;
+  const nine = todo("9");
+  const arrived = reached(guest.controller(todo.cell, { ns: nine }).watch, "buy milk");
+  origin.controller(todo.cell, { ns: nine }).set("buy milk");
+  await arrived;
+  await guest.close({ graceful: true });
+  expect((await done).status).toBe("success");
+  await origin.close({ graceful: true });
+});

@@ -178,8 +178,10 @@ function memberController(
 
 /** The source driver, an extension: `start` builds the registry and
  * watchers from the wiring rows, `close` drops every live transport (their
- * sessions resolve), and `connect` listens from then on (ADR 0050). The
- * scope's cells are the truth (ADR 0048, one way). The transport carries a
+ * sessions resolve), then lets go of its family arrivals and its watchers,
+ * so a family member made after close never reaches the closed scope; and
+ * `connect` listens from then on (ADR 0050). The scope's cells are the
+ * truth (ADR 0048, one way). The transport carries a
  * key set: each `register` runs one inline operation `sync register` that
  * answers the keys with their snapshots, and a changed cell fans out only
  * to the live transports registered for that key. An unpublished key, a
@@ -202,10 +204,7 @@ export function source(wiring: Sync.Wiring): Scope.Extension<Sync.Source> {
     start: async (scope, _ctx, next) => {
       type Entry = { cell: Data.Cell<unknown>; ns?: Namespace; version: number };
       const live = new Map<Sync.Transport, Set<string>>();
-      closeSource = () => {
-        for (const transport of live.keys()) transport.close();
-        live.clear();
-      };
+      const unwatches: Array<() => void> = [];
       function snapshot(key: string, entry: Entry): Sync.Message {
         return {
           type: "snapshot",
@@ -222,12 +221,21 @@ export function source(wiring: Sync.Wiring): Scope.Extension<Sync.Source> {
       }
       const published = readPublished(cells, (key, cell, ns) => {
         const entry: Entry = { cell, ns, version: 0 };
-        memberController(scope, cell, ns).watch(() => {
-          entry.version += 1;
-          fanout(key, entry);
-        });
+        unwatches.push(
+          memberController(scope, cell, ns).watch(() => {
+            entry.version += 1;
+            fanout(key, entry);
+          }),
+        );
         return entry;
       });
+      closeSource = () => {
+        for (const transport of live.keys()) transport.close();
+        live.clear();
+        published.stop();
+        for (const unwatch of unwatches) unwatch();
+        unwatches.length = 0;
+      };
       function connect(transport: Sync.Transport): Promise<Scope.Result> {
         const session = scope.createSession();
         const keys = new Set<string>();
