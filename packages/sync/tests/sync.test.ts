@@ -965,7 +965,10 @@ test("a second scope's source still publishes new members after the first closed
   const guest = createScope({ extensions: [sub] });
   await guest.ready;
   const nine = todo("9");
-  const arrived = reached(guest.controller(todo.cell, { ns: nine }).watch, "buy milk");
+  const arrived = reached(
+    (listener: (next: string) => void) => guest.controller(todo.cell, { ns: nine }).watch(listener),
+    "buy milk",
+  );
   origin.controller(todo.cell, { ns: nine }).set("buy milk");
   await arrived;
   await guest.close({ graceful: true });
