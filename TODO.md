@@ -66,8 +66,6 @@ card at a time.
 
 ## Review
 
-- **perf/session-slots** — landed as code, timing owed (tag `perf/session-slots`). The release/invalidation block moved to the end of index.ts (a pure move) so hot paths read no module slot above 255: wide slot reads on the hot path 18 → 0, store-write path 3 → 0; `runSessionWith` 304 → 284 bytecode bytes. Gates: GATE=0 (core 635 tests), promises 17, core mutation 86.34 alone, `pnpm validate` 43 PASS. Next: time it through `benchd` (`bench/queued.sh`, N=121, vs `5ccfcc0` and vs main) once the queue is reachable from the agent container. Verify: `benchctl ab` says session is not slower than `5ccfcc0`.
-
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
 
@@ -91,6 +89,9 @@ card at a time.
 
 ## Done
 
+- **perf/session-slots** — tag `perf/session-slots`. The release/invalidation block moved to the end of index.ts (a pure move) so hot paths read no module slot above 255: wide slot reads on the hot path 18 → 0, store-write path 3 → 0; `runSessionWith` 304 → 284 bytecode bytes. No scenario got slower. Gates: GATE=0 (core 635 tests), promises 17, core mutation 86.34 alone, `pnpm validate` 43 PASS.
+  - Timing through benchd, N=61, vs `5ccfcc0`: session +1.1% (42/61 slower), lifecycle −1.0% (23/61), tagged +0.7% (33/61), op −0.1% (19/61), run −0.4% (20/61).
+  - Timing through benchd, N=61, vs `836a656`: session +0.9% (36/61 slower), lifecycle +0.6% (33/61), tagged +0.0% (32/61), op −0.1% (22/61), run +0.5% (39/61).
 - **perf/session-creep** — opus high + fable review; tag `perf/session-creep`. Smaller session-path functions (`failureOf` 142 → 29 bytecode bytes by an indexed read; `runSessionWith` calls `settleSessionEnded`) and two tests (the first of two caught panics wins; a caught panic beats a later failed build). No measurable time change: session +1.3% vs `5ccfcc0` both before and after (N=61, host load ~3), −0.1% vs main — under the 2% bar, within this host's ~1% noise. Found: a module-slot cliff (over 255 top-level names widens bytecode), noted in perf memory.
   - Gate EXIT 0; core 635 tests; mutation core 86.38; promises 17; validate 43 PASS.
   - Timing N=61: session vs `5ccfcc0` +2.0% (41/61 slower, load ~7), rerun +1.3% (43/61, load ~3); vs `origin/main` −0.1% (26/61).
