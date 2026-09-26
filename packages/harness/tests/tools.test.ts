@@ -192,7 +192,7 @@ test("a tool is a row: a bare op or a row without its facts does not compile", (
   expose(bare, { description: "say hi" });
 });
 
-test("one declaration serves the MCP driver and the Claude fast path", async () => {
+test("one row serves the MCP driver and the Claude fast path", async () => {
   const seen: Seen = { servers: [], queries: [], results: [] };
   const coder = harness({ label: "coder", adapter: claudeCode, tools: [searchTool] });
   const ask = operation({

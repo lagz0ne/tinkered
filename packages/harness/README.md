@@ -206,6 +206,7 @@ with that same error, not wrapped as `TurnFailed`.
 The real SDK catches a throwing `canUseTool` and goes on, so the adapter stops the turn itself:
 the SDK hears a `deny`.
 No tool runs after a failed approval.
+An approval still running when another fails answers deny and lands no allow item.
 An approval that fails with a managed error leaves the session `success` once the caller
 handles the rejection.
 An approval that fails with a panic fails the session.
@@ -246,6 +247,7 @@ optional `respond` that maps the value to a result (default: one JSON text conte
 rows in `harness({ tools })`, and the send op depends on their ops: the call runs as a
 **subflow** of the send (its span nests under the send's, it sees the session's bindings).
 A named tool registers under its row's name, not the op label.
+One row serves the MCP driver and the Claude fast path.
 A tool is a row: a bare op or a row without its facts does not compile.
 
 The in-process path is Claude's zero-process fast path: the adapter registers one in-process
