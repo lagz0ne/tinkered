@@ -5,7 +5,8 @@ Claude fast path), 0042 (routing is scope config; the same rule will move CLI co
 operation meta), 0040 (a server request is an inline operation — the MCP call is one too).
 Retires: the adapter-owned tool builder (`claudeCode.tool`, harness/t04). Superseded in part by
 0051: the facts ride on an `expose(op, { description, schema })` row, not on meta; since
-drivers/t08a the harness takes the same rows (`harness({ tools: [row] })`).
+drivers/t08a the harness takes the same rows (`harness({ tools: [row] })`). Since drivers/t08b
+(2026-09-26) units carry no meta at all: the `tool` tag, `readTool`, and `tool.read` are gone.
 
 ## Context
 

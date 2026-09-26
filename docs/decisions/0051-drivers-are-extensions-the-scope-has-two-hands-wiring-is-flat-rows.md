@@ -45,7 +45,7 @@ whose `start` is the only hand that holds the scope (ADR 0050 already sanctioned
    `command("get", getRemote, { argv })` (a CLI row may hold `() => import(…)` — the one lazy case,
    ADR 0042), `tool(getRemote, { description, schema })`, `[issueList, "issues"]` for a synced cell.
    Rows go in the extension's constructor, not in scope tags. Drivers read no `meta`. Core's `meta` field
-   stays until its own removal ticket (public field on every unit; separate blast radius).
+   stayed until its own removal ticket; drivers/t08 removed it (2026-09-26): units carry no meta.
 
 4. **A `session` hook on `Extension`**, the sixth onion, around a session's whole life:
 

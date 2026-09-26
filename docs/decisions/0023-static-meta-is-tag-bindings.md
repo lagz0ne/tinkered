@@ -1,6 +1,10 @@
 # 0023 Static unit metadata is tag bindings, read off the handle
 
-Date: 2026-09-14. Status: accepted. Refines: 0004-era tags (ambient metadata) for the static case.
+Date: 2026-09-14. Status: superseded. Refines: 0004-era tags (ambient metadata) for the static case.
+
+> Superseded by drivers/t08 (2026-09-26). Units carry no `meta`: the field, the config option,
+> `Tag.Handle.read`, and `Tag.Metaed` are gone. A driver takes rows (ADR 0051 §3). Tags bind on a
+> scope, a session, or a call; `Tag.Bindings` and `Many` stay for those.
 
 ## Context
 
