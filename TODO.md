@@ -23,6 +23,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **jev/s18-kinds** — S18's message names data, operation, resource, tag, but its set (`tools/jev/plain.mjs`) also counts `family` and `extension`; a driver builds its extension from wiring rows inside a function by design (ADR 0051: `mcp()`, `hono()`, `source()`), so an `extension` hit contradicts the driver pattern (tracker `publish.ts`). Next: decide if S18 counts `extension` (likely not) and make the message name exactly what it counts; also `tools/jev/lib.mjs` prints "skipping — advisory only" when the key is missing while the gate exits 2. Verify: the tracker gate no longer flags `publish.ts:19`; the message matches the set.
+
 - **perf/op-parity** — Compare operation call cost. The runner it waited for is here: `bench/queued.sh`
   sends `bench/ab.sh` through `benchd`, this box's benchmark queue, so one job runs at a time on one
   core with no network and no secrets. Next: pin the baseline and current SHAs, build the baseline
@@ -38,14 +40,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
-
-- **review/tracker-gate** — hold `apps/issue-tracker` to the writer-trial teacher's bar (ADR 0068:
-  a plain shape finding or a `proven` Jev hit blocks). The jev teacher workspace
-  (`jev/teaching-system`) is already on main. Step 1: a command that runs the same `gate.mjs` over
-  any folder, then a findings report for the tracker; no fixes. Owner: lead; writer agent
-  `ccc0d87c` in `../tinkered-tracker-review` (brief `review-tracker-gate.md`). Next: triage the
-  report with the user. Verify: the report at
-  `docs/roadmap/issue-tracker-review/2026-09-27-gate.md`; the command's test green.
 
 ## Review
 
@@ -87,6 +81,8 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 ## Done
 
+- **review/tracker-gate** — opus high + fable review (no fix round); tag `review/tracker-gate`. `node tools/writer-trial/app-gate.mjs <folder>` runs the writer-trial gate (ADR 0068) over any folder's `src/` and `tests/` with the live Jev calibration: exit 0 nothing blocks, 1 blocks, 2 unavailable (never a pass). One rule, one place: `review.mjs check` and `app-gate.mjs` share `judgeFile` (`tools/writer-trial/folder.mjs`) and `gate.mjs`; trials keep their frozen copy. Jev hits now carry their unit's line. First run on `apps/issue-tracker`: 12 blocking (8 plain, 4 proven Jev), 29 advice, 0 unavailable — [report](docs/roadmap/issue-tracker-review/2026-09-27-gate.md).
+  - Gate EXIT 0; writer-trial tests 60 pass; validate 44 PASS.
 - **core/with-data** — opus high + fable review (one fix round); tag `core/with-data`; ADR 0069. `close({ withData: true })` moves the session's own data into the close `Result` as `data` (`data.get(cell, { ns })` → `Presence`, every ending); off by default. Core frees a session's data only after its `session` hooks return, so a hook reads cells and tags through its handle after `next()`; writes and resource reads there still throw. A kept store is stripped to cells so a held `Result` does not pin the layer (review fix). The tracker's publish hook now reads the request method after `next()`.
   - Gate EXIT 0; core 636 tests, tracker 51; core mutation 85.75; promises 17; validate 44 PASS; slot headroom 6; timing N=61 through benchd: lifecycle +1.81% (42/61), every other scenario within 1%; 7 Jev labels, calibration refreshed.
 - **core/cancel-reason** — opus high + fable review (one fix round) + one speed fix round; tag `core/cancel-reason`. A forced close's cancel reason is a `CancelReason` that reads like the web's `AbortError`: `name` `"AbortError"`, `String(reason)` and `util.inspect` read `AbortError: The scope closed before this work finished.` No stack (it is minted on every forced close), one instance per close so origin stamps stay apart, the brand an own field so a foreign `AbortError` still settles `failed`. An mcp tool call cut short now answers that text instead of `[object Object]`. Speed: with the brand as a prototype getter, lifecycle was +2.5% (49/61) though nothing read it; as an own field it is within 1%.
