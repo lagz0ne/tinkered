@@ -39,13 +39,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
-- **core/cancel-reason** — a forced close's cancel reason is `{ [cancelBrand]: true }` with no message,
-  so an mcp tool cut short answers the model `[object Object]` (core-feedback row). Precedent: the
-  web's `AbortError`. Owner: lead; writer agent `b845ec4d` in `../tinkered-cancel-reason` (brief
-  `core-cancel-reason.md`). Next: count how often a reason is minted on the hot path, then pick the
-  shape. Verify: `String(reason)` reads `AbortError: …`; a foreign `AbortError` is still not ours;
-  timing through benchd shows no scenario slower.
-
 ## Review
 
 | Card | Owner | Next | Verify |
@@ -79,6 +72,8 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 ## Done
 
+- **core/cancel-reason** — opus high + fable review (one fix round) + one speed fix round; tag `core/cancel-reason`. A forced close's cancel reason is a `CancelReason` that reads like the web's `AbortError`: `name` `"AbortError"`, `String(reason)` and `util.inspect` read `AbortError: The scope closed before this work finished.` No stack (it is minted on every forced close), one instance per close so origin stamps stay apart, the brand an own field so a foreign `AbortError` still settles `failed`. An mcp tool call cut short now answers that text instead of `[object Object]`. Speed: with the brand as a prototype getter, lifecycle was +2.5% (49/61) though nothing read it; as an own field it is within 1%.
+  - Gate EXIT 0; core 629 tests; core mutation 86.25; promises 17; validate 44 PASS; slot headroom 6; timing N=61 through benchd: lifecycle +0.17% (37/61) (confirming run), writer's run session +0.00% (27/61), tagged +1.18% (34/61); calibration refreshed.
 - **sync/source-stop** — opus high + fable review (no fix round); tag `sync/source-stop`. A closing `source` now stops its published set (as `subscribe` does) and drops each watch, so a new family member after close no longer throws `Disposed`. Also fixed: a start that failed with `SyncConflict` left an earlier family row's listener attached; `readPublished` attaches family listeners only after every row registers (shared with `subscribe`). Three new tests fail on main with `Disposed`.
   - Gate EXIT 0; sync 48 tests; sync mutation 88.24; validate 44 PASS; 2 Jev labels, calibration refreshed.
 - **drivers/t08** — opus high + fable review; tags `drivers/t08a`, `drivers/t08b`. Units have no `meta`: the harness takes `expose` rows like mcp (t08a), then core drops `meta`, `Tag.Handle.read`, `Tag.Metaed`, `metaFind`; mcp drops the `tool` tag, `readTool`, `ToolUndeclared`, and its dead `isError`; drizzle and harness drop the pass-through (t08b). ADR 0023 superseded; 0046 and 0048 marked superseded in part. 13 meta-only tests deleted, one type test and three mcp seam tests added.

@@ -7,97 +7,97 @@
     "medianFalse": 0.04,
     "separation": 0.9,
     "ordered": 0.99,
-    "at": "2026-09-26"
+    "at": "2026-09-27"
   },
   "effectWithoutDefer": {
     "status": "provisional",
     "trues": 2,
     "falses": 67,
-    "medianTrue": 0.82,
+    "medianTrue": 0.83,
     "medianFalse": 0.03,
-    "separation": 0.79,
+    "separation": 0.8,
     "ordered": 0.93,
-    "at": "2026-09-26"
+    "at": "2026-09-27"
   },
   "stateOutsideCell": {
     "status": "provisional",
     "trues": 2,
-    "falses": 72,
+    "falses": 73,
     "medianTrue": 0.91,
-    "medianFalse": 0.37,
-    "separation": 0.54,
+    "medianFalse": 0.38,
+    "separation": 0.53,
     "ordered": 1,
-    "at": "2026-09-26"
+    "at": "2026-09-27"
   },
   "configNotTag": {
     "status": "provisional",
     "trues": 2,
     "falses": 73,
-    "medianTrue": 0.63,
-    "medianFalse": 0.07,
-    "separation": 0.55,
-    "ordered": 0.86,
-    "at": "2026-09-26"
+    "medianTrue": 0.64,
+    "medianFalse": 0.06,
+    "separation": 0.57,
+    "ordered": 0.88,
+    "at": "2026-09-27"
   },
   "handRolledLifetime": {
     "status": "provisional",
     "trues": 3,
     "falses": 49,
-    "medianTrue": 0.78,
+    "medianTrue": 0.83,
     "medianFalse": 0.03,
-    "separation": 0.75,
+    "separation": 0.8,
     "ordered": 0.99,
-    "at": "2026-09-26"
+    "at": "2026-09-27"
   },
   "stopOnlyInDefer": {
     "status": "provisional",
     "trues": 1,
     "falses": 50,
-    "medianTrue": 0.84,
-    "medianFalse": 0.18,
+    "medianTrue": 0.83,
+    "medianFalse": 0.17,
     "separation": 0.66,
-    "ordered": 1,
-    "at": "2026-09-26"
+    "ordered": 0.98,
+    "at": "2026-09-27"
   },
   "ignoresAbortAfterAwait": {
     "status": "provisional",
     "trues": 1,
     "falses": 1,
-    "medianTrue": 0.81,
-    "medianFalse": 0.25,
-    "separation": 0.56,
+    "medianTrue": 0.76,
+    "medianFalse": 0.27,
+    "separation": 0.49,
     "ordered": 1,
-    "at": "2026-09-26"
+    "at": "2026-09-27"
   },
   "readsMoreThanRendered": {
     "status": "provisional",
     "trues": 1,
     "falses": 47,
-    "medianTrue": 0.91,
+    "medianTrue": 0.92,
     "medianFalse": 0.04,
-    "separation": 0.87,
+    "separation": 0.88,
     "ordered": 1,
-    "at": "2026-09-26"
+    "at": "2026-09-27"
   },
   "subscribesToWriteOnly": {
     "status": "provisional",
     "trues": 1,
     "falses": 46,
     "medianTrue": 0.94,
-    "medianFalse": 0.11,
-    "separation": 0.82,
+    "medianFalse": 0.13,
+    "separation": 0.81,
     "ordered": 1,
-    "at": "2026-09-26"
+    "at": "2026-09-27"
   },
   "runDuringRender": {
     "status": "provisional",
     "trues": 1,
     "falses": 46,
     "medianTrue": 0.96,
-    "medianFalse": 0.17,
-    "separation": 0.79,
+    "medianFalse": 0.18,
+    "separation": 0.77,
     "ordered": 1,
-    "at": "2026-09-26"
+    "at": "2026-09-27"
   },
   "domainLogicInRender": {
     "status": "proven",
@@ -105,9 +105,9 @@
     "falses": 43,
     "medianTrue": 0.89,
     "medianFalse": 0.06,
-    "separation": 0.82,
+    "separation": 0.83,
     "ordered": 1,
-    "at": "2026-09-26"
+    "at": "2026-09-27"
   },
   "effectOwnedByComponent": {
     "status": "provisional",
@@ -117,47 +117,47 @@
     "medianFalse": 0.05,
     "separation": 0.9,
     "ordered": 1,
-    "at": "2026-09-26"
+    "at": "2026-09-27"
   },
   "leakedInternal": {
     "status": "provisional",
     "trues": 1,
     "falses": 51,
     "medianTrue": 0.71,
-    "medianFalse": 0.17,
-    "separation": 0.54,
+    "medianFalse": 0.16,
+    "separation": 0.55,
     "ordered": 0.94,
-    "at": "2026-09-26"
+    "at": "2026-09-27"
   },
   "survivorMatters": {
     "status": "proven",
     "trues": 6,
     "falses": 7,
-    "medianTrue": 0.81,
-    "medianFalse": 0.21,
-    "separation": 0.6,
-    "ordered": 0.93,
-    "at": "2026-09-26"
+    "medianTrue": 0.83,
+    "medianFalse": 0.17,
+    "separation": 0.66,
+    "ordered": 0.95,
+    "at": "2026-09-27"
   },
   "inputDefaultMasks": {
     "status": "proven",
     "trues": 32,
     "falses": 65,
     "medianTrue": 0.93,
-    "medianFalse": 0.36,
-    "separation": 0.57,
+    "medianFalse": 0.35,
+    "separation": 0.58,
     "ordered": 0.98,
-    "at": "2026-09-26"
+    "at": "2026-09-27"
   },
   "noOpRejected": {
     "status": "proven",
     "trues": 6,
     "falses": 45,
-    "medianTrue": 0.82,
-    "medianFalse": 0.16,
-    "separation": 0.66,
+    "medianTrue": 0.78,
+    "medianFalse": 0.15,
+    "separation": 0.63,
     "ordered": 1,
-    "at": "2026-09-26"
+    "at": "2026-09-27"
   },
   "partialStub": {
     "status": "provisional",
@@ -167,7 +167,7 @@
     "medianFalse": 0.07,
     "separation": null,
     "ordered": 0,
-    "at": "2026-09-26"
+    "at": "2026-09-27"
   },
   "memoKeyIgnoresInput": {
     "status": "provisional",
@@ -177,16 +177,16 @@
     "medianFalse": 0.04,
     "separation": null,
     "ordered": 0,
-    "at": "2026-09-26"
+    "at": "2026-09-27"
   },
   "wrapsCallersStep": {
     "status": "noisy",
     "trues": 17,
     "falses": 13,
-    "medianTrue": 0.75,
-    "medianFalse": 0.38,
-    "separation": 0.37,
-    "ordered": 0.84,
-    "at": "2026-09-26"
+    "medianTrue": 0.78,
+    "medianFalse": 0.32,
+    "separation": 0.46,
+    "ordered": 0.86,
+    "at": "2026-09-27"
   }
 }
