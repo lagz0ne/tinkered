@@ -40,6 +40,20 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
+- **tracker/wire-rebuild** — the tab's live list from first principles (user, 2026-09-27): keys in
+  the stream URL (`GET /sync?keys=issues`, the server registers from the query), the browser's own
+  `EventSource` reconnect (`retry: 1000`); gone: the `POST /sync` channel, the `viewers` inbox, the
+  client id, the gate, the replay, our backoff loop. Boot with the server down shows "Connecting…"
+  (user picked A); the dead page only when the stream fails for good. Owner: lead; writer agent
+  `af5e342d` in `../tinkered-wire-rebuild` (brief `tracker-wire-rebuild.md`). Verify: the wire
+  near 40 lines; browser proof 4 of 4 uncached.
+
+- **tracker/server-ops** — the four server helpers that take `tx`/`db` (`selectAllIssues`,
+  `loadSaved`, `writeIssue`, `recordActivity`) become operations (best-practices rule 4: no
+  forwarding to a closure); pure value functions stay functions. Owner: lead; writer agent
+  `ac20db96` in `../tinkered-server-ops` (brief `tracker-server-ops.md`). Verify: behavior
+  unchanged; a failing step's origin names the step.
+
 ## Review
 
 | Card | Owner | Next | Verify |
