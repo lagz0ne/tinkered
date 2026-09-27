@@ -377,7 +377,7 @@ test("shutdown with a live wire and held turn joins cleanly", async () => {
   await live.scope.run(publishIssues);
   fixture.fillIds(created.id);
   const before = await live.scope.run(readDetail, { input: created.id });
-  const sse = await fetch(`${heard.base}/sync?client=shutdown-proof`);
+  const sse = await fetch(`${heard.base}/sync?keys=issues`);
   assert.equal(sse.status, 200);
   const held = (async () => {
     try {

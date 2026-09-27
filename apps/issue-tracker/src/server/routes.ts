@@ -1,13 +1,13 @@
 import type { Context, ErrorHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { LEVELS, operation, type Observe } from "@tinker/core";
-import { z } from "zod";
+import { LEVELS, operation, type Observe, type Operation } from "@tinker/core";
+import type { Sync } from "@tinker/sync";
 import { emit, route, stream, type HonoScope } from "@tinker/hono";
 import { isError } from "../errors.ts";
 import { draftBody, readCapability, startDraft } from "./draft.ts";
 import { describeError } from "./observe.ts";
 import { addComment, createIssue, editIssue, readDetail, readIssues } from "./operations.ts";
-import { registerViewer, src, sseTransport, viewers } from "./sync.ts";
+import { readRegister, src, sseTransport } from "./sync.ts";
 
 /** Map a registry failure to its status; anything else falls through to Hono. */
 export function onError(error: unknown, c: Parameters<HonoScope.OnError>[1]) {
@@ -54,7 +54,6 @@ function readIssueError(error: unknown, c: Parameters<HonoScope.OnError>[1]) {
 function readStreamError(error: unknown, c: Parameters<HonoScope.OnError>[1]) {
   if (isError(error, "BadDraftInput")) return c.text(error.payload.reason, 400);
   if (isError(error, "BadRegister")) return c.text("bad", 400);
-  if (isError(error, "ViewerGone")) return c.text("gone", 410);
   if (isError(error, "DraftOff")) return c.text("draft helper is off", 404);
   if (isError(error, "DraftFailed")) return c.text(error.payload.reason, 502);
   return undefined;
@@ -68,26 +67,28 @@ async function readBody(c: Context, extra: Record<string, unknown>): Promise<unk
   return typeof body === "object" && body !== null ? { ...body, ...extra } : extra;
 }
 
-/** Check the source and inbox are up before sending the stream headers. */
+/** Read the stream's keys and check the source is up before sending the stream headers: a bad
+ * key set answers 400 while the response can still say so. */
 const openWire = operation({
   label: "openWire",
-  depends: { origin: src, wires: viewers },
-  run: () => undefined,
+  input: readRegister,
+  depends: { origin: src },
+  run: (_deps, { input }) => input,
 });
 
-/** Keep the sync wire alive until the source ends or the reader leaves. */
+/** Keep the sync wire alive until the source ends or the reader leaves. The first frame sets
+ * the browser's reconnect wait; then the register read off the URL goes to the source, which
+ * answers it with a snapshot per key. */
 const syncBody = operation({
   label: "syncBody",
-  input: z.string(),
-  depends: { emit: emit.required, origin: src, wires: viewers },
-  run: async ({ emit, origin, wires }, { input: id, signal, log, defer }) => {
-    emit(": ready\n\n");
+  depends: { emit: emit.required, origin: src },
+  run: async ({ emit, origin }, { input: register, signal, log }: Operation.Ctx<Sync.Message>) => {
+    emit("retry: 1000\n\n");
     const wire = sseTransport(emit, signal);
-    const close = wires.open(id, wire.deliver);
-    defer(close);
-    const ended = await origin.connect(wire);
-    if (ended.status === "failed")
-      log.error("sync wire failed", { client: id, ...describeError(ended.error) });
+    const connected = origin.connect(wire);
+    wire.deliver(register);
+    const ended = await connected;
+    if (ended.status === "failed") log.error("sync wire failed", describeError(ended.error));
   },
 });
 
@@ -120,20 +121,13 @@ export const issueRoutes: readonly HonoScope.Row[] = [
       return stream(c, draftBody, { input: started });
     },
   }),
-  route.post("/sync", registerViewer, {
-    input: async (c) => ({
-      id: c.req.query("client") ?? "guest",
-      message: await c.req.json(),
-    }),
-    respond: (_v, c) => c.text("ok"),
-  }),
   route.get("/sync", openWire, {
-    respond: (_ready, c) => {
-      const id = c.req.query("client") ?? "guest";
+    input: (c) => c.req.queries("keys") ?? [],
+    respond: (register, c) => {
       c.header("Content-Type", "text/event-stream");
       c.header("Cache-Control", "no-cache");
       c.header("Connection", "keep-alive");
-      return stream(c, syncBody, { input: id });
+      return stream(c, syncBody, { input: register });
     },
   }),
 ];

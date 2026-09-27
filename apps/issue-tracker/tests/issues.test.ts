@@ -535,22 +535,34 @@ test("the detail and conflict routes answer through app.request", async () => {
   }
 });
 
-test("a register for a gone tab answers gone and a bad message answers bad", async () => {
+test("a sync GET with keys registers and streams each key's snapshot after the retry frame", async () => {
+  const { scope, app } = await boot();
+  const res = await app.request("/sync?keys=issues");
+  const reader = res.body?.getReader();
+  const decoder = new TextDecoder();
+  let text = "";
+  try {
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("text/event-stream");
+    while (reader !== undefined && !text.includes("\n\ndata: ")) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      text += decoder.decode(chunk.value);
+    }
+    expect(text).toBe(
+      `retry: 1000\n\ndata: ${JSON.stringify({ type: "snapshot", key: "issues", version: 0, value: [] })}\n\n`,
+    );
+  } finally {
+    await reader?.cancel();
+    await scope.close({ graceful: true });
+  }
+});
+
+test("a sync GET with no keys or an unknown key answers 400 before any stream", async () => {
   const { scope, app } = await boot();
   try {
-    const gone = await app.request("/sync?client=nobody", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ type: "register", keys: [] }),
-    });
-    expect(gone.status).toBe(410);
-
-    const bad = await app.request("/sync?client=nobody", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ type: "register", keys: [42] }),
-    });
-    expect(bad.status).toBe(400);
+    expect((await app.request("/sync")).status).toBe(400);
+    expect((await app.request("/sync?keys=issues&keys=nope")).status).toBe(400);
   } finally {
     await scope.close({ graceful: true });
   }

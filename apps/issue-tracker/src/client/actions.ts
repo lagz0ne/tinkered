@@ -379,8 +379,8 @@ export const postDraft = operation({
   },
 });
 
-/** Ask for a reconnect: bump the retry intent. The wire sees the bump, opens a fresh stream, and
- * replays the last register; it writes the connection cell, this never does (ADR 0070). */
+/** Ask for a reconnect: bump the retry intent. The wire sees the bump and opens a fresh stream;
+ * it writes the connection cell, this never does (ADR 0070). */
 export const reconnect = operation({
   label: "reconnect",
   depends: { intent: retry.controller },

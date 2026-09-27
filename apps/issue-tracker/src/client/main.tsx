@@ -12,22 +12,31 @@ import { issueList } from "../shared/issues.ts";
 
 /** The composition root: the only place that creates or touches the scope. Nothing is built
  * before `createScope`: `subscribe` resolves the `wire` resource inside the scope and holds it as
- * its transport, its `register` POSTs behind the stream's open, and `ready` resolves when the
- * first snapshots land. A first-connect failure fires `onClose` once, so `subscribe.start`
- * rejects with `SyncNotReady`, `ready` rejects, and the dead page renders — a second root-owned
- * `boot` re-renders static markup between attempts, no React state. */
+ * its transport, its `register` opens the stream with the keys in the URL, and `ready` resolves
+ * when the first snapshots land. Until then the page shows "Connecting…", however long the
+ * browser keeps reconnecting (a server that is down). A stream the browser gives up on before the
+ * first snapshot fires `onClose` once, so `subscribe.start` rejects with `SyncNotReady`, `ready`
+ * rejects, and the dead page renders — static markup the root re-renders between attempts, no
+ * React state. */
 function boot(): void {
   const root = document.getElementById("root");
   if (root === null) return;
   const element = createRoot(root);
-  const booted = start(element);
-  booted.then(
-    () => undefined,
-    () => renderDead(element, "dead"),
+  attempt(element, "dead");
+}
+
+/** One boot attempt; a failed one shows the dead page in the given phase. */
+function attempt(element: ReturnType<typeof createRoot>, phase: DeadPhase): void {
+  start(element).then(
+    (booted) => {
+      if (booted !== true) renderDead(element, phase);
+    },
+    () => renderDead(element, phase),
   );
 }
 
 async function start(element: ReturnType<typeof createRoot>): Promise<boolean> {
+  renderConnecting(element);
   const scope = createScope({
     tags: [api.config({ baseUrl: window.location.origin })],
     extensions: [subscribe(wire, { cells: [[issueList, "issues"]] })],
@@ -36,7 +45,6 @@ async function start(element: ReturnType<typeof createRoot>): Promise<boolean> {
     await scope.ready;
   } catch {
     await scope.close();
-    renderDead(element, "dead");
     return false;
   }
   scope.resolve(detailRefresh);
@@ -52,45 +60,36 @@ async function start(element: ReturnType<typeof createRoot>): Promise<boolean> {
   return true;
 }
 
-/** One dead-page phase: the first failure, the retry in flight, or the retry failed. */
-type DeadPhase = "dead" | "retrying" | "failed";
+/** The page while the first snapshot is on its way. */
+function renderConnecting(element: ReturnType<typeof createRoot>): void {
+  element.render(
+    <StrictMode>
+      <main>
+        <h1>Issues</h1>
+        <p aria-live="polite">Connecting…</p>
+      </main>
+    </StrictMode>,
+  );
+}
 
-/** The dead page: static markup between boot attempts — a second scope for its two transient
- * states would outlive its purpose, so the root re-renders the markup itself. */
+/** One dead-page phase: the first failure, or a Reconnect that failed too. */
+type DeadPhase = "dead" | "failed";
+
+/** The dead page: static markup between boot attempts. Reconnect starts one more attempt, which
+ * shows "Connecting…" until it boots or fails. */
 function renderDead(element: ReturnType<typeof createRoot>, phase: DeadPhase): void {
   element.render(
     <StrictMode>
       <main>
         <h1>Issues</h1>
         <p role="alert">Could not connect. Your drafts are kept in this tab.</p>
-        {phase === "retrying" ? (
-          <button type="button" disabled>
-            Reconnect
-          </button>
-        ) : (
-          <button type="button" onClick={() => retry(element)}>
-            Reconnect
-          </button>
-        )}
-        {phase === "retrying" ? <p aria-live="polite">Reconnecting…</p> : null}
+        <button type="button" onClick={() => attempt(element, "failed")}>
+          Reconnect
+        </button>
         {phase === "failed" ? <p role="alert">Still no connection. Try again.</p> : null}
       </main>
     </StrictMode>,
   );
-  if (phase === "retrying") {
-    const retried = start(element);
-    retried.then(
-      (recovered) => {
-        if (recovered !== true) renderDead(element, "failed");
-      },
-      () => renderDead(element, "failed"),
-    );
-  }
-}
-
-/** One more boot attempt behind the retrying markup. */
-function retry(element: ReturnType<typeof createRoot>): void {
-  renderDead(element, "retrying");
 }
 
 boot();

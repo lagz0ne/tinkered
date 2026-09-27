@@ -1,6 +1,6 @@
 import { setImmediate as nextTurn } from "node:timers/promises";
-import { createScope, makeTestClock, preset, type Clock } from "@tinker/core";
-import { isError as isSyncError, subscribe, type Sync } from "@tinker/sync";
+import { createScope, preset } from "@tinker/core";
+import { isError as isSyncError, subscribe } from "@tinker/sync";
 import { expect, test } from "vite-plus/test";
 import {
   api,
@@ -29,7 +29,6 @@ import {
   postComment,
   postDraft,
   postIssue,
-  postSync,
   reconnect,
   saveEdit,
   selectIssue,
@@ -69,24 +68,34 @@ const COMMENT: Issues.Comment = {
 
 const TAGS = [api.config({ baseUrl: "http://x" })];
 
-const REGISTER: Sync.Message = { type: "register", keys: ["issues"] };
-
 const SNAPSHOT = JSON.stringify({ type: "snapshot", key: "issues", version: 1, value: [ISSUE] });
 
 /** A fake server-sent stream: the wire drives it like an `EventSource`; the test fires its
- * open, error, and message events. */
+ * open, error, and message events and moves its `readyState` the way the browser does. */
 class FakeSource implements Wire.Source {
+  readyState = 0;
   onopen: ((event: Event) => void) | null = null;
   onerror: ((event: Event) => void) | null = null;
   onmessage: ((event: MessageEvent) => void) | null = null;
   closed = false;
+  readonly url: string;
+  constructor(url: string) {
+    this.url = url;
+  }
   close(): void {
     this.closed = true;
+    this.readyState = 2;
   }
   open(): void {
+    this.readyState = 1;
     this.onopen?.(new Event("open"));
   }
-  fail(): void {
+  drop(): void {
+    this.readyState = 0;
+    this.onerror?.(new Event("error"));
+  }
+  refuse(): void {
+    this.readyState = 2;
     this.onerror?.(new Event("error"));
   }
   push(data: string): void {
@@ -94,36 +103,24 @@ class FakeSource implements Wire.Source {
   }
 }
 
-/** Boot one tab on the wire as `main.tsx` does: fake streams, `post` in place of the POST, and a
- * test clock for the backoff wait; `sleeps` records the signal the wire hands each wait. The wire
- * opens its first stream while the scope starts; the boot waits one turn so sync listens on the
- * wire before a test fires a stream event, as a real stream's events come on a later task. */
-async function bootTab(post: (input: Wire.Post, signal: AbortSignal) => Promise<void>) {
+/** Boot one tab on the wire as `main.tsx` does, over fake streams. The wire opens its first
+ * stream while the scope starts; the boot waits one turn so sync listens on the wire before a
+ * test fires a stream event, as a real stream's events come on a later task. */
+async function bootTab() {
   const sources: FakeSource[] = [];
-  const clock = makeTestClock();
-  const sleeps: (AbortSignal | undefined)[] = [];
-  const spied: Clock.Test = {
-    ...clock,
-    sleep: (ms, signal) => {
-      sleeps.push(signal);
-      return clock.sleep(ms, signal);
-    },
-  };
   const scope = createScope({
-    clock: spied,
     tags: [
       ...TAGS,
-      openSource(() => {
-        const source = new FakeSource();
+      openSource((url) => {
+        const source = new FakeSource(url);
         sources.push(source);
         return source;
       }),
     ],
-    presets: [preset(postSync, (_deps, { input, signal }) => post(input, signal))],
     extensions: [subscribe(wire, { cells: [[issueList, "issues"]] })],
   });
   await nextTurn();
-  return { scope, sources, clock, sleeps, transport: scope.resolve(wire) };
+  return { scope, sources, transport: scope.resolve(wire) };
 }
 
 /** One `data:` SSE frame for one draft event. */
@@ -442,9 +439,76 @@ test("discarding a run quiets the cell without posting", async () => {
   }
 });
 
-test("the first stream error before its open fails the boot with SyncNotReady", async () => {
-  const tab = await bootTab(() => Promise.resolve());
-  tab.sources[0]?.fail();
+test("boot stays connecting while the browser retries, goes live on open, and is ready at the first snapshot", async () => {
+  const tab = await bootTab();
+  const [first] = tab.sources;
+  try {
+    expect(first?.url).toBe("/sync?keys=issues");
+    first?.drop();
+    first?.drop();
+    expect(tab.scope.resolve(connection)).toEqual({ live: false, pending: true, failed: false });
+    first?.open();
+    expect(tab.scope.resolve(connection)).toEqual({ live: true, pending: false, failed: false });
+    first?.push(SNAPSHOT);
+    await tab.scope.ready;
+    expect(tab.scope.resolve(issueList)).toEqual([ISSUE]);
+    expect(tab.sources.length).toBe(1);
+  } finally {
+    await tab.scope.close();
+  }
+});
+
+test("a drop reads connecting, and the browser's reconnect lands a restarted server's snapshot at a lower version", async () => {
+  const tab = await bootTab();
+  let closes = 0;
+  tab.transport.onClose(() => {
+    closes += 1;
+  });
+  const [first] = tab.sources;
+  first?.open();
+  first?.push(JSON.stringify({ type: "snapshot", key: "issues", version: 3, value: [ISSUE] }));
+  try {
+    await tab.scope.ready;
+    first?.drop();
+    expect(tab.scope.resolve(connection)).toMatchObject({ live: false, pending: true });
+    first?.open();
+    first?.push(JSON.stringify({ type: "snapshot", key: "issues", version: 0, value: [] }));
+    expect(tab.scope.resolve(connection).live).toBe(true);
+    expect(tab.scope.resolve(issueList)).toEqual([]);
+    expect(closes).toBe(0);
+    expect(tab.sources.length).toBe(1);
+  } finally {
+    await tab.scope.close();
+  }
+});
+
+test("a stream the browser gives up on writes failed, and a Reconnect bump opens a fresh stream", async () => {
+  const tab = await bootTab();
+  const [first] = tab.sources;
+  first?.open();
+  first?.push(SNAPSHOT);
+  try {
+    await tab.scope.ready;
+    first?.refuse();
+    expect(tab.scope.resolve(connection)).toEqual({ live: false, pending: false, failed: true });
+    expect(first?.closed).toBe(true);
+    tab.scope.run(reconnect);
+    expect(tab.sources[1]?.url).toBe("/sync?keys=issues");
+    expect(tab.scope.resolve(connection).pending).toBe(true);
+    tab.sources[1]?.open();
+    tab.sources[1]?.push(
+      JSON.stringify({ type: "snapshot", key: "issues", version: 1, value: [] }),
+    );
+    expect(tab.scope.resolve(connection).live).toBe(true);
+    expect(tab.scope.resolve(issueList)).toEqual([]);
+  } finally {
+    await tab.scope.close();
+  }
+});
+
+test("a stream the browser gives up on before the first snapshot fails the boot with SyncNotReady", async () => {
+  const tab = await bootTab();
+  tab.sources[0]?.refuse();
   expect(tab.scope.resolve(connection).failed).toBe(true);
   await tab.scope.ready.then(
     () => {
@@ -458,31 +522,8 @@ test("the first stream error before its open fails the boot with SyncNotReady", 
   await tab.scope.close();
 });
 
-test("after the boot no drop reads as failed: a bad frame, a rewire's early error, a later error", async () => {
-  const tab = await bootTab(() => Promise.resolve());
-  const [first] = tab.sources;
-  first?.open();
-  first?.push(SNAPSHOT);
-  try {
-    await tab.scope.ready;
-    first?.push("not json");
-    expect(tab.scope.resolve(connection)).toMatchObject({ live: false, failed: false });
-    tab.clock.advance(1000);
-    await expect.poll(() => tab.sources.length).toBe(2);
-    tab.sources[1]?.fail();
-    expect(tab.scope.resolve(connection)).toMatchObject({ live: false, failed: false });
-    tab.clock.advance(2000);
-    await expect.poll(() => tab.sources.length).toBe(3);
-    tab.sources[2]?.open();
-    tab.sources[2]?.fail();
-    expect(tab.scope.resolve(connection)).toMatchObject({ live: false, failed: false });
-  } finally {
-    await tab.scope.close();
-  }
-});
-
-test("a stream error after the open drops the connection and keeps sync attached", async () => {
-  const tab = await bootTab(() => Promise.resolve());
+test("a malformed frame writes failed and closes the stream, and sync stays attached", async () => {
+  const tab = await bootTab();
   let closes = 0;
   tab.transport.onClose(() => {
     closes += 1;
@@ -492,8 +533,8 @@ test("a stream error after the open drops the connection and keeps sync attached
   first?.push(SNAPSHOT);
   try {
     await tab.scope.ready;
-    first?.fail();
-    expect(tab.scope.resolve(connection).live).toBe(false);
+    first?.push("not json");
+    expect(tab.scope.resolve(connection).failed).toBe(true);
     expect(first?.closed).toBe(true);
     expect(closes).toBe(0);
     expect(tab.scope.resolve(issueList)).toEqual([ISSUE]);
@@ -502,267 +543,8 @@ test("a stream error after the open drops the connection and keeps sync attached
   }
 });
 
-test("a malformed frame drops the connection", async () => {
-  const tab = await bootTab(() => Promise.resolve());
-  const [first] = tab.sources;
-  first?.open();
-  first?.push(SNAPSHOT);
-  try {
-    await tab.scope.ready;
-    first?.push("not json");
-    expect(tab.scope.resolve(connection).live).toBe(false);
-  } finally {
-    await tab.scope.close();
-  }
-});
-
-test("a refused POST drops the connection", async () => {
-  const tab = await bootTab(() => Promise.reject(fail("ViewerGone", { id: "tab" })));
-  const [first] = tab.sources;
-  first?.open();
-  first?.push(SNAPSHOT);
-  try {
-    await tab.scope.ready;
-    await expect.poll(() => tab.scope.resolve(connection).live).toBe(false);
-  } finally {
-    await tab.scope.close();
-  }
-});
-
-test("POSTs wait for the stream's open and go out in send order", async () => {
-  let opened = false;
-  const sent: { readonly opened: boolean; readonly message: Sync.Message }[] = [];
-  const tab = await bootTab((input) => {
-    sent.push({ opened, message: input.message });
-    return Promise.resolve();
-  });
-  const later: Sync.Message = { type: "register", keys: ["later"] };
-  tab.transport.send(later);
-  const [first] = tab.sources;
-  opened = true;
-  first?.open();
-  first?.push(SNAPSHOT);
-  try {
-    await tab.scope.ready;
-    await expect.poll(() => sent.length).toBe(2);
-    expect(sent).toEqual([
-      { opened: true, message: REGISTER },
-      { opened: true, message: later },
-    ]);
-  } finally {
-    await tab.scope.close();
-  }
-});
-
-test("a reconnect bumps retry: the wire rewires, goes live, and replays the last register", async () => {
-  const sent: Sync.Message[] = [];
-  const tab = await bootTab((input) => {
-    sent.push(input.message);
-    return Promise.resolve();
-  });
-  const [first] = tab.sources;
-  first?.open();
-  first?.push(SNAPSHOT);
-  try {
-    await tab.scope.ready;
-    await expect.poll(() => sent.length).toBe(1);
-    first?.fail();
-    tab.scope.run(reconnect);
-    expect(tab.scope.resolve(connection)).toMatchObject({ live: false, pending: true });
-    expect(tab.sources.length).toBe(2);
-    tab.sources[1]?.open();
-    expect(tab.scope.resolve(connection)).toMatchObject({ live: true, pending: false });
-    await expect.poll(() => sent.length).toBe(2);
-    expect(sent).toEqual([REGISTER, REGISTER]);
-  } finally {
-    await tab.scope.close();
-  }
-});
-
-test("a rewire that errors before its open retries after a longer wait and goes live on a later open", async () => {
-  const sent: Sync.Message[] = [];
-  const tab = await bootTab((input) => {
-    sent.push(input.message);
-    return Promise.resolve();
-  });
-  const [first] = tab.sources;
-  first?.open();
-  first?.push(SNAPSHOT);
-  try {
-    await tab.scope.ready;
-    first?.fail();
-    tab.clock.advance(1000);
-    await expect.poll(() => tab.sources.length).toBe(2);
-    tab.sources[1]?.fail();
-    expect(tab.scope.resolve(connection)).toMatchObject({
-      live: false,
-      pending: false,
-      failed: false,
-    });
-    tab.clock.advance(1999);
-    await nextTurn();
-    expect(tab.sources.length).toBe(2);
-    tab.clock.advance(1);
-    await expect.poll(() => tab.sources.length).toBe(3);
-    tab.sources[2]?.open();
-    expect(tab.scope.resolve(connection).live).toBe(true);
-    await expect.poll(() => sent).toEqual([REGISTER, REGISTER]);
-  } finally {
-    await tab.scope.close();
-  }
-});
-
-test("the retry wait doubles with each miss and caps at 30 seconds", async () => {
-  const tab = await bootTab(() => Promise.resolve());
-  const [first] = tab.sources;
-  first?.open();
-  first?.push(SNAPSHOT);
-  try {
-    await tab.scope.ready;
-    first?.fail();
-    for (const wait of [1000, 2000, 4000, 8000, 16_000, 30_000, 30_000]) {
-      const opened = tab.sources.length;
-      tab.clock.advance(wait - 1);
-      await nextTurn();
-      expect(tab.sources.length).toBe(opened);
-      tab.clock.advance(1);
-      await expect.poll(() => tab.sources.length).toBe(opened + 1);
-      tab.sources.at(-1)?.fail();
-    }
-  } finally {
-    await tab.scope.close();
-  }
-});
-
-test("a retry bump during a wait opens at once, resets the wait, and the old wait opens nothing", async () => {
-  const tab = await bootTab(() => Promise.resolve());
-  const [first] = tab.sources;
-  first?.open();
-  first?.push(SNAPSHOT);
-  try {
-    await tab.scope.ready;
-    first?.fail();
-    tab.clock.advance(1000);
-    await expect.poll(() => tab.sources.length).toBe(2);
-    tab.sources[1]?.fail();
-    tab.scope.run(reconnect);
-    expect(tab.sources.length).toBe(3);
-    tab.sources[2]?.fail();
-    tab.clock.advance(999);
-    await nextTurn();
-    expect(tab.sources.length).toBe(3);
-    tab.clock.advance(1);
-    await expect.poll(() => tab.sources.length).toBe(4);
-    tab.sources[3]?.open();
-    tab.clock.advance(60_000);
-    await nextTurn();
-    expect(tab.sources.length).toBe(4);
-    expect(tab.scope.resolve(connection).live).toBe(true);
-  } finally {
-    await tab.scope.close();
-  }
-});
-
-test("a drop rewires by itself after the backoff and replays the last register", async () => {
-  const sent: Sync.Message[] = [];
-  const tab = await bootTab((input) => {
-    sent.push(input.message);
-    return Promise.resolve();
-  });
-  const [first] = tab.sources;
-  first?.open();
-  first?.push(SNAPSHOT);
-  try {
-    await tab.scope.ready;
-    first?.fail();
-    expect(tab.sources.length).toBe(1);
-    tab.clock.advance(60_000);
-    await expect.poll(() => tab.sources.length).toBe(2);
-    tab.sources[1]?.open();
-    expect(tab.scope.resolve(connection).live).toBe(true);
-    await expect.poll(() => sent).toEqual([REGISTER, REGISTER]);
-  } finally {
-    await tab.scope.close();
-  }
-});
-
-test("a scope close during the backoff wait ends quietly and opens nothing", async () => {
-  const tab = await bootTab(() => Promise.resolve());
-  const [first] = tab.sources;
-  first?.open();
-  first?.push(SNAPSHOT);
-  await tab.scope.ready;
-  first?.fail();
-  const ended = await tab.scope.close();
-  expect(tab.sleeps.length).toBe(1);
-  expect(tab.sleeps.every((signal) => signal?.aborted === true)).toBe(true);
-  tab.clock.advance(60_000);
-  expect(ended.teardownErrors).toBeUndefined();
-  expect(tab.sources.length).toBe(1);
-});
-
-test("a scope close during the wait after a failed rewire ends quietly and opens nothing", async () => {
-  const tab = await bootTab(() => Promise.resolve());
-  const [first] = tab.sources;
-  first?.open();
-  first?.push(SNAPSHOT);
-  await tab.scope.ready;
-  first?.fail();
-  tab.clock.advance(1000);
-  await expect.poll(() => tab.sources.length).toBe(2);
-  tab.sources[1]?.fail();
-  const ended = await tab.scope.close();
-  expect(tab.sleeps.length).toBe(2);
-  expect(tab.sleeps.every((signal) => signal?.aborted === true)).toBe(true);
-  tab.clock.advance(60_000);
-  await nextTurn();
-  expect(ended.teardownErrors).toBeUndefined();
-  expect(tab.sources.length).toBe(2);
-});
-
-test("a POST that fails for a replaced stream does not drop the current one", async () => {
-  let posts = 0;
-  let rejectReplaced: (error: unknown) => void = () => undefined;
-  const tab = await bootTab(() => {
-    posts += 1;
-    if (posts !== 2) return Promise.resolve();
-    return new Promise<void>((_resolve, reject) => {
-      rejectReplaced = reject;
-    });
-  });
-  const [first] = tab.sources;
-  first?.open();
-  first?.push(SNAPSHOT);
-  try {
-    await tab.scope.ready;
-    tab.scope.run(reconnect);
-    tab.sources[1]?.open();
-    await expect.poll(() => posts).toBe(2);
-    tab.scope.run(reconnect);
-    tab.sources[2]?.open();
-    await expect.poll(() => posts).toBe(3);
-    rejectReplaced(fail("ViewerGone", { id: "tab" }));
-    await tab.scope.settled();
-    expect(tab.scope.resolve(connection).live).toBe(true);
-    expect(tab.sources[2]?.closed).toBe(false);
-  } finally {
-    await tab.scope.close();
-  }
-});
-
-test("scope close aborts in-flight POSTs, closes the stream, fires onClose once", async () => {
-  let held = false;
-  let aborted = false;
-  const tab = await bootTab(
-    (_input, signal) =>
-      new Promise<void>((_resolve, reject) => {
-        held = true;
-        signal.addEventListener("abort", () => {
-          aborted = true;
-          reject(signal.reason);
-        });
-      }),
-  );
+test("scope close closes the stream and fires onClose once", async () => {
+  const tab = await bootTab();
   let closes = 0;
   tab.transport.onClose(() => {
     closes += 1;
@@ -771,22 +553,9 @@ test("scope close aborts in-flight POSTs, closes the stream, fires onClose once"
   first?.open();
   first?.push(SNAPSHOT);
   await tab.scope.ready;
-  await expect.poll(() => held).toBe(true);
   await tab.scope.close();
-  expect(aborted).toBe(true);
   expect(first?.closed).toBe(true);
   expect(closes).toBe(1);
-});
-
-test("scope close before the first stream opens settles instead of waiting on the register POST", async () => {
-  let posts = 0;
-  const tab = await bootTab(() => {
-    posts += 1;
-    return Promise.resolve();
-  });
-  await tab.scope.close();
-  expect(posts).toBe(0);
-  expect(tab.sources[0]?.closed).toBe(true);
 });
 
 test("a stream that cannot be opened fails the boot with its own error", async () => {

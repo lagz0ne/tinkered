@@ -1,53 +1,21 @@
-import { operation, resource, type Resource } from "@tinker/core";
 import type { Stream } from "@tinker/hono";
 import { source, type Sync } from "@tinker/sync";
 import { raise } from "../errors.ts";
 import { issueList } from "../shared/issues.ts";
 
+/** The rows the source publishes: each shared cell under its key. */
+const published: Sync.Row[] = [[issueList, "issues"]];
+
 /** The source extension, one identity per process: `createApp` installs this
- * same object and the `/sync` row's op declares it in `depends`. The row
- * names the shared list's key. */
-export const src = source({ cells: [[issueList, "issues"]] });
+ * same object and the `/sync` row's op declares it in `depends`. */
+export const src = source({ cells: published });
 
-export declare namespace Viewers {
-  /** One connected tab's inbox: open it once per stream, deliver posts into it. */
-  export type Inbox = {
-    /** Register a tab's deliver under its client id; the returned closer drops it. */
-    open(id: string, deliver: (message: Sync.Message) => void): () => void;
-    /** Hand one posted message to the tab's deliver; false when the tab is gone. */
-    deliver(id: string, message: Sync.Message): boolean;
-  };
-}
-
-/** The POST inbox registry the sync streams share: a scope resource, so the
- * composition root owns it and `defer` clears it on close. */
-export const viewers: Resource.Handle<Viewers.Inbox> = resource({
-  label: "viewers",
-  factory: (_deps, { defer }) => {
-    const inboxes = new Map<string, (message: Sync.Message) => void>();
-    defer(() => {
-      inboxes.clear();
-    });
-    return {
-      open: (id, deliver) => {
-        inboxes.set(id, deliver);
-        return () => {
-          if (inboxes.get(id) === deliver) inboxes.delete(id);
-        };
-      },
-      deliver: (id, message) => {
-        const found = inboxes.get(id);
-        if (found === undefined) return false;
-        found(message);
-        return true;
-      },
-    };
-  },
-});
+/** The keys a tab may ask for: the published rows' keys. */
+const keys = new Set(published.map(([, key]) => key));
 
 /** The SSE side of ADR 0048's userland transport: `send` writes one frame
  * down the stream (a throw from `emit` closes the wire — the client went
- * away), `deliver` fans a posted message to the `onMessage` listeners,
+ * away), `deliver` fans the register read off the URL to the `onMessage` listeners,
  * `onClose` listeners run once on `close`, and a `signal` abort closes. */
 export function sseTransport(
   emit: Stream.Emit,
@@ -99,33 +67,11 @@ function frame(message: Sync.Message): string {
   return `data: ${JSON.stringify(message)}\n\n`;
 }
 
-/** Read a posted register message: the keys the viewer shows. Anything else
- * is refused. */
-export function parseRegister(raw: unknown): Sync.Message {
-  if (typeof raw !== "object" || raw === null) raise("BadRegister", { reason: "unreadable" });
-  if (!("type" in raw) || raw.type !== "register") raise("BadRegister", { reason: "unreadable" });
-  if (!("keys" in raw) || Array.isArray(raw.keys) === false)
-    raise("BadRegister", { reason: "unreadable" });
-  const keys = raw.keys.filter((key): key is string => typeof key === "string");
-  if (keys.length !== raw.keys.length) raise("BadRegister", { reason: "unreadable" });
-  return { type: "register", keys };
+/** Read the keys a tab's stream URL asks for (`/sync?keys=issues`) as the register sync
+ * answers. No key, or a key the source does not publish, raises `BadRegister`. */
+export function readRegister(raw: unknown): Sync.Message {
+  if (!Array.isArray(raw) || raw.length === 0) raise("BadRegister", { reason: "no keys" });
+  const asked = raw.filter((key): key is string => typeof key === "string" && keys.has(key));
+  if (asked.length !== raw.length) raise("BadRegister", { reason: "unknown key" });
+  return { type: "register", keys: asked };
 }
-
-/** Read one register POST: the client id plus its posted message. */
-function parsePosted(raw: unknown): { readonly id: string; readonly message: Sync.Message } {
-  if (typeof raw !== "object" || raw === null) raise("BadRegister", { reason: "unreadable" });
-  if (!("id" in raw) || typeof raw.id !== "string") raise("BadRegister", { reason: "unreadable" });
-  if (!("message" in raw)) raise("BadRegister", { reason: "unreadable" });
-  return { id: raw.id, message: parseRegister(raw.message) };
-}
-
-/** Hand one posted message to its tab's inbox; a gone tab answers 410. */
-export const registerViewer = operation({
-  label: "registerViewer",
-  input: parsePosted,
-  depends: { viewers },
-  run: ({ viewers }, ctx) => {
-    if (viewers.deliver(ctx.input.id, ctx.input.message) === false)
-      raise("ViewerGone", { id: ctx.input.id });
-  },
-});

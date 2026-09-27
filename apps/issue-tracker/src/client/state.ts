@@ -21,9 +21,10 @@ export type EditDraft = {
   readonly conflict: Issues.Issue | null;
 };
 
-/** The wire as the tab sees it. `live` flips when the wire drops; `pending` holds while a stream
- * is connecting; `failed` marks a first stream that never opened, which fails the boot, so the
- * tab view never shows it (the dead page does). */
+/** The wire as the tab sees it. `live` holds while the stream is open; `pending` holds while a
+ * stream connects or the browser reconnects it; `failed` marks a stream the browser gave up on
+ * (the server answered an HTTP error) or a malformed frame, which waits for Reconnect. Before the
+ * first frame a failure fails the boot instead, and the dead page shows. */
 export type Connection = {
   readonly live: boolean;
   readonly pending: boolean;

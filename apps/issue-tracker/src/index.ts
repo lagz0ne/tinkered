@@ -1,4 +1,4 @@
-export { openSource, postSync, wire } from "./client/connection.ts";
+export { openSource, wire } from "./client/connection.ts";
 export type { Wire } from "./client/connection.ts";
 export { fail, isError, raise } from "./errors.ts";
 export type { Errors } from "./errors.ts";
@@ -44,7 +44,6 @@ export { issueRoutes } from "./server/routes.ts";
 export { src } from "./server/sync.ts";
 export { publishAfterCommit } from "./server/publish.ts";
 export { describeError, jsonLines } from "./server/observe.ts";
-export { registerViewer, viewers } from "./server/sync.ts";
 export { createApp } from "./server/app.ts";
 export type { AppConfig } from "./server/app.ts";
 export {
