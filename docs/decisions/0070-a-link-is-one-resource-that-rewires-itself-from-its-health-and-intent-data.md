@@ -1,6 +1,6 @@
 # 0070 A link is one resource that rewires itself from its health and intent data
 
-Date: 2026-09-27. Status: proposed. Builds on: 0048 (transport is userland), 0051, 0060 (an
+Date: 2026-09-27. Status: accepted (user, 2026-09-27). Builds on: 0048 (transport is userland), 0051, 0060 (an
 integration is an extension the scope owns). Evidence:
 [survey](../roadmap/jev-handrolled/2026-09-27-survey.md),
 [bridges](../roadmap/jev-handrolled/2026-09-27-bridges.md).
