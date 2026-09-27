@@ -136,6 +136,33 @@ void describe("plain rules in a source file", () => {
     assert.deepEqual(hits(src, SRC), []);
   });
 
+  void it("S18 fires on a sync family made inside a function", () => {
+    const src = [
+      'import { family } from "@tinker/sync";',
+      "const todos = (label: string) => family({ label, initial: '' });",
+    ].join("\n");
+    assert.deepEqual(hits(src, SRC), [["S18", 2]]);
+  });
+
+  void it("S18 leaves a driver's extension built from wiring rows alone", () => {
+    const src = [
+      'import { extension } from "@tinker/core";',
+      "export function mcp(rows: readonly Row[]) {",
+      '  return extension({ label: "mcp", start: (scope, ctx, next) => next() });',
+      "}",
+    ].join("\n");
+    assert.deepEqual(hits(src, SRC), []);
+  });
+
+  void it("S18's message names exactly the builders it counts", () => {
+    const [found] = inspectPlain(
+      'import { data } from "@tinker/core";\nfunction f() { return data({ label: "x", initial: 1 }); }\n',
+      SRC,
+      { writer: true },
+    );
+    assert.match(found.message, /data, operation, resource, tag, and family once/);
+  });
+
   void it("S19 fires on a helper that takes a controller, directly or through a type alias", () => {
     const src = [
       'import type { Scope } from "@tinker/core";',

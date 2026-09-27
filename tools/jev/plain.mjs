@@ -19,7 +19,7 @@ function kindOf(file) {
 }
 
 const MESSAGES = {
-  S18: "unit built inside a function: declare every data, operation, resource, and tag once at module level; a builder function never creates one",
+  S18: "unit built inside a function: declare every data, operation, resource, tag, and family once at module level; a builder function never creates one",
   S19: "helper takes a controller, scope, or session: a helper works on plain values; read and write cells inside the operation body",
   T01: "mock or spy in a test: drive the real public API and check what it returns or shows",
   T02: "fixed sleep in a test: wait for the state you need (an awaited promise, a locator assert, expect.poll)",
@@ -295,20 +295,34 @@ function parseRow(errors, starts) {
 // ---------- no wrapper (ADR 0060, best-practices rules 3 and "helpers over values") ----------
 // Writer policy only: S18 and S19 run when `writer` is set, like S17.
 
-const UNIT_BUILDERS = new Set(["data", "operation", "resource", "tag", "family", "extension"]);
+/** The unit builders S18 counts, by the module that exports them. A `family` is a keyed cell
+ *  memoized per id (glossary), so one made inside a function is a second family under the same
+ *  label: it counts like `data`. An `extension` does not count: a driver builds its extension
+ *  from wiring rows inside a function by design (ADR 0051, ADR 0060). */
+const UNIT_BUILDERS = new Map([
+  ["@tinker/core", new Set(["data", "operation", "resource", "tag"])],
+  ["@tinker/sync", new Set(["family"])],
+]);
 const HANDLE_TYPE = /\b(DataController|Controller|Scope\.Handle|Scope\.Session|Session)\b/;
 const FN_NODE = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"]);
 
-/** Is this import statement the `@tinker/core` module. */
-const isCoreImport = (n) => n.type === "ImportDeclaration" && n.source.value === "@tinker/core";
+/** Local names the file imports by name from `module` for one of `wanted`. */
+function importedNames(program, module, wanted) {
+  const specs = program.body
+    .filter((n) => n.type === "ImportDeclaration" && n.source.value === module)
+    .flatMap((n) => n.specifiers ?? []);
+  const named = specs.filter(
+    (sp) => sp.type === "ImportSpecifier" && wanted.has(sp.imported?.name),
+  );
+  return named.map((sp) => sp.local.name);
+}
 
-/** Is this specifier one of the unit builders, imported by name. */
-const isBuilderSpec = (sp) => sp.type === "ImportSpecifier" && UNIT_BUILDERS.has(sp.imported?.name);
-
-/** Local names the file imports from @tinker/core for the unit builders. */
+/** Local names the file imports for the unit builders S18 counts. */
 function builderNames(program) {
-  const specs = program.body.filter(isCoreImport).flatMap((n) => n.specifiers ?? []);
-  return new Set(specs.filter(isBuilderSpec).map((sp) => sp.local.name));
+  const names = [...UNIT_BUILDERS].flatMap(([module, wanted]) =>
+    importedNames(program, module, wanted),
+  );
+  return new Set(names);
 }
 
 /** Is this node a call to one of the named builders. */

@@ -28,7 +28,7 @@ export function loadKey() {
   } catch {
     /* fall through */
   }
-  console.error("jev: no key (set AI_GATEWAY_API_KEY or JEV_TOKEN_FILE); skipping — advisory only");
+  console.error("jev: no key (set AI_GATEWAY_API_KEY or JEV_TOKEN_FILE); no judge ran");
   return false;
 }
 
