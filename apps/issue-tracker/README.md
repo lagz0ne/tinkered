@@ -187,6 +187,9 @@ Saves run in their own short child session and publish to the shared root
 cell only after the database commit resolves. PGlite is single-connection,
 so short write transactions queue instead of overlapping.
 
+Every saved id (issue, comment, activity row) comes from the scope's
+random, so a scope with a seeded random replays the same ids.
+
 The app is built from the public libraries:
 
 - [`@tinker/core`](../../packages/core/src/index.ts): scopes, operations,

@@ -1,4 +1,11 @@
-import { createScope, preset, type Observe, type Operation, type Scope } from "@tinker/core";
+import {
+  createScope,
+  makeTestRandom,
+  preset,
+  type Observe,
+  type Operation,
+  type Scope,
+} from "@tinker/core";
 import { hono, route } from "@tinker/hono";
 import { memoryPair, subscribe } from "@tinker/sync";
 import {
@@ -45,6 +52,31 @@ test("a session save commits a row the root list read sees", async () => {
   } finally {
     await scope.close({ graceful: true });
   }
+});
+
+test("a seeded random replays the same issue, comment, and activity ids", async () => {
+  async function ids(): Promise<readonly string[]> {
+    const scope = createScope({
+      tags: [store.config(undefined)],
+      random: makeTestRandom({ seed: 7 }),
+    });
+    try {
+      const created = await save(scope, createIssue, { title: "Ids", description: "x" });
+      const comment = await save(scope, addComment, {
+        issueId: created.id,
+        author: "Ada",
+        text: "hi",
+      });
+      const found = await detail(scope, created.id);
+      return [created.id, comment.id, ...found.activity.map((row) => row.id)];
+    } finally {
+      await scope.close({ graceful: true });
+    }
+  }
+  const first = await ids();
+  expect(first.length).toBe(4);
+  expect(new Set(first).size).toBe(4);
+  expect(await ids()).toEqual(first);
 });
 
 test("creating a valid issue saves it and a second viewer sees it", async () => {

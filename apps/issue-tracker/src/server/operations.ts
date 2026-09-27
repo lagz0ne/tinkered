@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { asc, eq } from "drizzle-orm";
 import { operation } from "@tinker/core";
 import {
@@ -76,13 +75,14 @@ async function writeIssue(tx: Tx, updated: Issues.Issue): Promise<void> {
 
 async function recordActivity(
   tx: Tx,
+  id: string,
   issueId: string,
   kind: Issues.Activity["kind"],
   summary: string,
   now: number,
 ): Promise<void> {
   await tx.insert(activityRows).values({
-    id: randomUUID(),
+    id,
     issueId,
     kind,
     summary,
@@ -98,7 +98,7 @@ export const createIssue = operation({
   run: async ({ tx }, ctx) => {
     const now = ctx.clock.currentTimeMillis();
     const issue: Issues.Issue = {
-      id: randomUUID(),
+      id: ctx.random.uuid(),
       title: ctx.input.title,
       description: ctx.input.description,
       status: "open",
@@ -108,7 +108,7 @@ export const createIssue = operation({
       updatedAt: now,
     };
     await tx.insert(issueRows).values(issue);
-    await recordActivity(tx, issue.id, "created", "created", now);
+    await recordActivity(tx, ctx.random.uuid(), issue.id, "created", "created", now);
     return issue;
   },
 });
@@ -128,6 +128,7 @@ export const editIssue = operation({
     const names = editNames(ctx.input);
     await recordActivity(
       tx,
+      ctx.random.uuid(),
       updated.id,
       "edited",
       names.length > 0 ? `edited ${names.join(", ")}` : "edited",
@@ -147,7 +148,7 @@ export const addComment = operation({
     await loadSaved(tx, ctx.input.issueId);
     const now = ctx.clock.currentTimeMillis();
     const comment: Issues.Comment = {
-      id: randomUUID(),
+      id: ctx.random.uuid(),
       issueId: ctx.input.issueId,
       author: ctx.input.author,
       text: ctx.input.text,
@@ -155,7 +156,14 @@ export const addComment = operation({
     };
     await tx.insert(commentRows).values(comment);
     await tx.update(issueRows).set({ updatedAt: now }).where(eq(issueRows.id, ctx.input.issueId));
-    await recordActivity(tx, ctx.input.issueId, "commented", `${ctx.input.author} commented`, now);
+    await recordActivity(
+      tx,
+      ctx.random.uuid(),
+      ctx.input.issueId,
+      "commented",
+      `${ctx.input.author} commented`,
+      now,
+    );
     return comment;
   },
 });
