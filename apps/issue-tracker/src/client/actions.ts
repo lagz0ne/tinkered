@@ -9,7 +9,6 @@ import {
   commentAuthor,
   commentDraft,
   commentNotice,
-  connection,
   detail,
   detailNotice,
   draftAuthor,
@@ -379,21 +378,19 @@ export const postDraft = operation({
   },
 });
 
-/** Reconnect the wire: flag the connection pending, open a fresh stream, then replay the last
- * register on it. A stream that errors before its open leaves the connection failed. */
+/** Reconnect the wire: open a fresh stream (the stream writes the connection pending, then live
+ * or failed), then replay the last register on it. A stream that errors before its open ends the
+ * run with nothing replayed. */
 export const reconnect = operation({
   label: "reconnect",
-  depends: { line: stream, last: lastRegister.controller, link: connection.controller },
-  run: async ({ line, last, link }) => {
-    link.update((prev) => ({ ...prev, pending: true, failed: false }));
+  depends: { line: stream, last: lastRegister.controller },
+  run: async ({ line, last }) => {
     try {
       await line.reopen();
     } catch (error: unknown) {
       if (!isError(error, "SyncDropped")) throw error;
-      link.update((prev) => ({ ...prev, pending: false, failed: true }));
       return;
     }
-    link.update((prev) => ({ ...prev, pending: false }));
     const replay = last.get();
     if (replay !== null) await line.post(replay);
   },

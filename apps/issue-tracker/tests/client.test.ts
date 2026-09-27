@@ -547,3 +547,38 @@ test("scope close aborts in-flight POSTs, closes the stream, fires onClose once"
   expect(first?.closed).toBe(true);
   expect(closes).toBe(1);
 });
+
+test("scope close before the first stream opens settles instead of waiting on the register POST", async () => {
+  let posts = 0;
+  const tab = await bootTab(() => {
+    posts += 1;
+    return Promise.resolve();
+  });
+  await tab.scope.close();
+  expect(posts).toBe(0);
+  expect(tab.sources[0]?.closed).toBe(true);
+});
+
+test("a stream that cannot be opened fails the boot with SyncNotReady", async () => {
+  const [peer, far] = memoryPair();
+  const scope = createScope({
+    tags: [
+      ...TAGS,
+      wirePeer(peer),
+      openSource(() => {
+        throw fail("SyncDropped", { reason: "no stream" });
+      }),
+    ],
+    extensions: [wire, subscribe(far, { cells: [[issueList, "issues"]] })],
+  });
+  await scope.ready.then(
+    () => {
+      expect.unreachable();
+    },
+    (error: unknown) => {
+      if (!isSyncError(error, "SyncNotReady")) throw error;
+      expect(error.payload.missing).toEqual(["issues"]);
+    },
+  );
+  await scope.close();
+});

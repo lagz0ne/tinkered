@@ -22,7 +22,8 @@ revision is lower than the last one the old connection saw.
 The live connection is one server-sent stream plus POSTs:
 
 - **first stream error before it opens** — the boot fails and the page
-  shows "Could not connect" with its own Reconnect button.
+  shows "Could not connect" with its own Reconnect button. A stream that
+  cannot be opened at all fails the boot the same way.
 - **a later stream error, a malformed frame, or a refused POST** — the
   connection drops; the list and drafts stay, and sync stays attached.
 - **POSTs** — they wait for the stream's open and go out in send order.
@@ -30,7 +31,8 @@ The live connection is one server-sent stream plus POSTs:
   register again. A fresh stream that errors first leaves "Still no
   connection".
 - **closing the page's scope** — it aborts in-flight POSTs, closes the
-  stream, and tells sync once.
+  stream, and tells sync once. A close before the first stream opens
+  still settles: it does not wait on the register POST behind it.
 
 Offline saves show a plain notice ("Could not reach the server. Your work
 is kept — try again.") instead of a raw error name, and the typed text is

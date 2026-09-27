@@ -80,14 +80,15 @@ export const postSync = operation({
   },
 });
 
-/** The tab's stream: one `Wire.Source` at a time under one client id from `ctx.random`. The
- * first stream opens at the first resolve; its open writes the connection live, and an error
- * before that open fails the boot (the connection failed, the wire closed, so sync rejects
- * `ready`). A later error or a malformed frame drops the connection and closes that stream; sync
- * stays attached. `reopen` swaps in the next stream for `reconnect`. Each POST waits for the open
- * of the stream it was sent behind, so POSTs go out in send order; one sent behind a stream that
- * failed is skipped (the register replays on reconnect). `defer` closes the stream; `ctx.signal`
- * aborts in-flight POSTs. */
+/** The tab's stream: one `Wire.Source` at a time under one client id from `ctx.random`, and the
+ * connection cell's one writer. Opening a stream writes it pending; the open writes it live; an
+ * error before the open writes it failed and rejects that open (the first stream's failure also
+ * closes the wire, so sync rejects `ready`). A later error or a malformed frame drops the
+ * connection and closes that stream; sync stays attached. `reopen` swaps in the next stream for
+ * `reconnect`. Closing a stream that has not opened rejects its open, so nothing waits on it.
+ * Each POST waits for the open of the stream it was sent behind, so POSTs go out in send order;
+ * one sent behind a stream that failed is skipped (the register replays on reconnect). `defer`
+ * closes the stream; `ctx.signal` aborts in-flight POSTs. */
 export const stream = resource({
   label: "stream",
   depends: {
@@ -101,8 +102,10 @@ export const stream = resource({
     const id = random.uuid();
     let current: Wire.Source | null = null;
     let gate: Promise<void> = Promise.resolve();
+    let abandon: () => void = () => undefined;
 
     const shut = (): void => {
+      abandon();
       current?.close();
       current = null;
     };
@@ -121,35 +124,34 @@ export const stream = resource({
       }
       frames.set(message);
     };
-    const openNext = (): Promise<void> => {
+    const openNext = (failed: () => void): void => {
       shut();
+      link.update((prev) => ({ ...prev, live: false, pending: true, failed: false }));
       const source = open(`/sync?client=${id}`);
       current = source;
       gate = new Promise<void>((resolve, reject) => {
+        abandon = () => reject(fail("SyncDropped", { reason: "stream closed" }));
         source.onerror = () => {
           if (source !== current) return;
+          link.update((prev) => ({ ...prev, live: false, pending: false, failed: true }));
+          failed();
           shut();
-          reject(fail("SyncDropped", { reason: "stream failed" }));
         };
         source.onopen = () => {
           if (source !== current) return;
           source.onerror = () => {
             if (source === current) drop();
           };
-          link.update((prev) => ({ ...prev, live: true }));
+          link.update((prev) => ({ ...prev, live: true, pending: false, failed: false }));
           resolve();
         };
         source.onmessage = (event) => receive(source, event);
       });
-      return gate;
     };
     const deliver = async (message: Sync.Message): Promise<void> => {
       if (closed.get() || signal.aborted) return;
-      try {
-        await post.run({ input: { id, message } });
-      } catch {
-        if (signal.aborted === false) drop();
-      }
+      const sent = await post.settle({ input: { id, message } });
+      if (sent.status !== "success" && signal.aborted === false) drop();
     };
 
     const stopClosed = closed.watch((isClosed) => {
@@ -157,17 +159,18 @@ export const stream = resource({
     });
     defer(stopClosed);
     defer(shut);
-    openNext().then(undefined, () => {
-      link.update((prev) => ({ ...prev, live: false, failed: true }));
-      closed.set(true);
-    });
+    openNext(() => closed.set(true));
     return {
       post: (message) =>
         gate.then(
           () => deliver(message),
           () => undefined,
         ),
-      reopen: () => (closed.get() ? Promise.resolve() : openNext()),
+      reopen: () => {
+        if (closed.get()) return Promise.resolve();
+        openNext(() => undefined);
+        return gate;
+      },
     };
   },
 });
@@ -196,7 +199,9 @@ export const closeWire = operation({
  * root (ADR 0048: the transport is userland's). */
 export const wirePeer = tag<Sync.Transport>({ label: "wirePeer" });
 
-/** Link sync's pair to the wire units: a message sync sends runs `sendSync`; an admitted frame
+/** Link sync's pair to the wire units: a message sync sends settles `sendSync`, and a failed run
+ * (the stream could not be built) closes the wire, so a boot fails instead of waiting; an
+ * admitted frame
  * goes to sync; the wire closing closes the pair (sync's `onClose` fires once); sync closing the
  * pair runs `closeWire`. Every link starts here and `defer` stops it. After the scope closed (a
  * failed boot closes it at once) a pair close has nothing left to close. */
@@ -210,8 +215,9 @@ const bridge = resource({
     closed: wireClosed.controller,
   },
   factory: ({ peer, sendIt, closeIt, frames, closed }, { defer, signal }) => {
-    const stopSends = peer.onMessage((message) => {
-      sendIt.run({ input: message }).then(undefined, () => undefined);
+    const stopSends = peer.onMessage(async (message) => {
+      const sent = await sendIt.settle({ input: message });
+      if (sent.status === "failed" && signal.aborted === false) closeIt.settle();
     });
     const stopFrames = frames.watch((message) => {
       if (message !== null) peer.send(message);
@@ -220,7 +226,7 @@ const bridge = resource({
       if (isClosed) peer.close();
     });
     const stopParted = peer.onClose(() => {
-      if (signal.aborted === false) closeIt.run();
+      if (signal.aborted === false) closeIt.settle();
     });
     defer(stopSends);
     defer(stopFrames);
