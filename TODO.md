@@ -24,7 +24,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 ## Ready
 
 - **jev/s22-settle** — S22 leaves `void x.run()` alone (the scope tracks the run: probe showed no unhandled rejection and a panic still fails the scope), but a `settle()` whose Result nobody reads (`void x.settle()`, or `x.settle(...)` as a bare statement) hides a panic. Next: add that shape to S22; add to the coding-convention skill's rule 2: "`void x.run()` is allowed: the scope tracks the run." Verify: a fixture for each shape; the tracker stays at 0 S22 rows.
-- **sync/transport-unit** — ADR 0070's open question: `subscribe(transport, wiring)` takes a built object, so the tracker still makes a `memoryPair` at the root. Next: decide with the user whether `subscribe` takes its transport from a resource inside the scope. Verify: nothing is built before `createScope` in the tracker client.
 - **perf/op-parity** — Compare operation call cost. The runner it waited for is here: `bench/queued.sh`
   sends `bench/ab.sh` through `benchd`, this box's benchmark queue, so one job runs at a time on one
   core with no network and no secrets. Next: pin the baseline and current SHAs, build the baseline
@@ -40,6 +39,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
+
+- **sync/transport-unit** — `subscribe` takes its transport from a resource and resolves it
+  inside the scope (user, 2026-09-27: Q1 A, one signature Q2 A); sync does not reconnect (the
+  ADR 0070 link does). The tracker's `wire` becomes the transport; `memoryPair`, `wirePeer`,
+  `linkWire` go; 23 sync tests and the example wrap their in-memory end in a one-line resource.
+  Owner: lead; writer agent `84789d5f` in `../tinkered-transport-unit` (brief
+  `sync-transport-unit.md`). Verify: nothing built before `createScope` in the tracker client;
+  browser proof 4 of 4 uncached; sync mutation ≥ 85.
 
 ## Review
 
