@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, operation, preset } from "@tinker/core";
-import { createApp, describeError, fail, jsonLines, readIssues } from "../src/index.ts";
+import { createApp, describeError, fail, isError, jsonLines, readIssues } from "../src/index.ts";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -41,13 +41,15 @@ test("jsonLines writes every log line and only the failed spans", async () => {
   const breaks = operation({
     label: "breaks",
     run: async () => {
-      throw new Error("boom");
+      throw fail("DraftFailed", { reason: "boom" });
     },
   });
   const scope = createScope({ observe: jsonLines((line) => written.push(line)) });
   try {
     expect(scope.run(logs)).toBe("ok");
-    await expect(scope.run(breaks)).rejects.toThrow("boom");
+    const broke = await scope.settle(breaks);
+    if (broke.status !== "failed" || !isError(broke.error, "DraftFailed")) expect.unreachable();
+    expect(broke.error.payload.reason).toBe("boom");
   } finally {
     await scope.close({ graceful: true });
   }

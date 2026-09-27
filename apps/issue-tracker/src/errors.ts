@@ -31,9 +31,7 @@ export declare namespace Errors {
 
 /** Build a registry error without throwing it. */
 export function fail<N extends Errors.Name>(kind: N, payload: Errors.Payload<N>): Errors.Of<N> {
-  const error = new Error(kind) as Errors.Of<N>;
-  Object.assign(error, { kind, payload });
-  return error;
+  return Object.assign(new Error(kind), { kind, payload });
 }
 
 /** Throw a registry error. The only throw site in the app. */
