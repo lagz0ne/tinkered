@@ -1,5 +1,5 @@
 import { setImmediate as nextTurn } from "node:timers/promises";
-import { createScope, makeTestClock, preset } from "@tinker/core";
+import { createScope, makeTestClock, preset, type Clock } from "@tinker/core";
 import { isError as isSyncError, memoryPair, subscribe, type Sync } from "@tinker/sync";
 import { expect, test } from "vite-plus/test";
 import {
@@ -94,13 +94,22 @@ class FakeSource implements Wire.Source {
 }
 
 /** Boot one tab on the wire as `main.tsx` does: fake streams, `post` in place of the POST, and a
- * test clock for the backoff wait. The wire opens its first stream while the scope starts. */
+ * test clock for the backoff wait; `sleeps` records the signal the wire hands each wait. The wire
+ * opens its first stream while the scope starts. */
 function bootTab(post: (input: Wire.Post, signal: AbortSignal) => Promise<void>) {
   const sources: FakeSource[] = [];
   const clock = makeTestClock();
+  const sleeps: (AbortSignal | undefined)[] = [];
+  const spied: Clock.Test = {
+    ...clock,
+    sleep: (ms, signal) => {
+      sleeps.push(signal);
+      return clock.sleep(ms, signal);
+    },
+  };
   const [peer, far] = memoryPair();
   const scope = createScope({
-    clock,
+    clock: spied,
     tags: [
       ...TAGS,
       wirePeer(peer),
@@ -113,7 +122,7 @@ function bootTab(post: (input: Wire.Post, signal: AbortSignal) => Promise<void>)
     presets: [preset(postSync, (_deps, { input, signal }) => post(input, signal))],
     extensions: [linkWire, subscribe(far, { cells: [[issueList, "issues"]] })],
   });
-  return { scope, sources, clock, transport: far };
+  return { scope, sources, clock, sleeps, transport: far };
 }
 
 /** One `data:` SSE frame for one draft event. */
@@ -616,6 +625,8 @@ test("a scope close during the backoff wait ends quietly and opens nothing", asy
   await tab.scope.ready;
   first?.fail();
   const ended = await tab.scope.close();
+  expect(tab.sleeps.length).toBe(1);
+  expect(tab.sleeps.every((signal) => signal?.aborted === true)).toBe(true);
   tab.clock.advance(60_000);
   expect(ended.teardownErrors).toBeUndefined();
   expect(tab.sources.length).toBe(1);
@@ -632,6 +643,8 @@ test("a scope close during the wait after a failed rewire ends quietly and opens
   await expect.poll(() => tab.sources.length).toBe(2);
   tab.sources[1]?.fail();
   const ended = await tab.scope.close();
+  expect(tab.sleeps.length).toBe(2);
+  expect(tab.sleeps.every((signal) => signal?.aborted === true)).toBe(true);
   tab.clock.advance(60_000);
   await nextTurn();
   expect(ended.teardownErrors).toBeUndefined();

@@ -14,10 +14,11 @@ an edit revision.
 
 If the live connection drops — a wire failure or a server restart — the
 page keeps every typed draft and keeps trying to reconnect by itself. Its
-Reconnect button tries at once. Reconnecting swaps in a fresh connection on the same page, so the local title, comment,
-and edit revision survive. A server restart keeps the database on disk;
-the fresh connection accepts the newer saved state even when the server's
-revision is lower than the last one the old connection saw.
+Reconnect button tries at once. Reconnecting swaps in a fresh connection
+on the same page, so the local title, comment, and edit revision survive.
+A server restart keeps the database on disk; the fresh connection accepts
+the newer saved state even when the server's revision is lower than the
+last one the old connection saw.
 
 The live connection is one server-sent stream plus POSTs:
 
