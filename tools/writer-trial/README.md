@@ -200,6 +200,26 @@ Other hits are advice. An unavailable gate fails.
 `machine-pass` needs own, teacher, and gate to pass.
 Trials without `frozen/` record `jev: not-frozen`.
 
+## Gate a repo folder
+
+The same Jev gate runs over any folder, such as an app:
+
+```bash
+node tools/writer-trial/app-gate.mjs \
+  apps/issue-tracker --json /tmp/gate.json
+```
+
+- It reads `src/` and `tests/` `.ts(x)` files; it never runs them.
+- It uses the repo's live `tools/jev` calibration and bank,
+  not a trial's frozen copy.
+- The judges are the ones `config.json` names.
+- Plain rules run in writer mode: S17-S19 are on.
+- It prints, per file, blocking items, then advice,
+  then every unavailable check.
+- `--json` writes the full report.
+- Exit 0: nothing blocks. 1: something blocks.
+  2: a check is unavailable, or the call is wrong.
+
 ## Clean up
 
 Stop writers before exporting or deleting their projects.
