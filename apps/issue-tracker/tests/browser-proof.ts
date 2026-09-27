@@ -13,6 +13,10 @@ type OwnedServer = { readonly child: ChildProcess; readonly ended: Promise<Exit>
 
 const APP = process.cwd();
 
+/** How long a tab may take to come back live by itself: the wire's longest wait (30 s) plus
+ * room for the stream to open and the list to land. */
+const BACK_LIVE_MS = 45_000;
+
 function tempData(): { readonly dir: string; readonly db: string } {
   const dir = mkdtempSync(join(tmpdir(), "tracker-t05-proof-"));
   return { dir, db: join(dir, "db") };
@@ -238,12 +242,15 @@ async function main(): Promise<void> {
     removeTemp(dir);
     assert.deepEqual(failures, []);
   }
-  async function restart(): Promise<void> {
-    if (server === undefined) throw fail("SyncDropped", { reason: "no server to restart" });
+  async function stopMain(): Promise<void> {
+    if (server === undefined) throw fail("SyncDropped", { reason: "no server to stop" });
     const owned = server;
     await stopServer(owned);
     if (server === owned) server = undefined;
-    else throw fail("SyncDropped", { reason: "server owner changed during restart" });
+    else throw fail("SyncDropped", { reason: "server owner changed during stop" });
+  }
+  async function startMain(): Promise<void> {
+    if (server !== undefined) throw fail("SyncDropped", { reason: "server already running" });
     server = await startServer(port, db);
   }
   try {
@@ -402,23 +409,22 @@ async function main(): Promise<void> {
     await restartEdit.getByLabel("Title", { exact: true }).fill("My local title");
     await firstTab.getByRole("textbox", { name: "Comment", exact: true }).fill("My local comment");
     const droppedRevision = savedBeforeRestart.issue.revision;
-    await restart();
+    const stopped = firstTab.getByRole("alert").filter({ hasText: "Live updates stopped" });
+    await stopMain();
+    await stopped.waitFor();
+    await startMain();
     assert.deepEqual(await readDetail(base, id), savedBeforeRestart);
-    await firstTab
-      .getByRole("alert")
-      .filter({ hasText: /live|connect/i })
-      .waitFor();
     const changed = await fetch(`${base}/api/issues/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ baseRevision: droppedRevision, title: "Saved after restart" }),
     });
     assert.equal(changed.status, 200);
-    const reconnect = firstTab.getByRole("button", { name: /^Reconnect$/i });
-    if ((await reconnect.count()) > 0) await reconnect.click();
+    await rowFor(firstTab, "Saved after restart").first().waitFor({ timeout: BACK_LIVE_MS });
     await firstTab
       .getByRole("heading", { name: "Saved after restart", exact: true })
-      .waitFor({ timeout: 8000 });
+      .waitFor({ timeout: BACK_LIVE_MS });
+    await stopped.waitFor({ state: "detached" });
     assert.equal(
       await restartEdit.getByLabel("Title", { exact: true }).inputValue(),
       "My local title",
@@ -438,6 +444,20 @@ async function main(): Promise<void> {
     assert.deepEqual(await readDetail(base, id), beforeStale);
     assert.equal(parseEditSent(String(rejected.request().postData())), droppedRevision);
     await firstTab.getByText("Someone else saved first").waitFor();
+
+    await stopMain();
+    await stopped.waitFor();
+    await firstTab.getByRole("button", { name: "Reconnect", exact: true }).click();
+    await startMain();
+    const current = await readDetail(base, id);
+    const retitled = await fetch(`${base}/api/issues/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ baseRevision: current.issue.revision, title: "Back after Reconnect" }),
+    });
+    assert.equal(retitled.status, 200);
+    await rowFor(firstTab, "Back after Reconnect").first().waitFor({ timeout: BACK_LIVE_MS });
+    await stopped.waitFor({ state: "detached" });
 
     assert.deepEqual(pageErrors, []);
     await cleanup();
