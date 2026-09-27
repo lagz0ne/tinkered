@@ -1,7 +1,47 @@
+import { spawn } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { createInterface } from "node:readline";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "vite-plus/test";
 import { createScope, operation } from "@tinker/core";
 import { backend, HttpRequest, HttpResponse, isError as isHttpError, send } from "@tinker/http";
-import { api } from "../src/client/api.ts";
+import { api } from "../src/index.ts";
+
+const APP = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+/** Start the server entry with `PORT` set and read its first stdout line as JSON; the child is
+ * killed after that line, so a server that boots anyway does not outlive the test. */
+async function readFirstLine(port: string): Promise<Record<string, unknown>> {
+  const dir = mkdtempSync(join(tmpdir(), "issues-port-"));
+  const child = spawn(process.execPath, ["--experimental-strip-types", "src/server/main.ts"], {
+    cwd: APP,
+    env: { ...process.env, HOST: "127.0.0.1", PORT: port, DATA_PATH: join(dir, "db") },
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+  try {
+    for await (const line of createInterface({ input: child.stdout })) {
+      return JSON.parse(line);
+    }
+    return {};
+  } finally {
+    child.kill();
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test("a PORT that is not a port number fails the boot with BadPort", async () => {
+  const first = await readFirstLine("abc");
+  expect(first.message).toBe("boot failed");
+  expect(first.kind).toBe("BadPort");
+  expect(first.payload).toEqual({ value: "abc" });
+});
+
+test("a PORT with trailing junk or out of range fails the boot too", async () => {
+  expect((await readFirstLine("80x")).payload).toEqual({ value: "80x" });
+  expect((await readFirstLine("70000")).payload).toEqual({ value: "70000" });
+});
 
 /** A 500 through a baseUrl-only binding still rejects: the helper folds the policy in. */
 test("api.config with no accept still rejects a 500 as ResponseFailed", async () => {

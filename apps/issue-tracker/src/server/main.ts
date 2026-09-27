@@ -4,6 +4,7 @@ import type { Hono } from "hono";
 import type { Observe, Scope } from "@tinker/core";
 import type { HonoScope } from "@tinker/hono";
 import { serve } from "@hono/node-server";
+import { raise } from "../errors.ts";
 import { createApp } from "./app.ts";
 import { describeError, jsonLines } from "./observe.ts";
 import { reportUnmapped } from "./routes.ts";
@@ -12,11 +13,13 @@ function readHost(): string {
   return process.env.HOST ?? "127.0.0.1";
 }
 
+/** The listen port: a missing `PORT` is 4311; anything but a whole number from 1 to 65535
+ * raises `BadPort`, so boot fails before the store opens. */
 function readPort(): number {
   const raw = process.env.PORT ?? "4311";
-  const port = Number.parseInt(raw, 10);
-  if (Number.isInteger(port) && port > 0) return port;
-  return 4311;
+  const port = /^\d+$/.test(raw) ? Number(raw) : Number.NaN;
+  if (port >= 1 && port <= 65535) return port;
+  return raise("BadPort", { value: raw });
 }
 
 function readDataPath(): string {
