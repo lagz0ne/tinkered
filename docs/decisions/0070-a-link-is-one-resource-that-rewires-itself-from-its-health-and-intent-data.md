@@ -103,5 +103,13 @@ and third writers of the connection status.
 - The checks enforce it: S20 (raw random), S21 (raw clock), S23 (a hand-made `onX`), S24 (raw
   `fetch`), and the judge `bridgesOwnStatus` once it has 5 true labels.
 - Best-practices rule 13 loses its "a transport that reconnects is the exception" clause.
-- Open: whether sync's `subscribe` takes its transport from a resource inside the scope (today it
-  takes a built object, so the tracker still hands it a steady adapter at the root).
+- Resolved (user, 2026-09-27): `subscribe` takes its transport from a resource inside the scope.
+  See As built.
+
+## As built
+
+- `subscribe(link, wiring)` takes one `Resource.Handle<Sync.Transport | Promise<Sync.Transport>>`
+  and awaits it in its `start` (sync/transport-unit). Sync does not reconnect; the link rewires.
+- The tracker's `wire` resource is the `Sync.Transport` itself. Its listener sets live inside it
+  (rule 4). `memoryPair`, `wirePeer`, and `linkWire` left the client; nothing is built before
+  `createScope`.

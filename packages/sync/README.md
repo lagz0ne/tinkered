@@ -13,7 +13,11 @@ const src = source({
     [todo, "todo"],
   ],
 });
-const sub = subscribe(transport, { cells: [[todo, "todo"]] });
+const pipe = resource({
+  label: "pipe",
+  factory: () => transport,
+});
+const sub = subscribe(pipe, { cells: [[todo, "todo"]] });
 const origin = createScope({ extensions: [src] });
 const guest = createScope({ extensions: [sub] });
 const seven = todo("7"); // a namespace, not a cell
@@ -24,7 +28,8 @@ Declare the shared cells once; hand each end its rows. A row is the cell
 (or family) beside its key: `[counter, "counter"]`, `[todo, "todo"]`. The
 source owns the truth, the viewer mirrors what it registered, and the wire
 between them is yours: `memoryPair` in tests, SSE + POST or a WebSocket in
-the browser. A driver reads rows, never unit meta: units have none (ADR 0051 §3).
+the browser. The viewer takes its wire as a resource, so nothing is built
+before `createScope`. A driver reads rows, never unit meta: units have none (ADR 0051 §3).
 
 ## Shared
 
@@ -72,9 +77,19 @@ A member made after that still works, and another scope's source still publishes
 
 ## Subscribe
 
-`subscribe(transport, { cells })` is the viewer extension: install it with
+`subscribe(link, { cells })` is the viewer extension: install it with
 `createScope({ extensions: [sub] })`, then
-`await scope.ready` — ready means the viewer holds its initial data set:
+`await scope.ready`.
+
+The `link` is a resource whose factory returns the transport, or a promise of one.
+The start resolves it inside the scope and awaits it before it registers.
+A transport resource with an async factory resolves before the viewer registers.
+A transport resource that fails to build rejects `ready` with its error.
+A graceful close while the transport builds rejects `ready` with `SyncNotReady` and parts the wire.
+Sync does not reconnect: the resource owns any rewiring and hands over one steady transport (ADR 0070).
+The resource lives as long as the scope.
+
+Ready means the viewer holds its initial data set:
 the start sends one `register { keys }` with every row's singleton key and
 every family member it already holds, and waits until every key of that
 registration holds its snapshot (a viewer wiring nothing is ready at
@@ -122,10 +137,10 @@ once and cancels pending browser requests. Install stream error handling before 
 The stream callback returns the `source.connect(transport)` promise; it settles when the wire
 closes. Forced root shutdown closes the source connections and their stream sessions.
 
-WebSocket (one socket per tab, same four methods):
+WebSocket (one socket per tab, same four methods, opened in a resource):
 
 ```ts
-const transport: Sync.Transport = {
+const over = (ws: WebSocket): Sync.Transport => ({
   send: (m) => ws.send(JSON.stringify(m)),
   onMessage: (listener) => {
     ws.onmessage = (event) => listener(JSON.parse(event.data));
@@ -136,8 +151,18 @@ const transport: Sync.Transport = {
     return () => (ws.onclose = null);
   },
   close: () => ws.close(),
-};
-const sub = subscribe(transport, { cells: [[counter, "counter"]] });
+});
+const socket = resource({
+  label: "socket",
+  factory: (_deps, ctx) => {
+    const ws = new WebSocket(url);
+    ctx.defer(() => ws.close());
+    return over(ws);
+  },
+});
+const sub = subscribe(socket, {
+  cells: [[counter, "counter"]],
+});
 const guest = createScope({ extensions: [sub] });
 await guest.ready;
 ```
@@ -191,7 +216,7 @@ export function isFamily(unit: Sync.Published): unit is Sync.Family<unknown>;
 export function memoryPair(): readonly [Sync.Transport, Sync.Transport];
 export function source(wiring: Sync.Wiring): Scope.Extension<Sync.Source>;
 export function subscribe(
-  transport: Sync.Transport,
+  link: Resource.Handle<Sync.Transport | Promise<Sync.Transport>>,
   wiring: Sync.Wiring,
 ): Scope.Extension<Sync.Subscription>;
 export { isError };
