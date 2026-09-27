@@ -64,10 +64,10 @@ const BACKOFF_CAP_MS = 30_000;
 
 /** The wire's health as the `connection` cell holds it; the wire is its one writer. */
 const HEALTH = {
-  connecting: { live: false, pending: true, failed: false, closedBadly: false },
-  live: { live: true, pending: false, failed: false, closedBadly: false },
-  dropped: { live: false, pending: false, failed: false, closedBadly: false },
-  failed: { live: false, pending: false, failed: true, closedBadly: false },
+  connecting: { live: false, pending: true, failed: false },
+  live: { live: true, pending: false, failed: false },
+  dropped: { live: false, pending: false, failed: false },
+  failed: { live: false, pending: false, failed: true },
 };
 
 /** POST one sync message for one tab through HTTP; the server hands it to the tab's stream. */

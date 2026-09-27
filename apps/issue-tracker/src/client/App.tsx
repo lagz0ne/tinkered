@@ -338,8 +338,6 @@ function LiveState() {
         </button>
       )}
       {link.pending ? <p aria-live="polite">Reconnecting…</p> : null}
-      {link.failed ? <p role="alert">Still no connection. Try again.</p> : null}
-      {link.closedBadly ? <p role="alert">The old connection did not close cleanly.</p> : null}
     </>
   );
 }

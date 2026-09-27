@@ -45,6 +45,8 @@ The live connection is one server-sent stream plus POSTs:
   - live: no notice.
   - waiting: "Live updates stopped" and a Reconnect button.
   - trying: the same notice, "Reconnecting…", and Reconnect greyed out.
+  - After the boot, no drop reads as failed.
+    Only the first stream fails, and that shows the dead page.
 - **closing the page's scope** — it aborts in-flight POSTs, closes the
   stream, and tells sync once. A close before the first stream opens
   still settles: it does not wait on the register POST behind it. A

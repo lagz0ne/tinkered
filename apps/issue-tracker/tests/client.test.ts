@@ -446,6 +446,7 @@ test("discarding a run quiets the cell without posting", async () => {
 test("the first stream error before its open fails the boot with SyncNotReady", async () => {
   const tab = bootTab(() => Promise.resolve());
   tab.sources[0]?.fail();
+  expect(tab.scope.resolve(connection).failed).toBe(true);
   await tab.scope.ready.then(
     () => {
       expect.unreachable();
@@ -456,6 +457,29 @@ test("the first stream error before its open fails the boot with SyncNotReady", 
     },
   );
   await tab.scope.close();
+});
+
+test("after the boot no drop reads as failed: a bad frame, a rewire's early error, a later error", async () => {
+  const tab = bootTab(() => Promise.resolve());
+  const [first] = tab.sources;
+  first?.open();
+  first?.push(SNAPSHOT);
+  try {
+    await tab.scope.ready;
+    first?.push("not json");
+    expect(tab.scope.resolve(connection)).toMatchObject({ live: false, failed: false });
+    tab.clock.advance(1000);
+    await expect.poll(() => tab.sources.length).toBe(2);
+    tab.sources[1]?.fail();
+    expect(tab.scope.resolve(connection)).toMatchObject({ live: false, failed: false });
+    tab.clock.advance(2000);
+    await expect.poll(() => tab.sources.length).toBe(3);
+    tab.sources[2]?.open();
+    tab.sources[2]?.fail();
+    expect(tab.scope.resolve(connection)).toMatchObject({ live: false, failed: false });
+  } finally {
+    await tab.scope.close();
+  }
 });
 
 test("a stream error after the open drops the connection and keeps sync attached", async () => {

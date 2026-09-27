@@ -22,13 +22,12 @@ export type EditDraft = {
 };
 
 /** The wire as the tab sees it. `live` flips when the wire drops; `pending` holds while a stream
- * is connecting; `failed` marks a first stream that never opened; `closedBadly` records a
- * reconnect whose old scope closed uncleanly. */
+ * is connecting; `failed` marks a first stream that never opened, which fails the boot, so the
+ * tab view never shows it (the dead page does). */
 export type Connection = {
   readonly live: boolean;
   readonly pending: boolean;
   readonly failed: boolean;
-  readonly closedBadly: boolean;
 };
 
 /** The create form's draft: cleared on a successful save. */
@@ -77,7 +76,7 @@ export type DraftRun = {
 /** The wire as the tab sees it. */
 export const connection = data<Connection>({
   label: "connection",
-  initial: { live: true, pending: false, failed: false, closedBadly: false },
+  initial: { live: true, pending: false, failed: false },
 });
 
 /** One in-flight draft run. */
