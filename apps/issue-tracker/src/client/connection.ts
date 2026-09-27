@@ -24,7 +24,7 @@ export declare namespace Wire {
   /** The stream resource's value: the tab's one stream at a time, and the POSTs behind it. */
   type Stream = {
     /** POST one message behind the current stream's open, in send order. A refused or failed
-     * POST drops the wire; a POST after the wire closed is skipped. */
+     * POST drops the wire; a POST behind a failed stream or after the wire closed is skipped. */
     post(message: Sync.Message): Promise<void>;
     /** Close the current stream and open the next: resolves on its open, rejects with
      * `SyncDropped` when it errors first. After the wire closed it opens nothing. */
@@ -97,8 +97,10 @@ export const postSync = operation({
  * first stream opens at the first resolve; its open writes the connection live, and an error
  * before that open fails the boot (the connection failed, the wire closed, so sync rejects
  * `ready`). A later error or a malformed frame drops the connection and closes that stream; sync
- * stays attached. `reopen` swaps in the next stream for `reconnect`. POSTs queue in order behind
- * the current stream's open. `defer` closes the stream; `ctx.signal` aborts in-flight POSTs. */
+ * stays attached. `reopen` swaps in the next stream for `reconnect`. Each POST waits for the open
+ * of the stream it was sent behind, so POSTs go out in send order; one sent behind a stream that
+ * failed is skipped (the register replays on reconnect). `defer` closes the stream; `ctx.signal`
+ * aborts in-flight POSTs. */
 export const stream = resource({
   label: "stream",
   depends: {
@@ -112,7 +114,6 @@ export const stream = resource({
     const id = random.uuid();
     let current: Wire.Source | null = null;
     let gate: Promise<void> = Promise.resolve();
-    let queue: Promise<void> = Promise.resolve();
 
     const shut = (): void => {
       current?.close();
@@ -174,16 +175,11 @@ export const stream = resource({
       closed.set(true);
     });
     return {
-      post: (message) => {
-        const opened = gate;
-        queue = queue
-          .then(() => opened)
-          .then(
-            () => deliver(message),
-            () => undefined,
-          );
-        return queue;
-      },
+      post: (message) =>
+        gate.then(
+          () => deliver(message),
+          () => undefined,
+        ),
       reopen: () => (closed.get() ? Promise.resolve() : openNext()),
     };
   },
@@ -209,6 +205,36 @@ export const closeWire = operation({
   },
 });
 
+/** The transport sync needs, built from the wire units: `send` runs `sendSync`, `onMessage`
+ * watches the admitted frames, `onClose` watches the closed flag (so it fires once), `close` runs
+ * `closeWire`. The watch closers go back to sync, which owns them (the `Sync.Transport` contract).
+ * A `close` after the scope closed (a failed boot closes it at once) has nothing left to do. */
+const transport = resource({
+  label: "transport",
+  depends: {
+    sendIt: sendSync,
+    closeIt: closeWire,
+    frames: inbox.controller,
+    closed: wireClosed.controller,
+  },
+  factory: ({ sendIt, closeIt, frames, closed }, { signal }): Sync.Transport => ({
+    send: (message) => {
+      sendIt.run({ input: message }).then(undefined, () => undefined);
+    },
+    onMessage: (listener) =>
+      frames.watch((message) => {
+        if (message !== null) listener(message);
+      }),
+    onClose: (listener) =>
+      closed.watch((isClosed) => {
+        if (isClosed) listener();
+      }),
+    close: () => {
+      if (signal.aborted === false) closeIt.run();
+    },
+  }),
+});
+
 /** A transport with no scope yet: it sends nothing and hears nothing. */
 const unstarted: Sync.Transport = {
   send: () => undefined,
@@ -217,11 +243,10 @@ const unstarted: Sync.Transport = {
   close: () => undefined,
 };
 
-/** Build the tab's wire for sync: a thin `Sync.Transport` over the wire units, plus the extension
- * whose `start` hands it the scope. Install the extension before `subscribe(link.transport, …)`:
- * sync's `start` registers through the transport. Nothing opens until sync's first send resolves
- * the stream. `send` runs `sendSync`, `onMessage` watches the admitted frames, `onClose` watches
- * the closed flag (so it fires once), `close` runs `closeWire`. */
+/** Build the tab's wire for sync: a thin `Sync.Transport` that forwards to the scope's transport
+ * resource, plus the extension whose `start` resolves it. Install the extension before
+ * `subscribe(link.transport, …)`: sync's `start` registers through the transport. Nothing opens
+ * until sync's first send resolves the stream. */
 export function createWire(): Wire.Link {
   let scoped = unstarted;
   return {
@@ -233,31 +258,10 @@ export function createWire(): Wire.Link {
     },
     extension: extension({
       label: "wire",
-      start: (scope, { signal }, next) => {
-        scoped = scopedTransport(scope, signal);
+      start: (scope, _ctx, next) => {
+        scoped = scope.resolve(transport);
         return next();
       },
     }),
-  };
-}
-
-/** The transport over one scope's wire units. `close` after the scope closed (a failed boot
- * closes it at once) has nothing left to close: the wire closed first. */
-function scopedTransport(scope: Scope.Handle, signal: AbortSignal): Sync.Transport {
-  return {
-    send: (message) => {
-      scope.run(sendSync, { input: message }).then(undefined, () => undefined);
-    },
-    onMessage: (listener) =>
-      scope.controller(inbox).watch((message) => {
-        if (message !== null) listener(message);
-      }),
-    onClose: (listener) =>
-      scope.controller(wireClosed).watch((isClosed) => {
-        if (isClosed) listener();
-      }),
-    close: () => {
-      if (signal.aborted === false) scope.run(closeWire);
-    },
   };
 }
