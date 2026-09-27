@@ -41,16 +41,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
-- **jev/handrolled** — catch code that hand-rolls what tinker provides (listener sets and status
-  getters instead of cells, flags instead of `ctx.defer`, `Math.random` instead of `ctx.random`, …;
-  user, 2026-09-27, after the tracker's wire). Step 1: survey apps, examples, and app-like package
-  code; each pattern gets a proposed check (plain rule, Jev judge, or already covered). Owner: lead;
-  surveyor agent `3938e2b3` in `../tinkered-handrolled` (brief `jev-handrolled-survey.md`). Next:
-  pick the checks with the user, then one writer adds them. Verify: the new checks flag the found
-  cases; a judge is calibrated from their labels (ADR 0054).
-  Step 2 landed: plain rules S20–S25 (tag `jev/plain-rules`). Next: the bridge decision (ADR),
-  then the two judges once each has 5 true labels.
-
 ## Review
 
 | Card | Owner | Next | Verify |
@@ -62,6 +52,11 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 | ---- | ----------- | ---- | ------ |
 
 ## Parked
+
+- **jev/handrolled** — survey, bridge analysis, ADR 0070, and plain rules S20–S25 landed
+  (tags `jev/plain-rules`, `tracker/reconnect`). Left: the two Jev judges `bridgesOwnStatus` and
+  `redundantAbort`. Resume when: each has 5 true labels in `tools/jev/cases.jsonl` (ADR 0054;
+  today 2 and 1). Next: add the judges' questions to the bank and calibrate.
 
 - **perf/lifecycle-creep** — `lifecycle` (a fresh scope, then a plain `close()`) crept across two
   landings: core/cancel-reason +0.2% (37/61), then core/with-data +1.8% (42/61); about +2.7%
