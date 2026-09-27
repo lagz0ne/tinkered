@@ -523,23 +523,41 @@ export declare namespace Scope {
 
   /** How to shut a scope down (ADR 0028) — a mode, NOT a wished outcome. Forced (the default) aborts
    * `ctx.signal` to stop in-flight work now; graceful lets it finish first. The outcome is a
-   * consequence of the mode and what actually happened, read from the {@link Result}. */
-  export type CloseOptions = { readonly graceful?: boolean };
+   * consequence of the mode and what actually happened, read from the {@link Result}.
+   * `withData` (ADR 0069) moves the scope's own data store into the `Result` as `data` instead of
+   * freeing it. Like `graceful`, it is read from the first close call; a later call joins it. */
+  export type CloseOptions = { readonly graceful?: boolean; readonly withData?: boolean };
+
+  /** A closed scope's own data, handed over by `close({ withData: true })` (ADR 0069). `get` reads a
+   * data cell the way a controller on that scope did, but only in the scope's own store: present
+   * when the scope itself wrote the cell, absent for an inherited value. `ns` picks a namespaced
+   * bucket (a family member) exactly as `controller(cell, { ns })` does; without it, the scope's
+   * own `ns` applies. */
+  export type FinalData = {
+    get<T>(cell: Data.Cell<T>, ns?: NsArg): Tag.Presence<T>;
+  };
 
   /** What `close()` resolves to — the ACTUAL settled state, never a thrown error (ADR 0027/0028).
-   * `teardownErrors` (defer/cleanup throws, in execution order) may accompany any status. */
+   * `teardownErrors` (defer/cleanup throws, in execution order) may accompany any status. `data`
+   * is present on every status only when the close asked `withData` (ADR 0069). */
   export type Result =
-    | { readonly status: "success"; readonly teardownErrors?: readonly unknown[] }
+    | {
+        readonly status: "success";
+        readonly teardownErrors?: readonly unknown[];
+        readonly data?: FinalData;
+      }
     | {
         readonly status: "cancelled";
         readonly reason: unknown;
         readonly teardownErrors?: readonly unknown[];
+        readonly data?: FinalData;
       }
     | {
         readonly status: "failed";
         readonly error: unknown;
         readonly origin?: Origin;
         readonly teardownErrors?: readonly unknown[];
+        readonly data?: FinalData;
       };
 
   /** What `createScope()` returns: the one seam tests and callers touch. */
@@ -1107,20 +1125,30 @@ const EXTENSIONS = new WeakMap<Layer, Map<Scope.Extension<unknown>, ExtRec>>();
  * shape as `EXTENSIONS` (core/t33). No entry means no hook: session creation takes today's path. */
 const SESSIONS = new WeakMap<Layer, readonly Scope.Extension<unknown>[]>();
 
-/** Settlers for wrapped bare sessions' `next()` (ADR 0051, drivers/t01 R3): `wrapSession` registers
- * its `next()` resolver here; `closeLayer` settles it when the layer's close resolves — so a session
- * closed by its parent's cascade settles its hooks exactly like an explicit close. One lookup on the
- * cold close path, nothing on create; the entry is deleted at settle, and a never-closed layer's
- * entry dies with the layer (WeakMap). */
-const SESSION_SETTLERS = new WeakMap<Layer, (ended: Scope.Result) => void>();
+/** A session under the root's `session` hooks (ADR 0051, 0069), off the Layer record: registered
+ * when the session is made, so `closeLayer` finds it with the one lookup it already made for the
+ * `next()` settler. `settle` is a wrapped bare session's `next()` resolver: `closeLayer` settles it
+ * when the layer's close resolves, so a session felled by its parent's cascade settles its hooks
+ * like an explicit close; it is cleared at settle. `phase` holds the data for the hooks: `open`
+ * until the close finishes, `held` while its data waits for the hooks to return (data cell and tag
+ * reads still work), `done` once they returned. A never-closed layer's entry dies with the layer. */
+type SessionHooks = {
+  settle: ((ended: Scope.Result) => void) | undefined;
+  phase: "open" | "held" | "done";
+};
+const SESSION_HOOKS = new WeakMap<Layer, SessionHooks>();
 
-/** Settle a wrapped bare session's `next()` with its close `Result`: attach once (the entry is
- * deleted), so repeat closes cost one lookup. `closeLayer` never rejects (ADR 0027) and a stored
+/** Settle a wrapped bare session's `next()` with its close `Result`: attach once (the settler is
+ * cleared), so repeat closes cost one lookup. `closeLayer` never rejects (ADR 0027) and a stored
  * resolver cannot throw, so the tap needs no rejection guard. */
-function tapSessionHooks(layer: Layer, closing: Promise<Scope.Result>): Promise<Scope.Result> {
-  const settle = SESSION_SETTLERS.get(layer);
+function tapSessionHooks(
+  hooks: SessionHooks | undefined,
+  closing: Promise<Scope.Result>,
+): Promise<Scope.Result> {
+  if (hooks === undefined) return closing;
+  const settle = hooks.settle;
   if (settle === undefined) return closing;
-  SESSION_SETTLERS.delete(layer);
+  hooks.settle = undefined;
   ignoreRejection(closing.then((ended) => settle(ended)));
   return closing;
 }
@@ -2798,9 +2826,9 @@ function closeThrough(
 ): (opts?: Scope.CloseOptions) => Promise<Scope.Result> {
   return (opts?: Scope.CloseOptions): Promise<Scope.Result> => {
     const at = (index: number): Promise<Scope.Result> => {
-      if (index >= closers.length) return closeLayer(layer, !opts?.graceful);
+      if (index >= closers.length) return closeLayer(layer, !opts?.graceful, opts?.withData);
       const closer = closers[index];
-      if (closer.close === undefined) return closeLayer(layer, !opts?.graceful);
+      if (closer.close === undefined) return closeLayer(layer, !opts?.graceful, opts?.withData);
       return closer.close(opts ?? {}, () => at(index + 1));
     };
     return at(0);
@@ -3786,8 +3814,14 @@ function canFastClose(layer: Layer): boolean {
 
 /** O(1) close for an idle scope: mark closed, settle by mode (forced rolls back to `cancelled`, which
  * with nothing to roll back is just the status), detach from the parent, and let GC drop the layer —
- * skipping the async teardown protocol, the abort event dispatch, and `nodes.clear()`. */
-function fastClose(layer: Layer, force: boolean): Promise<Scope.Result> {
+ * skipping the async teardown protocol, the abort event dispatch, and `nodes.clear()`. A close that
+ * asked `withData`, or a session under `session` hooks, hands the store on through {@link keepData}. */
+function fastClose(
+  layer: Layer,
+  force: boolean,
+  hooks: SessionHooks | undefined,
+  withData: boolean,
+): Promise<Scope.Result> {
   layer.closed = true;
   const forced = force || layer.aborted;
   let settled: Scope.Outcome = SUCCESS;
@@ -3798,15 +3832,20 @@ function fastClose(layer: Layer, force: boolean): Promise<Scope.Result> {
   }
   if (layer.nsLinked) detachNsLinked(layer, layer.nsLinked);
   layer.parent?.children.delete(layer);
-  layer.closing = Promise.resolve(buildResult(settled, layer, undefined));
+  const ended = buildResult(settled, layer, undefined);
+  layer.closing = Promise.resolve(
+    hooks === undefined && !withData ? ended : keepData(layer, ended, hooks, withData),
+  );
   return layer.closing;
 }
 
-function closeLayer(layer: Layer, force = true): Promise<Scope.Result> {
+function closeLayer(layer: Layer, force = true, withData = false): Promise<Scope.Result> {
+  const hooks = SESSION_HOOKS.get(layer);
   if (!layer.closing) {
-    if (canFastClose(layer)) return tapSessionHooks(layer, fastClose(layer, force));
+    if (canFastClose(layer))
+      return tapSessionHooks(hooks, fastClose(layer, force, hooks, withData));
     layer.closed = true;
-    layer.closing = startClose(layer, force);
+    layer.closing = startClose(layer, force, hooks, withData);
   }
   /** A second/later close (any mode) returns the in-flight close's Result — the mode of the FIRST call
    * wins (no graceful→forced escalation in v1; force-close from the start if a hang is a concern). This
@@ -3818,7 +3857,7 @@ function closeLayer(layer: Layer, force = true): Promise<Scope.Result> {
   if (closeWouldReenter(layer)) {
     return Promise.resolve(buildResult(bestEffort(layer), layer, undefined));
   }
-  return tapSessionHooks(layer, layer.closing);
+  return tapSessionHooks(hooks, layer.closing);
 }
 
 /** Build the `close()` Result from the settled outcome, the layer's abort reason (for a cancel), and
@@ -3891,7 +3930,12 @@ async function closeInstances(
   while (layer.pending.size) await Promise.all(layer.pending);
 }
 
-function startClose(layer: Layer, force: boolean): Promise<Scope.Result> {
+function startClose(
+  layer: Layer,
+  force: boolean,
+  hooks: SessionHooks | undefined,
+  withData: boolean,
+): Promise<Scope.Result> {
   const forced = force || layer.aborted;
   markSwept(layer);
   const run = async (): Promise<Scope.Result> => {
@@ -3912,8 +3956,10 @@ function startClose(layer: Layer, force: boolean): Promise<Scope.Result> {
      * gate) can land WHILE we await the defers; `settleOutcome` never downgrades a recorded failure, so
      * the result stays monotonic and a collecting ancestor still sees it. */
     const finalSettled = settleOutcome(layer, body);
-    const teardownErrors = finishLayer(layer);
-    return buildResult(finalSettled, layer, teardownErrors);
+    const keeps = hooks !== undefined || withData;
+    const teardownErrors = finishLayer(layer, keeps);
+    const ended = buildResult(finalSettled, layer, teardownErrors);
+    return keeps ? keepData(layer, ended, hooks, withData) : ended;
   };
   return Promise.resolve().then(run);
 }
@@ -3922,8 +3968,9 @@ function startClose(layer: Layer, force: boolean): Promise<Scope.Result> {
  * (in execution order) for `TeardownFailed`, or undefined if there were none. A layer swept by an
  * ancestor's close pushes its teardown errors + failure up to its parent as it detaches, so a
  * collecting ancestor gathers descendant results at any depth even when a descendant finished and
- * detached before the intervening scopes began their own close (F1 / grandchild). */
-function finishLayer(layer: Layer): unknown[] | undefined {
+ * detached before the intervening scopes began their own close (F1 / grandchild). A layer that
+ * `keeps` its data (ADR 0069) leaves its store, presets, and tags to {@link keepData}. */
+function finishLayer(layer: Layer, keeps: boolean): unknown[] | undefined {
   const teardownErrors = layer.secondary.length ? [...layer.secondary] : undefined;
   if (layer.nsLinked) detachNsLinked(layer, layer.nsLinked);
   const parent = layer.parent;
@@ -3931,14 +3978,15 @@ function finishLayer(layer: Layer): unknown[] | undefined {
     parent.children.delete(layer);
     if (layer.swept) propagateSweptOutcome(layer, parent);
   }
-  for (const s of layer.nodes.values()) s.eff = undefined;
-  layer.nodes.clear();
-  layer.presets = undefined;
-  layer.tags = undefined;
   layer.pending.clear();
   layer.children.clear();
   layer.defers.length = 0;
   layer.secondary.length = 0;
+  if (keeps) return teardownErrors;
+  for (const s of layer.nodes.values()) s.eff = undefined;
+  layer.nodes.clear();
+  layer.presets = undefined;
+  layer.tags = undefined;
   return teardownErrors;
 }
 
@@ -4008,10 +4056,17 @@ async function runSessionWrapped<R>(
 ): Promise<R> {
   const child = makeLayer(parent, options);
   child.failureOwner = caller;
+  const hooks: SessionHooks = { settle: undefined, phase: "open" };
+  SESSION_HOOKS.set(child, hooks);
   const handle = withSessionCreate(handleFor(child), child, sessions);
-  const wrapped = await sessionThrough(sessions, handle, () =>
-    runSessionEnded(child, (c) => runBodyWithTo(c, handle, body)),
-  );
+  let wrapped: { result: unknown; ended: Scope.Result };
+  try {
+    wrapped = await sessionThrough(sessions, handle, () =>
+      runSessionEnded(child, (c) => runBodyWithTo(c, handle, body)),
+    );
+  } finally {
+    freeAfterHooks(child, hooks);
+  }
   settleSessionEnded(wrapped.ended);
   return wrapped.result as R;
 }
@@ -4125,16 +4180,19 @@ function wrapSession(
   const nextPromise = new Promise<Scope.Result>((resolveNext) => {
     settleNext = resolveNext;
   });
-  SESSION_SETTLERS.set(child, settleNext);
+  const hooks: SessionHooks = { settle: settleNext, phase: "open" };
+  SESSION_HOOKS.set(child, hooks);
   const base = withSessionCreate(plain, child, sessions);
   const outcome = sessionThrough(sessions, base, () =>
     nextPromise.then((ended) => ({ result: undefined, ended })),
-  );
+  ).finally(() => freeAfterHooks(child, hooks));
   ignoreRejection(outcome);
   wrapped = {
     ...base,
     close: (opts?: Scope.CloseOptions) =>
-      closeLayer(child, !opts?.graceful).then(() => outcome.then(({ ended: chained }) => chained)),
+      closeLayer(child, !opts?.graceful, opts?.withData).then(() =>
+        outcome.then(({ ended: chained }) => chained),
+      ),
   };
   return wrapped;
 }
@@ -4223,7 +4281,11 @@ function resolveThrough(
 }
 
 /** A namespaced resolve keeps the real layer and passes the storage chain explicitly. */
-function resolveNs(layer: Layer, target: unknown, chain: readonly Namespace[]): unknown {
+function resolveNs(
+  layer: Layer,
+  target: unknown,
+  chain: readonly Namespace[] | undefined,
+): unknown {
   if (isData(target)) return readCell(layer, target, chain);
   if (isResource(target)) return resourceController(layer, target, undefined, chain).resolve();
   if (isEdge(target)) return resolveEdge(layer, target, undefined, chain);
@@ -4314,7 +4376,7 @@ function handleFor(layer: Layer): Scope.Handle {
       | Scope.Extension<unknown>,
     ns?: Scope.NsArg,
   ): unknown => {
-    ensureOpen(layer);
+    if (layer.closed) return resolveHeld(layer, target, ns);
     if (ns?.ns !== undefined) return resolveNs(layer, target, nsChainOf(ns.ns));
     if (isData(target)) return readCell(layer, target);
     if (isResource(target)) {
@@ -4370,7 +4432,7 @@ function handleFor(layer: Layer): Scope.Handle {
       layer.defers.push({ fn: () => fn(), instance: undefined });
     },
     settled,
-    close: (opts?: Scope.CloseOptions) => closeLayer(layer, !opts?.graceful),
+    close: (opts?: Scope.CloseOptions) => closeLayer(layer, !opts?.graceful, opts?.withData),
     ready: READY,
   };
 }
@@ -4679,6 +4741,72 @@ function invalidateAffected(order: Affected[], affected: Map<Layer, Released>): 
     }
   }
   return dataReleased;
+}
+
+/** Hand a closed layer's data on (ADR 0069). `withData` moves the store itself into the `Result`
+ * as `data`: no copy, no filter. A session under `session` hooks keeps its store, presets, and tags
+ * until the hooks return ({@link freeAfterHooks}); any other layer frees them now. */
+function keepData(
+  layer: Layer,
+  ended: Scope.Result,
+  hooks: SessionHooks | undefined,
+  withData: boolean,
+): Scope.Result {
+  const kept = withData ? { ...ended, data: finalData(layer.nodes, layer.ns) } : ended;
+  if (hooks?.phase === "open") hooks.phase = "held";
+  else freeData(layer);
+  return kept;
+}
+
+/** Free a closed layer's data: its store, presets, and tags. The store is detached, not cleared,
+ * so a store moved into a `Result` stays whole. */
+function freeData(layer: Layer): void {
+  for (const s of layer.nodes.values()) s.eff = undefined;
+  layer.nodes = new Map();
+  layer.presets = undefined;
+  layer.tags = undefined;
+}
+
+/** A session's hooks returned (ADR 0069): free the data they could still read, or, when the close
+ * has not finished yet, leave it to {@link keepData}. */
+function freeAfterHooks(layer: Layer, hooks: SessionHooks): void {
+  if (hooks.phase === "held") freeData(layer);
+  hooks.phase = "done";
+}
+
+/** A read on a closed scope (ADR 0069): while a session's data waits for its `session` hooks, a
+ * data cell or a tag reads as it did before the close. Anything else throws `Disposed`. */
+function resolveHeld(layer: Layer, target: unknown, ns: Scope.NsArg | undefined): unknown {
+  if (SESSION_HOOKS.get(layer)?.phase !== "held" || isResource(target) || isExtension(target))
+    raise("Disposed", { reason: "scope is closed" });
+  return resolveNs(layer, target, ns?.ns === undefined ? layer.ns : nsChainOf(ns.ns));
+}
+
+/** The store a `withData` close moved into its `Result` (ADR 0069), read through {@link ownEntry}. */
+function finalData(
+  nodes: Map<object, NodeState>,
+  own: readonly Namespace[] | undefined,
+): Scope.FinalData {
+  return {
+    get: <T>(cell: Data.Cell<T>, ns?: Scope.NsArg): Tag.Presence<T> => {
+      const entry = ownEntry(nodes.get(cell), ns?.ns === undefined ? own : nsChainOf(ns.ns));
+      return entry === undefined ? { present: false } : { present: true, value: entry.value as T };
+    },
+  };
+}
+
+/** The entry a controller picks at one layer, as {@link selectBucket} does: the ns chain's buckets
+ * in order, then the default bucket. */
+function ownEntry(
+  rec: NodeState | undefined,
+  chain: readonly Namespace[] | undefined,
+): Entry | undefined {
+  if (rec === undefined) return undefined;
+  for (const key of chain ?? NO_ITEMS) {
+    const bucket = rec.nsCells?.get(key);
+    if (bucket !== undefined) return bucket;
+  }
+  return rec.cell;
 }
 
 export { isError };
