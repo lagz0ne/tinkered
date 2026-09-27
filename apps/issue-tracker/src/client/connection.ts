@@ -1,12 +1,4 @@
-import {
-  data,
-  extension,
-  operation,
-  resource,
-  tag,
-  type Operation,
-  type Scope,
-} from "@tinker/core";
+import { data, extension, operation, resource, tag, type Operation } from "@tinker/core";
 import { HttpRequest, send } from "@tinker/http";
 import type { Sync } from "@tinker/sync";
 import { fail } from "../errors.ts";
@@ -32,11 +24,9 @@ export declare namespace Wire {
   };
   /** One sync message POSTed for one tab: the client id pairs it with the tab's stream. */
   type Post = { readonly id: string; readonly message: Sync.Message };
-  /** The transport sync needs, plus the extension whose `start` hands it the scope. */
-  type Link = {
-    readonly transport: Sync.Transport;
-    readonly extension: Scope.Extension<void>;
-  };
+  /** The transport sync holds before the scope exists: it forwards to the scope's transport
+   * once the `wire` extension attaches it. */
+  type Link = Sync.Transport & { attach(scoped: Sync.Transport): void };
 }
 
 function isRecord(raw: unknown): raw is Record<string, unknown> {
@@ -243,25 +233,31 @@ const unstarted: Sync.Transport = {
   close: () => undefined,
 };
 
-/** Build the tab's wire for sync: a thin `Sync.Transport` that forwards to the scope's transport
- * resource, plus the extension whose `start` resolves it. Install the extension before
- * `subscribe(link.transport, …)`: sync's `start` registers through the transport. Nothing opens
- * until sync's first send resolves the stream. */
+/** Build the tab's link for sync: a thin `Sync.Transport` that sends nothing and hears nothing
+ * until the `wire` extension attaches the scope's transport resource. Bind it with `wireLink`
+ * and hand it to `subscribe`. Nothing opens until sync's first send resolves the stream. */
 export function createWire(): Wire.Link {
   let scoped = unstarted;
   return {
-    transport: {
-      send: (message) => scoped.send(message),
-      onMessage: (listener) => scoped.onMessage(listener),
-      onClose: (listener) => scoped.onClose(listener),
-      close: () => scoped.close(),
+    send: (message) => scoped.send(message),
+    onMessage: (listener) => scoped.onMessage(listener),
+    onClose: (listener) => scoped.onClose(listener),
+    close: () => scoped.close(),
+    attach: (next) => {
+      scoped = next;
     },
-    extension: extension({
-      label: "wire",
-      start: (scope, _ctx, next) => {
-        scoped = scope.resolve(transport);
-        return next();
-      },
-    }),
   };
 }
+
+/** The tab's link, bound once at the composition root. */
+export const wireLink = tag<Wire.Link>({ label: "wireLink" });
+
+/** Attach the bound link to the scope's transport. Install it before `subscribe`: sync's `start`
+ * registers through the link. */
+export const wire = extension({
+  label: "wire",
+  start: (scope, _ctx, next) => {
+    scope.resolve(wireLink).attach(scope.resolve(transport));
+    return next();
+  },
+});

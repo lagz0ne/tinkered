@@ -36,6 +36,8 @@ import {
   typeComment,
   typeEdit,
   typeNewIssue,
+  wire,
+  wireLink,
   type Issues,
   type Wire,
 } from "../src/index.ts";
@@ -94,10 +96,11 @@ class FakeSource implements Wire.Source {
 /** Boot one tab on the wire as `main.tsx` does: fake streams, `post` in place of the POST. */
 function bootTab(post: (input: Wire.Post, signal: AbortSignal) => Promise<void>) {
   const sources: FakeSource[] = [];
-  const wire = createWire();
+  const link = createWire();
   const scope = createScope({
     tags: [
       ...TAGS,
+      wireLink(link),
       openSource(() => {
         const source = new FakeSource();
         sources.push(source);
@@ -105,9 +108,9 @@ function bootTab(post: (input: Wire.Post, signal: AbortSignal) => Promise<void>)
       }),
     ],
     presets: [preset(postSync, (_deps, { input, signal }) => post(input, signal))],
-    extensions: [wire.extension, subscribe(wire.transport, { cells: [[issueList, "issues"]] })],
+    extensions: [wire, subscribe(link, { cells: [[issueList, "issues"]] })],
   });
-  return { scope, sources, transport: wire.transport };
+  return { scope, sources, transport: link };
 }
 
 /** One `data:` SSE frame for one draft event. */
