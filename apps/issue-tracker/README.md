@@ -30,7 +30,8 @@ The live connection is one server-sent stream plus POSTs:
   - It waits, then opens a fresh stream and sends the last register again.
   - The first wait is 1 second.
   - Each drop in a row doubles the wait, up to 30 seconds.
-  - A fresh stream that errors before it opens is one more drop.
+  - A fresh stream that errors before it opens is one more drop:
+    the wire waits longer, then tries again.
   - Going live resets the wait to 1 second.
   - It stops only when the page's scope closes.
 - **POSTs** — they wait for the stream's open and go out in send order.
