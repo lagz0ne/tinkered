@@ -1,4 +1,4 @@
-import type { Data, Many, Namespace, Scope } from "@tinker/core";
+import type { Data, Many, Namespace, Resource, Scope } from "@tinker/core";
 import { data, extension, isError as isCoreError, namespace, readMany } from "@tinker/core";
 import { fail, isError, raise, type Errors } from "./errors.ts";
 
@@ -290,7 +290,14 @@ export function source(wiring: Sync.Wiring): Scope.Extension<Sync.Source> {
   });
 }
 
-/** The client driver, an extension: `start` registers the keys the
+/** The client driver, an extension. `start` first resolves the
+ * transport from its resource inside the scope and awaits it, so nothing
+ * is built before `createScope`; a build that fails rejects `start` with
+ * its own error. Sync does not reconnect: the resource owns any rewiring
+ * and hands over one steady transport (ADR 0070). The resource and the
+ * extension share the scope's lifetime; a close while the transport builds
+ * rejects `start` with `SyncNotReady` and closes the transport once built.
+ * Then `start` registers the keys the
  * viewer shows and waits until every key of that initial registration
  * holds its snapshot (`ready` is the initial data set, ADR 0050), then
  * `close` detaches and closes the transport. Later snapshots fill each
@@ -304,14 +311,16 @@ export function source(wiring: Sync.Wiring): Scope.Extension<Sync.Source> {
  * `close()` detaches and closes (idempotent); a far-side close detaches
  * without closing twice. */
 export function subscribe(
-  transport: Sync.Transport,
+  link: Resource.Handle<Sync.Transport | Promise<Sync.Transport>>,
   wiring: Sync.Wiring,
 ): Scope.Extension<Sync.Subscription> {
   const cells = readMany(wiring.cells, isRow);
   let closeClient: () => void = () => undefined;
+  let closing = false;
   return extension<Sync.Subscription>({
     label: "sync.subscribe",
-    start: (scope, ctx, next) => {
+    start: async (scope, ctx, next) => {
+      const transport = await scope.resolve(link);
       let shut = false;
       let stopMessages: () => void = () => undefined;
       let stopParted: () => void = () => undefined;
@@ -421,13 +430,11 @@ export function subscribe(
         };
       });
       noteRejection(waited);
-      ctx.signal.addEventListener(
-        "abort",
-        () => {
-          if (waiters !== undefined) failStart();
-        },
-        { once: true },
-      );
+      function abandon(): void {
+        if (waiters !== undefined) failStart();
+      }
+      if (closing) abandon();
+      else ctx.signal.addEventListener("abort", abandon, { once: true });
       const settled = waited.then(async () => {
         await next();
         function close(): void {
@@ -440,6 +447,7 @@ export function subscribe(
       return settled;
     },
     close: (_options, next) => {
+      closing = true;
       closeClient();
       return next();
     },

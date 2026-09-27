@@ -2,6 +2,7 @@ import {
   createScope,
   makeTestRandom,
   preset,
+  resource,
   type Observe,
   type Operation,
   type Scope,
@@ -83,7 +84,8 @@ test("creating a valid issue saves it and a second viewer sees it", async () => 
   const { scope, src } = await boot();
   const [near, far] = memoryPair();
   const served = scope.resolve(src).connect(near);
-  const sub = subscribe(far, { cells: [[issueList, "issues"]] });
+  const pipe = resource({ label: "pipe", factory: () => far });
+  const sub = subscribe(pipe, { cells: [[issueList, "issues"]] });
   const guest = createScope({ extensions: [sub] });
   try {
     await guest.ready;
@@ -325,7 +327,8 @@ test("a stale edit publishes no new snapshot to a live viewer", async () => {
   const { scope, src } = await boot();
   const [near, far] = memoryPair();
   const served = scope.resolve(src).connect(near);
-  const sub = subscribe(far, { cells: [[issueList, "issues"]] });
+  const pipe = resource({ label: "pipe", factory: () => far });
+  const sub = subscribe(pipe, { cells: [[issueList, "issues"]] });
   const guest = createScope({ extensions: [sub] });
   try {
     await guest.ready;

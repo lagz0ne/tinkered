@@ -1,21 +1,21 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createScope } from "@tinker/core";
-import { memoryPair, subscribe } from "@tinker/sync";
+import { subscribe } from "@tinker/sync";
 import { api } from "./api.ts";
 import { ScopeProvider } from "@tinker/react";
 import { App } from "./App.tsx";
-import { linkWire, wirePeer } from "./connection.ts";
+import { wire } from "./connection.ts";
 import { capability, detailRefresh } from "./services.ts";
 import { drafter } from "./drafter.ts";
 import { issueList } from "../shared/issues.ts";
 
-/** The composition root: the only place that creates or touches the scope. Sync holds one end of
- * a memory pair; the `linkWire` extension resolves the wire on the other end, so `subscribe`'s
- * `register` opens the stream, and `ready` resolves when the first snapshots land. A
- * first-connect failure fires `onClose` once,
- * so `subscribe.start` rejects with `SyncNotReady`, `ready` rejects, and the dead page renders —
- * a second root-owned `boot` re-renders static markup between attempts, no React state. */
+/** The composition root: the only place that creates or touches the scope. Nothing is built
+ * before `createScope`: `subscribe` resolves the `wire` resource inside the scope and holds it as
+ * its transport, its `register` POSTs behind the stream's open, and `ready` resolves when the
+ * first snapshots land. A first-connect failure fires `onClose` once, so `subscribe.start`
+ * rejects with `SyncNotReady`, `ready` rejects, and the dead page renders — a second root-owned
+ * `boot` re-renders static markup between attempts, no React state. */
 function boot(): void {
   const root = document.getElementById("root");
   if (root === null) return;
@@ -28,11 +28,9 @@ function boot(): void {
 }
 
 async function start(element: ReturnType<typeof createRoot>): Promise<boolean> {
-  const [peer, far] = memoryPair();
-  const subscription = subscribe(far, { cells: [[issueList, "issues"]] });
   const scope = createScope({
-    tags: [api.config({ baseUrl: window.location.origin }), wirePeer(peer)],
-    extensions: [linkWire, subscription],
+    tags: [api.config({ baseUrl: window.location.origin })],
+    extensions: [subscribe(wire, { cells: [[issueList, "issues"]] })],
   });
   try {
     await scope.ready;
