@@ -23,6 +23,7 @@ const shapeItem = (file, finding) => ({
 const jevItem = (file, row, finding) => ({
   file,
   unit: row.unit,
+  line: row.line ?? null,
   judge: finding.id,
   probability: finding.probability,
   calibration: finding.calibration,

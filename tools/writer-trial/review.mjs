@@ -33,11 +33,9 @@ import { createHash } from "node:crypto";
 import {
   copyFileSync,
   existsSync,
-  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -64,9 +62,10 @@ import {
   nextCheckSeq,
   planSave,
 } from "./attempts.mjs";
-import { isJudgedPath, jevAsk, judgeSource } from "./broker.mjs";
+import { isJudgedPath, jevAsk } from "./broker.mjs";
+import { judgeFile } from "./folder.mjs";
 import { gateFiles, gateOf, machineVerdict } from "./gate.mjs";
-import { reusedAnswer, writerAnswers } from "./answers.mjs";
+import { writerAnswers } from "./answers.mjs";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 
@@ -433,25 +432,6 @@ function extractJudged(archive, tmp) {
       60000,
     );
   return [...new Set(members.map((name) => name.replace(/^\.\//, "")))];
-}
-
-// One file's report, or an error report (unavailable). A link or a
-// path that leaves the temp folder is never followed.
-async function judgeFile(tmp, file, { jevDir, judges, ask, answers }) {
-  const path = join(tmp, file);
-  try {
-    if (!lstatSync(path).isFile() || !realpathSync(path).startsWith(`${realpathSync(tmp)}/`))
-      return { file, error: "not a regular file inside the snapshot" };
-    const source = readFileSync(path, "utf8");
-    if (source.length > 40000) return { file, error: "file exceeds 40000 characters" };
-    // Same bytes the writer already asked about: keep the writer's answer.
-    return (
-      reusedAnswer(answers, file, source) ??
-      (await judgeSource({ source, file, jevDir, judges, ask }))
-    );
-  } catch (error) {
-    return { file, error: error.message };
-  }
 }
 
 // Own check/test/build from the archive inside the pinned image.

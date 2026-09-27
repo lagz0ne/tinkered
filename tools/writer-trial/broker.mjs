@@ -116,7 +116,7 @@ export async function judgeSource({ source, file, jevDir, judges, ask, allow = (
   const selected = new Set(judges);
   const calibration = lib.readCalibration();
   const rows = [];
-  const judge = async (state, candidates, unit) => {
+  const judge = async (state, candidates, unit, line) => {
     const questions = Object.fromEntries(
       Object.entries(candidates)
         .filter(([id]) => selected.has(id))
@@ -125,7 +125,7 @@ export async function judgeSource({ source, file, jevDir, judges, ask, allow = (
     if (!Object.keys(questions).length) return;
     const stop = allow();
     if (stop !== null) {
-      rows.push({ unit, status: "not-run", reason: stop });
+      rows.push({ unit, line, status: "not-run", reason: stop });
       return;
     }
     const answers = await ask(state, questions);
@@ -134,6 +134,7 @@ export async function judgeSource({ source, file, jevDir, judges, ask, allow = (
     );
     rows.push({
       unit,
+      line,
       findings: Object.entries(answers).map(([id]) => ({
         id,
         probability: probabilities[id],
@@ -144,10 +145,11 @@ export async function judgeSource({ source, file, jevDir, judges, ask, allow = (
       })),
     });
   };
-  await judge({ file, code: source }, lib.JUDGES, file);
+  // A row's line is its unit's first line; the whole-file row has none.
+  await judge({ file, code: source }, lib.JUDGES, file, null);
   if (file.includes(".test.")) {
     for (const test of extractor.tests(source, file))
-      await judge(testState(test), bank.TESTS, test.title);
+      await judge(testState(test), bank.TESTS, test.title, test.line);
   } else {
     for (const unit of bank.slice(source, file)) {
       // A wrapper or builder (wrapperOnly) is asked only the unitBuilders judges, as lint does.
@@ -157,7 +159,7 @@ export async function judgeSource({ source, file, jevDir, judges, ask, allow = (
             (!j.applies || j.applies.includes(unit.kind)) && (!unit.wrapperOnly || j.unitBuilders),
         ),
       );
-      await judge(bank.forJev(unit), fit, unit.name);
+      await judge(bank.forJev(unit), fit, unit.name, unit.line);
     }
   }
   return {

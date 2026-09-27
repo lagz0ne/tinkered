@@ -68,6 +68,7 @@ void describe("the Jev gate", () => {
       {
         file: "src/app.ts",
         unit: "app",
+        line: null,
         judge: "partialStub",
         probability: 0.8,
         calibration: "proven",
@@ -152,6 +153,25 @@ void describe("the Jev gate", () => {
     assert.deepEqual(
       gate.advice.map((item) => item.judge),
       ["leakedInternal"],
+    );
+  });
+
+  void it("names the first line of the unit a Jev hit is on", async () => {
+    const judged = await judgeSource({
+      source:
+        "export const one = 1;\n\nexport function add(a: number, b: number) {\n  return a + b;\n}\n",
+      file: "src/add.ts",
+      jevDir,
+      judges: ["partialStub", "stateOutsideCell"],
+      ask: fakeAsk(["partialStub", "stateOutsideCell"]),
+    });
+    const gate = gateOf(judged);
+    assert.deepEqual(
+      [...gate.blocking, ...gate.advice].map((item) => [item.judge, item.unit, item.line]),
+      [
+        ["partialStub", "src/add.ts", null],
+        ["stateOutsideCell", "add", 3],
+      ],
     );
   });
 
