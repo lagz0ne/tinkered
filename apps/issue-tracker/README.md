@@ -53,6 +53,9 @@ its in-process server. Built-in tools are disabled, filesystem settings
 are off, outside MCP config is refused, and unexpected permission prompts
 are denied. A credentialed live model run was not verified.
 
+A draft request's `prompt` is optional. A blank one asks for the default
+summary; one that is not text answers 400 and runs no model.
+
 ## Run it
 
 ```bash
@@ -65,6 +68,8 @@ The build command builds the public workspace libraries before the app.
 
 Then open `http://127.0.0.1:4311/` in two tabs. `HOST` and `PORT` set the
 address; `DATA_PATH` is the persistent PGlite folder (gitignored).
+A `PORT` that is not a whole number from 1 to 65535 stops the boot with
+`BadPort`; a missing `PORT` means 4311.
 
 Walkthrough: create an issue in the first tab and see it appear in the
 second; open it in both; change status/assignee in one tab and watch the
