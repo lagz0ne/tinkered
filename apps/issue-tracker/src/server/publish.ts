@@ -6,9 +6,10 @@ import { publishIssues } from "./operations.ts";
 /** Publish after commit (ADR 0051): the `session` hook fires when each request
  * session closes, so a committed mutating request republishes the shared list
  * while manual `scope.session` saves in tests stay silent. A request session is
- * the one whose `request` tag holds this request's web Request: capture the
- * method before `next()` (a read would cross the closed layer after), and run
- * the publish op at the root only after a successful close of a non-GET. The
+ * the one whose `request` tag holds this request's web Request: read the
+ * method after `next()` (core keeps a session's tags readable until its hooks
+ * return, ADR 0069), and run the publish op at the root only after a
+ * successful close of a non-GET. The
  * `start` hand is kept as a publish thunk, never as a held handle. The row is
  * saved by then, so a publish that fails (the read after commit) must not turn
  * the answered request into a 500 — a `session` hook never throws (core); the
@@ -33,10 +34,9 @@ export function publishAfterCommit(): Scope.Extension<void> {
       return next();
     },
     session: async (handle, next) => {
-      const found = handle.resolve(request.optional);
-      const method = found.present ? found.value.method : undefined;
       const ended = await next();
-      if (ended.status === "success" && method !== undefined && method !== "GET")
+      const found = handle.resolve(request.optional);
+      if (ended.status === "success" && found.present && found.value.method !== "GET")
         await runPublish?.();
       return ended;
     },
