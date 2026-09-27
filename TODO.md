@@ -40,14 +40,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
-- **sync/transport-unit** — `subscribe` takes its transport from a resource and resolves it
-  inside the scope (user, 2026-09-27: Q1 A, one signature Q2 A); sync does not reconnect (the
-  ADR 0070 link does). The tracker's `wire` becomes the transport; `memoryPair`, `wirePeer`,
-  `linkWire` go; 23 sync tests and the example wrap their in-memory end in a one-line resource.
-  Owner: lead; writer agent `84789d5f` in `../tinkered-transport-unit` (brief
-  `sync-transport-unit.md`). Verify: nothing built before `createScope` in the tracker client;
-  browser proof 4 of 4 uncached; sync mutation ≥ 85.
-
 ## Review
 
 | Card | Owner | Next | Verify |
@@ -93,6 +85,8 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 ## Done
 
+- **sync/transport-unit** — opus high + fable review (one fix round); tag `sync/transport-unit`; closes ADR 0070's open question. `subscribe(link, wiring)` takes its transport from a resource and resolves it inside the scope; sync does not reconnect (the link does). The tracker's `wire` resource is the transport, so nothing is built before `createScope` (`memoryPair`, `wirePeer`, `linkWire` gone). Fixed on the way: a close while `start` awaited its transport hung `ready`; now it rejects `SyncNotReady` and parts the wire.
+  - Gate EXIT 0; sync 52 tests (4 new), tracker 76; sync mutation 86.49; browser proof 4 of 4 uncached; validate 44 PASS; 3 Jev labels, calibration refreshed.
 - **tracker/gate-leftovers** — opus high + fable review (no fix round); tag `tracker/gate-leftovers`. Saved issue, comment, and activity ids come from `ctx.random` (a seeded scope replays them); `checkCapability` reads its check through `settle` (a managed error shows failed, a panic shows failed and is rethrown); the two boot resources leave their runs to the scope (`void op.run()`: core tracks the run, and a fire-and-forget `settle` would recover a panic); two unreachable notices removed; `fail()` builds without a cast. The tracker's writer gate: 12 blocking at first review → 3, each a labeled Jev wrong hit.
   - Gate EXIT 0; tracker 76 tests; browser proof 3 of 3 uncached; validate 44 PASS; 4 Jev labels, calibration refreshed.
 - **tracker/reconnect** — opus high + fable review (four fix rounds, one lander stop); tag `tracker/reconnect`; ADR 0070's application case. The tab wire is one `wire` resource: it owns the current `EventSource` (id from `ctx.random`), is the only writer of the `connection` health, and rewires itself — after a drop it waits on `ctx.clock` (1 s doubling to a 30 s cap, reset on live) and opens again until live or close; the `reconnect` operation only bumps the `retry` intent cell, which opens at once. Only the first stream's failure is final (the dead page). Sync holds a steady `memoryPair` end. Gone: the hand-rolled state machine, `onStatus`, the `liveness` bridge, `reopen`, `Math.random`, the POST queue.

@@ -134,6 +134,7 @@ to verify its entrypoint. No new helper or core ticket was requested.
 | A graceful close seals writes: in-flight work that writes after `close()` is called throws `Disposed`, so `close({ withData: true })` carries only writes made before the close began. Wanted only if a caller needs the last write of work still finishing. | core/with-data 2026-09-27 (writer + review) | note |
 | No tool waits for a cell to hold a value, so the tracker's wire keeps one promise per stream (`gate`) so a POST waits for the stream's open — the one rule-13 smell left in ADR 0070's application case. Wanted: a way to await a cell reaching a value (with `ctx.signal`). | tracker/reconnect review 2026-09-27 | open — first asker |
 | Jev tooling on an app: `promises.mjs` assumes `packages/<pkg>` and `tests.mjs` rejects a directory, so the writer steps cannot run on `apps/issue-tracker`. | tracker/reconnect fix round 4 2026-09-27 | open — tooling note |
+| A graceful close does not abort an extension's `ctx.signal`, so an extension whose `start` awaits a resource cannot tell the scope began closing: sync's `subscribe` keeps a `closing` flag set by its close hook (a rule-13 smell forced by core). Wanted: a signal or state an extension `start` can read that says "the scope is closing" on a graceful close too. | sync/transport-unit review 2026-09-27 | open — first asker |
 
 ## Writer learning round, 2026-09-22
 

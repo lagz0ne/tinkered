@@ -3,9 +3,9 @@
     "status": "provisional",
     "trues": 3,
     "falses": 54,
-    "medianTrue": 0.95,
+    "medianTrue": 0.94,
     "medianFalse": 0.04,
-    "separation": 0.91,
+    "separation": 0.9,
     "ordered": 0.98,
     "at": "2026-09-27"
   },
@@ -15,18 +15,18 @@
     "falses": 70,
     "medianTrue": 0.76,
     "medianFalse": 0.03,
-    "separation": 0.72,
+    "separation": 0.73,
     "ordered": 0.91,
     "at": "2026-09-27"
   },
   "stateOutsideCell": {
     "status": "provisional",
     "trues": 3,
-    "falses": 84,
-    "medianTrue": 0.89,
+    "falses": 85,
+    "medianTrue": 0.9,
     "medianFalse": 0.48,
-    "separation": 0.41,
-    "ordered": 0.98,
+    "separation": 0.42,
+    "ordered": 0.99,
     "at": "2026-09-27"
   },
   "configNotTag": {
@@ -35,7 +35,7 @@
     "falses": 73,
     "medianTrue": 0.63,
     "medianFalse": 0.06,
-    "separation": 0.56,
+    "separation": 0.57,
     "ordered": 0.86,
     "at": "2026-09-27"
   },
@@ -43,9 +43,9 @@
     "status": "provisional",
     "trues": 4,
     "falses": 49,
-    "medianTrue": 0.74,
+    "medianTrue": 0.77,
     "medianFalse": 0.03,
-    "separation": 0.71,
+    "separation": 0.73,
     "ordered": 0.99,
     "at": "2026-09-27"
   },
@@ -53,8 +53,8 @@
     "status": "provisional",
     "trues": 1,
     "falses": 55,
-    "medianTrue": 0.86,
-    "medianFalse": 0.22,
+    "medianTrue": 0.85,
+    "medianFalse": 0.21,
     "separation": 0.64,
     "ordered": 1,
     "at": "2026-09-27"
@@ -62,20 +62,20 @@
   "ignoresAbortAfterAwait": {
     "status": "provisional",
     "trues": 1,
-    "falses": 3,
-    "medianTrue": 0.83,
+    "falses": 4,
+    "medianTrue": 0.79,
     "medianFalse": 0.85,
-    "separation": -0.02,
-    "ordered": 0.33,
+    "separation": -0.06,
+    "ordered": 0.25,
     "at": "2026-09-27"
   },
   "readsMoreThanRendered": {
     "status": "provisional",
     "trues": 1,
     "falses": 47,
-    "medianTrue": 0.92,
+    "medianTrue": 0.91,
     "medianFalse": 0.04,
-    "separation": 0.88,
+    "separation": 0.87,
     "ordered": 1,
     "at": "2026-09-27"
   },
@@ -83,8 +83,8 @@
     "status": "provisional",
     "trues": 1,
     "falses": 46,
-    "medianTrue": 0.94,
-    "medianFalse": 0.11,
+    "medianTrue": 0.95,
+    "medianFalse": 0.12,
     "separation": 0.83,
     "ordered": 1,
     "at": "2026-09-27"
@@ -94,8 +94,8 @@
     "trues": 1,
     "falses": 46,
     "medianTrue": 0.96,
-    "medianFalse": 0.18,
-    "separation": 0.77,
+    "medianFalse": 0.17,
+    "separation": 0.79,
     "ordered": 1,
     "at": "2026-09-27"
   },
@@ -122,11 +122,11 @@
   "leakedInternal": {
     "status": "provisional",
     "trues": 1,
-    "falses": 54,
-    "medianTrue": 0.73,
-    "medianFalse": 0.17,
-    "separation": 0.56,
-    "ordered": 0.94,
+    "falses": 55,
+    "medianTrue": 0.72,
+    "medianFalse": 0.18,
+    "separation": 0.54,
+    "ordered": 0.91,
     "at": "2026-09-27"
   },
   "survivorMatters": {
@@ -134,9 +134,9 @@
     "trues": 6,
     "falses": 7,
     "medianTrue": 0.83,
-    "medianFalse": 0.18,
-    "separation": 0.66,
-    "ordered": 1,
+    "medianFalse": 0.2,
+    "separation": 0.63,
+    "ordered": 0.98,
     "at": "2026-09-27"
   },
   "inputDefaultMasks": {
@@ -144,8 +144,8 @@
     "trues": 34,
     "falses": 65,
     "medianTrue": 0.92,
-    "medianFalse": 0.36,
-    "separation": 0.56,
+    "medianFalse": 0.35,
+    "separation": 0.57,
     "ordered": 0.98,
     "at": "2026-09-27"
   },
@@ -153,10 +153,10 @@
     "status": "proven",
     "trues": 6,
     "falses": 48,
-    "medianTrue": 0.77,
-    "medianFalse": 0.17,
-    "separation": 0.59,
-    "ordered": 0.97,
+    "medianTrue": 0.79,
+    "medianFalse": 0.18,
+    "separation": 0.61,
+    "ordered": 0.98,
     "at": "2026-09-27"
   },
   "partialStub": {
@@ -183,10 +183,10 @@
     "status": "noisy",
     "trues": 17,
     "falses": 13,
-    "medianTrue": 0.74,
-    "medianFalse": 0.31,
-    "separation": 0.43,
-    "ordered": 0.82,
+    "medianTrue": 0.78,
+    "medianFalse": 0.32,
+    "separation": 0.46,
+    "ordered": 0.83,
     "at": "2026-09-27"
   }
 }
