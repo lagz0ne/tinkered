@@ -41,6 +41,20 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
+- **tracker/gate-fixes** — the 7 real items from the tracker gate report (bad `PORT` and a
+  non-string draft `prompt` silently defaulted; a helper writing through a controller; two casts; a
+  test past the public entry; the root view taking the scope), with the 4 false positives labeled
+  or noted, then a gate re-run. Owner: lead; writer agent `1aacae45` in
+  `../tinkered-tracker-gate-fixes` (brief `tracker-gate-fixes.md`). Verify: only noted false
+  positives and wire items still block.
+
+- **tracker/reconnect** — the tab's reconnecting wire the tinker way (user, 2026-09-27): wire state
+  in the `connection` cell (no `onStatus` bridge), the stream a resource with `ctx.defer` /
+  `ctx.signal`, reconnect an operation, the id from `ctx.random`; the `Sync.Transport` stays a thin
+  adapter (ADR 0048). Owner: lead; writer agent `8a3d02ce` in `../tinkered-tracker-reconnect`
+  (brief `tracker-reconnect.md`). Verify: every wire behavior test green; the gate shows no
+  `stateOutsideCell` / `effectWithoutDefer` on the wire.
+
 ## Review
 
 | Card | Owner | Next | Verify |
