@@ -41,6 +41,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
+- **jev/handrolled** — catch code that hand-rolls what tinker provides (listener sets and status
+  getters instead of cells, flags instead of `ctx.defer`, `Math.random` instead of `ctx.random`, …;
+  user, 2026-09-27, after the tracker's wire). Step 1: survey apps, examples, and app-like package
+  code; each pattern gets a proposed check (plain rule, Jev judge, or already covered). Owner: lead;
+  surveyor agent `3938e2b3` in `../tinkered-handrolled` (brief `jev-handrolled-survey.md`). Next:
+  pick the checks with the user, then one writer adds them. Verify: the new checks flag the found
+  cases; a judge is calibrated from their labels (ADR 0054).
+
 - **tracker/gate-fixes** — the 7 real items from the tracker gate report (bad `PORT` and a
   non-string draft `prompt` silently defaulted; a helper writing through a controller; two casts; a
   test past the public entry; the root view taking the scope), with the 4 false positives labeled
