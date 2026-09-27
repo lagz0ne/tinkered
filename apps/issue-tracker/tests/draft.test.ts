@@ -11,6 +11,7 @@ import {
   issueList,
   isError,
   parseComment,
+  parseDraftInput,
   parseIssueDetail,
   readDetail,
   startDraft,
@@ -245,6 +246,40 @@ test("a draft for a missing issue answers gone and runs no model", async () => {
     await booted.scope.close({ graceful: true });
     removeTemp(path);
   }
+});
+
+test("a draft prompt that is not text answers 400 and runs no model", async () => {
+  const fixture = readDraftServer([{ text: "never used" }]);
+  const path = tempPath();
+  const booted = await boot(path, {
+    draft: { enabled: true, baseUrl: "http://127.0.0.1:1" },
+    presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
+  });
+  try {
+    const created = await via(booted.scope, createIssue, { title: "Asked", description: "x" });
+    const res = await booted.app.request(`/api/issues/${created.id}/draft`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ prompt: 42 }),
+    });
+    expect(res.status).toBe(400);
+    expect(fixture.turnCount()).toBe(0);
+  } finally {
+    await booted.scope.close({ graceful: true });
+    removeTemp(path);
+  }
+});
+
+test("parseDraftInput raises BadDraftInput for a prompt that is not text", () => {
+  try {
+    parseDraftInput({ id: "i1", prompt: null });
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "BadDraftInput")) throw error;
+    expect(error.payload.reason).toBe("prompt must be text");
+  }
+  expect(parseDraftInput({ id: "i1" })).toEqual({ id: "i1", prompt: "" });
+  expect(parseDraftInput({ id: "i1", prompt: " " })).toEqual({ id: "i1", prompt: " " });
 });
 
 test("an aborted caller runs no model turn", async () => {

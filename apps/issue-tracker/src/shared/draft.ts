@@ -122,16 +122,13 @@ export function parseDraftId(raw: unknown): string {
   return raw.id;
 }
 
-/** Read a draft prompt from the object the routes send: `{ id, prompt? }`. */
+/** Read a draft prompt from the object the routes send: `{ id, prompt? }`. An absent prompt is
+ * `""`; a prompt that is not text raises `BadDraftInput`. */
 export function parseDraftInput(raw: unknown): { readonly id: string; readonly prompt: string } {
   const id = parseDraftId(raw);
-  if (
-    typeof raw === "object" &&
-    raw !== null &&
-    "prompt" in raw &&
-    typeof raw.prompt === "string"
-  ) {
-    return { id, prompt: raw.prompt };
+  if (typeof raw !== "object" || raw === null || !("prompt" in raw) || raw.prompt === undefined) {
+    return { id, prompt: "" };
   }
-  return { id, prompt: "" };
+  if (typeof raw.prompt !== "string") raise("BadDraftInput", { reason: "prompt must be text" });
+  return { id, prompt: raw.prompt };
 }
