@@ -13,8 +13,8 @@ person can reload the other change and try again. Comments append without
 an edit revision.
 
 If the live connection drops — a wire failure or a server restart — the
-page shows a Reconnect button and keeps every typed draft. Reconnecting
-swaps in a fresh connection on the same page, so the local title, comment,
+page keeps every typed draft and keeps trying to reconnect by itself. Its
+Reconnect button tries at once. Reconnecting swaps in a fresh connection on the same page, so the local title, comment,
 and edit revision survive. A server restart keeps the database on disk;
 the fresh connection accepts the newer saved state even when the server's
 revision is lower than the last one the old connection saw.
@@ -26,17 +26,27 @@ The live connection is one server-sent stream plus POSTs:
   cannot be opened at all fails the boot the same way.
 - **a later stream error, a malformed frame, or a refused POST** — the
   connection drops; the list and drafts stay, and sync stays attached.
-  After a one-second wait (the backoff) the wire opens again by itself
-  and sends the last register again.
+- **the retry rule** — a dropped wire keeps trying by itself:
+  - It waits, then opens a fresh stream and sends the last register again.
+  - The first wait is 1 second.
+  - Each drop in a row doubles the wait, up to 30 seconds.
+  - A fresh stream that errors before it opens is one more drop.
+  - Going live resets the wait to 1 second.
+  - It stops only when the page's scope closes.
 - **POSTs** — they wait for the stream's open and go out in send order.
   A POST that fails for a replaced stream does not drop the current one.
 - **Reconnect** — the button asks for a retry; the wire opens a fresh
-  stream now, goes live, and sends the last register again. A fresh
-  stream that errors first leaves "Still no connection".
+  stream now, goes live, and sends the last register again.
+  - The retry resets the wait to 1 second.
+  - The wait it cut short opens nothing.
+- **what the tab shows** — one state at a time:
+  - live: no notice.
+  - waiting: "Live updates stopped" and a Reconnect button.
+  - trying: the same notice, "Reconnecting…", and Reconnect greyed out.
 - **closing the page's scope** — it aborts in-flight POSTs, closes the
   stream, and tells sync once. A close before the first stream opens
   still settles: it does not wait on the register POST behind it. A
-  close during the backoff wait ends quietly and opens nothing.
+  close during any wait ends quietly and opens nothing.
 
 Offline saves show a plain notice ("Could not reach the server. Your work
 is kept — try again.") instead of a raw error name, and the typed text is
@@ -95,8 +105,8 @@ second; open it in both; change status/assignee in one tab and watch the
 other; add a comment in the second and watch the first; reload either tab
 and everything persists. Stop the server, start it again on the same
 `DATA_PATH`, and the saved issues return. Type a local edit, restart the
-server while an edit is open, change the saved title elsewhere, press
-Reconnect, and the page shows the new saved title while keeping the local
+server while an edit is open, change the saved title elsewhere, and the
+page comes back by itself with the new saved title while keeping the local
 draft; saving with the old revision is rejected with 409 and the exact
 saved detail is unchanged until "Reload their change".
 
@@ -159,8 +169,9 @@ vp run @tinker-issue-tracker#test:browser
 temporary server on a free port with a temporary database, drives two real
 390px Chromium tabs (create/edit/status/assign/comment, conflict with
 explicit reload, CLI create/update/comment/get visible in the browser,
-reload, one server restart with Reconnect keeping local drafts and
-rejecting the stale revision with 409), then runs the helper cases
+reload, one server restart the tab comes back from by itself keeping local
+drafts and rejecting the stale revision with 409, and Reconnect pressed
+while the server is down), then runs the helper cases
 (cancel/discard/Post with a held comment request, closing the view,
 malformed stream, shutdown with a live wire and held turn). It cleans up
 its servers, browsers, and temp data, and needs no model credentials.

@@ -21,8 +21,9 @@ export type EditDraft = {
   readonly conflict: Issues.Issue | null;
 };
 
-/** The wire as the tab sees it. `live` flips when the wire drops; `pending`/`failed` track the
- * reconnect operation; `closedBadly` records a reconnect whose old scope closed uncleanly. */
+/** The wire as the tab sees it. `live` flips when the wire drops; `pending` holds while a stream
+ * is connecting; `failed` marks a first stream that never opened; `closedBadly` records a
+ * reconnect whose old scope closed uncleanly. */
 export type Connection = {
   readonly live: boolean;
   readonly pending: boolean;
