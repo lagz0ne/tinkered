@@ -93,8 +93,8 @@ class FakeSource implements Wire.Source {
 }
 
 /** Boot one tab on the wire as `main.tsx` does: fake streams, `post` in place of the POST, and a
- * test clock for the backoff wait. Resolves once the wire opened its first stream. */
-async function bootTab(post: (input: Wire.Post, signal: AbortSignal) => Promise<void>) {
+ * test clock for the backoff wait. The wire opens its first stream while the scope starts. */
+function bootTab(post: (input: Wire.Post, signal: AbortSignal) => Promise<void>) {
   const sources: FakeSource[] = [];
   const clock = makeTestClock();
   const [peer, far] = memoryPair();
@@ -112,7 +112,6 @@ async function bootTab(post: (input: Wire.Post, signal: AbortSignal) => Promise<
     presets: [preset(postSync, (_deps, { input, signal }) => post(input, signal))],
     extensions: [linkWire, subscribe(far, { cells: [[issueList, "issues"]] })],
   });
-  await expect.poll(() => sources.length).toBe(1);
   return { scope, sources, clock, transport: far };
 }
 
@@ -389,7 +388,7 @@ test("discarding a run quiets the cell without posting", async () => {
 });
 
 test("the first stream error before its open fails the boot with SyncNotReady", async () => {
-  const tab = await bootTab(() => Promise.resolve());
+  const tab = bootTab(() => Promise.resolve());
   tab.sources[0]?.fail();
   await tab.scope.ready.then(
     () => {
@@ -404,7 +403,7 @@ test("the first stream error before its open fails the boot with SyncNotReady", 
 });
 
 test("a stream error after the open drops the connection and keeps sync attached", async () => {
-  const tab = await bootTab(() => Promise.resolve());
+  const tab = bootTab(() => Promise.resolve());
   let closes = 0;
   tab.transport.onClose(() => {
     closes += 1;
@@ -425,7 +424,7 @@ test("a stream error after the open drops the connection and keeps sync attached
 });
 
 test("a malformed frame drops the connection", async () => {
-  const tab = await bootTab(() => Promise.resolve());
+  const tab = bootTab(() => Promise.resolve());
   const [first] = tab.sources;
   first?.open();
   first?.push(SNAPSHOT);
@@ -439,7 +438,7 @@ test("a malformed frame drops the connection", async () => {
 });
 
 test("a refused POST drops the connection", async () => {
-  const tab = await bootTab(() => Promise.reject(fail("ViewerGone", { id: "tab" })));
+  const tab = bootTab(() => Promise.reject(fail("ViewerGone", { id: "tab" })));
   const [first] = tab.sources;
   first?.open();
   first?.push(SNAPSHOT);
@@ -454,7 +453,7 @@ test("a refused POST drops the connection", async () => {
 test("POSTs wait for the stream's open and go out in send order", async () => {
   let opened = false;
   const sent: { readonly opened: boolean; readonly message: Sync.Message }[] = [];
-  const tab = await bootTab((input) => {
+  const tab = bootTab((input) => {
     sent.push({ opened, message: input.message });
     return Promise.resolve();
   });
@@ -478,7 +477,7 @@ test("POSTs wait for the stream's open and go out in send order", async () => {
 
 test("a reconnect bumps retry: the wire rewires, goes live, and replays the last register", async () => {
   const sent: Sync.Message[] = [];
-  const tab = await bootTab((input) => {
+  const tab = bootTab((input) => {
     sent.push(input.message);
     return Promise.resolve();
   });
@@ -502,7 +501,7 @@ test("a reconnect bumps retry: the wire rewires, goes live, and replays the last
 });
 
 test("a rewire whose stream errors before its open leaves the connection failed", async () => {
-  const tab = await bootTab(() => Promise.resolve());
+  const tab = bootTab(() => Promise.resolve());
   const [first] = tab.sources;
   first?.open();
   first?.push(SNAPSHOT);
@@ -523,7 +522,7 @@ test("a rewire whose stream errors before its open leaves the connection failed"
 
 test("a drop rewires by itself after the backoff and replays the last register", async () => {
   const sent: Sync.Message[] = [];
-  const tab = await bootTab((input) => {
+  const tab = bootTab((input) => {
     sent.push(input.message);
     return Promise.resolve();
   });
@@ -545,7 +544,7 @@ test("a drop rewires by itself after the backoff and replays the last register",
 });
 
 test("a scope close during the backoff wait ends quietly and opens nothing", async () => {
-  const tab = await bootTab(() => Promise.resolve());
+  const tab = bootTab(() => Promise.resolve());
   const [first] = tab.sources;
   first?.open();
   first?.push(SNAPSHOT);
@@ -560,7 +559,7 @@ test("a scope close during the backoff wait ends quietly and opens nothing", asy
 test("scope close aborts in-flight POSTs, closes the stream, fires onClose once", async () => {
   let held = false;
   let aborted = false;
-  const tab = await bootTab(
+  const tab = bootTab(
     (_input, signal) =>
       new Promise<void>((_resolve, reject) => {
         held = true;
@@ -587,7 +586,7 @@ test("scope close aborts in-flight POSTs, closes the stream, fires onClose once"
 
 test("scope close before the first stream opens settles instead of waiting on the register POST", async () => {
   let posts = 0;
-  const tab = await bootTab(() => {
+  const tab = bootTab(() => {
     posts += 1;
     return Promise.resolve();
   });
