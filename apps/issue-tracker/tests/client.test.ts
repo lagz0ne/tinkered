@@ -556,6 +556,36 @@ test("a scope close during the backoff wait ends quietly and opens nothing", asy
   expect(tab.sources.length).toBe(1);
 });
 
+test("a POST that fails for a replaced stream does not drop the current one", async () => {
+  let posts = 0;
+  let rejectReplaced: (error: unknown) => void = () => undefined;
+  const tab = bootTab(() => {
+    posts += 1;
+    if (posts !== 2) return Promise.resolve();
+    return new Promise<void>((_resolve, reject) => {
+      rejectReplaced = reject;
+    });
+  });
+  const [first] = tab.sources;
+  first?.open();
+  first?.push(SNAPSHOT);
+  try {
+    await tab.scope.ready;
+    tab.scope.run(reconnect);
+    tab.sources[1]?.open();
+    await expect.poll(() => posts).toBe(2);
+    tab.scope.run(reconnect);
+    tab.sources[2]?.open();
+    await expect.poll(() => posts).toBe(3);
+    rejectReplaced(fail("ViewerGone", { id: "tab" }));
+    await tab.scope.settled();
+    expect(tab.scope.resolve(connection).live).toBe(true);
+    expect(tab.sources[2]?.closed).toBe(false);
+  } finally {
+    await tab.scope.close();
+  }
+});
+
 test("scope close aborts in-flight POSTs, closes the stream, fires onClose once", async () => {
   let held = false;
   let aborted = false;

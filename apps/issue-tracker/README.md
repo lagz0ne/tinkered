@@ -29,6 +29,7 @@ The live connection is one server-sent stream plus POSTs:
   After a one-second wait (the backoff) the wire opens again by itself
   and sends the last register again.
 - **POSTs** — they wait for the stream's open and go out in send order.
+  A POST that fails for a replaced stream does not drop the current one.
 - **Reconnect** — the button asks for a retry; the wire opens a fresh
   stream now, goes live, and sends the last register again. A fresh
   stream that errors first leaves "Still no connection".

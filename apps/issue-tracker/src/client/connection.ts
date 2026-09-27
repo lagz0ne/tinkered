@@ -90,7 +90,8 @@ export const postSync = operation({
  *   A close aborts the wait quietly.
  * - A bump of `retry` opens a fresh stream now.
  * - Each rewire replays the last register the wire kept from sync.
- * Sync's messages POST behind the current stream's open, in send order; closing a stream that has
+ * Sync's messages POST behind the current stream's open, in send order; a failed POST drops the
+ * wire only while the stream it was sent for is still current. Closing a stream that has
  * not opened rejects its open, so nothing waits on it. Sync closing its end closes the stream.
  * `defer` closes the stream and stops every watch; `ctx.signal` aborts in-flight POSTs. */
 export const wire = resource({
@@ -153,16 +154,18 @@ export const wire = resource({
         source.onmessage = (event) => receive(source, event);
       });
     };
-    const deliver = async (message: Sync.Message): Promise<void> => {
+    const deliver = async (source: Wire.Source | null, message: Sync.Message): Promise<void> => {
       if (signal.aborted) return;
       const sent = await post.settle({ input: { id, message } });
-      if (sent.status !== "success" && signal.aborted === false) drop();
+      if (sent.status !== "success" && signal.aborted === false && source === current) drop();
     };
-    const send = (message: Sync.Message): Promise<void> =>
-      gate.then(
-        () => deliver(message),
+    const send = (message: Sync.Message): Promise<void> => {
+      const source = current;
+      return gate.then(
+        () => deliver(source, message),
         () => undefined,
       );
+    };
     const rewire = async (): Promise<void> => {
       if (signal.aborted) return;
       openNext(() => undefined);
