@@ -31,9 +31,12 @@ export {
   createIssue,
   editIssue,
   listIssues,
+  loadSaved,
   publishIssues,
   readDetail,
   readIssues,
+  recordActivity,
+  writeIssue,
 } from "./server/operations.ts";
 export { store } from "./server/store.ts";
 export type { Store } from "./server/store.ts";

@@ -11,26 +11,22 @@ import {
   parseIssueId,
   type Issues,
 } from "../shared/issues.ts";
-import type { DrizzleStore } from "@tinker/drizzle";
 import { raise } from "../errors.ts";
-import { activityRows, commentRows, issueRows, store, type Store } from "./store.ts";
+import { activityRows, commentRows, issueRows, store } from "./store.ts";
 
-type Tx = DrizzleStore.Tx<Awaited<Store.Database>>;
-type Db = Awaited<Store.Database>;
-
-/** Read every saved row, oldest first: the one select both the root list read
- * and the publish-after-commit share. */
-async function selectAllIssues(db: Db): Promise<readonly Issues.Issue[]> {
-  const rows = await db.select().from(issueRows).orderBy(asc(issueRows.createdAt));
-  return rows.map((row) => parseIssue({ ...row }));
-}
-
-async function loadSaved(tx: Tx, id: string): Promise<Issues.Issue> {
-  const rows = await tx.select().from(issueRows).where(eq(issueRows.id, id));
-  const found = rows.at(0);
-  if (found === undefined) raise("IssueNotFound", { id });
-  return parseIssue({ ...found });
-}
+/** Load one saved issue inside the caller's transaction. A missing id raises
+ * IssueNotFound here, so the failure's origin names this step. */
+export const loadSaved = operation({
+  label: "loadSaved",
+  input: parseIssueId,
+  depends: { tx: store.tx },
+  run: async ({ tx }, ctx) => {
+    const rows = await tx.select().from(issueRows).where(eq(issueRows.id, ctx.input));
+    const found = rows.at(0);
+    if (found === undefined) raise("IssueNotFound", { id: ctx.input });
+    return parseIssue({ ...found });
+  },
+});
 
 function checkFresh(saved: Issues.Issue, baseRevision: number): void {
   if (saved.revision !== baseRevision) {
@@ -59,43 +55,44 @@ function editNames(input: Issues.EditInput): string[] {
   return names;
 }
 
-async function writeIssue(tx: Tx, updated: Issues.Issue): Promise<void> {
-  await tx
-    .update(issueRows)
-    .set({
-      title: updated.title,
-      description: updated.description,
-      status: updated.status,
-      assignee: updated.assignee,
-      revision: updated.revision,
-      updatedAt: updated.updatedAt,
-    })
-    .where(eq(issueRows.id, updated.id));
-}
+/** Write an edited issue's fields over its saved row, in the caller's transaction. */
+export const writeIssue = operation({
+  label: "writeIssue",
+  input: parseIssue,
+  depends: { tx: store.tx },
+  run: async ({ tx }, ctx) => {
+    const updated = ctx.input;
+    await tx
+      .update(issueRows)
+      .set({
+        title: updated.title,
+        description: updated.description,
+        status: updated.status,
+        assignee: updated.assignee,
+        revision: updated.revision,
+        updatedAt: updated.updatedAt,
+      })
+      .where(eq(issueRows.id, updated.id));
+  },
+});
 
-async function recordActivity(
-  tx: Tx,
-  id: string,
-  issueId: string,
-  kind: Issues.Activity["kind"],
-  summary: string,
-  now: number,
-): Promise<void> {
-  await tx.insert(activityRows).values({
-    id,
-    issueId,
-    kind,
-    summary,
-    createdAt: now,
-  });
-}
+/** Append one activity row in the caller's transaction. The caller draws the id
+ * from `ctx.random`, so a seeded scope replays the same ids in the same order. */
+export const recordActivity = operation({
+  label: "recordActivity",
+  input: parseActivity,
+  depends: { tx: store.tx },
+  run: async ({ tx }, ctx) => {
+    await tx.insert(activityRows).values(ctx.input);
+  },
+});
 
 /** Save one issue row inside the caller's short transaction session. */
 export const createIssue = operation({
   label: "createIssue",
   input: parseCreateInput,
-  depends: { tx: store.tx },
-  run: async ({ tx }, ctx) => {
+  depends: { tx: store.tx, record: recordActivity },
+  run: async ({ tx, record }, ctx) => {
     const now = ctx.clock.currentTimeMillis();
     const issue: Issues.Issue = {
       id: ctx.random.uuid(),
@@ -108,7 +105,15 @@ export const createIssue = operation({
       updatedAt: now,
     };
     await tx.insert(issueRows).values(issue);
-    await recordActivity(tx, ctx.random.uuid(), issue.id, "created", "created", now);
+    await record.run({
+      input: {
+        id: ctx.random.uuid(),
+        issueId: issue.id,
+        kind: "created",
+        summary: "created",
+        createdAt: now,
+      },
+    });
     return issue;
   },
 });
@@ -119,21 +124,22 @@ export const createIssue = operation({
 export const editIssue = operation({
   label: "editIssue",
   input: parseEditInput,
-  depends: { tx: store.tx },
-  run: async ({ tx }, ctx) => {
-    const saved = await loadSaved(tx, ctx.input.id);
+  depends: { load: loadSaved, write: writeIssue, record: recordActivity },
+  run: async ({ load, write, record }, ctx) => {
+    const saved = await load.run({ input: ctx.input.id });
     checkFresh(saved, ctx.input.baseRevision);
     const updated = applyEdit(saved, ctx.input, ctx.clock.currentTimeMillis());
-    await writeIssue(tx, updated);
+    await write.run({ input: updated });
     const names = editNames(ctx.input);
-    await recordActivity(
-      tx,
-      ctx.random.uuid(),
-      updated.id,
-      "edited",
-      names.length > 0 ? `edited ${names.join(", ")}` : "edited",
-      updated.updatedAt,
-    );
+    await record.run({
+      input: {
+        id: ctx.random.uuid(),
+        issueId: updated.id,
+        kind: "edited",
+        summary: names.length > 0 ? `edited ${names.join(", ")}` : "edited",
+        createdAt: updated.updatedAt,
+      },
+    });
     return updated;
   },
 });
@@ -143,9 +149,9 @@ export const editIssue = operation({
 export const addComment = operation({
   label: "addComment",
   input: parseCommentInput,
-  depends: { tx: store.tx },
-  run: async ({ tx }, ctx) => {
-    await loadSaved(tx, ctx.input.issueId);
+  depends: { tx: store.tx, load: loadSaved, record: recordActivity },
+  run: async ({ tx, load, record }, ctx) => {
+    await load.run({ input: ctx.input.issueId });
     const now = ctx.clock.currentTimeMillis();
     const comment: Issues.Comment = {
       id: ctx.random.uuid(),
@@ -156,14 +162,15 @@ export const addComment = operation({
     };
     await tx.insert(commentRows).values(comment);
     await tx.update(issueRows).set({ updatedAt: now }).where(eq(issueRows.id, ctx.input.issueId));
-    await recordActivity(
-      tx,
-      ctx.random.uuid(),
-      ctx.input.issueId,
-      "commented",
-      `${ctx.input.author} commented`,
-      now,
-    );
+    await record.run({
+      input: {
+        id: ctx.random.uuid(),
+        issueId: ctx.input.issueId,
+        kind: "commented",
+        summary: `${ctx.input.author} commented`,
+        createdAt: now,
+      },
+    });
     return comment;
   },
 });
@@ -196,11 +203,15 @@ export const readDetail = operation({
   },
 });
 
-/** Read every saved row. Used at boot to restore the shared truth. */
+/** Read every saved row, oldest first: the one select both the root list read
+ * and the publish-after-commit share. Used at boot to restore the shared truth. */
 export const listIssues = operation({
   label: "listIssues",
   depends: { db: store.db },
-  run: ({ db }) => selectAllIssues(db),
+  run: async ({ db }): Promise<readonly Issues.Issue[]> => {
+    const rows = await db.select().from(issueRows).orderBy(asc(issueRows.createdAt));
+    return rows.map((row) => parseIssue({ ...row }));
+  },
 });
 
 /** Read the published list: what a request answers without touching the table. */
@@ -217,9 +228,9 @@ export const readIssues = operation({
  * changed nothing keeps the cell identity (and sends no snapshot). */
 export const publishIssues = operation({
   label: "publishIssues",
-  depends: { db: store.db, list: issueList.controller },
-  run: async ({ db, list }) => {
-    const fresh = await selectAllIssues(db);
+  depends: { all: listIssues, list: issueList.controller },
+  run: async ({ all, list }) => {
+    const fresh = await all.run();
     if (JSON.stringify(list.get()) !== JSON.stringify(fresh)) list.set(fresh);
   },
 });
