@@ -1,4 +1,4 @@
-export { createWire, openSource, postSync, wire, wireLink } from "./client/connection.ts";
+export { openSource, postSync, wire, wirePeer } from "./client/connection.ts";
 export type { Wire } from "./client/connection.ts";
 export { fail, isError, raise } from "./errors.ts";
 export type { Errors } from "./errors.ts";

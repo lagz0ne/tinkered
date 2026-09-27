@@ -1,17 +1,18 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createScope } from "@tinker/core";
-import { subscribe } from "@tinker/sync";
+import { memoryPair, subscribe } from "@tinker/sync";
 import { api } from "./api.ts";
 import { ScopeProvider } from "@tinker/react";
 import { App } from "./App.tsx";
-import { createWire, wire, wireLink } from "./connection.ts";
+import { wire, wirePeer } from "./connection.ts";
 import { capability, detailRefresh } from "./services.ts";
 import { drafter } from "./drafter.ts";
 import { issueList } from "../shared/issues.ts";
 
-/** The composition root: the only place that creates or touches the scope. The `wire` extension
- * attaches the bound link; `subscribe` sends `register` through it, which opens the stream;
+/** The composition root: the only place that creates or touches the scope. Sync holds one end of
+ * a memory pair; the `wire` extension links the other end to the wire units, so `subscribe`'s
+ * `register` opens the stream;
  * `ready` resolves when the first snapshots land. A first-connect failure fires `onClose` once,
  * so `subscribe.start` rejects with `SyncNotReady`, `ready` rejects, and the dead page renders —
  * a second root-owned `boot` re-renders static markup between attempts, no React state. */
@@ -27,10 +28,10 @@ function boot(): void {
 }
 
 async function start(element: ReturnType<typeof createRoot>): Promise<boolean> {
-  const link = createWire();
-  const subscription = subscribe(link, { cells: [[issueList, "issues"]] });
+  const [peer, far] = memoryPair();
+  const subscription = subscribe(far, { cells: [[issueList, "issues"]] });
   const scope = createScope({
-    tags: [api.config({ baseUrl: window.location.origin }), wireLink(link)],
+    tags: [api.config({ baseUrl: window.location.origin }), wirePeer(peer)],
     extensions: [wire, subscription],
   });
   try {

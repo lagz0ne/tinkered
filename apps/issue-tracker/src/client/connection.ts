@@ -24,9 +24,6 @@ export declare namespace Wire {
   };
   /** One sync message POSTed for one tab: the client id pairs it with the tab's stream. */
   type Post = { readonly id: string; readonly message: Sync.Message };
-  /** The transport sync holds before the scope exists: it forwards to the scope's transport
-   * once the `wire` extension attaches it. */
-  type Link = Sync.Transport & { attach(scoped: Sync.Transport): void };
 }
 
 function isRecord(raw: unknown): raw is Record<string, unknown> {
@@ -60,11 +57,11 @@ export const openSource = tag<(url: string) => Wire.Source>({
   default: (url) => new EventSource(url),
 });
 
-/** The last frame the stream admitted: sync's `onMessage` listeners watch it. */
+/** The last frame the stream admitted: the bridge hands each one to sync. */
 const inbox = data<Sync.Message | null>({ label: "inbox", initial: null });
 
-/** True once the wire closed for good (the first stream failed, or sync closed the transport):
- * sync's `onClose` listeners watch it, so they fire once. */
+/** True once the wire closed for good (the first stream failed, or sync closed its end): the
+ * bridge closes sync's end of the pair, once. */
 const wireClosed = data<boolean>({ label: "wireClosed", initial: false });
 
 /** The last register sync sent: a reconnect replays it on the fresh stream. */
@@ -186,7 +183,7 @@ export const sendSync = operation({
   },
 });
 
-/** Close the wire for good: sync's `onClose` listeners fire once and the stream closes. */
+/** Close the wire for good: the stream closes and the bridge closes sync's end of the pair. */
 export const closeWire = operation({
   label: "closeWire",
   depends: { closed: wireClosed.controller },
@@ -195,69 +192,51 @@ export const closeWire = operation({
   },
 });
 
-/** The transport sync needs, built from the wire units: `send` runs `sendSync`, `onMessage`
- * watches the admitted frames, `onClose` watches the closed flag (so it fires once), `close` runs
- * `closeWire`. The watch closers go back to sync, which owns them (the `Sync.Transport` contract).
- * A `close` after the scope closed (a failed boot closes it at once) has nothing left to do. */
-const transport = resource({
-  label: "transport",
+/** The near end of the `memoryPair` whose far end sync holds, bound once at the composition
+ * root (ADR 0048: the transport is userland's). */
+export const wirePeer = tag<Sync.Transport>({ label: "wirePeer" });
+
+/** Link sync's pair to the wire units: a message sync sends runs `sendSync`; an admitted frame
+ * goes to sync; the wire closing closes the pair (sync's `onClose` fires once); sync closing the
+ * pair runs `closeWire`. Every link starts here and `defer` stops it. After the scope closed (a
+ * failed boot closes it at once) a pair close has nothing left to close. */
+const bridge = resource({
+  label: "bridge",
   depends: {
+    peer: wirePeer,
     sendIt: sendSync,
     closeIt: closeWire,
     frames: inbox.controller,
     closed: wireClosed.controller,
   },
-  factory: ({ sendIt, closeIt, frames, closed }, { signal }): Sync.Transport => ({
-    send: (message) => {
+  factory: ({ peer, sendIt, closeIt, frames, closed }, { defer, signal }) => {
+    const stopSends = peer.onMessage((message) => {
       sendIt.run({ input: message }).then(undefined, () => undefined);
-    },
-    onMessage: (listener) =>
-      frames.watch((message) => {
-        if (message !== null) listener(message);
-      }),
-    onClose: (listener) =>
-      closed.watch((isClosed) => {
-        if (isClosed) listener();
-      }),
-    close: () => {
+    });
+    const stopFrames = frames.watch((message) => {
+      if (message !== null) peer.send(message);
+    });
+    const stopClosed = closed.watch((isClosed) => {
+      if (isClosed) peer.close();
+    });
+    const stopParted = peer.onClose(() => {
       if (signal.aborted === false) closeIt.run();
-    },
-  }),
+    });
+    defer(stopSends);
+    defer(stopFrames);
+    defer(stopClosed);
+    defer(stopParted);
+    return { linked: true };
+  },
 });
 
-/** A transport with no scope yet: it sends nothing and hears nothing. */
-const unstarted: Sync.Transport = {
-  send: () => undefined,
-  onMessage: () => () => undefined,
-  onClose: () => () => undefined,
-  close: () => undefined,
-};
-
-/** Build the tab's link for sync: a thin `Sync.Transport` that sends nothing and hears nothing
- * until the `wire` extension attaches the scope's transport resource. Bind it with `wireLink`
- * and hand it to `subscribe`. Nothing opens until sync's first send resolves the stream. */
-export function createWire(): Wire.Link {
-  let scoped = unstarted;
-  return {
-    send: (message) => scoped.send(message),
-    onMessage: (listener) => scoped.onMessage(listener),
-    onClose: (listener) => scoped.onClose(listener),
-    close: () => scoped.close(),
-    attach: (next) => {
-      scoped = next;
-    },
-  };
-}
-
-/** The tab's link, bound once at the composition root. */
-export const wireLink = tag<Wire.Link>({ label: "wireLink" });
-
-/** Attach the bound link to the scope's transport. Install it before `subscribe`: sync's `start`
- * registers through the link. */
+/** Link the bound peer before sync starts. Install it before `subscribe`: sync's `start`
+ * registers through its end of the pair. Nothing opens until that register resolves the
+ * stream. */
 export const wire = extension({
   label: "wire",
   start: (scope, _ctx, next) => {
-    scope.resolve(wireLink).attach(scope.resolve(transport));
+    scope.resolve(bridge);
     return next();
   },
 });
