@@ -133,7 +133,7 @@ test("one row plus one extension answers a read with no composition root", async
   }
 });
 
-test("publishAfterCommit republishes after a POST and keeps the cell on a 400", async () => {
+test("publishAfterCommit republishes after a POST and keeps the cell on a 400 or a GET", async () => {
   const { scope, app } = await boot();
   try {
     const before = scope.resolve(issueList);
@@ -153,6 +153,12 @@ test("publishAfterCommit republishes after a POST and keeps the cell on a 400", 
     expect(saved.status).toBe(201);
     expect(scope.resolve(issueList).map((i) => i.title)).toEqual(["Hooked"]);
     expect(scope.resolve(issueList)).not.toBe(before);
+
+    const published = scope.resolve(issueList);
+    await save(scope, createIssue, { title: "Quiet", description: "no request" });
+    const listed = await app.request("/api/issues");
+    expect(listed.status).toBe(200);
+    expect(scope.resolve(issueList)).toBe(published);
   } finally {
     await scope.close({ graceful: true });
   }
