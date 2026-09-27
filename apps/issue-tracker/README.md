@@ -195,6 +195,17 @@ so short write transactions queue instead of overlapping.
 Every saved id (issue, comment, activity row) comes from the scope's
 random, so a scope with a seeded random replays the same ids.
 
+Each save runs smaller operations as subflows:
+
+- `loadSaved` reads one issue in the request's transaction.
+- `writeIssue` writes an edit over the saved row.
+- `recordActivity` appends one activity row.
+
+An edit of a missing issue fails with the origin `loadSaved`.
+A test can preset one of them alone.
+A preset `recordActivity` receives every activity write.
+The publish after a commit runs `listIssues`, the boot read.
+
 The app is built from the public libraries:
 
 - [`@tinker/core`](../../packages/core/src/index.ts): scopes, operations,

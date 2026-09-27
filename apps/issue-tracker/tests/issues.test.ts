@@ -1,6 +1,7 @@
 import {
   createScope,
   makeTestRandom,
+  originOf,
   preset,
   resource,
   type Observe,
@@ -21,7 +22,9 @@ import {
   publishIssues,
   readDetail,
   readIssues,
+  recordActivity,
   store,
+  type Issues,
 } from "../src/index.ts";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -257,6 +260,46 @@ test("a stale edit is rejected with the current saved issue and writes nothing",
     expect(found.issue.title).toBe("Winner");
     expect(found.issue.revision).toBe(1);
     expect(found.activity.length).toBe(2);
+  } finally {
+    await scope.close({ graceful: true });
+  }
+});
+
+test("an edit of a missing issue fails with an origin that names the loadSaved step", async () => {
+  const scope = createScope({ tags: [store.config(undefined)] });
+  try {
+    let origin: ReturnType<typeof originOf>;
+    try {
+      await save(scope, editIssue, { id: "gone", baseRevision: 0, title: "x" });
+    } catch (error: unknown) {
+      if (!isError(error, "IssueNotFound")) throw error;
+      origin = originOf(error);
+    }
+    expect(origin?.label).toBe("loadSaved");
+    expect(origin?.path.slice(-2)).toEqual(["editIssue", "loadSaved"]);
+  } finally {
+    await scope.close({ graceful: true });
+  }
+});
+
+test("a preset recordActivity receives every activity write a create and an edit make", async () => {
+  const written: Issues.Activity[] = [];
+  const scope = createScope({
+    tags: [store.config(undefined)],
+    presets: [
+      preset(recordActivity, async (_deps, ctx) => {
+        written.push(ctx.input);
+      }),
+    ],
+  });
+  try {
+    const created = await save(scope, createIssue, { title: "Draft", description: "v1" });
+    await save(scope, editIssue, { id: created.id, baseRevision: 0, title: "Final" });
+    expect(written.map((row) => [row.issueId, row.kind, row.summary])).toEqual([
+      [created.id, "created", "created"],
+      [created.id, "edited", "edited title"],
+    ]);
+    expect((await detail(scope, created.id)).activity).toEqual([]);
   } finally {
     await scope.close({ graceful: true });
   }
