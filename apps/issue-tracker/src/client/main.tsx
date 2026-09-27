@@ -5,13 +5,13 @@ import { subscribe } from "@tinker/sync";
 import { api } from "./api.ts";
 import { ScopeProvider } from "@tinker/react";
 import { App } from "./App.tsx";
-import { reconnectingTransport, wire } from "./connection.ts";
-import { capability, detailRefresh, liveness } from "./services.ts";
+import { createWire } from "./connection.ts";
+import { capability, detailRefresh } from "./services.ts";
 import { drafter } from "./drafter.ts";
 import { issueList } from "../shared/issues.ts";
 
-/** The composition root: the only place that creates or touches the scope. The transport starts
- * connecting in its constructor; `subscribe` sends `register` through the queued `send`, and
+/** The composition root: the only place that creates or touches the scope. The wire's extension
+ * hands its transport the scope; `subscribe` sends `register` through it, which opens the stream;
  * `ready` resolves when the first snapshots land. A first-connect failure fires `onClose` once,
  * so `subscribe.start` rejects with `SyncNotReady`, `ready` rejects, and the dead page renders —
  * a second root-owned `boot` re-renders static markup between attempts, no React state. */
@@ -27,11 +27,11 @@ function boot(): void {
 }
 
 async function start(element: ReturnType<typeof createRoot>): Promise<boolean> {
-  const transport = reconnectingTransport(window.location.origin);
-  const subscription = subscribe(transport, { cells: [[issueList, "issues"]] });
+  const wire = createWire();
+  const subscription = subscribe(wire.transport, { cells: [[issueList, "issues"]] });
   const scope = createScope({
-    tags: [api.config({ baseUrl: window.location.origin }), wire(transport)],
-    extensions: [subscription],
+    tags: [api.config({ baseUrl: window.location.origin })],
+    extensions: [wire.extension, subscription],
   });
   try {
     await scope.ready;
@@ -40,7 +40,6 @@ async function start(element: ReturnType<typeof createRoot>): Promise<boolean> {
     renderDead(element, "dead");
     return false;
   }
-  scope.resolve(liveness);
   scope.resolve(detailRefresh);
   scope.resolve(drafter);
   scope.resolve(capability);

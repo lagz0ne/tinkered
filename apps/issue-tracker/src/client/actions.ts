@@ -3,7 +3,7 @@ import { isError as isHttpError } from "@tinker/http";
 import { issueList, type Issues } from "../shared/issues.ts";
 import { isError, raise } from "../errors.ts";
 import { getCapability, getDetail, patchIssue, postComment, postIssue } from "./api.ts";
-import { wire } from "./connection.ts";
+import { lastRegister, stream } from "./connection.ts";
 import { drafter } from "./drafter.ts";
 import {
   commentAuthor,
@@ -379,19 +379,23 @@ export const postDraft = operation({
   },
 });
 
-/** Reconnect the tab wire: open a fresh stream and replay the register. */
+/** Reconnect the wire: flag the connection pending, open a fresh stream, then replay the last
+ * register on it. A stream that errors before its open leaves the connection failed. */
 export const reconnect = operation({
   label: "reconnect",
-  depends: { line: wire.required, link: connection.controller },
-  run: async ({ line, link }) => {
+  depends: { line: stream, last: lastRegister.controller, link: connection.controller },
+  run: async ({ line, last, link }) => {
     link.update((prev) => ({ ...prev, pending: true, failed: false }));
     try {
-      await line.reconnect();
-    } catch {
+      await line.reopen();
+    } catch (error: unknown) {
+      if (!isError(error, "SyncDropped")) throw error;
       link.update((prev) => ({ ...prev, pending: false, failed: true }));
       return;
     }
-    link.update((prev) => ({ ...prev, pending: false, failed: false }));
+    link.update((prev) => ({ ...prev, pending: false }));
+    const replay = last.get();
+    if (replay !== null) await line.post(replay);
   },
 });
 

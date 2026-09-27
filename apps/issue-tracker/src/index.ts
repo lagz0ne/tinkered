@@ -1,5 +1,5 @@
-export { wire } from "./client/connection.ts";
-export type { ReconnectingWire, WireStatus } from "./client/connection.ts";
+export { createWire, openSource, postSync } from "./client/connection.ts";
+export type { Wire } from "./client/connection.ts";
 export { fail, isError, raise } from "./errors.ts";
 export type { Errors } from "./errors.ts";
 export {
@@ -75,7 +75,7 @@ export {
   typeEdit,
   typeNewIssue,
 } from "./client/actions.ts";
-export { detailRefresh, liveness } from "./client/services.ts";
+export { detailRefresh } from "./client/services.ts";
 export { drafter } from "./client/drafter.ts";
 export {
   commentAuthor,

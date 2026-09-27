@@ -1,41 +1,7 @@
 import { resource } from "@tinker/core";
 import { issueList, type Issues } from "../shared/issues.ts";
-import {
-  connection,
-  markOf,
-  sameMark,
-  selectedId,
-  type Connection,
-  type RowMark,
-} from "./state.ts";
+import { markOf, sameMark, selectedId, type RowMark } from "./state.ts";
 import { checkCapability, loadDetail } from "./actions.ts";
-import { wire, type WireStatus } from "./connection.ts";
-
-/** Read one wire status as the connection cell the tab renders. */
-function readConnection(status: WireStatus): Connection {
-  if (status === "live") return { live: true, pending: false, failed: false, closedBadly: false };
-  if (status === "connecting")
-    return { live: false, pending: true, failed: false, closedBadly: false };
-  if (status === "failed") return { live: false, pending: false, failed: true, closedBadly: false };
-  return { live: false, pending: false, failed: false, closedBadly: false };
-}
-
-/** Watch the wire's status and write the connection cell: the tab's only view of the drop.
- * A reconnect's own pending write is kept: the wire flips `connecting` first, so the resource
- * only answers drops and failures, never a reconnect in flight. */
-export const liveness = resource({
-  label: "liveness",
-  depends: { line: wire.required, link: connection.controller },
-  factory: ({ line, link }, { defer }) => {
-    link.set(readConnection(line.status()));
-    const stopStatus = line.onStatus((status) => {
-      if (status === "connecting") return;
-      link.set(readConnection(status));
-    });
-    defer(stopStatus);
-    return { watching: true };
-  },
-});
 
 /** Check the draft helper once at boot: the capability cell answers on, off, or failed.
  * The scope owns the returned promise; the view reruns `checkCapability` by hand on Retry. */

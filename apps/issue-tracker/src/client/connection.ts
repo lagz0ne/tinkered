@@ -1,22 +1,43 @@
-import { tag } from "@tinker/core";
+import {
+  data,
+  extension,
+  operation,
+  resource,
+  tag,
+  type Operation,
+  type Scope,
+} from "@tinker/core";
+import { HttpRequest, send } from "@tinker/http";
 import type { Sync } from "@tinker/sync";
 import { fail } from "../errors.ts";
+import { connection } from "./state.ts";
 
-/** The reconnecting tab wire: a `Sync.Transport` over one `EventSource` at a time whose drops
- * stay silent (so `subscribe` stays attached and local cells survive) while its `status` tells
- * the tab what the wire is doing. `reconnect` opens a fresh stream and replays the last register. */
-export type ReconnectingWire = Sync.Transport & {
-  /** The wire's current state: live once the first stream opens, dropped after a stream error,
-   * connecting while a reconnect is in flight, failed when a reconnect fails. */
-  readonly status: () => WireStatus;
-  /** Watch status changes; the returned closer stops watching. */
-  readonly onStatus: (listener: (status: WireStatus) => void) => () => void;
-  /** Open a fresh stream and replay the last register; flips live, or failed on error. */
-  readonly reconnect: () => Promise<void>;
-};
-
-/** The wire's state as the tab reads it. */
-export type WireStatus = "live" | "dropped" | "connecting" | "failed";
+export declare namespace Wire {
+  /** One server-sent stream as the wire uses it: the browser's `EventSource` fits it, and a test
+   * binds a fake that behaves alike. */
+  type Source = {
+    onopen: ((event: Event) => void) | null;
+    onerror: ((event: Event) => void) | null;
+    onmessage: ((event: MessageEvent) => void) | null;
+    close(): void;
+  };
+  /** The stream resource's value: the tab's one stream at a time, and the POSTs behind it. */
+  type Stream = {
+    /** POST one message behind the current stream's open, in send order. A refused or failed
+     * POST drops the wire; a POST after the wire closed is skipped. */
+    post(message: Sync.Message): Promise<void>;
+    /** Close the current stream and open the next: resolves on its open, rejects with
+     * `SyncDropped` when it errors first. After the wire closed it opens nothing. */
+    reopen(): Promise<void>;
+  };
+  /** One sync message POSTed for one tab: the client id pairs it with the tab's stream. */
+  type Post = { readonly id: string; readonly message: Sync.Message };
+  /** The transport sync needs, plus the extension whose `start` hands it the scope. */
+  type Link = {
+    readonly transport: Sync.Transport;
+    readonly extension: Scope.Extension<void>;
+  };
+}
 
 function isRecord(raw: unknown): raw is Record<string, unknown> {
   return typeof raw === "object" && raw !== null;
@@ -43,80 +64,66 @@ function readData(event: MessageEvent): Sync.Message {
   return readMessage(raw);
 }
 
-/** Open the tab's wire: one `EventSource` at a time; `send` POSTs queued in order behind
- * the stream's open (the register cannot race the inbox, as the old `await opened(stream)` did);
- * the last register is remembered and replayed on reconnect; a stream error flips to dropped
- * without firing `onClose` (so `subscribe` stays attached); the first error before live fires
- * `onClose` once (so `subscribe.start` rejects with `SyncNotReady` and `ready` rejects); `close`
- * (called by `subscribe` on scope close) aborts in-flight POSTs, closes the stream, and fires
- * `onClose`. `settled` and `closed` are the only flags. */
-export function reconnectingTransport(baseUrl: string): ReconnectingWire {
-  const id = Math.random().toString(36).slice(2);
-  const url = `${baseUrl}/sync?client=${id}`;
-  let status: WireStatus = "connecting";
-  const watchers = new Set<(status: WireStatus) => void>();
-  const arrivals = new Set<(message: Sync.Message) => void>();
-  const partings = new Set<() => void>();
-  const flight = new AbortController();
-  let stream: EventSource | null = null;
-  let lastRegister: Sync.Message | null = null;
-  let queue: Promise<void> = Promise.resolve();
-  let settled = false;
-  let closed = false;
-  let gated: Promise<void> = Promise.resolve();
+/** How the wire opens one server-sent stream: the browser's `EventSource`, rebound in a test. */
+export const openSource = tag<(url: string) => Wire.Source>({
+  label: "openSource",
+  default: (url) => new EventSource(url),
+});
 
-  function flip(next: WireStatus): void {
-    status = next;
-    for (const watcher of Array.from(watchers)) watcher(next);
-  }
+/** The last frame the stream admitted: sync's `onMessage` listeners watch it. */
+const inbox = data<Sync.Message | null>({ label: "inbox", initial: null });
 
-  function fireClose(): void {
-    for (const parting of Array.from(partings)) parting();
-  }
+/** True once the wire closed for good (the first stream failed, or sync closed the transport):
+ * sync's `onClose` listeners watch it, so they fire once. */
+const wireClosed = data<boolean>({ label: "wireClosed", initial: false });
 
-  /** A stream error before the first open fails the boot: `subscribe` rejects `ready` and the
-   * dead page renders. Any later error only flips the status; `subscribe` stays attached. */
-  function drop(): void {
-    if (closed) return;
-    if (settled === false) {
-      settled = true;
-      flip("failed");
-      fireClose();
-      return;
-    }
-    flip("dropped");
-  }
+/** The last register sync sent: a reconnect replays it on the fresh stream. */
+export const lastRegister = data<Sync.Message | null>({ label: "lastRegister", initial: null });
 
-  /** Open one stream: `opened` resolves on open and rejects on the first error. Later errors
-   * ride the live `onerror` handler, so one rejected `opened` means exactly one drop. */
-  function open(): { readonly stream: EventSource; readonly opened: Promise<void> } {
-    const next = new EventSource(url);
-    stream = next;
-    let failOpen: (error: unknown) => void = () => undefined;
-    const opened = new Promise<void>((resolve, reject) => {
-      failOpen = reject;
-      next.onopen = () => resolve();
+/** POST one sync message for one tab through HTTP; the server hands it to the tab's stream. */
+export const postSync = operation({
+  label: "issues.postSync",
+  depends: { send },
+  run: async ({ send: sendIt }, ctx: Operation.Ctx<Wire.Post>) => {
+    await sendIt.run({
+      input: HttpRequest.post(`/sync?client=${ctx.input.id}`, {
+        body: HttpRequest.bodyJson(ctx.input.message),
+      }),
     });
-    opened.then(
-      () => {
-        if (closed || stream !== next) return;
-        settled = true;
-        flip("live");
-      },
-      () => {
-        if (closed || stream !== next) return;
-        stream = null;
-        next.close();
-        drop();
-      },
-    );
-    next.onerror = () => {
-      if (closed || stream !== next) return;
-      if (settled === false) failOpen(fail("SyncDropped", { reason: "stream failed" }));
-      else drop();
+  },
+});
+
+/** The tab's stream: one `Wire.Source` at a time under one client id from `ctx.random`. The
+ * first stream opens at the first resolve; its open writes the connection live, and an error
+ * before that open fails the boot (the connection failed, the wire closed, so sync rejects
+ * `ready`). A later error or a malformed frame drops the connection and closes that stream; sync
+ * stays attached. `reopen` swaps in the next stream for `reconnect`. POSTs queue in order behind
+ * the current stream's open. `defer` closes the stream; `ctx.signal` aborts in-flight POSTs. */
+export const stream = resource({
+  label: "stream",
+  depends: {
+    open: openSource,
+    post: postSync,
+    link: connection.controller,
+    frames: inbox.controller,
+    closed: wireClosed.controller,
+  },
+  factory: ({ open, post, link, frames, closed }, { defer, signal, random }): Wire.Stream => {
+    const id = random.uuid();
+    let current: Wire.Source | null = null;
+    let gate: Promise<void> = Promise.resolve();
+    let queue: Promise<void> = Promise.resolve();
+
+    const shut = (): void => {
+      current?.close();
+      current = null;
     };
-    next.onmessage = (event) => {
-      if (closed || stream !== next) return;
+    const drop = (): void => {
+      shut();
+      link.update((prev) => ({ ...prev, live: false }));
+    };
+    const receive = (source: Wire.Source, event: MessageEvent): void => {
+      if (source !== current) return;
       let message: Sync.Message;
       try {
         message = readData(event);
@@ -124,96 +131,133 @@ export function reconnectingTransport(baseUrl: string): ReconnectingWire {
         drop();
         return;
       }
-      for (const arrival of Array.from(arrivals)) arrival(message);
+      frames.set(message);
     };
-    return { stream: next, opened };
-  }
-
-  gated = open().opened;
-  gated.then(undefined, () => undefined);
-
-  const post = async (message: Sync.Message, signal: AbortSignal): Promise<void> => {
-    const received = await tryPost(message, signal);
-    if (received !== undefined && received.ok === false) drop();
-  };
-
-  /** POST one message; undefined when the wire closed first or the send itself failed. */
-  const tryPost = async (
-    message: Sync.Message,
-    signal: AbortSignal,
-  ): Promise<Response | undefined> => {
-    if (closed || signal.aborted) return undefined;
-    try {
-      return await fetch(url, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(message),
-        signal,
+    const openNext = (): Promise<void> => {
+      shut();
+      const source = open(`/sync?client=${id}`);
+      current = source;
+      gate = new Promise<void>((resolve, reject) => {
+        source.onerror = () => {
+          if (source !== current) return;
+          shut();
+          reject(fail("SyncDropped", { reason: "stream failed" }));
+        };
+        source.onopen = () => {
+          if (source !== current) return;
+          source.onerror = () => {
+            if (source === current) drop();
+          };
+          link.update((prev) => ({ ...prev, live: true }));
+          resolve();
+        };
+        source.onmessage = (event) => receive(source, event);
       });
-    } catch {
-      if (closed === false && signal.aborted === false) drop();
-      return undefined;
-    }
-  };
-
-  /** POST one queued message behind its stream's open; a refused POST drops the wire. */
-  const sendQueued = (message: Sync.Message): void => {
-    if (message.type === "register") lastRegister = message;
-    const gate = gated;
-    queue = queue.then(() => gate.then(() => post(message, flight.signal)));
-  };
-
-  return {
-    send: (message) => {
-      if (closed) return;
-      sendQueued(message);
-    },
-    onMessage: (listener) => {
-      arrivals.add(listener);
-      return () => {
-        arrivals.delete(listener);
-      };
-    },
-    onClose: (listener) => {
-      partings.add(listener);
-      return () => {
-        partings.delete(listener);
-      };
-    },
-    close: () => {
-      if (closed) return;
-      closed = true;
-      flight.abort();
-      stream?.close();
-      stream = null;
-      fireClose();
-    },
-    status: () => status,
-    onStatus: (listener) => {
-      watchers.add(listener);
-      return () => {
-        watchers.delete(listener);
-      };
-    },
-    reconnect: async () => {
-      if (closed) return;
-      flip("connecting");
-      stream?.close();
-      stream = null;
-      const { opened } = open();
-      gated = opened;
+      return gate;
+    };
+    const deliver = async (message: Sync.Message): Promise<void> => {
+      if (closed.get() || signal.aborted) return;
       try {
-        await opened;
+        await post.run({ input: { id, message } });
       } catch {
-        drop();
-        return;
+        if (signal.aborted === false) drop();
       }
-      if (closed) return;
-      const replay = lastRegister;
-      if (replay !== null) queue = queue.then(() => post(replay, flight.signal));
+    };
+
+    const stopClosed = closed.watch((isClosed) => {
+      if (isClosed) shut();
+    });
+    defer(stopClosed);
+    defer(shut);
+    openNext().then(undefined, () => {
+      link.update((prev) => ({ ...prev, live: false, failed: true }));
+      closed.set(true);
+    });
+    return {
+      post: (message) => {
+        const opened = gate;
+        queue = queue
+          .then(() => opened)
+          .then(
+            () => deliver(message),
+            () => undefined,
+          );
+        return queue;
+      },
+      reopen: () => (closed.get() ? Promise.resolve() : openNext()),
+    };
+  },
+});
+
+/** Send one sync message up the wire: a register is kept as the last register, then every
+ * message POSTs behind the stream's open. */
+export const sendSync = operation({
+  label: "sendSync",
+  depends: { line: stream, last: lastRegister.controller },
+  run: ({ line, last }, ctx: Operation.Ctx<Sync.Message>) => {
+    if (ctx.input.type === "register") last.set(ctx.input);
+    return line.post(ctx.input);
+  },
+});
+
+/** Close the wire for good: sync's `onClose` listeners fire once and the stream closes. */
+export const closeWire = operation({
+  label: "closeWire",
+  depends: { closed: wireClosed.controller },
+  run: ({ closed }) => {
+    closed.set(true);
+  },
+});
+
+/** A transport with no scope yet: it sends nothing and hears nothing. */
+const unstarted: Sync.Transport = {
+  send: () => undefined,
+  onMessage: () => () => undefined,
+  onClose: () => () => undefined,
+  close: () => undefined,
+};
+
+/** Build the tab's wire for sync: a thin `Sync.Transport` over the wire units, plus the extension
+ * whose `start` hands it the scope. Install the extension before `subscribe(link.transport, …)`:
+ * sync's `start` registers through the transport. Nothing opens until sync's first send resolves
+ * the stream. `send` runs `sendSync`, `onMessage` watches the admitted frames, `onClose` watches
+ * the closed flag (so it fires once), `close` runs `closeWire`. */
+export function createWire(): Wire.Link {
+  let scoped = unstarted;
+  return {
+    transport: {
+      send: (message) => scoped.send(message),
+      onMessage: (listener) => scoped.onMessage(listener),
+      onClose: (listener) => scoped.onClose(listener),
+      close: () => scoped.close(),
     },
+    extension: extension({
+      label: "wire",
+      start: (scope, { signal }, next) => {
+        scoped = scopedTransport(scope, signal);
+        return next();
+      },
+    }),
   };
 }
 
-/** The tab's wire: bound once at the composition root, rebound in a test. */
-export const wire = tag<ReconnectingWire>({ label: "wire" });
+/** The transport over one scope's wire units. `close` after the scope closed (a failed boot
+ * closes it at once) has nothing left to close: the wire closed first. */
+function scopedTransport(scope: Scope.Handle, signal: AbortSignal): Sync.Transport {
+  return {
+    send: (message) => {
+      scope.run(sendSync, { input: message }).then(undefined, () => undefined);
+    },
+    onMessage: (listener) =>
+      scope.controller(inbox).watch((message) => {
+        if (message !== null) listener(message);
+      }),
+    onClose: (listener) =>
+      scope.controller(wireClosed).watch((isClosed) => {
+        if (isClosed) listener();
+      }),
+    close: () => {
+      if (signal.aborted === false) scope.run(closeWire);
+    },
+  };
+}
