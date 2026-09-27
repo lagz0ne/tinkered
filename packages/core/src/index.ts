@@ -1131,10 +1131,12 @@ const SESSIONS = new WeakMap<Layer, readonly Scope.Extension<unknown>[]>();
  * when the layer's close resolves, so a session felled by its parent's cascade settles its hooks
  * like an explicit close; it is cleared at settle. `phase` holds the data for the hooks: `open`
  * until the close finishes, `held` while its data waits for the hooks to return (data cell and tag
- * reads still work), `done` once they returned. A never-closed layer's entry dies with the layer. */
+ * reads still work), `done` once they returned. `moved` says the held store went into a `Result`
+ * (`withData`). A never-closed layer's entry dies with the layer. */
 type SessionHooks = {
   settle: ((ended: Scope.Result) => void) | undefined;
   phase: "open" | "held" | "done";
+  moved: boolean;
 };
 const SESSION_HOOKS = new WeakMap<Layer, SessionHooks>();
 
@@ -4056,7 +4058,7 @@ async function runSessionWrapped<R>(
 ): Promise<R> {
   const child = makeLayer(parent, options);
   child.failureOwner = caller;
-  const hooks: SessionHooks = { settle: undefined, phase: "open" };
+  const hooks: SessionHooks = { settle: undefined, phase: "open", moved: false };
   SESSION_HOOKS.set(child, hooks);
   const handle = withSessionCreate(handleFor(child), child, sessions);
   let wrapped: { result: unknown; ended: Scope.Result };
@@ -4180,7 +4182,7 @@ function wrapSession(
   const nextPromise = new Promise<Scope.Result>((resolveNext) => {
     settleNext = resolveNext;
   });
-  const hooks: SessionHooks = { settle: settleNext, phase: "open" };
+  const hooks: SessionHooks = { settle: settleNext, phase: "open", moved: false };
   SESSION_HOOKS.set(child, hooks);
   const base = withSessionCreate(plain, child, sessions);
   const outcome = sessionThrough(sessions, base, () =>
@@ -4753,15 +4755,20 @@ function keepData(
   withData: boolean,
 ): Scope.Result {
   const kept = withData ? { ...ended, data: finalData(layer.nodes, layer.ns) } : ended;
-  if (hooks?.phase === "open") hooks.phase = "held";
-  else freeData(layer);
+  if (hooks?.phase === "open") {
+    hooks.phase = "held";
+    hooks.moved = withData;
+  } else freeData(layer, withData);
   return kept;
 }
 
-/** Free a closed layer's data: its store, presets, and tags. The store is detached, not cleared,
- * so a store moved into a `Result` stays whole. */
-function freeData(layer: Layer): void {
-  for (const s of layer.nodes.values()) s.eff = undefined;
+/** Free a closed layer's data: its store, presets, and tags. The store is detached, not cleared;
+ * a store `moved` into a `Result` keeps only what `data.get` reads ({@link keepCellsOnly}). */
+function freeData(layer: Layer, moved: boolean): void {
+  for (const s of layer.nodes.values()) {
+    if (moved) keepCellsOnly(s);
+    else s.eff = undefined;
+  }
   layer.nodes = new Map();
   layer.presets = undefined;
   layer.tags = undefined;
@@ -4770,8 +4777,30 @@ function freeData(layer: Layer): void {
 /** A session's hooks returned (ADR 0069): free the data they could still read, or, when the close
  * has not finished yet, leave it to {@link keepData}. */
 function freeAfterHooks(layer: Layer, hooks: SessionHooks): void {
-  if (hooks.phase === "held") freeData(layer);
+  if (hooks.phase === "held") freeData(layer, hooks.moved);
   hooks.phase = "done";
+}
+
+/** Strip a node moved into a `Result` down to its `cell` and `nsCells`, all `data.get` reads.
+ * Everything else would pin the closed layer after close: the torn-down resource `instance` (its
+ * `owner` layer and defer closures), `nsResources` and `nsDataDependents` (owner layers), the
+ * memoized `controller` closure over the layer, `watchers` and `nsWatchers` (user closures),
+ * `dependents`, the build state (`resource`, `promise`, `failed`, `build`), and the cached `eff`
+ * and `notified` values (possibly a parent's). A default close's `nodes.clear()` drops it all. */
+function keepCellsOnly(s: NodeState): void {
+  s.eff = undefined;
+  s.resource = undefined;
+  s.promise = undefined;
+  s.failed = undefined;
+  s.build = undefined;
+  s.instance = undefined;
+  s.dependents = undefined;
+  s.controller = undefined;
+  s.watchers = undefined;
+  s.notified = undefined;
+  s.nsResources = undefined;
+  s.nsDataDependents = undefined;
+  s.nsWatchers = undefined;
 }
 
 /** A read on a closed scope (ADR 0069): while a session's data waits for its `session` hooks, a
