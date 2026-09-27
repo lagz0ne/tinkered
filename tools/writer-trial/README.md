@@ -214,7 +214,8 @@ node tools/writer-trial/app-gate.mjs \
   not a trial's frozen copy.
 - The judges are the ones `config.json` names.
 - Plain rules run in writer mode: S17-S19 and S25 are on,
-  and S20-S24 read the whole file.
+  S20 and S22-S24 read the whole file;
+  S21 reads unit bodies only.
 - It prints, per file, blocking items, then advice,
   then every unavailable check.
 - `--json` writes the full report.

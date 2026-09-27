@@ -39,7 +39,8 @@ Plain rules: `plain.mjs` checks the census rules the writer guidelines share (T0
 Each finds code that builds by hand what tinker already gives.
 Source: the 2026-09-27 survey (`docs/roadmap/jev-handrolled/`).
 Test files never count.
-The writer gate reads each rule over the whole file.
+S21 counts only inside a unit body, in both lanes.
+The writer gate reads the other rules over the whole file.
 The repo lint is narrower, and it only lists: it never fails.
 Each message ends with its fix line.
 
@@ -47,7 +48,8 @@ Each message ends with its fix line.
   Repo lint: every file but `packages/core/src`.
   Fix: `id: ctx.random.uuid()`.
 - **S21 rawClock** — a call of `Date.now`, `performance.now`, `setTimeout`, or `setInterval`, or a bare `new Date()`.
-  Repo lint: only inside a unit body (an operation `run`, a resource `factory`, an extension `start`); a driver owns its own timers.
+  Both lanes: only inside a unit body (an operation `run`, a resource `factory`, an extension `start`).
+  Outside one there is no ctx to reach; a helper's timer is a Jev question.
   Fix: `await ctx.clock.sleep(ms, ctx.signal)`.
 - **S22 droppedRun** — `x.run(…).then(ok, () => undefined)`, `x.run(…).catch(() => {})`, or `try { await x.run(…) } catch { … }` with no catch parameter.
   Repo lint: every file.

@@ -223,25 +223,44 @@ void describe("hand-rolled rules: code that redoes what tinker gives", () => {
     assert.deepEqual(repo("const r = Math.random();\n", "packages/core/src/random.ts"), []);
   });
 
-  void it("S21 fires on Date.now, performance.now, timers, and new Date() in the writer gate", () => {
+  void it("S21 fires on Date.now, performance.now, timers, and new Date() in a unit body", () => {
     const src = [
-      "const a = Date.now();",
-      "const b = performance.now();",
-      "setTimeout(go, 5);",
-      "globalThis.setInterval(go, 5);",
-      "const c = new Date();",
+      'import { operation } from "@tinker/core";',
+      "export const stamp = operation({",
+      '  label: "stamp",',
+      "  run: () => {",
+      "    const a = Date.now();",
+      "    const b = performance.now();",
+      "    setTimeout(go, 5);",
+      "    globalThis.setInterval(go, 5);",
+      "    return [a, b, new Date()];",
+      "  },",
+      "});",
     ].join("\n");
     assert.deepEqual(hits(src, APP), [
-      ["S21", 1],
-      ["S21", 2],
-      ["S21", 3],
-      ["S21", 4],
       ["S21", 5],
+      ["S21", 6],
+      ["S21", 7],
+      ["S21", 8],
+      ["S21", 9],
     ]);
   });
 
-  void it("S21 leaves ctx.clock and a formatted saved time alone", () => {
-    const src = "await ctx.clock.sleep(10, ctx.signal);\nconst s = new Date(ms).toISOString();\n";
+  void it("S21 leaves raw time outside any unit alone in the writer gate too", () => {
+    assert.deepEqual(hits("export function stamp() {\n  return Date.now();\n}\n", APP), []);
+  });
+
+  void it("S21 leaves ctx.clock and a formatted saved time in a unit body alone", () => {
+    const src = [
+      'import { resource } from "@tinker/core";',
+      "export const stamp = resource({",
+      '  label: "stamp",',
+      "  factory: async (ctx) => {",
+      "    await ctx.clock.sleep(10, ctx.signal);",
+      "    return new Date(ctx.clock.currentTimeMillis()).toISOString();",
+      "  },",
+      "});",
+    ].join("\n");
     assert.deepEqual(hits(src, APP), []);
   });
 

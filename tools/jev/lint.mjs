@@ -38,7 +38,9 @@ function listFiles(specs) {
   const globs = specs.filter((s) => !isFile(s));
   const quoted = globs.map((s) => `'${s}'`).join(" ");
   const listed = globs.length ? execSync(`git ls-files -- ${quoted}`, { encoding: "utf8" }) : "";
-  return [...direct, ...listed.split("\n")].filter((f) => f && !/\.test\.tsx?$|\.d\.ts$/.test(f));
+  return [...direct, ...listed.split("\n")].filter(
+    (f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$|\.d\.ts$/.test(f),
+  );
 }
 
 function questionsFor(u) {

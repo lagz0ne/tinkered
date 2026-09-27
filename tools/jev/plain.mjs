@@ -418,12 +418,13 @@ function noWrapperHits(source, program) {
 }
 
 // ---------- hand-rolled: code that redoes what tinker gives (S20–S25) ----------
-// From the 2026-09-27 survey (docs/roadmap/jev-handrolled). Any file that is not a test. The
-// writer gate reads each rule over the whole file. The repo lint is narrower: S20 skips
-// packages/core/src (the default randomness source); S21 counts only inside a unit body (an
-// operation run, a resource factory, an extension start), since a driver owns its own timers;
-// S23 and S24 count only in apps/ and examples/ (packages are the providers); S25 is writer
-// policy only (a benchmark's plain-React control is a trap by design).
+// From the 2026-09-27 survey (docs/roadmap/jev-handrolled). Any file that is not a test. S21
+// counts only inside a unit body (an operation run, a resource factory, an extension start) in
+// both lanes: outside one there is no ctx to reach, and a blocking rule may have no known false
+// hit (ADR 0068). The writer gate reads the other rules over the whole file. The repo lint is
+// narrower: S20 skips packages/core/src (the default randomness source); S23 and S24 count only
+// in apps/ and examples/ (packages are the providers); S25 is writer policy only (a benchmark's
+// plain-React control is a trap by design).
 
 const CORE_SRC = /(^|\/)packages\/core\/src\//;
 const USERLAND = /(^|\/)(apps|examples)\//;
@@ -607,9 +608,8 @@ function unitBodies(program) {
   return ranges;
 }
 
-/** Is an offset inside a unit body. The writer gate reads the whole file, so it always is. */
-function unitTest(program, writer) {
-  if (writer) return () => true;
+/** Is an offset inside a unit body. */
+function unitTest(program) {
   const bodies = unitBodies(program);
   return (at) => bodies.some(([from, to]) => from <= at && at < to);
 }
@@ -651,7 +651,7 @@ const HAND_ROLLED = [
 function handRolledHits(program, file, writer) {
   const on = handRolledScope(file, writer);
   const checks = HAND_ROLLED.filter(([id]) => on[id]);
-  const facts = { cryptoNames: cryptoNames(program), inUnit: unitTest(program, writer) };
+  const facts = { cryptoNames: cryptoNames(program), inUnit: unitTest(program) };
   const hits = [];
   walk(program, (n) => {
     for (const [id, check] of checks) for (const at of check(n, facts)) hits.push([id, at]);
