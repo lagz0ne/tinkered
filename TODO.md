@@ -23,6 +23,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **tracker/gate-leftovers** — the tracker's remaining app-gate blocks after tracker/reconnect: S20 raw random at `server/operations.ts` (×3), S22 dropped runs at `client/actions.ts` (`checkCapability`) and `client/services.ts` (×2), and the labeled Jev wrong hits; also `App.tsx`'s "Still no connection" notice is now unreachable after boot. Next: fix the plain ones (`ctx.random`, `settle`), re-run `node tools/writer-trial/app-gate.mjs apps/issue-tracker`. Verify: only labeled wrong hits remain.
+- **sync/transport-unit** — ADR 0070's open question: `subscribe(transport, wiring)` takes a built object, so the tracker still makes a `memoryPair` at the root. Next: decide with the user whether `subscribe` takes its transport from a resource inside the scope. Verify: nothing is built before `createScope` in the tracker client.
 - **perf/op-parity** — Compare operation call cost. The runner it waited for is here: `bench/queued.sh`
   sends `bench/ab.sh` through `benchd`, this box's benchmark queue, so one job runs at a time on one
   core with no network and no secrets. Next: pin the baseline and current SHAs, build the baseline
@@ -48,15 +50,6 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
   cases; a judge is calibrated from their labels (ADR 0054).
   Step 2 landed: plain rules S20–S25 (tag `jev/plain-rules`). Next: the bridge decision (ADR),
   then the two judges once each has 5 true labels.
-
-- **tracker/reconnect** — the tab's reconnecting wire the tinker way (user, 2026-09-27): wire state
-  in the `connection` cell (no `onStatus` bridge), the stream a resource with `ctx.defer` /
-  `ctx.signal`, reconnect an operation, the id from `ctx.random`; the `Sync.Transport` stays a thin
-  adapter (ADR 0048). Owner: lead; writer agent `8a3d02ce` in `../tinkered-tracker-reconnect`
-  (brief `tracker-reconnect.md`). Verify: every wire behavior test green; the gate shows no
-  `stateOutsideCell` / `effectWithoutDefer` on the wire.
-  - 2026-09-27: ADR 0070 accepted (a link is one resource that rewires itself from its health and
-    intent data); fix round 2 rebuilds the wire on it, with the tracker as the ADR's application case.
 
 ## Review
 
@@ -98,6 +91,8 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 ## Done
 
+- **tracker/reconnect** — opus high + fable review (four fix rounds, one lander stop); tag `tracker/reconnect`; ADR 0070's application case. The tab wire is one `wire` resource: it owns the current `EventSource` (id from `ctx.random`), is the only writer of the `connection` health, and rewires itself — after a drop it waits on `ctx.clock` (1 s doubling to a 30 s cap, reset on live) and opens again until live or close; the `reconnect` operation only bumps the `retry` intent cell, which opens at once. Only the first stream's failure is final (the dead page). Sync holds a steady `memoryPair` end. Gone: the hand-rolled state machine, `onStatus`, the `liveness` bridge, `reopen`, `Math.random`, the POST queue.
+  - Gate EXIT 0; tracker 71 tests; browser proof 4 of 4 uncached; validate 44 PASS; 14 Jev labels, calibration refreshed. First lander stop: the proof passed 1 of 4 when a failed rewire gave up.
 - **jev/plain-rules** — opus high + fable review (one fix round); tag `jev/plain-rules`. Six plain rules for hand-rolled tinker features: S20 raw random → `ctx.random`, S21 raw clock in a unit body → `ctx.clock`, S22 a dropped run → `settle`, S23 a hand-made `onX` on a listener set → a cell, S24 raw `fetch` in app code → an http endpoint, S25 component state → a cell (writer gate). Repo lint over apps and examples finds exactly the survey's 11 hand-rolled cases, none of its fine ones. S18 counts `family`, not `extension` (drivers build extensions in a function by design). `lint.mjs` on a folder reads only `.ts`/`.tsx`.
   - Gate EXIT 0; jev tests 104 pass; writer-trial tests 60 pass; validate 44 PASS.
 - **tracker/gate-fixes** — opus high + fable review (no fix round); tag `tracker/gate-fixes`. Seven gate findings fixed in `apps/issue-tracker`: a bad `PORT` (`abc`, `80x`, `70000`) now fails boot with `BadPort` (it silently became 4311 or 80); a draft `prompt` that is not text answers 400 `BadDraftInput` (it silently became `""`); `applyDraft` works on plain values; two casts became checks; a test imports the public entry; `ScopeProvider` renders in `main.tsx`. Gate: 12 blocking → 6, each left a labeled wrong hit or waiting on `jev/s18-kinds`.

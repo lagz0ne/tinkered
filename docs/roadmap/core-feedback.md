@@ -132,6 +132,8 @@ to verify its entrypoint. No new helper or core ticket was requested.
 | A forced close's cancel reason is a plain object marked by a hidden symbol, so `String(reason)` is `[object Object]`: an mcp tool call cut short answers the text `[object Object]`. Wanted: a reason with a readable message (such as an `Error` subclass or a `toString`). | drivers/t08b fix round (mcp) 2026-09-26 | **done** — core/cancel-reason (`String(reason)` reads `AbortError: …`) |
 | `Scope.DataController` declares `watch` (and `get`/`set`/`update`) with method syntax, so handing `controller.watch` to a helper trips `unbound-method`; both implementations are arrow properties that never read `this`. Ask: property signatures (`watch: (listener) => () => void`) in the type in core `src/index.ts`. | sync/source-stop 2026-09-26 | open — first asker; the test wraps the call in an arrow |
 | A graceful close seals writes: in-flight work that writes after `close()` is called throws `Disposed`, so `close({ withData: true })` carries only writes made before the close began. Wanted only if a caller needs the last write of work still finishing. | core/with-data 2026-09-27 (writer + review) | note |
+| No tool waits for a cell to hold a value, so the tracker's wire keeps one promise per stream (`gate`) so a POST waits for the stream's open — the one rule-13 smell left in ADR 0070's application case. Wanted: a way to await a cell reaching a value (with `ctx.signal`). | tracker/reconnect review 2026-09-27 | open — first asker |
+| Jev tooling on an app: `promises.mjs` assumes `packages/<pkg>` and `tests.mjs` rejects a directory, so the writer steps cannot run on `apps/issue-tracker`. | tracker/reconnect fix round 4 2026-09-27 | open — tooling note |
 
 ## Writer learning round, 2026-09-22
 
