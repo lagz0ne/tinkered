@@ -39,6 +39,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
+- **review/tracker-gate** — hold `apps/issue-tracker` to the writer-trial teacher's bar (ADR 0068:
+  a plain shape finding or a `proven` Jev hit blocks). The jev teacher workspace
+  (`jev/teaching-system`) is already on main. Step 1: a command that runs the same `gate.mjs` over
+  any folder, then a findings report for the tracker; no fixes. Owner: lead; writer agent
+  `ccc0d87c` in `../tinkered-tracker-review` (brief `review-tracker-gate.md`). Next: triage the
+  report with the user. Verify: the report at
+  `docs/roadmap/issue-tracker-review/2026-09-27-gate.md`; the command's test green.
+
 ## Review
 
 | Card | Owner | Next | Verify |
