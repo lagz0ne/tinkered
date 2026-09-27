@@ -5,12 +5,14 @@ import { expect, test } from "vite-plus/test";
 import {
   api,
   beginDraft,
+  capability,
   checkCapability,
   commentDraft,
   connection,
   detail,
   discardDraft,
   draftCapability,
+  detailRefresh,
   draftRun,
   drafter,
   editDraft,
@@ -279,15 +281,59 @@ test("checking the helper writes off when it answers disabled", async () => {
 test("checking the helper writes failed when it answers an error", async () => {
   const scope = createScope({
     tags: TAGS,
-    presets: [preset(getCapability, () => Promise.reject(new Error("down")))],
+    presets: [preset(getCapability, () => Promise.reject(fail("DraftFailed", { reason: "down" })))],
     extensions: [],
   });
   try {
-    await scope.run(checkCapability);
+    expect(await scope.run(checkCapability)).toEqual({ enabled: false });
+    expect(scope.resolve(draftCapability)).toBe("failed");
+  } finally {
+    expect((await scope.close()).status).not.toBe("failed");
+  }
+});
+
+test("a panic while checking the helper writes failed and rejects the check", async () => {
+  const bug = new TypeError("bug");
+  const scope = createScope({
+    tags: TAGS,
+    presets: [preset(getCapability, () => Promise.reject(bug))],
+    extensions: [],
+  });
+  try {
+    const checked = await scope.settle(checkCapability);
+    expect(checked).toMatchObject({ status: "failed", kind: "panic", error: bug });
     expect(scope.resolve(draftCapability)).toBe("failed");
   } finally {
     await scope.close();
   }
+});
+
+test("a panic in the boot helper check shows failed and fails the scope", async () => {
+  const bug = new TypeError("bug");
+  const scope = createScope({
+    tags: TAGS,
+    presets: [preset(getCapability, () => Promise.reject(bug))],
+    extensions: [],
+  });
+  scope.resolve(capability);
+  await scope.settled();
+  expect(scope.resolve(draftCapability)).toBe("failed");
+  const closed = await scope.close();
+  expect(closed).toMatchObject({ status: "failed", error: bug });
+});
+
+test("a panic in a background detail load fails the scope", async () => {
+  const bug = new TypeError("bug");
+  const scope = createScope({
+    tags: TAGS,
+    presets: [preset(issueList, [ISSUE]), preset(loadDetail, () => Promise.reject(bug))],
+    extensions: [],
+  });
+  scope.resolve(detailRefresh);
+  scope.run(selectIssue, { input: "i1" });
+  await scope.settled();
+  const closed = await scope.close();
+  expect(closed).toMatchObject({ status: "failed", error: bug });
 });
 
 test("starting a draft streams text into the run cell until ready", async () => {

@@ -54,13 +54,16 @@ Offline saves show a plain notice ("Could not reach the server. Your work
 is kept — try again.") instead of a raw error name, and the typed text is
 kept. The same plain wording covers create, edit, comment, and detail
 refresh; retrying after the connection returns saves normally.
+A panic in a background detail load fails the page's scope.
 
 ## Triage draft (optional helper, off by default)
 
 Selecting an issue shows a triage draft box. With the helper off it says
 so and ordinary tracker use needs no account. If checking the helper
 fails, the box shows a plain notice with a Retry button instead of
-claiming it is off; retrying keeps the surrounding edit draft. With the
+claiming it is off; retrying keeps the surrounding edit draft. A panic
+(a bug, not a failed answer) while checking shows the same notice, rejects
+the check, and fails the page's scope, so it is never hidden. With the
 helper on, "Draft a summary" streams a short summary or next steps for
 that issue. Cancel stops the run, Discard throws the draft away — neither
 saves anything. "Post draft" appends the generated text as a comment

@@ -4,12 +4,14 @@ import { markOf, sameMark, selectedId, type RowMark } from "./state.ts";
 import { checkCapability, loadDetail } from "./actions.ts";
 
 /** Check the draft helper once at boot: the capability cell answers on, off, or failed.
- * The scope owns the returned promise; the view reruns `checkCapability` by hand on Retry. */
+ * The view reruns `checkCapability` by hand on Retry. The run is left to the scope, not
+ * settled: `checkCapability` rejects only on a panic, and a dropped panic fails the layer,
+ * where a `settle` here would recover it (ADR 0067). */
 export const capability = resource({
   label: "capability",
   depends: { check: checkCapability },
   factory: ({ check }) => {
-    check.run().then(undefined, () => undefined);
+    void check.run();
     return { checking: true };
   },
 });
@@ -18,7 +20,8 @@ export const capability = resource({
  * change to its `revision`/`updatedAt` in the list reruns the load, even when the shown
  * detail already names the issue (a comment bumps `updatedAt` without touching the draft).
  * The load is the race loser by design: it writes nothing once the selection moved on or a
- * newer snapshot landed first. */
+ * newer snapshot landed first. `loadDetail` shows its own failures, so the run is left to the
+ * scope: only a panic rejects it, and that fails the layer (ADR 0067). */
 export const detailRefresh = resource({
   label: "detailRefresh",
   depends: {
@@ -38,7 +41,7 @@ export const detailRefresh = resource({
       if (mark === null) return;
       if (seen !== null && seen.id === id && sameMark(mark, seen.mark)) return;
       seen = { id, mark };
-      load.run({ input: id }).then(undefined, () => undefined);
+      void load.run({ input: id });
     };
     const stopSelection = selected.watch(() => refresh(list.get()));
     const stopList = list.watch(refresh);

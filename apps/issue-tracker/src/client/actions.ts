@@ -296,20 +296,21 @@ export const setDraftAuthor = operation({
   },
 });
 
-/** Check the draft helper once: answers on, off, or a plain failed — never throws. */
+/** Check the draft helper once: answers on, off, or a plain failed. A managed error or a
+ * cancel answers `{ enabled: false }`; a panic writes failed too, then rethrows (ADR 0067). */
 export const checkCapability = operation({
   label: "checkCapability",
   depends: { check: getCapability, capability: draftCapability.controller },
   run: async ({ check, capability }) => {
     capability.set("loading");
-    try {
-      const found = await check.run();
-      capability.set(found.enabled ? "on" : "off");
-      return found;
-    } catch {
-      capability.set("failed");
-      return { enabled: false };
+    const checked = await check.settle();
+    if (checked.status === "success") {
+      capability.set(checked.value.enabled ? "on" : "off");
+      return checked.value;
     }
+    capability.set("failed");
+    if (checked.status === "failed" && checked.kind === "panic") throw checked.error;
+    return { enabled: false };
   },
 });
 

@@ -75,7 +75,7 @@ export {
   typeEdit,
   typeNewIssue,
 } from "./client/actions.ts";
-export { detailRefresh } from "./client/services.ts";
+export { capability, detailRefresh } from "./client/services.ts";
 export { drafter } from "./client/drafter.ts";
 export {
   commentAuthor,
