@@ -13,9 +13,15 @@ type OwnedServer = { readonly child: ChildProcess; readonly ended: Promise<Exit>
 
 const APP = process.cwd();
 
-/** How long a tab may take to come back live by itself: the wire's longest wait (30 s) plus
- * room for the stream to open and the list to land. */
-const BACK_LIVE_MS = 45_000;
+/** How long a tab may take to come back live by itself: the browser's reconnect wait (3 s
+ * before the server's first `retry: 1000` frame) plus room for the stream to open and the list
+ * to land. */
+const BACK_LIVE_MS = 15_000;
+
+/** True for the page and its assets: what a tab loads before its stream. */
+function isPageAsset(url: URL): boolean {
+  return url.pathname === "/" || url.pathname.startsWith("/assets/");
+}
 
 function tempData(): { readonly dir: string; readonly db: string } {
   const dir = mkdtempSync(join(tmpdir(), "tracker-t05-proof-"));
@@ -254,7 +260,6 @@ async function main(): Promise<void> {
     server = await startServer(port, db);
   }
   try {
-    server = await startServer(port, db);
     browser = await chromium.launch();
     firstPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
     secondPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
@@ -262,7 +267,16 @@ async function main(): Promise<void> {
     const secondTab = secondPage;
     firstTab.on("pageerror", (error) => pageErrors.push(String(error)));
     secondTab.on("pageerror", (error) => pageErrors.push(String(error)));
+    await firstTab.route(isPageAsset, async (asset) => {
+      const path = new URL(asset.request().url()).pathname;
+      const file = path === "/" ? "index.html" : path.slice(1);
+      await asset.fulfill({ path: join(APP, "dist", "client", file) });
+    });
     await firstTab.goto(base);
+    await firstTab.getByText("Connecting…").waitFor();
+    await startMain();
+    await firstTab.getByRole("button", { name: "Create issue" }).waitFor({ timeout: BACK_LIVE_MS });
+    await firstTab.unrouteAll();
     await secondTab.goto(base);
     await firstTab.getByRole("heading", { name: "Issues" }).waitFor();
     await secondTab.getByRole("heading", { name: "Issues" }).waitFor();
@@ -445,10 +459,17 @@ async function main(): Promise<void> {
     assert.equal(parseEditSent(String(rejected.request().postData())), droppedRevision);
     await firstTab.getByText("Someone else saved first").waitFor();
 
+    await firstTab.route(
+      (url) => url.pathname === "/sync",
+      (refused) => refused.fulfill({ status: 503, body: "down" }),
+    );
     await stopMain();
     await stopped.waitFor();
-    await firstTab.getByRole("button", { name: "Reconnect", exact: true }).click();
     await startMain();
+    const again = firstTab.getByRole("button", { name: "Reconnect", exact: true, disabled: false });
+    await again.waitFor();
+    await firstTab.unrouteAll();
+    await again.click();
     const current = await readDetail(base, id);
     const retitled = await fetch(`${base}/api/issues/${id}`, {
       method: "PATCH",
