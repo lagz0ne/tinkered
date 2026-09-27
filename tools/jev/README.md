@@ -34,6 +34,37 @@ Which unit fits my words? → `blueprint suggest "<words>"` (`packages/blueprint
 Plain rules: `plain.mjs` checks the census rules the writer guidelines share (T01–T08, S02, S05, S06, S12, S13) on the syntax tree and its comment list, so text inside a string never counts. S17 (a type assertion in source, except `as const` and `[] as T[]`), S18 (a `data`, `operation`, `resource`, or `tag` call from `@tinker/core`, or a `family` call from `@tinker/sync`, inside a function; a driver's `extension` is left out, ADR 0051), and S19 (a helper whose parameter type holds a controller, scope, or session) run in writer mode only: the gate asks for them; the repo's own lint does not. Arrow and function-expression consts are units in every file, like `function` declarations. A helper function's unit also carries `uses`: the lines of its own file that call it, so a judge sees what happens to the value it returns.
 `lint.mjs` lists its rows; the writer-trial gate blocks on each one (ADR 0068).
 
+### Hand-rolled rules (S20–S25)
+
+Each finds code that builds by hand what tinker already gives.
+Source: the 2026-09-27 survey (`docs/roadmap/jev-handrolled/`).
+Test files never count.
+The writer gate reads each rule over the whole file.
+The repo lint is narrower, and it only lists: it never fails.
+Each message ends with its fix line.
+
+- **S20 rawRandom** — `Math.random`, `crypto.randomUUID`, or `crypto.getRandomValues` (called or passed), or `randomUUID` from `node:crypto`.
+  Repo lint: every file but `packages/core/src`.
+  Fix: `id: ctx.random.uuid()`.
+- **S21 rawClock** — a call of `Date.now`, `performance.now`, `setTimeout`, or `setInterval`, or a bare `new Date()`.
+  Repo lint: only inside a unit body (an operation `run`, a resource `factory`, an extension `start`); a driver owns its own timers.
+  Fix: `await ctx.clock.sleep(ms, ctx.signal)`.
+- **S22 droppedRun** — `x.run(…).then(ok, () => undefined)`, `x.run(…).catch(() => {})`, or `try { await x.run(…) } catch { … }` with no catch parameter.
+  Repo lint: every file.
+  Fix: `const r = await load.settle({ input: id })` (ADR 0067).
+- **S23 handSubscribe** — an `onX(listener)` that adds the listener to a list and returns a remover.
+  Skipped: `onMessage` and `onClose` on an object that also has `send` and `close` (the `Sync.Transport` contract).
+  Repo lint: `apps/` and `examples/` only.
+  Fix: a `data` cell that readers `watch` or read with `useData`.
+- **S24 rawFetch** — a call of `fetch` or `globalThis.fetch`.
+  Repo lint: `apps/` and `examples/` only; `packages/http` owns the real one.
+  `EventSource` and `WebSocket` stay out (ADR 0048).
+  Fix: an `@tinker/http` endpoint operation, like `postIssue` in the tracker's `client/api.ts`.
+- **S25 componentState** — `useState` or `useReducer` in a `.tsx` source file.
+  Writer gate only: in the repo, a benchmark's plain-React control is a trap by design.
+  In writer mode it replaces `no-react-state` on the same line.
+  Fix: `const running = data({ label: "bench.running", initial: false })`.
+
 ## How to read a probability
 
 Jev returns a probability per yes/no. A judge's `threshold` (0.5 everywhere today) turns it into a hit.

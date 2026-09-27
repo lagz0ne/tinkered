@@ -213,7 +213,8 @@ node tools/writer-trial/app-gate.mjs \
 - It uses the repo's live `tools/jev` calibration and bank,
   not a trial's frozen copy.
 - The judges are the ones `config.json` names.
-- Plain rules run in writer mode: S17-S19 are on.
+- Plain rules run in writer mode: S17-S19 and S25 are on,
+  and S20-S24 read the whole file.
 - It prints, per file, blocking items, then advice,
   then every unavailable check.
 - `--json` writes the full report.

@@ -5,7 +5,8 @@
 // It judges the folder's src/ and tests/ .ts(x) files, reading them and never
 // running them, with the same gate review.mjs check applies to a trial snapshot:
 //
-//   - a plain shape finding blocks (writer mode: S17-S19 are on);
+//   - a plain shape finding blocks (writer mode: S17-S19 and S25 are on, and
+//     S20-S24 read the whole file);
 //   - a Jev hit blocks when its judge is `proven` in the calibration;
 //   - any other Jev hit is advice;
 //   - a check that did not run is unavailable, never a pass.
@@ -24,7 +25,8 @@ const configPath = fileURLToPath(new URL("config.json", import.meta.url));
 const HELP = `Usage: node tools/writer-trial/app-gate.mjs <folder> [--json <file>]
 
 Runs the writer-trial Jev gate over <folder>/src and <folder>/tests (.ts, .tsx).
-Files are read, never run. Plain shape rules run in writer mode (S17-S19 on).
+Files are read, never run. Plain shape rules run in writer mode (S17-S19 and
+S25 on; S20-S24 read the whole file).
 Calibration and question bank: the repo's live tools/jev (calibration.json),
 not a trial's frozen copy. Judges: tools/writer-trial/config.json.
 A shape finding or a hit on a proven judge blocks; other hits are advice.
