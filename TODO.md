@@ -39,13 +39,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
-- **core/with-data** — ADR 0069: `close({ withData: true })` moves the session's own data store into
-  the close `Result` as `data` (`data.get(cell)` → `Presence`, every ending); off by default, so
-  nothing changes; core frees a session's data only after its `session` hooks return, so a hook
-  reads the session through its handle after `next()`. Owner: lead; writer agent (pending) in
-  `../tinkered-with-data` (brief `core-with-data.md`). Verify: the ADR's rules as tests; the
-  default close no slower through benchd (N=61, all ten).
-
 ## Review
 
 | Card | Owner | Next | Verify |
@@ -79,6 +72,8 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 ## Done
 
+- **core/with-data** — opus high + fable review (one fix round); tag `core/with-data`; ADR 0069. `close({ withData: true })` moves the session's own data into the close `Result` as `data` (`data.get(cell, { ns })` → `Presence`, every ending); off by default. Core frees a session's data only after its `session` hooks return, so a hook reads cells and tags through its handle after `next()`; writes and resource reads there still throw. A kept store is stripped to cells so a held `Result` does not pin the layer (review fix). The tracker's publish hook now reads the request method after `next()`.
+  - Gate EXIT 0; core 636 tests, tracker 51; core mutation 85.75; promises 17; validate 44 PASS; slot headroom 6; timing N=61 through benchd: lifecycle +1.81% (42/61), every other scenario within 1%; 7 Jev labels, calibration refreshed.
 - **core/cancel-reason** — opus high + fable review (one fix round) + one speed fix round; tag `core/cancel-reason`. A forced close's cancel reason is a `CancelReason` that reads like the web's `AbortError`: `name` `"AbortError"`, `String(reason)` and `util.inspect` read `AbortError: The scope closed before this work finished.` No stack (it is minted on every forced close), one instance per close so origin stamps stay apart, the brand an own field so a foreign `AbortError` still settles `failed`. An mcp tool call cut short now answers that text instead of `[object Object]`. Speed: with the brand as a prototype getter, lifecycle was +2.5% (49/61) though nothing read it; as an own field it is within 1%.
   - Gate EXIT 0; core 629 tests; core mutation 86.25; promises 17; validate 44 PASS; slot headroom 6; timing N=61 through benchd: lifecycle +0.17% (37/61) (confirming run), writer's run session +0.00% (27/61), tagged +1.18% (34/61); calibration refreshed.
 - **sync/source-stop** — opus high + fable review (no fix round); tag `sync/source-stop`. A closing `source` now stops its published set (as `subscribe` does) and drops each watch, so a new family member after close no longer throws `Disposed`. Also fixed: a start that failed with `SyncConflict` left an earlier family row's listener attached; `readPublished` attaches family listeners only after every row registers (shared with `subscribe`). Three new tests fail on main with `Disposed`.
