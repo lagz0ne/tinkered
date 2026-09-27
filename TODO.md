@@ -23,8 +23,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **jev/s18-kinds** — S18's message names data, operation, resource, tag, but its set (`tools/jev/plain.mjs`) also counts `family` and `extension`; a driver builds its extension from wiring rows inside a function by design (ADR 0051: `mcp()`, `hono()`, `source()`), so an `extension` hit contradicts the driver pattern (tracker `publish.ts`). Next: decide if S18 counts `extension` (likely not) and make the message name exactly what it counts; also `tools/jev/lib.mjs` prints "skipping — advisory only" when the key is missing while the gate exits 2. Verify: the tracker gate no longer flags `publish.ts:19`; the message matches the set.
-
 - **perf/op-parity** — Compare operation call cost. The runner it waited for is here: `bench/queued.sh`
   sends `bench/ab.sh` through `benchd`, this box's benchmark queue, so one job runs at a time on one
   core with no network and no secrets. Next: pin the baseline and current SHAs, build the baseline
@@ -48,6 +46,8 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
   surveyor agent `3938e2b3` in `../tinkered-handrolled` (brief `jev-handrolled-survey.md`). Next:
   pick the checks with the user, then one writer adds them. Verify: the new checks flag the found
   cases; a judge is calibrated from their labels (ADR 0054).
+  Step 2 landed: plain rules S20–S25 (tag `jev/plain-rules`). Next: the bridge decision (ADR),
+  then the two judges once each has 5 true labels.
 
 - **tracker/reconnect** — the tab's reconnecting wire the tinker way (user, 2026-09-27): wire state
   in the `connection` cell (no `onStatus` bridge), the stream a resource with `ctx.defer` /
@@ -96,6 +96,8 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 ## Done
 
+- **jev/plain-rules** — opus high + fable review (one fix round); tag `jev/plain-rules`. Six plain rules for hand-rolled tinker features: S20 raw random → `ctx.random`, S21 raw clock in a unit body → `ctx.clock`, S22 a dropped run → `settle`, S23 a hand-made `onX` on a listener set → a cell, S24 raw `fetch` in app code → an http endpoint, S25 component state → a cell (writer gate). Repo lint over apps and examples finds exactly the survey's 11 hand-rolled cases, none of its fine ones. S18 counts `family`, not `extension` (drivers build extensions in a function by design). `lint.mjs` on a folder reads only `.ts`/`.tsx`.
+  - Gate EXIT 0; jev tests 104 pass; writer-trial tests 60 pass; validate 44 PASS.
 - **tracker/gate-fixes** — opus high + fable review (no fix round); tag `tracker/gate-fixes`. Seven gate findings fixed in `apps/issue-tracker`: a bad `PORT` (`abc`, `80x`, `70000`) now fails boot with `BadPort` (it silently became 4311 or 80); a draft `prompt` that is not text answers 400 `BadDraftInput` (it silently became `""`); `applyDraft` works on plain values; two casts became checks; a test imports the public entry; `ScopeProvider` renders in `main.tsx`. Gate: 12 blocking → 6, each left a labeled wrong hit or waiting on `jev/s18-kinds`.
   - Gate EXIT 0; tracker 55 tests (4 new fail on main); validate 44 PASS; 9 Jev labels, calibration refreshed.
 - **review/tracker-gate** — opus high + fable review (no fix round); tag `review/tracker-gate`. `node tools/writer-trial/app-gate.mjs <folder>` runs the writer-trial gate (ADR 0068) over any folder's `src/` and `tests/` with the live Jev calibration: exit 0 nothing blocks, 1 blocks, 2 unavailable (never a pass). One rule, one place: `review.mjs check` and `app-gate.mjs` share `judgeFile` (`tools/writer-trial/folder.mjs`) and `gate.mjs`; trials keep their frozen copy. Jev hits now carry their unit's line. First run on `apps/issue-tracker`: 12 blocking (8 plain, 4 proven Jev), 29 advice, 0 unavailable — [report](docs/roadmap/issue-tracker-review/2026-09-27-gate.md).
