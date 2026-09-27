@@ -12,8 +12,8 @@ import { issueList } from "../shared/issues.ts";
 
 /** The composition root: the only place that creates or touches the scope. Sync holds one end of
  * a memory pair; the `wire` extension links the other end to the wire units, so `subscribe`'s
- * `register` opens the stream;
- * `ready` resolves when the first snapshots land. A first-connect failure fires `onClose` once,
+ * `register` opens the stream, and `ready` resolves when the first snapshots land. A
+ * first-connect failure fires `onClose` once,
  * so `subscribe.start` rejects with `SyncNotReady`, `ready` rejects, and the dead page renders —
  * a second root-owned `boot` re-renders static markup between attempts, no React state. */
 function boot(): void {
