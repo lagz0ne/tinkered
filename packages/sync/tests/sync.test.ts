@@ -24,11 +24,6 @@ const counter = data({ label: "counter", initial: 0 });
 /** The shared todo family both drivers publish. */
 const todos = family({ label: "todo", initial: "", parse: parseText });
 
-/** One built transport as the resource `subscribe` resolves: the in-memory end it hands over. */
-function pipe(transport: Sync.Transport) {
-  return resource({ label: "pipe", factory: () => transport });
-}
-
 /** Read one line per frame: the first line parsing to a snapshot wins. */
 function untilSnapshot(text: string): Sync.Message | undefined {
   for (const line of text.split("\n")) {
@@ -151,7 +146,9 @@ test("ready means the viewer holds its initial data set, no watch", () => {
   return origin.ready.then(() => {
     const [near, far] = memoryPair();
     const done = origin.resolve(src).connect(near);
-    const sub = subscribe(pipe(far), { cells: [[counter, "counter"]] });
+    const sub = subscribe(resource({ label: "pipe", factory: () => far }), {
+      cells: [[counter, "counter"]],
+    });
     const guest = createScope({ extensions: [sub] });
     return guest.ready.then(() => {
       expect(guest.resolve(counter)).toBe(5);
@@ -196,7 +193,9 @@ test("resolve delivers the installed values: connect on the source, close on the
   return origin.ready.then(() => {
     const [near, far] = memoryPair();
     const done = origin.resolve(src).connect(near);
-    const sub = subscribe(pipe(far), { cells: [[counter, "counter"]] });
+    const sub = subscribe(resource({ label: "pipe", factory: () => far }), {
+      cells: [[counter, "counter"]],
+    });
     const guest = createScope({ extensions: [sub] });
     return guest.ready.then(() => {
       expect(typeof origin.resolve(src).connect).toBe("function");
@@ -220,8 +219,12 @@ test("a source write fans out to two subscribed viewers", () => {
       origin.resolve(src).connect(near),
       origin.resolve(src).connect(otherNear),
     ]);
-    const firstSub = subscribe(pipe(far), { cells: [[counter, "counter"]] });
-    const secondSub = subscribe(pipe(otherFar), { cells: [[counter, "counter"]] });
+    const firstSub = subscribe(resource({ label: "pipe", factory: () => far }), {
+      cells: [[counter, "counter"]],
+    });
+    const secondSub = subscribe(resource({ label: "pipe", factory: () => otherFar }), {
+      cells: [[counter, "counter"]],
+    });
     const firstScope = createScope({ extensions: [firstSub] });
     const secondScope = createScope({ extensions: [secondSub] });
     return Promise.all([firstScope.ready, secondScope.ready]).then(() => {
@@ -258,7 +261,9 @@ test("cells take nested lists and false: a row is a pair, a list of pairs is ope
   return origin.ready.then(() => {
     const [near, far] = memoryPair();
     const done = origin.resolve(src).connect(near);
-    const sub = subscribe(pipe(far), { cells: [[[counter, "counter"]]] });
+    const sub = subscribe(resource({ label: "pipe", factory: () => far }), {
+      cells: [[[counter, "counter"]]],
+    });
     const guest = createScope({ extensions: [sub] });
     return guest.ready.then(() => {
       const watch = reached(
@@ -288,7 +293,9 @@ test("a viewer sees only what it registered", () => {
   return origin.ready.then(() => {
     const [near, far] = memoryPair();
     const done = origin.resolve(src).connect(near);
-    const sub = subscribe(pipe(far), { cells: [[guestTodos, "todo"]] });
+    const sub = subscribe(resource({ label: "pipe", factory: () => far }), {
+      cells: [[guestTodos, "todo"]],
+    });
     const guest = createScope({ extensions: [sub] });
     return guest.ready.then(() => {
       expect(guest.resolve(guestTodos.cell, { ns: guestTodos("7") })).toBe("seven");
@@ -310,7 +317,9 @@ test("two family members stay independent over the wire", async () => {
   origin.controller(originTodos.cell, { ns: originTodos("b") }).set("beta");
   await origin.ready;
   const [near, far] = memoryPair();
-  const sub = subscribe(pipe(far), { cells: [[guestTodos, "two"]] });
+  const sub = subscribe(resource({ label: "pipe", factory: () => far }), {
+    cells: [[guestTodos, "two"]],
+  });
   guestTodos("a");
   guestTodos("b");
   const guest = createScope({ extensions: [sub] });
@@ -331,7 +340,9 @@ test("a late member after ready gets its snapshot", () => {
   return origin.ready.then(() => {
     const [near, far] = memoryPair();
     const done = origin.resolve(src).connect(near);
-    const sub = subscribe(pipe(far), { cells: [[guestTodos, "todo-late"]] });
+    const sub = subscribe(resource({ label: "pipe", factory: () => far }), {
+      cells: [[guestTodos, "todo-late"]],
+    });
     const guest = createScope({ extensions: [sub] });
     return guest.ready.then(() => {
       const member = guestTodos("3");
@@ -357,7 +368,7 @@ test("readiness spans the whole initial set", async () => {
   const stagedTodos = family({ label: "todo-t07-stage", initial: "", parse: parseText });
   stagedTodos("7");
   const [near, far] = memoryPair();
-  const sub = subscribe(pipe(far), {
+  const sub = subscribe(resource({ label: "pipe", factory: () => far }), {
     cells: [
       [staged, "counter"],
       [stagedTodos, "todo-t07-stage"],
@@ -386,7 +397,9 @@ test("the far side closing first rejects ready with SyncNotReady", async () => {
   const [near, far] = memoryPair();
   near.onMessage(() => near.close());
   const done = origin.resolve(src).connect(near);
-  const sub = subscribe(pipe(far), { cells: [[counter, "counter"]] });
+  const sub = subscribe(resource({ label: "pipe", factory: () => far }), {
+    cells: [[counter, "counter"]],
+  });
   const guest = createScope({ extensions: [sub] });
   const checked = guest.ready.then(
     () => {
@@ -415,7 +428,9 @@ test("a forced close while waiting rejects ready and parts the source wire", () 
     const parted = new Promise<void>((resolve) => {
       near.onClose(() => resolve());
     });
-    const sub = subscribe(pipe(far), { cells: [[counter, "counter"]] });
+    const sub = subscribe(resource({ label: "pipe", factory: () => far }), {
+      cells: [[counter, "counter"]],
+    });
     const guest = createScope({ extensions: [sub] });
     const closing = guest.close();
     return guest.ready.then(
@@ -527,7 +542,9 @@ test("the source close hook parts the viewer wire on a graceful close", () => {
     const parted = new Promise<void>((resolve) => {
       far.onClose(() => resolve());
     });
-    const sub = subscribe(pipe(far), { cells: [[counter, "counter"]] });
+    const sub = subscribe(resource({ label: "pipe", factory: () => far }), {
+      cells: [[counter, "counter"]],
+    });
     const guest = createScope({ extensions: [sub] });
     return guest.ready.then(() =>
       origin.close({ graceful: true }).then((result) => {
@@ -573,7 +590,9 @@ test("a row for an unpublished key posted by a viewer still closes the transport
   const parted = new Promise<void>((resolve) => {
     near.onClose(() => resolve());
   });
-  const sub = subscribe(pipe(far), { cells: [[watched, "todo-t07-viewer"]] });
+  const sub = subscribe(resource({ label: "pipe", factory: () => far }), {
+    cells: [[watched, "todo-t07-viewer"]],
+  });
   const guest = createScope({ extensions: [sub] });
   await guest.ready;
   expect(guest.resolve(watched.cell, { ns: watched("7") })).toBe("");
@@ -600,7 +619,7 @@ test.each([{ kind: "unpublished key" }, { kind: "parse rejects" }, { kind: "wron
     const parted = new Promise<void>((resolve) => {
       near.onClose(() => resolve());
     });
-    const sub = subscribe(pipe(far), {
+    const sub = subscribe(resource({ label: "pipe", factory: () => far }), {
       cells: [
         [counter, "counter"],
         [strict, "t07-strict"],
@@ -641,7 +660,9 @@ test("after ready a bad snapshot closes the wire and drops later snapshots", asy
   await origin.ready;
   const [near, far] = memoryPair();
   const done = origin.resolve(src).connect(near);
-  const sub = subscribe(pipe(far), { cells: [[guestTodos, "todo-t07-after"]] });
+  const sub = subscribe(resource({ label: "pipe", factory: () => far }), {
+    cells: [[guestTodos, "todo-t07-after"]],
+  });
   const guest = createScope({ extensions: [sub] });
   await guest.ready;
   expect(guest.resolve(guestTodos.cell, { ns: guestTodos("7") })).toBe("");
@@ -669,7 +690,9 @@ test("a source member the origin never held arrives with the source value", asyn
   await origin.ready;
   const [near, far] = memoryPair();
   const done = origin.resolve(src).connect(near);
-  const sub = subscribe(pipe(far), { cells: [[guestTodos, "todo-t07-made"]] });
+  const sub = subscribe(resource({ label: "pipe", factory: () => far }), {
+    cells: [[guestTodos, "todo-t07-made"]],
+  });
   const guest = createScope({ extensions: [sub] });
   await guest.ready;
   expect(guest.resolve(guestTodos.cell, { ns: guestTodos(memberId) })).toBe("src-init");
@@ -713,7 +736,9 @@ test("binding the same cell twice stays ready with one registration key", async 
     seen.push(message);
   });
   const done = origin.resolve(src).connect(near);
-  const sub = subscribe(pipe(far), { cells: [[counter, "counter"]] });
+  const sub = subscribe(resource({ label: "pipe", factory: () => far }), {
+    cells: [[counter, "counter"]],
+  });
   const guest = createScope({ extensions: [sub] });
   await guest.ready;
   expect(guest.resolve(counter)).toBe(5);
@@ -733,7 +758,9 @@ test("a row names the key, not the cell label", async () => {
   await origin.ready;
   const [near, far] = memoryPair();
   const done = origin.resolve(src).connect(near);
-  const sub = subscribe(pipe(far), { cells: [[watched, "shared"]] });
+  const sub = subscribe(resource({ label: "pipe", factory: () => far }), {
+    cells: [[watched, "shared"]],
+  });
   const guest = createScope({ extensions: [sub] });
   await guest.ready;
   expect(guest.resolve(watched)).toBe(4);
@@ -850,7 +877,9 @@ test("closing the viewer scope parts the source wire", async () => {
   await origin.ready;
   const [near, far] = memoryPair();
   const done = origin.resolve(src).connect(near);
-  const sub = subscribe(pipe(far), { cells: [[counter, "counter"]] });
+  const sub = subscribe(resource({ label: "pipe", factory: () => far }), {
+    cells: [[counter, "counter"]],
+  });
   const guest = createScope({ extensions: [sub] });
   await guest.ready;
   await guest.close({ graceful: true });
@@ -878,7 +907,9 @@ test("a closed viewer sends nothing when a member arrives later", async () => {
       far.close();
     },
   };
-  const sub = subscribe(pipe(transport), { cells: [[notes, "notes"]] });
+  const sub = subscribe(resource({ label: "pipe", factory: () => transport }), {
+    cells: [[notes, "notes"]],
+  });
   const guest = createScope({ extensions: [sub] });
   await guest.ready;
   await guest.close({ graceful: true });
@@ -889,7 +920,9 @@ test("a closed viewer sends nothing when a member arrives later", async () => {
 
 test("a viewer closes after a wrong-direction message arrives after ready", async () => {
   const [near, far] = memoryPair();
-  const sub = subscribe(pipe(far), { cells: [[counter, "counter"]] });
+  const sub = subscribe(resource({ label: "pipe", factory: () => far }), {
+    cells: [[counter, "counter"]],
+  });
   const guest = createScope({ extensions: [sub] });
   near.send({ type: "snapshot", key: "counter", version: 0, value: 1 });
   await guest.ready;
@@ -1025,7 +1058,7 @@ test("a source keeps versions of members held before startup", async () => {
 });
 
 test("a viewer binding nothing is ready at once", () => {
-  const sub = subscribe(pipe(memoryPair()[1]), { cells: [] });
+  const sub = subscribe(resource({ label: "pipe", factory: () => memoryPair()[1] }), { cells: [] });
   const guest = createScope({ extensions: [sub] });
   return guest.ready.then(() => guest.close({ graceful: true }));
 });
@@ -1051,7 +1084,9 @@ test("a second scope's source still publishes new members after the first closed
   await origin.ready;
   const [near, far] = memoryPair();
   const done = origin.resolve(src).connect(near);
-  const sub = subscribe(pipe(far), { cells: [[todo, "todo"]] });
+  const sub = subscribe(resource({ label: "pipe", factory: () => far }), {
+    cells: [[todo, "todo"]],
+  });
   const guest = createScope({ extensions: [sub] });
   await guest.ready;
   const nine = todo("9");
