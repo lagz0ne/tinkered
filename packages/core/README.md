@@ -196,6 +196,17 @@ is `cancelled`; a real failure can make it `failed`.
 `close()` when the work needs a stop signal. The first close call chooses the mode; a later
 forced close does not upgrade a graceful close already in progress.
 
+A closed scope frees its data. `close({ withData: true })` hands it over instead (ADR 0069):
+
+- `result.data.get(cell)` is present when the scope wrote the cell itself.
+- It is absent for a value the scope only inherited; the parent still holds that.
+- Every status carries `data` when asked: `success`, `cancelled`, and `failed`.
+- `data.get(cell, { ns })` reads a named bucket, as `controller(cell, { ns })` does.
+- Like `graceful`, `withData` is read from the first close call.
+- A `session` hook still reads the session's cells and tags after `next()`, through `resolve`.
+- Writes and resource reads there still throw `Disposed`.
+- Once the hooks return, every read throws `Disposed`.
+
 ## Sessions and cell writes
 
 A child session inherits its parent's cells until it writes its own value. That write stays
@@ -682,6 +693,13 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - An operation that finishes after abort still sees cancelled.
 - A cleanup that closes another scope sees its real result.
 - An idle scope's close still reports an operation cleanup that threw.
+- A default close frees a session's data and returns none.
+- A withData close hands over what the session wrote, never what it inherited.
+- A family member and a namespaced session's cell read back from data.
+- A graceful withData close keeps what in-flight work wrote before it settled.
+- A session hook reads the session's cells and tags after next.
+- A session hook cannot write a cell or read a resource after next.
+- A hooked session's reads throw once its hooks return.
 
 ### Clock
 

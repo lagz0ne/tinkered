@@ -36,6 +36,15 @@ before it is freed.
 - An extension flag (`next({ keep: true })`): rejected; the hook reads the session directly.
 - Keeping inherited values too: rejected; it copies what the parent already holds.
 
+## As built
+
+- core/with-data (2026-09-27): a session's tags stay readable in the hook window too. Core frees
+  them at the same step as its data.
+- `data.get(cell, { ns })` picks the bucket a controller on that scope picks: the ns chain in
+  order, then the default bucket. Without `ns`, the scope's own `ns` applies.
+- `withData` is read from the first close call, like `graceful`; a later call joins that close.
+- In the hook window only `resolve` reads; `controller(cell)` still throws `Disposed`.
+
 ## Consequences
 
 - A closed session's data cells stay readable until its `session` hooks finish; only
