@@ -2111,13 +2111,11 @@ const cancelBrand: unique symbol = Symbol("cancel");
 
 /** A forced close's cancel reason. It reads like the web's `AbortError` — `name`, `message`, and
  * `String(reason)` → `"AbortError: …"` — so text built from it says why the work stopped. The brand
- * sits on the prototype, so `isCancelReason` still tells it from a foreign `AbortError` and an
- * instance holds no own field. Not an `Error`: every forced close (each session close) mints one,
- * and a stack capture there costs. */
+ * lets `isCancelReason` tell it from a foreign `AbortError`. It is an own field, not a prototype
+ * getter: the getter-only instance made `close()` measurably slower (lifecycle +3%). Not an `Error`:
+ * every forced close (each session close) mints one, and a stack capture there costs. */
 class CancelReason {
-  get [cancelBrand](): true {
-    return true;
-  }
+  readonly [cancelBrand] = true;
 
   get name(): string {
     return "AbortError";
