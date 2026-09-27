@@ -1,3 +1,4 @@
+import { setImmediate as nextTurn } from "node:timers/promises";
 import { createScope, makeTestClock, preset } from "@tinker/core";
 import { isError as isSyncError, memoryPair, subscribe, type Sync } from "@tinker/sync";
 import { expect, test } from "vite-plus/test";
@@ -500,7 +501,40 @@ test("a reconnect bumps retry: the wire rewires, goes live, and replays the last
   }
 });
 
-test("a rewire whose stream errors before its open leaves the connection failed", async () => {
+test("a rewire that errors before its open retries after a longer wait and goes live on a later open", async () => {
+  const sent: Sync.Message[] = [];
+  const tab = bootTab((input) => {
+    sent.push(input.message);
+    return Promise.resolve();
+  });
+  const [first] = tab.sources;
+  first?.open();
+  first?.push(SNAPSHOT);
+  try {
+    await tab.scope.ready;
+    first?.fail();
+    tab.clock.advance(1000);
+    await expect.poll(() => tab.sources.length).toBe(2);
+    tab.sources[1]?.fail();
+    expect(tab.scope.resolve(connection)).toMatchObject({
+      live: false,
+      pending: false,
+      failed: false,
+    });
+    tab.clock.advance(1999);
+    await nextTurn();
+    expect(tab.sources.length).toBe(2);
+    tab.clock.advance(1);
+    await expect.poll(() => tab.sources.length).toBe(3);
+    tab.sources[2]?.open();
+    expect(tab.scope.resolve(connection).live).toBe(true);
+    await expect.poll(() => sent).toEqual([REGISTER, REGISTER]);
+  } finally {
+    await tab.scope.close();
+  }
+});
+
+test("the retry wait doubles with each miss and caps at 30 seconds", async () => {
   const tab = bootTab(() => Promise.resolve());
   const [first] = tab.sources;
   first?.open();
@@ -508,13 +542,44 @@ test("a rewire whose stream errors before its open leaves the connection failed"
   try {
     await tab.scope.ready;
     first?.fail();
-    tab.scope.run(reconnect);
+    for (const wait of [1000, 2000, 4000, 8000, 16_000, 30_000, 30_000]) {
+      const opened = tab.sources.length;
+      tab.clock.advance(wait - 1);
+      await nextTurn();
+      expect(tab.sources.length).toBe(opened);
+      tab.clock.advance(1);
+      await expect.poll(() => tab.sources.length).toBe(opened + 1);
+      tab.sources.at(-1)?.fail();
+    }
+  } finally {
+    await tab.scope.close();
+  }
+});
+
+test("a retry bump during a wait opens at once, resets the wait, and the old wait opens nothing", async () => {
+  const tab = bootTab(() => Promise.resolve());
+  const [first] = tab.sources;
+  first?.open();
+  first?.push(SNAPSHOT);
+  try {
+    await tab.scope.ready;
+    first?.fail();
+    tab.clock.advance(1000);
+    await expect.poll(() => tab.sources.length).toBe(2);
     tab.sources[1]?.fail();
-    expect(tab.scope.resolve(connection)).toMatchObject({
-      live: false,
-      pending: false,
-      failed: true,
-    });
+    tab.scope.run(reconnect);
+    expect(tab.sources.length).toBe(3);
+    tab.sources[2]?.fail();
+    tab.clock.advance(999);
+    await nextTurn();
+    expect(tab.sources.length).toBe(3);
+    tab.clock.advance(1);
+    await expect.poll(() => tab.sources.length).toBe(4);
+    tab.sources[3]?.open();
+    tab.clock.advance(60_000);
+    await nextTurn();
+    expect(tab.sources.length).toBe(4);
+    expect(tab.scope.resolve(connection).live).toBe(true);
   } finally {
     await tab.scope.close();
   }
@@ -554,6 +619,23 @@ test("a scope close during the backoff wait ends quietly and opens nothing", asy
   tab.clock.advance(60_000);
   expect(ended.teardownErrors).toBeUndefined();
   expect(tab.sources.length).toBe(1);
+});
+
+test("a scope close during the wait after a failed rewire ends quietly and opens nothing", async () => {
+  const tab = bootTab(() => Promise.resolve());
+  const [first] = tab.sources;
+  first?.open();
+  first?.push(SNAPSHOT);
+  await tab.scope.ready;
+  first?.fail();
+  tab.clock.advance(1000);
+  await expect.poll(() => tab.sources.length).toBe(2);
+  tab.sources[1]?.fail();
+  const ended = await tab.scope.close();
+  tab.clock.advance(60_000);
+  await nextTurn();
+  expect(ended.teardownErrors).toBeUndefined();
+  expect(tab.sources.length).toBe(2);
 });
 
 test("a POST that fails for a replaced stream does not drop the current one", async () => {

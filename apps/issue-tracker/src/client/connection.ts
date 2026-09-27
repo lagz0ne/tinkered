@@ -56,8 +56,11 @@ export const wirePeer = tag<Sync.Transport>({ label: "wirePeer" });
  * on each bump; nothing calls the wire (ADR 0070). */
 export const retry = data<number>({ label: "wire.retry", initial: 0 });
 
-/** How long a dropped wire waits before it opens again by itself. */
+/** How long a dropped wire first waits before it opens again by itself; each miss doubles it. */
 const BACKOFF_MS = 1000;
+
+/** The longest a dropped wire waits between two tries. */
+const BACKOFF_CAP_MS = 30_000;
 
 /** The wire's health as the `connection` cell holds it; the wire is its one writer. */
 const HEALTH = {
@@ -83,12 +86,14 @@ export const postSync = operation({
 /** The tab's link (ADR 0070): one resource that owns the current `Wire.Source` under one client
  * id from `ctx.random`, writes the `connection` health, and rewires itself.
  * - Opening a stream writes connecting; its open writes live.
- * - An error before the open writes failed. On the first stream it also closes sync's pair, so
- *   sync rejects `ready` and the boot fails.
- * - A later error, a malformed frame, or a refused POST writes dropped. The wire watches its
- *   health: on dropped it waits `BACKOFF_MS` on `ctx.clock` with `ctx.signal`, then opens again.
- *   A close aborts the wait quietly.
- * - A bump of `retry` opens a fresh stream now.
+ * - The first stream's error before its open writes failed and closes sync's pair, so sync
+ *   rejects `ready` and the boot fails.
+ * - A rewire's error before its open, a later error, a malformed frame, or a refused POST writes
+ *   dropped. The wire watches its health: on dropped it waits on `ctx.clock` with `ctx.signal`,
+ *   then opens again. The wait starts at `BACKOFF_MS`, doubles with each drop in a row, and caps
+ *   at `BACKOFF_CAP_MS`; an open resets it. A close aborts the wait quietly.
+ * - A bump of `retry` opens a fresh stream now and resets the wait; the pending wait opens
+ *   nothing.
  * - Each rewire replays the last register the wire kept from sync.
  * Sync's messages POST behind the current stream's open, in send order; a failed POST drops the
  * wire only while the stream it was sent for is still current. Closing a stream that has
@@ -109,6 +114,8 @@ export const wire = resource({
     let gate: Promise<void> = Promise.resolve();
     let abandon: () => void = () => undefined;
     let registered: Sync.Message | null = null;
+    let wait = BACKOFF_MS;
+    let turn = 0;
 
     const shut = (): void => {
       abandon();
@@ -130,8 +137,9 @@ export const wire = resource({
       }
       peer.send(message);
     };
-    const openNext = (failed: () => void): void => {
+    const openNext = (missed: () => void): void => {
       shut();
+      turn += 1;
       health.set(HEALTH.connecting);
       const source = open(`/sync?client=${id}`);
       current = source;
@@ -139,15 +147,14 @@ export const wire = resource({
         abandon = () => reject(fail("SyncDropped", { reason: "stream closed" }));
         source.onerror = () => {
           if (source !== current) return;
-          health.set(HEALTH.failed);
-          failed();
-          shut();
+          missed();
         };
         source.onopen = () => {
           if (source !== current) return;
           source.onerror = () => {
             if (source === current) drop();
           };
+          wait = BACKOFF_MS;
           health.set(HEALTH.live);
           resolve();
         };
@@ -168,16 +175,22 @@ export const wire = resource({
     };
     const rewire = async (): Promise<void> => {
       if (signal.aborted) return;
-      openNext(() => undefined);
+      openNext(drop);
       if (registered !== null) await send(registered);
     };
+    const retryNow = async (): Promise<void> => {
+      wait = BACKOFF_MS;
+      await rewire();
+    };
     const backOff = async (): Promise<void> => {
-      const waited = await clock.sleep(BACKOFF_MS, signal).then(
+      const waiting = turn;
+      const pause = wait;
+      wait = Math.min(wait * 2, BACKOFF_CAP_MS);
+      const waited = await clock.sleep(pause, signal).then(
         () => true,
         () => false,
       );
-      if (waited === false || signal.aborted) return;
-      if (health.get() === HEALTH.dropped) await rewire();
+      if (waited && turn === waiting) await rewire();
     };
 
     defer(
@@ -192,9 +205,13 @@ export const wire = resource({
         if (next === HEALTH.dropped) await backOff();
       }),
     );
-    defer(intent.watch(rewire));
+    defer(intent.watch(retryNow));
     defer(shut);
-    openNext(() => peer.close());
+    openNext(() => {
+      health.set(HEALTH.failed);
+      peer.close();
+      shut();
+    });
     return { id };
   },
 });
