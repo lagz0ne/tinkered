@@ -13,44 +13,38 @@ person can reload the other change and try again. Comments append without
 an edit revision.
 
 If the live connection drops — a wire failure or a server restart — the
-page keeps every typed draft and keeps trying to reconnect by itself. Its
-Reconnect button tries at once. Reconnecting swaps in a fresh connection
-on the same page, so the local title, comment, and edit revision survive.
-A server restart keeps the database on disk; the fresh connection accepts
-the newer saved state even when the server's revision is lower than the
-last one the old connection saw.
+page keeps every typed draft, and the browser reconnects by itself.
+Reconnecting keeps the same page, so the local title, comment, and edit
+revision survive. A server restart keeps the database on disk; the fresh
+connection accepts the newer saved state even when the server's revision
+is lower than the last one the old connection saw.
 
-The live connection is one server-sent stream plus POSTs:
+The live connection is one server-sent stream, `GET /sync?keys=issues`:
 
-- **first stream error before it opens** — the boot fails and the page
-  shows "Could not connect" with its own Reconnect button. A stream that
-  cannot be opened at all fails the boot the same way.
-- **a later stream error, a malformed frame, or a refused POST** — the
-  connection drops; the list and drafts stay, and sync stays attached.
-- **the retry rule** — a dropped wire keeps trying by itself:
-  - It waits, then opens a fresh stream and sends the last register again.
-  - The first wait is 1 second.
-  - Each drop in a row doubles the wait, up to 30 seconds.
-  - A fresh stream that errors before it opens is one more drop:
-    the wire waits longer, then tries again.
-  - Going live resets the wait to 1 second.
-  - It stops only when the page's scope closes.
-- **POSTs** — they wait for the stream's open and go out in send order.
-  A POST that fails for a replaced stream does not drop the current one.
-- **Reconnect** — the button asks for a retry; the wire opens a fresh
-  stream now, goes live, and sends the last register again.
-  - The retry resets the wait to 1 second.
-  - The wait it cut short opens nothing.
+- **the keys ride in the URL** — the server reads them and registers the
+  tab when the stream connects, then sends one snapshot per key.
+  - No key, or a key the server does not publish: 400, no stream.
+  - The first frame is `retry: 1000`: the browser waits 1 second before
+    each reconnect.
+- **the browser reconnects** — each reconnect is a fresh GET with the
+  keys, so the server registers the tab again and sends a fresh snapshot.
+- **server down at boot** — the page shows "Connecting…" and comes alive
+  when the server returns.
+- **the dead page** — "Could not connect" with its own Reconnect button.
+  - It shows only when the stream fails for good before the first
+    snapshot: the server answered an HTTP error, or the first frame was
+    malformed.
+  - A stream that cannot be opened at all fails the boot the same way.
+- **a stream that fails for good after the boot** — an HTTP error on a
+  reconnect, or a malformed frame. The list and drafts stay, and sync
+  stays attached. The tab waits for Reconnect.
+- **Reconnect** — the button opens a fresh stream now.
 - **what the tab shows** — one state at a time:
   - live: no notice.
-  - waiting: "Live updates stopped" and a Reconnect button.
-  - trying: the same notice, "Reconnecting…", and Reconnect greyed out.
-  - After the boot, no drop reads as failed.
-    Only the first stream fails, and that shows the dead page.
-- **closing the page's scope** — it aborts in-flight POSTs, closes the
-  stream, and tells sync once. A close before the first stream opens
-  still settles: it does not wait on the register POST behind it. A
-  close during any wait ends quietly and opens nothing.
+  - reconnecting: "Live updates stopped", "Reconnecting…", and Reconnect
+    greyed out.
+  - failed: "Live updates stopped" and a Reconnect button.
+- **closing the page's scope** — it closes the stream and tells sync once.
 
 Offline saves show a plain notice ("Could not reach the server. Your work
 is kept — try again.") instead of a raw error name, and the typed text is
@@ -176,9 +170,11 @@ vp run @tinker-issue-tracker#test:browser
 temporary server on a free port with a temporary database, drives two real
 390px Chromium tabs (create/edit/status/assign/comment, conflict with
 explicit reload, CLI create/update/comment/get visible in the browser,
-reload, one server restart the tab comes back from by itself keeping local
-drafts and rejecting the stale revision with 409, and Reconnect pressed
-while the server is down), then runs the helper cases
+reload, a tab opened while the server is down that shows "Connecting…"
+and goes live when it starts, one server restart the tab comes back from
+by itself keeping local drafts and rejecting the stale revision with 409,
+and Reconnect pressed after the stream was refused with a 503), then runs
+the helper cases
 (cancel/discard/Post with a held comment request, closing the view,
 malformed stream, shutdown with a live wire and held turn). It cleans up
 its servers, browsers, and temp data, and needs no model credentials.

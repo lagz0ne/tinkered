@@ -113,3 +113,17 @@ and third writers of the connection status.
 - The tracker's `wire` resource is the `Sync.Transport` itself. Its listener sets live inside it
   (rule 4). `memoryPair`, `wirePeer`, and `linkWire` left the client; nothing is built before
   `createScope`.
+- The tab wire rebuilt from first principles (user, 2026-09-27: "the connection is
+  overcomplicated"; tracker/wire-rebuild). The precedent is the SSE spec's own reconnect.
+  - The keys ride in the stream URL, `GET /sync?keys=issues`. The server makes the `register`
+    from the query and hands it to its transport; the first frame is `retry: 1000`.
+  - The browser's `EventSource` reconnects by itself. Each reconnect is a fresh GET, so the
+    server registers again and sends a fresh snapshot.
+  - Health is `connecting`, `live`, or `failed`; there is no `dropped` and no backoff wait.
+    An error while the browser retries is `connecting`.
+    `failed` is an error with `readyState` CLOSED (an HTTP error) or a malformed frame.
+  - Intent is unchanged: a `retry` bump opens a fresh stream.
+  - Gone from the server: the `POST /sync` route, `registerViewer`, `parsePosted`, the
+    `viewers` inbox and its client id, `ViewerGone`.
+  - Gone from the client: `postSync`, the gate, the stale-POST check, the register replay,
+    the backoff loop, the `turn` counter, the client id.
