@@ -1,5 +1,4 @@
-import type { Scope } from "@tinker/core";
-import { ScopeProvider, useData, useRun } from "@tinker/react";
+import { useData, useRun } from "@tinker/react";
 import { assignees, issueList, type Issues } from "../shared/issues.ts";
 import {
   reconnect,
@@ -368,14 +367,5 @@ export function App() {
       <DetailView />
       <ReloadButton />
     </main>
-  );
-}
-
-/** The app with its scope: the composition root owns both; the shell only reads and runs. */
-export function ScopedApp(props: { readonly scope: Scope.Handle }) {
-  return (
-    <ScopeProvider scope={props.scope}>
-      <App />
-    </ScopeProvider>
   );
 }

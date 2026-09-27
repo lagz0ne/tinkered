@@ -1,4 +1,4 @@
-import { resource, type Scope } from "@tinker/core";
+import { resource } from "@tinker/core";
 import { isError as isHttpError } from "@tinker/http";
 import { pumpLines, readLine, type Draft } from "../shared/draft.ts";
 import { isError } from "../errors.ts";
@@ -20,15 +20,11 @@ function readView(outcome: Draft.Outcome): DraftRun["view"] {
   return "failed";
 }
 
-/** Apply one live event to the run cell: text grows, the finished draft lands whole. */
-function applyDraft(run: Scope.DataController<DraftRun>, event: Draft.Event): void {
-  if (event.kind === "text") {
-    const text = event.text;
-    run.update((prev) => ({ ...prev, text: prev.text + text }));
-  } else if (event.kind === "done") {
-    const draft = event.draft;
-    run.update((prev) => ({ ...prev, draft }));
-  }
+/** Read one live event onto the run: text grows, the finished draft lands whole. */
+function applyDraft(prev: DraftRun, event: Draft.Event): DraftRun {
+  if (event.kind === "text") return { ...prev, text: prev.text + event.text };
+  if (event.kind === "done") return { ...prev, draft: event.draft };
+  return prev;
 }
 
 /** True when the rejection is the reader's own cancel landing: the pump's generation moved
@@ -114,7 +110,7 @@ export const drafter = resource({
       const pumpState = {
         tail: "",
         apply: (event: Draft.Event) => {
-          if (mine === epoch) applyDraft(run, event);
+          if (mine === epoch) run.update((prev) => applyDraft(prev, event));
         },
       };
       let outcome: Draft.Outcome = "failed";

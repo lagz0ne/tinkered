@@ -3,7 +3,8 @@ import { createRoot } from "react-dom/client";
 import { createScope } from "@tinker/core";
 import { subscribe } from "@tinker/sync";
 import { api } from "./api.ts";
-import { ScopedApp } from "./App.tsx";
+import { ScopeProvider } from "@tinker/react";
+import { App } from "./App.tsx";
 import { reconnectingTransport, wire } from "./connection.ts";
 import { capability, detailRefresh, liveness } from "./services.ts";
 import { drafter } from "./drafter.ts";
@@ -45,7 +46,9 @@ async function start(element: ReturnType<typeof createRoot>): Promise<boolean> {
   scope.resolve(capability);
   element.render(
     <StrictMode>
-      <ScopedApp scope={scope} />
+      <ScopeProvider scope={scope}>
+        <App />
+      </ScopeProvider>
     </StrictMode>,
   );
   return true;

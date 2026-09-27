@@ -126,6 +126,11 @@ export function sameMark(a: RowMark, b: RowMark | null): boolean {
   return a.revision === b.revision && a.updatedAt === b.updatedAt;
 }
 
+/** True when `value` is an object whose keys can be read by name. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 /** One field guard: the door for one patch field. */
 type Field<V> = (value: unknown) => value is V;
 
@@ -157,12 +162,11 @@ export function readPatch<T>(
   fields: { [K in keyof T]-?: Field<T[K]> },
   error: Errors.Name,
 ): Partial<T> {
-  if (typeof raw !== "object" || raw === null) raise(error, { reason: "patch is unreadable" });
+  if (!isRecord(raw)) raise(error, { reason: "patch is unreadable" });
   const patch: Partial<T> = {};
-  const seen = raw as Record<string, unknown>;
   for (const key of Object.keys(fields)) {
     if (!isField(key, fields)) continue;
-    setField(patch, key, fields[key], seen[key], error);
+    setField(patch, key, fields[key], raw[key], error);
   }
   return patch;
 }
