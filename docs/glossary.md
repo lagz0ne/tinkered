@@ -351,3 +351,10 @@ New sections are lists, one term per item.
   closing session's own data moves into the
   close `Result` as `data` instead of being freed.
   Off by default.
+
+## Links (ADR 0070)
+
+- **link** — A long-lived connection to something
+  outside (a stream, a socket, a child process),
+  owned by one resource that rewires it from its
+  health and intent cells.
