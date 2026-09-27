@@ -86,6 +86,7 @@ The start resolves it inside the scope and awaits it before it registers.
 A transport resource with an async factory resolves before the viewer registers.
 A transport resource that fails to build rejects `ready` with its error.
 A graceful close while the transport builds rejects `ready` with `SyncNotReady` and parts the wire.
+It sends nothing first, and it rejects `ready` even with no rows.
 Sync does not reconnect: the resource owns any rewiring and hands over one steady transport (ADR 0070).
 The resource lives as long as the scope.
 

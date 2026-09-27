@@ -296,7 +296,8 @@ export function source(wiring: Sync.Wiring): Scope.Extension<Sync.Source> {
  * its own error. Sync does not reconnect: the resource owns any rewiring
  * and hands over one steady transport (ADR 0070). The resource and the
  * extension share the scope's lifetime; a close while the transport builds
- * rejects `start` with `SyncNotReady` and closes the transport once built.
+ * rejects `start` with `SyncNotReady` (even with no rows) and closes the
+ * transport once built, before it sends anything.
  * Then `start` registers the keys the
  * viewer shows and waits until every key of that initial registration
  * holds its snapshot (`ready` is the initial data set, ADR 0050), then
@@ -329,6 +330,11 @@ export function subscribe(
       const first: string[] = [];
       for (const key of published.entries.keys()) first.push(key);
       const missing = new Set<string>(first);
+      if (closing) {
+        published.stop();
+        transport.close();
+        raise("SyncNotReady", { label: "subscribe", missing: first });
+      }
       let waiters: { settle: () => void; fail: () => void } | undefined;
       function stop(): void {
         if (shut) return;
@@ -430,11 +436,13 @@ export function subscribe(
         };
       });
       noteRejection(waited);
-      function abandon(): void {
-        if (waiters !== undefined) failStart();
-      }
-      if (closing) abandon();
-      else ctx.signal.addEventListener("abort", abandon, { once: true });
+      ctx.signal.addEventListener(
+        "abort",
+        () => {
+          if (waiters !== undefined) failStart();
+        },
+        { once: true },
+      );
       const settled = waited.then(async () => {
         await next();
         function close(): void {

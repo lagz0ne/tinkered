@@ -502,6 +502,8 @@ test("a transport resource that fails to build rejects ready with its error", as
 
 test("a graceful close while the transport builds rejects ready and parts the wire", async () => {
   const [near, far] = memoryPair();
+  const heard: Sync.Message[] = [];
+  near.onMessage((message) => heard.push(message));
   let parted = 0;
   near.onClose(() => {
     parted += 1;
@@ -530,6 +532,41 @@ test("a graceful close while the transport builds rejects ready and parts the wi
     },
   );
   await closing;
+  await setImmediate();
+  expect(parted).toBe(1);
+  expect(heard).toEqual([]);
+});
+
+test("a graceful close while the transport builds rejects ready even with no rows", async () => {
+  const [near, far] = memoryPair();
+  let parted = 0;
+  near.onClose(() => {
+    parted += 1;
+  });
+  let build: () => void = () => undefined;
+  const built = new Promise<void>((resolve) => {
+    build = resolve;
+  });
+  const later = resource({
+    label: "later",
+    factory: async () => {
+      await built;
+      return far;
+    },
+  });
+  const guest = createScope({ extensions: [subscribe(later, { cells: [] })] });
+  const closing = guest.close({ graceful: true });
+  build();
+  await guest.ready.then(
+    () => {
+      expect.unreachable();
+    },
+    (error: unknown) => {
+      if (!isError(error, "SyncNotReady")) throw error;
+      expect(error.payload.missing).toEqual([]);
+    },
+  );
+  expect((await closing).status).toBe("failed");
   expect(parted).toBe(1);
 });
 
