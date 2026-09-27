@@ -3,7 +3,7 @@ import { isError as isHttpError } from "@tinker/http";
 import { issueList, type Issues } from "../shared/issues.ts";
 import { isError, raise } from "../errors.ts";
 import { getCapability, getDetail, patchIssue, postComment, postIssue } from "./api.ts";
-import { lastRegister, stream } from "./connection.ts";
+import { retry } from "./connection.ts";
 import { drafter } from "./drafter.ts";
 import {
   commentAuthor,
@@ -378,21 +378,13 @@ export const postDraft = operation({
   },
 });
 
-/** Reconnect the wire: open a fresh stream (the stream writes the connection pending, then live
- * or failed), then replay the last register on it. A stream that errors before its open ends the
- * run with nothing replayed. */
+/** Ask for a reconnect: bump the retry intent. The wire sees the bump, opens a fresh stream, and
+ * replays the last register; it writes the connection cell, this never does (ADR 0070). */
 export const reconnect = operation({
   label: "reconnect",
-  depends: { line: stream, last: lastRegister.controller },
-  run: async ({ line, last }) => {
-    try {
-      await line.reopen();
-    } catch (error: unknown) {
-      if (!isError(error, "SyncDropped")) throw error;
-      return;
-    }
-    const replay = last.get();
-    if (replay !== null) await line.post(replay);
+  depends: { intent: retry.controller },
+  run: ({ intent }) => {
+    intent.update((count) => count + 1);
   },
 });
 

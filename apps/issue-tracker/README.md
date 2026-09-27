@@ -26,13 +26,16 @@ The live connection is one server-sent stream plus POSTs:
   cannot be opened at all fails the boot the same way.
 - **a later stream error, a malformed frame, or a refused POST** — the
   connection drops; the list and drafts stay, and sync stays attached.
+  After a one-second wait (the backoff) the wire opens again by itself
+  and sends the last register again.
 - **POSTs** — they wait for the stream's open and go out in send order.
-- **Reconnect** — it opens a fresh stream, goes live, and sends the last
-  register again. A fresh stream that errors first leaves "Still no
-  connection".
+- **Reconnect** — the button asks for a retry; the wire opens a fresh
+  stream now, goes live, and sends the last register again. A fresh
+  stream that errors first leaves "Still no connection".
 - **closing the page's scope** — it aborts in-flight POSTs, closes the
   stream, and tells sync once. A close before the first stream opens
-  still settles: it does not wait on the register POST behind it.
+  still settles: it does not wait on the register POST behind it. A
+  close during the backoff wait ends quietly and opens nothing.
 
 Offline saves show a plain notice ("Could not reach the server. Your work
 is kept — try again.") instead of a raw error name, and the typed text is

@@ -1,4 +1,4 @@
-import { createScope, preset } from "@tinker/core";
+import { createScope, makeTestClock, preset } from "@tinker/core";
 import { isError as isSyncError, memoryPair, subscribe, type Sync } from "@tinker/sync";
 import { expect, test } from "vite-plus/test";
 import {
@@ -18,6 +18,7 @@ import {
   getDetail,
   isError,
   issueList,
+  linkWire,
   loadDetail,
   newIssue,
   openDraft,
@@ -35,7 +36,6 @@ import {
   typeComment,
   typeEdit,
   typeNewIssue,
-  wire,
   wirePeer,
   type Issues,
   type Wire,
@@ -92,12 +92,14 @@ class FakeSource implements Wire.Source {
   }
 }
 
-/** Boot one tab on the wire as `main.tsx` does: fake streams, `post` in place of the POST.
- * Resolves once sync's register opened the first stream. */
+/** Boot one tab on the wire as `main.tsx` does: fake streams, `post` in place of the POST, and a
+ * test clock for the backoff wait. Resolves once the wire opened its first stream. */
 async function bootTab(post: (input: Wire.Post, signal: AbortSignal) => Promise<void>) {
   const sources: FakeSource[] = [];
+  const clock = makeTestClock();
   const [peer, far] = memoryPair();
   const scope = createScope({
+    clock,
     tags: [
       ...TAGS,
       wirePeer(peer),
@@ -108,10 +110,10 @@ async function bootTab(post: (input: Wire.Post, signal: AbortSignal) => Promise<
       }),
     ],
     presets: [preset(postSync, (_deps, { input, signal }) => post(input, signal))],
-    extensions: [wire, subscribe(far, { cells: [[issueList, "issues"]] })],
+    extensions: [linkWire, subscribe(far, { cells: [[issueList, "issues"]] })],
   });
   await expect.poll(() => sources.length).toBe(1);
-  return { scope, sources, transport: far };
+  return { scope, sources, clock, transport: far };
 }
 
 /** One `data:` SSE frame for one draft event. */
@@ -474,7 +476,7 @@ test("POSTs wait for the stream's open and go out in send order", async () => {
   }
 });
 
-test("reconnecting opens a fresh stream, goes live, and replays the last register", async () => {
+test("a reconnect bumps retry: the wire rewires, goes live, and replays the last register", async () => {
   const sent: Sync.Message[] = [];
   const tab = await bootTab((input) => {
     sent.push(input.message);
@@ -487,19 +489,19 @@ test("reconnecting opens a fresh stream, goes live, and replays the last registe
     await tab.scope.ready;
     await expect.poll(() => sent.length).toBe(1);
     first?.fail();
-    const reconnecting = tab.scope.run(reconnect);
+    tab.scope.run(reconnect);
     expect(tab.scope.resolve(connection)).toMatchObject({ live: false, pending: true });
     expect(tab.sources.length).toBe(2);
     tab.sources[1]?.open();
-    await reconnecting;
     expect(tab.scope.resolve(connection)).toMatchObject({ live: true, pending: false });
+    await expect.poll(() => sent.length).toBe(2);
     expect(sent).toEqual([REGISTER, REGISTER]);
   } finally {
     await tab.scope.close();
   }
 });
 
-test("a reconnect whose stream errors before its open leaves the connection failed", async () => {
+test("a rewire whose stream errors before its open leaves the connection failed", async () => {
   const tab = await bootTab(() => Promise.resolve());
   const [first] = tab.sources;
   first?.open();
@@ -507,9 +509,8 @@ test("a reconnect whose stream errors before its open leaves the connection fail
   try {
     await tab.scope.ready;
     first?.fail();
-    const reconnecting = tab.scope.run(reconnect);
+    tab.scope.run(reconnect);
     tab.sources[1]?.fail();
-    await reconnecting;
     expect(tab.scope.resolve(connection)).toMatchObject({
       live: false,
       pending: false,
@@ -518,6 +519,42 @@ test("a reconnect whose stream errors before its open leaves the connection fail
   } finally {
     await tab.scope.close();
   }
+});
+
+test("a drop rewires by itself after the backoff and replays the last register", async () => {
+  const sent: Sync.Message[] = [];
+  const tab = await bootTab((input) => {
+    sent.push(input.message);
+    return Promise.resolve();
+  });
+  const [first] = tab.sources;
+  first?.open();
+  first?.push(SNAPSHOT);
+  try {
+    await tab.scope.ready;
+    first?.fail();
+    expect(tab.sources.length).toBe(1);
+    tab.clock.advance(60_000);
+    await expect.poll(() => tab.sources.length).toBe(2);
+    tab.sources[1]?.open();
+    expect(tab.scope.resolve(connection).live).toBe(true);
+    await expect.poll(() => sent).toEqual([REGISTER, REGISTER]);
+  } finally {
+    await tab.scope.close();
+  }
+});
+
+test("a scope close during the backoff wait ends quietly and opens nothing", async () => {
+  const tab = await bootTab(() => Promise.resolve());
+  const [first] = tab.sources;
+  first?.open();
+  first?.push(SNAPSHOT);
+  await tab.scope.ready;
+  first?.fail();
+  const ended = await tab.scope.close();
+  tab.clock.advance(60_000);
+  expect(ended.teardownErrors).toBeUndefined();
+  expect(tab.sources.length).toBe(1);
 });
 
 test("scope close aborts in-flight POSTs, closes the stream, fires onClose once", async () => {
@@ -559,7 +596,7 @@ test("scope close before the first stream opens settles instead of waiting on th
   expect(tab.sources[0]?.closed).toBe(true);
 });
 
-test("a stream that cannot be opened fails the boot with SyncNotReady", async () => {
+test("a stream that cannot be opened fails the boot with its own error", async () => {
   const [peer, far] = memoryPair();
   const scope = createScope({
     tags: [
@@ -569,15 +606,15 @@ test("a stream that cannot be opened fails the boot with SyncNotReady", async ()
         throw fail("SyncDropped", { reason: "no stream" });
       }),
     ],
-    extensions: [wire, subscribe(far, { cells: [[issueList, "issues"]] })],
+    extensions: [linkWire, subscribe(far, { cells: [[issueList, "issues"]] })],
   });
   await scope.ready.then(
     () => {
       expect.unreachable();
     },
     (error: unknown) => {
-      if (!isSyncError(error, "SyncNotReady")) throw error;
-      expect(error.payload.missing).toEqual(["issues"]);
+      if (!isError(error, "SyncDropped")) throw error;
+      expect(error.payload.reason).toBe("no stream");
     },
   );
   await scope.close();

@@ -13,15 +13,6 @@ export declare namespace Wire {
     onmessage: ((event: MessageEvent) => void) | null;
     close(): void;
   };
-  /** The stream resource's value: the tab's one stream at a time, and the POSTs behind it. */
-  type Stream = {
-    /** POST one message behind the current stream's open, in send order. A refused or failed
-     * POST drops the wire; a POST behind a failed stream or after the wire closed is skipped. */
-    post(message: Sync.Message): Promise<void>;
-    /** Close the current stream and open the next: resolves on its open, rejects with
-     * `SyncDropped` when it errors first. After the wire closed it opens nothing. */
-    reopen(): Promise<void>;
-  };
   /** One sync message POSTed for one tab: the client id pairs it with the tab's stream. */
   type Post = { readonly id: string; readonly message: Sync.Message };
 }
@@ -57,15 +48,24 @@ export const openSource = tag<(url: string) => Wire.Source>({
   default: (url) => new EventSource(url),
 });
 
-/** The last frame the stream admitted: the bridge hands each one to sync. */
-const inbox = data<Sync.Message | null>({ label: "inbox", initial: null });
+/** The near end of the `memoryPair` whose far end sync holds, bound once at the composition
+ * root: the steady handle sync keeps while the wire rewires under it (ADR 0048, 0070). */
+export const wirePeer = tag<Sync.Transport>({ label: "wirePeer" });
 
-/** True once the wire closed for good (the first stream failed, or sync closed its end): the
- * bridge closes sync's end of the pair, once. */
-const wireClosed = data<boolean>({ label: "wireClosed", initial: false });
+/** The reconnect intent: a count the `reconnect` operation bumps. The wire opens a fresh stream
+ * on each bump; nothing calls the wire (ADR 0070). */
+export const retry = data<number>({ label: "wire.retry", initial: 0 });
 
-/** The last register sync sent: a reconnect replays it on the fresh stream. */
-export const lastRegister = data<Sync.Message | null>({ label: "lastRegister", initial: null });
+/** How long a dropped wire waits before it opens again by itself. */
+const BACKOFF_MS = 1000;
+
+/** The wire's health as the `connection` cell holds it; the wire is its one writer. */
+const HEALTH = {
+  connecting: { live: false, pending: true, failed: false, closedBadly: false },
+  live: { live: true, pending: false, failed: false, closedBadly: false },
+  dropped: { live: false, pending: false, failed: false, closedBadly: false },
+  failed: { live: false, pending: false, failed: true, closedBadly: false },
+};
 
 /** POST one sync message for one tab through HTTP; the server hands it to the tab's stream. */
 export const postSync = operation({
@@ -80,29 +80,34 @@ export const postSync = operation({
   },
 });
 
-/** The tab's stream: one `Wire.Source` at a time under one client id from `ctx.random`, and the
- * connection cell's one writer. Opening a stream writes it pending; the open writes it live; an
- * error before the open writes it failed and rejects that open (the first stream's failure also
- * closes the wire, so sync rejects `ready`). A later error or a malformed frame drops the
- * connection and closes that stream; sync stays attached. `reopen` swaps in the next stream for
- * `reconnect`. Closing a stream that has not opened rejects its open, so nothing waits on it.
- * Each POST waits for the open of the stream it was sent behind, so POSTs go out in send order;
- * one sent behind a stream that failed is skipped (the register replays on reconnect). `defer`
- * closes the stream; `ctx.signal` aborts in-flight POSTs. */
-export const stream = resource({
-  label: "stream",
+/** The tab's link (ADR 0070): one resource that owns the current `Wire.Source` under one client
+ * id from `ctx.random`, writes the `connection` health, and rewires itself.
+ * - Opening a stream writes connecting; its open writes live.
+ * - An error before the open writes failed. On the first stream it also closes sync's pair, so
+ *   sync rejects `ready` and the boot fails.
+ * - A later error, a malformed frame, or a refused POST writes dropped. The wire watches its
+ *   health: on dropped it waits `BACKOFF_MS` on `ctx.clock` with `ctx.signal`, then opens again.
+ *   A close aborts the wait quietly.
+ * - A bump of `retry` opens a fresh stream now.
+ * - Each rewire replays the last register the wire kept from sync.
+ * Sync's messages POST behind the current stream's open, in send order; closing a stream that has
+ * not opened rejects its open, so nothing waits on it. Sync closing its end closes the stream.
+ * `defer` closes the stream and stops every watch; `ctx.signal` aborts in-flight POSTs. */
+export const wire = resource({
+  label: "wire",
   depends: {
     open: openSource,
     post: postSync,
-    link: connection.controller,
-    frames: inbox.controller,
-    closed: wireClosed.controller,
+    peer: wirePeer,
+    health: connection.controller,
+    intent: retry.controller,
   },
-  factory: ({ open, post, link, frames, closed }, { defer, signal, random }): Wire.Stream => {
+  factory: ({ open, post, peer, health, intent }, { defer, signal, random, clock }) => {
     const id = random.uuid();
     let current: Wire.Source | null = null;
     let gate: Promise<void> = Promise.resolve();
     let abandon: () => void = () => undefined;
+    let registered: Sync.Message | null = null;
 
     const shut = (): void => {
       abandon();
@@ -111,7 +116,7 @@ export const stream = resource({
     };
     const drop = (): void => {
       shut();
-      link.update((prev) => ({ ...prev, live: false }));
+      health.set(HEALTH.dropped);
     };
     const receive = (source: Wire.Source, event: MessageEvent): void => {
       if (source !== current) return;
@@ -122,18 +127,18 @@ export const stream = resource({
         drop();
         return;
       }
-      frames.set(message);
+      peer.send(message);
     };
     const openNext = (failed: () => void): void => {
       shut();
-      link.update((prev) => ({ ...prev, live: false, pending: true, failed: false }));
+      health.set(HEALTH.connecting);
       const source = open(`/sync?client=${id}`);
       current = source;
       gate = new Promise<void>((resolve, reject) => {
         abandon = () => reject(fail("SyncDropped", { reason: "stream closed" }));
         source.onerror = () => {
           if (source !== current) return;
-          link.update((prev) => ({ ...prev, live: false, pending: false, failed: true }));
+          health.set(HEALTH.failed);
           failed();
           shut();
         };
@@ -142,107 +147,61 @@ export const stream = resource({
           source.onerror = () => {
             if (source === current) drop();
           };
-          link.update((prev) => ({ ...prev, live: true, pending: false, failed: false }));
+          health.set(HEALTH.live);
           resolve();
         };
         source.onmessage = (event) => receive(source, event);
       });
     };
     const deliver = async (message: Sync.Message): Promise<void> => {
-      if (closed.get() || signal.aborted) return;
+      if (signal.aborted) return;
       const sent = await post.settle({ input: { id, message } });
       if (sent.status !== "success" && signal.aborted === false) drop();
     };
-
-    const stopClosed = closed.watch((isClosed) => {
-      if (isClosed) shut();
-    });
-    defer(stopClosed);
-    defer(shut);
-    openNext(() => closed.set(true));
-    return {
-      post: (message) =>
-        gate.then(
-          () => deliver(message),
-          () => undefined,
-        ),
-      reopen: () => {
-        if (closed.get()) return Promise.resolve();
-        openNext(() => undefined);
-        return gate;
-      },
+    const send = (message: Sync.Message): Promise<void> =>
+      gate.then(
+        () => deliver(message),
+        () => undefined,
+      );
+    const rewire = async (): Promise<void> => {
+      if (signal.aborted) return;
+      openNext(() => undefined);
+      if (registered !== null) await send(registered);
     };
+    const backOff = async (): Promise<void> => {
+      const waited = await clock.sleep(BACKOFF_MS, signal).then(
+        () => true,
+        () => false,
+      );
+      if (waited === false || signal.aborted) return;
+      if (health.get() === HEALTH.dropped) await rewire();
+    };
+
+    defer(
+      peer.onMessage(async (message) => {
+        if (message.type === "register") registered = message;
+        await send(message);
+      }),
+    );
+    defer(peer.onClose(shut));
+    defer(
+      health.watch(async (next) => {
+        if (next === HEALTH.dropped) await backOff();
+      }),
+    );
+    defer(intent.watch(rewire));
+    defer(shut);
+    openNext(() => peer.close());
+    return { id };
   },
 });
 
-/** Send one sync message up the wire: a register is kept as the last register, then every
- * message POSTs behind the stream's open. */
-export const sendSync = operation({
-  label: "sendSync",
-  depends: { line: stream, last: lastRegister.controller },
-  run: ({ line, last }, ctx: Operation.Ctx<Sync.Message>) => {
-    if (ctx.input.type === "register") last.set(ctx.input);
-    return line.post(ctx.input);
-  },
-});
-
-/** Close the wire for good: the stream closes and the bridge closes sync's end of the pair. */
-export const closeWire = operation({
-  label: "closeWire",
-  depends: { closed: wireClosed.controller },
-  run: ({ closed }) => {
-    closed.set(true);
-  },
-});
-
-/** The near end of the `memoryPair` whose far end sync holds, bound once at the composition
- * root (ADR 0048: the transport is userland's). */
-export const wirePeer = tag<Sync.Transport>({ label: "wirePeer" });
-
-/** Link sync's pair to the wire units: a message sync sends settles `sendSync`, and a failed run
- * (the stream could not be built) closes the wire, so a boot fails instead of waiting; an
- * admitted frame
- * goes to sync; the wire closing closes the pair (sync's `onClose` fires once); sync closing the
- * pair runs `closeWire`. Every link starts here and `defer` stops it. After the scope closed (a
- * failed boot closes it at once) a pair close has nothing left to close. */
-const bridge = resource({
-  label: "bridge",
-  depends: {
-    peer: wirePeer,
-    sendIt: sendSync,
-    closeIt: closeWire,
-    frames: inbox.controller,
-    closed: wireClosed.controller,
-  },
-  factory: ({ peer, sendIt, closeIt, frames, closed }, { defer, signal }) => {
-    const stopSends = peer.onMessage(async (message) => {
-      const sent = await sendIt.settle({ input: message });
-      if (sent.status === "failed" && signal.aborted === false) closeIt.settle();
-    });
-    const stopFrames = frames.watch((message) => {
-      if (message !== null) peer.send(message);
-    });
-    const stopClosed = closed.watch((isClosed) => {
-      if (isClosed) peer.close();
-    });
-    const stopParted = peer.onClose(() => {
-      if (signal.aborted === false) closeIt.settle();
-    });
-    defer(stopSends);
-    defer(stopFrames);
-    defer(stopClosed);
-    defer(stopParted);
-    return { linked: true };
-  },
-});
-
-/** Link the bound peer before sync starts. Install it before `subscribe`: sync's `start`
- * registers through its end of the pair. Nothing opens until that register resolves the
- * stream. */
-export const wire = extension({
-  label: "wire",
+/** Resolve the wire before sync starts (ADR 0070 rule 2): sync's `start` registers through its
+ * end of the pair, and the wire must already hear the near end. Install it before `subscribe`. */
+export const linkWire = extension({
+  label: "linkWire",
   start: (scope, _ctx, next) => {
-    scope.resolve(bridge);
+    scope.resolve(wire);
     return next();
   },
 });
