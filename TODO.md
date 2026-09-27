@@ -39,6 +39,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
+- **core/with-data** — ADR 0069: `close({ withData: true })` moves the session's own data store into
+  the close `Result` as `data` (`data.get(cell)` → `Presence`, every ending); off by default, so
+  nothing changes; core frees a session's data only after its `session` hooks return, so a hook
+  reads the session through its handle after `next()`. Owner: lead; writer agent (pending) in
+  `../tinkered-with-data` (brief `core-with-data.md`). Verify: the ADR's rules as tests; the
+  default close no slower through benchd (N=61, all ten).
+
 ## Review
 
 | Card | Owner | Next | Verify |

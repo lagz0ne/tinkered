@@ -344,3 +344,10 @@ New sections are lists, one term per item.
 - **origin** — Where an error was first thrown:
   `{ label, span?, path }`, stamped by `.run`,
   read with `originOf(error)`.
+
+## Session data at close (ADR 0069)
+
+- **withData** — `close({ withData: true })`: the
+  closing session's own data moves into the
+  close `Result` as `data` instead of being freed.
+  Off by default.
