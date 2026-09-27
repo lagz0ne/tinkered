@@ -55,6 +55,8 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
   adapter (ADR 0048). Owner: lead; writer agent `8a3d02ce` in `../tinkered-tracker-reconnect`
   (brief `tracker-reconnect.md`). Verify: every wire behavior test green; the gate shows no
   `stateOutsideCell` / `effectWithoutDefer` on the wire.
+  - 2026-09-27: ADR 0070 accepted (a link is one resource that rewires itself from its health and
+    intent data); fix round 2 rebuilds the wire on it, with the tracker as the ADR's application case.
 
 ## Review
 
