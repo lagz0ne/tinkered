@@ -51,6 +51,13 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 ## Parked
 
+- **perf/lifecycle-creep** — `lifecycle` (a fresh scope, then a plain `close()`) crept across two
+  landings: core/cancel-reason +0.2% (37/61), then core/with-data +1.8% (42/61); about +2.7%
+  together (separate runs, read loosely). Each passed the bar alone. Parked by the user
+  (2026-09-27, "conclude the work"). Resume when: the next change to the close path, or a caller
+  that closes many short scopes. Next: find what core/with-data added to `closeLayer`/`fastClose`
+  with V8 traces, prove a fix with `N=61 SCEN=lifecycle bench/queued.sh`.
+
 - **errors/errorMap** — an `errorMap` field on an operation that turns its panics into managed
   errors in one place (user idea, 2026-09-26; parked by the user). Not needed now: 9 catch-then-raise
   spots in 4 packages each wrap one call with details only that spot has, and drivers (hono,
