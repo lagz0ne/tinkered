@@ -49,13 +49,6 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
   pick the checks with the user, then one writer adds them. Verify: the new checks flag the found
   cases; a judge is calibrated from their labels (ADR 0054).
 
-- **tracker/gate-fixes** — the 7 real items from the tracker gate report (bad `PORT` and a
-  non-string draft `prompt` silently defaulted; a helper writing through a controller; two casts; a
-  test past the public entry; the root view taking the scope), with the 4 false positives labeled
-  or noted, then a gate re-run. Owner: lead; writer agent `1aacae45` in
-  `../tinkered-tracker-gate-fixes` (brief `tracker-gate-fixes.md`). Verify: only noted false
-  positives and wire items still block.
-
 - **tracker/reconnect** — the tab's reconnecting wire the tinker way (user, 2026-09-27): wire state
   in the `connection` cell (no `onStatus` bridge), the stream a resource with `ctx.defer` /
   `ctx.signal`, reconnect an operation, the id from `ctx.random`; the `Sync.Transport` stays a thin
@@ -103,6 +96,8 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 ## Done
 
+- **tracker/gate-fixes** — opus high + fable review (no fix round); tag `tracker/gate-fixes`. Seven gate findings fixed in `apps/issue-tracker`: a bad `PORT` (`abc`, `80x`, `70000`) now fails boot with `BadPort` (it silently became 4311 or 80); a draft `prompt` that is not text answers 400 `BadDraftInput` (it silently became `""`); `applyDraft` works on plain values; two casts became checks; a test imports the public entry; `ScopeProvider` renders in `main.tsx`. Gate: 12 blocking → 6, each left a labeled wrong hit or waiting on `jev/s18-kinds`.
+  - Gate EXIT 0; tracker 55 tests (4 new fail on main); validate 44 PASS; 9 Jev labels, calibration refreshed.
 - **review/tracker-gate** — opus high + fable review (no fix round); tag `review/tracker-gate`. `node tools/writer-trial/app-gate.mjs <folder>` runs the writer-trial gate (ADR 0068) over any folder's `src/` and `tests/` with the live Jev calibration: exit 0 nothing blocks, 1 blocks, 2 unavailable (never a pass). One rule, one place: `review.mjs check` and `app-gate.mjs` share `judgeFile` (`tools/writer-trial/folder.mjs`) and `gate.mjs`; trials keep their frozen copy. Jev hits now carry their unit's line. First run on `apps/issue-tracker`: 12 blocking (8 plain, 4 proven Jev), 29 advice, 0 unavailable — [report](docs/roadmap/issue-tracker-review/2026-09-27-gate.md).
   - Gate EXIT 0; writer-trial tests 60 pass; validate 44 PASS.
 - **core/with-data** — opus high + fable review (one fix round); tag `core/with-data`; ADR 0069. `close({ withData: true })` moves the session's own data into the close `Result` as `data` (`data.get(cell, { ns })` → `Presence`, every ending); off by default. Core frees a session's data only after its `session` hooks return, so a hook reads cells and tags through its handle after `next()`; writes and resource reads there still throw. A kept store is stripped to cells so a held `Result` does not pin the layer (review fix). The tracker's publish hook now reads the request method after `next()`.
