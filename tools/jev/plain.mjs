@@ -35,6 +35,22 @@ const MESSAGES = {
   S12: "ts-ignore or ts-expect-error comment: fix the type error instead",
   S13: "lint disable comment: fix the cause instead",
   S17: "type assertion in source hides what the value really is: narrow it with a check, or fix the type; `as const` and `[] as T[]` are fine",
+  S20: "raw randomness: read ctx.random.next() or ctx.random.uuid(); a test seeds it with makeTestRandom",
+  S21: "raw time: read ctx.clock.currentTimeMillis(), wait with ctx.clock.sleep(ms, ctx.signal); a test clock then drives it",
+  S22: "a run's failure is dropped: call settle(call) and branch on its Result; a bare catch leaves a panic sticky (ADR 0067)",
+  S23: "hand-made subscribe: keep the value in a data cell; readers watch it or read it with useData",
+  S24: "raw fetch: send through an @tinker/http endpoint operation so config, retry, spans, and the backend tag apply",
+  S25: "component state: make it a data cell and read it with useData; write it from an operation",
+};
+
+/** The fix line a hand-rolled rule's message ends with: the tinker form, filled in. */
+const FIXES = {
+  S20: "`id: ctx.random.uuid()`",
+  S21: "`await ctx.clock.sleep(ms, ctx.signal)`",
+  S22: "`const r = await load.settle({ input: id })`",
+  S23: '`const status = data<WireStatus>({ label: "wire.status", initial: "connecting" })`',
+  S24: "an endpoint operation, like `postIssue` in apps/issue-tracker/src/client/api.ts",
+  S25: '`const running = data({ label: "bench.running", initial: false })`',
 };
 
 const MOCK_ROOTS = new Set(["vi", "jest"]);
@@ -276,9 +292,10 @@ function commentRows(comments, starts) {
   return rows;
 }
 
-/** One finding row for a rule id at a line. */
+/** One finding row for a rule id at a line; a rule with a fix line ends its message with it. */
 function row(id, line) {
-  return { id, line, message: MESSAGES[id] };
+  const fix = FIXES[id];
+  return { id, line, message: fix ? `${MESSAGES[id]}. Fix: ${fix}` : MESSAGES[id] };
 }
 
 /** The single row for a file the parser rejects, at the first error's line. */
@@ -400,6 +417,257 @@ function noWrapperHits(source, program) {
   ];
 }
 
+// ---------- hand-rolled: code that redoes what tinker gives (S20–S25) ----------
+// From the 2026-09-27 survey (docs/roadmap/jev-handrolled). Any file that is not a test. The
+// writer gate reads each rule over the whole file. The repo lint is narrower: S20 skips
+// packages/core/src (the default randomness source); S21 counts only inside a unit body (an
+// operation run, a resource factory, an extension start), since a driver owns its own timers;
+// S23 and S24 count only in apps/ and examples/ (packages are the providers); S25 is writer
+// policy only (a benchmark's plain-React control is a trap by design).
+
+const CORE_SRC = /(^|\/)packages\/core\/src\//;
+const USERLAND = /(^|\/)(apps|examples)\//;
+const GLOBALS = new Set(["globalThis", "window", "self"]);
+const RANDOM = new Map([
+  ["Math", new Set(["random"])],
+  ["crypto", new Set(["randomUUID", "getRandomValues"])],
+]);
+const RANDOM_IMPORTS = new Set(["randomUUID", "getRandomValues"]);
+const CLOCK = new Map([
+  ["Date", new Set(["now"])],
+  ["performance", new Set(["now"])],
+]);
+const TIMERS = new Set(["setTimeout", "setInterval"]);
+const STATE_HOOKS = new Set(["useState", "useReducer"]);
+const TRANSPORT_PAIR = new Set(["onMessage", "onClose"]);
+const LISTEN = /^on[A-Z]/;
+/** The unit body each core builder takes: the config key holding the function. */
+const UNIT_BODY = new Map([
+  ["operation", "run"],
+  ["resource", "factory"],
+  ["extension", "start"],
+]);
+
+/** The global a name reads: `x` itself, or `x` off `globalThis`, `window`, or `self`. */
+function globalName(node) {
+  if (node?.type === "Identifier") return node.name;
+  const name = propOf(node);
+  return name !== null && GLOBALS.has(node.object?.name) ? name : null;
+}
+
+/** Is this `G.name` (or `globalThis.G.name`) for a `G` in `table` that lists `name`. */
+function isGlobalMember(node, table) {
+  const name = propOf(node);
+  return name !== null && table.get(globalName(node.object))?.has(name) === true;
+}
+
+/** S20: `Math.random`, `crypto.randomUUID`, or `crypto.getRandomValues` — called or passed as
+ *  a value — or a call of `randomUUID` imported from node:crypto. */
+function isRawRandom(node, cryptoNames) {
+  if (node.type === "MemberExpression") return isGlobalMember(node, RANDOM);
+  return (
+    node.type === "CallExpression" &&
+    node.callee.type === "Identifier" &&
+    cryptoNames.has(node.callee.name)
+  );
+}
+
+/** S21: a call of `Date.now`, `performance.now`, `setTimeout`, or `setInterval`, or a bare
+ *  `new Date()`. `new Date(ms)` formats a saved time and reads no clock. */
+function isRawClock(node) {
+  if (node.type === "NewExpression")
+    return globalName(node.callee) === "Date" && node.arguments.length === 0;
+  if (node.type !== "CallExpression") return false;
+  return isGlobalMember(node.callee, CLOCK) || TIMERS.has(globalName(node.callee));
+}
+
+/** Is this a call of a member named `run` (`load.run(…)`). */
+const isRunCall = (node) => {
+  const at = unwrapParens(node);
+  return at?.type === "CallExpression" && propOf(at.callee) === "run";
+};
+
+/** A handler that drops what it gets: `() => undefined`, `() => void 0`, or `() => {}`. */
+function isDropper(fn) {
+  if (fn?.type !== "ArrowFunctionExpression" && fn?.type !== "FunctionExpression") return false;
+  const body = unwrapParens(fn.body);
+  if (body.type === "BlockStatement") return body.body.length === 0;
+  if (body.type === "Identifier") return body.name === "undefined";
+  return body.type === "UnaryExpression" && body.operator === "void";
+}
+
+/** S22 shape A: `x.run(…).then(ok, drop)` or `x.run(…).catch(drop)`. */
+function isDroppedRun(node) {
+  if (node.type !== "CallExpression") return false;
+  const name = propOf(node.callee);
+  if (name !== "then" && name !== "catch") return false;
+  const drop = name === "then" ? node.arguments[1] : node.arguments[0];
+  return isRunCall(node.callee.object) && isDropper(drop);
+}
+
+/** Does `node` await a run, outside any nested function. */
+function awaitsRun(node) {
+  if (!node || typeof node !== "object") return false;
+  if (Array.isArray(node)) return node.some(awaitsRun);
+  if (FN_NODE.has(node.type)) return false;
+  if (node.type === "AwaitExpression" && isRunCall(node.argument)) return true;
+  return childrenOf(node).some(awaitsRun);
+}
+
+/** S22 shape B: `try { await x.run(…) } catch { … }` — a catch with no parameter cannot tell a
+ *  managed error from a panic. Reported at the catch. */
+const isBareCatchRun = (node) =>
+  node.type === "TryStatement" && node.handler?.param === null && awaitsRun(node.block);
+
+/** The function a property holds: its value, or the method itself. */
+const fnOf = (prop) => (FN_NODE.has(prop.value?.type) ? prop.value : null);
+
+/** The function a body returns: an arrow's expression, or a top-level `return`. */
+function returnedFn(fn) {
+  if (FN_NODE.has(fn.body?.type)) return fn.body;
+  const ret = (fn.body?.body ?? []).find((st) => st.type === "ReturnStatement");
+  return FN_NODE.has(ret?.argument?.type) ? ret.argument : null;
+}
+
+/** Does `node` name the identifier `name` anywhere. */
+function mentions(node, name) {
+  let found = false;
+  walk(node, (n) => {
+    if (n.type === "Identifier" && n.name === name) found = true;
+  });
+  return found;
+}
+
+/** The list a call adds `name` to: `S` in `S.add(name)` or `S.push(name)`, else null. */
+function addTarget(node, name) {
+  const m = node.type === "CallExpression" ? memberCall(node.callee) : null;
+  if (m === null || (m.name !== "add" && m.name !== "push")) return null;
+  const arg = node.arguments[0];
+  return arg?.type === "Identifier" && arg.name === name ? m.obj : null;
+}
+
+/** The list `fn` adds its first parameter to (`S.add(listener)` or `S.push(listener)`), or null. */
+function listenerStore(fn) {
+  const param = fn.params?.[0];
+  if (param?.type !== "Identifier") return null;
+  let store = null;
+  walk(fn.body, (n) => {
+    store ??= addTarget(n, param.name);
+  });
+  return store;
+}
+
+/** S23: `onX(listener)` that adds the listener to a list and returns a remover that touches it. */
+function isHandSubscribe(fn) {
+  const store = listenerStore(fn);
+  const remover = store === null ? null : returnedFn(fn);
+  return remover !== null && mentions(remover, store);
+}
+
+/** S23 hits in one object literal. Its `onMessage`/`onClose` are the `Sync.Transport` contract
+ *  when the same object also has `send` and `close`: sync requires those, so they are skipped. */
+function handSubscribes(node) {
+  const props = node.properties.filter((p) => p.type === "Property" && !p.computed);
+  const keys = new Set(props.map((p) => p.key?.name));
+  const transport = keys.has("send") && keys.has("close");
+  return props.filter((p) => {
+    const name = p.key?.name ?? "";
+    if (!LISTEN.test(name) || (transport && TRANSPORT_PAIR.has(name))) return false;
+    const fn = fnOf(p);
+    return fn !== null && isHandSubscribe(fn);
+  });
+}
+
+/** S24: a call of `fetch` or `globalThis.fetch`. */
+const isRawFetch = (node) => node.type === "CallExpression" && globalName(node.callee) === "fetch";
+
+/** S25: a call of `useState` or `useReducer`, bare or off a namespace. */
+const isComponentState = (node) =>
+  node.type === "CallExpression" && STATE_HOOKS.has(calleeName(node.callee));
+
+/** [start, end] of the unit body one call declares: the function under its builder's body key
+ *  (`local` maps a local builder name to that key). */
+function bodiesOf(node, local) {
+  const key = node.type === "CallExpression" ? local.get(node.callee?.name) : undefined;
+  const config = key === undefined ? null : node.arguments[0];
+  if (config?.type !== "ObjectExpression") return [];
+  return config.properties
+    .filter((p) => p.type === "Property" && p.key?.name === key && fnOf(p) !== null)
+    .map((p) => [p.value.start, p.value.end]);
+}
+
+/** [start, end] of every unit body in the file: the function under `run`, `factory`, or
+ *  `start` in the config of an operation, resource, or extension imported from @tinker/core. */
+function unitBodies(program) {
+  const local = new Map();
+  for (const [name, key] of UNIT_BODY)
+    for (const as of importedNames(program, "@tinker/core", new Set([name]))) local.set(as, key);
+  const ranges = [];
+  walk(program, (n) => ranges.push(...bodiesOf(n, local)));
+  return ranges;
+}
+
+/** Is an offset inside a unit body. The writer gate reads the whole file, so it always is. */
+function unitTest(program, writer) {
+  if (writer) return () => true;
+  const bodies = unitBodies(program);
+  return (at) => bodies.some(([from, to]) => from <= at && at < to);
+}
+
+/** Local names the file imports `randomUUID` or `getRandomValues` under from node:crypto. */
+const cryptoNames = (program) =>
+  new Set(["node:crypto", "crypto"].flatMap((m) => importedNames(program, m, RANDOM_IMPORTS)));
+
+/** Which hand-rolled rules one file gets, by lane and path. */
+function handRolledScope(file, writer) {
+  return {
+    S20: !CORE_SRC.test(file),
+    S21: true,
+    S22: true,
+    S23: writer || USERLAND.test(file),
+    S24: writer || USERLAND.test(file),
+    S25: writer && file.endsWith(".tsx"),
+  };
+}
+
+/** S22's offsets for one node: shape A at the call, shape B at the catch. */
+function droppedRunAt(node) {
+  if (isDroppedRun(node)) return [node.start];
+  return isBareCatchRun(node) ? [node.handler.start] : [];
+}
+
+/** Each hand-rolled rule: the offsets one node reports. `facts` holds the file's crypto
+ *  imports and its unit-body test. */
+const HAND_ROLLED = [
+  ["S20", (n, facts) => (isRawRandom(n, facts.cryptoNames) ? [n.start] : [])],
+  ["S21", (n, facts) => (isRawClock(n) && facts.inUnit(n.start) ? [n.start] : [])],
+  ["S22", droppedRunAt],
+  ["S23", (n) => (n.type === "ObjectExpression" ? handSubscribes(n).map((p) => p.start) : [])],
+  ["S24", (n) => (isRawFetch(n) ? [n.start] : [])],
+  ["S25", (n) => (isComponentState(n) ? [n.start] : [])],
+];
+
+/** The hand-rolled rows of one non-test file: [id, offset] pairs. */
+function handRolledHits(program, file, writer) {
+  const on = handRolledScope(file, writer);
+  const checks = HAND_ROLLED.filter(([id]) => on[id]);
+  const facts = { cryptoNames: cryptoNames(program), inUnit: unitTest(program, writer) };
+  const hits = [];
+  walk(program, (n) => {
+    for (const [id, check] of checks) for (const at of check(n, facts)) hits.push([id, at]);
+  });
+  return hits;
+}
+
+/** The rows read off the whole program, not one node: writer no-wrapper, then hand-rolled. */
+function programHits(source, program, file, writer) {
+  const kind = kindOf(file);
+  return [
+    ...(writer && kind === "src" ? noWrapperHits(source, program) : []),
+    ...(kind === "test" ? [] : handRolledHits(program, file, writer)),
+  ];
+}
+
 /** Every plain rule break in one file, in source order. */
 export function inspectPlain(source, file = "a.ts", { writer = false } = {}) {
   const { program, comments, errors } = parseSync(file, source);
@@ -410,8 +678,8 @@ export function inspectPlain(source, file = "a.ts", { writer = false } = {}) {
   walk(program, (node) => {
     for (const id of rules(node, writer)) rows.push(row(id, lineAt(starts, node.start)));
   });
-  if (writer && kindOf(file) === "src")
-    for (const [id, at] of noWrapperHits(source, program)) rows.push(row(id, lineAt(starts, at)));
+  for (const [id, at] of programHits(source, program, file, writer))
+    rows.push(row(id, lineAt(starts, at)));
   rows.sort((a, b) => a.line - b.line || (a.id < b.id ? -1 : 1));
   return rows;
 }

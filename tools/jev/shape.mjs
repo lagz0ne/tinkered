@@ -636,6 +636,11 @@ export function inspectShape(source, file = "a.tsx", options = {}) {
         }
       }
     }
-  rows.sort((a, b) => a.line - b.line || (a.id < b.id ? -1 : 1));
-  return rows;
+  // S25 names a state hook's fix in writer mode; its no-react-state twin on that line would
+  // only repeat it. useRef and the effect hooks keep their row.
+  const stateLines = new Set(plain.filter((r) => r.id === "S25").map((r) => r.line));
+  const twin = (r) => r.id === "no-react-state" && /^use(State|Reducer)\b/.test(r.message);
+  const kept = rows.filter((r) => !(twin(r) && stateLines.has(r.line)));
+  kept.sort((a, b) => a.line - b.line || (a.id < b.id ? -1 : 1));
+  return kept;
 }

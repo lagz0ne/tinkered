@@ -122,6 +122,19 @@ void describe("shape findings", () => {
     assert.match(rows[1].message, /rule 8/);
   });
 
+  void it("reports a state hook once in writer mode: S25, not also no-react-state", () => {
+    const src = `import { useState, useRef } from "react";\nexport function C() {\n  const [d] = useState("");\n  const r = useRef(null);\n  return <p ref={r}>{d}</p>;\n}`;
+    const ids = (options) => inspectShape(src, "src/C.tsx", options).map((r) => [r.id, r.line]);
+    assert.deepEqual(ids({ writer: true }), [
+      ["S25", 3],
+      ["no-react-state", 4],
+    ]);
+    assert.deepEqual(ids({}), [
+      ["no-react-state", 3],
+      ["no-react-state", 4],
+    ]);
+  });
+
   void it("lets useId through and flags useRef", () => {
     const rows = inspectShape(
       `import { useId, useRef } from "react";\nfunction C() {\n  const id = useId();\n  const ref = useRef(null);\n  return <label htmlFor={id}>{ref.current}</label>;\n}`,

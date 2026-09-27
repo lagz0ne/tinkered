@@ -194,6 +194,177 @@ void describe("plain rules in a source file", () => {
   });
 });
 
+void describe("hand-rolled rules: code that redoes what tinker gives", () => {
+  const APP = "apps/tracker/src/wire.ts";
+  const PKG = "packages/http/src/client.ts";
+  const repo = (source, file = APP) => hits(source, file, false);
+
+  void it("S20 fires on Math.random, crypto.randomUUID, and randomUUID from node:crypto", () => {
+    const src = [
+      'import { randomUUID } from "node:crypto";',
+      "const a = Math.random();",
+      "const b = crypto.randomUUID();",
+      "const c = randomUUID();",
+      'const port = tag({ label: "random", default: Math.random });',
+    ].join("\n");
+    const found = [
+      ["S20", 2],
+      ["S20", 3],
+      ["S20", 4],
+      ["S20", 5],
+    ];
+    assert.deepEqual(hits(src, APP), found);
+    assert.deepEqual(repo(src), found);
+  });
+
+  void it("S20 leaves ctx.random, a local randomUUID, and core's own default alone", () => {
+    const src = "const a = ctx.random.uuid();\nconst randomUUID = () => 'x';\nrandomUUID();\n";
+    assert.deepEqual(hits(src, APP), []);
+    assert.deepEqual(repo("const r = Math.random();\n", "packages/core/src/random.ts"), []);
+  });
+
+  void it("S21 fires on Date.now, performance.now, timers, and new Date() in the writer gate", () => {
+    const src = [
+      "const a = Date.now();",
+      "const b = performance.now();",
+      "setTimeout(go, 5);",
+      "globalThis.setInterval(go, 5);",
+      "const c = new Date();",
+    ].join("\n");
+    assert.deepEqual(hits(src, APP), [
+      ["S21", 1],
+      ["S21", 2],
+      ["S21", 3],
+      ["S21", 4],
+      ["S21", 5],
+    ]);
+  });
+
+  void it("S21 leaves ctx.clock and a formatted saved time alone", () => {
+    const src = "await ctx.clock.sleep(10, ctx.signal);\nconst s = new Date(ms).toISOString();\n";
+    assert.deepEqual(hits(src, APP), []);
+  });
+
+  void it("S21 counts only unit bodies in the repo lint: a driver's own timer is fine", () => {
+    const src = [
+      'import { extension, operation } from "@tinker/core";',
+      "const kill = (child: Child) => setTimeout(() => child.kill(), 5);",
+      "export const ticker = extension({",
+      '  label: "ticker",',
+      "  start: (scope, ctx, next) => { setInterval(tick, 10); return next(); },",
+      "});",
+      'export const stamp = operation({ label: "stamp", run: () => Date.now() });',
+    ].join("\n");
+    assert.deepEqual(repo(src), [
+      ["S21", 5],
+      ["S21", 7],
+    ]);
+  });
+
+  void it("S22 fires on a run whose failure is dropped by then, catch, or a bare catch", () => {
+    const src = [
+      "check.run().then(undefined, () => undefined);",
+      "load.run({ input: id }).catch(() => {});",
+      "try {",
+      "  await check.run();",
+      "} catch {",
+      "  enabled = false;",
+      "}",
+    ].join("\n");
+    const found = [
+      ["S22", 1],
+      ["S22", 2],
+      ["S22", 5],
+    ];
+    assert.deepEqual(hits(src, APP), found);
+    assert.deepEqual(repo(src, PKG), found);
+  });
+
+  void it("S22 leaves settle, a handler that narrows, and a non-run promise alone", () => {
+    const src = [
+      "const r = await load.settle({ input: id });",
+      "compile.run(files).then(ok, (e) => { if (isError(e, 'Bad')) show(e); else throw e; });",
+      "reader.cancel().then(undefined, () => undefined);",
+      "try {\n  await check.run();\n} catch (error) {\n  throw error;\n}",
+    ].join("\n");
+    assert.deepEqual(hits(src, APP), []);
+  });
+
+  void it("S23 fires on a hand-made onX backed by a listener set", () => {
+    const src = [
+      "const watchers = new Set<(s: string) => void>();",
+      "export const wire = {",
+      "  status: () => status,",
+      "  onStatus: (listener) => {",
+      "    watchers.add(listener);",
+      "    return () => {",
+      "      watchers.delete(listener);",
+      "    };",
+      "  },",
+      "};",
+    ].join("\n");
+    assert.deepEqual(hits(src, APP), [["S23", 4]]);
+    assert.deepEqual(repo(src), [["S23", 4]]);
+    assert.deepEqual(repo(src, "packages/sync/src/index.ts"), []);
+  });
+
+  void it("S23 leaves the Sync.Transport pair and a plain event handler alone", () => {
+    const src = [
+      "const transport = {",
+      "  send: (message) => emit(message),",
+      "  onMessage: (listener) => {",
+      "    arrivals.add(listener);",
+      "    return () => arrivals.delete(listener);",
+      "  },",
+      "  onClose: (listener) => {",
+      "    partings.add(listener);",
+      "    return () => partings.delete(listener);",
+      "  },",
+      "  close: () => closeWire(),",
+      "};",
+      "const props = { onClick: (event) => seen.add(event.target) };",
+    ].join("\n");
+    assert.deepEqual(hits(src, APP), []);
+  });
+
+  void it("S24 fires on fetch and globalThis.fetch in app code", () => {
+    const src = "await fetch(url);\nawait globalThis.fetch(url, { method: 'POST' });\n";
+    const found = [
+      ["S24", 1],
+      ["S24", 2],
+    ];
+    assert.deepEqual(hits(src, APP), found);
+    assert.deepEqual(repo(src, "examples/sync/client.ts"), found);
+  });
+
+  void it("S24 leaves packages/http's own fetch and a transport's EventSource alone", () => {
+    assert.deepEqual(repo("await fetch(url);\n", PKG), []);
+    assert.deepEqual(hits("const stream = new EventSource(url);\n", APP), []);
+  });
+
+  void it("S25 fires on useState and useReducer in a .tsx source file", () => {
+    const src = "const [a] = useState(0);\nconst [b] = React.useReducer(step, 0);\n";
+    assert.deepEqual(hits(src, "src/Page.tsx"), [
+      ["S25", 1],
+      ["S25", 2],
+    ]);
+  });
+
+  void it("S25 leaves a DOM useRef alone and stays out of the repo lint", () => {
+    assert.deepEqual(hits("const box = useRef<HTMLDivElement>(null);\n", "src/Page.tsx"), []);
+    assert.deepEqual(hits("const [a] = useState(0);\n", "src/Page.tsx", false), []);
+  });
+
+  void it("each hand-rolled message ends with its fix line", () => {
+    const [found] = inspectPlain("const a = Math.random();\n", APP);
+    assert.match(found.message, /^raw randomness: .+\. Fix: `id: ctx\.random\.uuid\(\)`$/);
+  });
+
+  void it("hand-rolled rules skip test files", () => {
+    assert.deepEqual(hits("const a = Math.random();\nawait fetch(url);\n", TEST), []);
+  });
+});
+
 void describe("plain rules in every file", () => {
   void it("S12 fires on a ts-ignore or ts-expect-error comment", () => {
     const src = "// @ts-ignore\nconst a = 1;\n/* @ts-expect-error */\nconst b = 2;\n";
