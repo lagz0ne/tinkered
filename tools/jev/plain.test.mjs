@@ -602,4 +602,11 @@ void describe("S26 malformed TSDoc", () => {
     ].join("\n");
     assert.deepEqual(tsdoc(src), []);
   });
+
+  void it("stays quiet on the repo's own @ambientSource tag", () => {
+    const src = ["/**", " * The real clock.", " *", " * @ambientSource */", "const c = 1;"].join(
+      "\n",
+    );
+    assert.deepEqual(tsdoc(src), []);
+  });
 });

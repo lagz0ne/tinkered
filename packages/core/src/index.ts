@@ -1719,13 +1719,14 @@ function nanosFromMillis(ms: number): bigint {
   return BigInt(whole) * 1_000_000n + BigInt(Math.round((ms - whole) * 1_000_000));
 }
 
-/** The one sanctioned real-clock read (ADR 0034). `scripts/check-ambient.mjs` skips only the lines
- * that carry the `ambient-source` mark, so every line holding a read carries one. */
+/** The one sanctioned real-clock read (ADR 0034). `scripts/check-ambient.mjs` skips the reads
+ * inside a declaration tagged `@ambientSource`, and only there.
+ *
+ * @ambientSource */
 const systemClock: Clock.Handle = {
-  /** ambient-source */ currentTimeMillis: () => Date.now(),
+  currentTimeMillis: () => Date.now(),
   currentTimeNanos: () =>
-    /** ambient-source */ nanosFromMillis(performance.timeOrigin) +
-    /** ambient-source */ nanosFromMillis(performance.now()),
+    nanosFromMillis(performance.timeOrigin) + nanosFromMillis(performance.now()),
   sleep: (ms, signal) =>
     new Promise<void>((resolve, reject) => {
       if (signal?.aborted) return reject(signal.reason);
@@ -1791,11 +1792,13 @@ export function makeTestClock(options?: Clock.Options): Clock.Test {
   };
 }
 
-/** The one sanctioned real-random read (ADR 0062). `scripts/check-ambient.mjs` skips only the lines
- * that carry the `ambient-source` mark, so every line holding a read carries one. */
+/** The one sanctioned real-random read (ADR 0062). `scripts/check-ambient.mjs` skips the reads
+ * inside a declaration tagged `@ambientSource`, and only there.
+ *
+ * @ambientSource */
 const systemRandom: Random.Handle = {
-  /** ambient-source */ next: () => Math.random(),
-  /** ambient-source */ uuid: () => crypto.randomUUID(),
+  next: () => Math.random(),
+  uuid: () => crypto.randomUUID(),
 };
 
 /** Create a seeded randomness source for tests: the same `seed` replays the same `next` and `uuid`

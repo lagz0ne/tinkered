@@ -6,7 +6,12 @@
 //   inspectPlain(source, file) → rows [{ id, line, message }] in source order
 //
 // A file that does not parse yields one `parse` row, never an empty list.
-import { TSDocParser } from "@microsoft/tsdoc";
+import {
+  TSDocConfiguration,
+  TSDocParser,
+  TSDocTagDefinition,
+  TSDocTagSyntaxKind,
+} from "@microsoft/tsdoc";
 import { parseSync } from "oxc-parser";
 import { docs } from "./extract.mjs";
 
@@ -765,11 +770,22 @@ function programHits(source, program, file, writer) {
 }
 
 // ---------- TSDoc (S26, coding-convention rule 10) ----------
-// Every file, both lanes. The parser is the TSDoc reference one, on its default tags: every
-// standard tag (`@remarks`, `@example`, `@param`, `{@link}`, `@internal`, …) passes, and any
-// other (`@type`, `@default`, a package name like `@tinker/core` left bare in prose) hits.
+// Every file, both lanes. The parser is the TSDoc reference one, on its default tags plus the
+// repo's own: every standard tag (`@remarks`, `@example`, `@param`, `{@link}`, `@internal`, …)
+// and every tag in CUSTOM_TAGS passes, and any other (`@type`, `@default`, a package name like
+// `@tinker/core` left bare in prose) hits.
 
-const TSDOC = new TSDocParser();
+/** The repo's own TSDoc tags. `@ambientSource`: the declaration `scripts/check-ambient.mjs`
+ *  lets read the real clock or randomness (ADR 0034, 0062). */
+const CUSTOM_TAGS = ["@ambientSource"];
+
+const TSDOC_CONFIG = new TSDocConfiguration();
+TSDOC_CONFIG.addTagDefinitions(
+  CUSTOM_TAGS.map(
+    (tagName) => new TSDocTagDefinition({ tagName, syntaxKind: TSDocTagSyntaxKind.ModifierTag }),
+  ),
+);
+const TSDOC = new TSDocParser(TSDOC_CONFIG);
 
 /** The offset of a `@param` block's tag inside its doc. */
 const tagOffset = (block) => block.blockTag.getTokenSequence().tokens[0].range.pos;
