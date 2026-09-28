@@ -3865,6 +3865,45 @@ function fastClose(
  * wins (no graceful→forced escalation in v1; force-close from the start if a hang is a concern). This
  * also means a session's automatic self-close does not override an in-progress explicit graceful
  * close (ADR 0028). */
+/** Whether a session whose body just ended clean can end in place — {@link canFastClose}'s idle
+ * test for a session's own close, where the finished body no longer blocks it: no close already
+ * in flight, no signal handed out (a forced close would dispatch abort on it), no build in
+ * progress, no child, no in-flight owned work, no defer, no teardown error, and
+ * {@link ownsNothing}. */
+function canEndIdle(layer: Layer): boolean {
+  return (
+    layer.closing === undefined &&
+    layer.abort === undefined &&
+    buildDepth === 0 &&
+    layer.children.size === 0 &&
+    layer.pending.size + layer.resourceHolds === 0 &&
+    layer.defers.length + layer.secondary.length === 0 &&
+    ownsNothing(layer)
+  );
+}
+
+/** The rest of the idle test: no recorded failure, no re-entrant teardown, and no record on the
+ * layer holding a built resource instance, default or named (its release protocol must run). */
+function ownsNothing(layer: Layer): boolean {
+  if (
+    failureOf(layer) !== undefined ||
+    layer.descendantFailure !== undefined ||
+    closeWouldReenter(layer)
+  )
+    return false;
+  for (const state of layer.nodes.values()) {
+    if (state.instance !== undefined || state.nsResources !== undefined) return false;
+  }
+  return true;
+}
+
+/** The close `Result` of a session that ended idle — what {@link buildResult} builds for a clean
+ * close with no teardown errors — behind one shared, already-resolved promise. Never mutated. */
+const ENDED_CLEAN: Promise<Scope.Result> = Promise.resolve({
+  status: "success",
+  teardownErrors: undefined,
+});
+
 function closeLayer(layer: Layer, force = true, withData = false): Promise<Scope.Result> {
   const hooks = SESSION_HOOKS.get(layer);
   if (!layer.closing) {
@@ -4037,25 +4076,59 @@ function settleSession(
  * root installed `session` hooks (ADR 0051), the whole life runs inside their onion: `next()`
  * resolves with the close `Result`. No hooks means no wrapper — main's body below, inline, after one
  * root lookup. */
-async function runSessionWith<R>(
+function runSessionWith<R>(
   parent: Layer,
   options: Scope.Options | undefined,
   body: (child: Layer, handle?: Scope.Handle) => R | PromiseLike<R>,
   caller?: RunState,
 ): Promise<R> {
-  ensureOpen(parent);
-  const sessions = sessionsFor(parent);
-  if (sessions !== undefined) return runSessionWrapped(parent, options, body, sessions, caller);
-  const child = makeLayer(parent, options);
+  let child: Layer;
+  /** What an async function would reject with, rejected: a closed parent, a bad `ns`, a preset
+   * that fails its parse. The body's own throw is not here; {@link runBodyWith} keeps it. */
+  try {
+    ensureOpen(parent);
+    const sessions = sessionsFor(parent);
+    if (sessions !== undefined) return runSessionWrapped(parent, options, body, sessions, caller);
+    child = makeLayer(parent, options);
+  } catch (error) {
+    return Promise.reject(error) as Promise<R>;
+  }
   child.failureOwner = caller;
-  const started = runBodyWith(child, body);
+  const raw = runBodyWith(child, body);
+  /** A body that returned a plain value has settled: read its end now, as the reaction in
+   * {@link settleSessionWith} would one tick later, and when the session has nothing left to
+   * tear down end it in place — no body promise, no reaction, no async frame. */
+  if (!isThenable(raw) && !child.aborted && canEndIdle(child)) {
+    child.closed = true;
+    child.closing = ENDED_CLEAN;
+    finishLayer(child, false);
+    return Promise.resolve(raw);
+  }
+  return settleSessionWith(child, Promise.resolve(raw));
+}
+
+/** The waiting half of a session's life: the body is a promise, or the session has something to
+ * tear down. One reaction keeps the body's value and classifies its end the moment it settled
+ * (an abort after that does not flip it, Q5). A body that ended clean on a session with nothing
+ * left to tear down ends in place; anything else force-closes through the protocol. */
+async function settleSessionWith<R>(child: Layer, started: Promise<R>): Promise<R> {
   child.body = started;
-  child.bodyEnd = started.then(
-    (): Scope.Outcome => (child.aborted ? { status: "cancelled" } : SUCCESS),
+  let result: R | undefined;
+  const ended = started.then(
+    (value: R): Scope.Outcome => {
+      result = value;
+      return child.aborted ? { status: "cancelled" } : SUCCESS;
+    },
     (cause: unknown): Scope.Outcome =>
       isCancel(child, cause) ? { status: "cancelled" } : { status: "failed", error: cause },
   );
-  const result = await bodyResult(started);
+  child.bodyEnd = ended;
+  if ((await ended) === SUCCESS && canEndIdle(child)) {
+    child.closed = true;
+    child.closing = ENDED_CLEAN;
+    finishLayer(child, false);
+    return result as R;
+  }
   /** `close()` never throws (ADR 0027/0028); it resolves to the actual settled `Result`. A session is
    * promise-style, so map that Result back to resolve/reject: a real failure or cancellation rejects
    * (with the cause / abort reason), a clean run resolves the body value; teardown errors aggregate
@@ -4131,7 +4204,7 @@ function settleSessionEnded(ended: Scope.Result): void {
   else settleSession(false, undefined, teardownCauses);
 }
 
-async function runSession<R>(
+function runSession<R>(
   parent: Layer,
   options: Scope.Options | undefined,
   fn: (scope: Scope.Handle) => R | PromiseLike<R>,
@@ -4147,11 +4220,11 @@ async function runSession<R>(
 function runBodyWith<R>(
   child: Layer,
   fn: (child: Layer, handle?: Scope.Handle) => R | PromiseLike<R>,
-): Promise<R> {
+): R | PromiseLike<R> {
   try {
-    return Promise.resolve(fn(child));
+    return fn(child);
   } catch (error) {
-    return Promise.reject(error);
+    return Promise.reject(error) as Promise<R>;
   }
 }
 

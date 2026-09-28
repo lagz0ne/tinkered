@@ -79,8 +79,8 @@ if (asyncCount > 10) {
   console.error(`FAIL: async toggle allocated ${asyncCount} promises, budget is <=10`);
   fail = true;
 }
-if (taggedCount !== 17) {
-  console.error(`FAIL: tagged run allocated ${taggedCount} promises, budget is exactly 17`);
+if (taggedCount !== 2) {
+  console.error(`FAIL: tagged run allocated ${taggedCount} promises, budget is exactly 2`);
   fail = true;
 }
 process.exit(fail ? 1 : 0);
