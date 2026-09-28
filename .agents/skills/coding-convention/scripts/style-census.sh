@@ -74,18 +74,25 @@ doc_blind=' S11 S14 '
 
 # Prints file:line:text for each line whose text, with /** ... */ blanked, matches $1.
 # Quotes and // comments are skipped whole, so a "/**" in a string never opens a doc.
+# A template string can span lines; its state carries over like a doc's.
+# Known limits: a regex literal like /[/**]/ or JSX text like <p>/** open</p> opens a doc.
 doc_blind_grep='
 my $re = shift;
 for my $file (@ARGV) {
   open my $fh, "<", $file or next;
-  my $doc = 0;
+  my ($doc, $tpl) = (0, 0);
   while (my $line = <$fh>) {
     chomp $line;
     my ($code, $rest) = ("", $line);
     while ($rest ne "") {
       if ($doc) {
         if ($rest =~ s{^.*?\*/}{}) { $doc = 0; $code .= " "; } else { $rest = ""; }
-      } elsif ($rest =~ s{^(\x27(?:\\.|[^\\\x27])*\x27?|"(?:\\.|[^\\"])*"?|`(?:\\.|[^\\`])*`?|//.*)}{}) {
+      } elsif ($tpl) {
+        if ($rest =~ s{^((?:\\.|[^\\`])*`)}{}) { $code .= $1; $tpl = 0; }
+        else { $code .= $rest; $rest = ""; }
+      } elsif ($rest =~ s{^(`(?:\\.|[^\\`])*)(`?)}{}) {
+        $code .= $1 . $2; $tpl = $2 eq "" ? 1 : 0;
+      } elsif ($rest =~ s{^(\x27(?:\\.|[^\\\x27])*\x27?|"(?:\\.|[^\\"])*"?|//.*)}{}) {
         $code .= $1;
       } elsif ($rest =~ s{^/\*\*(?!/)}{}) {
         $doc = 1; $code .= " ";

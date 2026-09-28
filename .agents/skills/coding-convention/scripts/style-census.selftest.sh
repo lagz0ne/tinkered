@@ -82,6 +82,17 @@ TS
 check "flags a/*b in code" S11 2 "$(id_count S11 "$tmp/code.ts")"
 check "flags x[0] in code" S14 5 "$(id_count S14 "$tmp/code.ts")"
 
+# Positive: a "/**" inside a template string, on its own later line or all on one, opens no doc.
+cat >"$tmp/template.ts" <<'TS'
+declare const x: number[];
+export const t = `
+/** looks like a doc
+`;
+export const a = x[0] + 1;
+export const u = `/** one line */`; export const b = x[1] + 1;
+TS
+check "flags x[0] after a template holding /**" S14 2 "$(id_count S14 "$tmp/template.ts")"
+
 if (( fail )); then
   echo "style-census selftest: FAIL"
   exit 1
