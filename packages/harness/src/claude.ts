@@ -69,7 +69,6 @@ const sdk: Resource.Handle<Promise<ClaudeCode.Sdk>> = resource({
   factory: (): Promise<ClaudeCode.Sdk> => import("@anthropic-ai/claude-agent-sdk"),
 });
 
-/** The Claude Code adapter's own options tag: the SDK's `Options`, bound at scope or session. */
 const options: Tag.Handle<Partial<Options>> = tag<Partial<Options>>({
   label: "claudeCode.options",
 });
@@ -111,7 +110,6 @@ function approval(raw: unknown): ClaudeCode.Approval {
   raise("InvalidApproval", { harness: "claudeCode" });
 }
 
-/** The Claude Code adapter resource: awaits the lazy module, then opens threads on it. */
 const adapterResource: Resource.Handle<
   Promise<Harness.Backend<Options, ClaudeCode.Turn, ClaudeCode.Result, ClaudeCode.Calls>>
 > = resource({
@@ -247,8 +245,6 @@ async function runQuery(
   raise("TurnEnded", { harness: "claudeCode" });
 }
 
-/** What a turn rejects with when its stream threw: a kept approval failure first, then the
- * session's cancel reason once its signal fired, else the stream's own error. */
 function readThrown(error: unknown, stop: TurnStop, hooks: Harness.Hooks): unknown {
   if (stop.failure !== undefined) return stop.failure.error;
   if (hooks.signal.aborted) return hooks.signal.reason;
@@ -280,7 +276,6 @@ function readServer(
   });
 }
 
-/** The message of the `deny` the SDK hears once an approval of the turn failed. */
 const approvalFailed = "approval failed";
 
 /** Answer the SDK's permission prompt through the approval subflow: the request goes in as the
@@ -320,7 +315,7 @@ function readCanUseTool(
 }
 
 /** Map one SDK message onto hook calls; returns the result message when the turn is over, else
- * undefined. Pure — proven through the seam with recorded fixtures. Emits every message raw,
+ * undefined. Proven through the seam with recorded fixtures. Emits every message raw,
  * forwards text deltas, records tool starts and completions, and reads usage, cost, and id off
  * the result (the `system` init sets the id early too). */
 function mapClaudeMessage(message: SDKMessage, hooks: Harness.Hooks): SDKResultMessage | undefined {
@@ -337,7 +332,6 @@ function mapClaudeMessage(message: SDKMessage, hooks: Harness.Hooks): SDKResultM
   return undefined;
 }
 
-/** Map a conversation message (delta, tool call, tool answer) onto its hook calls. */
 function readConversationMessage(
   message: SDKPartialAssistantMessage | SDKAssistantMessage | SDKUserMessage,
   hooks: Harness.Hooks,
@@ -356,7 +350,6 @@ function readConversationMessage(
     hooks.item({ kind: "tool_result", id: toolUseId, status: "completed", source: message });
 }
 
-/** Record usage, cost, and id off a result message, then hand it back as the turn's answer. */
 function readResultMessage(message: SDKResultMessage, hooks: Harness.Hooks): SDKResultMessage {
   hooks.usage({
     input: message.usage.input_tokens,
@@ -368,7 +361,6 @@ function readResultMessage(message: SDKResultMessage, hooks: Harness.Hooks): SDK
   return message;
 }
 
-/** The text of a raw stream event when it is a text delta, else undefined. */
 function readTextDelta(message: SDKPartialAssistantMessage): string | undefined {
   const event = message.event;
   if (event.type !== "content_block_delta") return undefined;
@@ -376,7 +368,6 @@ function readTextDelta(message: SDKPartialAssistantMessage): string | undefined 
   return event.delta.text;
 }
 
-/** The `tool_use` blocks of an assistant message. */
 function readToolUses(message: SDKAssistantMessage): readonly { readonly id: string }[] {
   const found: { readonly id: string }[] = [];
   for (const block of message.message.content) {
@@ -385,7 +376,6 @@ function readToolUses(message: SDKAssistantMessage): readonly { readonly id: str
   return found;
 }
 
-/** The `tool_use_id` of every `tool_result` block in a user message. */
 function readToolResultIds(message: SDKUserMessage): readonly string[] {
   const content = message.message.content;
   if (typeof content === "string") return [];

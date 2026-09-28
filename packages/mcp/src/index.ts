@@ -25,7 +25,6 @@ export declare namespace Mcp {
     readonly op: Operation.Handle<unknown, unknown>;
     readonly meta: Tool;
   };
-  /** What the MCP driver serves: its name and version plus the flat tool rows. */
   export type Wiring = {
     readonly name: string;
     readonly version: string;
@@ -56,14 +55,11 @@ export function answerTool(meta: Mcp.Tool, value: unknown): CallToolResult {
   return textResult(JSON.stringify(value));
 }
 
-/** Map a failed call to a tool error result: a parse failure answers `invalid input`, any
- * other failure its text. */
 function failCall(error: unknown): CallToolResult {
   if (isCoreError(error, "DataValidationFailed")) return failureResult("invalid input");
   return failureResult(String(error));
 }
 
-/** Map a settled call to a tool result: the inline op's answer, or its failure as a tool error. */
 function answerCall(settled: RunResult<CallToolResult>): CallToolResult {
   if (settled.status === "success") return settled.value;
   if (settled.status === "failed") return failCall(settled.error);

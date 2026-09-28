@@ -21,7 +21,8 @@ export { codex } from "./codex.ts";
 export type { OpenAiCodex } from "./codex.ts";
 
 export declare namespace Harness {
-  /** A thread's lifecycle as the session sees it: quiet, mid-turn, last turn done, last turn failed. */
+  /** Tracks the last turn, not the thread: `done` and `failed` say how the last turn ended, and
+   * the next turn sets `running` again. */
   export type Status = "idle" | "running" | "done" | "failed";
   /** Token and cost totals once the harness reports them; `cached` is 0 when it reports none. */
   export type Usage = {
@@ -69,8 +70,6 @@ export declare namespace Harness {
    * and the call is a SUBFLOW of the turn. The presence of `C["tool"]` keeps the compile-time
    * gate: an adapter whose `Calls.tool` is `never` rejects `tools`. */
   export type Tool<C extends Calls> = [C["tool"]] extends [never] ? never : Mcp.Row;
-  /** One tool as the thread receives it per turn: the row's op, its facts, and its subflow
-   * controller. */
   export type ToolCall<C extends Calls> = {
     readonly op: Tool<C>["op"];
     readonly meta: Mcp.Tool;
@@ -101,7 +100,7 @@ export declare namespace Harness {
     run(turn: Turn, calls: TurnCalls<C>): Promise<Result>;
     close(): Promise<void> | void;
   };
-  /** What an adapter resource builds: `start` opens a thread on merged options and hooks. */
+  /** `start` receives the options already merged by the adapter's `merge`, nearest binding first. */
   export type Backend<Options, Turn, Result, C extends Calls> = {
     start(
       options: Options,
@@ -139,10 +138,8 @@ export declare namespace Harness {
   };
 }
 
-/** The shared frozen empty item list — every frame's `items` cell starts here. */
 const noItems: readonly Harness.Item[] = Object.freeze([]);
 
-/** The shared frozen empty event list — every frame's `events` cell starts here. */
 const noEvents: readonly unknown[] = Object.freeze([]);
 
 /** The `depends` slots of a frame's tools, one per tool under `tool:<name>`: a record the send
@@ -150,10 +147,8 @@ const noEvents: readonly unknown[] = Object.freeze([]);
  * value is whatever the op returns — the adapter maps it at the edge. */
 type ToolDeps = Record<`tool:${string}`, Operation.Handle<unknown, unknown>>;
 
-/** The controllers those slots deliver, read back by the same keys. */
 type ToolSlots<C extends Harness.Calls> = Record<`tool:${string}`, Harness.ToolCall<C>["run"]>;
 
-/** One tool's facts, read once at frame construction: the row's op, its facts, and its dep key. */
 type ToolEntry<C extends Harness.Calls> = {
   readonly op: Harness.Tool<C>["op"];
   readonly meta: Mcp.Tool;
@@ -168,15 +163,13 @@ function readToolEntries<C extends Harness.Calls>(
   return tools.map(({ op, meta }) => ({ op, meta, key: `tool:${meta.name ?? op.label}` }));
 }
 
-/** One `tool:<name>` slot per tool, built once at frame construction. */
 function readToolDeps<C extends Harness.Calls>(entries: readonly ToolEntry<C>[]): ToolDeps {
   const deps: ToolDeps = {};
   for (const entry of entries) deps[entry.key] = entry.op;
   return deps;
 }
 
-/** The turn's calls from its resolved slots: the approval controller when configured, and one
- * `{ op, meta, run }` per tool (absent when the frame has none — nothing allocated then). */
+/** Runs every turn, so a frame without tools allocates no `tools` array. */
 function readCalls<C extends Harness.Calls>(
   slots: ToolSlots<C>,
   entries: readonly ToolEntry<C>[],
@@ -295,8 +288,6 @@ export function harness<O, T, R, C extends Harness.Calls>(config: {
   };
 }
 
-/** What one turn body needs from its op: the thread, the cells it writes, and the approval
- * subflow's controller when the frame has one. */
 type TurnDeps<T, R, C extends Harness.Calls> = {
   readonly thread: Harness.Thread<T, R, C>;
   readonly status: Scope.DataController<Harness.Status>;

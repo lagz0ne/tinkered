@@ -1,4 +1,5 @@
-/** Payload type for each harness error. The registry is the only place this package throws. */
+/** Payload type for each harness error: every error this package makes. Its other `throw`s pass
+ * on an error they were handed (a signal's reason, a failed op's error). */
 type Payloads = {
   TurnEnded: { readonly harness: string };
   TurnFailed: { readonly harness: string; readonly message: string };
@@ -6,18 +7,14 @@ type Payloads = {
 };
 
 export declare namespace Errors {
-  /** Every harness error name. */
   export type Name = keyof Payloads;
-  /** The typed payload carried by one error name. */
   export type Payload<N extends Name> = Payloads[N];
-  /** A harness error: identified by `kind`, carrying a typed `payload`. */
   export type Of<N extends Name = Name> = Error & {
     readonly kind: N;
     readonly payload: Payloads[N];
   };
 }
 
-/** Build a registry error without throwing (for rejecting a promise). */
 export function makeError<N extends Errors.Name>(
   kind: N,
   payload: Errors.Payload<N>,
@@ -27,7 +24,6 @@ export function makeError<N extends Errors.Name>(
   return error;
 }
 
-/** Throw a registry error. The only throw site in the package. */
 export function raise<N extends Errors.Name>(kind: N, payload: Errors.Payload<N>): never {
   throw makeError(kind, payload);
 }

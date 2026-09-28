@@ -31,9 +31,7 @@ export declare namespace OpenAiCodex {
       turnOptions?: TurnOptions,
     ): Promise<{ events: AsyncIterable<ThreadEvent> }>;
   };
-  /** A v1 turn: the SDK's own input plus its per-turn output schema. */
   export type Turn = { readonly input: Input; readonly outputSchema?: unknown };
-  /** A v1 result: the SDK's own turn, delivered untouched. */
   export type Result = CodexTurn;
   /** What userland may answer during a Codex turn: nothing — the SDK offers only the
    * `approvalPolicy` string and MCP config for external processes (ADR 0043), so the frame
@@ -45,7 +43,6 @@ export declare namespace OpenAiCodex {
   export type Adapter = Harness.Adapter<Options, Turn, Result, Calls> & {
     readonly sdk: Resource.Handle<Promise<Sdk>>;
   };
-  /** The Codex adapter's options: the SDK's own `CodexOptions & ThreadOptions`. */
   export type Options = CodexOptions & ThreadOptions;
 }
 
@@ -57,7 +54,6 @@ const sdk: Resource.Handle<Promise<OpenAiCodex.Sdk>> = resource({
   factory: (): Promise<OpenAiCodex.Sdk> => import("@openai/codex-sdk"),
 });
 
-/** The Codex adapter's own options tag: the SDK's `CodexOptions & ThreadOptions`. */
 const options: Tag.Handle<Partial<OpenAiCodex.Options>> = tag<Partial<OpenAiCodex.Options>>({
   label: "codex.options",
 });
@@ -69,7 +65,6 @@ function merge(bindings: readonly Partial<OpenAiCodex.Options>[]): OpenAiCodex.O
   return merged;
 }
 
-/** Read the `Codex` constructor's own keys off merged options; only present keys are copied. */
 function readCodexOptions(options: OpenAiCodex.Options): CodexOptions {
   const read: CodexOptions = {};
   if (options.codexPathOverride !== undefined) read.codexPathOverride = options.codexPathOverride;
@@ -81,7 +76,6 @@ function readCodexOptions(options: OpenAiCodex.Options): CodexOptions {
   return read;
 }
 
-/** Read the thread's own keys off merged options; only present keys are copied. */
 function readThreadOptions(options: OpenAiCodex.Options): ThreadOptions {
   const read: ThreadOptions = {};
   readThreadModel(options, read);
@@ -89,7 +83,6 @@ function readThreadOptions(options: OpenAiCodex.Options): ThreadOptions {
   return read;
 }
 
-/** Copy the thread's model and directory keys; only present keys are copied. */
 function readThreadModel(options: OpenAiCodex.Options, read: ThreadOptions): void {
   if (options.model !== undefined) read.model = options.model;
   if (options.threadSource !== undefined) read.threadSource = options.threadSource;
@@ -100,7 +93,6 @@ function readThreadModel(options: OpenAiCodex.Options, read: ThreadOptions): voi
     read.modelReasoningEffort = options.modelReasoningEffort;
 }
 
-/** Copy the thread's access keys; only present keys are copied. */
 function readThreadPolicy(options: OpenAiCodex.Options, read: ThreadOptions): void {
   if (options.networkAccessEnabled !== undefined)
     read.networkAccessEnabled = options.networkAccessEnabled;
@@ -111,7 +103,6 @@ function readThreadPolicy(options: OpenAiCodex.Options, read: ThreadOptions): vo
     read.additionalDirectories = options.additionalDirectories;
 }
 
-/** The Codex adapter resource: awaits the lazy module, then opens threads on it. */
 const adapterResource: Resource.Handle<
   Promise<
     Harness.Backend<OpenAiCodex.Options, OpenAiCodex.Turn, OpenAiCodex.Result, OpenAiCodex.Calls>
@@ -200,7 +191,7 @@ function startCodex(
   };
 }
 
-/** Map one SDK event onto hook calls; returns true when the turn is over. Pure — proven
+/** Map one SDK event onto hook calls; returns true when the turn is over. Proven
  * through the seam with recorded fixtures. Emits every event raw, sets the id off
  * `thread.started`, records items with the item's own status (or the event phase), streams
  * the agent text growth as deltas (Codex reports the whole text so far, not deltas), and
@@ -263,7 +254,6 @@ function readThreadItem(
   }
 }
 
-/** The status one item records: the item's own status when it carries one, else the event phase. */
 function readItemStatus(
   item: ThreadItem,
   phase: "item.started" | "item.updated" | "item.completed",
