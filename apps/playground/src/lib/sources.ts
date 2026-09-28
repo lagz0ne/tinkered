@@ -17,7 +17,6 @@ export const PACKAGE_SOURCES: readonly Source[] = [
   { name: "@tinker/react/errors.ts", content: reactErrors, editable: false },
 ];
 
-/** Everything openable: the editable session files first, then the read-only package sources. */
 export function sourceFiles(files: readonly PlaygroundFile[]): readonly Source[] {
   const editable = files.map((f) => ({ name: f.name, content: f.content, editable: true }));
   return [...editable, ...PACKAGE_SOURCES];

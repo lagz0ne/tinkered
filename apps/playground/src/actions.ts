@@ -31,7 +31,6 @@ const untitled = (names: readonly string[]): string => {
   return `Untitled${n}.tsx`;
 };
 
-/** Replace one file's content. */
 export const editFile = operation({
   label: "editFile",
   input: (raw) => {
@@ -48,8 +47,8 @@ export const editFile = operation({
   },
 });
 
-/** Add an empty `UntitledN.tsx` and make it active. Returns its name. The navigation place opens
- * the new file, so the editor shows what was just created and Back returns to the previous spot. */
+/** The navigation place opens the new file, so the editor shows what was just created and Back
+ * returns to the previous spot. */
 export const addFile = operation({
   label: "addFile",
   depends: {
@@ -164,7 +163,6 @@ export const setView = operation({
   run: ({ view }, { input }) => view.set(input),
 });
 
-/** Set the Code view's file-search text. */
 export const setSearch = operation({
   label: "setSearch",
   input: string("setSearch"),
@@ -172,7 +170,6 @@ export const setSearch = operation({
   run: ({ search }, { input }) => search.set(input),
 });
 
-/** Show or hide the Code view's file-picker list. */
 export const setPickerOpen = operation({
   label: "setPickerOpen",
   input: (raw): boolean =>
@@ -183,7 +180,6 @@ export const setPickerOpen = operation({
   run: ({ picker }, { input }) => picker.set(input),
 });
 
-/** Open the inline rename input for a tab. */
 export const openRename = operation({
   label: "openRename",
   input: string("openRename"),
@@ -191,7 +187,6 @@ export const openRename = operation({
   run: ({ rename }, { input }) => rename.set(input),
 });
 
-/** Close the inline rename input without committing. */
 export const closeRename = operation({
   label: "closeRename",
   depends: { rename: renameCell.controller },

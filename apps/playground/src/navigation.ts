@@ -9,7 +9,6 @@ import { filesCell } from "@/state.ts";
  * A new jump appends to `back` and clears `forward`; `trackCursor` moves `place` alone. */
 export type Navigation = { place?: Place; back: readonly Place[]; forward: readonly Place[] };
 
-/** The navigation state: current place plus the two history stacks. */
 export const navigationCell = data<Navigation>({
   label: "navigation",
   initial: { back: [], forward: [] },

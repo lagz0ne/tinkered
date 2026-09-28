@@ -56,7 +56,6 @@ export type LibResult = {
 
 const keyed = <T>(make: (i: number) => T): T[] => Array.from({ length: N }, (_, i) => make(i));
 
-/** Tinker. */
 function tinkerLib(): Lib {
   const cells = keyed((i) => data({ label: `c${i}`, initial: 0 }));
   const shared = data({ label: "shared", initial: 0 });
@@ -423,7 +422,6 @@ export function prepare(lib: Lib): Sampler {
   return s;
 }
 
-/** One update sample, growing short batches while guarding synchronous renders. */
 export function sampleUpdate(s: Sampler): number {
   const { lib } = s;
   return measureBatch(lib.name, UPDATE_BATCH, (count) => {
@@ -440,7 +438,6 @@ export function sampleUpdate(s: Sampler): number {
   });
 }
 
-/** One fan-out sample, requiring all N cells to render for every shared write. */
 export function sampleFanout(s: Sampler): number {
   const { lib } = s;
   return measureBatch(lib.name, FANOUT_BATCH, (count) => {

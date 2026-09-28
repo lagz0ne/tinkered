@@ -28,19 +28,16 @@ function fmtUs(v: number): string {
   return v.toFixed(2);
 }
 
-/** Relative half-width of the interquartile range, as a percentage of the median. */
 const spreadPct = (s: Stat): number => Math.round(((s.q3 - s.q1) / 2 / s.median) * 100);
 
 /** Interleaved medians drift 3–8% between clicks of "Run again"; anything under this is noise. */
 const GAP_FLOOR = 1.1;
-/** `a` is reported faster than `b` only if the gap beats the floor AND their IQRs do not overlap. */
 const faster = (a: Stat, b: Stat): boolean => b.median / a.median >= GAP_FLOOR && a.q3 < b.q1;
 /** A claimed ratio is rounded DOWN so the headline never overstates. */
 const floor1 = (k: number): string => (Math.floor(k * 10) / 10).toFixed(1);
 
 const isTinker = (r: LibResult) => r.name.includes("tinker");
 
-/** One timing cell: label, median ± IQR, a badge relative to the column's fastest, and a bar. */
 function Metric({ label, stat, best }: { label: string; stat: Stat; best: Stat }): ReactElement {
   const isFastest = !faster(best, stat);
   const pct = Math.max(3, (stat.median / (best.median * 4)) * 100);
@@ -136,14 +133,12 @@ function ResultRow({
   );
 }
 
-/** tinker's update gap vs another library, in words — and only when the data supports a claim. */
 function gapWords(other: Stat, tinker: Stat): string {
   if (faster(tinker, other)) return `${floor1(other.median / tinker.median)}× faster than`;
   if (faster(other, tinker)) return `${floor1(tinker.median / other.median)}× slower than`;
   return "about the same as";
 }
 
-/** One row of "Nx faster/slower than X" badges against tinker, for a single metric. */
 function GapBadges({
   tinker,
   others,
@@ -167,7 +162,6 @@ function GapBadges({
   );
 }
 
-/** The plain-language takeaway a reader should leave with. */
 function Takeaway({ results }: { results: LibResult[] }): ReactElement | null {
   const tinker = results.find(isTinker);
   const naive = results.find((r) => !r.fine);

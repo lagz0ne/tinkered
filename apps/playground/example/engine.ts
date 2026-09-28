@@ -192,14 +192,12 @@ export const ticker = resource({
       }),
     );
 
-    /** Drop the waves that outlived `life`. */
     const expire = (now: number, life: number) => {
       const all = deps.waves.get();
       const live = all.filter((w) => now - w.start < life);
       if (live.length !== all.length) deps.waves.set(live);
     };
 
-    /** Press one random tile when the storm is on and its cadence is due. */
     const storm = (now: number, rate: number) => {
       if (deps.stormOn.get() && now - lastStorm >= rate) {
         lastStorm = now;
@@ -209,7 +207,6 @@ export const ticker = resource({
       }
     };
 
-    /** Recompute the board once, and write it only when some tile's look changed. */
     const paint = (now: number, settings: Physics) => {
       const list = deps.waves.get();
       const prev = deps.board.get();

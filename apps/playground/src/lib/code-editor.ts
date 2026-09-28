@@ -48,7 +48,6 @@ export const codeEditor = resource({
     let editable = true;
     const cache = new Map<string, EditorState>();
 
-    /** The file the place points at, falling back to the active tab and then the first file. */
     const shown = (): Source => {
       const name = nav.get().place?.file ?? active.get();
       const list = sources();

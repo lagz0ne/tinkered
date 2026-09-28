@@ -61,9 +61,7 @@ export const debounce = tag<number>({ label: "debounce", default: 250 });
 export const filesCell = data<PlaygroundFile[]>({ label: "files", initial: [...DEFAULT_FILES] });
 /** The active tab's file name. */
 export const activeCell = data<string>({ label: "active", initial: ENTRY });
-/** The selected CodeMirror theme. */
 export const themeCell = data<ThemeId>({ label: "theme", initial: "one-dark" });
-/** Which top-level view is showing: the game, the code editor, or the benchmark. */
 export const viewCell = data<View>({ label: "view", initial: "play" });
 /** The stage's display mode; `fit` and `native` hide the shell chrome. */
 export const modeCell = data<Mode>({ label: "mode", initial: "window" });
@@ -76,7 +74,6 @@ export const pickerOpenCell = data<boolean>({ label: "pickerOpen", initial: fals
 export const renameCell = data<string | undefined>({ label: "rename", initial: undefined });
 /** True once the user has changed a file (content, add, close, rename); reset clears it. */
 export const dirtyCell = data<boolean>({ label: "dirty", initial: false });
-/** The latest build/runtime status. */
 export const statusCell = data<Status>({
   label: "status",
   initial: { kind: "info", text: "starting…" },

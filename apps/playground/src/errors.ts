@@ -7,11 +7,8 @@ type Payloads = {
 };
 
 export declare namespace Errors {
-  /** Every playground error name. */
   export type Name = keyof Payloads;
-  /** The typed payload carried by one error name. */
   export type Payload<N extends Name> = Payloads[N];
-  /** A playground error: identified by `kind`, carrying a typed `payload`. */
   export type Of<N extends Name = Name> = Error & {
     readonly kind: N;
     readonly payload: Payloads[N];
