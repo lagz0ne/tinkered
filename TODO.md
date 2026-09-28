@@ -48,12 +48,6 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
   `af5e342d` in `../tinkered-wire-rebuild` (brief `tracker-wire-rebuild.md`). Verify: the wire
   near 40 lines; browser proof 4 of 4 uncached.
 
-- **tracker/server-ops** — the four server helpers that take `tx`/`db` (`selectAllIssues`,
-  `loadSaved`, `writeIssue`, `recordActivity`) become operations (best-practices rule 4: no
-  forwarding to a closure); pure value functions stay functions. Owner: lead; writer agent
-  `ac20db96` in `../tinkered-server-ops` (brief `tracker-server-ops.md`). Verify: behavior
-  unchanged; a failing step's origin names the step.
-
 ## Review
 
 | Card | Owner | Next | Verify |
@@ -99,6 +93,8 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 ## Done
 
+- **tracker/server-ops** — opus high + fable review (no fix round); tag `tracker/server-ops`. `loadSaved`, `writeIssue`, and `recordActivity` became operations on `store.tx` (best-practices rule 4), run as subflows in the request's one transaction; `selectAllIssues` was exactly `listIssues`, which `publishIssues` now depends on. Pure value functions stay functions. A missing issue's error now names `loadSaved` as its origin; a test presets `recordActivity` alone. Review probes: a failed activity write rolls the whole edit back; HTTP answers (404, 409, 400) unchanged.
+  - Gate EXIT 0; tracker 78 tests (2 new); browser proof 2 of 2 uncached; validate 44 PASS; 4 Jev labels, calibration refreshed.
 - **sync/transport-unit** — opus high + fable review (one fix round); tag `sync/transport-unit`; closes ADR 0070's open question. `subscribe(link, wiring)` takes its transport from a resource and resolves it inside the scope; sync does not reconnect (the link does). The tracker's `wire` resource is the transport, so nothing is built before `createScope` (`memoryPair`, `wirePeer`, `linkWire` gone). Fixed on the way: a close while `start` awaited its transport hung `ready`; now it rejects `SyncNotReady` and parts the wire.
   - Gate EXIT 0; sync 52 tests (4 new), tracker 76; sync mutation 86.49; browser proof 4 of 4 uncached; validate 44 PASS; 3 Jev labels, calibration refreshed.
 - **tracker/gate-leftovers** — opus high + fable review (no fix round); tag `tracker/gate-leftovers`. Saved issue, comment, and activity ids come from `ctx.random` (a seeded scope replays them); `checkCapability` reads its check through `settle` (a managed error shows failed, a panic shows failed and is rethrown); the two boot resources leave their runs to the scope (`void op.run()`: core tracks the run, and a fire-and-forget `settle` would recover a panic); two unreachable notices removed; `fail()` builds without a cast. The tracker's writer gate: 12 blocking at first review → 3, each a labeled Jev wrong hit.
