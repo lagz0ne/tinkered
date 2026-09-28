@@ -37,7 +37,10 @@ reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, on
   when none were built; tag seeding makes a flat list before the tag map. Fix, one experiment per
   commit: skip the scan when the layer built no instance; then seed nested tags straight into the
   map. A commit stays only if benchd says `tagged` or `session` "B faster". Owner: lead; Astra
-  writer. Verify: no scenario slower, promises 17, `pnpm validate`, core mutation ≥ 85. If no
+  writer `da5603fb`. In parallel (user: speed up), three Fable agents each test one more theory
+  on a `theory/<name>` branch, V8 first, one N=31 screening: `replay` (tagged child setup),
+  `route` (no-hook session route), `nsfields` (namespace fields on every record). Winners fold
+  into this card. Verify: no scenario slower, promises 17, `pnpm validate`, core mutation ≥ 85. If no
   experiment wins: raise the budget to 2200 and record why (user 2026-09-28: A, then B).
 
 ## Review
