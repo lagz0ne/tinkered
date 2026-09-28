@@ -333,7 +333,6 @@ test("async is typed through the graph: an op over an async resource is an async
   expect(await scope.run(op)).toBe(true);
   await scope.close();
 });
-// (no shared/ambient state)
 
 test("a resource dep the factory reads twice builds once and caches (lazy access parity)", () => {
   let builds = 0;
@@ -1263,6 +1262,7 @@ test("an ancestor failure force-closes its subtree: a nested child's resource ro
       return { ok: true };
     },
   });
+  /** Forced shutdown rolls back (ADR 0028), yet this cause still reaches the caller. */
   const cause = new Error("outer-boom");
   const thrown = await createScope()
     .session((s) => {
@@ -1274,8 +1274,6 @@ test("an ancestor failure force-closes its subtree: a nested child's resource ro
       () => undefined,
       (e: unknown) => e,
     );
-  // ADR 0028 (forced shutdown rolls back): the failing session forces its subtree down, so the nested
-  // child is force-closed and its resource settles `cancelled` (rolls back). The cause bubbles UP.
   expect(seen).toEqual(["cancelled"]);
   expect(thrown).toBe(cause);
 });
@@ -1918,6 +1916,7 @@ test("a throwing cleanup mid-cascade still drops every dependent's cache", () =>
 
 test("releasing the head of a deep chain does not overflow the stack", () => {
   const base = data({ initial: 0, parse: asNumber });
+  /** 5000 nodes: the 30 s timeout keeps coverage-instrumented (mutation) runs from flaking. */
   const chain: Resource.Handle<{ n: number }>[] = [
     resource({ label: "r0", depends: { base }, factory: ({ base }) => ({ n: base }) }),
   ];
@@ -1931,7 +1930,6 @@ test("releasing the head of a deep chain does not overflow the stack", () => {
   for (const node of chain) scope.resolve(node);
   scope.release(chain[0]);
   expect(scope.controller(chain[0]).resolve().n).toBe(0);
-  // 5000-node build + release: generous timeout so coverage-instrumented runs (mutation) don't flake.
 }, 30000);
 
 test("a throwing watcher during release still runs the cleanups", () => {
@@ -2905,14 +2903,14 @@ test("an interrupted session resource sees cancelled, not success", async () => 
 });
 
 test("closing a deeply nested scope tree does not overflow", async () => {
+  /** 3000 levels deep: the 30 s timeout keeps coverage-instrumented (mutation) runs from flaking.
+   * The claim is "no stack overflow", not speed. */
   const root = createScope();
   let leaf = root;
   for (let i = 0; i < 3000; i++) leaf = leaf.createSession();
   const result = await root.close();
   expect(result.status).toBe("cancelled");
   expect(result.teardownErrors).toBeUndefined();
-  // 3000-deep async close cascade: generous timeout so coverage-instrumented runs (mutation) don't
-  // flake on the default 5s; the assertion here is "no stack overflow", not wall-clock speed.
 }, 30000);
 
 test("an owned rejection with an undefined cause keeps that cause", async () => {
@@ -3465,10 +3463,8 @@ test("a first graceful child close after an ancestor abort still rolls its resou
 });
 
 test("a body that rejects with a surfaced failure reports it over a caught owned-work error", async () => {
-  // ADR 0028: a real body failure wins over owned-work. Here the body CAUGHT `own` (so it is not the
-  // body's outcome) and then rejected with `ancestor` (surfaced through an awaited grandchild session
-  // that really failed with it), so the session settles with the body's cause `ancestor`, not the
-  // caught owned-work `own`.
+  /** The body catches this owned-work error, so it is not the body's outcome: the body's own
+   * rejection (`ancestor`, surfaced from a grandchild that really failed) wins (ADR 0028). */
   const own = new Error("owned failure");
   const ancestor = new Error("ancestor failure");
   const bad = operation({ label: "bad", run: () => Promise.reject(own) });
@@ -4079,8 +4075,8 @@ test("release during dependency resolution waits for the operation's cleanup", a
   const use = operation({
     label: "use",
     depends: { conn, trigger },
-    // Read conn first (builds + is borrowed), then trigger, whose lazy build releases conn mid-run.
-    // The op's borrow was registered up front, so the release still waits for the op's cleanup.
+    /** `trigger`'s lazy build releases `conn` mid-run. The op's borrow on `conn` was registered
+     * up front, so that release still waits for the op's cleanup. */
     run: ({ conn, trigger }, { defer }) => {
       void trigger;
       defer(async () => {

@@ -886,9 +886,7 @@ test("a failed named build's cleanup is still run by releaseNs (N3)", async () =
   const scope = createScope();
   try {
     scope.resolve(client, { ns });
-  } catch {
-    // expected
-  }
+  } catch {}
   scope.releaseNs(client, ns);
   expect(ended).toEqual(["failed"]);
   await scope.close({ graceful: true });
@@ -915,9 +913,7 @@ test("a failed named build does not fill a sibling chain's fallback (N3)", () =>
   const scope = createScope();
   try {
     scope.resolve(client, { ns: b });
-  } catch {
-    // expected
-  }
+  } catch {}
   expect(scope.resolve(client, { ns: [a, b] })).toBe("A");
   expect(scope.resolve(client, { ns: b })).toBe("B");
 });

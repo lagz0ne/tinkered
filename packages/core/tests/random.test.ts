@@ -49,7 +49,6 @@ test("a scope with no random option reads the system source", () => {
   const [id2] = createScope().run(drawUuid);
   expect(n >= 0 && n < 1).toBe(true);
   expect(id).toMatch(V4);
-  // Two default scopes differ: the source is the real system random, not a fixed seed.
   expect(id).not.toBe(id2);
 });
 

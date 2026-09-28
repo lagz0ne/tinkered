@@ -97,7 +97,7 @@ export declare namespace Tag {
   };
 }
 
-/** A parallel storage bucket inside a layer (ADR 0059): minted by {@link namespace}, carried on
+/** A parallel storage bucket inside a layer (ADR 0059): minted by `namespace()`, carried on
  * an invocation (`ns`) or a scope/session (`createSession({ ns })`). A branded value, not a name —
  * two namespaces differ by identity, never by a string. Its `tags` are the namespace's own
  * bindings, read when a call resolves in it. */
@@ -1732,10 +1732,13 @@ function nanosFromMillis(ms: number): bigint {
   return BigInt(whole) * 1_000_000n + BigInt(Math.round((ms - whole) * 1_000_000));
 }
 
+/** The one sanctioned real-clock read (ADR 0034). `scripts/check-ambient.mjs` skips only the lines
+ * that carry the `ambient-source` mark, so every line holding a read carries one. */
 const systemClock: Clock.Handle = {
-  currentTimeMillis: () => Date.now(), // ambient-source
+  /** ambient-source */ currentTimeMillis: () => Date.now(),
   currentTimeNanos: () =>
-    nanosFromMillis(performance.timeOrigin) + nanosFromMillis(performance.now()), // ambient-source
+    /** ambient-source */ nanosFromMillis(performance.timeOrigin) +
+    /** ambient-source */ nanosFromMillis(performance.now()),
   sleep: (ms, signal) =>
     new Promise<void>((resolve, reject) => {
       if (signal?.aborted) return reject(signal.reason);
@@ -1801,9 +1804,11 @@ export function makeTestClock(options?: Clock.Options): Clock.Test {
   };
 }
 
+/** The one sanctioned real-random read (ADR 0062). `scripts/check-ambient.mjs` skips only the lines
+ * that carry the `ambient-source` mark, so every line holding a read carries one. */
 const systemRandom: Random.Handle = {
-  next: () => Math.random(), // ambient-source
-  uuid: () => crypto.randomUUID(), // ambient-source
+  /** ambient-source */ next: () => Math.random(),
+  /** ambient-source */ uuid: () => crypto.randomUUID(),
 };
 
 /** Create a seeded randomness source for tests: the same `seed` replays the same `next` and `uuid`
@@ -2783,7 +2788,7 @@ class ResourceCtx implements Resource.Ctx {
 }
 
 /** Build the ctx a resource factory receives. Only called when the factory declares a ctx param
- * (arity >= 2); otherwise a per-layer empty ctx (see {@link emptyCtxFor}) is passed, allocated at
+ * (`factory.length >= 2`); otherwise a per-layer empty ctx (see {@link emptyCtxFor}) is passed, allocated at
  * most once per layer. `defer` closes over the build's `settled`/`superseded` so late registration
  * behaves correctly. */
 function buildCtx(
@@ -4340,8 +4345,7 @@ function handleFor(layer: Layer): Scope.Handle {
   const settled = async (): Promise<void> => {
     while (layer.pending.size) await Promise.all(layer.pending);
   };
-  // Both forms share the layer capture. A non-namespace second argument (such as a forEach index)
-  // is still a plain release.
+  /** A non-namespace second argument (such as a `forEach` index) is still a plain release. */
   const release = (target: Data.Cell<unknown> | Resource.Handle<unknown>, ns?: unknown): void => {
     if (isNamespace(ns)) releaseNamed(layer, target, ns);
     else releaseNode(layer, target);
