@@ -76,7 +76,7 @@ export declare namespace Tinkerer {
     readonly usage: Usage;
     readonly finish: string;
   };
-  /** The least mode a tool call needs: read-only < workspace-write < full-access. */
+  /** The least mode a tool call needs, ranked `read-only < workspace-write < full-access`. */
   export type Mode = "read-only" | "workspace-write" | "full-access";
   /** One wiring row: the operation plus its tool facts. The wire name is
    * `meta.name ?? op.label`; `sequential` runs a reply's calls one at a time. */
