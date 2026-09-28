@@ -23,9 +23,6 @@ export declare namespace Process {
     readonly description?: string;
     readonly entry: (rest: readonly string[]) => Entry | PromiseLike<Entry>;
   };
-  /** A lazy operation: a dynamic `import` in practice. Nothing here calls it: a route's `entry`
-   * awaits it, so `help` never loads it. Any memoizing or retry is the entry's own. */
-  export type Load<T, I> = () => Operation.Handle<T, I> | PromiseLike<Operation.Handle<T, I>>;
   export type Shell = {
     readonly name: string;
     readonly version: string;
