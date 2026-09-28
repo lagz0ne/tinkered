@@ -23,6 +23,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **harness/ts-expect-error** — replace the two `@ts-expect-error` rows in `packages/harness/tests/tools.test.ts` (~189, ~191) with `expectTypeOf(…).not.toExtend` (census S12; rule 10 bans them). Verify: census `--strict packages/harness` has no S12; harness tests green.
 - **perf/op-parity** — Compare operation call cost. The runner it waited for is here: `bench/queued.sh`
   sends `bench/ab.sh` through `benchd`, this box's benchmark queue, so one job runs at a time on one
   core with no network and no secrets. Next: pin the baseline and current SHAs, build the baseline
@@ -54,6 +55,7 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
     `../tinkered-doc-<group>`): core `4c0078bb`, hono+http `24596e57`, mcp+harness `3fd0221e`,
     issue-tracker `d2eb47d3`, examples `e563d3d3`. Wave 2 next: blueprint, tinkerer,
     process+react, sync+drizzle, playground. One calibration run after both waves.
+  - Landed: mcp+harness (40 labels; 6 docs that were wrong about the code fixed), hono+http (55 labels; 3 wrong docs fixed).
 
 ## Review
 
