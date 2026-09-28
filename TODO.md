@@ -37,11 +37,6 @@ reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, on
   resource from the controller's saved record; named and namespaced controllers keep the full path.
   Owner: lead; Astra writer `2869ba78`, commit `c776b11`. Next: benchd N=61 vs origin/main. Verify:
   `warm` "B faster", no scenario slower, promises 17, `pnpm validate`, core mutation ≥ 85.
-- **perf/create-presets** — win back `create` (+17% since t27). Cause: empty presets walk a shared
-  empty list through a real iterator, and preset setup no longer inlines. Fix: return early when
-  there are no presets; the loop moves to a helper. Owner: lead; Astra writer `49c3cb51`, commit
-  `ade88a5`. So far: `create` 205.5 → 184.1 ns (−10.4%, slower 0/61, "B faster"). Next: the other
-  six scenarios. Verify: no scenario slower, promises 17, `pnpm validate`, core mutation ≥ 85.
 
 ## Review
 
@@ -88,6 +83,7 @@ reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, on
 
 ## Done
 
+- **perf/create-presets** — Astra writer + Fable review; tag `perf/create-presets`. Empty presets return before any loop; the loop moved to `applyPresets`. Preset setup 266 → 76 bytecode bytes and inlines into `createScope` again; no array iterator in optimized create. benchd N=61 vs `337978e`: `create` 205.5 → 184.1 ns (−10.4%, slower 0/61, "B faster"); `op`, `run`, `session`, `tagged`, `lifecycle`, `cold` "no difference we can see". Behavior: 15 preset shapes give identical output on main and the branch. Gates: GATE=0 (core 636 tests), promises 17, core mutation 85.81, `pnpm validate` 44 PASS.
 - **perf/cost-timeline** — where the call path's cost went since `core/t27`: 13 steps across the milestone tags, one probe (main's) for all trees, N=31 per step through `benchd` ([budgets](docs/roadmap/core-v1/budgets.md), "Where the cost went since t27"). Timing only; nothing fixed.
   - `op`/`run`: op-parity's FAIL is a probe artifact. Same `op` lines in both probes; with one probe t27 100.9 → main 101.8, steps sum −2.0 ns.
   - `warm`: t31 (deps as values) +9.7 ns, +48.5%, 31/31; steps sum +7.2 vs op-parity +6.6.
