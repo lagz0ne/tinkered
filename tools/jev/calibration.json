@@ -188,15 +188,5 @@
     "separation": 0.47,
     "ordered": 0.86,
     "at": "2026-09-28"
-  },
-  "docRestatesCode": {
-    "status": "noisy",
-    "trues": 335,
-    "falses": 57,
-    "medianTrue": 0.75,
-    "medianFalse": 0.68,
-    "separation": 0.07,
-    "ordered": 0.65,
-    "at": "2026-09-28"
   }
 }

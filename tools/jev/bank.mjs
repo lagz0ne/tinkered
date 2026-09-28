@@ -428,26 +428,13 @@ export const forSurvivorJev = ({ file, unit, line, mutator, before, after, sourc
 });
 
 // ---------- docs: coding-convention rule 10, one judge per TSDoc block (docs.mjs) ----------
-// The plain half (S26 in plain.mjs) checks the doc is well-formed; this asks what it says.
+// The plain half (S26 in plain.mjs) checks the doc is well-formed; a judge here would ask what it says.
 // State per doc: { doc, declaration } — the doc's words and the source it sits on.
-export const DOCS = {
-  docRestatesCode: {
-    fix: "Delete the doc, or rewrite it to say what the code cannot: a reason, a contract, a caller's obligation, a trap, or the decision (ADR) behind it.",
-    // 0.65 from the first 14 labels (2026-09-28): false cases reach 60% (stampOrigin's flight
-    // rules), true cases start at 71% (core's `Every core error name.`).
-    threshold: 0.65,
-    q: {
-      type: "boolean",
-      instructions:
-        "Does this doc only restate what the declaration's code and names already say, or claim something the code contradicts? A doc that gives a reason, a contract, a caller's obligation, a trap, or a reference to a decision is NOT a hit.",
-      criteria: {
-        true: "every sentence of the doc repeats what the name, the types, or the body already show, or the doc claims something the code does not do",
-        false:
-          "the doc says something the code cannot: why it is so, a promise to callers, what a caller must do, a trap to avoid, or the decision or reference behind it",
-      },
-    },
-  },
-};
+// Retired 2026-09-28 by ADR 0054 rule 1: `docRestatesCode` was noisy on 392 labeled docs
+// (sep 7, ordered 65%). One reword, restatement only ("could a reader who sees only the
+// declaration write every sentence?"), stayed noisy (sep 13, ordered 68%). Its cases stay in
+// cases.jsonl. A doc that contradicts its code is a separate question, not asked here.
+export const DOCS = {};
 
 /** One doc block's slice for its judge; a doc sitting on no declaration gets an empty one. */
 export function sliceDocs(src, file = "a.ts") {

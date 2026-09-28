@@ -24,7 +24,7 @@ calibration found noisy: read it, no line owed. An `ℹ` mark is a note from the
 | `survivors.mjs <pkg>`              | when lifting the mutation floor | each surviving mutant: before, after, and the enclosing unit                         | one survivor judge                                                                                                      | a seam test to write                                |
 | `promises.mjs <pkg>`               | when you touched tests          | each test title; the README lines sharing words with it                              | "which README line promises this? or none"                                                                              | a promise the README never states                   |
 | `impact.mjs <tag>`                 | the lead, at review             | the plan's `impact` block vs SCIP refs                                               | nothing — plain SCIP diff (ADR 0054)                                                                                    | a file the plan named or the code touched, not both |
-| `docs.mjs <files or globs>`        | when you touched docs           | each TSDoc block and the declaration it sits on                                      | "does this doc only restate its code?" (`--plain`: nothing, the parser only)                                            | a doc to delete or rewrite                          |
+| `docs.mjs <files or globs>`        | when you touched docs           | each TSDoc block and the declaration it sits on                                      | nothing — S26, the parser only (`docRestatesCode` retired 2026-09-28)                                                   | a doc to fix                                        |
 | `label.mjs <judge> <bool> <where>` | after each decided flag         | the exact state the judge saw                                                        | nothing — it stores your verdict                                                                                        | one more calibration case                           |
 | `label.mjs --merge`                | when the bank conflicts         | the file: marker lines, one row per id                                               | nothing — rewrites the file in place                                                                                    | one union bank, first id wins                       |
 | `calibrate.mjs`                    | the lead, every ~10 new cases   | every labeled case                                                                   | every judge, on every case                                                                                              | `proven` / `provisional` / `noisy` per judge        |
@@ -81,7 +81,8 @@ Each message ends with its fix line.
 ### TSDoc (S26)
 
 Coding-convention rule 10: TSDoc is the only comment form, well-formed, and it says what code cannot.
-S26 is the well-formed half; the `docRestatesCode` judge is the meaning half.
+S26 is the well-formed half.
+The meaning half is the reviewer's: the `docRestatesCode` judge is retired.
 Every file, both lanes.
 
 - **S26 tsdoc** — a doc the TSDoc parser rejects: one row per parser message, at its line.
@@ -91,7 +92,7 @@ Every file, both lanes.
 - Tags: the parser's standard set passes (`@remarks`, `@example`, `@param`, `@returns`, `@throws`, `@see`, `@deprecated`, `@internal`, `{@link}`).
   Any other tag hits: in 2026-09 the repo used no other tag.
 - Fix: escape `@`, `{`, `}`, `>` in prose, or put code in backticks on one line.
-- `docs.mjs --plain <globs>` lists the rows with no key; without `--plain` it also asks the judge.
+- `docs.mjs <globs>` lists the rows with no key; `--plain` still runs and changes nothing.
 
 ## How to read a probability
 
@@ -158,9 +159,19 @@ No live judge. Retired judges keep their cases in cases.jsonl.
 
 ### doc judge — docs.mjs, one call per TSDoc block
 
-| judge             | status | the question Jev is asked                                                                                                                                                                                                               | `true` means                                                                                                                           | `false` means                                                                                                                                              |
-| ----------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docRestatesCode` | proven | Does this doc only restate what the declaration's code and names already say, or claim something the code contradicts? A doc that gives a reason, a contract, a caller's obligation, a trap, or a reference to a decision is NOT a hit. | every sentence of the doc repeats what the name, the types, or the body already show, or the doc claims something the code does not do | the doc says something the code cannot: why it is so, a promise to callers, what a caller must do, a trap to avoid, or the decision or reference behind it |
+No live judge. Retired judges keep their cases in cases.jsonl.
+
+`docRestatesCode` retired 2026-09-28 (ADR 0054 rule 1).
+Its question: does this doc only restate the declaration, or claim something the code contradicts?
+On 392 labels it was noisy: true med 75%, false med 68%, sep 7%, ordered 65%.
+One reword, restatement only, tried three ways on the same labels:
+
+- "Could a reader who sees only the declaration write every sentence of this doc?" — noisy: true med 40%, false med 27%, sep 13%, ordered 68%.
+- "Is every fact the doc states visible in the name, types, or body?" — noisy: true med 48%, false med 35%, sep 13%, ordered 63%.
+- "If this doc were deleted, would a reader of the declaration lose nothing?" — noisy: true med 45%, false med 37%, sep 8%, ordered 67%.
+
+Each misses most restating docs: at 65%, the best flags 65 of 334 (and 1 of 58 others).
+A doc that contradicts its code is a separate question; no judge asks it yet.
 
 ### guide — the unit classifier lint.mjs uses; for words, blueprint suggest
 
