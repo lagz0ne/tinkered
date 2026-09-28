@@ -32,12 +32,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-28: an Astra writer (`codex/gpt-6-astra`, xhigh) and a Fable 5.1 (medium)
 reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
-- **perf/warm-read** — win back `warm` (+33% since t27). Cause: since core/t31 a default resource
-  controller reads through `resourceSlot`, two map lookups where t27 had one. Fix: read the built
-  resource from the controller's saved record; named and namespaced controllers keep the full path.
-  Owner: lead; Astra writer `2869ba78`, commit `c776b11`. Next: benchd N=61 vs origin/main. Verify:
-  `warm` "B faster", no scenario slower, promises 17, `pnpm validate`, core mutation ≥ 85.
-
 ## Review
 
 | Card | Owner | Next | Verify |
@@ -83,6 +77,7 @@ reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, on
 
 ## Done
 
+- **perf/warm-read** — Astra writer + Fable review; tag `perf/warm-read`. A default resource controller reads a built resource from its saved record again: one map lookup on a warm hit, not two (t31 had added the second through `resourceSlot`). Named controllers keep the full path. benchd N=61 vs `337978e`: `warm` 26.4 → 18.0 ns (−31.8%, faster 61/61, "B faster"), below t27's 20.0; `op`, `run`, `session`, `tagged`, `lifecycle`, `cold` "no difference we can see". Re-check on `210e3af` after perf/create-presets (vs `dc40d00`): `warm` 26.4 → 18.0 ns "B faster" (61/61); `create` 183.9 → 183.9 ns and `tagged` 2132 → 2130 ns "no difference we can see". Behavior: the reviewer's probe (release, failed rebuild, async pending and settled, owner and caller close, namespace buckets) logs identically on main and the branch. Gates: GATE=0 (core 636 tests), promises 17, core mutation 85.60, `pnpm validate` 44 PASS.
 - **perf/create-presets** — Astra writer + Fable review; tag `perf/create-presets`. Empty presets return before any loop; the loop moved to `applyPresets`. Preset setup 266 → 76 bytecode bytes and inlines into `createScope` again; no array iterator in optimized create. benchd N=61 vs `337978e`: `create` 205.5 → 184.1 ns (−10.4%, slower 0/61, "B faster"); `op`, `run`, `session`, `tagged`, `lifecycle`, `cold` "no difference we can see". Behavior: 15 preset shapes give identical output on main and the branch. Gates: GATE=0 (core 636 tests), promises 17, core mutation 85.81, `pnpm validate` 44 PASS.
 - **perf/cost-timeline** — where the call path's cost went since `core/t27`: 13 steps across the milestone tags, one probe (main's) for all trees, N=31 per step through `benchd` ([budgets](docs/roadmap/core-v1/budgets.md), "Where the cost went since t27"). Timing only; nothing fixed.
   - `op`/`run`: op-parity's FAIL is a probe artifact. Same `op` lines in both probes; with one probe t27 100.9 → main 101.8, steps sum −2.0 ns.
