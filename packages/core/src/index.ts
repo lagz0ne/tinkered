@@ -3313,6 +3313,12 @@ function resourceController<T>(
   const named = hasResourceNs(target, chain);
   return {
     resolve: () => {
+      if (!named && rec.resource) {
+        ensureOpen(layer);
+        ensureOpen(owner);
+        recordUsed(layer.obs, parent, target);
+        return (rec.promise ?? rec.resource.value) as Scope.ResourceValue<T>;
+      }
       const value = resourceSlot(layer, target, parent, chain);
       const state = named ? selectNsResource(owner, target, chain) : rec;
       return (state?.promise ?? value) as Scope.ResourceValue<T>;
