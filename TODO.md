@@ -23,13 +23,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **perf/op-parity** — Compare operation call cost. The runner it waited for is here: `bench/queued.sh`
-  sends `bench/ab.sh` through `benchd`, this box's benchmark queue, so one job runs at a time on one
-  core with no network and no secrets. Next: pin the baseline and current SHAs, build the baseline
-  tree, then `N=61 A=../tinkered-base bench/queued.sh` (the baseline must live under /home/paseo: the host cannot see /tmp). Verify: ten scenarios × two trees in
-  `.bench/ab.csv`, each gap taken from `benchctl ab`'s verdict, recorded in the
-  [budget table](docs/roadmap/core-v1/budgets.md).
-
 | Card                                                                                                                  | Owner         | Next                                                                                                                                                            | Verify                                        |
 | --------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout) | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean |
@@ -38,6 +31,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
+
+- **perf/op-parity** — measure the call-path budget (`docs/roadmap/core-v1/budgets.md`, set
+  in-container on 2026-09-17, "sandbox re-check pending") through benchd: main vs `core/t24` (the
+  `op`/`run` parity rule) and vs `core/t27` (where the table was set), N=61, each tree's own probe.
+  Owner: lead; timing agent `37aed204` (brief `perf-op-parity.md`), which also lands the docs.
+  Verify: per-scenario verdicts and PASS/FAIL per budget rule recorded in budgets.md.
 
 ## Review
 
