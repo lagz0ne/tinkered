@@ -23,16 +23,14 @@ export declare namespace Process {
     readonly description?: string;
     readonly entry: (rest: readonly string[]) => Entry | PromiseLike<Entry>;
   };
-  /** A lazy operation: a dynamic `import` in practice. The route's `entry` awaits it on first
-   * selection — never for `help` — memoizes the success, and retries after a rejection. */
+  /** A lazy operation: a dynamic `import` in practice. Nothing here calls it: a route's `entry`
+   * awaits it, so `help` never loads it. Any memoizing or retry is the entry's own. */
   export type Load<T, I> = () => Operation.Handle<T, I> | PromiseLike<Operation.Handle<T, I>>;
-  /** A binary: its name, version, and routes. */
   export type Shell = {
     readonly name: string;
     readonly version: string;
     readonly commands: readonly Route[];
   };
-  /** What a run answers: the exit code and the collected streams. */
   export type Result = {
     readonly code: number;
     readonly stdout: string;
@@ -79,7 +77,6 @@ export async function execute(
   }
 }
 
-/** One root for one command: the entry's own options plus the three process tags. */
 function rootFor(entry: Process.Entry, rest: readonly string[], out: Process.Io): Scope.Handle {
   return createScope({
     ...entry.options,
@@ -101,8 +98,6 @@ function readResult(
   return readFailure(result.error, out, cancelled, usage);
 }
 
-/** What a failed run answers: a cancelled run is 130, a parse failure is a usage error (2),
- * anything else prints and is 1. */
 function readFailure(
   error: unknown,
   out: Process.Io,
@@ -119,7 +114,8 @@ function readFailure(
 }
 
 /** Route by plain lookup, answer help and version without a root, then execute. The seam a
- * test uses: pass a collecting `io`, read the `Result`; nothing touches the process. */
+ * test uses: read the `Result`, which collects both streams whether or not an `io` is given;
+ * nothing touches the process. */
 export async function run(
   shell: Process.Shell,
   args: readonly string[],
@@ -164,7 +160,6 @@ export async function run(
   return done(await execute(entry, rest, out, { signal, usage }));
 }
 
-/** The usage text: the binary's name, then every route sorted by name with its description. */
 export function usageOf(shell: Process.Shell): string {
   const rows = [...shell.commands]
     .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))

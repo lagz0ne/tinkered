@@ -132,7 +132,6 @@ export function useData<T, S>(
   selector: (value: T) => S,
   isEqual?: (a: S, b: S) => boolean,
 ): S;
-/** Read and write a `data` cell as a `useState`-like pair: `[value, set]`. */
 export function useData<T>(
   cell: Data.Cell<T>,
   options: UseData.Options<T> & { readonly writable: true },
