@@ -1,4 +1,5 @@
-/** Payload type for each tinkerer error. The registry is the only place this package throws. */
+/** Every error this package names, with its payload. `ctx.raise` is untyped (ADR 0067), so a site
+ * that raises through it checks its payload with `satisfies Errors.Payload<…>`. */
 type Payloads = {
   StreamEnded: {
     label: string;
@@ -26,18 +27,14 @@ type Payloads = {
 };
 
 export declare namespace Errors {
-  /** Every tinkerer error name. */
   export type Name = keyof Payloads;
-  /** The typed payload carried by one error name. */
   export type Payload<N extends Name> = Payloads[N];
-  /** An tinkerer error: identified by `kind`, carrying a typed `payload`. */
   export type Of<N extends Name = Name> = Error & {
     readonly kind: N;
     readonly payload: Payloads[N];
   };
 }
 
-/** Build a registry error without throwing (for rejecting a promise). */
 export function makeError<N extends Errors.Name>(
   kind: N,
   payload: Errors.Payload<N>,
@@ -47,7 +44,8 @@ export function makeError<N extends Errors.Name>(
   return error;
 }
 
-/** Throw a registry error. The only throw site in the package. */
+/** Throw a registry error where no `ctx` is at hand (a helper, an input parser). Inside a run,
+ * `ctx.raise` throws the same kind and stamps its origin at the throw site (ADR 0067). */
 export function raise<N extends Errors.Name>(kind: N, payload: Errors.Payload<N>): never {
   throw makeError(kind, payload);
 }

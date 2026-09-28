@@ -70,7 +70,6 @@ export declare namespace Tinkerer {
       readonly prompt_tokens_details?: { readonly cached_tokens?: number };
     };
   };
-  /** What a turn delivers: the final assistant message and the turn's usage. */
   export type Reply = {
     readonly message: Extract<Message, { role: "assistant" }>;
     readonly usage: Usage;
@@ -103,7 +102,6 @@ export declare namespace Tinkerer {
     readonly mode: Mode;
     readonly call: ToolCall;
   };
-  /** The gate slot: an operation from a request to a decision. */
   export type Gate = Operation.Handle<Decision | Promise<Decision>, GateRequest>;
   /** The live per-call values: our mode plus the provider's own request fields.
    * Seeded from the tags at turn start, read at every step and every tool call. */
@@ -115,7 +113,6 @@ export declare namespace Tinkerer {
       readonly max_completion_tokens?: number;
     };
   };
-  /** What a step's model/options come from: the provider fields on `settings.options`. */
   export type Options = Settings["options"];
   /** One pending user entry. `queue` waits until the model would stop; `steer` interrupts the
    * step in flight. `mode` and `options` patch `settings` when the entry is consumed. */
@@ -141,7 +138,6 @@ export declare namespace Tinkerer {
   };
 }
 
-/** The empty inbox: one frozen array shared as the initial value. */
 const noEntries: readonly Tinkerer.Entry[] = Object.freeze([]);
 
 /** A steer entry: interrupts the step in flight, delivered before the next step. */
@@ -160,7 +156,6 @@ export function queue(
   return { kind: "queue", content, ...patch };
 }
 
-/** Name one tool row: the operation plus its tool facts. */
 export function tool(
   op: Operation.Handle<unknown, unknown>,
   meta: Tinkerer.Tool["meta"],
@@ -175,21 +170,18 @@ export const readTool: Tinkerer.Tool = tool(read, {
   mode: "read-only",
 });
 
-/** The shipped `edit` tool as a row: needs `workspace-write`. */
 export const editTool: Tinkerer.Tool = tool(edit, {
   description: editDescription,
   schema: editInput,
   mode: "workspace-write",
 });
 
-/** The shipped `write` tool as a row: needs `workspace-write`. */
 export const writeTool: Tinkerer.Tool = tool(write, {
   description: writeDescription,
   schema: writeInput,
   mode: "workspace-write",
 });
 
-/** The shipped `bash` tool as a row: needs `full-access`. */
 export const bashTool: Tinkerer.Tool = tool(bash, {
   description: bashDescription,
   schema: bashInput,
@@ -290,7 +282,6 @@ export function tinkerer(
  * turn's own `depends` so each tool op is a subflow of the turn. */
 type ToolDeps = Record<`tool:${string}`, Operation.Handle<unknown, unknown>>;
 
-/** The controllers those slots deliver, read back by the same keys. */
 type ToolSlots = Record<`tool:${string}`, Scope.OperationController<unknown, unknown>>;
 
 function readToolDeps(rows: readonly Tinkerer.Tool[]): ToolDeps {
@@ -500,7 +491,6 @@ function foldChunk(
   return typeof reason === "string" ? reason : finish;
 }
 
-/** One delta: its text goes to `text`, its tool-call pieces accrue by index. */
 function foldDelta(
   delta: NonNullable<NonNullable<Tinkerer.Chunk["choices"]>[number]["delta"]>,
   text: Scope.DataController<string>,
@@ -654,9 +644,6 @@ async function runRow(
   return logTool(ctx, call, false, `Tool ${call.name} failed: ${readFailure(failure)}`);
 }
 
-/** Run the gate (when present) for one call: its `Decision` allows or blocks. A block answers the
- * model with `Tool <name> was declined: <reason>` and the tool never runs; one `tinkerer gate` log
- * line either way. Returns the block result, or `undefined` when there is no gate or it allowed. */
 async function askGate(
   deps: CallDeps & GateSlot,
   ctx: Operation.Ctx<string>,
@@ -751,7 +738,6 @@ type TurnConfig = {
   readonly rows: readonly Tinkerer.Tool[];
 };
 
-/** Everything the loop reads and writes: the ambient cells, the inbox, the step, the tool slots. */
 type LoopDeps = TurnCells & {
   readonly settings: Scope.DataController<Tinkerer.Settings | undefined>;
   readonly inbox: Scope.DataController<readonly Tinkerer.Entry[]>;
@@ -815,8 +801,6 @@ function keepPartial(
   if (text.length > 0) messages.update((list) => [...list, { role: "assistant", content: text }]);
 }
 
-/** Take the inbox entries of the wanted kinds, inject each as a user message, patch settings from
- * each; the remaining kinds stay queued. Returns whether any entry was consumed. */
 function drainInbox(deps: LoopDeps, keep: ReadonlySet<Tinkerer.Entry["kind"]>): boolean {
   const taken = deps.inbox.get().filter((entry) => keep.has(entry.kind));
   if (taken.length === 0) return false;

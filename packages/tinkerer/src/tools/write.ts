@@ -20,8 +20,6 @@ export type WriteInput = {
 
 const writeSchema = z.object(writeInput);
 
-/** The shipped `write` tool: `{ path, content }` → the file written whole under cwd, parents
- * created; answers `Wrote <bytes> bytes to <path>`. */
 export const write: Operation.Handle<Promise<string>, WriteInput> = operation({
   label: "write",
   input: (raw: unknown): WriteInput => writeSchema.parse(raw),
