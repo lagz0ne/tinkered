@@ -40,14 +40,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
-- **tracker/wire-rebuild** — the tab's live list from first principles (user, 2026-09-27): keys in
-  the stream URL (`GET /sync?keys=issues`, the server registers from the query), the browser's own
-  `EventSource` reconnect (`retry: 1000`); gone: the `POST /sync` channel, the `viewers` inbox, the
-  client id, the gate, the replay, our backoff loop. Boot with the server down shows "Connecting…"
-  (user picked A); the dead page only when the stream fails for good. Owner: lead; writer agent
-  `af5e342d` in `../tinkered-wire-rebuild` (brief `tracker-wire-rebuild.md`). Verify: the wire
-  near 40 lines; browser proof 4 of 4 uncached.
-
 ## Review
 
 | Card | Owner | Next | Verify |
@@ -93,6 +85,8 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 ## Done
 
+- **tracker/wire-rebuild** — opus high + fable review (no fix round); tag `tracker/wire-rebuild`. The tab's live list rebuilt from first principles: the keys ride the stream URL (`GET /sync?keys=issues`; bad keys → 400 before any stream) and the browser's own `EventSource` reconnect does the retrying (`retry: 1000`; each reconnect is a fresh GET and a fresh snapshot). Gone: the `POST /sync` channel, the `viewers` inbox, the client id, the gate, the replay, the hand-written backoff (diff +314 / −657; the wire resource 125 → 62 lines). Boot with the server down shows "Connecting…" and goes live when it starts (user's pick); the dead page only when the browser gives up before the first snapshot.
+  - Gate EXIT 0; tracker 69 tests; browser proof 4 of 4 uncached; validate 44 PASS; 7 Jev labels, calibration refreshed.
 - **tracker/server-ops** — opus high + fable review (no fix round); tag `tracker/server-ops`. `loadSaved`, `writeIssue`, and `recordActivity` became operations on `store.tx` (best-practices rule 4), run as subflows in the request's one transaction; `selectAllIssues` was exactly `listIssues`, which `publishIssues` now depends on. Pure value functions stay functions. A missing issue's error now names `loadSaved` as its origin; a test presets `recordActivity` alone. Review probes: a failed activity write rolls the whole edit back; HTTP answers (404, 409, 400) unchanged.
   - Gate EXIT 0; tracker 78 tests (2 new); browser proof 2 of 2 uncached; validate 44 PASS; 4 Jev labels, calibration refreshed.
 - **sync/transport-unit** — opus high + fable review (one fix round); tag `sync/transport-unit`; closes ADR 0070's open question. `subscribe(link, wiring)` takes its transport from a resource and resolves it inside the scope; sync does not reconnect (the link does). The tracker's `wire` resource is the transport, so nothing is built before `createScope` (`memoryPair`, `wirePeer`, `linkWire` gone). Fixed on the way: a close while `start` awaited its transport hung `ready`; now it rejects `SyncNotReady` and parts the wire.
