@@ -1,8 +1,5 @@
 import type { Observe } from "@tinker/core";
 
-/** Read a thrown value as plain fields a log line can carry: a registry error
- * gives its `kind` and `payload`, any `Error` its name, message, and stack,
- * anything else is printed as-is. */
 export function describeError(error: unknown): Record<string, unknown> {
   if (!(error instanceof Error)) return { error: String(error) };
   const fields: Record<string, unknown> = { error: error.message, name: error.name };

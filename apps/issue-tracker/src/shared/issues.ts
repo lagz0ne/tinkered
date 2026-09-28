@@ -2,7 +2,6 @@ import { data } from "@tinker/core";
 import { raise } from "../errors.ts";
 
 export declare namespace Issues {
-  /** Where an issue sits: Open, In progress, or Done. */
   export type Status = "open" | "in_progress" | "done";
   /** One saved issue. Revision guards edits; comments append without it. */
   export type Issue = {
@@ -31,7 +30,6 @@ export declare namespace Issues {
     readonly summary: string;
     readonly createdAt: number;
   };
-  /** The full detail view: the issue plus its discussion and history. */
   export type Detail = {
     readonly issue: Issue;
     readonly comments: readonly Comment[];
@@ -42,7 +40,7 @@ export declare namespace Issues {
     readonly title: string;
     readonly description: string;
   };
-  /** Raw edit input: the id, the revision originally opened, and the fields to change. */
+  /** `baseRevision` is the revision the edit opened against; an absent field stays unchanged. */
   export type EditInput = {
     readonly id: string;
     readonly baseRevision: number;
@@ -51,7 +49,6 @@ export declare namespace Issues {
     readonly status?: Status;
     readonly assignee?: string | null;
   };
-  /** Raw comment input: the issue, a demo author, and the text. */
   export type CommentInput = {
     readonly issueId: string;
     readonly author: string;
@@ -66,7 +63,6 @@ function isRecord(raw: unknown): raw is Record<string, unknown> {
   return typeof raw === "object" && raw !== null;
 }
 
-/** Read a required id field, failing with the entry's label. */
 function readId(raw: Record<string, unknown>, label: string): string {
   const value = raw.id;
   if (typeof value !== "string" || value.length === 0) raise("BadIssue", { label });
@@ -115,13 +111,11 @@ export function parseIssue(raw: unknown): Issues.Issue {
   };
 }
 
-/** Parse the shared issue list snapshot. */
 export function parseIssueList(raw: unknown): readonly Issues.Issue[] {
   if (!Array.isArray(raw)) raise("BadIssueList", { label: "issues" });
   return raw.map(parseIssue);
 }
 
-/** Parse one issue id from a path reader at the door. */
 export function parseIssueId(raw: unknown): string {
   if (typeof raw !== "string" || raw.length === 0) {
     raise("BadEditInput", { reason: "issue is required" });
@@ -193,7 +187,6 @@ function readSummary(raw: Record<string, unknown>): string {
   return raw.summary;
 }
 
-/** Parse the full detail answer: the issue plus its discussion and history. */
 export function parseIssueDetail(raw: unknown): Issues.Detail {
   if (!isRecord(raw)) raise("BadIssue", { label: "detail" });
   if (!Array.isArray(raw.comments)) raise("BadIssue", { label: "detail" });
@@ -270,7 +263,6 @@ function readEditAssignee(raw: unknown): string | null | undefined {
   raise("BadEditInput", { reason: "assignee is unknown" });
 }
 
-/** Parse a comment form at the door: the issue, a demo author, and the text. */
 export function parseCommentInput(raw: unknown): Issues.CommentInput {
   if (!isRecord(raw)) raise("BadCommentInput", { reason: "comment is required" });
   return {

@@ -90,7 +90,6 @@ function readRemoteError(error: unknown, fallbackId: string): unknown {
   return error;
 }
 
-/** List the saved issues through the running server. */
 export const listRemote = operation({
   label: "list",
   depends: { issues: getIssues },
@@ -103,7 +102,6 @@ export const listRemote = operation({
   },
 });
 
-/** Create one issue through the running server. */
 export const createRemote = operation({
   label: "create",
   input: parseCreateInput,
@@ -145,7 +143,6 @@ export const commentRemote = operation({
   },
 });
 
-/** Show one saved issue with its comments, activity, and revision. */
 export const getRemote = operation({
   label: "get",
   input: parseGetInput,
@@ -256,8 +253,6 @@ export const getTool: Mcp.Row = expose(getRemote, {
   schema: getShape,
 });
 
-/** The MCP wiring rows for the issue actions: the operation plus its tool
- * facts, handed to `mcp({ tools })`. */
 export const issueTools: readonly Mcp.Row[] = [
   listTool,
   expose(createRemote, { description: "create one issue", schema: createShape }),

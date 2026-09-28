@@ -175,7 +175,6 @@ export const addComment = operation({
   },
 });
 
-/** Read one issue with its comments and activity, oldest first. */
 export const readDetail = operation({
   label: "readDetail",
   input: parseIssueId,

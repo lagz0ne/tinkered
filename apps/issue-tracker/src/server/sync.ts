@@ -3,7 +3,6 @@ import { source, type Sync } from "@tinker/sync";
 import { raise } from "../errors.ts";
 import { issueList } from "../shared/issues.ts";
 
-/** The rows the source publishes: each shared cell under its key. */
 const published: Sync.Row[] = [[issueList, "issues"]];
 
 /** The source extension, one identity per process: `createApp` installs this

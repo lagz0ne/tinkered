@@ -59,9 +59,9 @@ function readStreamError(error: unknown, c: Parameters<HonoScope.OnError>[1]) {
   return undefined;
 }
 
-/** Merge a JSON body over the route's path values. A missing body reads as the
- * path values alone; a malformed one rejects out of `c.req.json()` and hono
- * answers 400 at the request edge. */
+/** Merge a JSON body over the route's path values; a JSON non-object reads as the
+ * path values alone. A missing or malformed body rejects out of `c.req.json()`,
+ * and the `hono` extension answers 400 at the request edge. */
 async function readBody(c: Context, extra: Record<string, unknown>): Promise<unknown> {
   const body = await c.req.json();
   return typeof body === "object" && body !== null ? { ...body, ...extra } : extra;

@@ -17,11 +17,8 @@ type Payloads = {
 };
 
 export declare namespace Errors {
-  /** Every issue-app error name. */
   export type Name = keyof Payloads;
-  /** The typed payload carried by one error name. */
   export type Payload<N extends Name> = Payloads[N];
-  /** An issue-app error: identified by `kind`, carrying a typed `payload`. */
   export type Of<N extends Name = Name> = Error & {
     readonly kind: N;
     readonly payload: Payloads[N];
@@ -33,7 +30,6 @@ export function fail<N extends Errors.Name>(kind: N, payload: Errors.Payload<N>)
   return Object.assign(new Error(kind), { kind, payload });
 }
 
-/** Throw a registry error. The only throw site in the app. */
 export function raise<N extends Errors.Name>(kind: N, payload: Errors.Payload<N>): never {
   throw fail(kind, payload);
 }

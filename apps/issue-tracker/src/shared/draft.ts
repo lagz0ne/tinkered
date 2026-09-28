@@ -3,8 +3,6 @@ export declare namespace Draft {
   export type Status = "idle" | "running" | "done" | "cancelled" | "failed";
   /** The run's terminal outcome, reported after the session closes. */
   export type Outcome = "done" | "cancelled" | "failed";
-  /** One streamed event a draft view shows: text the model wrote, a status
-   * line, the finished draft, or the joined terminal outcome. */
   export type Event =
     | { readonly kind: "text"; readonly text: string }
     | { readonly kind: "status"; readonly status: string }
@@ -81,14 +79,11 @@ export function readLine(line: string): Draft.Event | null {
   return parseDraftEvent(raw);
 }
 
-/** The streaming pump: the unparsed tail plus the sink for live events. */
 export type Pump = {
   tail: string;
   readonly apply: (event: Draft.Event) => void;
 };
 
-/** Pump SSE chunks into events: split on newlines, keep the tail, apply live frames, and answer
- * the terminal outcome when it lands. */
 export function pumpLines(pump: Pump, chunk: string): Draft.Outcome | undefined {
   const lines = (pump.tail + chunk).split("\n");
   pump.tail = lines.pop() ?? "";
@@ -112,7 +107,6 @@ export function parseDraftCapability(raw: unknown): { readonly enabled: boolean 
   return { enabled: raw.enabled };
 }
 
-/** Read a draft issue id from the object the routes send: `{ id }`. */
 export function parseDraftId(raw: unknown): string {
   if (typeof raw !== "object" || raw === null)
     raise("BadDraftInput", { reason: "issue is required" });
