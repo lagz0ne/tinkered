@@ -968,6 +968,9 @@ importers:
 
   tools/jev:
     dependencies:
+      '@microsoft/tsdoc':
+        specifier: ^0.17.0
+        version: 0.17.0
       ai:
         specifier: 'catalog:'
         version: 7.0.105(zod@4.6.2)
@@ -1742,6 +1745,9 @@ packages:
 
   '@marijn/find-cluster-break@1.0.4':
     resolution: {integrity: sha512-Wy0V7+SGUjnF9/TkiM1hKVDPj7jKXduPNboMVtHTA8dySMURWqfg/JZ9E2Sq8JgSJmkl7k7Qe9FLeMSrSraWmQ==}
+
+  '@microsoft/tsdoc@0.17.0':
+    resolution: {integrity: sha512-p68VexhnH7ojf3U27RdryUDqnKJgKaWUbCL96vJR7N0mqDuhKG5OIECk3sCPPdynxjk+yoVhRkScqtv5KQjzsw==}
 
   '@modelcontextprotocol/sdk@1.30.0':
     resolution: {integrity: sha512-xKd8OIzlqNzcqcNumGAa6g+PW2kjD5vrpcKOnfldAUPP3j7lnqMPwlTXQm8gF+UwH72z0lqaRbjr9hqGz0eITA==}
@@ -5357,6 +5363,8 @@ snapshots:
       '@lezer/common': 1.5.2
 
   '@marijn/find-cluster-break@1.0.4': {}
+
+  '@microsoft/tsdoc@0.17.0': {}
 
   '@modelcontextprotocol/sdk@1.30.0(zod@4.6.2)':
     dependencies:

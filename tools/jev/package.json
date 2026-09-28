@@ -19,6 +19,7 @@
     "eval": "node evals/lint.mjs"
   },
   "dependencies": {
+    "@microsoft/tsdoc": "^0.17.0",
     "ai": "catalog:",
     "oxc-parser": "^0.117.0"
   }

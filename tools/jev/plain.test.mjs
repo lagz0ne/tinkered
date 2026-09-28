@@ -500,7 +500,7 @@ void describe("plain rules never fire on", () => {
   });
 
   void it("a rule word in the middle of a comment", () => {
-    assert.deepEqual(hits("/** Never use @ts-ignore or eslint-disable here. */\n", SRC), []);
+    assert.deepEqual(hits("/** Never use `@ts-ignore` or `eslint-disable` here. */\n", SRC), []);
   });
 
   void it("a locator assert, waitForSelector, or expect.poll", () => {
@@ -524,5 +524,82 @@ void describe("plain rules never fire on", () => {
   void it("isError narrowing in an if, then a payload assert", () => {
     const src = 'if (isError(e, "X")) expect(e.payload.id).toBe(1);\n';
     assert.deepEqual(hits(src, TEST), []);
+  });
+});
+
+void describe("S26 malformed TSDoc", () => {
+  /** The `[id, line]` pairs and the parser's message id for each row. */
+  const tsdoc = (source) =>
+    inspectPlain(source, SRC).map((r) => [
+      r.id,
+      r.line,
+      r.message.match(/\(([\w-]+|@param \w+)/)?.[1],
+    ]);
+
+  void it("fires on each parser error kind at its line", () => {
+    const src = [
+      "/** Reads @tinker/core. */",
+      "const a = 1;",
+      "/** Uses {@link a. */",
+      "const b = 1;",
+      "/** Keeps {x} in prose. */",
+      "const c = 1;",
+      "/**",
+      " * Wrong tag.",
+      " * @default 3",
+      " */",
+      "const d = 1;",
+    ].join("\n");
+    assert.deepEqual(tsdoc(src), [
+      ["S26", 1, "tsdoc-characters-after-block-tag"],
+      ["S26", 3, "tsdoc-inline-tag-missing-right-brace"],
+      ["S26", 5, "tsdoc-malformed-inline-tag"],
+      ["S26", 5, "tsdoc-escape-right-brace"],
+      ["S26", 9, "tsdoc-undefined-tag"],
+    ]);
+  });
+
+  void it("fires on a @param that names no parameter", () => {
+    const src = [
+      "/**",
+      " * Loads one record.",
+      " * @param id - the record id",
+      " * @param idd - a typo",
+      " */",
+      "export function load(id: string) {}",
+      "/** @param x - on a value */",
+      "const v = 1;",
+    ].join("\n");
+    assert.deepEqual(tsdoc(src), [
+      ["S26", 4, "@param idd"],
+      ["S26", 7, "@param x"],
+    ]);
+  });
+
+  void it("stays quiet on prose, the standard tags, and real parameters", () => {
+    const src = [
+      "/** Only prose, with `@tinker/core` in backticks. */",
+      "const a = 1;",
+      "/**",
+      " * Saves a draft. See {@link a} and {@link a | the a}.",
+      " * @remarks A save replaces the last one.",
+      " * @example `save(1, 2)`",
+      " * @deprecated Use `put`.",
+      " * @see ADR 0067",
+      " * @param first - the draft id",
+      " * @param rest - the parts",
+      " * @returns The saved draft.",
+      " * @throws `NotFound` when the draft is gone.",
+      " * @internal",
+      " */",
+      "export const save = (first: string, ...rest: number[]) => first;",
+      "type Store = {",
+      "  /** @param title - the task title */",
+      "  add(title: string): void;",
+      "};",
+      "/** @param options - any name stands for a destructured one */",
+      "function open({ path }: { path: string }) {}",
+    ].join("\n");
+    assert.deepEqual(tsdoc(src), []);
   });
 });

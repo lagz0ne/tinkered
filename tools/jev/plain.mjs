@@ -6,7 +6,9 @@
 //   inspectPlain(source, file) → rows [{ id, line, message }] in source order
 //
 // A file that does not parse yields one `parse` row, never an empty list.
+import { TSDocParser } from "@microsoft/tsdoc";
 import { parseSync } from "oxc-parser";
+import { docs } from "./extract.mjs";
 
 const TEST_PATH = /(^|\/)tests\/|\.(test|spec|browser)\./;
 const SRC_PATH = /(^|\/)src\//;
@@ -43,6 +45,8 @@ const MESSAGES = {
   S23: "hand-made subscribe: keep the value in a data cell; readers watch it or read it with useData",
   S24: "raw fetch: send through an @tinker/http endpoint operation so config, retry, spans, and the backend tag apply",
   S25: "component state: make it a data cell and read it with useData; write it from an operation",
+  S26: "malformed TSDoc: the TSDoc parser rejects this doc",
+  "S26.param": "a @param names no parameter of the declaration it documents",
 };
 
 /** The fix line a hand-rolled rule's message ends with: the tinker form, filled in. */
@@ -54,6 +58,8 @@ const FIXES = {
   S23: '`const status = data<WireStatus>({ label: "wire.status", initial: "connecting" })`',
   S24: "an endpoint operation, like `postIssue` in apps/issue-tracker/src/client/api.ts",
   S25: '`const running = data({ label: "bench.running", initial: false })`',
+  S26: "escape `@`, `{`, `}`, and `>` in prose with a backslash, or put code in backticks on one line: `` `@tinker/core` ``, `{@link createScope}`",
+  "S26.param": "`@param input - …` with the parameter's own name, or delete the line",
 };
 
 const MOCK_ROOTS = new Set(["vi", "jest"]);
@@ -296,10 +302,12 @@ function commentRows(comments, starts) {
 }
 
 /** One finding row for a rule id at a line; a rule with a fix line ends its message with it.
- *  `key` picks another message for the same id (`S22.settle`). */
-function row(id, line, key = id) {
+ *  `key` picks another message for the same id (`S22.settle`); `detail` names what this one
+ *  hit found (the TSDoc parser's own words). */
+function row(id, line, key = id, detail) {
   const fix = FIXES[key];
-  return { id, line, message: fix ? `${MESSAGES[key]}. Fix: ${fix}` : MESSAGES[key] };
+  const said = detail === undefined ? MESSAGES[key] : `${MESSAGES[key]} (${detail})`;
+  return { id, line, message: fix ? `${said}. Fix: ${fix}` : said };
 }
 
 /** The single row for a file the parser rejects, at the first error's line. */
@@ -756,6 +764,52 @@ function programHits(source, program, file, writer) {
   ];
 }
 
+// ---------- TSDoc (S26, coding-convention rule 10) ----------
+// Every file, both lanes. The parser is the TSDoc reference one, on its default tags: every
+// standard tag (`@remarks`, `@example`, `@param`, `{@link}`, `@internal`, …) passes, and any
+// other (`@type`, `@default`, a package name like `@tinker/core` left bare in prose) hits.
+
+const TSDOC = new TSDocParser();
+
+/** The offset of a `@param` block's tag inside its doc. */
+const tagOffset = (block) => block.blockTag.getTokenSequence().tokens[0].range.pos;
+
+/** `@param` rows for one doc: each name that is not a parameter of its declaration. A doc on
+ *  no function has no parameters; a destructured parameter lets any name stand for it. */
+function paramRows(doc, docComment, starts) {
+  const names = doc.declaration === null ? [] : doc.declaration.params;
+  if (names === null) return [];
+  return docComment.params.blocks
+    .filter((block) => block.parameterName !== "")
+    .filter((block) => !names.includes(block.parameterName.split(".")[0]))
+    .map((block) =>
+      row(
+        "S26",
+        lineAt(starts, doc.start + tagOffset(block)),
+        "S26.param",
+        `@param ${block.parameterName}`,
+      ),
+    );
+}
+
+/** S26 rows for one file: each TSDoc parser message at its line, then each `@param` whose
+ *  name is not a parameter of the declaration the doc sits on. */
+export function tsdocRows(source, file = "a.ts") {
+  const starts = lineStarts(source);
+  return docs(source, file).flatMap((doc) => {
+    const { docComment, log } = TSDOC.parseString(doc.raw);
+    const parsed = log.messages.map((m) =>
+      row(
+        "S26",
+        lineAt(starts, doc.start + m.textRange.pos),
+        "S26",
+        `${m.messageId}: ${m.unformattedText}`,
+      ),
+    );
+    return [...parsed, ...paramRows(doc, docComment, starts)];
+  });
+}
+
 /** Every plain rule break in one file, in source order. */
 export function inspectPlain(source, file = "a.ts", { writer = false } = {}) {
   const { program, comments, errors } = parseSync(file, source);
@@ -768,6 +822,7 @@ export function inspectPlain(source, file = "a.ts", { writer = false } = {}) {
   });
   for (const [id, at, key] of programHits(source, program, file, writer))
     rows.push(row(id, lineAt(starts, at), key));
+  rows.push(...tsdocRows(source, file));
   rows.sort((a, b) => a.line - b.line || (a.id < b.id ? -1 : 1));
   return rows;
 }

@@ -531,6 +531,114 @@ export function helpers(src, file = "a.test.ts") {
     }));
 }
 
+// ---------- docs ----------
+
+/** A declaration's source past this many lines is cut: the judge reads the doc against the
+ *  declaration's head, not a long body. */
+const MAX_DECLARATION_LINES = 80;
+
+/** Is this parser comment a TSDoc block (`/** … *\/`, not `/***\/`)? */
+const isDocComment = (c) => c.type === "Block" && c.value.startsWith("*") && c.value !== "*";
+
+/** A doc's words with the `/**`, `*\/`, and leading `*` gutters taken off. */
+function docWords(raw) {
+  return raw
+    .replace(/^\/\*\*/, "")
+    .replace(/\*\/$/, "")
+    .split("\n")
+    .map((line) => line.replace(/^\s*\*( ?)/, "").trimEnd())
+    .join("\n")
+    .trim();
+}
+
+/** The outermost node starting at each offset: a doc sits on the node that starts right after it. */
+function nodesByStart(program) {
+  const byStart = new Map();
+  walk(program, (n) => {
+    if (typeof n.type === "string" && n.type !== "Program" && !byStart.has(n.start))
+      byStart.set(n.start, n);
+  });
+  return byStart;
+}
+
+/** The function-shaped node a declaration holds, through exports, consts, members, and
+ *  function types, or null when it holds no function. */
+function fnShapeOf(node) {
+  const inner = {
+    ExportNamedDeclaration: () => node.declaration,
+    ExportDefaultDeclaration: () => node.declaration,
+    VariableDeclaration: () => node.declarations[0]?.init,
+    MethodDefinition: () => node.value,
+    TSAbstractMethodDefinition: () => node.value,
+    Property: () => node.value,
+    PropertyDefinition: () => node.value,
+    TSPropertySignature: () => node.typeAnnotation?.typeAnnotation,
+    TSTypeAliasDeclaration: () => node.typeAnnotation,
+  }[node?.type];
+  if (inner !== undefined) return fnShapeOf(inner());
+  return Array.isArray(node?.params) ? node : null;
+}
+
+/** The name one parameter binds, or null for a destructured one (its doc name is free). */
+function paramName(p) {
+  const at = p.type === "TSParameterProperty" ? p.parameter : p;
+  const plain =
+    at.type === "AssignmentPattern" ? at.left : at.type === "RestElement" ? at.argument : at;
+  return plain.type === "Identifier" ? plain.name : null;
+}
+
+/** The parameter names a declaration takes: an array of names, `null` when one is
+ *  destructured (any `@param` name may stand for it), or `[]` when it is not a function. */
+function paramsOf(node) {
+  const fn = fnShapeOf(node);
+  if (fn === null) return [];
+  const names = fn.params.map(paramName);
+  return names.includes(null) ? null : names.filter((n) => n !== "this");
+}
+
+/** The name a declaration binds, or "" when it binds none. */
+function declaredName(node) {
+  const at = node.declaration ?? node;
+  const named = at.type === "VariableDeclaration" ? at.declarations[0].id : (at.id ?? at.key);
+  return named?.name ?? named?.value ?? "";
+}
+
+/** A declaration's source, cut at MAX_DECLARATION_LINES. */
+function declarationText(src, node) {
+  const lines = text(src, node).split("\n");
+  if (lines.length <= MAX_DECLARATION_LINES) return lines.join("\n");
+  return [...lines.slice(0, MAX_DECLARATION_LINES), "…"].join("\n");
+}
+
+/** Every TSDoc block in a file: its lines, its raw text and words, and the declaration it
+ *  sits on (name, source, parameter names), or `declaration: null` when code does not start
+ *  right after it. */
+export function docs(src, file = "a.ts") {
+  const { program, comments } = parseSync(file, src);
+  const byStart = nodesByStart(program);
+  return comments.filter(isDocComment).map((c) => {
+    const next = c.end + (src.slice(c.end).match(/^\s*/)?.[0].length ?? 0);
+    const node = byStart.get(next);
+    const raw = text(src, c);
+    return {
+      line: lineOf(src, c.start),
+      endLine: lineOf(src, c.end),
+      start: c.start,
+      raw,
+      doc: docWords(raw),
+      declaration:
+        node === undefined
+          ? null
+          : {
+              name: declaredName(node),
+              line: lineOf(src, node.start),
+              source: declarationText(src, node),
+              params: paramsOf(node),
+            },
+    };
+  });
+}
+
 /** `import … from "source"` → [{ source, names }]. */
 export function imports(src, file = "a.ts") {
   return parse(file, src)

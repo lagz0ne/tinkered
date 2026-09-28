@@ -2,7 +2,7 @@
 // arrow helpers as units (writer trials).
 import { describe, it, test } from "node:test";
 import assert from "node:assert/strict";
-import { unitCouldBeModuleLevel, units } from "./extract.mjs";
+import { docs, unitCouldBeModuleLevel, units } from "./extract.mjs";
 
 const core = 'import { operation, resource, data, tag, operation as op } from "@tinker/core";\n';
 
@@ -174,4 +174,31 @@ void describe("arrow helpers in a .ts file", () => {
       ],
     );
   });
+});
+
+void test("each doc block carries its words and the declaration it sits on", () => {
+  const src = [
+    "/**",
+    " * Why: the caller owns the id.",
+    " */",
+    "export function load(id: string, { force }: { force: boolean }) {}",
+    "type Store = {",
+    "  /** Adds one. */",
+    "  add(title: string): void;",
+    "};",
+    "function f() {",
+    "  /** Floating. */",
+    "",
+    "  // then a line comment",
+    "}",
+  ].join("\n");
+  assert.deepEqual(
+    docs(src).map((d) => [d.line, d.doc, d.declaration?.name, d.declaration?.params]),
+    [
+      [1, "Why: the caller owns the id.", "load", null],
+      [6, "Adds one.", "add", ["title"]],
+      [10, "Floating.", undefined, undefined],
+    ],
+  );
+  assert.equal(docs(src)[1].declaration.source, "add(title: string): void;");
 });
