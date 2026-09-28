@@ -39,8 +39,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
-- **jev/s22-settle** — S22 leaves `void x.run()` alone (the scope tracks the run: probe showed no unhandled rejection and a panic still fails the scope), but a `settle()` whose Result nobody reads (`void x.settle()`, or `x.settle(...)` as a bare statement) hides a panic. Owner: lead; writer agent `1e66d131` in `../tinkered-s22` (brief `jev-s22-settle.md`); four real near-misses (drizzle `started.settle`, sync `waiting.settle`, core `held.settle`, mcp's returned `s.settle`) must not hit. Next: add that shape to S22; add to the coding-convention skill's rule 2: "`void x.run()` is allowed: the scope tracks the run." Verify: a fixture for each shape; the tracker stays at 0 S22 rows.
-
 ## Review
 
 | Card | Owner | Next | Verify |
@@ -86,6 +84,8 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 ## Done
 
+- **jev/s22-settle** — opus high + fable review (no fix round); tag `jev/s22-settle`. S22 also flags a `settle` whose Result a core handle drops (`void x.settle(…)`, or `x.settle(…)` / `await x.settle(…)` as a bare statement): `settle` recovers a panic, so an unread Result hides it (ADR 0067). A handle is a name the file ties to one (a unit body's parameters, a `.session` callback's parameter, a controller/scope/session type, a `createScope`/`createSession`/`useScope` const); drizzle's `started.settle`, sync's `waiting.settle`, core's `held.settle`, and mcp's returned `s.settle` do not hit. `void x.run()` stays allowed (the scope tracks the run), now a line in the coding-convention skill. S21 rows unchanged.
+  - Gate EXIT 0; jev tests 107 pass (2 new fail on main); writer-trial tests 60; validate 44 PASS.
 - **tracker/wire-rebuild** — opus high + fable review (no fix round); tag `tracker/wire-rebuild`. The tab's live list rebuilt from first principles: the keys ride the stream URL (`GET /sync?keys=issues`; bad keys → 400 before any stream) and the browser's own `EventSource` reconnect does the retrying (`retry: 1000`; each reconnect is a fresh GET and a fresh snapshot). Gone: the `POST /sync` channel, the `viewers` inbox, the client id, the gate, the replay, the hand-written backoff (diff +314 / −657; the wire resource 125 → 62 lines). Boot with the server down shows "Connecting…" and goes live when it starts (user's pick); the dead page only when the browser gives up before the first snapshot.
   - Gate EXIT 0; tracker 69 tests; browser proof 4 of 4 uncached; validate 44 PASS; 7 Jev labels, calibration refreshed.
 - **tracker/server-ops** — opus high + fable review (no fix round); tag `tracker/server-ops`. `loadSaved`, `writeIssue`, and `recordActivity` became operations on `store.tx` (best-practices rule 4), run as subflows in the request's one transaction; `selectAllIssues` was exactly `listIssues`, which `publishIssues` now depends on. Pure value functions stay functions. A missing issue's error now names `loadSaved` as its origin; a test presets `recordActivity` alone. Review probes: a failed activity write rolls the whole edit back; HTTP answers (404, 409, 400) unchanged.
