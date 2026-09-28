@@ -86,7 +86,8 @@ head.
     obligation, a trap, or a reference (an ADR).
     A doc never claims what the code contradicts.
     A doc that only restates the code is deleted.
-    `node tools/jev/docs.mjs <files>` checks both halves.
+    `node tools/jev/docs.mjs <files>` checks the TSDoc shape (S26).
+    Review checks that each doc says what the code cannot (its Jev judge was retired, ADR 0054).
     No `@ts-ignore`, `@ts-expect-error`, or lint-disable lines; fix the cause.
 
 11. **Build only what today needs (YAGNI).** No options, wrappers, schemas, or
