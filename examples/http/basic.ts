@@ -2,7 +2,6 @@ import { createScope, operation } from "@tinker/core";
 import { backend, config, HttpRequest, HttpResponse, send, type HttpClient } from "@tinker/http";
 import { z } from "zod";
 
-// Units first, declared once at module level (ADR 0057); `tour` wires a scope and runs them.
 const listRepos = operation({
   label: "github.listRepos",
   input: z.string(),
@@ -40,7 +39,8 @@ const onboard = operation({
 
 /** A cast-free tour of the declared units: two operations on `send`, and a userland
  * operation that depends on both and hands a fresh token to one call via `tags`. Every value's
- * type is INFERRED — no `as`, no non-null `!`. */
+ * type is INFERRED — no `as`, no non-null `!`. The units are declared once at module level
+ * (ADR 0057); `tour` only wires a scope and runs them. */
 export async function tour(): Promise<string> {
   const seen: HttpRequest.Record[] = [];
   const fake: HttpClient.Backend = (request) => {

@@ -6,7 +6,6 @@ import { createScope, operation } from "@tinker/core";
 import { drizzleStore } from "@tinker/drizzle";
 import { z } from "zod";
 
-// Units first, declared once at module level (ADR 0057); `tour` wires a store and runs them.
 const users = pgTable("tour_users", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -33,7 +32,8 @@ const listNames = operation({
 });
 
 /** A cast-free tour of the frame: a PGlite store, a table, a session insert, and a root
- * read that sees the committed row. Every value's type is INFERRED — no `as`, no `!`. */
+ * read that sees the committed row. Every value's type is INFERRED — no `as`, no `!`.
+ * The units are declared once at module level (ADR 0057); `tour` only wires a store and runs them. */
 export async function tour(): Promise<string> {
   const scope = createScope({ tags: [store.config(null)] });
   await scope.session((s) => s.run(addUser, { input: "ada" }));

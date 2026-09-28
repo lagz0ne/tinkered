@@ -7,7 +7,6 @@ function parsePrompt(raw: unknown): string {
   return raw;
 }
 
-// Units first, declared once at module level (ADR 0057); `tour` wires a scope and runs them.
 const coder = harness({ label: "coder", adapter: claudeCode });
 const ask = operation({
   label: "coder.ask",
@@ -19,7 +18,8 @@ const ask = operation({
   },
 });
 
-/** The real adapter (needs Claude Code auth — not run by tests): prints `text` while streaming. */
+/** The real adapter (needs Claude Code auth — not run by tests): prints `text` while streaming.
+ * The units are declared once at module level (ADR 0057); `tour` only wires a scope and runs them. */
 export async function tour(): Promise<string> {
   const scope = createScope({
     tags: [claudeCode.options({ cwd: process.cwd(), permissionMode: "plan" })],

@@ -1,6 +1,5 @@
 import { createScope, data, makeTestClock, operation, resource, tag } from "@tinker/core";
 
-// Units first, declared once at module level (ADR 0057); `tour` wires a scope and runs them.
 const region = tag<string>({ label: "region" });
 const count = data({ label: "count", initial: 0 });
 
@@ -21,14 +20,17 @@ const store = resource({
   },
 });
 
-// Time is an ambient capability on every ctx; inject a controllable clock at the scope so this
-// reads a fixed instant with no `Date.now` mock and no fake timers.
+/** Time is an ambient capability on every ctx: `tour` injects a test clock at the scope, so this
+ * reads a fixed instant (0) with no `Date.now` mock and no fake timers. */
 const stamp = operation({
   label: "stamp",
   run: (_deps, { clock }) => clock.currentTimeMillis(),
 });
 
-/** A cast-free tour of the public API: every value's type is INFERRED — no `as`, no non-null `!`. */
+/** A cast-free tour of the public API: every value's type is INFERRED — no `as`, no non-null `!`.
+ * The units are declared once at module level (ADR 0057); `tour` only wires a scope and runs them.
+ * An inline body runs on the same call object with one span, and nothing is cached for it.
+ * `scope.resolve` builds a resource once and reads that one instance after. */
 export async function tour(): Promise<number> {
   const scope = createScope({ tags: [region("eu")], clock: makeTestClock({ now: 0 }) });
   const c = scope.controller(count);
@@ -36,17 +38,17 @@ export async function tour(): Promise<number> {
   const seen: number[] = [];
   c.watch((v) => seen.push(v));
 
-  const n = scope.run(doubled); // run an operation now
+  const n = scope.run(doubled);
   const inline = scope.run(
     { depends: { count }, run: ({ count }, { input }) => count + input },
     { input: 1 },
-  ); // an inline body: same call object, one span, nothing cached
-  const s = scope.resolve(store); // read a snapshot: builds the resource once
+  );
+  const s = scope.resolve(store);
   s.add("first");
-  const t = scope.run(stamp); // 0 — the injected test clock, deterministic
+  const t = scope.run(stamp);
 
   const inSession = await scope.session((child) => {
-    child.controller(count).set(100); // give back control: a write handle
+    child.controller(count).set(100);
     return child.run(doubled);
   });
 
