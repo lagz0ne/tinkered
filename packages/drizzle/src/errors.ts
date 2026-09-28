@@ -1,21 +1,16 @@
-/** Payload type for each drizzle error. The registry is the only place this package throws. */
 type Payloads = {
   Rollback: { status: "success" | "failed" | "cancelled" | "released" };
 };
 
 export declare namespace Errors {
-  /** Every drizzle error name. */
   export type Name = keyof Payloads;
-  /** The typed payload carried by one error name. */
   export type Payload<N extends Name> = Payloads[N];
-  /** A drizzle error: identified by `kind`, carrying a typed `payload`. */
   export type Of<N extends Name = Name> = Error & {
     readonly kind: N;
     readonly payload: Payloads[N];
   };
 }
 
-/** Build a registry error without throwing (for rejecting a promise). */
 export function makeError<N extends Errors.Name>(
   kind: N,
   payload: Errors.Payload<N>,

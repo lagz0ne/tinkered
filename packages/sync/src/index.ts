@@ -46,7 +46,6 @@ export declare namespace Sync {
     members(): readonly string[];
     onMember(listener: (id: string) => void): () => void;
   };
-  /** One published unit on the scope. */
   export type Published = Data.Cell<unknown> | Family<unknown>;
   /** The source extension: one session per subscriber; the scope's cells are
    * the truth. `connect` resolves with the session's close `Result` — success
@@ -467,7 +466,6 @@ function deliver(target: Set<(message: Sync.Message) => void>, message: Sync.Mes
   });
 }
 
-/** Listen until the returned function is called. */
 function listen<T>(target: Set<T>, listener: T): () => void {
   target.add(listener);
   function unlisten(): void {

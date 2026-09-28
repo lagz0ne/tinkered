@@ -19,7 +19,6 @@ export declare namespace DrizzleStore {
   export type Transactional = {
     transaction<T>(cb: (tx: any) => Promise<T>): Promise<T>;
   };
-  /** The transaction handle for one database: the callback's first parameter. */
   export type Tx<DB extends Transactional> = Parameters<Parameters<DB["transaction"]>[0]>[0];
   /** The tools `open` receives: a Drizzle logger bound to the db resource's `ctx.log`. */
   export type Tools = { readonly logger: Logger };
