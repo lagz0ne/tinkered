@@ -23,7 +23,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **jev/s22-settle** — S22 leaves `void x.run()` alone (the scope tracks the run: probe showed no unhandled rejection and a panic still fails the scope), but a `settle()` whose Result nobody reads (`void x.settle()`, or `x.settle(...)` as a bare statement) hides a panic. Next: add that shape to S22; add to the coding-convention skill's rule 2: "`void x.run()` is allowed: the scope tracks the run." Verify: a fixture for each shape; the tracker stays at 0 S22 rows.
 - **perf/op-parity** — Compare operation call cost. The runner it waited for is here: `bench/queued.sh`
   sends `bench/ab.sh` through `benchd`, this box's benchmark queue, so one job runs at a time on one
   core with no network and no secrets. Next: pin the baseline and current SHAs, build the baseline
@@ -39,6 +38,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
+
+- **jev/s22-settle** — S22 leaves `void x.run()` alone (the scope tracks the run: probe showed no unhandled rejection and a panic still fails the scope), but a `settle()` whose Result nobody reads (`void x.settle()`, or `x.settle(...)` as a bare statement) hides a panic. Owner: lead; writer agent `1e66d131` in `../tinkered-s22` (brief `jev-s22-settle.md`); four real near-misses (drizzle `started.settle`, sync `waiting.settle`, core `held.settle`, mcp's returned `s.settle`) must not hit. Next: add that shape to S22; add to the coding-convention skill's rule 2: "`void x.run()` is allowed: the scope tracks the run." Verify: a fixture for each shape; the tracker stays at 0 S22 rows.
 
 ## Review
 
