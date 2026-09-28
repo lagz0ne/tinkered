@@ -91,3 +91,10 @@ createScope({ random: makeTestRandom({ seed: 1 }) }); // default is systemRandom
 - **A Config ambient capability** — rejected: tags carry configuration and we
   do not read `process.env` deep in bodies, so there is no hidden global to
   swap.
+
+## As built
+
+- `scripts/check-ambient.mjs` scans packages and examples, not apps (user, 2026-09-28): an
+  app's raw clock or random read is its process edge (the tracker's `server/main.ts`,
+  `server/routes.ts`) or a benchmark's own stopwatch (the playground bench); those are the
+  reads the ambient tools exist to replace inside units, not at the edge.

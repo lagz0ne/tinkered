@@ -23,8 +23,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **harness/fixtures-throw** — `packages/harness/tests/fixtures.ts:3` has a bare `throw new Error` (census S05). Next: raise a registry error or restructure the fixture. Verify: census `--strict packages/harness` passes.
-- **apps/ambient-scope** — `check-ambient` scans packages and examples, not apps; `apps/*/src` has 9 raw clock/random reads (tracker `server/main.ts`, `server/routes.ts`; 7 in the playground bench). Next: decide whether apps are in scope (ADR 0034/0062 name the scope seam); if yes, fix the 9 and add `apps/*/src` to the scan. Verify: the lane scans apps and passes.
 - **perf/op-parity** — Compare operation call cost. The runner it waited for is here: `bench/queued.sh`
   sends `bench/ab.sh` through `benchd`, this box's benchmark queue, so one job runs at a time on one
   core with no network and no secrets. Next: pin the baseline and current SHAs, build the baseline
@@ -86,6 +84,8 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 ## Done
 
+- **harness/fixtures-throw, apps/ambient-scope** — the harness test fixture `parsePrompt` no longer hand-throws (census S05 passes in harness); apps are out of `check-ambient`'s scope by decision (ADR 0062 As built): their raw reads are process edges and a benchmark's stopwatch.
+  - Gate EXIT 0; harness 72 tests; census harness OK.
 - **docs/tsdoc follow-ups** — opus high + fable review; tags `census/tsdoc-text`, `process/drop-load`, `harness/ts-expect-error`, `core/ts-expect-error`, `jev/preflight-big-file`, `tools/check-ambient`. The census's S11/S14 skip TSDoc text (a fix round kept template strings honest); the unused `Process.Load` is gone; the two `@ts-expect-error` rows in harness and one in core became `expectTypeOf` checks (census S12 at 0 in both); Jev's preflight and review skip a file too big for one call instead of crashing; `check-ambient` scans every package's `src` (5 → 42 files; it had never scanned core) and takes one `@ambientSource` tag per declaration instead of line marks.
   - Gate EXIT 0; validate 44 PASS; promises 17; jev tests 115; no mutation (no runtime code changed).
 - **jev/doc-judge-reword** — fable review (no fix round); tag `jev/doc-judge-reword`. `docRestatesCode` was noisy on the cleanup's 392 labels (sep 7%, ordered 65%). An honest audit changed 1 wrong-claim label (a contradiction is not a restatement); three restatement-only wordings stayed noisy (best: sep 13%, ordered 68%; bar 30% / 90%), so it is retired per ADR 0054 — its 392 cases stay in `cases.jsonl`. `docs.mjs` runs the TSDoc parser (S26) only; review checks that a doc says what the code cannot.
