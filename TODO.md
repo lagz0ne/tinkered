@@ -23,6 +23,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **tools/check-ambient** — `scripts/check-ambient.mjs`'s path `packages/*/src/**/*.ts` matches nothing in `packages/*/src/` (git pathspec `**` needs a subfolder), so the lane never scanned core's source. Next: add `packages/*/src/*.ts`; skip a read inside a declaration whose TSDoc has an `@ambientSource`-style tag and drop the 5 inline `/** ambient-source */` marks. Verify: unmark one real read → the lane exits 1.
+- **census/tsdoc-text** — the style census regexes (S11 `/\*[^*]`, S14 `x[N]`) also match text inside TSDoc, so writers reworded docs to dodge false hits. Next: strip `/** */` text before S11 and S14. Verify: a doc containing `a/*b` and `x[0]` gives no row.
+- **core/ts-expect-error** — `packages/core/tests/index.test.ts` (~2615) keeps a `@ts-expect-error`; replace with `expectTypeOf(...)` (census S12). Verify: census S12 → 0 in core; core tests green.
+- **process/drop-load** — the exported type `Process.Load` is unused and its old doc described a removed memoize/retry. Next: drop it. Verify: `scripts/scip.sh refs 'Process.Load'` → 0; process tests green.
+- **jev/preflight-big-file** — `tools/jev/preflight.mjs` crashes with `max_tokens_exceeded` on `packages/core/src/index.ts` (uncaught). Next: skip a file too big for one call with a printed note (or split by unit). Verify: preflight over a range touching core's index.ts exits 0 and says it skipped.
 - **harness/ts-expect-error** — replace the two `@ts-expect-error` rows in `packages/harness/tests/tools.test.ts` (~189, ~191) with `expectTypeOf(…).not.toExtend` (census S12; rule 10 bans them). Verify: census `--strict packages/harness` has no S12; harness tests green.
 - **perf/op-parity** — Compare operation call cost. The runner it waited for is here: `bench/queued.sh`
   sends `bench/ab.sh` through `benchd`, this box's benchmark queue, so one job runs at a time on one
@@ -39,23 +44,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
-
-- **docs/tsdoc** — rule 10 option B (user, 2026-09-28): TSDoc is the only comment form, on any
-  declaration; each doc is well-formed TSDoc and says what the code cannot; a doc that only restates
-  the code is deleted. Step 1: the checker — `@microsoft/tsdoc` parser as a plain rule, a Jev
-  question `docRestatesCode`, a `docs.mjs` runner, seed labels (writer agent `116df3c0` in
-  `../tinkered-tsdoc`, brief `jev-tsdoc-check.md`). Step 2: cleanup writers, one per package group,
-  clear the 30 line/block comments and every flagged doc, labeling each Jev answer. Owner: lead.
-  Verify: census S10/S11 at 0; the parser rule at 0; the judge calibrated.
-  - 2026-09-28: step 1 landed (tag `jev/tsdoc-check`): rule 10 rewritten; S26 (TSDoc parser) finds
-    21 malformed docs; `docRestatesCode` proven on 7/7 labels at 0.65 (review: 11 of 13 hits agreed
-    on a fresh file; it is advisory — the writer gate does not ask the DOCS bank). Next: cleanup
-    writers per package group.
-  - Step 2 wave 1 (brief `docs-tsdoc-cleanup.md`, branches `docs/tsdoc-<group>` in
-    `../tinkered-doc-<group>`): core `4c0078bb`, hono+http `24596e57`, mcp+harness `3fd0221e`,
-    issue-tracker `d2eb47d3`, examples `e563d3d3`. Wave 2 next: blueprint, tinkerer,
-    process+react, sync+drizzle, playground. One calibration run after both waves.
-  - Landed: mcp+harness (40 labels; 6 docs that were wrong about the code fixed), hono+http (55 labels; 3 wrong docs fixed).
 
 ## Review
 
@@ -102,6 +90,8 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 ## Done
 
+- **docs/tsdoc** — user, 2026-09-28 (rule 10 option B). Checker (tag `jev/tsdoc-check`): S26 runs the TSDoc parser; the Jev judge `docRestatesCode` asks if a doc only restates its code. Cleanup, 10 writers in two waves, each reviewed (tags `docs/tsdoc-<group>` for core, mcp+harness, hono+http, tinkerer, process+react, sync+drizzle, blueprint, issue-tracker, playground, examples): every stray `//` and `/* */` comment moved into TSDoc or deleted; every malformed doc fixed; roughly 300 restating docs deleted; about 25 docs that claimed what the code contradicts fixed (the "only throw site" claim was false in every package); two reviews restored a lost contract (core `buildResult`, ADR 0027). Census S10/S11 at 0 everywhere; S26 at 0.
+  - Labels: 378 new docRestatesCode rows (284 in the last 8 landings); calibration: docRestatesCode noisy (true 335 med 75%, false 57 med 68%, sep 7%, ordered 65%; threshold 0.65), so its hits print as notes.
 - **jev/s22-settle** — opus high + fable review (no fix round); tag `jev/s22-settle`. S22 also flags a `settle` whose Result a core handle drops (`void x.settle(…)`, or `x.settle(…)` / `await x.settle(…)` as a bare statement): `settle` recovers a panic, so an unread Result hides it (ADR 0067). A handle is a name the file ties to one (a unit body's parameters, a `.session` callback's parameter, a controller/scope/session type, a `createScope`/`createSession`/`useScope` const); drizzle's `started.settle`, sync's `waiting.settle`, core's `held.settle`, and mcp's returned `s.settle` do not hit. `void x.run()` stays allowed (the scope tracks the run), now a line in the coding-convention skill. S21 rows unchanged.
   - Gate EXIT 0; jev tests 107 pass (2 new fail on main); writer-trial tests 60; validate 44 PASS.
 - **tracker/wire-rebuild** — opus high + fable review (no fix round); tag `tracker/wire-rebuild`. The tab's live list rebuilt from first principles: the keys ride the stream URL (`GET /sync?keys=issues`; bad keys → 400 before any stream) and the browser's own `EventSource` reconnect does the retrying (`retry: 1000`; each reconnect is a fresh GET and a fresh snapshot). Gone: the `POST /sync` channel, the `viewers` inbox, the client id, the gate, the replay, the hand-written backoff (diff +314 / −657; the wire resource 125 → 62 lines). Boot with the server down shows "Connecting…" and goes live when it starts (user's pick); the dead page only when the browser gives up before the first snapshot.

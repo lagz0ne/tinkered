@@ -80,6 +80,7 @@ head.
     TSDoc (`/** */`) is the only comment form.
     It may sit on any declaration: exported or not, type members included.
     No line comments and no other block comments.
+    A `// @vitest-environment` pragma on line 1 of a test file is not a comment: the test runner reads it.
     Each doc is well-formed TSDoc: the TSDoc parser accepts it (Jev plain rule S26).
     Each doc says what the code cannot: a why, a contract, a caller's
     obligation, a trap, or a reference (an ADR).
