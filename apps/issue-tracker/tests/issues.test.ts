@@ -492,8 +492,6 @@ test("a failed boot closes the scope and stops the bound listener", async () => 
   } catch (error: unknown) {
     failed = error;
   }
-  // The load threw, so `createApp` rejected — and closed the scope first,
-  // which ran the serve stop: no open port left behind, exactly one stop.
   expect(failed).toBe(failure);
   expect(stops).toBe(1);
 });

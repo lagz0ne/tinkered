@@ -36,10 +36,10 @@ export async function createApp(config: AppConfig): Promise<{
   readonly app: Hono;
   readonly src: Scope.Extension<Sync.Source>;
 }> {
-  // The app-level `onError` (Hono's last handler) installs before the
-  // custom bind opens, so no request on that path can fail without it —
-  // `main.ts` does the same on its own path.
   const observe = config.observe;
+  /** The app-level `onError` (Hono's last handler) installs before the
+   * custom bind opens, so no request on that path can fail without it —
+   * `main.ts` does the same on its own path. */
   const serve =
     config.serve &&
     ((app: Hono) => {

@@ -82,7 +82,9 @@ async function serveClient(app: Hono): Promise<void> {
  * request can fail without it), then serve the fetch on the port and hand
  * the node server's `close` back — the extension defers it, so
  * `scope.close()` stops the listener. A refusing port rejects the listen
- * wait, so boot fails here, never at a request. */
+ * wait, so boot fails here, never at a request. A setup failure (a missing
+ * client build) rejects the same wait — never an unhandled rejection the
+ * process crashes on. */
 function servePort(
   host: string,
   port: number,
@@ -90,9 +92,6 @@ function servePort(
 ): HonoScope.Serve {
   return (app) =>
     new Promise<{ readonly close: () => void }>((resolve, reject) => {
-      // A setup failure (a missing client build) rejects the boot path —
-      // the same `entry` that reports a refusing port — never an unhandled
-      // rejection the process crashes on.
       serveClient(app).then(() => {
         app.onError(reportUnmapped(observe));
         const server = serve({ fetch: app.fetch, hostname: host, port }, (info) => {
