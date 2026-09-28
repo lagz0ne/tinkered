@@ -4,7 +4,6 @@ import { z } from "zod";
 
 const ping = operation({ label: "ping", run: () => "pong" });
 
-/** The `ping` command: no input to read, the answer out in JSON. */
 const pingCommand = operation({
   label: "ping",
   depends: { io: io.required, ping },
@@ -20,7 +19,6 @@ const greet = operation({
   run: (_deps, ctx) => `hello ${ctx.input}`,
 });
 
-/** The `greet` command: argv[0] in through the operation's own parse, the greeting out. */
 const greetCommand = operation({
   label: "greet",
   depends: { argv: argv.required, io: io.required, greet },

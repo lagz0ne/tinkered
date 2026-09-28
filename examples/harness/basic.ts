@@ -80,7 +80,7 @@ const relay = operation({
   },
 });
 
-/** The relay sends A's answer to B; each agent has its own watcher, id, and thread. */
+/** A fake SDK replays two scripted turns, so this tour needs no Claude Code auth. */
 export async function tour(): Promise<string> {
   const seen: string[] = [];
   const scripts: Script[] = [

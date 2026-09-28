@@ -28,7 +28,7 @@ const stamp = operation({
 });
 
 /** A cast-free tour of the public API: every value's type is INFERRED — no `as`, no non-null `!`.
- * The units are declared once at module level (ADR 0057); `tour` only wires a scope and runs them.
+ * Units are declared once at module level (ADR 0057); `tour` only wires a scope and runs them.
  * An inline body runs on the same call object with one span, and nothing is cached for it.
  * `scope.resolve` builds a resource once and reads that one instance after. */
 export async function tour(): Promise<number> {

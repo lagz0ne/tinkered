@@ -21,7 +21,6 @@ function readTextPart(part: unknown): string {
   return part.text;
 }
 
-/** Read the first text answer off a tool result. */
 function readFirstText(answered: object): string {
   if (!("content" in answered)) return "";
   const content: unknown = answered.content;

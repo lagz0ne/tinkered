@@ -42,7 +42,7 @@ const tickBody = operation({
 });
 
 /** A cast-free tour of the driver: a scope at the entrypoint, one session per request,
- * flat rows handed to the extension and mounted eagerly at boot. The tour returns a string. */
+ * flat rows handed to the extension and mounted eagerly at boot. */
 export async function tour(): Promise<string> {
   const { extension: web } = hono(
     [

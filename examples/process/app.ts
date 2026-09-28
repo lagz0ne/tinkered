@@ -1,7 +1,6 @@
 import { extension, operation } from "@tinker/core";
 import { argv, io, jsonLine, run, type Process } from "@tinker/process";
 
-/** An operation with its own parse: the command hands it argv[0]. */
 const check = operation({
   label: "check",
   input: (raw: unknown) => {
@@ -11,7 +10,7 @@ const check = operation({
   run: (_deps, ctx) => `checked ${ctx.input}`,
 });
 
-/** The `check` command, declared by its author: argv[0] in, the answer out, code owned. */
+/** A command is a plain operation whose answer is the exit code (ADR 0056). */
 const checkCommand = operation({
   label: "check",
   depends: { argv: argv.required, io: io.required, check },
@@ -21,7 +20,6 @@ const checkCommand = operation({
   },
 });
 
-/** A command that streams as it works: `io` is a tag it declares. */
 const count = operation({
   label: "count",
   depends: { argv: argv.required, io: io.required },
@@ -33,7 +31,8 @@ const count = operation({
   },
 });
 
-/** The lazily loaded command, declared once at module level: its route loads and returns it. */
+/** Declared once at module level, never inside the route's `entry`: a unit minted per load
+ * defeats every cache and preset (ADR 0057). */
 const lazyCheckCommand = operation({
   label: "lazy-check",
   depends: { argv: argv.required, io: io.required, check },
@@ -49,7 +48,7 @@ async function loadCheck(): Promise<typeof lazyCheckCommand> {
   return lazyCheckCommand;
 }
 
-/** A route whose `entry` awaits the loader on first selection — the old sugar's home, now plain. */
+/** A failed load clears the cache, so the next selection retries instead of replaying the error. */
 function lazyCheckRoute(): Process.Route {
   let cached: Promise<typeof lazyCheckCommand> | undefined;
   const once = (): Promise<typeof lazyCheckCommand> => {
@@ -92,7 +91,7 @@ const waitForSignal = operation({
     }),
 });
 
-/** The binary: routes are plain data; a flag becomes a root tag in an entry, before any scope. */
+/** Routes are plain data, read before any scope exists (ADR 0056), so `help` loads no command. */
 export const shell: Process.Shell = {
   name: "tk",
   version: "0.1.0",
@@ -108,7 +107,8 @@ export const shell: Process.Shell = {
   ],
 };
 
-/** The tour a test or the validate lane runs: every kind of command through the seam. */
+/** Every kind of command through `run`, with no real process. No test runs this tour;
+ * only `vp check` covers it. */
 export async function tour(): Promise<readonly Process.Result[]> {
   const stop = new AbortController();
   setTimeout(() => stop.abort(), 30);

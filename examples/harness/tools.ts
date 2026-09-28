@@ -4,7 +4,6 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { claudeCode, harness } from "@tinker/harness";
 
-/** Parse the author's prompt input: a plain string, trimmed of padding. */
 function parsePrompt(raw: unknown): string {
   if (typeof raw !== "string") throw new Error("bad prompt");
   return raw;
@@ -41,8 +40,9 @@ const ask = operation({
   },
 });
 
-/** The real adapter (needs Claude Code auth — not run by tests): the model may call `search`.
- * The units are declared once at module level (ADR 0057); `tour` only wires a scope and runs them. */
+/** The real adapter (needs Claude Code auth — not run by tests).
+ * The model may call `search`.
+ * Units are declared once at module level (ADR 0057); `tour` only wires a scope and runs them. */
 export async function tour(): Promise<string> {
   const scope = createScope({
     tags: [claudeCode.options({ cwd: process.cwd(), allowedTools: ["mcp__coder__search"] })],

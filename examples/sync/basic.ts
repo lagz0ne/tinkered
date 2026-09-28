@@ -1,7 +1,7 @@
 import { createScope, data, resource } from "@tinker/core";
 import { memoryPair, source, subscribe } from "@tinker/sync";
 
-/** The shared counter: one plain cell, named by the row. */
+/** Sync needs nothing on the cell: its wire key comes from the row, never unit meta (ADR 0051). */
 const counter = data({ label: "counter", initial: 0 });
 
 /** One shared declaration, two scopes, one wire: the origin scope installs

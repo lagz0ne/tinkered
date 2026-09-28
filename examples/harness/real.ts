@@ -1,7 +1,6 @@
 import { createScope, operation } from "@tinker/core";
 import { claudeCode, harness } from "@tinker/harness";
 
-/** Parse the author's prompt input: a plain string, trimmed of padding. */
 function parsePrompt(raw: unknown): string {
   if (typeof raw !== "string") throw new Error("bad prompt");
   return raw;
@@ -18,8 +17,9 @@ const ask = operation({
   },
 });
 
-/** The real adapter (needs Claude Code auth — not run by tests): prints `text` while streaming.
- * The units are declared once at module level (ADR 0057); `tour` only wires a scope and runs them. */
+/** The real adapter (needs Claude Code auth — not run by tests).
+ * Prints `text` while streaming.
+ * Units are declared once at module level (ADR 0057); `tour` only wires a scope and runs them. */
 export async function tour(): Promise<string> {
   const scope = createScope({
     tags: [claudeCode.options({ cwd: process.cwd(), permissionMode: "plan" })],

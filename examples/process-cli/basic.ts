@@ -10,7 +10,8 @@ const double = operation({
 
 const ping = operation({ label: "ping", run: () => "pong" });
 
-/** The `ping` command, declared once at module level: the route's `entry` loads and returns it. */
+/** Declared once at module level, never inside the route's `entry`: a unit minted per load
+ * defeats every cache and preset (ADR 0057). */
 const pingCommand = operation({
   label: "ping",
   depends: { io: io.required, ping },
@@ -20,7 +21,7 @@ const pingCommand = operation({
   },
 });
 
-/** The `double` command, declared by its author: argv[0] in, the answer out in JSON, code owned. */
+/** A command is a plain operation whose answer is the exit code (ADR 0056). */
 const doubleCommand = operation({
   label: "double",
   depends: { argv: argv.required, io: io.required, double },
@@ -35,7 +36,7 @@ async function loadPingCommand(): Promise<typeof pingCommand> {
   return pingCommand;
 }
 
-/** A route whose `entry` awaits the loader on first selection, memoized like the old sugar. */
+/** A failed load clears the cache, so the next selection retries instead of replaying the error. */
 function lazyPingRoute(loads: { count: number }): Process.Route {
   let cached: Promise<typeof pingCommand> | undefined;
   const once = (): Promise<typeof pingCommand> => {

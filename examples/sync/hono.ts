@@ -4,10 +4,10 @@ import { emit, hono, route, stream } from "@tinker/hono";
 import { source, type Sync } from "@tinker/sync";
 import { z } from "zod";
 
-/** The shared counter both ends publish: a plain cell, named by the row. */
+/** Sync needs nothing on the cell: its wire key comes from the row, never unit meta (ADR 0051). */
 const counter = data({ label: "counter", initial: 0 });
 
-/** One line per message down the event stream. */
+/** One event-stream frame: a blank line ends it, so the JSON must stay on one line. */
 function frame(message: Sync.Message): string {
   return `data: ${JSON.stringify(message)}\n\n`;
 }
@@ -39,7 +39,6 @@ const openWire = operation({
   run: () => undefined,
 });
 
-/** One posted delivery at the door: the client id plus its register. */
 const deliverySchema = z.object({ id: z.string(), message: registerSchema });
 
 const deliverRegister = operation({
@@ -53,7 +52,7 @@ const deliverRegister = operation({
   },
 });
 
-/** The down wire is a declared operation with its own dependencies. */
+/** Closing runs once, however it is reached; then a post for this tab fails with `gone tab`. */
 const wireBody = operation({
   label: "wireBody",
   input: z.string(),
@@ -116,8 +115,7 @@ const { extension: web } = hono([
   }),
 ]);
 
-/** The source half in one call: a scope holding the source extension plus the app.
- * `boot` installs the source extension, awaits `ready`, and hands both back. */
+/** The caller owns the returned scope and must close it; `app` can serve once this resolves. */
 export async function boot(): Promise<{ scope: Scope.Handle; app: Hono }> {
   const scope = createScope({ extensions: [src, web] });
   await scope.ready;

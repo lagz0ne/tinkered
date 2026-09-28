@@ -11,7 +11,6 @@ export const draft = data<Draft>({ label: "draft", initial: { title: "", descrip
 /** The two fields, each optional: a patch touches one at a time. */
 const patchSchema = z.object({ title: z.string().optional(), description: z.string().optional() });
 
-/** Type one form field at the door. */
 export const typeDraft = operation({
   label: "typeDraft",
   input: patchSchema,
@@ -28,7 +27,7 @@ export const save = operation({
   run: (_deps, { input }) => Promise.resolve(input),
 });
 
-/** Save the draft through the `save` edge, then clear the cell. */
+/** Clears the draft only after `save` resolves: a failed post keeps the typed text. */
 export const saveDraft = operation({
   label: "saveDraft",
   depends: { post: save, form: draft.controller },
@@ -39,9 +38,8 @@ export const saveDraft = operation({
   },
 });
 
-/** A two-field form on `@tinker/react`: the draft is ONE `data` cell, typing is one
- * `typeDraft`, saving is one `saveDraft`. The component only reads (`useData`) and runs
- * (`useRun`) — no `useState`, no `useEffect`. */
+/** All form state lives in the scope, not in React: no `useState`, no `useEffect`. So
+ * `form.test.ts` drives the same operations with no DOM. */
 export function DraftForm(): React.ReactElement {
   const current = useData(draft);
   const type = useRun(typeDraft);
@@ -65,7 +63,6 @@ export function DraftForm(): React.ReactElement {
   );
 }
 
-/** The composition root: one scope, handed to the provider. */
 export function App(): React.ReactElement {
   return (
     <ScopeProvider create={() => createScope()}>
