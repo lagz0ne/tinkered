@@ -115,6 +115,125 @@ This ticket only measures; nothing was fixed. The t27 `op` median (89.7) sits be
 min (76.3) and main's (101.0): the old bimodal floor still shows in A2, not in B.
 Raw CSVs stay outside the repo, in `/home/paseo/next/tinkered-op-parity-csv/`.
 
+The `op` and `run` FAILs are a probe artifact, not a core regression: see "Where the cost went since
+t27" below.
+
+## Where the cost went since t27 (benchd, 2026-09-28)
+
+perf/op-parity found main slower than `core/t27`. This section splits that gap into 13 steps, one
+per milestone tag. Timing only: nothing in core changed here.
+
+How it ran:
+
+- **One probe for all trees** — main's `bench/core-probe.mjs`, copied into every tree and run
+  against that tree's own `packages/core/dist`. So a probe change cannot pose as a core change.
+- **Each step** — tree B is a tag, tree A is the tag before it.
+  `N=31 A=../<prev> SCEN="op create warm tagged" bench/queued.sh`, from B's root.
+- **Numbers** — medians in ns per call, A → B; "slower k/31" counts pairs where B took longer.
+- **Verdict** — "B slower" needs a median gap over 2% and more than 23 of 31 slower; "B faster" is
+  the same the other way; anything else is "no difference we can see".
+- Raw CSVs stay outside the repo, in `/home/paseo/next/tinkered-cost-timeline-csv/`.
+
+### `op` and `run`: the op-parity FAIL is a probe artifact
+
+- op-parity ran each tree's OWN probe: t27 `op` 89.7 → main 101.0.
+- Here, with main's probe in the t27 tree, t27 `op` is 100.9; main is 101.8 (step 13).
+- The `op` lines are the same in both probes (`operation`, `createScope`, `controller`, `opC.run()`).
+- Main's probe only defines more scenarios (`opRes`, `asyncSub`, …). That changes how V8 runs the
+  harness loop, not core.
+- So the `op` ≤ t24 + 2 and `run` ≤ t24 + 2 FAILs above are not a core regression. `run` tracks
+  `op`, so it was not timed per step.
+- The real core costs since t27: `warm` (the t31 step), `create` (the http/t07 step), and `tagged`
+  (a sum of several steps).
+- Two fixes are already in progress: perf/warm-read and perf/create-presets.
+
+### The steps
+
+Each step lists its headline changes, then only the scenarios that moved.
+
+- **1. t27 → t31** `fa7282f` — deps as values (ADR 0044), no lazy deps Proxy; tag edges in
+  `resolve`; parse failure type.
+  - `warm` — 20.0 → 29.7 (+9.7, +48.5%), slower 31/31: B slower
+- **2. t31 → t35** `d9f333f` — extensions (ADR 0050): start, close, resolve, run, write chains.
+  - `create` — 176.6 → 168.4 (−8.2, −4.6%), slower 0/31: B faster
+- **3. t35 → t36** `d8bea8c` — session hook, extension in depends.
+  - nothing moved
+- **4. t36 → http/t07** `c84e33c` — Standard Schema parse; `Many<T>` + `readMany`;
+  `Tag.Bindings`; `watch(next, prev)`.
+  - `create` — 168.3 → 197.3 (+29.0, +17.2%), slower 31/31: B slower
+  - `op` — 100.7 → 102.9 (+2.2, +2.2%), slower 30/31: B slower
+- **5. http/t07 → namespace-v1/t01** `94fb8b3` — namespaces (ADR 0059); ambient random; log
+  levels.
+  - `op` — 103.3 → 114.4 (+11.1, +10.7%), slower 31/31: B slower
+  - `create` — 197.3 → 206.0 (+8.7, +4.4%), slower 31/31: B slower
+  - `tagged` — 2026 → 2103 (+77, +3.8%), slower 30/31: B slower
+  - `warm` — 28.9 → 26.0 (−2.9, −10.0%), slower 0/31: B faster
+- **6. ns/t01 → ns/t02b-1** `acf1877` — named resources keyed by namespace; hold-aware release.
+  - `tagged` — 2097 → 2223 (+126, +6.0%), slower 29/31: B slower
+  - `warm` — 25.8 → 26.6 (+0.8, +3.1%), slower 28/31: B slower
+  - `op` — 114.5 → 106.6 (−7.9, −6.9%), slower 0/31: B faster
+- **7. ns/t02b-1 → tagged-promises** `2584f21` — named release drain; span clock; fewer close
+  promises.
+  - `tagged` — 2250 → 2118 (−132, −5.9%), slower 1/31: B faster
+  - `create` — 206.1 → 213.4 (+7.3, +3.5%), slower 23/31: no difference we can see (one pair
+    short of the bar)
+- **8. tagged-promises → caught-subflow** `35b6658` — caught subflow errors; namespace watcher
+  index.
+  - `op` — 106.7 → 101.1 (−5.6, −5.2%), slower 0/31: B faster
+- **9. caught-subflow → ext-hooks-every-layer** `1a81f1e` — run and write hooks on every layer.
+  - nothing moved
+- **10. ext-hooks → errors/t03** `eedf309` — sticky panic, `settle`, origin stamps (ADR 0067).
+  - nothing moved (`tagged` +3.3%, slower 22/31: no difference we can see)
+- **11. errors/t03 → drivers/t08b** `62f5f52` — units have no meta; release code moved to the
+  end of `index.ts`.
+  - nothing moved
+- **12. drivers/t08b → with-data** `9616bf4` — `close({ withData })` (ADR 0069); cancel reason
+  text.
+  - nothing moved (`tagged` +2.5%, slower 20/31: no difference we can see)
+- **13. with-data → main** `337978e` — TSDoc and comments only.
+  - nothing moved
+- `run`, `session`, `inline`, `cold`, `lifecycle` were not timed per step.
+
+### Top 3 steps per scenario
+
+- **`warm`** (+48.5% at step 1 alone)
+  - step 1 (t31): +9.7 ns
+  - step 6 (named resources): +0.8 ns
+  - step 5 (namespaces) gave back −2.9 ns
+  - likely hot spot: since t31 a default resource controller reads through `resourceSlot`, two
+    map lookups where t27 had one (perf/warm-read)
+- **`create`**
+  - step 4 (http/t07): +29.0 ns
+  - step 5 (namespaces): +8.7 ns
+  - step 7: +7.3 ns (no difference we can see)
+  - step 2 (extensions) gave back −8.2 ns
+  - likely hot spot: empty presets walk a shared empty list through a real iterator
+    (`readMany`), and preset setup no longer inlines (perf/create-presets)
+- **`tagged`**
+  - step 6 (named resources): +126 ns
+  - step 5 (namespaces): +77 ns
+  - step 10 (errors): +69 ns (no difference we can see)
+  - step 7 (tagged promises) gave back −132 ns
+  - likely hot spots: step 5, the namespace chain passed through every resolve and run (a
+    `chain = layer.ns` default argument) and the `call.ns` check; step 6, session resources keyed
+    by namespace and the hold-aware release at session close
+- **`op`** (net ≈ 0 with one probe)
+  - step 5 (namespaces): +11.1 ns
+  - step 4 (http/t07): +2.2 ns
+  - steps 6 and 8 gave back −7.9 and −5.6 ns
+
+### Do the steps add up?
+
+- **`create`** — steps sum to +31.7 ns; op-parity +29.2 (176.5 → 205.7). About 9% over.
+- **`warm`** — steps sum to +7.2 ns; op-parity +6.6 (20.0 → 26.6). About 9% over.
+- **`tagged`** — steps sum to +366 ns; op-parity +207 (1942 → 2149). About 77% over.
+  End to end with one probe it matches: t27 1943 → main 2176 (+233, +12.0%).
+- **`op`** — steps sum to −2.0 ns; op-parity +11.3. The gap is the probe artifact above: with
+  one probe, t27 100.9 → main 101.8.
+- Why sums drift: each step times its trees again. The same tree's `tagged` median moved up to
+  2% between two steps (errors/t03: 2191 as B in step 10, 2145 as A in step 11). Eight `tagged`
+  steps rose 1.5–3.3% with "no difference we can see"; together they add +305 ns of noise.
+
 ## Notes
 
 - **Deep chains.** Teardown, release and session nesting are iterative/async and survive ≥10k

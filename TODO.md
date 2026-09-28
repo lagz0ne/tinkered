@@ -32,12 +32,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-28: an Astra writer (`codex/gpt-6-astra`, xhigh) and a Fable 5.1 (medium)
 reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
-- **perf/cost-timeline** — op-parity found main slower than `core/t27` (`op` +13%, `run` +11%,
-  `create` +17%, `warm` +33%, `tagged` +11%); find which feature cost what. 13 steps across the
-  milestone tags since t27 (deps as values, namespaces, tagged promises, caught subflows, extension
-  hooks, the error model, meta removal, withData), N=31 per step through benchd, one probe for all
-  trees. Owner: lead; timing agent `d0111804` (brief `perf-cost-timeline.md`), which also lands the
-  docs. Verify: per-step costs in budgets.md; the user picks what to win back.
 - **perf/warm-read** — win back `warm` (+33% since t27). Cause: since core/t31 a default resource
   controller reads through `resourceSlot`, two map lookups where t27 had one. Fix: read the built
   resource from the controller's saved record; named and namespaced controllers keep the full path.
@@ -94,6 +88,12 @@ reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, on
 
 ## Done
 
+- **perf/cost-timeline** — where the call path's cost went since `core/t27`: 13 steps across the milestone tags, one probe (main's) for all trees, N=31 per step through `benchd` ([budgets](docs/roadmap/core-v1/budgets.md), "Where the cost went since t27"). Timing only; nothing fixed.
+  - `op`/`run`: op-parity's FAIL is a probe artifact. Same `op` lines in both probes; with one probe t27 100.9 → main 101.8, steps sum −2.0 ns.
+  - `warm`: t31 (deps as values) +9.7 ns, +48.5%, 31/31; steps sum +7.2 vs op-parity +6.6.
+  - `create`: http/t07 (`readMany`, Standard Schema, `Tag.Bindings`) +29.0 ns, +17.2%, 31/31; namespaces +8.7; extensions −8.2; sum +31.7 vs +29.2.
+  - `tagged`: namespaces +77, named resources +126, tagged-promises −132; sum +366 vs +207 (eight noisy +1.5–3.3% steps); end to end 1943 → 2176 (+12.0%).
+  - Fixes in progress elsewhere: perf/warm-read, perf/create-presets. Raw CSVs in `/home/paseo/next/tinkered-cost-timeline-csv/`.
 - **perf/op-parity** — the call-path budget re-checked through `benchd`, N=61, each tree's own probe: main `13e09c8` vs `core/t24` `bdc2971` and vs `core/t27` `2e1f261` ([budgets](docs/roadmap/core-v1/budgets.md), "Call paths through benchd"). Timing only; nothing fixed.
   - vs t24: `op` 79.0 → 101.0 (+27.9%, 61/61) B slower; `run` 88.7 → 113.2 (+27.6%, 61/61) B slower; `create` +21.2% B slower; `warm` 20.0 → 26.5 (+32.5%) B slower; `cold` +1.2% and `lifecycle` +1.2%: no difference we can see.
   - vs t27: `op` +12.6% and `run` +11.3% B slower; `session` 1584 → 1681 (+6.1%, 58/61) B slower; `tagged` 1942 → 2149 (+10.7%, 60/61) B slower; `create` +16.5% and `warm` +33.0% B slower; `inline`, `cold`, `lifecycle`: no difference we can see.
