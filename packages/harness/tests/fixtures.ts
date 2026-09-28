@@ -1,7 +1,8 @@
+import { z } from "zod";
+
 /** Parse a test author's prompt input: a plain string. */
 export function parsePrompt(raw: unknown): string {
-  if (typeof raw !== "string") throw new Error("bad prompt");
-  return raw;
+  return z.string().parse(raw);
 }
 
 import type {
