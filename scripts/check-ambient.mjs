@@ -24,8 +24,10 @@ const FORBIDDEN =
   "\\bDate\\.now\\s*\\(|\\bnew Date\\s*\\(\\s*\\)|\\bperformance\\.(now|timeOrigin)\\b|" +
   "\\bMath\\.random\\s*\\(|\\bcrypto\\.randomUUID\\s*\\(|\\bcrypto\\.getRandomValues\\s*\\(";
 
-/** Package src and examples, never tests (a test may build a real Date or seed by hand). */
+/** Package src and examples, never tests (a test may build a real Date or seed by hand). A git
+ * pathspec `**` needs at least one folder, so files right in `src/` need their own line. */
 const PATHS = [
+  "packages/*/src/*.ts",
   "packages/*/src/**/*.ts",
   "examples/**/*.ts",
   "examples/**/*.tsx",
