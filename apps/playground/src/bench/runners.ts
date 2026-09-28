@@ -85,7 +85,8 @@ function tinkerLib(): Lib {
 /** Zustand (slice selector). Audited (zustand 5.0.15 source): selectors live outside the
  * component, the docs' idiom. It matters twice — a stable selector keeps useStore's getSnapshot
  * useCallback stable, and React registers one store listener per Cell that calls getSnapshot on
- * EVERY setState, so an inline `(s) => s[`k${i}`]` rebuilt + re-hashed the key 50× per update
+ * EVERY setState, so an inline selector that built its key with a template string rebuilt and
+ * re-hashed the key 50× per update
  * (~2× slower in a Node probe). The plain partial merge (one Object.assign over the keys) is
  * Zustand's normal write; `replace` or an array-shaped store would dodge it but is not how a
  * Zustand app is written. */
@@ -150,7 +151,7 @@ function jotaiLib(): Lib {
   };
 }
 
-/** Legend state v2. Audited (@legendapp/state 2.1.15 source). One root primitive observable per
+/** Legend state v2. Audited (`@legendapp/state` 2.1.15 source). One root primitive observable per
  * slice: a plain class instance with bound get/set — no Proxy trap, and no parent node, so `set`
  * never walks up to notify a root. The old 50-key object paid a template string + Proxy `get`
  * (with `peek`) + a fresh `.set` closure on EVERY render and update, while every other library
@@ -183,7 +184,7 @@ function legendV2Lib(): Lib {
   };
 }
 
-/** Legend state v3 (beta). Audited (@legendapp/state 3.0.0-beta.48 source). Same shape as v2,
+/** Legend state v3 (beta). Audited (`@legendapp/state` 3.0.0-beta.48 source). Same shape as v2,
  * bigger payoff: in beta.48 `onChange` walks every ancestor on subscribe AND dispose, and `use$`
  * resubscribes on every render and again in its change listener — four parent walks per update on
  * the keyed object. Root primitives have no parent, so those vanish. `observer` + `use$` is the
@@ -213,8 +214,8 @@ function legendV3Lib(): Lib {
   };
 }
 
-/** Preact signals (runtime integration, managed mode). Audited (@preact/signals-react 3.12.0
- * source): this is byte-for-byte what the official Babel transform emits for a component. Bare
+/** Preact signals (runtime integration, managed mode). Audited (`@preact/signals-react`
+ * 3.12.0 source): this is byte-for-byte what the official Babel transform emits for a component. Bare
  * `useSignals()` is the UNMANAGED fallback ("for people who can't use a build step"): it adds a
  * dep-less useLayoutEffect on every render of every component and re-arms a Promise microtask per
  * render — overhead the managed form does not pay. Do NOT "upgrade" this to the Babel transform:
