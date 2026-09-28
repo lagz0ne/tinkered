@@ -81,7 +81,6 @@ export const evalsPath: Tag.Handle<string> = tag({
   default: new URL("../evals/", import.meta.url).pathname,
 });
 
-/** One template id's evals, read off disk. Empty when the id has no `bad` or `clean` folder. */
 function readEvalFiles(folder: string): readonly Blueprint.Eval[] {
   if (!existsSync(folder)) return [];
   return readdirSync(folder)
@@ -114,7 +113,8 @@ function readOwnPair():
  * `evalsPath/<id>/clean` once per scope into a map keyed by template id, plus golden cases
  * for every template it applies to (ADR 0052 decision 5, amended): `golden.yaml`'s for every
  * template, and, for a `body` template only, the package's own golden pair's (ADR 0055 §5 —
- * `goldenCasesOf` resolves each case's `body` from `ownPair.units`). A bad eval file fails the build with `InvalidEval`. */
+ * `goldenCasesOf` resolves each case's `body` from `ownPair.units`). A bad eval file fails
+ * the build with `InvalidEval`. */
 export const evalSet: Resource.Handle<
   ReadonlyMap<
     string,
@@ -161,7 +161,6 @@ export const evalSet: Resource.Handle<
  * a test never binds it — `judge` takes it as `engine.optional`. */
 export const engine: Tag.Handle<Blueprint.Engine> = tag({ label: "engine" });
 
-/** True on a Jev rate-limit error message. */
 const RATE_LIMITED = /rate|429/i;
 
 function messageOf(error: unknown): string {
@@ -183,8 +182,6 @@ function wait(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
-/** One `evaluate` call, with 429 backoff: wait `8000 * (attempt + 1)` ms and retry, 5 tries,
- * then throw. Any other error throws as-is. */
 async function askGateway(
   model: EvaluationModel,
   state: Blueprint.NodeState | Blueprint.PairState | Blueprint.WordsState,
@@ -203,7 +200,6 @@ async function askGateway(
   raise("JevUnavailable", {}, "blueprint: gave up after rate-limit retries");
 }
 
-/** One Jev client over a bound engine — `judge`'s factory, and `bodyJudge`'s below. */
 function judgeFrom(engineValue: Blueprint.Engine): Blueprint.Judge {
   const model = createGateway({ apiKey: engineValue.apiKey }).evaluationModel(engineValue.model);
   return { ask: (state, questions, signal) => askGateway(model, state, questions, signal) };
@@ -230,7 +226,6 @@ export const bodyJudge: Resource.Handle<Blueprint.Judge | undefined> = resource(
   factory: ({ engine: bound }) => (bound.present ? judgeFrom(bound.value) : undefined),
 });
 
-/** One template block, verbatim: the id line, then each field on its own line. */
 function verbatim(template: Blueprint.Template): string {
   const lines = [
     `id: ${template.id}`,
@@ -259,7 +254,6 @@ function verbatim(template: Blueprint.Template): string {
   return lines.join("\n");
 }
 
-/** One template as a markdown list item: `- **id** — ask`, then indented field lines. */
 function markdown(template: Blueprint.Template): string {
   const lines = [
     `- **${template.id}** — ${template.ask}`,
@@ -280,7 +274,6 @@ function markdown(template: Blueprint.Template): string {
   return lines.join("\n");
 }
 
-/** Read the call input into the flag: anything without a true `md` reads as false. */
 function parseMd(raw: unknown): { md: boolean } {
   return {
     md: typeof raw === "object" && raw !== null && "md" in raw && raw.md === true,
@@ -323,7 +316,6 @@ export const check: Operation.Handle<
   },
 });
 
-/** One line per finding, then `ok: N nodes, M findings`. */
 function checkLines(report: Blueprint.Report): string {
   const lines = [
     ...report.findings.map(findingLine),
@@ -434,13 +426,10 @@ export const evals: Operation.Handle<Promise<readonly Blueprint.Grade[]>, void> 
   },
 });
 
-/** A share, as a rounded percent: `0.755` reads `76%`. */
 function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
-/** One grade as a line: `✓` proven, `~` provisional, `✗` noisy, then the numbers behind it,
- * including how many of the golden design's cases it hit. */
 function gradeLine(grade: Blueprint.Grade, idWidth: number): string {
   const mark = grade.status === "proven" ? "✓" : grade.status === "noisy" ? "✗" : "~";
   return (
@@ -452,7 +441,6 @@ function gradeLine(grade: Blueprint.Grade, idWidth: number): string {
   );
 }
 
-/** One line per template's grade, widest id first so the columns line up. */
 function evalsLines(grades: readonly Blueprint.Grade[]): string {
   const idWidth = Math.max(0, ...grades.map((grade) => grade.id.length));
   return `${grades.map((grade) => gradeLine(grade, idWidth)).join("\n")}\n`;
@@ -471,7 +459,6 @@ function choiceTemplateById(
   return found;
 }
 
-/** A choice answer's own confidence: its pick's share of `probabilities`, 0 when absent. */
 function confidenceOf(answer: Blueprint.Answer): number {
   return answer.type === "choice" ? (answer.probabilities?.[answer.choice] ?? 0) : 0;
 }
@@ -518,14 +505,12 @@ export const suggest: Operation.Handle<
   },
 });
 
-/** Every column starts at this width: `"unit:".padEnd(9)` reads `"unit:    "`. */
 const LABEL_WIDTH = 9;
 
 function labeled(label: string, value: string): string {
   return `${`${label}:`.padEnd(LABEL_WIDTH)}${value}`;
 }
 
-/** The picked choice's probabilities, widest share first: `resource 78%, operation 15%`. */
 function distribution(answer: Blueprint.Answer): string {
   if (answer.type !== "choice") return "";
   return Object.entries(answer.probabilities ?? {})
@@ -534,8 +519,6 @@ function distribution(answer: Blueprint.Answer): string {
     .join(", ");
 }
 
-/** `resource (78%)` at or above `minConfidence`, else
- * `unclear (resource only 55%) — decide with the one law`. */
 function unitPickText(answer: Blueprint.Answer, minConfidence: number): string {
   if (answer.type !== "choice") return "";
   const confidence = confidenceOf(answer);
@@ -544,7 +527,6 @@ function unitPickText(answer: Blueprint.Answer, minConfidence: number): string {
     : `unclear (${answer.choice} only ${pct(confidence)}) — decide with the one law`;
 }
 
-/** `scope (81%)` at or above `minConfidence`, else `unclear (session only 52%)`. */
 function targetPickText(answer: Blueprint.Answer, minConfidence: number): string {
   if (answer.type !== "choice") return "";
   const confidence = confidenceOf(answer);
@@ -553,8 +535,6 @@ function targetPickText(answer: Blueprint.Answer, minConfidence: number): string
     : `unclear (${answer.choice} only ${pct(confidence)})`;
 }
 
-/** `unit:`/`shape:`/`target:`/`all:`, one per line — `shape:` and `target:` only when
- * `suggest` returned them. */
 function suggestLines(result: {
   readonly unit: Blueprint.Answer;
   readonly unitMinConfidence: number;
@@ -570,7 +550,6 @@ function suggestLines(result: {
   return `${lines.join("\n")}\n`;
 }
 
-/** The first argv entry that is not a flag and is not `--key-file`'s value. */
 function fileArg(argv: readonly string[]): string | undefined {
   return positionals(argv, { values: ["--key-file"] })[0];
 }
@@ -606,8 +585,6 @@ const checkCommand: Process.Command = operation({
   },
 });
 
-/** The `explain` command's operation, declared once: `--md` picks the markdown list, otherwise
- * the verbatim blocks. */
 const explainCommand: Process.Command = operation({
   label: explainName,
   depends: { argv: argv.required, io: io.required, explain },
@@ -622,8 +599,6 @@ const explainCommand: Process.Command = operation({
   },
 });
 
-/** The `evals` command's operation, declared once: grades every shipped template, one line per
- * grade. */
 const evalsCommand: Process.Command = operation({
   label: evalsName,
   depends: { io: io.required, evals },
@@ -633,8 +608,6 @@ const evalsCommand: Process.Command = operation({
   },
 });
 
-/** The `suggest` command's operation, declared once: the prompt is the whole argv, joined with
- * spaces. */
 const suggestCommand: Process.Command = operation({
   label: suggestName,
   depends: { argv: argv.required, io: io.required, suggest },
@@ -644,8 +617,6 @@ const suggestCommand: Process.Command = operation({
   },
 });
 
-/** The `verify` command's operation, declared once: the file's text and the dir's units are read
- * at the root, then the driven operation diffs them. */
 const verifyCommand: Process.Command = operation({
   label: verifyName,
   depends: { argv: argv.required, io: io.required, verify },

@@ -10,7 +10,6 @@ import type { Blueprint } from "./blueprint.ts";
 
 const UNIT_KINDS = new Set(["data", "resource", "operation", "tag"]);
 
-/** Is `name` one of the four unit kinds? Narrows a plain identifier name to `Node["kind"]`. */
 function isUnitKind(name: string): name is Blueprint.Node["kind"] {
   return UNIT_KINDS.has(name);
 }
@@ -53,7 +52,6 @@ function dependsRoot(src: string, value: Expression): string {
   return sliceOf(src, value);
 }
 
-/** Every `depends` value's identifier root, in source order; `[]` with no `depends` property. */
 function dependsOf(src: string, config: Expression): readonly string[] {
   const node = prop(config, "depends");
   if (node?.type !== "ObjectExpression") return [];
@@ -78,8 +76,8 @@ function targetOf(
   return kind === "resource" ? "scope" : undefined;
 }
 
-/** The exact source text of `run` or `factory`, when its value is a function; `undefined`
- * otherwise (a `data`/`tag` unit carries neither). */
+/** `undefined` unless `run` or `factory` is an inline function: a function passed by
+ * reference carries no body here, and a `data`/`tag` unit carries neither key. */
 function bodyOf(src: string, config: Expression): string | undefined {
   const node = prop(config, "run") ?? prop(config, "factory");
   if (node?.type === "ArrowFunctionExpression" || node?.type === "FunctionExpression")
@@ -113,8 +111,6 @@ function unitOf(
   };
 }
 
-/** The declaration a top-level statement carries: itself when it already is one, the wrapped
- * declaration when it is an `export`, `undefined` otherwise (an import, a bare expression, …). */
 function declarationOf(statement: Program["body"][number]): Declaration | undefined {
   if (statement.type === "ExportNamedDeclaration") return statement.declaration ?? undefined;
   if (statement.type === "VariableDeclaration") return statement;

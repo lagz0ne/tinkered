@@ -6,7 +6,6 @@ import { readUnits } from "./extract.ts";
 export { isError } from "./errors.ts";
 export type { Errors } from "./errors.ts";
 
-/** One parsed blueprint node. `kind` is the YAML key; `depends` is always an array. */
 export declare namespace Blueprint {
   /** One parsed node. `kind` is the YAML key; `depends` is always an array. */
   export type Node = {
@@ -23,7 +22,6 @@ export declare namespace Blueprint {
     readonly nodes: readonly Node[];
     /** The nodes `name` lists in `depends` (missing names are skipped). */
     readonly uses: (name: string) => readonly Node[];
-    /** The nodes whose `depends` name `name`. */
     readonly usedBy: (name: string) => readonly Node[];
   };
   /** One declared unit in the code: what `verify` compares a node with (`src/extract.ts`'s
@@ -93,7 +91,6 @@ export declare namespace Blueprint {
       kind: Node["kind"],
       options?: { readonly body: boolean },
     ) => readonly Template[];
-    /** The pair-scope templates. */
     readonly pairs: readonly Template[];
   };
   /** The Jev engine: which model, which key. Bound at the root; a test never binds it. */
@@ -106,11 +103,9 @@ export declare namespace Blueprint {
     readonly usedBy: readonly Node[];
     readonly body?: string;
   };
-  /** What the judge sees for a pair template. */
   export type PairState = { readonly a: NodeState; readonly b: NodeState };
   /** What the judge sees for `suggest`: a sentence, not a node. */
   export type WordsState = { readonly description: string };
-  /** One answer: a boolean's probability, or a choice with its confidence. */
   export type Answer =
     | { readonly type: "boolean"; readonly probability: number }
     | {
@@ -118,7 +113,7 @@ export declare namespace Blueprint {
         readonly choice: string;
         readonly probabilities?: Readonly<Record<string, number>>;
       };
-  /** One question, as the engine takes it. */
+  /** The question shape `experimental_evaluate` (package `ai`) takes. */
   export type Question =
     | {
         readonly type: "boolean";
@@ -162,8 +157,9 @@ export declare namespace Blueprint {
   /** One eval file: a small blueprint plus what the judge should say about one
    * node (`target` holds its one name) or one pair (`target` holds both names).
    * `source` (a TypeScript snippet) grades a `body` template on the body of the unit in
-   * `source` labeled `target[0]` (ADR 0055 §5); `body`, set only by {@link goldenCasesOf}
-   * for the package's own golden pair, is the already-resolved text and skips that lookup. */
+   * `source` labeled by the first `target` name (ADR 0055 §5); `body`, set only by
+   * {@link goldenCasesOf} for the package's own golden pair, is the already-resolved text and
+   * skips that lookup. */
   export type Eval = {
     readonly file: string;
     readonly target: readonly string[];
@@ -191,7 +187,6 @@ export declare namespace Blueprint {
 
 type Parsed = z.infer<typeof entries>;
 
-/** A node name holds letters, digits, and `_` — a dot is an error. */
 const name = z
   .string()
   .regex(/^[A-Za-z][A-Za-z0-9_]*$/, 'a name holds letters, digits, and _; a "." is an error');
@@ -217,7 +212,6 @@ const resourceEntry = z.strictObject({
 
 const entries = z.array(z.union([dataEntry, tagEntry, operationEntry, resourceEntry]));
 
-/** Read one parsed entry into a node: the kind is the key, the rest is the value. */
 function readNode(entry: Parsed[number]): Blueprint.Node {
   if ("data" in entry) return { kind: "data", ...entry.data };
   if ("tag" in entry) return { kind: "tag", ...entry.tag };
@@ -225,7 +219,6 @@ function readNode(entry: Parsed[number]): Blueprint.Node {
   return { kind: "resource", ...entry.resource };
 }
 
-/** Build a graph's edge readers over its nodes, in file order. */
 function graphFrom(nodes: readonly Blueprint.Node[]): Blueprint.Graph {
   const byName = new Map(nodes.map((node) => [node.name, node]));
   return {
@@ -265,7 +258,6 @@ export function findingLine(finding: Blueprint.Finding): string {
   return `${prefix}${finding.check}  ${finding.node}  ${finding.detail}${pct}`;
 }
 
-/** One finding per repeated name; `node` is the name. */
 function duplicateNames(nodes: readonly Blueprint.Node[]): readonly Blueprint.Finding[] {
   const counts = new Map<string, number>();
   for (const node of nodes) counts.set(node.name, (counts.get(node.name) ?? 0) + 1);
@@ -285,7 +277,6 @@ function duplicateNames(nodes: readonly Blueprint.Node[]): readonly Blueprint.Fi
   return found;
 }
 
-/** One finding per missing name per node. */
 function unknownNames(nodes: readonly Blueprint.Node[]): readonly Blueprint.Finding[] {
   const known = new Set(nodes.map((node) => node.name));
   return nodes.flatMap((node) =>
@@ -318,7 +309,6 @@ function unwrittenData(graph: Blueprint.Graph): readonly Blueprint.Finding[] {
     }));
 }
 
-/** The plain checks, in this order: duplicateName, unknownDepends, dataNoWriter. */
 export function plainChecks(graph: Blueprint.Graph): readonly Blueprint.Finding[] {
   return [...duplicateNames(graph.nodes), ...unknownNames(graph.nodes), ...unwrittenData(graph)];
 }
@@ -329,7 +319,6 @@ function unitFor(units: readonly Blueprint.Unit[], name: string): Blueprint.Unit
   return units.find((unit) => unit.label === name);
 }
 
-/** One finding per graph node with no unit of that label. */
 function missingUnits(
   graph: Blueprint.Graph,
   units: readonly Blueprint.Unit[],
@@ -363,7 +352,6 @@ function undeclaredUnits(
     }));
 }
 
-/** One finding per node whose kind differs from its unit's. */
 function kindMismatches(
   graph: Blueprint.Graph,
   units: readonly Blueprint.Unit[],
@@ -383,7 +371,6 @@ function kindMismatches(
   });
 }
 
-/** Two string sets hold exactly the same members, order ignored. */
 function sameSet(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
   return a.size === b.size && [...a].every((item) => b.has(item));
 }
@@ -413,7 +400,6 @@ function dependsMismatches(
   });
 }
 
-/** One finding per `resource` node whose `target` differs from its unit's. */
 function targetMismatches(
   graph: Blueprint.Graph,
   units: readonly Blueprint.Unit[],
@@ -509,10 +495,8 @@ export function parseSuggestInput(raw: unknown): { readonly words: string } {
   return { words: call.data.words };
 }
 
-/** Every kind a template may apply to. */
 const nodeKind = z.enum(["data", "resource", "operation", "tag"]);
 
-/** Every field a template may read: the node's own fields plus the edge readers. */
 const stateField = z.enum([
   "kind",
   "name",
@@ -646,7 +630,6 @@ export function readEval(text: string, file: string): Blueprint.Eval {
   };
 }
 
-/** One template as a question, straight from its fields. */
 export function templateQuestion(template: Blueprint.Template): Blueprint.Question {
   return template.kind === "boolean"
     ? {
@@ -657,7 +640,6 @@ export function templateQuestion(template: Blueprint.Template): Blueprint.Questi
     : { type: "choice", instructions: template.ask, criteria: template.choices };
 }
 
-/** One `judge.ask` questions map, keyed by template id. */
 function questionsOf(
   templates: readonly Blueprint.Template[],
 ): Readonly<Record<string, Blueprint.Question>> {
@@ -675,7 +657,6 @@ function compareValueOf(
   return state[template.compare];
 }
 
-/** A boolean template's finding, or `undefined` below `threshold`. */
 function booleanFinding(
   template: Blueprint.Template & { readonly kind: "boolean" },
   answer: Blueprint.Answer,
@@ -692,7 +673,6 @@ function booleanFinding(
   };
 }
 
-/** A choice template's finding: the pick differs from `compareValue`, at or above `minConfidence`. */
 function choiceFinding(
   template: Blueprint.Template & { readonly kind: "choice" },
   answer: Blueprint.Answer,
@@ -712,8 +692,8 @@ function choiceFinding(
   };
 }
 
-/** One template's finding from its answer, or `undefined` when it does not hit
- * (tools/jev/lint.mjs hit rules): {@link booleanFinding} or {@link choiceFinding}. */
+/** The hit rules of `tools/jev/lint.mjs`, kept in step with it: a boolean at or above
+ * `threshold`, or a choice at or above `minConfidence` that differs from `compareValue`. */
 function templateFinding(
   template: Blueprint.Template,
   answer: Blueprint.Answer | undefined,
@@ -739,7 +719,6 @@ function nodeStateOf(
   return body === undefined ? base : { ...base, body };
 }
 
-/** Every unordered pair of nodes, in file order (`nodes[i]` before `nodes[j]`, `i < j`). */
 function pairsOf(
   nodes: readonly Blueprint.Node[],
 ): readonly (readonly [Blueprint.Node, Blueprint.Node])[] {
@@ -749,7 +728,6 @@ function pairsOf(
   return pairs;
 }
 
-/** One `judge.ask` per node: every `forKind` template, keyed by id, against the node's state. */
 async function nodeFindings(
   graph: Blueprint.Graph,
   corpus: Blueprint.Corpus,
@@ -775,7 +753,6 @@ async function nodeFindings(
   return findings;
 }
 
-/** One `judge.ask` per unordered pair whose two kinds both match a pair template's `applies`. */
 async function pairFindings(
   graph: Blueprint.Graph,
   corpus: Blueprint.Corpus,
@@ -848,8 +825,6 @@ export async function runCheck(
   return { nodes: graph.nodes.length, findings };
 }
 
-/** One name off an eval's `target`, at `index`. Throws `InvalidEval` when the name is
- * missing (too few names) or names no node in the eval's own blueprint. */
 function findTarget(evalCase: Blueprint.Eval, index: number): Blueprint.Node {
   const called = evalCase.target[index];
   if (called === undefined)
@@ -903,8 +878,9 @@ function evalStateOf(
   return nodeStateOf(evalCase.graph, node, evalBodyOf(evalCase, node.name));
 }
 
-/** A boolean's probability, or a choice's `1 - probabilities[declared]` (0 when `probabilities`
- * is absent) — `declared` is the value `compare` names on the target node. */
+/** A case's score, high when the judge calls it bad. A choice scores
+ * `1 - probabilities[declared]`, so with no `declared` (no `compare`, or a pair case) it
+ * scores 1 whenever `probabilities` is present. */
 function pOf(answer: Blueprint.Answer | undefined, declared: string | undefined): number {
   if (answer === undefined) return 0;
   if (answer.type === "boolean") return answer.probability;
@@ -940,7 +916,6 @@ async function scoreEval(
   };
 }
 
-/** The middle value, sorted ascending; `NaN` with nothing to average. */
 export function median(values: readonly number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
   if (sorted.length === 0) return NaN;
@@ -948,7 +923,6 @@ export function median(values: readonly number[]): number {
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
-/** The share of (bad, clean) pairs where the bad score outranks the clean one; 0 with no pairs. */
 function orderedShare(bad: readonly number[], clean: readonly number[]): number {
   let ordered = 0;
   for (const b of bad) for (const c of clean) if (b > c) ordered++;
