@@ -76,9 +76,17 @@ head.
    that adds no meaning. Keep a local only for narrowing, read order, or
    ownership.
 
-10. **Words only where code cannot speak.** TSDoc (`/** */`) on exported
-    interfaces and functions only. No other comments. No `@ts-ignore`,
-    `@ts-expect-error`, or lint-disable lines; fix the cause.
+10. **Words only where code cannot speak.**
+    TSDoc (`/** */`) is the only comment form.
+    It may sit on any declaration: exported or not, type members included.
+    No line comments and no other block comments.
+    Each doc is well-formed TSDoc: the TSDoc parser accepts it (Jev plain rule S26).
+    Each doc says what the code cannot: a why, a contract, a caller's
+    obligation, a trap, or a reference (an ADR).
+    A doc never claims what the code contradicts.
+    A doc that only restates the code is deleted.
+    `node tools/jev/docs.mjs <files>` checks both halves.
+    No `@ts-ignore`, `@ts-expect-error`, or lint-disable lines; fix the cause.
 
 11. **Build only what today needs (YAGNI).** No options, wrappers, schemas, or
     extension points for a future caller. Do not invent a failure mode, input
