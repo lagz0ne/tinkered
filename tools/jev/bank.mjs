@@ -433,8 +433,9 @@ export const forSurvivorJev = ({ file, unit, line, mutator, before, after, sourc
 export const DOCS = {
   docRestatesCode: {
     fix: "Delete the doc, or rewrite it to say what the code cannot: a reason, a contract, a caller's obligation, a trap, or the decision (ADR) behind it.",
-    // Provisional until calibrated (ADR 0054).
-    threshold: 0.5,
+    // 0.65 from the first 14 labels (2026-09-28): false cases reach 60% (stampOrigin's flight
+    // rules), true cases start at 71% (core's `Every core error name.`).
+    threshold: 0.65,
     q: {
       type: "boolean",
       instructions:
