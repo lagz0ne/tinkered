@@ -20,7 +20,7 @@ const lanes = [
   // that declares operations ships a span-tree test.
   ["graph (span-tree per package, no hand-rolled span)", `${strip} scripts/check-graph.mjs`],
   // Ambient time/random (ADR 0034, 0062): read "now" and randomness off ctx, never a hidden
-  // global; only the systemClock/systemRandom source lines are marked `ambient-source`.
+  // global; only the systemClock/systemRandom declarations carry the `@ambientSource` TSDoc tag.
   ["ambient reads off ctx (no bare time/random)", `node scripts/check-ambient.mjs`],
   [
     "cast-free examples (0 casts)",

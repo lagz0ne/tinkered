@@ -222,6 +222,8 @@ bash .agents/skills/coding-convention/\
 node tools/jev/preflight.mjs
 ```
 
+S11 and S14 skip text inside TSDoc (`/** … */`); a `/*b` or `x[0]` in a doc is not a hit.
+
 Fix every strict hit. Jev is advisory: it points, it never blocks. Fix the
 flags you agree with; explain the rest (an `ℹ` note is a hint: no line owed) in the report's `jev pre-flight` line.
 

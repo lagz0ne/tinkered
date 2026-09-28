@@ -23,6 +23,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
+- **harness/fixtures-throw** — `packages/harness/tests/fixtures.ts:3` has a bare `throw new Error` (census S05). Next: raise a registry error or restructure the fixture. Verify: census `--strict packages/harness` passes.
+- **apps/ambient-scope** — `check-ambient` scans packages and examples, not apps; `apps/*/src` has 9 raw clock/random reads (tracker `server/main.ts`, `server/routes.ts`; 7 in the playground bench). Next: decide whether apps are in scope (ADR 0034/0062 name the scope seam); if yes, fix the 9 and add `apps/*/src` to the scan. Verify: the lane scans apps and passes.
 - **perf/op-parity** — Compare operation call cost. The runner it waited for is here: `bench/queued.sh`
   sends `bench/ab.sh` through `benchd`, this box's benchmark queue, so one job runs at a time on one
   core with no network and no secrets. Next: pin the baseline and current SHAs, build the baseline
@@ -38,24 +40,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
-
-- **tools/check-ambient** — `scripts/check-ambient.mjs`'s path `packages/*/src/**/*.ts` matches nothing in `packages/*/src/` (git pathspec `**` needs a subfolder), so the lane never scanned core's source. Next: add `packages/*/src/*.ts`; skip a read inside a declaration whose TSDoc has an `@ambientSource`-style tag and drop the 5 inline `/** ambient-source */` marks. Verify: unmark one real read → the lane exits 1.
-  Owner: lead; writer agent `bae64319` in `../tinkered-check-ambient` (brief `followups-2026-09-28.md`).
-
-- **census/tsdoc-text** — the style census regexes (S11 `/\*[^*]`, S14 `x[N]`) also match text inside TSDoc, so writers reworded docs to dodge false hits. Next: strip `/** */` text before S11 and S14. Verify: a doc containing `a/*b` and `x[0]` gives no row.
-  Owner: lead; writer agent `e285c871` in `../tinkered-census-tsdoc` (brief `followups-2026-09-28.md`).
-
-- **core/ts-expect-error** — `packages/core/tests/index.test.ts` (~2615) keeps a `@ts-expect-error`; replace with `expectTypeOf(...)` (census S12). Verify: census S12 → 0 in core; core tests green.
-  Owner: lead; writer agent `1860e196` in `../tinkered-core-tse` (brief `followups-2026-09-28.md`).
-
-- **harness/ts-expect-error** — replace the two `@ts-expect-error` rows in `packages/harness/tests/tools.test.ts` (~189, ~191) with `expectTypeOf(…).not.toExtend` (census S12; rule 10 bans them). Verify: census `--strict packages/harness` has no S12; harness tests green.
-  Owner: lead; writer agent `7c0ae243` in `../tinkered-harness-tse` (brief `followups-2026-09-28.md`).
-
-- **process/drop-load** — the exported type `Process.Load` is unused and its old doc described a removed memoize/retry. Next: drop it. Verify: `scripts/scip.sh refs 'Process.Load'` → 0; process tests green.
-  Owner: lead; writer agent `875dabb1` in `../tinkered-drop-load` (brief `followups-2026-09-28.md`).
-
-- **jev/preflight-big-file** — `tools/jev/preflight.mjs` crashes with `max_tokens_exceeded` on `packages/core/src/index.ts` (uncaught). Next: skip a file too big for one call with a printed note (or split by unit). Verify: preflight over a range touching core's index.ts exits 0 and says it skipped.
-  Owner: lead; writer agent `dd6726e1` in `../tinkered-preflight-big` (brief `followups-2026-09-28.md`).
 
 ## Review
 
@@ -102,6 +86,8 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 ## Done
 
+- **docs/tsdoc follow-ups** — opus high + fable review; tags `census/tsdoc-text`, `process/drop-load`, `harness/ts-expect-error`, `core/ts-expect-error`, `jev/preflight-big-file`, `tools/check-ambient`. The census's S11/S14 skip TSDoc text (a fix round kept template strings honest); the unused `Process.Load` is gone; the two `@ts-expect-error` rows in harness and one in core became `expectTypeOf` checks (census S12 at 0 in both); Jev's preflight and review skip a file too big for one call instead of crashing; `check-ambient` scans every package's `src` (5 → 42 files; it had never scanned core) and takes one `@ambientSource` tag per declaration instead of line marks.
+  - Gate EXIT 0; validate 44 PASS; promises 17; jev tests 115; no mutation (no runtime code changed).
 - **jev/doc-judge-reword** — fable review (no fix round); tag `jev/doc-judge-reword`. `docRestatesCode` was noisy on the cleanup's 392 labels (sep 7%, ordered 65%). An honest audit changed 1 wrong-claim label (a contradiction is not a restatement); three restatement-only wordings stayed noisy (best: sep 13%, ordered 68%; bar 30% / 90%), so it is retired per ADR 0054 — its 392 cases stay in `cases.jsonl`. `docs.mjs` runs the TSDoc parser (S26) only; review checks that a doc says what the code cannot.
   - Gate EXIT 0; jev tests 111; writer-trial tests 60; validate 44 PASS.
 - **docs/tsdoc** — user, 2026-09-28 (rule 10 option B). Checker (tag `jev/tsdoc-check`): S26 runs the TSDoc parser; the Jev judge `docRestatesCode` asks if a doc only restates its code. Cleanup, 10 writers in two waves, each reviewed (tags `docs/tsdoc-<group>` for core, mcp+harness, hono+http, tinkerer, process+react, sync+drizzle, blueprint, issue-tracker, playground, examples): every stray `//` and `/* */` comment moved into TSDoc or deleted; every malformed doc fixed; roughly 300 restating docs deleted; about 25 docs that claimed what the code contradicts fixed (the "only throw site" claim was false in every package); two reviews restored a lost contract (core `buildResult`, ADR 0027). Census S10/S11 at 0 everywhere; S26 at 0.

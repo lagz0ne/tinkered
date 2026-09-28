@@ -15,7 +15,7 @@ The model is the clock (ADR 0034). It mirrors it site for site.
   `random` + `TestRandom` rows (ambient-capability row now lists `random`), ADR 0062
   → accepted, and `scripts/check-ambient.mjs` (a `pnpm validate` lane): package src and
   examples read time/randomness off ctx, never a hidden global; only the
-  `systemClock`/`systemRandom` source lines carry the `ambient-source` marker.
+  `systemClock`/`systemRandom` declarations carry the `@ambientSource` TSDoc tag.
 
 ## Anchors (SCIP, `scripts/scip.sh refs`, indexed on main c3a33ba)
 
