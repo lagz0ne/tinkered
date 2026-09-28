@@ -3574,8 +3574,18 @@ function seedPresets(seeds: Many<Scope.Preset>): {
   presets: Map<unknown, unknown> | undefined;
 } {
   const nodes = new Map<object, NodeState>();
+  const list = readMany(seeds);
+  if (list.length === 0) return { nodes, presets: undefined };
+  return { nodes, presets: applyPresets(nodes, list) };
+}
+
+/** Keep the preset loop out of the empty path so V8 can inline scope setup. */
+function applyPresets(
+  nodes: Map<object, NodeState>,
+  seeds: readonly Scope.Preset[],
+): Map<unknown, unknown> | undefined {
   let presets: Map<unknown, unknown> | undefined;
-  for (const p of readMany(seeds)) {
+  for (const p of seeds) {
     const node = p.node;
     if (isData(node)) {
       const s = new NodeState();
@@ -3583,7 +3593,7 @@ function seedPresets(seeds: Many<Scope.Preset>): {
       nodes.set(node, s);
     } else (presets ??= new Map()).set(node, p.replacement);
   }
-  return { nodes, presets };
+  return presets;
 }
 
 function clockFor(parent: Layer | undefined, options: Scope.Options | undefined): Clock.Handle {
