@@ -186,10 +186,8 @@ test("a tool is a row: a bare op or a row without its facts does not compile", (
   expectTypeOf(expose(bare, { description: "say hi", schema: {} })).toExtend<
     Harness.Tool<ClaudeCode.Calls>
   >();
-  // @ts-expect-error — a row needs its `description`
-  expose(bare, { schema: searchShape });
-  // @ts-expect-error — a row needs its `schema`
-  expose(bare, { description: "say hi" });
+  expectTypeOf({ schema: searchShape }).not.toExtend<Parameters<typeof expose>[1]>();
+  expectTypeOf({ description: "say hi" }).not.toExtend<Parameters<typeof expose>[1]>();
 });
 
 test("one row serves the MCP driver and the Claude fast path", async () => {
