@@ -62,7 +62,7 @@ for (const file of files) {
     console.log(`  ${noisy ? "~" : "⚠"} L${h.line} ${h.name || "(no name)"}: ${JUDGE} ${pct(h.p)}`);
   plainRows += rows.length;
   jevHits += hits.length;
-  byFolder[folderOf(file)] = (byFolder[folderOf(file)] ?? 0) + rows.length;
+  if (rows.length > 0) byFolder[folderOf(file)] = (byFolder[folderOf(file)] ?? 0) + rows.length;
 }
 
 const asked = hasKey ? `, ${jevHits} ${JUDGE} hit(s)` : "";
