@@ -32,6 +32,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-28: an Astra writer (`codex/gpt-6-astra`, xhigh) and a Fable 5.1 (medium)
 reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
+- **perf/tagged-close** — win back `tagged` (2130 ns; budget ≤ 2000; t27 1943). Causes (Astra
+  report `session-tagged.md`): every close scans the layer's records for resource instances even
+  when none were built; tag seeding makes a flat list before the tag map. Fix, one experiment per
+  commit: skip the scan when the layer built no instance; then seed nested tags straight into the
+  map. A commit stays only if benchd says `tagged` or `session` "B faster". Owner: lead; Astra
+  writer. Verify: no scenario slower, promises 17, `pnpm validate`, core mutation ≥ 85. If no
+  experiment wins: raise the budget to 2200 and record why (user 2026-09-28: A, then B).
+
 ## Review
 
 | Card | Owner | Next | Verify |
