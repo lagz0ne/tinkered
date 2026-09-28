@@ -84,7 +84,7 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 ## Done
 
-- **harness/fixtures-throw, apps/ambient-scope** — the harness test fixture `parsePrompt` no longer hand-throws (census S05 passes in harness); apps are out of `check-ambient`'s scope by decision (ADR 0062 As built): their raw reads are process edges and a benchmark's stopwatch.
+- **harness/fixtures-throw, apps/ambient-scope** — the harness test fixture `parsePrompt` no longer hand-throws (census S05 passes in harness), and the README examples take `input: z.string()`; harness 72 tests, validate 44 PASS; apps are out of `check-ambient`'s scope by decision (ADR 0062 As built): their raw reads are process edges and a benchmark's stopwatch.
   - Gate EXIT 0; harness 72 tests; census harness OK.
 - **docs/tsdoc follow-ups** — opus high + fable review; tags `census/tsdoc-text`, `process/drop-load`, `harness/ts-expect-error`, `core/ts-expect-error`, `jev/preflight-big-file`, `tools/check-ambient`. The census's S11/S14 skip TSDoc text (a fix round kept template strings honest); the unused `Process.Load` is gone; the two `@ts-expect-error` rows in harness and one in core became `expectTypeOf` checks (census S12 at 0 in both); Jev's preflight and review skip a file too big for one call instead of crashing; `check-ambient` scans every package's `src` (5 → 42 files; it had never scanned core) and takes one `@ambientSource` tag per declaration instead of line marks.
   - Gate EXIT 0; validate 44 PASS; promises 17; jev tests 115; no mutation (no runtime code changed).
