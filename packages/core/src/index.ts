@@ -2422,22 +2422,23 @@ function finishAsyncRun<T>(
   return promise;
 }
 
-function operationController<T, I>(
+/** Build the shared run entry without its public controller. Internal replays have already run
+ * the hooks and never expose `settle`, so they need only this executor (ADR 0038, 0050, 0067). */
+function executorFor<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
   parent: Observe.Span | undefined,
-  chain: readonly Namespace[] | undefined = layer.ns,
-  caller?: RunState,
-  hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I> = target,
-  replay: Replay = false,
-): Scope.OperationController<T, I> {
+  chain: readonly Namespace[] | undefined,
+  caller: RunState | undefined,
+  replay: Replay,
+): (call?: Scope.Invocation<I>) => unknown {
   /** The single entry every run takes — declared, subflow, and inline alike. A call carrying
    * `tags` opens a child session for the run (ADR 0038, always async); anything else runs the
    * untagged body inline below, which is main's, unchanged — one optional `call.tags` read, no
    * extra frame or call on the hot path. The implementation signature stays broad (one input
    * shape would mean no overload — rule 9); the two public overloads type the fork. */
   const sees = seesResourceOf(target);
-  const execute = (call?: Scope.Invocation<I>): unknown => {
+  return (call?: Scope.Invocation<I>): unknown => {
     if (hasCallTags(call))
       return runTagged(
         layer,
@@ -2506,6 +2507,18 @@ function operationController<T, I>(
     }
     return finishAsyncRun(layer, result, caller, replay, obs, span, ctx, finishDefers);
   };
+}
+
+function operationController<T, I>(
+  layer: Layer,
+  target: Operation.Handle<T, I>,
+  parent: Observe.Span | undefined,
+  chain: readonly Namespace[] | undefined = layer.ns,
+  caller?: RunState,
+  hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I> = target,
+  replay: Replay = false,
+): Scope.OperationController<T, I> {
+  const execute = executorFor(layer, target, parent, chain, caller, replay);
   const runners = layer.runners;
   if (runners === undefined || replay)
     return new OperationControl(
@@ -2547,9 +2560,7 @@ function operationController<T, I>(
 }
 
 /** Run `target` on the tagged call's session layer with the tag-stripped call (ADR 0038) — a
- * fresh controller per tagged run, so the hot closure above keeps its exact main shape for the
- * optimizer. Cold path only (one session create + close already dominates); the hot untagged
- * call never enters here. */
+ * fresh executor per replay. Its caller already applied run hooks; no public controller escapes. */
 function runUntagged<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
@@ -2559,16 +2570,7 @@ function runUntagged<T, I>(
   caller?: RunState,
   nested = false,
 ): T {
-  const untagged: { run(call?: Scope.Invocation<I>): T } = operationController(
-    layer,
-    target,
-    parent,
-    chain,
-    caller,
-    target,
-    nested ? "nested" : "root",
-  ) as { run(call?: Scope.Invocation<I>): T };
-  return untagged.run(call);
+  return executorFor(layer, target, parent, chain, caller, nested ? "nested" : "root")(call) as T;
 }
 
 function ownerOf(layer: Layer, target: Resource.Handle<unknown>): Layer {
@@ -3563,15 +3565,19 @@ function removeBorrow(instance: ResourceInstance, work: Promise<unknown>): void 
 
 /** Seed a layer's tag map from the authored bindings: nothing (or only nothing, however
  * nested) leaves the map unallocated; otherwise every binding lands in authored order. */
-function seedTags(input: Tag.Bindings): Map<Tag.Handle<unknown>, unknown[]> | undefined {
-  const bindings = readMany(input);
-  if (bindings.length === 0) return undefined;
-  const tags = new Map<Tag.Handle<unknown>, unknown[]>();
-  for (const binding of bindings) {
-    const list = tags.get(binding.tag) ?? [];
-    list.push(binding.value);
-    tags.set(binding.tag, list);
+function seedTags(
+  input: Tag.Bindings,
+  tags?: Map<Tag.Handle<unknown>, unknown[]>,
+): Map<Tag.Handle<unknown>, unknown[]> | undefined {
+  if (isNothing(input)) return tags;
+  if (isNotList(input)) {
+    tags ??= new Map();
+    const list = tags.get(input.tag) ?? [];
+    list.push(input.value);
+    tags.set(input.tag, list);
+    return tags;
   }
+  for (const binding of input) tags = seedTags(binding, tags);
   return tags;
 }
 
@@ -3748,8 +3754,13 @@ async function drainCloseEntry(layer: Layer, entry: DeferEntry, end: Scope.End):
   }
 }
 
-async function drainDefers(layer: Layer, entries: DeferEntry[], end: Scope.End): Promise<void> {
-  for (let i = entries.length - 1; i >= 0; i--) await drainCloseEntry(layer, entries[i], end);
+/** An empty drain still yields at its caller's await, without allocating an async task. */
+function drainDefers(layer: Layer, entries: DeferEntry[], end: Scope.End): Promise<void> {
+  if (entries.length === 0) return READY;
+  const drain = async (): Promise<void> => {
+    for (let i = entries.length - 1; i >= 0; i--) await drainCloseEntry(layer, entries[i], end);
+  };
+  return drain();
 }
 
 /** A layer's body end, classified at the moment the body settled (`bodyEnd`, attached at session
@@ -3794,11 +3805,16 @@ function bestEffort(layer: Layer): Scope.Outcome {
  * re-checked per child: once an EARLIER child's failure has been collected (pushed into this layer's
  * `descendantFailure` while we awaited it), the remaining children close FORCED so their resources roll
  * back too. Collection is NOT done here: each child's real failure + teardown errors flow up through
- * `finishLayer` (swept push), so a child that already finished and detached still reaches its ancestor. */
-async function closeChildren(layer: Layer, force: boolean): Promise<void> {
-  for (const child of Array.from(layer.children)) {
-    await closeLayer(child, force || (failureOf(layer) ?? layer.descendantFailure) !== undefined);
-  }
+ * `finishLayer` (swept push), so a child that already finished and detached still reaches its ancestor.
+ * With no child, reuse READY: the caller still awaits, keeping the close phase order. */
+function closeChildren(layer: Layer, force: boolean): Promise<void> {
+  if (layer.children.size === 0) return READY;
+  const close = async (): Promise<void> => {
+    for (const child of Array.from(layer.children)) {
+      await closeLayer(child, force || (failureOf(layer) ?? layer.descendantFailure) !== undefined);
+    }
+  };
+  return close();
 }
 
 /** Whether a scope has nothing to tear down, so `close` can settle synchronously (see {@link fastClose}):
@@ -3966,7 +3982,7 @@ function startClose(
     const ended = buildResult(finalSettled, layer, teardownErrors);
     return keeps ? keepData(layer, ended, hooks, withData) : ended;
   };
-  return Promise.resolve().then(run);
+  return READY.then(run);
 }
 
 /** Detach the layer and clear all its state after teardown; returns the collected teardown errors
@@ -4024,7 +4040,7 @@ function settleSession(
 async function runSessionWith<R>(
   parent: Layer,
   options: Scope.Options | undefined,
-  body: (child: Layer, handle: Scope.Handle) => R | PromiseLike<R>,
+  body: (child: Layer, handle?: Scope.Handle) => R | PromiseLike<R>,
   caller?: RunState,
 ): Promise<R> {
   ensureOpen(parent);
@@ -4055,7 +4071,7 @@ async function runSessionWith<R>(
 async function runSessionWrapped<R>(
   parent: Layer,
   options: Scope.Options | undefined,
-  body: (child: Layer, handle: Scope.Handle) => R | PromiseLike<R>,
+  body: (child: Layer, handle?: Scope.Handle) => R | PromiseLike<R>,
   sessions: readonly Scope.Extension<unknown>[],
   caller?: RunState,
 ): Promise<R> {
@@ -4120,19 +4136,20 @@ async function runSession<R>(
   options: Scope.Options | undefined,
   fn: (scope: Scope.Handle) => R | PromiseLike<R>,
 ): Promise<R> {
-  return runSessionWith(parent, options, (_child, handle) => fn(handle));
+  return runSessionWith(parent, options, (child, handle) => fn(handle ?? handleFor(child)));
 }
 
-/** Start a session body with its handle, normalizing to a promise. `fn` is called synchronously
+/** Start a session body, normalizing to a promise. `fn` is called synchronously
  * (no extra adoption microtask) so an already-settled value/promise settles `bodyEnd` before a
  * later abort, letting the body's OWN end reflect whether the BODY was interrupted (an aborted
- * body → cancelled) rather than a subsequent self-close abort. A sync throw becomes a rejection. */
+ * body → cancelled) rather than a subsequent self-close abort. A sync throw becomes a rejection.
+ * The public session body builds its own handle; a tagged replay needs none. */
 function runBodyWith<R>(
   child: Layer,
-  fn: (child: Layer, handle: Scope.Handle) => R | PromiseLike<R>,
+  fn: (child: Layer, handle?: Scope.Handle) => R | PromiseLike<R>,
 ): Promise<R> {
   try {
-    return Promise.resolve(fn(child, handleFor(child)));
+    return Promise.resolve(fn(child));
   } catch (error) {
     return Promise.reject(error);
   }
@@ -4204,12 +4221,11 @@ function wrapSession(
 
 /** The session body's value, or undefined if it rejected — the body's end (success/failed/cancelled)
  * is classified authoritatively by `startClose` via `classifyBody` (ADR 0026). */
-async function bodyResult<R>(body: Promise<R>): Promise<R | undefined> {
-  try {
-    return await body;
-  } catch {
-    return undefined;
-  }
+function bodyResult<R>(body: Promise<R>): Promise<R | undefined> {
+  return body.then(
+    (value) => value,
+    () => undefined,
+  );
 }
 
 /** Wrap a plain root handle with the extensions' plumbing (ADR 0050): store one
