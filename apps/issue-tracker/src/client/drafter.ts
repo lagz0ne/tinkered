@@ -31,11 +31,9 @@ function isStaleCancel(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
 }
 
-/** The helper-failed notice: the one truth every failed landing writes. */
+/** The helper-failed notice: `DraftFailed` and every unnamed failure write this same line. */
 const HELPER_FAILED = "The draft helper failed. Try again.";
 
-/** Read a thrown stream failure as the failed run the cell keeps: a gone issue names itself,
- * a broken frame says so, everything else is the helper failing. */
 function readFailedRun(error: unknown): DraftRun {
   if (isHttpError(error, "ResponseFailed") && error.payload.response.status === 404) {
     return { view: "failed", text: "", draft: "", notice: "That issue is gone." };
