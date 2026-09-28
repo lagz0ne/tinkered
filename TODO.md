@@ -39,6 +39,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
+- **docs/tsdoc** — rule 10 option B (user, 2026-09-28): TSDoc is the only comment form, on any
+  declaration; each doc is well-formed TSDoc and says what the code cannot; a doc that only restates
+  the code is deleted. Step 1: the checker — `@microsoft/tsdoc` parser as a plain rule, a Jev
+  question `docRestatesCode`, a `docs.mjs` runner, seed labels (writer agent `116df3c0` in
+  `../tinkered-tsdoc`, brief `jev-tsdoc-check.md`). Step 2: cleanup writers, one per package group,
+  clear the 30 line/block comments and every flagged doc, labeling each Jev answer. Owner: lead.
+  Verify: census S10/S11 at 0; the parser rule at 0; the judge calibrated.
+
 ## Review
 
 | Card | Owner | Next | Verify |
