@@ -30,7 +30,9 @@ async function linkClient(
 
 /** The stdio recipe in memory (the README's root extension): resolve the
  * driver's server once `next()` settles it, connect a transport, and close the
- * server on scope close. `closes` records each server's own close. */
+ * server on scope close. `closes` records each server's own close.
+ * List it before the server it serves: only then does its `next()` settle that
+ * server's `start`; listed after, the resolve fails with `NotResolved`. */
 function serve(
   ext: Scope.Extension<McpServer>,
   name: string,
@@ -90,8 +92,6 @@ test("two extensions on one scope share a scope resource: a write through one is
   expect(before.content).toEqual([{ type: "text", text: "[]" }]);
   const wrote = await appClient.callTool({ name: "record", arguments: { entry: "app" } });
   expect(wrote.content).toEqual([{ type: "text", text: "1" }]);
-  // One scope-target instance for both servers: the app's write is the
-  // admin's next read, so neither server built its own copy.
   const after = await adminClient.callTool({ name: "readAudit", arguments: {} });
   expect(after.content).toEqual([{ type: "text", text: '["app"]' }]);
   await scope.close({ graceful: true });
@@ -122,9 +122,6 @@ test("every call opens its own session: per-call state never crosses between two
   const scope = createScope({ extensions: [app, admin] });
   const appClient = await linkClient(scope, app);
   const adminClient = await linkClient(scope, admin);
-  // Each call builds its own session resource: a fresh build per call, and
-  // never the other server's, whether the call comes back to the same
-  // server or crosses to the other one.
   const first = await appClient.callTool({ name: "who", arguments: {} });
   expect(first.content).toEqual([{ type: "text", text: "1" }]);
   const second = await adminClient.callTool({ name: "who", arguments: {} });
@@ -138,8 +135,6 @@ test("one scope close closes both servers: each server's close runs once", async
   const closes: string[] = [];
   const app = mcp({ name: "app", version: "1.0.0", tools: [] });
   const admin = mcp({ name: "admin", version: "1.0.0", tools: [] });
-  // Each root extension sits before the server it serves, so its `next()`
-  // settles that `start` and `scope.resolve(ext)` finds the server.
   const scope = createScope({
     extensions: [serve(app, "app", closes), app, serve(admin, "admin", closes), admin],
   });
@@ -150,11 +145,9 @@ test("one scope close closes both servers: each server's close runs once", async
   expect(adminServer.isConnected()).toBe(true);
   await scope.close({ graceful: true });
   expect(closes.sort()).toEqual(["admin", "app"]);
-  // The first close reaped both connections, each server's own close once.
   expect(appServer.isConnected()).toBe(false);
   expect(adminServer.isConnected()).toBe(false);
   await scope.close({ graceful: true });
-  // A second close runs neither server's close again.
   expect(closes.sort()).toEqual(["admin", "app"]);
 });
 
@@ -162,8 +155,6 @@ test("a serving extension listed after its server fails ready with NotResolved n
   const closes: string[] = [];
   const app = mcp({ name: "app", version: "1.0.0", tools: [] });
   const admin = mcp({ name: "admin", version: "1.0.0", tools: [] });
-  // The app pair is in order; the admin root sits after its server, so its
-  // `next()` cannot settle that server's `start` before the resolve.
   const wrong = createScope({
     extensions: [serve(app, "app", closes), app, admin, serve(admin, "admin", closes)],
   });
