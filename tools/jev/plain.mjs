@@ -38,6 +38,8 @@ const MESSAGES = {
   S20: "raw randomness: read ctx.random.next() or ctx.random.uuid(); a test seeds it with makeTestRandom",
   S21: "raw time: read ctx.clock.currentTimeMillis(), wait with ctx.clock.sleep(ms, ctx.signal); a test clock then drives it",
   S22: "a run's failure is dropped: call settle(call) and branch on its Result; a bare catch leaves a panic sticky (ADR 0067)",
+  "S22.settle":
+    "a settle's Result is dropped: settle recovers a panic, so an unread Result hides it (ADR 0067); read the Result, or call run and let the scope own the failure",
   S23: "hand-made subscribe: keep the value in a data cell; readers watch it or read it with useData",
   S24: "raw fetch: send through an @tinker/http endpoint operation so config, retry, spans, and the backend tag apply",
   S25: "component state: make it a data cell and read it with useData; write it from an operation",
@@ -48,6 +50,7 @@ const FIXES = {
   S20: "`id: ctx.random.uuid()`",
   S21: "`await ctx.clock.sleep(ms, ctx.signal)`",
   S22: "`const r = await load.settle({ input: id })`",
+  "S22.settle": "`const r = await load.settle({ input: id })`, then branch on `r.status`",
   S23: '`const status = data<WireStatus>({ label: "wire.status", initial: "connecting" })`',
   S24: "an endpoint operation, like `postIssue` in apps/issue-tracker/src/client/api.ts",
   S25: '`const running = data({ label: "bench.running", initial: false })`',
@@ -292,10 +295,11 @@ function commentRows(comments, starts) {
   return rows;
 }
 
-/** One finding row for a rule id at a line; a rule with a fix line ends its message with it. */
-function row(id, line) {
-  const fix = FIXES[id];
-  return { id, line, message: fix ? `${MESSAGES[id]}. Fix: ${fix}` : MESSAGES[id] };
+/** One finding row for a rule id at a line; a rule with a fix line ends its message with it.
+ *  `key` picks another message for the same id (`S22.settle`). */
+function row(id, line, key = id) {
+  const fix = FIXES[key];
+  return { id, line, message: fix ? `${MESSAGES[key]}. Fix: ${fix}` : MESSAGES[key] };
 }
 
 /** The single row for a file the parser rejects, at the first error's line. */
@@ -442,6 +446,7 @@ const TIMERS = new Set(["setTimeout", "setInterval"]);
 const STATE_HOOKS = new Set(["useState", "useReducer"]);
 const TRANSPORT_PAIR = new Set(["onMessage", "onClose"]);
 const LISTEN = /^on[A-Z]/;
+const HANDLE_MAKERS = new Set(["createScope", "createSession", "useScope"]);
 /** The unit body each core builder takes: the config key holding the function. */
 const UNIT_BODY = new Map([
   ["operation", "run"],
@@ -520,6 +525,85 @@ function awaitsRun(node) {
 const isBareCatchRun = (node) =>
   node.type === "TryStatement" && node.handler?.param === null && awaitsRun(node.block);
 
+/** Is this a call of a member named `settle` (`load.settle(…)`). */
+const isSettleCall = (node) => node?.type === "CallExpression" && propOf(node.callee) === "settle";
+
+/** The settle call whose Result a node drops: `x.settle(…);` or `await x.settle(…);` as a
+ *  statement, or `void x.settle(…)`. Else null. */
+function droppedSettle(node) {
+  const byVoid = node.type === "UnaryExpression" && node.operator === "void";
+  if (!byVoid && node.type !== "ExpressionStatement") return null;
+  let at = unwrapParens(byVoid ? node.argument : node.expression);
+  if (at?.type === "AwaitExpression") at = unwrapParens(at.argument);
+  return isSettleCall(at) ? at : null;
+}
+
+/** The patterns each binding pattern holds. */
+const PATTERN_PARTS = {
+  ObjectPattern: (p) => p.properties.map((q) => (q.type === "RestElement" ? q.argument : q.value)),
+  ArrayPattern: (p) => p.elements,
+  AssignmentPattern: (p) => [p.left],
+  RestElement: (p) => [p.argument],
+};
+
+/** The names a binding pattern declares: `b` and `d` in `{ a: b, ...d }`. */
+function boundNames(p) {
+  if (p?.type === "Identifier") return [p.name];
+  const parts = PATTERN_PARTS[p?.type];
+  return parts ? parts(p).flatMap(boundNames) : [];
+}
+
+/** The function a `.session(…)` call runs: its last argument, or null. */
+function sessionFn(node) {
+  if (node.type !== "CallExpression" || propOf(node.callee) !== "session") return null;
+  const fn = node.arguments.at(-1);
+  return FN_NODE.has(fn?.type) ? fn : null;
+}
+
+/** Does a const's value make a handle: `createScope(…)`, `x.createSession(…)`, `useScope()`. */
+function makesHandle(init) {
+  const at = unwrapParens(init);
+  return at?.type === "CallExpression" && HANDLE_MAKERS.has(calleeName(at.callee));
+}
+
+/** Names the whole file binds to a handle: a parameter or const typed as a controller, scope,
+ *  or session, or a const one of the handle makers returns. */
+function fileHandles(source, program) {
+  const names = new Set();
+  walk(program, (n) => {
+    const ann = n.type === "Identifier" ? n.typeAnnotation : null;
+    if (ann && HANDLE_TYPE.test(source.slice(ann.start, ann.end))) names.add(n.name);
+    if (n.type === "VariableDeclarator" && n.id.type === "Identifier" && makesHandle(n.init))
+      names.add(n.id.name);
+  });
+  return names;
+}
+
+/** Is `name` at an offset a core handle. Plain code cannot see types, so a handle is a name the
+ *  file binds to one: a parameter of a unit body (the deps it destructures, `ctx`, an
+ *  extension's `scope`) or of a `.session(…)` callback, inside that function; or a name
+ *  `fileHandles` finds, anywhere in the file. */
+function handleTest(source, program, units) {
+  const whole = fileHandles(source, program);
+  const fns = [...units];
+  walk(program, (n) => {
+    const fn = sessionFn(n);
+    if (fn !== null) fns.push(fn);
+  });
+  const scoped = fns.map((fn) => ({ names: new Set(fn.params.flatMap(boundNames)), fn }));
+  return (name, at) =>
+    whole.has(name) ||
+    scoped.some(({ names, fn }) => fn.start <= at && at < fn.end && names.has(name));
+}
+
+/** S22 shape C: a dropped settle on a core handle. A local object's own `settle` method (a
+ *  transaction, a waiter, a borrow) is not core's, so the receiver must be a handle. */
+function droppedSettleAt(node, facts) {
+  const call = droppedSettle(node);
+  if (call === null) return [];
+  return facts.isHandle(rootName(call.callee.object), call.start) ? [node.start] : [];
+}
+
 /** The function a property holds: its value, or the method itself. */
 const fnOf = (prop) => (FN_NODE.has(prop.value?.type) ? prop.value : null);
 
@@ -586,33 +670,30 @@ const isRawFetch = (node) => node.type === "CallExpression" && globalName(node.c
 const isComponentState = (node) =>
   node.type === "CallExpression" && STATE_HOOKS.has(calleeName(node.callee));
 
-/** [start, end] of the unit body one call declares: the function under its builder's body key
- *  (`local` maps a local builder name to that key). */
+/** The unit body one call declares: the function under its builder's body key (`local` maps a
+ *  local builder name to that key). */
 function bodiesOf(node, local) {
   const key = node.type === "CallExpression" ? local.get(node.callee?.name) : undefined;
   const config = key === undefined ? null : node.arguments[0];
   if (config?.type !== "ObjectExpression") return [];
   return config.properties
     .filter((p) => p.type === "Property" && p.key?.name === key && fnOf(p) !== null)
-    .map((p) => [p.value.start, p.value.end]);
+    .map((p) => p.value);
 }
 
-/** [start, end] of every unit body in the file: the function under `run`, `factory`, or
- *  `start` in the config of an operation, resource, or extension imported from @tinker/core. */
+/** Every unit body in the file: the function under `run`, `factory`, or `start` in the config
+ *  of an operation, resource, or extension imported from @tinker/core. */
 function unitBodies(program) {
   const local = new Map();
   for (const [name, key] of UNIT_BODY)
     for (const as of importedNames(program, "@tinker/core", new Set([name]))) local.set(as, key);
-  const ranges = [];
-  walk(program, (n) => ranges.push(...bodiesOf(n, local)));
-  return ranges;
+  const fns = [];
+  walk(program, (n) => fns.push(...bodiesOf(n, local)));
+  return fns;
 }
 
-/** Is an offset inside a unit body. */
-function unitTest(program) {
-  const bodies = unitBodies(program);
-  return (at) => bodies.some(([from, to]) => from <= at && at < to);
-}
+/** Is an offset inside one of the unit bodies. */
+const unitTest = (units) => (at) => units.some((fn) => fn.start <= at && at < fn.end);
 
 /** Local names the file imports `randomUUID` or `getRandomValues` under from node:crypto. */
 const cryptoNames = (program) =>
@@ -636,25 +717,32 @@ function droppedRunAt(node) {
   return isBareCatchRun(node) ? [node.handler.start] : [];
 }
 
-/** Each hand-rolled rule: the offsets one node reports. `facts` holds the file's crypto
- *  imports and its unit-body test. */
+/** Each hand-rolled rule: the offsets one node reports, and the message key when it is not the
+ *  id. `facts` holds the file's crypto imports, its unit-body test, and its handle test. */
 const HAND_ROLLED = [
   ["S20", (n, facts) => (isRawRandom(n, facts.cryptoNames) ? [n.start] : [])],
   ["S21", (n, facts) => (isRawClock(n) && facts.inUnit(n.start) ? [n.start] : [])],
   ["S22", droppedRunAt],
+  ["S22", droppedSettleAt, "S22.settle"],
   ["S23", (n) => (n.type === "ObjectExpression" ? handSubscribes(n).map((p) => p.start) : [])],
   ["S24", (n) => (isRawFetch(n) ? [n.start] : [])],
   ["S25", (n) => (isComponentState(n) ? [n.start] : [])],
 ];
 
-/** The hand-rolled rows of one non-test file: [id, offset] pairs. */
-function handRolledHits(program, file, writer) {
+/** The hand-rolled rows of one non-test file: [id, offset, key] triples. */
+function handRolledHits(source, program, file, writer) {
   const on = handRolledScope(file, writer);
   const checks = HAND_ROLLED.filter(([id]) => on[id]);
-  const facts = { cryptoNames: cryptoNames(program), inUnit: unitTest(program) };
+  const units = unitBodies(program);
+  const facts = {
+    cryptoNames: cryptoNames(program),
+    inUnit: unitTest(units),
+    isHandle: handleTest(source, program, units),
+  };
   const hits = [];
   walk(program, (n) => {
-    for (const [id, check] of checks) for (const at of check(n, facts)) hits.push([id, at]);
+    for (const [id, check, key = id] of checks)
+      for (const at of check(n, facts)) hits.push([id, at, key]);
   });
   return hits;
 }
@@ -664,7 +752,7 @@ function programHits(source, program, file, writer) {
   const kind = kindOf(file);
   return [
     ...(writer && kind === "src" ? noWrapperHits(source, program) : []),
-    ...(kind === "test" ? [] : handRolledHits(program, file, writer)),
+    ...(kind === "test" ? [] : handRolledHits(source, program, file, writer)),
   ];
 }
 
@@ -678,8 +766,8 @@ export function inspectPlain(source, file = "a.ts", { writer = false } = {}) {
   walk(program, (node) => {
     for (const id of rules(node, writer)) rows.push(row(id, lineAt(starts, node.start)));
   });
-  for (const [id, at] of programHits(source, program, file, writer))
-    rows.push(row(id, lineAt(starts, at)));
+  for (const [id, at, key] of programHits(source, program, file, writer))
+    rows.push(row(id, lineAt(starts, at), key));
   rows.sort((a, b) => a.line - b.line || (a.id < b.id ? -1 : 1));
   return rows;
 }

@@ -309,6 +309,86 @@ void describe("hand-rolled rules: code that redoes what tinker gives", () => {
     assert.deepEqual(hits(src, APP), []);
   });
 
+  void it("S22 fires on a settle whose Result a core handle drops", () => {
+    const src = [
+      'import { createScope, operation } from "@tinker/core";',
+      "const scope = createScope();",
+      "void scope.settle(boot);",
+      "export const save = operation({",
+      '  label: "save",',
+      "  depends: { load },",
+      "  run: async ({ load }) => {",
+      "    load.settle({ input: 1 });",
+      "    await load.settle({ input: 2 });",
+      "  },",
+      "});",
+      "const root: Scope.Handle = makeRoot();",
+      "export const start = () =>",
+      "  root.session((s) => {",
+      "    void s.settle(save);",
+      "  });",
+      "root.settle(boot);",
+    ].join("\n");
+    const found = [
+      ["S22", 3],
+      ["S22", 8],
+      ["S22", 9],
+      ["S22", 15],
+      ["S22", 17],
+    ];
+    assert.deepEqual(hits(src, APP), found);
+    assert.deepEqual(repo(src, PKG), found);
+  });
+
+  void it("S22 names the hidden panic and the read Result on a dropped settle", () => {
+    const [found] = inspectPlain("const scope = createScope();\nvoid scope.settle(boot);", APP);
+    assert.match(found.message, /settle's Result is dropped: .*hides it \(ADR 0067\)/);
+    assert.match(
+      found.message,
+      /Fix: `const r = await load\.settle\(\{ input: id \}\)`.*r\.status/,
+    );
+  });
+
+  void it("S22 leaves a read settle, a returned one, void run, and a local settle method alone", () => {
+    const src = [
+      'import { operation, resource } from "@tinker/core";',
+      "export const feed = resource({",
+      '  label: "feed",',
+      "  depends: { poll },",
+      "  factory: ({ poll }) => {",
+      "    void poll.run();",
+      "    return { poll };",
+      "  },",
+      "});",
+      "export const save = operation({",
+      '  label: "save",',
+      "  depends: { load },",
+      "  run: async ({ load }) => {",
+      "    const r = await load.settle({ input: 1 });",
+      '    if (r.status !== "success") return null;',
+      "    return r.value;",
+      "  },",
+      "});",
+      // packages/mcp/src/index.ts: the session's Result is returned, not dropped.
+      "export const call = () => scope.session((s) => s.settle(save));",
+      // packages/drizzle/src/index.ts: the transaction's own settle.
+      "function settleTransaction(started: OpenTransaction<DB>, end: Scope.End) {",
+      "  started.settle(end);",
+      "  return started.done;",
+      "}",
+      // packages/sync/src/index.ts: a waiter object's method.
+      "const waiting = waiters;",
+      "waiting.settle();",
+      // packages/core/src/index.ts: a borrow list's own settle.
+      "const held = takeBorrows(target);",
+      "held.settle();",
+      // A local named like a deps key, outside the unit that binds it.
+      "load.settle();",
+    ].join("\n");
+    assert.deepEqual(hits(src, APP), []);
+    assert.deepEqual(repo(src, PKG), []);
+  });
+
   void it("S23 fires on a hand-made onX backed by a listener set", () => {
     const src = [
       "const watchers = new Set<(s: string) => void>();",
