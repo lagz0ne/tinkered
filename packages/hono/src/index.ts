@@ -5,7 +5,6 @@ import type { Many, Namespace, Operation, RunResult, Scope, Tag } from "@tinker/
 import { extension, isError as isCoreError, readMany, tag } from "@tinker/core";
 import { isError, raise } from "./errors.ts";
 
-/** A Hono route endpoint: takes the context, answers the response. */
 type Endpoint = (c: Context) => Promise<Response>;
 
 export { isError };
@@ -33,7 +32,6 @@ export declare namespace HonoScope {
   };
   /** Write the operation's value as a Response (default `c.json(value)`). */
   export type Respond<T> = (value: Awaited<T>, c: Context) => Response | Promise<Response>;
-  /** An HTTP verb a scope-bound route answers. */
   export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   /** Load the route's operation. A dynamic `import` in practice; an eager handle
    * is allowed. Runs once at mount — a server is eager (ADR 0042). */
@@ -72,7 +70,6 @@ export declare namespace HonoScope {
   /** Bind the built app to the outside world: a port in production, a fake
    * in tests. */
   export type Serve = (app: Hono) => Served | PromiseLike<Served>;
-  /** What a `serve` bind hands back: a stop thunk, a closer, or nothing. */
   export type Served =
     | (() => void | PromiseLike<void>)
     | { readonly close: () => void | PromiseLike<void> }
@@ -134,8 +131,6 @@ export function hono(
   };
 }
 
-/** Read the stop thunk out of a `serve` bind: a bare function, a `.close`
- * object (the node server), or nothing — deferred to scope close. */
 function readStop(served: HonoScope.Served | undefined): void | PromiseLike<void> {
   if (served === undefined) return undefined;
   if (typeof served === "function") return served();
@@ -306,12 +301,10 @@ export const route: Record<"get" | "post" | "put" | "patch" | "delete", Verb> = 
   delete: verb("DELETE"),
 };
 
-/** Default `respond`: answer the value as JSON. */
 function defaultRespond<T>(value: Awaited<T>, c: Context): Response {
   return c.json(value);
 }
 
-/** Run a route's operation in the request session and answer. No session → `NoSession`. */
 function answerRoute<T, I>(op: Operation.Handle<T, I>, route: HonoScope.Route<I, T>): Endpoint {
   const run = (c: Context): Promise<Response> => {
     const session = (c as Context<SessionEnv>).get("tinker.session");

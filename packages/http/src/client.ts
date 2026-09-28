@@ -74,13 +74,10 @@ export const fetchBackend: HttpClient.Backend = async (
   return HttpResponse.fromWeb(request, response);
 };
 
-/** True for verbs that may carry a body (`GET`/`HEAD` never send one). */
 function sendsBody(method: HttpRequest.Method): boolean {
   return method !== "GET" && method !== "HEAD";
 }
 
-/** The fetch body for a record body: text/bytes carry their content type when the record sets
- * none; formData and urlParams become their web bodies; empty sends nothing. */
 function readFetchBody(
   content: HttpRequest.Body,
   headers: globalThis.Record<string, string>,
@@ -98,7 +95,6 @@ function readFetchBody(
   return undefined;
 }
 
-/** URL-encoded params as a web body. */
 function readFetchParams(pairs: readonly (readonly [string, string])[]): URLSearchParams {
   const params = new URLSearchParams();
   for (const [key, value] of pairs) params.append(key, value);
@@ -124,7 +120,6 @@ export function mergeConfig(bindings: readonly HttpClient.Config[]): HttpClient.
   };
 }
 
-/** The nearest `retry` in a nearest-first `.all` list, if any binding sets one. */
 function readRetry(bindings: readonly HttpClient.Config[]): HttpClient.Retry | undefined {
   for (const binding of bindings) {
     if (binding.retry !== undefined) return binding.retry;
@@ -132,7 +127,6 @@ function readRetry(bindings: readonly HttpClient.Config[]): HttpClient.Retry | u
   return undefined;
 }
 
-/** The nearest `accept` in a nearest-first `.all` list, if any binding sets one. */
 function readAccept(
   bindings: readonly HttpClient.Config[],
 ): ((status: number) => boolean) | undefined {
@@ -142,7 +136,6 @@ function readAccept(
   return undefined;
 }
 
-/** The nearest `baseUrl` in a nearest-first `.all` list, if any binding has one. */
 function readBaseUrl(bindings: readonly HttpClient.Config[]): string | undefined {
   for (const binding of bindings) {
     if (binding.baseUrl !== undefined) return binding.baseUrl;
@@ -150,7 +143,6 @@ function readBaseUrl(bindings: readonly HttpClient.Config[]): string | undefined
   return undefined;
 }
 
-/** Headers merged key by key (nearer winning, keys lowercased) — undefined when none bind any. */
 function readMergedHeaders(
   bindings: readonly HttpClient.Config[],
 ): globalThis.Record<string, string> | undefined {
@@ -259,7 +251,6 @@ function readTransportFailure(
   throw error;
 }
 
-/** The frame's default status policy: accept every status. */
 function acceptAll(_status: number): boolean {
   return true;
 }
@@ -284,16 +275,15 @@ async function waitBeforeRetry(
   await ctx.clock.sleep(retry.delay?.(attempt - 1) ?? 0, ctx.signal);
 }
 
-/** True while attempts remain and the received status is transient: policy says try again. */
 function retriesStatus(status: number, attempt: number, tries: number): boolean {
   return attempt < tries && isTransientStatus(status);
 }
 
-/** One attempt inside its own manual child span (`http <METHOD> <url>`, attributes method/url/status
- * plus the 1-based `attempt`): a backend rejection logs one line and raises
- * `RequestFailed/Transport` with it as the cause (the loop retries only that); a received transient status with attempts remaining returns raw — that attempt's span
- * settles `"ok"` (the transport succeeded, the retry is policy) — otherwise `accept` runs inside
- * the span, so a rejected status settles it `"failed"`. */
+/** One try on the `attempt` operation's own span (attributes method, url, the 1-based `attempt`,
+ * and status): a backend rejection logs one line and raises `RequestFailed/Transport` with it as
+ * the cause (the loop retries only that); a received transient status with tries remaining
+ * returns raw, so that span settles `"ok"` (the transport succeeded, the retry is policy);
+ * otherwise `accept` runs inside the span, so a rejected status settles it `"failed"`. */
 async function sendOnce(
   send: HttpClient.Backend,
   call: HttpClient.Attempt,

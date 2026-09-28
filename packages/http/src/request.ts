@@ -1,7 +1,5 @@
 export declare namespace HttpRequest {
-  /** The HTTP verbs a record can carry. */
   export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
-  /** A request body: empty, text, raw bytes, multipart form, or URL-encoded params. */
   export type Body =
     | { readonly kind: "empty" }
     | { readonly kind: "text"; readonly text: string; readonly contentType: string }
@@ -39,12 +37,10 @@ export function bodyJson(value: unknown): HttpRequest.Body {
   return { kind: "text", text: JSON.stringify(value), contentType: "application/json" };
 }
 
-/** A text body with an explicit content type (default plain text). */
 export function bodyText(text: string, contentType = "text/plain"): HttpRequest.Body {
   return { kind: "text", text, contentType };
 }
 
-/** A raw-bytes body with an explicit content type (default octet stream). */
 export function bodyBytes(
   bytes: Uint8Array,
   contentType = "application/octet-stream",
@@ -66,7 +62,6 @@ export function bodyUrlParams(
 
 const EMPTY_BODY: HttpRequest.Body = { kind: "empty" };
 
-/** Read query pairs from either shape the options accept: an object or a pair list. */
 function readPairs(
   params: Readonly<globalThis.Record<string, string>> | readonly (readonly [string, string])[],
 ): readonly (readonly [string, string])[] {
@@ -74,7 +69,6 @@ function readPairs(
   return Object.entries(params);
 }
 
-/** Lowercase header keys; later bindings win on a repeated key. */
 function readHeaders(
   headers: Readonly<globalThis.Record<string, string>> | undefined,
 ): globalThis.Record<string, string> {
@@ -85,14 +79,12 @@ function readHeaders(
   return out;
 }
 
-/** The accept header the options ask for, if any (`accept` wins over `acceptJson`). */
 function readAccept(options: HttpRequest.Options | undefined): string | undefined {
   if (options?.accept !== undefined) return options.accept;
   if (options?.acceptJson === true) return "application/json";
   return undefined;
 }
 
-/** Build a record: method + url + normalized options (a fresh record every call). */
 function buildRecord(
   method: HttpRequest.Method,
   url: string,
@@ -113,7 +105,6 @@ function buildRecord(
   };
 }
 
-/** The body the record carries: the explicit builder arg wins, then the option, then empty. */
 function readBody(
   options: HttpRequest.Options | undefined,
   body: HttpRequest.Body | undefined,
@@ -122,37 +113,30 @@ function readBody(
   return options?.body ?? EMPTY_BODY;
 }
 
-/** Build a `GET` record (no body). */
 export function get(url: string, options?: Omit<HttpRequest.Options, "body">): HttpRequest.Record {
   return buildRecord("GET", url, options, undefined);
 }
 
-/** Build a `HEAD` record (no body). */
 export function head(url: string, options?: Omit<HttpRequest.Options, "body">): HttpRequest.Record {
   return buildRecord("HEAD", url, options, undefined);
 }
 
-/** Build a `POST` record. */
 export function post(url: string, options?: HttpRequest.Options): HttpRequest.Record {
   return buildRecord("POST", url, options, undefined);
 }
 
-/** Build a `PUT` record. */
 export function put(url: string, options?: HttpRequest.Options): HttpRequest.Record {
   return buildRecord("PUT", url, options, undefined);
 }
 
-/** Build a `PATCH` record. */
 export function patch(url: string, options?: HttpRequest.Options): HttpRequest.Record {
   return buildRecord("PATCH", url, options, undefined);
 }
 
-/** Build a `DELETE` record. */
 export function del(url: string, options?: HttpRequest.Options): HttpRequest.Record {
   return buildRecord("DELETE", url, options, undefined);
 }
 
-/** Build an `OPTIONS` record. */
 export function options(url: string, init?: HttpRequest.Options): HttpRequest.Record {
   return buildRecord("OPTIONS", url, init, undefined);
 }
@@ -183,12 +167,10 @@ export function prependUrl(request: HttpRequest.Record, path: string): HttpReque
   return { ...request, url: path + request.url };
 }
 
-/** Append a path suffix by string concatenation. */
 export function appendUrl(request: HttpRequest.Record, path: string): HttpRequest.Record {
   return { ...request, url: request.url + path };
 }
 
-/** Set headers on a record: keys lowercased, later keys winning. Always a new record. */
 export function setHeaders(
   request: HttpRequest.Record,
   headers: Readonly<globalThis.Record<string, string>>,
@@ -198,7 +180,6 @@ export function setHeaders(
   return { ...request, headers: next };
 }
 
-/** Set one header on a record (key lowercased). Always a new record. */
 export function setHeader(
   request: HttpRequest.Record,
   key: string,
@@ -207,7 +188,6 @@ export function setHeader(
   return { ...request, headers: { ...request.headers, [key.toLowerCase()]: value } };
 }
 
-/** Replace the query pairs. Always a new record. */
 export function setUrlParams(
   request: HttpRequest.Record,
   params: Readonly<globalThis.Record<string, string>> | readonly (readonly [string, string])[],
@@ -215,7 +195,6 @@ export function setUrlParams(
   return { ...request, urlParams: readPairs(params) };
 }
 
-/** The sendable URL: the raw url plus encoded query pairs plus the fragment. */
 export function toUrl(request: HttpRequest.Record): string {
   let out = request.url;
   if (request.urlParams.length > 0) {
