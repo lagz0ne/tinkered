@@ -46,6 +46,10 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
   `../tinkered-tsdoc`, brief `jev-tsdoc-check.md`). Step 2: cleanup writers, one per package group,
   clear the 30 line/block comments and every flagged doc, labeling each Jev answer. Owner: lead.
   Verify: census S10/S11 at 0; the parser rule at 0; the judge calibrated.
+  - 2026-09-28: step 1 landed (tag `jev/tsdoc-check`): rule 10 rewritten; S26 (TSDoc parser) finds
+    21 malformed docs; `docRestatesCode` proven on 7/7 labels at 0.65 (review: 11 of 13 hits agreed
+    on a fresh file; it is advisory — the writer gate does not ask the DOCS bank). Next: cleanup
+    writers per package group.
 
 ## Review
 
