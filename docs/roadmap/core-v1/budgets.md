@@ -287,6 +287,19 @@ The lesson: reuse the controller's live record, so each warm resolve skips a sec
 - **CSV** — `/home/paseo/next/tinkered-warm-fix/.bench/ab.csv`.
 - **Proof logs** — `/home/paseo/next/tinkered-warm-fix/packages/core/.bench/warm-read/`.
 
+### Re-checked on `210e3af` after perf/create-presets
+
+- **A** — `origin/main` at `dc40d00`, with the create fix.
+- **B** — `210e3af`, this branch rebased onto it.
+- **Method** — N=61 through `bench/queued.sh`, same bar.
+
+- **warm** — 26.4 → 18.0 (-31.8%); B faster.
+  Faster 61/61, slower 0/61.
+- **create** — 183.9 → 183.9 (0.0%); no difference we can see.
+  Faster 30/61, slower 29/61.
+- **tagged** — 2132.0 → 2130.0 (-0.1%); no difference we can see.
+  Faster 29/61, slower 30/61.
+
 ## Notes
 
 - **Deep chains.** Teardown, release and session nesting are iterative/async and survive ≥10k
