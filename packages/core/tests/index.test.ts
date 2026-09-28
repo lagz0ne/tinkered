@@ -2611,11 +2611,7 @@ test("a resource preset receives the resolved deps, delivered untyped (narrow at
 });
 
 test("a unit takes no meta: the option is a type error and the handle has no field", () => {
-  const author = (): void => {
-    // @ts-expect-error — units have no meta (drivers/t08); a driver takes rows instead
-    operation({ label: "op", run: () => 1, meta: [] });
-  };
-  expectTypeOf(author).toBeFunction();
+  expectTypeOf(operation).parameter(0).not.toHaveProperty("meta");
   expectTypeOf<Operation.Handle<number, void>>().not.toHaveProperty("meta");
 });
 
