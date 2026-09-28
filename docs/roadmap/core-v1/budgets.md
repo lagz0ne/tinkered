@@ -234,6 +234,59 @@ Each step lists its headline changes, then only the scenarios that moved.
   2% between two steps (errors/t03: 2191 as B in step 10, 2145 as A in step 11). Eight `tagged`
   steps rose 1.5–3.3% with "no difference we can see"; together they add +305 ns of noise.
 
+## Warm reads through the saved record (2026-09-28)
+
+`perf/warm-read` restores the default resource controller's direct read of its saved live record.
+The read keeps both open checks, one use event, and the stable async promise.
+Cold and named reads still use the full resolver.
+Release still clears the saved record in place.
+
+- **A** — `origin/main` at `337978e`, in `../tinkered-warm-base`.
+- **B** — `c776b11`, the six-line change to `resourceController`.
+- **Method** — 61 A/B pairs per scenario through `bench/queued.sh`, one core through `benchd`.
+- **Values** — medians in ns per call.
+- **Bar** — over 2% median gap and more than 45 of 61 pairs in the same direction.
+
+```bash
+N=61 A=../tinkered-warm-base \
+  SCEN="warm op run session tagged lifecycle cold" \
+  bench/queued.sh
+```
+
+- **warm** — 26.4 → 18.0 (-31.8%); B faster.
+  Faster 61/61, slower 0/61.
+- **op** — 100.9 → 101.0 (+0.1%); no difference we can see.
+  Faster 22/61, slower 26/61.
+- **run** — 113.1 → 112.9 (-0.2%); no difference we can see.
+  Faster 29/61, slower 29/61.
+- **session** — 1688.0 → 1682.0 (-0.4%); no difference we can see.
+  Faster 31/61, slower 29/61.
+- **tagged** — 2160.0 → 2147.0 (-0.6%); no difference we can see.
+  Faster 31/61, slower 30/61.
+- **lifecycle** — 947.0 → 924.5 (-2.4%); no difference we can see.
+  Faster 37/61, slower 24/61.
+- **cold** — 789.0 → 797.0 (+1.0%); no difference we can see.
+  Faster 18/61, slower 43/61.
+
+No scenario met the B slower bar.
+The full wrapper ended with `BENCH_EXIT=0`.
+
+V8 proof came before timing, with Node `v22.23.3`.
+`--print-opt-code` shows one `FindOrderedHashMapEntry` call in `warm`, at offset `0x8b`.
+The base has two, at `0x8b` and `0x3f2`.
+`--trace-turbo-inlining` still shows all six remaining warm functions inlined into the caller.
+Both drivers print `CHECK 4200000`; neither logs an actual bailout.
+The lesson: reuse the controller's live record, so each warm resolve skips a second owner and record search.
+
+- **Gate** — `vp run -r build && vp check && vp run -r test`, `EXIT=0`.
+- **Core tests** — 636 pass.
+- **Check warnings** — 21 on both A and B.
+- **Promises** — `promises_tagged=17`.
+- **Validate** — all 44 lanes PASS.
+- **Slots** — 247 hot names; last hot slot 249; headroom 6 names.
+- **CSV** — `/home/paseo/next/tinkered-warm-fix/.bench/ab.csv`.
+- **Proof logs** — `/home/paseo/next/tinkered-warm-fix/packages/core/.bench/warm-read/`.
+
 ## Notes
 
 - **Deep chains.** Teardown, release and session nesting are iterative/async and survive ≥10k
