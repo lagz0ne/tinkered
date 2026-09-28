@@ -40,7 +40,11 @@ reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, on
   writer `da5603fb`. In parallel (user: speed up), three Fable agents each test one more theory
   on a `theory/<name>` branch, V8 first, one N=31 screening: `replay` (tagged child setup),
   `route` (no-hook session route), `nsfields` (namespace fields on every record). Winners fold
-  into this card. Verify: no scenario slower, promises 17, `pnpm validate`, core mutation ≥ 85. If no
+  into this card: `replay` (tagged −4.8%) and `route` commit 1 (session −3.1%) are picked; E2
+  kept (tagged −3.1%); E1 dropped (44/61); `nsfields` refuted (−1.1%). Next: the final N=61 run
+  on all of them together. Also (user: trace and untie from first principles), three challengers
+  work alone on `fp/<model>` branches: Astra `c5c163f0`, Fable `a75aef97`, Opus `d7dc1611`;
+  their result is the next step, not a blocker here. Verify: no scenario slower, promises 17, `pnpm validate`, core mutation ≥ 85. If no
   experiment wins: raise the budget to 2200 and record why (user 2026-09-28: A, then B).
 
 ## Review
