@@ -23,6 +23,7 @@ head.
    narrow with `isError(error, "Name")`; on mismatch they rethrow. No bare
    `throw new Error`, no `TypeError`. A promise is awaited, returned, or tracked
    by its owner; `.catch(() => undefined)` and bare `void promise` do not exist.
+   `void x.run()` is allowed: the scope tracks the run; never drop a `settle`'s Result.
 
 3. **Nothing in `src` prints.** No `console.*` in source. Emit events or return
    values; let the caller decide what to show.
