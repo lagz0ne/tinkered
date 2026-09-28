@@ -20,15 +20,12 @@ watching `text` and `status`, and resume a conversation by id:
 ```ts
 import { createScope, operation } from "@tinker/core";
 import { claudeCode, harness } from "@tinker/harness";
+import { z } from "zod";
 
-const parsePrompt = (raw: unknown): string => {
-  if (typeof raw !== "string") throw new Error("bad prompt");
-  return raw;
-};
 const coder = harness({ label: "coder", adapter: claudeCode });
 const ask = operation({
   label: "coder.ask",
-  input: parsePrompt,
+  input: z.string(),
   depends: { send: coder.send },
   run: async ({ send }, ctx) => {
     const result = await send.run({ input: { prompt: ctx.input } });
@@ -140,15 +137,12 @@ ends with no completion rejects with `TurnEnded`.
 ```ts
 import { createScope, operation } from "@tinker/core";
 import { codex, harness } from "@tinker/harness";
+import { z } from "zod";
 
-const parsePrompt = (raw: unknown): string => {
-  if (typeof raw !== "string") throw new Error("bad prompt");
-  return raw;
-};
 const coder = harness({ label: "coder", adapter: codex });
 const ask = operation({
   label: "coder.ask",
-  input: parsePrompt,
+  input: z.string(),
   depends: { send: coder.send },
   run: async ({ send }, ctx) => {
     const result = await send.run({ input: { input: ctx.input } });
