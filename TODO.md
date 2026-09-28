@@ -23,12 +23,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-- **tools/check-ambient** — `scripts/check-ambient.mjs`'s path `packages/*/src/**/*.ts` matches nothing in `packages/*/src/` (git pathspec `**` needs a subfolder), so the lane never scanned core's source. Next: add `packages/*/src/*.ts`; skip a read inside a declaration whose TSDoc has an `@ambientSource`-style tag and drop the 5 inline `/** ambient-source */` marks. Verify: unmark one real read → the lane exits 1.
-- **census/tsdoc-text** — the style census regexes (S11 `/\*[^*]`, S14 `x[N]`) also match text inside TSDoc, so writers reworded docs to dodge false hits. Next: strip `/** */` text before S11 and S14. Verify: a doc containing `a/*b` and `x[0]` gives no row.
-- **core/ts-expect-error** — `packages/core/tests/index.test.ts` (~2615) keeps a `@ts-expect-error`; replace with `expectTypeOf(...)` (census S12). Verify: census S12 → 0 in core; core tests green.
-- **process/drop-load** — the exported type `Process.Load` is unused and its old doc described a removed memoize/retry. Next: drop it. Verify: `scripts/scip.sh refs 'Process.Load'` → 0; process tests green.
-- **jev/preflight-big-file** — `tools/jev/preflight.mjs` crashes with `max_tokens_exceeded` on `packages/core/src/index.ts` (uncaught). Next: skip a file too big for one call with a printed note (or split by unit). Verify: preflight over a range touching core's index.ts exits 0 and says it skipped.
-- **harness/ts-expect-error** — replace the two `@ts-expect-error` rows in `packages/harness/tests/tools.test.ts` (~189, ~191) with `expectTypeOf(…).not.toExtend` (census S12; rule 10 bans them). Verify: census `--strict packages/harness` has no S12; harness tests green.
 - **perf/op-parity** — Compare operation call cost. The runner it waited for is here: `bench/queued.sh`
   sends `bench/ab.sh` through `benchd`, this box's benchmark queue, so one job runs at a time on one
   core with no network and no secrets. Next: pin the baseline and current SHAs, build the baseline
@@ -44,6 +38,24 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
+
+- **tools/check-ambient** — `scripts/check-ambient.mjs`'s path `packages/*/src/**/*.ts` matches nothing in `packages/*/src/` (git pathspec `**` needs a subfolder), so the lane never scanned core's source. Next: add `packages/*/src/*.ts`; skip a read inside a declaration whose TSDoc has an `@ambientSource`-style tag and drop the 5 inline `/** ambient-source */` marks. Verify: unmark one real read → the lane exits 1.
+  Owner: lead; writer agent `bae64319` in `../tinkered-check-ambient` (brief `followups-2026-09-28.md`).
+
+- **census/tsdoc-text** — the style census regexes (S11 `/\*[^*]`, S14 `x[N]`) also match text inside TSDoc, so writers reworded docs to dodge false hits. Next: strip `/** */` text before S11 and S14. Verify: a doc containing `a/*b` and `x[0]` gives no row.
+  Owner: lead; writer agent `e285c871` in `../tinkered-census-tsdoc` (brief `followups-2026-09-28.md`).
+
+- **core/ts-expect-error** — `packages/core/tests/index.test.ts` (~2615) keeps a `@ts-expect-error`; replace with `expectTypeOf(...)` (census S12). Verify: census S12 → 0 in core; core tests green.
+  Owner: lead; writer agent `1860e196` in `../tinkered-core-tse` (brief `followups-2026-09-28.md`).
+
+- **harness/ts-expect-error** — replace the two `@ts-expect-error` rows in `packages/harness/tests/tools.test.ts` (~189, ~191) with `expectTypeOf(…).not.toExtend` (census S12; rule 10 bans them). Verify: census `--strict packages/harness` has no S12; harness tests green.
+  Owner: lead; writer agent `7c0ae243` in `../tinkered-harness-tse` (brief `followups-2026-09-28.md`).
+
+- **process/drop-load** — the exported type `Process.Load` is unused and its old doc described a removed memoize/retry. Next: drop it. Verify: `scripts/scip.sh refs 'Process.Load'` → 0; process tests green.
+  Owner: lead; writer agent `875dabb1` in `../tinkered-drop-load` (brief `followups-2026-09-28.md`).
+
+- **jev/preflight-big-file** — `tools/jev/preflight.mjs` crashes with `max_tokens_exceeded` on `packages/core/src/index.ts` (uncaught). Next: skip a file too big for one call with a printed note (or split by unit). Verify: preflight over a range touching core's index.ts exits 0 and says it skipped.
+  Owner: lead; writer agent `dd6726e1` in `../tinkered-preflight-big` (brief `followups-2026-09-28.md`).
 
 ## Review
 
