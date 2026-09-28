@@ -54,16 +54,16 @@ Each message ends with its fix line.
 - **S22 droppedRun** — `x.run(…).then(ok, () => undefined)`, `x.run(…).catch(() => {})`, or `try { await x.run(…) } catch { … }` with no catch parameter.
   Also a `settle` whose Result nobody reads: `void x.settle(…)`, or `x.settle(…)` (awaited or not) as a bare statement.
   `settle` recovers a panic, so a dropped Result hides it (ADR 0067).
-  The settle counts only on a core handle, since plain code sees no types:
+  `void x.run()` stays allowed: the scope tracks the run.
+  Repo lint: every file.
+  Fix: `const r = await load.settle({ input: id })`, then branch on `r.status`; or call `run` and let the scope own the failure.
+  Plain code sees no types, so a local object's own `settle` (a transaction, a waiter) must not count.
+  Missed: a handle passed through an untyped name, such as `const h = scope`.
+  The settle counts only on a core handle:
   - a parameter of a unit body (its deps, `ctx`, an extension's `scope`), inside that body;
   - a parameter of a `.session(…)` callback, inside it;
   - a name typed as a controller, scope, or session;
   - a const made by `createScope`, `createSession`, or `useScope`.
-    So a local object's own `settle` (a transaction, a waiter) never counts.
-    Missed: a handle passed through an untyped name, such as `const h = scope`.
-    `void x.run()` stays allowed: the scope tracks the run.
-    Repo lint: every file.
-    Fix: `const r = await load.settle({ input: id })`, then branch on `r.status`; or call `run` and let the scope own the failure.
 - **S23 handSubscribe** — an `onX(listener)` that adds the listener to a list and returns a remover.
   Skipped: `onMessage` and `onClose` on an object that also has `send` and `close` (the `Sync.Transport` contract).
   Repo lint: `apps/` and `examples/` only.
