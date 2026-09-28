@@ -52,6 +52,13 @@ export async function ask(state, questions, tries = 5) {
   throw new Error("jev: gave up after rate-limit retries");
 }
 
+/** The most code characters one call carries. On 2026-09-28 a 120k slice of core's `index.ts`
+ *  passed and a 130k slice failed with `max_tokens_exceeded`, so the cap keeps a margin. */
+export const MAX_CALL_CHARS = 100_000;
+
+/** Whether `code` fits one call; a bigger file skips the file judges. */
+export const fitsOneCall = (code) => code.length <= MAX_CALL_CHARS;
+
 /** A Jev tie: no option holds the top chance alone. */
 export function isTieError(e) {
   return /did not select a highest-probability option/.test(String(e?.message ?? e));

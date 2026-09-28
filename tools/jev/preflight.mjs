@@ -9,7 +9,17 @@ import { existsSync, readFileSync } from "node:fs";
 
 /** Per-judge status from `tools/jev/calibrate.mjs`; a `noisy` judge prints as `~` (a note, not a flag). */
 const CALIBRATION = readCalibration();
-import { loadKey, ask, changedSources, fileAt, JUDGES, pct, readCalibration } from "./lib.mjs";
+import {
+  loadKey,
+  ask,
+  changedSources,
+  fileAt,
+  fitsOneCall,
+  JUDGES,
+  MAX_CALL_CHARS,
+  pct,
+  readCalibration,
+} from "./lib.mjs";
 
 const range = process.argv.slice(2).find((a) => !a.startsWith("--")) ?? "HEAD";
 const hasKey = loadKey();
@@ -21,6 +31,13 @@ if (files.length === 0) console.log("(no source files changed)");
 for (const f of hasKey ? files : []) {
   const code = fileAt(range, f);
   if (!code.trim()) continue;
+  // Too big for the file judges; lint.mjs below still judges its units one call each.
+  if (!fitsOneCall(code)) {
+    console.log(
+      `  - ${f}: skipped: too big for one call (${code.length} > ${MAX_CALL_CHARS} chars)`,
+    );
+    continue;
+  }
   const answers = await ask(
     { file: f, code },
     Object.fromEntries(Object.entries(JUDGES).map(([id, j]) => [id, j.q])),

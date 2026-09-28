@@ -32,6 +32,10 @@ calibration found noisy: read it, no line owed. An `ℹ` mark is a note from the
 
 Which unit fits my words? → `blueprint suggest "<words>"` (`packages/blueprint`).
 
+`preflight.mjs` skips the file judges on a file over 100,000 characters (`MAX_CALL_CHARS` in `lib.mjs`).
+One call cannot carry it: core's `index.ts` failed with `max_tokens_exceeded`.
+It prints `skipped: too big for one call`, still judges that file's units, and exits 0.
+
 Plain rules: `plain.mjs` checks the census rules the writer guidelines share (T01–T08, S02, S05, S06, S12, S13) on the syntax tree and its comment list, so text inside a string never counts. S17 (a type assertion in source, except `as const` and `[] as T[]`), S18 (a `data`, `operation`, `resource`, or `tag` call from `@tinker/core`, or a `family` call from `@tinker/sync`, inside a function; a driver's `extension` is left out, ADR 0051), and S19 (a helper whose parameter type holds a controller, scope, or session) run in writer mode only: the gate asks for them; the repo's own lint does not. Arrow and function-expression consts are units in every file, like `function` declarations. A helper function's unit also carries `uses`: the lines of its own file that call it, so a judge sees what happens to the value it returns.
 `lint.mjs` lists its rows; the writer-trial gate blocks on each one (ADR 0068).
 
