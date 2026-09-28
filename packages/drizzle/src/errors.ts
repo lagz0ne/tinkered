@@ -20,7 +20,8 @@ export function makeError<N extends Errors.Name>(
   return error;
 }
 
-/** Throw a registry error. The only throw site in the package. */
+/** Throw a registry error. Registry errors leave this package only through here; the one other
+ * `throw` (`swallowRollback`) rethrows a foreign error. */
 export function raise<N extends Errors.Name>(kind: N, payload: Errors.Payload<N>): never {
   throw makeError(kind, payload);
 }

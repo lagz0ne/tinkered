@@ -34,16 +34,17 @@ export declare namespace DrizzleStore {
 
 /** Build the frame: a `config` tag labelled `${label}.config` (no default — an unbound read
  * raises core's `MissingTag`), a `db` resource labelled `${label}.db` (`target: "scope"` by
- * default, or `"namespace"` when requested), with `depends: { config }` so `open` runs once
- * per selected bucket and `close` runs by `defer` when the scope closes, and a `tx` resource
- * labelled `${label}.tx` (`target: "session"`, `depends: { db }`). The `tx` factory starts `db.transaction(cb)` and resolves the handle from INSIDE
- * the callback, holding the callback open on a promise the `defer` settles: `success` returns
- * from the callback (commit); anything else raises `Rollback` inside it (rollback). The
- * `defer` awaits the transaction's own promise, so a graceful close resolves only after the
- * commit (or rollback) completed. After the handle resolves, a begin failure is impossible —
- * the callback already ran — so the rejection tracker is a no-op by then, which is intended.
- * A root-level `tx` (no session) builds at the root: a graceful `scope.close()` commits it,
- * a forced close rolls it back like every other resource. */
+ * default, or `"namespace"` when requested), with `depends: { config }` so `open` runs once per
+ * selected bucket and `close` runs by `defer` when the scope closes, and a `tx` resource
+ * labelled `${label}.tx` (`target: "session"`, `depends: { db }`). The `tx` factory starts
+ * `db.transaction(cb)` and resolves the handle from INSIDE the callback, holding the callback
+ * open on a promise the `defer` settles: `success` returns from the callback (commit); anything
+ * else raises `Rollback` inside it (rollback). The `defer` awaits the transaction's own
+ * promise, so a graceful close resolves only after the commit (or rollback) completed. After
+ * the handle resolves, a begin failure is impossible — the callback already ran — so the
+ * rejection tracker is a no-op by then, which is intended. A root-level `tx` (no session)
+ * builds at the root: a graceful `scope.close()` commits it, a forced close rolls it back like
+ * every other resource. */
 export function drizzleStore<Config, DB extends DrizzleStore.Transactional>(config: {
   label?: string;
   target?: "scope" | "namespace";

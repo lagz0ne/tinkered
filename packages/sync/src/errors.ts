@@ -21,7 +21,8 @@ export function fail<N extends Errors.Name>(kind: N, payload: Errors.Payload<N>)
   return error;
 }
 
-/** Throw a registry error. The only throw site in the package. */
+/** Throw a registry error. Registry errors leave this package only through here; the one other
+ * `throw` (`fill`, inside `subscribe`) rethrows a foreign error. */
 export function raise<N extends Errors.Name>(kind: N, payload: Errors.Payload<N>): never {
   throw fail(kind, payload);
 }
