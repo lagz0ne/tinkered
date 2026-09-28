@@ -13,7 +13,9 @@ import {
   message,
   changedSources,
   fileAt,
+  fitsOneCall,
   JUDGES,
+  MAX_CALL_CHARS,
   ROUTE,
   OVERCLAIM,
   pct,
@@ -39,6 +41,12 @@ if (files.length === 0) console.log("(no source files changed)");
 for (const f of files) {
   const code = fileAt(range, f);
   if (!code.trim()) continue;
+  if (!fitsOneCall(code)) {
+    console.log(
+      `  - ${f}: skipped: too big for one call (${code.length} > ${MAX_CALL_CHARS} chars)`,
+    );
+    continue;
+  }
   const answers = await ask(
     { file: f, code },
     Object.fromEntries(Object.entries(JUDGES).map(([id, j]) => [id, j.q])),
