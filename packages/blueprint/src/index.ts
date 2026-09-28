@@ -110,11 +110,11 @@ function readOwnPair():
   return { graph: readBlueprint(readFileSync(file, "utf8")), units: walk(dir) };
 }
 
-/** The eval-set resource: reads `evalsPath/<id>/{bad,clean}/*.yaml` once per scope into a
- * map keyed by template id, plus golden cases for every template it applies to (ADR 0052
- * decision 5, amended): `golden.yaml`'s for every template, and, for a `body` template only,
- * the package's own golden pair's (ADR 0055 §5 — `goldenCasesOf` resolves each case's `body`
- * from `ownPair.units`). A bad eval file fails the build with `InvalidEval`. */
+/** The eval-set resource: reads the `.yaml` files under `evalsPath/<id>/bad` and
+ * `evalsPath/<id>/clean` once per scope into a map keyed by template id, plus golden cases
+ * for every template it applies to (ADR 0052 decision 5, amended): `golden.yaml`'s for every
+ * template, and, for a `body` template only, the package's own golden pair's (ADR 0055 §5 —
+ * `goldenCasesOf` resolves each case's `body` from `ownPair.units`). A bad eval file fails the build with `InvalidEval`. */
 export const evalSet: Resource.Handle<
   ReadonlyMap<
     string,
@@ -534,8 +534,8 @@ function distribution(answer: Blueprint.Answer): string {
     .join(", ");
 }
 
-/** `resource (78%)` at or above `minConfidence`, else `unclear (resource only 55%) —
- * decide with the one law`. */
+/** `resource (78%)` at or above `minConfidence`, else
+ * `unclear (resource only 55%) — decide with the one law`. */
 function unitPickText(answer: Blueprint.Answer, minConfidence: number): string {
   if (answer.type !== "choice") return "";
   const confidence = confidenceOf(answer);
