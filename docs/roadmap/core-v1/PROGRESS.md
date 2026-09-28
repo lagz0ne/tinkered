@@ -55,6 +55,22 @@ Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its 
 Parallelizable once upstream lands: 04‖05, 15 alongside 12→13→14, 17 early off 05.
 Family (keyed collections) is out of v1 (needs its own ADR for the rules).
 
+- **perf/create-presets** — Empty presets return before the loop.
+  Filled presets run in `applyPresets`.
+  V8: `seedPresets` shrank from 266 to 76 bytecode bytes.
+  V8: `seedPresets` inlines into `createScope`.
+  V8: optimized create has no `ArrayIteratorPrototypeNext`.
+  Benchd: N=61 against `337978e`.
+  `create`: 205.5 → 184.1 ns (−10.4%).
+  B slower: 0/61.
+  Verdict: B faster.
+  `op`, `run`, `session`, `tagged`, `lifecycle`, `cold`: no difference we can see.
+  Gate: `EXIT=0`.
+  Core tests: 636 passed.
+  Promises tagged: 17.
+  Validate: 44 PASS.
+  Slot headroom: 5.
+
 ## Teardown / lifetime redesign (LT1–LT4)
 
 Converge the ctx to `ctx.defer(end)` + `ctx.signal` (ADR 0024) with teardown as **reverse-registration
