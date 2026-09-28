@@ -29,8 +29,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
-lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
+Pairs since 2026-09-28: an Astra writer (`codex/gpt-6-astra`, xhigh) and a Fable 5.1 (medium)
+reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
 - **perf/cost-timeline** — op-parity found main slower than `core/t27` (`op` +13%, `run` +11%,
   `create` +17%, `warm` +33%, `tagged` +11%); find which feature cost what. 13 steps across the
@@ -38,6 +38,16 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
   hooks, the error model, meta removal, withData), N=31 per step through benchd, one probe for all
   trees. Owner: lead; timing agent `d0111804` (brief `perf-cost-timeline.md`), which also lands the
   docs. Verify: per-step costs in budgets.md; the user picks what to win back.
+- **perf/warm-read** — win back `warm` (+33% since t27). Cause: since core/t31 a default resource
+  controller reads through `resourceSlot`, two map lookups where t27 had one. Fix: read the built
+  resource from the controller's saved record; named and namespaced controllers keep the full path.
+  Owner: lead; Astra writer `2869ba78`, commit `c776b11`. Next: benchd N=61 vs origin/main. Verify:
+  `warm` "B faster", no scenario slower, promises 17, `pnpm validate`, core mutation ≥ 85.
+- **perf/create-presets** — win back `create` (+17% since t27). Cause: empty presets walk a shared
+  empty list through a real iterator, and preset setup no longer inlines. Fix: return early when
+  there are no presets; the loop moves to a helper. Owner: lead; Astra writer `49c3cb51`, commit
+  `ade88a5`. So far: `create` 205.5 → 184.1 ns (−10.4%, slower 0/61, "B faster"). Next: the other
+  six scenarios. Verify: no scenario slower, promises 17, `pnpm validate`, core mutation ≥ 85.
 
 ## Review
 
