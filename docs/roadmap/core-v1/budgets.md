@@ -284,8 +284,6 @@ The lesson: reuse the controller's live record, so each warm resolve skips a sec
 - **Promises** — `promises_tagged=17`.
 - **Validate** — all 44 lanes PASS.
 - **Slots** — 247 hot names; last hot slot 249; headroom 6 names.
-- **CSV** — `/home/paseo/next/tinkered-warm-fix/.bench/ab.csv`.
-- **Proof logs** — `/home/paseo/next/tinkered-warm-fix/packages/core/.bench/warm-read/`.
 
 ### Re-checked on `210e3af` after perf/create-presets
 
