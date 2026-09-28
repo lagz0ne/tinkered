@@ -1,6 +1,6 @@
 import type { Data, Resource } from "./index.ts";
 
-/** Payload type for each core error. The registry is the only place core throws. */
+/** The registry: core makes no error of its own outside it. */
 type Payloads = {
   DataValidationFailed: { label: string; cause: unknown };
   SchemaRejected: { issues: readonly Data.SchemaIssue[] };
@@ -14,11 +14,8 @@ type Payloads = {
 };
 
 export declare namespace Errors {
-  /** Every core error name. */
   export type Name = keyof Payloads;
-  /** The typed payload carried by one error name. */
   export type Payload<N extends Name> = Payloads[N];
-  /** A core error: identified by `kind`, carrying a typed `payload`. */
   export type Of<N extends Name = Name> = Error & {
     readonly kind: N;
     readonly payload: Payloads[N];
@@ -35,7 +32,8 @@ export function makeError<N extends Errors.Name>(
   return error;
 }
 
-/** Throw a registry error. The only throw site in the package. */
+/** The only place core throws a registry error. Its other throws rethrow, or throw a user's kind
+ * through `raiseFrom`. */
 export function raise<N extends Errors.Name>(kind: N, payload: Errors.Payload<N>): never {
   throw makeError(kind, payload);
 }
@@ -80,7 +78,6 @@ export function originOf(error: unknown): Origin | undefined {
   return undefined;
 }
 
-/** An error and each `cause` below it, once each; a value with no `cause` ends the chain. */
 export function causesOf(error: unknown): unknown[] {
   const chain: unknown[] = [];
   while (!chain.includes(error)) {
@@ -132,7 +129,7 @@ export function failureKind(error: unknown): "error" | "panic" {
     : "panic";
 }
 
-/** Throw a managed error (`ctx.raise`), stamped at the raising ctx when there is one. */
+/** Backs `ctx.raise`: a managed error is a value, not a panic (ADR 0067). */
 export function raiseFrom<K extends string, P extends object>(
   ctx: Site | undefined,
   kind: K,

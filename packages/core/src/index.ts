@@ -70,7 +70,6 @@ export declare namespace Data {
 }
 
 export declare namespace Tag {
-  /** The result of reading a tag that may be absent. */
   export type Presence<T> =
     | { readonly present: true; readonly value: T }
     | { readonly present: false };
@@ -137,7 +136,6 @@ export declare namespace Observe {
    * with a single `>=`. The four named rungs are `LEVELS` (`debug` 20, `info` 30, `warn` 40,
    * `error` 50); a value is a number, so an intermediate rung is legal without a new name. */
   export type Level = number;
-  /** A log line, carrying the level it was written at and the span it was written under (if any). */
   export type Log = {
     readonly time: number;
     readonly level: Level;
@@ -165,7 +163,6 @@ export declare namespace Observe {
     readonly log?: (entry: Log) => void;
     readonly level?: Level;
   };
-  /** The observation receiver on a ctx: the current span, plus manual span/event openers. */
   export type Ctx = {
     readonly span: Span | undefined;
     event(name: string, attributes?: Record<string, unknown>): void;
@@ -195,7 +192,7 @@ export declare namespace Clock {
    * The mock-free seam for time-dependent code — no `Date` mock, no fake timers (ADR 0034). Pass
    * it to `createScope({ clock })`. */
   export type Test = Handle & {
-    /** Move virtual time forward by `ms` milliseconds. */
+    /** Wakes every `sleep` now due, earliest first. */
     advance(ms: number): void;
     /** Set virtual time to `ms` milliseconds since the epoch. */
     setTime(ms: number): void;
@@ -495,7 +492,6 @@ export declare namespace Scope {
     session?(handle: Handle, next: () => Promise<Result>): Promise<Result>;
   };
 
-  /** Values seeded on a scope at creation. */
   export type Options = {
     tags?: Tag.Bindings;
     /** The ambient namespace (ADR 0059): every read and write inside resolves through it; a
@@ -668,7 +664,6 @@ const edgeTo = <K extends string, N>(kind: K, target: N): Edge<K, N> => ({
   target,
 });
 
-/** Declare an extension (stamps the private symbol; the config is the hooks + label). */
 export function extension<T = void>(config: {
   readonly label: string;
   readonly start?: (
@@ -763,7 +758,6 @@ export function readMany<T>(
 }
 
 /** Declare a reactive value cell. `parse` validates the initial value once. */
-
 export function data<T>(config: {
   label?: string;
   initial: T;
@@ -1010,13 +1004,12 @@ class NodeState {
   /** A rejected async build, sticky until release: a slot throws its error, `resolve` returns
    * the same rejected promise. */
   failed: { error: unknown; promise: Promise<unknown> } | undefined = undefined;
-  /** In-flight async build. */
   build: Promise<unknown> | undefined = undefined;
   /** Resource generation (bumped on invalidation to supersede a late build). */
   gen = 0;
   /** Build currently in progress (circular-resource guard). */
   building = false;
-  /** In-flight op promises borrowing this resource (release waits on them). */
+  /** The live build; its `borrowers` are the op promises a release waits on. */
   instance: ResourceInstance | undefined = undefined;
   /** Resources that depend on this node (for cascade release/close). */
   dependents: Set<Resource.Handle<unknown>> | undefined = undefined;
@@ -1041,7 +1034,6 @@ class NodeState {
   nsWatchers: NsWatchers | undefined = undefined;
 }
 
-/** Get-or-create this layer's record for a node. */
 function nodeState(layer: Layer, key: object): NodeState {
   let s = layer.nodes.get(key);
   if (s === undefined) {
@@ -1289,7 +1281,6 @@ function invalidateEff(layer: Layer, target: Data.Cell<unknown>): void {
   for (const child of layer.children) invalidateEff(child, target);
 }
 
-/** Copy-on-write: get or create this layer's own shadow of a cell, seeded from the inherited value. */
 function ownCell(
   layer: Layer,
   target: Data.Cell<unknown>,
@@ -1369,7 +1360,6 @@ function writeCellNs(
   flushInheritedNsWatchers(layer, target, key);
 }
 
-/** Get-or-create this layer's named bucket of a cell, seeded from the inherited value. */
 function ownNsCell(layer: Layer, target: Data.Cell<unknown>, key: Namespace, seed: unknown): Entry {
   const rec = nodeState(layer, target);
   let bucket = rec.nsCells?.get(key);
@@ -1431,7 +1421,7 @@ function pendingNsWatchers(
   return pending;
 }
 
-/** The last value of a tag list (its nearest binding), or undefined for an absent/empty list. */
+/** A tag list's last entry is its nearest binding. */
 function topTag(list: unknown[] | undefined): { present: true; value: unknown } | undefined {
   return list && list.length ? { present: true, value: list[list.length - 1] } : undefined;
 }
@@ -1466,7 +1456,6 @@ function tagFindNs(
   return target.hasDefault ? { present: true, value: target.def } : { present: false };
 }
 
-/** A namespace's nearest binding of one tag, or undefined. */
 function nsTagBinding(
   key: Namespace,
   target: Tag.Handle<unknown>,
@@ -1532,7 +1521,6 @@ function tagRequired(
   return found.value;
 }
 
-/** The nearest preset replacement for an operation/resource node up the chain, or undefined. */
 function presetFor(layer: Layer, node: unknown): unknown {
   for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
     const p = cur.presets;
@@ -1617,7 +1605,6 @@ function dataControllerNs<T>(
   };
 }
 
-/** Register one namespaced watcher with its own chain and current resolved comparison value. */
 function addWatcherNs(
   layer: Layer,
   target: Data.Cell<unknown>,
@@ -2180,13 +2167,10 @@ function isCancel(layer: Layer, error: unknown): boolean {
   return layer.aborted && isCancelReason(error);
 }
 
-/** The `defer` end for work that rejected: an abort-caused rejection is `cancelled`, else `failed`. */
 function rejectEnd(layer: Layer, error: unknown): Scope.End {
   return isCancel(layer, error) ? { status: "cancelled" } : { status: "failed", error };
 }
 
-/** How an operation's run settled, for its `defer`: an abort-caused rejection (or a clean return
- * under an aborted signal) is `cancelled`; a real rejection is `failed`; else `success`. */
 function endFor(layer: Layer, status: "ok" | "failed", error: unknown): Scope.End {
   if (status === "failed") return rejectEnd(layer, error);
   return layer.aborted ? { status: "cancelled" } : SUCCESS;
@@ -2266,7 +2250,6 @@ function parseInput<I>(target: Operation.Handle<unknown, I>, rawInput: unknown):
   return admit(target.label, target.input, rawInput);
 }
 
-/** A preset replacement when seeded, else the declared run. */
 /** Call the body now when every declared dep delivered, else after the parked builds settle
  * (ADR 0044) — the call is then a promise, which the body's type already promised. */
 function runBody<T, I>(
@@ -2601,7 +2584,6 @@ type SelectedResource = (
   state: ResourceState,
 ) => void;
 
-/** One still-building resource slot of a `deps` object: its key and the build to await. */
 type PendingSlot = { key: string; build: Promise<unknown> };
 /** The slots the last {@link buildDeps} parked, handed to its caller through this module slot —
  * read at once, before any other build can run (single-threaded, no await between). No per-call
@@ -3343,7 +3325,6 @@ function resourceController<T>(
   };
 }
 
-/** Select an existing named resource through the shared layers-first bucket walk. */
 function selectNsResource(
   owner: Layer,
   target: Resource.Handle<unknown>,
@@ -3534,7 +3515,6 @@ function detachResourceDependencies(
   detachDependent(owner, dependent);
 }
 
-/** Remove one resource from every dependents set (its incoming edges), dropping empty sets. */
 function detachDependent(owner: Layer, dependent: Resource.Handle<unknown>): void {
   for (const s of owner.nodes.values()) {
     const set = s.dependents;
@@ -3846,6 +3826,10 @@ function fastClose(
   return layer.closing;
 }
 
+/** A second/later close (any mode) returns the in-flight close's Result — the mode of the FIRST call
+ * wins (no graceful→forced escalation in v1; force-close from the start if a hang is a concern). This
+ * also means a session's automatic self-close does not override an in-progress explicit graceful
+ * close (ADR 0028). */
 function closeLayer(layer: Layer, force = true, withData = false): Promise<Scope.Result> {
   const hooks = SESSION_HOOKS.get(layer);
   if (!layer.closing) {
@@ -3854,10 +3838,6 @@ function closeLayer(layer: Layer, force = true, withData = false): Promise<Scope
     layer.closed = true;
     layer.closing = startClose(layer, force, hooks, withData);
   }
-  /** A second/later close (any mode) returns the in-flight close's Result — the mode of the FIRST call
-   * wins (no graceful→forced escalation in v1; force-close from the start if a hang is a concern). This
-   * also means a session's automatic self-close does not override an in-progress explicit graceful
-   * close (ADR 0028). */
   /** A `close()` re-entered from within this layer's (or an ancestor's) own teardown is a request-only
    * acknowledgement: return an already-resolved best-effort `Result` so it never waits on itself (no
    * hang, no throw — ADR 0026 Q3, 0027/0028). The real settled `Result` is `layer.closing`. */
@@ -3867,8 +3847,6 @@ function closeLayer(layer: Layer, force = true, withData = false): Promise<Scope
   return tapSessionHooks(hooks, layer.closing);
 }
 
-/** Build the `close()` Result from the settled outcome, the layer's abort reason (for a cancel), and
- * the teardown errors — never throws (ADR 0027). */
 /** A failed close `Result`, with the error's origin when it has one. Its own function, so the
  * success path of {@link buildResult} stays as small as before. */
 function failedResult(
@@ -3893,12 +3871,6 @@ function buildResult(
   return { status: "success", teardownErrors };
 }
 
-/** Run a layer's close (ADR 0028): sweep the subtree, classify the body, close children, join owned
- * work, settle by reality, drain defers, then re-settle (a late child failure can land during the
- * drain) and detach. Never throws — resolves to the `Result`. A layer already aborted by an ancestor's
- * FORCED close is itself being force-torn-down whatever its own close mode, so it rolls back. The sweep
- * is SYNCHRONOUS (at close-call time) so a child that finishes and detaches before this close's async
- * body runs is still marked `swept` and its failure/errors still collected. */
 /** Whether a layer's teardown rolls its subtree back (resources see `cancelled`) rather than committing
  * gracefully: the close is forced, an ancestor already aborted it, or it is FAILING — a real failure
  * (body throw, or an already-recorded owned-work / descendant failure) rolls the subtree back even
@@ -3937,6 +3909,12 @@ async function closeInstances(
   while (layer.pending.size) await Promise.all(layer.pending);
 }
 
+/** Run a layer's close (ADR 0028): sweep the subtree, classify the body, close children, join owned
+ * work, settle by reality, drain defers, then re-settle (a late child failure can land during the
+ * drain) and detach. Never throws — resolves to the `Result`. A layer already aborted by an ancestor's
+ * FORCED close is itself being force-torn-down whatever its own close mode, so it rolls back. The sweep
+ * is SYNCHRONOUS (at close-call time) so a child that finishes and detaches before this close's async
+ * body runs is still marked `swept` and its failure/errors still collected. */
 function startClose(
   layer: Layer,
   force: boolean,
@@ -4458,7 +4436,6 @@ export function createScope(options?: Scope.Options): Scope.Handle {
  * add new hot-path names above this block. `pnpm validate` checks it (`scripts/check-slots.mjs`). */
 type Affected = { node: Node; owner: Layer };
 
-/** Unlink every occupied bucket at this owner and clear its selection state. */
 function invalidateResource(owner: Layer, target: Resource.Handle<unknown>): void {
   const s = nodeState(owner, target);
   if (s.instance) {
