@@ -361,6 +361,7 @@ test("input is required at the type level when the operation takes one", () => {
 
 test("resolving the extension before ready raises NotResolved", async () => {
   const ping = operation({ label: "ping", run: () => "pong" });
+  /** No `name` in the wiring, so the error labels it with the bare driver name. */
   const { extension: web } = hono([route.get("/ping", ping)]);
   const scope = createScope({ extensions: [web] });
   try {
@@ -368,7 +369,6 @@ test("resolving the extension before ready raises NotResolved", async () => {
     throw new Error("unreachable");
   } catch (e) {
     if (!isCoreError(e, "NotResolved")) throw e;
-    // No `name` in the wiring: the label is the bare driver name.
     expect(e.payload.label).toBe("hono");
   }
   await scope.ready;
@@ -395,6 +395,7 @@ test("two hono extensions on one scope are two apps", async () => {
 });
 
 test("one scope close stops both servers once; a second close stops neither again", async () => {
+  /** A missing stop means the port stays open; a doubled stop means two owners. */
   const stops: string[] = [];
   const serve = (name: string) => () => {
     stops.push(`listening:${name}`);
@@ -413,12 +414,9 @@ test("one scope close stops both servers once; a second close stops neither agai
   expect(await (await scope.resolve(second).request("/two")).text()).toContain("two");
   stops.length = 0;
   await scope.close();
-  // Both listeners stopped, each exactly once: no reap means the port
-  // stays open (the leak fix 1 closes), a double stop means two owners.
   expect(stops.sort()).toEqual(["stopped:one", "stopped:two"]);
   stops.length = 0;
   await scope.close();
-  // The second close finds both already reaped: neither stop runs again.
   expect(stops).toEqual([]);
 });
 
@@ -437,8 +435,10 @@ test("a root extension listed after the server it reads fails ready with NotReso
   const two = operation({ label: "two", run: () => "two" });
   const { extension: first } = hono([route.get("/ping", one)], { name: "one" });
   const { extension: second } = hono([route.get("/ping", two)], { name: "two" });
-  // The first pair is in order; the second root sits after its server, so its
-  // `next()` cannot settle that server's `start` before the resolve.
+  /**
+   * The first pair is in order; the second root sits after its server, so its `next()` cannot
+   * settle that server's `start` before the resolve.
+   */
   const wrong = createScope({
     extensions: [warm(first, "one"), first, second, warm(second, "two")],
   });
@@ -485,13 +485,12 @@ test("two servers share a scope resource: a write through one is seen by the oth
   expect(await (await admin.request("/audit")).json()).toEqual([]);
   const wrote = await scope.resolve(appServer).request("/audit", { method: "POST" });
   expect(await wrote.json()).toBe(1);
-  // One scope-target instance for both servers: the app's write is the
-  // admin's next read, and neither server built its own copy.
   expect(await (await admin.request("/audit")).json()).toEqual(["app"]);
   await scope.close();
 });
 
 test("a cell written through one server's request stays out of the other server's request", async () => {
+  /** Each request is its own session, so the admin request reads the initial value, never the 7. */
   const draft = data({ initial: 0 });
   const writeDraft = operation({
     label: "writeDraft",
@@ -512,8 +511,6 @@ test("a cell written through one server's request stays out of the other server'
   await scope.ready;
   const wrote = await scope.resolve(appServer).request("/draft", { method: "POST" });
   expect(await wrote.json()).toBe(7);
-  // The write landed in the app request's session. The admin request is a
-  // different session, so it reads the initial value, never the 7.
   expect(await (await scope.resolve(adminServer).request("/draft")).json()).toBe(0);
   await scope.close();
 });
@@ -553,12 +550,18 @@ test("a missing serve bind lets the scope close successfully", async () => {
 });
 
 test("a close landing mid-bind still reaps the listener exactly once", async () => {
+  /** The bind settles after the close ran: its stop fires at once, and the later drain finds nothing left. */
   let stops = 0;
   let openGate!: () => void;
   const gate = new Promise<void>((resolve) => {
     openGate = resolve;
   });
   const ping = operation({ label: "ping", run: () => "pong" });
+  /**
+   * Set once `start` is parked inside the bind, not merely scheduled: the close must land while
+   * the bind is still pending for the race to be real. `serve` ran means `ctx.defer` already
+   * registered, so the close cannot take the idle fast path.
+   */
   let bound = false;
   const { extension: web } = hono([route.get("/ping", ping)], {
     serve: () => {
@@ -569,17 +572,11 @@ test("a close landing mid-bind still reaps the listener exactly once", async () 
     },
   });
   const scope = createScope({ extensions: [web] });
-  // Wait until `start` is parked inside the bind (not merely scheduled):
-  // the close must land while the bind is still pending for the race to
-  // be real. `serve` ran means `ctx.defer` already registered, so the
-  // close cannot take the idle fast path.
   for (let i = 0; i < 100 && !bound; i++) await Promise.resolve();
   expect(bound).toBe(true);
   const closing = scope.close();
   openGate();
   await closing;
-  // The bind settled after the close ran: the stop fired at once, and the
-  // later drain found nothing left to stop — exactly one stop, no leak.
   expect(stops).toBe(1);
   await scope.close();
   expect(stops).toBe(1);

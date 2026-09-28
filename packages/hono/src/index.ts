@@ -227,9 +227,11 @@ export function stream(
       const write: Stream.Emit = (chunk) => {
         controller.enqueue(typeof chunk === "string" ? encoder.encode(chunk) : chunk);
       };
-      // Bind the writer on a child session for this response, but run the
-      // body without a tagged call: a caught failure in one of its subflows
-      // must not turn a successful terminal frame into a rejected body.
+      /**
+       * Binds the writer on a child session for this response, but runs the body without a
+       * tagged call: a caught failure in one of its subflows must not turn a successful
+       * terminal frame into a rejected body.
+       */
       const body = session.createSession({
         tags: [call?.tags, emit(write)],
         ...(call?.ns === undefined ? {} : { ns: call.ns }),
