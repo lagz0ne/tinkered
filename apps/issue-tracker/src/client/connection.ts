@@ -20,7 +20,6 @@ function isRecord(raw: unknown): raw is Record<string, unknown> {
   return typeof raw === "object" && raw !== null;
 }
 
-/** Admit one wire frame: a snapshot for a key at a version. Anything else is refused. */
 function readMessage(raw: unknown): Sync.Message {
   if (!isRecord(raw)) throw fail("SyncDropped", { reason: "bad snapshot" });
   if (raw.type !== "snapshot") throw fail("SyncDropped", { reason: "bad snapshot" });
@@ -29,7 +28,6 @@ function readMessage(raw: unknown): Sync.Message {
   return { type: "snapshot", key: raw.key, version: raw.version, value: raw.value };
 }
 
-/** Admit one server-sent frame: a JSON string carrying a snapshot message. */
 function readData(event: MessageEvent): Sync.Message {
   if (typeof event.data !== "string") throw fail("SyncDropped", { reason: "bad snapshot" });
   let raw: unknown;
@@ -61,7 +59,6 @@ const HEALTH = {
   failed: { live: false, pending: false, failed: true },
 };
 
-/** Listen until the returned function is called. */
 function listen<T>(target: Set<T>, listener: T): () => void {
   target.add(listener);
   return () => {

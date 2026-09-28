@@ -25,7 +25,6 @@ function boot(): void {
   attempt(element, "dead");
 }
 
-/** One boot attempt; a failed one shows the dead page in the given phase. */
 function attempt(element: ReturnType<typeof createRoot>, phase: DeadPhase): void {
   start(element).then(
     (booted) => {

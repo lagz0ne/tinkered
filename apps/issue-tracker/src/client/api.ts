@@ -120,7 +120,6 @@ export const openDraft = operation({
   },
 });
 
-/** Read one saved detail through HTTP: the issue plus comments and activity. */
 export const getDetail = operation({
   label: "issues.getDetail",
   input: parseIssueId,

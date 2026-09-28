@@ -30,13 +30,11 @@ import {
   type Filter,
 } from "./state.ts";
 
-/** Admit one typed string at the door: the single-string actions' shape. */
 function readString(raw: unknown, action: string): string {
   if (typeof raw !== "string") raise("BadDraftInput", { reason: `${action} needs a string` });
   return raw;
 }
 
-/** One patch over the edit draft: only the fields the caller set. */
 export type EditPatch = {
   readonly title?: string;
   readonly description?: string;
@@ -44,13 +42,10 @@ export type EditPatch = {
   readonly assignee?: string | null;
 };
 
-/** One patch over the create form: title and description. */
 type NewIssuePatch = { readonly title?: string; readonly description?: string };
 
-/** One patch over the comment draft: text and author. */
 type CommentPatch = { readonly text?: string; readonly author?: string };
 
-/** Type one create-form field at the door. */
 export const typeNewIssue = operation({
   label: "typeNewIssue",
   input: (raw) =>
@@ -72,7 +67,6 @@ export const submitNewIssue = operation({
   },
 });
 
-/** Show only one status in the list. */
 export const setFilter = operation({
   label: "setFilter",
   input: (raw): Filter => {
@@ -85,7 +79,6 @@ export const setFilter = operation({
   },
 });
 
-/** Select one issue, or nothing. Clears the detail and its drafts when deselected. */
 export const selectIssue = operation({
   label: "selectIssue",
   input: (raw): string | null => {
@@ -149,7 +142,6 @@ export const loadDetail = operation({
   },
 });
 
-/** Type into the edit draft. */
 export const typeEdit = operation({
   label: "typeEdit",
   input: (raw) =>
@@ -206,7 +198,6 @@ export const saveEdit = operation({
   },
 });
 
-/** Copy the conflicting current saved issue into the edit draft. */
 export const reloadTheirs = operation({
   label: "reloadTheirs",
   depends: {
@@ -224,7 +215,6 @@ export const reloadTheirs = operation({
   },
 });
 
-/** Type into the comment draft. */
 export const typeComment = operation({
   label: "typeComment",
   input: (raw) =>
@@ -236,7 +226,6 @@ export const typeComment = operation({
   },
 });
 
-/** Post the comment draft, clear it, and reload the detail. */
 export const submitComment = operation({
   label: "submitComment",
   depends: {
@@ -265,7 +254,6 @@ export const submitComment = operation({
   },
 });
 
-/** Reload the selected issue's detail. */
 export const reload = operation({
   label: "reload",
   depends: { selected: selectedId.controller, reloadDetail: loadDetail },
@@ -389,7 +377,6 @@ export const reconnect = operation({
   },
 });
 
-/** Read the create failure as the plain message the form shows. */
 export function readSubmitMessage(error: unknown): string {
   if (isError(error, "BadCreateInput")) return error.payload.reason;
   const offline = readOfflineMessage(error);
@@ -399,7 +386,6 @@ export function readSubmitMessage(error: unknown): string {
   return "Could not save the issue.";
 }
 
-/** Read the save failure as the notice plus the conflicting current issue, if one arrived. */
 export function readEditError(error: unknown): {
   readonly message: string;
   readonly current: Issues.Issue | null;
@@ -422,7 +408,6 @@ export function readEditError(error: unknown): {
   return { message: "Could not save. Try again.", current: null };
 }
 
-/** Read the comment failure as the plain message the form shows. */
 export function readCommentError(error: unknown): string {
   if (isError(error, "BadCommentInput")) return error.payload.reason;
   const offline = readOfflineMessage(error);
@@ -432,7 +417,6 @@ export function readCommentError(error: unknown): string {
   return "Could not post. Try again.";
 }
 
-/** Read the detail failure as the plain message shown above the last saved detail. */
 export function readDetailError(error: unknown): string {
   if (isHttpError(error, "RequestFailed")) {
     return "Could not reach the server. Showing the last saved detail.";
@@ -445,19 +429,16 @@ export function readDetailError(error: unknown): string {
   return "Could not load the issue.";
 }
 
-/** Name one status for the list and detail rows. */
 export function statusName(status: Issues.Status): string {
   if (status === "open") return "Open";
   if (status === "in_progress") return "In progress";
   return "Done";
 }
 
-/** Name one issue's assignee for the list and detail rows. */
 export function assigneeName(issue: Issues.Issue): string {
   return issue.assignee ?? "Unassigned";
 }
 
-/** True when one issue passes the list filter. */
 export function matches(issue: Issues.Issue, shown: Filter): boolean {
   if (shown === "all") return true;
   return issue.status === shown;
@@ -469,14 +450,12 @@ export function readStatusOption(value: string): Issues.Status | undefined {
   return undefined;
 }
 
-/** Read one HTTP status as the plain message the forms show. */
 function readHttpMessage(status: number): string {
   if (status === 404) return "That issue is gone. Reload the list.";
   if (status === 409) return "Someone else saved first. Reload and try again.";
   return "Could not save. Try again.";
 }
 
-/** Read a dropped wire as the plain message the forms show, or null when it is not offline. */
 function readOfflineMessage(error: unknown): string | null {
   if (isHttpError(error, "RequestFailed")) {
     return "Could not reach the server. Your work is kept — try again.";

@@ -13,14 +13,12 @@ export type Drafter = {
   discard(): void;
 };
 
-/** Read a run's terminal outcome as the view the run lands on. */
 function readView(outcome: Draft.Outcome): DraftRun["view"] {
   if (outcome === "done") return "ready";
   if (outcome === "cancelled") return "cancelled";
   return "failed";
 }
 
-/** Read one live event onto the run: text grows, the finished draft lands whole. */
 function applyDraft(prev: DraftRun, event: Draft.Event): DraftRun {
   if (event.kind === "text") return { ...prev, text: prev.text + event.text };
   if (event.kind === "done") return { ...prev, draft: event.draft };
@@ -52,7 +50,6 @@ function readFailedRun(error: unknown): DraftRun {
   return { view: "failed", text: "", draft: "", notice: HELPER_FAILED };
 }
 
-/** Read the failed run's failure as the plain message the view shows. */
 function readFailedMessage(error: unknown): string {
   if (isError(error, "BadDraftInput")) return "That draft update was unreadable. Try again.";
   if (isError(error, "DraftFailed")) return HELPER_FAILED;

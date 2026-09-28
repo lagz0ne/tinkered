@@ -5,7 +5,6 @@ import type { Issues } from "../shared/issues.ts";
 /** The create form's draft: cleared on a successful save. */
 export type NewIssue = { readonly title: string; readonly description: string };
 
-/** Which issues the list shows. */
 export type Filter = "all" | Issues.Status;
 
 /** The edit form's draft. `baseRevision` is the revision the draft opened against; it advances
@@ -37,28 +36,23 @@ export const newIssue = data<NewIssue>({
   initial: { title: "", description: "" },
 });
 
-/** Which issues the list shows. */
 export const filter = data<Filter>({ label: "filter", initial: "all" });
 
-/** The selected issue id, or null when nothing is selected. */
 export const selectedId = data<string | null>({ label: "selectedId", initial: null });
 
 /** The edit form's draft, or null when no issue is selected. */
 export const editDraft = data<EditDraft | null>({ label: "editDraft", initial: null });
 
-/** The edit form's notice, or null when there is nothing to say. */
 export const editNotice = data<string | null>({ label: "editNotice", initial: null });
 
-/** The comment form's draft text. */
 export const commentDraft = data<string>({ label: "commentDraft", initial: "" });
 
-/** The comment form's author. */
 export const commentAuthor = data<string>({ label: "commentAuthor", initial: "Ada" });
 
-/** The comment form's notice, or null when there is nothing to say. */
 export const commentNotice = data<string | null>({ label: "commentNotice", initial: null });
 
-/** The selected issue's saved detail, or null when none has loaded yet. */
+/** The last loaded detail, or null. A new select keeps the old issue's detail until its load
+ * lands, so a reader checks `issue.id` against `selectedId`. */
 export const detail = data<Issues.Detail | null>({ label: "detail", initial: null });
 
 /** The detail notice, or null when the detail is fresh. */
@@ -74,19 +68,16 @@ export type DraftRun = {
   readonly notice: string | null;
 };
 
-/** The wire as the tab sees it. */
 export const connection = data<Connection>({
   label: "connection",
   initial: { live: true, pending: false, failed: false },
 });
 
-/** One in-flight draft run. */
 export const draftRun = data<DraftRun>({
   label: "draftRun",
   initial: { view: "quiet", text: "", draft: "", notice: null },
 });
 
-/** The draft prompt the prompt field types into. */
 export const draftPrompt = data<string>({ label: "draftPrompt", initial: "" });
 
 /** The author a draft post names; the ready view's select writes it. */
@@ -98,7 +89,6 @@ export const draftCapability = data<"loading" | "off" | "on" | "failed">({
   initial: "loading",
 });
 
-/** Seed one edit draft from its saved issue: a fresh draft with no conflict. */
 export function draftOf(issue: Issues.Issue): EditDraft {
   return {
     id: issue.id,
@@ -114,28 +104,23 @@ export function draftOf(issue: Issues.Issue): EditDraft {
 /** One saved row's mark: what a newer snapshot changes when the row moves. */
 export type RowMark = { readonly revision: number; readonly updatedAt: number };
 
-/** Read one row's mark, or null when the row is not listed. */
 export function markOf(saved: readonly Issues.Issue[], id: string): RowMark | null {
   const current = saved.find((issue) => issue.id === id) ?? null;
   if (current === null) return null;
   return { revision: current.revision, updatedAt: current.updatedAt };
 }
 
-/** True when two marks name the same saved row state. */
 export function sameMark(a: RowMark, b: RowMark | null): boolean {
   if (b === null) return false;
   return a.revision === b.revision && a.updatedAt === b.updatedAt;
 }
 
-/** True when `value` is an object whose keys can be read by name. */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-/** One field guard: the door for one patch field. */
 type Field<V> = (value: unknown) => value is V;
 
-/** True when a patch key names a guarded field. */
 function isField<T>(
   key: string,
   fields: { [K in keyof T]-?: Field<T[K]> },
@@ -143,7 +128,6 @@ function isField<T>(
   return key in fields;
 }
 
-/** Check one present patch field; absent stays absent, a failing guard raises the named error. */
 function setField<T, K extends keyof T & string>(
   patch: Partial<T>,
   key: K,
@@ -172,17 +156,15 @@ export function readPatch<T>(
   return patch;
 }
 
-/** A string field, or nothing. */
 export function isString(value: unknown): value is string {
   return typeof value === "string";
 }
 
-/** A status field, or nothing. */
 export function isStatus(value: unknown): value is Issues.Status {
   return value === "open" || value === "in_progress" || value === "done";
 }
 
-/** An assignee field: a name or cleared, or nothing. */
+/** `null` is a value here, not absence: it clears the assignee. */
 export function isAssignee(value: unknown): value is string | null {
   return value === null || typeof value === "string";
 }

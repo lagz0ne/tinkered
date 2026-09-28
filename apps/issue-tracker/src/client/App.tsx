@@ -83,7 +83,6 @@ const filterOptions: readonly { readonly value: Filter; readonly label: string }
   { value: "done", label: "Done" },
 ];
 
-/** The status filter: reads one cell, runs one operation. */
 function IssueFilters() {
   const shown = useData(filter);
   const choose = useRun(setFilter);
@@ -105,8 +104,8 @@ function IssueFilters() {
 
 const sameIssues = (a: readonly Issues.Issue[], b: readonly Issues.Issue[]): boolean => a === b;
 
-/** The saved list, filtered: subscribes to the whole list cell (the rows it renders) and the
- * filter cell, so a keystroke in a form never touches it. */
+/** The saved list, filtered: subscribes to the list cell (the rows it renders), the filter
+ * cell, and the selection, so a keystroke in a form never touches it. */
 function IssueList() {
   const shown = useData(filter);
   const selected = useData(selectedId);
@@ -260,15 +259,12 @@ function CommentForm(props: { readonly issueId: string }) {
   );
 }
 
-/** The selected issue: reads the detail cell the load filled and the detail notice; the reload
- * button reruns the load. The draft view keeps its own props contract. */
 function DetailView() {
   const selected = useData(selectedId);
   if (selected === null) return <p>Select an issue to edit it.</p>;
   return <SelectedDetail selected={selected} />;
 }
 
-/** The selected issue's detail: the last saved detail plus its notice. */
 function SelectedDetail(props: { readonly selected: string }) {
   const shown = useData(detail);
   const notice = useData(detailNotice);
@@ -314,7 +310,6 @@ function SelectedDetail(props: { readonly selected: string }) {
   );
 }
 
-/** The detail before it loads: the notice when the last load failed, else the wait. */
 function DetailPending(props: { readonly notice: string | null }) {
   if (props.notice === null) return <p>Loading detail…</p>;
   return (
@@ -325,7 +320,6 @@ function DetailPending(props: { readonly notice: string | null }) {
   );
 }
 
-/** The wire as the tab sees it: reads the connection cell, runs the reconnect operation. */
 function LiveState() {
   const link = useData(connection);
   const again = useRun(reconnect);
@@ -342,7 +336,6 @@ function LiveState() {
   );
 }
 
-/** The reload button: reruns the load for the selected issue. */
 function ReloadButton() {
   const again = useRun(reload);
   return (
