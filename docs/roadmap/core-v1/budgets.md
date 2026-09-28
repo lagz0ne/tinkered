@@ -6,13 +6,11 @@ deterministic lane and fails on any regression (proven: a seeded cast fails it).
 via `vp run core#mutate`; the wall-clock timing lanes run via `bench` in a clean sandbox (not
 in-container).
 
-## Timing follow-up status — 2026-09-19
+## Timing follow-up status — 2026-09-28
 
-The user accepts having no dedicated bench resource. `perf/op-parity` is Parked in
-[TODO.md](../../../TODO.md); no runner provisioning is required and this follow-up does not
-block sync completion. The off-host comparison remains unverified. Local timings remain
-reference measurements, not proof of the off-host gate. Resume only when the user revisits
-this work and a suitable runner is available; the recipe and budgets below remain the reference.
+`perf/op-parity` is no longer parked: `benchd` is the runner. `bench/queued.sh` sends
+`bench/ab.sh` through the queue, one job per scenario, one pinned core, no network. The
+sandbox re-check of the call-path rules is done; see "Call paths through benchd" below.
 
 ## All lanes at t19 (green together)
 
@@ -35,6 +33,7 @@ In-container references (min of 5, pinned core 7, this box, 2026-09-17) plus the
 main-at-t24 comparison from the same alternating A/B runs. Wall-clock rows are
 references — the sandbox `bench` is unavailable in this container today — and the
 census rows are gates (`pnpm validate` runs `bench/promises.mjs` and `bench/heap.mjs`).
+Kept as history: the sandbox re-check is "Call paths through benchd (2026-09-28)" below.
 
 | scenario              | t27 reference (min of 5) | main at t24 (same A/B) | rule                                                                                       |
 | --------------------- | ------------------------ | ---------------------- | ------------------------------------------------------------------------------------------ |
@@ -65,6 +64,56 @@ census rows are gates (`pnpm validate` runs `bench/promises.mjs` and `bench/heap
   own promise, not the run's). Threshold is exactly 17.
 - `heap_tagged_per_req` = 4901 B vs 2906 B untagged: one open child session + one
   in-flight tagged run retained per request. Informative only.
+
+## Call paths through benchd (2026-09-28)
+
+The sandbox re-check the t27 table waited for. Each tree runs its own `bench/core-probe.mjs`
+against its own `dist`. N=61 process runs per tree per scenario, A then B, on one core through
+`benchd`. Numbers are medians in ns per call; "slower k/61" counts the pairs where B took
+longer than A.
+
+- **B (current)** — `origin/main` `13e09c8`
+- **A1** — `core/t24` `bdc2971`
+- **A2** — `core/t27` `2e1f261`
+
+A verdict of "B slower" needs both a median gap over 2% and more than 45 of 61 runs slower;
+"B faster" is the same the other way; anything else is "no difference we can see".
+
+### Main vs t24
+
+The t24 probe has no `inline`, `session`, `tagged`, or `opres`, so those are left out.
+
+- **`op`** — 79.0 → 101.0 (+22.0, +27.9%), slower 61/61: B slower
+- **`run`** — 88.7 → 113.2 (+24.5, +27.6%), slower 61/61: B slower
+- **`create`** — 169.5 → 205.4 (+35.9, +21.2%), slower 61/61: B slower
+- **`cold`** — 747.4 → 756.6 (+9.2, +1.2%), slower 39/61: no difference we can see
+- **`warm`** — 20.0 → 26.5 (+6.5, +32.5%), slower 61/61: B slower
+- **`lifecycle`** — 934.1 → 944.9 (+10.8, +1.2%), slower 31/61: no difference we can see
+
+### Main vs t27
+
+The t27 probe has no `opres`, so it is left out.
+
+- **`op`** — 89.7 → 101.0 (+11.3, +12.6%), slower 61/61: B slower
+- **`run`** — 101.6 → 113.1 (+11.5, +11.3%), slower 61/61: B slower
+- **`inline`** — 193.9 → 194.0 (+0.1, +0.1%), slower 37/61: no difference we can see
+- **`session`** — 1584 → 1681 (+97, +6.1%), slower 58/61: B slower
+- **`tagged`** — 1942 → 2149 (+207, +10.7%), slower 60/61: B slower
+- **`create`** — 176.5 → 205.7 (+29.2, +16.5%), slower 61/61: B slower
+- **`cold`** — 761.0 → 759.4 (−1.6, −0.2%), slower 29/61: no difference we can see
+- **`warm`** — 20.0 → 26.6 (+6.6, +33.0%), slower 61/61: B slower
+- **`lifecycle`** — 935.9 → 940.3 (+4.4, +0.5%), slower 32/61: no difference we can see
+
+### The t27 rules, checked
+
+- **`op` ≤ t24 + 2 ns** — FAIL: 101.0 > 79.0 + 2 = 81.0
+- **`run` ≤ t24 + 2 ns** — FAIL: 113.2 > 88.7 + 2 = 90.7
+- **`inline` ≤ `run` + ~90 ns** — PASS: 194.0 ≤ 113.1 + 90 = 203.1
+- **`tagged` ≤ 2000 ns** — FAIL: 2149 > 2000
+
+This ticket only measures; nothing was fixed. The t27 `op` median (89.7) sits between its
+min (76.3) and main's (101.0): the old bimodal floor still shows in A2, not in B.
+Raw CSVs stay outside the repo, in `/home/paseo/next/tinkered-op-parity-csv/`.
 
 ## Notes
 

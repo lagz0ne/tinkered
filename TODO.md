@@ -32,12 +32,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
-- **perf/op-parity** — measure the call-path budget (`docs/roadmap/core-v1/budgets.md`, set
-  in-container on 2026-09-17, "sandbox re-check pending") through benchd: main vs `core/t24` (the
-  `op`/`run` parity rule) and vs `core/t27` (where the table was set), N=61, each tree's own probe.
-  Owner: lead; timing agent `37aed204` (brief `perf-op-parity.md`), which also lands the docs.
-  Verify: per-scenario verdicts and PASS/FAIL per budget rule recorded in budgets.md.
-
 ## Review
 
 | Card | Owner | Next | Verify |
@@ -83,6 +77,10 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
 
 ## Done
 
+- **perf/op-parity** — the call-path budget re-checked through `benchd`, N=61, each tree's own probe: main `13e09c8` vs `core/t24` `bdc2971` and vs `core/t27` `2e1f261` ([budgets](docs/roadmap/core-v1/budgets.md), "Call paths through benchd"). Timing only; nothing fixed.
+  - vs t24: `op` 79.0 → 101.0 (+27.9%, 61/61) B slower; `run` 88.7 → 113.2 (+27.6%, 61/61) B slower; `create` +21.2% B slower; `warm` 20.0 → 26.5 (+32.5%) B slower; `cold` +1.2% and `lifecycle` +1.2%: no difference we can see.
+  - vs t27: `op` +12.6% and `run` +11.3% B slower; `session` 1584 → 1681 (+6.1%, 58/61) B slower; `tagged` 1942 → 2149 (+10.7%, 60/61) B slower; `create` +16.5% and `warm` +33.0% B slower; `inline`, `cold`, `lifecycle`: no difference we can see.
+  - Rules: `op` ≤ t24 + 2 FAIL (101.0 > 81.0); `run` ≤ t24 + 2 FAIL (113.2 > 90.7); `inline` ≤ run + ~90 PASS (194.0 ≤ 203.1); `tagged` ≤ 2000 FAIL (2149). Raw CSVs in `/home/paseo/next/tinkered-op-parity-csv/`.
 - **harness/fixtures-throw, apps/ambient-scope** — the harness test fixture `parsePrompt` no longer hand-throws (census S05 passes in harness), and the README examples take `input: z.string()`; harness 72 tests, validate 44 PASS; apps are out of `check-ambient`'s scope by decision (ADR 0062 As built): their raw reads are process edges and a benchmark's stopwatch.
   - Gate EXIT 0; harness 72 tests; census harness OK.
 - **docs/tsdoc follow-ups** — opus high + fable review; tags `census/tsdoc-text`, `process/drop-load`, `harness/ts-expect-error`, `core/ts-expect-error`, `jev/preflight-big-file`, `tools/check-ambient`. The census's S11/S14 skip TSDoc text (a fix round kept template strings honest); the unused `Process.Load` is gone; the two `@ts-expect-error` rows in harness and one in core became `expectTypeOf` checks (census S12 at 0 in both); Jev's preflight and review skip a file too big for one call instead of crashing; `check-ambient` scans every package's `src` (5 → 42 files; it had never scanned core) and takes one `@ambientSource` tag per declaration instead of line marks.
