@@ -3859,6 +3859,7 @@ function failedResult(
     : { status: "failed", error, teardownErrors };
 }
 
+/** Never throws, whatever `settled` holds: a `close()` always resolves to a `Result` (ADR 0027). */
 function buildResult(
   settled: Scope.Outcome,
   layer: Layer,
