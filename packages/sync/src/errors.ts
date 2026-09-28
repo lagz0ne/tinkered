@@ -1,8 +1,6 @@
-/** SyncConflict: { key: string };
- * SyncNotReady: { label: string; missing: readonly string[] } — the labels
- * still missing when a subscribe start broke. */
 type Payloads = {
   SyncConflict: { key: string };
+  /** `missing` holds the keys still without a snapshot when a subscribe start broke. */
   SyncNotReady: { label: string; missing: readonly string[] };
 };
 
