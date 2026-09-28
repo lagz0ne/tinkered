@@ -7,6 +7,8 @@
 //   node tools/jev/label.mjs <judge> <true|false> <file>[#<unit>] [--ref <sha>] [--why "<text>"] [--by <ticket>]
 //   <judge> is a file judge (lib.mjs JUDGES: state = { file, code }) or a unit judge (bank.mjs
 //   LINT: state = the sliced unit named after `#`). `--ref` reads the file at that commit.
+//   A doc judge (bank.mjs DOCS) takes `<file>:<line>` (a line of the doc, or the first line of
+//   its declaration) or `<file>#<name>` (the first doc on that declaration).
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -63,11 +65,14 @@ import {
   LINT,
   TESTS,
   SURVIVORS,
+  DOCS,
   slice,
+  sliceDocs,
   sliceTests,
   sliceSurvivors,
   forJev,
   forSurvivorJev,
+  forDocJev,
 } from "./bank.mjs";
 import { join } from "node:path";
 import { namedFunction } from "./extract.mjs";
@@ -81,13 +86,14 @@ const [judge, labelWord, target] = args.filter(
 );
 if (!judge || !["true", "false"].includes(labelWord ?? "") || !target) {
   console.error(
-    'usage: node tools/jev/label.mjs <judge> <true|false> <file>[#<unit>] [--ref <sha>] [--why "<text>"] [--by <ticket>]',
+    'usage: node tools/jev/label.mjs <judge> <true|false> <file>[#<unit>|:<line>] [--ref <sha>] [--why "<text>"] [--by <ticket>]',
   );
   process.exit(1);
 }
 const isUnitJudge = judge in LINT;
 const isTestJudge = judge in TESTS;
 const isSurvivorJudge = judge in SURVIVORS;
+const isDocJudge = judge in DOCS;
 if (!judgeOf(judge)) {
   const known = Object.entries(BANKS)
     .map(([bank, judges]) => `${bank}: ${Object.keys(judges).join(", ")}`)
@@ -95,7 +101,9 @@ if (!judgeOf(judge)) {
   console.error(`label: unknown judge ${judge}; ${known}`);
   process.exit(1);
 }
-const [file, unitName] = target.split("#");
+const atLine = isDocJudge && !target.includes("#") ? target.match(/^(.+):(\d+)$/) : null;
+const [file, unitName] = atLine ? [atLine[1]] : target.split("#");
+const docLine = atLine ? Number(atLine[2]) : undefined;
 const ref = flag("--ref");
 const code = ref
   ? execFileSync("git", ["show", `${ref}:${file}`], { encoding: "utf8" })
@@ -118,11 +126,34 @@ function readTestState() {
   };
 }
 
-/** The state the judge sees: a unit judge gets the sliced unit; a test judge the test; a survivor judge the sliced survivor; a file judge the file. */
+/** A doc judge's state: the doc at `docLine` (inside it, or on its declaration's first line),
+ * or the first doc on the declaration named after `#`. */
+function readDocState() {
+  const blocks = sliceDocs(code, file);
+  const hit =
+    docLine === undefined
+      ? blocks.find((b) => b.name === unitName)
+      : blocks.find(
+          (b) => (b.line <= docLine && docLine <= b.endLine) || b.declarationLine === docLine,
+        );
+  if (!hit) {
+    console.error(`label: no doc at ${target}${ref ? ` at ${ref}` : ""}`);
+    process.exit(1);
+  }
+  return forDocJev(hit);
+}
+
+/** The state the judge sees: a unit judge gets the sliced unit; a test judge the test; a survivor judge the sliced survivor; a doc judge the doc and its declaration; a file judge the file. */
 function readState() {
   if (isSurvivorJudge) return readSurvivorState();
+  if (isDocJudge) return readDocState();
   if (isTestJudge) return readTestState();
   if (!isUnitJudge) return { file, code };
+  return readUnitState();
+}
+
+/** A unit judge's state: the sliced unit named after `#`. */
+function readUnitState() {
   if (!unitName) {
     console.error(`label: ${judge} is a unit judge; name the unit as ${file}#<name>`);
     process.exit(1);
@@ -165,7 +196,7 @@ const row = {
   judge,
   label: labelWord === "true",
   state,
-  where: `${file}${unitName ? "#" + unitName : ""}${ref ? "@" + ref : ""}`,
+  where: `${file}${unitName ? "#" + unitName : ""}${docLine ? ":" + docLine : ""}${ref ? "@" + ref : ""}`,
   why: flag("--why") ?? "",
   by: flag("--by") ?? "",
   at: new Date().toISOString().slice(0, 10),

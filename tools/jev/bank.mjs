@@ -9,7 +9,7 @@
 
 // ---------- slicer (deterministic: Jev never locates or counts) ----------
 // On a real parser since 2026-09-21 (`extract.mjs`, oxc-parser); these keep the old names.
-import { units as extractUnits, tests as extractTests } from "./extract.mjs";
+import { docs as extractDocs, units as extractUnits, tests as extractTests } from "./extract.mjs";
 import { JUDGES } from "./lib.mjs";
 
 /** Every declared unit and top-level function. New builder/arrow records are marked
@@ -427,10 +427,46 @@ export const forSurvivorJev = ({ file, unit, line, mutator, before, after, sourc
   source,
 });
 
+// ---------- docs: coding-convention rule 10, one judge per TSDoc block (docs.mjs) ----------
+// The plain half (S26 in plain.mjs) checks the doc is well-formed; this asks what it says.
+// State per doc: { doc, declaration } — the doc's words and the source it sits on.
+export const DOCS = {
+  docRestatesCode: {
+    fix: "Delete the doc, or rewrite it to say what the code cannot: a reason, a contract, a caller's obligation, a trap, or the decision (ADR) behind it.",
+    // Provisional until calibrated (ADR 0054).
+    threshold: 0.5,
+    q: {
+      type: "boolean",
+      instructions:
+        "Does this doc only restate what the declaration's code and names already say, or claim something the code contradicts? A doc that gives a reason, a contract, a caller's obligation, a trap, or a reference to a decision is NOT a hit.",
+      criteria: {
+        true: "every sentence of the doc repeats what the name, the types, or the body already show, or the doc claims something the code does not do",
+        false:
+          "the doc says something the code cannot: why it is so, a promise to callers, what a caller must do, a trap to avoid, or the decision or reference behind it",
+      },
+    },
+  },
+};
+
+/** One doc block's slice for its judge; a doc sitting on no declaration gets an empty one. */
+export function sliceDocs(src, file = "a.ts") {
+  return extractDocs(src, file).map((d) => ({
+    line: d.line,
+    endLine: d.endLine,
+    declarationLine: d.declaration?.line,
+    name: d.declaration?.name ?? "",
+    doc: d.doc,
+    declaration: d.declaration?.source ?? "",
+  }));
+}
+
+/** The fields the decision depends on — not the line, not the name. */
+export const forDocJev = ({ doc, declaration }) => ({ doc, declaration });
+
 // ---------- every bank in one place ----------
 /** The judge banks by name. `label.mjs`, `calibrate.mjs`, and the evals look a judge up here, so a new bank
  *  is one entry, not one more `??` in each lookup. `JUDGES` (file judges) lives in lib.mjs. */
-export const BANKS = { JUDGES, LINT, TESTS, SURVIVORS };
+export const BANKS = { JUDGES, LINT, TESTS, SURVIVORS, DOCS };
 
 /** The judge with this id from whichever bank holds it, or undefined. */
 export function judgeOf(id) {

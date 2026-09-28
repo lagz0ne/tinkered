@@ -16,6 +16,7 @@
     "calibrate": "node calibrate.mjs",
     "survivors": "node survivors.mjs",
     "explain": "node explain.mjs",
+    "docs": "node docs.mjs",
     "eval": "node evals/lint.mjs"
   },
   "dependencies": {
