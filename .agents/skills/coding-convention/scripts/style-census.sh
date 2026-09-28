@@ -6,6 +6,7 @@
 # Watch checks (W*) are reported, never enforced; the formatter or a reviewer decides.
 # Performance checks (P*) run on source and are enforced like S*.
 # --strict exits 1 when any S*, T*, or P* id has a hit.
+# Ids in doc_blind skip text inside /** ... */, so prose like `a/*b` or `x[0]` is not a hit.
 set -euo pipefail
 
 strict=0
@@ -69,6 +70,44 @@ W09|src|interface declaration (type preferred)|^[[:space:]]*(export )?interface
 W08|test|test count (watch: many small tests)|^[[:space:]]*(test|it)\(
 '
 
+doc_blind=' S11 S14 '
+
+# Prints file:line:text for each line whose text, with /** ... */ blanked, matches $1.
+# Quotes and // comments are skipped whole, so a "/**" in a string never opens a doc.
+doc_blind_grep='
+my $re = shift;
+for my $file (@ARGV) {
+  open my $fh, "<", $file or next;
+  my $doc = 0;
+  while (my $line = <$fh>) {
+    chomp $line;
+    my ($code, $rest) = ("", $line);
+    while ($rest ne "") {
+      if ($doc) {
+        if ($rest =~ s{^.*?\*/}{}) { $doc = 0; $code .= " "; } else { $rest = ""; }
+      } elsif ($rest =~ s{^(\x27(?:\\.|[^\\\x27])*\x27?|"(?:\\.|[^\\"])*"?|`(?:\\.|[^\\`])*`?|//.*)}{}) {
+        $code .= $1;
+      } elsif ($rest =~ s{^/\*\*(?!/)}{}) {
+        $doc = 1; $code .= " ";
+      } else {
+        $rest =~ s{^(.[^\x27"`/]*)}{}s; $code .= $1;
+      }
+    }
+    print "$file:$.:$line\n" if $code =~ $re;
+  }
+  close $fh;
+}
+'
+
+hits() {
+  local id=$1 regex=$2 files=$3
+  if [[ "$doc_blind" == *" $id "* ]]; then
+    printf '%s\n' "$files" | xargs -r perl -e "$doc_blind_grep" -- "$regex" 2>/dev/null || true
+  else
+    printf '%s\n' "$files" | xargs -r grep -nHP -- "$regex" 2>/dev/null || true
+  fi
+}
+
 failed=""
 printf '%-4s %6s  %s\n' id count label
 while IFS='|' read -r id scope label regex; do
@@ -81,12 +120,12 @@ while IFS='|' read -r id scope label regex; do
   if [[ -z "$files" ]]; then
     count=0
   else
-    count=$({ printf '%s\n' "$files" | xargs -r grep -nHP -- "$regex" 2>/dev/null || true; } | awk 'END { print NR + 0 }')
+    count=$(hits "$id" "$regex" "$files" | awk 'END { print NR + 0 }')
   fi
   printf '%-4s %6s  %s\n' "$id" "$count" "$label"
   if (( strict )) && [[ "$id" == [STP]* ]] && (( count > 0 )); then
     failed+=" $id"
-    { printf '%s\n' "$files" | xargs -r grep -nHP -- "$regex" 2>/dev/null || true; } | sed 's/^/    /'
+    hits "$id" "$regex" "$files" | sed 's/^/    /'
   fi
 done <<< "$patterns"
 
