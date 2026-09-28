@@ -1062,6 +1062,16 @@ function signalOf(layer: Layer): AbortSignal {
 }
 
 /** One layer of the scope chain. A session is a child layer. */
+/** The extension chains a root chose (ADR 0050, 0051): each is the filtered list of extensions
+ * that declare that hook, or undefined when none does. One record per root, shared by every layer
+ * under it, so a session reads its route from its parent instead of walking to the root. */
+type ExtRoutes = {
+  readonly runners: readonly Scope.Extension<unknown>[] | undefined;
+  readonly writers: readonly Scope.Extension<unknown>[] | undefined;
+  readonly sessions: readonly Scope.Extension<unknown>[] | undefined;
+};
+const NO_EXTS: ExtRoutes = { runners: undefined, writers: undefined, sessions: undefined };
+
 type Layer = {
   parent: Layer | undefined;
   children: Set<Layer>;
@@ -1092,8 +1102,9 @@ type Layer = {
    * sticks its panic twice (the hook's promise and the run's own); `recover` drops every copy. */
   panics?: unknown[];
   descendantFailure: { cause: unknown } | undefined;
-  /** A tagged subflow reports its failed child session through its returned promise. */
-  failureOwner?: RunState;
+  /** A tagged subflow reports its failed child session through its returned promise. In the
+   * literal, so every layer shares one shape: a later add would give sessions a second map. */
+  failureOwner: RunState | undefined;
   secondary: unknown[];
   body: Promise<unknown> | undefined;
   closed: boolean;
@@ -1105,18 +1116,12 @@ type Layer = {
   /** The ambient namespace chain of this layer (ADR 0059): set from the scope/session options,
    * inherited by child sessions, overridden per call through a view layer. Undefined = default. */
   ns: readonly Namespace[] | undefined;
-  /** Inherited extension chains; absent when no extension declares the hook. */
-  runners: readonly Scope.Extension<unknown>[] | undefined;
-  writers: readonly Scope.Extension<unknown>[] | undefined;
+  /** The root's extension routes, inherited by every layer under it ({@link ExtRoutes}). */
+  exts: ExtRoutes;
 };
 
 type ExtRec = { settled: boolean; value: unknown };
 const EXTENSIONS = new WeakMap<Layer, Map<Scope.Extension<unknown>, ExtRec>>();
-
-/** Extension `session` chains, off the Layer record (ADR 0051, drivers/t01): the filtered list of
- * extensions that declare the hook, stored once per root layer by `extendHandle` — the same side-table
- * shape as `EXTENSIONS` (core/t33). No entry means no hook: session creation takes today's path. */
-const SESSIONS = new WeakMap<Layer, readonly Scope.Extension<unknown>[]>();
 
 /** A session under the root's `session` hooks (ADR 0051, 0069), off the Layer record: registered
  * when the session is made, so `closeLayer` finds it with the one lookup it already made for the
@@ -1556,7 +1561,7 @@ function writeWithHooks<T>(
   value: T,
   chain: readonly Namespace[] | undefined = layer.ns,
 ): void {
-  const writers = layer.writers;
+  const writers = layer.exts.writers;
   if (writers === undefined) return writeCell(layer, target, value, chain);
   ensureOpen(layer);
   const at = (index: number): void => {
@@ -2196,6 +2201,12 @@ function exitTeardown(layer: Layer): void {
  * ancestor of it — so a re-entrant close from within a (descendant) teardown must not wait on itself.
  * A close of an unrelated scope from a cleanup is not re-entrant and gets its real closing promise. */
 function closeWouldReenter(target: Layer): boolean {
+  return teardownDepth.size !== 0 && reentersTeardown(target);
+}
+
+/** The walk behind {@link closeWouldReenter}, its own function so its loop stays out of the
+ * close dispatch's inlined size when no teardown is active. */
+function reentersTeardown(target: Layer): boolean {
   for (const active of teardownDepth.keys()) {
     for (let cur: Layer | undefined = active; cur; cur = cur.parent) {
       if (cur === target) return true;
@@ -2521,7 +2532,7 @@ function operationController<T, I>(
   replay: Replay = false,
 ): Scope.OperationController<T, I> {
   const execute = executorFor(layer, target, parent, chain, caller, replay);
-  const runners = layer.runners;
+  const runners = layer.exts.runners;
   if (runners === undefined || replay)
     return new OperationControl(
       execute,
@@ -2822,9 +2833,11 @@ function closeThrough(
 ): (opts?: Scope.CloseOptions) => Promise<Scope.Result> {
   return (opts?: Scope.CloseOptions): Promise<Scope.Result> => {
     const at = (index: number): Promise<Scope.Result> => {
-      if (index >= closers.length) return closeLayer(layer, !opts?.graceful, opts?.withData);
+      if (index >= closers.length)
+        return closeLayer(layer, !opts?.graceful, opts?.withData === true);
       const closer = closers[index];
-      if (closer.close === undefined) return closeLayer(layer, !opts?.graceful, opts?.withData);
+      if (closer.close === undefined)
+        return closeLayer(layer, !opts?.graceful, opts?.withData === true);
       return closer.close(opts ?? {}, () => at(index + 1));
     };
     return at(0);
@@ -2856,7 +2869,7 @@ function runStartChain(
   ignoreRejection(
     at(0).then(done, (error: unknown) => {
       layer.failure ??= { cause: error };
-      ignoreRejection(closeLayer(layer, true));
+      ignoreRejection(closeLayer(layer, true, false));
       failed(error);
     }),
   );
@@ -3652,6 +3665,7 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     bodyEnd: undefined,
     failure: undefined,
     descendantFailure: undefined,
+    failureOwner: undefined,
     secondary: [],
     body: undefined,
     closed: false,
@@ -3661,12 +3675,10 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     random: randomFor(parent, options),
     emptyCtx: undefined,
     ns: nsFor(parent, options),
-    runners: undefined,
-    writers: undefined,
+    exts: NO_EXTS,
   };
   if (parent) {
-    layer.runners = parent.runners;
-    layer.writers = parent.writers;
+    layer.exts = parent.exts;
     parent.children.add(layer);
     /** Born into a subtree already being collected by an active ancestor close: inherit `swept` so this
      * late child's real failure + teardown errors still push up to the collecting ancestor when it
@@ -3813,7 +3825,11 @@ function closeChildren(layer: Layer, force: boolean): Promise<void> {
   if (layer.children.size === 0) return READY;
   const close = async (): Promise<void> => {
     for (const child of Array.from(layer.children)) {
-      await closeLayer(child, force || (failureOf(layer) ?? layer.descendantFailure) !== undefined);
+      await closeLayer(
+        child,
+        force || (failureOf(layer) ?? layer.descendantFailure) !== undefined,
+        false,
+      );
     }
   };
   return close();
@@ -3908,8 +3924,10 @@ const ENDED_CLEAN: Promise<Scope.Result> = Promise.resolve({
   teardownErrors: undefined,
 });
 
-function closeLayer(layer: Layer, force = true, withData = false): Promise<Scope.Result> {
-  const hooks = SESSION_HOOKS.get(layer);
+function closeLayer(layer: Layer, force: boolean, withData: boolean): Promise<Scope.Result> {
+  /** Only a session under a root with `session` hooks has an entry, and its route says so: a
+   * no-hook close never reads the table. */
+  const hooks = layer.exts.sessions === undefined ? undefined : SESSION_HOOKS.get(layer);
   if (!layer.closing) {
     if (canFastClose(layer))
       return tapSessionHooks(hooks, fastClose(layer, force, hooks, withData));
@@ -4079,7 +4097,7 @@ function settleSession(
  * `session()` passes `(child, handle) => fn(handle)`; a tagged call passes its own runner. When the
  * root installed `session` hooks (ADR 0051), the whole life runs inside their onion: `next()`
  * resolves with the close `Result`. No hooks means no wrapper — main's body below, inline, after one
- * root lookup. */
+ * field read of the parent's route. */
 /** Whether a public `session()` body that returned a plain value may end its session before
  * `session()` returns, as a tagged call does (no handle was given out there). Off, a handle the
  * body leaked stays usable for main's window: until the session's own close, two turns after the
@@ -4102,7 +4120,7 @@ function runSessionWith<R>(
    * that fails its parse. The body's own throw is not here; {@link runBodyWith} keeps it. */
   try {
     ensureOpen(parent);
-    const sessions = sessionsFor(parent);
+    const sessions = parent.exts.sessions;
     if (sessions !== undefined) return runSessionWrapped(parent, options, body, sessions, caller);
     child = makeLayer(parent, options);
   } catch (error) {
@@ -4157,7 +4175,7 @@ async function settleSessionWith<R>(child: Layer, started: Promise<R>): Promise<
    * (with the cause / abort reason), a clean run resolves the body value; teardown errors aggregate
    * into `TeardownFailed` either way. The self-close is FORCED — the body is done, so any still-running
    * owned work is aborted rather than awaited; the body's own outcome decides success/cancelled. */
-  settleSessionEnded(await closeLayer(child, true));
+  settleSessionEnded(await closeLayer(child, true, false));
   return result as R;
 }
 
@@ -4186,15 +4204,6 @@ async function runSessionWrapped<R>(
   }
   settleSessionEnded(wrapped.ended);
   return wrapped.result as R;
-}
-
-/** Find the root's `session` chain for a session created under `parent` (extensions are root-only,
- * ADR 0050): walk up to the root, one map lookup there. Undefined when no extension declares the
- * hook — the chain is stored only then. */
-function sessionsFor(parent: Layer): readonly Scope.Extension<unknown>[] | undefined {
-  let root = parent;
-  while (root.parent !== undefined) root = root.parent;
-  return SESSIONS.get(root);
 }
 
 /** Map a session's close `Result` back to promise semantics: a real failure or cancellation rejects
@@ -4303,7 +4312,7 @@ function wrapSession(
   wrapped = {
     ...base,
     close: (opts?: Scope.CloseOptions) =>
-      closeLayer(child, !opts?.graceful, opts?.withData).then(() =>
+      closeLayer(child, !opts?.graceful, opts?.withData === true).then(() =>
         outcome.then(({ ended: chained }) => chained),
       ),
   };
@@ -4325,10 +4334,12 @@ function extendHandle(
   const resolvers = exts.filter((ext) => ext.resolve !== undefined);
   const runners = exts.filter((ext) => ext.run !== undefined);
   const writers = exts.filter((ext) => ext.write !== undefined);
-  if (runners.length > 0) layer.runners = runners;
-  if (writers.length > 0) layer.writers = writers;
   const sessions = exts.filter((ext) => ext.session !== undefined);
-  if (sessions.length > 0) SESSIONS.set(layer, sessions);
+  layer.exts = {
+    runners: runners.length > 0 ? runners : undefined,
+    writers: writers.length > 0 ? writers : undefined,
+    sessions: sessions.length > 0 ? sessions : undefined,
+  };
   let settleReady: () => void = noop;
   let failReady: (error: unknown) => void = noop;
   const ready = new Promise<void>((resolveReady, rejectReady) => {
@@ -4534,7 +4545,8 @@ function handleFor(layer: Layer): Scope.Handle {
       layer.defers.push({ fn: () => fn(), instance: undefined });
     },
     settled,
-    close: (opts?: Scope.CloseOptions) => closeLayer(layer, !opts?.graceful, opts?.withData),
+    close: (opts?: Scope.CloseOptions) =>
+      closeLayer(layer, !opts?.graceful, opts?.withData === true),
     ready: READY,
   };
 }
@@ -4965,7 +4977,7 @@ async function runSessionEnded<R>(
       isCancel(child, cause) ? { status: "cancelled" } : { status: "failed", error: cause },
   );
   const result = await bodyResult(started);
-  const ended = await closeLayer(child, true);
+  const ended = await closeLayer(child, true, false);
   return { result, ended };
 }
 
