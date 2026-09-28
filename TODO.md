@@ -50,6 +50,10 @@ lander runs mutation, timing, and `pnpm validate` alone, one core card at a time
     21 malformed docs; `docRestatesCode` proven on 7/7 labels at 0.65 (review: 11 of 13 hits agreed
     on a fresh file; it is advisory — the writer gate does not ask the DOCS bank). Next: cleanup
     writers per package group.
+  - Step 2 wave 1 (brief `docs-tsdoc-cleanup.md`, branches `docs/tsdoc-<group>` in
+    `../tinkered-doc-<group>`): core `4c0078bb`, hono+http `24596e57`, mcp+harness `3fd0221e`,
+    issue-tracker `d2eb47d3`, examples `e563d3d3`. Wave 2 next: blueprint, tinkerer,
+    process+react, sync+drizzle, playground. One calibration run after both waves.
 
 ## Review
 
