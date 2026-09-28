@@ -32,6 +32,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
+- **perf/cost-timeline** — op-parity found main slower than `core/t27` (`op` +13%, `run` +11%,
+  `create` +17%, `warm` +33%, `tagged` +11%); find which feature cost what. 13 steps across the
+  milestone tags since t27 (deps as values, namespaces, tagged promises, caught subflows, extension
+  hooks, the error model, meta removal, withData), N=31 per step through benchd, one probe for all
+  trees. Owner: lead; timing agent `d0111804` (brief `perf-cost-timeline.md`), which also lands the
+  docs. Verify: per-step costs in budgets.md; the user picks what to win back.
+
 ## Review
 
 | Card | Owner | Next | Verify |
