@@ -45,6 +45,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-25: an Opus 5.5 (high) writer and a Fable 5.1 (medium) reviewer per card; a
 lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
+- **jev/doc-judge-reword** — `docRestatesCode` went noisy on the cleanup's 392 labels (median true
+  75% vs false 68%). ADR 0054: reword once; still noisy, retire. The question mixed "restates" with
+  "contradicts"; the reword asks only "restates" (up to 3 wordings on the same labels, `--dry`),
+  after an honest audit of wrong-claim labels. Owner: lead; writer agent `c29aacb8` in
+  `../tinkered-doc-judge` (brief `jev-doc-judge-reword.md`). Verify: calibration shows the kept
+  wording `proven`, or the judge `retired` with S26 still running.
+
 ## Review
 
 | Card | Owner | Next | Verify |
