@@ -36,7 +36,7 @@ Rules for every ticket:
   answered 500. The tracker's hand mapping goes.
   Verify: `vp run hono#test` covers each answer;
   the tracker's tests pass unchanged.
-- **t03 Drizzle 1.0 RC, pinned** -- [ ] blocked by: none
+- **t03 Drizzle 1.0 RC, pinned** -- [x] landed `4a720d6`
   The repo runs on one exact 1.0 RC of
   `drizzle-orm` and the matching `drizzle-kit`
   (ADR 0079). `@tinker/drizzle` and the tracker

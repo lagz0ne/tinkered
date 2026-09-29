@@ -52,17 +52,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Review
 
-- **stack/t03 drizzle-rc** — Owner: lead (stack session), writer `stack/t03`.
-  Next: the lander reruns the mutation lane alone, then reviews and lands. Writer has not pushed.
-  Verify: gate, 1,466 tests, browser proof, and 44 validation lanes pass.
-  The second full run printed 100.00, but seven of its 20 timeouts were
-  untargeted run-1 survivors in `src/index.ts`:
-  `59:12`, `65:13`, `71:12`, `113:53`, `115:3`, `151:59`, `152:3`.
-  These are load timeouts, not kills.
-  Expected honest score: about 88 (52/59).
-  Focused commit-error check: 5 killed, no timeouts.
-  [Proof and limits](docs/roadmap/stack-v1/PROGRESS.md#t03-writer--2026-09-29).
-
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
 
@@ -108,6 +97,7 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Done
 
+- **stack/t03 drizzle-rc** — the repo runs on one exact Drizzle 1.0 RC: `drizzle-orm` and `drizzle-kit` `1.0.0-rc.4` pinned in the catalog (ADR 0079); `@tinker/drizzle` accepts `^0.45.2 || ^1.0.0-rc.4` (reviewer proved 0.45.2 still works: the package never imports drizzle-orm); the tracker builds its client the 1.0 way. Proof: gate EXIT 0 (drizzle 13, tracker 69), browser proof, drizzle mutation 88.14% (killed 52 / timeout 0 / survived 7; the lane's default 5 s limit starves on this box: 39 / 20 / 0 twice, main 34 / 24 / 1, so the proof run used `--timeoutMS 60000 --concurrency 2`), validate 46/46. Reviewer READY (de555b1a). [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t01 sync-sse** — `@tinker/sync/sse` ships the SSE transport, both halves: `createSseServer(write, signal)` over a plain chunk writer (sync imports no Hono) and `createSseClient({ open, onState, onRetry })`; the tracker and the sync example dropped their copies. Reviewer ran 20,000 random event sequences old vs new: 0 differences. Proof: gate EXIT 0 (sync 69, tracker 69), browser proof 4/4 uncached, sync mutation 86.81%, validate 46/46. Reviewer READY (e9e3562c). [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t05 stack-server** — `@tinker/stack` exists: the server stack piece checks `PORT`/`HOST` in its start (one `BadListenSettings` names every bad key), opens the port after every other start, serves the built client; `runUntilStop` answers the exit code; `jsonLines` writes the logs. The tracker's entry uses it; its root is still one function (ADR 0078). Proof: gate EXIT 0 (stack 38 tests, tracker 69), browser proof (7 tests), stack mutation 87.68%, validate 46/46. Reviewer READY (c2cdb8c8). [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **entries/follow-suit** — Astra writer + Opus review (one fix round); tag `entries/follow-suit`; ADR 0078. Every backend entry and example root now follows ADR 0078; the S27/S28 lint prints no row over apps, examples, and package source (6 rows on main before). Guarded: `packages/blueprint/src/main.ts`, `examples/mcp/cli.ts`, `examples/process-cli/main.ts`; `examples/mcp/serve.ts` became one root function (stops on SIGINT, SIGTERM, or stdin end; review fix: a closed stdin crashed it with exit 13). `boot()` left `examples/sync/hono.ts`; the sync test builds its own root `[web, src]`. The hono, mcp, and sync tours close a rejected `ready`. The `packages/mcp/README.md` entry snippet is guarded. Browser roots stay out of scope. validate 44 PASS, blueprint mutation 86.27, sync mutation 86.49.
