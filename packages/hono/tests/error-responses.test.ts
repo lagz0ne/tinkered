@@ -29,6 +29,15 @@ const readNumber = operation({
   run: (_deps, { input }) => input,
 });
 
+const denied = operation({
+  label: "denied",
+  run: () => {
+    throw new HTTPException(401, {
+      res: new Response("sign in", { status: 401, headers: { "www-authenticate": "Bearer" } }),
+    });
+  },
+});
+
 test("a status-only error row answers a raised kind with an empty body", async () => {
   const { extension: web } = hono([route.get("/missing", missing)], {
     onError: errorResponses({ IssueNotFound: 404 }),
@@ -155,14 +164,6 @@ test("a hand-mounted panic answers 500 and logs its cause through the scope sink
 
 test("an HTTPException keeps its status body and headers without a request failed line", async () => {
   const logs: Observe.Log[] = [];
-  const denied = operation({
-    label: "denied",
-    run: () => {
-      throw new HTTPException(401, {
-        res: new Response("sign in", { status: 401, headers: { "www-authenticate": "Bearer" } }),
-      });
-    },
-  });
   const { extension: web } = hono([route.get("/denied", denied)], {
     onError: errorResponses({ IssueNotFound: 404 }),
   });

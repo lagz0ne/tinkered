@@ -591,3 +591,30 @@ await scope.close();
 
 Hono reads its logger from a resource instead.
 No core code changed.
+
+### t02 final gate
+
+- Rebased onto `origin/main` at `1a06fda`.
+  Kept the lead's board card when resolving the
+  board-only conflict.
+- Build, check, Hono 68 tests, tracker 72 tests: exit 0.
+  Check has 0 errors and 29 warnings.
+- Full repo test run with cache off: all 15 tasks passed.
+- `pnpm validate`, under the shared lock: all 44 lanes
+  passed, exit 0.
+- Jev promises: 0 of 68 titles lack a README line.
+- Strict style census and TSDoc check: exit 0.
+- Two new Jev labels, both `effectWithoutDefer false`:
+  `main.ts#servePort` returns its close to Hono,
+  which registers it with `defer`;
+  Hono's `stream` owns its sessions and closes them
+  on body end or cancel.
+- Five flags in files already on `origin/main` have
+  matching labels in the bank; no source edits.
+  The plain note on the sync tour's `pipe` is not a
+  defect: its factory keeps that tour's local `right`.
+- Promise gaps and helper-size notes are plain output
+  with no judge id accepted by `label.mjs`.
+  The gaps were fixed; the three helper notes concern
+  unchanged tests.
+- Mutation proof still pending.
