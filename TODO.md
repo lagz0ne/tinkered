@@ -23,10 +23,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-| Card                                                                                                                                                                                                                 | Owner         | Next                                                                                                                                                            | Verify                                          |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)                                                                                                | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean   |
-| entries/follow-suit — the other entries on ADR 0078. S27: `packages/blueprint/src/main.ts`, `examples/mcp/cli.ts`, `examples/mcp/serve.ts`, `examples/process-cli/main.ts`. S28: `boot()` in `examples/sync/hono.ts` | lead          | one Astra writer + Fable review                                                                                                                                 | repo lint: 0 S27/S28 rows; gate and tests green |
+| Card                                                                                                                  | Owner         | Next                                                                                                                                                            | Verify                                        |
+| --------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout) | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean |
 
 - **perf/warm-ctl-trade** — win back `s4_warm_ctl` (+0.3 ns, +2.8% at perf/tagged-close) without losing `warm`: both read through `nodeState`; the fix that inlined the whole warm read (611 → 613 bytes) made the bare controller lookup slower. V8 first (inlining of both loops), then N=31 `SCEN="warm s4_warm_ctl"`. Verify: neither "B slower" vs main before perf/tagged-close.
 
@@ -45,6 +44,16 @@ reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, on
   nothing slower, core mutation ≥ 85.
 
 - **perf/lazy-log-obs** — with a log sink or an observer on, build the body's `log` and `obs` tools on first read (memoizing class accessors; no API change; ADR 0073). Owner: lead; Astra writer `70dab046`, now rebased on the lifted tip (`43a99e0`). Review: Fable probe and gate passed; lead READY. Lander `c0a6f174` waits for the perf/tagged-close tag, then lands it. Verify: new probe scenarios `opsink` and `opobs` "B faster", nothing slower; promises 2; `pnpm validate`; core mutation ≥ 85.
+
+- **entries/follow-suit** — every backend entry and example root on ADR 0078 (user 2026-09-29:
+  "check all the app, examples"). Lead audit of main: S27 in `packages/blueprint/src/main.ts`,
+  `examples/mcp/cli.ts`, `examples/mcp/serve.ts` (root built at import), `examples/process-cli/main.ts`;
+  S28 `boot()` in `examples/sync/hono.ts` (also `[src, web]` → server first); no close after a
+  failed `ready` in `examples/hono/basic.ts`, `examples/mcp/basic.ts`, `examples/sync/basic.ts`;
+  the `packages/mcp/README.md` entry snippet. Browser roots are out of scope. Owner: lead
+  (app-roots session); Astra writer `19f6f93d`, worktree `/home/paseo/next/tinkered-follow-suit`.
+  Next: Fable review. Verify: S27/S28 lint prints no row; importing each entry starts nothing;
+  `serve.ts` exits 0 on SIGTERM; gate, sync tests, `pnpm validate`.
 
 ## Review
 
