@@ -1045,8 +1045,8 @@ It also closes old handles after a fresh start.
 ## t12 writer work
 
 - Owner: stack/t12 writer, branch `stack/t12`.
-- Next: finish the gate, browser proof, Jev, validation,
-  and the stack mutation lane; then send to review.
+- Status: Review; all writer checks passed.
+- Next: lead review and landing.
 - Verify: two scopes, one PGlite, real NATS;
   both directions, no GET or rollback signal, close cleanup.
 - Base: fresh `origin/main` at `5121bb9d`.
@@ -1137,3 +1137,29 @@ console.log(end.status, end.teardownErrors?.length);
 Observed: `success 1`, with zero saved rows.
 Expected from status alone: a committed save.
 No core code changed; the stack now checks the full result.
+
+### t12 validation and mutation proof
+
+- `pnpm validate`: all 48 lanes passed, `EXIT 0`.
+  Ran in the foreground under `/tmp/mutation.lock`.
+  `pnpm-workspace.yaml` has no branch change.
+- First full stack mutation lane under the same lock:
+  **90.23**, 229 killed, 11 timed out, 26 survived;
+  zero without coverage or errors, `EXIT 0`.
+- The busy-host rerun used `--timeoutMS 60000`
+  and `--concurrency 2`, as the user asked.
+  **89.47**, 238 killed, 0 timed out, 28 survived;
+  zero without coverage or errors, `EXIT 0`.
+- The new `publish.ts` scored 95.24 on that rerun.
+  All stack source stays included; the floor stays 85.
+- Both full logs and JSON reports are saved in
+  `/home/paseo/.cache/tinkered-briefs/`:
+  `stack-t12-mutation-default` and `stack-t12-mutation-60s`.
+- No NATS server process remained after the runs.
+  Removed the nine new temp stores left by timed-out tests.
+  Stores present before the run were left alone.
+- Last fetch and rebase: still `edb51742`.
+  The migrate ticket had not landed on `origin/main`.
+- Status: Review.
+  Next: lead reviews and lands `stack/t12`.
+  All long jobs finished in this turn; nothing pushed.
