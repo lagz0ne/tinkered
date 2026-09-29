@@ -35,11 +35,15 @@
   "dependencies": {
     "@hono/node-server": "1.19.17",
     "@tinker/core": "workspace:*",
-    "@tinker/hono": "workspace:*"
+    "@tinker/hono": "workspace:*",
+    "@tinker/nats": "workspace:*"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "catalog:",
     "@stryker-mutator/core": "catalog:",
     "@stryker-mutator/vitest-runner": "catalog:",
+    "@tinker/drizzle": "workspace:*",
+    "@tinker/sync": "workspace:*",
     "@types/node": "26.5.1",
     "typescript": "7.0.2",
     "vite": "catalog:",

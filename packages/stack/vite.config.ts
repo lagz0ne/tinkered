@@ -4,7 +4,7 @@ export default defineConfig({
   pack: {
     deps: {
       resolveDepSubpath: true,
-      neverBundle: ["@tinker/core", "@tinker/hono", "@hono/node-server"],
+      neverBundle: ["@tinker/core", "@tinker/hono", "@tinker/nats", "@hono/node-server"],
     },
     dts: { generator: "tsgo" },
     exports: true,

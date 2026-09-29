@@ -919,13 +919,25 @@ importers:
       '@tinker/hono':
         specifier: workspace:*
         version: link:../hono
+      '@tinker/nats':
+        specifier: workspace:*
+        version: link:../nats
     devDependencies:
+      '@electric-sql/pglite':
+        specifier: 'catalog:'
+        version: 0.5.8
       '@stryker-mutator/core':
         specifier: 'catalog:'
         version: 10.0.0(@types/node@26.5.1)
       '@stryker-mutator/vitest-runner':
         specifier: 'catalog:'
         version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@26.5.1))(vitest@4.1.11)
+      '@tinker/drizzle':
+        specifier: workspace:*
+        version: link:../drizzle
+      '@tinker/sync':
+        specifier: workspace:*
+        version: link:../sync
       '@types/node':
         specifier: 26.5.1
         version: 26.5.1

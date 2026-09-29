@@ -71,6 +71,49 @@ Each call writes one JSON object without a newline;
 the root adds the newline when it writes to stdout.
 `describeError(error)` keeps error fields for the log.
 
+## Publish after commit
+
+`publishAfterCommit(publishIssues)` runs the app's read
+operation at boot and after each committed non-GET request.
+The operation reads storage and sets the root's sync cells.
+Manual sessions do not trigger it.
+A boot read failure rejects ready.
+A read failure after commit logs `publish failed` and
+keeps the request's answer.
+
+For several server processes, use one subject per app:
+
+```ts
+extensions: [
+  web,
+  src,
+  liveUpdates(publishIssues, {
+    subject: "issues.changed",
+    env: process.env,
+  }),
+];
+```
+
+Make a fresh piece for each root.
+The nested row holds the publisher and its NATS extension.
+NATS checks `NATS_URL` at start.
+A subject must have nonempty parts split by dots,
+with no space or wildcard (`*` or `>`).
+A bad subject raises `BadLiveSubject` with `{ subject }`.
+
+Each successful read after commit sends one empty message.
+One app subject fits one operation that reads all published
+cells; a subject per cell would repeat that same read.
+The signal carries no saved data.
+Every process reads the database again, including the sender.
+Those reads never send another signal.
+The app's read must be safe to repeat; `publishIssues`
+keeps equal snapshots unchanged.
+NATS closes the subscriptions with their scope.
+
+Core NATS does not keep messages for a disconnected server.
+A later commit or a new boot reads the current database.
+
 ## Promises
 
 - Opens the port only after every other start finishes.
@@ -98,6 +141,23 @@ the root adds the newline when it writes to stdout.
 - JSON lines carry scope logs and failed spans with
   their fields; successful spans are left out.
 - A JSON writer failure does not stop scope work.
+- A committed save reaches the other server's sync subscriber
+  in both directions.
+- One empty signal per commit re-reads on the sender without
+  another snapshot or signal.
+- GET and a rolled-back save send no signal.
+- Closing one server removes its NATS subscription while the
+  other keeps publishing.
+- A different app subject leaves its published cells alone.
+- Live updates require NATS_URL at boot.
+- Local publishing runs after later starts and before the
+  first request.
+- A failed boot publish rejects ready with its cause.
+- A failed publish after commit keeps the answer and the next
+  commit retries.
+- A manual session does not publish after boot.
+- The graph traces the changed signal and the root re-read.
+- An invalid live subject fails boot.
 
 ## Checks
 

@@ -1,4 +1,5 @@
 type Payloads = {
+  BadLiveSubject: { subject: string };
   BadListenSettings: { keys: string[] };
 };
 

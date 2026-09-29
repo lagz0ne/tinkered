@@ -1041,3 +1041,28 @@ It also closes old handles after a fresh start.
   and zero `nats-server` processes.
 - Final logs use the `stack-t07-download-rebased-` prefix in
   `/home/paseo/.cache/tinkered-briefs/`.
+
+## t12 writer work
+
+- Owner: stack/t12 writer, branch `stack/t12`.
+- Next: finish the gate, browser proof, Jev, validation,
+  and the stack mutation lane; then send to review.
+- Verify: two scopes, one PGlite, real NATS;
+  both directions, no GET or rollback signal, close cleanup.
+- Base: fresh `origin/main` at `5121bb9d`.
+- No existing package API is removed or changed.
+  New stack exports are `publishAfterCommit` and `liveUpdates`.
+  The tracker keeps its public `publish()` shape.
+- Assumption: one subject, `issues.changed`, per app.
+  The app has one operation that reads every published cell.
+- The sender re-reads too; equal rows keep the snapshot.
+  Re-reads do not emit a signal, so there is no loop.
+- Assumption: a root row may hold nested extensions,
+  as core's `Many` already allows.
+  The piece keeps NATS's own extension and cleanup.
+- With no `NATS_URL`, the tracker lists local publishing.
+  A listed live piece checks config during start.
+- The existing tracker tests and store are unchanged.
+  The shared database test borrows one PGlite in both stores.
+- The brief's “Round 5, decided” heading is absent.
+  Read Round 3 decisions and Round 5 research instead.

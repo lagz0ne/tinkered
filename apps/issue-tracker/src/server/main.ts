@@ -1,11 +1,12 @@
 import { join } from "node:path";
 import { createScope } from "@tinker/core";
-import { jsonLines, runUntilStop, server } from "@tinker/stack";
+import { jsonLines, liveUpdates, runUntilStop, server } from "@tinker/stack";
 import { draftTags, type DraftConfig } from "./draft.ts";
 import { issueServer } from "./routes.ts";
 import { publish } from "./publish.ts";
 import { store } from "./store.ts";
 import { src } from "./sync.ts";
+import { publishIssues } from "./operations.ts";
 
 function readDraftOptIn(
   env: NodeJS.ProcessEnv,
@@ -37,7 +38,9 @@ export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal): Prom
       server(web, { env: listen, clientDir: join(process.cwd(), "dist", "client"), observe }),
       web,
       src,
-      publish(),
+      env.NATS_URL === undefined
+        ? publish()
+        : liveUpdates(publishIssues, { subject: "issues.changed", env }),
     ],
     observe,
   });
