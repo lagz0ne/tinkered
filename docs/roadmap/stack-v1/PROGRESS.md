@@ -207,3 +207,45 @@ Verify: stack and tracker tests, browser proof, gate,
   The stack has no missing-key defaults.
 - HOST means an IP address or a DNS host name.
   Empty names, URLs, and spaces are bad settings.
+
+### Core feedback: start logs are dropped
+
+An extension start gets a ctx whose log does not
+reach the scope sink.
+This public-seam check fails: the actual list is empty.
+The stack passes the root's sink into its listener
+piece and writes the listen line there.
+
+```ts
+const lines: string[] = [];
+const scope = createScope({
+  observe: { log: (e) => lines.push(e.message) },
+  extensions: [
+    extension({
+      label: "boot-log",
+      start: (_scope, ctx) => ctx.log("hello"),
+    }),
+  ],
+});
+await scope.ready;
+await scope.close();
+expect(lines).toEqual(["hello"]);
+```
+
+### Review notes
+
+- Env is an argument because only this piece reads it.
+- The root supplies the clock for stop logs.
+  The package does not read ambient time.
+- The tracker still uses `@hono/node-server` in test
+  fixtures, so it stays as a pinned dev dependency.
+- Workspaces already include `packages/*`.
+  The root has no package tsconfig references to add.
+- Added stack test, size, and mutation lanes and the
+  driver entry in `scripts/two-hands.sh`.
+- `main..HEAD` also included the upstream entry fixes.
+  Their existing Jev labels remain in the bank.
+  The sync tour's local resource captures its local
+  memory wire; that code was not changed by t05.
+- Jev found a missing README error name for a non-text
+  draft prompt; the README now states `BadDraftInput`.

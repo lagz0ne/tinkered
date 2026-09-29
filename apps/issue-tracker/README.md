@@ -97,6 +97,7 @@ are denied. A credentialed live model run was not verified.
 
 A draft request's `prompt` is optional. A blank one asks for the default
 summary; one that is not text answers 400 and runs no model.
+`parseDraftInput` raises `BadDraftInput` for a prompt that is not text.
 
 ## Run it
 
