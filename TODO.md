@@ -39,6 +39,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **stack/t15 server-pages** — the tracker's list page renders on the server with TanStack Router (ADR 0075). After t14. Verify: the browser test sees the list in the first HTML, then live updates. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t16 generator** — `vp create` writes a full app with every stack piece wired (ADR 0074). After t01, t02, t11, t12, t13, t15. Verify: a fresh app passes `vp check` and its tests, and boots in dev and prod. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **core/start-log** — `ctx.log` inside an extension's `start` reaches the scope's sink. Today the start ctx gets `OFF_LOG`, so a boot line is dropped even with an observe sink; three askers: stack/t02, stack/t05, stack/t07 (the stack writes to the sink directly as a workaround). Next: brief a writer after stack/t04 lands (one core card at a time). Verify: a probe logging before and after `next()` in a start prints both lines; core tests; `scripts/ticket.sh`; `pnpm validate`.
+- **core/close-hook-scope** — an extension can tell the scope began closing, on a graceful close too (a signal or state its start can read), and its close hook gets the scope. Two askers: sync/subscribe (a `closing` flag set by its close hook) and stack/t07 (nats replaces core's `scope.close` on its handle as a stopgap). Next: brief a writer after stack/t04 and core/start-log (one core card at a time). Verify: sync drops its `closing` flag and nats drops its `scope.close` patch; core tests; `scripts/ticket.sh`; `pnpm validate`.
 
 ## Doing
 
@@ -49,14 +50,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 - **stack/t04 trace-id** — core: a span carries a trace id; Hono seeds it from `traceparent` (ADR 0076). Owner: lead (stack session); Astra writer `5e69613c`, worktree `/home/paseo/next/tinkered-stack-t04`; the only core card now; Opus reviewer when the writer reports. Verify: core and hono tests, `scripts/ticket.sh`, `pnpm validate`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 
 ## Review
-
-- **stack/t07 nats** — Owner: writer (Codex).
-  Saved the download status fix on `stack/t07`.
-  Next: lead review and land.
-  Verify: gate exit 0; 19 NATS tests; mutation 91.43;
-  all 48 validate lanes, prose, and strict style census pass.
-  No temp NATS stores or NATS processes remain.
-  [Proof](docs/roadmap/stack-v1/PROGRESS.md#t07-download-status-fix).
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
@@ -103,6 +96,7 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Done
 
+- **stack/t07 nats** — `@tinker/nats` on the NATS v3 client (pinned): the extension checks `NATS_URL` in start and connects at boot even with no subscriptions (fail fast on an unreachable server, a deliberate reading of ADR 0081 §4); publish is an operation; a subscription row runs its operation in its own session per message, a failure logs one line and the next message runs; close drains then closes; a second live start of one piece fails `PieceInUse`. Tests run a real `nats-server` v2.15.0, SHA-256 checked, cached. Proof: gate EXIT 0 (nats 19), nats mutation 91.43% (224/0/15 at 60 s; the lane's 10 s limit gave 193/31/15, same score), validate 48/48. Reviewer READY (f9c360e0). [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t02 hono-errors** — a managed error becomes its HTTP answer through `@tinker/hono`: an error table maps a kind to a status, or a status plus a body from the payload (Rails `rescue_responses`); an unmapped error logs one line through the scope's sink and answers 500; `HTTPException` keeps its response. The tracker declares its table; every answer is byte-for-byte the same (reviewer probed each kind). Proof: gate EXIT 0 (hono 68, tracker 69), browser proof, hono mutation 85.27% (249/0/41), validate 46/46. Reviewer READY (f0f42868). [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t03 drizzle-rc** — the repo runs on one exact Drizzle 1.0 RC: `drizzle-orm` and `drizzle-kit` `1.0.0-rc.4` pinned in the catalog (ADR 0079); `@tinker/drizzle` accepts `^0.45.2 || ^1.0.0-rc.4` (reviewer proved 0.45.2 still works: the package never imports drizzle-orm); the tracker builds its client the 1.0 way. Proof: gate EXIT 0 (drizzle 13, tracker 69), browser proof, drizzle mutation 88.14% (killed 52 / timeout 0 / survived 7; the lane's default 5 s limit starves on this box: 39 / 20 / 0 twice, main 34 / 24 / 1, so the proof run used `--timeoutMS 60000 --concurrency 2`), validate 46/46. Reviewer READY (de555b1a). [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t01 sync-sse** — `@tinker/sync/sse` ships the SSE transport, both halves: `createSseServer(write, signal)` over a plain chunk writer (sync imports no Hono) and `createSseClient({ open, onState, onRetry })`; the tracker and the sync example dropped their copies. Reviewer ran 20,000 random event sequences old vs new: 0 differences. Proof: gate EXIT 0 (sync 69, tracker 69), browser proof 4/4 uncached, sync mutation 86.81%, validate 46/46. Reviewer READY (e9e3562c). [track](docs/roadmap/stack-v1/PROGRESS.md).

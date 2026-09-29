@@ -81,7 +81,7 @@ Rules for every ticket:
   files differ; a test opens an old tracker
   database and keeps its rows; drizzle, stack, and
   tracker tests green.
-- **t07 nats stack piece** -- [ ] blocked by: none
+- **t07 nats stack piece** -- [x] landed `214e246`
   `@tinker/nats` checks `NATS_URL` at start and
   connects (ADR 0080). A subscription runs an
   operation in its own session. The `traceparent`
@@ -90,6 +90,8 @@ Rules for every ticket:
   fetched once into a cache.
   Verify: `vp run nats#test` against a real server;
   a missing `NATS_URL` fails boot naming it.
+  nats patches core's `scope.close` on its handle
+  until core/close-hook-scope lands.
 - **t08 jobs stack piece** -- [ ] blocked by: t06
   `@tinker/jobs` runs pg-boss as a driver. Each
   job's operation runs in its own session: success
