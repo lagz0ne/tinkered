@@ -490,11 +490,18 @@ flock /tmp/mutation.lock \
 - Two surviving changes hide a commit failure from the caller.
   The README already promises that a failed commit rejects the session.
   Added a PGlite test with a unique constraint checked only at commit.
-  The session must reject with the database error.
+  The session rejects with core's `TeardownFailed`;
+  its `payload.causes` holds the database error.
 - Re-ran the final gate, all tests, browser proof, and validation after adding it.
-- The second full run passed: 100.00, `EXIT 0`.
+- The second full run printed 100.00, `EXIT 0`.
   It reported 39 killed, 20 timed out, no survivors, and no report errors.
-  The score includes timeouts; it does not prove 59 test failures.
+  Seven of its 20 timeouts were untargeted run-1 survivors in `src/index.ts`:
+  `59:12`, `65:13`, `71:12`, `113:53`, `115:3`, `151:59`, `152:3`.
+  These are load timeouts, not kills; a changed label string cannot hang a test.
+  The printed score is not a real result.
+- Expected honest score: about 88 (52/59).
+  Run 1 had 47 killed plus 3 timeouts; the new test adds 2 kills.
+  The lander should rerun the full lane alone to confirm it.
 - Both full runs used `flock /tmp/mutation.lock`.
   The second run departs from the brief's one-run limit because the first was red.
 - The first focused range, `src/index.ts:144-145`, killed all four expression changes.

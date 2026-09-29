@@ -183,7 +183,7 @@ test("a session insert commits: a root read sees the row after success", async (
   await scope.close();
 });
 
-test("a failed commit rejects the session with its database error", async () => {
+test("a failed commit rejects the session with TeardownFailed holding the database error", async () => {
   const store = usersStore("users");
   const scope = createScope({ tags: [store.config(null)] });
   const db = await scope.controller(store.db).resolve();

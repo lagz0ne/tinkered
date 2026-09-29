@@ -53,9 +53,13 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 ## Review
 
 - **stack/t03 drizzle-rc** — Owner: lead (stack session), writer `stack/t03`.
-  Next: lead review and landing. Writer has not pushed.
+  Next: the lander reruns the mutation lane alone, then reviews and lands. Writer has not pushed.
   Verify: gate, 1,466 tests, browser proof, and 44 validation lanes pass.
-  Full mutation: 100.00 (39 killed, 20 timed out).
+  The second full run printed 100.00, but seven of its 20 timeouts were
+  untargeted run-1 survivors in `src/index.ts`:
+  `59:12`, `65:13`, `71:12`, `113:53`, `115:3`, `151:59`, `152:3`.
+  These are load timeouts, not kills.
+  Expected honest score: about 88 (52/59).
   Focused commit-error check: 5 killed, no timeouts.
   [Proof and limits](docs/roadmap/stack-v1/PROGRESS.md#t03-writer--2026-09-29).
 
