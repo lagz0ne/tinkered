@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { expect, test } from "vite-plus/test";
 import {
   createScope,
@@ -18,6 +19,48 @@ const seed: Observe.Trace = {
   sampled: false,
 };
 const hint = tag<string>({ label: "hint" });
+
+test("importing core draws no random values; the id stream seeds on the first observed span", () => {
+  expect(
+    execFileSync(
+      process.execPath,
+      [
+        "--experimental-strip-types",
+        "--no-warnings",
+        "--input-type=module",
+        "--eval",
+        `
+          import assert from "node:assert/strict";
+          const getRandomValues = crypto.getRandomValues.bind(crypto);
+          let allowed = false;
+          crypto.getRandomValues = (words) => {
+            assert.ok(allowed, "random values are not allowed in global scope");
+            return getRandomValues(words);
+          };
+          const { createScope } = await import(process.argv[1]);
+          const off = createScope();
+          assert.equal(off.run({ run: () => 42 }), 42);
+          await off.close();
+          const observed = createScope({ observe: { history: 10 } });
+          allowed = true;
+          const first = observed.run({ run: (_deps, { obs }) => obs.span });
+          allowed = false;
+          const second = observed.run({ run: (_deps, { obs }) => obs.span });
+          for (const span of [first, second]) {
+            assert.match(span.traceId, /^[0-9a-f]{32}$/);
+            assert.match(span.spanId, /^[0-9a-f]{16}$/);
+            assert.notEqual(span.traceId, "0".repeat(32));
+            assert.notEqual(span.spanId, "0".repeat(16));
+          }
+          await observed.close();
+          process.stdout.write("ok");
+        `,
+        new URL("../src/index.ts", import.meta.url).href,
+      ],
+      { encoding: "utf8" },
+    ),
+  ).toBe("ok");
+});
 
 test("a root span has nonzero W3C ids before its body runs", async () => {
   const scope = createScope({ observe: { history: 10 } });

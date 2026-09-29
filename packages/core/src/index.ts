@@ -1782,13 +1782,13 @@ export function makeTestClock(options?: Clock.Options): Clock.Test {
  * inside a declaration tagged `@ambientSource`, and only there.
  *
  * @ambientSource */
-const systemRandom = (() => {
-  const [a, b, c, d] = crypto.getRandomValues(new Int32Array(4));
-  return {
-    source: { next: () => Math.random(), uuid: () => crypto.randomUUID() },
-    ids: { a: a!, b: b!, c: c!, d: d! || 1 },
-  };
-})();
+const systemRandom = {
+  source: { next: () => Math.random(), uuid: () => crypto.randomUUID() },
+  seed: () => {
+    const [a, b, c, d] = crypto.getRandomValues(new Int32Array(4));
+    return { a: a!, b: b!, c: c!, d: d! || 1 };
+  },
+};
 
 /** Create a seeded randomness source for tests: the same `seed` replays the same `next` and `uuid`
  * stream, drawn from one mulberry32 generator. Pass it to `createScope({ random })` (ADR 0062). */
@@ -1869,7 +1869,8 @@ class SpanImpl implements Observe.Span {
   end: number | undefined = undefined;
   status: "ok" | "failed" | undefined = undefined;
   declare error?: unknown;
-  private static seeded = new WeakMap<Random.Handle, typeof systemRandom.ids>();
+  private static system: ReturnType<typeof systemRandom.seed> | undefined;
+  private static seeded = new WeakMap<Random.Handle, ReturnType<typeof systemRandom.seed>>();
   declare private trace:
     | { a: number; b: number; c: number; d: number; text: string | undefined }
     | undefined;
@@ -1970,7 +1971,7 @@ class SpanImpl implements Observe.Span {
   }
 
   /** Marsaglia's xorshift128: four nonzero-together 32-bit words, never user draws. */
-  private static word(state: typeof systemRandom.ids): number {
+  private static word(state: ReturnType<typeof systemRandom.seed>): number {
     const t = state.a ^ (state.a << 11);
     state.a = state.b;
     state.b = state.c;
@@ -1978,10 +1979,11 @@ class SpanImpl implements Observe.Span {
     return (state.d = state.d ^ (state.d >>> 19) ^ t ^ (t >>> 8));
   }
 
-  private static randomFor(random: Random.Handle): typeof systemRandom.ids {
-    return random === systemRandom.source
-      ? systemRandom.ids
-      : (SpanImpl.seeded.get(random) ?? systemRandom.ids);
+  private static randomFor(random: Random.Handle): ReturnType<typeof systemRandom.seed> {
+    return (
+      (random === systemRandom.source ? undefined : SpanImpl.seeded.get(random)) ??
+      (SpanImpl.system ??= systemRandom.seed())
+    );
   }
 
   private static traceFor(layer: Layer, parent: SpanImpl | undefined): SpanImpl["trace"] {

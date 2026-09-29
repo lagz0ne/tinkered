@@ -801,6 +801,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 
 ## Trace ids
 
+- Importing core draws no random values; the id stream seeds on the first observed span.
 - A root span has nonzero W3C ids before its body runs.
 - Operation, resource, and manual children inherit the trace and name their parent span.
 - Two unseeded root spans start different traces.

@@ -1567,3 +1567,24 @@ impact stack/t04: as planned (0 discrepancies). Advisory — never a gate.
 - No new core feedback beyond the fixed F1/F4 bugs.
 - No job remains running; nothing was pushed.
 - Full logs, raw rows, label commands, and mutation JSON: `.bench/stack-t04-round2-proof/`.
+
+## t04 reviewer F5 — import draws no random values
+
+- Request: keep the accepted private stream; fix import under a Worker random-value guard.
+- System ID state now seeds on the first observed span and stays cached on `SpanImpl`.
+- No new module-level name; the stream algorithm, draw order, and lazy hex text stay unchanged.
+- Added a real child-process test and the matching README promise.
+- The child blocks crypto during import, unobserved work, and scope creation.
+- It allows the first observed span, then blocks crypto again while the next span opens.
+- Both spans have valid nonzero IDs.
+- Before the source fix: the new test failed on import; 15 passed, one failed; `RED_EXIT=1`.
+- After the source fix: all 16 trace tests pass.
+- `global.mjs` prints `import ok`.
+- `stream2.mjs` gives identical test and custom values with observation off and on.
+- The custom source still has four calls in each case; `STREAM_EXIT=0`.
+- Slots: 252 hot names, last slot 254; one spare name; `SLOTS_EXIT=0`.
+- Full requested gate: build, check, and all workspace tests; `EXIT=0`.
+- Core: 731 tests; Hono: 65; HTTP: 86; check has zero errors and the same 29 warnings.
+- SCIP impact check: zero discrepancies.
+- Validation and review results follow below when complete.
+- Raw proof: `.bench/stack-t04-f5-proof/`.
