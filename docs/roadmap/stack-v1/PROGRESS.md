@@ -779,6 +779,8 @@ await scope.close();
   or its `issues-port-` store folders.
 - The child helper hides stderr and can return an empty result.
   The old failure does not give enough proof to name its cause.
+- Extra process load could affect child startup on this shared host.
+  The dropped stderr prevents a firm cause for the earlier failure.
 - Fresh `vp test tests/config.test.ts` from the tracker:
   five tests passed, exit 0, with no code change.
 - The rebase onto `ba39695` brought in stack/t05.
@@ -820,3 +822,32 @@ await scope.close();
 - Strict style census: OK.
 - Fresh `origin/main` at `ba39695`: build and check exit 0.
   Check reports 29 warnings and no errors.
+
+### t07 focused kill proof
+
+Run from `packages/nats`, under the shared mutation lock:
+
+```bash
+npx stryker run --mutate "src/<file>:L-L" \
+  --reporters clear-text --logLevel debug
+```
+
+Stryker 10 prints killed cases at the debug log level.
+Each row below has printed `[Killed]` cases.
+The counts keep timeouts separate.
+
+- `src/errors.ts:21-23`: `[Killed]` 6; score 100.00; exit 0.
+- `src/index.ts:35-147`: `[Killed]` 71; 8 timeouts;
+  1 survivor; score 98.75; exit 0.
+- `src/testing.ts:13-78`: `[Killed]` 58;
+  6 survivors and 3 not covered on this host;
+  score 86.57; exit 0.
+- `src/testing.ts:83-131`: `[Killed]` 30; 16 timeouts;
+  3 survivors and 2 invalid mutants;
+  score 93.88; exit 0.
+
+The dropped delivery at `src/index.ts:88` is `[Killed]`
+by the queued-message and reply test.
+Logs are in `/home/paseo/.cache/tinkered-briefs/`,
+with the `stack-t07-kill-` prefix.
+No source file was excluded and the floor stays 85.
