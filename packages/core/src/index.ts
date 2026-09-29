@@ -1045,6 +1045,7 @@ function nodeState(layer: Layer, key: object): NodeState {
 
 /** {@link nodeState}'s first visit, its own function so the hit path stays small to inline. */
 function addNodeState(layer: Layer, key: object): NodeState {
+  materialize(layer);
   const s = new NodeState();
   if (layer.nodes === NO_NODES) layer.nodes = new Map();
   layer.nodes.set(key, s);
@@ -1059,6 +1060,7 @@ let buildDepth = 0;
 /** Materialize this layer's AbortController on first `ctx.signal` read (kept in sync with the cheap
  * `aborted` flag). Most scopes never hand out a signal, so most never allocate one. */
 function signalOf(layer: Layer): AbortSignal {
+  materialize(layer);
   let ac = layer.abort;
   if (!ac) {
     ac = new AbortController();
@@ -1090,6 +1092,8 @@ const NO_ERRORS: unknown[] = [];
 
 /** One layer of the scope chain. A session is a child layer. */
 type Layer = {
+  /** A tagged frame has no owned state or parent registration until its first use. */
+  lazy?: boolean;
   parent: Layer | undefined;
   children: Set<Layer>;
   /** Single node-keyed store: cells, effective-cache, resources, builds, generations, build-flag,
@@ -1554,6 +1558,7 @@ function writeWithHooks<T>(
 }
 
 function dataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataController<T> {
+  if (layer.lazy) return frameDataController(layer, target);
   const rec = nodeState(layer, target);
   const get = (): T => {
     const entry = rec.eff;
@@ -2040,6 +2045,7 @@ function runFailure(layer: Layer, caller: RunState | undefined): (error: unknown
 function stick(layer: Layer, error: unknown): void {
   if (layer.failure !== undefined || isCancel(layer, error) || failureKind(error) === "error")
     return;
+  materialize(layer);
   (layer.panics ??= []).push(error);
 }
 
@@ -2048,7 +2054,7 @@ function stick(layer: Layer, error: unknown): void {
  * hot check too big for V8 to inline into close. */
 function failureOf(layer: Layer): { cause: unknown } | undefined {
   const panics = layer.panics;
-  return panics === undefined ? layer.failure : { cause: panics[0] };
+  return panics === undefined ? layer.failure : { cause: panics.at(0) };
 }
 
 /** Track owned async work so `settled()`/`close` join it. `onReject` decides where a rejection
@@ -2080,12 +2086,14 @@ function track(
 
 /** Add owned work to a layer, giving it its own set on the first add ({@link NO_WORK}). */
 function addWork(layer: Layer, work: Promise<unknown>): void {
+  materialize(layer);
   if (layer.pending === NO_WORK) layer.pending = new Set();
   layer.pending.add(work);
 }
 
 /** Register a close-time cleanup on a layer, giving it its own list on the first one. */
 function addDefer(layer: Layer, entry: DeferEntry): void {
+  materialize(layer);
   if (layer.defers === NO_DEFERS) layer.defers = [];
   layer.defers.push(entry);
 }
@@ -2256,6 +2264,7 @@ class OperationCtx<I> implements Operation.Ctx<I> {
     this.random = owner.random;
   }
   readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
+    materialize(this.owner);
     (this.defers ??= []).push(fn);
   };
   get raise(): Operation.Ctx<I>["raise"] {
@@ -2314,23 +2323,46 @@ function runTagged<T, I>(
       caller,
     ) as Awaited<T> | Promise<Awaited<T>>;
   } else {
-    /** The same life {@link runSessionWith} runs, with the replay called here instead of through
-     * a body closure: nothing to allocate for the call but the child itself. No public handle can
-     * reach this child. */
-    let child: Layer | undefined;
-    let raw: unknown;
-    try {
-      child = startChild(layer, { tags, ns: chain }, caller);
-      raw = adoptBody(runUntagged(child, target, parent, inner, chain, undefined, nested));
-    } catch (error) {
-      raw = Promise.reject(error);
-    }
-    tagged = (child === undefined ? raw : endSession(child, raw)) as
+    tagged = runTaggedFrame(layer, target, parent, caller, tags, chain, inner, nested) as
       | Awaited<T>
       | Promise<Awaited<T>>;
   }
   if (caller) track(layer, tagged, runFailure(layer, caller));
   return tagged;
+}
+
+/** Only the synchronous prefix can be absent from the parent tree. Pending work promotes
+ * before yielding; an explicit close promotes every active prefix before taking its snapshot. */
+let activeTagged: TaggedFrame | undefined;
+
+/** No session handle escapes this path. The first owned state attaches the frame to its parent;
+ * otherwise ending only seals the context and drops the tag bindings (ADR 0071/0072). */
+function runTaggedFrame<T, I>(
+  layer: Layer,
+  target: Operation.Handle<T, I>,
+  parent: Observe.Span | undefined,
+  caller: RunState | undefined,
+  tags: Scope.Bindings,
+  chain: readonly Namespace[] | undefined,
+  call: Scope.Invocation<I> | undefined,
+  nested: boolean,
+): unknown {
+  let child: TaggedFrame | undefined;
+  let raw: unknown;
+  const previous = activeTagged;
+  try {
+    ensureOpen(layer);
+    child = new TaggedFrame(layer, tags, chain, caller, previous);
+    activeTagged = child;
+    if (layer.swept) materialize(child);
+    raw = adoptBody(runUntagged(child, target, parent, call, chain, undefined, nested));
+  } catch (error) {
+    raw = Promise.reject(error);
+  } finally {
+    activeTagged = previous;
+    if (child) child.previous = undefined;
+  }
+  return endTaggedFrame(child, raw);
 }
 
 /** Run `target` in the call's namespace (ADR 0059). The real layer remains the owner of
@@ -3542,6 +3574,7 @@ function nsFor(
 /** A child layer: the parent's services and routes, its tags, presets, and namespace, and the
  * `swept`/abort state of a close already under way above it. */
 function makeLayer(parent: Layer, options?: Scope.Options): Layer {
+  materialize(parent);
   const layer = layerRecord(parent, options, parent.obs, parent.clock, parent.random, parent.exts);
   if (parent.children === NO_CHILDREN) parent.children = new Set();
   parent.children.add(layer);
@@ -3825,6 +3858,7 @@ const ENDED_CLEAN: Promise<Scope.Result> = Promise.resolve({
  * also means a session's automatic self-close does not override an in-progress explicit graceful
  * close (ADR 0028). */
 function closeLayer(layer: Layer, force: boolean, withData: boolean): Promise<Scope.Result> {
+  materializeActiveFrames();
   /** Only a session under a root with `session` hooks has an entry, and its route says so: a
    * no-hook close never reads the table. */
   const hooks = layer.exts.sessions === undefined ? undefined : SESSION_HOOKS.get(layer);
@@ -4800,7 +4834,7 @@ function memoEntry(
   hops: number,
 ): Entry {
   if (self !== undefined) self.eff = entry;
-  else if (hops >= 2) nodeState(layer, target).eff = entry;
+  else if (hops >= 2 && !layer.lazy) nodeState(layer, target).eff = entry;
   return entry;
 }
 
@@ -5201,6 +5235,7 @@ function reentersTeardown(target: Layer): boolean {
 
 /** Collect a teardown error on a layer, giving it its own list on the first one. */
 function addError(layer: Layer, cause: unknown): void {
+  materialize(layer);
   if (layer.secondary === NO_ERRORS) layer.secondary = [];
   layer.secondary.push(cause);
 }
@@ -5220,4 +5255,137 @@ async function closeEach(layer: Layer, force: boolean): Promise<void> {
       false,
     );
   }
+}
+
+/** A frame grows in place, so controllers, contexts, and failure owners keep their identity. */
+function materialize(layer: Layer): void {
+  if (layer.lazy && !layer.closed) expandFrame(layer as TaggedFrame);
+}
+
+/** Shared empty state is inherited until promotion. All writes go through the same first-use
+ * gates as full layers; promotion copies these slots before anything can own state. */
+const FRAME_STATE = {
+  children: NO_CHILDREN,
+  nodes: NO_NODES,
+  presets: undefined,
+  pending: NO_WORK,
+  defers: NO_DEFERS,
+  resourceHolds: 0,
+  aborted: false,
+  abortReason: undefined,
+  abort: undefined,
+  cancelled: false,
+  swept: false,
+  bodyEnd: undefined,
+  failure: undefined,
+  descendantFailure: undefined,
+  secondary: NO_ERRORS,
+  body: undefined,
+  closed: false,
+  closing: undefined,
+  emptyCtx: undefined,
+};
+
+/** A tagged session before it owns anything. The prototype supplies only immutable defaults;
+ * its services and bindings are retained from this call, never borrowed from a sibling. */
+class TaggedFrame implements Layer {
+  declare parent: Layer;
+  declare tags: LayerTags | undefined;
+  declare ns: readonly Namespace[] | undefined;
+  declare failureOwner: RunState | undefined;
+  declare obs: Obs;
+  declare clock: Clock.Handle;
+  declare random: Random.Handle;
+  declare exts: ExtRoutes;
+  declare previous: TaggedFrame | undefined;
+  declare lazy: boolean;
+  declare children: Set<Layer>;
+  declare nodes: Map<object, NodeState>;
+  declare presets: Map<unknown, unknown> | undefined;
+  declare pending: Set<Promise<unknown>>;
+  declare defers: DeferEntry[];
+  declare resourceHolds: number;
+  declare aborted: boolean;
+  declare abortReason: unknown;
+  declare abort: AbortController | undefined;
+  declare cancelled: boolean;
+  declare swept: boolean;
+  declare bodyEnd: Promise<Scope.Outcome> | undefined;
+  declare failure: { cause: unknown } | undefined;
+  declare descendantFailure: { cause: unknown } | undefined;
+  declare secondary: unknown[];
+  declare body: Promise<unknown> | undefined;
+  declare closed: boolean;
+  declare closing: Promise<Scope.Result> | undefined;
+  declare emptyCtx: Resource.Ctx | undefined;
+  constructor(
+    parent: Layer,
+    tags: Scope.Bindings,
+    ns: readonly Namespace[] | undefined,
+    failureOwner: RunState | undefined,
+    previous: TaggedFrame | undefined,
+  ) {
+    this.parent = parent;
+    this.tags = seedTags(tags);
+    this.ns = ns;
+    this.failureOwner = failureOwner;
+    this.obs = parent.obs;
+    this.clock = parent.clock;
+    this.random = parent.random;
+    this.exts = parent.exts;
+    this.previous = previous;
+    this.lazy = true;
+  }
+}
+Object.assign(TaggedFrame.prototype, FRAME_STATE);
+
+/** Promotion retains identity and binds ancestors first, before a watcher, build, or pending
+ * body becomes visible. A new child inherits any close already in flight (ADR 0028). */
+function expandFrame(frame: TaggedFrame): void {
+  const parent = frame.parent;
+  materialize(parent);
+  Object.assign(frame, FRAME_STATE);
+  frame.lazy = false;
+  if (parent.children === NO_CHILDREN) parent.children = new Set();
+  parent.children.add(frame);
+  frame.swept = parent.swept;
+  frame.aborted = parent.aborted;
+  frame.abortReason = parent.abortReason;
+}
+
+/** A close can enter through a captured handle while a body is still synchronous. Register
+ * these frames before the existing sweep and abort code sees the tree. */
+function materializeActiveFrames(): void {
+  for (let frame = activeTagged; frame; frame = frame.previous) materialize(frame);
+}
+
+/** Reading a controller alone owns nothing. Its first write or watch asks the usual node gate
+ * for storage, which promotes the frame before the write or subscription is visible. */
+function frameDataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataController<T> {
+  const get = (): T => readCell(layer, target) as T;
+  return {
+    get,
+    set: (value) => writeWithHooks(layer, target, value),
+    update: (fn) => {
+      ensureOpen(layer);
+      writeWithHooks(layer, target, fn(get()));
+    },
+    watch: (listener) =>
+      addWatcher(layer, target, nodeState(layer, target), listener as Watcher["fn"]),
+  };
+}
+
+/** Only an untouched frame can skip the full idle test. Nested synchronous work keeps the
+ * existing wait rule, and a teardown in progress takes the existing close guard. */
+function endTaggedFrame(child: TaggedFrame | undefined, raw: unknown): unknown {
+  if (child === undefined) return raw;
+  if (child.lazy && !(raw instanceof Promise) && buildDepth === 0 && teardownDepth.size === 0) {
+    child.closed = true;
+    child.aborted = true;
+    child.closing = ENDED_CLEAN;
+    child.tags = undefined;
+    return raw;
+  }
+  materialize(child);
+  return endSession(child, raw);
 }
