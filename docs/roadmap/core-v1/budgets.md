@@ -497,3 +497,80 @@ extension declares a hook, as ADR 0050 §5 requires. `session` itself is 1% fast
 unwrapped path). The one `op` min outlier (91.6) is the known bimodal host floor (t27 note above), not a change.
 Raw data: `/tmp/ab.csv` at the time of writing; the runner is `/tmp/ab.sh` (10 lines; worth moving under
 `bench/` if a second big-sample run is wanted).
+
+## Lazy log and obs tools (2026-09-29)
+
+- **A** — `a462360`, the tagged-close tip named in the brief.
+- **B** — `6f12546`, after `bdc63da` added lazy body tools.
+- Both full context classes build `log` and `obs` on first read and keep them for that run or build.
+- The caches are own fields; the getters live on the classes.
+- Constructor-owned fields use `declare` to avoid writing each field twice.
+- The shared OFF values stay shared.
+- `raiseFrom` reads the saved span without building the body's observation tools.
+- Automatic spans and step logs keep their existing paths.
+
+### V8 before timing
+
+- Node `v22.23.3`, with the same driver on both trees.
+- Allocation sampling includes collected objects across 100,000 warmed runs.
+- **`opsink`** — sampled `logFor` allocations: 60,013,800 → 0 bytes.
+- **`opobs`** — sampled `obsCtx` allocations: 20,803,952 → 0 bytes.
+- Automatic `openSpan` allocations remain at about 21.7 MB on both sides.
+- These samples show removed work; they are not exact bytes per run.
+- The built-code trace keeps every other inlined function in all six scenarios.
+- In `oplog`, `logFor` is inlined into the new getter.
+- Both built trees show zero deoptimization bailouts in all six scenarios.
+- The diagnostic uses `--no-concurrent-recompilation` so compile order is stable.
+- The timing screen uses the wrapper's normal Node flags.
+- Source-only traces choose different inlining when the smaller constructor enters `runOnce`.
+- The proof above uses the shipped, minified build.
+- A bytecode check also finds `CreateFunctionContext` and `CreateClosure` in A's tool builders.
+- Neither builder is called on B's unread-tool paths.
+- V8 lines and allocation profiles live in `/home/paseo/next/tinkered-inv-reports/lazylog/`.
+- `v8-proof.txt` names the trace files and lines.
+
+### One N=31 screen
+
+- One probe runs against both builds through `bench/queued.sh` and `benchd`.
+- The wrapper holds `/tmp/mutation.lock` for the whole screen.
+- Each scenario uses one core and 31 A/B pairs.
+- Every scenario is in batch mode for 31/31 runs on each side.
+- Values below are median ns per call, A → B.
+- The bar is a gap over 2% and more than 23/31 pairs in the same direction.
+
+```bash
+N=31 A=../tinkered-lazylog-base \
+  SCEN="opsink oplog opobs op run tagged" \
+  OUT=.bench/lazylog.csv \
+  flock /tmp/mutation.lock bench/queued.sh
+```
+
+- **opsink** — 224.1 → 67.0 (-70.1%); B faster.
+- **opsink pairs** — slower 0/31.
+- **oplog** — 280.1 → 282.2 (+0.7%); no difference we can see.
+- **oplog pairs** — slower 16/31.
+- **opobs** — 208.9 → 185.2 (-11.3%); B faster.
+- **opobs pairs** — slower 1/31.
+- **op** — 80.5 → 67.1 (-16.6%); B faster.
+- **op pairs** — slower 0/31.
+- **run** — 94.5 → 80.5 (-14.8%); B faster.
+- **run pairs** — slower 0/31.
+- **tagged** — 201.6 → 193.3 (-4.1%); B faster.
+- **tagged pairs** — slower 7/31.
+- Neither target misses its B faster bar; no scenario meets the B slower bar.
+- The wrapper ends with `BENCH_EXIT=0`.
+- Raw rows: `/home/paseo/next/tinkered-inv-reports/lazylog/lazylog.csv`.
+- The six verdict lines are in `screen-summary.txt` beside the CSV.
+
+### Behavior and gates
+
+- Five new public-seam tests cover tool identity, logger destructuring, levels, order, manual resource spans, and caught error origins.
+- Existing tests also check repeated operation tool reads and automatic full-factory spans without a body tool read.
+- **Gate** — `vp run -r build && vp check && vp run -r test`, `EXIT=0`.
+- **Core** — 705 tests pass, including five new tests.
+- **Lint** — zero errors and 25 warnings, the same warning count as A.
+- **Validate** — all 44 budget lanes PASS.
+- **Promises** — sync 0, async toggle 5, tagged 2.
+- Every test command holds `/tmp/mutation.lock`.
+- **Prose** — `node scripts/prose-lint.mjs` and `vp run prose` pass.
+- Mutation is left to landing, as the brief requires.
