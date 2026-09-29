@@ -74,6 +74,19 @@ reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, on
 
 - **perf/lazy-log-obs** — with a log sink or an observer on, build the body's `log` and `obs` tools on first read (memoizing class accessors; no API change; ADR 0073). Owner: lead; Astra writer `70dab046`, now rebased on the lifted tip (`43a99e0`). Review: Fable probe and gate passed; lead READY. Lander `c0a6f174` waits for the perf/tagged-close tag, then lands it. Verify: new probe scenarios `opsink` and `opobs` "B faster", nothing slower; promises 2; `pnpm validate`; core mutation ≥ 85.
 
+- **tracker/entry-root + jev/entry-rules** — ADR 0078 (user 2026-09-29, after an Astra + Fable
+  committee): an entry starts only under `if (import.meta.main)`; the app's one full root is
+  `runServer(env, stop)` in `main.ts` and never hands the scope back; pieces live beside their
+  code (`issueServer`, `publish`, `draftTags`); the server is first in every list; a failed
+  `ready` is closed and awaited. Owner: lead (app-roots session). Tracker: Astra writer
+  `abbe3c4f`, worktree `/home/paseo/next/tinkered-parts`, branch `tracker/entry-root` (ADR on
+  it; renumber if 0078 is taken at landing). Jev: Astra writer `4e1c8bcd`, worktree
+  `/home/paseo/next/tinkered-entry-rules`: plain rules S27 unguardedEntry, S28 returnedRoot.
+  Next: Fable reviewers after each writer reports. Verify: tracker gates + browser tests, the
+  order test fails when flipped, a real `main.ts` run (SIGTERM 0, bad port 1); S27/S28
+  fixtures and the repo lint rows. Then: a follow-up card for the other entries (tools,
+  blueprint, examples) and a core-feedback row (a rejected `ready` settles before its close).
+
 ## Review
 
 | Card | Owner | Next | Verify |
