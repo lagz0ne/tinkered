@@ -67,7 +67,7 @@ const serveMcp = operation({
  * and the stdio server on its own root. No scope is built here — `main` builds
  * one for whichever command routing picked, and `help` builds none. */
 const options: Scope.Options = { tags: [api.config({ baseUrl: readBaseUrl() })] };
-const shell: Process.Shell = {
+export const shell: Process.Shell = {
   name: "issues",
   version: "0.1.0",
   commands: [
@@ -83,4 +83,4 @@ const shell: Process.Shell = {
   ],
 };
 
-await main(shell);
+if (import.meta.main) await main(shell);

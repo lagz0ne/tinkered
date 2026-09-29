@@ -203,7 +203,7 @@ export const readDetail = operation({
 });
 
 /** Read every saved row, oldest first: the one select both the root list read
- * and the publish-after-commit share. Used at boot to restore the shared truth. */
+ * and the publish-after-commit share. Used during start to publish the saved list. */
 export const listIssues = operation({
   label: "listIssues",
   depends: { db: store.db },
@@ -213,15 +213,15 @@ export const listIssues = operation({
   },
 });
 
-/** Read the published list: what a request answers without touching the table. */
+/** Read the list written by `publish`: a request never touches the table here. */
 export const readIssues = operation({
   label: "readIssues",
   depends: { issues: issueList },
   run: ({ issues }) => issues,
 });
 
-/** Publish the committed rows to the shared cell. Runs at the root only — after
- * `scope.ready` at boot and after a request session committed — so the sync
+/** Publish the committed rows to the shared cell. Runs at the root only —
+ * during start and after a request session committed — so the sync
  * source fans the committed truth out to every viewer. Skips the write when the
  * saved rows serialize equal to the published ones, so a rejected request that
  * changed nothing keeps the cell identity (and sends no snapshot). */

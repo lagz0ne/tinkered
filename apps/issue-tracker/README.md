@@ -98,6 +98,11 @@ The build command builds the public workspace libraries before the app.
 
 Then open `http://127.0.0.1:4311/` in two tabs. `HOST` and `PORT` set the
 address; `DATA_PATH` is the persistent PGlite folder (gitignored).
+Importing either entry file starts nothing.
+`runServer(env, stop)` serves until the stop signal fires.
+It waits for a clean close and answers 0; a boot failure answers 1.
+Saved issues reach the list route and sync stream before the port opens.
+
 A `PORT` that is not a whole number from 1 to 65535 stops the boot with
 `BadPort`; a missing `PORT` means 4311.
 
@@ -200,7 +205,10 @@ Each save runs smaller operations as subflows:
 An edit of a missing issue fails with the origin `loadSaved`.
 A test can preset one of them alone.
 A preset `recordActivity` receives every activity write.
-The publish after a commit runs `listIssues`, the boot read.
+The `publish()` extension reads saved issues during start and after each commit.
+The list route reads the published cell and needs no database.
+First listed is outermost; work after `await next()` runs inside out.
+The server listed first opens its port last.
 
 The app is built from the public libraries:
 

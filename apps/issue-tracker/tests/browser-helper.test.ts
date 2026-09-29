@@ -9,13 +9,12 @@ import { claudeCode } from "@tinker/harness";
 import {
   createIssue,
   draftTags,
-  publishAfterCommit,
+  publish,
   publishIssues,
   readDetail,
-  restore,
   src,
   store,
-  web,
+  issueServer,
   type DraftConfig,
 } from "../src/index.ts";
 import { readDraftServer, reservePort } from "./draft-server.ts";
@@ -46,14 +45,19 @@ type Boot = {
 /** This file's root: every server part plus the draft tags, as `main.ts` lists
  * them, over the store at `path` (absent: in memory). */
 async function boot(path: string | undefined, options: Boot = {}) {
-  const server = web({ observe: options.observe });
+  const server = issueServer({ observe: options.observe });
   const scope = createScope({
     tags: [store.config(path), draftTags(options.draft)],
-    extensions: [src, server, restore, publishAfterCommit()],
+    extensions: [server, src, publish()],
     presets: options.presets,
     observe: options.observe,
   });
-  await scope.ready;
+  try {
+    await scope.ready;
+  } catch (error: unknown) {
+    await scope.close();
+    throw error;
+  }
   return { scope, app: scope.resolve(server) };
 }
 

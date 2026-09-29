@@ -3,7 +3,7 @@ import { request } from "@tinker/hono";
 import { describeError } from "./observe.ts";
 import { publishIssues } from "./operations.ts";
 
-/** Publish after commit (ADR 0051): the `session` hook fires when each request
+/** Publish during start and after commit (ADR 0051): the `session` hook fires when each request
  * session closes, so a committed mutating request republishes the shared list
  * while manual `scope.session` saves in tests stay silent. A request session is
  * the one whose `request` tag holds this request's web Request: read the
@@ -13,12 +13,13 @@ import { publishIssues } from "./operations.ts";
  * `start` hand is kept as a publish thunk, never as a held handle. The row is
  * saved by then, so a publish that fails (the read after commit) must not turn
  * the answered request into a 500 — a `session` hook never throws (core); the
- * thunk logs `publish failed` and the next commit republishes. */
-export function publishAfterCommit(): Scope.Extension<void> {
+ * thunk logs `publish failed` and the next commit republishes. The boot publish
+ * runs after `next()` and rejects `ready` on failure. */
+export function publish(): Scope.Extension<void> {
   let runPublish: (() => Promise<unknown>) | undefined;
   return extension({
-    label: "tracker.publishAfterCommit",
-    start: (scope, _ctx, next) => {
+    label: "tracker.publish",
+    start: async (scope, _ctx, next) => {
       runPublish = () =>
         scope.run({
           label: "publish after commit",
@@ -31,7 +32,8 @@ export function publishAfterCommit(): Scope.Extension<void> {
             }
           },
         });
-      return next();
+      await next();
+      await scope.run(publishIssues);
     },
     session: async (handle, next) => {
       const ended = await next();

@@ -21,6 +21,7 @@ export type { Draft } from "./shared/draft.ts";
 export {
   draftGuardrails,
   draftHelper,
+  draftTags,
   draftTurn,
   readCapability,
   startDraft,
@@ -40,12 +41,13 @@ export {
 } from "./server/operations.ts";
 export { store } from "./server/store.ts";
 export type { Store } from "./server/store.ts";
-export { issueRoutes } from "./server/routes.ts";
+export { issueRoutes, issueServer } from "./server/routes.ts";
 export { src } from "./server/sync.ts";
-export { publishAfterCommit } from "./server/publish.ts";
+export { publish } from "./server/publish.ts";
 export { describeError, jsonLines } from "./server/observe.ts";
-export { draftTags, restore, web } from "./server/parts.ts";
-export type { DraftConfig, WebOptions } from "./server/parts.ts";
+export type { DraftConfig } from "./server/draft.ts";
+export type { IssueServer } from "./server/routes.ts";
+export { runServer } from "./server/main.ts";
 export {
   api,
   getCapability,

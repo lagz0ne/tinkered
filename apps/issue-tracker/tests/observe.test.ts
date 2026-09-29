@@ -1,6 +1,14 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, operation, preset } from "@tinker/core";
-import { describeError, fail, isError, jsonLines, readIssues, store, web } from "../src/index.ts";
+import {
+  describeError,
+  fail,
+  isError,
+  jsonLines,
+  readIssues,
+  store,
+  issueServer,
+} from "../src/index.ts";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -88,7 +96,7 @@ test("jsonLines survives a writer that throws: the scope keeps running", async (
 test("an error no route maps answers 500 and one `request failed` line names it", async () => {
   const written: string[] = [];
   const observe = jsonLines((line) => written.push(line));
-  const server = web({ observe });
+  const server = issueServer({ observe });
   const scope = createScope({
     tags: [store.config(tempPath())],
     extensions: [server],

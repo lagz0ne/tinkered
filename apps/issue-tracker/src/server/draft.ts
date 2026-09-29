@@ -1,6 +1,7 @@
-import { operation, tag } from "@tinker/core";
+import { operation, tag, type Tag } from "@tinker/core";
 import { emit } from "@tinker/hono";
 import { claudeCode, harness, type ClaudeCode } from "@tinker/harness";
+import { api } from "../client/api.ts";
 import { fail, raise } from "../errors.ts";
 import { describeError } from "./observe.ts";
 import { parseDraftInput, type Draft } from "../shared/draft.ts";
@@ -124,3 +125,16 @@ export const draftBody = operation({
     }
   },
 });
+
+export type DraftConfig = { readonly enabled: boolean; readonly baseUrl: string };
+
+/** The tags that turn the draft helper on or off. Absent: no tags, and the
+ * helper reads as off. */
+export function draftTags(draft: DraftConfig | undefined): Tag.Bindings {
+  if (draft === undefined) return [];
+  return [
+    draftHelper({ enabled: draft.enabled, baseUrl: draft.baseUrl }),
+    draftGuardrails,
+    draft.enabled && api.config({ baseUrl: draft.baseUrl }),
+  ];
+}

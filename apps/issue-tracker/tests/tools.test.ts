@@ -15,11 +15,10 @@ import {
   parseIssue,
   parseIssueDetail,
   parseIssueList,
-  publishAfterCommit,
+  publish,
   readDetail,
-  restore,
   store,
-  web,
+  issueServer,
 } from "../src/index.ts";
 
 function tempPath(): string {
@@ -27,14 +26,19 @@ function tempPath(): string {
 }
 
 /** This file's root: the routes over a fresh store, plus the published list
- * (`GET /api/issues` reads it, not the table). No sync source: no tab here. */
+ * (`GET /api/issues` reads it, not the table). `/sync` answers 500 here because `src` is absent. */
 async function boot() {
-  const server = web();
+  const server = issueServer();
   const scope = createScope({
     tags: [store.config(tempPath())],
-    extensions: [server, restore, publishAfterCommit()],
+    extensions: [server, publish()],
   });
-  await scope.ready;
+  try {
+    await scope.ready;
+  } catch (error: unknown) {
+    await scope.close();
+    throw error;
+  }
   return { scope, app: scope.resolve(server) };
 }
 

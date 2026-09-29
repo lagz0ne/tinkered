@@ -1,13 +1,36 @@
-import type { Context, ErrorHandler } from "hono";
+import type { Context, Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { LEVELS, operation, type Observe, type Operation } from "@tinker/core";
+import { LEVELS, operation, type Observe, type Operation, type Scope } from "@tinker/core";
 import type { Sync } from "@tinker/sync";
-import { emit, route, stream, type HonoScope } from "@tinker/hono";
+import { emit, hono, route, stream, type HonoScope } from "@tinker/hono";
 import { isError } from "../errors.ts";
 import { draftBody, readCapability, startDraft } from "./draft.ts";
 import { describeError } from "./observe.ts";
 import { addComment, createIssue, editIssue, readDetail, readIssues } from "./operations.ts";
 import { readRegister, src, sseTransport } from "./sync.ts";
+
+export declare namespace IssueServer {
+  export type Options = {
+    /** Where the 500 line for an error no route mapped goes (absent: dropped). */
+    readonly observe?: Observe.Config;
+    /** Bind a port (`main.ts`) or a fake (a test); absent, the app answers only
+     * `app.request`. The scope's close stops it. */
+    readonly serve?: HonoScope.Serve;
+  };
+}
+
+/** The issue routes as one Hono server. The unmapped-error handler installs in
+ * `mount`, which runs before `serve`, so no request can reach the app without
+ * it. Each call is a new extension: resolve the one you listed. */
+export function issueServer(options: IssueServer.Options = {}): Scope.Extension<Hono> {
+  return hono(issueRoutes, {
+    onError,
+    mount: (app) => {
+      app.onError(reportUnmapped(options.observe));
+    },
+    serve: options.serve,
+  }).extension;
+}
 
 /** Map a registry failure to its status; anything else falls through to Hono. */
 export function onError(error: unknown, c: Parameters<HonoScope.OnError>[1]) {
@@ -17,8 +40,8 @@ export function onError(error: unknown, c: Parameters<HonoScope.OnError>[1]) {
 /** Hono's last handler: an error `onError` did not map is a bug, so it answers
  * 500 and writes one log line through the scope's sink (Hono's default would
  * `console.error`, off the seam). An `HTTPException` keeps its own response. */
-export function reportUnmapped(observe: Observe.Config | undefined): ErrorHandler {
-  return (error, c) => {
+export function reportUnmapped(observe: Observe.Config | undefined) {
+  return (error: Error, c: Context) => {
     if (error instanceof HTTPException) return error.getResponse();
     observe?.log?.({
       time: observe.clock?.() ?? Date.now(),

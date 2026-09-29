@@ -18,15 +18,15 @@ import {
   issueList,
   listIssues,
   parseIssueList,
+  parseIssue,
   publishIssues,
   readDetail,
   readIssues,
-  publishAfterCommit,
+  publish,
   recordActivity,
-  restore,
   src,
   store,
-  web,
+  issueServer,
   type Issues,
 } from "../src/index.ts";
 import { mkdtempSync } from "node:fs";
@@ -47,10 +47,10 @@ type Boot = {
 /** This file's full root: every server part, as `main.ts` lists them. A test
  * that needs less builds its own smaller root. */
 async function boot(options: Boot = {}) {
-  const server = web({ observe: options.observe, serve: options.serve });
+  const server = issueServer({ observe: options.observe, serve: options.serve });
   const scope = createScope({
     tags: [store.config(tempPath())],
-    extensions: [src, server, restore, publishAfterCommit()],
+    extensions: [server, src, publish()],
     presets: options.presets,
     observe: options.observe,
   });
@@ -140,7 +140,7 @@ test("reopening against the same database restores the saved issue", async () =>
     await first.close({ graceful: true });
   }
 
-  const second = createScope({ tags: [store.config(path)], extensions: [restore] });
+  const second = createScope({ tags: [store.config(path)], extensions: [publish()] });
   try {
     await second.ready;
     expect(second.resolve(issueList).length).toBe(1);
@@ -179,23 +179,33 @@ test("the HTTP routes save through app.request", async () => {
   }
 });
 
-test("one row plus one extension answers a read with no composition root", async () => {
+test("a route reads the published list without a database", async () => {
+  const saved = parseIssue({
+    id: "published",
+    title: "Already published",
+    description: "no database",
+    status: "open",
+    assignee: null,
+    revision: 0,
+    createdAt: 1,
+    updatedAt: 1,
+  });
   const { extension: web } = hono([route.get("/api/issues", readIssues)]);
   const scope = createScope({
-    tags: [store.config(undefined)],
     extensions: [web],
+    presets: [preset(issueList, [saved])],
   });
   try {
     await scope.ready;
     const res = await scope.resolve(web).request("/api/issues");
     expect(res.status).toBe(200);
-    expect(parseIssueList(await res.json())).toEqual([]);
+    expect(parseIssueList(await res.json())).toEqual([saved]);
   } finally {
     await scope.close({ graceful: true });
   }
 });
 
-test("publishAfterCommit republishes after a POST and keeps the cell on a 400 or a GET", async () => {
+test("publish republishes after a POST and keeps the cell on a 400 or a GET", async () => {
   const { scope, app } = await boot();
   try {
     const before = scope.resolve(issueList);

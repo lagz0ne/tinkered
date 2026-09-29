@@ -57,9 +57,9 @@ export declare namespace HonoScope {
     readonly tags?: (c: Context) => Tag.Bindings;
     /** Select the request's namespace; absent or undefined uses the default. */
     readonly ns?: (c: Context) => Namespace | readonly Namespace[] | undefined;
-    /** Hand-mounted extras: routes that need `stream` directly and cannot
-     * be rows yet. Runs after the rows, inside the same session middleware,
-     * so `stream` sees the request session. */
+    /** Configure the app after the route rows mount and before serving, such
+     * as an error handler or extra routes. Extra routes share the session
+     * middleware, so `stream` sees the request session. */
     readonly mount?: (app: Hono) => void;
     /** Bind the process edge (a port, a test fake): runs after mount and is
      * awaited before `start` settles — a refusing port fails boot, never a
