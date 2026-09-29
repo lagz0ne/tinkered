@@ -58,16 +58,32 @@ Rules for every ticket:
   public symbol:
 
   ```impact stack/t04
-  core Observe/Span# src/index.ts tests/*.test.ts
+  blueprint Observe/Span# tests/span-tree.test.ts
+  core Observe/Span# src/index.ts tests/body-tools.test.ts tests/caught-subflow.test.ts tests/clock.test.ts tests/index.test.ts tests/instance-release.test.ts tests/observation.test.ts tests/operations.test.ts tests/run-result.test.ts tests/step-log.test.ts tests/trace.test.ts
+  harness Observe/Span# src/index.ts tests/approvals.test.ts tests/codex.test.ts tests/harness.test.ts tests/namespaces.test.ts tests/span-tree.test.ts tests/tools.test.ts
+  hono Observe/Span# src/index.ts tests/errors.test.ts tests/hono.test.ts tests/routes.test.ts tests/stream.test.ts tests/trace.test.ts
+  http Observe/Span# src/client.ts tests/observe.test.ts tests/retry.test.ts tests/span-tree.test.ts tests/trace.test.ts
+  mcp Observe/Span# tests/mcp.test.ts
+  process Observe/Span# tests/span-tree.test.ts
+  react Observe/Span# src/index.ts tests/use-spans.test.tsx
+  stack Observe/Span# src/observe.ts tests/observe.test.ts
+  tinkerer Observe/Span# tests/span-tree.test.ts
   core Observe/Trace# src/index.ts tests/trace.test.ts
-  core Scope/Options#.*trace src/index.ts tests/trace.test.ts
-  core Observe/Span#.*traceId src/index.ts tests/trace.test.ts
-  core Observe/Span#.*spanId src/index.ts tests/trace.test.ts
-  core Observe/Span#.*parentSpanId src/index.ts tests/trace.test.ts
-  core Observe/Span#.*sampled src/index.ts tests/trace.test.ts
-  core Observe/Trace#.*traceId src/index.ts tests/trace.test.ts
-  core Observe/Trace#.*parentSpanId src/index.ts tests/trace.test.ts
-  core Observe/Trace#.*sampled src/index.ts tests/trace.test.ts
+  core Scope/Options#typeLiteral206:trace src/index.ts
+  core Observe/Span#typeLiteral37:traceId src/index.ts tests/trace.test.ts
+  core Observe/Span#typeLiteral37:spanId src/index.ts tests/trace.test.ts
+  core Observe/Span#typeLiteral37:parentSpanId src/index.ts tests/trace.test.ts
+  core Observe/Span#typeLiteral37:sampled src/index.ts tests/trace.test.ts
+  core Observe/Trace#typeLiteral36:traceId src/index.ts tests/trace.test.ts
+  core Observe/Trace#typeLiteral36:parentSpanId src/index.ts tests/trace.test.ts
+  core Observe/Trace#typeLiteral36:sampled src/index.ts tests/trace.test.ts
+  hono Observe/Trace# src/index.ts
+  hono Observe/Span#typeLiteral212:traceId tests/trace.test.ts
+  hono Observe/Span#typeLiteral212:spanId tests/trace.test.ts
+  hono Observe/Span#typeLiteral212:parentSpanId tests/trace.test.ts
+  http Observe/Span#typeLiteral148:traceId src/client.ts tests/trace.test.ts
+  http Observe/Span#typeLiteral148:spanId src/client.ts tests/trace.test.ts
+  http Observe/Span#typeLiteral148:sampled src/client.ts
   ```
 
 - **t05 stack: server start and shutdown** -- [x] landed `fdfa93f`
@@ -1362,3 +1378,46 @@ Add a prototype `toJSON` method and a public regression test.
 Use exact SCIP member names and file lists in the impact block.
 Verify: the JSON test fails before the fix, the full gate exits 0, and the impact check finds zero gaps.
 No rebase or random-draw change is part of this round.
+
+### Reviewer fix proof
+
+- The final JSON test fails without `toJSON`: exit 1, one failure.
+- With the method restored: 728 core tests pass; step exit 0.
+- The test checks success and failure spans, including their error field.
+- JSON contains the public fields only, including ids, attributes, and events.
+- The README names that promise and explains why spread and `structuredClone` do not copy the full public span.
+- The slot check passes: 253 hot names, last slot 255, zero spare slots.
+- The random draws and their order are unchanged.
+- Impact rows now use exact member names and explicit file lists.
+- They include every package that reads `Observe.Span`, plus the new trace members used by Hono and HTTP.
+- The impact tool refreshed the listed packages before checking them.
+
+```text
+  ✓ Observe/Span#: as planned
+  ✓ Observe/Span#: as planned
+  ✓ Observe/Span#: as planned
+  ✓ Observe/Span#: as planned
+  ✓ Observe/Span#: as planned
+  ✓ Observe/Span#: as planned
+  ✓ Observe/Span#: as planned
+  ✓ Observe/Span#: as planned
+  ✓ Observe/Span#: as planned
+  ✓ Observe/Span#: as planned
+  ✓ Observe/Trace#: as planned
+  ✓ Scope/Options#typeLiteral206:trace: as planned
+  ✓ Observe/Span#typeLiteral37:traceId: as planned
+  ✓ Observe/Span#typeLiteral37:spanId: as planned
+  ✓ Observe/Span#typeLiteral37:parentSpanId: as planned
+  ✓ Observe/Span#typeLiteral37:sampled: as planned
+  ✓ Observe/Trace#typeLiteral36:traceId: as planned
+  ✓ Observe/Trace#typeLiteral36:parentSpanId: as planned
+  ✓ Observe/Trace#typeLiteral36:sampled: as planned
+  ✓ Observe/Trace#: as planned
+  ✓ Observe/Span#typeLiteral212:traceId: as planned
+  ✓ Observe/Span#typeLiteral212:spanId: as planned
+  ✓ Observe/Span#typeLiteral212:parentSpanId: as planned
+  ✓ Observe/Span#typeLiteral148:traceId: as planned
+  ✓ Observe/Span#typeLiteral148:spanId: as planned
+  ✓ Observe/Span#typeLiteral148:sampled: as planned
+impact stack/t04: as planned (0 discrepancies). Advisory — never a gate.
+```
