@@ -177,7 +177,7 @@ Rules for every ticket:
 ## t05 writer notes
 
 Owner: stack/t05 writer. Branch: `stack/t05`.
-Next: add the server piece and move the tracker onto it.
+Writer checks complete. Next: lead review and landing.
 Verify: stack and tracker tests, browser proof, gate,
 `pnpm validate`, stack mutation at least 85.
 
@@ -249,3 +249,86 @@ expect(lines).toEqual(["hello"]);
   memory wire; that code was not changed by t05.
 - Jev found a missing README error name for a non-text
   draft prompt; the README now states `BadDraftInput`.
+
+### t05 proof
+
+Rebased on `origin/main` at `de72d42`.
+No push. The board card is in Review for the lead.
+
+The gate:
+
+```sh
+vp run -r build && vp check \
+  && vp run stack#test \
+  && vp run @tinker-issue-tracker#test
+```
+
+```text
+Build: passed
+Check: 0 errors, 29 warnings
+Stack: 38 tests passed
+Tracker: 69 tests passed
+EXIT 0
+```
+
+The main check also printed 0 errors and 29 warnings.
+It ran in a separate clean worktree, now removed.
+
+- `vp run --no-cache -r test`: all 16 tasks passed.
+- Browser proof and 7 browser helper tests: passed
+  again after the first rebase, with caches off.
+- `pnpm validate`: all 46 lanes passed, exit 0.
+- Stack size: passed the 10 kB gzip cap.
+- Prose lint: 0 hits.
+- Style census: OK, including touched tracker files.
+- SCIP: `BadPort` has no tracker refs.
+  The new helpers have refs in the tracker's root
+  and server pieces; stack has its own index.
+- No S27 or S28 row in stack or tracker.
+  `plain.mjs` exports the checks; the runnable lint
+  is `lint.mjs` with the token file disabled:
+
+```sh
+JEV_TOKEN_FILE=/dev/null node tools/jev/lint.mjs \
+  packages/stack/src apps/issue-tracker/src
+```
+
+Mutation ran once, at the end, in the foreground:
+
+```sh
+flock /tmp/mutation.lock \
+  vp run --no-cache stack#mutate
+```
+
+```text
+All files: 87.68
+Killed: 176
+Timeout: 2
+Survived: 25
+No coverage: 0
+Errors: 0
+Floor: 85
+EXIT 0
+```
+
+Jev pre-flight, stack tests and promises, and the
+changed tracker test files were reviewed.
+The stack had no test flags or missing promises.
+The tracker README now also says a finished draft
+saves nothing until Post draft.
+New labels saved in `tools/jev/cases.jsonl`:
+
+- `leakedInternal false`: tracker `src/index.ts`.
+  This private app entry is its public test seam.
+- `leakedInternal false`: tracker `src/server/draft.ts`.
+  These are authoring units used by the root and tests.
+- `effectWithoutDefer false`: stack `server.ts#listen`.
+  Its caller registers cleanup before the bind wait
+  and closes a late listener if close already ran.
+
+These matching labels were already in the bank:
+`inputDefaultMasks false` for `readPrompt`, and
+`stateOutsideCell false` and `stopOnlyInDefer false`
+for the upstream sync example's `posts` resource.
+The upstream MCP entry flags also had saved labels.
+The lead runs calibration when landing these labels.

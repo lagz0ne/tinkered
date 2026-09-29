@@ -49,10 +49,17 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 - **stack/t02 hono-errors** — a managed error becomes its HTTP answer through `@tinker/hono`; the tracker's hand mapping goes. Owner: lead (stack session); Astra writer `ed37bee3`, worktree `/home/paseo/next/tinkered-stack-t02`; Opus reviewer when the writer reports. Verify: hono tests cover each answer; tracker tests unchanged. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t03 drizzle-rc** — the repo on one exact Drizzle 1.0 RC (ADR 0079). Owner: lead (stack session); Astra writer `64091131`, worktree `/home/paseo/next/tinkered-stack-t03`; Opus reviewer when the writer reports. Verify: build, `vp check`, drizzle and tracker tests green. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t04 trace-id** — core: a span carries a trace id; Hono seeds it from `traceparent` (ADR 0076). Owner: lead (stack session); Astra writer `5e69613c`, worktree `/home/paseo/next/tinkered-stack-t04`; the only core card now; Opus reviewer when the writer reports. Verify: core and hono tests, `scripts/ticket.sh`, `pnpm validate`. [track](docs/roadmap/stack-v1/PROGRESS.md).
-- **stack/t05 stack-server** — `@tinker/stack` exists; its server piece runs the tracker's port, stop, exit code, logs, and client. Owner: lead (stack session); Astra writer `4603c14c`, worktree `/home/paseo/next/tinkered-stack-t05`; Next: finish server tests and the final gate; Opus reviewer when the writer reports. Verify: stack tests boot, stop, and fail on a bad `PORT`; tracker tests pass. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t07 nats** — `@tinker/nats`: connect, publish, subscribe to an operation; tests on a real pinned `nats-server` (ADR 0080; `traceparent` moved to t13). Owner: lead (stack session); Astra writer `856cec06`, worktree `/home/paseo/next/tinkered-stack-t07`; Opus reviewer when the writer reports. Verify: nats tests on a real server; a missing `NATS_URL` fails boot. [track](docs/roadmap/stack-v1/PROGRESS.md).
 
 ## Review
+
+- **stack/t05 stack-server** — Owner: lead (stack session).
+  Writer: Astra `4603c14c`, branch `stack/t05`.
+  Next: Opus review, then land; the writer did not push.
+  Verify: gate `EXIT 0`; 38 stack and 69 tracker tests;
+  browser proof and 7 browser tests; 46 validate lanes;
+  stack mutation 87.68 (floor 85).
+  [Proof](docs/roadmap/stack-v1/PROGRESS.md#t05-proof).
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
