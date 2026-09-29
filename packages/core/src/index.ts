@@ -1054,7 +1054,8 @@ function signalOf(layer: Layer): AbortSignal {
   let ac = layer.abort;
   if (!ac) {
     ac = new AbortController();
-    if (layer.aborted) ac.abort(layer.abortReason);
+    /** A session that ended in place is aborted with no reason minted yet: mint it here. */
+    if (layer.aborted) ac.abort((layer.abortReason ??= new CancelReason()));
     layer.abort = ac;
   }
   return ac.signal;
@@ -2352,6 +2353,7 @@ function runTagged<T, I>(
     { tags, ns: chain },
     (child) => runUntagged(child, target, parent, inner, chain, undefined, caller !== undefined),
     caller,
+    true,
   ) as Promise<Awaited<T>>;
   if (caller) track(layer, tagged, runFailure(layer, caller));
   return tagged;
@@ -3867,12 +3869,15 @@ function fastClose(
  * close (ADR 0028). */
 /** Whether a session whose body just ended clean can end in place — {@link canFastClose}'s idle
  * test for a session's own close, where the finished body no longer blocks it: no close already
- * in flight, no signal handed out (a forced close would dispatch abort on it), no build in
- * progress, no child, no in-flight owned work, no defer, no teardown error, and
+ * in flight, no ancestor's close in flight (it marked this layer swept at call time and its
+ * abort is queued; the body's end must be read against that abort, ADR 0026 Q5 — an aborted
+ * live layer is always swept too), no signal handed out (a forced close would dispatch abort on
+ * it), no build in progress, no child, no in-flight owned work, no defer, no teardown error, and
  * {@link ownsNothing}. */
 function canEndIdle(layer: Layer): boolean {
   return (
     layer.closing === undefined &&
+    !layer.swept &&
     layer.abort === undefined &&
     buildDepth === 0 &&
     layer.children.size === 0 &&
@@ -3883,7 +3888,8 @@ function canEndIdle(layer: Layer): boolean {
 }
 
 /** The rest of the idle test: no recorded failure, no re-entrant teardown, and no record on the
- * layer holding a built resource instance, default or named (its release protocol must run). */
+ * layer that is {@link busyRecord}: a built resource instance (its release protocol must run)
+ * or a watcher (a write between the body's return and the close must still reach it). */
 function ownsNothing(layer: Layer): boolean {
   if (
     failureOf(layer) !== undefined ||
@@ -3891,9 +3897,7 @@ function ownsNothing(layer: Layer): boolean {
     closeWouldReenter(layer)
   )
     return false;
-  for (const state of layer.nodes.values()) {
-    if (state.instance !== undefined || state.nsResources !== undefined) return false;
-  }
+  for (const state of layer.nodes.values()) if (busyRecord(state)) return false;
   return true;
 }
 
@@ -4076,11 +4080,22 @@ function settleSession(
  * root installed `session` hooks (ADR 0051), the whole life runs inside their onion: `next()`
  * resolves with the close `Result`. No hooks means no wrapper — main's body below, inline, after one
  * root lookup. */
+/** Whether a public `session()` body that returned a plain value may end its session before
+ * `session()` returns, as a tagged call does (no handle was given out there). Off, a handle the
+ * body leaked stays usable for main's window: until the session's own close, two turns after the
+ * body returned (an immediate `close({ withData })`, `onClose`, or `resolve` behaves as on main).
+ * The user decides (fp2-check-astra B3/B4); off is the safe side. */
+const PUBLIC_SESSION_ENDS_EARLY = false;
+
 function runSessionWith<R>(
   parent: Layer,
   options: Scope.Options | undefined,
   body: (child: Layer, handle?: Scope.Handle) => R | PromiseLike<R>,
-  caller?: RunState,
+  caller: RunState | undefined,
+  /** True when no public handle can reach the child (a tagged call), or when the switch above
+   * lets a public session end early too. A plain parameter: a default on this function would
+   * widen its bytecode. */
+  early: boolean,
 ): Promise<R> {
   let child: Layer;
   /** What an async function would reject with, rejected: a closed parent, a bad `ns`, a preset
@@ -4097,14 +4112,24 @@ function runSessionWith<R>(
   const raw = runBodyWith(child, body);
   /** A body that returned a plain value has settled: read its end now, as the reaction in
    * {@link settleSessionWith} would one tick later, and when the session has nothing left to
-   * tear down end it in place — no body promise, no reaction, no async frame. */
-  if (!isThenable(raw) && !child.aborted && canEndIdle(child)) {
-    child.closed = true;
-    child.closing = ENDED_CLEAN;
-    finishLayer(child, false);
+   * tear down end it in place — no body promise, no reaction, no async frame. `raw` is a native
+   * promise or a plain value here; {@link runBodyWith} adopted every other thenable. */
+  if (early && !(raw instanceof Promise) && canEndIdle(child)) {
+    endInPlace(child);
     return Promise.resolve(raw);
   }
-  return settleSessionWith(child, Promise.resolve(raw));
+  return settleSessionWith(child, raw instanceof Promise ? raw : Promise.resolve(raw));
+}
+
+/** End a session in place: the end state main's forced self-close reaches for a session with
+ * nothing to tear down — closed, aborted (a later first read of `ctx.signal` gives an aborted
+ * signal, ADR 0028; the reason is minted on that read), detached, its data freed (ADR 0069) —
+ * with no close protocol behind it. */
+function endInPlace(layer: Layer): void {
+  layer.closed = true;
+  layer.aborted = true;
+  layer.closing = ENDED_CLEAN;
+  finishLayer(layer, false);
 }
 
 /** The waiting half of a session's life: the body is a promise, or the session has something to
@@ -4124,9 +4149,7 @@ async function settleSessionWith<R>(child: Layer, started: Promise<R>): Promise<
   );
   child.bodyEnd = ended;
   if ((await ended) === SUCCESS && canEndIdle(child)) {
-    child.closed = true;
-    child.closing = ENDED_CLEAN;
-    finishLayer(child, false);
+    endInPlace(child);
     return result as R;
   }
   /** `close()` never throws (ADR 0027/0028); it resolves to the actual settled `Result`. A session is
@@ -4174,26 +4197,6 @@ function sessionsFor(parent: Layer): readonly Scope.Extension<unknown>[] | undef
   return SESSIONS.get(root);
 }
 
-/** A session's own life: run the body, force-close, keep the body's value beside the close `Result`.
- * `close()` never throws (ADR 0027/0028); the `Result` decides resolve/reject in
- * {@link settleSessionEnded}. The self-close is FORCED — the body is done, so any still-running
- * owned work is aborted rather than awaited; the body's own outcome decides success/cancelled. */
-async function runSessionEnded<R>(
-  child: Layer,
-  start: (child: Layer) => Promise<R>,
-): Promise<{ result: unknown; ended: Scope.Result }> {
-  const started = start(child);
-  child.body = started;
-  child.bodyEnd = started.then(
-    (): Scope.Outcome => (child.aborted ? { status: "cancelled" } : SUCCESS),
-    (cause: unknown): Scope.Outcome =>
-      isCancel(child, cause) ? { status: "cancelled" } : { status: "failed", error: cause },
-  );
-  const result = await bodyResult(started);
-  const ended = await closeLayer(child, true);
-  return { result, ended };
-}
-
 /** Map a session's close `Result` back to promise semantics: a real failure or cancellation rejects
  * (with the cause / abort reason), a clean run resolves the body value; teardown errors aggregate
  * into `TeardownFailed` either way (ADR 0017). */
@@ -4209,7 +4212,13 @@ function runSession<R>(
   options: Scope.Options | undefined,
   fn: (scope: Scope.Handle) => R | PromiseLike<R>,
 ): Promise<R> {
-  return runSessionWith(parent, options, (child, handle) => fn(handle ?? handleFor(child)));
+  return runSessionWith(
+    parent,
+    options,
+    (child, handle) => fn(handle ?? handleFor(child)),
+    undefined,
+    PUBLIC_SESSION_ENDS_EARLY,
+  );
 }
 
 /** Start a session body, normalizing to a promise. `fn` is called synchronously
@@ -4220,9 +4229,18 @@ function runSession<R>(
 function runBodyWith<R>(
   child: Layer,
   fn: (child: Layer, handle?: Scope.Handle) => R | PromiseLike<R>,
-): R | PromiseLike<R> {
+): R | Promise<R> {
   try {
-    return fn(child);
+    const raw = fn(child);
+    if (raw instanceof Promise && raw.constructor === Promise) return raw;
+    /** One read of `then`, here inside the try, the way `Promise.resolve` reads it once: a
+     * throwing getter rejects the body; a getter is not read a second time (ADR 0029 §6). */
+    const then =
+      (typeof raw === "object" && raw !== null) || typeof raw === "function"
+        ? (raw as { then?: unknown }).then
+        : undefined;
+    if (typeof then !== "function") return raw as R;
+    return adoptThenable<R>(raw, then as ThenFn<R>);
   } catch (error) {
     return Promise.reject(error) as Promise<R>;
   }
@@ -4290,15 +4308,6 @@ function wrapSession(
       ),
   };
   return wrapped;
-}
-
-/** The session body's value, or undefined if it rejected — the body's end (success/failed/cancelled)
- * is classified authoritatively by `startClose` via `classifyBody` (ADR 0026). */
-function bodyResult<R>(body: Promise<R>): Promise<R | undefined> {
-  return body.then(
-    (value) => value,
-    () => undefined,
-  );
 }
 
 /** Wrap a plain root handle with the extensions' plumbing (ADR 0050): store one
@@ -4930,3 +4939,64 @@ function ownEntry(
 
 export { isError };
 export type { Errors } from "./errors.ts";
+
+/** The session body's value, or undefined if it rejected — the body's end (success/failed/cancelled)
+ * is classified authoritatively by `startClose` via `classifyBody` (ADR 0026). */
+function bodyResult<R>(body: Promise<R>): Promise<R | undefined> {
+  return body.then(
+    (value) => value,
+    () => undefined,
+  );
+}
+
+/** A session's own life: run the body, force-close, keep the body's value beside the close `Result`.
+ * `close()` never throws (ADR 0027/0028); the `Result` decides resolve/reject in
+ * {@link settleSessionEnded}. The self-close is FORCED — the body is done, so any still-running
+ * owned work is aborted rather than awaited; the body's own outcome decides success/cancelled. */
+async function runSessionEnded<R>(
+  child: Layer,
+  start: (child: Layer) => Promise<R>,
+): Promise<{ result: unknown; ended: Scope.Result }> {
+  const started = start(child);
+  child.body = started;
+  child.bodyEnd = started.then(
+    (): Scope.Outcome => (child.aborted ? { status: "cancelled" } : SUCCESS),
+    (cause: unknown): Scope.Outcome =>
+      isCancel(child, cause) ? { status: "cancelled" } : { status: "failed", error: cause },
+  );
+  const result = await bodyResult(started);
+  const ended = await closeLayer(child, true);
+  return { result, ended };
+}
+
+/** A record that keeps a session's close on the full path: a built resource instance, default or
+ * named, or a watcher, default or named. */
+function busyRecord(state: NodeState): boolean {
+  return (
+    state.instance !== undefined ||
+    state.nsResources !== undefined ||
+    state.watchers !== undefined ||
+    state.nsWatchers !== undefined
+  );
+}
+
+type ThenFn<R> = (
+  this: unknown,
+  resolve: (value: R | PromiseLike<R>) => void,
+  reject: (reason?: unknown) => void,
+) => unknown;
+
+/** Adopt a thenable that is not a native promise into one, from the one `then` already read:
+ * called in a microtask with the new promise's resolving functions, as the resolve-thenable job
+ * behind `Promise.resolve` would call it. */
+function adoptThenable<R>(raw: unknown, then: ThenFn<R>): Promise<R> {
+  return new Promise<R>((resolve, reject) => {
+    void READY.then(() => {
+      try {
+        then.call(raw, resolve, reject);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  });
+}
