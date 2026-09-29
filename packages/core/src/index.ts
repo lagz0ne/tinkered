@@ -3583,6 +3583,8 @@ function removeBorrow(instance: ResourceInstance, work: Promise<unknown>): void 
 /** Seed a layer's tag map from the authored bindings: nothing (or only nothing, however
  * nested) leaves the map unallocated; otherwise every binding lands in authored order. */
 function seedTags(input: Tag.Bindings): LayerTags | undefined {
+  if (isNothing(input)) return undefined;
+  if (isNotList(input)) return [input];
   const bindings = readBindings(input);
   if (bindings.length === 0) return undefined;
   if (bindings.length <= SMALL_TAGS) return bindings;
@@ -3595,20 +3597,21 @@ function seedTags(input: Tag.Bindings): LayerTags | undefined {
   return tags;
 }
 
-/** The authored bindings as one flat list this layer retains; the caller keeps its own list.
- * The shapes a tagged call brings (one binding, a flat list) are copied at their exact size:
- * {@link readMany} grows a list as it flattens, a price every tagged call would pay. */
-function readBindings(input: Tag.Bindings): readonly Tag.Binding<unknown>[] {
-  if (isNothing(input)) return NO_ITEMS;
-  if (isNotList(input)) return [input];
-  for (let i = 0; i < input.length; i++) {
-    const item = input[i];
-    if (isNothing(item) || Array.isArray(item)) return readMany(input);
+/** The authored list as one flat list this layer retains; the caller keeps its own list. The
+ * same reads as {@link readMany}: the list's own iterator, once, each item in order, nested lists
+ * opened where they sit, and no method of the caller's object. The one difference is the list
+ * built: the first binding becomes a one-item literal, so a tagged call's one binding never pays
+ * the empty-list growth (17 slots on the first push into an empty list). */
+function readBindings(
+  list: readonly Many<Tag.Binding<unknown>>[],
+): readonly Tag.Binding<unknown>[] {
+  let out: Tag.Binding<unknown>[] | undefined;
+  for (const item of list) {
+    if (isNothing(item)) continue;
+    if (out === undefined && isNotList(item)) out = [item];
+    else pushMany((out ??= []), item, isNotList);
   }
-  /** The loop left only bindings: nothing to skip, nothing nested. One name, not a guard, so
-   * the hot block keeps a module slot (scripts/check-slots.mjs). */
-  const flat = input as readonly Tag.Binding<unknown>[];
-  return flat.length === 1 ? [flat[0]] : flat.slice();
+  return out ?? NO_ITEMS;
 }
 
 type Seeded = { nodes: Map<object, NodeState>; presets: Map<unknown, unknown> | undefined };
