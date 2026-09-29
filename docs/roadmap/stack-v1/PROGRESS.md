@@ -201,9 +201,9 @@ prose-lint: 0 hits
 ### t06 review fix round 2
 
 - Owner: stack/t06 writer.
-- State: Review; the boot-order fix is ready for the gate.
-- Next: run the requested gate once, alone, then lead review.
-- Verify: build, check, Drizzle, stack, tracker, and prose.
+- State: Review; the boot-order fix passed the gate.
+- Next: lead review and landing.
+- Verify: build, check, Drizzle, stack, tracker, and prose passed.
 - The reviewer reproduced a bad-PORT test timeout at 30 seconds.
   A bad PORT also created and migrated a disk database.
 - Decision: list `server` first, then `migrateIssues`.
@@ -226,6 +226,21 @@ prose-lint: 0 hits
   The three old helper-count notes remain in issues, tools,
   and browser-helper; their helpers only changed start order.
   No new labels were needed.
+- Gate on `b446e49e`: one run, alone under `/tmp/mutation.lock`.
+  It passed with `EXIT 0`.
+  The PORT tests passed with their existing 30-second limit.
+
+```text
+build: passed
+check: 0 errors, 29 warnings (unchanged)
+drizzle: 19 passed
+stack: 43 passed
+tracker: 79 passed
+EXIT=0
+prose-lint: 0 hits
+```
+
+- Core feedback: none; no Core workaround was needed.
 - Scope: no rebase, mutation run, or push.
 
 ## Tickets

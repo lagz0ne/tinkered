@@ -9,6 +9,7 @@ Importing this package starts nothing.
 List `server` first; its start checks settings before other starts run.
 When the app has a database, list `migrate` right after `server`.
 It finishes before the port opens.
+
 List the Hono extension after both.
 The server opens the port after all later starts finish.
 
@@ -182,6 +183,7 @@ The mutation floor is 85.
 List `server` first so it checks settings before any database work.
 List `migrate(store.db, migrations)` right after `server`.
 Migrations finish before the port opens.
+
 `migrations` holds the app's `migrationsFolder` path
 and an optional `baseline(db)` for its old tables.
 The baseline uses only the transaction passed to it.
