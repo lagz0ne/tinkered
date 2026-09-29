@@ -492,6 +492,19 @@ void describe("entry and root rules (ADR 0078)", () => {
     );
   });
 
+  void it("S27 counts top-level await using as an awaited declaration", () => {
+    for (const writer of [false, true])
+      assert.deepEqual(entryRows("await using s = open();", APP, writer), [["S27", 1]]);
+  });
+
+  void it("S27 accepts await using inside the main guard", () => {
+    for (const writer of [false, true])
+      assert.deepEqual(
+        entryRows("if (import.meta.main) { await using s = open(); }", APP, writer),
+        [],
+      );
+  });
+
   void it("S27 accepts the main branch and awaits inside every function form", () => {
     const src = [
       "if (import.meta.main) await main(shell);",
@@ -575,6 +588,36 @@ void describe("entry and root rules (ADR 0078)", () => {
       entryRows(src),
       Array.from({ length: 10 }, (_, i) => ["S28", i + 1]),
     );
+  });
+
+  for (const [name, file, source] of [
+    [
+      "a JSX attribute",
+      "apps/a/src/x.tsx",
+      "const A = () => <ScopeProvider create={() => createScope()}>{children}</ScopeProvider>;",
+    ],
+    ["useMemo", APP, "const scope = useMemo(() => createScope(), []);"],
+    [
+      "a block-bodied call argument",
+      APP,
+      "provide(() => { const scope = createScope(); return scope; });",
+    ],
+    ["a new argument", APP, "new Owner(() => createScope());"],
+    ["a function expression argument", APP, "provide(function () { return createScope(); });"],
+  ])
+    void it(`S28 skips a factory passed directly through ${name}`, () => {
+      for (const writer of [false, true]) assert.deepEqual(entryRows(source, file, writer), []);
+    });
+
+  void it("S28 still counts returned factories, named factories, and the sync boot root", () => {
+    for (const source of [
+      "function boot() { return () => createScope(); }",
+      "provide(() => () => createScope());",
+      "const make = () => createScope(); provide(make);",
+      "export async function boot() { const scope = createScope({ extensions: [src, web] }); await scope.ready; return { scope, app: scope.resolve(web) }; }",
+    ])
+      for (const writer of [false, true])
+        assert.deepEqual(entryRows(source, "examples/sync/hono.ts", writer), [["S28", 1]]);
   });
 
   void it("S28 keeps bindings and returns within their own function and block", () => {

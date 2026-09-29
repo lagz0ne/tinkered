@@ -151,6 +151,7 @@ Each message ends with its fix line.
 
 - **S27 unguardedEntry** — a top-level statement with an `await` outside a function body and outside the positive branch of `if (import.meta.main)`.
   Expressions, declarations, and `for await` count.
+  `await using` counts as a declaration.
   One row per top-level statement, at its first line.
   The guard's condition and its `else` branch are not guarded.
   Repo lint: `apps/`, `examples/`, and `packages/*/src`.
@@ -167,6 +168,8 @@ Each message ends with its fix line.
   One row per function, at its first line.
   Bindings stay within their function and block; a nearer binding hides an outer name.
   Returning closures that use the root does not return the root.
+  A factory given to an owner directly as a call or `new` argument, or as a JSX attribute, does not count.
+  Missed owner handoff: a factory first bound to a name still counts, as in `const make = () => createScope(); provide(make);`.
   Repo lint: `apps/` and `examples/`; packages such as `@tinker/process` build command roots by design.
   Fix: `runServer(env, stop)` builds, uses, and closes its root, then returns an exit code or a `Result`.
   A test builds its own root.

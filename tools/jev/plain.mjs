@@ -730,7 +730,9 @@ function isMainGuard(node) {
 }
 
 const isAwait = (node) =>
-  node.type === "AwaitExpression" || (node.type === "ForOfStatement" && node.await);
+  node.type === "AwaitExpression" ||
+  (node.type === "ForOfStatement" && node.await) ||
+  (node.type === "VariableDeclaration" && node.kind === "await using");
 
 function hasUnguardedAwait(node) {
   if (!node) return false;
@@ -820,9 +822,29 @@ function returnsRoot(value, frame) {
   return at.properties.some((p) => p.type === "Property" && returnsRoot(p.value, frame));
 }
 
-const returnedRootAt = (node) =>
+function ownerInputs(node) {
+  if (node.type === "CallExpression" || node.type === "NewExpression") return node.arguments;
+  if (node.type === "JSXAttribute" && node.value?.type === "JSXExpressionContainer")
+    return [node.value.expression];
+  return [];
+}
+
+/** A direct factory argument hands ownership to its caller; a factory returned from it still counts. */
+function ownerFactories(program) {
+  const factories = new Set();
+  walk(program, (node) => {
+    for (const value of ownerInputs(node)) {
+      const fn = unwrapParens(value);
+      if (FN_NODE.has(fn?.type)) factories.add(fn);
+    }
+  });
+  return factories;
+}
+
+const returnedRootAt = (node, facts) =>
   FN_NODE.has(node.type) &&
   node.body &&
+  !facts.ownerFactories.has(node) &&
   rootReturns(node).some(({ value, frame }) => returnsRoot(value, frame))
     ? [node.start]
     : [];
@@ -869,6 +891,7 @@ function handRolledHits(source, program, file, writer) {
     cryptoNames: cryptoNames(program),
     inUnit: unitTest(units),
     isHandle: handleTest(source, program, units),
+    ownerFactories: ownerFactories(program),
   };
   const hits = on.S27 ? unguardedEntries(program) : [];
   walk(program, (n) => {
