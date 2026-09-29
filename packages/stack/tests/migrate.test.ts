@@ -7,7 +7,7 @@ import { hono } from "@tinker/hono";
 import { drizzle } from "drizzle-orm/pglite";
 import { sql } from "drizzle-orm";
 import { afterEach, expect, test } from "vite-plus/test";
-import { createTestDatabase, migrate, server } from "../src/index.ts";
+import { createTestDatabase, jsonLines, migrate, server } from "../src/index.ts";
 import { readFreePort } from "./fixtures.ts";
 
 const clients: { close(): Promise<void> }[] = [];
@@ -68,16 +68,18 @@ test("a failed migration stops the port opening and rolls back its tables and hi
   );
   const env = { HOST: "127.0.0.1", PORT: await readFreePort() };
   const web = hono([]).extension;
+  const lines: string[] = [];
   const scope = createScope({
     extensions: [
       migrate(database, { migrationsFolder }),
-      server(web, { env, clientDir: "/missing" }),
+      server(web, { env, clientDir: "/missing", observe: jsonLines((line) => lines.push(line)) }),
       web,
     ],
   });
   try {
     await expect(scope.ready).rejects.toThrow();
     await expect(fetch(`http://${env.HOST}:${env.PORT}/`)).rejects.toThrow();
+    expect(lines).toEqual([]);
     expect(
       (
         await client.query(
