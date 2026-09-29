@@ -337,7 +337,7 @@ The lead runs calibration when landing these labels.
 
 - Owner: stack/t01 writer; branch `stack/t01`.
 - Base: `origin/main` at `bd3f270`.
-- Next: add both SSE halves, then move both consumers.
+- Next: finish browser, validation, and mutation proof; then lead review.
 - Verify: build, check, sync and tracker tests, example check,
   four direct browser runs on each tree, all validation lanes,
   and one final sync mutation run at or above 85.
@@ -366,3 +366,51 @@ The lead runs calibration when landing these labels.
   New `createSseServer` refs must name both servers;
   `createSseClient` refs must name the tracker client.
 - Baseline check: exit 0, 29 warnings.
+
+### t01 checks seen so far
+
+- Rebased on `origin/main` at `1a06fda` before the final gate.
+  The `entries/follow-suit` example root and test changes stayed.
+- Both consumers use `@tinker/sync/sse`.
+  The tracker keeps URL keys, its retry intent, and health mapping.
+  The example keeps its POST route and client map.
+- The built SSE entry exports both functions and writes the expected frame.
+- The final gate passed with `EXIT 0`:
+
+```bash
+vp run -r build && vp check \
+  && vp run --no-cache sync#test \
+  && vp run --no-cache @tinker-issue-tracker#test \
+  && vp run @tinker/examples#check
+```
+
+```text
+check: 0 errors, 29 warnings
+sync: 69 tests passed
+tracker: 72 tests passed
+examples: no warnings, lint errors, or type errors
+EXIT 0
+```
+
+- The 29 warnings match the base warning list exactly.
+- Base browser proof: four uncached passes at `bd3f270`.
+  Tracker, core, and sync source did not change between that
+  base and `1a06fda`; the later changes were roots, tests, and docs.
+- Final SCIP indexes: sync, tracker, and examples.
+  Old `sseTransport` and the example's `frame` refs print `(none)`.
+  `createSseServer` refs name both servers.
+  `createSseClient` refs name the tracker connection.
+- Style census: OK.
+- TSDoc check: no S26 rows in the seven checked files.
+- Jev tests: no flags in 64 read titles.
+- Jev promises: no gaps in 64 read titles.
+- Jev preflight: no file flags.
+  Five new false labels record the wire's owned state and close path.
+  The other model flags already have labels in the bank.
+  The upstream `tour` resource cannot move to module scope:
+  it captures that call's fresh memory transport.
+- Changes beyond moving the wire: the size lane counts both entries.
+  The example's existing missing-tab error now has a registry.
+  Its config allows `.ts` imports for that registry.
+  Five existing test promises gained README lines.
+- Core feedback: none; no core change or workaround was needed.
