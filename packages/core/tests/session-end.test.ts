@@ -163,3 +163,23 @@ test("a parent's forced close requested inside a sync body cancels the session",
   const end = await closing!;
   await expect(flight).rejects.toBe((end as { reason: unknown }).reason);
 });
+
+test("a late close of a session that ended in place gets a Result of its own", async () => {
+  const root = createScope();
+  let first: ReturnType<typeof root.createSession> | undefined;
+  let second: ReturnType<typeof root.createSession> | undefined;
+  await root.session((s) => {
+    first = s;
+  });
+  await root.session((s) => {
+    second = s;
+  });
+  const a = await first!.close();
+  const b = await second!.close();
+  expect(a).toEqual({ status: "success", teardownErrors: undefined });
+  expect(b).toEqual(a);
+  expect(b).not.toBe(a);
+  (a as { status: string }).status = "changed";
+  expect((await second!.close()).status).toBe("success");
+  await root.close();
+});

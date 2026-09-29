@@ -3828,8 +3828,9 @@ function ownsNothing(layer: Layer): boolean {
   return true;
 }
 
-/** The close `Result` of a session that ended idle — what {@link buildResult} builds for a clean
- * close with no teardown errors — behind one shared, already-resolved promise. Never mutated. */
+/** The marker a session that ended in place keeps in `closing`: the shape {@link buildResult}
+ * gives a clean close, behind one shared resolved promise. Never handed out — {@link closeLayer}
+ * answers a late `close()` on such a session with a fresh `Result`. */
 const ENDED_CLEAN: Promise<Scope.Result> = Promise.resolve({
   status: "success",
   teardownErrors: undefined,
@@ -3855,6 +3856,10 @@ function closeLayer(layer: Layer, force: boolean, withData: boolean): Promise<Sc
   if (closeWouldReenter(layer)) {
     return Promise.resolve(buildResult(bestEffort(layer), layer, undefined));
   }
+  /** A session that ended in place holds the shared marker; a late `close()` on its handle gets
+   * a `Result` of its own, as every other close does (a caller may change what it was given). */
+  if (layer.closing === ENDED_CLEAN)
+    return Promise.resolve({ status: "success", teardownErrors: undefined });
   return tapSessionHooks(hooks, layer.closing);
 }
 
