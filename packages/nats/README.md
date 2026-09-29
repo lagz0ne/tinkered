@@ -36,7 +36,10 @@ scope.run(send);
 await scope.close({ graceful: true });
 ```
 
-Make one `nats(rows, wiring)` piece per root.
+Use one `nats(rows, wiring)` piece per live root.
+A second live start fails with `PieceInUse`.
+Its payload names the piece: `{ label: "nats" }`.
+The piece can start again after the first scope closes.
 `wiring.env` supplies `NATS_URL`; there is no default.
 The URL must use `nats://` or `tls://` and name a host.
 The NATS v3 Node client is pinned to 3.4.0.
@@ -95,6 +98,7 @@ try {
 ## Promises tested
 
 - Publish reaches a subscription operation with its subject and payload.
+- A piece rejects a second live scope and can restart after close.
 - Each message gets its own session resources and closes them.
 - A failed operation logs one error and the next message still runs.
 - Scope close drains queued messages and their replies before closing the connection.
@@ -111,5 +115,7 @@ try {
 - A server that rejects its config removes its store before reporting failure.
 - A publish-only scope flushes queued bytes to a peer before it closes.
 - A denied subscription logs its subject and closes only an owned connection.
+  Graceful close returns `{ status: "success" }` with no teardown errors,
+  for both owned and borrowed connections.
 
 [release]: https://github.com/nats-io/nats-server/releases/tag/v2.15.0

@@ -1,5 +1,5 @@
 import { extension, operation } from "@tinker/core";
-import type { Operation } from "@tinker/core";
+import type { Operation, Scope } from "@tinker/core";
 import type { NatsConnection, Subscription } from "@nats-io/transport-node";
 import { raise } from "./errors.ts";
 
@@ -26,21 +26,47 @@ export function subscribe<T>(
   return { subject, load: typeof op === "function" ? op : () => op };
 }
 
-/** Create one piece per root. The extension owns the connection unless wiring lends one.
+/** A piece belongs to one live root at a time and can restart after close.
+ * The extension owns the connection unless wiring lends one.
  * Close drains subscriptions while sessions can still run, then closes the root.
- * The start defer also reaps the connection when boot fails before the close hook runs. */
+ * The start defer also reaps the connection when boot fails before the caller closes. */
 export function nats(rows: readonly Nats.Row[], wiring: Nats.Wiring) {
-  let quiet: (() => Promise<void>) | undefined;
+  let owner: Scope.Handle | undefined;
   const bridge = extension({
     label: "nats",
     start: async (scope, ctx, next) => {
-      const url = readUrl(wiring.env.NATS_URL);
+      if (owner) raise("PieceInUse", { label: ctx.label });
+      owner = scope;
       let stopped = false;
+      let closingScope = false;
+      let quiet: (() => Promise<void>) | undefined;
       let close: (() => Promise<void>) | undefined;
-      ctx.defer(() => {
+      const release = () => {
+        if (owner === scope) owner = undefined;
+      };
+      const closeScope = scope.close.bind(scope);
+      /** Core's close hook has no scope. Bind here so closing a rejected or old scope
+       * cannot drain the live owner's subscriptions. Keep the full core close chain. */
+      scope.close = async (options) => {
+        closingScope = true;
+        const finish = () => closeScope(options);
+        try {
+          /** The defer reports drain errors. Keep the connection open for root cleanup. */
+          return await (options?.graceful && quiet ? quiet().then(finish, finish) : finish());
+        } finally {
+          release();
+        }
+      };
+      ctx.defer(async () => {
         stopped = true;
-        return close?.();
+        try {
+          await close?.();
+        } finally {
+          /** Failed boot closes through core without calling the scope handle. */
+          if (!closingScope) release();
+        }
       });
+      const url = readUrl(wiring.env.NATS_URL);
       await next();
       const { connect } = await import("@nats-io/transport-node");
       const connection = wiring.connection ?? (await connect({ servers: url }));
@@ -96,12 +122,6 @@ export function nats(rows: readonly Nats.Row[], wiring: Nats.Wiring) {
       }
       return { send };
     },
-    close: async (options, next) => {
-      if (!options.graceful) return next();
-      /** The defer reports a failed drain in teardownErrors. Always let core close.
-       * The connection stays open until root operations and their cleanup finish. */
-      return quiet ? quiet().then(next, next) : next();
-    },
   });
   const publish = operation({
     label: "nats.publish",
@@ -130,7 +150,7 @@ async function drain(
     await stop();
     if (owned) await connection.drain();
   } catch (error) {
-    /** The client's drain closes on success. Reap it here if subscription drain failed. */
+    /** Connection drain can reject its final flush on disconnect without closing the client. */
     if (owned) await connection.close();
     throw error;
   }
@@ -140,6 +160,10 @@ async function stopSubscriptions(
   subscriptions: Subscription[],
   pending: Set<Promise<void>>,
 ): Promise<void> {
-  await Promise.all(subscriptions.map((subscription) => subscription.drain()));
+  await Promise.allSettled(
+    subscriptions
+      .filter((subscription) => !subscription.isClosed())
+      .map((subscription) => subscription.drain()),
+  );
   await Promise.all(pending);
 }

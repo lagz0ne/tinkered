@@ -1,4 +1,5 @@
 type Payloads = {
+  PieceInUse: { label: string };
   InvalidConfig: { key: "NATS_URL" };
   ChecksumMismatch: { file: string };
   ServerStopped: { output: string; storeDir: string };

@@ -47,6 +47,63 @@ test("publish reaches a subscription operation with its subject and payload", as
   }
 });
 
+test("a piece rejects a second live scope and can restart after close", async () => {
+  const received: number[] = [];
+  const receive = operation({
+    label: "receive",
+    run: (_deps, ctx: Operation.Ctx<Nats.Message>) => {
+      received.push(ctx.input.payload[0]);
+    },
+  });
+  const bus = nats([subscribe("shared", receive)], { env: { NATS_URL: server.url } });
+  const closingStarted = Promise.withResolvers<void>();
+  const releaseClose = Promise.withResolvers<void>();
+  const gate = extension({
+    label: "closeGate",
+    close: async (_options, next) => {
+      const result = await next();
+      closingStarted.resolve();
+      await releaseClose.promise;
+      return result;
+    },
+  });
+  const first = createScope({ extensions: [bus.extension, gate] });
+  const scopes = [first];
+  try {
+    await first.ready;
+    const second = createScope({ extensions: [bus.extension] });
+    scopes.push(second);
+    await expect(second.ready).rejects.toMatchObject({
+      kind: "PieceInUse",
+      payload: { label: "nats" },
+    });
+    await second.close({ graceful: true });
+    first.run(bus.publish, { input: { subject: "shared", payload: new Uint8Array([1]) } });
+    await expect.poll(() => received).toEqual([1]);
+    const closing = first.close({ graceful: true });
+    await closingStarted.promise;
+    const duringClose = createScope({ extensions: [bus.extension] });
+    scopes.push(duringClose);
+    await expect(duringClose.ready).rejects.toMatchObject({
+      kind: "PieceInUse",
+      payload: { label: "nats" },
+    });
+    await duringClose.close({ graceful: true });
+    releaseClose.resolve();
+    expect(await closing).toEqual({ status: "success" });
+    const reloaded = createScope({ extensions: [bus.extension] });
+    scopes.push(reloaded);
+    await reloaded.ready;
+    await first.close({ graceful: true });
+    await second.close({ graceful: true });
+    reloaded.run(bus.publish, { input: { subject: "shared", payload: new Uint8Array([2]) } });
+    await expect.poll(() => received).toEqual([1, 2]);
+  } finally {
+    releaseClose.resolve();
+    for (const scope of scopes.reverse()) await scope.close({ graceful: true });
+  }
+});
+
 test("each message gets its own session resources and closes them", async () => {
   const seen: object[] = [];
   const closed: object[] = [];
@@ -256,7 +313,7 @@ test("a denied subscription logs its subject and closes only an owned connection
             attributes: { subject: "denied", error: expect.any(Error) },
           },
         ]);
-        await scope.close({ graceful: true });
+        expect(await scope.close({ graceful: true })).toEqual({ status: "success" });
         await expect
           .poll(async () => (await fetch(`${restricted.monitorUrl}/connz`)).json())
           .toMatchObject({ num_connections: borrowed ? 1 : 0 });

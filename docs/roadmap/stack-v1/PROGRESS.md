@@ -882,3 +882,41 @@ No source file was excluded and the floor stays 85.
   The normal helper test also proved both ports and the store were freed.
 - Branch stays local; nothing pushed.
 - Next: lead review and landing.
+
+### t07 review fix round 1
+
+- Owner: writer (Codex), branch `stack/t07`.
+- Next: fix the shared-piece guard and closed-subscription drain.
+- Verify: real-server tests fail before the fixes, then pass;
+  build, check, NATS tests, prose, and strict style census.
+- The lead asks the lander to run mutation this round.
+- Assumption: no test title was supplied for F1.
+  Use “a piece rejects a second live scope and can restart after close”.
+- Rebased onto `origin/main` at `a5aa0e7e` before the fixes.
+  Kept both t01 and t07 proof and both sets of Jev labels.
+- F3: removed all 172 `/tmp/tinker-nats-*` stores.
+  No server process was live before removal.
+- F3: removed `~/.cache/nats-server/2.15.0` too.
+  Our mutation that dropped the `tinkered` path part made it.
+  The saved mutant and file times match the earlier run.
+  Kept `~/.cache/tinkered/nats-server/2.15.0`.
+
+- F1: one live scope owns the piece; a second start raises
+  `PieceInUse` with `{ label: "nats" }`.
+  Close waits for the whole close chain before freeing the piece.
+- Core has no scope argument in its close hook.
+  Bind cleanup to the public scope handle supplied to `start`.
+  A rejected scope or an old handle cannot drain the live scope.
+  Added stack/t07 as the second asker on the close-state row.
+- F2: skip closed subscriptions and wait for every drain to settle,
+  then wait for pending deliveries.
+  Owned and borrowed denied subscriptions close with just success.
+- Kept the connection-drain catch: NATS 3.4.0's final flush
+  can reject on disconnect before its call to close.
+  The catch closes our client and keeps the first error.
+- Regression proof on the old code: two failed, 16 passed; exit 1.
+  The new guard test's second scope started instead of failing.
+  The denied-subscription test returned a teardown error.
+- Gate after both fixes: build, check, 18 NATS tests; exit 0.
+  Check has no errors and 29 warnings.
+- Prose: no hits; strict style census: OK; TSDoc: no findings.
