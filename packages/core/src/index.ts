@@ -1039,17 +1039,16 @@ class NodeState {
   nsWatchers: NsWatchers | undefined = undefined;
 }
 
+/** Keep the first-write branch here: splitting it made V8 partly inline repeated warm reads. */
 function nodeState(layer: Layer, key: object): NodeState {
-  return layer.nodes.get(key) ?? addNodeState(layer, key);
-}
-
-/** {@link nodeState}'s first visit, its own function so the hit path stays small to inline. */
-function addNodeState(layer: Layer, key: object): NodeState {
-  materialize(layer);
-  const s = new NodeState();
-  if (layer.nodes === NO_NODES) layer.nodes = new Map();
-  layer.nodes.set(key, s);
-  return s;
+  let state = layer.nodes.get(key);
+  if (state === undefined) {
+    materialize(layer);
+    state = new NodeState();
+    if (layer.nodes === NO_NODES) layer.nodes = new Map();
+    layer.nodes.set(key, state);
+  }
+  return state;
 }
 
 /** Depth of factory/op execution in progress across all scopes. Non-zero means a user body is running
@@ -1082,7 +1081,7 @@ type ExtRoutes = {
 const NO_EXTS: ExtRoutes = { runners: undefined, writers: undefined, sessions: undefined };
 /** A layer's node store, child set, owned-work set, defer list, and teardown errors start as these
  * shared empty ones, so an idle layer allocates none (performance rule 4). Never written: the first
- * write gives the layer its own ({@link addNodeState}, {@link makeLayer}, {@link addWork},
+ * write gives the layer its own ({@link nodeState}, {@link makeLayer}, {@link addWork},
  * {@link addDefer}, {@link addError}); every reader reads them as usual. */
 const NO_NODES = new Map<object, NodeState>();
 const NO_CHILDREN = new Set<Layer>();
