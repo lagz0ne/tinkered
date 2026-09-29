@@ -1,9 +1,21 @@
 // Standalone core probe: ONE scenario per process (min ns/iter + bytes/iter), pinned to one core.
-// usage: taskset -c 7 node --expose-gc bench/core-probe.mjs <cold|create|warm|get1|lifecycle|inferdi_cold|op|opres|asyncsub|run|cold2|s1_getctl|s2_data|s3_doubled|s4_warm_ctl>
+// usage: taskset -c 7 node --expose-gc bench/core-probe.mjs <cold|create|warm|get1|lifecycle|inferdi_cold|op|opres|asyncsub|run|cold2|s1_getctl|s2_data|s3_doubled|s4_warm_ctl|inline|tagged|session>
+// CORE_DIST=<path to a core dist/index.mjs> measures that build with this probe (bench/ab.sh runs
+// one probe against both trees); unset, it measures this tree's build.
+// Each scenario runs WARM_CALLS times before mitata times it. mitata times 4096 calls per sample
+// ("batch") only when the first call takes <= 500 us and a later warm-up call <= 65.5 us (mitata
+// 1.0.34 src/lib.mjs lines 133, 135, 177, 185); else it times one call per sample, which adds the
+// timer's cost to every sample. A cold first call (V8 compiling the path) crosses that line at
+// random, so one tree could land in either mode. The METRIC line says which mode mitata used.
 import { bench, run } from "mitata";
 import { Container } from "@inferdi/inferdi";
-const { createScope, data, resource, operation, tag } =
-  await import("../packages/core/dist/index.mjs");
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+const WARM_CALLS = 1000;
+const coreDist = process.env.CORE_DIST;
+const { createScope, data, resource, operation, tag } = await import(
+  coreDist ? pathToFileURL(resolve(coreDist)).href : "../packages/core/dist/index.mjs"
+);
 const cfg = data({ label: "cfg", initial: 21 });
 const doubled = resource({ label: "doubled", depends: { n: cfg }, factory: ({ n }) => n * 2 });
 const store = resource({
@@ -70,9 +82,13 @@ const fns = {
   inferdi_cold: () => coldRoot.createScope().get("store").base,
 };
 const key = process.argv[2];
-bench(key, fns[key]);
+const fn = fns[key];
+for (let i = 0; i < WARM_CALLS; i++) await fn();
+bench(key, fn);
 const r = await run({ print: () => {} });
 const b = r.benchmarks[0].runs[0].stats;
+// Batch mode counts 4096 ticks per sample, one-call mode one.
+const mode = b.ticks > b.samples.length ? "batch" : "one";
 console.log(
-  `METRIC ${key}_ns=${b.min.toFixed(1)} ${key}_b=${b.heap?.min ?? "-"} avg=${b.avg.toFixed(1)}`,
+  `METRIC ${key}_ns=${b.min.toFixed(1)} ${key}_b=${b.heap?.min ?? "-"} avg=${b.avg.toFixed(1)} mode=${mode}`,
 );
