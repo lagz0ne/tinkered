@@ -237,6 +237,7 @@ The request session commits on success, rolls back on abort, fails on an unmappe
 
 `hono(routes, { onError: (e, c) => Response | undefined })` answers first; `undefined`
 falls through to the table. A mapped failure settles the request span `ok`.
+`onError` answers first: a parse failure becomes 418 while `MissingTag` keeps 500.
 
 The route runs its operation through `settle`.
 A failure `onError` answers, a panic included, closes the request session `success`.
