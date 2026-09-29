@@ -12,6 +12,10 @@ HTTP 409 and the current saved issue; the local draft is kept so the
 person can reload the other change and try again. Comments append without
 an edit revision.
 
+Creating an issue posts once and clears the create form after success.
+Posting a comment clears its draft text after success.
+A rejected comment saves no row and records no activity.
+
 If the live connection drops — a wire failure or a server restart — the
 page keeps every typed draft, and the browser reconnects by itself.
 Reconnecting keeps the same page, so the local title, comment, and edit
@@ -65,6 +69,12 @@ that issue. Cancel stops the run, Discard throws the draft away — neither
 saves anything. "Post draft" appends the generated text as a comment
 under the chosen Ada/Lin/Sam author through the normal comment action.
 
+While a draft post is pending, posting controls stay disabled; it saves once.
+A model error result or thrown error ends the turn as failed with no final draft.
+An HTTP disconnect or root close cancels the model turn and saves nothing.
+
+Shutdown waits for a live sync wire and a held draft turn to finish closing.
+
 Turn the helper on for local use:
 
 ```bash
@@ -98,9 +108,11 @@ The build command builds the public workspace libraries before the app.
 
 Then open `http://127.0.0.1:4311/` in two tabs. `HOST` and `PORT` set the
 address; `DATA_PATH` is the persistent PGlite folder (gitignored).
+
 Importing either entry file starts nothing.
 `runServer(env, stop)` serves until the stop signal fires.
 It waits for a clean close and answers 0; a boot failure answers 1.
+
 Saved issues reach the list route and sync stream before the port opens.
 
 A `PORT` that is not a whole number from 1 to 65535 stops the boot with
@@ -137,7 +149,8 @@ again. Comments append without a revision.
 ## Use it from MCP
 
 The same five actions are MCP tools (`list`, `create`, `update`,
-`comment`, `get`) served over stdio:
+`comment`, `get`) served over stdio.
+They save through the same server and report conflicts as tool errors.
 
 ```bash
 BASE_URL=http://127.0.0.1:4311 vp run @tinker-issue-tracker#mcp
@@ -205,10 +218,25 @@ Each save runs smaller operations as subflows:
 An edit of a missing issue fails with the origin `loadSaved`.
 A test can preset one of them alone.
 A preset `recordActivity` receives every activity write.
-The `publish()` extension reads saved issues during start and after each commit.
+
+The `publish()` extension reads saved issues during start.
+It reads again after each successful non-GET request commits.
+After a create commits, a publish failure keeps the row and the 201 response.
+It logs one `publish failed` line; the next commit tries again.
+
 The list route reads the published cell and needs no database.
 First listed is outermost; work after `await next()` runs inside out.
 The server listed first opens its port last.
+
+The detail and conflict routes also work through `app.request` with no port.
+`api.config` rejects a 500 as `ResponseFailed` by default and lets a 409 through.
+An explicit `accept` replaces that default status rule.
+
+The JSON log sink writes every log line and only failed spans.
+A log writer that throws loses that line; the scope keeps running.
+An error no route maps answers 500 and writes one `request failed` line.
+
+The trace comes from the graph: the caller, its `http.send`, then `http.attempt`.
 
 The app is built from the public libraries:
 
