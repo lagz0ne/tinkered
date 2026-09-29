@@ -33,7 +33,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **stack/t09 mail** — `@tinker/mail`: `sendMail` adds a mail job; Upyo sends; dev logs, tests mock (ADR 0083). After t08. Verify: one mail per commit, none per rollback; a missing `MAIL_URL` fails boot in prod. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t10 auth-signin** — `@tinker/auth`: Better Auth sign-up and sign-in; its tables through our migrations (ADR 0075). After t06. Verify: sign up, sign in, read the user, sign out; the auth schema drift test. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t11 auth-mails** — verify and reset mails through `sendMail`. After t09 and t10. Verify: auth tests read both mails from the mock and follow their links. [track](docs/roadmap/stack-v1/PROGRESS.md).
-- **stack/t12 live-across** — a save on one server reaches tabs on another, over NATS (ADR 0080). After t07. Verify: two server scopes, one PGlite, a real `nats-server`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t13 trace-sink** — the stack sends spans and logs over OTLP (ADR 0076). After t04 and t05. Verify: one request gives one trace at a local OTLP receiver. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t14 dev-host** — `vp run dev`: one process; an edit rebuilds the scope (ADR 0082). After t06 and t07. Verify: the old scope closes on an edit; `benchctl ab` says reload beats restart. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t15 server-pages** — the tracker's list page renders on the server with TanStack Router (ADR 0075). After t14. Verify: the browser test sees the list in the first HTML, then live updates. [track](docs/roadmap/stack-v1/PROGRESS.md).
@@ -46,6 +45,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
+- **stack/t12 live-across** — a save on one server reaches tabs on another, over NATS (ADR 0080). Owner: lead (stack session); Astra writer `026a5b01`, worktree `/home/paseo/next/tinkered-stack-t12`; Opus reviewer when the writer reports. Verify: two server scopes, one PGlite, a real `nats-server`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t06 migrate-step** — the tracker's tables come from migration files, run at boot under a lock (ADR 0079). Owner: lead (stack session); Astra writer `2cb63e15`, worktree `/home/paseo/next/tinkered-stack-t06`; Opus reviewer when the writer reports. Verify: a drift test fails on a mismatch; an old tracker database keeps its rows. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t04 trace-id** — core: a span carries a trace id; Hono seeds it from `traceparent` (ADR 0076). Owner: lead (stack session); Astra writer `5e69613c`, worktree `/home/paseo/next/tinkered-stack-t04`; the only core card now; Opus reviewer when the writer reports. Verify: core and hono tests, `scripts/ticket.sh`, `pnpm validate`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 
