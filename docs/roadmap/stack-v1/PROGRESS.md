@@ -437,7 +437,7 @@ flock /tmp/mutation.lock \
 
 - Owner: stack/t03 writer.
 - State: Doing.
-- Next: check a failed commit with a real database, then repeat the final checks.
+- Next: confirm the two commit-error changes with one mutation worker.
 - Verify: build, check, drizzle and tracker tests, browser proof,
   all validation lanes, and drizzle mutation score at least 85.
 - Assumption: this ticket's catalog pin requires a committed change to
@@ -452,9 +452,9 @@ flock /tmp/mutation.lock \
 - RC.4 removed the positional PGlite client argument.
   The first RC check failed with 11 `TS2345` errors.
   The tracker, example, README, and test setup now pass `{ client, logger }`.
-- No test title or assertion changed.
+- No existing test title or assertion changed.
 - The package still accepts `^0.45.2` as well as `^1.0.0-rc.4`.
-  All 12 tests passed on 0.45.2 before the upgrade.
+  All 12 original tests passed on 0.45.2 before the upgrade.
   Its types also accept the new client object form.
 - No migration files were added.
 - Install reports one optional peer warning: RC.4's Effect driver needs
@@ -462,23 +462,50 @@ flock /tmp/mutation.lock \
   No source imports the Drizzle Effect driver.
   Kept that separate benchmark dependency as it was.
 
-### Proof
+### Final gate
 
-- Rebased on `origin/main` at `1a06fda` before the final gate.
-  Kept main's board moves when fixing the board conflict.
-- `pnpm why -r drizzle-orm`: one version, `1.0.0-rc.4`.
+- Rebased on `origin/main` at `de72d42` before the final gate.
+  Kept main's board moves when fixing an earlier board conflict.
+- `pnpm why drizzle-orm`: one version, `1.0.0-rc.4`.
 - `vp exec drizzle-kit --version` in the tracker prints ORM and Kit RC.4.
 - Gate: `vp run -r build`, `vp check`, `vp run drizzle#test`, then
   `vp run @tinker-issue-tracker#test`: `EXIT 0`.
 - Check: 0 errors, 29 warnings, the same warning count as the starting tree.
-- Fresh `vp run --no-cache -r test`: 1,465 pass, one existing skip.
-  This includes 12 drizzle tests and 72 tracker tests.
-- Fresh `vp run --no-cache @tinker-issue-tracker#test:browser`: `EXIT 0`.
+- Drizzle: 13 tests pass. Tracker: 72 tests pass.
+- `vp run -r test`: 1,466 pass, one existing skip.
+  A full run with caching off also passed before the added commit-error test.
+- `vp run @tinker-issue-tracker#test:browser`: `EXIT 0`, no cache hits.
   The two-tab proof and all 7 browser helper tests pass.
+- `pnpm validate`: all 44 lanes pass, `EXIT 0`.
+  Ran under `/tmp/mutation.lock` after a rebuild.
+  The committed `allowBuilds.esbuild` was already true.
 - Strict style census on the three changed TypeScript files: OK.
 - Prose lint: 0 hits.
-- Jev on the ticket diff: 0 flags; tests: 0 of 12 flags;
-  README promises: 0 of 12 gaps.
+
+### Mutation proof and the added test
+
+- The first full run failed: 84.75, below 85; `EXIT 1`.
+  It reported 47 killed, 3 timed out, 9 survived, and no report errors.
+- A worker hit a Node WebAssembly `SIGILL`; Stryker recovered and finished.
+- Two surviving changes hide a commit failure from the caller.
+  The README already promises that a failed commit rejects the session.
+  Added a PGlite test with a unique constraint checked only at commit.
+  The session must reject with the database error.
+- Re-ran the final gate, all tests, browser proof, and validation after adding it.
+- The second full run passed: 100.00, `EXIT 0`.
+  It reported 39 killed, 20 timed out, no survivors, and no report errors.
+  The score includes timeouts; it does not prove 59 test failures.
+- Both full runs used `flock /tmp/mutation.lock`.
+  The second run departs from the brief's one-run limit because the first was red.
+- A focused run checks `src/index.ts:144-145` with one worker and a 30-second timeout.
+  It is pending; its job is to confirm both commit-error changes are killed.
+
+### Jev and Core feedback
+
+- Jev on the ticket's source diff: 0 flags.
+- Test review: 0 of 13 flags. README promises: 0 of 13 gaps.
+  One low-confidence note asks about a root read after commit.
+  The outcome rule already promises commit when the session succeeds.
 - `main..HEAD` includes work already on `origin/main`.
   Its five model hits already have false labels in `tools/jev/cases.jsonl`:
   `inputDefaultMasks` on `readTextPart` and `readFirstText`,
@@ -488,19 +515,3 @@ flock /tmp/mutation.lock \
   that resource cannot move to module scope as written.
   No new labels are needed for t03.
 - Core feedback: none; no Core workaround was needed.
-
-- `pnpm validate`: all 44 lanes pass, `EXIT 0`.
-  Ran under `/tmp/mutation.lock` after a rebuild.
-  The committed `allowBuilds.esbuild` was already true.
-
-### Mutation follow-up
-
-- The first full run failed: 84.75, below 85; `EXIT 1`.
-  It reported 47 killed, 3 timed out, 9 survived, and no report errors.
-- A worker hit a Node WebAssembly `SIGILL`; Stryker recovered and finished.
-- Two surviving changes hide a commit failure from the caller.
-  The README already promises that a failed commit rejects the session.
-  Added a PGlite test with a unique constraint checked only at commit.
-  The session must reject with the database error.
-- This needs a second full mutation run after the test is checked.
-  That departs from the brief's one-run limit because the first run was red.
