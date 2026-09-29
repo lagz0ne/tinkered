@@ -39,7 +39,12 @@ export async function tour(): Promise<string> {
     tools: [expose(search, { description: "search the index", schema: searchShape })],
   });
   const scope = createScope({ extensions: [ext] });
-  await scope.ready;
+  try {
+    await scope.ready;
+  } catch (error) {
+    await scope.close();
+    throw error;
+  }
   const server = scope.resolve(ext);
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);

@@ -10,7 +10,7 @@ import {
   subscribe,
   type Sync,
 } from "../src/index.ts";
-import { boot } from "../../../examples/sync/hono.ts";
+import { src, web } from "../../../examples/sync/hono.ts";
 
 /** Parse raw input into text at the process edge. A named function, not a method pull. */
 function parseText(raw: unknown): string {
@@ -833,7 +833,14 @@ test("connect resolves cancelled on a forced root close", async () => {
 });
 
 test("the recipe registers by identity, then streams the snapshot down", async () => {
-  const { scope, app } = await boot();
+  const scope = createScope({ extensions: [web, src] });
+  try {
+    await scope.ready;
+  } catch (error) {
+    await scope.close();
+    throw error;
+  }
+  const app = scope.resolve(web);
   function readerOf(streamed: Response): ReadableStreamDefaultReader<Uint8Array> {
     const body = streamed.body;
     if (body === null) throw new Error("body");

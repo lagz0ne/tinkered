@@ -1,5 +1,4 @@
-import type { Hono } from "hono";
-import { createScope, data, operation, resource, type Scope } from "@tinker/core";
+import { data, operation, resource } from "@tinker/core";
 import { emit, hono, route, stream } from "@tinker/hono";
 import { source, type Sync } from "@tinker/sync";
 import { z } from "zod";
@@ -28,9 +27,9 @@ const posts = resource({
   },
 });
 
-/** The source extension, one identity per process: `boot` installs this same
+/** The source extension, one identity per process: the root installs this same
  * object and the `/sync` row's op declares it in `depends`. */
-const src = source({ cells: [[counter, "counter"]] });
+export const src = source({ cells: [[counter, "counter"]] });
 
 /** Check the source and inbox are up before sending the stream headers. */
 const openWire = operation({
@@ -98,8 +97,9 @@ const wireBody = operation({
 });
 
 /** The recipe: flat rows plus the source extension. One way: nothing is pushed
- * unasked. The stream goes down, the registration comes up. */
-const { extension: web } = hono([
+ * unasked. The stream goes down, the registration comes up.
+ * The root lists extensions as `[web, src]`, so the server starts last. */
+export const { extension: web } = hono([
   route.get("/sync", openWire, {
     respond: (_ready, c) => {
       const id = c.req.query("client") ?? "guest";
@@ -114,10 +114,3 @@ const { extension: web } = hono([
     respond: (_delivery, c) => c.text("ok"),
   }),
 ]);
-
-/** The caller owns the returned scope and must close it; `app` can serve once this resolves. */
-export async function boot(): Promise<{ scope: Scope.Handle; app: Hono }> {
-  const scope = createScope({ extensions: [src, web] });
-  await scope.ready;
-  return { scope, app: scope.resolve(web) };
-}

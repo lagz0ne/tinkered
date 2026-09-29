@@ -8,6 +8,7 @@ function keyFrom(argv: readonly string[]): string | undefined {
   return process.env.AI_GATEWAY_API_KEY;
 }
 
-const key = keyFrom(process.argv);
-
-await main(shell({ tags: key ? [engine({ model: "typesafe-ai/jev", apiKey: key })] : [] }));
+if (import.meta.main) {
+  const key = keyFrom(process.argv);
+  await main(shell({ tags: key ? [engine({ model: "typesafe-ai/jev", apiKey: key })] : [] }));
+}

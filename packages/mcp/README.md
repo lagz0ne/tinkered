@@ -97,7 +97,7 @@ const shell: Process.Shell = {
     },
   ],
 };
-await main(shell);
+if (import.meta.main) await main(shell);
 ```
 
 The command must wait for its serving lifetime. `connect()` only opens the

@@ -60,7 +60,12 @@ export async function tour(): Promise<string> {
   );
 
   const scope = createScope({ tags: [tenant("acme"), database("public-db")], extensions: [web] });
-  await scope.ready;
+  try {
+    await scope.ready;
+  } catch (error) {
+    await scope.close();
+    throw error;
+  }
   const app = scope.resolve(web);
 
   const scoped = await app.request("/greet/ada", { headers: { "x-tenant": "beta" } });

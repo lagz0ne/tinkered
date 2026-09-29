@@ -1,5 +1,5 @@
 import { operation } from "@tinker/core";
-import { argv, io, main } from "@tinker/process";
+import { argv, io, main, type Process } from "@tinker/process";
 import { z } from "zod";
 
 const ping = operation({ label: "ping", run: () => "pong" });
@@ -29,11 +29,13 @@ const greetCommand = operation({
 });
 
 /** The real entrypoint: argv in, exit code out. The smoke test spawns this file. */
-await main({
+export const shell: Process.Shell = {
   name: "tinker",
   version: "0.0.0",
   commands: [
     { name: "ping", entry: () => ({ op: pingCommand }) },
     { name: "greet", entry: () => ({ op: greetCommand }) },
   ],
-});
+};
+
+if (import.meta.main) await main(shell);

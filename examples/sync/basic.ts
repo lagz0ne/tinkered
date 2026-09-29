@@ -9,22 +9,31 @@ const counter = data({ label: "counter", initial: 0 });
  * subscribe extension over a resource that hands it its end of the pair; `await guest.ready` holds
  * until the snapshot lands, then the tour reads the viewer cell and
  * detaches. Answers the published key plus the final viewer value. */
-export function tour(): Promise<string> {
+export async function tour(): Promise<string> {
   const src = source({ cells: [[counter, "counter"]] });
   const scope = createScope({ extensions: [src] });
+  try {
+    await scope.ready;
+  } catch (error) {
+    await scope.close();
+    throw error;
+  }
   scope.controller(counter).set(1);
   const [left, right] = memoryPair();
   const done = scope.resolve(src).connect(left);
   const pipe = resource({ label: "pipe", factory: () => right });
   const sub = subscribe(pipe, { cells: [[counter, "counter"]] });
   const guest = createScope({ extensions: [sub] });
-  return guest.ready.then(() => {
-    const answer = `counter:${guest.resolve(counter)}`;
-    guest.resolve(sub).close();
-    return done.then(() =>
-      Promise.all([scope.close({ graceful: true }), guest.close({ graceful: true })]).then(
-        () => answer,
-      ),
-    );
-  });
+  try {
+    await guest.ready;
+  } catch (error) {
+    await guest.close();
+    await scope.close();
+    throw error;
+  }
+  const answer = `counter:${guest.resolve(counter)}`;
+  guest.resolve(sub).close();
+  await done;
+  await Promise.all([scope.close({ graceful: true }), guest.close({ graceful: true })]);
+  return answer;
 }

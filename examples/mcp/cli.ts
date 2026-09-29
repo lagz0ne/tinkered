@@ -62,7 +62,7 @@ const serveMcp = operation({
     }),
 });
 
-const shell: Process.Shell = {
+export const shell: Process.Shell = {
   name: "coder",
   version: "1.0.0",
   commands: [
@@ -74,4 +74,4 @@ const shell: Process.Shell = {
   ],
 };
 
-await main(shell);
+if (import.meta.main) await main(shell);
