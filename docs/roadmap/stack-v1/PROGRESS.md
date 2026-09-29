@@ -46,7 +46,7 @@ Rules for every ticket:
   green.
 - **t04 core: a span carries a trace id** -- [ ] blocked by: none
   Writer: `stack/t04`, in `/home/paseo/next/tinkered-stack-t04`.
-  Next: trace-id gate, Jev, budgets, and mutation proof.
+  Next: Hono and HTTP mutation, then writer handoff.
   Every span gets a trace id when it opens, from
   its parent or from a seed a driver gives
   (ADR 0076). Hono seeds it from `traceparent`.
@@ -1210,3 +1210,75 @@ The Hono response bug remains with its owner.
 - Only tests and docs changed.
   No mutation rerun, rebase, or push in this round.
 - Next: lead review of the fix commit.
+
+## t04 writer proof — 2026-09-29
+
+- Branch: `stack/t04`.
+- Base: `origin/main` at `de72d42`.
+- Worktree: `/home/paseo/next/tinkered-stack-t04`.
+- Shape: W3C trace ids are 16 bytes; span ids are 8 bytes.
+- Both are lowercase hex from the ambient random source.
+- Numeric ids still order local span trees.
+- The seed carries the remote parent and sampled flag.
+- `trace: null` clears an inherited seed.
+- A resource uses its caller's trace even when the root owns it.
+- No new kind hint, links, `tracestate`, or OTel import.
+- The sink supplies `service.name` from its own config.
+
+### Checks seen
+
+```bash
+vp run -r build && vp check &&
+vp run core#test && vp run hono#test &&
+vp run http#test && vp run -r test
+```
+
+- Gate: `EXIT 0` after the final fetch and rebase.
+- Core: 725 tests; Hono: 65; HTTP: 86.
+- The full repo test run passed.
+- Check: 0 errors, 29 warnings on both branch and base.
+- `pnpm validate`: all 44 lanes PASS.
+- All printed span-tree tests passed without edits.
+- Two regressions failed before their fixes, then passed.
+- They cover clearing a root seed and a direct resource build.
+- Hono -> HTTP -> Hono: six spans shared one trace in a public API probe.
+- SCIP rebuilt every package and printed refs for all nine new symbols.
+- Jev: all source flags labeled; 69 new rows, all false.
+- All 16 new test titles have README promise lines.
+- Old test notes and README gaps remain outside this change.
+- Strict style scan: one old S14 false hit, on both branch and base.
+- That hit reads `panics[0]` from an array, not a tuple.
+- Core mutation: 86.01, `EXIT 0`, one full run under the lock.
+- Hono and HTTP mutation: waiting for the shared lock.
+- Hot slots: 253 names, last slot 255, no headroom.
+
+### Timing
+
+Each screen used 31 A/B pairs through `bench/queued.sh`.
+Both held `/tmp/mutation.lock` and ended with exit 0.
+Each case used batch mode in 31/31 runs on both sides.
+The first screen found an off-path slowdown.
+A small off check fixed it; the second screen timed `f36bfac`.
+
+- **op:** b is faster, 69.9 to 66.2 ns.
+- **opsink:** b is faster, 68.1 to 63.6 ns.
+- **oplog:** b is faster, 282.0 to 274.4 ns.
+- **opobs:** b is slower, 184.1 to 1241.8 ns.
+- **tagged:** no difference we can see.
+- **session:** no difference we can see.
+- **cold:** no difference we can see.
+
+Observed root spans now make and format two ids.
+The extra cost is about 1.06 microseconds per call.
+The six checked paths with observation off show no slowdown.
+The lander still needs 61 pairs.
+
+The [learning note](../../../research/learnings/2026-09-29-span-off-check.md) holds the full numbers.
+Raw logs, label lines, SCIP output, and the report are in the writer worktree's `.bench/stack-t04-proof/`.
+
+### Writer choices
+
+The named gate and three mutation lanes replace `scripts/ticket.sh`.
+That script stages every path, runs every package's mutation lane, and force-writes a core tag.
+The writer brief requires path-only commits and these three lanes.
+No branch was pushed.
