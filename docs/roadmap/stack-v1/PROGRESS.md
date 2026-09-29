@@ -528,3 +528,31 @@ flock /tmp/mutation.lock \
   that resource cannot move to module scope as written.
   No new labels are needed for t03.
 - Core feedback: none; no Core workaround was needed.
+
+## t02 writer — stack/t02
+
+- Owner: stack/t02 writer.
+- Next: add `errorResponses` and the default Hono error reply.
+- Verify: Hono tests and tracker tests unchanged;
+  build, check, validate, mutation at least 85.
+- Assumption: a status alone sends an empty body.
+  A body builder returns text or a JSON value.
+  The existing `onError` hook can use the table.
+- The tracker keeps its `observe` option so its tests
+  stay unchanged; the scope owns the log sink.
+- Core feedback to check: an extension's `ctx.log`
+  is off, so a resource must read the scope's logger.
+
+### t02 impact
+
+- Add `errorResponses` and `HonoScope.ErrorResponses`.
+  No existing Hono signature changes.
+- Change Hono's default last error handler: log
+  `request failed`, then answer `internal`, status 500.
+  Keep `HTTPException` and client-abort behavior.
+- Callers: `apps/issue-tracker/src/server/routes.ts`
+  and its `main.ts` comment and server options.
+  Hono's other callers need no source change.
+- Remove the tracker's `onError`, `readIssueError`,
+  `readStreamError`, and `reportUnmapped` functions.
+- Check old and new symbols with SCIP before review.
