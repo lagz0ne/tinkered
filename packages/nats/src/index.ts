@@ -55,44 +55,47 @@ export function nats(rows: readonly Nats.Row[], wiring: Nats.Wiring) {
         connection.publish(message.subject, message.payload);
       if (stopped) {
         await close();
-        return { send };
-      }
-      for (const row of rows) {
-        const receive = await row.load();
-        subscriptions.push(
-          connection.subscribe(row.subject, {
-            callback: (error, message) => {
-              const work = scope.session((session) =>
-                session.run({
-                  label: `nats ${row.subject}`,
-                  depends: { receive },
-                  run: async ({ receive }, runCtx) => {
-                    if (error) {
-                      runCtx.log.error("nats subscription failed", { subject: row.subject, error });
-                      return;
-                    }
-                    const result = await receive.settle({
-                      input: { subject: message.subject, payload: new Uint8Array(message.data) },
-                    });
-                    if (result.status === "failed") {
-                      runCtx.log.error("nats operation failed", {
-                        subject: message.subject,
-                        error: result.error,
+      } else {
+        for (const row of rows) {
+          const receive = await row.load();
+          subscriptions.push(
+            connection.subscribe(row.subject, {
+              callback: (error, message) => {
+                const work = scope.session((session) =>
+                  session.run({
+                    label: `nats ${row.subject}`,
+                    depends: { receive },
+                    run: async ({ receive }, runCtx) => {
+                      if (error) {
+                        runCtx.log.error("nats subscription failed", {
+                          subject: row.subject,
+                          error,
+                        });
+                        return;
+                      }
+                      const result = await receive.settle({
+                        input: { subject: message.subject, payload: new Uint8Array(message.data) },
                       });
-                    }
-                  },
-                }),
-              );
-              pending.add(work);
-              work.then(
-                () => pending.delete(work),
-                () => pending.delete(work),
-              );
-            },
-          }),
-        );
+                      if (result.status === "failed") {
+                        runCtx.log.error("nats operation failed", {
+                          subject: message.subject,
+                          error: result.error,
+                        });
+                      }
+                    },
+                  }),
+                );
+                pending.add(work);
+                work.then(
+                  () => pending.delete(work),
+                  () => pending.delete(work),
+                );
+              },
+            }),
+          );
+        }
+        await connection.flush();
       }
-      await connection.flush();
       return { send };
     },
     close: async (options, next) => {
@@ -113,7 +116,7 @@ export function nats(rows: readonly Nats.Row[], wiring: Nats.Wiring) {
 }
 
 function readUrl(value: string | undefined): string {
-  const url = URL.parse(value ?? "");
+  const url = URL.parse(String(value));
   if (!url || !["nats:", "tls:"].includes(url.protocol) || !url.hostname) {
     raise("InvalidConfig", { key: "NATS_URL" });
   }
@@ -128,8 +131,10 @@ async function drain(
   try {
     await stop();
     if (owned) await connection.drain();
-  } finally {
+  } catch (error) {
+    /** The client's drain closes on success. Reap it here if subscription drain failed. */
     if (owned) await connection.close();
+    throw error;
   }
 }
 

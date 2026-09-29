@@ -311,7 +311,7 @@ test("forced close aborts a running message and closes the connection", async ()
     await scope.ready;
     scope.run(bus.publish, { input: { subject: "abort", payload: new Uint8Array() } });
     await started.promise;
-    expect((await scope.close()).status).toBe("cancelled");
+    expect(await scope.close()).toMatchObject({ status: "cancelled", teardownErrors: undefined });
     await expect
       .poll(async () => (await fetch(`${server.monitorUrl}/connz`)).json())
       .toMatchObject({ num_connections: 0 });
