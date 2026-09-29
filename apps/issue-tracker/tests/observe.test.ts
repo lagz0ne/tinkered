@@ -107,9 +107,9 @@ test("an error no route maps answers 500 and one `request failed` line names it"
       }),
     ],
   });
-  await scope.ready;
-  const app = scope.resolve(server);
   try {
+    await scope.ready;
+    const app = scope.resolve(server);
     const res = await app.request("/api/issues");
     expect(res.status).toBe(500);
     expect(await res.text()).toBe("internal");
