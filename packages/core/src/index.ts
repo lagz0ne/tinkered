@@ -515,8 +515,9 @@ export declare namespace Scope {
      * child session inherits it; a per-call `ns` overrides it for one run. Absent = default. */
     ns?: Ns;
     observe?: Observe.Config;
-    /** Join a remote trace. Copied at scope/session creation; ignored with observation off. */
-    trace?: Observe.Trace;
+    /** Join a remote trace; null starts fresh. Absent inherits the parent seed.
+     * Copied at scope/session creation; ignored with observation off. */
+    trace?: Observe.Trace | null;
     presets?: Many<Preset>;
     /** The ambient clock for this scope; child sessions inherit it. Default is the system clock. */
     clock?: Clock.Handle;
@@ -3733,8 +3734,9 @@ function layerRecord(
 /** Copy the driver's seed once; descendants share the owned copy. */
 function traceFor(
   parent: Layer | undefined,
-  trace: Observe.Trace | undefined,
+  trace: Observe.Trace | null | undefined,
 ): Observe.Trace | undefined {
+  if (trace === null) return undefined;
   return trace === undefined ? parent?.trace : { ...trace };
 }
 

@@ -810,6 +810,9 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A session seed overrides its scope seed without changing siblings.
 - A seeded subflow uses its local caller as parent and keeps the sampled flag.
 
+- A null session seed starts a fresh trace without changing its parent.
+
+Absent `trace` inherits the parent seed; `trace: null` clears it.
 Numeric `id` and `parentId` still order the local tree.
 `traceId` is 32 lowercase hex digits; `spanId` and
 `parentSpanId` are 16.

@@ -238,16 +238,16 @@ function serveRequests(scope: Scope.Handle, wiring: HonoScope.Wiring | undefined
 
 /** Validate the HTTP carrier once, before core receives typed ids. Future versions use
  * the known prefix; version 00 permits no suffix (W3C Trace Context 3.2.4). */
-function readTraceparent(header: string | null): Observe.Trace | undefined {
-  if (header === null) return undefined;
+function readTraceparent(header: string | null): Observe.Trace | null {
+  if (header === null) return null;
   const match =
     /^(?<version>[0-9a-f]{2})-(?<traceId>[0-9a-f]{32})-(?<parentSpanId>[0-9a-f]{16})-(?<flags>[0-9a-f]{2})(?<suffix>-.*)?$/.exec(
       header,
     );
-  if (!match) return undefined;
+  if (!match) return null;
   const { version, traceId, parentSpanId, flags, suffix } = match.groups!;
-  if (version === "ff" || (version === "00" && suffix !== undefined)) return undefined;
-  if (/^0+$/.test(traceId) || /^0+$/.test(parentSpanId)) return undefined;
+  if (version === "ff" || (version === "00" && suffix !== undefined)) return null;
+  if (/^0+$/.test(traceId) || /^0+$/.test(parentSpanId)) return null;
   return { traceId, parentSpanId, sampled: (Number.parseInt(flags, 16) & 1) === 1 };
 }
 

@@ -137,3 +137,12 @@ test("a seeded subflow uses its local caller as parent and keeps the sampled fla
   });
   await scope.close();
 });
+
+test("a null session seed starts a fresh trace without changing its parent", async () => {
+  const scope = createScope({ observe: { history: 10 }, trace: seed });
+  const fresh = scope.createSession({ trace: null }).createSession().run(readSpan)!;
+  expect(fresh.traceId).not.toBe(seed.traceId);
+  expect(fresh.parentSpanId).toBeUndefined();
+  expect(scope.run(readSpan)).toMatchObject(seed);
+  await scope.close();
+});

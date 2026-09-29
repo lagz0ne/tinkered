@@ -23,7 +23,11 @@ test("a valid traceparent joins the request spans to the remote parent", async (
 
 test("a malformed or absent traceparent starts a new trace and still answers", async () => {
   const { extension: web } = hono([route.get("/ping", ping)]);
-  const scope = createScope({ extensions: web, observe: { history: 50 } });
+  const scope = createScope({
+    extensions: web,
+    observe: { history: 50 },
+    trace: { traceId, parentSpanId },
+  });
   await scope.ready;
   const bad = [
     undefined,
