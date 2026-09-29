@@ -335,19 +335,31 @@ test("close during boot reaps a connection that opens later", async () => {
   }
 });
 
-test("a failed subscription loader fails boot and closes the connection", async () => {
+test("failed boot keeps its cause and closes any connection without cleanup errors", async () => {
   const failure = new Error("cannot load the operation");
-  const bus = nats([subscribe("bootFail", () => Promise.reject(failure))], {
-    env: { NATS_URL: server.url },
-  });
-  const scope = createScope({ extensions: [bus.extension] });
-  try {
-    await expect(scope.ready).rejects.toBe(failure);
-    await scope.close();
-    await expect
-      .poll(async () => (await fetch(`${server.monitorUrl}/connz`)).json())
-      .toMatchObject({ num_connections: 0 });
-  } finally {
-    await scope.close();
+  for (const failBeforeConnect of [true, false]) {
+    const gate = extension({
+      label: "badStart",
+      start: () => {
+        if (failBeforeConnect) throw failure;
+      },
+    });
+    const bus = nats([subscribe("bootFail", () => Promise.reject(failure))], {
+      env: { NATS_URL: server.url },
+    });
+    const scope = createScope({ extensions: [bus.extension, gate] });
+    try {
+      await expect(scope.ready).rejects.toBe(failure);
+      expect(await scope.close()).toMatchObject({
+        status: "failed",
+        error: failure,
+        teardownErrors: undefined,
+      });
+      await expect
+        .poll(async () => (await fetch(`${server.monitorUrl}/connz`)).json())
+        .toMatchObject({ num_connections: 0 });
+    } finally {
+      await scope.close();
+    }
   }
 });

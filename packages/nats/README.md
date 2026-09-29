@@ -106,7 +106,7 @@ try {
 - A bad checksum refuses the binary.
 - Forced close aborts a running message and closes the connection.
 - Close during boot reaps a connection that opens later.
-- A failed subscription loader fails boot and closes the connection.
+- Failed boot keeps its cause and closes any connection without cleanup errors.
 - A started server closes its connections and frees both ports and its store.
 - A server that rejects its config removes its store before reporting failure.
 - A publish-only scope flushes queued bytes to a peer before it closes.
