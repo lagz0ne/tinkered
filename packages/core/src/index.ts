@@ -2320,9 +2320,7 @@ function runTagged<T, I>(
     let child: Layer | undefined;
     let raw: unknown;
     try {
-      ensureOpen(layer);
-      child = makeLayer(layer, { tags, ns: chain });
-      child.failureOwner = caller;
+      child = startChild(layer, { tags, ns: chain }, caller);
       raw = adoptBody(runUntagged(child, target, parent, inner, chain, undefined, nested));
     } catch (error) {
       raw = Promise.reject(error);
@@ -3680,11 +3678,7 @@ async function drainCloseEntry(layer: Layer, entry: DeferEntry, end: Scope.End):
 
 /** An empty drain still yields at its caller's await, without allocating an async task. */
 function drainDefers(layer: Layer, entries: DeferEntry[], end: Scope.End): Promise<void> {
-  if (entries.length === 0) return READY;
-  const drain = async (): Promise<void> => {
-    for (let i = entries.length - 1; i >= 0; i--) await drainCloseEntry(layer, entries[i], end);
-  };
-  return drain();
+  return entries.length === 0 ? READY : drainEntries(layer, entries, end);
 }
 
 /** A layer's body end, classified at the moment the body settled (`bodyEnd`, attached at session
@@ -3732,17 +3726,7 @@ function bestEffort(layer: Layer): Scope.Outcome {
  * `finishLayer` (swept push), so a child that already finished and detached still reaches its ancestor.
  * With no child, reuse READY: the caller still awaits, keeping the close phase order. */
 function closeChildren(layer: Layer, force: boolean): Promise<void> {
-  if (layer.children.size === 0) return READY;
-  const close = async (): Promise<void> => {
-    for (const child of Array.from(layer.children)) {
-      await closeLayer(
-        child,
-        force || (failureOf(layer) ?? layer.descendantFailure) !== undefined,
-        false,
-      );
-    }
-  };
-  return close();
+  return layer.children.size === 0 ? READY : closeEach(layer, force);
 }
 
 /** Whether a scope has nothing to tear down, so `close` can settle synchronously (see {@link fastClose}):
@@ -4031,15 +4015,30 @@ function runSessionWith<R>(
   /** What an async function would reject with, rejected: a closed parent, a bad `ns`, a preset
    * that fails its parse. The body's own throw is not here; {@link runBodyWith} keeps it. */
   try {
-    ensureOpen(parent);
     const sessions = parent.exts.sessions;
-    if (sessions !== undefined) return runSessionWrapped(parent, options, body, sessions, caller);
-    child = makeLayer(parent, options);
+    if (sessions !== undefined) {
+      ensureOpen(parent);
+      return runSessionWrapped(parent, options, body, sessions, caller);
+    }
+    child = startChild(parent, options, caller);
   } catch (error) {
     return Promise.reject(error) as Promise<R>;
   }
-  child.failureOwner = caller;
   return endSession(child, runBodyWith(child, body));
+}
+
+/** Open a session's child layer under `parent`: the open check, the layer, its failure owner.
+ * Throws what the caller turns into a rejection (a closed parent, a bad `ns`, a preset that
+ * fails its parse). Shared by {@link runSessionWith} and the tagged call's own start. */
+function startChild(
+  parent: Layer,
+  options: Scope.Options | undefined,
+  caller: RunState | undefined,
+): Layer {
+  ensureOpen(parent);
+  const child = makeLayer(parent, options);
+  child.failureOwner = caller;
+  return child;
 }
 
 /** End a session whose body has started. A session's handle closes when its body ends, like a
@@ -4786,11 +4785,23 @@ function walkEntry(layer: Layer, self: NodeState | undefined, target: Data.Cell<
     if (rec === undefined) continue;
     const found = rec.cell ?? rec.eff;
     if (found === undefined) continue;
-    if (self !== undefined) self.eff = found;
-    else if (hops >= 2) nodeState(layer, target).eff = found;
-    return found;
+    return memoEntry(layer, self, target, found, hops);
   }
   return freshEntry(layer, self, target, top, hops);
+}
+
+/** Memoize an entry where it pays (see {@link effectiveEntry}): on this layer's record when it
+ * has one, on a fresh record when the entry sits two or more hops up, else nowhere. */
+function memoEntry(
+  layer: Layer,
+  self: NodeState | undefined,
+  target: Data.Cell<unknown>,
+  entry: Entry,
+  hops: number,
+): Entry {
+  if (self !== undefined) self.eff = entry;
+  else if (hops >= 2) nodeState(layer, target).eff = entry;
+  return entry;
 }
 
 /** No layer up the chain holds the cell: one entry with its initial value, memoized on the top
@@ -4804,10 +4815,7 @@ function freshEntry(
 ): Entry {
   const fresh: Entry = { value: target.initial };
   nodeState(top, target).eff = fresh;
-  if (top === layer) return fresh;
-  if (self !== undefined) self.eff = fresh;
-  else if (hops >= 2) nodeState(layer, target).eff = fresh;
-  return fresh;
+  return top === layer ? fresh : memoEntry(layer, self, target, fresh, hops);
 }
 
 /** Every value bound to `target` in a layer's own tags, top first, list or map. */
@@ -5195,4 +5203,21 @@ function reentersTeardown(target: Layer): boolean {
 function addError(layer: Layer, cause: unknown): void {
   if (layer.secondary === NO_ERRORS) layer.secondary = [];
   layer.secondary.push(cause);
+}
+
+/** {@link drainDefers}'s work when there is any: each entry in reverse order, awaited in turn. */
+async function drainEntries(layer: Layer, entries: DeferEntry[], end: Scope.End): Promise<void> {
+  for (let i = entries.length - 1; i >= 0; i--) await drainCloseEntry(layer, entries[i], end);
+}
+
+/** {@link closeChildren}'s work when there is any: every child in turn, forced once a failure is
+ * on record. */
+async function closeEach(layer: Layer, force: boolean): Promise<void> {
+  for (const child of Array.from(layer.children)) {
+    await closeLayer(
+      child,
+      force || (failureOf(layer) ?? layer.descendantFailure) !== undefined,
+      false,
+    );
+  }
 }
