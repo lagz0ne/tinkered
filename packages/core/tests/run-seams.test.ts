@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, isError, operation, resource, tag } from "../src/index.ts";
+import { createScope, extension, isError, operation, resource, tag } from "../src/index.ts";
 
 /** Seams the run side must keep; each one failed under a surviving mutant of the run-side cuts. */
 const zone = tag<string>({ label: "zone", default: "base" });
@@ -83,4 +83,28 @@ test(".all reads a handful of bindings across layers, nearest layer first, newes
   const session = scope.createSession({ tags: [few("s1"), few("s2")] });
   expect(session.run(all)).toEqual(["s2", "s1", "r3", "r2", "r1"]);
   expect(scope.run(all)).toEqual(["r3", "r2", "r1"]);
+});
+
+test("a closed scope with session hooks refuses a new session", async () => {
+  let seen = 0;
+  const scope = createScope({
+    extensions: [
+      extension({
+        label: "hook",
+        session: async (_s, next) => {
+          seen++;
+          return next();
+        },
+      }),
+    ],
+  });
+  await scope.ready;
+  await scope.close();
+  try {
+    await scope.session(() => 1);
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "Disposed")) throw error;
+  }
+  expect(seen).toBe(0);
 });
