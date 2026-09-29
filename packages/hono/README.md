@@ -326,6 +326,9 @@ This lets a late browser reconnect finish while the server stops.
 A stream body can answer a forced shutdown with a final chunk.
 A cancelled close without teardown errors keeps that final body.
 
+Cleanup failure on reader cancellation logs one request failure.
+Cleanup failure after a writer error logs once and keeps the reader error.
+
 ## Trace ids
 
 - A valid traceparent joins the request spans to the remote parent.

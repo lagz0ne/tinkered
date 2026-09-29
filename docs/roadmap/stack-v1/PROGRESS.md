@@ -2226,3 +2226,24 @@ The migrate ticket has not landed yet.
 `pnpm validate`: all 48 checks passed, `VALIDATE_EXIT 0`.
 Ran in the foreground under `/tmp/mutation.lock`.
 Restored `pnpm-workspace.yaml`; it has no branch change.
+
+### t17 mutation checks
+
+First full Hono run: 92.76, 273 killed, 73 timed out,
+25 survived, 2 without coverage, 0 errors; `EXIT 0`.
+The busy-host rerun used `--timeoutMS 60000 --concurrency 2`.
+It got 84.45, 315 killed, 0 timed out, 56 survived,
+2 without coverage, 0 errors; `EXIT 1`.
+The first score hid gaps behind timeouts.
+One earlier launch passed an extra `--` to Stryker;
+it rejected those args before running any tests.
+
+Added two public checks for real cleanup failures:
+reader cancellation logs the cleanup failure once;
+a failed writer keeps its reader error and logs cleanup once.
+Both fail on main at `6330012c`: the failure log is empty.
+Both pass on this branch, with no further source change.
+Hono now has 80 passing tests.
+Jev: 0 of 80 titles flagged, no README gaps, eight unsure.
+Check: 0 errors, 29 warnings; prose and strict census pass.
+Rebased onto `be6a9526`; its only change is the board.

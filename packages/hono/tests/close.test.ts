@@ -147,3 +147,103 @@ test("a stream body can answer a forced shutdown with a final chunk", async () =
     await scope.close();
   }
 });
+
+test("cleanup failure on reader cancellation logs one request failure", async () => {
+  const logs: Observe.Log[] = [];
+  const cleanupFailure = new Error("cleanup failed");
+  const cleanup = resource({
+    label: "cleanup",
+    target: "session",
+    factory: (_deps, { defer }) => {
+      defer(() => {
+        throw cleanupFailure;
+      });
+    },
+  });
+  const start = operation({ label: "start", depends: { cleanup }, run: () => undefined });
+  const held = operation({
+    label: "held",
+    depends: { emit: emit.required },
+    run: async ({ emit }, { clock, signal }) => {
+      emit("ready");
+      await clock.sleep(10_000, signal);
+    },
+  });
+  const { extension: web } = hono([
+    route.get("/stream", start, { respond: (_value, c) => stream(c, held) }),
+  ]);
+  const scope = createScope({
+    clock: makeTestClock({ now: 0 }),
+    extensions: [web],
+    observe: { log: (entry) => logs.push(entry) },
+  });
+  try {
+    await scope.ready;
+    const response = await scope.resolve(web).request("/stream");
+    if (!response.body) throw new Error("no body");
+    const reader = response.body.getReader();
+    await reader.read();
+    await reader.cancel();
+    expect(logs.filter((entry) => entry.message === "request failed")).toMatchObject([
+      {
+        attributes: {
+          kind: "RequestCloseFailed",
+          payload: { result: { status: "cancelled", teardownErrors: [cleanupFailure] } },
+        },
+      },
+    ]);
+  } finally {
+    await scope.close();
+  }
+});
+
+test("cleanup failure after a writer error logs once and keeps the reader error", async () => {
+  const logs: Observe.Log[] = [];
+  const writerFailure = new Error("writer failed");
+  const cleanupFailure = new Error("cleanup failed");
+  const cleanup = resource({
+    label: "cleanup",
+    target: "session",
+    factory: (_deps, { defer }) => {
+      defer(() => {
+        throw cleanupFailure;
+      });
+    },
+  });
+  const start = operation({ label: "start", depends: { cleanup }, run: () => undefined });
+  const broken = operation({
+    label: "broken",
+    run: async (_deps, { clock }) => {
+      await clock.sleep(10);
+      throw writerFailure;
+    },
+  });
+  const { extension: web } = hono([
+    route.get("/stream", start, { respond: (_value, c) => stream(c, broken) }),
+  ]);
+  const clock = makeTestClock({ now: 0 });
+  const scope = createScope({
+    clock,
+    extensions: [web],
+    observe: { log: (entry) => logs.push(entry) },
+  });
+  try {
+    await scope.ready;
+    const response = await scope.resolve(web).request("/stream");
+    const text = response.text();
+    clock.advance(10);
+    await expect(text).rejects.toBe(writerFailure);
+    await expect
+      .poll(() => logs.filter((entry) => entry.message === "request failed"))
+      .toMatchObject([
+        {
+          attributes: {
+            kind: "RequestCloseFailed",
+            payload: { result: { status: "failed", teardownErrors: [cleanupFailure] } },
+          },
+        },
+      ]);
+  } finally {
+    await scope.close();
+  }
+});
