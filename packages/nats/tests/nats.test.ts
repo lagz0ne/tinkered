@@ -225,39 +225,47 @@ test("a publish-only scope flushes queued bytes to a peer before it closes", asy
   }
 });
 
-test("a denied subscription logs its subject and still closes the connection", async () => {
+test("a denied subscription logs its subject and closes only an owned connection", async () => {
   const restricted = await startNatsServer(`no_auth_user: "app"
   authorization {
     users: [{user: "app", password: "secret", permissions: {subscribe: "allowed"}}]
   }`);
-  const logs: Observe.Log[] = [];
-  const receive = operation({
-    label: "receive",
-    run: (_deps, _ctx: Operation.Ctx<Nats.Message>) => expect.unreachable(),
-  });
-  const bus = nats([subscribe("denied", receive)], {
-    env: { NATS_URL: restricted.url },
-  });
-  const scope = createScope({
-    extensions: [bus.extension],
-    observe: { log: (line) => logs.push(line) },
-  });
   try {
-    await scope.ready;
-    await expect.poll(() => logs.length).toBe(1);
-    expect(logs).toMatchObject([
-      {
-        level: 50,
-        message: "nats subscription failed",
-        attributes: { subject: "denied", error: expect.any(Error) },
-      },
-    ]);
-    await scope.close({ graceful: true });
-    await expect
-      .poll(async () => (await fetch(`${restricted.monitorUrl}/connz`)).json())
-      .toMatchObject({ num_connections: 0 });
+    for (const borrowed of [false, true]) {
+      const peer = borrowed ? await connect({ servers: restricted.url }) : undefined;
+      const logs: Observe.Log[] = [];
+      const receive = operation({
+        label: "receive",
+        run: (_deps, _ctx: Operation.Ctx<Nats.Message>) => expect.unreachable(),
+      });
+      const bus = nats([subscribe("denied", receive)], {
+        env: { NATS_URL: restricted.url },
+        connection: peer,
+      });
+      const scope = createScope({
+        extensions: [bus.extension],
+        observe: { log: (line) => logs.push(line) },
+      });
+      try {
+        await scope.ready;
+        await expect.poll(() => logs.length).toBe(1);
+        expect(logs).toMatchObject([
+          {
+            level: 50,
+            message: "nats subscription failed",
+            attributes: { subject: "denied", error: expect.any(Error) },
+          },
+        ]);
+        await scope.close({ graceful: true });
+        await expect
+          .poll(async () => (await fetch(`${restricted.monitorUrl}/connz`)).json())
+          .toMatchObject({ num_connections: borrowed ? 1 : 0 });
+      } finally {
+        await scope.close();
+        await peer?.close();
+      }
+    }
   } finally {
-    await scope.close();
     await restricted.close();
   }
 });
