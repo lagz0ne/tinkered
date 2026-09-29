@@ -46,7 +46,7 @@ Rules for every ticket:
   green.
 - **t04 core: a span carries a trace id** -- [ ] blocked by: none
   Writer: `stack/t04`, in `/home/paseo/next/tinkered-stack-t04`.
-  Next: draw numeric bits at open; format on read; re-screen and re-check.
+  Next: fix span JSON and exact impact rows; rerun the gate.
   Every span gets a trace id when it opens, from
   its parent or from a seed a driver gives
   (ADR 0076). Hono seeds it from `traceparent`.
@@ -1354,3 +1354,11 @@ Full trial and V8 notes are in the [learning note](../../../research/learnings/2
 - The card is in Review; the observed-call timing target is still missed.
 - No job is left running; nothing was pushed.
 - Raw proof and the full report are in `.bench/stack-t04-fix-proof/`.
+
+## t04 reviewer fix round 1
+
+The reviewer found missing public fields and leaked private state in span JSON.
+Add a prototype `toJSON` method and a public regression test.
+Use exact SCIP member names and file lists in the impact block.
+Verify: the JSON test fails before the fix, the full gate exits 0, and the impact check finds zero gaps.
+No rebase or random-draw change is part of this round.

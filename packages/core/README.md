@@ -807,6 +807,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A seeded random replays trace and span ids.
 - Reading ids later leaves the seeded random stream and ids unchanged.
 - Valid random draws always make nonzero W3C ids.
+- Span JSON keeps public fields, ids, attributes, and events without internal state.
 - Observation off leaves the ambient random stream untouched.
 - A session copies its remote trace seed and child sessions inherit it.
 - A session seed overrides its scope seed without changing siblings.
@@ -817,6 +818,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 
 Absent `trace` inherits the parent seed; `trace: null` clears it.
 Numeric `id` and `parentId` still order the local tree.
+A span is a class instance, so spread or `structuredClone` copies only its own fields; use JSON for its public fields.
 `traceId` is 32 lowercase hex digits; `spanId` and
 `parentSpanId` are 16.
 Each new id draws numbers from the ambient `random.next()` at open.

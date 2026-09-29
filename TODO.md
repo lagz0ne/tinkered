@@ -42,6 +42,16 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **stack/t04 trace-id** — lazy W3C ids across Hono and HTTP.
+  Owner: lead (stack session); Astra writer `5e69613c`.
+  Worktree: `/home/paseo/next/tinkered-stack-t04`, branch `stack/t04`.
+  Next: reviewer fix round 1: span JSON, exact impact rows, and full gate.
+  Verify: JSON test fails before the fix; gate `EXIT 0`; zero impact gaps.
+  N=31: `opobs` 187.1 to 246.9 ns, b is slower; no other checked row is slower.
+  Hot slots: zero spare names.
+  Hono and HTTP mutation passed in the first round; only core reran this round.
+  [Track and proof](docs/roadmap/stack-v1/PROGRESS.md#t04-fix-round--cheap-observed-spans).
+
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
@@ -51,16 +61,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 - **stack/t06 migrate-step** — the tracker's tables come from migration files, run at boot under a lock (ADR 0079). Owner: lead (stack session); Astra writer `2cb63e15`, worktree `/home/paseo/next/tinkered-stack-t06`; Opus reviewer when the writer reports. Verify: a drift test fails on a mismatch; an old tracker database keeps its rows. [track](docs/roadmap/stack-v1/PROGRESS.md).
 
 ## Review
-
-- **stack/t04 trace-id** — lazy W3C ids across Hono and HTTP.
-  Owner: lead (stack session); Astra writer `5e69613c`.
-  Worktree: `/home/paseo/next/tinkered-stack-t04`, branch `stack/t04`.
-  Next: lead review and user decision on the remaining observed-call cost.
-  Verify: gate `EXIT 0`; all 46 budget lanes PASS; core mutation 85.63.
-  N=31: `opobs` 187.1 to 246.9 ns, b is slower; no other checked row is slower.
-  Hot slots: zero spare names.
-  Hono and HTTP mutation passed in the first round; only core reran this round.
-  [Track and proof](docs/roadmap/stack-v1/PROGRESS.md#t04-fix-round--cheap-observed-spans).
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |

@@ -1934,6 +1934,25 @@ class SpanImpl implements Observe.Span {
     return (this.marks ??= []);
   }
 
+  toJSON(): Observe.Span {
+    return {
+      id: this.id,
+      parentId: this.parentId,
+      traceId: this.traceId,
+      spanId: this.spanId,
+      parentSpanId: this.parentSpanId,
+      sampled: this.sampled,
+      name: this.name,
+      kind: this.kind,
+      start: this.start,
+      end: this.end,
+      status: this.status,
+      ...(this.error === undefined ? {} : { error: this.error }),
+      attributes: this.attributes,
+      events: this.events,
+    };
+  }
+
   /** 52 + 52 + 24 bits fill the 32 hex digits with three draws, all at open. */
   private static traceFor(layer: Layer, parent: SpanImpl | undefined): SpanImpl["trace"] {
     if (parent !== undefined) return parent.trace;

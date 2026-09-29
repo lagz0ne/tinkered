@@ -2,6 +2,7 @@ import { expect, test } from "vite-plus/test";
 import {
   createScope,
   extension,
+  makeTestClock,
   makeTestRandom,
   namespace,
   operation,
@@ -67,6 +68,44 @@ test("two unseeded root spans start different traces", async () => {
   const second = scope.run(readSpan)!;
   expect(second.traceId).not.toBe(first.traceId);
   await scope.close();
+});
+
+test("span JSON keeps public fields, ids, attributes, and events without internal state", async () => {
+  const cause = { reason: "could not read" };
+  for (const fails of [false, true]) {
+    const child = operation({
+      label: "child",
+      run: (_deps, { obs }) => {
+        obs.span!.attributes.answer = 42;
+        obs.event("read", { size: 1 });
+        if (fails) throw cause;
+      },
+    });
+    const scope = createScope({ clock: makeTestClock({ now: 100 }), observe: { history: 10 } });
+    const result = scope.settle({
+      label: "parent",
+      depends: { child },
+      run: ({ child }) => child.run(),
+    });
+    const span = scope.spans().find((span) => span.name === "child")!;
+    expect(JSON.parse(JSON.stringify(span))).toStrictEqual({
+      id: span.id,
+      parentId: span.parentId,
+      traceId: span.traceId,
+      spanId: span.spanId,
+      parentSpanId: span.parentSpanId,
+      sampled: true,
+      name: "child",
+      kind: "operation",
+      start: 100,
+      end: 100,
+      status: result.status === "success" ? "ok" : "failed",
+      ...(fails ? { error: cause } : {}),
+      attributes: { answer: 42 },
+      events: [{ name: "read", time: 100, attributes: { size: 1 } }],
+    });
+    await scope.close();
+  }
 });
 
 test("a seeded random replays trace and span ids", async () => {
