@@ -3874,3 +3874,21 @@ await closing;
   Strict style census: OK.
 - Mutation is next, once, under `/tmp/mutation.lock`.
   The config has used `timeoutMS: 60000` from the start.
+
+### t08 Core feedback
+
+The close hook gets options and next, but no scope.
+Jobs must capture the public handle in start and wrap close,
+as NATS does, so closing a rejected scope cannot stop its owner.
+The following probe fails with TS2322, exit 1:
+
+```ts
+extension({
+  close: async (_scope: Scope.Handle, next) => next(),
+});
+```
+
+The type checker says `CloseOptions` cannot be `Scope.Handle`.
+The probe was removed after the check.
+This is another caller for `core/close-hook-scope`.
+Core itself has no change on this branch.
