@@ -3974,11 +3974,13 @@ function settleSession(
  * resolves with the close `Result`. No hooks means no wrapper — main's body below, inline, after one
  * field read of the parent's route. */
 /** Whether a public `session()` body that returned a plain value may end its session before
- * `session()` returns, as a tagged call does (no handle was given out there). Off, a handle the
- * body leaked stays usable for main's window: until the session's own close, two turns after the
- * body returned (an immediate `close({ withData })`, `onClose`, or `resolve` behaves as on main).
- * The user decides (fp2-check-astra B3/B4); off is the safe side. */
-const PUBLIC_SESSION_ENDS_EARLY = false;
+ * `session()` returns, as a tagged call does. On (the user's decision, 2026-09-29): a session's
+ * handle closes when its body ends, like a database transaction callback — after the body
+ * returned, `onClose`, `resolve` and `run` on a handle the body leaked raise `Disposed`, and
+ * `close({ withData: true })` on it gets no data (a `close` inside the body still keeps it). Off
+ * would keep main's old window of about ten turns after the body, which was never promised. One
+ * guard, so the choice stays easy to find. */
+const PUBLIC_SESSION_ENDS_EARLY = true;
 
 function runSessionWith<R>(
   parent: Layer,

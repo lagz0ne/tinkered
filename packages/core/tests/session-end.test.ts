@@ -87,45 +87,69 @@ for (const named of [false, true]) {
   });
 }
 
-test("an immediate withData close of a leaked handle keeps the body's write", async () => {
-  const root = createScope();
-  const cell = data({ label: "cell", initial: 0 });
-  let child: ReturnType<typeof root.createSession> | undefined;
-  const flight = root.session((s) => {
-    child = s;
-    s.controller(cell).set(9);
-  });
-  const result = await child!.close({ withData: true });
-  await flight;
-  expect(result.data?.get(cell)).toEqual({ present: true, value: 9 });
-  await root.close();
-});
+/** The rule since 2026-09-29: a session's handle closes when its body ends, like a database
+ * transaction callback. A handle the body leaked is disposed once the body returned. */
+function kindOf(fn: () => unknown): unknown {
+  try {
+    fn();
+  } catch (error) {
+    return (error as { kind?: unknown }).kind;
+  }
+  return undefined;
+}
 
-test("an immediate read through a leaked handle sees the body's write", async () => {
-  const root = createScope();
-  const cell = data({ label: "cell", initial: 0 });
-  let child: ReturnType<typeof root.createSession> | undefined;
-  const flight = root.session((s) => {
-    child = s;
-    s.controller(cell).set(9);
-  });
-  expect(child!.resolve(cell)).toBe(9);
-  await flight;
-  await root.close();
-});
-
-test("an immediate onClose through a leaked handle still runs", async () => {
+test("a leaked handle is disposed once the body returned: onClose raises Disposed", async () => {
   const root = createScope();
   let child: ReturnType<typeof root.createSession> | undefined;
   let cleaned = false;
   const flight = root.session((s) => {
     child = s;
   });
-  child!.onClose(() => {
-    cleaned = true;
-  });
+  expect(
+    kindOf(() =>
+      child!.onClose(() => {
+        cleaned = true;
+      }),
+    ),
+  ).toBe("Disposed");
   await flight;
-  expect(cleaned).toBe(true);
+  expect(cleaned).toBe(false);
+  await root.close();
+});
+
+test("a leaked handle is disposed once the body returned: resolve raises Disposed", async () => {
+  const root = createScope();
+  const cell = data({ label: "cell", initial: 0 });
+  let child: ReturnType<typeof root.createSession> | undefined;
+  const flight = root.session((s) => {
+    child = s;
+    s.controller(cell).set(9);
+  });
+  expect(kindOf(() => child!.resolve(cell))).toBe("Disposed");
+  await flight;
+  await root.close();
+});
+
+test("close({ withData: true }) keeps the data inside the body, and gets none after it", async () => {
+  const root = createScope();
+  const cell = data({ label: "cell", initial: 0 });
+  /** Graceful: a forced close of its own session inside the body settles it cancelled, on main
+   * as here. */
+  const inside = await root.session((s) => {
+    s.controller(cell).set(9);
+    return s.close({ graceful: true, withData: true });
+  });
+  expect(inside.status).toBe("success");
+  expect(inside.data?.get(cell)).toEqual({ present: true, value: 9 });
+  let child: ReturnType<typeof root.createSession> | undefined;
+  const flight = root.session((s) => {
+    child = s;
+    s.controller(cell).set(9);
+  });
+  const after = await child!.close({ withData: true });
+  await flight;
+  expect(after.status).toBe("success");
+  expect(after.data).toBeUndefined();
   await root.close();
 });
 
