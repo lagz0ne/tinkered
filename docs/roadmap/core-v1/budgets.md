@@ -15,6 +15,64 @@ sandbox re-check of the call-path rules is done; see "Call paths through benchd"
 2026-09-29: the probe now times every scenario the same way, and `bench/ab.sh` runs one probe
 against both trees. The numbers to use are in "Call paths with warm-up and one probe" below.
 
+## perf/tagged-100 (2026-09-29)
+
+A = main `2148e48` (core last changed in `16d9282`).
+B = `8e7812c`, the timed tip before the landing rebase.
+N=61 through `benchd`, one warmed probe, medians in ns per call.
+Every row: batch in 61 of 61 on both sides.
+
+```bash
+N=61 A=../tinkered-t100-land-base \
+  SCEN="<all 23>" bench/queued.sh
+```
+
+- The change: a tagged call's binding list starts as a one-item list.
+- It no longer grows an empty list; reads stay exactly as `readMany` makes them.
+- The bar: `tagged` B faster; no row B slower.
+
+### The run
+
+- **`tagged`** — 188.3 → 171.3 (−17.0, −9.0%), slower 5/61: B faster
+- **`taggeddefer`** — 346.8 → 329.3 (−17.5, −5.0%), slower 12/61: B faster
+- **`taggedres`** — 2476.0 → 2482.3 (+6.3, +0.3%), slower 33/61: no difference we can see
+- **`session`** — 571.6 → 571.1 (−0.5, −0.1%), slower 31/61: no difference we can see
+- **`op`** — 67.2 → 67.1 (−0.1, −0.1%), slower 26/61: no difference we can see
+- **`opsink`** — 67.0 → 67.1 (+0.1, +0.1%), slower 33/61: no difference we can see
+- **`oplog`** — 283.1 → 282.6 (−0.5, −0.2%), slower 29/61: no difference we can see
+- **`opobs`** — 183.3 → 184.1 (+0.8, +0.4%), slower 34/61: no difference we can see
+- **`opres`** — 252.9 → 252.9 (+0.0, +0.0%), slower 27/61: no difference we can see
+- **`asyncsub`** — 700.0 → 700.3 (+0.3, +0.0%), slower 31/61: no difference we can see
+- **`run`** — 80.4 → 80.5 (+0.1, +0.1%), slower 33/61: no difference we can see
+- **`inline`** — 151.9 → 151.7 (−0.2, −0.1%), slower 31/61: no difference we can see
+- **`s1_getctl`** — 198.3 → 198.2 (−0.1, −0.1%), slower 32/61: no difference we can see
+- **`s2_data`** — 225.3 → 228.9 (+3.6, +1.6%), slower 31/61: no difference we can see
+- **`s3_doubled`** — 431.1 → 431.5 (+0.4, +0.1%), slower 33/61: no difference we can see
+- **`s4_warm_ctl`** — 11.0 → 11.0 (+0.0, +0.0%), slower 23/61: no difference we can see
+- **`cold2`** — 513.2 → 511.1 (−2.1, −0.4%), slower 22/61: no difference we can see
+- **`cold`** — 664.1 → 663.9 (−0.2, −0.0%), slower 32/61: no difference we can see
+- **`create`** — 121.8 → 121.8 (+0.0, +0.0%), slower 29/61: no difference we can see
+- **`warm`** — 16.0 → 16.0 (+0.0, +0.0%), slower 27/61: no difference we can see
+- **`get1`** — 0.4 → 0.4 (+0.0, +0.0%), slower 0/61: no difference we can see
+- **`lifecycle`** — 818.3 → 818.5 (+0.2, +0.0%), slower 31/61: no difference we can see
+- **`inferdi_cold`** — 192.3 → 191.6 (−0.7, −0.4%), slower 24/61: no difference we can see
+- Raw rows: `tinkered-inv-reports/t100-land-ab.csv`.
+
+### Other bars at landing
+
+- Gate `EXIT=0`; core 715 tests.
+- Core mutation 85.59 (floor 85).
+- `promises_tagged` = 2.
+- `pnpm validate`: 44 lanes PASS; slot headroom 2 names.
+
+### Rule changes
+
+- `tagged` ≤ 200 ns; measured 171.3.
+  - It replaces ≤ 250 ns from perf/tagged-close.
+- With every rule kept, the floor is about 145–150 ns.
+- 100 ns would need ADR 0038 dropped for tagged calls and a tag API that allocates nothing.
+- The user chose to stop here (2026-09-29).
+
 ## perf/lazy-log-obs (2026-09-29)
 
 A = main `a4baeb0` (perf/tagged-close landed).

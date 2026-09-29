@@ -55,6 +55,20 @@ Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its 
 Parallelizable once upstream lands: 04‖05, 15 alongside 12→13→14, 17 early off 05.
 Family (keyed collections) is out of v1 (needs its own ADR for the rules).
 
+- **perf/tagged-100** — A tagged call copies its bindings into a one-item list first.
+  The list no longer starts empty and grows; the reads match `readMany` exactly.
+  Fable wrote it: an exact-size copy, then a fix that reads the list once through its own iterator.
+  Review: Astra's first pass found eight differences; the fix made all eight MATCH.
+  Review: Astra READY on `5ecc245`; 820 saved comparisons and 627 new checks MATCH.
+  Benchd: N=61 against `2148e48`; B is `8e7812c`.
+  `tagged`: 188.3 → 171.3 ns (−9.0%), slower 5/61.
+  `taggeddefer`: 346.8 → 329.3 ns (−5.0%), slower 12/61.
+  No row B slower in all 23; `warm` no difference we can see.
+  Core mutation 85.59; 715 tests; promises tagged 2; validate 44 PASS.
+  New rule: `tagged` ≤ 200 ns (was ≤ 250).
+  With every rule kept the floor is about 145–150 ns; the user chose to stop here.
+  Lines per row: [budgets](budgets.md).
+
 - **perf/lazy-log-obs** — A body's `log` and `obs` tools are built on first read.
   They are getters on the ctx prototype, like `signal` and `raise`; no API change (ADR 0073).
   Retained ctx fields are written once.

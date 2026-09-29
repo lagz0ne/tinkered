@@ -51,15 +51,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
-- **perf/tagged-100** — push `tagged` toward 100 ns with no rule change (user 2026-09-29). Base
-  `43a99e0` (tagged stack + lazy log). Result: Fable's `t100/fable` (`5234b4b` + fix `5ecc245`,
-  a tag copy with no list growth) screened `tagged` 190.9 → 174.2 ns (25/31), nothing slower;
-  Astra's cross-review READY (8 edge cases, 820 + 627 checks). With every rule kept the floor is
-  about 145–150 ns; 100 needs ADR 0038 dropped for tagged calls and a tag API that allocates
-  nothing. User picked A (2026-09-29): land this cut and stop. Owner: lead; lands after
-  perf/lazy-log-obs. Verify: 758 + 62 behavior cases unchanged, N=61 `tagged` "B faster",
-  nothing slower, core mutation ≥ 85.
-
 - **entries/follow-suit** — every backend entry and example root on ADR 0078 (user 2026-09-29:
   "check all the app, examples"). Lead audit of main: S27 in `packages/blueprint/src/main.ts`,
   `examples/mcp/cli.ts`, `examples/mcp/serve.ts` (root built at import), `examples/process-cli/main.ts`;
@@ -117,6 +108,7 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Done
 
+- **perf/tagged-100** — a tagged call copies its bindings into a one-item list first, not an empty list that grows; reads match `readMany` exactly (list iterator once, no caller methods, no re-read). Fable writer (`5234b4b` + fix `5ecc245`); Astra cross-review READY (8 differences fixed; 820 + 627 checks MATCH); tag `perf/tagged-100`. benchd N=61 vs `2148e48`: `tagged` 188.3 → 171.3 ns (−9.0%, 5/61), `taggeddefer` 346.8 → 329.3 (−5.0%); no row B slower in all 23, `warm` no difference we can see. Core mutation 85.59; 715 tests; promises tagged 2; validate 44 PASS. New rule: `tagged` ≤ 200 ns. With every rule kept the floor is about 145–150 ns; 100 needs ADR 0038 dropped for tagged calls and a tag API that allocates nothing; the user chose to stop (2026-09-29) ([budgets](docs/roadmap/core-v1/budgets.md)).
 - **perf/lazy-log-obs** — a body's `log` and `obs` tools are built on first read (getters on the ctx prototype; no API change; ADR 0073); retained ctx fields written once. Astra writer, Fable review (9-case behavior probe, gate), lead READY; tag `perf/lazy-log-obs`. benchd N=61 vs `a4baeb0`: `opsink` 251.9 → 72.0 ns (−71.4%, 0/61), `opobs` 248.9 → 208.4 (−16.3%), `op` −18.9%, `run` −15.7%, `tagged` 198.3 → 188.8 (−4.8%); `oplog` no difference we can see; no row B slower in all 23. Core mutation 85.44; 715 tests; promises tagged 2; validate 44 PASS ([budgets](docs/roadmap/core-v1/budgets.md)).
 - **perf/tagged-close** — fp3/fable stack + Astra's lazy tagged child session + mutation lift + warm fix (`nodeState` inline again); reviewed by Opus (code), Astra (758 cases vs main: only ADR 0071/0072 outcomes), Fable (62 lazy-session boundary cases; lift READY); tag `perf/tagged-close`. ADR 0071 (an idle session ends in place) and ADR 0072 (a tagged call that ended in place returns its value). benchd N=61 vs `917ee14`: `tagged` 2150.3 → 198.0 ns (−90.8%, 0/61), `session` 1684.9 → 572.8 (−66.0%), `taggeddefer` −83.8%, `taggedres` −22.1%, `create` −36.6%, `op` −15.7%; `warm` no difference we can see; exception (user): `s4_warm_ctl` 10.6 → 10.9 (+2.8%, 53/61), follow-up perf/warm-ctl-trade. Promises tagged 17 → 2; core mutation 85.33; 710 tests; validate 44 PASS. New rules: `tagged` ≤ 250 ns, `promises_tagged` = 2 ([budgets](docs/roadmap/core-v1/budgets.md)).
 - **tracker/entry-root** — lead draft + Astra writer + Fable review (one fix round); tag `tracker/entry-root`; ADR 0078. `createApp` is gone. Pieces live beside their code: `issueServer` (routes.ts), `publish()` (publish.ts: the boot publish and the publish after commit, merged), `draftTags` (draft.ts). `main.ts` exports `runServer(env, stop)`, the one full root; `if (import.meta.main)` starts it, so a test imports the entry and starts nothing. The server is first in every list, so the port opens after the saved list is published (on main a tab could get `[]` first). Every root awaits close after a failed `ready`. New tests: the order test (fails with the server listed last or `publish()` missing) and a real-root test on a free port. Tracker tests 72, browser 7, validate 44 PASS, hono mutation 88.03. Core feedback row: a rejected `ready` settles before its close.
