@@ -55,8 +55,9 @@ needs less lists less.
    line entry does the same with `if (import.meta.main) await main(shell)`; its test seam is
    `run(shell, args)` (ADR 0056).
 
-4. **Every other test is its own small root.** It lists only the pieces it uses. No helper
-   returns the full list: that is `createApp` again.
+4. **Every other test is its own small root.** It lists only the pieces it uses. No shared
+   helper returns the full list: that is `createApp` again. A test file may keep its own
+   `boot()` fixture for the pieces its tests share.
 5. **The serving extension is first in the list.** First listed is outermost, and work after
    `await next()` runs inside out. So the port opens after every other start has finished.
 6. **A failed `ready` is closed and awaited.** Core starts the close but rejects `ready`
