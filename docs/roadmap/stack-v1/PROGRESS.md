@@ -1016,3 +1016,16 @@ It also closes old handles after a fresh start.
   TSDoc: no findings. No new core feedback from this helper fix.
 - Status: Review. Next: lead reviews this last fix and lands.
   All jobs finished in this turn. Nothing pushed.
+
+- Main advanced while the mutation jobs waited for the lock.
+  Rebased onto `cfaeae71` after the lane, keeping both tracks' proof.
+- Saved file hashes show no change to NATS source, tests, configs,
+  or core inputs across that rebase.
+  The one full mutation result, 91.43, covers the same NATS code.
+- Fresh install and gate on the new base: exit 0.
+  All 19 NATS tests pass; check has no errors and 29 warnings.
+- `pnpm validate` on the new base: all 48 lanes pass; exit 0.
+- Final scan after those checks: zero temp NATS stores
+  and zero `nats-server` processes.
+- Final logs use the `stack-t07-download-rebased-` prefix in
+  `/home/paseo/.cache/tinkered-briefs/`.
