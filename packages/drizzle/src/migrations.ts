@@ -22,10 +22,11 @@ export async function migrateDatabase(
   options: Migrations.Options,
 ): Promise<void> {
   const files = readMigrationFiles(options);
-  const selected = options.baseline
-    ? files.filter((file) => file.name === options.baseline).map((file) => ({ ...file, sql: [] }))
-    : files;
-  if (options.baseline && selected.length === 0)
+  const selected =
+    options.baseline !== undefined
+      ? files.filter((file) => file.name === options.baseline).map((file) => ({ ...file, sql: [] }))
+      : files;
+  if (options.baseline !== undefined && selected.length === 0)
     raise("MigrationNotFound", { name: options.baseline });
   await migrate(selected, db, options);
 }

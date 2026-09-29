@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { execFile } from "node:child_process";
@@ -8,7 +8,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { afterEach, expect, test } from "vite-plus/test";
 import { isError } from "../src/index.ts";
-import { checkDrift, migrateDatabase } from "../src/migrations.ts";
+import { checkDrift, migrateDatabase } from "@tinker/drizzle/migrations";
 
 const clients: PGlite[] = [];
 const folders: string[] = [];
@@ -96,6 +96,7 @@ test("the drift check accepts matching files and rejects an unsaved schema chang
   const kit = join(dirname(createRequire(import.meta.url).resolve("drizzle-kit")), "bin.cjs");
   await promisify(execFile)(process.execPath, [kit, "generate", "--config", config], { cwd: dir });
   await checkDrift(config);
+  const foldersBefore = await readdir(join(dir, "drizzle"));
   await writeFile(
     schema,
     (await readFile(schema, "utf8")).replace(
@@ -109,5 +110,6 @@ test("the drift check accepts matching files and rejects an unsaved schema chang
   } catch (error) {
     if (!isError(error, "SchemaDrift")) throw error;
     expect(error.payload.config).toBe(config);
+    expect(await readdir(join(dir, "drizzle"))).toEqual(foldersBefore);
   }
 });

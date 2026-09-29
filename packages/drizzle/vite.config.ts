@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
@@ -17,6 +18,9 @@ export default defineConfig({
   },
   fmt: {},
   test: {
+    alias: {
+      "@tinker/drizzle/migrations": fileURLToPath(new URL("./src/migrations.ts", import.meta.url)),
+    },
     /** Skip Stryker's leftover sandbox copies of the tests (gitignored, not ours). */
     exclude: ["**/node_modules/**", "**/dist/**", "**/.stryker-tmp/**"],
     /** PGlite boots in-process; its first start passes 5 s when many test lanes share the CPU. */
