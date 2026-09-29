@@ -1888,21 +1888,14 @@ class SpanImpl implements Observe.Span {
     kind: Observe.Kind,
   ) {
     const random = layer.random;
+    this.trace = SpanImpl.traceFor(layer, parent);
     if (parent === undefined) {
-      this.trace = layer.trace?.traceId ?? {
-        a: (random.next() * 4294967296) >>> 0,
-        b: (random.next() * 4294967296) >>> 0,
-        c: (random.next() * 4294967296) >>> 0,
-        d: (random.next() * 4294967296) >>> 0 || 1,
-        text: undefined,
-      };
       this.parentHigh = 0;
       this.parentLow = 0;
       this.parentText = layer.trace?.parentSpanId;
       this.parentId = undefined;
       this.sampled = layer.trace?.sampled !== false;
     } else {
-      this.trace = parent.trace;
       this.parentHigh = parent.high;
       this.parentLow = parent.low;
       this.parentText = undefined;
@@ -1938,6 +1931,19 @@ class SpanImpl implements Observe.Span {
 
   get events(): Observe.Event[] {
     return (this.marks ??= []);
+  }
+
+  private static traceFor(layer: Layer, parent: SpanImpl | undefined): SpanImpl["trace"] {
+    if (parent !== undefined) return parent.trace;
+    if (layer.trace !== undefined) return layer.trace.traceId;
+    const random = layer.random;
+    return {
+      a: (random.next() * 4294967296) >>> 0,
+      b: (random.next() * 4294967296) >>> 0,
+      c: (random.next() * 4294967296) >>> 0,
+      d: (random.next() * 4294967296) >>> 0 || 1,
+      text: undefined,
+    };
   }
 
   private static hex(high: number, low: number): string {
