@@ -47,7 +47,7 @@ test("opens the port only after every other start finishes", async () => {
   await expect(fetch(`${base}/ready`)).rejects.toThrow();
 });
 
-test("a stop waits for an in-flight request and answers zero", async () => {
+test("a stop refuses new requests while it waits for an in-flight request", async () => {
   const env = { HOST: "127.0.0.1", PORT: await readFreePort() };
   const entered = Promise.withResolvers<void>();
   const release = Promise.withResolvers<void>();
@@ -83,13 +83,12 @@ test("a stop waits for an in-flight request and answers zero", async () => {
   });
   try {
     await scope.ready;
-    const request = fetch(`http://${env.HOST}:${env.PORT}/slow`, {
-      headers: { connection: "close" },
-    });
+    const request = fetch(`http://${env.HOST}:${env.PORT}/slow`);
     await entered.promise;
     stop.abort();
     await closing.promise;
     expect(didEnd).toBe(false);
+    await expect(fetch(`http://${env.HOST}:${env.PORT}/late`)).rejects.toThrow();
     release.resolve();
     expect(await (await request).json()).toEqual({ aborted: false });
     expect(await joined).toBe(0);

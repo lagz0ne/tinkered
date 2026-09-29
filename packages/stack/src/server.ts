@@ -1,3 +1,4 @@
+import type { Server } from "node:http";
 import { isIP } from "node:net";
 import { serve } from "@hono/node-server";
 import { extension, LEVELS, type Observe, type Scope } from "@tinker/core";
@@ -15,12 +16,21 @@ export declare namespace Server {
 }
 
 /** List first, before the Hono extension passed in: validate before other starts,
- * listen after they finish. The scope owns the listener; requests drain before
- * its deferred close. Env and app are borrowed; no scope is made here. */
+ * listen after they finish. Close stops accepting requests before draining the scope;
+ * the defer joins the listener's close after those requests finish.
+ * Env and app are borrowed; no scope is made here. */
 export function server(
   web: Scope.Extension<Parameters<HonoScope.Serve>[0]>,
   options: Server.Options,
 ): Scope.Extension<void> {
+  let close: (() => Promise<void>) | undefined;
+  let stopping: Promise<void> | undefined;
+  let stopped = false;
+  const stop = (): Promise<void> | undefined => {
+    stopped = true;
+    if (close) stopping ??= close();
+    return stopping;
+  };
   return extension({
     label: "stack.server",
     start: async (scope, ctx, next) => {
@@ -28,14 +38,9 @@ export function server(
       await next();
       const app = scope.resolve(web);
       mountClient(app, options.clientDir);
-      let close: (() => Promise<void>) | undefined;
-      let stopped = false;
-      ctx.defer(() => {
-        stopped = true;
-        return close?.();
-      });
+      ctx.defer(stop);
       close = await listen(app, settings);
-      if (stopped) await close();
+      if (stopped) await stop();
       else
         options.observe?.log?.({
           time: options.observe.clock?.() ?? ctx.clock.currentTimeMillis(),
@@ -44,6 +49,14 @@ export function server(
           attributes: settings,
           span: undefined,
         });
+    },
+    close: (_options, next) => {
+      /** The defer joins this same promise and reports a listener failure. */
+      stop()?.then(
+        () => undefined,
+        () => undefined,
+      );
+      return next();
     },
   });
 }
@@ -71,14 +84,23 @@ function listen(
   settings: { host: string; port: number },
 ): Promise<() => Promise<void>> {
   return new Promise((resolve, reject) => {
+    let closing = false;
+    /** No custom createServer: the adapter always opens HTTP/1, though its type includes HTTP/2. */
     const listener = serve({ fetch: app.fetch, hostname: settings.host, port: settings.port }, () =>
       resolve(
         () =>
           new Promise<void>((done, fail) => {
+            closing = true;
             listener.close((error) => (error ? fail(error) : done()));
           }),
       ),
-    );
+    ) as Server;
+    /** Streams can finish after close began; reap their now-idle keep-alive sockets too. */
+    listener.on("request", (_request, response) => {
+      response.once("finish", () => {
+        if (closing) listener.closeIdleConnections();
+      });
+    });
     listener.once("error", reject);
   });
 }

@@ -2115,3 +2115,60 @@ The body rethrows the route error after Hono builds its answer.
 This makes both mapped and unmapped errors roll back.
 The close waits for teardown and session hooks before the answer leaves.
 A stream waits for close before it ends cleanly.
+
+### Stream and tracker checks
+
+- Hono: 78 tests pass.
+- Stack: 38 tests pass.
+- Tracker: 69 tests pass.
+- Browser proof and its 7 helper tests pass.
+- Main at `8df4b19b`: `vp check` has 29 warnings,
+  the same count as this branch.
+- Main keeps `success` for both mapped panic and raised-error tests.
+  The new expected outcome, `failed`, fails there.
+- Main returns 200 when a session hook reports failure.
+  It returns 409 when cleanup fails after a mapped error.
+  Both now return 500 and log once.
+- A synchronous stream error keeps the old 500 body,
+  and its request closes before that answer leaves.
+- Late requests after scope close and a final chunk during
+  forced shutdown are guards for the old behavior.
+
+The tracker needed one extra fix in `packages/stack/src/server.ts`.
+Waiting for stream close exposed an HTTP stop gap:
+an old keep-alive connection could ask the closed scope for `/sync`.
+Its 500 stopped the browser from reconnecting after restart.
+The listener now stops accepting requests before the scope drains.
+It also closes idle connections when their last response finishes.
+The public stop test fails on main: a late fetch returns 500
+instead of refusing the connection.
+The browser proof failed without the idle-connection fix.
+No tracker source or browser test was changed.
+
+Tracker route audit:
+
+- `createIssue` writes an issue and activity in one transaction.
+  A later database error now rolls them both back.
+- `editIssue` calls `checkFresh` before `writeIssue` or activity.
+  A stale 409 never relied on keeping a write.
+- `addComment` calls `loadSaved` before writing.
+  A missing issue never relied on keeping a comment.
+- Input checks run before those operations write.
+- Detail, list, draft, and sync routes do not save through `store.tx`.
+- The browser proof compares the full saved detail before
+  and after a stale 409; the issue and activity stay unchanged.
+
+Core feedback: a driver that maps a raised error must keep
+a session body to carry that failure.
+A bare session plus `settle` recovers the error by design:
+
+```ts
+const s = scope.createSession();
+await s.settle(saveThenRaise);
+expect((await s.close({ graceful: true })).status).toBe("failed");
+// Gets success; the write commits.
+```
+
+Hono uses `scope.session` and rethrows the original error
+in its body after building the mapped answer.
+No core change is needed for this fix.

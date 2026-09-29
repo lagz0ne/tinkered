@@ -1,7 +1,14 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, extension, operation, resource, type Observe } from "@tinker/core";
+import {
+  createScope,
+  extension,
+  makeTestClock,
+  operation,
+  resource,
+  type Observe,
+} from "@tinker/core";
 import { HTTPException } from "hono/http-exception";
-import { errorResponses, hono, route, stream } from "../src/index.ts";
+import { emit, errorResponses, hono, route, stream } from "../src/index.ts";
 
 const ready = operation({ label: "ready", run: () => "ok" });
 
@@ -68,7 +75,7 @@ test("a teardown error replaces a mapped answer with 500 and one failure line", 
   }
 });
 
-test("a synchronous stream error closes its request session failed", async () => {
+test("a synchronous stream error keeps its 500 and closes its request session failed", async () => {
   const ends: string[] = [];
   const failure = new Error("writer failed");
   const lifetime = resource({
@@ -94,9 +101,48 @@ test("a synchronous stream error closes its request session failed", async () =>
   try {
     await scope.ready;
     const response = await scope.resolve(web).request("/stream");
-    await expect(response.text()).rejects.toBe(failure);
-    await scope.close();
+    expect(response.status).toBe(500);
+    expect(await response.text()).toBe("internal");
     expect(ends).toEqual(["failed"]);
+  } finally {
+    await scope.close();
+  }
+});
+
+test("a request after scope close reaches Hono's error handler", async () => {
+  const { extension: web } = hono([route.get("/ready", ready)]);
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const app = scope.resolve(web);
+  await scope.close({ graceful: true });
+  const response = await app.request("/ready");
+  expect(response.status).toBe(500);
+  expect(await response.text()).toBe("internal");
+});
+
+test("a stream body can answer a forced shutdown with a final chunk", async () => {
+  const body = operation({
+    label: "body",
+    depends: { emit: emit.required },
+    run: async ({ emit }, { clock, signal }) => {
+      emit("ready");
+      try {
+        await clock.sleep(10_000, signal);
+      } catch (error: unknown) {
+        if (error !== signal.reason) throw error;
+        emit("cancelled");
+      }
+    },
+  });
+  const { extension: web } = hono([
+    route.get("/stream", ready, { respond: (_value, c) => stream(c, body) }),
+  ]);
+  const scope = createScope({ clock: makeTestClock({ now: 0 }), extensions: [web] });
+  try {
+    await scope.ready;
+    const response = await scope.resolve(web).request("/stream");
+    const [text] = await Promise.all([response.text(), scope.close()]);
+    expect(text).toBe("readycancelled");
   } finally {
     await scope.close();
   }

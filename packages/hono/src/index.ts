@@ -146,7 +146,7 @@ function describeError(error: unknown): Record<string, unknown> {
 
 type SessionEnv = {
   Variables: {
-    "tinker.session": Scope.Handle;
+    "tinker.session": Scope.Handle | undefined;
     "tinker.onError": HonoScope.OnError | undefined;
     "tinker.kept": boolean;
     "tinker.failure": { error: unknown } | undefined;
@@ -213,19 +213,19 @@ function readStop(served: HonoScope.Served | undefined): void | PromiseLike<void
 /** The session body owns the route's failure even when Hono maps it to a response.
  * Hold that body until the reply or stream is done; start close before releasing it so
  * graceful close still drains owned work, while a client abort still forces rollback. */
-function serveRequests(scope: Scope.Handle, wiring: HonoScope.Wiring | undefined): Middleware {
+function serveRequests(scope: Scope.Handle, wiring: HonoScope.Wiring = {}): Middleware {
   const logError = scope.resolve(requestErrors);
   return createMiddleware<SessionEnv>(async (c, next) => {
     const raw = c.req.raw;
     const answered = Promise.withResolvers<void>();
     const finished = Promise.withResolvers<void>();
-    c.set("tinker.onError", wiring?.onError);
+    c.set("tinker.onError", wiring.onError);
     c.set("tinker.logError", logError);
     const lifetime = scope.session(
       {
-        tags: [request(raw), wiring?.tags?.(c)],
+        tags: [request(raw), wiring.tags?.(c)],
         trace: readTraceparent(raw.headers.get("traceparent")),
-        ns: wiring?.ns?.(c),
+        ns: wiring.ns?.(c),
       },
       async (session) => {
         c.set("tinker.session", session);
@@ -261,12 +261,15 @@ function serveRequests(scope: Scope.Handle, wiring: HonoScope.Wiring | undefined
     /** Join the session hooks as well as structural close; their errors remain failures. */
     const settled = lifetime.then(
       (): Scope.Result => ({ status: "success" }),
-      (error: unknown): Scope.Result => ({ status: "failed", error }),
+      (error: unknown): Scope.Result => {
+        answered.reject(error);
+        return { status: "failed", error };
+      },
     );
     try {
       await answered.promise;
     } finally {
-      if (!c.get("tinker.kept")) {
+      if (c.get("tinker.session") && !c.get("tinker.kept")) {
         const result = await c.get("tinker.close")(true);
         if (readCloseError(result, c, false)) c.res = c.text("internal", 500);
       }
@@ -294,9 +297,9 @@ function readTraceparent(header: string | null): Observe.Trace | null {
 function readCloseError(
   result: Scope.Result,
   c: Context<SessionEnv>,
-  bodyFailed: boolean,
+  bodyHandled: boolean,
 ): Error | undefined {
-  const answered = bodyFailed || c.get("tinker.failure") || c.error || c.req.raw.signal.aborted;
+  const answered = bodyHandled || c.get("tinker.failure") || c.error || c.req.raw.signal.aborted;
   if (!result.teardownErrors?.length && (result.status === "success" || answered)) return;
   const error = makeError("RequestCloseFailed", { result });
   c.get("tinker.logError")(error, c);
@@ -368,17 +371,26 @@ export function stream(
         tags: [call?.tags, emit(write)],
         ...(call?.ns === undefined ? {} : { ns: call.ns }),
       });
-      const runBody = async () =>
-        body.run(op, {
+      let running: unknown;
+      try {
+        running = body.run(op, {
           input: call?.input,
           rawInput: call?.rawInput,
         } as Scope.ProvideInput<unknown>);
-      const settled = runBody();
+      } catch (error: unknown) {
+        (c as Context<SessionEnv>).set("tinker.kept", false);
+        throw error;
+      }
+      const settled = Promise.resolve(running);
       const finish = settled.then(
         async () => {
           const result = await closeOnce(true);
           if (!result) return;
-          const error = readCloseError(result, c as Context<SessionEnv>, false);
+          const error = readCloseError(
+            result,
+            c as Context<SessionEnv>,
+            result.status === "cancelled",
+          );
           if (error) controller.error(error);
           else controller.close();
         },

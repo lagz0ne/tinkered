@@ -168,6 +168,7 @@ A throwing route op settles the request span failed and reaches Hono's `onError`
 With observation off no span is recorded and the request still answers.
 The request session closes before its answer leaves (ADR 0084).
 A successful route commits before the caller receives the answer.
+A plain row on the same app still commits right after the handler.
 A route that raises any error rolls back, including a mapped 4xx.
 Client abort force-closes the session and rolls back.
 A `stream` route closes when the body ends. Outside the extension's
@@ -314,7 +315,13 @@ const { extension: web } = hono(issueRoutes, {
 - A failed session hook replaces the built answer with 500 and one failure line.
 - A teardown error replaces a mapped answer with 500 and one failure line.
   Even an `HTTPException` in teardown counts as a close failure.
-- A synchronous stream error closes its request session failed.
+- A synchronous stream error keeps its 500 and closes its request session failed.
+
+A request after scope close reaches Hono's error handler.
+This lets a late browser reconnect finish while the server stops.
+
+A stream body can answer a forced shutdown with a final chunk.
+A cancelled close without teardown errors keeps that final body.
 
 ## Trace ids
 

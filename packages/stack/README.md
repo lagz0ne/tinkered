@@ -252,7 +252,9 @@ A later commit or a new boot reads the current database.
 ## Promises
 
 - Opens the port only after every other start finishes.
-- A stop waits for an in-flight request and answers zero.
+- A stop refuses new requests while it waits for an in-flight request.
+  It answers zero after the open requests finish.
+  Keep-alive connections close when their last response finishes during stop.
 - An already stopped signal closes after boot and
   answers zero.
 - Failed boot waits for cleanup before logging and
