@@ -10,7 +10,20 @@ const wrap =
   <A extends unknown[], R>(fn: (...args: A) => R) =>
   (...args: A): R =>
     fn(...args);
-const fake = { label: "fake" } as unknown as Operation.Ctx<void>;
+/** A real ctx, captured from a probe run, to stand as a parameter default in the tests below. */
+let captured: Operation.Ctx<void> | undefined;
+createScope().run(
+  operation({
+    label: "probe",
+    run: (_deps, ctx) => {
+      captured = ctx;
+    },
+  }),
+);
+const fallback = ((ctx) => {
+  if (ctx === undefined) throw new Error("the probe run captured no ctx");
+  return ctx;
+})(captured);
 
 for (const tagged of [false, true]) {
   const label = tagged ? "tagged" : "untagged";
@@ -27,7 +40,7 @@ for (const tagged of [false, true]) {
 
   test(`a body with a defaulted ctx parameter reads the real ctx (${label})`, () => {
     /** Declared apart from the call, so the default stands on the body's own signature. */
-    const body = (_deps: unknown, ctx: Operation.Ctx<void> | undefined = fake): string =>
+    const body = (_deps: unknown, ctx: Operation.Ctx<void> | undefined = fallback): string =>
       `${ctx.label}:${typeof ctx.defer}`;
     const op = operation({ label: "defaulted", run: body });
     expect(run(op)).toBe("defaulted:function");
@@ -37,7 +50,8 @@ for (const tagged of [false, true]) {
     const op = operation({
       label: "arguments",
       run: function (this: void) {
-        return (arguments as unknown as [unknown, Operation.Ctx<void>])[1].label;
+        const second: Operation.Ctx<void> = arguments[1];
+        return second.label;
       },
     });
     expect(run(op)).toBe("arguments");

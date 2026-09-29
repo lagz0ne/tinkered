@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, data, extension, operation, resource, tag } from "../src/index.ts";
+import { createScope, data, extension, isError, operation, resource, tag } from "../src/index.ts";
 
 /** ADR 0072: a tagged call comes back as a value when its child session ended in place, and as
  * a native promise when the session must wait. One test per case on the wait list. */
@@ -53,7 +53,12 @@ test("wait: a child session opened by the body", async () => {
   });
   expect(isNative(out)).toBe(true);
   expect(await out).toBe(1);
-  expect(() => grand!.run({ run: () => 1 })).toThrow("Disposed");
+  try {
+    grand!.run({ run: () => 1 });
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "Disposed")) throw error;
+  }
 });
 
 test("wait: pending work the body did not await", async () => {

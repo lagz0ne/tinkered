@@ -2438,11 +2438,11 @@ function executorFor<T, I>(
 }
 
 /** The single entry every run takes — declared, subflow, and inline alike. A call carrying
- * `tags` opens a child session for the run (ADR 0038; a value or a promise, ADR 0072); anything else runs the
- * untagged body inline below, which is main's, unchanged — one optional `call.tags` read, no
- * extra frame or call on the hot path. A plain function, so a replay on a fresh child layer
- * allocates no closure and no context for it; `sees` is the target's declaration-time flag, read
- * once per controller. The public overloads type the fork (rule 9). */
+ * `tags` opens a child session for the run (ADR 0038; a value or a promise, ADR 0072); a call
+ * carrying `ns` runs on a view of the layer (ADR 0059); anything else runs the body below. A plain
+ * function: a controller's `run` is a one-line closure over it, and a replay on a fresh child layer
+ * calls it directly, with no closure or context of its own. `sees` is the target's
+ * declaration-time flag, read once per controller. The public overloads type the fork (rule 9). */
 function runOnce<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
