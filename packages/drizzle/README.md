@@ -83,6 +83,7 @@ failures remain in the close result; `scope.session(...)` rejects when cleanup f
 the completed session before publishing saved state to other readers. A failed request
 rejects with its operation error and rolls back only its own transaction; rows from
 prior successful requests remain saved.
+A failed commit rejects the session with its database error.
 
 One transaction per request session (v1): a tagged call opens a child session, which would
 build its own `tx` — a second transaction, not a savepoint. Bind per-flow tags at the

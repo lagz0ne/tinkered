@@ -183,6 +183,28 @@ test("a session insert commits: a root read sees the row after success", async (
   await scope.close();
 });
 
+test("a failed commit rejects the session with its database error", async () => {
+  const store = usersStore("users");
+  const scope = createScope({ tags: [store.config(null)] });
+  const db = await scope.controller(store.db).resolve();
+  await db.execute(
+    sql`alter table users add constraint names_unique unique (name) deferrable initially deferred`,
+  );
+  let seen: unknown;
+  try {
+    await scope.session(async (session) => {
+      await session.run(insertOp(store), { input: "ada" });
+      await session.run(insertOp(store), { input: "ada" });
+    });
+  } catch (error: unknown) {
+    seen = error;
+  } finally {
+    await scope.close();
+  }
+  if (!isCoreError(seen, "TeardownFailed")) throw seen;
+  expect(seen.payload.causes).toMatchObject([{ code: "23505" }]);
+});
+
 test("a throwing op rolls back: session rejects with the op error and the row is absent", async () => {
   const store = usersStore("users");
   const scope = createScope({ tags: [store.config(null)] });

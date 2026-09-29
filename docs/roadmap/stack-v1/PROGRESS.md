@@ -437,7 +437,7 @@ flock /tmp/mutation.lock \
 
 - Owner: stack/t03 writer.
 - State: Doing.
-- Next: finish the one drizzle mutation run.
+- Next: check a failed commit with a real database, then repeat the final checks.
 - Verify: build, check, drizzle and tracker tests, browser proof,
   all validation lanes, and drizzle mutation score at least 85.
 - Assumption: this ticket's catalog pin requires a committed change to
@@ -492,3 +492,15 @@ flock /tmp/mutation.lock \
 - `pnpm validate`: all 44 lanes pass, `EXIT 0`.
   Ran under `/tmp/mutation.lock` after a rebuild.
   The committed `allowBuilds.esbuild` was already true.
+
+### Mutation follow-up
+
+- The first full run failed: 84.75, below 85; `EXIT 1`.
+  It reported 47 killed, 3 timed out, 9 survived, and no report errors.
+- A worker hit a Node WebAssembly `SIGILL`; Stryker recovered and finished.
+- Two surviving changes hide a commit failure from the caller.
+  The README already promises that a failed commit rejects the session.
+  Added a PGlite test with a unique constraint checked only at commit.
+  The session must reject with the database error.
+- This needs a second full mutation run after the test is checked.
+  That departs from the brief's one-run limit because the first run was red.
