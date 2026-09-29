@@ -247,8 +247,8 @@ prose-lint: 0 hits
 
 - Owner: stack/t06 writer.
 - Base: `50b31bab`, including the lander's rebase and fixes.
-- State: checking the reported Drizzle survivors.
-- Next: real Kit cases, focused kill checks, then the full lane.
+- State: mutation checks passed; final gate remains.
+- Next: the gate, all validation lanes, then review.
 - Verify: each named range, Drizzle at least 85, and the gate.
 - Assumption: keep the lander's head; do not rebase this follow-up.
 - Node's promisified `execFile` adds stdout to every rejection.
@@ -289,6 +289,15 @@ npx --no-install stryker run \
 ```
 
 - Repeated that command for `45-53` and `56-61`.
+- Full Drizzle lane: `EXIT 0`, score 93.86, above the floor of 85.
+  Counts: 107 killed, 0 timeout, 7 survived, 0 uncovered, 0 errors.
+  `migrations.ts`: 100, with all 55 mutants killed.
+  All 7 survivors are in the unchanged `src/index.ts`.
+- The full lane ran once under `/tmp/mutation.lock`, after removing
+  this package's `.stryker-tmp`, with 60,000 ms and 2 workers.
+  Its first run passed all 25 tests.
+  Stryker recovered from one worker's `SIGILL` exit;
+  the final report has no error rows and matches the current source.
 
 ## Tickets
 
