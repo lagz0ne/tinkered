@@ -46,7 +46,7 @@ Rules for every ticket:
   green.
 - **t04 core: a span carries a trace id** -- [ ] blocked by: none
   Writer: `stack/t04`, in `/home/paseo/next/tinkered-stack-t04`.
-  Next: Opus review, then the lander's N=61 screen and label calibration.
+  Next: draw numeric bits at open; format on read; re-screen and re-check.
   Every span gets a trace id when it opens, from
   its parent or from a seed a driver gives
   (ADR 0076). Hono seeds it from `traceparent`.
@@ -1285,3 +1285,15 @@ The named gate and three mutation lanes replace `scripts/ticket.sh`.
 That script stages every path, runs every package's mutation lane, and force-writes a core tag.
 The writer brief requires path-only commits and these three lanes.
 No branch was pushed.
+
+## t04 fix round — cheap observed spans
+
+The lead accepted the public shape and asked to cut the observed-call cost.
+The previous 184.1 to 1241.8 ns result is a blocker.
+Bits will come from `random.next()` at open.
+Hex text will be built on first read and cached.
+The trace text is shared across children.
+No extra core module name may be added.
+The base stays `de72d42`.
+Verify: N=31 for all observation cases and the seven named cases; no other row b is slower.
+Then the full gate, all budget lanes, and one full core mutation run under the lock.

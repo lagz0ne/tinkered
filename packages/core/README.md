@@ -805,6 +805,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - Operation, resource, and manual children inherit the trace and name their parent span.
 - Two unseeded root spans start different traces.
 - A seeded random replays trace and span ids.
+- Reading ids later leaves the seeded random stream and ids unchanged.
+- Zero random draws still make nonzero trace and span ids.
 - Observation off leaves the ambient random stream untouched.
 - A session copies its remote trace seed and child sessions inherit it.
 - A session seed overrides its scope seed without changing siblings.
@@ -817,8 +819,10 @@ Absent `trace` inherits the parent seed; `trace: null` clears it.
 Numeric `id` and `parentId` still order the local tree.
 `traceId` is 32 lowercase hex digits; `spanId` and
 `parentSpanId` are 16.
-Each new id comes from the ambient `random.uuid()`.
-The span id uses the UUID's last 8 bytes, with 62 random bits.
+Each new id draws numbers from the ambient `random.next()` at open.
+Hex text is made on first read and kept for later reads.
+Children share the trace's numbers and saved text.
+A zero final word becomes one, so an id cannot be all zeros.
 `sampled` carries the remote hint; local observation still
 follows `observe`.
 A new local trace defaults to sampled.

@@ -84,6 +84,40 @@ test("a seeded random replays trace and span ids", async () => {
   await second.close();
 });
 
+test("reading ids later leaves the seeded random stream and ids unchanged", async () => {
+  const earlyRandom = makeTestRandom({ seed: 42 });
+  const lateRandom = makeTestRandom({ seed: 42 });
+  const early = createScope({ random: earlyRandom, observe: { history: 10 } });
+  const late = createScope({ random: lateRandom, observe: { history: 10 } });
+  const first = early.run(readSpan)!;
+  const firstIds = { traceId: first.traceId, spanId: first.spanId };
+  const delayed = late.run(readSpan)!;
+  expect(lateRandom.next()).toBe(earlyRandom.next());
+  const second = early.run(readSpan)!;
+  const last = late.run(readSpan)!;
+  expect({ traceId: last.traceId, spanId: last.spanId }).toEqual({
+    traceId: second.traceId,
+    spanId: second.spanId,
+  });
+  expect({ traceId: delayed.traceId, spanId: delayed.spanId }).toEqual(firstIds);
+  expect(lateRandom.next()).toBe(earlyRandom.next());
+  await early.close();
+  await late.close();
+});
+
+test("zero random draws still make nonzero trace and span ids", async () => {
+  const scope = createScope({
+    random: { next: () => 0, uuid: () => "00000000-0000-4000-8000-000000000000" },
+    observe: { history: 10 },
+  });
+  const span = scope.run(readSpan)!;
+  expect(span.traceId).toMatch(/^[0-9a-f]{32}$/);
+  expect(span.traceId).not.toBe("0".repeat(32));
+  expect(span.spanId).toMatch(/^[0-9a-f]{16}$/);
+  expect(span.spanId).not.toBe("0".repeat(16));
+  await scope.close();
+});
+
 test("observation off leaves the ambient random stream untouched", async () => {
   const random = makeTestRandom({ seed: 42 });
   const untouched = makeTestRandom({ seed: 42 });

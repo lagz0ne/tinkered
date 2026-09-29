@@ -42,6 +42,15 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **stack/t04 trace-id** — spans carry W3C ids across Hono and HTTP.
+  Owner: lead (stack session); Astra writer `5e69613c`.
+  Worktree: `/home/paseo/next/tinkered-stack-t04`, branch `stack/t04`.
+  Next: lazy trace-id fix round, N=31 screen, gate, budgets, core mutation.
+  Verify: `opobs` at the floor; no other row b is slower; all gates green.
+  Mutation: core 86.01, Hono 88.57, HTTP 89.70.
+  The N=31 screen shows no checked off-path slowdown; observed calls cost more.
+  [Track and proof](docs/roadmap/stack-v1/PROGRESS.md#t04-writer-proof--2026-09-29).
+
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
@@ -51,15 +60,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 - **stack/t06 migrate-step** — the tracker's tables come from migration files, run at boot under a lock (ADR 0079). Owner: lead (stack session); Astra writer `2cb63e15`, worktree `/home/paseo/next/tinkered-stack-t06`; Opus reviewer when the writer reports. Verify: a drift test fails on a mismatch; an old tracker database keeps its rows. [track](docs/roadmap/stack-v1/PROGRESS.md).
 
 ## Review
-
-- **stack/t04 trace-id** — spans carry W3C ids across Hono and HTTP.
-  Owner: lead (stack session); Astra writer `5e69613c`.
-  Worktree: `/home/paseo/next/tinkered-stack-t04`, branch `stack/t04`.
-  Next: Opus review, then the lander's N=61 timing and label calibration.
-  Verify: gate `EXIT 0`; 44 budget lanes PASS.
-  Mutation: core 86.01, Hono 88.57, HTTP 89.70.
-  The N=31 screen shows no checked off-path slowdown; observed calls cost more.
-  [Track and proof](docs/roadmap/stack-v1/PROGRESS.md#t04-writer-proof--2026-09-29).
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |

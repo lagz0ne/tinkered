@@ -1631,7 +1631,7 @@ function addWatcherNs(
 function resolveControllerEdge(
   layer: Layer,
   target: unknown,
-  parent: Observe.Span | undefined,
+  parent: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
 ): unknown {
@@ -1643,7 +1643,7 @@ function resolveControllerEdge(
 function resolveEdge(
   layer: Layer,
   dep: Edge<string, unknown>,
-  parent: Observe.Span | undefined,
+  parent: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
 ): unknown {
@@ -1658,7 +1658,7 @@ function resolveEdge(
 function resolveDep(
   layer: Layer,
   dep: Scope.Dependency,
-  parent: Observe.Span | undefined,
+  parent: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
 ): unknown {
@@ -1683,9 +1683,9 @@ function ignoreRejection(promise: Promise<unknown>): void {
 type Obs = {
   observing: boolean;
   clock: () => number;
-  export: ((span: Observe.Span) => void) | undefined;
+  export: ((span: SpanImpl) => void) | undefined;
   historyMax: number;
-  history: Observe.Span[];
+  history: SpanImpl[];
   log: ((entry: Observe.Log) => void) | undefined;
   level: number;
   nextId: number;
@@ -1848,37 +1848,101 @@ function makeObs(config: Observe.Config | undefined, clock: Clock.Handle): Obs {
 function openSpan(
   obs: Obs,
   layer: Layer,
-  parent: Observe.Span | undefined,
+  parent: SpanImpl | undefined,
   name: string,
   kind: Observe.Kind,
-): Observe.Span | undefined {
+): SpanImpl | undefined {
   if (!obs.observing) return undefined;
-  return createSpan(obs, layer, parent, name, kind);
+  return new SpanImpl(obs, layer, parent, name, kind);
 }
 
-function createSpan(
-  obs: Obs,
-  layer: Layer,
-  parent: Observe.Span | undefined,
-  name: string,
-  kind: Observe.Kind,
-): Observe.Span {
-  const trace = parent ?? layer.trace;
-  return {
-    traceId: trace === undefined ? layer.random.uuid().replaceAll("-", "") : trace.traceId,
-    spanId: layer.random.uuid().slice(19).replaceAll("-", ""),
-    parentSpanId: parent === undefined ? layer.trace?.parentSpanId : parent.spanId,
-    sampled: trace?.sampled !== false,
-    id: obs.nextId++,
-    parentId: parent?.id,
-    name,
-    kind,
-    start: obs.clock(),
-    end: undefined,
-    status: undefined,
-    attributes: {},
-    events: [],
-  };
+/** Bits are drawn at open. Text is made only on read; children share the trace cache.
+ * Parent bits are copied so a saved child does not retain its parent's events and attributes. */
+class SpanImpl implements Observe.Span {
+  declare readonly id: number;
+  declare readonly parentId: number | undefined;
+  declare readonly name: string;
+  declare readonly kind: Observe.Kind;
+  declare readonly start: number;
+  declare readonly sampled: boolean;
+  end: number | undefined = undefined;
+  status: "ok" | "failed" | undefined = undefined;
+  declare error?: unknown;
+  declare private trace:
+    | string
+    | { a: number; b: number; c: number; d: number; text: string | undefined };
+  declare private high: number;
+  declare private low: number;
+  declare private parentHigh: number;
+  declare private parentLow: number;
+  private text: string | undefined = undefined;
+  declare private parentText: string | undefined;
+  private attrs: Record<string, unknown> | undefined = undefined;
+  private marks: Observe.Event[] | undefined = undefined;
+
+  constructor(
+    obs: Obs,
+    layer: Layer,
+    parent: SpanImpl | undefined,
+    name: string,
+    kind: Observe.Kind,
+  ) {
+    const random = layer.random;
+    if (parent === undefined) {
+      this.trace = layer.trace?.traceId ?? {
+        a: (random.next() * 4294967296) >>> 0,
+        b: (random.next() * 4294967296) >>> 0,
+        c: (random.next() * 4294967296) >>> 0,
+        d: (random.next() * 4294967296) >>> 0 || 1,
+        text: undefined,
+      };
+      this.parentHigh = 0;
+      this.parentLow = 0;
+      this.parentText = layer.trace?.parentSpanId;
+      this.parentId = undefined;
+      this.sampled = layer.trace?.sampled !== false;
+    } else {
+      this.trace = parent.trace;
+      this.parentHigh = parent.high;
+      this.parentLow = parent.low;
+      this.parentText = undefined;
+      this.parentId = parent.id;
+      this.sampled = parent.sampled;
+    }
+    this.high = (random.next() * 4294967296) >>> 0;
+    this.low = (random.next() * 4294967296) >>> 0 || 1;
+    this.id = obs.nextId++;
+    this.name = name;
+    this.kind = kind;
+    this.start = obs.clock();
+  }
+
+  get traceId(): string {
+    const trace = this.trace;
+    if (typeof trace === "string") return trace;
+    return (trace.text ??= SpanImpl.hex(trace.a, trace.b) + SpanImpl.hex(trace.c, trace.d));
+  }
+
+  get spanId(): string {
+    return (this.text ??= SpanImpl.hex(this.high, this.low));
+  }
+
+  get parentSpanId(): string | undefined {
+    if (this.parentId === undefined) return this.parentText;
+    return (this.parentText ??= SpanImpl.hex(this.parentHigh, this.parentLow));
+  }
+
+  get attributes(): Record<string, unknown> {
+    return (this.attrs ??= {});
+  }
+
+  get events(): Observe.Event[] {
+    return (this.marks ??= []);
+  }
+
+  private static hex(high: number, low: number): string {
+    return high.toString(16).padStart(8, "0") + low.toString(16).padStart(8, "0");
+  }
 }
 
 function isolate(run: () => unknown): void {
@@ -1892,7 +1956,7 @@ function isolate(run: () => unknown): void {
 
 function closeSpan(
   obs: Obs,
-  span: Observe.Span | undefined,
+  span: SpanImpl | undefined,
   status: "ok" | "failed",
   error?: unknown,
 ): void {
@@ -1910,7 +1974,7 @@ function closeSpan(
   logStep(obs, span, status, end);
 }
 
-function logStep(obs: Obs, span: Observe.Span, status: "ok" | "failed", end: number): void {
+function logStep(obs: Obs, span: SpanImpl, status: "ok" | "failed", end: number): void {
   const log = obs.log;
   if (span.kind !== "operation" || !log) return;
   const level = status === "ok" ? LEVELS.debug : LEVELS.error;
@@ -1926,7 +1990,7 @@ function logStep(obs: Obs, span: Observe.Span, status: "ok" | "failed", end: num
   );
 }
 
-function settleSpan(obs: Obs, span: Observe.Span, result: unknown): void {
+function settleSpan(obs: Obs, span: SpanImpl, result: unknown): void {
   if (!(result instanceof Promise)) {
     closeSpan(obs, span, "ok");
     return;
@@ -1939,7 +2003,7 @@ function settleSpan(obs: Obs, span: Observe.Span, result: unknown): void {
   );
 }
 
-function obsCtx(layer: Layer, span: Observe.Span | undefined): Observe.Ctx {
+function obsCtx(layer: Layer, span: SpanImpl | undefined): Observe.Ctx {
   if (!span) return OFF_OBS;
   const obs = layer.obs;
   return {
@@ -1962,7 +2026,7 @@ function obsCtx(layer: Layer, span: Observe.Span | undefined): Observe.Ctx {
   };
 }
 
-function logFor(obs: Obs, span: Observe.Span | undefined): Observe.Logger {
+function logFor(obs: Obs, span: SpanImpl | undefined): Observe.Logger {
   const sink = obs.log;
   if (!sink) return OFF_LOG;
   const min = obs.level;
@@ -1980,7 +2044,7 @@ function logFor(obs: Obs, span: Observe.Span | undefined): Observe.Logger {
 
 function recordUsed(
   obs: Obs,
-  caller: Observe.Span | undefined,
+  caller: SpanImpl | undefined,
   target: Resource.Handle<unknown>,
 ): void {
   if (caller) {
@@ -2000,7 +2064,7 @@ class OperationControl<T, I> {
   declare readonly run: (call?: Scope.Invocation<I>) => unknown;
   declare private layer: Layer;
   declare private target: Operation.Handle<T, I>;
-  declare private parent: Observe.Span | undefined;
+  declare private parent: SpanImpl | undefined;
   declare private chain: readonly Namespace[] | undefined;
   declare private hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>;
   declare private replay: Replay;
@@ -2011,7 +2075,7 @@ class OperationControl<T, I> {
     run: (call?: Scope.Invocation<I>) => unknown,
     layer: Layer,
     target: Operation.Handle<T, I>,
-    parent: Observe.Span | undefined,
+    parent: SpanImpl | undefined,
     chain: readonly Namespace[] | undefined,
     hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
     replay: Replay,
@@ -2250,14 +2314,14 @@ class OperationCtx<I> implements Operation.Ctx<I> {
   declare readonly input: I;
   private obsTools: Observe.Ctx | undefined;
   private logTools: Observe.Logger | undefined;
-  declare readonly span: Observe.Span | undefined;
+  declare readonly span: SpanImpl | undefined;
   declare readonly clock: Clock.Handle;
   declare readonly random: Random.Handle;
   constructor(
     owner: Layer,
     target: Operation.Handle<unknown, I>,
     call: Scope.Invocation<I> | undefined,
-    span: Observe.Span | undefined,
+    span: SpanImpl | undefined,
   ) {
     this.owner = owner;
     this.label = target.label;
@@ -2319,7 +2383,7 @@ function hasCallTags(call: Scope.Invocation<unknown> | undefined): boolean {
 function runTagged<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
-  parent: Observe.Span | undefined,
+  parent: SpanImpl | undefined,
   caller: RunState | undefined,
   call: Scope.Invocation<I> & { readonly tags: Scope.Bindings },
   inheritedChain: readonly Namespace[] | undefined,
@@ -2429,7 +2493,7 @@ let activeTagged: TaggedFrame | undefined;
 function runTaggedFrame<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
-  parent: Observe.Span | undefined,
+  parent: SpanImpl | undefined,
   caller: RunState | undefined,
   tags: Scope.Bindings,
   chain: readonly Namespace[] | undefined,
@@ -2462,7 +2526,7 @@ function runTaggedFrame<T, I>(
 function runNsCall<I>(
   layer: Layer,
   target: Operation.Handle<unknown, I>,
-  parent: Observe.Span | undefined,
+  parent: SpanImpl | undefined,
   caller: RunState | undefined,
   call: Scope.Invocation<I> & { readonly ns: Ns },
 ): unknown {
@@ -2530,7 +2594,7 @@ function finishAsyncRun<T>(
   caller: RunState | undefined,
   replay: Replay,
   obs: Obs,
-  span: Observe.Span | undefined,
+  span: SpanImpl | undefined,
   label: string,
   ctx: OperationCtx<unknown> | undefined,
   held: HeldBorrows | undefined,
@@ -2551,7 +2615,7 @@ function finishAsyncRun<T>(
 function executorFor<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
-  parent: Observe.Span | undefined,
+  parent: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined,
   caller: RunState | undefined,
   replay: Replay,
@@ -2570,7 +2634,7 @@ function executorFor<T, I>(
 function runOnce<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
-  parent: Observe.Span | undefined,
+  parent: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined,
   caller: RunState | undefined,
   replay: Replay,
@@ -2634,7 +2698,7 @@ function runOnce<T, I>(
 function operationController<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
-  parent: Observe.Span | undefined,
+  parent: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
   hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I> = target,
@@ -2687,7 +2751,7 @@ function operationController<T, I>(
 function runUntagged<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
-  parent: Observe.Span | undefined,
+  parent: SpanImpl | undefined,
   call: Scope.Invocation<I> | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
@@ -2737,7 +2801,7 @@ let parked: PendingSlot[] | undefined;
 function resolveSelectedDep(
   layer: Layer,
   dep: Scope.Dependency,
-  span: Observe.Span | undefined,
+  span: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined,
   selected: SelectedResource | undefined,
   caller?: RunState,
@@ -2750,7 +2814,7 @@ function resolveSelectedDep(
 function buildDeps(
   layer: Layer,
   depends: Scope.Depends,
-  span: Observe.Span | undefined,
+  span: SpanImpl | undefined,
   registerEdge: RegisterEdge,
   chain: readonly Namespace[] | undefined = layer.ns,
   selected?: SelectedResource,
@@ -2779,7 +2843,7 @@ function buildDeps(
 function buildPlainDeps(
   layer: Layer,
   depends: Scope.Depends,
-  span: Observe.Span | undefined,
+  span: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
 ): Record<string, unknown> {
@@ -2795,7 +2859,7 @@ function buildPlainDeps(
 function readOpDeps(
   layer: Layer,
   target: Operation.Handle<unknown, unknown>,
-  span: Observe.Span | undefined,
+  span: SpanImpl | undefined,
   held: HeldBorrows | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
@@ -2823,7 +2887,7 @@ function settleDeps(deps: Record<string, unknown>, pending: PendingSlot[]): Prom
 function resolveResourceDeps(
   owner: Layer,
   target: Resource.Handle<unknown>,
-  span: Observe.Span | undefined,
+  span: SpanImpl | undefined,
   superseded: () => boolean,
   chain: readonly Namespace[] | undefined,
   state: ResourceState,
@@ -2848,7 +2912,7 @@ function resolveResourceDeps(
 function resolveNamedResourceDeps(
   owner: Layer,
   target: Resource.Handle<unknown>,
-  span: Observe.Span | undefined,
+  span: SpanImpl | undefined,
   superseded: () => boolean,
   chain: readonly Namespace[] | undefined,
   state: ResourceState,
@@ -2876,14 +2940,10 @@ class ResourceCtx implements Resource.Ctx {
   declare readonly label: string;
   private obsTools: Observe.Ctx | undefined;
   private logTools: Observe.Logger | undefined;
-  declare readonly span: Observe.Span | undefined;
+  declare readonly span: SpanImpl | undefined;
   declare readonly clock: Clock.Handle;
   declare readonly random: Random.Handle;
-  constructor(
-    instance: ResourceInstance,
-    span: Observe.Span | undefined,
-    isSettled: () => boolean,
-  ) {
+  constructor(instance: ResourceInstance, span: SpanImpl | undefined, isSettled: () => boolean) {
     this.owner = instance.owner;
     this.instance = instance;
     this.isSettled = isSettled;
@@ -2917,7 +2977,7 @@ class ResourceCtx implements Resource.Ctx {
  * behaves correctly. */
 function buildCtx(
   instance: ResourceInstance,
-  span: Observe.Span | undefined,
+  span: SpanImpl | undefined,
   isSettled: () => boolean,
 ): Resource.Ctx {
   return new ResourceCtx(instance, span, isSettled);
@@ -3151,7 +3211,7 @@ function publishSyncResource(
   canPublish: () => boolean,
   instance: ResourceInstance | undefined,
   obs: Obs,
-  span: Observe.Span | undefined,
+  span: SpanImpl | undefined,
 ): void {
   if (canPublish()) rec.resource = { value: result };
   settleResourceInstance(instance, "ok");
@@ -3166,7 +3226,7 @@ function failResourceBuild(
   instance: ResourceInstance | undefined,
   error: unknown,
   obs: Obs,
-  span: Observe.Span | undefined,
+  span: SpanImpl | undefined,
 ): never {
   if (rec.gen === gen) detachResourceDependencies(owner, target, rec);
   settleResourceInstance(instance, "failed", error);
@@ -3180,7 +3240,7 @@ function buildHooklessResource<T>(
   owner: Layer,
   caller: Layer,
   target: Resource.Handle<T>,
-  parent: Observe.Span | undefined,
+  parent: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined,
   rec: ResourceState,
   resolveDeps: typeof resolveResourceDeps,
@@ -3226,7 +3286,7 @@ function buildResource<T>(
   owner: Layer,
   caller: Layer,
   target: Resource.Handle<T>,
-  parent: Observe.Span | undefined,
+  parent: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined,
   rec: ResourceState,
   resolveDeps: typeof resolveResourceDeps = resolveResourceDeps,
@@ -3245,7 +3305,7 @@ function buildTrackedResource<T>(
   owner: Layer,
   caller: Layer,
   target: Resource.Handle<T>,
-  parent: Observe.Span | undefined,
+  parent: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined,
   rec: ResourceState,
   resolveDeps: typeof resolveResourceDeps,
@@ -3331,7 +3391,7 @@ function finishAsyncBuild(
   canPublish: () => boolean,
   markSettled: (status: "ok" | "failed", error?: unknown) => void,
   obs: Obs,
-  span: Observe.Span | undefined,
+  span: SpanImpl | undefined,
 ): Promise<unknown> {
   const build: Promise<unknown> = Promise.resolve(result).then(
     (value) => {
@@ -3362,7 +3422,7 @@ function finishAsyncBuild(
 function resourceController<T>(
   layer: Layer,
   target: Resource.Handle<T>,
-  parent: Observe.Span | undefined,
+  parent: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
 ): Scope.ResourceController<T> {
   const owner = ownerOf(layer, target);
@@ -3442,7 +3502,7 @@ function hasResourceNs(
 function resourceSlot(
   layer: Layer,
   target: Resource.Handle<unknown>,
-  parent: Observe.Span | undefined,
+  parent: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined = layer.ns,
   selected?: SelectedResource,
 ): unknown {
@@ -3465,7 +3525,7 @@ function namedResourceSlot(
   owner: Layer,
   caller: Layer,
   target: Resource.Handle<unknown>,
-  parent: Observe.Span | undefined,
+  parent: SpanImpl | undefined,
   chain: readonly [Namespace, ...Namespace[]],
   selected?: SelectedResource,
 ): unknown {
@@ -3479,7 +3539,7 @@ function readResourceState(
   owner: Layer,
   caller: Layer,
   target: Resource.Handle<unknown>,
-  parent: Observe.Span | undefined,
+  parent: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined,
   state: ResourceState,
 ): unknown {
