@@ -149,6 +149,17 @@ The writer gate checks every other file, with S27's browser skips below.
 The repo lint lists hits without failing.
 Each message ends with its fix line.
 
+Run the repo lint for both rules:
+
+```bash
+JEV_TOKEN_FILE=/dev/null node tools/jev/lint.mjs \
+  apps examples 'packages/*/src' | grep -E 'S2[78]'
+```
+
+- `JEV_TOKEN_FILE=/dev/null` gives `lint.mjs` no key, so no model runs: it prints only the plain rows, in about 2 seconds.
+- Each hit prints as `▪ L<line> S27: …` under its file.
+- No output means no hit.
+
 - **S27 unguardedEntry** — a top-level statement with an `await` outside a function body and outside the positive branch of `if (import.meta.main)`.
   Expressions, declarations, and `for await` count.
   `await using` counts as a declaration.
