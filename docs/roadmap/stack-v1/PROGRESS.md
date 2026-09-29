@@ -46,7 +46,7 @@ Rules for every ticket:
   green.
 - **t04 core: a span carries a trace id** -- [ ] blocked by: none
   Writer: `stack/t04`, in `/home/paseo/next/tinkered-stack-t04`.
-  Next: fix span JSON and exact impact rows; rerun the gate.
+  Next: lead review of the JSON and impact fixes; the random-draw choice remains with the lead.
   Every span gets a trace id when it opens, from
   its parent or from a seed a driver gives
   (ADR 0076). Hono seeds it from `traceparent`.
@@ -1421,3 +1421,35 @@ No rebase or random-draw change is part of this round.
   ✓ Observe/Span#typeLiteral148:sampled: as planned
 impact stack/t04: as planned (0 discrepancies). Advisory — never a gate.
 ```
+
+### Reviewer gate proof
+
+```bash
+export PATH="$PWD/node_modules/.bin:$PATH"
+vp run -r build && vp check && vp run -r test
+echo EXIT=$?
+vp run prose
+```
+
+```text
+EXIT=0
+core: 728 passed
+hono: 65 passed
+http: 86 passed
+check: 0 errors, 29 warnings
+PROSE_EXIT=0
+```
+
+- No rebase was done.
+- Core source differs from the prior tip only by the `toJSON` method.
+- The strict style scan retains only the old S14 array-read false hit.
+- TSDoc has zero findings.
+- The source review has 62 non-noisy flags, each labeled false with a reason.
+- One new label records existing core close bookkeeping; no source rule changed.
+- Raw logs are in `.bench/stack-t04-review1-proof/`.
+
+- The JSON regression is clear in the plain test review.
+- All 13 trace test titles match their README promises.
+- The package-wide review still lists old plain-test notes and 41 old README gaps; none names a trace test.
+- The card is back in Review, and all jobs have finished.
+- Nothing was pushed.
