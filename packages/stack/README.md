@@ -205,8 +205,8 @@ After commit it reads that root's tags and updates its cells,
 even when the request has its own values.
 A committed request publishes root state in its own namespace.
 Request drafts stay in their session; publication reads committed storage.
-A handled error answer (4xx) still commits its session,
-so it republishes and signals.
+A raised error mapped to 4xx rolls back its session,
+so it sends no signal (ADR 0084).
 A boot read failure rejects ready.
 A read failure after commit logs `publish failed` and
 keeps the request's answer.
@@ -287,7 +287,7 @@ A later commit or a new boot reads the current database.
 - Closing one server removes its NATS subscription while the
   other keeps publishing.
 - A different app subject leaves its published cells alone.
-- A handled 4xx answer still commits and signals.
+- A raised error mapped to 4xx rolls back and sends no signal.
 - Live updates require NATS_URL at boot.
 - Local publishing runs after later starts and before the
   first request.

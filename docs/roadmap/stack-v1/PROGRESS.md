@@ -2083,16 +2083,16 @@ vp run -r build && vp check \
 ## t17 writer notes
 
 Owner: stack/t17 writer. Branch: `stack/t17`.
-Next: check close errors, tracker behavior, and the full gate.
+Next: finish the gate on the new base, then mutation and lead review.
 Verify: Hono, Drizzle, stack, tracker, browser proof,
 `vp check`, `pnpm validate`, Hono mutation at least 85.
 
 The request and stream close behavior changes.
 Callers: the issue tracker, stack tests, Hono tests,
 and the Hono, Drizzle, and sync examples.
-No public symbol changes.
-The success and unmapped-error cases are guards;
-they need to stay green on main.
+No existing symbol is renamed or removed.
+`RequestCloseFailed` is a new Hono error kind.
+The successful-save case is a guard and stays green on main.
 
 First green step: Hono 73 tests pass.
 `vp check`: 0 errors, 29 warnings.
@@ -2172,3 +2172,39 @@ expect((await s.close({ graceful: true })).status).toBe("failed");
 Hono uses `scope.session` and rethrows the original error
 in its body after building the mapped answer.
 No core change is needed for this fix.
+
+### t17 rebase
+
+Rebased onto `6330012c`, which includes t12.
+Kept all t12 source and track notes.
+Its new mapped-error test expected a 409 to commit and signal.
+Updated that test and its README line for ADR 0084:
+a raised error keeps its 409, rolls back, and sends no signal.
+Only the two appended track-note blocks conflicted.
+The five PGlite tests use a 30-second limit:
+three hit the old five-second limit on the busy host.
+Their checks are unchanged.
+
+The updated live test fails on main at `6330012c`:
+it finds the saved `Taken` row instead of no rows.
+The final close tests fail there too: hook failure answers 200,
+teardown after a mapped error answers 409, and a synchronous
+stream error leaves its request cleanup pending.
+The late-request and forced-final-chunk guards both pass there.
+
+Jev: 0 of 78 Hono titles and 0 of 25 stack titles flagged.
+No README promise gaps; nine Hono and one stack matches unsure.
+The three old Hono helper-size/count notes are unchanged.
+They are plain checks, with no model judge to label.
+The new tests add no helpers.
+Labels: `effectWithoutDefer=false` for `stream` and `listen`;
+`stateOutsideCell=false` for `listen`.
+Stream completion owns the request close.
+The server defer joins the listener stop promise.
+The listener's close flag is private stop bookkeeping.
+The noisy `wrapsCallersStep` note owes no label.
+
+Gate on `6330012c`: build, check, Hono 78, Drizzle 33,
+stack 58, tracker 69, prose; `EXIT 0`.
+Check: 0 errors and 29 warnings, matching main.
+Strict style census: OK.

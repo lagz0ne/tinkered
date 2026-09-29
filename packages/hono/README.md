@@ -185,6 +185,7 @@ The body is a declared operation, not a callback.
 It reads `emit` with `depends: { emit: emit.required }`.
 The call may carry `input` and `tags` as usual.
 The stream binds `emit` for this run.
+The body yields each chunk as the clock advances, then ends.
 `emit` sends byte chunks unchanged to the reader.
 A stream call's `ns` picks the body run's namespace bindings.
 The body runs in its own child session, as a tagged call does (ADR 0038).
