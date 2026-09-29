@@ -3879,7 +3879,9 @@ function ownsNothing(layer: Layer): boolean {
     closeWouldReenter(layer)
   )
     return false;
-  if (layer.nodes.size === 0) return true;
+  /** A layer still on the shared empty store holds no record, so it holds no instance and no
+   * watcher (Opus, fp2/opus-e50df39). */
+  if (layer.nodes === NO_NODES) return true;
   for (const state of layer.nodes.values()) if (busyRecord(state)) return false;
   return true;
 }
