@@ -806,7 +806,9 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - Two unseeded root spans start different traces.
 - A seeded random replays trace and span ids.
 - Reading ids later leaves the seeded random stream and ids unchanged.
-- Valid random draws always make nonzero W3C ids.
+- Observation leaves seeded and custom user randomness unchanged.
+- User random reads do not change seeded trace and child span ids.
+- Seeded ids use generator bits in every hex position and stay nonzero.
 - Span JSON keeps public fields, ids, attributes, and events without internal state.
 - Observation off leaves the ambient random stream untouched.
 - A session copies its remote trace seed and child sessions inherit it.
@@ -821,7 +823,10 @@ Numeric `id` and `parentId` still order the local tree.
 A span is a class instance, so spread or `structuredClone` copies only its own fields; use JSON for its public fields.
 `traceId` is 32 lowercase hex digits; `spanId` and
 `parentSpanId` are 16.
-Each new id draws numbers from the ambient `random.next()` at open.
+Each new id draws 32-bit numbers from a private generator at open.
+IDs are reproducible only with `makeTestRandom({ seed })`.
+It keeps a second generator for IDs; user `next()` and `uuid()` calls stay unchanged.
+The system source and custom random sources use a core-owned generator seeded once from crypto.
 Hex text is made on first read and kept for later reads.
 Children share the trace's numbers and saved text.
 A zero final number becomes one, so an id cannot be all zeros.

@@ -144,19 +144,82 @@ test("reading ids later leaves the seeded random stream and ids unchanged", asyn
   await late.close();
 });
 
-test("valid random draws always make nonzero W3C ids", async () => {
-  for (const value of [0, 1 / 3, 1 - Number.EPSILON]) {
-    const scope = createScope({
-      random: { next: () => value, uuid: () => "00000000-0000-4000-8000-000000000000" },
-      observe: { history: 10 },
-    });
-    const span = scope.run(readSpan)!;
-    expect(span.traceId).toMatch(/^[0-9a-f]{32}$/);
-    expect(span.traceId).not.toBe("0".repeat(32));
-    expect(span.spanId).toMatch(/^[0-9a-f]{16}$/);
-    expect(span.spanId).not.toBe("0".repeat(16));
-    await scope.close();
+test("observation leaves seeded and custom user randomness unchanged", async () => {
+  const value = resource({ label: "value", factory: (_deps, ctx) => ctx.random.next() });
+  const inner = operation({
+    label: "inner",
+    run: (_deps, ctx) => [ctx.random.next(), ctx.random.uuid()],
+  });
+  const outer = operation({
+    label: "outer",
+    depends: { value, inner },
+    run: ({ value, inner }, ctx) => ({ value, own: ctx.random.next(), inner: inner.run() }),
+  });
+  for (const custom of [false, true]) {
+    for (const observing of [false, true]) {
+      const random = makeTestRandom({ seed: 7 });
+      const untouched = makeTestRandom({ seed: 7 });
+      const scope = createScope({
+        random: custom ? { next: () => random.next(), uuid: () => random.uuid() } : random,
+        observe: observing ? { history: 20 } : undefined,
+      });
+      expect(scope.run(outer)).toEqual({
+        value: untouched.next(),
+        own: untouched.next(),
+        inner: [untouched.next(), untouched.uuid()],
+      });
+      expect(scope.createSession().run(inner)).toEqual([untouched.next(), untouched.uuid()]);
+      expect(random.next()).toBe(untouched.next());
+      expect(random.uuid()).toBe(untouched.uuid());
+      await scope.close();
+    }
   }
+});
+
+test("user random reads do not change seeded trace and child span ids", async () => {
+  const parent = operation({
+    label: "parent",
+    depends: { readSpan },
+    run: ({ readSpan }) => readSpan.run(),
+  });
+  const firstRandom = makeTestRandom({ seed: 7 });
+  const secondRandom = makeTestRandom({ seed: 7 });
+  const first = createScope({ random: firstRandom, observe: { history: 10 } });
+  const second = createScope({ random: secondRandom, observe: { history: 10 } });
+  for (let n = 0; n < 2; n++) {
+    secondRandom.next();
+    secondRandom.uuid();
+    const a = first.run(parent)!;
+    const b = second.run(parent)!;
+    expect({ traceId: b.traceId, spanId: b.spanId, parentSpanId: b.parentSpanId }).toEqual({
+      traceId: a.traceId,
+      spanId: a.spanId,
+      parentSpanId: a.parentSpanId,
+    });
+  }
+  await first.close();
+  await second.close();
+});
+
+test("seeded ids use generator bits in every hex position and stay nonzero", async () => {
+  const scope = createScope({ random: makeTestRandom({ seed: 0 }), observe: { history: 128 } });
+  const traces: string[] = [];
+  const spans: string[] = [];
+  for (let n = 0; n < 64; n++) {
+    const span = scope.run(readSpan)!;
+    traces.push(span.traceId);
+    spans.push(span.spanId);
+  }
+  for (const { ids, width } of [
+    { ids: traces, width: 32 },
+    { ids: spans, width: 16 },
+  ]) {
+    for (let digit = 0; digit < width; digit++) {
+      expect(new Set(ids.map((id) => id.charAt(digit))).size).toBeGreaterThan(1);
+    }
+    for (const id of ids) expect(id).not.toMatch(/^0+$/);
+  }
+  await scope.close();
 });
 
 test("observation off leaves the ambient random stream untouched", async () => {

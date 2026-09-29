@@ -1671,7 +1671,10 @@ function resolveDep(
   raise("InvalidDependency", { label: "unknown", reason: "unknown dependency" });
 }
 
-const noop = (): void => undefined;
+const noop = (() => {
+  const fn = (): void => undefined;
+  return Object.assign(fn, { debug: fn, info: fn, warn: fn, error: fn });
+})();
 
 /** Attach a rejection handler to a fire-and-forget close so an internally started close (from a
  * teardown hook) is never an unhandled rejection; the promise keeps its rejection for a later
@@ -1691,13 +1694,6 @@ type Obs = {
   nextId: number;
 };
 
-const OFF_LOG_FN = (): void => undefined;
-const OFF_LOG: Observe.Logger = Object.assign(OFF_LOG_FN, {
-  debug: OFF_LOG_FN,
-  info: OFF_LOG_FN,
-  warn: OFF_LOG_FN,
-  error: OFF_LOG_FN,
-});
 const OFF_OBS: Observe.Ctx = {
   span: undefined,
   event: () => undefined,
@@ -1786,10 +1782,13 @@ export function makeTestClock(options?: Clock.Options): Clock.Test {
  * inside a declaration tagged `@ambientSource`, and only there.
  *
  * @ambientSource */
-const systemRandom: Random.Handle = {
-  next: () => Math.random(),
-  uuid: () => crypto.randomUUID(),
-};
+const systemRandom = (() => {
+  const [a, b, c, d] = crypto.getRandomValues(new Int32Array(4));
+  return {
+    source: { next: () => Math.random(), uuid: () => crypto.randomUUID() },
+    ids: { a: a!, b: b!, c: c!, d: d! || 1 },
+  };
+})();
 
 /** Create a seeded randomness source for tests: the same `seed` replays the same `next` and `uuid`
  * stream, drawn from one mulberry32 generator. Pass it to `createScope({ random })` (ADR 0062). */
@@ -1812,7 +1811,9 @@ export function makeTestRandom(options?: Random.Options): Random.Handle {
     }
     return out;
   };
-  return { next, uuid };
+  const random = { next, uuid };
+  SpanImpl.seedRandom(random, options?.seed ?? 0);
+  return random;
 }
 
 const DEFAULT_OBS: Obs = {
@@ -1868,7 +1869,15 @@ class SpanImpl implements Observe.Span {
   end: number | undefined = undefined;
   status: "ok" | "failed" | undefined = undefined;
   declare error?: unknown;
-  declare private trace: string | { a: number; b: number; c: number; text: string | undefined };
+  private static seeded = new WeakMap<Random.Handle, typeof systemRandom.ids>();
+  declare private trace: {
+    a: number;
+    b: number;
+    c: number;
+    d: number;
+    text: string | undefined;
+    random: typeof systemRandom.ids;
+  };
   declare private high: number;
   declare private low: number;
   declare private parentHigh: number;
@@ -1885,7 +1894,6 @@ class SpanImpl implements Observe.Span {
     name: string,
     kind: Observe.Kind,
   ) {
-    const random = layer.random;
     this.trace = SpanImpl.traceFor(layer, parent);
     if (parent === undefined) {
       this.parentHigh = 0;
@@ -1900,8 +1908,8 @@ class SpanImpl implements Observe.Span {
       this.parentId = parent.id;
       this.sampled = parent.sampled;
     }
-    this.high = (random.next() * 4294967296) >>> 0;
-    this.low = (random.next() * 4294967296) >>> 0 || 1;
+    this.high = SpanImpl.word(this.trace.random);
+    this.low = SpanImpl.word(this.trace.random) || 1;
     this.id = obs.nextId++;
     this.name = name;
     this.kind = kind;
@@ -1910,11 +1918,7 @@ class SpanImpl implements Observe.Span {
 
   get traceId(): string {
     const trace = this.trace;
-    if (typeof trace === "string") return trace;
-    return (trace.text ??=
-      trace.a.toString(16).padStart(13, "0") +
-      trace.b.toString(16).padStart(13, "0") +
-      trace.c.toString(16).padStart(6, "0"));
+    return (trace.text ??= SpanImpl.hex(trace.a, trace.b) + SpanImpl.hex(trace.c, trace.d));
   }
 
   get spanId(): string {
@@ -1953,21 +1957,39 @@ class SpanImpl implements Observe.Span {
     };
   }
 
-  /** 52 + 52 + 24 bits fill the 32 hex digits with three draws, all at open. */
+  /** Test handles keep a second stream outside their public shape (ADR 0009). */
+  static seedRandom(random: Random.Handle, seed: number): void {
+    const state = { a: seed | 0, b: 362436069, c: 521288629, d: 88675123 };
+    for (let n = 0; n < 8; n++) SpanImpl.word(state);
+    SpanImpl.seeded.set(random, state);
+  }
+
+  /** Marsaglia's xorshift128: four nonzero-together 32-bit words, never user draws. */
+  private static word(state: typeof systemRandom.ids): number {
+    const t = state.a ^ (state.a << 11);
+    state.a = state.b;
+    state.b = state.c;
+    state.c = state.d;
+    return (state.d = state.d ^ (state.d >>> 19) ^ t ^ (t >>> 8));
+  }
+
   private static traceFor(layer: Layer, parent: SpanImpl | undefined): SpanImpl["trace"] {
     if (parent !== undefined) return parent.trace;
-    if (layer.trace !== undefined) return layer.trace.traceId;
-    const random = layer.random;
+    const random = SpanImpl.seeded.get(layer.random) ?? systemRandom.ids;
+    if (layer.trace !== undefined)
+      return { a: 0, b: 0, c: 0, d: 0, text: layer.trace.traceId, random };
     return {
-      a: Math.trunc(random.next() * 4503599627370496),
-      b: Math.trunc(random.next() * 4503599627370496),
-      c: Math.trunc(random.next() * 16777216) || 1,
+      a: SpanImpl.word(random),
+      b: SpanImpl.word(random),
+      c: SpanImpl.word(random),
+      d: SpanImpl.word(random) || 1,
       text: undefined,
+      random,
     };
   }
 
   private static hex(high: number, low: number): string {
-    return high.toString(16).padStart(8, "0") + low.toString(16).padStart(8, "0");
+    return (high >>> 0).toString(16).padStart(8, "0") + (low >>> 0).toString(16).padStart(8, "0");
   }
 }
 
@@ -2054,7 +2076,7 @@ function obsCtx(layer: Layer, span: SpanImpl | undefined): Observe.Ctx {
 
 function logFor(obs: Obs, span: SpanImpl | undefined): Observe.Logger {
   const sink = obs.log;
-  if (!sink) return OFF_LOG;
+  if (!sink) return noop;
   const min = obs.level;
   const at = (level: number) => (message: string, attributes?: Record<string, unknown>) => {
     if (level < min) return;
@@ -3016,7 +3038,7 @@ const raiseUnstamped: Resource.Ctx["raise"] = (kind, payload) =>
 class EmptyCtx implements Resource.Ctx {
   readonly label = "";
   readonly obs = OFF_OBS;
-  readonly log = OFF_LOG;
+  readonly log = noop;
   readonly clock: Clock.Handle;
   readonly random: Random.Handle;
   private owner: Layer;
@@ -3756,7 +3778,14 @@ function seedPresets(seeds: Many<Scope.Preset>): Seeded {
 function makeRootLayer(options: Scope.Options | undefined): Layer {
   const clock = options?.clock ?? systemClock;
   const obs = makeObs(options?.observe, clock);
-  return layerRecord(undefined, options, obs, clock, options?.random ?? systemRandom, NO_EXTS);
+  return layerRecord(
+    undefined,
+    options,
+    obs,
+    clock,
+    options?.random ?? systemRandom.source,
+    NO_EXTS,
+  );
 }
 
 /** The ambient namespace chain of a new layer: the options' `ns` (validated), else the parent's
@@ -5190,7 +5219,7 @@ function runStartChain(
  * instance per extension, labelled with the extension. */
 class ExtensionCtx implements Resource.Ctx {
   readonly obs = OFF_OBS;
-  readonly log = OFF_LOG;
+  readonly log = noop;
   readonly clock: Clock.Handle;
   readonly random: Random.Handle;
   readonly label: string;

@@ -50,17 +50,14 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 - **stack/t17 hono-commit** — a request commits before it answers (a failed commit answers 500, not 200 with nothing saved); any raised error rolls the request back, even when answered 4xx (ADR 0084, user 2026-09-29). Owner: lead (stack session); Astra writer `32dd77ae`, worktree `/home/paseo/next/tinkered-stack-t17`; Opus reviewer when the writer reports. Verify: a test per rule that fails on main; hono, drizzle, stack, tracker tests; `pnpm validate`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t06 migrate-step** — the tracker's tables come from migration files, run at boot under a lock (ADR 0079). Owner: lead (stack session); Astra writer `2cb63e15`, worktree `/home/paseo/next/tinkered-stack-t06`; Opus reviewer when the writer reports. Verify: a drift test fails on a mismatch; an old tracker database keeps its rows. [track](docs/roadmap/stack-v1/PROGRESS.md).
 
-## Review
-
 - **stack/t04 trace-id** — lazy W3C ids across Hono and HTTP.
   Owner: lead (stack session); Astra writer `5e69613c`.
   Worktree: `/home/paseo/next/tinkered-stack-t04`, branch `stack/t04`.
-  Next: lead review of the JSON and impact fixes; the random-draw design stays with the lead.
-  Verify: JSON regression fails before the fix; gate `EXIT=0`; core 728, Hono 65, HTTP 86; zero impact gaps.
-  Prior N=31: `opobs` 187.1 to 246.9 ns, b is slower; no other checked row is slower.
-  Hot slots: zero spare names.
-  Hono and HTTP mutation passed in the first round; only core reran this round.
-  [Track and proof](docs/roadmap/stack-v1/PROGRESS.md#t04-fix-round--cheap-observed-spans).
+  Next: isolate ID draws from user randomness and lower the observed span cost.
+  Verify: stream and full-width regression tests; N=31 against `de72d420`; full gate, slots, validate, core mutation.
+  [Track and proof](docs/roadmap/stack-v1/PROGRESS.md#t04-fix-round-2--private-id-stream).
+
+## Review
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |

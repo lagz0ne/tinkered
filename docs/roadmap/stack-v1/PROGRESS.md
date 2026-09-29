@@ -46,7 +46,7 @@ Rules for every ticket:
   green.
 - **t04 core: a span carries a trace id** -- [ ] blocked by: none
   Writer: `stack/t04`, in `/home/paseo/next/tinkered-stack-t04`.
-  Next: lead review of the JSON and impact fixes; the random-draw choice remains with the lead.
+  Next: fix F1 and F4 with a private ID stream; lower `opobs` and re-run the gates.
   Every span gets a trace id when it opens, from
   its parent or from a seed a driver gives
   (ADR 0076). Hono seeds it from `traceparent`.
@@ -1453,3 +1453,27 @@ PROSE_EXIT=0
 - The package-wide review still lists old plain-test notes and 41 old README gaps; none names a trace test.
 - The card is back in Review, and all jobs have finished.
 - Nothing was pushed.
+
+## t04 fix round 2 — private ID stream
+
+- Owner: stack/t04 writer; lead request after review `43da66df`.
+- F1: observation must leave the public random stream unchanged.
+- F4: every ID digit must come from generator bits.
+- Plan: keep a second seeded generator in a module-private WeakMap.
+- The system and custom sources use one core-owned generator seeded once from crypto.
+- Keep numeric bits at open and cached hex text on read.
+- Reuse the existing no-op function to free one hot-name slot.
+- Verify: failing public tests first, then gate, slots, validate, N=31, and core mutation.
+- Timing base stays `de72d420`; no rebase, as the prior fix request requires.
+- This round replaces the old rule that IDs draw from the user's ambient stream.
+
+- Regression proof before the fix: 3 failed, 12 passed in `trace.test.ts`.
+- Both stream tests and the full-width test fail on `c181077f`.
+- Source: xorshift128 from [Marsaglia's paper](https://www.jstatsoft.org/article/view/v008i14).
+- The user's mulberry32 code stays unchanged; the private generator uses full 32-bit words.
+
+- First green step: build, check, core 730, Hono 65, HTTP 86, slots, prose; `STEP_EXIT=0`.
+- Slot proof: 252 hot names, last slot 254; one spare name.
+- The lead's probe now matches the fixed base with observation on and off: four draws.
+- `own` is `0.06195825757458806`; all numbers and UUIDs match the base.
+- Raw regression and probe logs: `.bench/stack-t04-round2-proof/`.
