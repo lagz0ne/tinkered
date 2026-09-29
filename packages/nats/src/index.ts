@@ -86,10 +86,8 @@ export function nats(rows: readonly Nats.Row[], wiring: Nats.Wiring) {
                   }),
                 );
                 pending.add(work);
-                work.then(
-                  () => pending.delete(work),
-                  () => pending.delete(work),
-                );
+                const settled = () => pending.delete(work);
+                work.then(settled, settled);
               },
             }),
           );
