@@ -118,3 +118,27 @@ The lead must take this remaining gap to the user before landing.
 Raw rows are `stack-t04-lazy-1.csv` through `stack-t04-lazy-3.csv`.
 Logs and V8 proof are in `.bench/stack-t04-fix-proof/`.
 The earlier report stays as history of the rejected UUID path.
+
+## Private ID stream (lead fix round 2)
+
+The ambient-draw design above changed application results with observation on.
+It is superseded by a private xorshift128 generator.
+`makeTestRandom` registers a second seeded state in a module-private WeakMap.
+The system and custom sources use core's state, seeded once from crypto.
+The public mulberry32 code and its draw order are unchanged.
+Four 32-bit words fill a trace without the old seeded zero gaps.
+Reusing the no-op function as the off logger leaves one spare hot-name slot.
+
+The first layout draws four words for a trace and two for each span.
+N=31 through the queue, base `de72d420`, gives:
+
+- opobs: 184.3 -> 213.2 ns; slower 31/31; b is slower
+- op: 69.7 -> 65.9 ns; slower 1/31; b is faster
+- opsink: 71.9 -> 67.3 ns; slower 3/31; b is faster
+- oplog: 317.5 -> 304.4 ns; slower 5/31; b is faster
+- opres: 304.1 -> 276.0 ns; slower 14/31; no difference we can see
+- tagged: 172.6 -> 173.5 ns; slower 14/31; no difference we can see
+- session: 569.7 -> 575.5 ns; slower 17/31; no difference we can see
+- cold: 668.6 -> 669.8 ns; slower 16/31; no difference we can see
+
+All eight cases used batch mode, 31/31 per tree; `BENCH_EXIT=0`.

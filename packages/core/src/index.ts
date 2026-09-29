@@ -1901,15 +1901,17 @@ class SpanImpl implements Observe.Span {
       this.parentText = layer.trace?.parentSpanId;
       this.parentId = undefined;
       this.sampled = layer.trace?.sampled !== false;
+      this.high = this.trace.c;
+      this.low = this.trace.d;
     } else {
       this.parentHigh = parent.high;
       this.parentLow = parent.low;
       this.parentText = undefined;
       this.parentId = parent.id;
       this.sampled = parent.sampled;
+      this.high = SpanImpl.word(this.trace.random);
+      this.low = SpanImpl.word(this.trace.random) || 1;
     }
-    this.high = SpanImpl.word(this.trace.random);
-    this.low = SpanImpl.word(this.trace.random) || 1;
     this.id = obs.nextId++;
     this.name = name;
     this.kind = kind;
@@ -1973,11 +1975,19 @@ class SpanImpl implements Observe.Span {
     return (state.d = state.d ^ (state.d >>> 19) ^ t ^ (t >>> 8));
   }
 
+  /** A local root uses the last two trace words for its own span ID; children draw fresh words. */
   private static traceFor(layer: Layer, parent: SpanImpl | undefined): SpanImpl["trace"] {
     if (parent !== undefined) return parent.trace;
     const random = SpanImpl.seeded.get(layer.random) ?? systemRandom.ids;
     if (layer.trace !== undefined)
-      return { a: 0, b: 0, c: 0, d: 0, text: layer.trace.traceId, random };
+      return {
+        a: 0,
+        b: 0,
+        c: SpanImpl.word(random),
+        d: SpanImpl.word(random) || 1,
+        text: layer.trace.traceId,
+        random,
+      };
     return {
       a: SpanImpl.word(random),
       b: SpanImpl.word(random),
