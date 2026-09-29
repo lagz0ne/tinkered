@@ -268,6 +268,27 @@ prose-lint: 0 hits
   Check has 0 errors and the same 29 warnings.
 - Strict style census: OK; TSDoc: 0 S26 rows.
   Jev has no flags or promise gaps; no new labels are needed.
+- Focused mutation proof, with the new line numbers:
+  - `[Killed]` lines 29–30: 9 killed, 0 timeout, 0 survived.
+    This includes the empty-folder condition at line 29.
+  - `[Killed]` lines 45–53: 5 killed, 0 timeout, 0 survived.
+    The old line 55 catch is now at lines 49–51.
+  - `[Killed]` lines 56–61: 19 killed, 0 timeout, 0 survived.
+    These include the old lines 62–63 shape checks.
+- Each range scored 100 with `EXIT 0` and no uncovered or error rows.
+  The old lines 46–49 error-shape guard was removed as unreachable.
+- All three checks ran under one `/tmp/mutation.lock` lock.
+  Each used `--timeoutMS 60000 --concurrency 2`.
+  The clear-text reporter used `--logLevel debug` to print each kill.
+
+```bash
+npx --no-install stryker run \
+  --mutate "src/migrations.ts:29-30" \
+  --reporters clear-text --logLevel debug \
+  --timeoutMS 60000 --concurrency 2
+```
+
+- Repeated that command for `45-53` and `56-61`.
 
 ## Tickets
 
