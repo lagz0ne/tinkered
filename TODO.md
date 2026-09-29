@@ -52,7 +52,7 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
   failed `ready` in `examples/hono/basic.ts`, `examples/mcp/basic.ts`, `examples/sync/basic.ts`;
   the `packages/mcp/README.md` entry snippet. Browser roots are out of scope. Owner: lead
   (app-roots session); Astra writer `19f6f93d`, worktree `/home/paseo/next/tinkered-follow-suit`.
-  Next: Fable review. Verify: S27/S28 lint prints no row; importing each entry starts nothing;
+  Writer done (`d348c02`, `e584c2f`); Opus reviewer `527fd27c`. Verify: S27/S28 lint prints no row; importing each entry starts nothing;
   `serve.ts` exits 0 on SIGTERM; gate, sync tests, `pnpm validate`.
 
 ## Review
