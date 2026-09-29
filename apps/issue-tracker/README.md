@@ -69,6 +69,8 @@ that issue. Cancel stops the run, Discard throws the draft away — neither
 saves anything. "Post draft" appends the generated text as a comment
 under the chosen Ada/Lin/Sam author through the normal comment action.
 
+A draft streams text and finishes without saving anything.
+Only "Post draft" saves the generated text.
 While a draft post is pending, posting controls stay disabled; it saves once.
 A model error result or thrown error ends the turn as failed with no final draft.
 An HTTP disconnect or root close cancels the model turn and saves nothing.
