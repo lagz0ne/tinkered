@@ -18,7 +18,7 @@ import {
   type Operation,
 } from "@tinker/core";
 import { drizzleStore } from "@tinker/drizzle";
-import { hono, route } from "@tinker/hono";
+import { errorResponses, hono, route } from "@tinker/hono";
 import { nats, subscribe as onNats, type Nats } from "@tinker/nats";
 import { startNatsServer, type NatsServer } from "@tinker/nats/testing";
 import { memoryPair, source, subscribe } from "@tinker/sync";
@@ -49,6 +49,14 @@ const save = operation({
   },
 });
 const read = operation({ label: "read", depends: { list: lists }, run: ({ list }) => list });
+const saveTaken = operation({
+  label: "saveTaken",
+  depends: { tx: store.tx },
+  run: async ({ tx }, ctx) => {
+    await tx.query("insert into issues (title) values ($1)", ["Taken"]);
+    ctx.raise("Taken", { title: "Taken" });
+  },
+});
 
 beforeAll(async () => {
   server = await startNatsServer();
@@ -167,9 +175,39 @@ test("closing one server removes its NATS subscription while the other keeps pub
 test("a different app subject leaves its published cells alone", async () => {
   const a = await boot();
   const other = await boot("other.changed");
+  const control = await boot();
+  let published = other.scope.resolve(lists);
+  other.scope.controller(lists).watch((value) => {
+    published = value;
+  });
   await a.app.request("/issues/A", { method: "POST" });
+  await expect.poll(() => control.scope.resolve(lists)).toEqual(["A"]);
   await a.scope.close({ graceful: true });
-  expect(other.scope.resolve(lists)).toEqual([]);
+  await other.scope.close({ graceful: true });
+  expect(published).toEqual([]);
+});
+
+test("a handled 4xx answer still commits and signals", async () => {
+  const observer = await signals();
+  const web = hono([route.post("/issues", saveTaken)], {
+    onError: errorResponses({ Taken: 409 }),
+  }).extension;
+  const scope = createScope({
+    tags: [store.config(db)],
+    extensions: [
+      web,
+      liveUpdates(publish, { subject: "issues.changed", env: { NATS_URL: server.url } }),
+    ],
+  });
+  scopes.push(scope);
+  await scope.ready;
+  const response = await scope.resolve(web).request("/issues", { method: "POST" });
+  expect(response.status).toBe(409);
+  await expect.poll(() => observer.messages.length).toBe(1);
+  await scope.close({ graceful: true });
+  await observer.scope.close({ graceful: true });
+  expect((await db.query("select title from issues")).rows).toEqual([{ title: "Taken" }]);
+  expect(observer.messages).toEqual([{ subject: "issues.changed", payload: new Uint8Array() }]);
 });
 
 test.each(["", "issues.*", "issues.>", "issues..changed", ".issues", "issues.", "issues changed"])(

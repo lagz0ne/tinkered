@@ -77,6 +77,8 @@ the root adds the newline when it writes to stdout.
 operation at boot and after each committed non-GET request.
 The operation reads storage and sets the root's sync cells.
 Manual sessions do not trigger it.
+A handled error answer (4xx) still commits its session,
+so it republishes and signals.
 A boot read failure rejects ready.
 A read failure after commit logs `publish failed` and
 keeps the request's answer.
@@ -150,6 +152,7 @@ A later commit or a new boot reads the current database.
 - Closing one server removes its NATS subscription while the
   other keeps publishing.
 - A different app subject leaves its published cells alone.
+- A handled 4xx answer still commits and signals.
 - Live updates require NATS_URL at boot.
 - Local publishing runs after later starts and before the
   first request.

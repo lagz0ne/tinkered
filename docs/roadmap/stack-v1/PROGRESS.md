@@ -1118,25 +1118,37 @@ It also closes old handles after a fresh start.
 
 ### t12 Core feedback
 
-A commit failure can still return `status: "success"`.
-The error is in `teardownErrors`; checking status alone
-sent a changed signal for a row that rolled back.
-The new guard checks both fields.
+Owner: `@tinker/hono`.
+Its `serveRequests` awaits `session.close({ graceful: true })`
+but ignores the result, so a failed commit still answers 200.
+This is a pre-existing HTTP bug; core, Hono, and Drizzle
+have no branch change.
 
-This probe used one real PGlite and `drizzleStore`.
-Its title rule was checked only at commit:
+Core's `{ status: "success", teardownErrors: [...] }`
+is the documented result shape from ADR 0027.
+Core's `scope.session()` already rejects this case with
+`TeardownFailed`, as the Drizzle failed-commit test proves.
+
+The review probe used a route on one real PGlite.
+Its duplicate-title rule was checked only at commit:
 
 ```ts
-const session = scope.createSession();
-const tx = await session.resolve(store.tx);
-await tx.exec("insert into issues values ('A'), ('A')");
-const end = await session.close({ graceful: true });
-console.log(end.status, end.teardownErrors?.length);
+const save = operation({
+  label: "save",
+  depends: { tx: store.tx },
+  run: async ({ tx }) => {
+    await tx.exec("insert into issues values ('C'), ('C')");
+    return "ok";
+  },
+});
 ```
 
-Observed: `success 1`, with zero saved rows.
-Expected from status alone: a committed save.
-No core code changed; the stack now checks the full result.
+Observed: HTTP 200 with `"ok"`, but zero saved rows.
+The tracker's old `publish` checked status alone too;
+its extra local read after a failed commit was harmless.
+Stack now checks both `status` and `teardownErrors`
+before it republishes or signals.
+The Hono response bug remains with its owner.
 
 ### t12 validation and mutation proof
 
@@ -1163,3 +1175,27 @@ No core code changed; the stack now checks the full result.
 - Status: Review.
   Next: lead reviews and lands `stack/t12`.
   All long jobs finished in this turn; nothing pushed.
+
+### t12 review round 1
+
+- Added a third server on `issues.changed` as a control.
+  The subject-isolation test waits for that server's save,
+  drains `other`, then checks its last watched cell value.
+- Wrong-subject proof: made `other` listen on `issues.changed`.
+  The test failed with `["A"]` instead of `[]`, exit 1.
+  Restored `other.changed` before the gate.
+- Added “a handled 4xx answer still commits and signals”.
+  It proves HTTP 409, the saved row, and one empty signal.
+  The README now states that promise and commit behavior.
+- Corrected the feedback owner to `@tinker/hono`.
+  Core's close result follows ADR 0027;
+  Hono ignores that result and can answer 200 on a failed commit.
+- Gate: build, check, stack 58, NATS 19, tracker 69;
+  `EXIT=0`.
+  Check: 0 errors, 29 warnings.
+- Jev tests: 0 of 25 titles flagged.
+  Promises: all 25 have README lines.
+- Prose and strict style census passed.
+- Only tests and docs changed.
+  No mutation rerun, rebase, or push in this round.
+- Next: lead review of the fix commit.
