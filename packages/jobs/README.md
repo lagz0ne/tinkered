@@ -82,3 +82,4 @@ They never sleep or patch globals.
 - Job input passes through its operation parser.
 - An unreachable JOBS_URL fails boot at the given Postgres address.
 - Jobs migrate after Drizzle commits and release their own lock.
+- A piece stays owned until the whole root close ends.

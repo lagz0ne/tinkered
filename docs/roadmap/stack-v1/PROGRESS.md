@@ -3848,3 +3848,16 @@ await closing;
 - The inherited test-helper resource closes over its PGlite client.
   Moving it to module scope would lose that owner.
 - All remaining preflight hits were hints or noisy notes.
+
+### t08 close ownership fix
+
+- A new test held another extension's final cleanup open.
+  The old code let a second scope start during that wait.
+  Red proof: one failed test, exit 1.
+- Keep the owner until the captured root close has returned.
+  Failed boot still releases it through the start defer.
+- Build and check pass; all 17 jobs tests pass.
+  Check still has no errors and 29 warnings.
+- Jev tests and README promises: no flags in 17 tests.
+- Full repo tests before this fix: all 18 package tasks pass.
+  No package outside jobs changed in this fix.

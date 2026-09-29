@@ -142,3 +142,36 @@ test("an unreachable JOBS_URL fails boot at the given Postgres address", async (
     await scope.close();
   }
 });
+
+test("a piece stays owned until the whole root close ends", async () => {
+  const entered = Promise.withResolvers<void>();
+  const finish = Promise.withResolvers<void>();
+  const late = extension({
+    label: "late cleanup",
+    start: async (_scope, ctx, next) => {
+      ctx.defer(async () => {
+        entered.resolve();
+        await finish.promise;
+      });
+      await next();
+    },
+  });
+  const { piece, tags } = await fixture([]);
+  const first = createScope({ tags, extensions: [late, piece.extension] });
+  scopes.push(first);
+  await first.ready;
+  const closing = first.close({ graceful: true });
+  await entered.promise;
+  const second = createScope({ tags, extensions: [piece.extension] });
+  scopes.push(second);
+  try {
+    await second.ready;
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "PieceInUse")) throw error;
+    expect(error.payload).toEqual({ label: "jobs" });
+  } finally {
+    finish.resolve();
+    await closing;
+  }
+});

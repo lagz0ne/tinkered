@@ -61,6 +61,7 @@ export function jobs(rows: readonly Jobs.Row[], wiring: Jobs.Wiring) {
       const connectionString = wiring.pglite ? undefined : readUrl(wiring.env.JOBS_URL);
       owner = scope;
       let closing = false;
+      let closingScope = false;
       let boss: PgBoss | undefined;
       const closeScope = scope.close.bind(scope);
       const release = () => {
@@ -69,6 +70,7 @@ export function jobs(rows: readonly Jobs.Row[], wiring: Jobs.Wiring) {
       /** Core's close hook has no scope. Stop fetches before core closes sessions,
        * without waiting for a fetch blocked behind a request's open transaction. */
       scope.close = async (options) => {
+        closingScope = true;
         closing = true;
         try {
           await stopFetching(boss, rows, false);
@@ -77,7 +79,9 @@ export function jobs(rows: readonly Jobs.Row[], wiring: Jobs.Wiring) {
           release();
         }
       };
-      ctx.defer(release);
+      ctx.defer(() => {
+        if (!closingScope) release();
+      });
       const client = wiring.pglite ? (await scope.resolve(wiring.pglite)).$client : undefined;
       const { log, clock } = scope.resolve(errors);
       const { PgBoss, fromPglite, fromDrizzle } = await import("pg-boss");
@@ -91,12 +95,8 @@ export function jobs(rows: readonly Jobs.Row[], wiring: Jobs.Wiring) {
       worker.on("error", (error) => log.error("jobs worker failed", { error }));
       ctx.defer(async () => {
         closing = true;
-        try {
-          await stopFetching(worker, rows, true);
-          await worker.stop({ graceful: false });
-        } finally {
-          release();
-        }
+        await stopFetching(worker, rows, true);
+        await worker.stop({ graceful: false });
       });
       await worker.start();
       for (const row of rows) {
