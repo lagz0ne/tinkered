@@ -74,6 +74,8 @@ A model error result or thrown error ends the turn as failed with no final draft
 An HTTP disconnect or root close cancels the model turn and saves nothing.
 
 Shutdown waits for a live sync wire and a held draft turn to finish closing.
+Ordinary saves continue while a draft turn holds.
+Each issue's live draft keeps its own text and result.
 
 Turn the helper on for local use:
 
@@ -132,6 +134,7 @@ saved detail is unchanged until "Reload their change".
 
 Every command reaches the running server over HTTP; `BASE_URL` picks the
 address (default `http://127.0.0.1:4311`). Help needs no backend.
+Missing or blank `--base-revision` values report command usage.
 
 ```bash
 BASE_URL=http://127.0.0.1:4311 vp run @tinker-issue-tracker#tools help
@@ -221,6 +224,8 @@ A preset `recordActivity` receives every activity write.
 
 The `publish()` extension reads saved issues during start.
 It reads again after each successful non-GET request commits.
+A POST updates the published list; a 400 or GET keeps the same list object.
+
 After a create commits, a publish failure keeps the row and the 201 response.
 It logs one `publish failed` line; the next commit tries again.
 
