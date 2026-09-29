@@ -1290,10 +1290,57 @@ No branch was pushed.
 
 The lead accepted the public shape and asked to cut the observed-call cost.
 The previous 184.1 to 1241.8 ns result is a blocker.
-Bits will come from `random.next()` at open.
-Hex text will be built on first read and cached.
+Bits come from `random.next()` at open.
+Hex text is built on first read and cached.
 The trace text is shared across children.
 No extra core module name may be added.
 The base stays `de72d42`.
 Verify: N=31 for all observation cases and the seven named cases; no other row b is slower.
 Then the full gate, all budget lanes, and one full core mutation run under the lock.
+
+### Fix-round timing proof
+
+- Three layouts were screened through the queue, each with N=31.
+- All used base `de72d42` and batch mode for every pair.
+- Every screen exited 0.
+- The final layout stores trace bits as 52 + 52 + 24 bits.
+- It stores span bits as 32 + 32 bits.
+- A fresh root takes five draws; a child or seeded root takes two.
+- The final part cannot be zero, so the whole ID cannot be zero.
+- Getters keep the public string reads and cache text on first use.
+- Each trace shares one text cache across its children.
+- `SpanImpl` replaces `createSpan`: no extra module-level name.
+- Hot slots: 253 names, last slot 255, zero spare slots.
+- Two new seam tests cover delayed reads and valid random draws.
+
+Final medians in ns, base then branch:
+
+- **opobs:** 187.1 to 246.9; slower 29/31; b is slower.
+- **op:** 67.4 to 63.5; slower 3/31; b is faster.
+- **opsink:** 66.9 to 62.9; slower 1/31; b is faster.
+- **oplog:** 282.3 to 278.3; slower 10/31; no difference we can see.
+- **tagged:** 182.5 to 179.0; slower 16/31; no difference we can see.
+- **session:** 621.7 to 626.7; slower 20/31; no difference we can see.
+- **cold:** 724.4 to 714.9; slower 15/31; no difference we can see.
+
+`opobs` is still above its target; no other row is slower.
+Its best measured result pays for the draws and saved numeric state.
+The three trials do not prove a hard lower bound.
+The lead takes the remaining 59.8 ns gap to the user.
+Full trial and V8 notes are in the [learning note](../../../research/learnings/2026-09-29-span-off-check.md).
+
+### Fix-round gate proof
+
+- Rebased onto `origin/main` at `cfaeae71` before the final gate.
+- The rebase changed no core or timing-harness source.
+- `vp install` passed; install edits to the workspace file were restored.
+- The full build, check, core, Hono, HTTP, and repo-test chain exited 0.
+- Core: 727 tests; Hono: 65; HTTP: 86.
+- Check: zero errors and 29 warnings, the same count as the base.
+- The first gate attempt stopped on progress-note formatting; fixed.
+- `pnpm validate`: 46 lanes PASS, exit 0.
+- All span-tree tests still pass without changed expected trees.
+- TSDoc check: exit 0.
+- The strict style scan has only the old S14 array-read false hit.
+- SCIP rebuilt all 13 package indexes.
+- The core mutation lane is the last check still due.
