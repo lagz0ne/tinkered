@@ -64,7 +64,7 @@ Family (keyed collections) is out of v1 (needs its own ADR for the rules).
   Review: Astra compared 758 behavior cases with main; only the ADR 0071/0072 outcomes changed.
   Review: Fable checked the lazy session; 62 boundary cases were the same as the stack.
   Review: Fable read the mutation lift (10 tests, four removals): READY.
-  Warm fix: `bdf9ed7` puts first-time record creation back inside `nodeState`.
+  Warm fix: `105d82b` puts first-time record creation back inside `nodeState`.
   Warm fix: the warm read inlines 611 bytes on main, 557 on the stack, 613 with the fix.
   Warm fix, N=31 main vs fix: `warm` 16.0 → 15.9 ns, no difference we can see.
   Benchd: N=61 against `917ee14`.

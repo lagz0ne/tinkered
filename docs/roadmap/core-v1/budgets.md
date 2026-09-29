@@ -18,7 +18,7 @@ against both trees. The numbers to use are in "Call paths with warm-up and one p
 ## perf/tagged-close (2026-09-29)
 
 A = main `917ee14` (core last changed in `233139d`).
-B = `bdf9ed7`, the tip that landed.
+B = `105d82b` on main (timed as `bdf9ed7`: same code, before a board rebase).
 N=61 through `benchd`, one warmed probe, medians in ns per call.
 Every row: batch in 61 of 61 on both sides.
 
