@@ -811,6 +811,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A seeded subflow uses its local caller as parent and keeps the sampled flag.
 
 - A null session seed starts a fresh trace without changing its parent.
+- A session seed follows direct resource builds to their scope owner.
 
 Absent `trace` inherits the parent seed; `trace: null` clears it.
 Numeric `id` and `parentId` still order the local tree.

@@ -61,6 +61,13 @@ Rules for every ticket:
   core Observe/Span# src/index.ts tests/*.test.ts
   core Observe/Trace# src/index.ts tests/trace.test.ts
   core Scope/Options#.*trace src/index.ts tests/trace.test.ts
+  core Observe/Span#.*traceId src/index.ts tests/trace.test.ts
+  core Observe/Span#.*spanId src/index.ts tests/trace.test.ts
+  core Observe/Span#.*parentSpanId src/index.ts tests/trace.test.ts
+  core Observe/Span#.*sampled src/index.ts tests/trace.test.ts
+  core Observe/Trace#.*traceId src/index.ts tests/trace.test.ts
+  core Observe/Trace#.*parentSpanId src/index.ts tests/trace.test.ts
+  core Observe/Trace#.*sampled src/index.ts tests/trace.test.ts
   ```
 
 - **t05 stack: server start and shutdown** -- [x] landed `fdfa93f`

@@ -3167,6 +3167,7 @@ const NOOP_BUILD_SETTLED = (): void => undefined;
 
 function buildHooklessResource<T>(
   owner: Layer,
+  caller: Layer,
   target: Resource.Handle<T>,
   parent: Observe.Span | undefined,
   chain: readonly Namespace[] | undefined,
@@ -3177,7 +3178,7 @@ function buildHooklessResource<T>(
   const superseded = (): boolean => rec.gen !== gen;
   const canPublish = (): boolean => !superseded() && !owner.closed;
   const obs = owner.obs;
-  const span = openSpan(owner, parent, target.label, "resource");
+  const span = openSpan(caller, parent, target.label, "resource");
   rec.building = true;
   buildDepth++;
   try {
@@ -3212,6 +3213,7 @@ function buildHooklessResource<T>(
 
 function buildResource<T>(
   owner: Layer,
+  caller: Layer,
   target: Resource.Handle<T>,
   parent: Observe.Span | undefined,
   chain: readonly Namespace[] | undefined,
@@ -3224,12 +3226,13 @@ function buildResource<T>(
     rec.instance === undefined &&
     !hasPresetLayers(owner)
   )
-    return buildHooklessResource(owner, target, parent, chain, rec, resolveDeps);
-  return buildTrackedResource(owner, target, parent, chain, rec, resolveDeps);
+    return buildHooklessResource(owner, caller, target, parent, chain, rec, resolveDeps);
+  return buildTrackedResource(owner, caller, target, parent, chain, rec, resolveDeps);
 }
 
 function buildTrackedResource<T>(
   owner: Layer,
+  caller: Layer,
   target: Resource.Handle<T>,
   parent: Observe.Span | undefined,
   chain: readonly Namespace[] | undefined,
@@ -3241,7 +3244,7 @@ function buildTrackedResource<T>(
   const superseded = (): boolean => rec.gen !== gen;
   const canPublish = (): boolean => !superseded() && !owner.closed;
   const obs = owner.obs;
-  const span = openSpan(owner, parent, target.label, "resource");
+  const span = openSpan(caller, parent, target.label, "resource");
   rec.building = true;
   let settled = false;
   buildDepth++;
@@ -3438,17 +3441,18 @@ function resourceSlot(
   ensureOpen(owner);
   recordUsed(layer.obs, parent, target);
   if (hasResourceNs(target, chain))
-    return namedResourceSlot(owner, target, parent, chain, selected);
+    return namedResourceSlot(owner, layer, target, parent, chain, selected);
   selected?.(owner, target, rec);
   if (rec.resource) return rec.resource.value;
   if (rec.failed) return rec.failed.promise;
   if (rec.build) return rec.build;
   const buildChain = target.target === "scope" ? NO_NAMESPACE : chain;
-  return buildResource(owner, target, parent, buildChain, rec);
+  return buildResource(owner, layer, target, parent, buildChain, rec);
 }
 
 function namedResourceSlot(
   owner: Layer,
+  caller: Layer,
   target: Resource.Handle<unknown>,
   parent: Observe.Span | undefined,
   chain: readonly [Namespace, ...Namespace[]],
@@ -3457,11 +3461,12 @@ function namedResourceSlot(
   const [head] = chain;
   const state = selectNsResource(owner, target, chain) ?? ownNsResource(owner, target, head);
   selected?.(owner, target, state);
-  return readResourceState(owner, target, parent, chain, state);
+  return readResourceState(owner, caller, target, parent, chain, state);
 }
 
 function readResourceState(
   owner: Layer,
+  caller: Layer,
   target: Resource.Handle<unknown>,
   parent: Observe.Span | undefined,
   chain: readonly Namespace[] | undefined,
@@ -3471,7 +3476,7 @@ function readResourceState(
   if (state.failed) return state.failed.promise;
   if (state.build) return state.build;
   if (state.building) raise("CircularResource", { label: target.label });
-  return buildResource(owner, target, parent, chain, state, resolveNamedResourceDeps);
+  return buildResource(owner, caller, target, parent, chain, state, resolveNamedResourceDeps);
 }
 
 function addDependent(

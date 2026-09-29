@@ -3,6 +3,7 @@ import {
   createScope,
   extension,
   makeTestRandom,
+  namespace,
   operation,
   resource,
   tag,
@@ -144,5 +145,20 @@ test("a null session seed starts a fresh trace without changing its parent", asy
   expect(fresh.traceId).not.toBe(seed.traceId);
   expect(fresh.parentSpanId).toBeUndefined();
   expect(scope.run(readSpan)).toMatchObject(seed);
+  await scope.close();
+});
+
+test("a session seed follows direct resource builds to their scope owner", async () => {
+  const scope = createScope({ observe: { history: 10 } });
+  const session = scope.createSession({ trace: seed, ns: namespace() });
+  const bare = resource({ label: "bare", factory: () => 1 });
+  const full = resource({ label: "full", factory: (_deps, ctx) => ctx.obs.span });
+  const named = resource({ label: "named", target: "namespace", factory: () => 2 });
+  session.resolve(bare);
+  session.resolve(full);
+  session.resolve(named);
+  expect(
+    scope.spans().map(({ traceId, parentSpanId, sampled }) => ({ traceId, parentSpanId, sampled })),
+  ).toEqual([seed, seed, seed]);
   await scope.close();
 });
