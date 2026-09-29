@@ -126,15 +126,12 @@ test("scope close drains queued messages and their replies before closing the co
   const started = Promise.withResolvers<void>();
   const release = Promise.withResolvers<void>();
   const peer = await connect({ servers: server.url });
-  const replies = peer.subscribe("replies");
-  const received = (async () => {
-    const values: number[] = [];
-    for await (const reply of replies) {
-      values.push(reply.data[0]);
-      if (values.length === 2) break;
-    }
-    return values;
-  })();
+  const received: number[] = [];
+  peer.subscribe("replies", {
+    callback: (_error, reply) => {
+      received.push(reply.data[0]);
+    },
+  });
   const bus = nats([subscribe("drain", () => receive)], { env: { NATS_URL: server.url } });
   const receive = operation({
     label: "receive",
@@ -160,7 +157,7 @@ test("scope close drains queued messages and their replies before closing the co
     expect(closed).toBe(false);
     release.resolve();
     expect(await closing).toEqual({ status: "success" });
-    expect(await received).toEqual([1, 2]);
+    await expect.poll(() => received).toEqual([1, 2]);
     await expect
       .poll(async () => (await fetch(`${server.monitorUrl}/connz`)).json())
       .toMatchObject({ num_connections: 1 });

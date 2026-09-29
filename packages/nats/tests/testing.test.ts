@@ -102,6 +102,6 @@ test("a server that rejects its config removes its store before reporting failur
   } catch (error) {
     if (isError(error, "ChecksumMismatch")) throw error;
     if (!isError(error, "ServerStopped")) throw error;
-    expect(existsSync(error.payload.storeDir)).toBe(false);
+    await expect(stat(error.payload.storeDir)).rejects.toMatchObject({ code: "ENOENT" });
   }
 });

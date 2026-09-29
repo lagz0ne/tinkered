@@ -85,13 +85,18 @@ export async function startNatsServer(config = ""): Promise<NatsServer.Handle> {
   const store = await mkdtemp(join(tmpdir(), "tinker-nats-"));
   const configFile = join(store, "server.conf");
   await writeFile(configFile, config);
-  const child = spawn(
-    executable,
-    ["-a", "127.0.0.1", "-p", "-1", "-m", "-1", "-sd", store, "-c", configFile],
-    {
-      stdio: ["ignore", "ignore", "pipe"],
-    },
-  );
+  const child = spawn(executable, [
+    "-a",
+    "127.0.0.1",
+    "-p",
+    "-1",
+    "-m",
+    "-1",
+    "-sd",
+    store,
+    "-c",
+    configFile,
+  ]);
   const exited = new Promise<void>((resolve, reject) => {
     child.once("exit", () => resolve());
     child.once("error", reject);
@@ -102,7 +107,7 @@ export async function startNatsServer(config = ""): Promise<NatsServer.Handle> {
       output += chunk;
       const port = /Listening for client connections on 127\.0\.0\.1:(\d+)/.exec(output)?.at(1);
       const monitor = /Starting http monitor on 127\.0\.0\.1:(\d+)/.exec(output)?.at(1);
-      if (port && monitor && output.includes("Server is ready")) {
+      if (port && monitor) {
         resolve({ url: `nats://127.0.0.1:${port}`, monitorUrl: `http://127.0.0.1:${monitor}` });
       }
     });
@@ -110,12 +115,8 @@ export async function startNatsServer(config = ""): Promise<NatsServer.Handle> {
   let closing: Promise<void> | undefined;
   const close = (): Promise<void> => (closing ??= stop());
   async function stop(): Promise<void> {
-    child.kill("SIGTERM");
-    try {
-      await exited;
-    } finally {
-      await rm(store, { recursive: true });
-    }
+    child.kill();
+    await exited.finally(() => rm(store, { recursive: true }));
   }
   try {
     const addresses = await Promise.race([
