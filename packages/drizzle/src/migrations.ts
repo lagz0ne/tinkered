@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile, type ExecFileException } from "node:child_process";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -32,7 +32,8 @@ export async function migrateDatabase(
 }
 
 /** Runs the app's pinned Kit in dry-run mode; no database or migration file is changed.
- * Paths in the config are relative to its folder, as when running Kit there. */
+ * Paths in the config are relative to its folder, as when running Kit there.
+ * Node's execFile promise adds UTF-8 stdout to each rejection; argument errors throw before it. */
 export async function checkDrift(config: string): Promise<void> {
   const path = resolve(config);
   const cwd = dirname(path);
@@ -41,14 +42,7 @@ export async function checkDrift(config: string): Promise<void> {
     process.execPath,
     [kit, "generate", "--config", path, "--explain", "--output", "json"],
     { cwd },
-  ).catch((error: unknown) => {
-    if (
-      typeof error !== "object" ||
-      error === null ||
-      !("stdout" in error) ||
-      typeof error.stdout !== "string"
-    )
-      throw error;
+  ).catch((error: ExecFileException & { stdout: string }) => {
     let result: unknown;
     try {
       result = JSON.parse(error.stdout);

@@ -89,6 +89,7 @@ test("a named baseline is recorded without running its SQL or skipping later fol
 
 test("a missing baseline names the absent migration folder", async () => {
   const { db, migrationsFolder } = await fixture();
+  await addFolder(migrationsFolder, first, "create table saved (value text);");
   try {
     await migrateDatabase(db, { migrationsFolder, baseline: "missing" });
     expect.unreachable();
@@ -96,6 +97,12 @@ test("a missing baseline names the absent migration folder", async () => {
     if (!isError(error, "MigrationNotFound")) throw error;
     expect(error.payload.name).toBe("missing");
   }
+});
+
+test("an empty migrations folder needs no baseline", async () => {
+  const { client, db, migrationsFolder } = await fixture();
+  await migrateDatabase(db, { migrationsFolder });
+  expect((await client.query("select name from drizzle.__drizzle_migrations")).rows).toEqual([]);
 });
 
 test("the drift check accepts matching files and rejects an unsaved schema change", async () => {
@@ -136,3 +143,37 @@ test("a renamed column raises SchemaDrift with missing_hints", async () => {
     expect(error.payload.result).toMatchObject({ status: "missing_hints" });
   }
 });
+
+test("a Kit failure with text output keeps the command error", async () => {
+  const { config } = await createDriftFixture();
+  await writeFile(config, 'process.stdout.write("config failed\\n"); process.exit(7);');
+  await expect(checkDrift(config)).rejects.toMatchObject({
+    code: 7,
+    stdout: "config failed\n",
+    stderr: "",
+  });
+});
+
+test("a config path with a NUL keeps Node's argument error", async () => {
+  const { config } = await createDriftFixture();
+  await expect(checkDrift(`${config}\0`)).rejects.toMatchObject({ code: "ERR_INVALID_ARG_VALUE" });
+});
+
+/** Kit loads app config as code; an early exit can leave only the app's stdout. */
+test.each([null, {}, false])(
+  "Kit output without a status raises SchemaDrift (%j)",
+  async (result) => {
+    const { config } = await createDriftFixture();
+    await writeFile(
+      config,
+      `process.stdout.write(${JSON.stringify(JSON.stringify(result))}); process.exit(0);`,
+    );
+    try {
+      await checkDrift(config);
+      expect.unreachable();
+    } catch (error) {
+      if (!isError(error, "SchemaDrift")) throw error;
+      expect(error.payload).toEqual({ config, result });
+    }
+  },
+);

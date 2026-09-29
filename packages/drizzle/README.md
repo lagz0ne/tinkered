@@ -162,6 +162,10 @@ It writes no migration and uses no database.
 - A named baseline is recorded without running its SQL
   or skipping later folders.
 - A missing baseline names the absent migration folder.
+- An empty migrations folder needs no baseline.
 - The drift check accepts matching files and rejects
   an unsaved schema change.
 - A renamed column raises `SchemaDrift` with `missing_hints`.
+- A Kit failure with text output keeps the command error.
+- A config path with a NUL keeps Node's argument error.
+- Kit output without a status raises `SchemaDrift`.

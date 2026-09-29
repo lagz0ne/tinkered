@@ -243,6 +243,32 @@ prose-lint: 0 hits
 - Core feedback: none; no Core workaround was needed.
 - Scope: no rebase, mutation run, or push.
 
+### t06 mutation follow-up
+
+- Owner: stack/t06 writer.
+- Base: `50b31bab`, including the lander's rebase and fixes.
+- State: checking the reported Drizzle survivors.
+- Next: real Kit cases, focused kill checks, then the full lane.
+- Verify: each named range, Drizzle at least 85, and the gate.
+- Assumption: keep the lander's head; do not rebase this follow-up.
+- Node's promisified `execFile` adds stdout to every rejection.
+  This call uses its default UTF-8 encoding, so stdout is a string.
+  Invalid arguments throw before that promise exists.
+  Remove the unreachable caught-error shape guard.
+- Use real Kit with temporary config files; add no runner or mock.
+- Config code that prints text and exits 7 keeps the command error.
+  Its code, stdout, and stderr reach the caller.
+- Config code that exits 0 with `null`, `{}`, or `false`
+  raises `SchemaDrift` with that exact result.
+- A NUL in the config path keeps `ERR_INVALID_ARG_VALUE`.
+- The missing-baseline test now uses a nonempty migrations folder.
+  The line 29 survivor was the call without a baseline on an
+  empty folder; that case now proves an empty applied-file list.
+- First green step: build and check passed; 25 Drizzle tests passed.
+  Check has 0 errors and the same 29 warnings.
+- Strict style census: OK; TSDoc: 0 S26 rows.
+  Jev has no flags or promise gaps; no new labels are needed.
+
 ## Tickets
 
 - **t01 sync ships the SSE transport** -- [x] landed `fd5a6a8`
