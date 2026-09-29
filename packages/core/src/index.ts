@@ -2411,10 +2411,37 @@ function stripTags<I>(call: Scope.Invocation<I>): Scope.Invocation<I> {
   return { rawInput: call.rawInput };
 }
 
-/** Release a run's borrow once its async defer drain ends. Its own function, so the run's hot
- * closure captures nothing extra. */
+/** Release a run's borrow once its async defer drain ends. */
 function drainAsync(tail: Promise<void>, release: () => void): void {
   ignoreRejection(tail.then(release, release));
+}
+
+/** Release a run's borrows: the resource instances its deps held for the run's whole lifetime
+ * (ADR 0026 Q2). */
+function releaseBorrows(held: HeldBorrows | undefined): void {
+  if (!held) return;
+  for (const instance of held.list) removeBorrow(instance, held.done);
+  held.settle();
+}
+
+/** End a run: drain its `defer`s in reverse order (ADR 0026), then release its borrows — after
+ * the drain on the success and the throwing path alike, and after an async drain's tail. Plain
+ * functions, so a sync run allocates nothing for its own end. */
+function finishRun(
+  layer: Layer,
+  ctx: OperationCtx<unknown> | undefined,
+  held: HeldBorrows | undefined,
+  status: "ok" | "failed",
+  error?: unknown,
+): void {
+  const fns = ctx ? OperationCtx.defersOf(ctx) : undefined;
+  if (fns === undefined || fns.length === 0) {
+    releaseBorrows(held);
+    return;
+  }
+  const tail = runDefers(layer, fns, endFor(layer, status, error));
+  if (tail) drainAsync(tail, () => releaseBorrows(held));
+  else releaseBorrows(held);
 }
 
 /** How a controller replays a tagged or namespaced call: not at all, as a root run, or inside a
@@ -2436,12 +2463,12 @@ function finishAsyncRun<T>(
   span: Observe.Span | undefined,
   label: string,
   ctx: OperationCtx<unknown> | undefined,
-  finishDefers: (status: "ok" | "failed", error?: unknown) => void,
+  held: HeldBorrows | undefined,
 ): unknown {
   const onSettle = (status: "ok" | "failed", error?: unknown): void => {
     if (status === "failed") stampOrigin(error, label, span, ctx, endsFlight(caller, replay));
     if (span) closeSpan(obs, span, status, error);
-    finishDefers(status, error);
+    finishRun(layer, ctx, held, status, error);
   };
   const promise = Promise.resolve(result);
   track(layer, promise, runFailure(layer, caller), onSettle);
@@ -2494,22 +2521,7 @@ function executorFor<T, I>(
      * A fully synchronous op runs and removes the borrow within `run()`, so a later release
      * sees no borrower and stays sync. */
     const held = takeBorrows(target);
-    const releaseBorrow = (): void => {
-      if (!held) return;
-      for (const instance of held.list) removeBorrow(instance, held.done);
-      held.settle();
-    };
     let ctx: OperationCtx<I> | undefined;
-    const finishDefers = (status: "ok" | "failed", error?: unknown): void => {
-      const fns = ctx ? OperationCtx.defersOf(ctx) : undefined;
-      if (fns === undefined || fns.length === 0) {
-        releaseBorrow();
-        return;
-      }
-      const tail = runDefers(layer, fns, endFor(layer, status, error));
-      if (tail) drainAsync(tail, releaseBorrow);
-      else releaseBorrow();
-    };
     let result: T;
     buildDepth++;
     try {
@@ -2522,27 +2534,17 @@ function executorFor<T, I>(
       stampOrigin(error, target.label, span, ctx, endsFlight(caller, replay));
       if (caller !== RECOVERED) stick(layer, error);
       closeSpan(obs, span, "failed", error);
-      finishDefers("failed", error);
+      finishRun(layer, ctx, held, "failed", error);
       throw error;
     } finally {
       buildDepth--;
     }
     if (!isThenable(result)) {
       if (span) closeSpan(obs, span, "ok");
-      finishDefers("ok");
+      finishRun(layer, ctx, held, "ok");
       return result;
     }
-    return finishAsyncRun(
-      layer,
-      result,
-      caller,
-      replay,
-      obs,
-      span,
-      target.label,
-      ctx,
-      finishDefers,
-    );
+    return finishAsyncRun(layer, result, caller, replay, obs, span, target.label, ctx, held);
   };
 }
 
@@ -4144,33 +4146,6 @@ async function settleSessionWith<R>(child: Layer, started: Promise<R>): Promise<
   return result as R;
 }
 
-/** A session under a root that installed `session` hooks: the whole life inside their onion. Cold
- * path only — the hooks' handles are built eagerly here, never on the unwrapped path above. The
- * body receives the same handle the hooks do, so a session created under a session stays wrapped. */
-async function runSessionWrapped<R>(
-  parent: Layer,
-  options: Scope.Options | undefined,
-  body: (child: Layer, handle?: Scope.Handle) => R | PromiseLike<R>,
-  sessions: readonly Scope.Extension<unknown>[],
-  caller?: RunState,
-): Promise<R> {
-  const child = makeLayer(parent, options);
-  child.failureOwner = caller;
-  const hooks: SessionHooks = { settle: undefined, phase: "open", moved: false };
-  SESSION_HOOKS.set(child, hooks);
-  const handle = withSessionCreate(handleFor(child), child, sessions);
-  let wrapped: { result: unknown; ended: Scope.Result };
-  try {
-    wrapped = await sessionThrough(sessions, handle, () =>
-      runSessionEnded(child, (c) => runBodyWithTo(c, handle, body)),
-    );
-  } finally {
-    freeAfterHooks(child, hooks);
-  }
-  settleSessionEnded(wrapped.ended);
-  return wrapped.result as R;
-}
-
 /** Map a session's close `Result` back to promise semantics: a real failure or cancellation rejects
  * (with the cause / abort reason), a clean run resolves the body value; teardown errors aggregate
  * into `TeardownFailed` either way (ADR 0017). */
@@ -5210,4 +5185,31 @@ function resolveThrough(
     return at(target, 0, chain);
   };
   return chained as Scope.Handle["resolve"];
+}
+
+/** A session under a root that installed `session` hooks: the whole life inside their onion. Cold
+ * path only — the hooks' handles are built eagerly here, never on the unwrapped path above. The
+ * body receives the same handle the hooks do, so a session created under a session stays wrapped. */
+async function runSessionWrapped<R>(
+  parent: Layer,
+  options: Scope.Options | undefined,
+  body: (child: Layer, handle?: Scope.Handle) => R | PromiseLike<R>,
+  sessions: readonly Scope.Extension<unknown>[],
+  caller?: RunState,
+): Promise<R> {
+  const child = makeLayer(parent, options);
+  child.failureOwner = caller;
+  const hooks: SessionHooks = { settle: undefined, phase: "open", moved: false };
+  SESSION_HOOKS.set(child, hooks);
+  const handle = withSessionCreate(handleFor(child), child, sessions);
+  let wrapped: { result: unknown; ended: Scope.Result };
+  try {
+    wrapped = await sessionThrough(sessions, handle, () =>
+      runSessionEnded(child, (c) => runBodyWithTo(c, handle, body)),
+    );
+  } finally {
+    freeAfterHooks(child, hooks);
+  }
+  settleSessionEnded(wrapped.ended);
+  return wrapped.result as R;
 }
