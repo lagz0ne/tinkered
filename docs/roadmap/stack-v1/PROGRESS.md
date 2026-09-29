@@ -3861,3 +3861,16 @@ await closing;
 - Jev tests and README promises: no flags in 17 tests.
 - Full repo tests before this fix: all 18 package tasks pass.
   No package outside jobs changed in this fix.
+
+### t08 checks before mutation
+
+- Fresh fetch: no `stack/t06` tag is on origin.
+  The base remains `50b31bab` from local `stack/t06`.
+- Final gate: build, check, jobs 17, stack 63, tracker 79.
+  `EXIT 0`; no errors and the same 29 warnings.
+- `pnpm validate`: all 50 lanes pass, exit 0.
+  `pnpm-workspace.yaml` has no branch change.
+- Final Jev hits are covered by the same labels and notes.
+  Strict style census: OK.
+- Mutation is next, once, under `/tmp/mutation.lock`.
+  The config has used `timeoutMS: 60000` from the start.
