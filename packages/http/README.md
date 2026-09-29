@@ -147,7 +147,8 @@ scope.run(listRepos, {
 });
 ```
 
-A call with `tags` opens a child session for that run (ADR 0038, always a promise). `attempt`
+A call with `tags` opens a child session for that run (ADR 0038; a value when that session ended in
+place, a promise when it must wait, ADR 0072). `attempt`
 depends on the bare `backend` tag, so deps resolve at the requesting layer (ADR 0018):
 a session-bound or call-bound `backend` is seen by that flow, while the root scope keeps its own.
 Preset `attempt` to swap the transport in tests.

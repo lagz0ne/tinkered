@@ -360,9 +360,9 @@ export declare namespace Scope {
   /** The tag bindings a call may carry. Present on a call, they open a child session bound
    * with them for that run (ADR 0038): the run's own tag reads, its subflows, and session-target
    * resources built for the flow see them through the layer chain. Scope-target resources are
-   * unchanged. A call carrying `tags` always returns a promise — a session closes
-   * asynchronously, so no sync fast path is offered. The authored shape is `Tag.Bindings` minus
-   * a bare nothing: `tags: undefined` (or `false`) is an untagged call, not a tagged one. */
+   * unchanged. A call carrying `tags` returns the run's value when its session ended in place,
+   * and a promise when the session must wait (ADR 0072). The authored shape is `Tag.Bindings`
+   * minus a bare nothing: `tags: undefined` (or `false`) is an untagged call, not a tagged one. */
   export type Bindings = Exclude<Tag.Bindings, null | undefined | false>;
 
   /** A call that carries `tags` (ADR 0038): a child session for the run. It returns the run's
@@ -1069,7 +1069,6 @@ function signalOf(layer: Layer): AbortSignal {
   return ac.signal;
 }
 
-/** One layer of the scope chain. A session is a child layer. */
 /** The extension chains a root chose (ADR 0050, 0051): each is the filtered list of extensions
  * that declare that hook, or undefined when none does. One record per root, shared by every layer
  * under it, so a session reads its route from its parent instead of walking to the root. */
@@ -1089,6 +1088,7 @@ const NO_WORK = new Set<Promise<unknown>>();
 const NO_DEFERS: DeferEntry[] = [];
 const NO_ERRORS: unknown[] = [];
 
+/** One layer of the scope chain. A session is a child layer. */
 type Layer = {
   parent: Layer | undefined;
   children: Set<Layer>;
@@ -1199,10 +1199,6 @@ function selectBucket<B>(
   return undefined;
 }
 
-/** The nearest cell up the chain (cached per layer); a missing cell resolves to an entry holding
- * the cell's initial value, so reads never check for absence. A namespaced read branches off
- * here (ns present only) and takes the shared selector uncached — the default path and its
- * cache are untouched. */
 /** The nearest cell up the chain. The lookup is memoized where it pays: on a record this layer
  * already has, or on this layer when the cell sits two or more layers up (a deep chain stays
  * O(1) after its first read). A layer with no record whose nearest cell is at its parent reads
@@ -1396,7 +1392,6 @@ function pendingNsWatchers(
   return pending;
 }
 
-/** A tag list's last entry is its nearest binding. */
 /** A layer's own tags: a flat list for a handful (one scan beats a map, and a tagged call brings
  * one or two), a map from tag to values for more. Readers take both; writers go through
  * {@link seedTags}. */
@@ -2293,8 +2288,8 @@ function hasCallTags(call: Scope.Invocation<unknown> | undefined): boolean {
 }
 
 /** Run `target` in a child session bound with the call's tags (ADR 0038) — sugar over
- * `session({ tags }, (s) => s.run(target, { input }))`. Always async: the session closes
- * asynchronously when the run settles, so even a sync body resolves through a promise.
+ * `session({ tags }, (s) => s.run(target, { input }))`. The value comes back as the body gave it
+ * when the session ended in place, and through a promise when the session must wait (ADR 0072).
  * `parent` carries through so a subflow's span still nests under its caller. */
 function runTagged<T, I>(
   layer: Layer,
@@ -2428,8 +2423,6 @@ function finishAsyncRun<T>(
   return promise;
 }
 
-/** Build the shared run entry without its public controller. Internal replays have already run
- * the hooks and never expose `settle`, so they need only this executor (ADR 0038, 0050, 0067). */
 /** A controller's `run`: one small closure over the run's fixed facts that calls {@link runOnce}.
  * The closure is made once per controller; a replay ({@link runUntagged}) calls `runOnce` itself
  * and makes none. */
@@ -2566,8 +2559,9 @@ function operationController<T, I>(
   ) as Scope.OperationController<T, I>;
 }
 
-/** Run `target` on the tagged call's session layer with the tag-stripped call (ADR 0038) — a
- * fresh executor per replay. Its caller already applied run hooks; no public controller escapes. */
+/** Run `target` on the tagged call's session layer with the tag-stripped call (ADR 0038), through
+ * {@link runOnce} directly: no controller and no closure. Its caller already applied run hooks
+ * (ADR 0050); no public controller escapes. */
 function runUntagged<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
@@ -3795,10 +3789,6 @@ function fastClose(
   return layer.closing;
 }
 
-/** A second/later close (any mode) returns the in-flight close's Result — the mode of the FIRST call
- * wins (no graceful→forced escalation in v1; force-close from the start if a hang is a concern). This
- * also means a session's automatic self-close does not override an in-progress explicit graceful
- * close (ADR 0028). */
 /** Whether a session whose body just ended clean can end in place — {@link canFastClose}'s idle
  * test for a session's own close, where the finished body no longer blocks it: no close already
  * in flight, no ancestor's close in flight (it marked this layer swept at call time and its
@@ -3843,6 +3833,10 @@ const ENDED_CLEAN: Promise<Scope.Result> = Promise.resolve({
   teardownErrors: undefined,
 });
 
+/** A second/later close (any mode) returns the in-flight close's Result — the mode of the FIRST call
+ * wins (no graceful→forced escalation in v1; force-close from the start if a hang is a concern). This
+ * also means a session's automatic self-close does not override an in-progress explicit graceful
+ * close (ADR 0028). */
 function closeLayer(layer: Layer, force: boolean, withData: boolean): Promise<Scope.Result> {
   /** Only a session under a root with `session` hooks has an entry, and its route says so: a
    * no-hook close never reads the table. */
@@ -4759,10 +4753,11 @@ type ThenFn<R> = (
 
 /** Adopt a thenable that is not a native promise into one, from the one `then` already read:
  * called in a microtask with the new promise's resolving functions, as the resolve-thenable job
- * behind `Promise.resolve` would call it. */
+ * behind `Promise.resolve` would call it. `queueMicrotask` puts the call on the same job queue
+ * that job would use, in the same order, with no promise of its own to make. */
 function adoptThenable<R>(raw: unknown, then: ThenFn<R>): Promise<R> {
   return new Promise<R>((resolve, reject) => {
-    void READY.then(() => {
+    queueMicrotask(() => {
       try {
         then.call(raw, resolve, reject);
       } catch (error) {

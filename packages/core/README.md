@@ -145,7 +145,8 @@ A value returned under a forced close is `success`, as `run` returns it.
 Only the abort `reason` thrown on an aborted scope is `cancelled`.
 
 `scope.settle(op, call)` and a controller's `settle(call)` take the same calls as `run`.
-A sync operation settles at once. A tagged call settles through a promise.
+A sync operation settles at once. A tagged call settles at once too when its child session ended
+in place, and through a promise when the session must wait (ADR 0072).
 An operation typed `unknown` may do either, so its type is a Result or a promise of one.
 `await` it.
 
@@ -556,8 +557,9 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - An operation preset replaces the run for a direct call, a downstream subflow, and an inline config.
 - An inline run resolves deps, delivers the full context, and shares nothing between runs; with no call,
   `ctx.input` is void. A tagged inline run sees the call's tags; a preset arrives through its deps.
-- A tagged call binds the whole flow: run, subflow, and nested subflow all read the call's tags, and a
-  tagged call is always async even for a sync operation.
+- A tagged call binds the whole flow: run, subflow, and nested subflow all read the call's tags; a
+  tagged sync call that ended in place returns its value, and one that must wait returns a native
+  promise (ADR 0072).
 - A tagged run builds session resources in the flow, scope resources at the root; an untagged run builds
   session resources at the root and opens no session; the tagged session closes with the run.
 - An operation reads the scope's clock; a resource factory does too (see Clock).
@@ -588,9 +590,9 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A forced close's cancel reason inspects as `AbortError` text.
 - `settle` reports a foreign `AbortError` rejecting during a forced close as a failure.
 - `settle` returns a sync Result for an untagged sync operation.
-- `settle` returns a promise for a tagged sync operation.
+- `settle` on a tagged sync call returns its Result directly when it ended in place.
 - `scope.settle` accepts a typed inline call without making it async.
-- `scope.settle` runs a tagged inline config asynchronously.
+- `scope.settle` on a tagged inline config gives a Result in place, a native promise when it waits.
 - `settle` on an unknown-typed operation types as a Result or a promise of one.
 - `settle` on a generic operation assigns to a Result or a promise of one.
 - `scope.settle` keeps an unknown-typed inline a Result or a promise of one.
@@ -651,7 +653,9 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - `scope.run` shares the controller path: same lookup, same CallArgs rules, stable controller identity.
 - A close hook wraps the structural close and sees its result.
 - `session(fn)` commits on return and rolls back on throw, closes the child itself, and passes the error
-  on; a throwing outcome hook keeps the outcome and aggregates its error.
+  on; a throwing outcome hook keeps the outcome and aggregates its error. The session's handle closes
+  when its body ends (ADR 0071): after the body returned, `onClose`, `resolve` and `run` on a handle
+  the body kept raise `Disposed`, and `close({ withData: true })` on it gets no data.
 - Failed owned work fails the session with its cause; a body failure still wins for caller and hooks.
 - A failure in a nested session bubbles to the caller and rolls back the leaf; a collecting parent keeps
   a running descendant's real failure and its cleanup error.

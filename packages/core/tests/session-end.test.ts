@@ -1,6 +1,5 @@
-/* oxlint-disable unicorn/no-thenable -- these tests are about thenables with odd `then` getters */
 import { expect, test } from "vite-plus/test";
-import { createScope, data, namespace, operation, tag } from "../src/index.ts";
+import { createScope, data, isError, namespace, operation, tag } from "../src/index.ts";
 
 /** A session that ended keeps main's end state: its signal reads aborted (ADR 0028). */
 for (const tagged of [false, true]) {
@@ -89,13 +88,14 @@ for (const named of [false, true]) {
 
 /** The rule since 2026-09-29: a session's handle closes when its body ends, like a database
  * transaction callback. A handle the body leaked is disposed once the body returned. */
-function kindOf(fn: () => unknown): unknown {
+function disposed(fn: () => unknown): boolean {
   try {
     fn();
   } catch (error) {
-    return (error as { kind?: unknown }).kind;
+    if (!isError(error, "Disposed")) throw error;
+    return true;
   }
-  return undefined;
+  return false;
 }
 
 test("a leaked handle is disposed once the body returned: onClose raises Disposed", async () => {
@@ -106,12 +106,12 @@ test("a leaked handle is disposed once the body returned: onClose raises Dispose
     child = s;
   });
   expect(
-    kindOf(() =>
+    disposed(() =>
       child!.onClose(() => {
         cleaned = true;
       }),
     ),
-  ).toBe("Disposed");
+  ).toBe(true);
   await flight;
   expect(cleaned).toBe(false);
   await root.close();
@@ -125,7 +125,7 @@ test("a leaked handle is disposed once the body returned: resolve raises Dispose
     child = s;
     s.controller(cell).set(9);
   });
-  expect(kindOf(() => child!.resolve(cell))).toBe("Disposed");
+  expect(disposed(() => child!.resolve(cell))).toBe(true);
   await flight;
   await root.close();
 });
