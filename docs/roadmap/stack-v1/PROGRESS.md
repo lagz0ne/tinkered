@@ -851,3 +851,19 @@ by the queued-message and reply test.
 Logs are in `/home/paseo/.cache/tinkered-briefs/`,
 with the `stack-t07-kill-` prefix.
 No source file was excluded and the floor stays 85.
+
+### t07 full mutation lift
+
+- One full lane, alone under `/tmp/mutation.lock`, in the foreground.
+- Command: `flock /tmp/mutation.lock vp run --no-cache nats#mutate`.
+- Removed the old `.stryker-tmp` first.
+  The command guard rejected `rm -rf`; plain `rm -r` worked.
+- Total score: **93.95**, up from **67.08**; exit 0.
+- `errors.ts`: 100.00; `index.ts`: 98.88; `testing.ts`: 89.83.
+- 175 killed, 27 timed out, 10 survived,
+  3 not covered on this host, and 2 invalid mutants.
+- Full JSON: `packages/nats/reports/mutation/mutation.json`.
+- Full log: `stack-t07-lift-mutation-full.log`
+  in `/home/paseo/.cache/tinkered-briefs/`.
+- Before the lane, the worktree had no NATS process left.
+- Fresh fetch and rebase before this run: still `ba39695`.
