@@ -798,3 +798,38 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - A forced close with a close hook still settles cancelled.
 - A close chain runs past an extension with no close hook.
 - A resolve chain runs past an extension with no resolve hook.
+
+## Trace ids
+
+- A root span has nonzero W3C ids before its body runs.
+- Operation, resource, and manual children inherit the trace and name their parent span.
+- Two unseeded root spans start different traces.
+- A seeded random replays trace and span ids.
+- Observation off leaves the ambient random stream untouched.
+- A session copies its remote trace seed and child sessions inherit it.
+- A session seed overrides its scope seed without changing siblings.
+- A seeded subflow uses its local caller as parent and keeps the sampled flag.
+
+Numeric `id` and `parentId` still order the local tree.
+`traceId` is 32 lowercase hex digits; `spanId` and
+`parentSpanId` are 16.
+Each new id comes from the ambient `random.uuid()`.
+The span id uses the UUID's last 8 bytes, with 62 random bits.
+`sampled` carries the remote hint; local observation still
+follows `observe`.
+A new local trace defaults to sampled.
+A driver validates the seed before passing it to core:
+
+```ts
+scope.createSession({
+  trace: {
+    traceId: "4bf92f3577b34da6a3ce929d0e0e4736",
+    parentSpanId: "00f067aa0ba902b7",
+    sampled: false,
+  },
+});
+```
+
+The sink sets `service.name` from its own config.
+Core adds no OTel import, span kind hint, or links.
+`kind` still means operation, resource, or manual work.

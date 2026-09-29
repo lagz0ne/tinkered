@@ -292,3 +292,13 @@ const { extension: web } = hono(issueRoutes, {
   Error causes keep their details; other causes become text.
 - An `HTTPException` keeps its status, body, and headers
   without a `request failed` line.
+
+## Trace ids
+
+- A valid traceparent joins the request spans to the remote parent.
+- A malformed or absent traceparent starts a new trace and still answers.
+- A future traceparent version keeps its known ids and sampled bit.
+
+The header reader follows [W3C Trace Context](https://www.w3.org/TR/trace-context/).
+Unknown flag bits and future fields are ignored.
+This driver does not carry `tracestate`.

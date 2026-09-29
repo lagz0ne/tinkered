@@ -4,7 +4,7 @@ import { HTTPException } from "hono/http-exception";
 import type { Context, MiddlewareHandler as Middleware } from "hono";
 import type { ContentfulStatusCode, StatusCode } from "hono/utils/http-status";
 import type { JSONValue } from "hono/utils/types";
-import type { Many, Namespace, Operation, RunResult, Scope, Tag } from "@tinker/core";
+import type { Many, Namespace, Observe, Operation, RunResult, Scope, Tag } from "@tinker/core";
 import { extension, isError as isCoreError, readMany, resource, tag } from "@tinker/core";
 import { isError, raise } from "./errors.ts";
 
@@ -216,6 +216,7 @@ function serveRequests(scope: Scope.Handle, wiring: HonoScope.Wiring | undefined
     const ns = wiring?.ns?.(c);
     const session = scope.createSession({
       tags: [request(raw), wiring?.tags?.(c)],
+      trace: readTraceparent(raw.headers.get("traceparent")),
       ...(ns === undefined ? {} : { ns }),
     });
     c.set("tinker.session", session);
@@ -233,6 +234,21 @@ function serveRequests(scope: Scope.Handle, wiring: HonoScope.Wiring | undefined
       }
     }
   });
+}
+
+/** Validate the HTTP carrier once, before core receives typed ids. Future versions use
+ * the known prefix; version 00 permits no suffix (W3C Trace Context 3.2.4). */
+function readTraceparent(header: string | null): Observe.Trace | undefined {
+  if (header === null) return undefined;
+  const match =
+    /^(?<version>[0-9a-f]{2})-(?<traceId>[0-9a-f]{32})-(?<parentSpanId>[0-9a-f]{16})-(?<flags>[0-9a-f]{2})(?<suffix>-.*)?$/.exec(
+      header,
+    );
+  if (!match) return undefined;
+  const { version, traceId, parentSpanId, flags, suffix } = match.groups!;
+  if (version === "ff" || (version === "00" && suffix !== undefined)) return undefined;
+  if (/^0+$/.test(traceId) || /^0+$/.test(parentSpanId)) return undefined;
+  return { traceId, parentSpanId, sampled: (Number.parseInt(flags, 16) & 1) === 1 };
 }
 
 /** One `emit` call enqueues one chunk: strings are UTF-8 encoded, bytes pass through.

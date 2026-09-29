@@ -45,6 +45,8 @@ Rules for every ticket:
   `vp run drizzle#test`, and the tracker's tests
   green.
 - **t04 core: a span carries a trace id** -- [ ] blocked by: none
+  Writer: `stack/t04`, in `/home/paseo/next/tinkered-stack-t04`.
+  Next: trace-id gate, Jev, budgets, and mutation proof.
   Every span gets a trace id when it opens, from
   its parent or from a seed a driver gives
   (ADR 0076). Hono seeds it from `traceparent`.
@@ -57,6 +59,8 @@ Rules for every ticket:
 
   ```impact stack/t04
   core Observe/Span# src/index.ts tests/*.test.ts
+  core Observe/Trace# src/index.ts tests/trace.test.ts
+  core Scope/Options#.*trace src/index.ts tests/trace.test.ts
   ```
 
 - **t05 stack: server start and shutdown** -- [x] landed `fdfa93f`

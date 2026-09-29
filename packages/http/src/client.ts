@@ -292,14 +292,20 @@ async function sendOnce(
 ): Promise<HttpResponse.Handle> {
   const { request, url, attempt, tries } = call;
   const span = ctx.obs.span;
+  let outgoing = request;
   if (span !== undefined) {
     span.attributes.method = request.method;
     span.attributes.url = url;
     span.attributes.attempt = attempt;
+    outgoing = HttpRequest.setHeader(
+      request,
+      "traceparent",
+      `00-${span.traceId}-${span.spanId}-${span.sampled ? "01" : "00"}`,
+    );
   }
   let delivered: HttpResponse.Handle;
   try {
-    delivered = await send(request, ctx.signal);
+    delivered = await send(outgoing, ctx.signal);
   } catch (error) {
     if (ctx.signal.aborted) throw ctx.signal.reason;
     ctx.log.error("http request failed", { method: request.method, url });

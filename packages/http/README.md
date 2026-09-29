@@ -185,3 +185,9 @@ never returns `null`.
 Narrow with `isError(e, "RequestFailed")` by control flow, then read `payload.reason`. A forced
 close while a request is in flight rethrows the signal's reason untouched — a cancel is a clean
 end, not a `RequestFailed`.
+
+## Trace ids
+
+- Each traced HTTP attempt sends its own traceparent without changing the caller's request.
+- An HTTP attempt keeps the remote unsampled flag.
+- Observation off sends the caller's headers without adding traceparent.

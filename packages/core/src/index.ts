@@ -118,10 +118,23 @@ export declare namespace Observe {
     readonly time: number;
     readonly attributes: Record<string, unknown>;
   };
+  /** A driver-validated remote parent (ADR 0076). Ids are nonzero lowercase hex:
+   * 32 digits for the trace, 16 for its parent. The scope copies the seed; child sessions
+   * inherit it. Sampling defaults to true and does not switch local observation off. */
+  export type Trace = {
+    readonly traceId: string;
+    readonly parentSpanId: string;
+    readonly sampled?: boolean;
+  };
   /** One unit of tracked work; nests by explicit `parentId` into a tree. Behavior-neutral. */
   export type Span = {
     readonly id: number;
     readonly parentId: number | undefined;
+    /** W3C ids, set before the body runs; numeric ids still order the local tree. */
+    readonly traceId: string;
+    readonly spanId: string;
+    readonly parentSpanId: string | undefined;
+    readonly sampled: boolean;
     readonly name: string;
     readonly kind: Kind;
     readonly start: number;
@@ -502,6 +515,8 @@ export declare namespace Scope {
      * child session inherits it; a per-call `ns` overrides it for one run. Absent = default. */
     ns?: Ns;
     observe?: Observe.Config;
+    /** Join a remote trace. Copied at scope/session creation; ignored with observation off. */
+    trace?: Observe.Trace;
     presets?: Many<Preset>;
     /** The ambient clock for this scope; child sessions inherit it. Default is the system clock. */
     clock?: Clock.Handle;
@@ -1127,6 +1142,7 @@ type Layer = {
   closed: boolean;
   closing: Promise<Scope.Result> | undefined;
   obs: Obs;
+  trace: Observe.Trace | undefined;
   clock: Clock.Handle;
   random: Random.Handle;
   emptyCtx: Resource.Ctx | undefined;
@@ -1828,13 +1844,19 @@ function makeObs(config: Observe.Config | undefined, clock: Clock.Handle): Obs {
 }
 
 function openSpan(
-  obs: Obs,
+  layer: Layer,
   parent: Observe.Span | undefined,
   name: string,
   kind: Observe.Kind,
 ): Observe.Span | undefined {
+  const obs = layer.obs;
   if (!obs.observing) return undefined;
+  const trace = parent ?? layer.trace;
   return {
+    traceId: trace === undefined ? layer.random.uuid().replaceAll("-", "") : trace.traceId,
+    spanId: layer.random.uuid().slice(19).replaceAll("-", ""),
+    parentSpanId: parent === undefined ? layer.trace?.parentSpanId : parent.spanId,
+    sampled: trace?.sampled !== false,
     id: obs.nextId++,
     parentId: parent?.id,
     name,
@@ -1905,15 +1927,16 @@ function settleSpan(obs: Obs, span: Observe.Span, result: unknown): void {
   );
 }
 
-function obsCtx(obs: Obs, span: Observe.Span | undefined): Observe.Ctx {
+function obsCtx(layer: Layer, span: Observe.Span | undefined): Observe.Ctx {
   if (!span) return OFF_OBS;
+  const obs = layer.obs;
   return {
     span,
     event: (name, attributes) => {
       span.events.push({ name, time: obs.clock(), attributes: attributes ?? {} });
     },
     child: (name, fn) => {
-      const child = openSpan(obs, span, name, "manual");
+      const child = openSpan(layer, span, name, "manual");
       let result: unknown;
       try {
         result = fn(child);
@@ -2243,7 +2266,7 @@ class OperationCtx<I> implements Operation.Ctx<I> {
     (this.defers ??= []).push(fn);
   };
   get obs(): Observe.Ctx {
-    return (this.obsTools ??= obsCtx(this.owner.obs, this.span));
+    return (this.obsTools ??= obsCtx(this.owner, this.span));
   }
   get log(): Observe.Logger {
     return (this.logTools ??= logFor(this.owner.obs, this.span));
@@ -2325,6 +2348,7 @@ class TaggedFrame {
   declare ns: readonly Namespace[] | undefined;
   declare failureOwner: RunState | undefined;
   declare obs: Obs;
+  declare trace: Observe.Trace | undefined;
   declare clock: Clock.Handle;
   declare random: Random.Handle;
   declare exts: ExtRoutes;
@@ -2361,6 +2385,7 @@ class TaggedFrame {
     this.ns = ns;
     this.failureOwner = failureOwner;
     this.obs = parent.obs;
+    this.trace = parent.trace;
     this.clock = parent.clock;
     this.random = parent.random;
     this.exts = parent.exts;
@@ -2559,7 +2584,7 @@ function runOnce<T, I>(
     );
   ensureOpen(layer);
   const obs = layer.obs;
-  const span = openSpan(obs, parent, target.label, "operation");
+  const span = openSpan(layer, parent, target.label, "operation");
   const override = presetFor(layer, target) as Operation.Handle<T, I>["run"] | undefined;
   /** Hold a borrow across the op's WHOLE lifetime — body settle (or a throw) AND its own `defer`
    * drain — so a release waits for the op's cleanup (which may still touch the resource) before
@@ -2861,7 +2886,7 @@ class ResourceCtx implements Resource.Ctx {
     addDefer(this.instance.owner, { fn, instance: this.instance });
   };
   get obs(): Observe.Ctx {
-    return (this.obsTools ??= obsCtx(this.owner.obs, this.span));
+    return (this.obsTools ??= obsCtx(this.owner, this.span));
   }
   get log(): Observe.Logger {
     return (this.logTools ??= logFor(this.owner.obs, this.span));
@@ -3151,7 +3176,7 @@ function buildHooklessResource<T>(
   const superseded = (): boolean => rec.gen !== gen;
   const canPublish = (): boolean => !superseded() && !owner.closed;
   const obs = owner.obs;
-  const span = openSpan(obs, parent, target.label, "resource");
+  const span = openSpan(owner, parent, target.label, "resource");
   rec.building = true;
   buildDepth++;
   try {
@@ -3215,7 +3240,7 @@ function buildTrackedResource<T>(
   const superseded = (): boolean => rec.gen !== gen;
   const canPublish = (): boolean => !superseded() && !owner.closed;
   const obs = owner.obs;
-  const span = openSpan(obs, parent, target.label, "resource");
+  const span = openSpan(owner, parent, target.label, "resource");
   rec.building = true;
   let settled = false;
   buildDepth++;
@@ -3696,12 +3721,21 @@ function layerRecord(
     closed: false,
     closing: undefined,
     obs,
+    trace: obs.observing ? traceFor(parent, options?.trace) : undefined,
     clock,
     random,
     emptyCtx: undefined,
     ns: nsFor(parent, options),
     exts,
   };
+}
+
+/** Copy the driver's seed once; descendants share the owned copy. */
+function traceFor(
+  parent: Layer | undefined,
+  trace: Observe.Trace | undefined,
+): Observe.Trace | undefined {
+  return trace === undefined ? parent?.trace : { ...trace };
 }
 
 /** Mark a layer's whole subtree `swept`, iteratively (no recursion — deep trees are safe). Run
