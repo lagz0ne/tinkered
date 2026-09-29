@@ -644,7 +644,7 @@ test("a request aborted while reading async tags never runs its operation", asyn
     const response = scope.resolve(web).request("/", { method: "POST", signal: stop.signal });
     stop.abort();
     finish();
-    await response;
+    expect((await response).status).toBe(499);
     expect(writes).toEqual([]);
   } finally {
     await scope.close();

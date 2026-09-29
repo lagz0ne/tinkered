@@ -2973,3 +2973,37 @@ MUTATION_EXIT 0
   The final code passes all six and the two new tests.
 - Prose and the strict census of authored auth code pass.
   The generated schema retains the CLI's own pure-call comments.
+
+### t10 gate and review checks
+
+- Fresh fetch: origin/main has no `stack/t06` or `stack/t17` tag.
+- Rebased onto local `stack/t06` at `c68802fd`.
+  This adds the migrate writer's latest tests and error handling.
+- Gate: build, check, auth, stack, and all repo tests; `EXIT 0`.
+  Auth: 15; Hono: 70; stack: 63; tracker: 79.
+  All 18 repo test tasks pass.
+- Check: 0 errors, 29 warnings, matching checked main.
+- The full tracker run caught a pre-aborted request answering 500.
+  It now answers 499 without running an operation.
+  The tracker test and the new async-tag abort test both pass.
+- Regression proof: ran both new Hono tests on the old Hono source.
+  Both failed, exit 1; restored the new source before the gate.
+- SCIP confirms the Hono tag hook is used by auth's wiring.
+  No symbol was removed; all consumers pass.
+- Jev tests: no auth or Hono test title flags.
+  The README checks find no missing promise.
+- Existing Hono helper-count and helper-size notes stay unchanged.
+  Those files are outside this change; the helpers use public seams.
+- Plain local-unit notes: each auth frame owns distinct config and user
+  tags; its settings resource reads that frame's config.
+  Moving them outside would join separate auth pieces.
+- The inherited test-database resource captures its own PGlite.
+  Moving it outside would share that handle between templates.
+- Both model flags already have false labels in the bank:
+  `leakedInternal` on the tracker's public entry;
+  `effectWithoutDefer` on Hono's `stream`.
+  The entry is the app's test seam.
+  The stream closes its session when the body ends or is cancelled.
+  Neither needs a new label or calibration change.
+- Strict census of authored auth code and changed Hono files: OK.
+  TSDoc: no findings.
