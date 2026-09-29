@@ -12,8 +12,8 @@ import { api } from "../src/index.ts";
 
 const APP = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-/** Migrations log queries before listener validation. Read the boot outcome,
- * then wait for child cleanup before deleting its database. */
+/** Settings fail before any database work. Read the boot outcome, then wait
+ * for child cleanup before removing its temporary directory. */
 async function readBootResult(port: string): Promise<Record<string, unknown>> {
   const dir = mkdtempSync(join(tmpdir(), "issues-port-"));
   const child = spawn(process.execPath, ["--experimental-strip-types", "src/server/main.ts"], {

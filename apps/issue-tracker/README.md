@@ -123,6 +123,7 @@ Saved issues reach the list route and sync stream before the port opens.
 
 A `PORT` that is not a whole number from 1 to 65535 stops the boot with
 `BadListenSettings`, which names every bad listen key.
+A bad `PORT` creates no database.
 A missing `PORT` means 4311 in this dev app.
 A missing `HOST` means `127.0.0.1` here.
 The stack itself supplies neither default.

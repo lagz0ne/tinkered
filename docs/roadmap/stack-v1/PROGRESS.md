@@ -198,6 +198,36 @@ prose-lint: 0 hits
 - Core feedback: none; no Core workaround was needed.
 - Nothing was pushed.
 
+### t06 review fix round 2
+
+- Owner: stack/t06 writer.
+- State: Review; the boot-order fix is ready for the gate.
+- Next: run the requested gate once, alone, then lead review.
+- Verify: build, check, Drizzle, stack, tracker, and prose.
+- The reviewer reproduced a bad-PORT test timeout at 30 seconds.
+  A bad PORT also created and migrated a disk database.
+- Decision: list `server` first, then `migrateIssues`.
+  The server checks settings before calling the next start.
+  It opens the port only after the later starts finish.
+- A bad PORT must not open or migrate the database.
+  A failed migration must still stop boot before the port opens.
+- This order replaces the brief's instruction to list migrate first.
+  It follows ADR 0081: checking config needs no library.
+- Callers: the tracker root and the draft, issues, tools,
+  browser-helper, and server test roots.
+- The new disk-folder assertion failed on the old root order.
+  `runServer` answered 1 but created the database folder.
+  The focused regression check returned `EXIT 1`.
+- After the fix, server and browser-helper passed all 10 tests.
+  The bad-PORT test now leaves its disk folder absent.
+  The focused check returned `EXIT 0`.
+- Strict style census: OK; TSDoc: 0 S26 rows.
+- Jev found no source or test-behavior flags and no promise gaps.
+  The three old helper-count notes remain in issues, tools,
+  and browser-helper; their helpers only changed start order.
+  No new labels were needed.
+- Scope: no rebase, mutation run, or push.
+
 ## Tickets
 
 - **t01 sync ships the SSE transport** -- [x] landed `fd5a6a8`

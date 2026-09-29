@@ -1,4 +1,5 @@
 import { once } from "node:events";
+import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
@@ -65,7 +66,7 @@ test("the first HTTP read and sync snapshot contain saved issues while the port 
   });
   const scope = createScope({
     tags: [store.config(path)],
-    extensions: [migrateIssues, server, src, publish()],
+    extensions: [server, migrateIssues, src, publish()],
   });
   try {
     await scope.ready;
@@ -106,7 +107,12 @@ test("runServer serves saved issues until stop and then answers zero", async () 
 });
 
 test("runServer answers one for a bad PORT", async () => {
-  expect(
-    await runServer({ PORT: "abc", DATA_PATH: "memory://" }, new AbortController().signal),
-  ).toBe(1);
+  const dir = await mkdtemp(join(tmpdir(), "issues-bad-port-"));
+  const path = join(dir, "db");
+  try {
+    expect(await runServer({ PORT: "abc", DATA_PATH: path }, new AbortController().signal)).toBe(1);
+    expect(existsSync(path)).toBe(false);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });

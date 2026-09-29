@@ -7,7 +7,7 @@ import { hono } from "@tinker/hono";
 import { drizzle } from "drizzle-orm/pglite";
 import { sql } from "drizzle-orm";
 import { afterEach, expect, test } from "vite-plus/test";
-import { createTestDatabase, jsonLines, migrate, server } from "../src/index.ts";
+import { createTestDatabase, isError, jsonLines, migrate, server } from "../src/index.ts";
 import { readFreePort } from "./fixtures.ts";
 
 const clients: { close(): Promise<void> }[] = [];
@@ -71,8 +71,8 @@ test("a failed migration stops the port opening and rolls back its tables and hi
   const lines: string[] = [];
   const scope = createScope({
     extensions: [
-      migrate(database, { migrationsFolder }),
       server(web, { env, clientDir: "/missing", observe: jsonLines((line) => lines.push(line)) }),
+      migrate(database, { migrationsFolder }),
       web,
     ],
   });
@@ -94,6 +94,34 @@ test("a failed migration stops the port opening and rolls back its tables and hi
         )
       ).rows,
     ).toEqual([{ locks: 0 }]);
+  } finally {
+    await scope.close();
+  }
+});
+
+test("a bad PORT fails boot naming PORT and runs no migration", async () => {
+  const { client, database, migrationsFolder } = await fixture("create table saved (id text);");
+  const web = hono([]).extension;
+  const scope = createScope({
+    extensions: [
+      server(web, { env: { HOST: "127.0.0.1", PORT: "abc" }, clientDir: "/missing" }),
+      migrate(database, { migrationsFolder }),
+      web,
+    ],
+  });
+  try {
+    await scope.ready;
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "BadListenSettings")) throw error;
+    expect(error.payload.keys).toEqual(["PORT"]);
+    expect(
+      (
+        await client.query(
+          "select to_regclass('saved') as table, to_regclass('drizzle.__drizzle_migrations') as history",
+        )
+      ).rows,
+    ).toEqual([{ table: null, history: null }]);
   } finally {
     await scope.close();
   }

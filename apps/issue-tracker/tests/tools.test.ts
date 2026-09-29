@@ -26,7 +26,7 @@ async function boot() {
   const server = issueServer();
   const scope = createScope({
     tags: [store.config(await cloneDatabase())],
-    extensions: [migrateIssues, server, publish()],
+    extensions: [server, migrateIssues, publish()],
   });
   try {
     await scope.ready;

@@ -21,8 +21,8 @@ function readDraftOptIn(
   };
 }
 
-/** The app's one full root. Dev defaults belong here; stack start checks them.
- * Migrate before starting the listener and publishing saved issues. */
+/** The app's one full root. Dev defaults belong here; server checks them first.
+ * Migrations and saved-issue publishing finish before the server opens its port. */
 export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal): Promise<number> {
   const listen = { PORT: env.PORT ?? "4311", HOST: env.HOST ?? "127.0.0.1" };
   const observe = {
@@ -36,8 +36,8 @@ export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal): Prom
       draftTags(readDraftOptIn(env, listen.HOST, listen.PORT)),
     ],
     extensions: [
-      migrateIssues,
       server(web, { env: listen, clientDir: join(process.cwd(), "dist", "client"), observe }),
+      migrateIssues,
       web,
       src,
       env.NATS_URL === undefined

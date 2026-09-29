@@ -13,7 +13,8 @@ export declare namespace Migrate {
   };
 }
 
-/** List before the server. The transaction pins one connection and releases its
+/** List right after server: settings are checked first, then migrations finish
+ * before the port opens. The transaction pins one connection and releases its
  * advisory lock on commit or rollback. PGlite serializes these transactions too.
  * A later owner such as pg-boss can start after this commit, under its own lock. */
 export function migrate(

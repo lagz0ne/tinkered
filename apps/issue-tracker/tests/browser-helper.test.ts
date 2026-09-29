@@ -50,7 +50,7 @@ async function boot(path: string | undefined, options: Boot = {}) {
   const server = issueServer();
   const scope = createScope({
     tags: [store.config(path ?? (await cloneDatabase())), draftTags(options.draft)],
-    extensions: [migrateIssues, server, src, publish()],
+    extensions: [server, migrateIssues, src, publish()],
     presets: options.presets,
     observe: options.observe,
   });
