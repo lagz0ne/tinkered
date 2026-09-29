@@ -42,13 +42,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **stack/t07 nats** — Owner: writer (Codex).
-  Next: restore download status errors with a local HTTP test.
-  Verify: build, check, NATS tests; focused kill proof;
-  one full mutation lane at least 85; all validate lanes;
-  no temp stores or NATS processes left.
-  [Proof](docs/roadmap/stack-v1/PROGRESS.md#t07-download-status-fix).
-
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
@@ -56,6 +49,14 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 - **stack/t04 trace-id** — core: a span carries a trace id; Hono seeds it from `traceparent` (ADR 0076). Owner: lead (stack session); Astra writer `5e69613c`, worktree `/home/paseo/next/tinkered-stack-t04`; the only core card now; Opus reviewer when the writer reports. Verify: core and hono tests, `scripts/ticket.sh`, `pnpm validate`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 
 ## Review
+
+- **stack/t07 nats** — Owner: writer (Codex).
+  Saved the download status fix on `stack/t07`.
+  Next: lead review and land.
+  Verify: gate exit 0; 19 NATS tests; mutation 91.43;
+  all 48 validate lanes, prose, and strict style census pass.
+  No temp NATS stores or NATS processes remain.
+  [Proof](docs/roadmap/stack-v1/PROGRESS.md#t07-download-status-fix).
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |

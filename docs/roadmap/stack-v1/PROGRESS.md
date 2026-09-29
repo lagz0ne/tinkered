@@ -1006,3 +1006,13 @@ It also closes old handles after a fresh start.
   Removed all 46 stores and the mutant-made wrong cache at
   `~/.cache/nats-server/2.15.0`.
   No helper test-cache folders remained.
+
+- After mutation, `pnpm validate`: all 48 lanes pass; exit 0.
+  `pnpm-workspace.yaml` has no branch change.
+- Final scan after validation: zero `/tmp/tinker-nats-*` folders
+  and zero `nats-server` processes, including stopped processes.
+  The wrong cache is gone; the correct home cache remains.
+- Prose: no hits. Strict style census: OK.
+  TSDoc: no findings. No new core feedback from this helper fix.
+- Status: Review. Next: lead reviews this last fix and lands.
+  All jobs finished in this turn. Nothing pushed.
