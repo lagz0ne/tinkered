@@ -33,6 +33,7 @@ the browser. The viewer takes its wire as a resource, so nothing is built
 before `createScope`. A driver reads rows, never unit meta: units have none (ADR 0051 §3).
 
 Cells take nested lists and false: a row is a pair, a list of pairs is opened.
+Binding the same cell twice stays ready with one registration key.
 
 ## Shared
 
