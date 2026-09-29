@@ -990,3 +990,19 @@ It also closes old handles after a fresh start.
   wrong error kind, and empty error payload.
 - Log: `stack-t07-download-kill.log` in
   `/home/paseo/.cache/tinkered-briefs/`.
+
+- One full NATS mutation lane, alone under `/tmp/mutation.lock`:
+  score **91.43**, floor 85, exit 0.
+  `errors.ts`: 100.00; `index.ts`: 92.04; `testing.ts`: 90.32.
+  193 killed, 31 timed out, 15 survived, 6 not covered,
+  and 2 invalid mutants.
+- The full report also marks all six download-check mutants `[Killed]`.
+- Log: `stack-t07-download-mutation-full.log` in
+  `/home/paseo/.cache/tinkered-briefs/`.
+  JSON: `packages/nats/reports/mutation/mutation.json`.
+- No source exclusions or mutation floor changes.
+- Before the lane: no NATS processes or temp stores.
+  After the lane: no NATS processes, but 46 mutant-made stores.
+  Removed all 46 stores and the mutant-made wrong cache at
+  `~/.cache/nats-server/2.15.0`.
+  No helper test-cache folders remained.
