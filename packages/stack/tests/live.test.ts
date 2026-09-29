@@ -53,7 +53,7 @@ const read = operation({ label: "read", depends: { list: lists }, run: ({ list }
 beforeAll(async () => {
   server = await startNatsServer();
   db = new PGlite();
-  await db.exec("create table issues (title text not null)");
+  await db.exec("create table issues (title text not null unique deferrable initially deferred)");
 }, 30000);
 beforeEach(async () => {
   await db.exec("delete from issues");
@@ -196,4 +196,16 @@ test("live updates require NATS_URL at boot", async () => {
     kind: "InvalidConfig",
     payload: { key: "NATS_URL" },
   });
+});
+
+test("a failed database commit sends no signal", async () => {
+  const observer = await signals();
+  const a = await boot();
+  await a.app.request("/issues/A", { method: "POST" });
+  await expect.poll(() => observer.messages.length).toBe(1);
+  await a.app.request("/issues/A", { method: "POST" });
+  await a.scope.close({ graceful: true });
+  await observer.scope.close({ graceful: true });
+  expect(observer.messages).toEqual([{ subject: "issues.changed", payload: new Uint8Array() }]);
+  expect((await db.query("select title from issues")).rows).toEqual([{ title: "A" }]);
 });

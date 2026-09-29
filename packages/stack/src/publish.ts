@@ -78,7 +78,12 @@ function createPublisher(
     session: async (handle, next) => {
       const ended = await next();
       const found = handle.resolve(request.optional);
-      if (ended.status === "success" && found.present && found.value.method !== "GET") {
+      if (
+        ended.status === "success" &&
+        !ended.teardownErrors?.length &&
+        found.present &&
+        found.value.method !== "GET"
+      ) {
         await republish();
       }
       return ended;

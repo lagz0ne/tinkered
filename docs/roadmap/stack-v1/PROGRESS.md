@@ -1066,3 +1066,32 @@ It also closes old handles after a fresh start.
   The shared database test borrows one PGlite in both stores.
 - The brief's “Round 5, decided” heading is absent.
   Read Round 3 decisions and Round 5 research instead.
+
+### t12 first green step
+
+- Gate: build, check, stack 56, NATS 19, tracker 69;
+  `EXIT 0`.
+- Check has 0 errors and 29 warnings.
+  Fresh main at `edb51742` has the same 29 warnings.
+- Removed the NATS row for one test run.
+  The other server kept `[]`, so the save test failed.
+  Restored the row; all 56 stack tests passed.
+- Jev tests: 0 of 23 titles flagged.
+  Promises: all 23 have a README line.
+- Jev preflight: no file flags.
+  The plain `unitCouldBeModuleLevel` note names the
+  receive operation; it closes over this piece's root read.
+  A module-level operation would lose that owner.
+  The two `~wrapsCallersStep` notes need no label.
+- Prose, TSDoc, strict style census: exit 0.
+- Rebased onto `edb51742` and installed again.
+
+### t12 commit failure fix
+
+- A real deferred unique constraint made the second
+  insert fail at commit, after the operation returned.
+- Before the fix: two signals for one saved row;
+  the new test failed, exit 1.
+- Core can return `success` with `teardownErrors`.
+  Skip publishing when that list has an error.
+  This keeps a failed commit silent too.

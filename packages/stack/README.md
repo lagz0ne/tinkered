@@ -146,6 +146,7 @@ A later commit or a new boot reads the current database.
 - One empty signal per commit re-reads on the sender without
   another snapshot or signal.
 - GET and a rolled-back save send no signal.
+- A failed database commit sends no signal.
 - Closing one server removes its NATS subscription while the
   other keeps publishing.
 - A different app subject leaves its published cells alone.
