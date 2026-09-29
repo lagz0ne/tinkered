@@ -2,7 +2,10 @@
 // snippet with its id and line, and never on the same words inside a string or a comment.
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { inspectPlain } from "./plain.mjs";
+import { inspectShape } from "./shape.mjs";
+import { gateOf } from "../writer-trial/gate.mjs";
 
 const TEST = "tests/app.test.ts";
 const SRC = "src/app.ts";
@@ -293,6 +296,7 @@ void describe("hand-rolled rules: code that redoes what tinker gives", () => {
     const found = [
       ["S22", 1],
       ["S22", 2],
+      ["S27", 3],
       ["S22", 5],
     ];
     assert.deepEqual(hits(src, APP), found);
@@ -301,10 +305,10 @@ void describe("hand-rolled rules: code that redoes what tinker gives", () => {
 
   void it("S22 leaves settle, a handler that narrows, and a non-run promise alone", () => {
     const src = [
-      "const r = await load.settle({ input: id });",
+      "if (import.meta.main) { const r = await load.settle({ input: id }); }",
       "compile.run(files).then(ok, (e) => { if (isError(e, 'Bad')) show(e); else throw e; });",
       "reader.cancel().then(undefined, () => undefined);",
-      "try {\n  await check.run();\n} catch (error) {\n  throw error;\n}",
+      "if (import.meta.main) { try {\n  await check.run();\n} catch (error) {\n  throw error;\n} }",
     ].join("\n");
     assert.deepEqual(hits(src, APP), []);
   });
@@ -430,14 +434,16 @@ void describe("hand-rolled rules: code that redoes what tinker gives", () => {
     const src = "await fetch(url);\nawait globalThis.fetch(url, { method: 'POST' });\n";
     const found = [
       ["S24", 1],
+      ["S27", 1],
       ["S24", 2],
+      ["S27", 2],
     ];
     assert.deepEqual(hits(src, APP), found);
     assert.deepEqual(repo(src, "examples/sync/client.ts"), found);
   });
 
   void it("S24 leaves packages/http's own fetch and a transport's EventSource alone", () => {
-    assert.deepEqual(repo("await fetch(url);\n", PKG), []);
+    assert.deepEqual(repo("if (import.meta.main) await fetch(url);\n", PKG), []);
     assert.deepEqual(hits("const stream = new EventSource(url);\n", APP), []);
   });
 
@@ -461,6 +467,229 @@ void describe("hand-rolled rules: code that redoes what tinker gives", () => {
 
   void it("hand-rolled rules skip test files", () => {
     assert.deepEqual(hits("const a = Math.random();\nawait fetch(url);\n", TEST), []);
+  });
+});
+
+void describe("entry and root rules (ADR 0078)", () => {
+  const APP = "apps/tracker/src/main.ts";
+  const entryRows = (source, file = APP, writer = false) =>
+    inspectPlain(source, file, { writer })
+      .filter((r) => r.id === "S27" || r.id === "S28" || r.id === "parse")
+      .map((r) => [r.id, r.line]);
+
+  void it("S27 reports each unguarded statement once, including declarations and for await", () => {
+    const src = [
+      "await main(shell);",
+      "export const app = await start();",
+      "for await (const row of rows) { consume(row); }",
+      "{ await start(); await stop(); }",
+      "if (ready) { await main(shell); }",
+      "export default await start();",
+    ].join("\n");
+    assert.deepEqual(
+      entryRows(src),
+      [1, 2, 3, 4, 5, 6].map((line) => ["S27", line]),
+    );
+  });
+
+  void it("S27 accepts the main branch and awaits inside every function form", () => {
+    const src = [
+      "if (import.meta.main) await main(shell);",
+      "if ((import.meta.main)) { for await (const row of rows) { await consume(row); } }",
+      "async function run() { await start(); }",
+      "const run2 = async function () { await start(); };",
+      "const run3 = async () => await start();",
+      "const methods = { async run() { await start(); } };",
+      "class Server { async run() { await start(); } }",
+      "const text = 'await main(shell)'; // await start()",
+    ].join("\n");
+    assert.deepEqual(entryRows(src), []);
+  });
+
+  void it("S27 rejects awaits in the else branch, the condition, and lookalike guards", () => {
+    const src = [
+      "if (import.meta.main) {} else { await main(shell); }",
+      "if (await ready()) { await main(shell); }",
+      "if (!import.meta.main) await main(shell);",
+      "if (other.main) await main(shell);",
+      "if (import.meta.main || enabled) await main(shell);",
+      "if (import.meta.main) await main(shell); await start();",
+    ].join("\n");
+    assert.deepEqual(
+      entryRows(src),
+      [1, 2, 3, 4, 5, 6].map((line) => ["S27", line]),
+    );
+  });
+
+  void it("S27 uses the repo source paths; the writer gate also checks scripts", () => {
+    const source = "await main(shell);";
+    for (const file of [
+      APP,
+      "examples/cli.ts",
+      "packages/blueprint/src/main.ts",
+      "/repo/apps/a/main.ts",
+    ])
+      assert.deepEqual(entryRows(source, file), [["S27", 1]], file);
+    for (const file of [
+      "bench/probe.ts",
+      "tools/cli.ts",
+      "scripts/check.ts",
+      "packages/a/config.ts",
+      "src/main.ts",
+    ])
+      assert.deepEqual(
+        [entryRows(source, file), entryRows(source, file, true)],
+        [[], [["S27", 1]]],
+        file,
+      );
+  });
+
+  void it("S27 skips browser and test paths in both lanes", () => {
+    for (const file of [
+      "apps/a/src/Page.tsx",
+      "apps/a/src/client/main.ts",
+      "client/main.ts",
+      "tests/boot.ts",
+      "src/boot.test.ts",
+      "src/boot.spec.ts",
+      "src/boot.browser.ts",
+    ])
+      for (const writer of [false, true])
+        assert.deepEqual(entryRows("await main(shell);", file, writer), [], file);
+  });
+
+  void it("S28 reports a returned scope in declarations, expressions, arrows, and methods", () => {
+    const src = [
+      "function boot() { return createScope(); }",
+      "const boot2 = function () { const scope = createScope(); return scope; };",
+      "const boot3 = () => createScope();",
+      "const boot4 = () => { const scope = createScope(); return { scope }; };",
+      "const methods = { boot() { const scope = createScope(); return { root: scope }; } };",
+      "class Server { boot() { return createScope(); } }",
+      "const boot5 = () => ({ scope: createScope() });",
+      "async function boot6() { const scope = core.createScope(); await scope.ready; return (scope); }",
+      "function boot7() { const scope = createScope(); if (ready) return scope; return { root: scope }; }",
+      "function boot8() { const scope = createScope() satisfies Scope.Handle; return scope!; }",
+    ].join("\n");
+    assert.deepEqual(
+      entryRows(src),
+      Array.from({ length: 10 }, (_, i) => ["S28", i + 1]),
+    );
+  });
+
+  void it("S28 keeps bindings and returns within their own function and block", () => {
+    const src = [
+      "const scope = createScope();",
+      "const read = () => scope;",
+      "function borrowed(scope) { return { scope }; }",
+      "function parent() { function child() { const root = createScope(); } return root; }",
+      "function hide() { const scope = createScope(); { const scope = 0; return scope; } }",
+      "function caught() { const scope = createScope(); try { work(); } catch (scope) { return scope; } }",
+      "function loop() { const scope = createScope(); for (const scope of values) return scope; }",
+      "function hidden() { const scope = createScope(); { function scope() {} return scope; } }",
+      "function sibling() { { const scope = createScope(); } { const scope = 0; return { scope }; } }",
+    ].join("\n");
+    assert.deepEqual(entryRows(src), []);
+    assert.deepEqual(entryRows("function parent() { return () => createScope(); }"), [["S28", 1]]);
+    assert.deepEqual(
+      entryRows("function boot() { { var scope = createScope(); } return scope; }"),
+      [["S28", 1]],
+    );
+    assert.deepEqual(
+      entryRows(
+        "function boot() { const scope = createScope(); try { return { scope }; } finally {} }",
+      ),
+      [["S28", 1]],
+    );
+  });
+
+  void it("S28 leaves returned values and closures that use the root alone", () => {
+    const src = [
+      "function close() { const scope = createScope(); return scope.close(); }",
+      "function status() { const scope = createScope(); return { ready: scope.ready }; }",
+      "function reader() { const scope = createScope(); return () => scope; }",
+      "function sparse() { const scope = createScope(); const xs = [, 1]; return xs; }",
+    ].join("\n");
+    assert.deepEqual(entryRows(src), []);
+    const tinkerLib = readFileSync(
+      new URL("fixtures/entry-rules/tinker-lib.txt", import.meta.url),
+      "utf8",
+    );
+    assert.deepEqual(entryRows(tinkerLib, "apps/playground/src/bench/runners.ts"), []);
+  });
+
+  void it("S28 finds the tracker's old createApp from 9aece1e", () => {
+    const source = readFileSync(
+      new URL("fixtures/entry-rules/create-app.txt", import.meta.url),
+      "utf8",
+    );
+    assert.deepEqual(entryRows(source, "apps/issue-tracker/src/server/app.ts"), [["S28", 34]]);
+  });
+
+  void it("both rules accept runServer owning its root and the ADR 0078 main guard", () => {
+    const src = [
+      "export async function runServer(env: Env, stop: AbortSignal): Promise<number> {",
+      "  const scope = createScope({ extensions: [issueServer(env)] });",
+      "  try { await scope.ready; } catch (error) { await scope.close(); throw error; }",
+      "  await waitForStop(stop);",
+      "  await scope.close({ graceful: true });",
+      "  return 0;",
+      "}",
+      "if (import.meta.main) {",
+      "  const stop = new AbortController();",
+      '  process.on("SIGTERM", () => stop.abort());',
+      "  process.exitCode = await runServer(process.env, stop.signal);",
+      "}",
+    ].join("\n");
+    assert.deepEqual(entryRows(src), []);
+    assert.deepEqual(entryRows(src, APP, true), []);
+  });
+
+  void it("S28 skips a test's boot helper and limits repo hits to apps and examples", () => {
+    const source = "function boot() { const scope = createScope(); return { scope }; }";
+    for (const file of [
+      "tests/boot.ts",
+      "src/app.test.ts",
+      "src/app.spec.ts",
+      "src/app.browser.ts",
+    ])
+      for (const writer of [false, true])
+        assert.deepEqual(entryRows(source, file, writer), [], file);
+    for (const file of [APP, "examples/cli.ts", "apps/a/src/Page.tsx", "apps/a/src/client/main.ts"])
+      assert.deepEqual(entryRows(source, file), [["S28", 1]], file);
+    for (const file of [
+      "packages/process/src/main.ts",
+      "tools/cli.ts",
+      "scripts/check.ts",
+      "bench/probe.ts",
+      "src/main.ts",
+    ])
+      assert.deepEqual(
+        [entryRows(source, file), entryRows(source, file, true)],
+        [[], [["S28", 1]]],
+        file,
+      );
+  });
+
+  void it("the writer gate blocks both rules and prints their filled-in fixes", () => {
+    const file = "tools/cli.ts";
+    const plainFindings = inspectShape(
+      "await main(shell);\nfunction boot() { return createScope(); }",
+      file,
+      { writer: true },
+    );
+    const gate = gateOf({ file, plainFindings, rows: [] });
+    assert.equal(gate.status, "block");
+    assert.deepEqual(
+      gate.blocking.map((r) => r.rule),
+      ["S27", "S28"],
+    );
+    assert.match(gate.blocking[0].fix, /if \(import\.meta\.main\) await main\(shell\);/);
+    assert.match(
+      gate.blocking[0].fix,
+      /process\.exitCode = await runServer\(process\.env, stop\.signal\);/,
+    );
+    assert.match(gate.blocking[1].fix, /runServer\(env, stop\).*exit code or a Result/);
   });
 });
 

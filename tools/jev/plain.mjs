@@ -52,6 +52,8 @@ const MESSAGES = {
   S25: "component state: make it a data cell and read it with useData; write it from an operation",
   S26: "malformed TSDoc: the TSDoc parser rejects this doc",
   "S26.param": "a @param names no parameter of the declaration it documents",
+  S27: "unguarded entry: a top-level await starts the program when a test imports it (ADR 0078)",
+  S28: "returned root: a function hands back a scope it made; build, use, and close the root in one function, and let a test build its own root (ADR 0078)",
 };
 
 /** The fix line a hand-rolled rule's message ends with: the tinker form, filled in. */
@@ -65,6 +67,8 @@ const FIXES = {
   S25: '`const running = data({ label: "bench.running", initial: false })`',
   S26: "escape `@`, `{`, `}`, and `>` in prose with a backslash, or put code in backticks on one line: `` `@tinker/core` ``, `{@link createScope}`",
   "S26.param": "`@param input - …` with the parameter's own name, or delete the line",
+  S27: "`if (import.meta.main) await main(shell);`; for a server, `if (import.meta.main) process.exitCode = await runServer(process.env, stop.signal);`",
+  S28: "`runServer(env, stop)` builds, uses, and closes its root, then returns an exit code or a Result",
 };
 
 const MOCK_ROOTS = new Set(["vi", "jest"]);
@@ -445,6 +449,8 @@ function noWrapperHits(source, program) {
 
 const CORE_SRC = /(^|\/)packages\/core\/src\//;
 const USERLAND = /(^|\/)(apps|examples)\//;
+const PACKAGE_SRC = /(^|\/)packages\/[^/]+\/src\//;
+const BROWSER_ENTRY = /\.tsx$|(^|\/)client\//;
 const GLOBALS = new Set(["globalThis", "window", "self"]);
 const RANDOM = new Map([
   ["Math", new Set(["random"])],
@@ -712,6 +718,115 @@ const unitTest = (units) => (at) => units.some((fn) => fn.start <= at && at < fn
 const cryptoNames = (program) =>
   new Set(["node:crypto", "crypto"].flatMap((m) => importedNames(program, m, RANDOM_IMPORTS)));
 
+/** Only the positive main branch guards startup; its condition and else branch still run on import. */
+function isMainGuard(node) {
+  const at = unwrapParens(node);
+  return (
+    propOf(at) === "main" &&
+    at.object.type === "MetaProperty" &&
+    at.object.meta.name === "import" &&
+    at.object.property.name === "meta"
+  );
+}
+
+const isAwait = (node) =>
+  node.type === "AwaitExpression" || (node.type === "ForOfStatement" && node.await);
+
+function hasUnguardedAwait(node) {
+  if (!node) return false;
+  if (Array.isArray(node)) return node.some(hasUnguardedAwait);
+  if (FN_NODE.has(node.type)) return false;
+  if (isAwait(node)) return true;
+  if (node.type === "IfStatement" && isMainGuard(node.test))
+    return hasUnguardedAwait(node.alternate);
+  return childrenOf(node).some(hasUnguardedAwait);
+}
+
+/** S27 reports once per top-level statement, even when it contains several awaits. */
+const unguardedEntries = (program) =>
+  program.body.filter(hasUnguardedAwait).map((n) => ["S27", n.start]);
+
+/** Type wrappers and parens do not change which value a return hands back. */
+function returnedValue(node) {
+  let at = unwrapParens(node);
+  while (
+    ["TSAsExpression", "TSTypeAssertion", "TSSatisfiesExpression", "TSNonNullExpression"].includes(
+      at?.type,
+    )
+  )
+    at = unwrapParens(at.expression);
+  return at;
+}
+
+const makesRoot = (node) => {
+  const at = returnedValue(node);
+  return at?.type === "CallExpression" && calleeName(at.callee) === "createScope";
+};
+
+const ROOT_BLOCKS = new Set([
+  "BlockStatement",
+  "ForStatement",
+  "ForInStatement",
+  "ForOfStatement",
+  "SwitchStatement",
+  "CatchClause",
+]);
+
+function bindRootDeclaration(node, frame, root) {
+  const target = node.kind === "var" ? root : frame;
+  for (const decl of node.declarations)
+    for (const name of boundNames(decl.id))
+      target.names.set(name, decl.id.type === "Identifier" && makesRoot(decl.init));
+}
+
+function bindRootNames(node, frame, root) {
+  if (node.type === "VariableDeclaration") bindRootDeclaration(node, frame, root);
+  if (node.type === "CatchClause")
+    for (const name of boundNames(node.param)) frame.names.set(name, false);
+  if (node.type === "FunctionDeclaration" || node.type === "ClassDeclaration")
+    if (node.id) frame.names.set(node.id.name, false);
+}
+
+/** Keep each return with its block so a nearer binding can hide a scope with the same name. */
+function rootReturns(fn) {
+  const root = { names: new Map(), parent: null };
+  const returns = [];
+  const visit = (node, outer) => {
+    if (!node) return;
+    if (Array.isArray(node)) return node.forEach((n) => visit(n, outer));
+    const frame = ROOT_BLOCKS.has(node.type) ? { names: new Map(), parent: outer } : outer;
+    bindRootNames(node, frame, root);
+    if (FN_NODE.has(node.type)) return;
+    if (node.type === "ReturnStatement") returns.push({ value: node.argument, frame });
+    for (const child of childrenOf(node)) visit(child, frame);
+  };
+  visit(fn.body, root);
+  if (fn.body.type !== "BlockStatement") returns.push({ value: fn.body, frame: root });
+  return returns;
+}
+
+function isRootName(name, frame) {
+  for (let at = frame; at !== null; at = at.parent)
+    if (at.names.has(name)) return at.names.get(name);
+  return false;
+}
+
+/** Returning a closure that uses a scope does not return the scope itself. */
+function returnsRoot(value, frame) {
+  const at = returnedValue(value);
+  if (makesRoot(at)) return true;
+  if (at?.type === "Identifier") return isRootName(at.name, frame);
+  if (at?.type !== "ObjectExpression") return false;
+  return at.properties.some((p) => p.type === "Property" && returnsRoot(p.value, frame));
+}
+
+const returnedRootAt = (node) =>
+  FN_NODE.has(node.type) &&
+  node.body &&
+  rootReturns(node).some(({ value, frame }) => returnsRoot(value, frame))
+    ? [node.start]
+    : [];
+
 /** Which hand-rolled rules one file gets, by lane and path. */
 function handRolledScope(file, writer) {
   return {
@@ -721,6 +836,8 @@ function handRolledScope(file, writer) {
     S23: writer || USERLAND.test(file),
     S24: writer || USERLAND.test(file),
     S25: writer && file.endsWith(".tsx"),
+    S27: !BROWSER_ENTRY.test(file) && (writer || USERLAND.test(file) || PACKAGE_SRC.test(file)),
+    S28: writer || USERLAND.test(file),
   };
 }
 
@@ -740,6 +857,7 @@ const HAND_ROLLED = [
   ["S23", (n) => (n.type === "ObjectExpression" ? handSubscribes(n).map((p) => p.start) : [])],
   ["S24", (n) => (isRawFetch(n) ? [n.start] : [])],
   ["S25", (n) => (isComponentState(n) ? [n.start] : [])],
+  ["S28", returnedRootAt],
 ];
 
 /** The hand-rolled rows of one non-test file: [id, offset, key] triples. */
@@ -752,7 +870,7 @@ function handRolledHits(source, program, file, writer) {
     inUnit: unitTest(units),
     isHandle: handleTest(source, program, units),
   };
-  const hits = [];
+  const hits = on.S27 ? unguardedEntries(program) : [];
   walk(program, (n) => {
     for (const [id, check, key = id] of checks)
       for (const at of check(n, facts)) hits.push([id, at, key]);

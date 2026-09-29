@@ -15,20 +15,77 @@ calibration found noisy: read it, no line owed. An `ℹ` mark is a note from the
 
 ## The tools, in plain words
 
-| tool                               | you run it                      | it extracts                                                                          | it asks Jev                                                                                                             | a hit means                                         |
-| ---------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| `preflight.mjs <range>`            | before you report               | every changed source file, then every unit in them                                   | the file judges, then the unit judges                                                                                   | fix it or write one line why not; then label it     |
-| `review.mjs <range>`               | the lead, at review             | the changed files, the whole diff, the commit message                                | the file judges; where to look first (correctness / shape / …); does the commit message claim more than the diff shows? | where to read first                                 |
-| `lint.mjs <files>`                 | any time                        | each declared unit (`data`/`resource`/`operation`/`tag`) and each top-level function | the unit judges; and "which unit should this be?"                                                                       | that unit likely breaks a best-practices rule       |
-| `tests.mjs <pkg>`                  | when you touched tests          | each `test("…")`: title and body; title-similar pairs in a file                      | no Jev judge (titleVague retired 2026-09-23); plain notes only                                                          | a plain note to act on                              |
-| `survivors.mjs <pkg>`              | when lifting the mutation floor | each surviving mutant: before, after, and the enclosing unit                         | one survivor judge                                                                                                      | a seam test to write                                |
-| `promises.mjs <pkg>`               | when you touched tests          | each test title; the README lines sharing words with it                              | "which README line promises this? or none"                                                                              | a promise the README never states                   |
-| `impact.mjs <tag>`                 | the lead, at review             | the plan's `impact` block vs SCIP refs                                               | nothing — plain SCIP diff (ADR 0054)                                                                                    | a file the plan named or the code touched, not both |
-| `docs.mjs <files or globs>`        | when you touched docs           | each TSDoc block and the declaration it sits on                                      | nothing — S26, the parser only (`docRestatesCode` retired 2026-09-28)                                                   | a doc to fix                                        |
-| `label.mjs <judge> <bool> <where>` | after each decided flag         | the exact state the judge saw                                                        | nothing — it stores your verdict                                                                                        | one more calibration case                           |
-| `label.mjs --merge`                | when the bank conflicts         | the file: marker lines, one row per id                                               | nothing — rewrites the file in place                                                                                    | one union bank, first id wins                       |
-| `calibrate.mjs`                    | the lead, every ~10 new cases   | every labeled case                                                                   | every judge, on every case                                                                                              | `proven` / `provisional` / `noisy` per judge        |
-| `explain.mjs [--md]`               | when this file confuses you     | nothing                                                                              | nothing — prints the live question bank                                                                                 | the questions, verbatim                             |
+- **`preflight.mjs <range>`**
+  You run it: before you report
+  It extracts: every changed source file, then every unit in them
+  It asks Jev: the file judges, then the unit judges
+  A hit means: fix it or write one line why not; then label it
+
+- **`review.mjs <range>`**
+  You run it: the lead, at review
+  It extracts: the changed files, the whole diff, the commit message
+  It asks Jev: the file judges; where to look first (correctness / shape / …); does the commit message claim more than the diff shows?
+  A hit means: where to read first
+
+- **`lint.mjs <files>`**
+  You run it: any time
+  It extracts: each declared unit (`data`/`resource`/`operation`/`tag`) and each top-level function
+  It asks Jev: the unit judges; and "which unit should this be?"
+  A hit means: that unit likely breaks a best-practices rule
+
+- **`tests.mjs <pkg>`**
+  You run it: when you touched tests
+  It extracts: each `test("…")`: title and body; title-similar pairs in a file
+  It asks Jev: no Jev judge (titleVague retired 2026-09-23); plain notes only
+  A hit means: a plain note to act on
+
+- **`survivors.mjs <pkg>`**
+  You run it: when lifting the mutation floor
+  It extracts: each surviving mutant: before, after, and the enclosing unit
+  It asks Jev: one survivor judge
+  A hit means: a seam test to write
+
+- **`promises.mjs <pkg>`**
+  You run it: when you touched tests
+  It extracts: each test title; the README lines sharing words with it
+  It asks Jev: "which README line promises this? or none"
+  A hit means: a promise the README never states
+
+- **`impact.mjs <tag>`**
+  You run it: the lead, at review
+  It extracts: the plan's `impact` block vs SCIP refs
+  It asks Jev: nothing — plain SCIP diff (ADR 0054)
+  A hit means: a file the plan named or the code touched, not both
+
+- **`docs.mjs <files or globs>`**
+  You run it: when you touched docs
+  It extracts: each TSDoc block and the declaration it sits on
+  It asks Jev: nothing — S26, the parser only (`docRestatesCode` retired 2026-09-28)
+  A hit means: a doc to fix
+
+- **`label.mjs <judge> <bool> <where>`**
+  You run it: after each decided flag
+  It extracts: the exact state the judge saw
+  It asks Jev: nothing — it stores your verdict
+  A hit means: one more calibration case
+
+- **`label.mjs --merge`**
+  You run it: when the bank conflicts
+  It extracts: the file: marker lines, one row per id
+  It asks Jev: nothing — rewrites the file in place
+  A hit means: one union bank, first id wins
+
+- **`calibrate.mjs`**
+  You run it: the lead, every ~10 new cases
+  It extracts: every labeled case
+  It asks Jev: every judge, on every case
+  A hit means: `proven` / `provisional` / `noisy` per judge
+
+- **`explain.mjs [--md]`**
+  You run it: when this file confuses you
+  It extracts: nothing
+  It asks Jev: nothing — prints the live question bank
+  A hit means: the questions, verbatim
 
 Which unit fits my words? → `blueprint suggest "<words>"` (`packages/blueprint`).
 
@@ -83,6 +140,44 @@ Each message ends with its fix line.
   In writer mode it replaces `no-react-state` on the same line.
   Fix: `const running = data({ label: "bench.running", initial: false })`.
 
+### Entry and root (S27–S28)
+
+ADR 0078: importing an entry starts nothing.
+One function builds, uses, and closes the full root, then answers a value.
+Test files never count.
+The writer gate checks every other file, with S27's browser skips below.
+The repo lint lists hits without failing.
+Each message ends with its fix line.
+
+- **S27 unguardedEntry** — a top-level statement with an `await` outside a function body and outside the positive branch of `if (import.meta.main)`.
+  Expressions, declarations, and `for await` count.
+  One row per top-level statement, at its first line.
+  The guard's condition and its `else` branch are not guarded.
+  Repo lint: `apps/`, `examples/`, and `packages/*/src`.
+  Root `bench/`, `tools/`, and `scripts/` files are scripts, so the repo lane skips them.
+  Both lanes skip `.tsx` and files under a `client/` folder: a main guard would switch a browser page off.
+  Fix: `if (import.meta.main) await main(shell);`.
+  For a server: `if (import.meta.main) process.exitCode = await runServer(process.env, stop.signal);`.
+  Missed: startup with no top-level await, including an async function called without awaiting it.
+  Browser limit: plain `.ts` browser files outside `client/` still count; move their entry under `client/`.
+  The path skips also miss backend code placed in `.tsx` or `client/`.
+  Only the direct positive guard is recognized; equivalent boolean tests still get a row.
+- **S28 returnedRoot** — a function that returns `createScope()`, a name it bound from that call, or an object with such a value.
+  Declarations, expressions, arrows, and methods count; an arrow's expression body is a return.
+  One row per function, at its first line.
+  Bindings stay within their function and block; a nearer binding hides an outer name.
+  Returning closures that use the root does not return the root.
+  Repo lint: `apps/` and `examples/`; packages such as `@tinker/process` build command roots by design.
+  Fix: `runServer(env, stop)` builds, uses, and closes its root, then returns an exit code or a `Result`.
+  A test builds its own root.
+  Missed: a renamed `createScope` import, assignment after declaration, or a scope passed through another name, array, spread, call, or conditional return.
+  The check follows declarations, not later writes to those names.
+  Calls named `createScope`, including `core.createScope()`, count without checking their types.
+
+Fixtures in `fixtures/entry-rules/` keep the old tracker `createApp` from `9aece1e` and the playground's `tinkerLib` from `apps/playground/src/bench/runners.ts`.
+The first hits S28; the second returns closures and stays clear.
+Tests also keep the ADR 0078 `runServer` shape and a test's own `boot()` helper clear.
+
 ### TSDoc (S26)
 
 Coding-convention rule 10: TSDoc is the only comment form, well-formed, and it says what code cannot.
@@ -126,31 +221,115 @@ Generated from the code by `node tools/jev/explain.mjs --md` — regenerate afte
 
 ### file judges — review.mjs / preflight.mjs, one call per changed source file
 
-| judge                 | status      | the question Jev is asked                                                                                                                                                   | `true` means                                                                | `false` means                                                              |
-| --------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `partialStub`         | provisional | Does the code leave required work unfinished — a placeholder body, a thrown not-implemented, or a TODO on the main path?                                                    | a required path is stubbed, throws not-implemented, or is marked TODO/FIXME | every required path has a real implementation                              |
-| `memoKeyIgnoresInput` | provisional | Is a cached or memoized result stored under a key that omits an input the result depends on, so a later call with a different value returns the earlier cached result?      | the key leaves out an input that changes the correct result                 | the key includes every input the result depends on, or there is no caching |
-| `leakedInternal`      | provisional | Does this file expose, through a public or exported API, a symbol whose name or role marks it as internal (helper, impl detail, underscore-prefixed, "internal", "unsafe")? | a public export exposes an internal-looking symbol                          | only intentionally-public symbols cross the public surface                 |
+- **`partialStub`**
+  Status: provisional
+  The question Jev is asked: Does the code leave required work unfinished — a placeholder body, a thrown not-implemented, or a TODO on the main path?
+  `true` means: a required path is stubbed, throws not-implemented, or is marked TODO/FIXME
+  `false` means: every required path has a real implementation
+
+- **`memoKeyIgnoresInput`**
+  Status: provisional
+  The question Jev is asked: Is a cached or memoized result stored under a key that omits an input the result depends on, so a later call with a different value returns the earlier cached result?
+  `true` means: the key leaves out an input that changes the correct result
+  `false` means: the key includes every input the result depends on, or there is no caching
+
+- **`leakedInternal`**
+  Status: provisional
+  The question Jev is asked: Does this file expose, through a public or exported API, a symbol whose name or role marks it as internal (helper, impl detail, underscore-prefixed, "internal", "unsafe")?
+  `true` means: a public export exposes an internal-looking symbol
+  `false` means: only intentionally-public symbols cross the public surface
 
 ### unit judges — lint.mjs / preflight.mjs, one call per declared unit or top-level function
 
-| judge                    | status      | the question Jev is asked                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | `true` means                                                                                                                                 | `false` means                                                                                                                                                                                                                                                                                       |
-| ------------------------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `wrapsCallersStep`       | noisy       | First distinguish a caller-provided callback from an already-declared operation. If a request handler in an extension or driver uses an inline session.run({ depends: { op }, run: ({ op }) => op.run(...) }) to invoke an already-declared op, answer FALSE: it is only routing that op, even with logging, error mapping or a new request label. Otherwise, does this function build a NEW declared operation({ depends, run }) around an existing operation (including a frame's turn and text, a module's op, or a lazy-loaded op), so the caller cannot give the wrapper its own label and depends? Answer TRUE for that command-builder shape, even when the run body also parses arguments, formats output, or handles errors; returning a route whose entry names this newly built op is still a wrapper. Also TRUE for an inline run whose body executes a caller-provided callback. A frame factory making its own units from plain config is false. | a new declared operation wraps an existing operation or callback as the step, or an inline run wraps the caller's callback as its step       | a driver or extension uses an inline run only to route an already-declared operation per request, it makes its own units from plain config, or it creates no operation                                                                                                                              |
-| `runForwardsToClosure`   | provisional | Is this operation's run body a pass-through — a single call that hands the work to a function, method, or closure that is NOT listed in the operation's depends?                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | the whole run is one call to an outside function, method, or closure missing from depends, usually receiving ctx or ctx.input                | run has its own multi-step body, or its only outside call is to a dep listed in depends; helpers take plain values or a dep delivered by depends                                                                                                                                                    |
-| `effectWithoutDefer`     | provisional | Does this start something that keeps running after it returns — a timer, interval, watch, listener, subscription, poll, socket, stream, or connection — and stop it by hand (a returned close method, a finally block, a manual flag) instead of a ctx.defer hook? A function whose body only opens a session, wires one abort listener for it, and closes it in its own finally is the session owner itself, not a missed defer.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | a timer, watch, listener, subscription, or stream is started and its stop is manual or missing                                               | every started thing is stopped from a ctx.defer hook, nothing keeps running, or the function's own body is the open-and-close of one session                                                                                                                                                        |
-| `stateOutsideCell`       | provisional | Is state that other code reads over time — a selection, a filter, a draft, a status, a list — kept in a closure variable, module variable, object field, or ref with hand-made listeners, instead of a data cell?                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | shared, watched state lives in a variable, field, or ref with its own listener set                                                           | shared state lives in data cells, or the variables are private bookkeeping behind this unit's methods                                                                                                                                                                                               |
-| `configNotTag`           | provisional | Does this unit read a setting that changes per environment — a URL, host, port, file path, credential, or feature switch — from process.env, a hard-coded value, or a parameter, instead of a tag in its depends?                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | an environment setting (URL, host, port, path, key, flag) is read from process.env or written as a literal or argument                       | no environment setting is used; labels, error kinds, UI text, ids, limits, and other app rules are not environment settings                                                                                                                                                                         |
-| `handRolledLifetime`     | provisional | Does this keep a hand-rolled pending queue — a variable holding a promise that each new caller appends to with .then, so calls run one at a time in arrival order — where the scope should own the ordering instead (a resource factory with defer, ctx.signal, scope.ready, or a declared save queue)? The signature alone can name it: a helper that takes a scope handle and returns queued save and detail callers keeps a pending queue. A plain value registry (a Map whose entries are added and removed by key), a reconnecting transport's per-attempt promises and per-wire listener sets, and library or driver internals (the scope, the test clock, a stream or session adapter) are not a pending queue.                                                                                                                                                                                                                                         | the source keeps a pending queue: a promise tail with chained .then, or a helper returning queued save and detail callers off a scope handle | no pending queue appears: ordering goes through the scope, or the source only keeps a keyed registry, a transport retry, or driver internals                                                                                                                                                        |
-| `stopOnlyInDefer`        | provisional | Is running work stopped only from inside a ctx.defer hook, with ctx.signal ignored, so a forced close waits on work that only defer would stop?                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | the only stop for in-flight work is set from defer; the signal is never consulted                                                            | in-flight work watches ctx.signal or calls throwIfAborted so close can end it, or there is no in-flight work                                                                                                                                                                                        |
-| `ignoresAbortAfterAwait` | provisional | Look at each await in this factory. Is any await followed by a call that starts new work — a query, a subscribe, a send, a build — with no signal.throwIfAborted() or signal.aborted check between the await and that call?                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | at least one await is followed by new work and no signal check sits between them                                                             | every await that is followed by new work has a signal check first, or no work follows any await                                                                                                                                                                                                     |
-| `readsMoreThanRendered`  | provisional | Does this component read a whole list or collection from a cell with useData, and then use only one item of it — found by id, key, or index — with no selector argument?                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | useData(cell) returns a whole list and the component picks one item out of it by id, key, or index                                           | useData gets a selector for the item, the component renders the list it reads, or the cell holds a single record or form draft whose fields are rendered                                                                                                                                            |
-| `subscribesToWriteOnly`  | provisional | Does this component subscribe to a cell it only writes — useData, or useData with writable — where the read value never appears in the output?                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | a cell is read with useData but only its setter is used; the value is never rendered                                                         | every value read is rendered, or write-only access goes through useController                                                                                                                                                                                                                       |
-| `runDuringRender`        | provisional | Does this component call run, runAsync, set, or update directly in its render body — outside any event handler, callback, or effect?                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | a run or a cell write sits in the function body and executes on every render                                                                 | every run or write is inside an onClick, onChange, onSubmit, or other callback                                                                                                                                                                                                                      |
-| `domainLogicInRender`    | proven      | Does this component decide an app rule itself — parse or validate user input and pick an error, detect a conflict, merge, or check against saved data — instead of passing the raw input to an operation and rendering the notice the operation writes?                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | the component parses or validates input and chooses an error or blocks the action, or compares saved and draft data to decide what happens   | the component passes raw input to operations with useRun and only formats values for display (labels, sorting for display, disabled while pending, empty-text checks)                                                                                                                               |
-| `effectOwnedByComponent` | provisional | Does this component itself start a fetch, timer, listener, socket, or stream — in its body or in a handler — instead of running an operation with useRun or reading a resource?                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | fetch, setInterval, setTimeout, addEventListener, EventSource, or a websocket is created in the component                                    | the component only runs operations with useRun and reads cells or resources                                                                                                                                                                                                                         |
-| `inputDefaultMasks`      | proven      | Look only at values that come from the user or the caller — form text, ctx.input, a raw input field. When such a value is missing, blank, the wrong type, or cannot be parsed, is there ANY path where this code keeps going with a made-up value instead of raising an error? Count an if-branch that returns or assigns a default for blank input, a ternary that picks a default, `??` or `                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |                                                                                                                                              | `on the input, String(x), or Number(x) without a check. When`uses` is given, it lists the lines in this file that call this helper: judge what happens to the returned value there. A default for a field the caller left out entirely, where a present but bad value still raises, is not masking. | some path turns a missing, blank, wrong-typed, or unparseable user or caller value into a default ("", 0, 1, today, the first option, "undefined") and continues without an error | every path that meets a bad user or caller value raises an error, or the only defaults are for internal values (sort ranks, lookups in the app's own maps, display fallbacks, error names), or for optional settings, or `uses` shows the made-up value only goes into a thrown error's payload and no work continues with it, or the default applies only when the field is absent from the input (the key is missing) while a present bad value still raises |
-| `noOpRejected`           | proven      | Can this code reject a request that would change nothing — the record is already in the requested state (the link already exists, the item is already done, the value is already set) — because a guard such as a status, lock, or limit check runs BEFORE the check for 'already so'? Code that only creates a new record, or only removes one, has no 'already so' state, so its guards cannot reject a no-op.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | a guard that throws or fails comes before the already-so check, so repeating an already-applied request fails                                | the already-so check runs first and returns without change, or no repeat-of-current-state path exists, or the code only creates a new record or only removes one                                                                                                                                    |
+- **`wrapsCallersStep`**
+  Status: noisy
+  The question Jev is asked: First distinguish a caller-provided callback from an already-declared operation. If a request handler in an extension or driver uses an inline session.run({ depends: { op }, run: ({ op }) => op.run(...) }) to invoke an already-declared op, answer FALSE: it is only routing that op, even with logging, error mapping or a new request label. Otherwise, does this function build a NEW declared operation({ depends, run }) around an existing operation (including a frame's turn and text, a module's op, or a lazy-loaded op), so the caller cannot give the wrapper its own label and depends? Answer TRUE for that command-builder shape, even when the run body also parses arguments, formats output, or handles errors; returning a route whose entry names this newly built op is still a wrapper. Also TRUE for an inline run whose body executes a caller-provided callback. A frame factory making its own units from plain config is false.
+  `true` means: a new declared operation wraps an existing operation or callback as the step, or an inline run wraps the caller's callback as its step
+  `false` means: a driver or extension uses an inline run only to route an already-declared operation per request, it makes its own units from plain config, or it creates no operation
+
+- **`runForwardsToClosure`**
+  Status: provisional
+  The question Jev is asked: Is this operation's run body a pass-through — a single call that hands the work to a function, method, or closure that is NOT listed in the operation's depends?
+  `true` means: the whole run is one call to an outside function, method, or closure missing from depends, usually receiving ctx or ctx.input
+  `false` means: run has its own multi-step body, or its only outside call is to a dep listed in depends; helpers take plain values or a dep delivered by depends
+
+- **`effectWithoutDefer`**
+  Status: provisional
+  The question Jev is asked: Does this start something that keeps running after it returns — a timer, interval, watch, listener, subscription, poll, socket, stream, or connection — and stop it by hand (a returned close method, a finally block, a manual flag) instead of a ctx.defer hook? A function whose body only opens a session, wires one abort listener for it, and closes it in its own finally is the session owner itself, not a missed defer.
+  `true` means: a timer, watch, listener, subscription, or stream is started and its stop is manual or missing
+  `false` means: every started thing is stopped from a ctx.defer hook, nothing keeps running, or the function's own body is the open-and-close of one session
+
+- **`stateOutsideCell`**
+  Status: provisional
+  The question Jev is asked: Is state that other code reads over time — a selection, a filter, a draft, a status, a list — kept in a closure variable, module variable, object field, or ref with hand-made listeners, instead of a data cell?
+  `true` means: shared, watched state lives in a variable, field, or ref with its own listener set
+  `false` means: shared state lives in data cells, or the variables are private bookkeeping behind this unit's methods
+
+- **`configNotTag`**
+  Status: provisional
+  The question Jev is asked: Does this unit read a setting that changes per environment — a URL, host, port, file path, credential, or feature switch — from process.env, a hard-coded value, or a parameter, instead of a tag in its depends?
+  `true` means: an environment setting (URL, host, port, path, key, flag) is read from process.env or written as a literal or argument
+  `false` means: no environment setting is used; labels, error kinds, UI text, ids, limits, and other app rules are not environment settings
+
+- **`handRolledLifetime`**
+  Status: provisional
+  The question Jev is asked: Does this keep a hand-rolled pending queue — a variable holding a promise that each new caller appends to with .then, so calls run one at a time in arrival order — where the scope should own the ordering instead (a resource factory with defer, ctx.signal, scope.ready, or a declared save queue)? The signature alone can name it: a helper that takes a scope handle and returns queued save and detail callers keeps a pending queue. A plain value registry (a Map whose entries are added and removed by key), a reconnecting transport's per-attempt promises and per-wire listener sets, and library or driver internals (the scope, the test clock, a stream or session adapter) are not a pending queue.
+  `true` means: the source keeps a pending queue: a promise tail with chained .then, or a helper returning queued save and detail callers off a scope handle
+  `false` means: no pending queue appears: ordering goes through the scope, or the source only keeps a keyed registry, a transport retry, or driver internals
+
+- **`stopOnlyInDefer`**
+  Status: provisional
+  The question Jev is asked: Is running work stopped only from inside a ctx.defer hook, with ctx.signal ignored, so a forced close waits on work that only defer would stop?
+  `true` means: the only stop for in-flight work is set from defer; the signal is never consulted
+  `false` means: in-flight work watches ctx.signal or calls throwIfAborted so close can end it, or there is no in-flight work
+
+- **`ignoresAbortAfterAwait`**
+  Status: provisional
+  The question Jev is asked: Look at each await in this factory. Is any await followed by a call that starts new work — a query, a subscribe, a send, a build — with no signal.throwIfAborted() or signal.aborted check between the await and that call?
+  `true` means: at least one await is followed by new work and no signal check sits between them
+  `false` means: every await that is followed by new work has a signal check first, or no work follows any await
+
+- **`readsMoreThanRendered`**
+  Status: provisional
+  The question Jev is asked: Does this component read a whole list or collection from a cell with useData, and then use only one item of it — found by id, key, or index — with no selector argument?
+  `true` means: useData(cell) returns a whole list and the component picks one item out of it by id, key, or index
+  `false` means: useData gets a selector for the item, the component renders the list it reads, or the cell holds a single record or form draft whose fields are rendered
+
+- **`subscribesToWriteOnly`**
+  Status: provisional
+  The question Jev is asked: Does this component subscribe to a cell it only writes — useData, or useData with writable — where the read value never appears in the output?
+  `true` means: a cell is read with useData but only its setter is used; the value is never rendered
+  `false` means: every value read is rendered, or write-only access goes through useController
+
+- **`runDuringRender`**
+  Status: provisional
+  The question Jev is asked: Does this component call run, runAsync, set, or update directly in its render body — outside any event handler, callback, or effect?
+  `true` means: a run or a cell write sits in the function body and executes on every render
+  `false` means: every run or write is inside an onClick, onChange, onSubmit, or other callback
+
+- **`domainLogicInRender`**
+  Status: proven
+  The question Jev is asked: Does this component decide an app rule itself — parse or validate user input and pick an error, detect a conflict, merge, or check against saved data — instead of passing the raw input to an operation and rendering the notice the operation writes?
+  `true` means: the component parses or validates input and chooses an error or blocks the action, or compares saved and draft data to decide what happens
+  `false` means: the component passes raw input to operations with useRun and only formats values for display (labels, sorting for display, disabled while pending, empty-text checks)
+
+- **`effectOwnedByComponent`**
+  Status: provisional
+  The question Jev is asked: Does this component itself start a fetch, timer, listener, socket, or stream — in its body or in a handler — instead of running an operation with useRun or reading a resource?
+  `true` means: fetch, setInterval, setTimeout, addEventListener, EventSource, or a websocket is created in the component
+  `false` means: the component only runs operations with useRun and reads cells or resources
+
+- **`inputDefaultMasks`**
+  Status: proven
+  The question Jev is asked: Look only at values that come from the user or the caller — form text, ctx.input, a raw input field. When such a value is missing, blank, the wrong type, or cannot be parsed, is there ANY path where this code keeps going with a made-up value instead of raising an error? Count an if-branch that returns or assigns a default for blank input, a ternary that picks a default, `??` or `||` on the input, String(x), or Number(x) without a check. When `uses` is given, it lists the lines in this file that call this helper: judge what happens to the returned value there. A default for a field the caller left out entirely, where a present but bad value still raises, is not masking.
+  `true` means: some path turns a missing, blank, wrong-typed, or unparseable user or caller value into a default ("", 0, 1, today, the first option, "undefined") and continues without an error
+  `false` means: every path that meets a bad user or caller value raises an error, or the only defaults are for internal values (sort ranks, lookups in the app's own maps, display fallbacks, error names), or for optional settings, or `uses` shows the made-up value only goes into a thrown error's payload and no work continues with it, or the default applies only when the field is absent from the input (the key is missing) while a present bad value still raises
+
+- **`noOpRejected`**
+  Status: proven
+  The question Jev is asked: Can this code reject a request that would change nothing — the record is already in the requested state (the link already exists, the item is already done, the value is already set) — because a guard such as a status, lock, or limit check runs BEFORE the check for 'already so'? Code that only creates a new record, or only removes one, has no 'already so' state, so its guards cannot reject a no-op.
+  `true` means: a guard that throws or fails comes before the already-so check, so repeating an already-applied request fails
+  `false` means: the already-so check runs first and returns without change, or no repeat-of-current-state path exists, or the code only creates a new record or only removes one
 
 ### test judges — tests.mjs, one call per test
 
@@ -158,9 +337,11 @@ No live judge. Retired judges keep their cases in cases.jsonl.
 
 ### survivor judge — survivors.mjs, one call per surviving mutant
 
-| judge             | status | the question Jev is asked                                                                                                                                                                                                          | `true` means                                                                                                                                                       | `false` means                                                                                                                                                           |
-| ----------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `survivorMatters` | proven | This mutant survived every test: inside the unit shown, the code `before` became `after` and no test failed. Would a user of this package observe a wrong result, a missed error, a wrong count, or a leak if this change shipped? | the change alters a value, a branch, an error code, an ordering, or a cleanup a caller can observe — a boundary, a returned field, a thrown code, a defer, a limit | the change touches only a message or label string, a log line, an expression with the same result, unreachable or dead code, or a speed-only path with the same outcome |
+- **`survivorMatters`**
+  Status: proven
+  The question Jev is asked: This mutant survived every test: inside the unit shown, the code `before` became `after` and no test failed. Would a user of this package observe a wrong result, a missed error, a wrong count, or a leak if this change shipped?
+  `true` means: the change alters a value, a branch, an error code, an ordering, or a cleanup a caller can observe — a boundary, a returned field, a thrown code, a defer, a limit
+  `false` means: the change touches only a message or label string, a log line, an expression with the same result, unreachable or dead code, or a speed-only path with the same outcome
 
 ### doc judge — docs.mjs, one call per TSDoc block
 

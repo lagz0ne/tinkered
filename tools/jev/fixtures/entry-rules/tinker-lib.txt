@@ -1,0 +1,24 @@
+function tinkerLib(): Lib {
+  const cells = keyed((i) => data({ label: `c${i}`, initial: 0 }));
+  const shared = data({ label: "shared", initial: 0 });
+  const scope = createScope();
+  const controllers = cells.map((c) => scope.controller(c));
+  const sharedController = scope.controller(shared);
+  let renders = 0;
+  const Cell = ({ i }: { i: number }) => {
+    sink = useData(cells[i]);
+    sink = useData(shared);
+    renders++;
+    return null;
+  };
+  const children = keyed((i) => h(Cell, { key: i, i }));
+  return {
+    name: "@tinker/react",
+    fine: true,
+    App: () => h("div", null, h(ScopeProvider, { scope, children })),
+    update: (i, v) => controllers[i].set(v),
+    updateShared: (v) => sharedController.set(v),
+    renders: () => renders,
+    reset: () => (renders = 0),
+  };
+}

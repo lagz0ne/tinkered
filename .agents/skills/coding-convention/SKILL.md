@@ -68,6 +68,7 @@ head.
    `createX`, `readX`, `isX`, `assertX`. `XImpl` is the class behind interface
    `X`. No layer words (`Runtime`, `Manager`, `Handler`, `Wrapper`, `Base`),
    no `AnyX` alias, no type suffix on a handle.
+   An entry file starts only under `if (import.meta.main)`; a function never returns a scope it made (ADR 0078, S27, S28).
 
 9. **Infer, do not restate.** A public function with two or more input
    shapes gets one typed overload per shape; the implementation signature is
