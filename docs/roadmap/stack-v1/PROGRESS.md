@@ -781,3 +781,42 @@ await scope.close();
   The old failure does not give enough proof to name its cause.
 - Fresh `vp test tests/config.test.ts` from the tracker:
   five tests passed, exit 0, with no code change.
+- The rebase onto `ba39695` brought in stack/t05.
+  Its port checks now live in `packages/stack/tests/settings.test.ts`.
+  This NATS branch did not move them.
+
+### t07 lift choices and checks before the full lane
+
+- Keep 17 tests at the public package entries.
+- Check real server shutdown inside a test, not only in hooks.
+  A peer closes; both ports can be bound again; the store is gone.
+- Invalid server config proves failed-start cleanup.
+  Read the exact store path and require the file system's `ENOENT`.
+- Check the cache's saved files, unchanged file times,
+  and repair after deleting the extracted binary.
+- Keep checksum refusal and reject the wrong managed error
+  in the existing checksum and missing-key tests.
+- Check denied subscriptions with owned and borrowed connections.
+  The scope closes only a connection it owns.
+- Check boot failure before and after connect.
+  Keep the first cause and add no cleanup error.
+- Remove duplicate checksum and close paths,
+  the extra tar member selector, unused process options,
+  and the extra ready-log check after both listeners open.
+- The client drain closes on success.
+  Explicit close is kept for a failed drain.
+- Share delivery cleanup for resolved and rejected promises.
+- Assumption: the test-only helper may accept raw server config.
+  Tests use it for subject permissions and rejected startup.
+- Assumption: the helper may expose its owned store path.
+  Tests use that path to prove removal.
+- Windows and other CPU mappings remain part of the host promise.
+  This Linux x64 run does not patch the host to cover them.
+- Ranked all old survivors with `survivors.mjs nats`.
+  Labeled all 28 flags with a reason in `cases.jsonl`.
+- Final Jev test and promise checks: 0 of 17 flagged.
+  Preflight: 0 file flags; the helper ownership flags are false.
+  Its caller owns the returned server and calls close.
+- Strict style census: OK.
+- Fresh `origin/main` at `ba39695`: build and check exit 0.
+  Check reports 29 warnings and no errors.
