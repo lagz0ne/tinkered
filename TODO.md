@@ -39,6 +39,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **stack/t14 dev-host** — `vp run dev`: one process; an edit rebuilds the scope (ADR 0082). After t06 and t07. Verify: the old scope closes on an edit; `benchctl ab` says reload beats restart. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t15 server-pages** — the tracker's list page renders on the server with TanStack Router (ADR 0075). After t14. Verify: the browser test sees the list in the first HTML, then live updates. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t16 generator** — `vp create` writes a full app with every stack piece wired (ADR 0074). After t01, t02, t11, t12, t13, t15. Verify: a fresh app passes `vp check` and its tests, and boots in dev and prod. [track](docs/roadmap/stack-v1/PROGRESS.md).
+- **core/start-log** — `ctx.log` inside an extension's `start` reaches the scope's sink. Today the start ctx gets `OFF_LOG`, so a boot line is dropped even with an observe sink; three askers: stack/t02, stack/t05, stack/t07 (the stack writes to the sink directly as a workaround). Next: brief a writer after stack/t04 lands (one core card at a time). Verify: a probe logging before and after `next()` in a start prints both lines; core tests; `scripts/ticket.sh`; `pnpm validate`.
 
 ## Doing
 
@@ -52,14 +53,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 - **stack/t07 nats** — `@tinker/nats`: connect, publish, subscribe to an operation; tests on a real pinned `nats-server` (ADR 0080; `traceparent` moved to t13). Owner: lead (stack session); Astra writer `856cec06`, worktree `/home/paseo/next/tinkered-stack-t07`; Opus reviewer when the writer reports. Verify: nats tests on a real server; a missing `NATS_URL` fails boot. [track](docs/roadmap/stack-v1/PROGRESS.md).
 
 ## Review
-
-- **stack/t05 stack-server** — Owner: lead (stack session).
-  Writer: Astra `4603c14c`, branch `stack/t05`.
-  Next: Opus review, then land; the writer did not push.
-  Verify: gate `EXIT 0`; 38 stack and 69 tracker tests;
-  browser proof and 7 browser tests; 46 validate lanes;
-  stack mutation 87.68 (floor 85).
-  [Proof](docs/roadmap/stack-v1/PROGRESS.md#t05-proof).
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
@@ -106,6 +99,7 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Done
 
+- **stack/t05 stack-server** — `@tinker/stack` exists: the server stack piece checks `PORT`/`HOST` in its start (one `BadListenSettings` names every bad key), opens the port after every other start, serves the built client; `runUntilStop` answers the exit code; `jsonLines` writes the logs. The tracker's entry uses it; its root is still one function (ADR 0078). Proof: gate EXIT 0 (stack 38 tests, tracker 69), browser proof (7 tests), stack mutation 87.68%, validate 46/46. Reviewer READY (c2cdb8c8). [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **entries/follow-suit** — Astra writer + Opus review (one fix round); tag `entries/follow-suit`; ADR 0078. Every backend entry and example root now follows ADR 0078; the S27/S28 lint prints no row over apps, examples, and package source (6 rows on main before). Guarded: `packages/blueprint/src/main.ts`, `examples/mcp/cli.ts`, `examples/process-cli/main.ts`; `examples/mcp/serve.ts` became one root function (stops on SIGINT, SIGTERM, or stdin end; review fix: a closed stdin crashed it with exit 13). `boot()` left `examples/sync/hono.ts`; the sync test builds its own root `[web, src]`. The hono, mcp, and sync tours close a rejected `ready`. The `packages/mcp/README.md` entry snippet is guarded. Browser roots stay out of scope. validate 44 PASS, blueprint mutation 86.27, sync mutation 86.49.
 - **perf/tagged-100** — a tagged call copies its bindings into a one-item list first, not an empty list that grows; reads match `readMany` exactly (list iterator once, no caller methods, no re-read). Fable writer (`5234b4b` + fix `5ecc245`); Astra cross-review READY (8 differences fixed; 820 + 627 checks MATCH); tag `perf/tagged-100`. benchd N=61 vs `2148e48`: `tagged` 188.3 → 171.3 ns (−9.0%, 5/61), `taggeddefer` 346.8 → 329.3 (−5.0%); no row B slower in all 23, `warm` no difference we can see. Core mutation 85.59; 715 tests; promises tagged 2; validate 44 PASS. New rule: `tagged` ≤ 200 ns. With every rule kept the floor is about 145–150 ns; 100 needs ADR 0038 dropped for tagged calls and a tag API that allocates nothing; the user chose to stop (2026-09-29) ([budgets](docs/roadmap/core-v1/budgets.md)).
 - **perf/lazy-log-obs** — a body's `log` and `obs` tools are built on first read (getters on the ctx prototype; no API change; ADR 0073); retained ctx fields written once. Astra writer, Fable review (9-case behavior probe, gate), lead READY; tag `perf/lazy-log-obs`. benchd N=61 vs `a4baeb0`: `opsink` 251.9 → 72.0 ns (−71.4%, 0/61), `opobs` 248.9 → 208.4 (−16.3%), `op` −18.9%, `run` −15.7%, `tagged` 198.3 → 188.8 (−4.8%); `oplog` no difference we can see; no row B slower in all 23. Core mutation 85.44; 715 tests; promises tagged 2; validate 44 PASS ([budgets](docs/roadmap/core-v1/budgets.md)).

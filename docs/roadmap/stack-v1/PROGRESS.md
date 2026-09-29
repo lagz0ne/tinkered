@@ -59,7 +59,7 @@ Rules for every ticket:
   core Observe/Span# src/index.ts tests/*.test.ts
   ```
 
-- **t05 stack: server start and shutdown** -- [ ] blocked by: none
+- **t05 stack: server start and shutdown** -- [x] landed `fdfa93f`
   `@tinker/stack` exists. Its server stack piece
   opens the port, stops on a signal, answers an
   exit code, writes JSON logs, and serves the built
