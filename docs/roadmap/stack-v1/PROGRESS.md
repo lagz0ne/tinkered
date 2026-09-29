@@ -437,7 +437,7 @@ flock /tmp/mutation.lock \
 
 - Owner: stack/t03 writer.
 - State: Doing.
-- Next: finish validation and the one drizzle mutation run.
+- Next: finish the one drizzle mutation run.
 - Verify: build, check, drizzle and tracker tests, browser proof,
   all validation lanes, and drizzle mutation score at least 85.
 - Assumption: this ticket's catalog pin requires a committed change to
@@ -471,7 +471,7 @@ flock /tmp/mutation.lock \
 - Gate: `vp run -r build`, `vp check`, `vp run drizzle#test`, then
   `vp run @tinker-issue-tracker#test`: `EXIT 0`.
 - Check: 0 errors, 29 warnings, the same warning count as the starting tree.
-- Fresh `vp run --no-cache -r test`: all packages pass.
+- Fresh `vp run --no-cache -r test`: 1,465 pass, one existing skip.
   This includes 12 drizzle tests and 72 tracker tests.
 - Fresh `vp run --no-cache @tinker-issue-tracker#test:browser`: `EXIT 0`.
   The two-tab proof and all 7 browser helper tests pass.
@@ -488,3 +488,7 @@ flock /tmp/mutation.lock \
   that resource cannot move to module scope as written.
   No new labels are needed for t03.
 - Core feedback: none; no Core workaround was needed.
+
+- `pnpm validate`: all 44 lanes pass, `EXIT 0`.
+  Ran under `/tmp/mutation.lock` after a rebuild.
+  The committed `allowBuilds.esbuild` was already true.
