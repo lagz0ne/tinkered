@@ -8,6 +8,7 @@ export type { Origin, RunResult };
 const cell: unique symbol = Symbol("data");
 const operationSym: unique symbol = Symbol("operation");
 const borrowSym: unique symbol = Symbol("borrow");
+const blindSym: unique symbol = Symbol("blind");
 const tagSym: unique symbol = Symbol("tag");
 const edge: unique symbol = Symbol("edge");
 const resourceSym: unique symbol = Symbol("resource");
@@ -856,10 +857,17 @@ export function operation<
   return Object.assign(base, {
     controller: edgeTo("controller", base),
     [borrowSym]: seesResource(base.depends),
+    [blindSym]: !config.input && config.run.length < 2 && !seesOperation(base.depends),
   });
 }
 
 type BorrowFlag = { readonly [borrowSym]?: boolean };
+
+/** Declaration-time flag: the body declares no `ctx` parameter, takes no input to parse, and
+ * names no operation (so no subflow needs it as its caller) — its run builds no ctx at all, as a
+ * resource factory with fewer than two parameters gets the shared empty ctx. An inline config
+ * carries no flag and always gets one. */
+type BlindFlag = { readonly [blindSym]?: boolean };
 
 /** Read the declaration-time flag: does this operation's `depends` name a resource? Ops without one
  * skip every per-dep resource check on the call path (ADR 0044 keeps `op`/`run` untouched). */
@@ -1099,7 +1107,7 @@ type Layer = {
   nsLinked?: Set<NsResourceState>;
   /** Lazily allocated: empty unless the scope was seeded with presets/tags. */
   presets: Map<unknown, unknown> | undefined;
-  tags: Map<Tag.Handle<unknown>, unknown[]> | undefined;
+  tags: LayerTags | undefined;
   pending: Set<Promise<unknown>>;
   defers: DeferEntry[];
   /** Live dependency holds owned by resource instances on this layer. */
@@ -1203,25 +1211,26 @@ function selectBucket<B>(
  * the cell's initial value, so reads never check for absence. A namespaced read branches off
  * here (ns present only) and takes the shared selector uncached — the default path and its
  * cache are untouched. */
+/** The nearest cell up the chain. The lookup is memoized where it pays: on a record this layer
+ * already has, or on this layer when the cell sits two or more layers up (a deep chain stays
+ * O(1) after its first read). A layer with no record whose nearest cell is at its parent reads
+ * through: one map miss instead of a 17-field record it would drop at close (a tagged call's
+ * child, a short session). A cell nobody wrote resolves to one entry holding the initial value,
+ * memoized on the top layer, so every layer under it reads the same entry. An ancestor's memo is
+ * as good as its cell: a new shadow clears the memo on its layer and below (invalidateEff). */
 function effectiveEntry(
   layer: Layer,
   target: Data.Cell<unknown>,
   chain: readonly Namespace[] | undefined = layer.ns,
 ): Entry {
   if (chain !== undefined) return effectiveEntryNs(layer, target, chain);
-  const self = nodeState(layer, target);
-  const cached = self.eff;
-  if (cached !== undefined) return cached;
-  for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
-    const owned = cur.nodes.get(target)?.cell;
-    if (owned) {
-      self.eff = owned;
-      return owned;
-    }
+  const self = layer.nodes.get(target);
+  if (self !== undefined) {
+    const cached = self.eff;
+    if (cached !== undefined) return cached;
+    if (self.cell) return (self.eff = self.cell);
   }
-  const fresh: Entry = { value: target.initial };
-  self.eff = fresh;
-  return fresh;
+  return walkEntry(layer, self, target);
 }
 
 /** A namespaced cell read through the one selector; never touches the default `eff` cache. */
@@ -1396,7 +1405,29 @@ function pendingNsWatchers(
 }
 
 /** A tag list's last entry is its nearest binding. */
-function topTag(list: unknown[] | undefined): { present: true; value: unknown } | undefined {
+/** A layer's own tags: a flat list for a handful (one scan beats a map, and a tagged call brings
+ * one or two), a map from tag to values for more. Readers take both; writers go through
+ * {@link seedTags}. */
+type LayerTags = Map<Tag.Handle<unknown>, unknown[]> | readonly Tag.Binding<unknown>[];
+
+/** How many bindings stay a list before {@link seedTags} builds a map. */
+const SMALL_TAGS = 8;
+
+/** The binding of `target` nearest the top of a layer's own tags, list or map. */
+function topTag(
+  cur: Layer,
+  target: Tag.Handle<unknown>,
+): { present: true; value: unknown } | undefined {
+  const tags = cur.tags;
+  if (tags === undefined) return undefined;
+  if (isTagList(tags)) {
+    for (let i = tags.length - 1; i >= 0; i--) {
+      const binding = tags[i];
+      if (binding.tag === target) return { present: true, value: binding.value };
+    }
+    return undefined;
+  }
+  const list = tags.get(target);
   return list && list.length ? { present: true, value: list[list.length - 1] } : undefined;
 }
 
@@ -1407,7 +1438,7 @@ function tagFind(
 ): Tag.Presence<unknown> {
   if (chain !== undefined) return tagFindNs(layer, target, chain);
   for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
-    const hit = topTag(cur.tags?.get(target));
+    const hit = topTag(cur, target);
     if (hit) return hit;
   }
   return target.hasDefault ? { present: true, value: target.def } : { present: false };
@@ -1424,7 +1455,7 @@ function tagFindNs(
     layer,
     chain,
     (cur, key) => (cur.parent === undefined ? nsTagBinding(key, target) : undefined),
-    (cur) => topTag(cur.tags?.get(target)),
+    (cur) => topTag(cur, target),
   );
   if (hit) return hit;
   return target.hasDefault ? { present: true, value: target.def } : { present: false };
@@ -1449,10 +1480,7 @@ function tagAll(
 ): unknown[] {
   if (chain !== undefined) return tagAllNs(layer, target, chain);
   const out: unknown[] = [];
-  for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
-    const list = cur.tags?.get(target);
-    if (list) for (let i = list.length - 1; i >= 0; i--) out.push(list[i]);
-  }
+  for (let cur: Layer | undefined = layer; cur; cur = cur.parent) appendLayerTags(out, cur, target);
   return out;
 }
 
@@ -1479,8 +1507,7 @@ function tagAllNs(
   const out: unknown[] = [];
   for (let cur: Layer | undefined = layer; cur; cur = cur.parent) {
     if (cur.parent === undefined) appendNsTags(out, chain, target);
-    const list = cur.tags?.get(target);
-    if (list) for (let i = list.length - 1; i >= 0; i--) out.push(list[i]);
+    appendLayerTags(out, cur, target);
   }
   return out;
 }
@@ -2218,12 +2245,14 @@ function runBody<T, I>(
   override: Operation.Handle<T, I>["run"] | undefined,
   target: Operation.Handle<T, I>,
   deps: Record<string, unknown>,
-  ctx: Operation.Ctx<I>,
+  ctx: Operation.Ctx<I> | undefined,
   pending: PendingSlot[] | undefined,
 ): T {
-  if (pending === undefined) return override ? override(deps, ctx) : target.run(deps, ctx);
+  /** `ctx` is undefined only for a body that declares no second parameter (see `blindSym`). */
+  const c = ctx as Operation.Ctx<I>;
+  if (pending === undefined) return override ? override(deps, c) : target.run(deps, c);
   return settleDeps(deps, pending).then(() =>
-    override ? override(deps, ctx) : target.run(deps, ctx),
+    override ? override(deps, c) : target.run(deps, c),
   ) as T;
 }
 
@@ -2269,6 +2298,20 @@ class OperationCtx<I> implements Operation.Ctx<I> {
   ): ((end: Scope.End) => void | PromiseLike<void>)[] | undefined {
     return ctx.defers;
   }
+  /** A ctx for the run, or none for a body that cannot see one (`blindSym`) unless a preset
+   * override runs in its place (the override's own arity is not known here). */
+  static of<J, U>(
+    owner: Layer,
+    target: Operation.Handle<U, J>,
+    call: Scope.Invocation<J> | undefined,
+    obs: Obs,
+    span: Observe.Span | undefined,
+    override: Operation.Handle<U, J>["run"] | undefined,
+    blind: boolean,
+  ): OperationCtx<J> | undefined {
+    if (blind && override === undefined) return undefined;
+    return new OperationCtx<J>(owner, target, call, obs, span);
+  }
   get signal(): AbortSignal {
     return signalOf(this.owner);
   }
@@ -2306,14 +2349,35 @@ function runTagged<T, I>(
   const chain = call.ns === undefined ? inheritedChain : nsChainOf(call.ns);
   const inner: Scope.Invocation<I> | undefined =
     call.input === undefined && call.rawInput === undefined ? undefined : stripTags(call);
-  const tagged = runSessionWith(
-    layer,
-    { tags, ns: chain },
-    (child) => runUntagged(child, target, parent, inner, chain, undefined, caller !== undefined),
-    caller,
-    true,
-  ) as Awaited<T> | Promise<Awaited<T>>;
-  /** A value needs no tracking: `track` returns at once for a non-thenable. */
+  const nested = caller !== undefined;
+  let tagged: Awaited<T> | Promise<Awaited<T>>;
+  if (layer.exts.sessions !== undefined) {
+    /** Under `session` hooks the body must be a function the onion can call. Cold path. */
+    tagged = runSessionWith(
+      layer,
+      { tags, ns: chain },
+      (child) => runUntagged(child, target, parent, inner, chain, undefined, nested),
+      caller,
+      true,
+    ) as Awaited<T> | Promise<Awaited<T>>;
+  } else {
+    /** The same life {@link runSessionWith} runs, with the replay called here instead of through
+     * a body closure: nothing to allocate for the call but the child itself. No public handle can
+     * reach this child, so it may end in place before the call returns (`early`). */
+    let child: Layer | undefined;
+    let raw: unknown;
+    try {
+      ensureOpen(layer);
+      child = makeLayer(layer, { tags, ns: chain });
+      child.failureOwner = caller;
+      raw = adoptBody(runUntagged(child, target, parent, inner, chain, undefined, nested));
+    } catch (error) {
+      raw = Promise.reject(error);
+    }
+    tagged = (child === undefined ? raw : endSession(child, raw, true)) as
+      | Awaited<T>
+      | Promise<Awaited<T>>;
+  }
   if (caller) track(layer, tagged, runFailure(layer, caller));
   return tagged;
 }
@@ -2370,11 +2434,12 @@ function finishAsyncRun<T>(
   replay: Replay,
   obs: Obs,
   span: Observe.Span | undefined,
-  ctx: OperationCtx<unknown>,
+  label: string,
+  ctx: OperationCtx<unknown> | undefined,
   finishDefers: (status: "ok" | "failed", error?: unknown) => void,
 ): unknown {
   const onSettle = (status: "ok" | "failed", error?: unknown): void => {
-    if (status === "failed") stampOrigin(error, ctx.label, span, ctx, endsFlight(caller, replay));
+    if (status === "failed") stampOrigin(error, label, span, ctx, endsFlight(caller, replay));
     if (span) closeSpan(obs, span, status, error);
     finishDefers(status, error);
   };
@@ -2399,6 +2464,7 @@ function executorFor<T, I>(
    * extra frame or call on the hot path. The implementation signature stays broad (one input
    * shape would mean no overload — rule 9); the two public overloads type the fork. */
   const sees = seesResourceOf(target);
+  const blind = (target as BlindFlag)[blindSym] === true;
   return (call?: Scope.Invocation<I>): unknown => {
     if (hasCallTags(call))
       return runTagged(
@@ -2447,7 +2513,7 @@ function executorFor<T, I>(
     let result: T;
     buildDepth++;
     try {
-      ctx = new OperationCtx<I>(layer, target, call, obs, span);
+      ctx = OperationCtx.of(layer, target, call, obs, span, override, blind);
       const deps = sees
         ? readOpDeps(layer, target, span, held, chain, ctx)
         : buildPlainDeps(layer, target.depends, span, chain, ctx);
@@ -2466,7 +2532,17 @@ function executorFor<T, I>(
       finishDefers("ok");
       return result;
     }
-    return finishAsyncRun(layer, result, caller, replay, obs, span, ctx, finishDefers);
+    return finishAsyncRun(
+      layer,
+      result,
+      caller,
+      replay,
+      obs,
+      span,
+      target.label,
+      ctx,
+      finishDefers,
+    );
   };
 }
 
@@ -3451,19 +3527,16 @@ function removeBorrow(instance: ResourceInstance, work: Promise<unknown>): void 
 
 /** Seed a layer's tag map from the authored bindings: nothing (or only nothing, however
  * nested) leaves the map unallocated; otherwise every binding lands in authored order. */
-function seedTags(
-  input: Tag.Bindings,
-  tags?: Map<Tag.Handle<unknown>, unknown[]>,
-): Map<Tag.Handle<unknown>, unknown[]> | undefined {
-  if (isNothing(input)) return tags;
-  if (isNotList(input)) {
-    tags ??= new Map();
-    const list = tags.get(input.tag) ?? [];
-    list.push(input.value);
-    tags.set(input.tag, list);
-    return tags;
+function seedTags(input: Tag.Bindings): LayerTags | undefined {
+  const bindings = readMany(input);
+  if (bindings.length === 0) return undefined;
+  if (bindings.length <= SMALL_TAGS) return bindings;
+  const tags = new Map<Tag.Handle<unknown>, unknown[]>();
+  for (const binding of bindings) {
+    const list = tags.get(binding.tag) ?? [];
+    list.push(binding.value);
+    tags.set(binding.tag, list);
   }
-  for (const binding of input) tags = seedTags(binding, tags);
   return tags;
 }
 
@@ -3794,6 +3867,7 @@ function ownsNothing(layer: Layer): boolean {
     closeWouldReenter(layer)
   )
     return false;
+  if (layer.nodes.size === 0) return true;
   for (const state of layer.nodes.values()) if (busyRecord(state)) return false;
   return true;
 }
@@ -3946,8 +4020,10 @@ function finishLayer(layer: Layer, keeps: boolean): unknown[] | undefined {
   layer.defers.length = 0;
   layer.secondary.length = 0;
   if (keeps) return teardownErrors;
-  for (const s of layer.nodes.values()) s.eff = undefined;
-  layer.nodes.clear();
+  if (layer.nodes.size !== 0) {
+    for (const s of layer.nodes.values()) s.eff = undefined;
+    layer.nodes.clear();
+  }
   layer.presets = undefined;
   layer.tags = undefined;
   return teardownErrors;
@@ -4010,11 +4086,15 @@ function runSessionWith<R>(
     return Promise.reject(error) as Promise<R>;
   }
   child.failureOwner = caller;
-  const raw = runBodyWith(child, body);
-  /** A body that returned a plain value has settled: read its end now, as the reaction in
-   * {@link settleSessionWith} would one tick later, and when the session has nothing left to
-   * tear down end it in place — no body promise, no reaction, no async frame. `raw` is a native
-   * promise or a plain value here; {@link runBodyWith} adopted every other thenable. */
+  return endSession(child, runBodyWith(child, body), early);
+}
+
+/** End a session whose body has started. A body that returned a plain value has settled: read
+ * its end now, as the reaction in {@link settleSessionWith} would one tick later, and when the
+ * session has nothing left to tear down end it in place — no body promise, no reaction, no async
+ * frame — when `early` allows it (see {@link runSessionWith}). Anything else waits. `raw` is a
+ * native promise or a plain value here; {@link adoptBody} adopted every other thenable. */
+function endSession<R>(child: Layer, raw: R | Promise<R>, early: boolean): R | Promise<R> {
   if (early && !(raw instanceof Promise) && canEndIdle(child)) {
     endInPlace(child);
     /** ADR 0072: a session that ended in place has nothing to wait for, so the value comes back
@@ -4126,21 +4206,25 @@ function runBodyWith<R>(
   fn: (child: Layer, handle?: Scope.Handle) => R | PromiseLike<R>,
 ): R | Promise<R> {
   try {
-    const raw = fn(child);
-    if (raw instanceof Promise && raw.constructor === Promise) return raw;
-    /** One read of `then`, here inside the try, the way `Promise.resolve` reads it once: a
-     * throwing getter rejects the body; a getter is not read a second time (ADR 0029 §6). */
-    const then =
-      (typeof raw === "object" && raw !== null) || typeof raw === "function"
-        ? (raw as { then?: unknown }).then
-        : undefined;
-    if (typeof then !== "function") return raw as R;
-    return adoptThenable<R>(raw, then as ThenFn<R>);
+    return adoptBody(fn(child));
   } catch (error) {
     return Promise.reject(error) as Promise<R>;
   }
 }
 
+/** A body's value as the session will hold it: a native promise as is, any other thenable
+ * adopted into one from ONE read of its `then` (made inside the caller's try, the way
+ * `Promise.resolve` reads it once: a throwing getter rejects the body, a getter is not read a
+ * second time, ADR 0029 §6), a plain value as it is. */
+function adoptBody<R>(raw: R | PromiseLike<R>): R | Promise<R> {
+  if (raw instanceof Promise && raw.constructor === Promise) return raw;
+  const then =
+    (typeof raw === "object" && raw !== null) || typeof raw === "function"
+      ? (raw as { then?: unknown }).then
+      : undefined;
+  if (typeof then !== "function") return raw as R;
+  return adoptThenable<R>(raw, then as ThenFn<R>);
+}
 /** A namespaced resolve keeps the real layer and passes the storage chain explicitly. */
 function resolveNs(
   layer: Layer,
@@ -4760,6 +4844,71 @@ function adoptThenable<R>(raw: unknown, then: ThenFn<R>): Promise<R> {
   });
 }
 
+/** The slow half of {@link effectiveEntry}: walk the parents for a cell or a memo, then memoize
+ * where it pays (see there). `self` is this layer's record, when it has one. */
+function walkEntry(layer: Layer, self: NodeState | undefined, target: Data.Cell<unknown>): Entry {
+  let hops = 0;
+  let top = layer;
+  for (let cur = layer.parent; cur; cur = cur.parent) {
+    hops++;
+    top = cur;
+    const rec = cur.nodes.get(target);
+    if (rec === undefined) continue;
+    const found = rec.cell ?? rec.eff;
+    if (found === undefined) continue;
+    if (self !== undefined) self.eff = found;
+    else if (hops >= 2) nodeState(layer, target).eff = found;
+    return found;
+  }
+  return freshEntry(layer, self, target, top, hops);
+}
+
+/** No layer up the chain holds the cell: one entry with its initial value, memoized on the top
+ * layer for everything under it, and on this layer when that pays. */
+function freshEntry(
+  layer: Layer,
+  self: NodeState | undefined,
+  target: Data.Cell<unknown>,
+  top: Layer,
+  hops: number,
+): Entry {
+  const fresh: Entry = { value: target.initial };
+  nodeState(top, target).eff = fresh;
+  if (top === layer) return fresh;
+  if (self !== undefined) self.eff = fresh;
+  else if (hops >= 2) nodeState(layer, target).eff = fresh;
+  return fresh;
+}
+
+/** Every value bound to `target` in a layer's own tags, top first, list or map. */
+function appendLayerTags(out: unknown[], cur: Layer, target: Tag.Handle<unknown>): void {
+  const tags = cur.tags;
+  if (tags === undefined) return;
+  if (isTagList(tags)) {
+    for (let i = tags.length - 1; i >= 0; i--) if (tags[i].tag === target) out.push(tags[i].value);
+    return;
+  }
+  const list = tags.get(target);
+  if (list) for (let i = list.length - 1; i >= 0; i--) out.push(list[i]);
+}
+
+/** The list shape of {@link LayerTags}. `Array.isArray` alone does not narrow a `readonly` list
+ * out of the union. */
+function isTagList(tags: LayerTags): tags is readonly Tag.Binding<unknown>[] {
+  return Array.isArray(tags);
+}
+
+/** True when an operation's deps name an operation, directly or behind a controller edge: its
+ * runs need the caller's ctx to own their failures (ADR 0066). */
+function seesOperation(depends: Scope.Depends): boolean {
+  for (const key in depends) {
+    const dep = depends[key];
+    if (isOperation(dep)) return true;
+    if (isEdge(dep) && dep.kind === "controller" && isOperation(dep.target)) return true;
+  }
+  return false;
+}
+
 /** Wrap a session's whole life in the extensions' `session` onion (ADR 0051): registration order,
  * first is outermost. `run` is the session's own life — run the body, force-close, keep the body's
  * value beside the close `Result` — so `next()` resolves with whatever `closeLayer` produced (never
@@ -4938,7 +5087,6 @@ function runBodyWithTo<R>(
     return Promise.reject(error);
   }
 }
-
 /** A handle whose `createSession` wraps every child in the root's `session` chain (ADR 0051): the
  * one override sessions carry — `resolve`/`run`/`controller` stay the plain dispatch (v1 limit).
  * Only built when hooks exist; the unwrapped path never enters. */
