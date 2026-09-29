@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
+import { createServer as createHttpServer } from "node:http";
 import { createServer } from "node:net";
 import { connect } from "@nats-io/transport-node";
 import { mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
@@ -70,6 +71,53 @@ test("a bad checksum refuses the binary", async () => {
       expect(error.payload.file).toBe(archive);
     }
   } finally {
+    await rm(cache, { recursive: true, force: true });
+  }
+});
+
+test("download errors name the URL and status while bad bytes fail checksum", async () => {
+  const binary = await installNatsServer();
+  const shared = dirname(dirname(binary));
+  const archive = `${basename(dirname(binary))}.${process.platform === "win32" ? "zip" : "tar.gz"}`;
+  const checksums = await readFile(join(shared, "SHA256SUMS"));
+  const cache = await mkdtemp(join(homedir(), ".cache", "nats-download-"));
+  let status = 404;
+  let failedFile = "SHA256SUMS";
+  const server = createHttpServer((request, response) => {
+    response.writeHead(request.url === `/${failedFile}` ? status : 200);
+    response.end(request.url === "/SHA256SUMS" ? checksums : "wrong archive bytes");
+  });
+  try {
+    await new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", resolve);
+    });
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("HTTP port is missing");
+    const downloadBase = `http://127.0.0.1:${address.port}`;
+    for (failedFile of ["SHA256SUMS", archive]) {
+      for (status of [404, 429]) {
+        await installNatsServer(cache, { downloadBase }).then(
+          () => expect.unreachable(),
+          (error: unknown) => {
+            if (!isError(error, "DownloadFailed")) throw error;
+            expect(error.payload).toEqual({ url: `${downloadBase}/${failedFile}`, status });
+          },
+        );
+      }
+    }
+    status = 200;
+    await installNatsServer(cache, { downloadBase }).then(
+      () => expect.unreachable(),
+      (error: unknown) => {
+        if (!isError(error, "ChecksumMismatch")) throw error;
+        expect(error.payload.file).toBe(archive);
+      },
+    );
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      server.close((error) => (error ? reject(error) : resolve())),
+    );
     await rm(cache, { recursive: true, force: true });
   }
 });

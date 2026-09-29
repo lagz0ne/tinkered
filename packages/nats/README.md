@@ -73,6 +73,18 @@ Later installs check the saved archive and use the cache.
 The default cache is under the user's home:
 `~/.cache/tinkered/nats-server/2.15.0`.
 A custom cache folder is accepted for damaged-cache tests.
+Tests can also supply a download base as the second argument:
+
+```ts
+await installNatsServer(cache, {
+  downloadBase: "http://127.0.0.1:8080",
+});
+```
+
+The official GitHub release is the only default download base.
+The base is used only when the cache has no archive.
+A non-2xx response raises `DownloadFailed` with its `url` and `status`.
+A successful response with wrong bytes raises `ChecksumMismatch`.
 The helper needs `tar` and network access on first use.
 
 Each server uses a free loopback port and a temp store.
@@ -108,6 +120,7 @@ try {
 - The graph traces publish and the subscription operation.
 - The helper fetches the pinned server once and reuses its home cache.
 - A bad checksum refuses the binary.
+- Download errors name the URL and status while bad bytes fail checksum.
 - Forced close aborts a running message and closes the connection.
 - Close during boot reaps a connection that opens later.
 - Failed boot keeps its cause and closes any connection without cleanup errors.

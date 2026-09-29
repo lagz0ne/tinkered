@@ -953,3 +953,32 @@ It also closes old handles after a fresh start.
   The lander will measure the new score.
 - Status: Review. Next: lead review and lander mutation.
   Nothing pushed.
+
+### t07 download status fix
+
+- Owner: writer (Codex), branch `stack/t07`.
+- Next: restore the HTTP failure check and prove it at the helper entry.
+- Verify: gate exit 0; focused kill check; one full mutation lane
+  at least 85 under the lock; all validation lanes; no leftovers.
+- Fresh fetch and rebase: still `origin/main` at `a5aa0e7e`.
+- Assumption: keep the existing cache-directory argument.
+  Add `{ downloadBase }` as a second, test-only helper option.
+  The official GitHub release stays the only default.
+- Callers: `startNatsServer` in `packages/nats/src/testing.ts`
+  and `packages/nats/tests/testing.test.ts`.
+  Existing calls keep their shape.
+
+- Added `DownloadFailed` with `{ url, status }` for non-2xx replies.
+- The local HTTP test serves 404 and 429 for both the checksum file
+  and the archive, then 200 with bad archive bytes.
+  The last case still raises `ChecksumMismatch`.
+- Before the status check: the new test failed with `ChecksumMismatch`
+  on a 404; four helper tests passed; exit 1.
+- After the check: build, check, and all 19 NATS tests pass; exit 0.
+  Check: no errors, 29 warnings, matching the checked main base.
+- Jev tests and README promises: no flags in 19 tests.
+- Label `memoKeyIgnoresInput false` for the helper file:
+  the cache names the pinned release and host archive;
+  the download base is only read on a cache miss.
+- Existing helper labels still apply:
+  `effectWithoutDefer false` and `stateOutsideCell false`.

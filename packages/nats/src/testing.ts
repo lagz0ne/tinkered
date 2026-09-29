@@ -20,6 +20,10 @@ const binary = windows ? "nats-server.exe" : "nats-server";
 const execute = promisify(execFile);
 
 export declare namespace NatsServer {
+  type Install = {
+    /** Tests can serve downloads locally on a cache miss. Defaults to the official GitHub release. */
+    downloadBase?: string;
+  };
   type Handle = {
     url: string;
     /** Loopback-only NATS monitor for test assertions about open connections. */
@@ -35,10 +39,15 @@ export declare namespace NatsServer {
  * Verify the saved archive against the release's SHA256SUMS on every call.
  * A custom cache directory lets tests check damaged downloads without changing the shared cache.
  * The archive and SHA256SUMS are kept beside the extracted release folder. */
-export async function installNatsServer(directory = cache): Promise<string> {
+export async function installNatsServer(
+  directory = cache,
+  { downloadBase = release }: NatsServer.Install = {},
+): Promise<string> {
   await mkdir(directory, { recursive: true });
   const cached = existsSync(join(directory, archive));
-  const read = cached ? (name: string) => readFile(join(directory, name)) : fetchFile;
+  const read = cached
+    ? (name: string) => readFile(join(directory, name))
+    : (name: string) => fetchFile(`${downloadBase}/${name}`);
   const checksums = await read("SHA256SUMS");
   const bytes = await read(archive);
   checkArchive(bytes, checksums.toString());
@@ -67,8 +76,9 @@ export async function installNatsServer(directory = cache): Promise<string> {
   return executable;
 }
 
-async function fetchFile(name: string): Promise<Buffer> {
-  const response = await fetch(`${release}/${name}`);
+async function fetchFile(url: string): Promise<Buffer> {
+  const response = await fetch(url);
+  if (!response.ok) raise("DownloadFailed", { url, status: response.status });
   return Buffer.from(await response.arrayBuffer());
 }
 

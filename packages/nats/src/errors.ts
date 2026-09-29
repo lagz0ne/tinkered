@@ -1,6 +1,7 @@
 type Payloads = {
   PieceInUse: { label: string };
   InvalidConfig: { key: "NATS_URL" };
+  DownloadFailed: { url: string; status: number };
   ChecksumMismatch: { file: string };
   ServerStopped: { output: string; storeDir: string };
 };
