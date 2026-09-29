@@ -45,10 +45,12 @@ reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, on
   on all of them together. Also (user: trace and untie from first principles), three challengers
   work alone on `fp/<model>` branches: Astra `c5c163f0`, Fable `a75aef97`, Opus `d7dc1611`.
   Round 1: fp/astra `6493208` reached `tagged` 1816 ns (−16.2%, 31/31), `session` 1537 (−8.0%),
-  promises 17 → 13, no rule change; the card will be rebuilt on it. New target (user
-  2026-09-28): `tagged` near 1000 ns. Round 2 (`fp2/<model>`): Astra the close steps, Opus the
-  layer setup plus `route`, Fable the floor with a rule change (measured, for the user to
-  decide). Verify: no scenario slower, promises 17, `pnpm validate`, core mutation ≥ 85. If no
+  promises 17 → 13, no rule change. Round 2: fp2/fable `22e164d` ends an idle session in
+  place: `tagged` 992, `session` 660, promises 2, all tests pass (rule-change floors measured:
+  R2 811, R1 220; user keeps the rules). New target (user 2026-09-29): `tagged` 700, no rule
+  change. Now: Astra checks `22e164d` against main (order and outcome); Opus the layer record
+  and its lists plus `route` (fp2/opus); Fable the run side (fp3/fable). The card is rebuilt on
+  the winners. Verify: no scenario slower, promises 17, `pnpm validate`, core mutation ≥ 85. If no
   experiment wins: raise the budget to 2200 and record why (user 2026-09-28: A, then B).
 
 ## Review
