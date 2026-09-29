@@ -15,6 +15,59 @@ sandbox re-check of the call-path rules is done; see "Call paths through benchd"
 2026-09-29: the probe now times every scenario the same way, and `bench/ab.sh` runs one probe
 against both trees. The numbers to use are in "Call paths with warm-up and one probe" below.
 
+## perf/lazy-log-obs (2026-09-29)
+
+A = main `a4baeb0` (perf/tagged-close landed).
+B = `a442150` (core last changed in `d7baac6`).
+N=61 through `benchd`, one warmed probe, medians in ns per call.
+Every row: batch in 61 of 61 on both sides.
+
+```bash
+N=61 A=../tinkered-lazylog-land-base \
+  SCEN="<all 23>" bench/queued.sh
+```
+
+- The 23: the 20 above, plus `opsink`, `oplog`, `opobs`.
+- `opsink`: an operation with a log sink on; the body reads no tool.
+- `oplog`: the same, and the body writes one log line.
+- `opobs`: an operation with an observer on; the body reads no tool.
+- The bar: `opsink` B faster; no row B slower.
+
+### The run
+
+- **`opsink`** — 251.9 → 72.0 (−179.9, −71.4%), slower 0/61: B faster
+- **`oplog`** — 319.7 → 322.6 (+2.9, +0.9%), slower 30/61: no difference we can see
+- **`opobs`** — 248.9 → 208.4 (−40.5, −16.3%), slower 12/61: B faster
+- **`op`** — 86.8 → 70.4 (−16.4, −18.9%), slower 4/61: B faster
+- **`opres`** — 345.1 → 334.3 (−10.8, −3.1%), slower 25/61: no difference we can see
+- **`asyncsub`** — 1245.8 → 1242.3 (−3.5, −0.3%), slower 26/61: no difference we can see
+- **`run`** — 103.2 → 87.0 (−16.2, −15.7%), slower 14/61: B faster
+- **`inline`** — 183.7 → 172.2 (−11.5, −6.3%), slower 15/61: B faster
+- **`tagged`** — 198.3 → 188.8 (−9.5, −4.8%), slower 14/61: B faster
+- **`taggeddefer`** — 367.1 → 351.6 (−15.5, −4.2%), slower 21/61: no difference we can see
+- **`taggedres`** — 2518.7 → 2511.2 (−7.5, −0.3%), slower 27/61: no difference we can see
+- **`session`** — 573.5 → 573.8 (+0.3, +0.1%), slower 30/61: no difference we can see
+- **`s1_getctl`** — 199.0 → 198.1 (−0.9, −0.5%), slower 20/61: no difference we can see
+- **`s2_data`** — 251.3 → 255.7 (+4.4, +1.8%), slower 33/61: no difference we can see
+- **`s3_doubled`** — 431.4 → 429.7 (−1.7, −0.4%), slower 21/61: no difference we can see
+- **`s4_warm_ctl`** — 11.1 → 11.0 (−0.1, −0.9%), slower 21/61: no difference we can see
+- **`cold2`** — 547.5 → 535.9 (−11.6, −2.1%), slower 16/61: no difference we can see
+- **`cold`** — 663.9 → 665.2 (+1.3, +0.2%), slower 28/61: no difference we can see
+- **`create`** — 121.8 → 121.7 (−0.1, −0.1%), slower 24/61: no difference we can see
+- **`warm`** — 16.0 → 15.9 (−0.1, −0.6%), slower 29/61: no difference we can see
+- **`get1`** — 0.4 → 0.4 (+0.0, +0.0%), slower 0/61: no difference we can see
+- **`lifecycle`** — 818.2 → 816.7 (−1.5, −0.2%), slower 28/61: no difference we can see
+- **`inferdi_cold`** — 193.5 → 192.6 (−0.9, −0.5%), slower 21/61: no difference we can see
+- Raw rows: `tinkered-inv-reports/lazylog/lazy-log-land-ab.csv`.
+- The writer's V8 proof and N=31 screen: "Lazy log and obs tools" below.
+
+### Other bars at landing
+
+- Gate `EXIT=0`; core 715 tests.
+- Core mutation 85.44 (floor 85).
+- `promises_tagged` = 2.
+- `pnpm validate`: 44 lanes PASS; slot headroom 3 names.
+
 ## perf/tagged-close (2026-09-29)
 
 A = main `917ee14` (core last changed in `233139d`).

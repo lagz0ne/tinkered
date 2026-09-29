@@ -55,6 +55,20 @@ Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its 
 Parallelizable once upstream lands: 04‖05, 15 alongside 12→13→14, 17 early off 05.
 Family (keyed collections) is out of v1 (needs its own ADR for the rules).
 
+- **perf/lazy-log-obs** — A body's `log` and `obs` tools are built on first read.
+  They are getters on the ctx prototype, like `signal` and `raise`; no API change (ADR 0073).
+  Retained ctx fields are written once.
+  Review: Fable's behavior probe matched on 9 cases, except where `log`/`obs` live (the prototype).
+  Benchd: N=61 against `a4baeb0`; B is `a442150`.
+  `opsink`: 251.9 → 72.0 ns (−71.4%), slower 0/61.
+  `opobs`: 248.9 → 208.4 ns (−16.3%), slower 12/61.
+  `op`: 86.8 → 70.4 ns (−18.9%); `run`: 103.2 → 87.0 ns (−15.7%).
+  `tagged`: 198.3 → 188.8 ns (−4.8%), slower 14/61.
+  `oplog`: 319.7 → 322.6 ns, no difference we can see.
+  No row B slower in all 23.
+  Core mutation 85.44; 715 tests; promises tagged 2; validate 44 PASS.
+  Lines per row: [budgets](budgets.md).
+
 - **perf/tagged-close** — A tagged call and an idle session got about 3x to 10x faster.
   Stack: the fp3/fable stack, Astra's lazy tagged child session, a mutation lift, and the warm fix.
   ADR 0071: a session's handle closes when its body ends; an idle session ends in place.
