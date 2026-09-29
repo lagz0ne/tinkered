@@ -2,16 +2,20 @@
 // usage: taskset -c 7 node --expose-gc bench/core-probe.mjs <cold|create|warm|get1|lifecycle|inferdi_cold|op|opres|asyncsub|run|cold2|s1_getctl|s2_data|s3_doubled|s4_warm_ctl|inline|tagged|session>
 // CORE_DIST=<path to a core dist/index.mjs> measures that build with this probe (bench/ab.sh runs
 // one probe against both trees); unset, it measures this tree's build.
-// Each scenario runs WARM_CALLS times before mitata times it. mitata times 4096 calls per sample
-// ("batch") only when the first call takes <= 500 us and a later warm-up call <= 65.5 us (mitata
-// 1.0.34 src/lib.mjs lines 133, 135, 177, 185); else it times one call per sample, which adds the
-// timer's cost to every sample. A cold first call (V8 compiling the path) crosses that line at
-// random, so one tree could land in either mode. The METRIC line says which mode mitata used.
-import { bench, run } from "mitata";
+// Every scenario is timed in mitata's batch mode: 4096 calls per sample. Left to itself, mitata
+// picks batch mode only when the first call takes <= 500 us and a later warm-up call <= 65.5 us
+// (mitata 1.0.34 src/lib.mjs lines 133, 135, 177, 185); else it times one call per sample, which
+// adds the timer's cost to every sample and leaves out the calls' GC share. A cold first call (V8
+// compiling the path), or a GC landing in it, crosses that line at random, so one tree could land
+// in either mode. So the probe calls mitata's measure() with both limits lifted (the same call
+// bench()/run() make, with run()'s heap reader), and first runs the scenario WARM_CALLS times so V8
+// has settled before the timed loop starts. The METRIC line says which mode mitata used.
+import { measure } from "mitata";
 import { Container } from "@inferdi/inferdi";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-const WARM_CALLS = 1000;
+import { getHeapStatistics } from "node:v8";
+const WARM_CALLS = 10_000;
 const coreDist = process.env.CORE_DIST;
 const { createScope, data, resource, operation, tag } = await import(
   coreDist ? pathToFileURL(resolve(coreDist)).href : "../packages/core/dist/index.mjs"
@@ -84,9 +88,14 @@ const fns = {
 const key = process.argv[2];
 const fn = fns[key];
 for (let i = 0; i < WARM_CALLS; i++) await fn();
-bench(key, fn);
-const r = await run({ print: () => {} });
-const b = r.benchmarks[0].runs[0].stats;
+const b = await measure(fn, {
+  heap: () => {
+    const m = getHeapStatistics();
+    return m.used_heap_size + m.malloced_memory;
+  },
+  warmup_threshold: Infinity,
+  batch_threshold: Infinity,
+});
 // Batch mode counts 4096 ticks per sample, one-call mode one.
 const mode = b.ticks > b.samples.length ? "batch" : "one";
 console.log(
