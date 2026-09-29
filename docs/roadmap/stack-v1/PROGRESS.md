@@ -1343,4 +1343,14 @@ Full trial and V8 notes are in the [learning note](../../../research/learnings/2
 - TSDoc check: exit 0.
 - The strict style scan has only the old S14 array-read false hit.
 - SCIP rebuilt all 13 package indexes.
-- The core mutation lane is the last check still due.
+- Core mutation: 85.63, exit 0, one full run under `/tmp/mutation.lock`.
+- Mutation counts: 2675 killed, 30 timeout, 424 survived, 30 no coverage, 6 errors.
+- The floor is 85; no second mutation run was needed.
+- Hono and HTTP mutation did not rerun, per the lead's fix-round brief.
+- Their first-round scores remain 88.57 and 89.70.
+- Final Jev preflight: 61 source flags reviewed false, each with a saved reason.
+- The 12 core trace promises all match; no new trace test is flagged.
+- All nine public-symbol ref checks ran after the final rebase.
+- The card is in Review; the observed-call timing target is still missed.
+- No job is left running; nothing was pushed.
+- Raw proof and the full report are in `.bench/stack-t04-fix-proof/`.
