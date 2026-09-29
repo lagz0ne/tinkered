@@ -31,8 +31,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-Pairs since 2026-09-28: an Astra writer (`codex/gpt-6-astra`, xhigh) and a Fable 5.1 (medium)
-reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
+Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
+reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
 - **perf/tagged-100** — push `tagged` toward 100 ns with no rule change (user 2026-09-29). Base
   `43a99e0` (tagged stack + lazy log). Result: Fable's `t100/fable` (`5234b4b` + fix `5ecc245`,
