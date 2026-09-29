@@ -312,6 +312,8 @@ const { extension: web } = hono(issueRoutes, {
 - A stream whose commit fails errors its body and logs one line.
   Its headers have already left, so its status stays unchanged.
   The reader sees the close failure before the stream can finish cleanly.
+  Its `RequestCloseFailed` error carries the close result in `payload.result`.
+
 - A failed session hook replaces the built answer with 500 and one failure line.
 - A teardown error replaces a mapped answer with 500 and one failure line.
   Even an `HTTPException` in teardown counts as a close failure.
