@@ -3,6 +3,7 @@ import { emit, hono, route, stream } from "@tinker/hono";
 import { source, type Sync } from "@tinker/sync";
 import { createSseServer } from "@tinker/sync/sse";
 import { z } from "zod";
+import { raise } from "./errors.ts";
 
 /** Sync needs nothing on the cell: its wire key comes from the row, never unit meta (ADR 0051). */
 const counter = data({ label: "counter", initial: 0 });
@@ -42,12 +43,12 @@ const deliverRegister = operation({
   depends: { posts },
   run: ({ posts }, ctx) => {
     const send = posts.get(ctx.input.id);
-    if (send === undefined) throw new Error("gone tab");
+    if (send === undefined) raise("GoneTab", { id: ctx.input.id });
     send(ctx.input.message);
   },
 });
 
-/** Closing runs once, however it is reached; then a post for this tab fails with `gone tab`. */
+/** Closing runs once, however it is reached; then a post for this tab fails with `GoneTab`. */
 const wireBody = operation({
   label: "wireBody",
   input: z.string(),

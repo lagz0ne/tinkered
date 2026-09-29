@@ -32,7 +32,11 @@ between them is yours: `memoryPair` in tests, the shipped SSE transport or a Web
 the browser. The viewer takes its wire as a resource, so nothing is built
 before `createScope`. A driver reads rows, never unit meta: units have none (ADR 0051 §3).
 
+Cells take nested lists and false: a row is a pair, a list of pairs is opened.
+
 ## Shared
+
+`isFamily` tells a family from a cell.
 
 `family({ label, initial, parse, eq })` declares one cell, `todo.cell`.
 `todo("7")` returns a namespace, memoized by id. Read or write a member with
@@ -64,6 +68,7 @@ A member the source does not hold yet gets a namespace there;
 its cell reads its initial value.
 A family key missing its label or member id closes the source wire.
 A one-letter family label can register its member.
+A row for an unpublished key posted by a viewer still closes the transport.
 An empty family label cannot register a member. A key that is not published, a message in the wrong
 direction, or an unexpected throw inside the op closes the transport, no
 reply. A snapshot sent to the source is in the wrong direction and closes the wire without starting a registration step.
@@ -120,6 +125,7 @@ A wrong-direction message after ready closes the viewer wire.
 ## Wire it
 
 The transport is four methods: `send`, `onMessage`, `onClose`, `close`.
+`memoryPair` delivers every send in order, never synchronously.
 A transport may call its `onClose` listeners synchronously inside `close()`. Driver listeners
 must not throw to report a startup failure: build the error value and reject the pending
 startup promise through its saved reject function. Attach a rejection handler when that
@@ -133,7 +139,8 @@ The caller owns the route, its register check, and its URL.
 The package owns framing, stream states, and retry handling.
 
 ```ts
-import { createSseServer, createSseClient } from "@tinker/sync/sse";
+import { createSseServer } from "@tinker/sync/sse";
+import { createSseClient } from "@tinker/sync/sse";
 
 const wire = createSseServer(emit, signal);
 const ended = origin.connect(wire);
@@ -160,7 +167,8 @@ Both return or await `source.connect(wire)` to hold the stream open.
 ```ts
 const wire = createSseClient({
   open: (keys) => {
-    const query = new URLSearchParams(keys.map((key) => ["keys", key]));
+    const rows = keys.map((key) => ["keys", key]);
+    const query = new URLSearchParams(rows);
     return new EventSource(`/sync?${query}`);
   },
   onState: (state) => health.set(state),
