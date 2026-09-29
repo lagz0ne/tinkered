@@ -1035,11 +1035,14 @@ class NodeState {
 }
 
 function nodeState(layer: Layer, key: object): NodeState {
-  let s = layer.nodes.get(key);
-  if (s === undefined) {
-    s = new NodeState();
-    layer.nodes.set(key, s);
-  }
+  return layer.nodes.get(key) ?? addNodeState(layer, key);
+}
+
+/** {@link nodeState}'s first visit, its own function so the hit path stays small to inline. */
+function addNodeState(layer: Layer, key: object): NodeState {
+  const s = new NodeState();
+  if (layer.nodes === NO_NODES) layer.nodes = new Map();
+  layer.nodes.set(key, s);
   return s;
 }
 
@@ -1071,6 +1074,15 @@ type ExtRoutes = {
   readonly sessions: readonly Scope.Extension<unknown>[] | undefined;
 };
 const NO_EXTS: ExtRoutes = { runners: undefined, writers: undefined, sessions: undefined };
+/** A layer's node store, child set, owned-work set, defer list, and teardown errors start as these
+ * shared empty ones, so an idle layer allocates none (performance rule 4). Never written: the first
+ * write gives the layer its own ({@link addNodeState}, {@link makeLayer}, {@link addWork},
+ * {@link addDefer}, {@link addError}); every reader reads them as usual. */
+const NO_NODES = new Map<object, NodeState>();
+const NO_CHILDREN = new Set<Layer>();
+const NO_WORK = new Set<Promise<unknown>>();
+const NO_DEFERS: DeferEntry[] = [];
+const NO_ERRORS: unknown[] = [];
 
 type Layer = {
   parent: Layer | undefined;
@@ -2044,7 +2056,25 @@ function track(
       onSettle?.("failed", error);
     },
   );
-  layer.pending.add(tracked);
+  addWork(layer, tracked);
+}
+
+/** Add owned work to a layer, giving it its own set on the first add ({@link NO_WORK}). */
+function addWork(layer: Layer, work: Promise<unknown>): void {
+  if (layer.pending === NO_WORK) layer.pending = new Set();
+  layer.pending.add(work);
+}
+
+/** Register a close-time cleanup on a layer, giving it its own list on the first one. */
+function addDefer(layer: Layer, entry: DeferEntry): void {
+  if (layer.defers === NO_DEFERS) layer.defers = [];
+  layer.defers.push(entry);
+}
+
+/** Collect a teardown error on a layer, giving it its own list on the first one. */
+function addError(layer: Layer, cause: unknown): void {
+  if (layer.secondary === NO_ERRORS) layer.secondary = [];
+  layer.secondary.push(cause);
 }
 
 /** Every abort reason we mint carries this brand, so a rejection can be recognized as one of OUR
@@ -2145,7 +2175,7 @@ function runDefers(
     try {
       pending = fns[i](end);
     } catch (error) {
-      layer.secondary.push(error);
+      addError(layer, error);
       continue;
     } finally {
       exitTeardown(layer);
@@ -2159,11 +2189,11 @@ function runDefers(
       },
       (error: unknown) => {
         layer.pending.delete(cont);
-        layer.secondary.push(error);
+        addError(layer, error);
         return runDefers(layer, fns, end, rest);
       },
     );
-    layer.pending.add(cont);
+    addWork(layer, cont);
     return cont;
   }
   return undefined;
@@ -2689,7 +2719,7 @@ class ResourceCtx implements Resource.Ctx {
   readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
     if (this.isSettled()) raise("Disposed", { reason: "resource factory already finished" });
     this.instance.hooks.push(fn);
-    this.instance.owner.defers.push({ fn, instance: this.instance });
+    addDefer(this.instance.owner, { fn, instance: this.instance });
   };
   get raise(): Resource.Ctx["raise"] {
     return (kind, payload) => raiseFrom(this, kind, payload);
@@ -2808,7 +2838,7 @@ function unlinkInstance(instance: ResourceInstance, end: Scope.End): void {
   instance.end = instance.failure ?? end;
   if (instance.building || instance.dependents || instance.borrowers?.size) {
     instance.completion = new Promise<void>((resolve) => (instance.complete = resolve));
-    instance.owner.pending.add(instance.completion);
+    addWork(instance.owner, instance.completion);
   }
 }
 
@@ -2894,7 +2924,7 @@ function finishInstance(
   };
   if (prior) {
     const queued = prior.then(finish, finish);
-    owner.pending.add(queued);
+    addWork(owner, queued);
     queued.then(
       () => owner.pending.delete(queued),
       () => owner.pending.delete(queued),
@@ -3431,13 +3461,14 @@ function seedTags(
   return tags;
 }
 
-function seedPresets(seeds: Many<Scope.Preset>): {
-  nodes: Map<object, NodeState>;
-  presets: Map<unknown, unknown> | undefined;
-} {
-  const nodes = new Map<object, NodeState>();
+type Seeded = { nodes: Map<object, NodeState>; presets: Map<unknown, unknown> | undefined };
+/** A layer seeded with no preset: the shared empty store ({@link NO_NODES}), no preset map. */
+const NO_PRESETS: Seeded = { nodes: NO_NODES, presets: undefined };
+
+function seedPresets(seeds: Many<Scope.Preset>): Seeded {
   const list = readMany(seeds);
-  if (list.length === 0) return { nodes, presets: undefined };
+  if (list.length === 0) return NO_PRESETS;
+  const nodes = new Map<object, NodeState>();
   return { nodes, presets: applyPresets(nodes, list) };
 }
 
@@ -3458,14 +3489,10 @@ function applyPresets(
   return presets;
 }
 
-function clockFor(parent: Layer | undefined, options: Scope.Options | undefined): Clock.Handle {
-  if (parent) return parent.clock;
-  return options?.clock ?? systemClock;
-}
-
-function randomFor(parent: Layer | undefined, options: Scope.Options | undefined): Random.Handle {
-  if (parent) return parent.random;
-  return options?.random ?? systemRandom;
+function makeRootLayer(options: Scope.Options | undefined): Layer {
+  const clock = options?.clock ?? systemClock;
+  const obs = makeObs(options?.observe, clock);
+  return layerRecord(undefined, options, obs, clock, options?.random ?? systemRandom, NO_EXTS);
 }
 
 /** The ambient namespace chain of a new layer: the options' `ns` (validated), else the parent's
@@ -3479,18 +3506,45 @@ function nsFor(
   return parent?.ns;
 }
 
-function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
-  const tags = seedTags(options?.tags);
-  const { nodes, presets } = seedPresets(options?.presets);
-  const clock = clockFor(parent, options);
-  const layer: Layer = {
+/** A child layer: the parent's services and routes, its tags, presets, and namespace, and the
+ * `swept`/abort state of a close already under way above it. */
+function makeLayer(parent: Layer, options?: Scope.Options): Layer {
+  const layer = layerRecord(parent, options, parent.obs, parent.clock, parent.random, parent.exts);
+  if (parent.children === NO_CHILDREN) parent.children = new Set();
+  parent.children.add(layer);
+  /** Born into a subtree already being collected by an active ancestor close: inherit `swept` so this
+   * late child's real failure + teardown errors still push up to the collecting ancestor when it
+   * finishes; inherit the abort if the ancestor close is FORCED (creation under a CLOSED scope is
+   * blocked by `ensureOpen`, so a swept-but-open parent means an ancestor is mid-close). */
+  if (parent.swept) layer.swept = true;
+  if (parent.aborted) {
+    layer.aborted = true;
+    layer.abortReason = parent.abortReason;
+  }
+  return layer;
+}
+
+/** The one literal every layer starts from, so every layer shares one shape. The tag and preset
+ * seeds are called only when the options carry them: a helper that never runs here stays out of
+ * V8's inlining budget for the session start. */
+function layerRecord(
+  parent: Layer | undefined,
+  options: Scope.Options | undefined,
+  obs: Obs,
+  clock: Clock.Handle,
+  random: Random.Handle,
+  exts: ExtRoutes,
+): Layer {
+  const tags = options?.tags === undefined ? undefined : seedTags(options.tags);
+  const seeded = options?.presets === undefined ? NO_PRESETS : seedPresets(options.presets);
+  return {
     parent,
-    children: new Set(),
-    nodes,
-    presets,
+    children: NO_CHILDREN,
+    nodes: seeded.nodes,
+    presets: seeded.presets,
     tags,
-    pending: new Set(),
-    defers: [],
+    pending: NO_WORK,
+    defers: NO_DEFERS,
     resourceHolds: 0,
     aborted: false,
     abortReason: undefined,
@@ -3501,31 +3555,17 @@ function makeLayer(parent: Layer | undefined, options?: Scope.Options): Layer {
     failure: undefined,
     descendantFailure: undefined,
     failureOwner: undefined,
-    secondary: [],
+    secondary: NO_ERRORS,
     body: undefined,
     closed: false,
     closing: undefined,
-    obs: parent ? parent.obs : makeObs(options?.observe, clock),
+    obs,
     clock,
-    random: randomFor(parent, options),
+    random,
     emptyCtx: undefined,
     ns: nsFor(parent, options),
-    exts: NO_EXTS,
+    exts,
   };
-  if (parent) {
-    layer.exts = parent.exts;
-    parent.children.add(layer);
-    /** Born into a subtree already being collected by an active ancestor close: inherit `swept` so this
-     * late child's real failure + teardown errors still push up to the collecting ancestor when it
-     * finishes; inherit the abort if the ancestor close is FORCED (creation under a CLOSED scope is
-     * blocked by `ensureOpen`, so a swept-but-open parent means an ancestor is mid-close). */
-    if (parent.swept) layer.swept = true;
-    if (parent.aborted) {
-      layer.aborted = true;
-      layer.abortReason = parent.abortReason;
-    }
-  }
-  return layer;
 }
 
 /** Mark a layer's whole subtree `swept`, iteratively (no recursion — deep trees are safe). Run
@@ -3591,7 +3631,7 @@ async function drainCloseEntry(layer: Layer, entry: DeferEntry, end: Scope.End):
   try {
     pending = entry.fn(end);
   } catch (cause) {
-    layer.secondary.push(cause);
+    addError(layer, cause);
     return;
   } finally {
     exitTeardown(layer);
@@ -3599,7 +3639,7 @@ async function drainCloseEntry(layer: Layer, entry: DeferEntry, end: Scope.End):
   try {
     await pending;
   } catch (cause) {
-    layer.secondary.push(cause);
+    addError(layer, cause);
   }
 }
 
@@ -3908,7 +3948,7 @@ function finishLayer(layer: Layer, keeps: boolean): unknown[] | undefined {
 }
 
 function propagateSweptOutcome(layer: Layer, parent: Layer): void {
-  for (const cause of layer.secondary) parent.secondary.push(cause);
+  for (const cause of layer.secondary) addError(parent, cause);
   /** A descendant's settled failure goes to a SEPARATE slot ranked BELOW the parent's OWN failure
    * (body/owned-work): a real owned-work failure must still beat a failure a child merely inherited
    * from the close request (a wished `failed` echoed back down and up). First descendant wins. */
@@ -4238,7 +4278,7 @@ function handleFor(layer: Layer): Scope.Handle {
     spans: () => layer.obs.history.slice(),
     onClose: (fn: () => void | PromiseLike<void>) => {
       ensureOpen(layer);
-      layer.defers.push({ fn: () => fn(), instance: undefined });
+      addDefer(layer, { fn: () => fn(), instance: undefined });
     },
     settled,
     close: (opts?: Scope.CloseOptions) =>
@@ -4249,7 +4289,7 @@ function handleFor(layer: Layer): Scope.Handle {
 
 /** Create a scope: the root of a layer chain that reads, controls, and runs cells, resources, tags, and operations. */
 export function createScope(options?: Scope.Options): Scope.Handle {
-  const layer = makeLayer(undefined, options);
+  const layer = makeRootLayer(options);
   const plain = handleFor(layer);
   const exts = readMany(options?.extensions);
   if (exts.length === 0) return plain;
@@ -4864,7 +4904,7 @@ class ExtensionCtx implements Resource.Ctx {
     this.random = owner.random;
   }
   readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
-    this.owner.defers.push({ fn, instance: undefined });
+    addDefer(this.owner, { fn, instance: undefined });
   };
   get raise(): Resource.Ctx["raise"] {
     return (kind, payload) => raiseFrom(this, kind, payload);
