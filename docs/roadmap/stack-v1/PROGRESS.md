@@ -2083,7 +2083,7 @@ vp run -r build && vp check \
 ## t17 writer notes
 
 Owner: stack/t17 writer. Branch: `stack/t17`.
-Next: finish the gate on the new base, then mutation and lead review.
+Next: finish the final mutation run, then lead review.
 Verify: Hono, Drizzle, stack, tracker, browser proof,
 `vp check`, `pnpm validate`, Hono mutation at least 85.
 
@@ -2236,7 +2236,7 @@ It got 84.45, 315 killed, 0 timed out, 56 survived,
 2 without coverage, 0 errors; `EXIT 1`.
 The first score hid gaps behind timeouts.
 One earlier launch passed an extra `--` to Stryker;
-it rejected those args before running any tests.
+it rejected those flags before running any tests.
 
 Added two public checks for real cleanup failures:
 reader cancellation logs the cleanup failure once;
@@ -2247,3 +2247,10 @@ Hono now has 80 passing tests.
 Jev: 0 of 80 titles flagged, no README gaps, eight unsure.
 Check: 0 errors, 29 warnings; prose and strict census pass.
 Rebased onto `be6a9526`; its only change is the board.
+
+Final gate after the new tests and rebase: build, check,
+Hono 80, Drizzle 13, stack 58, tracker 69; `EXIT 0`.
+Check: 0 errors, 29 warnings.
+All 17 package test tasks passed again from cached results.
+The browser proof ran again without cache; all 7 helpers passed.
+`ALL_BROWSER_EXIT 0`.
