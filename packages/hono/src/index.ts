@@ -368,11 +368,12 @@ export function stream(
         tags: [call?.tags, emit(write)],
         ...(call?.ns === undefined ? {} : { ns: call.ns }),
       });
-      const running = body.run(op, {
-        input: call?.input,
-        rawInput: call?.rawInput,
-      } as Scope.ProvideInput<unknown>);
-      const settled = Promise.resolve(running);
+      const runBody = async () =>
+        body.run(op, {
+          input: call?.input,
+          rawInput: call?.rawInput,
+        } as Scope.ProvideInput<unknown>);
+      const settled = runBody();
       const finish = settled.then(
         async () => {
           const result = await closeOnce(true);
@@ -382,6 +383,7 @@ export function stream(
           else controller.close();
         },
         async (error: unknown) => {
+          (c as Context<SessionEnv>).set("tinker.failure", { error });
           controller.error(error);
           const result = await closeOnce(true);
           if (result) readCloseError(result, c as Context<SessionEnv>, true);
