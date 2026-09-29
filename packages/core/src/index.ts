@@ -2213,15 +2213,15 @@ class OperationCtx<I> implements Operation.Ctx<I> {
   readonly label: string;
   readonly rawInput: unknown;
   readonly input: I;
-  readonly obs: Observe.Ctx;
-  readonly log: Observe.Logger;
+  private obsTools: Observe.Ctx | undefined;
+  private logTools: Observe.Logger | undefined;
+  readonly span: Observe.Span | undefined;
   readonly clock: Clock.Handle;
   readonly random: Random.Handle;
   constructor(
     owner: Layer,
     target: Operation.Handle<unknown, I>,
     call: Scope.Invocation<I> | undefined,
-    obs: Obs,
     span: Observe.Span | undefined,
   ) {
     this.owner = owner;
@@ -2233,8 +2233,7 @@ class OperationCtx<I> implements Operation.Ctx<I> {
     const rawInput = given !== undefined ? given : call?.rawInput;
     this.rawInput = rawInput;
     this.input = given !== undefined ? given : parseInput(target, rawInput);
-    this.obs = obsCtx(obs, span);
-    this.log = logFor(obs, span);
+    this.span = span;
     this.clock = owner.clock;
     this.random = owner.random;
   }
@@ -2243,6 +2242,12 @@ class OperationCtx<I> implements Operation.Ctx<I> {
   readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
     (this.defers ??= []).push(fn);
   };
+  get obs(): Observe.Ctx {
+    return (this.obsTools ??= obsCtx(this.owner.obs, this.span));
+  }
+  get log(): Observe.Logger {
+    return (this.logTools ??= logFor(this.owner.obs, this.span));
+  }
   get raise(): Operation.Ctx<I>["raise"] {
     return (kind, payload) => raiseFrom(this, kind, payload);
   }
@@ -2567,7 +2572,7 @@ function runOnce<T, I>(
   let result: T;
   buildDepth++;
   try {
-    ctx = new OperationCtx<I>(layer, target, call, obs, span);
+    ctx = new OperationCtx<I>(layer, target, call, span);
     const deps = sees
       ? readOpDeps(layer, target, span, held, chain, ctx)
       : buildPlainDeps(layer, target.depends, span, chain, ctx);
@@ -2832,13 +2837,13 @@ class ResourceCtx implements Resource.Ctx {
   private instance: ResourceInstance;
   private isSettled: () => boolean;
   readonly label: string;
-  readonly obs: Observe.Ctx;
-  readonly log: Observe.Logger;
+  private obsTools: Observe.Ctx | undefined;
+  private logTools: Observe.Logger | undefined;
+  readonly span: Observe.Span | undefined;
   readonly clock: Clock.Handle;
   readonly random: Random.Handle;
   constructor(
     instance: ResourceInstance,
-    obs: Obs,
     span: Observe.Span | undefined,
     isSettled: () => boolean,
   ) {
@@ -2846,8 +2851,7 @@ class ResourceCtx implements Resource.Ctx {
     this.instance = instance;
     this.isSettled = isSettled;
     this.label = instance.target.label;
-    this.obs = obsCtx(obs, span);
-    this.log = logFor(obs, span);
+    this.span = span;
     this.clock = instance.owner.clock;
     this.random = instance.owner.random;
   }
@@ -2856,6 +2860,12 @@ class ResourceCtx implements Resource.Ctx {
     this.instance.hooks.push(fn);
     addDefer(this.instance.owner, { fn, instance: this.instance });
   };
+  get obs(): Observe.Ctx {
+    return (this.obsTools ??= obsCtx(this.owner.obs, this.span));
+  }
+  get log(): Observe.Logger {
+    return (this.logTools ??= logFor(this.owner.obs, this.span));
+  }
   get raise(): Resource.Ctx["raise"] {
     return (kind, payload) => raiseFrom(this, kind, payload);
   }
@@ -2870,11 +2880,10 @@ class ResourceCtx implements Resource.Ctx {
  * behaves correctly. */
 function buildCtx(
   instance: ResourceInstance,
-  obs: Obs,
   span: Observe.Span | undefined,
   isSettled: () => boolean,
 ): Resource.Ctx {
-  return new ResourceCtx(instance, obs, span, isSettled);
+  return new ResourceCtx(instance, span, isSettled);
 }
 
 /** The empty ctx has no label, so its `raise` leaves the stamp to the run the error reaches. */
@@ -3236,7 +3245,7 @@ function buildTrackedResource<T>(
     const pending = parked;
     const ctx =
       fn.length >= 2
-        ? buildCtx(instance as ResourceInstance, obs, span, () => settled)
+        ? buildCtx(instance as ResourceInstance, span, () => settled)
         : emptyCtxFor(owner);
     const result =
       pending === undefined ? fn(deps, ctx) : settleDeps(deps, pending).then(() => fn(deps, ctx));

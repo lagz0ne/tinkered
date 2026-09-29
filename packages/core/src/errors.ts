@@ -53,7 +53,7 @@ export type RunResult<T> =
   | { status: "cancelled"; reason: unknown };
 
 /** A run or resource ctx: where a failure can be stamped. */
-type Site = Pick<Resource.Ctx, "label" | "obs">;
+type Site = Pick<Resource.Ctx, "label"> & { readonly span?: { id: number } };
 
 /** The origin a failure carries, and the ctx that raised it (its own run adds no label). `open`
  * while the error is in flight from its first throw: only then does an enclosing run add its label,
@@ -136,6 +136,6 @@ export function raiseFrom<K extends string, P extends object>(
   payload: P,
 ): never {
   const error = Object.assign(new Error(kind), { kind, payload });
-  if (ctx) stamps.set(error, { origin: firstOrigin(ctx.label, ctx.obs.span), by: ctx, open: true });
+  if (ctx) stamps.set(error, { origin: firstOrigin(ctx.label, ctx.span), by: ctx, open: true });
   throw error;
 }

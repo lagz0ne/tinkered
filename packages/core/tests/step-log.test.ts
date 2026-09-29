@@ -99,7 +99,7 @@ test("logging without observation keeps ctx.log but emits no step line", () => {
 });
 
 test("observing without a log sink preserves operation and resource spans", () => {
-  const dep = resource({ label: "dep", factory: () => 3 });
+  const dep = resource({ label: "dep", factory: (_deps, _ctx) => 3 });
   const op = operation({ label: "step", depends: { dep }, run: ({ dep }) => dep });
   const scope = createScope({ observe: { history: 2 } });
   expect(scope.run(op)).toBe(3);

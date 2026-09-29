@@ -4,7 +4,9 @@ import { createScope, operation, type Observe } from "../src/index.ts";
 test("a manual child span exports its event", () => {
   const op = operation({
     label: "op",
-    run: (_deps, { obs }) => {
+    run: (_deps, ctx) => {
+      const { obs } = ctx;
+      expect(ctx.obs).toBe(obs);
       obs.event("ping", { n: 1 });
       return 1;
     },

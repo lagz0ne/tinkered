@@ -735,6 +735,12 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 
 ### Observation
 
+- A destructured operation logger stays the same and sends every level in order.
+- A destructured resource logger stays the same and keeps the level threshold.
+- A resource keeps its observation tools and exports manual events and children.
+- A caught operation raise carries its span before the body reads observation tools.
+- A caught resource raise carries its span before the factory reads observation tools.
+
 - An observed operation logs its label, elapsed time, outcome, level, and span.
 - A failed operation logs its failure at error level.
 - Nested subflows log child before parent, once each.

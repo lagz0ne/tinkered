@@ -1,5 +1,5 @@
 // Standalone core probe: ONE scenario per process (min ns/iter + bytes/iter), pinned to one core.
-// usage: taskset -c 7 node --expose-gc bench/core-probe.mjs <cold|create|warm|get1|lifecycle|inferdi_cold|op|opres|asyncsub|run|cold2|s1_getctl|s2_data|s3_doubled|s4_warm_ctl|inline|tagged|session>
+// usage: taskset -c 7 node --expose-gc bench/core-probe.mjs <cold|create|warm|get1|lifecycle|inferdi_cold|op|opsink|oplog|opobs|opres|asyncsub|run|cold2|s1_getctl|s2_data|s3_doubled|s4_warm_ctl|inline|tagged|session>
 // CORE_DIST=<path to a core dist/index.mjs> measures that build with this probe (bench/ab.sh runs
 // one probe against both trees); unset, it measures this tree's build.
 // Every scenario is timed in mitata's batch mode: 4096 calls per sample. Left to itself, mitata
@@ -45,6 +45,18 @@ const op = operation({ label: "op", depends: { n: cfg }, run: ({ n }) => n + 1 }
 const opScope = createScope();
 const opC = opScope.controller(op);
 opC.run();
+const sinkScope = createScope({ observe: { log: () => {} } });
+const sinkC = sinkScope.controller(op);
+const loggingOp = operation({
+  label: "op",
+  depends: { n: cfg },
+  run: ({ n }, { log }) => {
+    log("body");
+    return n + 1;
+  },
+});
+const loggingC = sinkScope.controller(loggingOp);
+const observedC = createScope({ observe: { export: () => {} } }).controller(op);
 const opRes = operation({ label: "opRes", depends: { store }, run: ({ store }) => store.base });
 const opResC = opScope.controller(opRes);
 opResC.run();
@@ -86,6 +98,9 @@ const fns = {
   s3_doubled: () => createScope().controller(doubled).resolve(),
   s4_warm_ctl: () => warmScope.controller(store),
   op: () => opC.run(),
+  opsink: () => sinkC.run(),
+  oplog: () => loggingC.run(),
+  opobs: () => observedC.run(),
   opres: () => opResC.run(),
   asyncsub: () => asyncSubC.run(),
   run: () => opScope.run(op),
