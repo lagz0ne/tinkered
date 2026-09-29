@@ -45,6 +45,8 @@ Publish queues the bytes; scope close flushes them.
 NATS pub/sub does not save messages for later delivery.
 
 `subscribe(subject, operation)` makes a driver row.
+A loader function can return the operation at boot.
+Use a loader when the operation depends on `bus.publish`.
 Each message copies its payload into its own session.
 A failed operation writes one error through the scope's
 log sink and leaves the subscription open.
@@ -97,5 +99,8 @@ try {
 - The graph traces publish and the subscription operation.
 - The helper fetches the pinned server once and reuses its home cache.
 - A bad checksum refuses the binary.
+- Forced close aborts a running message and closes the connection.
+- Close during boot reaps a connection that opens later.
+- A failed subscription loader fails boot and closes the connection.
 
 [release]: https://github.com/nats-io/nats-server/releases/tag/v2.15.0

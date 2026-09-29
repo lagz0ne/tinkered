@@ -22,6 +22,8 @@ const execute = promisify(execFile);
 export declare namespace NatsServer {
   type Handle = {
     url: string;
+    /** Loopback-only NATS monitor for test assertions about open connections. */
+    monitorUrl: string;
     /** The caller owns the server. Close waits for exit and removes its temp store. */
     close(): Promise<void>;
   };
@@ -82,7 +84,7 @@ function checkArchive(bytes: Buffer, checksums: string): void {
 export async function startNatsServer(): Promise<NatsServer.Handle> {
   const executable = await installNatsServer();
   const store = await mkdtemp(join(tmpdir(), "tinker-nats-"));
-  const child = spawn(executable, ["-a", "127.0.0.1", "-p", "-1", "-sd", store], {
+  const child = spawn(executable, ["-a", "127.0.0.1", "-p", "-1", "-m", "-1", "-sd", store], {
     stdio: ["ignore", "ignore", "pipe"],
   });
   const exited = new Promise<void>((resolve, reject) => {
@@ -90,11 +92,14 @@ export async function startNatsServer(): Promise<NatsServer.Handle> {
     child.once("error", reject);
   });
   let output = "";
-  const ready = new Promise<string>((resolve) => {
+  const ready = new Promise<{ url: string; monitorUrl: string }>((resolve) => {
     child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
       output += chunk;
       const port = /Listening for client connections on 127\.0\.0\.1:(\d+)/.exec(output)?.at(1);
-      if (port && output.includes("Server is ready")) resolve(`nats://127.0.0.1:${port}`);
+      const monitor = /Starting http monitor on 127\.0\.0\.1:(\d+)/.exec(output)?.at(1);
+      if (port && monitor && output.includes("Server is ready")) {
+        resolve({ url: `nats://127.0.0.1:${port}`, monitorUrl: `http://127.0.0.1:${monitor}` });
+      }
     });
   });
   let closing: Promise<void> | undefined;
@@ -108,8 +113,11 @@ export async function startNatsServer(): Promise<NatsServer.Handle> {
     }
   }
   try {
-    const url = await Promise.race([ready, exited.then(() => raise("ServerStopped", { output }))]);
-    return { url, close };
+    const addresses = await Promise.race([
+      ready,
+      exited.then(() => raise("ServerStopped", { output })),
+    ]);
+    return { ...addresses, close };
   } catch (error) {
     await close();
     throw error;

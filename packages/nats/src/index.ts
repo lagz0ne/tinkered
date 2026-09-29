@@ -9,7 +9,8 @@ export type { Errors } from "./errors.ts";
 export declare namespace Nats {
   /** Payload bytes belong to this delivery; no client objects cross into the app. */
   type Message = { subject: string; payload: Uint8Array };
-  type Row = { subject: string; operation: Operation.Handle<unknown, Message> };
+  type Load<T> = () => Operation.Handle<T, Message> | PromiseLike<Operation.Handle<T, Message>>;
+  type Row = { subject: string; load: Load<unknown> };
   type Wiring = {
     env: { NATS_URL?: string };
     /** Borrowed from a dev host. Only this piece's subscriptions close with the scope. */
@@ -18,23 +19,27 @@ export declare namespace Nats {
 }
 
 /** One row per subject. Wildcards follow NATS subject rules. */
-export function subscribe<T>(subject: string, op: Operation.Handle<T, Nats.Message>): Nats.Row {
-  return { subject, operation: op };
+export function subscribe<T>(
+  subject: string,
+  op: Operation.Handle<T, Nats.Message> | Nats.Load<T>,
+): Nats.Row {
+  return { subject, load: typeof op === "function" ? op : () => op };
 }
 
 /** Create one piece per root. The extension owns the connection unless wiring lends one.
  * Close drains subscriptions while sessions can still run, then closes the root.
  * The start defer also reaps the connection when boot fails before the close hook runs. */
 export function nats(rows: readonly Nats.Row[], wiring: Nats.Wiring) {
-  let stop: (() => Promise<void>) | undefined;
+  let quiet: (() => Promise<void>) | undefined;
   const bridge = extension({
     label: "nats",
     start: async (scope, ctx, next) => {
       const url = readUrl(wiring.env.NATS_URL);
       let stopped = false;
+      let close: (() => Promise<void>) | undefined;
       ctx.defer(() => {
         stopped = true;
-        return stop?.();
+        return close?.();
       });
       await next();
       const { connect } = await import("@nats-io/transport-node");
@@ -42,21 +47,25 @@ export function nats(rows: readonly Nats.Row[], wiring: Nats.Wiring) {
       const subscriptions: Subscription[] = [];
       const pending = new Set<Promise<void>>();
       let stopping: Promise<void> | undefined;
-      stop = () => (stopping ??= drain(connection, subscriptions, pending, !wiring.connection));
+      quiet = () => (stopping ??= stopSubscriptions(subscriptions, pending));
+      let closing: Promise<void> | undefined;
+      const stop = quiet;
+      close = () => (closing ??= drain(connection, stop, !wiring.connection));
       const send = (message: Nats.Message): void =>
         connection.publish(message.subject, message.payload);
       if (stopped) {
-        await stop();
+        await close();
         return { send };
       }
       for (const row of rows) {
+        const receive = await row.load();
         subscriptions.push(
           connection.subscribe(row.subject, {
             callback: (error, message) => {
               const work = scope.session((session) =>
                 session.run({
                   label: `nats ${row.subject}`,
-                  depends: { receive: row.operation },
+                  depends: { receive },
                   run: async ({ receive }, runCtx) => {
                     if (error) {
                       runCtx.log.error("nats subscription failed", { subject: row.subject, error });
@@ -88,8 +97,9 @@ export function nats(rows: readonly Nats.Row[], wiring: Nats.Wiring) {
     },
     close: async (options, next) => {
       if (!options.graceful) return next();
-      await stop?.();
-      return next();
+      /** The defer reports a failed drain in teardownErrors. Always let core close.
+       * The connection stays open until root operations and their cleanup finish. */
+      return quiet ? quiet().then(next, next) : next();
     },
   });
   const publish = operation({
@@ -112,15 +122,21 @@ function readUrl(value: string | undefined): string {
 
 async function drain(
   connection: NatsConnection,
-  subscriptions: Subscription[],
-  pending: Set<Promise<void>>,
+  stop: () => Promise<void>,
   owned: boolean,
 ): Promise<void> {
   try {
-    await Promise.all(subscriptions.map((subscription) => subscription.drain()));
-    await Promise.all(pending);
+    await stop();
     if (owned) await connection.drain();
   } finally {
     if (owned) await connection.close();
   }
+}
+
+async function stopSubscriptions(
+  subscriptions: Subscription[],
+  pending: Set<Promise<void>>,
+): Promise<void> {
+  await Promise.all(subscriptions.map((subscription) => subscription.drain()));
+  await Promise.all(pending);
 }

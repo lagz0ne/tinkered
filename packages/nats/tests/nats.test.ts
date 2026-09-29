@@ -1,7 +1,15 @@
 import { afterAll, beforeAll, expect, test } from "vite-plus/test";
 import { connect } from "@nats-io/transport-node";
 import { startNatsServer, type NatsServer } from "@tinker/nats/testing";
-import { createScope, data, operation, resource, type Observe, type Operation } from "@tinker/core";
+import {
+  createScope,
+  data,
+  extension,
+  operation,
+  resource,
+  type Observe,
+  type Operation,
+} from "@tinker/core";
 import { isError, nats, subscribe, type Nats } from "../src/index.ts";
 
 let server: NatsServer.Handle;
@@ -127,15 +135,16 @@ test("scope close drains queued messages and their replies before closing the co
     }
     return values;
   })();
+  const bus = nats([subscribe("drain", () => receive)], { env: { NATS_URL: server.url } });
   const receive = operation({
     label: "receive",
-    run: async (_deps, ctx: Operation.Ctx<Nats.Message>) => {
+    depends: { publish: bus.publish },
+    run: async ({ publish }, ctx: Operation.Ctx<Nats.Message>) => {
       started.resolve();
       await release.promise;
-      peer.publish("replies", ctx.input.payload);
+      publish.run({ input: { subject: "replies", payload: ctx.input.payload } });
     },
   });
-  const bus = nats([subscribe("drain", receive)], { env: { NATS_URL: server.url } });
   const scope = createScope({ extensions: [bus.extension] });
   try {
     await scope.ready;
@@ -152,6 +161,9 @@ test("scope close drains queued messages and their replies before closing the co
     release.resolve();
     expect(await closing).toEqual({ status: "success" });
     expect(await received).toEqual([1, 2]);
+    await expect
+      .poll(async () => (await fetch(`${server.monitorUrl}/connz`)).json())
+      .toMatchObject({ num_connections: 1 });
   } finally {
     release.resolve();
     await scope.close();
@@ -214,5 +226,65 @@ test("bad NATS_URL fails boot naming the key", async () => {
     } finally {
       await scope.close();
     }
+  }
+});
+
+test("forced close aborts a running message and closes the connection", async () => {
+  const started = Promise.withResolvers<void>();
+  const receive = operation({
+    label: "waitForAbort",
+    run: (_deps, ctx: Operation.Ctx<Nats.Message>) =>
+      new Promise<void>((_resolve, reject) => {
+        ctx.signal.addEventListener("abort", () => reject(ctx.signal.reason), { once: true });
+        started.resolve();
+      }),
+  });
+  const bus = nats([subscribe("abort", receive)], { env: { NATS_URL: server.url } });
+  const scope = createScope({ extensions: [bus.extension] });
+  try {
+    await scope.ready;
+    scope.run(bus.publish, { input: { subject: "abort", payload: new Uint8Array() } });
+    await started.promise;
+    expect((await scope.close()).status).toBe("cancelled");
+    await expect
+      .poll(async () => (await fetch(`${server.monitorUrl}/connz`)).json())
+      .toMatchObject({ num_connections: 0 });
+  } finally {
+    await scope.close();
+  }
+});
+
+test("close during boot reaps a connection that opens later", async () => {
+  const release = Promise.withResolvers<void>();
+  const gate = extension({ label: "bootGate", start: () => release.promise });
+  const bus = nats([], { env: { NATS_URL: server.url } });
+  const scope = createScope({ extensions: [bus.extension, gate] });
+  try {
+    await scope.close({ graceful: true });
+    release.resolve();
+    await scope.ready;
+    await expect
+      .poll(async () => (await fetch(`${server.monitorUrl}/connz`)).json())
+      .toMatchObject({ num_connections: 0 });
+  } finally {
+    release.resolve();
+    await scope.close();
+  }
+});
+
+test("a failed subscription loader fails boot and closes the connection", async () => {
+  const failure = new Error("cannot load the operation");
+  const bus = nats([subscribe("bootFail", () => Promise.reject(failure))], {
+    env: { NATS_URL: server.url },
+  });
+  const scope = createScope({ extensions: [bus.extension] });
+  try {
+    await expect(scope.ready).rejects.toBe(failure);
+    await scope.close();
+    await expect
+      .poll(async () => (await fetch(`${server.monitorUrl}/connz`)).json())
+      .toMatchObject({ num_connections: 0 });
+  } finally {
+    await scope.close();
   }
 });
