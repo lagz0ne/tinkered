@@ -25,6 +25,7 @@ for s in $SCEN; do
       if [ -z "$line" ]; then echo "ab.sh: no METRIC line from tree $t ($dir), scenario $s" >&2; exit 1; fi
       ns=$(echo "$line" | sed -E 's/.*_ns=([0-9.]+).*/\1/'); b=$(echo "$line" | sed -E 's/.*_b=([^ ]+).*/\1/')
       case "$line" in
+        *mode=one*) echo "ab.sh: tree $t ($dir), scenario $s ran in one-call mode (mode=one); the probe must time in batch mode" >&2; exit 1 ;;
         *mode=batch*) if [ "$t" = A ]; then batchA=$((batchA + 1)); else batchB=$((batchB + 1)); fi ;;
       esac
       echo "$t,$s,$ns,$b" >> "$OUT"

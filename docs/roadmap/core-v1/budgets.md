@@ -58,7 +58,7 @@ against both trees. The numbers to use are in "Call paths with warm-up and one p
 
 ### Re-baseline: main against itself
 
-Both trees at `origin/main` `31613e7` (core as `c5d1921`). N=31 through `benchd`, medians in ns
+Both trees at `origin/main` `31613e7` (core last changed in `233139d`). N=31 through `benchd`, medians in ns
 per call. The gap between two copies of one build is the noise floor at N=31.
 
 ```bash
