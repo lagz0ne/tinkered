@@ -81,7 +81,7 @@ A boot read failure rejects ready.
 A read failure after commit logs `publish failed` and
 keeps the request's answer.
 
-For several server processes, use one subject per app:
+For several server processes, use one subject (channel name) per app:
 
 ```ts
 extensions: [

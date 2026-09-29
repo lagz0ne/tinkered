@@ -1088,10 +1088,52 @@ It also closes old handles after a fresh start.
 
 ### t12 commit failure fix
 
-- A real deferred unique constraint made the second
-  insert fail at commit, after the operation returned.
+- A real duplicate-title rule, checked only at commit,
+  made the second insert fail after the operation returned.
 - Before the fix: two signals for one saved row;
   the new test failed, exit 1.
 - Core can return `success` with `teardownErrors`.
   Skip publishing when that list has an error.
   This keeps a failed commit silent too.
+
+### t12 final checks before mutation
+
+- Fresh fetch and rebase: `origin/main` is `edb51742`.
+- Gate: build, check, stack 57, NATS 19, tracker 69;
+  `EXIT 0`.
+- Check: 0 errors, 29 warnings, matching main.
+- Full repo tests: all 17 tasks passed, exit 0.
+- Browser proof, with cache off: script and all seven
+  browser helper tests passed, exit 0.
+- Tracker assertions and store have no diff from main.
+- SCIP finds both new exports in the tracker:
+  `main.ts` uses `liveUpdates`;
+  `publish.ts` uses `publishAfterCommit`.
+  No old symbol was removed.
+- Jev tests: 0 of 24 titles flagged.
+  Promises: all 24 have README lines.
+  The plain and `~` notes are the same as above.
+  No model flag needs a label; none were added.
+- Final strict style census: OK.
+
+### t12 Core feedback
+
+A commit failure can still return `status: "success"`.
+The error is in `teardownErrors`; checking status alone
+sent a changed signal for a row that rolled back.
+The new guard checks both fields.
+
+This probe used one real PGlite and `drizzleStore`.
+Its title rule was checked only at commit:
+
+```ts
+const session = scope.createSession();
+const tx = await session.resolve(store.tx);
+await tx.exec("insert into issues values ('A'), ('A')");
+const end = await session.close({ graceful: true });
+console.log(end.status, end.teardownErrors?.length);
+```
+
+Observed: `success 1`, with zero saved rows.
+Expected from status alone: a committed save.
+No core code changed; the stack now checks the full result.
