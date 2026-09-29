@@ -174,3 +174,35 @@ flock /tmp/mutation.lock \
 
 The size cap is 10 kB gzip.
 The mutation floor is 85.
+
+## Migrate before serving
+
+List `migrate(store.db, migrations)` before `server`.
+`migrations` holds the app's `migrationsFolder` path
+and an optional `baseline(db)` for its old tables.
+The baseline uses only the transaction passed to it.
+
+The start takes a Postgres advisory lock, a lock shared
+by all starts using the same database.
+One transaction pins its connection, runs the baseline
+and Drizzle files, then commits and releases the lock.
+A failure rolls back and stops boot before serving.
+PGlite's one connection runs these transactions in turn.
+A future pg-boss start belongs after this commit.
+
+`createTestDatabase(migrations)` runs that same step
+on one in-memory PGlite and returns `clone()` and `close()`.
+Create one per test file, clone it for each test,
+then close each clone and the template.
+Each clone starts with the migrated tables and its own rows.
+The helper creates no lasting scope.
+PGlite's clone return type omits its class;
+the helper keeps that type fix at the library boundary.
+
+- Two starts on one database migrate once under a lock
+  released before the next start.
+- A failed migration stops the port opening and rolls
+  back its tables and history.
+- The test helper migrates once and gives each clone
+  its own rows.
+- The test helper rejects a migration failure.

@@ -1,4 +1,6 @@
 type Payloads = {
+  MigrationNotFound: { name: string };
+  SchemaDrift: { config: string; result: unknown };
   Rollback: { status: "success" | "failed" | "cancelled" | "released" };
 };
 

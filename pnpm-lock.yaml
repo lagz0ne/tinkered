@@ -660,6 +660,9 @@ importers:
       bumpp:
         specifier: ^11.1.0
         version: 11.1.0
+      drizzle-kit:
+        specifier: 'catalog:'
+        version: 1.0.0-rc.4
       drizzle-orm:
         specifier: 'catalog:'
         version: 1.0.0-rc.4(@electric-sql/pglite@0.5.8)(effect@3.22.2)(zod@4.6.2)
@@ -910,31 +913,34 @@ importers:
 
   packages/stack:
     dependencies:
+      '@electric-sql/pglite':
+        specifier: 'catalog:'
+        version: 0.5.8
       '@hono/node-server':
         specifier: 1.19.17
         version: 1.19.17(hono@4.13.8)
       '@tinker/core':
         specifier: workspace:*
         version: link:../core
+      '@tinker/drizzle':
+        specifier: workspace:*
+        version: link:../drizzle
       '@tinker/hono':
         specifier: workspace:*
         version: link:../hono
       '@tinker/nats':
         specifier: workspace:*
         version: link:../nats
-    devDependencies:
-      '@electric-sql/pglite':
+      drizzle-orm:
         specifier: 'catalog:'
-        version: 0.5.8
+        version: 1.0.0-rc.4(@electric-sql/pglite@0.5.8)(effect@3.22.2)(zod@4.6.2)
+    devDependencies:
       '@stryker-mutator/core':
         specifier: 'catalog:'
         version: 10.0.0(@types/node@26.5.1)
       '@stryker-mutator/vitest-runner':
         specifier: 'catalog:'
         version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@26.5.1))(vitest@4.1.11)
-      '@tinker/drizzle':
-        specifier: workspace:*
-        version: link:../drizzle
       '@tinker/sync':
         specifier: workspace:*
         version: link:../sync

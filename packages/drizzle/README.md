@@ -123,3 +123,43 @@ const serial = resource({
 depends: { db: store.db, takeTurn: serial },
 run: ({ db, takeTurn }, ctx) => takeTurn(() => db.transaction((tx) => writeEdit(tx, ctx.input))),
 ```
+
+## Migration files
+
+The Node entry `@tinker/drizzle/migrations` requires
+Drizzle ORM and Kit `1.0.0-rc.4`.
+`migrateDatabase(db, { migrationsFolder })` borrows a
+Postgres database or transaction and runs Drizzle's files.
+The stack owns the lock and the boot order.
+
+For an old database, first bring its tables level.
+Then pass `baseline` with the exact first folder name.
+Drizzle records that file with its original hash and time,
+but without running its SQL.
+Later folders still run on the normal call.
+The caller must make the upgrade and record one transaction.
+
+```ts
+await migrateDatabase(tx, {
+  migrationsFolder: "./drizzle",
+  baseline: "20260929165528_tracker",
+});
+```
+
+`checkDrift("/app/drizzle.config.ts")` runs the app's
+pinned Kit with `generate --explain --output json`.
+Only `no_changes` passes.
+A mismatch raises `SchemaDrift` with the config path
+and Kit's result.
+Kit failures reach the caller.
+It writes no migration and uses no database.
+
+- Migration folders run once and a later folder runs
+  on the next boot.
+- A failed batch leaves none of its pending migrations
+  applied.
+- A named baseline is recorded without running its SQL
+  or skipping later folders.
+- A missing baseline names the absent migration folder.
+- The drift check accepts matching files and rejects
+  an unsaved schema change.

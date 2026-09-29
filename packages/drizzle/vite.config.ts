@@ -2,6 +2,7 @@ import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   pack: {
+    entry: ["src/index.ts", "src/migrations.ts"],
     deps: { resolveDepSubpath: true, neverBundle: ["@tinker/core", "drizzle-orm"] },
     dts: {
       generator: "tsgo",

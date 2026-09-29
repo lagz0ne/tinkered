@@ -1,4 +1,8 @@
 export { server } from "./server.ts";
+export { migrate } from "./migrate.ts";
+export type { Migrate } from "./migrate.ts";
+export { createTestDatabase } from "./testing.ts";
+export type { TestDatabase } from "./testing.ts";
 export type { Server } from "./server.ts";
 export { runUntilStop } from "./stop.ts";
 export { describeError, jsonLines } from "./observe.ts";

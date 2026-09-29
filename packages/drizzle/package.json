@@ -18,6 +18,7 @@
   "type": "module",
   "exports": {
     ".": "./dist/index.mjs",
+    "./migrations": "./dist/migrations.mjs",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -25,7 +26,7 @@
   },
   "scripts": {
     "build": "vp pack",
-    "size": "vp pack && node ../../scripts/check-size.mjs 10240",
+    "size": "vp pack && node ../../scripts/check-size.mjs 10240 dist",
     "dev": "vp pack --watch",
     "test": "vp test",
     "mutate": "stryker run",
@@ -42,6 +43,7 @@
     "@tinker/core": "workspace:*",
     "@types/node": "^26.1.1",
     "bumpp": "^11.1.0",
+    "drizzle-kit": "catalog:",
     "drizzle-orm": "catalog:",
     "typescript": "^7.0.2",
     "vite": "catalog:",

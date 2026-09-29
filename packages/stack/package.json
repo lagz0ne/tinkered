@@ -25,7 +25,7 @@
   },
   "scripts": {
     "build": "vp pack",
-    "size": "vp pack && node ../../scripts/check-size.mjs 10240",
+    "size": "vp pack && node ../../scripts/check-size.mjs 10240 dist",
     "dev": "vp pack --watch",
     "test": "vp test",
     "mutate": "stryker run",
@@ -33,10 +33,13 @@
     "prepublishOnly": "vp run build"
   },
   "dependencies": {
+    "@electric-sql/pglite": "catalog:",
     "@hono/node-server": "1.19.17",
     "@tinker/core": "workspace:*",
+    "@tinker/drizzle": "workspace:*",
     "@tinker/hono": "workspace:*",
-    "@tinker/nats": "workspace:*"
+    "@tinker/nats": "workspace:*",
+    "drizzle-orm": "catalog:"
   },
   "devDependencies": {
     "@electric-sql/pglite": "catalog:",
