@@ -44,7 +44,6 @@ export type { Store } from "./server/store.ts";
 export { issueRoutes, issueServer } from "./server/routes.ts";
 export { src } from "./server/sync.ts";
 export { publish } from "./server/publish.ts";
-export { describeError, jsonLines } from "./server/observe.ts";
 export type { DraftConfig } from "./server/draft.ts";
 export type { IssueServer } from "./server/routes.ts";
 export { runServer } from "./server/main.ts";

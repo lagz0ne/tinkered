@@ -15,7 +15,6 @@
     "test:browser": "node --experimental-strip-types ./tests/browser-proof.ts && vp test tests/browser-helper.test.ts"
   },
   "dependencies": {
-    "@hono/node-server": "npm:^1.19.5",
     "@modelcontextprotocol/sdk": "catalog:",
     "@tinker/core": "workspace:*",
     "@tinker/drizzle": "workspace:*",
@@ -25,6 +24,7 @@
     "@tinker/mcp": "workspace:*",
     "@tinker/process": "workspace:*",
     "@tinker/react": "workspace:*",
+    "@tinker/stack": "workspace:*",
     "@tinker/sync": "workspace:*",
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
@@ -34,6 +34,7 @@
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "catalog:",
     "@electric-sql/pglite": "catalog:",
+    "@hono/node-server": "1.19.17",
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",

@@ -118,7 +118,13 @@ It waits for a clean close and answers 0; a boot failure answers 1.
 Saved issues reach the list route and sync stream before the port opens.
 
 A `PORT` that is not a whole number from 1 to 65535 stops the boot with
-`BadPort`; a missing `PORT` means 4311.
+`BadListenSettings`, which names every bad listen key.
+A missing `PORT` means 4311 in this dev app.
+A missing `HOST` means `127.0.0.1` here.
+The stack itself supplies neither default.
+A bad `HOST` also stops boot before the port opens.
+The entry uses `@tinker/stack` for the listener,
+client files, JSON logs, and stop wait.
 
 Walkthrough: create an issue in the first tab and see it appear in the
 second; open it in both; change status/assignee in one tab and watch the

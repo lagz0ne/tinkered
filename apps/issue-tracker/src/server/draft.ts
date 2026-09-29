@@ -3,7 +3,7 @@ import { emit } from "@tinker/hono";
 import { claudeCode, harness, type ClaudeCode } from "@tinker/harness";
 import { api } from "../client/api.ts";
 import { fail, raise } from "../errors.ts";
-import { describeError } from "./observe.ts";
+import { describeError } from "@tinker/stack";
 import { parseDraftInput, type Draft } from "../shared/draft.ts";
 import { getTool, listTool } from "../tools/issues.ts";
 import { readDetail } from "./operations.ts";

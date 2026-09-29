@@ -10,10 +10,10 @@ export function describeError(error: unknown): Record<string, unknown> {
   return fields;
 }
 
-/** One JSON object per line for a `write` (stdout in `main.ts`): every log line
+/** One JSON object per line for a `write` (stdout at the entry): every log line
  * as `{ kind: "log", ... }`, and every failed span as `{ kind: "span", ... }` — an
  * ok span is a trace, and a trace is what a tracing backend is for. This is the
- * one place a logging or tracing backend swaps in: hand the root (`main.ts`) another
+ * one place a logging or tracing backend swaps in: hand the root another
  * `Observe.Config` and nothing else in the app changes. A `write` that throws
  * loses that one line; core isolates the sink. */
 export function jsonLines(write: (line: string) => void): Observe.Config {

@@ -277,9 +277,6 @@ importers:
 
   apps/issue-tracker:
     dependencies:
-      '@hono/node-server':
-        specifier: npm:^1.19.5
-        version: 1.19.17(hono@4.13.8)
       '@modelcontextprotocol/sdk':
         specifier: 'catalog:'
         version: 1.30.0(zod@4.6.2)
@@ -307,6 +304,9 @@ importers:
       '@tinker/react':
         specifier: workspace:*
         version: link:../../packages/react
+      '@tinker/stack':
+        specifier: workspace:*
+        version: link:../../packages/stack
       '@tinker/sync':
         specifier: workspace:*
         version: link:../../packages/sync
@@ -329,6 +329,9 @@ importers:
       '@electric-sql/pglite':
         specifier: 'catalog:'
         version: 0.5.8
+      '@hono/node-server':
+        specifier: 1.19.17
+        version: 1.19.17(hono@4.13.8)
       '@types/node':
         specifier: ^24
         version: 24.13.5
@@ -870,6 +873,37 @@ importers:
       vitest-browser-react:
         specifier: ^2.3.0
         version: 2.3.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@4.1.11)
+
+  packages/stack:
+    dependencies:
+      '@hono/node-server':
+        specifier: 1.19.17
+        version: 1.19.17(hono@4.13.8)
+      '@tinker/core':
+        specifier: workspace:*
+        version: link:../core
+      '@tinker/hono':
+        specifier: workspace:*
+        version: link:../hono
+    devDependencies:
+      '@stryker-mutator/core':
+        specifier: 'catalog:'
+        version: 10.0.0(@types/node@26.5.1)
+      '@stryker-mutator/vitest-runner':
+        specifier: 'catalog:'
+        version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@26.5.1))(vitest@4.1.11)
+      '@types/node':
+        specifier: 26.5.1
+        version: 26.5.1
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vite:
+        specifier: 'catalog:'
+        version: '@voidzero-dev/vite-plus-core@0.3.1(@types/node@26.5.1)(esbuild@0.28.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1)'
+      vite-plus:
+        specifier: 'catalog:'
+        version: 0.3.1(@types/node@26.5.1)(@vitest/browser-playwright@4.1.11)(esbuild@0.28.2)(happy-dom@20.14.5)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1)
 
   packages/sync:
     dependencies:

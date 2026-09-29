@@ -1,6 +1,6 @@
 import { extension, type Scope } from "@tinker/core";
 import { request } from "@tinker/hono";
-import { describeError } from "./observe.ts";
+import { describeError } from "@tinker/stack";
 import { publishIssues } from "./operations.ts";
 
 /** Publish during start and after commit (ADR 0051): the `session` hook fires when each request

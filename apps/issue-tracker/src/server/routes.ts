@@ -5,7 +5,7 @@ import type { Sync } from "@tinker/sync";
 import { emit, hono, route, stream, type HonoScope } from "@tinker/hono";
 import { isError } from "../errors.ts";
 import { draftBody, readCapability, startDraft } from "./draft.ts";
-import { describeError } from "./observe.ts";
+import { describeError } from "@tinker/stack";
 import { addComment, createIssue, editIssue, readDetail, readIssues } from "./operations.ts";
 import { readRegister, src, sseTransport } from "./sync.ts";
 

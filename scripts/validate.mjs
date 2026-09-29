@@ -6,6 +6,8 @@ const VP = "/home/paseo/.local/vp/bin/vp";
 const strip = "node --experimental-strip-types";
 const lanes = [
   ["lint/types/format/complexity", `${VP} check`],
+  ["stack tests", `${VP} run --no-cache stack#test`],
+  ["stack size (<= 10 kB gzip)", `${VP} run --no-cache stack#size`],
   ["tests", `${VP} run --no-cache core#test`],
   ["size (<= 30 kB gzip)", `${VP} run --no-cache core#size`],
   ["promises (0 sync / <=10 async)", `${strip} bench/promises.mjs`],
@@ -140,7 +142,7 @@ for (const [name, cmd, show] of lanes) {
   }
 }
 console.log(
-  `\nMutation lanes: run \`${VP} run --no-cache core#mutate\` and \`${VP} run --no-cache http#mutate\` and \`${VP} run --no-cache hono#mutate\` and \`${VP} run --no-cache drizzle#mutate\` and \`${VP} run --no-cache process#mutate\` and \`${VP} run --no-cache harness#mutate\` and \`${VP} run --no-cache mcp#mutate\` and \`${VP} run --no-cache sync#mutate\` ALONE (break >= 85 for every package (user, 2026-09-24); measured alone 2026-09-21: core 86.07, react 93.16; 2026-09-20: http 90.77, hono 77.66, drizzle ~96, process 83.43, harness 76.05, mcp 82.86, sync 79.67).`,
+  `\nMutation lanes: run \`${VP} run --no-cache core#mutate\` and \`${VP} run --no-cache http#mutate\` and \`${VP} run --no-cache hono#mutate\` and \`${VP} run --no-cache drizzle#mutate\` and \`${VP} run --no-cache process#mutate\` and \`${VP} run --no-cache harness#mutate\` and \`${VP} run --no-cache mcp#mutate\` and \`${VP} run --no-cache sync#mutate\` and \`${VP} run --no-cache stack#mutate\` ALONE (break >= 85 for every package (user, 2026-09-24); measured alone 2026-09-21: core 86.07, react 93.16; 2026-09-20: http 90.77, hono 77.66, drizzle ~96, process 83.43, harness 76.05, mcp 82.86, sync 79.67).`,
 );
 console.log(
   `Timing lanes:  run via \`benchctl exec -- ${strip} bench/<lane>.mjs\` from a clean worktree (the queue; never by hand).\n` +

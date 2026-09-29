@@ -8,7 +8,6 @@ type Payloads = {
   BadCommentInput: { reason: string };
   BadDraftInput: { reason: string };
   BadRegister: { reason: string };
-  BadPort: { value: string };
   DraftOff: Record<string, never>;
   DraftFailed: { reason: string };
   IssueNotFound: { id: string };

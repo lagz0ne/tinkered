@@ -31,16 +31,16 @@ async function readFirstLine(port: string): Promise<Record<string, unknown>> {
   }
 }
 
-test("a PORT that is not a port number fails the boot with BadPort", async () => {
+test("a PORT that is not a port number fails the boot naming PORT", async () => {
   const first = await readFirstLine("abc");
   expect(first.message).toBe("boot failed");
-  expect(first.kind).toBe("BadPort");
-  expect(first.payload).toEqual({ value: "abc" });
+  expect(first.kind).toBe("BadListenSettings");
+  expect(first.payload).toEqual({ keys: ["PORT"] });
 });
 
 test("a PORT with trailing junk or out of range fails the boot too", async () => {
-  expect((await readFirstLine("80x")).payload).toEqual({ value: "80x" });
-  expect((await readFirstLine("70000")).payload).toEqual({ value: "70000" });
+  expect((await readFirstLine("80x")).payload).toEqual({ keys: ["PORT"] });
+  expect((await readFirstLine("70000")).payload).toEqual({ keys: ["PORT"] });
 });
 
 /** A 500 through a baseUrl-only binding still rejects: the helper folds the policy in. */

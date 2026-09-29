@@ -1,14 +1,7 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, operation, preset } from "@tinker/core";
-import {
-  describeError,
-  fail,
-  isError,
-  jsonLines,
-  readIssues,
-  store,
-  issueServer,
-} from "../src/index.ts";
+import { createScope, preset } from "@tinker/core";
+import { readIssues, store, issueServer } from "../src/index.ts";
+import { jsonLines } from "@tinker/stack";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -20,78 +13,6 @@ function tempPath(): string {
 function readLines(written: string[]): Record<string, unknown>[] {
   return written.map((line) => JSON.parse(line) as Record<string, unknown>);
 }
-
-test("describeError reads a registry error, a plain Error with a cause, and a non-error", () => {
-  expect(describeError(fail("DraftFailed", { reason: "no answer" }))).toMatchObject({
-    error: "DraftFailed",
-    name: "Error",
-    kind: "DraftFailed",
-    payload: { reason: "no answer" },
-  });
-  const wrapped = new Error("outer", { cause: new TypeError("inner") });
-  expect(describeError(wrapped)).toMatchObject({
-    error: "outer",
-    cause: { error: "inner", name: "TypeError" },
-  });
-  expect(typeof describeError(wrapped).stack).toBe("string");
-  expect(describeError("plain")).toEqual({ error: "plain" });
-});
-
-test("jsonLines writes every log line and only the failed spans", async () => {
-  const written: string[] = [];
-  const logs = operation({
-    label: "logs",
-    run: (_deps, ctx) => {
-      ctx.log("hello", { n: 1 });
-      return "ok";
-    },
-  });
-  const breaks = operation({
-    label: "breaks",
-    run: async () => {
-      throw fail("DraftFailed", { reason: "boom" });
-    },
-  });
-  const scope = createScope({ observe: jsonLines((line) => written.push(line)) });
-  try {
-    expect(scope.run(logs)).toBe("ok");
-    const broke = await scope.settle(breaks);
-    if (broke.status !== "failed" || !isError(broke.error, "DraftFailed")) expect.unreachable();
-    expect(broke.error.payload.reason).toBe("boom");
-  } finally {
-    await scope.close({ graceful: true });
-  }
-  const lines = readLines(written);
-  const logged = lines.filter((line) => line.kind === "log");
-  expect(logged.map((line) => line.message)).toEqual(["hello", "logs", "breaks"]);
-  expect(logged.filter((line) => line.message === "hello")).toMatchObject([{ n: 1 }]);
-  const spans = lines.filter((line) => line.kind === "span");
-  expect(spans.map((span) => span.name)).toEqual(["breaks"]);
-  expect(spans[0]).toMatchObject({ status: "failed", unit: "operation" });
-});
-
-test("jsonLines survives a writer that throws: the scope keeps running", async () => {
-  let calls = 0;
-  const scope = createScope({
-    observe: jsonLines((line) => {
-      if (readLines([line])[0].message === "one") calls += 1;
-      throw new Error("disk full");
-    }),
-  });
-  const logs = operation({
-    label: "logs",
-    run: (_deps, ctx) => {
-      ctx.log("one");
-      return 1;
-    },
-  });
-  try {
-    expect(scope.run(logs)).toBe(1);
-    expect(calls).toBe(1);
-  } finally {
-    await scope.close({ graceful: true });
-  }
-});
 
 test("an error no route maps answers 500 and one `request failed` line names it", async () => {
   const written: string[] = [];
