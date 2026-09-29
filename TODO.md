@@ -23,10 +23,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-| Card                                                                                                                                                                                                                                                                                               | Owner         | Next                                                                                                                                                            | Verify                                           |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)                                                                                                                                                                              | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean    |
-| perf/lazy-log-obs — with a log sink or an observer on, every run builds its `log` tools and `obs` body tools even when the body never uses them; build them on first read (memoizing class getters, not getter literals; no API change). Found by the committee on declared feature use (ADR 0073) | lead          | add a probe scenario with a log sink installed; then the change and `N=61 SCEN="<the sink scenario> op run" bench/queued.sh`                                    | the sink scenario "B faster"; no scenario slower |
+| Card                                                                                                                  | Owner         | Next                                                                                                                                                            | Verify                                        |
+| --------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout) | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean |
 
 ## Doing
 
@@ -63,6 +62,8 @@ reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, on
   `op` unchanged, 758 cases identical to the stack. Next: Fable reviews `c37306e`; Astra times
   tagged calls that grow (`taggeddefer`, `taggedres`); one lander lands it all. Verify: no scenario slower, promises 17, `pnpm validate`, core mutation ≥ 85. If no
   experiment wins: raise the budget to 2200 and record why (user 2026-09-28: A, then B).
+
+- **perf/lazy-log-obs** — with a log sink or an observer on, build the body's `log` and `obs` tools on first read (memoizing class accessors; no API change; ADR 0073). Owner: lead; Astra writer `70dab046` on `perf/lazy-log-obs` from the tagged tip `a462360`. Lands after perf/tagged-close. Verify: new probe scenarios `opsink` and `opobs` "B faster", nothing slower; promises 2; `pnpm validate`; core mutation ≥ 85.
 
 ## Review
 
