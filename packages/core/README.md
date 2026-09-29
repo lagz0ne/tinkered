@@ -823,7 +823,7 @@ Numeric `id` and `parentId` still order the local tree.
 A span is a class instance, so spread or `structuredClone` copies only its own fields; use JSON for its public fields.
 `traceId` is 32 lowercase hex digits; `spanId` and
 `parentSpanId` are 16.
-Each new id draws 32-bit numbers from a private generator at open.
+ID bits come from a private 32-bit generator at open.
 IDs are reproducible only with `makeTestRandom({ seed })`.
 It keeps a second generator for IDs; user `next()` and `uuid()` calls stay unchanged.
 The system source and custom random sources use a core-owned generator seeded once from crypto.

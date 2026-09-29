@@ -1477,3 +1477,76 @@ PROSE_EXIT=0
 - The lead's probe now matches the fixed base with observation on and off: four draws.
 - `own` is `0.06195825757458806`; all numbers and UUIDs match the base.
 - Raw regression and probe logs: `.bench/stack-t04-round2-proof/`.
+
+### Kept design and timing
+
+- Kept source: `33583fb6`; fixed base: `de72d420`.
+- A local root draws four integer words; its last two words also form its span ID.
+- A child or remotely seeded root draws two words.
+- Unread roots keep their bits on the span; a child or reader creates the shared trace record.
+- Hex text, attributes, and events stay lazy; the JSON promise remains intact.
+- All eight N=31 rows pass the budget bar; none is b is slower.
+
+- opobs: 184.2 -> 187.1 ns; slower 25/31; no difference we can see
+- op: 67.3 -> 63.0 ns; slower 1/31; b is faster
+- opsink: 67.1 -> 62.9 ns; slower 2/31; b is faster
+- oplog: 282.7 -> 273.2 ns; slower 4/31; b is faster
+- opres: 253.3 -> 254.4 ns; slower 18/31; no difference we can see
+- tagged: 173.6 -> 170.4 ns; slower 15/31; no difference we can see
+- session: 587.7 -> 582.6 ns; slower 12/31; no difference we can see
+- cold: 691.2 -> 697.3 ns; slower 16/31; no difference we can see
+
+- Every case used batch mode in 31/31 pairs per tree.
+- Both queue commands ended with `BENCH_EXIT=0`.
+- All four layouts and the V8 proof are in the [learning note](../../../research/learnings/2026-09-29-span-off-check.md).
+- Final source review: 61 non-noisy flags, each explained and labeled false.
+- All 15 trace tests pass the test review and match README promises.
+- The package-wide scan has seven old plain-test notes, one old timer note, and 42 old README gaps.
+- None of those notes names a changed trace test; broad test and README cleanup is outside this fix.
+- The strict style scan keeps only the known S14 array-read false hit; TSDoc has no findings.
+- Impact was checked again after the final source change:
+
+```text
+✓ Observe/Span#: as planned
+  ✓ Observe/Span#: as planned
+  ✓ Observe/Span#: as planned
+  ✓ Observe/Span#: as planned
+  ✓ Observe/Span#: as planned
+  ✓ Observe/Span#: as planned
+  ✓ Observe/Span#: as planned
+  ✓ Observe/Span#: as planned
+  ✓ Observe/Span#: as planned
+  ✓ Observe/Span#: as planned
+  ✓ Observe/Trace#: as planned
+  ✓ Scope/Options#typeLiteral206:trace: as planned
+  ✓ Observe/Span#typeLiteral37:traceId: as planned
+  ✓ Observe/Span#typeLiteral37:spanId: as planned
+  ✓ Observe/Span#typeLiteral37:parentSpanId: as planned
+  ✓ Observe/Span#typeLiteral37:sampled: as planned
+  ✓ Observe/Trace#typeLiteral36:traceId: as planned
+  ✓ Observe/Trace#typeLiteral36:parentSpanId: as planned
+  ✓ Observe/Trace#typeLiteral36:sampled: as planned
+  ✓ Observe/Trace#: as planned
+  ✓ Observe/Span#typeLiteral212:traceId: as planned
+  ✓ Observe/Span#typeLiteral212:spanId: as planned
+  ✓ Observe/Span#typeLiteral212:parentSpanId: as planned
+  ✓ Observe/Span#typeLiteral148:traceId: as planned
+  ✓ Observe/Span#typeLiteral148:spanId: as planned
+  ✓ Observe/Span#typeLiteral148:sampled: as planned
+impact stack/t04: as planned (0 discrepancies). Advisory — never a gate.
+```
+
+### Final gate before mutation
+
+- Full requested chain: build, check, core, Hono, HTTP, and every package test; `EXIT=0`.
+- Core: 730 tests; Hono: 65; HTTP: 86.
+- Check: zero errors, 29 warnings, unchanged from the prior fix round.
+- Mutation will use `--timeoutMS 60000 --concurrency 2` under `/tmp/mutation.lock`.
+- Those settings address the prior run's 30 timeouts without spending a second full run first.
+
+- `pnpm validate`: all 46 lanes pass; `VALIDATE_EXIT=0`.
+- Slots: 252 hot names, last slot 254; one spare name; `SLOTS_EXIT=0`.
+- Prose: zero hits; `PROSE_EXIT=0`.
+- The final lead probe still matches the fixed base's numbers, UUIDs, and four user draws.
+- New label lines this round: `stateOutsideCell false` for `layerRecord`; `noOpRejected false` for `writeCellNs`.
+- The other final source labels were already in the bank; each command and reason is saved in the raw proof.

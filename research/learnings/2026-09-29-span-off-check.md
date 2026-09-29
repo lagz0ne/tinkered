@@ -156,3 +156,31 @@ The third layout passed build, check, 730 core tests, slots, and prose.
 N=31 `opobs`: 186.7 to 193.7 ns; slower 28/31; b is slower.
 The fourth trial leaves the ID text, attributes, and event cache fields absent until first use.
 It keeps the third layout's draws and shared trace record.
+
+The fourth layout passed build, check, 730 core tests, slots, and prose.
+N=31 against the same base, on commit `33583fb6`:
+
+- opobs: 184.2 -> 187.1 ns; slower 25/31; no difference we can see
+- op: 67.3 -> 63.0 ns; slower 1/31; b is faster
+- opsink: 67.1 -> 62.9 ns; slower 2/31; b is faster
+- oplog: 282.7 -> 273.2 ns; slower 4/31; b is faster
+- opres: 253.3 -> 254.4 ns; slower 18/31; no difference we can see
+- tagged: 173.6 -> 170.4 ns; slower 15/31; no difference we can see
+- session: 587.7 -> 582.6 ns; slower 12/31; no difference we can see
+- cold: 691.2 -> 697.3 ns; slower 16/31; no difference we can see
+
+The `opobs` target is met under the budget's stated bar.
+No row is b is slower.
+Every case used batch mode, 31/31 on both trees; both queue commands exited 0.
+The hot-name check reports 252 names, last slot 254, one spare name.
+The kept path draws four integer words for a local root and two for a child or remote seed.
+A root reuses its last two trace words as its span ID.
+It makes no trace record until a child opens or a reader asks for the ID.
+The four trials are separate comparisons with the fixed base, not direct layout A/B tests.
+Raw CSVs, V8 traces, and logs live in `.bench/stack-t04-round2-proof/`.
+
+The V8 trace inlines the four word draws, source choice, and trace choice into the span constructor.
+The constructor is 310 bytecode bytes; the first layout was 253.
+The larger constructor still wins here by avoiding an unread root's record and empty caches.
+The diagnostic log has five deoptimizations for missing type feedback.
+Those diagnostic flags were absent from every timing run.
