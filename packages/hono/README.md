@@ -133,6 +133,13 @@ Without a `serve` bind, the scope still closes successfully.
 `hono(rows, { mount: (app) => { … } })` runs after the rows, inside the same
 session middleware, so `stream` sees the request session.
 
+An app built from flat rows answers two verbs.
+Routes take nested lists and false: every reachable row is mounted.
+Every loader runs once at start and none runs at request time.
+Input is required at the type level when the operation takes one.
+A void op answers its value as JSON by default, or as text with `respond`.
+A request-derived tag shadows the scope binding and the op sees the request URL.
+
 A rejected body read tells `onError` which operation and cause failed.
 A `null` input reaches the operation without a body-read error.
 
@@ -157,6 +164,8 @@ route's operation — so core's spans, clock, and signal come for free.
 Hono writes one `http request` line with method, route, path, and status when it answers.
 Core writes a separate step line with the operation's label, `ms`, and outcome when its span closes.
 An unmapped error writes no `http request` line, but core still logs the failed step.
+A throwing route op settles the request span failed and reaches Hono's `onError`.
+With observation off no span is recorded and the request still answers.
 The session closes gracefully (commit) after the handler; forced (rollback) on client
 abort; a `stream` route closes when the body ends. Outside the extension's
 middleware, `stream` raises `NoSession`.
@@ -179,6 +188,8 @@ Both sessions end when the request ends.
 The body has its own span named by its label.
 Its signal, clock, and log remain available after the request span ends.
 The session closes when the body finishes or the client cancels.
+A session resource's defer runs only after the last chunk was read.
+Cancelling the reader mid-body force-closes the session and stops the writer.
 A body may settle a failing subflow and still finish its stream without a reader error.
 An explicit content-type, such as `text/event-stream`, stays unchanged.
 Without one, `stream` sets `text/plain; charset=UTF-8`.
@@ -211,15 +222,18 @@ start, since a later call cannot upgrade an in-progress graceful close.
 
 ## Errors
 
-| failure                                                                      | status                                               |
-| ---------------------------------------------------------------------------- | ---------------------------------------------------- |
-| the operation's `parse` threw (`DataValidationFailed`, raw error as `cause`) | 400                                                  |
-| the async body read failed (`InputRejected`, raw error as `cause`)           | 400                                                  |
-| request cancelled (abort)                                                    | 499 (logged, then Hono rejects as before)            |
-| `MissingTag` / `NoSession`                                                   | 500                                                  |
-| anything else                                                                | rethrown to Hono's `onError`, no `http request` line |
+- An operation's parse failure (`DataValidationFailed`): 400.
+- A rejected body read (`InputRejected`): 400.
+- A client abort: logs 499, then Hono rejects as before.
+- A `MissingTag` or `NoSession`: 500.
+- Anything else reaches Hono's last error handler.
+  It answers `internal`, status 500, and writes one
+  `request failed` line through the scope's observe sink.
+  `mount` may replace this handler with `app.onError`.
 
 A missing required tag answers `internal` in the response body.
+A missing required tag answers 500 with the request span ok.
+The request session commits on success, rolls back on abort, fails on an unmapped error.
 
 `hono(routes, { onError: (e, c) => Response | undefined })` answers first; `undefined`
 falls through to the table. A mapped failure settles the request span `ok`.
@@ -227,3 +241,53 @@ falls through to the table. A mapped failure settles the request span `ok`.
 The route runs its operation through `settle`.
 A failure `onError` answers, a panic included, closes the request session `success`.
 An operation that finishes after a client abort still answers its value and logs 200.
+
+### Error tables
+
+`errorResponses(table)` builds an `onError` hook.
+Each key is a managed error's `kind`.
+It accepts both package registry errors and `ctx.raise`.
+The payload types belong to the app's error registry.
+Unlisted kinds fall through to the default handling.
+
+```ts
+import { errorResponses, hono } from "@tinker/hono";
+
+type Failures = {
+  IssueNotFound: { id: string };
+  IssueConflict: { id: string; revision: number };
+  BadInput: { reason: string };
+};
+
+const { extension: web } = hono(issueRoutes, {
+  onError: errorResponses<Failures>({
+    IssueNotFound: 404,
+    IssueConflict: {
+      status: 409,
+      body: (payload) => ({
+        message: "reload",
+        id: payload.id,
+        revision: payload.revision,
+      }),
+    },
+    BadInput: {
+      status: 400,
+      body: (payload) => payload.reason,
+    },
+  }),
+});
+```
+
+- A status-only error row answers a raised kind with an empty body.
+- An error body builder reads a registry payload and answers JSON.
+- An error table can answer a core parse error with text from its payload.
+  A string body has `text/plain; charset=UTF-8`.
+  Any other JSON value has `application/json`.
+- An unlisted managed error answers 500 and writes one
+  `request failed` line to the scope sink.
+  The line includes the method, path, error name, message,
+  kind, payload, and stack when present.
+- A hand-mounted panic answers 500 and logs its cause through the scope sink.
+  Error causes keep their details; other causes become text.
+- An `HTTPException` keeps its status, body, and headers
+  without a `request failed` line.

@@ -556,3 +556,38 @@ flock /tmp/mutation.lock \
 - Remove the tracker's `onError`, `readIssueError`,
   `readStreamError`, and `reportUnmapped` functions.
 - Check old and new symbols with SCIP before review.
+
+### t02 first green step
+
+- Build, check, Hono 68 tests, tracker 72 tests: exit 0.
+- Check: 0 errors, 29 warnings, same as the starting tree.
+- Tracker tests and the existing 499 test are unchanged.
+- Prose lint and strict style census: exit 0.
+- SCIP: the four old tracker functions have no refs.
+  `errorResponses` is used by the tracker routes and
+  the new Hono request tests.
+- Jev found 12 older README gaps; added promise lines.
+  Its three helper-size notes are in unchanged test files.
+  Those plain notes have no judge id to label.
+
+### t02 Core feedback proof
+
+This extension logs no line (`logs` stays empty):
+
+```ts
+const logs = [];
+const piece = extension({
+  label: "log-probe",
+  start: (_scope, { log }) => log.error("boot failed"),
+});
+const scope = createScope({
+  extensions: [piece],
+  observe: { log: (entry) => logs.push(entry) },
+});
+await scope.ready;
+console.log(logs); // []
+await scope.close();
+```
+
+Hono reads its logger from a resource instead.
+No core code changed.

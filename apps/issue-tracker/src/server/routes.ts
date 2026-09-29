@@ -1,9 +1,8 @@
 import type { Context, Hono } from "hono";
-import { HTTPException } from "hono/http-exception";
-import { LEVELS, operation, type Observe, type Operation, type Scope } from "@tinker/core";
+import { operation, type Observe, type Operation, type Scope } from "@tinker/core";
 import type { Sync } from "@tinker/sync";
-import { emit, hono, route, stream, type HonoScope } from "@tinker/hono";
-import { isError } from "../errors.ts";
+import { emit, errorResponses, hono, route, stream, type HonoScope } from "@tinker/hono";
+import type { Errors } from "../errors.ts";
 import { draftBody, readCapability, startDraft } from "./draft.ts";
 import { describeError } from "@tinker/stack";
 import { addComment, createIssue, editIssue, readDetail, readIssues } from "./operations.ts";
@@ -12,7 +11,7 @@ import { readRegister, src } from "./sync.ts";
 
 export declare namespace IssueServer {
   export type Options = {
-    /** Where the 500 line for an error no route mapped goes (absent: dropped). */
+    /** Kept for existing roots; Hono now reads the owning scope's observe sink. */
     readonly observe?: Observe.Config;
     /** Bind a port (`main.ts`) or a fake (a test); absent, the app answers only
      * `app.request`. The scope's close stops it. */
@@ -20,67 +19,30 @@ export declare namespace IssueServer {
   };
 }
 
-/** The issue routes as one Hono server. The unmapped-error handler installs in
- * `mount`, which runs before `serve`, so no request can reach the app without
- * it. Each call is a new extension: resolve the one you listed. */
+/** Each call is a new extension: resolve the one you listed. */
 export function issueServer(options: IssueServer.Options = {}): Scope.Extension<Hono> {
   return hono(issueRoutes, {
-    onError,
-    mount: (app) => {
-      app.onError(reportUnmapped(options.observe));
-    },
+    onError: errorResponses<{ [Kind in Errors.Name]: Errors.Payload<Kind> }>({
+      IssueNotFound: { status: 404, body: () => "issue not found" },
+      IssueConflict: {
+        status: 409,
+        body: (payload) => ({
+          message: "someone else saved first — reload and try again",
+          id: payload.id,
+          currentRevision: payload.currentRevision,
+          current: payload.current,
+        }),
+      },
+      BadCreateInput: { status: 400, body: (payload) => payload.reason },
+      BadEditInput: { status: 400, body: (payload) => payload.reason },
+      BadCommentInput: { status: 400, body: (payload) => payload.reason },
+      BadDraftInput: { status: 400, body: (payload) => payload.reason },
+      BadRegister: { status: 400, body: () => "bad" },
+      DraftOff: { status: 404, body: () => "draft helper is off" },
+      DraftFailed: { status: 502, body: (payload) => payload.reason },
+    }),
     serve: options.serve,
   }).extension;
-}
-
-/** Map a registry failure to its status; anything else falls through to Hono. */
-export function onError(error: unknown, c: Parameters<HonoScope.OnError>[1]) {
-  return readIssueError(error, c) ?? readStreamError(error, c);
-}
-
-/** Hono's last handler: an error `onError` did not map is a bug, so it answers
- * 500 and writes one log line through the scope's sink (Hono's default would
- * `console.error`, off the seam). An `HTTPException` keeps its own response. */
-export function reportUnmapped(observe: Observe.Config | undefined) {
-  return (error: Error, c: Context) => {
-    if (error instanceof HTTPException) return error.getResponse();
-    observe?.log?.({
-      time: observe.clock?.() ?? Date.now(),
-      level: LEVELS.error,
-      message: "request failed",
-      attributes: { method: c.req.method, path: c.req.path, ...describeError(error) },
-      span: undefined,
-    });
-    return c.text("internal", 500);
-  };
-}
-
-function readIssueError(error: unknown, c: Parameters<HonoScope.OnError>[1]) {
-  if (isError(error, "IssueNotFound")) return c.text("issue not found", 404);
-  if (isError(error, "IssueConflict")) {
-    return c.json(
-      {
-        message: "someone else saved first — reload and try again",
-        id: error.payload.id,
-        currentRevision: error.payload.currentRevision,
-        current: error.payload.current,
-      },
-      409,
-    );
-  }
-  if (isError(error, "BadCreateInput") || isError(error, "BadEditInput")) {
-    return c.text(error.payload.reason, 400);
-  }
-  if (isError(error, "BadCommentInput")) return c.text(error.payload.reason, 400);
-  return undefined;
-}
-
-function readStreamError(error: unknown, c: Parameters<HonoScope.OnError>[1]) {
-  if (isError(error, "BadDraftInput")) return c.text(error.payload.reason, 400);
-  if (isError(error, "BadRegister")) return c.text("bad", 400);
-  if (isError(error, "DraftOff")) return c.text("draft helper is off", 404);
-  if (isError(error, "DraftFailed")) return c.text(error.payload.reason, 502);
-  return undefined;
 }
 
 /** Merge a JSON body over the route's path values; a JSON non-object reads as the

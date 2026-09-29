@@ -1,8 +1,11 @@
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
+import { HTTPException } from "hono/http-exception";
 import type { Context, MiddlewareHandler as Middleware } from "hono";
+import type { ContentfulStatusCode, StatusCode } from "hono/utils/http-status";
+import type { JSONValue } from "hono/utils/types";
 import type { Many, Namespace, Operation, RunResult, Scope, Tag } from "@tinker/core";
-import { extension, isError as isCoreError, readMany, tag } from "@tinker/core";
+import { extension, isError as isCoreError, readMany, resource, tag } from "@tinker/core";
 import { isError, raise } from "./errors.ts";
 
 type Endpoint = (c: Context) => Promise<Response>;
@@ -20,6 +23,16 @@ export declare namespace HonoScope {
     error: unknown,
     c: Context,
   ) => Response | undefined | Promise<Response | undefined>;
+  /** A kind-to-status table, like Rails' rescue_responses. Status-only rows have
+   * an empty body. A builder reads that kind's payload and returns text or JSON. */
+  export type ErrorResponses<Payloads> = {
+    [Kind in keyof Payloads]?:
+      | StatusCode
+      | {
+          status: ContentfulStatusCode;
+          body: (payload: Payloads[Kind]) => JSONValue;
+        };
+  };
   /** Read the raw input off the request; may return a promise (a JSON body read).
    * A promise is awaited before the operation runs; a rejection answers 400 like a
    * parse failure — the request edge could not read what the client sent. */
@@ -76,6 +89,61 @@ export declare namespace HonoScope {
     | void;
 }
 
+/** Build an `onError` hook from a managed-error table. Matches the shared
+ * registry shape (`Error`, string `kind`, `payload`), including `ctx.raise`.
+ * The table owns the payload types; a kind match selects its builder without
+ * revalidating a registry's payload. Unlisted kinds fall through to Hono. */
+export function errorResponses<Payloads>(
+  responses: HonoScope.ErrorResponses<Payloads>,
+): HonoScope.OnError {
+  return (error, c) => {
+    if (!isManagedError(error) || !Object.hasOwn(responses, error.kind)) return undefined;
+    const answer = responses[error.kind as keyof Payloads];
+    if (answer === undefined) return undefined;
+    if (typeof answer === "number") return c.body(null, answer);
+    const body = answer.body(error.payload as Payloads[keyof Payloads]);
+    return typeof body === "string"
+      ? c.text(body, answer.status)
+      : c.json<unknown>(body, answer.status);
+  };
+}
+
+function isManagedError(error: unknown): error is Error & { kind: string; payload: unknown } {
+  return (
+    error instanceof Error &&
+    "kind" in error &&
+    typeof error.kind === "string" &&
+    "payload" in error
+  );
+}
+
+/** A resource's ctx reaches the scope's sink; an extension's start ctx has no
+ * logger. Keep this logger for the server's lifetime, including hand mounts. */
+const requestErrors = resource({
+  label: "hono.errors",
+  factory:
+    (_deps, { log }) =>
+    (error: Error, c: Context) => {
+      if (error instanceof HTTPException) return error.getResponse();
+      log.error("request failed", {
+        method: c.req.method,
+        path: c.req.path,
+        ...describeError(error),
+      });
+      return c.text("internal", 500);
+    },
+});
+
+function describeError(error: unknown): Record<string, unknown> {
+  if (!(error instanceof Error)) return { error: String(error) };
+  const fields: Record<string, unknown> = { error: error.message, name: error.name };
+  if ("kind" in error) fields.kind = error.kind;
+  if ("payload" in error) fields.payload = error.payload;
+  if (error.stack !== undefined) fields.stack = error.stack;
+  if (error.cause !== undefined) fields.cause = describeError(error.cause);
+  return fields;
+}
+
 type SessionEnv = {
   Variables: {
     "tinker.session": Scope.Handle;
@@ -110,7 +178,9 @@ export function hono(
         const mounted = await Promise.all(
           readMany(routes).map(async (row) => ({ row, op: await row.load() })),
         );
-        const app = new Hono().use(serveRequests(scope, wiring));
+        const app = new Hono()
+          .onError(scope.resolve(requestErrors))
+          .use(serveRequests(scope, wiring));
         for (const { row, op } of mounted) app.on(row.method, row.path, answerRoute(op, row.route));
         wiring?.mount?.(app);
         /** Register the stop BEFORE the bind settles, so a close landing mid-bind

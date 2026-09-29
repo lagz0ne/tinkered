@@ -27,7 +27,7 @@ export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal): Prom
     ...jsonLines((line) => process.stdout.write(`${line}\n`)),
     clock: Date.now,
   };
-  const web = issueServer({ observe });
+  const web = issueServer();
   const scope = createScope({
     tags: [
       store.config(env.DATA_PATH ?? "./data/issues"),
