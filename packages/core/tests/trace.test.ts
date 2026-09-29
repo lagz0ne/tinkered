@@ -105,17 +105,19 @@ test("reading ids later leaves the seeded random stream and ids unchanged", asyn
   await late.close();
 });
 
-test("zero random draws still make nonzero trace and span ids", async () => {
-  const scope = createScope({
-    random: { next: () => 0, uuid: () => "00000000-0000-4000-8000-000000000000" },
-    observe: { history: 10 },
-  });
-  const span = scope.run(readSpan)!;
-  expect(span.traceId).toMatch(/^[0-9a-f]{32}$/);
-  expect(span.traceId).not.toBe("0".repeat(32));
-  expect(span.spanId).toMatch(/^[0-9a-f]{16}$/);
-  expect(span.spanId).not.toBe("0".repeat(16));
-  await scope.close();
+test("valid random draws always make nonzero W3C ids", async () => {
+  for (const value of [0, 1 / 3, 1 - Number.EPSILON]) {
+    const scope = createScope({
+      random: { next: () => value, uuid: () => "00000000-0000-4000-8000-000000000000" },
+      observe: { history: 10 },
+    });
+    const span = scope.run(readSpan)!;
+    expect(span.traceId).toMatch(/^[0-9a-f]{32}$/);
+    expect(span.traceId).not.toBe("0".repeat(32));
+    expect(span.spanId).toMatch(/^[0-9a-f]{16}$/);
+    expect(span.spanId).not.toBe("0".repeat(16));
+    await scope.close();
+  }
 });
 
 test("observation off leaves the ambient random stream untouched", async () => {

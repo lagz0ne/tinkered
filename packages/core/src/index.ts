@@ -1868,9 +1868,7 @@ class SpanImpl implements Observe.Span {
   end: number | undefined = undefined;
   status: "ok" | "failed" | undefined = undefined;
   declare error?: unknown;
-  declare private trace:
-    | string
-    | { a: number; b: number; c: number; d: number; text: string | undefined };
+  declare private trace: string | { a: number; b: number; c: number; text: string | undefined };
   declare private high: number;
   declare private low: number;
   declare private parentHigh: number;
@@ -1913,7 +1911,10 @@ class SpanImpl implements Observe.Span {
   get traceId(): string {
     const trace = this.trace;
     if (typeof trace === "string") return trace;
-    return (trace.text ??= SpanImpl.hex(trace.a, trace.b) + SpanImpl.hex(trace.c, trace.d));
+    return (trace.text ??=
+      trace.a.toString(16).padStart(13, "0") +
+      trace.b.toString(16).padStart(13, "0") +
+      trace.c.toString(16).padStart(6, "0"));
   }
 
   get spanId(): string {
@@ -1933,15 +1934,15 @@ class SpanImpl implements Observe.Span {
     return (this.marks ??= []);
   }
 
+  /** 52 + 52 + 24 bits fill the 32 hex digits with three draws, all at open. */
   private static traceFor(layer: Layer, parent: SpanImpl | undefined): SpanImpl["trace"] {
     if (parent !== undefined) return parent.trace;
     if (layer.trace !== undefined) return layer.trace.traceId;
     const random = layer.random;
     return {
-      a: (random.next() * 4294967296) >>> 0,
-      b: (random.next() * 4294967296) >>> 0,
-      c: (random.next() * 4294967296) >>> 0,
-      d: (random.next() * 4294967296) >>> 0 || 1,
+      a: Math.trunc(random.next() * 4503599627370496),
+      b: Math.trunc(random.next() * 4503599627370496),
+      c: Math.trunc(random.next() * 16777216) || 1,
       text: undefined,
     };
   }

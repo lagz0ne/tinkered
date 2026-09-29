@@ -806,7 +806,7 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 - Two unseeded root spans start different traces.
 - A seeded random replays trace and span ids.
 - Reading ids later leaves the seeded random stream and ids unchanged.
-- Zero random draws still make nonzero trace and span ids.
+- Valid random draws always make nonzero W3C ids.
 - Observation off leaves the ambient random stream untouched.
 - A session copies its remote trace seed and child sessions inherit it.
 - A session seed overrides its scope seed without changing siblings.
@@ -822,7 +822,7 @@ Numeric `id` and `parentId` still order the local tree.
 Each new id draws numbers from the ambient `random.next()` at open.
 Hex text is made on first read and kept for later reads.
 Children share the trace's numbers and saved text.
-A zero final word becomes one, so an id cannot be all zeros.
+A zero final number becomes one, so an id cannot be all zeros.
 `sampled` carries the remote hint; local observation still
 follows `observe`.
 A new local trace defaults to sampled.
