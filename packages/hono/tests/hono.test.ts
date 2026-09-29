@@ -583,3 +583,70 @@ test("a close landing mid-bind still reaps the listener exactly once", async () 
   await scope.close();
   expect(stops).toBe(1);
 });
+
+test("async request tags finish before the operation opens its session resource", async () => {
+  const steps: string[] = [];
+  const identity = tag<string>({ label: "async.identity" });
+  const transaction = resource({
+    label: "transaction",
+    target: "session",
+    factory: () => {
+      steps.push("transaction");
+      return true;
+    },
+  });
+  const read = operation({
+    label: "identity",
+    depends: { transaction, identity },
+    run: ({ identity }) => identity,
+  });
+  const web = hono([route.get("/", read)], {
+    tags: async () => {
+      const value = await Promise.resolve("Ada");
+      steps.push("identity");
+      return identity(value);
+    },
+  }).extension;
+  const scope = createScope({ extensions: [web] });
+  try {
+    await scope.ready;
+    const answer = scope.resolve(web).request("/");
+    expect(await (await answer).json()).toBe("Ada");
+    expect(steps).toEqual(["identity", "transaction"]);
+  } finally {
+    await scope.close();
+  }
+});
+
+test("a request aborted while reading async tags never runs its operation", async () => {
+  let finish!: () => void;
+  const tagsRead = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const writes: string[] = [];
+  const save = operation({
+    label: "save",
+    run: () => {
+      writes.push("saved");
+      return "ok";
+    },
+  });
+  const web = hono([route.post("/", save)], {
+    tags: async () => {
+      await tagsRead;
+      return [];
+    },
+  }).extension;
+  const scope = createScope({ extensions: [web] });
+  try {
+    await scope.ready;
+    const stop = new AbortController();
+    const response = scope.resolve(web).request("/", { method: "POST", signal: stop.signal });
+    stop.abort();
+    finish();
+    await response;
+    expect(writes).toEqual([]);
+  } finally {
+    await scope.close();
+  }
+});

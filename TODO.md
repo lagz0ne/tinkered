@@ -39,6 +39,11 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **stack/t10 auth-signin** — Owner: stack/t10 writer (Codex).
+  Next: add auth and await the cookie read before the request session.
+  Verify: auth, Hono, and stack tests; gate; validation; mutation at least 85.
+  [Proof](docs/roadmap/stack-v1/PROGRESS.md).
+
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 

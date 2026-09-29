@@ -2936,3 +2936,40 @@ MUTATION_EXIT 0
   Copies are in `/home/paseo/.cache/tinkered-briefs`.
 - Status: Review; next is lead review and landing.
   Nothing was pushed.
+## t10 writer work
+
+- Owner: stack/t10 writer (Codex), branch `stack/t10`.
+- Status: Doing.
+- Base: local `stack/t06` at `50b31bab`.
+- Next: add auth with a fixture app and one migration history.
+- Verify: HTTP auth tests, Hono and stack tests, gate,
+  validation, and one auth mutation lane at least 85.
+- Assumption: the example app lives in
+  `packages/auth/tests/fixture`.
+- Settings: `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL`.
+- Impact: `HonoScope.Wiring.tags` will accept a promise.
+  Hono awaits it before opening the request session.
+  Existing sync callers keep their call shape.
+  No symbol is removed.
+- Callers: Hono tests, the tracker request tags,
+  and stack live-update tests use this wiring.
+  New auth wiring supplies the async cookie read.
+- Review refs: `HonoScope/Wiring.*tags` and `hono\(\)`.
+  Run Hono, auth, stack, and tracker tests.
+
+### t10 first green step
+
+- Added `@tinker/auth` with Better Auth and its adapter at 1.7.6.
+- Drizzle 1.0 needs the adapter's `relations-v2` entry.
+  The default entry's generated `relations()` call fails on this RC.
+- Auth settings are checked at start; the client loads on first use.
+- The fixture app owns its schema and migrations.
+  Fresh auth generation and Drizzle drift checks both pass.
+- Build, check, 15 auth tests, and 70 Hono tests pass; exit 0.
+- Check: 0 errors and 29 warnings.
+  Main at `6330012c` also passes with 29 warnings.
+- Hono awaits only promise tags, keeping sync calls on the same turn.
+  The first unconditional await broke six abort and close tests.
+  The final code passes all six and the two new tests.
+- Prose and the strict census of authored auth code pass.
+  The generated schema retains the CLI's own pure-call comments.

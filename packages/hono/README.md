@@ -343,3 +343,7 @@ Cleanup failure after a writer error logs once and keeps the reader error.
 The header reader follows [W3C Trace Context](https://www.w3.org/TR/trace-context/).
 Unknown flag bits and future fields are ignored.
 This driver does not carry `tracestate`.
+Async request tags finish before the operation opens its session resource.
+The `tags` wiring hook can return a promise.
+Hono awaits it before opening the request session.
+A request aborted while reading async tags never runs its operation.
