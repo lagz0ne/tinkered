@@ -19,6 +19,40 @@ Rules for every ticket:
   an impact block first (ADR 0065).
 - A bug fix comes with a test that fails without it.
 
+## t06 writer — 2026-09-29
+
+- Owner: stack/t06 writer.
+- State: Doing.
+- Next: add the migration helpers, then move the tracker.
+- Verify: build, check, drizzle, stack, tracker, browser,
+  validation, and both mutation lanes at or above 85.
+- Assumption: the tracker's schema stays `public`.
+  Its Kit config filters only `public`.
+- Assumption: a transaction holds the advisory lock.
+  All Drizzle work uses that transaction's connection.
+  Commit or rollback releases the lock before serving.
+  A later pg-boss start can follow it under its own lock.
+
+### Impact written before code
+
+- Precedent: Rails boot migrations and Postgres transaction locks.
+- Add `migrateDatabase`, `checkDrift`, and `Migrations`
+  at `@tinker/drizzle/migrations`.
+  The main Drizzle entry keeps its current imports.
+- Add `migrate`, `Migrate`, and `createTestDatabase`
+  at `@tinker/stack`.
+- The tracker adds `migrations` and `migrateIssues`.
+  `store.config` also accepts a borrowed PGlite handle.
+  The store opens the db; the migrate piece makes tables.
+- Callers: tracker server root and every test that opens
+  its store; operations keep the same table imports.
+- Move table declarations to the tracker's schema file.
+  Store re-exports keep those imports working.
+- SCIP review: index drizzle, stack, and tracker.
+  Check refs for `migrateDatabase`, `checkDrift`,
+  `migrate`, `createTestDatabase`, and `migrateIssues`.
+  No public symbol is removed.
+
 ## Tickets
 
 - **t01 sync ships the SSE transport** -- [x] landed `fd5a6a8`
