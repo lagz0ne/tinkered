@@ -23,7 +23,7 @@ Rules for every ticket:
 
 - Owner: stack/t06 writer.
 - State: Doing.
-- Next: add the migration helpers, then move the tracker.
+- Next: finish validation and both mutation lanes.
 - Verify: build, check, drizzle, stack, tracker, browser,
   validation, and both mutation lanes at or above 85.
 - Assumption: the tracker's schema stays `public`.
@@ -78,6 +78,55 @@ Rules for every ticket:
   posting a draft saves one comment and one activity.
 - SCIP refs name the planned package and tracker callers.
 - Core feedback: none; no Core workaround was needed.
+
+### t06 final gate and review
+
+- Fetched and rebased on `origin/main` at `cfaeae71`.
+  Both required base tickets are ancestors of that commit.
+- The gate passed with `EXIT 0`:
+
+```bash
+vp run -r build && vp check \
+  && vp run --no-cache drizzle#test \
+  && vp run --no-cache stack#test \
+  && vp run --no-cache @tinker-issue-tracker#test
+```
+
+```text
+check: 0 errors, 29 warnings (same as the base)
+drizzle: 18 passed
+stack: 42 passed
+tracker: 79 passed
+EXIT 0
+```
+
+- The failure test also checks that no listening event is sent.
+  The 42 stack tests passed again after this stronger check.
+- The uncached browser proof passed, including all 7 helper tests.
+- `vp run --no-cache -r test`: all 16 tasks passed, `EXIT 0`.
+  There is one unchanged skipped test in the harness suite.
+- Strict style census: OK.
+  TSDoc: 0 S26 rows in the checked files.
+  Prose lint: 0 hits.
+- Jev promises: no gaps in 18 Drizzle, 16 stack,
+  and 78 tracker titles.
+- Jev preflight: one model flag, labelled false.
+  The app entry exports settings and its migrate piece for roots
+  and public tests; `baselineIssues` stays private.
+
+```text
+leakedInternal false
+apps/issue-tracker/src/index.ts
+e8edd103cf81
+```
+
+- The local test resource captures that call's PGlite.
+  It cannot move to module scope; the plain-code flag needs no label.
+- The `~wrapsCallersStep` note is noisy and needs no label.
+  `migrate` builds the extension that owns the boot order.
+- Full validation and mutation are queued under the shared lock.
+  Both mutation runs will use two workers and a 60-second limit
+  from the start, following the user's load warning.
 
 ## Tickets
 
