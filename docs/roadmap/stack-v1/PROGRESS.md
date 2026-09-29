@@ -642,3 +642,15 @@ No core code changed.
   `EXIT=0`. Check: 0 errors, 29 existing warnings.
 - Prose lint and strict style census: exit 0.
 - No rebase or mutation run in this round.
+
+## t07 writer — doing
+
+- Owner: writer (Codex), branch `stack/t07`.
+- Next: add `@tinker/nats` and real-server tests.
+- Verify: build, check, nats tests, all validate
+  lanes, and mutation score at least 85.
+- The ticket brief moves `traceparent` to t13.
+- Assumption: message input is plain data with a
+  subject and byte payload; app code sees no client.
+- The workspace glob already includes new packages.
+  Root TypeScript config has no package references.
