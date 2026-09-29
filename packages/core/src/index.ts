@@ -8,7 +8,6 @@ export type { Origin, RunResult };
 const cell: unique symbol = Symbol("data");
 const operationSym: unique symbol = Symbol("operation");
 const borrowSym: unique symbol = Symbol("borrow");
-const blindSym: unique symbol = Symbol("blind");
 const tagSym: unique symbol = Symbol("tag");
 const edge: unique symbol = Symbol("edge");
 const resourceSym: unique symbol = Symbol("resource");
@@ -857,17 +856,10 @@ export function operation<
   return Object.assign(base, {
     controller: edgeTo("controller", base),
     [borrowSym]: seesResource(base.depends),
-    [blindSym]: !config.input && config.run.length < 2 && !seesOperation(base.depends),
   });
 }
 
 type BorrowFlag = { readonly [borrowSym]?: boolean };
-
-/** Declaration-time flag: the body declares no `ctx` parameter, takes no input to parse, and
- * names no operation (so no subflow needs it as its caller) — its run builds no ctx at all, as a
- * resource factory with fewer than two parameters gets the shared empty ctx. An inline config
- * carries no flag and always gets one. */
-type BlindFlag = { readonly [blindSym]?: boolean };
 
 /** Read the declaration-time flag: does this operation's `depends` name a resource? Ops without one
  * skip every per-dep resource check on the call path (ADR 0044 keeps `op`/`run` untouched). */
@@ -2103,12 +2095,6 @@ function addDefer(layer: Layer, entry: DeferEntry): void {
   layer.defers.push(entry);
 }
 
-/** Collect a teardown error on a layer, giving it its own list on the first one. */
-function addError(layer: Layer, cause: unknown): void {
-  if (layer.secondary === NO_ERRORS) layer.secondary = [];
-  layer.secondary.push(cause);
-}
-
 /** Every abort reason we mint carries this brand, so a rejection can be recognized as one of OUR
  * cancellations regardless of WHICH layer's abort produced it — a cancelled child rejects with its
  * own reason, and its awaiting parent must still read that as a clean cancel, not a failure (r11). */
@@ -2178,17 +2164,6 @@ function closeWouldReenter(target: Layer): boolean {
   return teardownDepth.size !== 0 && reentersTeardown(target);
 }
 
-/** The walk behind {@link closeWouldReenter}, its own function so its loop stays out of the
- * close dispatch's inlined size when no teardown is active. */
-function reentersTeardown(target: Layer): boolean {
-  for (const active of teardownDepth.keys()) {
-    for (let cur: Layer | undefined = active; cur; cur = cur.parent) {
-      if (cur === target) return true;
-    }
-  }
-  return false;
-}
-
 /** Run `defer` fns in reverse (LIFO) from index `from`, passing `end`, awaiting each before the next
  * so teardown order holds. Stays synchronous while the fns are; the first async one hands the rest to
  * a tracked continuation joined by close. Failures collect as secondary errors, surfaced via
@@ -2245,14 +2220,12 @@ function runBody<T, I>(
   override: Operation.Handle<T, I>["run"] | undefined,
   target: Operation.Handle<T, I>,
   deps: Record<string, unknown>,
-  ctx: Operation.Ctx<I> | undefined,
+  ctx: Operation.Ctx<I>,
   pending: PendingSlot[] | undefined,
 ): T {
-  /** `ctx` is undefined only for a body that declares no second parameter (see `blindSym`). */
-  const c = ctx as Operation.Ctx<I>;
-  if (pending === undefined) return override ? override(deps, c) : target.run(deps, c);
+  if (pending === undefined) return override ? override(deps, ctx) : target.run(deps, ctx);
   return settleDeps(deps, pending).then(() =>
-    override ? override(deps, c) : target.run(deps, c),
+    override ? override(deps, ctx) : target.run(deps, ctx),
   ) as T;
 }
 
@@ -2297,20 +2270,6 @@ class OperationCtx<I> implements Operation.Ctx<I> {
     ctx: OperationCtx<J>,
   ): ((end: Scope.End) => void | PromiseLike<void>)[] | undefined {
     return ctx.defers;
-  }
-  /** A ctx for the run, or none for a body that cannot see one (`blindSym`) unless a preset
-   * override runs in its place (the override's own arity is not known here). */
-  static of<J, U>(
-    owner: Layer,
-    target: Operation.Handle<U, J>,
-    call: Scope.Invocation<J> | undefined,
-    obs: Obs,
-    span: Observe.Span | undefined,
-    override: Operation.Handle<U, J>["run"] | undefined,
-    blind: boolean,
-  ): OperationCtx<J> | undefined {
-    if (blind && override === undefined) return undefined;
-    return new OperationCtx<J>(owner, target, call, obs, span);
   }
   get signal(): AbortSignal {
     return signalOf(this.owner);
@@ -2358,12 +2317,11 @@ function runTagged<T, I>(
       { tags, ns: chain },
       (child) => runUntagged(child, target, parent, inner, chain, undefined, nested),
       caller,
-      true,
     ) as Awaited<T> | Promise<Awaited<T>>;
   } else {
     /** The same life {@link runSessionWith} runs, with the replay called here instead of through
      * a body closure: nothing to allocate for the call but the child itself. No public handle can
-     * reach this child, so it may end in place before the call returns (`early`). */
+     * reach this child. */
     let child: Layer | undefined;
     let raw: unknown;
     try {
@@ -2374,7 +2332,7 @@ function runTagged<T, I>(
     } catch (error) {
       raw = Promise.reject(error);
     }
-    tagged = (child === undefined ? raw : endSession(child, raw, true)) as
+    tagged = (child === undefined ? raw : endSession(child, raw)) as
       | Awaited<T>
       | Promise<Awaited<T>>;
   }
@@ -2409,11 +2367,6 @@ function stripNs<I>(call: Scope.Invocation<I>): Scope.Invocation<I> | undefined 
 function stripTags<I>(call: Scope.Invocation<I>): Scope.Invocation<I> {
   if (call.input !== undefined) return { input: call.input };
   return { rawInput: call.rawInput };
-}
-
-/** Release a run's borrow once its async defer drain ends. */
-function drainAsync(tail: Promise<void>, release: () => void): void {
-  ignoreRejection(tail.then(release, release));
 }
 
 /** Release a run's borrows: the resource instances its deps held for the run's whole lifetime
@@ -2489,17 +2442,16 @@ function executorFor<T, I>(
   replay: Replay,
 ): (call?: Scope.Invocation<I>) => unknown {
   const sees = seesResourceOf(target);
-  const blind = (target as BlindFlag)[blindSym] === true;
   return (call?: Scope.Invocation<I>): unknown =>
-    runOnce(layer, target, parent, chain, caller, replay, sees, blind, call);
+    runOnce(layer, target, parent, chain, caller, replay, sees, call);
 }
 
 /** The single entry every run takes — declared, subflow, and inline alike. A call carrying
  * `tags` opens a child session for the run (ADR 0038; a value or a promise, ADR 0072); anything else runs the
  * untagged body inline below, which is main's, unchanged — one optional `call.tags` read, no
  * extra frame or call on the hot path. A plain function, so a replay on a fresh child layer
- * allocates no closure and no context for it; `sees` and `blind` are the target's declaration-time
- * flags, read once per controller. The public overloads type the fork (rule 9). */
+ * allocates no closure and no context for it; `sees` is the target's declaration-time flag, read
+ * once per controller. The public overloads type the fork (rule 9). */
 function runOnce<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
@@ -2508,7 +2460,6 @@ function runOnce<T, I>(
   caller: RunState | undefined,
   replay: Replay,
   sees: boolean,
-  blind: boolean,
   call: Scope.Invocation<I> | undefined,
 ): unknown {
   if (hasCallTags(call))
@@ -2543,7 +2494,7 @@ function runOnce<T, I>(
   let result: T;
   buildDepth++;
   try {
-    ctx = OperationCtx.of(layer, target, call, obs, span, override, blind);
+    ctx = new OperationCtx<I>(layer, target, call, obs, span);
     const deps = sees
       ? readOpDeps(layer, target, span, held, chain, ctx)
       : buildPlainDeps(layer, target.depends, span, chain, ctx);
@@ -2634,7 +2585,6 @@ function runUntagged<T, I>(
     caller,
     nested ? "nested" : "root",
     seesResourceOf(target),
-    (target as BlindFlag)[blindSym] === true,
     call,
   ) as T;
 }
@@ -4063,30 +4013,18 @@ function settleSession(
   if (teardownCauses) raise("TeardownFailed", { causes: teardownCauses });
 }
 
-/** Run `body` in a child session of `parent`, then force-close it — `runSession` with the
- * body receiving the child layer directly (no handle→layer registry; ADR 0038). The public
- * `session()` passes `(child, handle) => fn(handle)`; a tagged call passes its own runner. When the
+/** Run `body` in a child session of `parent`, then close it (ADR 0038): the body receives the
+ * child layer directly (no handle→layer registry). The public `session()` passes
+ * `(child, handle) => fn(handle ?? handleFor(child))`; a tagged call under `session` hooks passes
+ * its own runner (without hooks it runs the same life itself, see {@link runTagged}). When the
  * root installed `session` hooks (ADR 0051), the whole life runs inside their onion: `next()`
- * resolves with the close `Result`. No hooks means no wrapper — main's body below, inline, after one
- * field read of the parent's route. */
-/** Whether a public `session()` body that returned a plain value may end its session before
- * `session()` returns, as a tagged call does. On (the user's decision, 2026-09-29): a session's
- * handle closes when its body ends, like a database transaction callback — after the body
- * returned, `onClose`, `resolve` and `run` on a handle the body leaked raise `Disposed`, and
- * `close({ withData: true })` on it gets no data (a `close` inside the body still keeps it). Off
- * would keep main's old window of about ten turns after the body, which was never promised. One
- * guard, so the choice stays easy to find. */
-const PUBLIC_SESSION_ENDS_EARLY = true;
-
+ * resolves with the close `Result`. No hooks means no wrapper — the life below, inline, after one
+ * field read of the parent's route; it ends in {@link endSession}. */
 function runSessionWith<R>(
   parent: Layer,
   options: Scope.Options | undefined,
   body: (child: Layer, handle?: Scope.Handle) => R | PromiseLike<R>,
   caller: RunState | undefined,
-  /** True when no public handle can reach the child (a tagged call), or when the switch above
-   * lets a public session end early too. A plain parameter: a default on this function would
-   * widen its bytecode. */
-  early: boolean,
 ): R | Promise<R> {
   let child: Layer;
   /** What an async function would reject with, rejected: a closed parent, a bad `ns`, a preset
@@ -4100,16 +4038,20 @@ function runSessionWith<R>(
     return Promise.reject(error) as Promise<R>;
   }
   child.failureOwner = caller;
-  return endSession(child, runBodyWith(child, body), early);
+  return endSession(child, runBodyWith(child, body));
 }
 
-/** End a session whose body has started. A body that returned a plain value has settled: read
- * its end now, as the reaction in {@link settleSessionWith} would one tick later, and when the
- * session has nothing left to tear down end it in place — no body promise, no reaction, no async
- * frame — when `early` allows it (see {@link runSessionWith}). Anything else waits. `raw` is a
- * native promise or a plain value here; {@link adoptBody} adopted every other thenable. */
-function endSession<R>(child: Layer, raw: R | Promise<R>, early: boolean): R | Promise<R> {
-  if (early && !(raw instanceof Promise) && canEndIdle(child)) {
+/** End a session whose body has started. A session's handle closes when its body ends, like a
+ * database transaction callback (ADR 0071): a body that returned a plain value has settled, so
+ * its end is read now, as the reaction in {@link settleSessionWith} would read it one tick later,
+ * and when the session has nothing left to tear down it ends in place — no body promise, no
+ * reaction, no async frame, and (ADR 0072) the value comes back as the body gave it. After that,
+ * `onClose`, `resolve` and `run` on a handle the body leaked raise `Disposed`, and
+ * `close({ withData: true })` on it gets no data (a `close` inside the body still keeps it).
+ * Anything that must wait waits in {@link settleSessionWith}. `raw` is a native promise or a
+ * plain value here; {@link adoptBody} adopted every other thenable. */
+function endSession<R>(child: Layer, raw: R | Promise<R>): R | Promise<R> {
+  if (!(raw instanceof Promise) && canEndIdle(child)) {
     endInPlace(child);
     /** ADR 0072: a session that ended in place has nothing to wait for, so the value comes back
      * as the body gave it. `session()` still wraps it; a tagged call hands it on. */
@@ -4178,7 +4120,6 @@ function runSession<R>(
     options,
     (child, handle) => fn(handle ?? handleFor(child)),
     undefined,
-    PUBLIC_SESSION_ENDS_EARLY,
   );
   return life instanceof Promise ? life : Promise.resolve(life);
 }
@@ -4885,17 +4826,6 @@ function isTagList(tags: LayerTags): tags is readonly Tag.Binding<unknown>[] {
   return Array.isArray(tags);
 }
 
-/** True when an operation's deps name an operation, directly or behind a controller edge: its
- * runs need the caller's ctx to own their failures (ADR 0066). */
-function seesOperation(depends: Scope.Depends): boolean {
-  for (const key in depends) {
-    const dep = depends[key];
-    if (isOperation(dep)) return true;
-    if (isEdge(dep) && dep.kind === "controller" && isOperation(dep.target)) return true;
-  }
-  return false;
-}
-
 /** Wrap a session's whole life in the extensions' `session` onion (ADR 0051): registration order,
  * first is outermost. `run` is the session's own life — run the body, force-close, keep the body's
  * value beside the close `Result` — so `next()` resolves with whatever `closeLayer` produced (never
@@ -5241,4 +5171,26 @@ function applyPresets(
     } else (presets ??= new Map()).set(node, p.replacement);
   }
   return presets;
+}
+
+/** Release a run's borrow once its async defer drain ends. */
+function drainAsync(tail: Promise<void>, release: () => void): void {
+  ignoreRejection(tail.then(release, release));
+}
+
+/** The walk behind {@link closeWouldReenter}, its own function so its loop stays out of the
+ * close dispatch's inlined size when no teardown is active. */
+function reentersTeardown(target: Layer): boolean {
+  for (const active of teardownDepth.keys()) {
+    for (let cur: Layer | undefined = active; cur; cur = cur.parent) {
+      if (cur === target) return true;
+    }
+  }
+  return false;
+}
+
+/** Collect a teardown error on a layer, giving it its own list on the first one. */
+function addError(layer: Layer, cause: unknown): void {
+  if (layer.secondary === NO_ERRORS) layer.secondary = [];
+  layer.secondary.push(cause);
 }
