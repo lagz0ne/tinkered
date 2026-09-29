@@ -436,8 +436,8 @@ flock /tmp/mutation.lock \
 ## t03 writer — 2026-09-29
 
 - Owner: stack/t03 writer.
-- State: Doing.
-- Next: confirm the two commit-error changes with one mutation worker.
+- State: Review.
+- Next: lead review and landing; the writer has not pushed.
 - Verify: build, check, drizzle and tracker tests, browser proof,
   all validation lanes, and drizzle mutation score at least 85.
 - Assumption: this ticket's catalog pin requires a committed change to
@@ -497,8 +497,14 @@ flock /tmp/mutation.lock \
   The score includes timeouts; it does not prove 59 test failures.
 - Both full runs used `flock /tmp/mutation.lock`.
   The second run departs from the brief's one-run limit because the first was red.
-- A focused run checks `src/index.ts:144-145` with one worker and a 30-second timeout.
-  It is pending; its job is to confirm both commit-error changes are killed.
+- The first focused range, `src/index.ts:144-145`, killed all four expression changes.
+  It did not include the full function body, which ends on line 146.
+- The final focused range, `src/index.ts:144-147`, killed all five changes.
+  One worker, a 30-second timeout, no timeouts or errors; `EXIT 0`.
+  The new test killed both previously surviving commit-error changes:
+  `[Killed] BlockStatement` at `src/index.ts:144` and
+  `[Killed] ConditionalExpression` (`false`) at `src/index.ts:145`.
+- All mutation runs, including the focused checks, held `/tmp/mutation.lock`.
 
 ### Jev and Core feedback
 

@@ -47,11 +47,17 @@ Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
 - **stack/t02 hono-errors** — a managed error becomes its HTTP answer through `@tinker/hono`; the tracker's hand mapping goes. Owner: lead (stack session); Astra writer `ed37bee3`, worktree `/home/paseo/next/tinkered-stack-t02`; Opus reviewer when the writer reports. Verify: hono tests cover each answer; tracker tests unchanged. [track](docs/roadmap/stack-v1/PROGRESS.md).
-- **stack/t03 drizzle-rc** — the repo on one exact Drizzle 1.0 RC (ADR 0079). Owner: lead (stack session); Astra writer `64091131`, worktree `/home/paseo/next/tinkered-stack-t03`; Next: finish the RC.4 checks, then hand off to the Opus reviewer. Verify: build, `vp check`, drizzle and tracker tests, browser proof, `pnpm validate`, and drizzle mutation score at least 85. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t04 trace-id** — core: a span carries a trace id; Hono seeds it from `traceparent` (ADR 0076). Owner: lead (stack session); Astra writer `5e69613c`, worktree `/home/paseo/next/tinkered-stack-t04`; the only core card now; Opus reviewer when the writer reports. Verify: core and hono tests, `scripts/ticket.sh`, `pnpm validate`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t07 nats** — `@tinker/nats`: connect, publish, subscribe to an operation; tests on a real pinned `nats-server` (ADR 0080; `traceparent` moved to t13). Owner: lead (stack session); Astra writer `856cec06`, worktree `/home/paseo/next/tinkered-stack-t07`; Opus reviewer when the writer reports. Verify: nats tests on a real server; a missing `NATS_URL` fails boot. [track](docs/roadmap/stack-v1/PROGRESS.md).
 
 ## Review
+
+- **stack/t03 drizzle-rc** — Owner: lead (stack session), writer `stack/t03`.
+  Next: lead review and landing. Writer has not pushed.
+  Verify: gate, 1,466 tests, browser proof, and 44 validation lanes pass.
+  Full mutation: 100.00 (39 killed, 20 timed out).
+  Focused commit-error check: 5 killed, no timeouts.
+  [Proof and limits](docs/roadmap/stack-v1/PROGRESS.md#t03-writer--2026-09-29).
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
