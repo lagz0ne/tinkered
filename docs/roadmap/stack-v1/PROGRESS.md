@@ -128,7 +128,7 @@ Rules for every ticket:
   sends a reset mail. Both go through `sendMail`.
   Verify: `vp run auth#test` reads both mails from
   the mock and follows their links.
-- **t12 live updates across server processes** -- [ ] blocked by: t07
+- **t12 live updates across server processes** -- [x] landed `c0cc81c`
   After a commit, one server tells the others over
   NATS. Each re-reads from the database, and its
   tabs get the snapshot (ADR 0080). The tracker
