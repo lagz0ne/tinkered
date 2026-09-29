@@ -60,6 +60,25 @@ const inlineScope = createScope();
 const zone = tag({ label: "zone", default: "base" });
 const taggedOp = operation({ label: "taggedOp", depends: { n: cfg }, run: ({ n }) => n + 1 });
 const taggedScope = createScope();
+const taggedDeferOp = operation({
+  label: "taggedDeferOp",
+  depends: { n: cfg },
+  run: ({ n }, ctx) => {
+    ctx.defer(() => {});
+    return n + 1;
+  },
+});
+const taggedResource = resource({
+  label: "taggedResource",
+  target: "session",
+  depends: { n: cfg },
+  factory: ({ n }) => n + 1,
+});
+const taggedResOp = operation({
+  label: "taggedResOp",
+  depends: { value: taggedResource },
+  run: ({ value }) => value,
+});
 const sessionScope = createScope();
 const fns = {
   s1_getctl: () => createScope().controller(store),
@@ -72,6 +91,8 @@ const fns = {
   run: () => opScope.run(op),
   inline: () => inlineScope.run(inlineCfg),
   tagged: () => taggedScope.run(taggedOp, { tags: [zone("us")] }),
+  taggeddefer: () => taggedScope.run(taggedDeferOp, { tags: [zone("us")] }),
+  taggedres: () => taggedScope.run(taggedResOp, { tags: [zone("us")] }),
   session: () => sessionScope.session(() => 1),
   cold2: () => createScope().controller(twoArg).resolve(),
   cold: () => createScope().controller(store).resolve().base,
