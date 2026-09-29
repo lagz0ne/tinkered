@@ -26,11 +26,10 @@ for (const tagged of [false, true]) {
   });
 
   test(`a body with a defaulted ctx parameter reads the real ctx (${label})`, () => {
-    const op = operation({
-      label: "defaulted",
-      run: (_deps, ctx: Operation.Ctx<void> | undefined = fake) =>
-        `${ctx.label}:${typeof ctx.defer}`,
-    });
+    /** Declared apart from the call, so the default stands on the body's own signature. */
+    const body = (_deps: unknown, ctx: Operation.Ctx<void> | undefined = fake): string =>
+      `${ctx.label}:${typeof ctx.defer}`;
+    const op = operation({ label: "defaulted", run: body });
     expect(run(op)).toBe("defaulted:function");
   });
 

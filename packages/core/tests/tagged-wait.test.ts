@@ -136,7 +136,7 @@ test("wait: a tagged subflow called before its caller's first await; a value aft
     depends: { inner },
     run: ({ inner }) => {
       const out = inner.run({ tags });
-      return isNative(out) ? "promise" : `value ${String(out)}`;
+      return isNative(out) ? "promise" : `value ${out as number}`;
     },
   });
   const after = operation({
@@ -145,7 +145,7 @@ test("wait: a tagged subflow called before its caller's first await; a value aft
     run: async ({ inner }) => {
       await Promise.resolve();
       const out = inner.run({ tags });
-      return isNative(out) ? "promise" : `value ${String(out)}`;
+      return isNative(out) ? "promise" : `value ${out as number}`;
     },
   });
   expect(createScope().run(before)).toBe("promise");
