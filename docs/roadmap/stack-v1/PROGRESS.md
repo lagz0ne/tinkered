@@ -437,8 +437,54 @@ flock /tmp/mutation.lock \
 
 - Owner: stack/t03 writer.
 - State: Doing.
-- Next: pin ORM and Kit to `1.0.0-rc.4`, then check all four importers.
+- Next: finish validation and the one drizzle mutation run.
 - Verify: build, check, drizzle and tracker tests, browser proof,
   all validation lanes, and drizzle mutation score at least 85.
 - Assumption: this ticket's catalog pin requires a committed change to
   `pnpm-workspace.yaml`; discard only unrelated install edits.
+
+### Changes
+
+- `npm view` found both requested `1.0.0-rc.4` packages.
+  Used `npm --prefix /tmp view` because the repo requires pnpm.
+- The catalog and lockfile pin both packages to `1.0.0-rc.4`.
+- The tracker has Kit as a dev dependency.
+- RC.4 removed the positional PGlite client argument.
+  The first RC check failed with 11 `TS2345` errors.
+  The tracker, example, README, and test setup now pass `{ client, logger }`.
+- No test title or assertion changed.
+- The package still accepts `^0.45.2` as well as `^1.0.0-rc.4`.
+  All 12 tests passed on 0.45.2 before the upgrade.
+  Its types also accept the new client object form.
+- No migration files were added.
+- Install reports one optional peer warning: RC.4's Effect driver needs
+  Effect 4, while `bench/core-vs-effect.mjs` uses Effect 3.
+  No source imports the Drizzle Effect driver.
+  Kept that separate benchmark dependency as it was.
+
+### Proof
+
+- Rebased on `origin/main` at `1a06fda` before the final gate.
+  Kept main's board moves when fixing the board conflict.
+- `pnpm why -r drizzle-orm`: one version, `1.0.0-rc.4`.
+- `vp exec drizzle-kit --version` in the tracker prints ORM and Kit RC.4.
+- Gate: `vp run -r build`, `vp check`, `vp run drizzle#test`, then
+  `vp run @tinker-issue-tracker#test`: `EXIT 0`.
+- Check: 0 errors, 29 warnings, the same warning count as the starting tree.
+- Fresh `vp run --no-cache -r test`: all packages pass.
+  This includes 12 drizzle tests and 72 tracker tests.
+- Fresh `vp run --no-cache @tinker-issue-tracker#test:browser`: `EXIT 0`.
+  The two-tab proof and all 7 browser helper tests pass.
+- Strict style census on the three changed TypeScript files: OK.
+- Prose lint: 0 hits.
+- Jev on the ticket diff: 0 flags; tests: 0 of 12 flags;
+  README promises: 0 of 12 gaps.
+- `main..HEAD` includes work already on `origin/main`.
+  Its five model hits already have false labels in `tools/jev/cases.jsonl`:
+  `inputDefaultMasks` on `readTextPart` and `readFirstText`,
+  `effectWithoutDefer` on `serveMcp`, and `stateOutsideCell` plus
+  `stopOnlyInDefer` on `posts`.
+  The plain `unitCouldBeModuleLevel` hit captures the tour's local wire;
+  that resource cannot move to module scope as written.
+  No new labels are needed for t03.
+- Core feedback: none; no Core workaround was needed.
