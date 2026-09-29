@@ -42,12 +42,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **stack/t07 nats** — Owner: writer (Codex).
-  Next: build the NATS extension and real-server tests.
-  Verify: build, check, nats tests, all validate lanes,
-  and nats mutation score at least 85.
-  [Track](docs/roadmap/stack-v1/PROGRESS.md).
-
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
@@ -56,6 +50,13 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 - **stack/t07 nats** — `@tinker/nats`: connect, publish, subscribe to an operation; tests on a real pinned `nats-server` (ADR 0080; `traceparent` moved to t13). Owner: lead (stack session); Astra writer `856cec06`, worktree `/home/paseo/next/tinkered-stack-t07`; Opus reviewer when the writer reports. Verify: nats tests on a real server; a missing `NATS_URL` fails boot. [track](docs/roadmap/stack-v1/PROGRESS.md).
 
 ## Review
+
+- **stack/t07 nats** — Owner: writer (Codex).
+  Saved on `stack/t07`; not ready to land.
+  Next: cover server-helper shutdown and drain faults.
+  Verify: mutation at least 85; the one run was 67.08.
+  Build, check, 13 nats tests, and 46 validate lanes pass.
+  [Proof](docs/roadmap/stack-v1/PROGRESS.md#t07-checks-seen).
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |

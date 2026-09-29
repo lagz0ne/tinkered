@@ -643,10 +643,11 @@ No core code changed.
 - Prose lint and strict style census: exit 0.
 - No rebase or mutation run in this round.
 
-## t07 writer — doing
+## t07 writer — review; mutation gate failed
 
 - Owner: writer (Codex), branch `stack/t07`.
-- Next: add `@tinker/nats` and real-server tests.
+- Next: add proof for server-helper shutdown and
+  drain faults, then pass the mutation floor.
 - Verify: build, check, nats tests, all validate
   lanes, and mutation score at least 85.
 - The ticket brief moves `traceparent` to t13.
@@ -669,8 +670,53 @@ No core code changed.
   The caller owns the process and closes it; the
   helper closes it itself if boot fails.
 - Strict style census: OK.
-- Mutation: waiting for the full repo test run
-  to end, then one run under the shared lock.
+- Full repo tests: `vp run -r test`, `EXIT 0` on rerun.
+  The first run failed the unchanged issue tracker
+  `tests/config.test.ts:43` on `PORT=70000`.
+  The file passed alone on both main and this
+  branch; the full command then passed too.
+- Mutation: one full run, under `/tmp/mutation.lock`.
+  Score 67.08; required 85; `EXIT 1`.
+  136 killed, 27 timed out, 71 survived,
+  9 had no coverage, and 2 had errors.
+  `index.ts`: 81.52; `testing.ts`: 58.45;
+  `errors.ts`: 55.56.
+- The ticket is saved in Review, not ready to land.
+  The brief said to run the full mutation lane
+  once. No second run was made.
+
+### t07 mutation gaps
+
+The report is kept in the worktree at
+`packages/nats/reports/mutation/mutation.json`.
+The full log is in the user's cache at
+`~/.cache/tinkered-briefs/stack-t07-mutation.log`.
+
+- `src/testing.ts:106–112`: removing `close`,
+  the kill, the exit wait, or store removal survives.
+  Call start and close inside a public-seam test,
+  then assert the server is gone and its store is removed.
+  Current server start and close calls sit in test hooks.
+- `src/testing.ts:87–100`: several server arguments
+  and readiness changes survive too.
+  The same public lifecycle test should check the
+  server's reported address and a real connection.
+- `src/index.ts:128–140`: drain changes survive.
+  Add an external peer with messages still queued
+  at close, and assert that the full batch arrives.
+- `src/errors.ts:23`: a guard that accepts every
+  error survives. Reject the wrong named error in
+  the existing config and checksum tests.
+- Some survivors change only a label or a host
+  branch not used on Linux. Read each before adding
+  a test; no tests just to raise the score.
+
+Next full check, after those tests pass:
+
+```bash
+flock /tmp/mutation.lock \
+  vp run --no-cache nats#mutate
+```
 
 ### t07 core feedback
 
