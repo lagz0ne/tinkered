@@ -432,3 +432,13 @@ flock /tmp/mutation.lock \
 
 - All writer checks are complete. The card is in Review.
   Nothing was pushed.
+
+## t03 writer — 2026-09-29
+
+- Owner: stack/t03 writer.
+- State: Doing.
+- Next: pin ORM and Kit to `1.0.0-rc.4`, then check all four importers.
+- Verify: build, check, drizzle and tracker tests, browser proof,
+  all validation lanes, and drizzle mutation score at least 85.
+- Assumption: this ticket's catalog pin requires a committed change to
+  `pnpm-workspace.yaml`; discard only unrelated install edits.
