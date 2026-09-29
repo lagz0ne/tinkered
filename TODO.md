@@ -56,13 +56,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Review
 
-- **stack/t07 nats** — Owner: writer (Codex).
-  Saved on `stack/t07`; not ready to land.
-  Next: cover server-helper shutdown and drain faults.
-  Verify: mutation at least 85; the one run was 67.08.
-  Build, check, 13 nats tests, and 46 validate lanes pass.
-  [Proof](docs/roadmap/stack-v1/PROGRESS.md#t07-checks-seen).
-
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
 

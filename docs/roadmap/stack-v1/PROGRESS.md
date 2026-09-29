@@ -766,3 +766,18 @@ await scope.close();
 - Finish with the gate and all validate lanes.
 - Check whether NATS ports or processes could affect
   the issue tracker's earlier `PORT` test failure.
+
+### t07 PORT check
+
+- Package: `@tinker-issue-tracker`.
+- Test: `a PORT with trailing junk or out of range fails the boot too`.
+- File: `apps/issue-tracker/tests/config.test.ts:41`.
+- The earlier failure was the `70000` payload at line 43.
+- The server checks the value before it opens a port or store.
+  NATS uses free ports, so these paths cannot clash on port 70000.
+- This branch does not change the tracker, its environment,
+  or its `issues-port-` store folders.
+- The child helper hides stderr and can return an empty result.
+  The old failure does not give enough proof to name its cause.
+- Fresh `vp test tests/config.test.ts` from the tracker:
+  five tests passed, exit 0, with no code change.
