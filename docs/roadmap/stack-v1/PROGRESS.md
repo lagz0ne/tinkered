@@ -337,7 +337,7 @@ The lead runs calibration when landing these labels.
 
 - Owner: stack/t01 writer; branch `stack/t01`.
 - Base: `origin/main` at `bd3f270`.
-- Next: finish browser, validation, and mutation proof; then lead review.
+- Next: finish the queued mutation run, then lead review.
 - Verify: build, check, sync and tracker tests, example check,
   four direct browser runs on each tree, all validation lanes,
   and one final sync mutation run at or above 85.
@@ -367,7 +367,7 @@ The lead runs calibration when landing these labels.
   `createSseClient` refs must name the tracker client.
 - Baseline check: exit 0, 29 warnings.
 
-### t01 checks seen so far
+### t01 checks
 
 - Rebased on `origin/main` at `1a06fda` before the final gate.
   The `entries/follow-suit` example root and test changes stayed.
@@ -414,3 +414,10 @@ EXIT 0
   Its config allows `.ts` imports for that registry.
   Five existing test promises gained README lines.
 - Core feedback: none; no core change or workaround was needed.
+
+- Branch browser proof: four uncached passes, each with seven helper tests.
+  Command: `vp run --no-cache @tinker-issue-tracker#test:browser`.
+- `pnpm validate`: all 44 lanes PASS, `EXIT 0`.
+  The workspace file was restored after validation.
+- Size: 5,766 bytes gzip across both entries; cap 10,240.
+- Mutation: queued under `/tmp/mutation.lock`; no result yet.
