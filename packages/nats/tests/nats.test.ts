@@ -173,6 +173,7 @@ test("scope close drains queued messages and their replies before closing the co
 
 test("a borrowed connection stays open while this scope's subscriptions stop", async () => {
   const peer = await connect({ servers: server.url });
+  const unrelated = peer.subscribe("unrelated");
   const seen: Nats.Message[] = [];
   const receive = operation({
     label: "receive",
@@ -181,7 +182,7 @@ test("a borrowed connection stays open while this scope's subscriptions stop", a
     },
   });
   const bus = nats([subscribe(message.subject, receive)], {
-    env: { NATS_URL: server.url },
+    env: { NATS_URL: server.url.replace("nats:", "tls:") },
     connection: peer,
   });
   const scope = createScope({ extensions: [bus.extension] });
@@ -194,9 +195,73 @@ test("a borrowed connection stays open while this scope's subscriptions stop", a
     await peer.flush();
     expect(seen).toEqual([message]);
     expect(peer.isClosed()).toBe(false);
+    expect(await (await fetch(`${server.monitorUrl}/connz`)).json()).toMatchObject({
+      connections: [{ subscriptions: 1 }],
+    });
+    expect(unrelated.isClosed()).toBe(false);
   } finally {
     await scope.close();
     await peer.close();
+  }
+});
+
+test("a publish-only scope flushes queued bytes to a peer before it closes", async () => {
+  const peer = await connect({ servers: server.url });
+  const received = Promise.withResolvers<Uint8Array>();
+  peer.subscribe("outbound", {
+    callback: (_error, message) => received.resolve(message.data),
+  });
+  await peer.flush();
+  const bus = nats([], { env: { NATS_URL: server.url } });
+  const scope = createScope({ extensions: [bus.extension] });
+  const payload = new Uint8Array(512 * 1024).fill(7);
+  try {
+    await scope.ready;
+    scope.run(bus.publish, { input: { subject: "outbound", payload } });
+    await scope.close({ graceful: true });
+    expect(Buffer.from(await received.promise).toString("base64")).toBe(
+      Buffer.from(payload).toString("base64"),
+    );
+  } finally {
+    await scope.close();
+    await peer.close();
+  }
+});
+
+test("a denied subscription logs its subject and still closes the connection", async () => {
+  const restricted = await startNatsServer(`no_auth_user: "app"
+  authorization {
+    users: [{user: "app", password: "secret", permissions: {subscribe: "allowed"}}]
+  }`);
+  const logs: Observe.Log[] = [];
+  const receive = operation({
+    label: "receive",
+    run: (_deps, _ctx: Operation.Ctx<Nats.Message>) => expect.unreachable(),
+  });
+  const bus = nats([subscribe("denied", receive)], {
+    env: { NATS_URL: restricted.url },
+  });
+  const scope = createScope({
+    extensions: [bus.extension],
+    observe: { log: (line) => logs.push(line) },
+  });
+  try {
+    await scope.ready;
+    await expect.poll(() => logs.length).toBe(1);
+    expect(logs).toMatchObject([
+      {
+        level: 50,
+        message: "nats subscription failed",
+        attributes: { subject: "denied", error: expect.any(Error) },
+      },
+    ]);
+    await scope.close({ graceful: true });
+    await expect
+      .poll(async () => (await fetch(`${restricted.monitorUrl}/connz`)).json())
+      .toMatchObject({ num_connections: 0 });
+  } finally {
+    await scope.close();
+    await restricted.close();
   }
 });
 

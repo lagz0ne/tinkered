@@ -113,7 +113,7 @@ export function nats(rows: readonly Nats.Row[], wiring: Nats.Wiring) {
 }
 
 function readUrl(value: string | undefined): string {
-  const url = value === undefined ? null : URL.parse(value);
+  const url = URL.parse(value ?? "");
   if (!url || !["nats:", "tls:"].includes(url.protocol) || !url.hostname) {
     raise("InvalidConfig", { key: "NATS_URL" });
   }

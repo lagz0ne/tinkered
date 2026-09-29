@@ -14,7 +14,7 @@ export declare namespace Errors {
 }
 
 export function raise<N extends Errors.Name>(kind: N, payload: Errors.Payload<N>): never {
-  throw Object.assign(new Error(`${kind}: ${JSON.stringify(payload)}`), { kind, payload });
+  throw Object.assign(new Error(kind), { kind, payload });
 }
 
 /** Narrow at a catch boundary; rethrow errors from other packages. */

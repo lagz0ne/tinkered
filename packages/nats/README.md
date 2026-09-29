@@ -109,5 +109,7 @@ try {
 - A failed subscription loader fails boot and closes the connection.
 - A started server closes its connections and frees both ports and its store.
 - A server that rejects its config removes its store before reporting failure.
+- A publish-only scope flushes queued bytes to a peer before it closes.
+- A denied subscription logs its subject and still closes the connection.
 
 [release]: https://github.com/nats-io/nats-server/releases/tag/v2.15.0
