@@ -3834,3 +3834,17 @@ await closing;
   The workspace already includes all packages by path pattern.
   Each package has its own tsconfig; there is no root reference list.
 - Next: full gate, Jev, validation, and the single mutation lane.
+
+### t08 gate and Jev
+
+- Gate chain: build, check, jobs 16, stack 63, tracker 79.
+  `EXIT 0`; check has no errors and 29 warnings.
+- Jev tests: 0 of 16 flagged; every title has a README line.
+- Label `leakedInternal false` on `src/time.ts`:
+  the tag is shared inside the package, not in its exports.
+- Label `stateOutsideCell false` on the test fixture:
+  the client array owns cleanup, not app state.
+- The inherited tracker entry flag already has t06's false label.
+- The inherited test-helper resource closes over its PGlite client.
+  Moving it to module scope would lose that owner.
+- All remaining preflight hits were hints or noisy notes.
