@@ -12,6 +12,103 @@ in-container).
 `bench/ab.sh` through the queue, one job per scenario, one pinned core, no network. The
 sandbox re-check of the call-path rules is done; see "Call paths through benchd" below.
 
+2026-09-29: the probe now times every scenario the same way, and `bench/ab.sh` runs one probe
+against both trees. The numbers to use are in "Call paths with warm-up and one probe" below.
+
+## Call paths with warm-up and one probe (2026-09-29)
+
+### Why the probe changed
+
+- mitata 1.0.34 picks, once per process, how it times a scenario.
+- **Batch mode:** each timed sample runs 4096 calls, then divides.
+- **One-call mode:** each timed sample runs one call.
+  - The timer's own cost lands on every sample.
+  - A single call's minimum leaves out the GC work its garbage causes.
+- mitata picks batch mode only when the first call takes ≤ 500 µs and a later warm-up call ≤ 65.5 µs.
+  - Source: `mitata/src/lib.mjs` lines 133, 135, 177, 185.
+- A cold first call (V8 compiling each function on first use), or a GC landing in it, crosses that
+  line at random.
+- The base (`c5d1921`) ran `tagged` and `session` in one-call mode in every run of 2026-09-28/29
+  (7 runs, 31 processes each).
+- `fb35497` ran `tagged` in one-call mode in 9 to 11 of 31 processes, about 200 ns slower.
+- The old CSVs (op-parity and cost timeline, 16 files), read by the heap column:
+  - `tagged`: one-call in 990 of 990 rows;
+  - `session`: 122 of 122;
+  - `lifecycle`: 41 of 244; `cold`: 22 of 244;
+  - `create`, `op`, `run`: 1 to 3 rows each; `warm`, `inline`: none.
+
+### What changed in `bench/`
+
+- `bench/core-probe.mjs` runs each scenario 10,000 times first, then calls mitata's `measure()`
+  with both warm-up limits lifted. Every process is timed in batch mode by construction.
+- Warm-up alone was not enough: with 10,000 warm-up calls, 3 of 31 `tagged` processes still
+  landed in one-call mode (a pause in mitata's first call).
+- The METRIC line says `mode=batch` or `mode=one` (4096 ticks per sample, or 1).
+- `bench/ab.sh` runs B's probe against A's build and B's build (`CORE_DIST`), so a probe change can
+  never pose as a core change.
+- Each `ab.sh` "done" line counts the batch-mode runs per tree.
+
+### The mode check
+
+- `origin/main` (`31613e7`), both sides of the re-baseline below: batch in 31 of 31 per tree, in
+  every scenario (18).
+- `fb35497`: batch in 31 of 31, in every scenario.
+  - `tagged`, `session`, `op`, `run`: from the A/B run below.
+  - The other 14: a one-tree check, 434 of 434 runs.
+
+### Re-baseline: main against itself
+
+Both trees at `origin/main` `31613e7` (core as `c5d1921`). N=31 through `benchd`, medians in ns
+per call. The gap between two copies of one build is the noise floor at N=31.
+
+```bash
+N=31 A=../tinkered-main-base \
+  SCEN="<all 18>" bench/queued.sh
+```
+
+- The 18: `op run opres inline session tagged create cold warm lifecycle s1_getctl s2_data`
+  `s3_doubled s4_warm_ctl asyncsub cold2 get1 inferdi_cold`.
+
+- **`op`** — 99.5 → 98.1 (−1.4, −1.4%), slower 10/31: no difference we can see
+- **`run`** — 112.6 → 112.4 (−0.2, −0.2%), slower 11/31: no difference we can see
+- **`opres`** — 312.5 → 314.1 (+1.6, +0.5%), slower 19/31: no difference we can see
+- **`inline`** — 207.0 → 204.4 (−2.6, −1.3%), slower 11/31: no difference we can see
+- **`session`** — 1689.3 → 1689.0 (−0.3, −0.0%), slower 17/31: no difference we can see
+- **`tagged`** — 2196.9 → 2175.8 (−21.1, −1.0%), slower 13/31: no difference we can see
+- **`create`** — 192.9 → 192.0 (−0.9, −0.5%), slower 11/31: no difference we can see
+- **`cold`** — 762.5 → 759.9 (−2.6, −0.3%), slower 15/31: no difference we can see
+- **`warm`** — 16.5 → 16.5 (+0.0, +0.0%), slower 5/31: no difference we can see
+- **`lifecycle`** — 932.3 → 933.4 (+1.1, +0.1%), slower 19/31: no difference we can see
+- **`s1_getctl`** — 265.8 → 266.8 (+1.0, +0.4%), slower 18/31: no difference we can see
+- **`s2_data`** — 283.9 → 284.3 (+0.4, +0.1%), slower 15/31: no difference we can see
+- **`s3_doubled`** — 514.1 → 515.1 (+1.0, +0.2%), slower 18/31: no difference we can see
+- **`s4_warm_ctl`** — 10.8 → 10.8 (+0.0, +0.0%), slower 9/31: no difference we can see
+- **`asyncsub`** — 777.4 → 775.8 (−1.6, −0.2%), slower 12/31: no difference we can see
+- **`cold2`** — 646.5 → 647.9 (+1.4, +0.2%), slower 16/31: no difference we can see
+- **`get1`** — 0.4 → 0.4 (+0.0, +0.0%), slower 0/31: no difference we can see
+- **`inferdi_cold`** — 193.4 → 194.7 (+1.3, +0.7%), slower 16/31: no difference we can see
+- Every row: batch in 31 of 31 on both sides.
+- Noise floor: no gap past 2%; the largest is `op`, −1.4%.
+- `get1` (one data read through a controller) is under 1 ns: too small to read at this scale.
+
+### `fb35497` against main, both in batch mode
+
+A = `origin/main` `31613e7`; B = `fb35497` (core) with this `bench/`. N=31.
+
+- **`tagged`** — 2193.4 → 943.8 (−1249.6, −57.0%), slower 0/31: B faster
+- **`session`** — 1715.3 → 831.3 (−884.0, −51.5%), slower 0/31: B faster
+- **`op`** — 99.8 → 95.8 (−4.0, −4.0%), slower 5/31: B faster
+- **`run`** — 113.3 → 110.1 (−3.2, −2.8%), slower 13/31: no difference we can see
+- Every row: batch in 31 of 31 on both sides.
+
+### Older tables are not comparable
+
+- The older tables below mixed modes: large scenarios (`tagged`, `session`, some `lifecycle` and
+  `cold` rows) ran in one-call mode.
+- A batch number includes each call's share of young-generation GC; a one-call minimum did not,
+  and it carried the timer's cost.
+- So compare only numbers from this section on.
+
 ## All lanes at t19 (green together)
 
 | lane                | budget                          | t19 measurement                          | how                                           |
