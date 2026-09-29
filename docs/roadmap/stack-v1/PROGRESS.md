@@ -46,7 +46,7 @@ Rules for every ticket:
   green.
 - **t04 core: a span carries a trace id** -- [ ] blocked by: none
   Writer: `stack/t04`, in `/home/paseo/next/tinkered-stack-t04`.
-  Next: fix F1 and F4 with a private ID stream; lower `opobs` and re-run the gates.
+  Next: lead review, N=61 landing screen, and label calibration; F1/F4 and the N=31 bar pass.
   Every span gets a trace id when it opens, from
   its parent or from a seed a driver gives
   (ADR 0076). Hono seeds it from `traceparent`.
@@ -1550,3 +1550,20 @@ impact stack/t04: as planned (0 discrepancies). Advisory — never a gate.
 - The final lead probe still matches the fixed base's numbers, UUIDs, and four user draws.
 - New label lines this round: `stateOutsideCell false` for `layerRecord`; `noOpRejected false` for `writeCellNs`.
 - The other final source labels were already in the bank; each command and reason is saved in the raw proof.
+
+### Final mutation and handoff
+
+- One full core mutation run under `/tmp/mutation.lock`; `MUTATION_EXIT=0`.
+- Flags: `--timeoutMS 60000 --concurrency 2` from the start, due to the prior run's 30 timeouts.
+- The first command had an extra `--`; the CLI rejected it before any mutation work started.
+- The corrected command tested all 3186 changes and finished in 42 minutes, 34 seconds.
+- Score: 85.38, above the 85 floor; `index.ts` alone scores 85.20.
+- Counts: 2686 killed, 29 timeout, 437 survived, 28 no coverage, 6 errors.
+- The longer timeout settings were already in use; no second full mutation run was needed.
+- Hono and HTTP mutation were not repeated, as this round asks for core only.
+- All requested checks are complete; the card is in Review.
+- The fixed timing base and prior no-rebase rule were kept.
+- New labels await calibration by the lead at landing.
+- No new core feedback beyond the fixed F1/F4 bugs.
+- No job remains running; nothing was pushed.
+- Full logs, raw rows, label commands, and mutation JSON: `.bench/stack-t04-round2-proof/`.

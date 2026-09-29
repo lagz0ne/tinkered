@@ -181,6 +181,12 @@ Raw CSVs, V8 traces, and logs live in `.bench/stack-t04-round2-proof/`.
 
 The V8 trace inlines the four word draws, source choice, and trace choice into the span constructor.
 The constructor is 310 bytecode bytes; the first layout was 253.
-The larger constructor still wins here by avoiding an unread root's record and empty caches.
+The kept layout avoids an unread root's record and empty caches.
 The diagnostic log has five deoptimizations for missing type feedback.
 Those diagnostic flags were absent from every timing run.
+
+Final gate: build, check, core 730, Hono 65, HTTP 86, all workspace tests; `EXIT=0`.
+All 46 validation lanes pass.
+One core mutation run with a 60-second timeout and two workers scores 85.38.
+Counts: 2686 killed, 29 timeout, 437 survived, 28 no coverage, 6 errors.
+The run held `/tmp/mutation.lock` and ended with `MUTATION_EXIT=0`.
