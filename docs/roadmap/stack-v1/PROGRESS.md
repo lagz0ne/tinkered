@@ -3892,3 +3892,22 @@ The type checker says `CloseOptions` cannot be `Scope.Handle`.
 The probe was removed after the check.
 This is another caller for `core/close-hook-scope`.
 Core itself has no change on this branch.
+
+### t08 mutation findings
+
+- First full run: 65.75%, exit 1.
+  Counts: 92 killed, 4 timeout, 45 survived, 5 no coverage.
+- The report marked deletion of `jobs()` as survived.
+  Starting jobs in `beforeAll` made broken setup skip tests.
+  Only the Drizzle template now starts in that hook.
+  Each test starts jobs in its own body.
+- Tests now check the saved cancel cause, commit error,
+  original job error, old close handles, and failed boot cleanup.
+- Three new tests cover other queues during close,
+  worker database faults, and failed child operations.
+- Build, check, and all 20 jobs tests pass, exit 0.
+  Check has the same 29 warnings as main.
+  Jev tests and promises have no flags; style census passes.
+- Deviation: repeat the final mutation run after fixing setup.
+  The first report had false survivors and cannot prove the floor.
+  Keep its log and JSON; do not change the floor or source list.

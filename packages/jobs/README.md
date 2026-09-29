@@ -83,3 +83,6 @@ They never sleep or patch globals.
 - An unreachable JOBS_URL fails boot at the given Postgres address.
 - Jobs migrate after Drizzle commits and release their own lock.
 - A piece stays owned until the whole root close ends.
+- Closing stops other queues while a running job drains.
+- Worker database faults reach the scope log.
+- A failed child operation fails the job with its cause.

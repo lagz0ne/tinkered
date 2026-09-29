@@ -1,6 +1,6 @@
 import { PGlite } from "@electric-sql/pglite";
 import { drizzleStore } from "@tinker/drizzle";
-import { createScope, type Scope } from "@tinker/core";
+import { type Scope } from "@tinker/core";
 import { createTestDatabase } from "@tinker/stack";
 import { drizzle } from "drizzle-orm/pglite";
 import { afterAll, afterEach, beforeAll } from "vite-plus/test";
@@ -17,17 +17,15 @@ beforeAll(async () => {
   const migrated = await createTestDatabase({ migrationsFolder });
   template = await migrated.clone();
   await migrated.close();
-  const piece = jobs([], { pglite: store.db, tx: store.tx, env: {} });
-  const scope = createScope({ tags: [store.config(template)], extensions: [piece.extension] });
-  try {
-    await scope.ready;
-  } finally {
-    await scope.close();
-  }
 });
 afterEach(async () => {
   await Promise.all(scopes.splice(0).map((scope) => scope.close()));
-  await Promise.all(clients.splice(0).map((client) => client.close()));
+  await Promise.all(
+    clients
+      .splice(0)
+      .filter((client) => !client.closed)
+      .map((client) => client.close()),
+  );
 });
 afterAll(async () => {
   await template.close();

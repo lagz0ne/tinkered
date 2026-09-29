@@ -2,7 +2,7 @@ import { createScope, data, operation, type Operation, type Observe } from "@tin
 import { hono, route } from "@tinker/hono";
 import { sql } from "drizzle-orm";
 import { expect, test } from "vite-plus/test";
-import { job } from "../src/index.ts";
+import { isError, job } from "../src/index.ts";
 import { fixture, scopes, store } from "./fixtures.ts";
 
 const save = operation({
@@ -51,13 +51,14 @@ test("a rolled back request leaves no job", async () => {
 
 test("a failing job retries then stays failed and logs one line", async () => {
   let attempts = 0;
+  const cause = new Error("receipt failed");
   const fail = operation({
     label: "fail receipt",
     depends: { tx: store.tx },
-    run: async ({ tx }, ctx) => {
+    run: async ({ tx }) => {
       attempts++;
       await tx.execute(sql`insert into receipts values ('rolled back')`);
-      ctx.raise("NoReceipt", {});
+      throw cause;
     },
   });
   const { client, clock, piece, tags } = await fixture([
@@ -71,7 +72,7 @@ test("a failing job retries then stays failed and logs one line", async () => {
   });
   scopes.push(scope);
   await scope.ready;
-  await scope.session((s) => s.run(piece.send, { input: { queue: "fail", data: {} } }));
+  const id = await scope.session((s) => s.run(piece.send, { input: { queue: "fail", data: {} } }));
   for (let retry = 0; retry <= 2; retry++) {
     await clock.advance(retry === 0 ? 1000 : 2000);
     await expect
@@ -81,9 +82,13 @@ test("a failing job retries then stays failed and logs one line", async () => {
   await clock.advance(5000);
   expect(attempts).toBe(3);
   expect((await client.query("select * from receipts")).rows).toEqual([]);
-  expect(logs.filter((log) => log.message === "job failed").map((log) => log.attributes)).toEqual([
-    { queue: "fail", id: expect.any(String), error: expect.any(Error) },
-  ]);
+  const failures = logs.filter((log) => log.level === 50);
+  expect(failures).toHaveLength(1);
+  for (const failure of failures) {
+    expect(failure.message).toBe("job failed");
+    expect(failure.attributes).toMatchObject({ queue: "fail", id });
+    expect(failure.attributes.error).toBe(cause);
+  }
 });
 
 test("each job gets its own session cell", async () => {
@@ -168,13 +173,24 @@ test("a failed commit fails the job instead of marking it complete", async () =>
   });
   const { client, clock, piece, tags } = await fixture([job("duplicate", work, { retryLimit: 0 })]);
   await client.exec("alter table receipts add unique (value) deferrable initially deferred");
-  const scope = createScope({ tags, extensions: [piece.extension] });
+  const logs: Observe.Log[] = [];
+  const scope = createScope({
+    tags,
+    extensions: [piece.extension],
+    observe: { log: (log) => logs.push(log) },
+  });
   scopes.push(scope);
   await scope.ready;
   await scope.session((s) => s.run(piece.send, { input: { queue: "duplicate", data: {} } }));
   await clock.advance(1000);
   await expect.poll(() => readStates(client)).toEqual([{ state: "failed", retry_count: 0 }]);
   expect((await client.query("select * from receipts")).rows).toEqual([]);
+  expect(logs.filter((log) => log.message === "job failed")).toHaveLength(1);
+  for (const log of logs.filter((log) => log.message === "job failed")) {
+    const error = log.attributes.error;
+    if (!isError(error, "CommitFailed")) throw error;
+    expect(error.payload.errors).toEqual([expect.objectContaining({ code: "23505" })]);
+  }
 });
 
 test("job input passes through its operation parser", async () => {
@@ -198,4 +214,38 @@ test("job input passes through its operation parser", async () => {
   expect((await client.query("select * from receipts")).rows).toEqual([
     { value: '{"value":"parsed"}' },
   ]);
+});
+
+test("a failed child operation fails the job with its cause", async () => {
+  const cause = new Error("child failed");
+  const fail = operation({
+    label: "failed child",
+    run: async () => {
+      throw cause;
+    },
+  });
+  const work = operation({
+    label: "start child",
+    depends: { fail: fail.controller, tx: store.tx },
+    run: async ({ fail, tx }) => {
+      await tx.execute(sql`insert into receipts values ('child')`);
+      void fail.run();
+    },
+  });
+  const logs: Observe.Log[] = [];
+  const { client, clock, piece, tags } = await fixture([job("child", work, { retryLimit: 0 })]);
+  const scope = createScope({
+    tags,
+    extensions: [piece.extension],
+    observe: { log: (log) => logs.push(log) },
+  });
+  scopes.push(scope);
+  await scope.ready;
+  await scope.session((s) => s.run(piece.send, { input: { queue: "child", data: {} } }));
+  await clock.advance(1000);
+  await expect.poll(() => readStates(client)).toEqual([{ state: "failed", retry_count: 0 }]);
+  expect((await client.query("select * from receipts")).rows).toEqual([]);
+  const failures = logs.filter((log) => log.message === "job failed");
+  expect(failures).toHaveLength(1);
+  for (const log of failures) expect(log.attributes.error).toBe(cause);
 });
