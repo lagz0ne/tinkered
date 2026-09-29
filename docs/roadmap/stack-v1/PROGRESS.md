@@ -337,7 +337,7 @@ The lead runs calibration when landing these labels.
 
 - Owner: stack/t01 writer; branch `stack/t01`.
 - Base: `origin/main` at `bd3f270`.
-- Next: finish the queued mutation run, then lead review.
+- Status: Review. Next: lead reviews the saved branch.
 - Verify: build, check, sync and tracker tests, example check,
   four direct browser runs on each tree, all validation lanes,
   and one final sync mutation run at or above 85.
@@ -420,4 +420,15 @@ EXIT 0
 - `pnpm validate`: all 44 lanes PASS, `EXIT 0`.
   The workspace file was restored after validation.
 - Size: 5,766 bytes gzip across both entries; cap 10,240.
-- Mutation: queued under `/tmp/mutation.lock`; no result yet.
+- Mutation: 86.81 overall; SSE entry 87.59; floor 85, `EXIT 0`.
+  One full run, in the foreground, under `/tmp/mutation.lock`.
+  403 killed, 5 timed out, 60 survived, 2 with no test coverage.
+  Stryker restored the source files; `git diff --exit-code` passed.
+
+```bash
+flock /tmp/mutation.lock \
+  vp run --no-cache sync#mutate
+```
+
+- All writer checks are complete. The card is in Review.
+  Nothing was pushed.

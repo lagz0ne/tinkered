@@ -46,13 +46,18 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
-- **stack/t01 sync-sse** — `@tinker/sync/sse` ships the SSE transport; the tracker and the sync example drop theirs (ADR 0077). Owner: lead (stack session); Astra writer `d78e1583`, worktree `/home/paseo/next/tinkered-stack-t01`; Opus reviewer when the writer reports. Verify: sync and tracker tests green. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t02 hono-errors** — a managed error becomes its HTTP answer through `@tinker/hono`; the tracker's hand mapping goes. Owner: lead (stack session); Astra writer `ed37bee3`, worktree `/home/paseo/next/tinkered-stack-t02`; Opus reviewer when the writer reports. Verify: hono tests cover each answer; tracker tests unchanged. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t03 drizzle-rc** — the repo on one exact Drizzle 1.0 RC (ADR 0079). Owner: lead (stack session); Astra writer `64091131`, worktree `/home/paseo/next/tinkered-stack-t03`; Opus reviewer when the writer reports. Verify: build, `vp check`, drizzle and tracker tests green. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t04 trace-id** — core: a span carries a trace id; Hono seeds it from `traceparent` (ADR 0076). Owner: lead (stack session); Astra writer `5e69613c`, worktree `/home/paseo/next/tinkered-stack-t04`; the only core card now; Opus reviewer when the writer reports. Verify: core and hono tests, `scripts/ticket.sh`, `pnpm validate`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t07 nats** — `@tinker/nats`: connect, publish, subscribe to an operation; tests on a real pinned `nats-server` (ADR 0080; `traceparent` moved to t13). Owner: lead (stack session); Astra writer `856cec06`, worktree `/home/paseo/next/tinkered-stack-t07`; Opus reviewer when the writer reports. Verify: nats tests on a real server; a missing `NATS_URL` fails boot. [track](docs/roadmap/stack-v1/PROGRESS.md).
 
 ## Review
+
+- **stack/t01 sync-sse** — owner: lead (stack session); writer branch `stack/t01`.
+  Next: review both SSE halves and the consumer changes.
+  Verify: 69 sync tests, 72 tracker tests, browser 4/4, 44 validation lanes,
+  and mutation 86.81, all green.
+  [Proof](docs/roadmap/stack-v1/PROGRESS.md#t01-checks).
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
