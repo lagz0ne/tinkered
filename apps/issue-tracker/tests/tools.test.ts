@@ -1,6 +1,4 @@
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { cloneDatabase } from "./database.ts";
 import { expect, test } from "vite-plus/test";
 import { createScope } from "@tinker/core";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -18,20 +16,17 @@ import {
   publish,
   readDetail,
   store,
+  migrateIssues,
   issueServer,
 } from "../src/index.ts";
-
-function tempPath(): string {
-  return join(mkdtempSync(join(tmpdir(), "issues-tools-")), "db");
-}
 
 /** This file's root: the routes over a fresh store, plus the published list
  * (`GET /api/issues` reads it, not the table). `/sync` answers 500 here because `src` is absent. */
 async function boot() {
   const server = issueServer();
   const scope = createScope({
-    tags: [store.config(tempPath())],
-    extensions: [server, publish()],
+    tags: [store.config(await cloneDatabase())],
+    extensions: [migrateIssues, server, publish()],
   });
   try {
     await scope.ready;

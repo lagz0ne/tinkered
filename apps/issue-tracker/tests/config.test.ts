@@ -1,3 +1,4 @@
+import { once } from "node:events";
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -11,36 +12,39 @@ import { api } from "../src/index.ts";
 
 const APP = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-/** Start the server entry with `PORT` set and read its first stdout line as JSON; the child is
- * killed after that line, so a server that boots anyway does not outlive the test. */
-async function readFirstLine(port: string): Promise<Record<string, unknown>> {
+/** Migrations log queries before listener validation. Read the boot outcome,
+ * then wait for child cleanup before deleting its database. */
+async function readBootResult(port: string): Promise<Record<string, unknown>> {
   const dir = mkdtempSync(join(tmpdir(), "issues-port-"));
   const child = spawn(process.execPath, ["--experimental-strip-types", "src/server/main.ts"], {
     cwd: APP,
     env: { ...process.env, HOST: "127.0.0.1", PORT: port, DATA_PATH: join(dir, "db") },
     stdio: ["ignore", "pipe", "ignore"],
   });
+  const exited = once(child, "exit");
   try {
     for await (const line of createInterface({ input: child.stdout })) {
-      return JSON.parse(line);
+      const result: Record<string, unknown> = JSON.parse(line);
+      if (result.message === "boot failed" || result.message === "listening") return result;
     }
     return {};
   } finally {
     child.kill();
+    await exited;
     rmSync(dir, { recursive: true, force: true });
   }
 }
 
 test("a PORT that is not a port number fails the boot naming PORT", async () => {
-  const first = await readFirstLine("abc");
+  const first = await readBootResult("abc");
   expect(first.message).toBe("boot failed");
   expect(first.kind).toBe("BadListenSettings");
   expect(first.payload).toEqual({ keys: ["PORT"] });
 });
 
 test("a PORT with trailing junk or out of range fails the boot too", async () => {
-  expect((await readFirstLine("80x")).payload).toEqual({ keys: ["PORT"] });
-  expect((await readFirstLine("70000")).payload).toEqual({ keys: ["PORT"] });
+  expect((await readBootResult("80x")).payload).toEqual({ keys: ["PORT"] });
+  expect((await readBootResult("70000")).payload).toEqual({ keys: ["PORT"] });
 });
 
 /** A 500 through a baseUrl-only binding still rejects: the helper folds the policy in. */

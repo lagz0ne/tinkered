@@ -10,5 +10,7 @@ export default defineConfig({
   test: {
     server: { deps: { inline: ["vite-plus"] } },
     testTimeout: 30000,
+    hookTimeout: 30000,
+    maxWorkers: 2,
   },
 });

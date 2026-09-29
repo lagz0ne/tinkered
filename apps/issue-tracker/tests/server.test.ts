@@ -14,6 +14,7 @@ import {
   runServer,
   src,
   store,
+  migrateIssues,
 } from "../src/index.ts";
 
 async function readFreePort(): Promise<number> {
@@ -32,7 +33,8 @@ async function readFreePort(): Promise<number> {
 test("the first HTTP read and sync snapshot contain saved issues while the port binds", async () => {
   const dir = await mkdtemp(join(tmpdir(), "issues-order-"));
   const path = join(dir, "db");
-  const seed = createScope({ tags: [store.config(path)] });
+  const seed = createScope({ tags: [store.config(path)], extensions: [migrateIssues] });
+  await seed.ready;
   const saved = await seed
     .session((s) =>
       s.run(createIssue, { input: { title: "Saved before bind", description: "kept on disk" } }),
@@ -63,7 +65,7 @@ test("the first HTTP read and sync snapshot contain saved issues while the port 
   });
   const scope = createScope({
     tags: [store.config(path)],
-    extensions: [server, src, publish()],
+    extensions: [migrateIssues, server, src, publish()],
   });
   try {
     await scope.ready;
@@ -104,5 +106,7 @@ test("runServer serves saved issues until stop and then answers zero", async () 
 });
 
 test("runServer answers one for a bad PORT", async () => {
-  expect(await runServer({ PORT: "abc" }, new AbortController().signal)).toBe(1);
+  expect(
+    await runServer({ PORT: "abc", DATA_PATH: "memory://" }, new AbortController().signal),
+  ).toBe(1);
 });

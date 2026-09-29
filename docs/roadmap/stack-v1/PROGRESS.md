@@ -40,7 +40,7 @@ Rules for every ticket:
   at `@tinker/drizzle/migrations`.
   The main Drizzle entry keeps its current imports.
 - Add `migrate`, `Migrate`, and `createTestDatabase`
-  at `@tinker/stack`.
+  and `TestDatabase` at `@tinker/stack`.
 - The tracker adds `migrations` and `migrateIssues`.
   `store.config` also accepts a borrowed PGlite handle.
   The store opens the db; the migrate piece makes tables.
@@ -52,6 +52,32 @@ Rules for every ticket:
   Check refs for `migrateDatabase`, `checkDrift`,
   `migrate`, `createTestDatabase`, and `migrateIssues`.
   No public symbol is removed.
+
+### t06 implementation checks
+
+- First package gate: 18 Drizzle tests and 42 stack tests pass.
+  The changed files have no lint or type warnings.
+- Kit generated `20260929165528_tracker` from the schema.
+  The drift test passes on that folder and rejects a temp copy
+  with an extra column, without changing migration files.
+- The old-db tests cover all eight hand-SQL states.
+  They keep every existing value and compare columns and indexes.
+- Test roots borrow clones; disk restart checks still use files.
+  A store closes only a client it opened itself.
+- PGlite types its clone as an interface that Drizzle rejects.
+  The test helper narrows that known PGlite clone in one place.
+- Boot now logs migration queries before listener validation.
+  The PORT tests read the boot result and await child exit.
+- Test setup hit Vitest's 10-second hook limit under host load.
+  The tracker now uses two workers and a 30-second hook limit,
+  matching its existing per-test limit.
+- Jev's package test checks have no flags.
+  The tracker keeps three old helper-count notes.
+  No plain helper-count judge exists in the label tool.
+- One missing browser-test promise gained a README line:
+  posting a draft saves one comment and one activity.
+- SCIP refs name the planned package and tracker callers.
+- Core feedback: none; no Core workaround was needed.
 
 ## Tickets
 

@@ -275,3 +275,30 @@ The app is built from the public libraries:
 - [`@tinker/harness`](../../packages/harness/src/index.ts): the optional
   triage draft — the real Claude adapter behind the helper, read-only
   issue tools, server-side credentials only.
+
+## Schema changes
+
+Edit `src/server/schema.ts`, then run:
+
+```bash
+vp run db:generate
+```
+
+Commit the new folder in `drizzle/`.
+Boot runs those files through the stack's migrate step.
+Never run `drizzle-kit push`.
+The config filters only `public`, the tracker's schema.
+An old database keeps its rows while the first boot
+fills missing columns and records the first migration.
+
+Tests share one migrated template per file and clone it.
+Disk restart tests still open a saved database.
+
+- A fresh tracker boots from migration files and its
+  next boot applies nothing.
+- An old tracker at each hand-SQL step keeps every row
+  and matches a fresh schema.
+- The tracker drift check passes and rejects a column
+  added only in a temp schema copy.
+
+- Posting a draft saves one comment and one activity.

@@ -1,6 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { cloneDatabase } from "./database.ts";
 import { expect, test } from "vite-plus/test";
 import { createScope, preset, type Observe, type Operation, type Scope } from "@tinker/core";
 import {
@@ -18,19 +16,12 @@ import {
   src,
   startDraft,
   store,
+  migrateIssues,
   issueServer,
   type DraftConfig,
 } from "../src/index.ts";
 import { claudeCode } from "@tinker/harness";
 import { readDraftServer, reservePort } from "./draft-server.ts";
-
-function tempPath(): string {
-  return join(mkdtempSync(join(tmpdir(), "issues-draft-")), "db");
-}
-
-function removeTemp(path: string): void {
-  rmSync(join(path, ".."), { recursive: true, force: true });
-}
 
 type Boot = {
   readonly draft?: DraftConfig;
@@ -39,12 +30,11 @@ type Boot = {
 };
 
 /** This file's root: every server part plus the draft tags, as `main.ts` lists
- * them, over the store at `path` (absent: in memory). */
-async function boot(path: string | undefined, options: Boot = {}) {
-  const server = issueServer();
+ * them, over a clone of the migrated test database. */
+async function boot(path: { client: import("@electric-sql/pglite").PGlite }, options: Boot = {}) {
   const scope = createScope({
     tags: [store.config(path), draftTags(options.draft)],
-    extensions: [server, src, publish()],
+    extensions: [migrateIssues, server, src, publish()],
     presets: options.presets,
     observe: options.observe,
   });
@@ -70,7 +60,7 @@ function readEvents(text: string): { kind: string; [key: string]: unknown }[] {
 }
 
 test("the draft helper is off by default and needs no account", async () => {
-  const path = tempPath();
+  const path = await cloneDatabase();
   const booted = await boot(path);
   const app = booted.app;
   try {
@@ -93,13 +83,12 @@ test("the draft helper is off by default and needs no account", async () => {
     expect(detail.activity.length).toBe(1);
   } finally {
     await booted.scope.close({ graceful: true });
-    removeTemp(path);
   }
 });
 
 test("a draft streams text and finishes without saving anything", async () => {
   const heard = await reservePort();
-  const path = tempPath();
+  const path = await cloneDatabase();
   const booted = await boot(path);
   const created = await via(booted.scope, createIssue, {
     title: "Streamed",
@@ -157,13 +146,12 @@ test("a draft streams text and finishes without saving anything", async () => {
   } finally {
     await live.scope.close({ graceful: true });
     await heard.stop();
-    removeTemp(path);
   }
 });
 
 test("an explicit post sends the generated draft and appends once", async () => {
   const heard = await reservePort();
-  const path = tempPath();
+  const path = await cloneDatabase();
   const booted = await boot(path);
   const created = await via(booted.scope, createIssue, { title: "Post me", description: "v1" });
   const before = await booted.scope.run(readDetail, { input: created.id });
@@ -205,14 +193,13 @@ test("an explicit post sends the generated draft and appends once", async () => 
   } finally {
     await live.scope.close({ graceful: true });
     await heard.stop();
-    removeTemp(path);
   }
 });
 
 test("a model error result and a thrown model error both fail without a draft", async () => {
   for (const script of [{ errorResult: true }, { fail: true }]) {
     const heard = await reservePort();
-    const path = tempPath();
+    const path = await cloneDatabase();
     const booted = await boot(path);
     const created = await via(booted.scope, createIssue, { title: "Failing", description: "v1" });
     const before = await booted.scope.run(readDetail, { input: created.id });
@@ -243,14 +230,13 @@ test("a model error result and a thrown model error both fail without a draft", 
     } finally {
       await live.scope.close({ graceful: true });
       await heard.stop();
-      removeTemp(path);
     }
   }
 });
 
 test("a draft for a missing issue answers gone and runs no model", async () => {
   const fixture = readDraftServer([{ text: "never used" }]);
-  const path = tempPath();
+  const path = await cloneDatabase();
   const booted = await boot(path, {
     draft: { enabled: true, baseUrl: "http://127.0.0.1:1" },
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
@@ -266,13 +252,12 @@ test("a draft for a missing issue answers gone and runs no model", async () => {
     expect(fixture.turnCount()).toBe(0);
   } finally {
     await booted.scope.close({ graceful: true });
-    removeTemp(path);
   }
 });
 
 test("a draft prompt that is not text answers 400 and runs no model", async () => {
   const fixture = readDraftServer([{ text: "never used" }]);
-  const path = tempPath();
+  const path = await cloneDatabase();
   const booted = await boot(path, {
     draft: { enabled: true, baseUrl: "http://127.0.0.1:1" },
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
@@ -288,7 +273,6 @@ test("a draft prompt that is not text answers 400 and runs no model", async () =
     expect(fixture.turnCount()).toBe(0);
   } finally {
     await booted.scope.close({ graceful: true });
-    removeTemp(path);
   }
 });
 
@@ -306,7 +290,7 @@ test("parseDraftInput raises BadDraftInput for a prompt that is not text", () =>
 
 test("an aborted caller runs no model turn", async () => {
   const fixture = readDraftServer([{ text: "never used" }]);
-  const path = tempPath();
+  const path = await cloneDatabase();
   const booted = await boot(path, {
     draft: { enabled: true, baseUrl: "http://127.0.0.1:1" },
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
@@ -325,13 +309,12 @@ test("an aborted caller runs no model turn", async () => {
     expect(fixture.turnCount()).toBe(0);
   } finally {
     await booted.scope.close({ graceful: true });
-    removeTemp(path);
   }
 });
 
 test("ordinary saves continue while a draft turn holds", async () => {
   const heard = await reservePort();
-  const path = tempPath();
+  const path = await cloneDatabase();
   const booted = await boot(path);
   const created = await via(booted.scope, createIssue, { title: "Held", description: "v1" });
   const before = await booted.scope.run(readDetail, { input: created.id });
@@ -373,13 +356,12 @@ test("ordinary saves continue while a draft turn holds", async () => {
     await live.scope.close();
     await heard.stop();
     await tracked;
-    removeTemp(path);
   }
 });
 
 test("an HTTP disconnect cancels the model and saves nothing", async () => {
   const heard = await reservePort();
-  const path = tempPath();
+  const path = await cloneDatabase();
   const booted = await boot(path);
   const created = await via(booted.scope, createIssue, { title: "Held cancel", description: "v1" });
   const before = await booted.scope.run(readDetail, { input: created.id });
@@ -419,13 +401,12 @@ test("an HTTP disconnect cancels the model and saves nothing", async () => {
     await live.scope.close();
     await heard.stop();
     await tracked;
-    removeTemp(path);
   }
 });
 
 test("root close with a live caller aborts the model and settles cancelled", async () => {
   const heard = await reservePort();
-  const path = tempPath();
+  const path = await cloneDatabase();
   const booted = await boot(path);
   const created = await via(booted.scope, createIssue, { title: "Held root", description: "v1" });
   const before = await booted.scope.run(readDetail, { input: created.id });
@@ -475,13 +456,12 @@ test("root close with a live caller aborts the model and settles cancelled", asy
     await live.scope.close();
     await heard.stop();
     await tracked;
-    removeTemp(path);
   }
 });
 
 test("overlapping drafts on two issues stay isolated through one live app", async () => {
   const heard = await reservePort();
-  const path = tempPath();
+  const path = await cloneDatabase();
   const booted = await boot(path);
   const one = await via(booted.scope, createIssue, { title: "One", description: "v1" });
   const two = await via(booted.scope, createIssue, { title: "Two", description: "v1" });
@@ -553,12 +533,11 @@ test("overlapping drafts on two issues stay isolated through one live app", asyn
     await live.scope.close();
     await heard.stop();
     await tracked;
-    removeTemp(path);
   }
 });
 
 test("startDraft runs without Hono: off answers DraftOff, a missing issue answers gone", async () => {
-  const path = tempPath();
+  const path = await cloneDatabase();
   const booted = await boot(path);
   const live = await boot(path, { draft: { enabled: true, baseUrl: "http://127.0.0.1:1" } });
   try {
@@ -582,6 +561,5 @@ test("startDraft runs without Hono: off answers DraftOff, a missing issue answer
   } finally {
     await live.scope.close({ graceful: true });
     await booted.scope.close({ graceful: true });
-    removeTemp(path);
   }
 });

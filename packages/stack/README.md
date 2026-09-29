@@ -6,8 +6,9 @@ Importing this package starts nothing.
 
 ## The root
 
-Create the Hono extension, then list `server` first.
-Its start checks settings before other starts run.
+Create the Hono extension, then list `server` before it.
+When the app has a database, list `migrate` before both.
+The server start checks settings before the starts after it.
 It opens the port after they all finish.
 
 ```ts

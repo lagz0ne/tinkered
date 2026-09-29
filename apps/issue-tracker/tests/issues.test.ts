@@ -1,3 +1,4 @@
+import { cloneDatabase } from "./database.ts";
 import {
   createScope,
   makeTestRandom,
@@ -26,6 +27,7 @@ import {
   recordActivity,
   src,
   store,
+  migrateIssues,
   issueServer,
   type Issues,
 } from "../src/index.ts";
@@ -49,8 +51,8 @@ type Boot = {
 async function boot(options: Boot = {}) {
   const server = issueServer({ serve: options.serve });
   const scope = createScope({
-    tags: [store.config(tempPath())],
-    extensions: [server, src, publish()],
+    tags: [store.config(await cloneDatabase())],
+    extensions: [migrateIssues, server, src, publish()],
     presets: options.presets,
     observe: options.observe,
   });
@@ -72,7 +74,7 @@ function detail(scope: Scope.Handle, id: string) {
 }
 
 test("a session save commits a row the root list read sees", async () => {
-  const scope = createScope({ tags: [store.config(undefined)] });
+  const scope = createScope({ tags: [store.config(await cloneDatabase())] });
   try {
     await scope.session((s) => s.run(createIssue, { input: { title: "First", description: "x" } }));
     const all = await scope.run(listIssues);
@@ -85,7 +87,7 @@ test("a session save commits a row the root list read sees", async () => {
 test("a seeded random replays the same issue, comment, and activity ids", async () => {
   async function ids(): Promise<readonly string[]> {
     const scope = createScope({
-      tags: [store.config(undefined)],
+      tags: [store.config(await cloneDatabase())],
       random: makeTestRandom({ seed: 7 }),
     });
     try {
@@ -133,14 +135,18 @@ test("creating a valid issue saves it and a second viewer sees it", async () => 
 
 test("reopening against the same database restores the saved issue", async () => {
   const path = tempPath();
-  const first = createScope({ tags: [store.config(path)] });
+  const first = createScope({ tags: [store.config(path)], extensions: [migrateIssues] });
+  await first.ready;
   try {
     await save(first, createIssue, { title: "Kept", description: "survives restart" });
   } finally {
     await first.close({ graceful: true });
   }
 
-  const second = createScope({ tags: [store.config(path)], extensions: [publish()] });
+  const second = createScope({
+    tags: [store.config(path)],
+    extensions: [migrateIssues, publish()],
+  });
   try {
     await second.ready;
     expect(second.resolve(issueList).length).toBe(1);
@@ -301,7 +307,7 @@ test("a stale edit is rejected with the current saved issue and writes nothing",
 });
 
 test("an edit of a missing issue fails with an origin that names the loadSaved step", async () => {
-  const scope = createScope({ tags: [store.config(undefined)] });
+  const scope = createScope({ tags: [store.config(await cloneDatabase())] });
   try {
     let origin: ReturnType<typeof originOf>;
     try {
@@ -320,7 +326,7 @@ test("an edit of a missing issue fails with an origin that names the loadSaved s
 test("a preset recordActivity receives every activity write a create and an edit make", async () => {
   const written: Issues.Activity[] = [];
   const scope = createScope({
-    tags: [store.config(undefined)],
+    tags: [store.config(await cloneDatabase())],
     presets: [
       preset(recordActivity, async (_deps, ctx) => {
         written.push(ctx.input);
@@ -450,7 +456,8 @@ test("a rejected comment writes nothing and records no activity", async () => {
 
 test("edited details, comments, and activity survive a restart", async () => {
   const path = tempPath();
-  const first = createScope({ tags: [store.config(path)] });
+  const first = createScope({ tags: [store.config(path)], extensions: [migrateIssues] });
+  await first.ready;
   try {
     const created = await save(first, createIssue, { title: "Kept talk", description: "v1" });
     await save(first, editIssue, {
@@ -464,7 +471,8 @@ test("edited details, comments, and activity survive a restart", async () => {
     await first.close({ graceful: true });
   }
 
-  const second = createScope({ tags: [store.config(path)] });
+  const second = createScope({ tags: [store.config(path)], extensions: [migrateIssues] });
+  await second.ready;
   try {
     const issues = await second.run(listIssues);
     const found = await detail(second, issues[0]?.id ?? "");

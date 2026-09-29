@@ -1,3 +1,4 @@
+import { cloneDatabase } from "./database.ts";
 import { strict as assert } from "node:assert";
 import { expect, test } from "vite-plus/test";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -14,6 +15,7 @@ import {
   readDetail,
   src,
   store,
+  migrateIssues,
   issueServer,
   type DraftConfig,
 } from "../src/index.ts";
@@ -47,8 +49,8 @@ type Boot = {
 async function boot(path: string | undefined, options: Boot = {}) {
   const server = issueServer();
   const scope = createScope({
-    tags: [store.config(path), draftTags(options.draft)],
-    extensions: [server, src, publish()],
+    tags: [store.config(path ?? (await cloneDatabase())), draftTags(options.draft)],
+    extensions: [migrateIssues, server, src, publish()],
     presets: options.presets,
     observe: options.observe,
   });
