@@ -52,6 +52,13 @@ Rules for every ticket:
   Verify: `vp run core#test`, `vp run hono#test`,
   `scripts/ticket.sh`, `pnpm validate`; the impact
   block matches SCIP refs.
+  Impact (ADR 0065); the writer adds a row per new
+  public symbol:
+
+  ```impact stack/t04
+  core Observe/Span# src/index.ts tests/*.test.ts
+  ```
+
 - **t05 stack: server start and shutdown** -- [ ] blocked by: none
   `@tinker/stack` exists. Its server stack piece
   opens the port, stops on a signal, answers an
@@ -76,9 +83,9 @@ Rules for every ticket:
   tracker tests green.
 - **t07 nats stack piece** -- [ ] blocked by: none
   `@tinker/nats` checks `NATS_URL` at start and
-  connects (ADR 0080). A publish carries
-  `traceparent`. A subscription runs an operation
-  in its own session. Tests start a real
+  connects (ADR 0080). A subscription runs an
+  operation in its own session. The `traceparent`
+  header waits for the trace id: it is in t13. Tests start a real
   `nats-server`, pinned, checked by checksum, and
   fetched once into a cache.
   Verify: `vp run nats#test` against a real server;
@@ -129,7 +136,8 @@ Rules for every ticket:
   subscriber on the other.
 - **t13 the trace sink** -- [ ] blocked by: t04, t05
   The stack sends spans and logs over OTLP to
-  `OTEL_EXPORTER_OTLP_ENDPOINT` (ADR 0076). A
+  `OTEL_EXPORTER_OTLP_ENDPOINT` (ADR 0076). NATS
+  messages carry `traceparent` (ADR 0080). A
   missing endpoint stops boot, as for every stack
   piece.
   Verify: `vp run stack#test` against a local OTLP
