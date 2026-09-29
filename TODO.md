@@ -23,9 +23,10 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-| Card                                                                                                                  | Owner         | Next                                                                                                                                                            | Verify                                        |
-| --------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout) | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean |
+| Card                                                                                                                                                                                                                 | Owner         | Next                                                                                                                                                            | Verify                                          |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)                                                                                                | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean   |
+| entries/follow-suit — the other entries on ADR 0078. S27: `packages/blueprint/src/main.ts`, `examples/mcp/cli.ts`, `examples/mcp/serve.ts`, `examples/process-cli/main.ts`. S28: `boot()` in `examples/sync/hono.ts` | lead          | one Astra writer + Fable review                                                                                                                                 | repo lint: 0 S27/S28 rows; gate and tests green |
 
 ## Doing
 
@@ -74,18 +75,6 @@ reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, on
 
 - **perf/lazy-log-obs** — with a log sink or an observer on, build the body's `log` and `obs` tools on first read (memoizing class accessors; no API change; ADR 0073). Owner: lead; Astra writer `70dab046`, now rebased on the lifted tip (`43a99e0`). Review: Fable probe and gate passed; lead READY. Lander `c0a6f174` waits for the perf/tagged-close tag, then lands it. Verify: new probe scenarios `opsink` and `opobs` "B faster", nothing slower; promises 2; `pnpm validate`; core mutation ≥ 85.
 
-- **tracker/entry-root + jev/entry-rules** — ADR 0078 (user 2026-09-29, after an Astra + Fable
-  committee): an entry starts only under `if (import.meta.main)`; the app's one full root is
-  `runServer(env, stop)` in `main.ts` and never hands the scope back; pieces live beside their
-  code (`issueServer`, `publish`, `draftTags`); the server is first in every list; a failed
-  `ready` is closed and awaited. Owner: lead (app-roots session). Tracker: Astra writer
-  `abbe3c4f`, worktree `/home/paseo/next/tinkered-parts`, branch `tracker/entry-root` (ADR on
-  it; renumber if 0078 is taken at landing). Jev half landed (tag `jev/entry-rules`).
-  Next: Fable reviewers after each writer reports. Verify: tracker gates + browser tests, the
-  order test fails when flipped, a real `main.ts` run (SIGTERM 0, bad port 1); S27/S28
-  fixtures and the repo lint rows. Then: a follow-up card for the other entries (tools,
-  blueprint, examples) and a core-feedback row (a rejected `ready` settles before its close).
-
 ## Review
 
 | Card | Owner | Next | Verify |
@@ -133,6 +122,7 @@ reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, on
 
 ## Done
 
+- **tracker/entry-root** — lead draft + Astra writer + Fable review (one fix round); tag `tracker/entry-root`; ADR 0078. `createApp` is gone. Pieces live beside their code: `issueServer` (routes.ts), `publish()` (publish.ts: the boot publish and the publish after commit, merged), `draftTags` (draft.ts). `main.ts` exports `runServer(env, stop)`, the one full root; `if (import.meta.main)` starts it, so a test imports the entry and starts nothing. The server is first in every list, so the port opens after the saved list is published (on main a tab could get `[]` first). Every root awaits close after a failed `ready`. New tests: the order test (fails with the server listed last or `publish()` missing) and a real-root test on a free port. Tracker tests 72, browser 7, validate 44 PASS, hono mutation 88.03. Core feedback row: a rejected `ready` settles before its close.
 - **jev/entry-rules** — Astra writer + Fable review (one fix round); tag `jev/entry-rules`; ADR 0078. Two plain rules. S27 unguardedEntry: a top-level `await`, `for await`, or `await using` outside `if (import.meta.main)`; tests, `.tsx`, and `client/` are skipped. S28 returnedRoot: a function that returns a scope it made with `createScope`, alone or in an object; a factory handed to an owner (a call or `new` argument, a JSX attribute) does not count. Repo lint today: S27 on 7 entry lines (tracker server and tools, blueprint, four example lines), S28 on the tracker's `createApp` and the `boot()` in `examples/sync/hono.ts`. Jev tests 135, writer-trial tests 60.
 - **bench/probe-warmup** — Opus writer + Fable review; tag `bench/probe-warmup`. mitata chose batch or one-call timing per process from the first call's time (≤ 500 µs), so main ran one-call and branches a mix. The probe now times every scenario in batch mode by construction (10,000 warm-up calls, then mitata's public `measure()` with both warm-up limits lifted; METRIC says `mode=`), and `ab.sh` runs ONE probe (B's) against both trees' builds and fails on a one-call run. Re-baseline main vs main (18 scenarios): all "no difference we can see". `fb35497` vs main in batch mode: `tagged` −57.0%, `session` −51.5%. Older tables are not comparable ([budgets](docs/roadmap/core-v1/budgets.md)).
 - **perf/warm-read** — Astra writer + Fable review; tag `perf/warm-read`. A default resource controller reads a built resource from its saved record again: one map lookup on a warm hit, not two (t31 had added the second through `resourceSlot`). Named controllers keep the full path. benchd N=61 vs `337978e`: `warm` 26.4 → 18.0 ns (−31.8%, faster 61/61, "B faster"), below t27's 20.0; `op`, `run`, `session`, `tagged`, `lifecycle`, `cold` "no difference we can see". Re-check on `210e3af` after perf/create-presets (vs `dc40d00`): `warm` 26.4 → 18.0 ns "B faster" (61/61); `create` 183.9 → 183.9 ns and `tagged` 2132 → 2130 ns "no difference we can see". Behavior: the reviewer's probe (release, failed rebuild, async pending and settled, owner and caller close, namespace buckets) logs identically on main and the branch. Gates: GATE=0 (core 636 tests), promises 17, core mutation 85.60, `pnpm validate` 44 PASS.

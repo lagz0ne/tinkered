@@ -12,22 +12,22 @@
   "effectWithoutDefer": {
     "status": "provisional",
     "trues": 4,
-    "falses": 72,
-    "medianTrue": 0.75,
+    "falses": 74,
+    "medianTrue": 0.76,
     "medianFalse": 0.03,
-    "separation": 0.72,
-    "ordered": 0.89,
-    "at": "2026-09-28"
+    "separation": 0.73,
+    "ordered": 0.88,
+    "at": "2026-09-29"
   },
   "stateOutsideCell": {
     "status": "provisional",
     "trues": 3,
-    "falses": 88,
-    "medianTrue": 0.9,
+    "falses": 90,
+    "medianTrue": 0.89,
     "medianFalse": 0.5,
-    "separation": 0.4,
+    "separation": 0.39,
     "ordered": 0.99,
-    "at": "2026-09-28"
+    "at": "2026-09-29"
   },
   "configNotTag": {
     "status": "provisional",
@@ -52,12 +52,12 @@
   "stopOnlyInDefer": {
     "status": "provisional",
     "trues": 1,
-    "falses": 59,
-    "medianTrue": 0.86,
-    "medianFalse": 0.22,
-    "separation": 0.64,
+    "falses": 61,
+    "medianTrue": 0.83,
+    "medianFalse": 0.23,
+    "separation": 0.6,
     "ordered": 1,
-    "at": "2026-09-28"
+    "at": "2026-09-29"
   },
   "ignoresAbortAfterAwait": {
     "status": "provisional",
@@ -122,12 +122,12 @@
   "leakedInternal": {
     "status": "provisional",
     "trues": 1,
-    "falses": 57,
-    "medianTrue": 0.69,
+    "falses": 59,
+    "medianTrue": 0.7,
     "medianFalse": 0.18,
-    "separation": 0.51,
-    "ordered": 0.82,
-    "at": "2026-09-28"
+    "separation": 0.52,
+    "ordered": 0.81,
+    "at": "2026-09-29"
   },
   "survivorMatters": {
     "status": "proven",
@@ -142,22 +142,22 @@
   "inputDefaultMasks": {
     "status": "proven",
     "trues": 34,
-    "falses": 65,
-    "medianTrue": 0.91,
-    "medianFalse": 0.37,
+    "falses": 66,
+    "medianTrue": 0.92,
+    "medianFalse": 0.38,
     "separation": 0.54,
     "ordered": 0.98,
-    "at": "2026-09-28"
+    "at": "2026-09-29"
   },
   "noOpRejected": {
     "status": "proven",
     "trues": 6,
-    "falses": 48,
-    "medianTrue": 0.78,
-    "medianFalse": 0.17,
-    "separation": 0.61,
-    "ordered": 0.98,
-    "at": "2026-09-28"
+    "falses": 49,
+    "medianTrue": 0.77,
+    "medianFalse": 0.19,
+    "separation": 0.58,
+    "ordered": 0.97,
+    "at": "2026-09-29"
   },
   "partialStub": {
     "status": "provisional",
