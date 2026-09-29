@@ -3007,3 +3007,14 @@ MUTATION_EXIT 0
   Neither needs a new label or calibration change.
 - Strict census of authored auth code and changed Hono files: OK.
   TSDoc: no findings.
+
+### t10 validation proof
+
+- `pnpm validate`: all 50 lanes pass, `EXIT 0`.
+  The two new lanes check auth's tests and size.
+- `pnpm-workspace.yaml` has no branch change.
+  Workspaces and TypeScript configs already find packages by folder.
+- The final Jev pass gives the same notes and existing labels.
+- Auth mutation is queued under `/tmp/mutation.lock`.
+  Its config has `timeoutMS: 60000`, concurrency 2, and floor 85.
+  No source file is excluded.
