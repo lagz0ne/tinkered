@@ -23,7 +23,7 @@ Rules for every ticket:
 
 - Owner: stack/t06 writer.
 - State: Doing.
-- Next: finish validation and both mutation lanes.
+- Next: finish both mutation lanes.
 - Verify: build, check, drizzle, stack, tracker, browser,
   validation, and both mutation lanes at or above 85.
 - Assumption: the tracker's schema stays `public`.
@@ -104,7 +104,7 @@ EXIT 0
   The 42 stack tests passed again after this stronger check.
 - The uncached browser proof passed, including all 7 helper tests.
 - `vp run --no-cache -r test`: all 16 tasks passed, `EXIT 0`.
-  There is one unchanged skipped test in the harness suite.
+  There is one unchanged skipped test in the tinkerer suite.
 - Strict style census: OK.
   TSDoc: 0 S26 rows in the checked files.
   Prose lint: 0 hits.
@@ -124,9 +124,13 @@ e8edd103cf81
   It cannot move to module scope; the plain-code flag needs no label.
 - The `~wrapsCallersStep` note is noisy and needs no label.
   `migrate` builds the extension that owns the boot order.
-- Full validation and mutation are queued under the shared lock.
-  Both mutation runs will use two workers and a 60-second limit
-  from the start, following the user's load warning.
+- `pnpm validate`: all 46 lanes passed, `EXIT 0`.
+  The job held `/tmp/mutation.lock`.
+  `allowBuilds.esbuild` was already true;
+  `pnpm-workspace.yaml` was restored after validation.
+- The mutation lanes follow under the same lock.
+  Both use two workers and a 60-second limit from the start,
+  following the user's load warning.
 
 ## Tickets
 
