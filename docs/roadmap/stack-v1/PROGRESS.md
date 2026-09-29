@@ -3803,3 +3803,34 @@ await closing;
 - All owned foreground jobs have finished.
   Commit by path; do not push. The lead reviews and lands.
 - Final log: `stack-t10-resume2-validate.log` in the briefs cache.
+## t08 writer work
+
+- Owner: stack/t08 writer, branch `stack/t08`.
+- Status: Doing.
+- Base: local `stack/t06` at `50b31bab`, as requested.
+- Next: add jobs after the migrate extension.
+- Verify: jobs, stack, tracker tests; build and check;
+  all validation lanes; jobs mutation at least 85.
+- Assumption: list the jobs extension just after migrate.
+  Drizzle commits before the jobs start takes its own lock.
+
+### t08 first green step
+
+- Added `@tinker/jobs`, pinned to pg-boss 12.35.0.
+- Sixteen public tests pass on real PGlite.
+- Build and check pass: no errors, 29 warnings.
+  A clean main at `6330012c` has the same 29 warnings.
+- Prose and strict style census pass; TSDoc has no findings.
+- `createJobsClock` binds a clock through the scope's tags.
+  It moves both pg-boss timers and SQL time.
+  Cron tests advance to a fixed minute and poll the app queue.
+- Assumption: `JOBS_URL` names the Postgres worker pool.
+  On PGlite, the caller lends the store's own `db` resource.
+  In both modes, send borrows `store.tx` for each call.
+- Core close has no scope argument, as in the NATS ticket.
+  The jobs piece stops fetches through the captured close handle.
+  It waits for worker cleanup after core closes child sessions.
+- Registered jobs in the size/test validation lanes and driver check.
+  The workspace already includes all packages by path pattern.
+  Each package has its own tsconfig; there is no root reference list.
+- Next: full gate, Jev, validation, and the single mutation lane.

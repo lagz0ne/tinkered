@@ -6,7 +6,7 @@
 # not a driver — is a leak. Prints the offending lines; exit 1 on any.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
-allowed='^(packages/(core|react|auth|hono|stack|nats|cli|mcp|sync|harness|drizzle|http)/src/|packages/[^/]+/tests/|apps/[^/]+/tests/|apps/[^/]+/src/client/App\.tsx$)'
+allowed='^(packages/(core|react|auth|hono|stack|nats|jobs|cli|mcp|sync|harness|drizzle|http)/src/|packages/[^/]+/tests/|apps/[^/]+/tests/|apps/[^/]+/src/client/App\.tsx$)'
 hits=$(git ls-files 'apps/*.ts' 'apps/*.tsx' 'examples/*.ts' 'examples/*.tsx' 'packages/*.ts' 'packages/*.tsx' \
   | grep -vE "$allowed" \
   | xargs grep -L "createScope(" 2>/dev/null \

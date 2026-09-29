@@ -1,0 +1,144 @@
+import { createScope, extension, makeTestClock, operation, type Operation } from "@tinker/core";
+import { hono } from "@tinker/hono";
+import { sql } from "drizzle-orm";
+import { expect, test } from "vite-plus/test";
+import { isError, job, jobs } from "../src/index.ts";
+import { fixture, scopes, store } from "./fixtures.ts";
+
+test("graceful close stops fetching and lets a running job commit", async () => {
+  const entered = Promise.withResolvers<void>();
+  const finish = Promise.withResolvers<void>();
+  const work = operation({
+    label: "wait and save",
+    depends: { tx: store.tx },
+    run: async ({ tx }, ctx: Operation.Ctx<{ value: string }>) => {
+      await tx.execute(sql`insert into receipts values (${ctx.input.value})`);
+      entered.resolve();
+      await finish.promise;
+    },
+  });
+  const { client, clock, piece, tags } = await fixture([job("wait", work)]);
+  const scope = createScope({ tags, extensions: [piece.extension] });
+  scopes.push(scope);
+  await scope.ready;
+  await scope.session(async (s) => {
+    await s.run(piece.send, { input: { queue: "wait", data: { value: "first" } } });
+    await s.run(piece.send, { input: { queue: "wait", data: { value: "second" } } });
+  });
+  const tick = clock.advance(500);
+  await entered.promise;
+  const closing = scope.close({ graceful: true });
+  finish.resolve();
+  await tick;
+  expect((await closing).status).toBe("success");
+  expect((await client.query("select * from receipts")).rows).toHaveLength(1);
+  expect((await client.query("select state from pgboss.job order by state")).rows).toEqual([
+    { state: "created" },
+    { state: "completed" },
+  ]);
+});
+
+test("forced close cancels the running job and rolls its session back", async () => {
+  const entered = Promise.withResolvers<void>();
+  const work = operation({
+    label: "wait for abort",
+    depends: { tx: store.tx },
+    run: async ({ tx }, ctx) => {
+      await tx.execute(sql`insert into receipts values ('cancelled')`);
+      entered.resolve();
+      await ctx.clock.sleep(60000, ctx.signal);
+    },
+  });
+  const { client, clock, piece, tags } = await fixture([job("wait", work)]);
+  const scope = createScope({ tags, clock: makeTestClock(), extensions: [piece.extension] });
+  scopes.push(scope);
+  await scope.ready;
+  await scope.session((s) => s.run(piece.send, { input: { queue: "wait", data: {} } }));
+  const tick = clock.advance(500);
+  await entered.promise;
+  const closed = await scope.close();
+  await tick;
+  expect(closed.status).toBe("cancelled");
+  expect((await client.query("select * from receipts")).rows).toEqual([]);
+  expect((await client.query("select state from pgboss.job")).rows).toEqual([{ state: "retry" }]);
+});
+
+test("bad settings fail boot naming JOBS_URL before serving", async () => {
+  for (const JOBS_URL of [undefined, "", "https://wrong.example", "postgres://"]) {
+    let opened = false;
+    const web = hono([], {
+      serve: () => {
+        opened = true;
+      },
+    }).extension;
+    const piece = jobs([], { tx: store.tx, env: { JOBS_URL } });
+    const scope = createScope({ extensions: [web, piece.extension] });
+    scopes.push(scope);
+    try {
+      await scope.ready;
+      expect.unreachable();
+    } catch (error) {
+      if (!isError(error, "InvalidConfig")) throw error;
+      expect(error.payload.keys).toEqual(["JOBS_URL"]);
+    }
+    expect(opened).toBe(false);
+  }
+});
+
+test("a piece rejects a second live scope and restarts after close", async () => {
+  const { client, piece, tags } = await fixture([]);
+  const first = createScope({ tags, extensions: [piece.extension] });
+  scopes.push(first);
+  await first.ready;
+  const second = createScope({ tags, extensions: [piece.extension] });
+  scopes.push(second);
+  try {
+    await second.ready;
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "PieceInUse")) throw error;
+    expect(error.payload).toEqual({ label: "jobs" });
+  }
+  await first.close();
+  const third = createScope({ tags, extensions: [piece.extension] });
+  scopes.push(third);
+  await third.ready;
+  await first.close();
+  await second.close();
+  expect((await client.query("select count(*)::int as count from pgboss.version")).rows).toEqual([
+    { count: 1 },
+  ]);
+});
+
+test("a failed later start stops jobs and leaves the borrowed database open", async () => {
+  const { client, piece, tags } = await fixture([]);
+  const broken = extension({
+    label: "broken",
+    start: (_scope, ctx) => ctx.raise("BootFailed", {}),
+  });
+  const scope = createScope({ tags, extensions: [piece.extension, broken] });
+  scopes.push(scope);
+  await expect(scope.ready).rejects.toMatchObject({ kind: "BootFailed" });
+  await scope.close();
+  const fresh = createScope({ tags, extensions: [piece.extension] });
+  scopes.push(fresh);
+  await fresh.ready;
+  await fresh.close();
+  expect((await client.query("select count(*)::int as count from pgboss.version")).rows).toEqual([
+    { count: 1 },
+  ]);
+});
+
+test("an unreachable JOBS_URL fails boot at the given Postgres address", async () => {
+  for (const scheme of ["postgres", "postgresql"]) {
+    const piece = jobs([], { tx: store.tx, env: { JOBS_URL: `${scheme}://127.0.0.1:1/jobs` } });
+    const scope = createScope({ extensions: [piece.extension] });
+    scopes.push(scope);
+    await expect(scope.ready).rejects.toMatchObject({
+      code: "ECONNREFUSED",
+      address: "127.0.0.1",
+      port: 1,
+    });
+    await scope.close();
+  }
+});

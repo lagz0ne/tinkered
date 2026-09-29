@@ -7,6 +7,8 @@ const strip = "node --experimental-strip-types";
 const lanes = [
   ["auth tests", `${VP} run --no-cache auth#test`],
   ["auth size (<= 10 kB gzip)", `${VP} run --no-cache auth#size`],
+  ["jobs tests", `${VP} run --no-cache jobs#test`],
+  ["jobs size (<= 10 kB gzip)", `${VP} run --no-cache jobs#size`],
   ["nats tests", `${VP} run --no-cache nats#test`],
   ["nats size (<= 10 kB gzip)", `${VP} run --no-cache nats#size`],
   ["lint/types/format/complexity", `${VP} check`],

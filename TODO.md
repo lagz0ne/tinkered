@@ -39,6 +39,8 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **stack/t08 jobs** — Owner: stack/t08 writer. Next: build the jobs piece from local `stack/t06` at `50b31bab`. Verify: request commit and rollback, retries, cron, session isolation, close, config; gate and validate green; mutation at least 85. [track](docs/roadmap/stack-v1/PROGRESS.md).
+
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
