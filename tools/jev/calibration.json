@@ -12,8 +12,8 @@
   "effectWithoutDefer": {
     "status": "provisional",
     "trues": 4,
-    "falses": 74,
-    "medianTrue": 0.76,
+    "falses": 75,
+    "medianTrue": 0.77,
     "medianFalse": 0.03,
     "separation": 0.73,
     "ordered": 0.88,
@@ -22,10 +22,10 @@
   "stateOutsideCell": {
     "status": "provisional",
     "trues": 3,
-    "falses": 90,
-    "medianTrue": 0.89,
-    "medianFalse": 0.5,
-    "separation": 0.39,
+    "falses": 91,
+    "medianTrue": 0.87,
+    "medianFalse": 0.51,
+    "separation": 0.36,
     "ordered": 0.99,
     "at": "2026-09-29"
   },
@@ -142,11 +142,11 @@
   "inputDefaultMasks": {
     "status": "proven",
     "trues": 34,
-    "falses": 66,
+    "falses": 68,
     "medianTrue": 0.92,
     "medianFalse": 0.38,
-    "separation": 0.54,
-    "ordered": 0.98,
+    "separation": 0.55,
+    "ordered": 0.96,
     "at": "2026-09-29"
   },
   "noOpRejected": {
