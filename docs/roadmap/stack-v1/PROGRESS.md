@@ -2215,3 +2215,9 @@ It checks stale edits, saved rows after restart,
 and live sync reconnect after a server stop.
 Assumption: a raised error causes rollback;
 a normal returned 4xx response does not by itself mean failure.
+
+All 17 package test tasks passed through their own configs,
+`ALL_TESTS_EXIT 0`; four used cached green results.
+Used `vp run -r --concurrency-limit 1 test` after the build.
+The final fetch still points to `6330012c`.
+The migrate ticket has not landed yet.
