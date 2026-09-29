@@ -5,7 +5,7 @@ import { issueList } from "../shared/issues.ts";
 
 const published: Sync.Row[] = [[issueList, "issues"]];
 
-/** The source extension, one identity per process: `createApp` installs this
+/** The source extension, one identity per process: a root (`main.ts`, a test) installs this
  * same object and the `/sync` row's op declares it in `depends`. */
 export const src = source({ cells: published });
 

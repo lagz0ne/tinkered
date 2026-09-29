@@ -2,20 +2,25 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "vite-plus/test";
-import { preset, type Observe, type Operation, type Scope } from "@tinker/core";
+import { createScope, preset, type Observe, type Operation, type Scope } from "@tinker/core";
 import {
   addComment,
-  createApp,
   createIssue,
+  draftTags,
   fail,
   issueList,
   isError,
   parseComment,
   parseDraftInput,
   parseIssueDetail,
+  publishAfterCommit,
   readDetail,
+  restore,
+  src,
   startDraft,
-  type AppConfig,
+  store,
+  web,
+  type DraftConfig,
 } from "../src/index.ts";
 import { claudeCode } from "@tinker/harness";
 import { readDraftServer, reservePort } from "./draft-server.ts";
@@ -28,11 +33,24 @@ function removeTemp(path: string): void {
   rmSync(join(path, ".."), { recursive: true, force: true });
 }
 
-async function boot(
-  path: string,
-  config?: Omit<AppConfig, "dataPath">,
-): Promise<Awaited<ReturnType<typeof createApp>>> {
-  return createApp({ dataPath: path, ...config });
+type Boot = {
+  readonly draft?: DraftConfig;
+  readonly observe?: Observe.Config;
+  readonly presets?: readonly Scope.Preset[];
+};
+
+/** This file's root: every server part plus the draft tags, as `main.ts` lists
+ * them, over the store at `path` (absent: in memory). */
+async function boot(path: string | undefined, options: Boot = {}) {
+  const server = web({ observe: options.observe });
+  const scope = createScope({
+    tags: [store.config(path), draftTags(options.draft)],
+    extensions: [src, server, restore, publishAfterCommit()],
+    presets: options.presets,
+    observe: options.observe,
+  });
+  await scope.ready;
+  return { scope, app: scope.resolve(server) };
 }
 
 function via<T, I>(scope: Scope.Handle, op: Operation.Handle<T, I>, input: I) {

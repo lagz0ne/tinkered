@@ -8,11 +8,10 @@ import {
   type Operation,
   type Scope,
 } from "@tinker/core";
-import { hono, route } from "@tinker/hono";
+import { hono, route, type HonoScope } from "@tinker/hono";
 import { memoryPair, subscribe } from "@tinker/sync";
 import {
   addComment,
-  createApp,
   createIssue,
   editIssue,
   isError,
@@ -22,8 +21,12 @@ import {
   publishIssues,
   readDetail,
   readIssues,
+  publishAfterCommit,
   recordActivity,
+  restore,
+  src,
   store,
+  web,
   type Issues,
 } from "../src/index.ts";
 import { mkdtempSync } from "node:fs";
@@ -35,8 +38,29 @@ function tempPath(): string {
   return join(mkdtempSync(join(tmpdir(), "issues-")), "db");
 }
 
-async function boot(): Promise<Awaited<ReturnType<typeof createApp>>> {
-  return createApp({ dataPath: tempPath() });
+type Boot = {
+  readonly observe?: Observe.Config;
+  readonly presets?: readonly Scope.Preset[];
+  readonly serve?: HonoScope.Serve;
+};
+
+/** This file's full root: every server part, as `main.ts` lists them. A test
+ * that needs less builds its own smaller root. */
+async function boot(options: Boot = {}) {
+  const server = web({ observe: options.observe, serve: options.serve });
+  const scope = createScope({
+    tags: [store.config(tempPath())],
+    extensions: [src, server, restore, publishAfterCommit()],
+    presets: options.presets,
+    observe: options.observe,
+  });
+  try {
+    await scope.ready;
+  } catch (error: unknown) {
+    await scope.close();
+    throw error;
+  }
+  return { scope, app: scope.resolve(server) };
 }
 
 function save<T, I>(scope: Scope.Handle, op: Operation.Handle<T, I>, input: I) {
@@ -84,7 +108,7 @@ test("a seeded random replays the same issue, comment, and activity ids", async 
 });
 
 test("creating a valid issue saves it and a second viewer sees it", async () => {
-  const { scope, src } = await boot();
+  const { scope } = await boot();
   const [near, far] = memoryPair();
   const served = scope.resolve(src).connect(near);
   const pipe = resource({ label: "pipe", factory: () => far });
@@ -109,19 +133,20 @@ test("creating a valid issue saves it and a second viewer sees it", async () => 
 
 test("reopening against the same database restores the saved issue", async () => {
   const path = tempPath();
-  const first = await createApp({ dataPath: path });
+  const first = createScope({ tags: [store.config(path)] });
   try {
-    await save(first.scope, createIssue, { title: "Kept", description: "survives restart" });
+    await save(first, createIssue, { title: "Kept", description: "survives restart" });
   } finally {
-    await first.scope.close({ graceful: true });
+    await first.close({ graceful: true });
   }
 
-  const second = await createApp({ dataPath: path });
+  const second = createScope({ tags: [store.config(path)], extensions: [restore] });
   try {
-    expect(second.scope.resolve(issueList).length).toBe(1);
-    expect(second.scope.resolve(issueList)[0]?.title).toBe("Kept");
+    await second.ready;
+    expect(second.resolve(issueList).length).toBe(1);
+    expect(second.resolve(issueList)[0]?.title).toBe("Kept");
   } finally {
-    await second.scope.close({ graceful: true });
+    await second.close({ graceful: true });
   }
 });
 
@@ -367,7 +392,7 @@ test("two back-to-back comments both survive in the detail", async () => {
 });
 
 test("a stale edit publishes no new snapshot to a live viewer", async () => {
-  const { scope, src } = await boot();
+  const { scope } = await boot();
   const [near, far] = memoryPair();
   const served = scope.resolve(src).connect(near);
   const pipe = resource({ label: "pipe", factory: () => far });
@@ -415,24 +440,24 @@ test("a rejected comment writes nothing and records no activity", async () => {
 
 test("edited details, comments, and activity survive a restart", async () => {
   const path = tempPath();
-  const first = await createApp({ dataPath: path });
+  const first = createScope({ tags: [store.config(path)] });
   try {
-    const created = await save(first.scope, createIssue, { title: "Kept talk", description: "v1" });
-    await save(first.scope, editIssue, {
+    const created = await save(first, createIssue, { title: "Kept talk", description: "v1" });
+    await save(first, editIssue, {
       id: created.id,
       baseRevision: created.revision,
       status: "done",
       assignee: "Sam",
     });
-    await save(first.scope, addComment, { issueId: created.id, author: "Ada", text: "Shipped" });
+    await save(first, addComment, { issueId: created.id, author: "Ada", text: "Shipped" });
   } finally {
-    await first.scope.close({ graceful: true });
+    await first.close({ graceful: true });
   }
 
-  const second = await createApp({ dataPath: path });
+  const second = createScope({ tags: [store.config(path)] });
   try {
-    const issues = await second.scope.run(listIssues);
-    const found = await detail(second.scope, issues[0]?.id ?? "");
+    const issues = await second.run(listIssues);
+    const found = await detail(second, issues[0]?.id ?? "");
     expect(found.issue.status).toBe("done");
     expect(found.issue.assignee).toBe("Sam");
     expect(found.issue.revision).toBe(1);
@@ -440,15 +465,14 @@ test("edited details, comments, and activity survive a restart", async () => {
     expect(found.comments[0]?.text).toBe("Shipped");
     expect(found.activity.length).toBe(3);
   } finally {
-    await second.scope.close({ graceful: true });
+    await second.close({ graceful: true });
   }
 });
 
 test("a publish that fails after the commit keeps the 201, saves the row, and logs one line", async () => {
   const lines: Observe.Log[] = [];
   let publishes = 0;
-  const { scope, app } = await createApp({
-    dataPath: tempPath(),
+  const { scope, app } = await boot({
     observe: { log: (entry) => lines.push(entry) },
     presets: [
       preset(publishIssues, async () => {
@@ -473,15 +497,14 @@ test("a publish that fails after the commit keeps the 201, saves the row, and lo
   }
 });
 
-test("a failed boot closes the scope and stops the bound listener", async () => {
-  let stops = 0;
+test("a failed boot rejects and never opens the port", async () => {
+  let binds = 0;
   const failure = new Error("saved list would not load");
   let failed: unknown;
   try {
-    await createApp({
-      dataPath: tempPath(),
-      serve: () => () => {
-        stops += 1;
+    await boot({
+      serve: () => {
+        binds += 1;
       },
       presets: [
         preset(publishIssues, async () => {
@@ -493,7 +516,7 @@ test("a failed boot closes the scope and stops the bound listener", async () => 
     failed = error;
   }
   expect(failed).toBe(failure);
-  expect(stops).toBe(1);
+  expect(binds).toBe(0);
 });
 
 test("the detail and conflict routes answer through app.request", async () => {

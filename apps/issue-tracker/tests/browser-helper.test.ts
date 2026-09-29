@@ -4,9 +4,20 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, type Page } from "playwright";
-import { preset, type Operation, type Scope } from "@tinker/core";
+import { createScope, preset, type Observe, type Operation, type Scope } from "@tinker/core";
 import { claudeCode } from "@tinker/harness";
-import { createApp, createIssue, publishIssues, readDetail, type AppConfig } from "../src/index.ts";
+import {
+  createIssue,
+  draftTags,
+  publishAfterCommit,
+  publishIssues,
+  readDetail,
+  restore,
+  src,
+  store,
+  web,
+  type DraftConfig,
+} from "../src/index.ts";
 import { readDraftServer, reservePort } from "./draft-server.ts";
 import { readFile } from "node:fs/promises";
 
@@ -26,17 +37,31 @@ async function selectIssue(page: Page, title: string): Promise<void> {
   await page.getByRole("heading", { name: title, exact: true }).waitFor();
 }
 
-async function boot(
-  config: Omit<AppConfig, "dataPath"> & { readonly dataPath?: string },
-): Promise<Awaited<ReturnType<typeof createApp>>> {
-  return createApp({ ...config });
+type Boot = {
+  readonly draft?: DraftConfig;
+  readonly observe?: Observe.Config;
+  readonly presets?: readonly Scope.Preset[];
+};
+
+/** This file's root: every server part plus the draft tags, as `main.ts` lists
+ * them, over the store at `path` (absent: in memory). */
+async function boot(path: string | undefined, options: Boot = {}) {
+  const server = web({ observe: options.observe });
+  const scope = createScope({
+    tags: [store.config(path), draftTags(options.draft)],
+    extensions: [src, server, restore, publishAfterCommit()],
+    presets: options.presets,
+    observe: options.observe,
+  });
+  await scope.ready;
+  return { scope, app: scope.resolve(server) };
 }
 
 function via<T, I>(scope: Scope.Handle, op: Operation.Handle<T, I>, input: I) {
   return scope.session((s) => s.run(op, { input }));
 }
 
-async function mountAssets(app: Awaited<ReturnType<typeof createApp>>["app"]): Promise<void> {
+async function mountAssets(app: Awaited<ReturnType<typeof boot>>["app"]): Promise<void> {
   const assets = join(APP, "dist", "client");
   app.get("/", async (c) => c.html(await readFile(join(assets, "index.html"), "utf8")));
   app.get("/assets/:name", async (c) => {
@@ -55,8 +80,7 @@ test("cancelling a held draft keeps partial text and saves nothing", async () =>
   const pageErrors: string[] = [];
   const heard = await reservePort();
   const fixture = readDraftServer([{ text: "Cancellable held draft text.", hold: true }]);
-  const booted = await boot({
-    dataPath: undefined,
+  const booted = await boot(undefined, {
     draft: { enabled: true, baseUrl: heard.base },
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
@@ -100,8 +124,7 @@ test("posting a draft saves one comment and one activity", async () => {
   const pageErrors: string[] = [];
   const heard = await reservePort();
   const fixture = readDraftServer([{ text: "Posted draft text." }]);
-  const booted = await boot({
-    dataPath: undefined,
+  const booted = await boot(undefined, {
     draft: { enabled: true, baseUrl: heard.base },
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
@@ -145,8 +168,7 @@ test("closing the issue view cancels the held draft turn", async () => {
   const pageErrors: string[] = [];
   const heard = await reservePort();
   const fixture = readDraftServer([{ text: "Held close draft text here.", hold: true }]);
-  const booted = await boot({
-    dataPath: undefined,
+  const booted = await boot(undefined, {
     draft: { enabled: true, baseUrl: heard.base },
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
@@ -185,8 +207,7 @@ test("discarding a ready draft clears it and saves nothing", async () => {
   const pageErrors: string[] = [];
   const heard = await reservePort();
   const fixture = readDraftServer([{ text: "Discarded draft text." }]);
-  const booted = await boot({
-    dataPath: undefined,
+  const booted = await boot(undefined, {
     draft: { enabled: true, baseUrl: heard.base },
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
@@ -228,8 +249,7 @@ test("a held draft post disables posting controls then saves once", async () => 
   const pageErrors: string[] = [];
   const heard = await reservePort();
   const fixture = readDraftServer([{ text: "Held post draft text." }]);
-  const booted = await boot({
-    dataPath: undefined,
+  const booted = await boot(undefined, {
     draft: { enabled: true, baseUrl: heard.base },
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
@@ -295,8 +315,7 @@ test("a broken draft frame shows a plain notice and saves nothing", async () => 
   const pageErrors: string[] = [];
   const heard = await reservePort();
   const fixture = readDraftServer([{ text: "Broken in transit.", hold: true }]);
-  const booted = await boot({
-    dataPath: undefined,
+  const booted = await boot(undefined, {
     draft: { enabled: true, baseUrl: heard.base },
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
@@ -364,8 +383,7 @@ test("shutdown with a live wire and held turn joins cleanly", async () => {
   const heard = await reservePort();
   const fixture = readDraftServer([{ text: "Never finishes.", hold: true }]);
   const path = join(mkdtempSync(join(tmpdir(), "tracker-t05-shutdown-")), "db");
-  const live = await boot({
-    dataPath: path,
+  const live = await boot(path, {
     draft: { enabled: true, baseUrl: heard.base },
     presets: [preset(claudeCode.sdk, async () => fixture.sdk)],
   });
@@ -402,7 +420,7 @@ test("shutdown with a live wire and held turn joins cleanly", async () => {
     if ("text" in end && end.text !== undefined) {
       assert.equal(end.text.includes('"kind":"done"'), false);
     }
-    const reopened = await boot({ dataPath: path });
+    const reopened = await boot(path);
     try {
       assert.deepEqual(await reopened.scope.run(readDetail, { input: created.id }), before);
     } finally {

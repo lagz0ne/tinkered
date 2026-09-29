@@ -44,8 +44,8 @@ export { issueRoutes } from "./server/routes.ts";
 export { src } from "./server/sync.ts";
 export { publishAfterCommit } from "./server/publish.ts";
 export { describeError, jsonLines } from "./server/observe.ts";
-export { createApp } from "./server/app.ts";
-export type { AppConfig } from "./server/app.ts";
+export { draftTags, restore, web } from "./server/parts.ts";
+export type { DraftConfig, WebOptions } from "./server/parts.ts";
 export {
   api,
   getCapability,

@@ -9,18 +9,33 @@ import { run, type Process } from "@tinker/process";
 import { mcp } from "@tinker/mcp";
 import {
   api,
-  createApp,
   issueCommands,
   issueTools,
   parseComment,
   parseIssue,
   parseIssueDetail,
   parseIssueList,
+  publishAfterCommit,
   readDetail,
+  restore,
+  store,
+  web,
 } from "../src/index.ts";
 
 function tempPath(): string {
   return join(mkdtempSync(join(tmpdir(), "issues-tools-")), "db");
+}
+
+/** This file's root: the routes over a fresh store, plus the published list
+ * (`GET /api/issues` reads it, not the table). No sync source: no tab here. */
+async function boot() {
+  const server = web();
+  const scope = createScope({
+    tags: [store.config(tempPath())],
+    extensions: [server, restore, publishAfterCommit()],
+  });
+  await scope.ready;
+  return { scope, app: scope.resolve(server) };
 }
 
 type Heard = { readonly stop: () => Promise<void>; readonly base: string };
@@ -103,7 +118,7 @@ test("help lists the issue commands with no backend", async () => {
 });
 
 test("CLI drives the saved create/list/update/comment/get through real HTTP", async () => {
-  const { scope, app } = await createApp({ dataPath: tempPath() });
+  const { scope, app } = await boot();
   const heard = await hear(app);
   const cliScope = openCli(heard.base);
   try {
@@ -184,7 +199,7 @@ test("CLI drives the saved create/list/update/comment/get through real HTTP", as
 });
 
 test("MCP tools save through the same server and answer conflicts as errors", async () => {
-  const { scope, app } = await createApp({ dataPath: tempPath() });
+  const { scope, app } = await boot();
   const heard = await hear(app);
   const ext = mcp({ name: "issues", version: "0.1.0", tools: issueTools });
   const tools = createScope({

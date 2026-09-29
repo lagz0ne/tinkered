@@ -1,13 +1,15 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Hono } from "hono";
-import type { Observe, Scope } from "@tinker/core";
+import { createScope, type Scope } from "@tinker/core";
 import type { HonoScope } from "@tinker/hono";
 import { serve } from "@hono/node-server";
 import { raise } from "../errors.ts";
-import { createApp } from "./app.ts";
 import { describeError, jsonLines } from "./observe.ts";
-import { reportUnmapped } from "./routes.ts";
+import { draftTags, restore, web, type DraftConfig } from "./parts.ts";
+import { publishAfterCommit } from "./publish.ts";
+import { store } from "./store.ts";
+import { src } from "./sync.ts";
 
 function readHost(): string {
   return process.env.HOST ?? "127.0.0.1";
@@ -26,14 +28,12 @@ function readDataPath(): string {
   return process.env.DATA_PATH ?? "./data/issues";
 }
 
-function readDraftOptIn(): {
-  readonly draft?: { readonly enabled: boolean; readonly baseUrl: string };
-} {
+function readDraftOptIn(): DraftConfig | undefined {
   const raw = process.env.DRAFT_HELPER;
-  if (raw !== "1" && raw !== "true") return {};
+  if (raw !== "1" && raw !== "true") return undefined;
   const base = readPublicBase();
-  if (base === undefined) return {};
-  return { draft: { enabled: true, baseUrl: base } };
+  if (base === undefined) return undefined;
+  return { enabled: true, baseUrl: base };
 }
 
 function readPublicBase(): string | undefined {
@@ -77,23 +77,17 @@ async function serveClient(app: Hono): Promise<void> {
 }
 
 /** Bind the app to the process edge: the client routes first (hand-mounted
- * extras inside the same session middleware, as today), then the app-level
- * `onError` (Hono's last handler — set here, before the port opens, so no
- * request can fail without it), then serve the fetch on the port and hand
- * the node server's `close` back — the extension defers it, so
- * `scope.close()` stops the listener. A refusing port rejects the listen
- * wait, so boot fails here, never at a request. A setup failure (a missing
- * client build) rejects the same wait — never an unhandled rejection the
- * process crashes on. */
-function servePort(
-  host: string,
-  port: number,
-  observe: Observe.Config | undefined,
-): HonoScope.Serve {
+ * extras inside the same session middleware), then serve the fetch on the
+ * port and hand the node server's `close` back — the `web` part defers it, so
+ * `scope.close()` stops the listener. The unmapped-error handler is already
+ * in (`web` installs it in `mount`, before this runs). A refusing port
+ * rejects the listen wait, so boot fails here, never at a request. A setup
+ * failure (a missing client build) rejects the same wait — never an
+ * unhandled rejection the process crashes on. */
+function servePort(host: string, port: number): HonoScope.Serve {
   return (app) =>
     new Promise<{ readonly close: () => void }>((resolve, reject) => {
       serveClient(app).then(() => {
-        app.onError(reportUnmapped(observe));
         const server = serve({ fetch: app.fetch, hostname: host, port }, (info) => {
           writeLog("listening", { host, port: info.port });
           resolve({ close: () => void server.close() });
@@ -103,19 +97,30 @@ function servePort(
     });
 }
 
-/** The server entrypoint: the composition root lives in `createApp`; this only
- * reads the environment, binds the port through the `hono` extension's `serve`
- * wiring, and closes graceful on a signal. Log lines and failed spans go to
- * stdout as JSON lines (`jsonLines`). One `scope.close()` stops the
- * listener — no hand-close here. */
+/** The server's root: every part, listed once. `readPort` runs before
+ * `createScope`, so a bad `PORT` fails boot before the store opens. `ready`
+ * starts the parts inside-out: the store and the saved list first, the port
+ * last. A failed start closes the root (which stops anything bound) before
+ * rejecting. Then wait for a signal and close graceful: in-flight requests
+ * finish, then the port stops. */
 async function main(): Promise<number> {
   const observe = jsonLines(writeLine);
-  const { scope } = await createApp({
-    dataPath: readDataPath(),
+  const scope = createScope({
+    tags: [store.config(readDataPath()), draftTags(readDraftOptIn())],
+    extensions: [
+      src,
+      web({ observe, serve: servePort(readHost(), readPort()) }),
+      restore,
+      publishAfterCommit(),
+    ],
     observe,
-    serve: servePort(readHost(), readPort(), observe),
-    ...readDraftOptIn(),
   });
+  try {
+    await scope.ready;
+  } catch (error: unknown) {
+    await scope.close();
+    throw error;
+  }
   await new Promise<void>((resolve) => {
     process.once("SIGTERM", resolve);
     process.once("SIGINT", resolve);
