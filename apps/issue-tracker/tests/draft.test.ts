@@ -41,7 +41,7 @@ type Boot = {
 /** This file's root: every server part plus the draft tags, as `main.ts` lists
  * them, over the store at `path` (absent: in memory). */
 async function boot(path: string | undefined, options: Boot = {}) {
-  const server = issueServer({ observe: options.observe });
+  const server = issueServer();
   const scope = createScope({
     tags: [store.config(path), draftTags(options.draft)],
     extensions: [server, src, publish()],

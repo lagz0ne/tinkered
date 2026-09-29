@@ -17,7 +17,7 @@ function readLines(written: string[]): Record<string, unknown>[] {
 test("an error no route maps answers 500 and one `request failed` line names it", async () => {
   const written: string[] = [];
   const observe = jsonLines((line) => written.push(line));
-  const server = issueServer({ observe });
+  const server = issueServer();
   const scope = createScope({
     tags: [store.config(tempPath())],
     extensions: [server],

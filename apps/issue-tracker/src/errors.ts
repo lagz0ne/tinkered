@@ -1,6 +1,6 @@
 import type { Issues } from "./shared/issues.ts";
 
-type Payloads = {
+type ErrorPayloads = {
   BadIssue: { label: string };
   BadIssueList: { label: string };
   BadCreateInput: { reason: string };
@@ -16,6 +16,7 @@ type Payloads = {
 };
 
 export declare namespace Errors {
+  export type Payloads = ErrorPayloads;
   export type Name = keyof Payloads;
   export type Payload<N extends Name> = Payloads[N];
   export type Of<N extends Name = Name> = Error & {

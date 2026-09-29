@@ -47,7 +47,7 @@ type Boot = {
 /** This file's full root: every server part, as `main.ts` lists them. A test
  * that needs less builds its own smaller root. */
 async function boot(options: Boot = {}) {
-  const server = issueServer({ observe: options.observe, serve: options.serve });
+  const server = issueServer({ serve: options.serve });
   const scope = createScope({
     tags: [store.config(tempPath())],
     extensions: [server, src, publish()],

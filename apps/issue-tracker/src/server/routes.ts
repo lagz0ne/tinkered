@@ -1,5 +1,5 @@
 import type { Context, Hono } from "hono";
-import { operation, type Observe, type Operation, type Scope } from "@tinker/core";
+import { operation, type Operation, type Scope } from "@tinker/core";
 import type { Sync } from "@tinker/sync";
 import { emit, errorResponses, hono, route, stream, type HonoScope } from "@tinker/hono";
 import type { Errors } from "../errors.ts";
@@ -11,8 +11,6 @@ import { readRegister, src } from "./sync.ts";
 
 export declare namespace IssueServer {
   export type Options = {
-    /** Kept for existing roots; Hono now reads the owning scope's observe sink. */
-    readonly observe?: Observe.Config;
     /** Bind a port (`main.ts`) or a fake (a test); absent, the app answers only
      * `app.request`. The scope's close stops it. */
     readonly serve?: HonoScope.Serve;
@@ -22,7 +20,7 @@ export declare namespace IssueServer {
 /** Each call is a new extension: resolve the one you listed. */
 export function issueServer(options: IssueServer.Options = {}): Scope.Extension<Hono> {
   return hono(issueRoutes, {
-    onError: errorResponses<{ [Kind in Errors.Name]: Errors.Payload<Kind> }>({
+    onError: errorResponses<Errors.Payloads>({
       IssueNotFound: { status: 404, body: () => "issue not found" },
       IssueConflict: {
         status: 409,

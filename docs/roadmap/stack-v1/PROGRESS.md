@@ -533,13 +533,15 @@ flock /tmp/mutation.lock \
 
 - Owner: stack/t02 writer.
 - Next: add `errorResponses` and the default Hono error reply.
-- Verify: Hono tests and tracker tests unchanged;
-  build, check, validate, mutation at least 85.
+- Verify: Hono and tracker tests pass;
+  tracker assertions stay unchanged.
+  Build, check, validate, mutation at least 85.
 - Assumption: a status alone sends an empty body.
   A body builder returns text or a JSON value.
   The existing `onError` hook can use the table.
-- The tracker keeps its `observe` option so its tests
-  stay unchanged; the scope owns the log sink.
+- The tracker takes its log sink only from the scope.
+  Test setup drops the unused server `observe` option;
+  assertions stay unchanged.
 - Core feedback to check: an extension's `ctx.log`
   is off, so a resource must read the scope's logger.
 
@@ -623,8 +625,20 @@ No core code changed.
 - Card moved to Review; the lead still owns landing.
   No push.
 - Assumptions kept: status-only rows have an empty body;
-  strings are text, other JSON values are JSON;
-  the tracker's old `observe` option stays accepted,
-  while only the scope supplies the sink.
-- Tracker test files and the existing 499 test are
+  strings are text, other JSON values are JSON.
+  The scope supplies the sink; the tracker's unused
+  `observe` option was removed in review round 1.
+- Tracker assertions and the existing 499 test are
   unchanged from the base.
+
+### t02 review round 1
+
+- Removed the unused `IssueServer.Options.observe`.
+  Only four test setup calls changed; each scope
+  still receives its existing sink.
+- Exported `Errors.Payloads` and used it directly
+  in the tracker's error response table.
+- Gate: build, check, Hono 68 tests, tracker 72 tests;
+  `EXIT=0`. Check: 0 errors, 29 existing warnings.
+- Prose lint and strict style census: exit 0.
+- No rebase or mutation run in this round.
