@@ -272,13 +272,12 @@ test("settle returns a sync Result for an untagged sync operation", async () => 
   await scope.close();
 });
 
-test("settle returns a promise for a tagged sync operation", async () => {
+test("settle on a tagged sync call returns its Result directly when it ended in place (ADR 0072)", async () => {
   const op = operation({ label: "tagged", depends: { zone }, run: ({ zone }) => zone });
   const scope = createScope();
   const result = scope.controller(op).settle({ tags: zone("away") });
-  expectTypeOf(result).toEqualTypeOf<Promise<RunResult<string>>>();
-  expect(Promise.resolve(result)).toBe(result);
-  expect(await result).toEqual({ status: "success", value: "away" });
+  expectTypeOf(result).toEqualTypeOf<RunResult<string> | Promise<RunResult<string>>>();
+  expect(result).toEqual({ status: "success", value: "away" });
   await scope.close();
 });
 
@@ -290,15 +289,20 @@ test("scope settle accepts a typed inline call without making it async", async (
   await scope.close();
 });
 
-test("scope settle runs a tagged inline config asynchronously", async () => {
+test("scope settle on a tagged inline config: a Result in place, a native promise when it waits (ADR 0072)", async () => {
   const scope = createScope();
-  const result = scope.settle(
+  const direct = scope.settle(
     { depends: { zone }, run: ({ zone }, { input }) => `${zone}:${input}` },
     { input: 2, tags: zone("away") },
   );
-  expectTypeOf(result).toEqualTypeOf<Promise<RunResult<string>>>();
-  expect(Promise.resolve(result)).toBe(result);
-  expect(await result).toEqual({ status: "success", value: "away:2" });
+  expectTypeOf(direct).toEqualTypeOf<RunResult<string> | Promise<RunResult<string>>>();
+  expect(direct).toEqual({ status: "success", value: "away:2" });
+  const waits = scope.settle(
+    { depends: { zone }, run: async ({ zone }, { input }) => `${zone}:${input}` },
+    { input: 3, tags: zone("away") },
+  );
+  expect(Promise.resolve(waits)).toBe(waits);
+  expect(await waits).toEqual({ status: "success", value: "away:3" });
   await scope.close();
 });
 

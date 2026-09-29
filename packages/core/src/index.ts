@@ -295,8 +295,8 @@ export declare namespace Scope {
   /** How a subflow call is supplied (ADR 0022, 0038): a pre-typed `input` (parse skipped), or a
    * raw `rawInput` (run through the operation's parse), plus per-call ambient tag bindings and
    * per-call namespace (ADR 0059). A call carrying `tags` opens a child session for that run
-   * (always async). A defined `input` wins; an `undefined` `input` counts as absent, so `rawInput`
-   * is parsed instead. */
+   * (ADR 0038; a value when it ended in place, a promise when it must wait, ADR 0072). A defined
+   * `input` wins; an `undefined` `input` counts as absent, so `rawInput` is parsed instead. */
   export type Invocation<I> = {
     readonly input?: I;
     readonly rawInput?: unknown;
@@ -333,14 +333,15 @@ export declare namespace Scope {
 
   /** A callable handle onto one operation — always a function, never a value (ADR 0022). A
    * void-input operation is called `run()`; an input-carrying one must supply `input` or
-   * `rawInput`. A call carrying `tags` opens a child session for the run (ADR 0038) and is
-   * always async: it returns `Promise<Awaited<T>>` even when the body is sync. The tagged
-   * overload comes first so a call carrying `tags` types as a promise even though an untagged
+   * `rawInput`. A call carrying `tags` opens a child session for the run (ADR 0038): it returns
+   * the run's value when that session ended in place, a promise when it must wait (ADR 0072),
+   * so it types as `T | Promise<Awaited<T>>`, like an untagged run whose body may be async. The
+   * tagged overload comes first so a call carrying `tags` gets that type even though an untagged
    * shape would also match. */
   export type OperationController<T, I> = {
-    run(...call: TaggedCall<I>): Promise<Awaited<T>>;
+    run(...call: TaggedCall<I>): T | Promise<Awaited<T>>;
     run(...call: CallArgs<I>): T;
-    settle(...call: TaggedCall<I>): Promise<RunResult<Awaited<T>>>;
+    settle(...call: TaggedCall<I>): RunResult<Awaited<T>> | Promise<RunResult<Awaited<T>>>;
     settle(...call: CallArgs<I>): Settled<T>;
   };
 
@@ -364,7 +365,9 @@ export declare namespace Scope {
    * a bare nothing: `tags: undefined` (or `false`) is an untagged call, not a tagged one. */
   export type Bindings = Exclude<Tag.Bindings, null | undefined | false>;
 
-  /** A call that carries `tags`: always async (ADR 0038). For a void input the call object
+  /** A call that carries `tags` (ADR 0038): a child session for the run. It returns the run's
+   * value when the session ended in place, a promise when it must wait (ADR 0072). For a void
+   * input the call object
    * holds only `tags`; otherwise it holds the run's `input` (or `rawInput`) plus `tags`. */
   export type TaggedCall<I> = [I] extends [void]
     ? [call: { readonly tags: Bindings; readonly ns?: Ns }]
@@ -383,12 +386,13 @@ export declare namespace Scope {
   /** The call object an inline run takes (ADR 0037, 0038): the same invocation shape as a
    * declared run, minus `rawInput` (there is no parse). `I` is inferred from `call.input`;
    * with nothing to pass, omit the call and `I` is void. A call carrying `tags` opens a
-   * child session for the run and is always async. */
+   * child session for the run (a value when it ended in place, a promise when it must wait). */
   export type InlineCall<I> = [I] extends [void]
     ? [call?: { readonly tags?: Bindings; readonly ns?: Ns }]
     : [call: { readonly input: I; readonly tags?: Bindings; readonly ns?: Ns }];
 
-  /** An inline run carrying `tags`: always async (ADR 0038). */
+  /** An inline run carrying `tags` (ADR 0038): a value when its session ended in place, a promise
+   * when it must wait (ADR 0072). */
   export type TaggedInlineCall<I> = [I] extends [void]
     ? [call: { readonly tags: Bindings; readonly ns?: Ns }]
     : [call: { readonly input: I; readonly tags: Bindings; readonly ns?: Ns }];
@@ -582,17 +586,18 @@ export declare namespace Scope {
     resolve<T>(ext: Extension<T>): T;
     /** Run an operation now — the everyday call; `controller(op).run(call)` is the long form.
      * Same `CallArgs`/`Invocation` rules as before (ADR 0022). A call carrying `tags` opens a
-     * child session for the run (ADR 0038) and is always async: it returns `Promise<Awaited<T>>`
-     * even when the body is sync. Also runs an inline operation config (ADR 0037) — same call
-     * object, minus `rawInput` — through the same controller path, with one span named
+     * child session for the run (ADR 0038): the run's value when that session ended in place, a
+     * promise when it must wait (ADR 0072). Also runs an inline operation config (ADR 0037) —
+     * same call object, minus `rawInput` — through the same controller path, with one span named
      * `label ?? "inline"` and nothing cached in the layer. The tagged overloads come first so a
-     * call carrying `tags` types as a promise even though an untagged shape would also match. */
-    run<T, I>(op: Operation.Handle<T, I>, ...call: TaggedCall<I>): Promise<Awaited<T>>;
+     * call carrying `tags` gets the `T | Promise` type even though an untagged shape would also
+     * match. */
+    run<T, I>(op: Operation.Handle<T, I>, ...call: TaggedCall<I>): T | Promise<Awaited<T>>;
     run<T, I>(op: Operation.Handle<T, I>, ...call: CallArgs<I>): T;
     run<const D extends Depends = Record<string, never>, R = unknown, I = void>(
       inline: Inline<D, R, I>,
       ...call: TaggedInlineCall<I>
-    ): Promise<Awaited<R>>;
+    ): R | Promise<Awaited<R>>;
     run<const D extends Depends = Record<string, never>, R = unknown, I = void>(
       inline: Inline<D, R, I>,
       ...call: InlineCall<I>
@@ -601,12 +606,12 @@ export declare namespace Scope {
     settle<T, I>(
       op: Operation.Handle<T, I>,
       ...call: TaggedCall<I>
-    ): Promise<RunResult<Awaited<T>>>;
+    ): RunResult<Awaited<T>> | Promise<RunResult<Awaited<T>>>;
     settle<T, I>(op: Operation.Handle<T, I>, ...call: CallArgs<I>): Settled<T>;
     settle<const D extends Depends = Record<string, never>, R = unknown, I = void>(
       inline: Inline<D, R, I>,
       ...call: TaggedInlineCall<I>
-    ): Promise<RunResult<Awaited<R>>>;
+    ): RunResult<Awaited<R>> | Promise<RunResult<Awaited<R>>>;
     settle<const D extends Depends = Record<string, never>, R = unknown, I = void>(
       inline: Inline<D, R, I>,
       ...call: InlineCall<I>
@@ -2296,7 +2301,7 @@ function runTagged<T, I>(
   caller: RunState | undefined,
   call: Scope.Invocation<I> & { readonly tags: Scope.Bindings },
   inheritedChain: readonly Namespace[] | undefined,
-): Promise<Awaited<T>> {
+): Awaited<T> | Promise<Awaited<T>> {
   const tags = call.tags;
   const chain = call.ns === undefined ? inheritedChain : nsChainOf(call.ns);
   const inner: Scope.Invocation<I> | undefined =
@@ -2307,7 +2312,8 @@ function runTagged<T, I>(
     (child) => runUntagged(child, target, parent, inner, chain, undefined, caller !== undefined),
     caller,
     true,
-  ) as Promise<Awaited<T>>;
+  ) as Awaited<T> | Promise<Awaited<T>>;
+  /** A value needs no tracking: `track` returns at once for a non-thenable. */
   if (caller) track(layer, tagged, runFailure(layer, caller));
   return tagged;
 }
@@ -2388,7 +2394,7 @@ function executorFor<T, I>(
   replay: Replay,
 ): (call?: Scope.Invocation<I>) => unknown {
   /** The single entry every run takes — declared, subflow, and inline alike. A call carrying
-   * `tags` opens a child session for the run (ADR 0038, always async); anything else runs the
+   * `tags` opens a child session for the run (ADR 0038; a value or a promise, ADR 0072); anything else runs the
    * untagged body inline below, which is main's, unchanged — one optional `call.tags` read, no
    * extra frame or call on the hot path. The implementation signature stays broad (one input
    * shape would mean no overload — rule 9); the two public overloads type the fork. */
@@ -3991,7 +3997,7 @@ function runSessionWith<R>(
    * lets a public session end early too. A plain parameter: a default on this function would
    * widen its bytecode. */
   early: boolean,
-): Promise<R> {
+): R | Promise<R> {
   let child: Layer;
   /** What an async function would reject with, rejected: a closed parent, a bad `ns`, a preset
    * that fails its parse. The body's own throw is not here; {@link runBodyWith} keeps it. */
@@ -4011,7 +4017,9 @@ function runSessionWith<R>(
    * promise or a plain value here; {@link runBodyWith} adopted every other thenable. */
   if (early && !(raw instanceof Promise) && canEndIdle(child)) {
     endInPlace(child);
-    return Promise.resolve(raw);
+    /** ADR 0072: a session that ended in place has nothing to wait for, so the value comes back
+     * as the body gave it. `session()` still wraps it; a tagged call hands it on. */
+    return raw;
   }
   return settleSessionWith(child, raw instanceof Promise ? raw : Promise.resolve(raw));
 }
@@ -4098,13 +4106,14 @@ function runSession<R>(
   options: Scope.Options | undefined,
   fn: (scope: Scope.Handle) => R | PromiseLike<R>,
 ): Promise<R> {
-  return runSessionWith(
+  const life = runSessionWith(
     parent,
     options,
     (child, handle) => fn(handle ?? handleFor(child)),
     undefined,
     PUBLIC_SESSION_ENDS_EARLY,
   );
+  return life instanceof Promise ? life : Promise.resolve(life);
 }
 
 /** Start a session body, normalizing to a promise. `fn` is called synchronously

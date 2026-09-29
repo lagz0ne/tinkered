@@ -4507,11 +4507,19 @@ test("an untagged run builds a session resource at the root, with no session ope
   expect(builds).toBe(1);
 });
 
-test("a tagged call is always async: a sync op resolves through a promise", async () => {
+test("a tagged sync call that ended in place returns its value (ADR 0072)", () => {
   const ping = operation({ label: "ping", run: () => 7 });
   const zone = tag<string>({ label: "zone", default: "base" });
-  const out: Promise<number> = createScope().run(ping, { tags: [zone("us")] });
+  const out: number | Promise<number> = createScope().run(ping, { tags: [zone("us")] });
+  expect(out).toBe(7);
+});
+
+test("a tagged call that must wait still returns a native promise (ADR 0072)", async () => {
+  const later = operation({ label: "later", run: async () => 7 });
+  const zone = tag<string>({ label: "zone", default: "base" });
+  const out = createScope().run(later, { tags: [zone("us")] });
   expect(out instanceof Promise).toBe(true);
+  expect(Promise.resolve(out)).toBe(out);
   expect(await out).toBe(7);
 });
 
