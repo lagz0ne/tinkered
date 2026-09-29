@@ -176,6 +176,16 @@ Rules for every ticket:
   `vp check` and its tests, and boots in dev and
   prod.
 
+- **t17 hono answers a failed commit** -- [ ] blocked by: none
+  Found by the t12 review. A request's session
+  closes before its answer leaves; a failed commit
+  answers 500 (today: 200 with nothing saved). Any
+  error the route's operation raised rolls the
+  request back, even when answered 4xx (ADR 0084).
+  Verify: a test per rule that fails on today's
+  main; `vp run hono#test`, tracker tests, browser
+  proof, `pnpm validate`.
+
 ## t05 writer notes
 
 Owner: stack/t05 writer. Branch: `stack/t05`.
