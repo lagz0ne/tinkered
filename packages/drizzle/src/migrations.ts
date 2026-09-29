@@ -41,7 +41,22 @@ export async function checkDrift(config: string): Promise<void> {
     process.execPath,
     [kit, "generate", "--config", path, "--explain", "--output", "json"],
     { cwd },
-  );
+  ).catch((error: unknown) => {
+    if (
+      typeof error !== "object" ||
+      error === null ||
+      !("stdout" in error) ||
+      typeof error.stdout !== "string"
+    )
+      throw error;
+    let result: unknown;
+    try {
+      result = JSON.parse(error.stdout);
+    } catch {
+      throw error;
+    }
+    raise("SchemaDrift", { config: path, result });
+  });
   const result: unknown = JSON.parse(stdout);
   if (
     typeof result !== "object" ||

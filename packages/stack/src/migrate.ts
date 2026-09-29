@@ -1,6 +1,10 @@
 import { extension, type Resource, type Scope } from "@tinker/core";
 import type { Migrations } from "@tinker/drizzle/migrations";
 
+/** Postgres advisory lock key shared by every migrate step on the same database.
+ * Reserved for these migrations; other app locks and pg-boss must use another key. */
+const migrationLock = { classId: 1937006964, objectId: 1 };
+
 export declare namespace Migrate {
   export type Options = {
     migrationsFolder: string;
@@ -23,7 +27,9 @@ export function migrate(
       const { migrateDatabase } = await import("@tinker/drizzle/migrations");
       const db = await scope.resolve(database);
       await db.transaction(async (tx) => {
-        await tx.execute(sql`select pg_advisory_xact_lock(1937006964, 1)`);
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(${migrationLock.classId}, ${migrationLock.objectId})`,
+        );
         await options.baseline?.(tx);
         await migrateDatabase(tx, { migrationsFolder: options.migrationsFolder });
       });

@@ -5,6 +5,7 @@ import { drizzleStore, type DrizzleStore } from "@tinker/drizzle";
 export { issueRows, commentRows, activityRows } from "./schema.ts";
 
 export declare namespace Store {
+  /** The opened PGlite database behind the frame. */
   export type Database = ReturnType<typeof openDatabase>;
   /** A path transfers the opened client to the scope; a supplied client stays borrowed. */
   export type Config = string | undefined | { client: PGlite };

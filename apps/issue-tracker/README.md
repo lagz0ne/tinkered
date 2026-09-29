@@ -71,6 +71,7 @@ under the chosen Ada/Lin/Sam author through the normal comment action.
 
 A draft streams text and finishes without saving anything.
 Only "Post draft" saves the generated text.
+Posting a draft saves one comment and one activity.
 While a draft post is pending, posting controls stay disabled; it saves once.
 A model error result or thrown error ends the turn as failed with no final draft.
 An HTTP disconnect or root close cancels the model turn and saves nothing.
@@ -300,5 +301,3 @@ Disk restart tests still open a saved database.
   and matches a fresh schema.
 - The tracker drift check passes and rejects a column
   added only in a temp schema copy.
-
-- Posting a draft saves one comment and one activity.

@@ -163,6 +163,41 @@ vp run --no-cache stack#mutate \
   No work remains for the writer; the card is in Review.
   Nothing was pushed.
 
+### t06 review fix round 1
+
+- Owner: stack/t06 writer.
+- State: Review; all four requests are fixed.
+- Next: lead review and landing.
+- Verify: the requested gate passed with `EXIT 0`.
+- The rename test failed before the fix with `EXIT 1`.
+  It called real Kit and got the bare command failure.
+  It now gets `SchemaDrift` with `missing_hints`.
+- Kit failures with JSON output keep that result in the error.
+  Failures without JSON keep the original error.
+- The shared migration lock has a name and a TSDoc contract.
+  Other app locks and pg-boss must use another key.
+- Restored the Store database TSDoc.
+  Moved the draft promise beside the other draft promises.
+- Gate proof:
+
+```text
+build: passed
+check: 0 errors, 29 warnings (unchanged)
+drizzle: 19 passed
+stack: 42 passed
+tracker: 79 passed
+EXIT=0
+prose-lint: 0 hits
+```
+
+- Jev preflight and test checks: no flags.
+  Promises: no gaps; one old title was marked unsure.
+  No new labels were needed.
+- Strict style census: OK; TSDoc: 0 S26 rows.
+- Scope: no rebase or mutation rerun, as the reviewer asked.
+- Core feedback: none; no Core workaround was needed.
+- Nothing was pushed.
+
 ## Tickets
 
 - **t01 sync ships the SSE transport** -- [x] landed `fd5a6a8`

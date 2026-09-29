@@ -151,7 +151,8 @@ pinned Kit with `generate --explain --output json`.
 Only `no_changes` passes.
 A mismatch raises `SchemaDrift` with the config path
 and Kit's result.
-Kit failures reach the caller.
+Kit failures with JSON output also raise `SchemaDrift`.
+Other Kit failures reach the caller unchanged.
 It writes no migration and uses no database.
 
 - Migration folders run once and a later folder runs
@@ -163,3 +164,4 @@ It writes no migration and uses no database.
 - A missing baseline names the absent migration folder.
 - The drift check accepts matching files and rejects
   an unsaved schema change.
+- A renamed column raises `SchemaDrift` with `missing_hints`.

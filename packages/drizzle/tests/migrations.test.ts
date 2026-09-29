@@ -33,6 +33,25 @@ async function addFolder(root: string, name: string, sql: string) {
   await writeFile(join(root, name, "migration.sql"), sql);
 }
 
+async function createDriftFixture() {
+  const dir = await mkdtemp(join(tmpdir(), "drizzle-drift-"));
+  folders.push(dir);
+  await symlink(join(process.cwd(), "node_modules"), join(dir, "node_modules"));
+  const config = join(dir, "drizzle.config.ts");
+  const schema = join(dir, "schema.ts");
+  await writeFile(
+    config,
+    'export default { dialect: "postgresql", schema: "./schema.ts", out: "./drizzle" };',
+  );
+  await writeFile(
+    schema,
+    'import { pgTable, text } from "drizzle-orm/pg-core"; export const saved = pgTable("saved", { id: text("id"), assignee: text("assignee") });',
+  );
+  const kit = join(dirname(createRequire(import.meta.url).resolve("drizzle-kit")), "bin.cjs");
+  await promisify(execFile)(process.execPath, [kit, "generate", "--config", config], { cwd: dir });
+  return { dir, config, schema };
+}
+
 test("migration folders run once and a later folder runs on the next boot", async () => {
   const { client, db, migrationsFolder } = await fixture();
   await addFolder(migrationsFolder, first, "create table saved (value text);");
@@ -80,21 +99,7 @@ test("a missing baseline names the absent migration folder", async () => {
 });
 
 test("the drift check accepts matching files and rejects an unsaved schema change", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "drizzle-drift-"));
-  folders.push(dir);
-  await symlink(join(process.cwd(), "node_modules"), join(dir, "node_modules"));
-  const config = join(dir, "drizzle.config.ts");
-  const schema = join(dir, "schema.ts");
-  await writeFile(
-    config,
-    'export default { dialect: "postgresql", schema: "./schema.ts", out: "./drizzle" };',
-  );
-  await writeFile(
-    schema,
-    'import { pgTable, text } from "drizzle-orm/pg-core"; export const saved = pgTable("saved", { id: text("id") });',
-  );
-  const kit = join(dirname(createRequire(import.meta.url).resolve("drizzle-kit")), "bin.cjs");
-  await promisify(execFile)(process.execPath, [kit, "generate", "--config", config], { cwd: dir });
+  const { dir, config, schema } = await createDriftFixture();
   await checkDrift(config);
   const foldersBefore = await readdir(join(dir, "drizzle"));
   await writeFile(
@@ -111,5 +116,23 @@ test("the drift check accepts matching files and rejects an unsaved schema chang
     if (!isError(error, "SchemaDrift")) throw error;
     expect(error.payload.config).toBe(config);
     expect(await readdir(join(dir, "drizzle"))).toEqual(foldersBefore);
+  }
+});
+
+test("a renamed column raises SchemaDrift with missing_hints", async () => {
+  const { config, schema } = await createDriftFixture();
+  await writeFile(
+    schema,
+    (await readFile(schema, "utf8")).replace(
+      'assignee: text("assignee")',
+      'assignee: text("owner")',
+    ),
+  );
+  try {
+    await checkDrift(config);
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "SchemaDrift")) throw error;
+    expect(error.payload.result).toMatchObject({ status: "missing_hints" });
   }
 });
