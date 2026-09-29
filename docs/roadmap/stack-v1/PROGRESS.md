@@ -2204,7 +2204,14 @@ The server defer joins the listener stop promise.
 The listener's close flag is private stop bookkeeping.
 The noisy `wrapsCallersStep` note owes no label.
 
-Gate on `6330012c`: build, check, Hono 78, Drizzle 33,
+Gate on `6330012c`: build, check, Hono 78, Drizzle 13,
 stack 58, tracker 69, prose; `EXIT 0`.
 Check: 0 errors and 29 warnings, matching main.
 Strict style census: OK.
+
+The browser proof and its 7 helper tests pass on the new base,
+`BROWSER_EXIT 0`.
+It checks stale edits, saved rows after restart,
+and live sync reconnect after a server stop.
+Assumption: a raised error causes rollback;
+a normal returned 4xx response does not by itself mean failure.
