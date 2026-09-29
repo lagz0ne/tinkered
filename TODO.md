@@ -62,8 +62,17 @@ reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, on
   `op` unchanged, 758 cases identical to the stack. Next: Fable reviews `c37306e`; Astra times
   tagged calls that grow (`taggeddefer`, `taggedres`); one lander lands it all. Verify: no scenario slower, promises 17, `pnpm validate`, core mutation ≥ 85. If no
   experiment wins: raise the budget to 2200 and record why (user 2026-09-28: A, then B).
+  Now (after a session expiry, 09:00): the first lander stopped at mutation 84.40; Astra's lift
+  `a2db042` (10 tests, four removals) scores 85.55. Fable `057da580` reviews the lift; lander
+  `c0cdf834` runs the bars on `a2db042` and pushes only after that review says READY.
 
-- **perf/lazy-log-obs** — with a log sink or an observer on, build the body's `log` and `obs` tools on first read (memoizing class accessors; no API change; ADR 0073). Owner: lead; Astra writer `70dab046` on `perf/lazy-log-obs` from the tagged tip `a462360`. Lands after perf/tagged-close. Verify: new probe scenarios `opsink` and `opobs` "B faster", nothing slower; promises 2; `pnpm validate`; core mutation ≥ 85.
+- **perf/tagged-100** — push `tagged` toward 100 ns with no rule change (user 2026-09-29). Base
+  `43a99e0` (tagged stack + lazy log). Owner: lead; Astra `93c3dd64` (`t100/astra`, cut 1:
+  203 → 165 ns) and Fable `a2d5bcb1` (`t100/fable`) work alone; tag storage alone was worth
+  about 75 ns. Lands after perf/lazy-log-obs. Verify: 758 + 62 behavior cases unchanged, N=61
+  "B faster" on `tagged`, nothing slower, core mutation ≥ 85.
+
+- **perf/lazy-log-obs** — with a log sink or an observer on, build the body's `log` and `obs` tools on first read (memoizing class accessors; no API change; ADR 0073). Owner: lead; Astra writer `70dab046`, now rebased on the lifted tip (`43a99e0`). Review: Fable probe and gate passed; lead READY. Lander `c0a6f174` waits for the perf/tagged-close tag, then lands it. Verify: new probe scenarios `opsink` and `opobs` "B faster", nothing slower; promises 2; `pnpm validate`; core mutation ≥ 85.
 
 ## Review
 
