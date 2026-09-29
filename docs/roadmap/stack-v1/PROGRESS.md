@@ -3050,3 +3050,18 @@ finishCookieRead();
 await reply; // was HTTP 500; should be HTTP 200
 await closing;
 ```
+
+### t10 final shutdown review
+
+- Re-ran validation after the shutdown fix: all 50 lanes pass,
+  `EXIT 0`.
+- Re-ran SCIP refs, strict census, TSDoc, and prose; all pass.
+- Jev finds no auth or Hono test title flags and no clear
+  missing README promise.
+- Added two false `stateOutsideCell` labels:
+  `serveRequests` and `serveAfterTags` own a root's pending
+  request promises and close state, not app data.
+  Their sets release each promise on either outcome.
+- Fresh fetch still points to `origin/main` at `be6a9526`.
+  Neither `stack/t06` nor `stack/t17` has landed there.
+- The full auth mutation lane is queued again under the lock.
