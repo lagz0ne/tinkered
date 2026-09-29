@@ -152,7 +152,8 @@
 | registration    | The client scope's `sync(cell \| family)` bindings, sent as `register { keys }`: every bound singleton and every member the client holds (new members register the moment they exist). Nothing is pushed unasked. |
 | source          | `source()`: the source extension installed with `createScope({ extensions })` — `{ connect(transport) }` opens a session per subscriber, answers each `register` with the initial snapshots (an inline op `sync register`), then fans out every change on a registered key. The scope's cells are the truth. |
 | subscribe       | `subscribe(link)`: the client extension installed with `createScope({ extensions })` — resolves its transport from the `link` resource inside the scope, registers by identity, writes each `snapshot` into the cell through its parse, `close()` detaches. One way in v1: a local write stays local until the next snapshot. |
-| transport       | `Sync.Transport = { send, onMessage, onClose, close }` — userland's wire (SSE+POST, WebSocket, postMessage); the package ships only `memoryPair()`, the test seam. |
+| transport       | `Sync.Transport = { send, onMessage, onClose, close }` — the wire that carries the protocol; pluggable. The package ships `memoryPair()` (the test seam) and the SSE transport in `@tinker/sync/sse` (ADR 0077). |
+| protocol        | `Sync.Message`: `register` (client to source) and `snapshot` (source to client). Fixed; any transport carries it. |
 | version         | A per-key integer the source bumps on each change; rides on every snapshot. |
 
 ## Extensions (core, ADR 0050)
@@ -358,3 +359,49 @@ New sections are lists, one term per item.
   outside (a stream, a socket, a child process),
   owned by one resource that rewires it from its
   health and intent cells.
+
+## Stack (`@tinker/stack`, ADR 0074)
+
+- **stack** — `@tinker/stack`: the glue every web
+  app repeats and never edits that spans packages
+  (server start and shutdown, the log and trace
+  sink, the browser boot). Glue that belongs to one
+  package lives there (ADR 0077). An app depends
+  on it; a fix reaches every app by version.
+- **generator** — The `vp create` template that
+  writes a new app's own code once: pages, schema,
+  operations. After that the code is the app's.
+- **job** — One unit of work pg-boss keeps in the
+  database. The jobs driver runs its operation in a
+  session of its own; success commits, failure
+  rolls back and retries (ADR 0075).
+- **mailer** — The resource that sends mail
+  through an Upyo backend picked by `MAIL_URL`.
+  Dev logs mail; tests use Upyo's mock (ADR 0083).
+- **dev host** — The one `vp run dev` process. It
+  keeps PGlite, `nats-server`, and Vite open; a
+  server edit closes the old scope and starts a
+  new one (ADR 0082).
+- **piece** — One row in a root's list: an
+  extension, a tag binding, or a function that
+  returns one (ADR 0078).
+- **stack piece** — A piece of the stack: mail,
+  jobs, auth, NATS, the migrate step. An extension
+  at its heart; the app touches only its
+  operations, resources, data, and namespaces
+  (ADR 0081).
+- **migrate step** — The one step that brings the
+  database up to date, at boot and in test setup:
+  a Postgres lock, Drizzle's migrations, then
+  pg-boss's own (ADR 0079).
+- **nats** — `@tinker/nats`: the stack's NATS
+  package. In v1 it carries pub/sub between server
+  processes and app events (ADR 0080).
+- **one-connection rule** — PGlite has one
+  connection. During a request, every database
+  touch goes through the request's transaction;
+  the signed-in user is read before it opens.
+- **trace id** — The id every span of one trace
+  shares. A span gets it when it opens, from its
+  parent or from the `traceparent` header
+  (ADR 0076).

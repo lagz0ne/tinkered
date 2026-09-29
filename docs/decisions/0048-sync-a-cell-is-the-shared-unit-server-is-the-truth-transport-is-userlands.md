@@ -7,6 +7,9 @@ the unit's `meta`), 0006 (the parse is the edge — a snapshot from the wire is 
 > Superseded in part by 0051 and drivers/t08 (2026-09-26).
 > A synced cell is a `[cell, key]` row handed to `source`/`subscribe`.
 > Units carry no meta.
+>
+> Superseded in part by 0077 (2026-09-29).
+> `@tinker/sync/sse` ships the SSE transport.
 
 ## Context
 
