@@ -21,7 +21,7 @@ Rules for every ticket:
 
 ## Tickets
 
-- **t01 sync ships the SSE transport** -- [ ] blocked by: none
+- **t01 sync ships the SSE transport** -- [x] landed `fd5a6a8`
   `@tinker/sync/sse` carries the protocol over SSE
   down and POST up, both halves (ADR 0077). The
   server half takes a plain chunk writer, so sync

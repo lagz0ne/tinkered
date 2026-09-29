@@ -53,12 +53,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Review
 
-- **stack/t01 sync-sse** — owner: lead (stack session); writer branch `stack/t01`.
-  Next: review both SSE halves and the consumer changes.
-  Verify: 69 sync tests, 72 tracker tests, browser 4/4, 44 validation lanes,
-  and mutation 86.81, all green.
-  [Proof](docs/roadmap/stack-v1/PROGRESS.md#t01-checks).
-
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
 
@@ -104,6 +98,7 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Done
 
+- **stack/t01 sync-sse** — `@tinker/sync/sse` ships the SSE transport, both halves: `createSseServer(write, signal)` over a plain chunk writer (sync imports no Hono) and `createSseClient({ open, onState, onRetry })`; the tracker and the sync example dropped their copies. Reviewer ran 20,000 random event sequences old vs new: 0 differences. Proof: gate EXIT 0 (sync 69, tracker 69), browser proof 4/4 uncached, sync mutation 86.81%, validate 46/46. Reviewer READY (e9e3562c). [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t05 stack-server** — `@tinker/stack` exists: the server stack piece checks `PORT`/`HOST` in its start (one `BadListenSettings` names every bad key), opens the port after every other start, serves the built client; `runUntilStop` answers the exit code; `jsonLines` writes the logs. The tracker's entry uses it; its root is still one function (ADR 0078). Proof: gate EXIT 0 (stack 38 tests, tracker 69), browser proof (7 tests), stack mutation 87.68%, validate 46/46. Reviewer READY (c2cdb8c8). [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **entries/follow-suit** — Astra writer + Opus review (one fix round); tag `entries/follow-suit`; ADR 0078. Every backend entry and example root now follows ADR 0078; the S27/S28 lint prints no row over apps, examples, and package source (6 rows on main before). Guarded: `packages/blueprint/src/main.ts`, `examples/mcp/cli.ts`, `examples/process-cli/main.ts`; `examples/mcp/serve.ts` became one root function (stops on SIGINT, SIGTERM, or stdin end; review fix: a closed stdin crashed it with exit 13). `boot()` left `examples/sync/hono.ts`; the sync test builds its own root `[web, src]`. The hono, mcp, and sync tours close a rejected `ready`. The `packages/mcp/README.md` entry snippet is guarded. Browser roots stay out of scope. validate 44 PASS, blueprint mutation 86.27, sync mutation 86.49.
 - **perf/tagged-100** — a tagged call copies its bindings into a one-item list first, not an empty list that grows; reads match `readMany` exactly (list iterator once, no caller methods, no re-read). Fable writer (`5234b4b` + fix `5ecc245`); Astra cross-review READY (8 differences fixed; 820 + 627 checks MATCH); tag `perf/tagged-100`. benchd N=61 vs `2148e48`: `tagged` 188.3 → 171.3 ns (−9.0%, 5/61), `taggeddefer` 346.8 → 329.3 (−5.0%); no row B slower in all 23, `warm` no difference we can see. Core mutation 85.59; 715 tests; promises tagged 2; validate 44 PASS. New rule: `tagged` ≤ 200 ns. With every rule kept the floor is about 145–150 ns; 100 needs ADR 0038 dropped for tagged calls and a tag API that allocates nothing; the user chose to stop (2026-09-29) ([budgets](docs/roadmap/core-v1/budgets.md)).
