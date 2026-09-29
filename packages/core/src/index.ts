@@ -1557,35 +1557,19 @@ function writeWithHooks<T>(
   at(0);
 }
 
-function dataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataController<T> {
-  if (layer.lazy) return frameDataController(layer, target);
-  const rec = nodeState(layer, target);
-  const get = (): T => {
-    const entry = rec.eff;
-    if (entry === undefined) return readCell(layer, target) as T;
-    return entry.value as T;
-  };
-  return {
-    get,
-    set: (value: T) => writeWithHooks(layer, target, value),
-    update: (fn: (previous: T) => T) => {
-      ensureOpen(layer);
-      writeWithHooks(layer, target, fn(get()));
-    },
-    watch: (listener: (next: T, prev: T) => void) =>
-      addWatcher(layer, target, rec, listener as (next: unknown, prev: unknown) => void),
-  };
-}
-
-/** The namespaced data controller (ADR 0059): reads, writes, and watches use one explicit chain.
- * Reads use the shared selector, writes land at `(this layer, first key)`, and each watcher keeps
- * its own full-chain comparison value (named-watch inheritance across layers is t03). */
-function dataControllerNs<T>(
+/** One controller body keeps lazy reads and explicit namespace chains on the same write and
+ * watch path. Only a default-chain controller on a full layer retains the effective-cell memo. */
+function dataController<T>(
   layer: Layer,
   target: Data.Cell<T>,
-  chain: readonly Namespace[],
+  chain: readonly Namespace[] | undefined = layer.ns,
 ): Scope.DataController<T> {
-  const get = (): T => readCell(layer, target, chain) as T;
+  const rec = chain === undefined && !layer.lazy ? nodeState(layer, target) : undefined;
+  const get = (): T => {
+    const entry = rec?.eff;
+    if (entry === undefined) return readCell(layer, target, chain) as T;
+    return entry.value as T;
+  };
   return {
     get,
     set: (value: T) => writeWithHooks(layer, target, value, chain),
@@ -1594,7 +1578,9 @@ function dataControllerNs<T>(
       writeWithHooks(layer, target, fn(get()), chain);
     },
     watch: (listener: (next: T, prev: T) => void) =>
-      addWatcherNs(layer, target, chain, listener as (next: unknown, prev: unknown) => void),
+      chain === undefined
+        ? addWatcher(layer, target, rec ?? nodeState(layer, target), listener as Watcher["fn"])
+        : addWatcherNs(layer, target, chain, listener as Watcher["fn"]),
   };
 }
 
@@ -1635,10 +1621,7 @@ function resolveControllerEdge(
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
 ): unknown {
-  if (isData(target))
-    return chain !== undefined
-      ? dataControllerNs(layer, target, chain)
-      : dataController(layer, target);
+  if (isData(target)) return dataController(layer, target, chain);
   if (isOperation(target)) return operationController(layer, target, parent, chain, caller);
   raise("InvalidDependency", { label: "edge", reason: "unknown controller target" });
 }
@@ -2054,7 +2037,7 @@ function stick(layer: Layer, error: unknown): void {
  * hot check too big for V8 to inline into close. */
 function failureOf(layer: Layer): { cause: unknown } | undefined {
   const panics = layer.panics;
-  return panics === undefined ? layer.failure : { cause: panics.at(0) };
+  return panics === undefined ? layer.failure : { cause: panics[0] };
 }
 
 /** Track owned async work so `settled()`/`close` join it. `onReject` decides where a rejection
@@ -2137,10 +2120,6 @@ function isCancelReason(error: unknown): boolean {
  * awaited); a real error rejecting during close is unbranded and still counts as a failure. */
 function isCancel(layer: Layer, error: unknown): boolean {
   return layer.aborted && isCancelReason(error);
-}
-
-function rejectEnd(layer: Layer, error: unknown): Scope.End {
-  return isCancel(layer, error) ? { status: "cancelled" } : { status: "failed", error };
 }
 
 function endFor(layer: Layer, status: "ok" | "failed", error: unknown): Scope.End {
@@ -2329,6 +2308,78 @@ function runTagged<T, I>(
   }
   if (caller) track(layer, tagged, runFailure(layer, caller));
   return tagged;
+}
+
+/** A frame grows in place, so controllers, contexts, and failure owners keep their identity. */
+function materialize(layer: Layer): void {
+  if (layer.lazy && !layer.closed) expandFrame(layer);
+}
+
+/** A tagged session before it owns anything. The prototype supplies only immutable defaults;
+ * its services and bindings are retained from this call, never borrowed from a sibling. */
+class TaggedFrame implements Layer {
+  declare parent: Layer;
+  declare tags: LayerTags | undefined;
+  declare ns: readonly Namespace[] | undefined;
+  declare failureOwner: RunState | undefined;
+  declare obs: Obs;
+  declare clock: Clock.Handle;
+  declare random: Random.Handle;
+  declare exts: ExtRoutes;
+  declare previous: TaggedFrame | undefined;
+  declare lazy: boolean;
+  declare children: Set<Layer>;
+  declare nodes: Map<object, NodeState>;
+  declare presets: Map<unknown, unknown> | undefined;
+  declare pending: Set<Promise<unknown>>;
+  declare defers: DeferEntry[];
+  declare resourceHolds: number;
+  declare aborted: boolean;
+  declare abortReason: unknown;
+  declare abort: AbortController | undefined;
+  declare cancelled: boolean;
+  declare swept: boolean;
+  declare bodyEnd: Promise<Scope.Outcome> | undefined;
+  declare failure: { cause: unknown } | undefined;
+  declare descendantFailure: { cause: unknown } | undefined;
+  declare secondary: unknown[];
+  declare body: Promise<unknown> | undefined;
+  declare closed: boolean;
+  declare closing: Promise<Scope.Result> | undefined;
+  declare emptyCtx: Resource.Ctx | undefined;
+  constructor(
+    parent: Layer,
+    tags: Scope.Bindings,
+    ns: readonly Namespace[] | undefined,
+    failureOwner: RunState | undefined,
+    previous: TaggedFrame | undefined,
+  ) {
+    this.parent = parent;
+    this.tags = seedTags(tags);
+    this.ns = ns;
+    this.failureOwner = failureOwner;
+    this.obs = parent.obs;
+    this.clock = parent.clock;
+    this.random = parent.random;
+    this.exts = parent.exts;
+    this.previous = previous;
+    this.lazy = true;
+  }
+}
+
+/** Only an untouched frame can skip the full idle test. Nested synchronous work keeps the
+ * existing wait rule, and a teardown in progress takes the existing close guard. */
+function endTaggedFrame(child: TaggedFrame | undefined, raw: unknown): unknown {
+  if (child === undefined) return raw;
+  if (child.lazy && !(raw instanceof Promise) && buildDepth === 0 && teardownDepth.size === 0) {
+    child.closed = true;
+    child.aborted = true;
+    child.closing = ENDED_CLEAN;
+    child.tags = undefined;
+    return raw;
+  }
+  materialize(child);
+  return endSession(child, raw);
 }
 
 /** Only the synchronous prefix can be absent from the parent tree. Pending work promotes
@@ -3744,14 +3795,6 @@ function settleOutcome(layer: Layer, body: Scope.Outcome | undefined): Scope.Out
   return SUCCESS;
 }
 
-/** A best-effort outcome for a re-entrant close ack before the layer has settled: whatever real state
- * is already known (a recorded failure, then an interrupted body), else success. */
-function bestEffort(layer: Layer): Scope.Outcome {
-  const failure = failureOf(layer);
-  if (failure) return { status: "failed", error: failure.cause };
-  return layer.cancelled ? { status: "cancelled" } : SUCCESS;
-}
-
 /** Drive every currently-attached child to close (children first, awaited sequentially). The mode is
  * re-checked per child: once an EARLIER child's failure has been collected (pushed into this layer's
  * `descendantFailure` while we awaited it), the remaining children close FORCED so their resources roll
@@ -3881,18 +3924,6 @@ function closeLayer(layer: Layer, force: boolean, withData: boolean): Promise<Sc
   return tapSessionHooks(hooks, layer.closing);
 }
 
-/** A failed close `Result`, with the error's origin when it has one. Its own function, so the
- * success path of {@link buildResult} stays as small as before. */
-function failedResult(
-  error: unknown,
-  teardownErrors: readonly unknown[] | undefined,
-): Scope.Result {
-  const origin = originOf(error);
-  return origin
-    ? { status: "failed", error, origin, teardownErrors }
-    : { status: "failed", error, teardownErrors };
-}
-
 /** Never throws, whatever `settled` holds: a `close()` always resolves to a `Result` (ADR 0027). */
 function buildResult(
   settled: Scope.Outcome,
@@ -4010,14 +4041,6 @@ function finishLayer(layer: Layer, keeps: boolean): unknown[] | undefined {
   layer.presets = undefined;
   layer.tags = undefined;
   return teardownErrors;
-}
-
-function propagateSweptOutcome(layer: Layer, parent: Layer): void {
-  for (const cause of layer.secondary) addError(parent, cause);
-  /** A descendant's settled failure goes to a SEPARATE slot ranked BELOW the parent's OWN failure
-   * (body/owned-work): a real owned-work failure must still beat a failure a child merely inherited
-   * from the close request (a wished `failed` echoed back down and up). First descendant wins. */
-  if (layer.failure && layer.failureOwner === undefined) parent.descendantFailure ??= layer.failure;
 }
 
 function settleSession(
@@ -4206,7 +4229,7 @@ function controllerNs(
   target: Data.Cell<unknown> | Resource.Handle<unknown> | Operation.Handle<unknown, unknown>,
   chain: readonly Namespace[],
 ): unknown {
-  if (isData(target)) return dataControllerNs(layer, target, chain);
+  if (isData(target)) return dataController(layer, target, chain);
   if (isResource(target)) return resourceController(layer, target, undefined, chain);
   return operationController(layer, target, undefined, chain);
 }
@@ -4256,9 +4279,7 @@ function handleFor(layer: Layer): Scope.Handle {
     const s = nodeState(layer, target);
     if (s.controller) return s.controller;
     const ctl = isData(target)
-      ? layer.ns !== undefined
-        ? dataControllerNs(layer, target, layer.ns)
-        : dataController(layer, target)
+      ? dataController(layer, target)
       : isResource(target)
         ? resourceController(layer, target, undefined, layer.ns)
         : operationController(layer, target, undefined, layer.ns);
@@ -5257,11 +5278,6 @@ async function closeEach(layer: Layer, force: boolean): Promise<void> {
   }
 }
 
-/** A frame grows in place, so controllers, contexts, and failure owners keep their identity. */
-function materialize(layer: Layer): void {
-  if (layer.lazy && !layer.closed) expandFrame(layer as TaggedFrame);
-}
-
 /** Shared empty state is inherited until promotion. All writes go through the same first-use
  * gates as full layers; promotion copies these slots before anything can own state. */
 const FRAME_STATE = {
@@ -5286,63 +5302,13 @@ const FRAME_STATE = {
   emptyCtx: undefined,
 };
 
-/** A tagged session before it owns anything. The prototype supplies only immutable defaults;
- * its services and bindings are retained from this call, never borrowed from a sibling. */
-class TaggedFrame implements Layer {
-  declare parent: Layer;
-  declare tags: LayerTags | undefined;
-  declare ns: readonly Namespace[] | undefined;
-  declare failureOwner: RunState | undefined;
-  declare obs: Obs;
-  declare clock: Clock.Handle;
-  declare random: Random.Handle;
-  declare exts: ExtRoutes;
-  declare previous: TaggedFrame | undefined;
-  declare lazy: boolean;
-  declare children: Set<Layer>;
-  declare nodes: Map<object, NodeState>;
-  declare presets: Map<unknown, unknown> | undefined;
-  declare pending: Set<Promise<unknown>>;
-  declare defers: DeferEntry[];
-  declare resourceHolds: number;
-  declare aborted: boolean;
-  declare abortReason: unknown;
-  declare abort: AbortController | undefined;
-  declare cancelled: boolean;
-  declare swept: boolean;
-  declare bodyEnd: Promise<Scope.Outcome> | undefined;
-  declare failure: { cause: unknown } | undefined;
-  declare descendantFailure: { cause: unknown } | undefined;
-  declare secondary: unknown[];
-  declare body: Promise<unknown> | undefined;
-  declare closed: boolean;
-  declare closing: Promise<Scope.Result> | undefined;
-  declare emptyCtx: Resource.Ctx | undefined;
-  constructor(
-    parent: Layer,
-    tags: Scope.Bindings,
-    ns: readonly Namespace[] | undefined,
-    failureOwner: RunState | undefined,
-    previous: TaggedFrame | undefined,
-  ) {
-    this.parent = parent;
-    this.tags = seedTags(tags);
-    this.ns = ns;
-    this.failureOwner = failureOwner;
-    this.obs = parent.obs;
-    this.clock = parent.clock;
-    this.random = parent.random;
-    this.exts = parent.exts;
-    this.previous = previous;
-    this.lazy = true;
-  }
-}
 Object.assign(TaggedFrame.prototype, FRAME_STATE);
 
 /** Promotion retains identity and binds ancestors first, before a watcher, build, or pending
  * body becomes visible. A new child inherits any close already in flight (ADR 0028). */
-function expandFrame(frame: TaggedFrame): void {
+function expandFrame(frame: Layer): void {
   const parent = frame.parent;
+  if (parent === undefined) return;
   materialize(parent);
   Object.assign(frame, FRAME_STATE);
   frame.lazy = false;
@@ -5359,33 +5325,34 @@ function materializeActiveFrames(): void {
   for (let frame = activeTagged; frame; frame = frame.previous) materialize(frame);
 }
 
-/** Reading a controller alone owns nothing. Its first write or watch asks the usual node gate
- * for storage, which promotes the frame before the write or subscription is visible. */
-function frameDataController<T>(layer: Layer, target: Data.Cell<T>): Scope.DataController<T> {
-  const get = (): T => readCell(layer, target) as T;
-  return {
-    get,
-    set: (value) => writeWithHooks(layer, target, value),
-    update: (fn) => {
-      ensureOpen(layer);
-      writeWithHooks(layer, target, fn(get()));
-    },
-    watch: (listener) =>
-      addWatcher(layer, target, nodeState(layer, target), listener as Watcher["fn"]),
-  };
+function rejectEnd(layer: Layer, error: unknown): Scope.End {
+  return isCancel(layer, error) ? { status: "cancelled" } : { status: "failed", error };
 }
 
-/** Only an untouched frame can skip the full idle test. Nested synchronous work keeps the
- * existing wait rule, and a teardown in progress takes the existing close guard. */
-function endTaggedFrame(child: TaggedFrame | undefined, raw: unknown): unknown {
-  if (child === undefined) return raw;
-  if (child.lazy && !(raw instanceof Promise) && buildDepth === 0 && teardownDepth.size === 0) {
-    child.closed = true;
-    child.aborted = true;
-    child.closing = ENDED_CLEAN;
-    child.tags = undefined;
-    return raw;
-  }
-  materialize(child);
-  return endSession(child, raw);
+/** A best-effort outcome for a re-entrant close ack before the layer has settled: whatever real state
+ * is already known (a recorded failure, then an interrupted body), else success. */
+function bestEffort(layer: Layer): Scope.Outcome {
+  const failure = failureOf(layer);
+  if (failure) return { status: "failed", error: failure.cause };
+  return layer.cancelled ? { status: "cancelled" } : SUCCESS;
+}
+
+/** A failed close `Result`, with the error's origin when it has one. Its own function, so the
+ * success path of {@link buildResult} stays as small as before. */
+function failedResult(
+  error: unknown,
+  teardownErrors: readonly unknown[] | undefined,
+): Scope.Result {
+  const origin = originOf(error);
+  return origin
+    ? { status: "failed", error, origin, teardownErrors }
+    : { status: "failed", error, teardownErrors };
+}
+
+function propagateSweptOutcome(layer: Layer, parent: Layer): void {
+  for (const cause of layer.secondary) addError(parent, cause);
+  /** A descendant's settled failure goes to a SEPARATE slot ranked BELOW the parent's OWN failure
+   * (body/owned-work): a real owned-work failure must still beat a failure a child merely inherited
+   * from the close request (a wished `failed` echoed back down and up). First descendant wins. */
+  if (layer.failure && layer.failureOwner === undefined) parent.descendantFailure ??= layer.failure;
 }
