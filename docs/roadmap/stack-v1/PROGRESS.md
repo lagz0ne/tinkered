@@ -654,3 +654,57 @@ No core code changed.
   subject and byte payload; app code sees no client.
 - The workspace glob already includes new packages.
   Root TypeScript config has no package references.
+
+### t07 checks seen
+
+- Rebased onto `origin/main` at `1a06fda`.
+- Gate: build, check, and 13 nats tests; `EXIT 0`.
+- Check: 0 errors, 29 warnings.
+  A fresh main worktree also has 29 warnings.
+- `pnpm validate`: all 46 lanes pass, `EXIT 0`.
+- Jev tests: 0 of 13 flagged.
+- Jev promises: all 13 have README lines.
+- Jev preflight: 0 file flags.
+  The two test-helper flags are labeled false.
+  The caller owns the process and closes it; the
+  helper closes it itself if boot fails.
+- Strict style census: OK.
+- Mutation: waiting for the full repo test run
+  to end, then one run under the shared lock.
+
+### t07 core feedback
+
+`start` has a log method, but the sink sees no line.
+This probe printed `actual: 0` with `expected: 1`.
+NATS logs inside its message operation instead.
+
+```ts
+const logs = [];
+const scope = createScope({
+  observe: { log: (line) => logs.push(line) },
+  extensions: [
+    extension({
+      label: "probe",
+      start: (_scope, ctx) => ctx.log.error("lost"),
+    }),
+  ],
+});
+await scope.ready;
+console.log({ expected: 1, actual: logs.length });
+await scope.close();
+```
+
+### t07 assumptions and small additions
+
+- Each message is `{ subject, payload }`.
+  Payload is an owned copy of the received bytes.
+- Make one NATS piece per root; the close hook
+  has no scope argument to select per-root state.
+- A row can load its operation at boot.
+  This lets that operation depend on the piece's
+  publish operation without a declaration cycle.
+- The helper exposes a loopback monitor URL.
+  Tests use the real server's connection count
+  to prove that scope close closes its connection.
+- No existing public symbol changes, so this
+  ticket has no cross-package impact block.

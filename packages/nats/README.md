@@ -75,6 +75,8 @@ The helper needs `tar` and network access on first use.
 Each server uses a free loopback port and a temp store.
 Call `await server.close()` after the test file ends.
 It waits for process exit and removes the store.
+`server.monitorUrl` is the loopback monitor used to
+check open connections.
 
 ```ts
 import { startNatsServer } from "@tinker/nats/testing";
