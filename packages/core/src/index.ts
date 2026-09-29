@@ -1844,14 +1844,25 @@ function makeObs(config: Observe.Config | undefined, clock: Clock.Handle): Obs {
   };
 }
 
+/** Keep the off check small enough to inline; id creation runs only behind it. */
 function openSpan(
+  obs: Obs,
   layer: Layer,
   parent: Observe.Span | undefined,
   name: string,
   kind: Observe.Kind,
 ): Observe.Span | undefined {
-  const obs = layer.obs;
   if (!obs.observing) return undefined;
+  return createSpan(obs, layer, parent, name, kind);
+}
+
+function createSpan(
+  obs: Obs,
+  layer: Layer,
+  parent: Observe.Span | undefined,
+  name: string,
+  kind: Observe.Kind,
+): Observe.Span {
   const trace = parent ?? layer.trace;
   return {
     traceId: trace === undefined ? layer.random.uuid().replaceAll("-", "") : trace.traceId,
@@ -1937,7 +1948,7 @@ function obsCtx(layer: Layer, span: Observe.Span | undefined): Observe.Ctx {
       span.events.push({ name, time: obs.clock(), attributes: attributes ?? {} });
     },
     child: (name, fn) => {
-      const child = openSpan(layer, span, name, "manual");
+      const child = openSpan(obs, layer, span, name, "manual");
       let result: unknown;
       try {
         result = fn(child);
@@ -2585,7 +2596,7 @@ function runOnce<T, I>(
     );
   ensureOpen(layer);
   const obs = layer.obs;
-  const span = openSpan(layer, parent, target.label, "operation");
+  const span = openSpan(obs, layer, parent, target.label, "operation");
   const override = presetFor(layer, target) as Operation.Handle<T, I>["run"] | undefined;
   /** Hold a borrow across the op's WHOLE lifetime — body settle (or a throw) AND its own `defer`
    * drain — so a release waits for the op's cleanup (which may still touch the resource) before
@@ -3178,7 +3189,7 @@ function buildHooklessResource<T>(
   const superseded = (): boolean => rec.gen !== gen;
   const canPublish = (): boolean => !superseded() && !owner.closed;
   const obs = owner.obs;
-  const span = openSpan(caller, parent, target.label, "resource");
+  const span = openSpan(obs, caller, parent, target.label, "resource");
   rec.building = true;
   buildDepth++;
   try {
@@ -3244,7 +3255,7 @@ function buildTrackedResource<T>(
   const superseded = (): boolean => rec.gen !== gen;
   const canPublish = (): boolean => !superseded() && !owner.closed;
   const obs = owner.obs;
-  const span = openSpan(caller, parent, target.label, "resource");
+  const span = openSpan(obs, caller, parent, target.label, "resource");
   rec.building = true;
   let settled = false;
   buildDepth++;
