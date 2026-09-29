@@ -1879,10 +1879,10 @@ class SpanImpl implements Observe.Span {
   declare private low: number;
   declare private parentHigh: number;
   declare private parentLow: number;
-  private text: string | undefined = undefined;
+  declare private text: string | undefined;
   declare private parentText: string | undefined;
-  private attrs: Record<string, unknown> | undefined = undefined;
-  private marks: Observe.Event[] | undefined = undefined;
+  declare private attrs: Record<string, unknown> | undefined;
+  declare private marks: Observe.Event[] | undefined;
 
   constructor(
     obs: Obs,

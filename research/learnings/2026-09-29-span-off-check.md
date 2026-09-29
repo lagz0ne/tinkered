@@ -151,3 +151,8 @@ It passed build, check, 730 core tests, slots, and prose before timing.
 The third layout keeps root bits on the span until a child opens or a reader needs the trace.
 The default source skips the seeded-handle lookup.
 The bits still come from four draws at open; only their shared record is lazy.
+
+The third layout passed build, check, 730 core tests, slots, and prose.
+N=31 `opobs`: 186.7 to 193.7 ns; slower 28/31; b is slower.
+The fourth trial leaves the ID text, attributes, and event cache fields absent until first use.
+It keeps the third layout's draws and shared trace record.
