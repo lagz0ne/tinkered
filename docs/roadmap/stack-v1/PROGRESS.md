@@ -30,7 +30,7 @@ Rules for every ticket:
   Verify: `vp run sync#test` and
   `vp run @tinker-issue-tracker#test` green; SCIP
   refs show no hand-written SSE transport left.
-- **t02 hono answers managed errors** -- [ ] blocked by: none
+- **t02 hono answers managed errors** -- [x] landed `fe5b591`
   A managed error becomes its HTTP answer through
   `@tinker/hono`. An unmapped error is logged and
   answered 500. The tracker's hand mapping goes.

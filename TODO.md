@@ -51,8 +51,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Review
 
-- **stack/t02 hono-errors** — a managed error becomes its HTTP answer through `@tinker/hono`; the tracker's hand mapping goes. Owner: lead (stack session); Astra writer `ed37bee3`, worktree `/home/paseo/next/tinkered-stack-t02`; Opus reviewer when the writer reports. Next: lead review and landing. Writer proof: gate exit 0; 44 validate lanes; Hono mutation 85.27. Verify: hono tests cover each answer; tracker tests unchanged. [track](docs/roadmap/stack-v1/PROGRESS.md).
-
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
 
@@ -98,6 +96,7 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Done
 
+- **stack/t02 hono-errors** — a managed error becomes its HTTP answer through `@tinker/hono`: an error table maps a kind to a status, or a status plus a body from the payload (Rails `rescue_responses`); an unmapped error logs one line through the scope's sink and answers 500; `HTTPException` keeps its response. The tracker declares its table; every answer is byte-for-byte the same (reviewer probed each kind). Proof: gate EXIT 0 (hono 68, tracker 69), browser proof, hono mutation 85.27% (249/0/41), validate 46/46. Reviewer READY (f0f42868). [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t03 drizzle-rc** — the repo runs on one exact Drizzle 1.0 RC: `drizzle-orm` and `drizzle-kit` `1.0.0-rc.4` pinned in the catalog (ADR 0079); `@tinker/drizzle` accepts `^0.45.2 || ^1.0.0-rc.4` (reviewer proved 0.45.2 still works: the package never imports drizzle-orm); the tracker builds its client the 1.0 way. Proof: gate EXIT 0 (drizzle 13, tracker 69), browser proof, drizzle mutation 88.14% (killed 52 / timeout 0 / survived 7; the lane's default 5 s limit starves on this box: 39 / 20 / 0 twice, main 34 / 24 / 1, so the proof run used `--timeoutMS 60000 --concurrency 2`), validate 46/46. Reviewer READY (de555b1a). [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t01 sync-sse** — `@tinker/sync/sse` ships the SSE transport, both halves: `createSseServer(write, signal)` over a plain chunk writer (sync imports no Hono) and `createSseClient({ open, onState, onRetry })`; the tracker and the sync example dropped their copies. Reviewer ran 20,000 random event sequences old vs new: 0 differences. Proof: gate EXIT 0 (sync 69, tracker 69), browser proof 4/4 uncached, sync mutation 86.81%, validate 46/46. Reviewer READY (e9e3562c). [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t05 stack-server** — `@tinker/stack` exists: the server stack piece checks `PORT`/`HOST` in its start (one `BadListenSettings` names every bad key), opens the port after every other start, serves the built client; `runUntilStop` answers the exit code; `jsonLines` writes the logs. The tracker's entry uses it; its root is still one function (ADR 0078). Proof: gate EXIT 0 (stack 38 tests, tracker 69), browser proof (7 tests), stack mutation 87.68%, validate 46/46. Reviewer READY (c2cdb8c8). [track](docs/roadmap/stack-v1/PROGRESS.md).
