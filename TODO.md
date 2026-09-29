@@ -50,7 +50,12 @@ reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, on
   R2 811, R1 220; user keeps the rules). New target (user 2026-09-29): `tagged` 700, no rule
   change. Now: Astra checks `22e164d` against main (order and outcome); Opus the layer record
   and its lists plus `route` (fp2/opus); Fable the run side (fp3/fable). The card is rebuilt on
-  the winners. Verify: no scenario slower, promises 17, `pnpm validate`, core mutation ≥ 85. If no
+  the winners. Since: Astra's check found outcome bugs in `22e164d` (fixed in `9687dbc`); the user
+  chose ADR 0071 (a session's handle closes when its body ends) and ADR 0072 (R2: a tagged call
+  that ended in place returns its value); Opus's layer work `fb35497` screened `tagged` 909.5.
+  Before the final proof: bench/probe-warmup (Opus) lands. mitata timed main in one-call mode and
+  the branches in a mix; the probe warms each scenario and `ab.sh` runs one probe for both trees.
+  Verify: no scenario slower, promises 17, `pnpm validate`, core mutation ≥ 85. If no
   experiment wins: raise the budget to 2200 and record why (user 2026-09-28: A, then B).
 
 ## Review
