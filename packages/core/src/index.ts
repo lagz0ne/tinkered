@@ -2208,16 +2208,16 @@ function runBody<T, I>(
 }
 
 class OperationCtx<I> implements Operation.Ctx<I> {
-  private owner: Layer;
+  declare private owner: Layer;
   private defers: ((end: Scope.End) => void | PromiseLike<void>)[] | undefined = undefined;
-  readonly label: string;
-  readonly rawInput: unknown;
-  readonly input: I;
+  declare readonly label: string;
+  declare readonly rawInput: unknown;
+  declare readonly input: I;
   private obsTools: Observe.Ctx | undefined;
   private logTools: Observe.Logger | undefined;
-  readonly span: Observe.Span | undefined;
-  readonly clock: Clock.Handle;
-  readonly random: Random.Handle;
+  declare readonly span: Observe.Span | undefined;
+  declare readonly clock: Clock.Handle;
+  declare readonly random: Random.Handle;
   constructor(
     owner: Layer,
     target: Operation.Handle<unknown, I>,
@@ -2833,15 +2833,15 @@ function resolveNamedResourceDeps(
 }
 
 class ResourceCtx implements Resource.Ctx {
-  private owner: Layer;
-  private instance: ResourceInstance;
-  private isSettled: () => boolean;
-  readonly label: string;
+  declare private owner: Layer;
+  declare private instance: ResourceInstance;
+  declare private isSettled: () => boolean;
+  declare readonly label: string;
   private obsTools: Observe.Ctx | undefined;
   private logTools: Observe.Logger | undefined;
-  readonly span: Observe.Span | undefined;
-  readonly clock: Clock.Handle;
-  readonly random: Random.Handle;
+  declare readonly span: Observe.Span | undefined;
+  declare readonly clock: Clock.Handle;
+  declare readonly random: Random.Handle;
   constructor(
     instance: ResourceInstance,
     span: Observe.Span | undefined,
