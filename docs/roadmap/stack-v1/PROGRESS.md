@@ -982,3 +982,11 @@ It also closes old handles after a fresh start.
   the download base is only read on a cache miss.
 - Existing helper labels still apply:
   `effectWithoutDefer false` and `stateOutsideCell false`.
+
+- Focused kill check under `/tmp/mutation.lock`:
+  `src/testing.ts:79-83`: `[Killed]` 6; score 100.00; exit 0.
+  No survivors, timeouts, or uncovered mutants.
+  The new local HTTP test kills the removed status check,
+  wrong error kind, and empty error payload.
+- Log: `stack-t07-download-kill.log` in
+  `/home/paseo/.cache/tinkered-briefs/`.
