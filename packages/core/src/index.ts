@@ -1153,55 +1153,6 @@ function tapSessionHooks(
   return closing;
 }
 
-/** Wrap a session's whole life in the extensions' `session` onion (ADR 0051): registration order,
- * first is outermost. `run` is the session's own life — run the body, force-close, keep the body's
- * value beside the close `Result` — so `next()` resolves with whatever `closeLayer` produced (never
- * rejects, ADR 0027). Code before `await next()` runs right after the child layer exists, before any
- * work in it; code after runs after the close settled. Each level reports the hook's own return as
- * its `ended` (the onion may transform it, like `close`); the body's `result` threads through from
- * the innermost `run`. A hook that skips `next()` observes only: the session's own life still runs
- * (`ensure`), only the skipping hook's `result` is the body's, not a substitute. A throwing hook
- * rejects the session with its error — hooks must not throw; when both the hook and the life fail,
- * the hook's error wins. The life runs at most once per session no matter how many hooks call
- * `next()` (`ensure` memo). */
-function sessionThrough(
-  sessions: readonly Scope.Extension<unknown>[],
-  handle: Scope.Handle,
-  run: () => Promise<{ result: unknown; ended: Scope.Result }>,
-): Promise<{ result: unknown; ended: Scope.Result }> {
-  let life: Promise<{ result: unknown; ended: Scope.Result }> | undefined;
-  const ensure = (): Promise<{ result: unknown; ended: Scope.Result }> => (life ??= run());
-  const at = (index: number): Promise<{ result: unknown; ended: Scope.Result }> => {
-    if (index >= sessions.length) return ensure();
-    const { session: hook } = sessions[index] as {
-      session?: (handle: Scope.Handle, next: () => Promise<Scope.Result>) => Promise<Scope.Result>;
-    };
-    if (hook === undefined) return at(index + 1);
-    /** The inner life this hook observes: memoized so calling `next()` twice still runs the
-     * session once, and so a hook that skips `next()` leaves `inner` unset for `ensure` below. */
-    let inner: Promise<{ result: unknown; ended: Scope.Result }> | undefined;
-    const next = (): Promise<Scope.Result> => (inner ??= at(index + 1)).then(({ ended }) => ended);
-    let outcome: Promise<Scope.Result>;
-    try {
-      outcome = hook(handle, next);
-    } catch (error) {
-      const done = inner ?? ensure();
-      ignoreRejection(done);
-      return done.then(() => {
-        throw error;
-      });
-    }
-    return outcome.then(
-      (ended) => (inner ?? ensure()).then(({ result }) => ({ result, ended })),
-      (hookError: unknown) => {
-        ignoreRejection(inner ?? ensure());
-        throw hookError;
-      },
-    );
-  };
-  return at(0);
-}
-
 /** Late use of a sealed scope fails loudly. */
 function ensureOpen(layer: Layer): void {
   if (layer.closed) raise("Disposed", { reason: "scope is closed" });
@@ -1991,36 +1942,6 @@ const RECOVERED: unique symbol = Symbol("recovered");
 /** Who receives a subflow's failure: the calling run's ctx, or `settle`. */
 type RunState = OperationCtx<unknown> | typeof RECOVERED;
 
-/** `settle`'s Result for what `run` threw or rejected with: a cancel reason on an aborted layer is
- * `cancelled`; anything else is `failed`. */
-function failedRun(layer: Layer, error: unknown): RunResult<never> {
-  if (isCancel(layer, error)) return { status: "cancelled", reason: error };
-  recover(layer, error);
-  closeOrigin(error);
-  const origin = originOf(error);
-  const result: RunResult<never> = { status: "failed", error, kind: failureKind(error) };
-  if (origin) result.origin = origin;
-  return result;
-}
-
-/** `run` that never throws: what `run` returns or resolves to is `success`, even under a forced
- * close (a program that catches SIGINT and exits 0 exits 0); what it throws goes to `failedRun`. */
-function settleRun(
-  layer: Layer,
-  run: () => unknown,
-): RunResult<unknown> | Promise<RunResult<unknown>> {
-  try {
-    const result = run();
-    if (!isThenable(result)) return { status: "success", value: result };
-    return Promise.resolve(result).then(
-      (value): RunResult<unknown> => ({ status: "success", value }),
-      (error: unknown) => failedRun(layer, error),
-    );
-  } catch (error) {
-    return failedRun(layer, error);
-  }
-}
-
 /** An operation's controller: `run` is an own field callers destructure; `settle` is built on its
  * first read and kept, so a controller made for one run pays nothing for it. */
 class OperationControl<T, I> {
@@ -2089,15 +2010,6 @@ function stick(layer: Layer, error: unknown): void {
   if (layer.failure !== undefined || isCancel(layer, error) || failureKind(error) === "error")
     return;
   (layer.panics ??= []).push(error);
-}
-
-/** `settle` received `error`: each stuck panic on its cause chain is recovered (Go's `recover`). */
-function recover(layer: Layer, error: unknown): void {
-  const panics = layer.panics;
-  if (panics === undefined) return;
-  const chain = causesOf(error);
-  const left = panics.filter((panic) => !chain.includes(panic));
-  layer.panics = left.length === 0 ? undefined : left;
 }
 
 /** A layer's first real failure: a stuck panic, when there is one, came before any `failure`.
@@ -2825,85 +2737,8 @@ class EmptyCtx implements Resource.Ctx {
   }
 }
 
-/** Wrap the structural close in the extensions' `close` onion (ADR 0050): first registered is
- * outermost; extensions without a `close` hook are skipped when the chain is built. */
-function closeThrough(
-  layer: Layer,
-  closers: readonly Scope.Extension<unknown>[],
-): (opts?: Scope.CloseOptions) => Promise<Scope.Result> {
-  return (opts?: Scope.CloseOptions): Promise<Scope.Result> => {
-    const at = (index: number): Promise<Scope.Result> => {
-      if (index >= closers.length)
-        return closeLayer(layer, !opts?.graceful, opts?.withData === true);
-      const closer = closers[index];
-      if (closer.close === undefined)
-        return closeLayer(layer, !opts?.graceful, opts?.withData === true);
-      return closer.close(opts ?? {}, () => at(index + 1));
-    };
-    return at(0);
-  };
-}
-
-/** Run the extensions' `start` onion (ADR 0050): registration order, first is outermost. Each
- * start's returned value (awaited) is stored per extension; the records flip `settled` only when
- * that extension's start settled. A rejected start records the layer failure (so a later close
- * settles `failed`), force-closes the scope at once, and rejects `ready` with the same error. */
-function runStartChain(
-  layer: Layer,
-  scope: Scope.Handle,
-  exts: readonly Scope.Extension<unknown>[],
-  done: () => void,
-  failed: (error: unknown) => void,
-): void {
-  const at = async (index: number): Promise<void> => {
-    if (index >= exts.length) return;
-    const ext = exts[index];
-    if (ext.start === undefined) return at(index + 1);
-    const value = await ext.start(scope, new ExtensionCtx(layer, ext.label), () => at(index + 1));
-    const rec = EXTENSIONS.get(layer)?.get(ext);
-    if (rec !== undefined) {
-      rec.value = value;
-      rec.settled = true;
-    }
-  };
-  ignoreRejection(
-    at(0).then(done, (error: unknown) => {
-      layer.failure ??= { cause: error };
-      ignoreRejection(closeLayer(layer, true, false));
-      failed(error);
-    }),
-  );
-}
-
 function emptyCtxFor(owner: Layer): Resource.Ctx {
   return (owner.emptyCtx ??= new EmptyCtx(owner));
-}
-
-/** The receiver an extension's `start` builds through (ADR 0050): `defer` lands in the layer's
- * defers like `onClose` but receives the settled end; `signal` is the layer's abort signal. One
- * instance per extension, labelled with the extension. */
-class ExtensionCtx implements Resource.Ctx {
-  readonly obs = OFF_OBS;
-  readonly log = OFF_LOG;
-  readonly clock: Clock.Handle;
-  readonly random: Random.Handle;
-  readonly label: string;
-  private owner: Layer;
-  constructor(owner: Layer, label: string) {
-    this.owner = owner;
-    this.label = label;
-    this.clock = owner.clock;
-    this.random = owner.random;
-  }
-  readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
-    this.owner.defers.push({ fn, instance: undefined });
-  };
-  get raise(): Resource.Ctx["raise"] {
-    return (kind, payload) => raiseFrom(this, kind, payload);
-  }
-  get signal(): AbortSignal {
-    return signalOf(this.owner);
-  }
 }
 
 /** Read what an extension's `start` returned: the root layer holds one record per installed
@@ -4255,145 +4090,6 @@ function runBodyWith<R>(
   }
 }
 
-/** {@link runBodyWith} with a prebuilt handle — the wrapped session path hands the body the same
- * handle the hooks received (whose `createSession` stays wrapped). */
-function runBodyWithTo<R>(
-  child: Layer,
-  handle: Scope.Handle,
-  fn: (child: Layer, handle: Scope.Handle) => R | PromiseLike<R>,
-): Promise<R> {
-  try {
-    return Promise.resolve(fn(child, handle));
-  } catch (error) {
-    return Promise.reject(error);
-  }
-}
-
-/** A handle whose `createSession` wraps every child in the root's `session` chain (ADR 0051): the
- * one override sessions carry — `resolve`/`run`/`controller` stay the plain dispatch (v1 limit).
- * Only built when hooks exist; the unwrapped path never enters. */
-function withSessionCreate(
-  plain: Scope.Handle,
-  layer: Layer,
-  sessions: readonly Scope.Extension<unknown>[],
-): Scope.Handle {
-  return {
-    ...plain,
-    createSession: (options?: Scope.Options) => wrapSession(layer, options, sessions),
-  };
-}
-
-/** A bare session wrapped in the `session` chain: the onion starts NOW (before-code runs right after
- * the child layer exists, before any work in it); `next()` settles with the structural close's
- * `Result` however the session closes — through this handle's `close`, or felled by its parent's
- * close cascade (`closeLayer` settles the registered resolver via the side table). `close()` joins
- * the teardown first, then reports the chain's outcome (hook returns win, hook throws propagate,
- * like `close`). */
-function wrapSession(
-  parent: Layer,
-  options: Scope.Options | undefined,
-  sessions: readonly Scope.Extension<unknown>[],
-): Scope.Handle {
-  ensureOpen(parent);
-  const child = makeLayer(parent, options);
-  const plain = handleFor(child);
-  let wrapped: Scope.Handle;
-  let settleNext: (ended: Scope.Result) => void = noop as (ended: Scope.Result) => void;
-  const nextPromise = new Promise<Scope.Result>((resolveNext) => {
-    settleNext = resolveNext;
-  });
-  const hooks: SessionHooks = { settle: settleNext, phase: "open", moved: false };
-  SESSION_HOOKS.set(child, hooks);
-  const base = withSessionCreate(plain, child, sessions);
-  const outcome = sessionThrough(sessions, base, () =>
-    nextPromise.then((ended) => ({ result: undefined, ended })),
-  ).finally(() => freeAfterHooks(child, hooks));
-  ignoreRejection(outcome);
-  wrapped = {
-    ...base,
-    close: (opts?: Scope.CloseOptions) =>
-      closeLayer(child, !opts?.graceful, opts?.withData === true).then(() =>
-        outcome.then(({ ended: chained }) => chained),
-      ),
-  };
-  return wrapped;
-}
-
-/** Wrap a plain root handle with the extensions' plumbing (ADR 0050): store one
- * start-value record per installed extension, override `close` with the close chain, add `ready`,
- * then kick the start chain with the EXTENDED handle. Cold path only — plain scopes never enter. */
-function extendHandle(
-  layer: Layer,
-  plain: Scope.Handle,
-  exts: readonly Scope.Extension<unknown>[],
-): Scope.Handle {
-  const records = new Map<Scope.Extension<unknown>, ExtRec>();
-  for (const ext of exts) records.set(ext, { settled: false, value: undefined });
-  EXTENSIONS.set(layer, records);
-  const closers = exts.filter((ext) => ext.close !== undefined);
-  const resolvers = exts.filter((ext) => ext.resolve !== undefined);
-  const runners = exts.filter((ext) => ext.run !== undefined);
-  const writers = exts.filter((ext) => ext.write !== undefined);
-  const sessions = exts.filter((ext) => ext.session !== undefined);
-  layer.exts = {
-    runners: runners.length > 0 ? runners : undefined,
-    writers: writers.length > 0 ? writers : undefined,
-    sessions: sessions.length > 0 ? sessions : undefined,
-  };
-  let settleReady: () => void = noop;
-  let failReady: (error: unknown) => void = noop;
-  const ready = new Promise<void>((resolveReady, rejectReady) => {
-    settleReady = resolveReady;
-    failReady = rejectReady;
-  });
-  ignoreRejection(ready);
-  const extended: Scope.Handle = {
-    ...plain,
-    close: closers.length === 0 ? plain.close : closeThrough(layer, closers),
-    ready,
-  };
-  if (resolvers.length > 0) extended.resolve = resolveThrough(layer, resolvers);
-  if (sessions.length > 0)
-    extended.createSession = (options?: Scope.Options) => wrapSession(layer, options, sessions);
-  runStartChain(layer, extended, exts, settleReady, failReady);
-  return extended;
-}
-
-/** The `resolve` onion (ADR 0050, core/t33): registration order, first is outermost. An
- * `Extension` target bypasses the chain — `resolve(ext)` reads the extension registry, not a
- * snapshot the chain wraps. Root handle only in v1: sessions keep the plain dispatch. */
-function resolveThrough(
-  layer: Layer,
-  resolvers: readonly Scope.Extension<unknown>[],
-): Scope.Handle["resolve"] {
-  type OnionTarget = Data.Cell<unknown> | Resource.Handle<unknown> | Tag.Handle<unknown>;
-  const at = (
-    target: OnionTarget,
-    index: number,
-    chain: readonly Namespace[] | undefined,
-  ): unknown => {
-    if (index >= resolvers.length) {
-      if (isData(target)) return readCell(layer, target, chain);
-      if (isEdge(target)) return resolveEdge(layer, target, undefined, chain);
-      if (isResource(target)) return resourceController(layer, target, undefined, chain).resolve();
-      return tagRequired(layer, target, chain);
-    }
-    const next = (): unknown => at(target, index + 1, chain);
-    const { resolve: hook } = resolvers[index] as {
-      resolve?: (target: OnionTarget, next: () => unknown) => unknown;
-    };
-    if (hook === undefined) return next();
-    return hook(target, next);
-  };
-  const chained = (target: OnionTarget, ns?: Scope.NsArg): unknown => {
-    ensureOpen(layer);
-    if (isExtension(target)) return resolveExtension(layer, target);
-    const chain = ns?.ns === undefined ? layer.ns : nsChainOf(ns.ns);
-    return at(target, 0, chain);
-  };
-  return chained as Scope.Handle["resolve"];
-}
-
 /** A namespaced resolve keeps the real layer and passes the storage chain explicitly. */
 function resolveNs(
   layer: Layer,
@@ -5011,4 +4707,308 @@ function adoptThenable<R>(raw: unknown, then: ThenFn<R>): Promise<R> {
       }
     });
   });
+}
+
+/** Wrap a session's whole life in the extensions' `session` onion (ADR 0051): registration order,
+ * first is outermost. `run` is the session's own life — run the body, force-close, keep the body's
+ * value beside the close `Result` — so `next()` resolves with whatever `closeLayer` produced (never
+ * rejects, ADR 0027). Code before `await next()` runs right after the child layer exists, before any
+ * work in it; code after runs after the close settled. Each level reports the hook's own return as
+ * its `ended` (the onion may transform it, like `close`); the body's `result` threads through from
+ * the innermost `run`. A hook that skips `next()` observes only: the session's own life still runs
+ * (`ensure`), only the skipping hook's `result` is the body's, not a substitute. A throwing hook
+ * rejects the session with its error — hooks must not throw; when both the hook and the life fail,
+ * the hook's error wins. The life runs at most once per session no matter how many hooks call
+ * `next()` (`ensure` memo). */
+function sessionThrough(
+  sessions: readonly Scope.Extension<unknown>[],
+  handle: Scope.Handle,
+  run: () => Promise<{ result: unknown; ended: Scope.Result }>,
+): Promise<{ result: unknown; ended: Scope.Result }> {
+  let life: Promise<{ result: unknown; ended: Scope.Result }> | undefined;
+  const ensure = (): Promise<{ result: unknown; ended: Scope.Result }> => (life ??= run());
+  const at = (index: number): Promise<{ result: unknown; ended: Scope.Result }> => {
+    if (index >= sessions.length) return ensure();
+    const { session: hook } = sessions[index] as {
+      session?: (handle: Scope.Handle, next: () => Promise<Scope.Result>) => Promise<Scope.Result>;
+    };
+    if (hook === undefined) return at(index + 1);
+    /** The inner life this hook observes: memoized so calling `next()` twice still runs the
+     * session once, and so a hook that skips `next()` leaves `inner` unset for `ensure` below. */
+    let inner: Promise<{ result: unknown; ended: Scope.Result }> | undefined;
+    const next = (): Promise<Scope.Result> => (inner ??= at(index + 1)).then(({ ended }) => ended);
+    let outcome: Promise<Scope.Result>;
+    try {
+      outcome = hook(handle, next);
+    } catch (error) {
+      const done = inner ?? ensure();
+      ignoreRejection(done);
+      return done.then(() => {
+        throw error;
+      });
+    }
+    return outcome.then(
+      (ended) => (inner ?? ensure()).then(({ result }) => ({ result, ended })),
+      (hookError: unknown) => {
+        ignoreRejection(inner ?? ensure());
+        throw hookError;
+      },
+    );
+  };
+  return at(0);
+}
+
+/** `settle`'s Result for what `run` threw or rejected with: a cancel reason on an aborted layer is
+ * `cancelled`; anything else is `failed`. */
+function failedRun(layer: Layer, error: unknown): RunResult<never> {
+  if (isCancel(layer, error)) return { status: "cancelled", reason: error };
+  recover(layer, error);
+  closeOrigin(error);
+  const origin = originOf(error);
+  const result: RunResult<never> = { status: "failed", error, kind: failureKind(error) };
+  if (origin) result.origin = origin;
+  return result;
+}
+
+/** `run` that never throws: what `run` returns or resolves to is `success`, even under a forced
+ * close (a program that catches SIGINT and exits 0 exits 0); what it throws goes to `failedRun`. */
+function settleRun(
+  layer: Layer,
+  run: () => unknown,
+): RunResult<unknown> | Promise<RunResult<unknown>> {
+  try {
+    const result = run();
+    if (!isThenable(result)) return { status: "success", value: result };
+    return Promise.resolve(result).then(
+      (value): RunResult<unknown> => ({ status: "success", value }),
+      (error: unknown) => failedRun(layer, error),
+    );
+  } catch (error) {
+    return failedRun(layer, error);
+  }
+}
+
+/** `settle` received `error`: each stuck panic on its cause chain is recovered (Go's `recover`). */
+function recover(layer: Layer, error: unknown): void {
+  const panics = layer.panics;
+  if (panics === undefined) return;
+  const chain = causesOf(error);
+  const left = panics.filter((panic) => !chain.includes(panic));
+  layer.panics = left.length === 0 ? undefined : left;
+}
+
+/** Wrap the structural close in the extensions' `close` onion (ADR 0050): first registered is
+ * outermost; extensions without a `close` hook are skipped when the chain is built. */
+function closeThrough(
+  layer: Layer,
+  closers: readonly Scope.Extension<unknown>[],
+): (opts?: Scope.CloseOptions) => Promise<Scope.Result> {
+  return (opts?: Scope.CloseOptions): Promise<Scope.Result> => {
+    const at = (index: number): Promise<Scope.Result> => {
+      if (index >= closers.length)
+        return closeLayer(layer, !opts?.graceful, opts?.withData === true);
+      const closer = closers[index];
+      if (closer.close === undefined)
+        return closeLayer(layer, !opts?.graceful, opts?.withData === true);
+      return closer.close(opts ?? {}, () => at(index + 1));
+    };
+    return at(0);
+  };
+}
+
+/** Run the extensions' `start` onion (ADR 0050): registration order, first is outermost. Each
+ * start's returned value (awaited) is stored per extension; the records flip `settled` only when
+ * that extension's start settled. A rejected start records the layer failure (so a later close
+ * settles `failed`), force-closes the scope at once, and rejects `ready` with the same error. */
+function runStartChain(
+  layer: Layer,
+  scope: Scope.Handle,
+  exts: readonly Scope.Extension<unknown>[],
+  done: () => void,
+  failed: (error: unknown) => void,
+): void {
+  const at = async (index: number): Promise<void> => {
+    if (index >= exts.length) return;
+    const ext = exts[index];
+    if (ext.start === undefined) return at(index + 1);
+    const value = await ext.start(scope, new ExtensionCtx(layer, ext.label), () => at(index + 1));
+    const rec = EXTENSIONS.get(layer)?.get(ext);
+    if (rec !== undefined) {
+      rec.value = value;
+      rec.settled = true;
+    }
+  };
+  ignoreRejection(
+    at(0).then(done, (error: unknown) => {
+      layer.failure ??= { cause: error };
+      ignoreRejection(closeLayer(layer, true, false));
+      failed(error);
+    }),
+  );
+}
+
+/** The receiver an extension's `start` builds through (ADR 0050): `defer` lands in the layer's
+ * defers like `onClose` but receives the settled end; `signal` is the layer's abort signal. One
+ * instance per extension, labelled with the extension. */
+class ExtensionCtx implements Resource.Ctx {
+  readonly obs = OFF_OBS;
+  readonly log = OFF_LOG;
+  readonly clock: Clock.Handle;
+  readonly random: Random.Handle;
+  readonly label: string;
+  private owner: Layer;
+  constructor(owner: Layer, label: string) {
+    this.owner = owner;
+    this.label = label;
+    this.clock = owner.clock;
+    this.random = owner.random;
+  }
+  readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
+    this.owner.defers.push({ fn, instance: undefined });
+  };
+  get raise(): Resource.Ctx["raise"] {
+    return (kind, payload) => raiseFrom(this, kind, payload);
+  }
+  get signal(): AbortSignal {
+    return signalOf(this.owner);
+  }
+}
+
+/** {@link runBodyWith} with a prebuilt handle — the wrapped session path hands the body the same
+ * handle the hooks received (whose `createSession` stays wrapped). */
+function runBodyWithTo<R>(
+  child: Layer,
+  handle: Scope.Handle,
+  fn: (child: Layer, handle: Scope.Handle) => R | PromiseLike<R>,
+): Promise<R> {
+  try {
+    return Promise.resolve(fn(child, handle));
+  } catch (error) {
+    return Promise.reject(error);
+  }
+}
+
+/** A handle whose `createSession` wraps every child in the root's `session` chain (ADR 0051): the
+ * one override sessions carry — `resolve`/`run`/`controller` stay the plain dispatch (v1 limit).
+ * Only built when hooks exist; the unwrapped path never enters. */
+function withSessionCreate(
+  plain: Scope.Handle,
+  layer: Layer,
+  sessions: readonly Scope.Extension<unknown>[],
+): Scope.Handle {
+  return {
+    ...plain,
+    createSession: (options?: Scope.Options) => wrapSession(layer, options, sessions),
+  };
+}
+
+/** A bare session wrapped in the `session` chain: the onion starts NOW (before-code runs right after
+ * the child layer exists, before any work in it); `next()` settles with the structural close's
+ * `Result` however the session closes — through this handle's `close`, or felled by its parent's
+ * close cascade (`closeLayer` settles the registered resolver via the side table). `close()` joins
+ * the teardown first, then reports the chain's outcome (hook returns win, hook throws propagate,
+ * like `close`). */
+function wrapSession(
+  parent: Layer,
+  options: Scope.Options | undefined,
+  sessions: readonly Scope.Extension<unknown>[],
+): Scope.Handle {
+  ensureOpen(parent);
+  const child = makeLayer(parent, options);
+  const plain = handleFor(child);
+  let wrapped: Scope.Handle;
+  let settleNext: (ended: Scope.Result) => void = noop as (ended: Scope.Result) => void;
+  const nextPromise = new Promise<Scope.Result>((resolveNext) => {
+    settleNext = resolveNext;
+  });
+  const hooks: SessionHooks = { settle: settleNext, phase: "open", moved: false };
+  SESSION_HOOKS.set(child, hooks);
+  const base = withSessionCreate(plain, child, sessions);
+  const outcome = sessionThrough(sessions, base, () =>
+    nextPromise.then((ended) => ({ result: undefined, ended })),
+  ).finally(() => freeAfterHooks(child, hooks));
+  ignoreRejection(outcome);
+  wrapped = {
+    ...base,
+    close: (opts?: Scope.CloseOptions) =>
+      closeLayer(child, !opts?.graceful, opts?.withData === true).then(() =>
+        outcome.then(({ ended: chained }) => chained),
+      ),
+  };
+  return wrapped;
+}
+
+/** Wrap a plain root handle with the extensions' plumbing (ADR 0050): store one
+ * start-value record per installed extension, override `close` with the close chain, add `ready`,
+ * then kick the start chain with the EXTENDED handle. Cold path only — plain scopes never enter. */
+function extendHandle(
+  layer: Layer,
+  plain: Scope.Handle,
+  exts: readonly Scope.Extension<unknown>[],
+): Scope.Handle {
+  const records = new Map<Scope.Extension<unknown>, ExtRec>();
+  for (const ext of exts) records.set(ext, { settled: false, value: undefined });
+  EXTENSIONS.set(layer, records);
+  const closers = exts.filter((ext) => ext.close !== undefined);
+  const resolvers = exts.filter((ext) => ext.resolve !== undefined);
+  const runners = exts.filter((ext) => ext.run !== undefined);
+  const writers = exts.filter((ext) => ext.write !== undefined);
+  const sessions = exts.filter((ext) => ext.session !== undefined);
+  layer.exts = {
+    runners: runners.length > 0 ? runners : undefined,
+    writers: writers.length > 0 ? writers : undefined,
+    sessions: sessions.length > 0 ? sessions : undefined,
+  };
+  let settleReady: () => void = noop;
+  let failReady: (error: unknown) => void = noop;
+  const ready = new Promise<void>((resolveReady, rejectReady) => {
+    settleReady = resolveReady;
+    failReady = rejectReady;
+  });
+  ignoreRejection(ready);
+  const extended: Scope.Handle = {
+    ...plain,
+    close: closers.length === 0 ? plain.close : closeThrough(layer, closers),
+    ready,
+  };
+  if (resolvers.length > 0) extended.resolve = resolveThrough(layer, resolvers);
+  if (sessions.length > 0)
+    extended.createSession = (options?: Scope.Options) => wrapSession(layer, options, sessions);
+  runStartChain(layer, extended, exts, settleReady, failReady);
+  return extended;
+}
+
+/** The `resolve` onion (ADR 0050, core/t33): registration order, first is outermost. An
+ * `Extension` target bypasses the chain — `resolve(ext)` reads the extension registry, not a
+ * snapshot the chain wraps. Root handle only in v1: sessions keep the plain dispatch. */
+function resolveThrough(
+  layer: Layer,
+  resolvers: readonly Scope.Extension<unknown>[],
+): Scope.Handle["resolve"] {
+  type OnionTarget = Data.Cell<unknown> | Resource.Handle<unknown> | Tag.Handle<unknown>;
+  const at = (
+    target: OnionTarget,
+    index: number,
+    chain: readonly Namespace[] | undefined,
+  ): unknown => {
+    if (index >= resolvers.length) {
+      if (isData(target)) return readCell(layer, target, chain);
+      if (isEdge(target)) return resolveEdge(layer, target, undefined, chain);
+      if (isResource(target)) return resourceController(layer, target, undefined, chain).resolve();
+      return tagRequired(layer, target, chain);
+    }
+    const next = (): unknown => at(target, index + 1, chain);
+    const { resolve: hook } = resolvers[index] as {
+      resolve?: (target: OnionTarget, next: () => unknown) => unknown;
+    };
+    if (hook === undefined) return next();
+    return hook(target, next);
+  };
+  const chained = (target: OnionTarget, ns?: Scope.NsArg): unknown => {
+    ensureOpen(layer);
+    if (isExtension(target)) return resolveExtension(layer, target);
+    const chain = ns?.ns === undefined ? layer.ns : nsChainOf(ns.ns);
+    return at(target, 0, chain);
+  };
+  return chained as Scope.Handle["resolve"];
 }
