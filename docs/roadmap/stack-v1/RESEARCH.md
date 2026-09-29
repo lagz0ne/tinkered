@@ -488,4 +488,4 @@ app, Better Auth, and pg-boss.
 
 ## Open
 
-Nothing. Next: split the design into tickets.
+Nothing. The tickets: `PROGRESS.md` in this folder.

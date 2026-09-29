@@ -29,6 +29,23 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 - **perf/warm-ctl-trade** — win back `s4_warm_ctl` (+0.3 ns, +2.8% at perf/tagged-close) without losing `warm`: both read through `nodeState`; the fix that inlined the whole warm read (611 → 613 bytes) made the bare controller lookup slower. V8 first (inlining of both loops), then N=31 `SCEN="warm s4_warm_ctl"`. Verify: neither "B slower" vs main before perf/tagged-close.
 
+- **stack/t01 sync-sse** — `@tinker/sync/sse` ships the SSE transport; the tracker and the sync example drop theirs (ADR 0077). Next: impact block, then brief a writer. Verify: sync and tracker tests green. [track](docs/roadmap/stack-v1/PROGRESS.md).
+- **stack/t02 hono-errors** — a managed error becomes its HTTP answer through `@tinker/hono`; the tracker's hand mapping goes. Next: impact block, then brief a writer. Verify: hono tests cover each answer; tracker tests unchanged. [track](docs/roadmap/stack-v1/PROGRESS.md).
+- **stack/t03 drizzle-rc** — the repo on one exact Drizzle 1.0 RC (ADR 0079). Next: brief a writer. Verify: build, `vp check`, drizzle and tracker tests green. [track](docs/roadmap/stack-v1/PROGRESS.md).
+- **stack/t04 trace-id** — core: a span carries a trace id; Hono seeds it from `traceparent` (ADR 0076). Next: impact block, then brief a writer. Verify: core and hono tests, `scripts/ticket.sh`, `pnpm validate`. [track](docs/roadmap/stack-v1/PROGRESS.md).
+- **stack/t05 stack-server** — `@tinker/stack` exists; its server piece runs the tracker's port, stop, exit code, logs, and client. Next: brief a writer. Verify: stack tests boot, stop, and fail on a bad `PORT`; tracker tests pass. [track](docs/roadmap/stack-v1/PROGRESS.md).
+- **stack/t06 migrate-step** — the tracker's tables come from migration files, run at boot under a lock (ADR 0079). After t03 and t05. Verify: a drift test fails on a mismatch; an old tracker database keeps its rows. [track](docs/roadmap/stack-v1/PROGRESS.md).
+- **stack/t07 nats** — `@tinker/nats`: connect, publish with `traceparent`, subscribe to an operation; tests on a real pinned `nats-server` (ADR 0080). Next: brief a writer. Verify: nats tests on a real server; a missing `NATS_URL` fails boot. [track](docs/roadmap/stack-v1/PROGRESS.md).
+- **stack/t08 jobs** — `@tinker/jobs`: pg-boss as a driver, a job per session, added in the request's transaction; cron (ADR 0075). After t06. Verify: a rolled-back request adds no job; nothing hangs on PGlite. [track](docs/roadmap/stack-v1/PROGRESS.md).
+- **stack/t09 mail** — `@tinker/mail`: `sendMail` adds a mail job; Upyo sends; dev logs, tests mock (ADR 0083). After t08. Verify: one mail per commit, none per rollback; a missing `MAIL_URL` fails boot in prod. [track](docs/roadmap/stack-v1/PROGRESS.md).
+- **stack/t10 auth-signin** — `@tinker/auth`: Better Auth sign-up and sign-in; its tables through our migrations (ADR 0075). After t06. Verify: sign up, sign in, read the user, sign out; the auth schema drift test. [track](docs/roadmap/stack-v1/PROGRESS.md).
+- **stack/t11 auth-mails** — verify and reset mails through `sendMail`. After t09 and t10. Verify: auth tests read both mails from the mock and follow their links. [track](docs/roadmap/stack-v1/PROGRESS.md).
+- **stack/t12 live-across** — a save on one server reaches tabs on another, over NATS (ADR 0080). After t07. Verify: two server scopes, one PGlite, a real `nats-server`. [track](docs/roadmap/stack-v1/PROGRESS.md).
+- **stack/t13 trace-sink** — the stack sends spans and logs over OTLP (ADR 0076). After t04 and t05. Verify: one request gives one trace at a local OTLP receiver. [track](docs/roadmap/stack-v1/PROGRESS.md).
+- **stack/t14 dev-host** — `vp run dev`: one process; an edit rebuilds the scope (ADR 0082). After t06 and t07. Verify: the old scope closes on an edit; `benchctl ab` says reload beats restart. [track](docs/roadmap/stack-v1/PROGRESS.md).
+- **stack/t15 server-pages** — the tracker's list page renders on the server with TanStack Router (ADR 0075). After t14. Verify: the browser test sees the list in the first HTML, then live updates. [track](docs/roadmap/stack-v1/PROGRESS.md).
+- **stack/t16 generator** — `vp create` writes a full app with every stack piece wired (ADR 0074). After t01, t02, t11, t12, t13, t15. Verify: a fresh app passes `vp check` and its tests, and boots in dev and prod. [track](docs/roadmap/stack-v1/PROGRESS.md).
+
 ## Doing
 
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
