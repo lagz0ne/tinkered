@@ -1586,5 +1586,15 @@ impact stack/t04: as planned (0 discrepancies). Advisory — never a gate.
 - Full requested gate: build, check, and all workspace tests; `EXIT=0`.
 - Core: 731 tests; Hono: 65; HTTP: 86; check has zero errors and the same 29 warnings.
 - SCIP impact check: zero discrepancies.
-- Validation and review results follow below when complete.
+- Jev: all 16 trace tests pass and have README promises, including the new import test.
+- All 61 source flags match existing false labels; no new label was added.
+- The package scan also lists seven old test notes, an old timer note, and 41 old README gaps.
+- None names the new test; those old gaps are outside F5.
+- Strict style: only the known S14 false hit on the `panics[0]` array read; TSDoc has no findings.
+- The requested child-process crypto guard is the only test patch; core is not mocked.
+- Timing and mutation were not repeated for this import-only fix; the prior round's numbers stay tied to `33583fb6`.
+- No rebase or push; no new core feedback.
+- `pnpm validate`: all 46 lanes pass; `VALIDATE_EXIT=0`.
+- Prose: zero hits; `PROSE_EXIT=0`.
+- Source commit: `2cb01a4f`; the card returns to Review.
 - Raw proof: `.bench/stack-t04-f5-proof/`.
