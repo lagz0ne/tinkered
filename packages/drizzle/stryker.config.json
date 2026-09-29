@@ -10,5 +10,6 @@
     "low": 60,
     "break": 85
   },
-  "tempDirName": ".stryker-tmp"
+  "tempDirName": ".stryker-tmp",
+  "timeoutMS": 60000
 }
