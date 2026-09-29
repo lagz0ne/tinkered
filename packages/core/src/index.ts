@@ -1090,11 +1090,8 @@ const NO_WORK = new Set<Promise<unknown>>();
 const NO_DEFERS: DeferEntry[] = [];
 const NO_ERRORS: unknown[] = [];
 
-/** One layer of the scope chain. A session is a child layer. */
+/** One layer of the scope chain. A lazy frame is always a child, so promotion has a parent. */
 type Layer = {
-  /** A tagged frame has no owned state or parent registration until its first use. */
-  lazy?: boolean;
-  parent: Layer | undefined;
   children: Set<Layer>;
   /** Single node-keyed store: cells, effective-cache, resources, builds, generations, build-flag,
    * borrowers, dependents, and cached controllers all live in one {@link NodeState} per node. */
@@ -1139,7 +1136,7 @@ type Layer = {
   ns: readonly Namespace[] | undefined;
   /** The root's extension routes, inherited by every layer under it ({@link ExtRoutes}). */
   exts: ExtRoutes;
-};
+} & ({ lazy?: false; parent: Layer | undefined } | { lazy: true; parent: Layer });
 
 type ExtRec = { settled: boolean; value: unknown };
 const EXTENSIONS = new WeakMap<Layer, Map<Scope.Extension<unknown>, ExtRec>>();
@@ -1558,7 +1555,8 @@ function writeWithHooks<T>(
 }
 
 /** One controller body keeps lazy reads and explicit namespace chains on the same write and
- * watch path. Only a default-chain controller on a full layer retains the effective-cell memo. */
+ * watch path. Only a default-chain controller on a full layer retains the effective-cell memo.
+ * The memo and lazy cuts change lookup and allocation cost only, not the value read. */
 function dataController<T>(
   layer: Layer,
   target: Data.Cell<T>,
@@ -2074,9 +2072,8 @@ function addWork(layer: Layer, work: Promise<unknown>): void {
   layer.pending.add(work);
 }
 
-/** Register a close-time cleanup on a layer, giving it its own list on the first one. */
+/** Resource builds already own node state; scope and extension handles already have full layers. */
 function addDefer(layer: Layer, entry: DeferEntry): void {
-  materialize(layer);
   if (layer.defers === NO_DEFERS) layer.defers = [];
   layer.defers.push(entry);
 }
@@ -2313,12 +2310,12 @@ function runTagged<T, I>(
 
 /** A frame grows in place, so controllers, contexts, and failure owners keep their identity. */
 function materialize(layer: Layer): void {
-  if (layer.lazy && !layer.closed) expandFrame(layer);
+  if (layer.lazy && !layer.closed) expandFrame(layer, layer.parent);
 }
 
 /** A tagged session before it owns anything. The prototype supplies only immutable defaults;
  * its services and bindings are retained from this call, never borrowed from a sibling. */
-class TaggedFrame implements Layer {
+class TaggedFrame {
   declare parent: Layer;
   declare tags: LayerTags | undefined;
   declare ns: readonly Namespace[] | undefined;
@@ -2368,11 +2365,10 @@ class TaggedFrame implements Layer {
   }
 }
 
-/** Only an untouched frame can skip the full idle test. Nested synchronous work keeps the
- * existing wait rule, and a teardown in progress takes the existing close guard. */
+/** The untouched-frame shortcut saves allocation; the full idle path gives the same outcome. */
 function endTaggedFrame(child: TaggedFrame | undefined, raw: unknown): unknown {
   if (child === undefined) return raw;
-  if (child.lazy && !(raw instanceof Promise) && buildDepth === 0 && teardownDepth.size === 0) {
+  if (child.lazy && !(raw instanceof Promise) && buildDepth === 0) {
     child.closed = true;
     child.aborted = true;
     child.closing = ENDED_CLEAN;
@@ -2406,12 +2402,15 @@ function runTaggedFrame<T, I>(
     ensureOpen(layer);
     child = new TaggedFrame(layer, tags, chain, caller, previous);
     activeTagged = child;
+    /** Growing a clean child here changes only cost; swept children need the parent's end state. */
     if (layer.swept) materialize(child);
     raw = adoptBody(runUntagged(child, target, parent, call, chain, undefined, nested));
   } catch (error) {
     raw = Promise.reject(error);
   } finally {
+    /** Restore the live prefix so future closes do not walk every past tagged call. */
     activeTagged = previous;
+    /** An escaped context must not retain the earlier frames through this link. */
     if (child) child.previous = undefined;
   }
   return endTaggedFrame(child, raw);
@@ -3034,6 +3033,7 @@ function finishHook(
   return prior.then(run, run);
 }
 
+/** Release extracts defers first; close owns its drain snapshot, so finish need not filter again. */
 function finishInstance(
   instance: ResourceInstance,
   prior?: Promise<void>,
@@ -3041,9 +3041,6 @@ function finishInstance(
   if (!instance.end || instance.finishing || isHeld(instance)) return instance.completion;
   instance.finishing = true;
   const { owner } = instance;
-  /** Keep the shared empty list: filtering it would allocate an array and grow a lazy owner. */
-  if (owner.defers.length !== 0)
-    owner.defers = owner.defers.filter((entry) => entry.instance !== instance);
   const finish = (): Promise<void> | undefined => {
     const tail = runDefers(owner, instance.hooks, instance.end as Scope.End);
     if (tail)
@@ -3618,10 +3615,9 @@ function nsFor(
   return parent?.ns;
 }
 
-/** A child layer: the parent's services and routes, its tags, presets, and namespace, and the
- * `swept`/abort state of a close already under way above it. */
+/** Handles create these children from full layers; tagged frames use their own constructor.
+ * Inherit the services, bindings, and any close already under way above the child. */
 function makeLayer(parent: Layer, options?: Scope.Options): Layer {
-  materialize(parent);
   const layer = layerRecord(parent, options, parent.obs, parent.clock, parent.random, parent.exts);
   if (parent.children === NO_CHILDREN) parent.children = new Set();
   parent.children.add(layer);
@@ -4840,7 +4836,8 @@ function walkEntry(layer: Layer, self: NodeState | undefined, target: Data.Cell<
 }
 
 /** Memoize an entry where it pays (see {@link effectiveEntry}): on this layer's record when it
- * has one, on a fresh record when the entry sits two or more hops up, else nowhere. */
+ * has one, on a fresh record when the entry sits two or more hops up, else nowhere.
+ * The hop and lazy cuts change cache cost only; untouched frames keep reading through. */
 function memoEntry(
   layer: Layer,
   self: NodeState | undefined,
@@ -5301,9 +5298,7 @@ Object.assign(TaggedFrame.prototype, FRAME_STATE);
 
 /** Promotion retains identity and binds ancestors first, before a watcher, build, or pending
  * body becomes visible. A new child inherits any close already in flight (ADR 0028). */
-function expandFrame(frame: Layer): void {
-  const parent = frame.parent;
-  if (parent === undefined) return;
+function expandFrame(frame: Layer, parent: Layer): void {
   materialize(parent);
   frame.lazy = false;
   if (parent.children === NO_CHILDREN) parent.children = new Set();
@@ -5353,7 +5348,7 @@ function propagateSweptOutcome(layer: Layer, parent: Layer): void {
   if (layer.failure && layer.failureOwner === undefined) parent.descendantFailure ??= layer.failure;
 }
 
-/** Do not add an own field just to shadow an inherited empty default during either data cleanup. */
+/** Free retained bindings; the empty-preset guard avoids an extra field on a grown frame. */
 function clearBindings(layer: Layer): void {
   if (layer.presets !== undefined) layer.presets = undefined;
   layer.tags = undefined;
