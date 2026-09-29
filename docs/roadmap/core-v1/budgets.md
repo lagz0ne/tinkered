@@ -15,6 +15,61 @@ sandbox re-check of the call-path rules is done; see "Call paths through benchd"
 2026-09-29: the probe now times every scenario the same way, and `bench/ab.sh` runs one probe
 against both trees. The numbers to use are in "Call paths with warm-up and one probe" below.
 
+## perf/tagged-close (2026-09-29)
+
+A = main `917ee14` (core last changed in `233139d`).
+B = `bdf9ed7`, the tip that landed.
+N=61 through `benchd`, one warmed probe, medians in ns per call.
+Every row: batch in 61 of 61 on both sides.
+
+```bash
+N=61 A=../tinkered-tagged-land-base \
+  SCEN="<all 20>" bench/queued.sh
+```
+
+- The 20: the 18 above, plus `taggeddefer` and `taggedres`.
+- `taggeddefer`: a tagged call whose body adds a `defer`.
+- `taggedres`: a tagged call that builds a session resource.
+
+### The run
+
+- **`s1_getctl`** — 265.5 → 197.8 (−67.7, −25.5%), slower 0/61: B faster
+- **`s2_data`** — 281.9 → 224.1 (−57.8, −20.5%), slower 0/61: B faster
+- **`s3_doubled`** — 516.5 → 430.4 (−86.1, −16.7%), slower 0/61: B faster
+- **`s4_warm_ctl`** — 10.6 → 10.9 (+0.3, +2.8%), slower 53/61: B slower
+- **`op`** — 95.9 → 80.8 (−15.1, −15.7%), slower 0/61: B faster
+- **`opres`** — 301.2 → 265.3 (−35.9, −11.9%), slower 0/61: B faster
+- **`asyncsub`** — 751.9 → 720.9 (−31.0, −4.1%), slower 5/61: B faster
+- **`run`** — 112.3 → 94.5 (−17.8, −15.9%), slower 0/61: B faster
+- **`inline`** — 187.1 → 165.3 (−21.8, −11.7%), slower 0/61: B faster
+- **`tagged`** — 2150.3 → 198.0 (−1952.3, −90.8%), slower 0/61: B faster
+- **`taggeddefer`** — 2303.2 → 372.9 (−1930.3, −83.8%), slower 0/61: B faster
+- **`taggedres`** — 3190.9 → 2486.6 (−704.3, −22.1%), slower 0/61: B faster
+- **`session`** — 1684.9 → 572.8 (−1112.1, −66.0%), slower 0/61: B faster
+- **`cold2`** — 575.5 → 523.8 (−51.7, −9.0%), slower 0/61: B faster
+- **`cold`** — 752.7 → 673.2 (−79.5, −10.6%), slower 0/61: B faster
+- **`create`** — 192.0 → 121.7 (−70.3, −36.6%), slower 0/61: B faster
+- **`warm`** — 16.0 → 15.9 (−0.1, −0.6%), slower 12/61: no difference we can see
+- **`get1`** — 0.4 → 0.4 (+0.0, +0.0%), slower 0/61: no difference we can see
+- **`lifecycle`** — 918.4 → 828.0 (−90.4, −9.8%), slower 0/61: B faster
+- **`inferdi_cold`** — 195.9 → 192.7 (−3.2, −1.6%), slower 15/61: no difference we can see
+- Raw rows: `tinkered-inv-reports/tagged-close-land-ab-2.csv`.
+
+### Exception (user, 2026-09-29)
+
+- `s4_warm_ctl` 10.6 → 10.9 ns (+2.8%, slower 53/61) is accepted.
+- It is the trade for `warm`: 16.0 → 15.9 after the `nodeState` fix.
+- The stack without the fix (`42556fa`) had `s4_warm_ctl` −8.3% and `warm` +22.5%.
+- A follow-up card, perf/warm-ctl-trade, tries to win it back.
+
+### Rule changes
+
+- `tagged` ≤ 250 ns; measured 198.0.
+  - It replaces ≤ 2000 ns.
+  - The user's target was 200 ns (2026-09-29).
+- `promises_tagged` = 2, exact; it replaces 17.
+- The older tables below stay as history.
+
 ## Call paths with warm-up and one probe (2026-09-29)
 
 ### Why the probe changed

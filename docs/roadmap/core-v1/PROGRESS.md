@@ -55,6 +55,32 @@ Linear order (each ticket's blockers are all lower-numbered). Mark `x` when its 
 Parallelizable once upstream lands: 04‖05, 15 alongside 12→13→14, 17 early off 05.
 Family (keyed collections) is out of v1 (needs its own ADR for the rules).
 
+- **perf/tagged-close** — A tagged call and an idle session got about 3x to 10x faster.
+  Stack: the fp3/fable stack, Astra's lazy tagged child session, a mutation lift, and the warm fix.
+  ADR 0071: a session's handle closes when its body ends; an idle session ends in place.
+  ADR 0072: a tagged call that ended in place returns its value.
+  A tagged call runs on a small frame that grows into its child session at first need.
+  Review: Opus read the code and the stack.
+  Review: Astra compared 758 behavior cases with main; only the ADR 0071/0072 outcomes changed.
+  Review: Fable checked the lazy session; 62 boundary cases were the same as the stack.
+  Review: Fable read the mutation lift (10 tests, four removals): READY.
+  Warm fix: `bdf9ed7` puts first-time record creation back inside `nodeState`.
+  Warm fix: the warm read inlines 611 bytes on main, 557 on the stack, 613 with the fix.
+  Warm fix, N=31 main vs fix: `warm` 16.0 → 15.9 ns, no difference we can see.
+  Benchd: N=61 against `917ee14`.
+  `tagged`: 2150.3 → 198.0 ns (−90.8%), slower 0/61.
+  `session`: 1684.9 → 572.8 ns (−66.0%), slower 0/61.
+  `taggeddefer`: 2303.2 → 372.9 ns (−83.8%); `taggedres`: 3190.9 → 2486.6 ns (−22.1%).
+  `warm`: 16.0 → 15.9 ns, no difference we can see.
+  Exception (user): `s4_warm_ctl` 10.6 → 10.9 ns (+2.8%, 53/61), the trade for `warm`.
+  The other 14 scenarios: B faster or no difference we can see ([budgets](budgets.md)).
+  Gate: `EXIT=0`.
+  Core tests: 710 passed.
+  Core mutation: 85.33.
+  Promises tagged: 17 → 2.
+  Validate: 44 PASS.
+  Slot headroom: 3.
+
 - **perf/create-presets** — Empty presets return before the loop.
   Filled presets run in `applyPresets`.
   V8: `seedPresets` shrank from 266 to 76 bytecode bytes.

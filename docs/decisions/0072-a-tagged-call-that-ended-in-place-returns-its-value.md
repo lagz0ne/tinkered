@@ -51,3 +51,9 @@ promise, as `fn` gave it.
 - **Tags as plain values, no child session** (220 ns).
   Rejected: session hooks stop seeing tagged calls, a tagged subflow's error loses its caller in
   the path, and there is no per-run close or release to observe.
+
+## As built
+
+- A tagged subflow called before the first `await` in a running body always returns a
+  promise; after an `await` it can return its value.
+- Promises per tagged call made by core: 17 → 0 when it ends in place.

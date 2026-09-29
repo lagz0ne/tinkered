@@ -28,44 +28,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 | docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)                                                                                                | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean   |
 | entries/follow-suit — the other entries on ADR 0078. S27: `packages/blueprint/src/main.ts`, `examples/mcp/cli.ts`, `examples/mcp/serve.ts`, `examples/process-cli/main.ts`. S28: `boot()` in `examples/sync/hono.ts` | lead          | one Astra writer + Fable review                                                                                                                                 | repo lint: 0 S27/S28 rows; gate and tests green |
 
+- **perf/warm-ctl-trade** — win back `s4_warm_ctl` (+0.3 ns, +2.8% at perf/tagged-close) without losing `warm`: both read through `nodeState`; the fix that inlined the whole warm read (611 → 613 bytes) made the bare controller lookup slower. V8 first (inlining of both loops), then N=31 `SCEN="warm s4_warm_ctl"`. Verify: neither "B slower" vs main before perf/tagged-close.
+
 ## Doing
 
 Pairs since 2026-09-28: an Astra writer (`codex/gpt-6-astra`, xhigh) and a Fable 5.1 (medium)
 reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
-
-- **perf/tagged-close** — win back `tagged` (2130 ns; budget ≤ 2000; t27 1943). Causes (Astra
-  report `session-tagged.md`): every close scans the layer's records for resource instances even
-  when none were built; tag seeding makes a flat list before the tag map. Fix, one experiment per
-  commit: skip the scan when the layer built no instance; then seed nested tags straight into the
-  map. A commit stays only if benchd says `tagged` or `session` "B faster". Owner: lead; Astra
-  writer `da5603fb`. In parallel (user: speed up), three Fable agents each test one more theory
-  on a `theory/<name>` branch, V8 first, one N=31 screening: `replay` (tagged child setup),
-  `route` (no-hook session route), `nsfields` (namespace fields on every record). Winners fold
-  into this card: `replay` (tagged −4.8%) and `route` commit 1 (session −3.1%) are picked; E2
-  kept (tagged −3.1%); E1 dropped (44/61); `nsfields` refuted (−1.1%). Next: the final N=61 run
-  on all of them together. Also (user: trace and untie from first principles), three challengers
-  work alone on `fp/<model>` branches: Astra `c5c163f0`, Fable `a75aef97`, Opus `d7dc1611`.
-  Round 1: fp/astra `6493208` reached `tagged` 1816 ns (−16.2%, 31/31), `session` 1537 (−8.0%),
-  promises 17 → 13, no rule change. Round 2: fp2/fable `22e164d` ends an idle session in
-  place: `tagged` 992, `session` 660, promises 2, all tests pass (rule-change floors measured:
-  R2 811, R1 220; user keeps the rules). New target (user 2026-09-29): `tagged` 700, no rule
-  change. Now: Astra checks `22e164d` against main (order and outcome); Opus the layer record
-  and its lists plus `route` (fp2/opus); Fable the run side (fp3/fable). The card is rebuilt on
-  the winners. Since: Astra's check found outcome bugs in `22e164d` (fixed in `9687dbc`); the user
-  chose ADR 0071 (a session's handle closes when its body ends) and ADR 0072 (R2: a tagged call
-  that ended in place returns its value); Opus's layer work `fb35497` screened `tagged` 909.5.
-  Before the final proof: bench/probe-warmup (Opus) lands. mitata timed main in one-call mode and
-  the branches in a mix; the probe warms each scenario and `ab.sh` runs one probe for both trees.
-  Reviewed: Opus (code, READY after one fix round) and Astra (758 cases vs main; only ADR
-  0071/0072 changes); stack `9f11949`: `tagged` 514, `session` 535, mutation 85.08. Then (user:
-  "push to 200"): Astra's lazy child session `c37306e` (a tagged call runs on a small frame and
-  grows into the full layer at first need) screened `tagged` 510.9 → 194.9 (31/31), `session` and
-  `op` unchanged, 758 cases identical to the stack. Next: Fable reviews `c37306e`; Astra times
-  tagged calls that grow (`taggeddefer`, `taggedres`); one lander lands it all. Verify: no scenario slower, promises 17, `pnpm validate`, core mutation ≥ 85. If no
-  experiment wins: raise the budget to 2200 and record why (user 2026-09-28: A, then B).
-  Now (after a session expiry, 09:00): the first lander stopped at mutation 84.40; Astra's lift
-  `a2db042` (10 tests, four removals) scores 85.55. Fable `057da580` reviews the lift; lander
-  `c0cdf834` runs the bars on `a2db042` and pushes only after that review says READY.
 
 - **perf/tagged-100** — push `tagged` toward 100 ns with no rule change (user 2026-09-29). Base
   `43a99e0` (tagged stack + lazy log). Result: Fable's `t100/fable` (`5234b4b` + fix `5ecc245`,
@@ -125,6 +93,7 @@ reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, on
 
 ## Done
 
+- **perf/tagged-close** — fp3/fable stack + Astra's lazy tagged child session + mutation lift + warm fix (`nodeState` inline again); reviewed by Opus (code), Astra (758 cases vs main: only ADR 0071/0072 outcomes), Fable (62 lazy-session boundary cases; lift READY); tag `perf/tagged-close`. ADR 0071 (an idle session ends in place) and ADR 0072 (a tagged call that ended in place returns its value). benchd N=61 vs `917ee14`: `tagged` 2150.3 → 198.0 ns (−90.8%, 0/61), `session` 1684.9 → 572.8 (−66.0%), `taggeddefer` −83.8%, `taggedres` −22.1%, `create` −36.6%, `op` −15.7%; `warm` no difference we can see; exception (user): `s4_warm_ctl` 10.6 → 10.9 (+2.8%, 53/61), follow-up perf/warm-ctl-trade. Promises tagged 17 → 2; core mutation 85.33; 710 tests; validate 44 PASS. New rules: `tagged` ≤ 250 ns, `promises_tagged` = 2 ([budgets](docs/roadmap/core-v1/budgets.md)).
 - **tracker/entry-root** — lead draft + Astra writer + Fable review (one fix round); tag `tracker/entry-root`; ADR 0078. `createApp` is gone. Pieces live beside their code: `issueServer` (routes.ts), `publish()` (publish.ts: the boot publish and the publish after commit, merged), `draftTags` (draft.ts). `main.ts` exports `runServer(env, stop)`, the one full root; `if (import.meta.main)` starts it, so a test imports the entry and starts nothing. The server is first in every list, so the port opens after the saved list is published (on main a tab could get `[]` first). Every root awaits close after a failed `ready`. New tests: the order test (fails with the server listed last or `publish()` missing) and a real-root test on a free port. Tracker tests 72, browser 7, validate 44 PASS, hono mutation 88.03. Core feedback row: a rejected `ready` settles before its close.
 - **jev/entry-rules** — Astra writer + Fable review (one fix round); tag `jev/entry-rules`; ADR 0078. Two plain rules. S27 unguardedEntry: a top-level `await`, `for await`, or `await using` outside `if (import.meta.main)`; tests, `.tsx`, and `client/` are skipped. S28 returnedRoot: a function that returns a scope it made with `createScope`, alone or in an object; a factory handed to an owner (a call or `new` argument, a JSX attribute) does not count. Repo lint today: S27 on 7 entry lines (tracker server and tools, blueprint, four example lines), S28 on the tracker's `createApp` and the `boot()` in `examples/sync/hono.ts`. Jev tests 135, writer-trial tests 60.
 - **bench/probe-warmup** — Opus writer + Fable review; tag `bench/probe-warmup`. mitata chose batch or one-call timing per process from the first call's time (≤ 500 µs), so main ran one-call and branches a mix. The probe now times every scenario in batch mode by construction (10,000 warm-up calls, then mitata's public `measure()` with both warm-up limits lifted; METRIC says `mode=`), and `ab.sh` runs ONE probe (B's) against both trees' builds and fails on a one-call run. Re-baseline main vs main (18 scenarios): all "no difference we can see". `fb35497` vs main in batch mode: `tagged` −57.0%, `session` −51.5%. Older tables are not comparable ([budgets](docs/roadmap/core-v1/budgets.md)).

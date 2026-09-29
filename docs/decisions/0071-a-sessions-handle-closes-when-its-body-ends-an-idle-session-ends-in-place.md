@@ -60,3 +60,10 @@ the `tx` handle is dead once the callback returns.
   Rejected: it undoes ADR 0038's per-call cleanup, panic isolation, and session hooks.
 - **A tagged call returns its value directly when it ended in place** (measured: 811 ns).
   Rejected: it breaks ADR 0038's "always async".
+
+## As built
+
+- `close()` on a handle whose body has ended returns the session's success `Result`, with no
+  data, as on main after a close. `onClose`, `resolve`, and `run` on it throw `Disposed`.
+- Measured at landing (benchd N=61, one warmed probe, vs main `917ee14`): `session` 1684.9 →
+  572.8 ns, `tagged` 2150.3 → 198.0 ns.
