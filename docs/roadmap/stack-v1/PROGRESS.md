@@ -3018,3 +3018,35 @@ MUTATION_EXIT 0
 - Auth mutation is queued under `/tmp/mutation.lock`.
   Its config has `timeoutMS: 60000`, concurrency 2, and floor 85.
   No source file is excluded.
+
+### t10 async tag reads during shutdown
+
+- A further probe found HTTP 500 when graceful close began during
+  an async tag read, before the request session existed.
+- Core refuses new sessions as soon as close starts, even when
+  an owned operation is still running.
+- Hono now drains its accepted async requests before calling the
+  captured root close, as NATS already does for subscriptions.
+  It rejects new requests during that drain with HTTP 503.
+- Forced close does not wait for tag reads.
+  A tag read that finishes later cannot run its prepared operation.
+- Added graceful-close, forced-close, and rejected-tag-read tests.
+- The first two approaches failed the graceful-close probe.
+  The final code passes all 73 Hono tests.
+- Full gate and all 18 repo test tasks pass again, `EXIT 0`.
+  Auth: 15; stack: 63; tracker: 79; check: 29 warnings.
+- Cancelled only this ticket's waiting `flock` before editing.
+  The auth mutation tool had not started; its log was empty.
+  No full auth mutation lane has run yet.
+- Core feedback: Hono needs a per-root hook before close locks
+  out new sessions, to drain request preparation.
+  Until then, its start wraps that root's public close method.
+  This is the same missing close hook already reported by NATS.
+
+```ts
+const reply = app.request("/me");
+const closing = scope.close({ graceful: true });
+finishCookieRead();
+await reply; // was HTTP 500; should be HTTP 200
+await closing;
+```

@@ -347,3 +347,6 @@ Async request tags finish before the operation opens its session resource.
 The `tags` wiring hook can return a promise.
 Hono awaits it before opening the request session.
 A request aborted while reading async tags never runs its operation.
+A graceful close waits for async tags and the request they prepare.
+A failed async tag read fails only its request.
+A forced close during async tags never runs the prepared operation.

@@ -650,3 +650,64 @@ test("a request aborted while reading async tags never runs its operation", asyn
     await scope.close();
   }
 });
+
+test("a graceful close waits for async tags and the request they prepare", async () => {
+  let finish!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const read = operation({ label: "read", run: () => "ok" });
+  const web = hono([route.get("/", read)], {
+    tags: async () => {
+      await ready;
+      return [];
+    },
+  }).extension;
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const answer = scope.resolve(web).request("/");
+  const closing = scope.close({ graceful: true });
+  finish();
+  expect(await (await answer).json()).toBe("ok");
+  expect((await closing).status).toBe("success");
+});
+
+test("a failed async tag read fails only its request", async () => {
+  const read = operation({ label: "read", run: () => "ok" });
+  const web = hono([route.get("/", read)], {
+    tags: () => Promise.reject(new Error("tag read")),
+  }).extension;
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  expect((await scope.resolve(web).request("/")).status).toBe(500);
+  expect((await scope.close({ graceful: true })).status).toBe("success");
+});
+
+test("a forced close during async tags never runs the prepared operation", async () => {
+  let finish!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const writes: string[] = [];
+  const write = operation({
+    label: "write",
+    run: () => {
+      writes.push("saved");
+      return "ok";
+    },
+  });
+  const web = hono([route.post("/", write)], {
+    tags: async () => {
+      await ready;
+      return [];
+    },
+  }).extension;
+  const scope = createScope({ extensions: [web] });
+  await scope.ready;
+  const answer = scope.resolve(web).request("/", { method: "POST" });
+  const closing = scope.close();
+  finish();
+  expect((await answer).status).toBe(499);
+  expect(writes).toEqual([]);
+  expect((await closing).status).toBe("cancelled");
+});
