@@ -162,7 +162,9 @@
 | --------------- | ------- |
 | extension       | `Scope.Extension`: middleware over the scope's verbs — any of `start`, `resolve`, `run`, `write`, `close`, each an onion layer `(…, next)`; installed by the composition root via `createScope({ extensions })`, root handle only in v1; session calls and writes through operation dependencies bypass the hooks. `start` receives the scope handle — with the composition root, one of the two hands (ADR 0050, 0051). |
 | hook chain      | The per-verb onion built once at creation from the extensions that declare that hook; registration order, first is outermost; a verb with no middleware keeps its direct call (pays nothing). |
-| ready           | `scope.ready`: a promise settled when every `start` chain settled; a rejected start rejects it and force-closes the scope (`failed`). No extensions → already resolved. |
+| ready           | `scope.ready`: a promise settled when every `start` chain settled; a rejected start force-closes the scope through its `close` (every close hook runs) and rejects `ready` only after that close ended (ADR 0085). No extensions → already resolved. |
+| closed          | `scope.closed` on a root made with a stop `signal`: core's one close `Result`, once that close ended; settles once, never rejects, pending while open (ADR 0085). |
+| stop signal     | `createScope({ signal })`: an abort closes the root gracefully once `ready` resolved. Not `ctx.signal`: it asks the root to stop; `ctx.signal` cancels work (ADR 0085). |
 | extension value | What a `start` chain returned, read with `scope.resolve(ext)` once ready (`NotResolved` before). `source()` → `{ connect }`, `subscribe(link)` → `{ close }`. |
 
 ## Drivers as extensions (core + drivers, ADR 0051)
