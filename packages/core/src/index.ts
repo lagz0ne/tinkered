@@ -2477,6 +2477,9 @@ function finishAsyncRun<T>(
 
 /** Build the shared run entry without its public controller. Internal replays have already run
  * the hooks and never expose `settle`, so they need only this executor (ADR 0038, 0050, 0067). */
+/** A controller's `run`: one small closure over the run's fixed facts that calls {@link runOnce}.
+ * The closure is made once per controller; a replay ({@link runUntagged}) calls `runOnce` itself
+ * and makes none. */
 function executorFor<T, I>(
   layer: Layer,
   target: Operation.Handle<T, I>,
@@ -2485,67 +2488,81 @@ function executorFor<T, I>(
   caller: RunState | undefined,
   replay: Replay,
 ): (call?: Scope.Invocation<I>) => unknown {
-  /** The single entry every run takes — declared, subflow, and inline alike. A call carrying
-   * `tags` opens a child session for the run (ADR 0038; a value or a promise, ADR 0072); anything else runs the
-   * untagged body inline below, which is main's, unchanged — one optional `call.tags` read, no
-   * extra frame or call on the hot path. The implementation signature stays broad (one input
-   * shape would mean no overload — rule 9); the two public overloads type the fork. */
   const sees = seesResourceOf(target);
   const blind = (target as BlindFlag)[blindSym] === true;
-  return (call?: Scope.Invocation<I>): unknown => {
-    if (hasCallTags(call))
-      return runTagged(
-        layer,
-        target,
-        parent,
-        caller,
-        call as Scope.Invocation<I> & { readonly tags: Scope.Bindings },
-        chain,
-      );
-    if (hasCallNs(call))
-      return runNsCall(
-        layer,
-        target,
-        parent,
-        caller,
-        call as Scope.Invocation<I> & { readonly ns: Ns },
-      );
-    ensureOpen(layer);
-    const obs = layer.obs;
-    const span = openSpan(obs, parent, target.label, "operation");
-    const override = presetFor(layer, target) as Operation.Handle<T, I>["run"] | undefined;
-    /** Hold a borrow across the op's WHOLE lifetime — body settle (or a throw) AND its own `defer`
-     * drain — so a release waits for the op's cleanup (which may still touch the resource) before
-     * tearing it down (ADR 0026 Q2). Taken before deps resolve (a dep's factory may release another
-     * dep during resolution), released after the defer drain on BOTH the success and throwing paths.
-     * A fully synchronous op runs and removes the borrow within `run()`, so a later release
-     * sees no borrower and stays sync. */
-    const held = takeBorrows(target);
-    let ctx: OperationCtx<I> | undefined;
-    let result: T;
-    buildDepth++;
-    try {
-      ctx = OperationCtx.of(layer, target, call, obs, span, override, blind);
-      const deps = sees
-        ? readOpDeps(layer, target, span, held, chain, ctx)
-        : buildPlainDeps(layer, target.depends, span, chain, ctx);
-      result = runBody(override, target, deps, ctx, parked);
-    } catch (error) {
-      stampOrigin(error, target.label, span, ctx, endsFlight(caller, replay));
-      if (caller !== RECOVERED) stick(layer, error);
-      closeSpan(obs, span, "failed", error);
-      finishRun(layer, ctx, held, "failed", error);
-      throw error;
-    } finally {
-      buildDepth--;
-    }
-    if (!isThenable(result)) {
-      if (span) closeSpan(obs, span, "ok");
-      finishRun(layer, ctx, held, "ok");
-      return result;
-    }
-    return finishAsyncRun(layer, result, caller, replay, obs, span, target.label, ctx, held);
-  };
+  return (call?: Scope.Invocation<I>): unknown =>
+    runOnce(layer, target, parent, chain, caller, replay, sees, blind, call);
+}
+
+/** The single entry every run takes — declared, subflow, and inline alike. A call carrying
+ * `tags` opens a child session for the run (ADR 0038; a value or a promise, ADR 0072); anything else runs the
+ * untagged body inline below, which is main's, unchanged — one optional `call.tags` read, no
+ * extra frame or call on the hot path. A plain function, so a replay on a fresh child layer
+ * allocates no closure and no context for it; `sees` and `blind` are the target's declaration-time
+ * flags, read once per controller. The public overloads type the fork (rule 9). */
+function runOnce<T, I>(
+  layer: Layer,
+  target: Operation.Handle<T, I>,
+  parent: Observe.Span | undefined,
+  chain: readonly Namespace[] | undefined,
+  caller: RunState | undefined,
+  replay: Replay,
+  sees: boolean,
+  blind: boolean,
+  call: Scope.Invocation<I> | undefined,
+): unknown {
+  if (hasCallTags(call))
+    return runTagged(
+      layer,
+      target,
+      parent,
+      caller,
+      call as Scope.Invocation<I> & { readonly tags: Scope.Bindings },
+      chain,
+    );
+  if (hasCallNs(call))
+    return runNsCall(
+      layer,
+      target,
+      parent,
+      caller,
+      call as Scope.Invocation<I> & { readonly ns: Ns },
+    );
+  ensureOpen(layer);
+  const obs = layer.obs;
+  const span = openSpan(obs, parent, target.label, "operation");
+  const override = presetFor(layer, target) as Operation.Handle<T, I>["run"] | undefined;
+  /** Hold a borrow across the op's WHOLE lifetime — body settle (or a throw) AND its own `defer`
+   * drain — so a release waits for the op's cleanup (which may still touch the resource) before
+   * tearing it down (ADR 0026 Q2). Taken before deps resolve (a dep's factory may release another
+   * dep during resolution), released after the defer drain on BOTH the success and throwing paths.
+   * A fully synchronous op runs and removes the borrow within `run()`, so a later release
+   * sees no borrower and stays sync. */
+  const held = takeBorrows(target);
+  let ctx: OperationCtx<I> | undefined;
+  let result: T;
+  buildDepth++;
+  try {
+    ctx = OperationCtx.of(layer, target, call, obs, span, override, blind);
+    const deps = sees
+      ? readOpDeps(layer, target, span, held, chain, ctx)
+      : buildPlainDeps(layer, target.depends, span, chain, ctx);
+    result = runBody(override, target, deps, ctx, parked);
+  } catch (error) {
+    stampOrigin(error, target.label, span, ctx, endsFlight(caller, replay));
+    if (caller !== RECOVERED) stick(layer, error);
+    closeSpan(obs, span, "failed", error);
+    finishRun(layer, ctx, held, "failed", error);
+    throw error;
+  } finally {
+    buildDepth--;
+  }
+  if (!isThenable(result)) {
+    if (span) closeSpan(obs, span, "ok");
+    finishRun(layer, ctx, held, "ok");
+    return result;
+  }
+  return finishAsyncRun(layer, result, caller, replay, obs, span, target.label, ctx, held);
 }
 
 function operationController<T, I>(
@@ -2609,7 +2626,17 @@ function runUntagged<T, I>(
   caller?: RunState,
   nested = false,
 ): T {
-  return executorFor(layer, target, parent, chain, caller, nested ? "nested" : "root")(call) as T;
+  return runOnce(
+    layer,
+    target,
+    parent,
+    chain,
+    caller,
+    nested ? "nested" : "root",
+    seesResourceOf(target),
+    (target as BlindFlag)[blindSym] === true,
+    call,
+  ) as T;
 }
 
 function ownerOf(layer: Layer, target: Resource.Handle<unknown>): Layer {
@@ -3551,23 +3578,6 @@ function seedPresets(seeds: Many<Scope.Preset>): Seeded {
   if (list.length === 0) return NO_PRESETS;
   const nodes = new Map<object, NodeState>();
   return { nodes, presets: applyPresets(nodes, list) };
-}
-
-/** Keep the preset loop out of the empty path so V8 can inline scope setup. */
-function applyPresets(
-  nodes: Map<object, NodeState>,
-  seeds: readonly Scope.Preset[],
-): Map<unknown, unknown> | undefined {
-  let presets: Map<unknown, unknown> | undefined;
-  for (const p of seeds) {
-    const node = p.node;
-    if (isData(node)) {
-      const s = new NodeState();
-      s.cell = { value: admit(node.label, node.parse, p.replacement) };
-      nodes.set(node, s);
-    } else (presets ??= new Map()).set(node, p.replacement);
-  }
-  return presets;
 }
 
 function makeRootLayer(options: Scope.Options | undefined): Layer {
@@ -5212,4 +5222,21 @@ async function runSessionWrapped<R>(
   }
   settleSessionEnded(wrapped.ended);
   return wrapped.result as R;
+}
+
+/** Keep the preset loop out of the empty path so V8 can inline scope setup. */
+function applyPresets(
+  nodes: Map<object, NodeState>,
+  seeds: readonly Scope.Preset[],
+): Map<unknown, unknown> | undefined {
+  let presets: Map<unknown, unknown> | undefined;
+  for (const p of seeds) {
+    const node = p.node;
+    if (isData(node)) {
+      const s = new NodeState();
+      s.cell = { value: admit(node.label, node.parse, p.replacement) };
+      nodes.set(node, s);
+    } else (presets ??= new Map()).set(node, p.replacement);
+  }
+  return presets;
 }
