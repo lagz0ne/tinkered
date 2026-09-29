@@ -2242,8 +2242,9 @@ class OperationCtx<I> implements Operation.Ctx<I> {
     this.clock = owner.clock;
     this.random = owner.random;
   }
+  /** These callbacks belong to this run. An async tail or teardown error grows the layer at
+   * its own gate; a close during cleanup grows it through the active tagged stack. */
   readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
-    materialize(this.owner);
     (this.defers ??= []).push(fn);
   };
   get raise(): Operation.Ctx<I>["raise"] {
@@ -5278,8 +5279,9 @@ async function closeEach(layer: Layer, force: boolean): Promise<void> {
   }
 }
 
-/** Shared empty state is inherited until promotion. All writes go through the same first-use
- * gates as full layers; promotion copies these slots before anything can own state. */
+/** Empty defaults stay inherited after promotion. Collection gates give each owner its own
+ * storage before adding entries; scalar writes create own fields. Copying all defaults at once
+ * added a property array and an ObjectAssign call to every grown frame. */
 const FRAME_STATE = {
   children: NO_CHILDREN,
   nodes: NO_NODES,
@@ -5310,13 +5312,14 @@ function expandFrame(frame: Layer): void {
   const parent = frame.parent;
   if (parent === undefined) return;
   materialize(parent);
-  Object.assign(frame, FRAME_STATE);
   frame.lazy = false;
   if (parent.children === NO_CHILDREN) parent.children = new Set();
   parent.children.add(frame);
-  frame.swept = parent.swept;
-  frame.aborted = parent.aborted;
-  frame.abortReason = parent.abortReason;
+  if (parent.swept) frame.swept = true;
+  if (parent.aborted) {
+    frame.aborted = true;
+    frame.abortReason = parent.abortReason;
+  }
 }
 
 /** A close can enter through a captured handle while a body is still synchronous. Register
