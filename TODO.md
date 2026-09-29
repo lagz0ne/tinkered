@@ -47,7 +47,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 - **stack/t10 auth-signin** — `@tinker/auth`: Better Auth sign-up and sign-in; its tables through our migrations (ADR 0075). Owner: lead (stack session); Astra writer `678d336f`, worktree `/home/paseo/next/tinkered-stack-t10`, branched from the rebased stack/t06 (lands first); Opus reviewer when the writer reports. Verify: sign up, sign in, read the user, sign out; the auth schema drift test. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t08 jobs** — `@tinker/jobs`: pg-boss as a driver, a job per session, added in the request's transaction; cron (ADR 0075). Owner: lead (stack session); Astra writer `0c7adcb8`, worktree `/home/paseo/next/tinkered-stack-t08`, branched from the rebased stack/t06 (lands first); Opus reviewer when the writer reports. Verify: a rolled-back request adds no job; nothing hangs on PGlite. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t17 hono-commit** — a request commits before it answers (a failed commit answers 500, not 200 with nothing saved); any raised error rolls the request back, even when answered 4xx (ADR 0084, user 2026-09-29). Owner: lead (stack session); Astra writer `32dd77ae`, worktree `/home/paseo/next/tinkered-stack-t17`; Opus reviewer when the writer reports. Verify: a test per rule that fails on main; hono, drizzle, stack, tracker tests; `pnpm validate`. [track](docs/roadmap/stack-v1/PROGRESS.md).
-- **stack/t06 migrate-step** — the tracker's tables come from migration files, run at boot under a lock (ADR 0079). Owner: lead (stack session); Astra writer `2cb63e15`, worktree `/home/paseo/next/tinkered-stack-t06`; Opus reviewer when the writer reports. Verify: a drift test fails on a mismatch; an old tracker database keeps its rows. [track](docs/roadmap/stack-v1/PROGRESS.md).
 
 - **core/root-lifetime** — ADR 0085: `createScope({ signal })` → `Scope.RootHandle`; an abort
   closes gracefully once `ready` resolved; `closed` (signal roots only) holds core's one
@@ -61,6 +60,8 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
   (stack `runUntilStop`, tracker, examples, sync test), S19 in the repo lint, S29.
 
 ## Review
+
+- **stack/t06 migrate-step** — Owner: stack/t06 writer, branch `stack/t06`, worktree `/home/paseo/next/tinkered-stack-t06`. Next: lead review and landing. Verify: gate `EXIT 0`; browser and all package tests pass; all 46 validation lanes pass; Drizzle 87.16 (95 killed / 0 timeout / 14 survived), stack 87.05 (193 / 2 / 29). Nothing pushed. [track](docs/roadmap/stack-v1/PROGRESS.md).
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |

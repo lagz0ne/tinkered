@@ -22,8 +22,8 @@ Rules for every ticket:
 ## t06 writer — 2026-09-29
 
 - Owner: stack/t06 writer.
-- State: Doing.
-- Next: finish both mutation lanes.
+- State: Review.
+- Next: lead review and landing; the writer has not pushed.
 - Verify: build, check, drizzle, stack, tracker, browser,
   validation, and both mutation lanes at or above 85.
 - Assumption: the tracker's schema stays `public`.
@@ -128,8 +128,8 @@ e8edd103cf81
   The job held `/tmp/mutation.lock`.
   `allowBuilds.esbuild` was already true;
   `pnpm-workspace.yaml` was restored after validation.
-- The mutation lanes follow under the same lock.
-  Both use two workers and a 60-second limit from the start,
+- Both mutation lanes ran under the same lock.
+  Both used two workers and a 60-second limit from the start,
   following the user's load warning.
 
 ### t06 mutation proof
@@ -142,7 +142,26 @@ e8edd103cf81
   and checks on Kit's JSON shape.
   Real matching and changed schemas both passed the tests.
 - Source files are unchanged after the run.
-- The stack lane follows under the same lock.
+- Stack: 87.05, above the floor of 85, `EXIT 0`.
+  193 killed, 2 timed out, 29 survived, 0 uncovered, 0 errors.
+  One full run, two workers, `--timeoutMS 60000`.
+- The two timeout rows are in `src/migrate.ts`, lines 27 and 28:
+  a required baseline call and an empty migration-options object.
+  Kills alone are 193 of 224, or 86.16 percent, still above 85.
+  Two of 224 timed out with the longer limit; no rerun was needed.
+- One outer `flock /tmp/mutation.lock` held the lock through
+  validation and both mutation commands:
+
+```bash
+vp run --no-cache drizzle#mutate \
+  --timeoutMS 60000 --concurrency 2
+vp run --no-cache stack#mutate \
+  --timeoutMS 60000 --concurrency 2
+```
+
+- Final source diff after Stryker: empty.
+  No work remains for the writer; the card is in Review.
+  Nothing was pushed.
 
 ## Tickets
 
