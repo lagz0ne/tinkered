@@ -3795,7 +3795,9 @@ function fastClose(
  * abort is queued; the body's end must be read against that abort, ADR 0026 Q5 — an aborted
  * live layer is always swept too), no signal handed out (a forced close would dispatch abort on
  * it), no build in progress, no child, no in-flight owned work, no defer, no teardown error, and
- * {@link ownsNothing}. */
+ * {@link ownsNothing}. "No build in progress" (`buildDepth`) means a tagged subflow called while
+ * another run's body has not yet returned — before that body's first `await` — always comes back
+ * as a promise; the same call after an `await` can come back as a value (ADR 0072's wait list). */
 function canEndIdle(layer: Layer): boolean {
   return (
     layer.closing === undefined &&
