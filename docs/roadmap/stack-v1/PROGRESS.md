@@ -2080,3 +2080,38 @@ vp run -r build && vp check \
   median 93, p95 197; all 72,704 spans reached the collector.
   Trace source and tests did not change in the outside rebase.
   [Cost notes](../../../research/learnings/2026-09-30-trace-sink-flush.md).
+## t17 writer notes
+
+Owner: stack/t17 writer. Branch: `stack/t17`.
+Next: check close errors, tracker behavior, and the full gate.
+Verify: Hono, Drizzle, stack, tracker, browser proof,
+`vp check`, `pnpm validate`, Hono mutation at least 85.
+
+The request and stream close behavior changes.
+Callers: the issue tracker, stack tests, Hono tests,
+and the Hono, Drizzle, and sync examples.
+No public symbol changes.
+The success and unmapped-error cases are guards;
+they need to stay green on main.
+
+First green step: Hono 73 tests pass.
+`vp check`: 0 errors, 29 warnings.
+`vp run prose`: 0 hits.
+
+Before the fix, at `8df4b19b` (fetched origin/main):
+
+```text
+failed commit: expected 500, received 201
+mapped 409: expected [], received [{title: 'A'}]
+unmapped error: expected [], received [{title: 'A'}]
+stream commit: reader resolved done instead of rejecting
+Tests: 4 failed, 1 passed
+```
+
+The successful-save guard passed before and after.
+The unmapped managed error also kept writes before the fix.
+Hono now gives the request a session body.
+The body rethrows the route error after Hono builds its answer.
+This makes both mapped and unmapped errors roll back.
+The close waits for teardown and session hooks before the answer leaves.
+A stream waits for close before it ends cleanly.

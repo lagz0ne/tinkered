@@ -235,25 +235,25 @@ test("onError answers first: a parse failure becomes 418 while MissingTag keeps 
   await scope.close();
 });
 
-test("onError recovers a panic from the operation and the request session closes success", async () => {
+test("onError recovers a panic from the operation and the request session closes failed", async () => {
   const { app, ends, scope } = await serveRecovering(() => {
     throw new Error("kaboom");
   });
   const res = await app.request("/fail");
   expect(res.status).toBe(503);
   for (let i = 0; i < 50 && ends.length === 0; i++) await Promise.resolve();
-  expect(ends).toEqual(["success"]);
+  expect(ends).toEqual(["failed"]);
   await scope.close();
 });
 
-test("onError recovers a raised error from the operation and the request session closes success", async () => {
+test("onError recovers a raised error from the operation and the request session closes failed", async () => {
   const { app, ends, scope } = await serveRecovering(({ raise }) =>
     raise("Busy", { retryAfter: 1 }),
   );
   const res = await app.request("/fail");
   expect(res.status).toBe(503);
   for (let i = 0; i < 50 && ends.length === 0; i++) await Promise.resolve();
-  expect(ends).toEqual(["success"]);
+  expect(ends).toEqual(["failed"]);
   await scope.close();
 });
 
