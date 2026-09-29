@@ -132,6 +132,18 @@ e8edd103cf81
   Both use two workers and a 60-second limit from the start,
   following the user's load warning.
 
+### t06 mutation proof
+
+- Drizzle: 87.16, above the floor of 85, `EXIT 0`.
+  95 killed, 0 timed out, 14 survived, 0 uncovered, 0 errors.
+  One full run, two workers, `--timeoutMS 60000`.
+  The new migration file scored 86.00 on its own.
+- The seven new survivors cover the empty-folder guard
+  and checks on Kit's JSON shape.
+  Real matching and changed schemas both passed the tests.
+- Source files are unchanged after the run.
+- The stack lane follows under the same lock.
+
 ## Tickets
 
 - **t01 sync ships the SSE transport** -- [x] landed `fd5a6a8`
