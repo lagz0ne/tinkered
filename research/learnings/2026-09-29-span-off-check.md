@@ -142,3 +142,12 @@ N=31 through the queue, base `de72d420`, gives:
 - cold: 668.6 -> 669.8 ns; slower 16/31; no difference we can see
 
 All eight cases used batch mode, 31/31 per tree; `BENCH_EXIT=0`.
+
+The second layout reuses the last two trace words for the root's span ID.
+It draws two words for each child or remotely seeded root.
+N=31 `opobs`: 184.2 to 208.7 ns; slower 31/31; b is slower.
+It passed build, check, 730 core tests, slots, and prose before timing.
+
+The third layout keeps root bits on the span until a child opens or a reader needs the trace.
+The default source skips the seeded-handle lookup.
+The bits still come from four draws at open; only their shared record is lazy.

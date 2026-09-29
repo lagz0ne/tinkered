@@ -1870,14 +1870,11 @@ class SpanImpl implements Observe.Span {
   status: "ok" | "failed" | undefined = undefined;
   declare error?: unknown;
   private static seeded = new WeakMap<Random.Handle, typeof systemRandom.ids>();
-  declare private trace: {
-    a: number;
-    b: number;
-    c: number;
-    d: number;
-    text: string | undefined;
-    random: typeof systemRandom.ids;
-  };
+  declare private trace:
+    | { a: number; b: number; c: number; d: number; text: string | undefined }
+    | undefined;
+  declare private a: number;
+  declare private b: number;
   declare private high: number;
   declare private low: number;
   declare private parentHigh: number;
@@ -1894,23 +1891,29 @@ class SpanImpl implements Observe.Span {
     name: string,
     kind: Observe.Kind,
   ) {
+    const random = SpanImpl.randomFor(layer.random);
     this.trace = SpanImpl.traceFor(layer, parent);
+    if (this.trace === undefined) {
+      this.a = SpanImpl.word(random);
+      this.b = SpanImpl.word(random);
+    } else {
+      this.a = 0;
+      this.b = 0;
+    }
+    this.high = SpanImpl.word(random);
+    this.low = SpanImpl.word(random) || 1;
     if (parent === undefined) {
       this.parentHigh = 0;
       this.parentLow = 0;
       this.parentText = layer.trace?.parentSpanId;
       this.parentId = undefined;
       this.sampled = layer.trace?.sampled !== false;
-      this.high = this.trace.c;
-      this.low = this.trace.d;
     } else {
       this.parentHigh = parent.high;
       this.parentLow = parent.low;
       this.parentText = undefined;
       this.parentId = parent.id;
       this.sampled = parent.sampled;
-      this.high = SpanImpl.word(this.trace.random);
-      this.low = SpanImpl.word(this.trace.random) || 1;
     }
     this.id = obs.nextId++;
     this.name = name;
@@ -1919,7 +1922,7 @@ class SpanImpl implements Observe.Span {
   }
 
   get traceId(): string {
-    const trace = this.trace;
+    const trace = this.traceBits();
     return (trace.text ??= SpanImpl.hex(trace.a, trace.b) + SpanImpl.hex(trace.c, trace.d));
   }
 
@@ -1975,27 +1978,27 @@ class SpanImpl implements Observe.Span {
     return (state.d = state.d ^ (state.d >>> 19) ^ t ^ (t >>> 8));
   }
 
-  /** A local root uses the last two trace words for its own span ID; children draw fresh words. */
+  private static randomFor(random: Random.Handle): typeof systemRandom.ids {
+    return random === systemRandom.source
+      ? systemRandom.ids
+      : (SpanImpl.seeded.get(random) ?? systemRandom.ids);
+  }
+
   private static traceFor(layer: Layer, parent: SpanImpl | undefined): SpanImpl["trace"] {
-    if (parent !== undefined) return parent.trace;
-    const random = SpanImpl.seeded.get(layer.random) ?? systemRandom.ids;
-    if (layer.trace !== undefined)
-      return {
-        a: 0,
-        b: 0,
-        c: SpanImpl.word(random),
-        d: SpanImpl.word(random) || 1,
-        text: layer.trace.traceId,
-        random,
-      };
-    return {
-      a: SpanImpl.word(random),
-      b: SpanImpl.word(random),
-      c: SpanImpl.word(random),
-      d: SpanImpl.word(random) || 1,
+    if (parent !== undefined) return parent.traceBits();
+    if (layer.trace !== undefined) return { a: 0, b: 0, c: 0, d: 0, text: layer.trace.traceId };
+    return undefined;
+  }
+
+  /** A root's last two trace words also name its span. Unread childless roots need no record. */
+  private traceBits(): NonNullable<SpanImpl["trace"]> {
+    return (this.trace ??= {
+      a: this.a,
+      b: this.b,
+      c: this.high,
+      d: this.low,
       text: undefined,
-      random,
-    };
+    });
   }
 
   private static hex(high: number, low: number): string {
