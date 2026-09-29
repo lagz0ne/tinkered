@@ -68,10 +68,13 @@ reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, on
   `c0cdf834` runs the bars on `a2db042` and pushes only after that review says READY.
 
 - **perf/tagged-100** — push `tagged` toward 100 ns with no rule change (user 2026-09-29). Base
-  `43a99e0` (tagged stack + lazy log). Owner: lead; Astra `93c3dd64` (`t100/astra`, cut 1:
-  203 → 165 ns) and Fable `a2d5bcb1` (`t100/fable`) work alone; tag storage alone was worth
-  about 75 ns. Lands after perf/lazy-log-obs. Verify: 758 + 62 behavior cases unchanged, N=61
-  "B faster" on `tagged`, nothing slower, core mutation ≥ 85.
+  `43a99e0` (tagged stack + lazy log). Result: Fable's `t100/fable` (`5234b4b` + fix `5ecc245`,
+  a tag copy with no list growth) screened `tagged` 190.9 → 174.2 ns (25/31), nothing slower;
+  Astra's cross-review READY (8 edge cases, 820 + 627 checks). With every rule kept the floor is
+  about 145–150 ns; 100 needs ADR 0038 dropped for tagged calls and a tag API that allocates
+  nothing. User picked A (2026-09-29): land this cut and stop. Owner: lead; lands after
+  perf/lazy-log-obs. Verify: 758 + 62 behavior cases unchanged, N=61 `tagged` "B faster",
+  nothing slower, core mutation ≥ 85.
 
 - **perf/lazy-log-obs** — with a log sink or an observer on, build the body's `log` and `obs` tools on first read (memoizing class accessors; no API change; ADR 0073). Owner: lead; Astra writer `70dab046`, now rebased on the lifted tip (`43a99e0`). Review: Fable probe and gate passed; lead READY. Lander `c0a6f174` waits for the perf/tagged-close tag, then lands it. Verify: new probe scenarios `opsink` and `opobs` "B faster", nothing slower; promises 2; `pnpm validate`; core mutation ≥ 85.
 
