@@ -920,3 +920,36 @@ No source file was excluded and the floor stays 85.
 - Gate after both fixes: build, check, 18 NATS tests; exit 0.
   Check has no errors and 29 warnings.
 - Prose: no hits; strict style census: OK; TSDoc: no findings.
+
+- Fresh main at `a5aa0e7e`: build and check exit 0;
+  the same 29 warnings, in 448 files rather than our 455.
+- `pnpm validate`: all 48 lanes pass, exit 0.
+- Jev preflight: no file flags.
+  New label: `stateOutsideCell false` for
+  `packages/nats/src/index.ts#stopSubscriptions`.
+  It holds connection cleanup state, not application data.
+  The helper's `effectWithoutDefer false` and
+  `stateOutsideCell false` labels remain in the bank.
+- Jev tests and README promises: no flags in 18 tests.
+- Core failing shape before F1, with one shared piece:
+
+```ts
+const a = createScope({ extensions: [bus.extension] });
+await a.ready;
+const b = createScope({ extensions: [bus.extension] });
+await b.ready;
+await a.close({ graceful: true });
+b.run(bus.publish, { input: message });
+```
+
+The receive operation never runs: A closed B's subscriptions.
+The new test rejects B at boot and proves A still receives.
+It also closes old handles after a fresh start.
+
+- `vp run -r test`: all package tasks pass, exit 0.
+  The tracker has 69 passing tests; 15 of 17 tasks used cache.
+- No mutation command was run in this fix round.
+  The earlier 93.95 score belongs to the code before these fixes.
+  The lander will measure the new score.
+- Status: Review. Next: lead review and lander mutation.
+  Nothing pushed.

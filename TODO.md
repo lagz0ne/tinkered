@@ -42,13 +42,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **stack/t07 nats** — Owner: writer (Codex).
-  Next: fix review F1 and F2; remove F3 leftovers.
-  Verify: real-server regressions; build, check, NATS tests;
-  prose and strict style census.
-  The lander runs mutation.
-  [Proof](docs/roadmap/stack-v1/PROGRESS.md#t07-review-fix-round-1).
-
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
@@ -56,6 +49,13 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 - **stack/t04 trace-id** — core: a span carries a trace id; Hono seeds it from `traceparent` (ADR 0076). Owner: lead (stack session); Astra writer `5e69613c`, worktree `/home/paseo/next/tinkered-stack-t04`; the only core card now; Opus reviewer when the writer reports. Verify: core and hono tests, `scripts/ticket.sh`, `pnpm validate`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 
 ## Review
+
+- **stack/t07 nats** — Owner: writer (Codex).
+  Saved review fixes F1, F2, and F3 on `stack/t07`.
+  Next: lead review; lander runs mutation.
+  Verify: gate exit 0; 18 NATS tests; 48 validate lanes;
+  all repo tests, prose, and strict style census pass.
+  [Proof](docs/roadmap/stack-v1/PROGRESS.md#t07-review-fix-round-1).
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
