@@ -332,3 +332,37 @@ These matching labels were already in the bank:
 for the upstream sync example's `posts` resource.
 The upstream MCP entry flags also had saved labels.
 The lead runs calibration when landing these labels.
+
+## t01 writer
+
+- Owner: stack/t01 writer; branch `stack/t01`.
+- Base: `origin/main` at `bd3f270`.
+- Next: add both SSE halves, then move both consumers.
+- Verify: build, check, sync and tracker tests, example check,
+  four direct browser runs on each tree, all validation lanes,
+  and one final sync mutation run at or above 85.
+- Assumption: the app keeps its URL and health cell choices.
+  The package owns frame parsing, listeners, stream states,
+  and retry handling.
+- Assumption: POST remains an HTTP route choice.
+  The server's `deliver` accepts the route's checked register.
+
+### Impact written before code
+
+- Precedent: MCP's transport plug (ADRs 0048 and 0077).
+  `Sync.Message` and `Sync.Transport` stay the same.
+- Add `createSseServer`, `createSseClient`, and `Sse`
+  at `@tinker/sync/sse`.
+- Remove the tracker's `sseTransport` and the example's
+  `frame` and hand-written transport.
+- The tracker keeps `wire`, `openSource`, `retry`, and
+  `Wire.Source`; the source type names the package's shape.
+- Callers: tracker `src/server/routes.ts`,
+  `src/client/connection.ts`, and `examples/sync/hono.ts`.
+- Tests: sync's public SSE entry, its Hono example test,
+  and the tracker's existing client and browser proofs.
+- SCIP review: index sync, tracker, and examples.
+  Old `sseTransport` and sync example `frame` refs must be empty.
+  New `createSseServer` refs must name both servers;
+  `createSseClient` refs must name the tracker client.
+- Baseline check: exit 0, 29 warnings.
