@@ -18,7 +18,8 @@ const ext = mcp({
 });
 
 /** A harness points its MCP config at this file. The root owns the transport
- * until stop; a failed start waits for cleanup before answering 1. */
+ * until stdin ends, the server closes, or stop fires. A failed start waits
+ * for cleanup before answering 1. */
 export async function runServer(stop: AbortSignal): Promise<number> {
   const scope = createScope({ extensions: [ext] });
   try {
@@ -30,11 +31,23 @@ export async function runServer(stop: AbortSignal): Promise<number> {
   try {
     const server = scope.resolve(ext);
     scope.onClose(() => server.close());
-    await server.connect(new StdioServerTransport());
-    await new Promise<void>((resolve) => {
-      if (stop.aborted) resolve();
-      else stop.addEventListener("abort", () => resolve(), { once: true });
+    let resolveStop: () => void;
+    const stopped = new Promise<void>((resolve) => {
+      resolveStop = resolve;
     });
+    const done = (): void => resolveStop();
+    process.stdin.once("end", done);
+    stop.addEventListener("abort", done, { once: true });
+    server.server.onclose = done;
+    try {
+      await server.connect(new StdioServerTransport());
+      if (stop.aborted || process.stdin.readableEnded) done();
+      await stopped;
+    } finally {
+      process.stdin.removeListener("end", done);
+      stop.removeEventListener("abort", done);
+      server.server.onclose = undefined;
+    }
   } finally {
     await scope.close();
   }
