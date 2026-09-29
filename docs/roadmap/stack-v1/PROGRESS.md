@@ -173,3 +173,37 @@ Rules for every ticket:
   Verify: a freshly generated app passes
   `vp check` and its tests, and boots in dev and
   prod.
+
+## t05 writer notes
+
+Owner: stack/t05 writer. Branch: `stack/t05`.
+Next: add the server piece and move the tracker onto it.
+Verify: stack and tracker tests, browser proof, gate,
+`pnpm validate`, stack mutation at least 85.
+
+### Impact before code
+
+- Add `@tinker/stack`; no existing package API changes.
+- Move `jsonLines` and `describeError` from the tracker
+  to the stack. Update tracker imports and move their
+  tests to the new package's public entry.
+- Remove the tracker's `BadPort` error.
+  Its callers are `readPort` and the config tests.
+  A stack `BadListenSettings` payload lists bad keys.
+- Keep `issueServer` and its optional `serve` test seam.
+  The root lists the stack listener before it.
+- The full root remains `runServer` in `main.ts`.
+  The stack takes a borrowed scope only to wait and close;
+  it never creates one.
+- Review: index stack with `scripts/scip.sh index stack`;
+  check refs for `jsonLines`, `describeError`, and `server`.
+  Check removed tracker names with `git grep BadPort`.
+
+### Choices
+
+- Pass env as an argument: this piece alone reads it,
+  once in `start`, before other starts run.
+- The tracker keeps `4311` and `127.0.0.1` in its root.
+  The stack has no missing-key defaults.
+- HOST means an IP address or a DNS host name.
+  Empty names, URLs, and spaces are bad settings.
