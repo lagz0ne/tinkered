@@ -643,7 +643,7 @@ No core code changed.
 - Prose lint and strict style census: exit 0.
 - No rebase or mutation run in this round.
 
-## t07 writer — review; mutation gate failed
+## t07 first report — mutation gate failed
 
 - Owner: writer (Codex), branch `stack/t07`.
 - Next: add proof for server-helper shutdown and
@@ -755,7 +755,7 @@ await scope.close();
 - No existing public symbol changes, so this
   ticket has no cross-package impact block.
 
-## t07 mutation lift — doing
+## t07 mutation lift — review
 
 - Lead asked to continue on `stack/t07`.
 - Rank the old survivors, then cover visible faults
@@ -867,3 +867,18 @@ No source file was excluded and the floor stays 85.
   in `/home/paseo/.cache/tinkered-briefs/`.
 - Before the lane, the worktree had no NATS process left.
 - Fresh fetch and rebase before this run: still `ba39695`.
+
+### t07 final lift checks
+
+- Gate after mutation: `vp run -r build && vp check && vp run nats#test`.
+  Exit 0; 17 NATS tests pass.
+- Check: no errors and 29 warnings in 452 files.
+  Fresh main had the same 29 warnings, in 445 files.
+- `pnpm validate`: all 48 lanes pass, exit 0.
+  `pnpm-workspace.yaml` has no branch change.
+- `vp run -r test`: every package passes, exit 0.
+  The tracker has 69 passing tests after stack/t05.
+- Process scan after all checks: no NATS server owned by this worktree.
+  The normal helper test also proved both ports and the store were freed.
+- Branch stays local; nothing pushed.
+- Next: lead review and landing.
