@@ -617,4 +617,14 @@ No core code changed.
   with no judge id accepted by `label.mjs`.
   The gaps were fixed; the three helper notes concern
   unchanged tests.
-- Mutation proof still pending.
+- One full Hono mutation run, under `/tmp/mutation.lock`:
+  score 85.27, floor 85, exit 0.
+  249 killed, 41 survived, 2 without coverage.
+- Card moved to Review; the lead still owns landing.
+  No push.
+- Assumptions kept: status-only rows have an empty body;
+  strings are text, other JSON values are JSON;
+  the tracker's old `observe` option stays accepted,
+  while only the scope supplies the sink.
+- Tracker test files and the existing 499 test are
+  unchanged from the base.
