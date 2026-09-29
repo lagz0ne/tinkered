@@ -3038,17 +3038,12 @@ function finishInstance(
   instance: ResourceInstance,
   prior?: Promise<void>,
 ): Promise<void> | undefined {
-  if (
-    !instance.end ||
-    instance.finishing ||
-    instance.building ||
-    instance.dependents ||
-    instance.borrowers?.size
-  )
-    return instance.completion;
+  if (!instance.end || instance.finishing || isHeld(instance)) return instance.completion;
   instance.finishing = true;
   const { owner } = instance;
-  owner.defers = owner.defers.filter((entry) => entry.instance !== instance);
+  /** Keep the shared empty list: filtering it would allocate an array and grow a lazy owner. */
+  if (owner.defers.length !== 0)
+    owner.defers = owner.defers.filter((entry) => entry.instance !== instance);
   const finish = (): Promise<void> | undefined => {
     const tail = runDefers(owner, instance.hooks, instance.end as Scope.End);
     if (tail)
@@ -4039,8 +4034,7 @@ function finishLayer(layer: Layer, keeps: boolean): unknown[] | undefined {
     for (const s of layer.nodes.values()) s.eff = undefined;
     layer.nodes.clear();
   }
-  layer.presets = undefined;
-  layer.tags = undefined;
+  clearBindings(layer);
   return teardownErrors;
 }
 
@@ -4696,8 +4690,7 @@ function freeData(layer: Layer, moved: boolean): void {
     else s.eff = undefined;
   }
   layer.nodes = new Map();
-  layer.presets = undefined;
-  layer.tags = undefined;
+  clearBindings(layer);
 }
 
 /** A session's hooks returned (ADR 0069): free the data they could still read, or, when the close
@@ -5358,4 +5351,10 @@ function propagateSweptOutcome(layer: Layer, parent: Layer): void {
    * (body/owned-work): a real owned-work failure must still beat a failure a child merely inherited
    * from the close request (a wished `failed` echoed back down and up). First descendant wins. */
   if (layer.failure && layer.failureOwner === undefined) parent.descendantFailure ??= layer.failure;
+}
+
+/** Do not add an own field just to shadow an inherited empty default during either data cleanup. */
+function clearBindings(layer: Layer): void {
+  if (layer.presets !== undefined) layer.presets = undefined;
+  layer.tags = undefined;
 }
