@@ -56,7 +56,12 @@ reviewer per card; a lander runs mutation, timing, and `pnpm validate` alone, on
   that ended in place returns its value); Opus's layer work `fb35497` screened `tagged` 909.5.
   Before the final proof: bench/probe-warmup (Opus) lands. mitata timed main in one-call mode and
   the branches in a mix; the probe warms each scenario and `ab.sh` runs one probe for both trees.
-  Verify: no scenario slower, promises 17, `pnpm validate`, core mutation ≥ 85. If no
+  Reviewed: Opus (code, READY after one fix round) and Astra (758 cases vs main; only ADR
+  0071/0072 changes); stack `9f11949`: `tagged` 514, `session` 535, mutation 85.08. Then (user:
+  "push to 200"): Astra's lazy child session `c37306e` (a tagged call runs on a small frame and
+  grows into the full layer at first need) screened `tagged` 510.9 → 194.9 (31/31), `session` and
+  `op` unchanged, 758 cases identical to the stack. Next: Fable reviews `c37306e`; Astra times
+  tagged calls that grow (`taggeddefer`, `taggedres`); one lander lands it all. Verify: no scenario slower, promises 17, `pnpm validate`, core mutation ≥ 85. If no
   experiment wins: raise the budget to 2200 and record why (user 2026-09-28: A, then B).
 
 ## Review
