@@ -2165,7 +2165,8 @@ A bare session plus `settle` recovers the error by design:
 ```ts
 const s = scope.createSession();
 await s.settle(saveThenRaise);
-expect((await s.close({ graceful: true })).status).toBe("failed");
+const ended = await s.close({ graceful: true });
+expect(ended.status).toBe("failed");
 // Gets success; the write commits.
 ```
 
@@ -2221,3 +2222,7 @@ All 17 package test tasks passed through their own configs,
 Used `vp run -r --concurrency-limit 1 test` after the build.
 The final fetch still points to `6330012c`.
 The migrate ticket has not landed yet.
+
+`pnpm validate`: all 48 checks passed, `VALIDATE_EXIT 0`.
+Ran in the foreground under `/tmp/mutation.lock`.
+Restored `pnpm-workspace.yaml`; it has no branch change.
