@@ -42,12 +42,17 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **stack/t07 nats** — Owner: writer (Codex).
+  Next: lift real-server lifecycle and drain proof.
+  Verify: focused kill checks; full mutation at least
+  85; build, check, nats tests, and validate green.
+  [Track](docs/roadmap/stack-v1/PROGRESS.md).
+
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
 - **stack/t06 migrate-step** — the tracker's tables come from migration files, run at boot under a lock (ADR 0079). Owner: lead (stack session); Astra writer `2cb63e15`, worktree `/home/paseo/next/tinkered-stack-t06`; Opus reviewer when the writer reports. Verify: a drift test fails on a mismatch; an old tracker database keeps its rows. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t04 trace-id** — core: a span carries a trace id; Hono seeds it from `traceparent` (ADR 0076). Owner: lead (stack session); Astra writer `5e69613c`, worktree `/home/paseo/next/tinkered-stack-t04`; the only core card now; Opus reviewer when the writer reports. Verify: core and hono tests, `scripts/ticket.sh`, `pnpm validate`. [track](docs/roadmap/stack-v1/PROGRESS.md).
-- **stack/t07 nats** — `@tinker/nats`: connect, publish, subscribe to an operation; tests on a real pinned `nats-server` (ADR 0080; `traceparent` moved to t13). Owner: lead (stack session); Astra writer `856cec06`, worktree `/home/paseo/next/tinkered-stack-t07`; Opus reviewer when the writer reports. Verify: nats tests on a real server; a missing `NATS_URL` fails boot. [track](docs/roadmap/stack-v1/PROGRESS.md).
 
 ## Review
 

@@ -207,6 +207,7 @@ test("missing NATS_URL fails boot naming the key", async () => {
   try {
     await scope.ready;
   } catch (error) {
+    if (isError(error, "ChecksumMismatch")) throw error;
     if (!isError(error, "InvalidConfig")) throw error;
     expect(error.payload.key).toBe("NATS_URL");
   } finally {

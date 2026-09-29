@@ -1,8 +1,7 @@
 type Payloads = {
   InvalidConfig: { key: "NATS_URL" };
   ChecksumMismatch: { file: string };
-  DownloadFailed: { url: string; status: number };
-  ServerStopped: { output: string };
+  ServerStopped: { output: string; storeDir: string };
 };
 
 export declare namespace Errors {

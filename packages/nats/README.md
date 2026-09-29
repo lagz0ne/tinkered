@@ -75,6 +75,9 @@ The helper needs `tar` and network access on first use.
 Each server uses a free loopback port and a temp store.
 Call `await server.close()` after the test file ends.
 It waits for process exit and removes the store.
+`server.storeDir` names that store.
+`startNatsServer(config)` accepts NATS config for tests.
+An invalid config fails startup and removes the store.
 `server.monitorUrl` is the loopback monitor used to
 check open connections.
 
@@ -104,5 +107,7 @@ try {
 - Forced close aborts a running message and closes the connection.
 - Close during boot reaps a connection that opens later.
 - A failed subscription loader fails boot and closes the connection.
+- A started server closes its connections and frees both ports and its store.
+- A server that rejects its config removes its store before reporting failure.
 
 [release]: https://github.com/nats-io/nats-server/releases/tag/v2.15.0

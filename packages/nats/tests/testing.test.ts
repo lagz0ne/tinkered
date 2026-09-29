@@ -1,16 +1,37 @@
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import { createServer } from "node:net";
+import { connect } from "@nats-io/transport-node";
 import { mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { expect, test } from "vite-plus/test";
-import { installNatsServer, isError } from "@tinker/nats/testing";
+import { installNatsServer, isError, startNatsServer } from "@tinker/nats/testing";
+
+async function bindPort(url: string): Promise<void> {
+  const server = createServer();
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(Number(new URL(url).port), "127.0.0.1", resolve);
+  });
+  await new Promise<void>((resolve, reject) =>
+    server.close((error) => (error ? reject(error) : resolve())),
+  );
+}
 
 test("the helper fetches the pinned server once and reuses its home cache", async () => {
   const cache = await mkdtemp(join(homedir(), ".cache", "nats-test-"));
   try {
     const binary = await installNatsServer(cache);
     const files = await readdir(cache);
+    expect(files.sort()).toEqual(
+      [
+        "SHA256SUMS",
+        basename(dirname(binary)),
+        `${basename(dirname(binary))}.${process.platform === "win32" ? "zip" : "tar.gz"}`,
+      ].sort(),
+    );
     const saved = await Promise.all(
       files.map(async (file) => (await stat(join(cache, file))).mtimeMs),
     );
@@ -19,6 +40,10 @@ test("the helper fetches the pinned server once and reuses its home cache", asyn
     expect(
       await Promise.all(files.map(async (file) => (await stat(join(cache, file))).mtimeMs)),
     ).toEqual(saved);
+    await rm(binary);
+    expect((await promisify(execFile)(await installNatsServer(cache), ["-v"])).stdout.trim()).toBe(
+      "nats-server: v2.15.0",
+    );
   } finally {
     await rm(cache, { recursive: true, force: true });
   }
@@ -27,6 +52,7 @@ test("the helper fetches the pinned server once and reuses its home cache", asyn
 test("a bad checksum refuses the binary", async () => {
   const binary = await installNatsServer();
   const shared = dirname(dirname(binary));
+  expect(shared).toBe(join(homedir(), ".cache", "tinkered", "nats-server", "2.15.0"));
   const archive = (await readdir(shared)).find(
     (name) => name.endsWith(".tar.gz") || name.endsWith(".zip"),
   );
@@ -35,14 +61,47 @@ test("a bad checksum refuses the binary", async () => {
   try {
     await writeFile(join(cache, "SHA256SUMS"), await readFile(join(shared, "SHA256SUMS")));
     await writeFile(join(cache, archive), "damaged release");
-    expect.assertions(1);
+    expect.assertions(2);
     try {
       await installNatsServer(cache);
     } catch (error) {
+      if (isError(error, "InvalidConfig")) throw error;
       if (!isError(error, "ChecksumMismatch")) throw error;
       expect(error.payload.file).toBe(archive);
     }
   } finally {
     await rm(cache, { recursive: true, force: true });
+  }
+});
+
+test("a started server closes its connections and frees both ports and its store", async () => {
+  const server = await startNatsServer();
+  const peer = await connect({ servers: server.url, reconnect: false });
+  try {
+    expect(existsSync(server.storeDir)).toBe(true);
+    expect(await (await fetch(`${server.monitorUrl}/varz`)).json()).toMatchObject({
+      host: "127.0.0.1",
+      port: Number(new URL(server.url).port),
+    });
+    await server.close();
+    expect(peer.isClosed()).toBe(true);
+    expect(existsSync(server.storeDir)).toBe(false);
+    await bindPort(server.url);
+    await bindPort(server.monitorUrl);
+    await server.close();
+  } finally {
+    await peer.close();
+    await server.close();
+  }
+});
+
+test("a server that rejects its config removes its store before reporting failure", async () => {
+  expect.assertions(1);
+  try {
+    await startNatsServer("authorization { invalid: [ }");
+  } catch (error) {
+    if (isError(error, "ChecksumMismatch")) throw error;
+    if (!isError(error, "ServerStopped")) throw error;
+    expect(existsSync(error.payload.storeDir)).toBe(false);
   }
 });

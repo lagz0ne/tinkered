@@ -754,3 +754,15 @@ await scope.close();
   to prove that scope close closes its connection.
 - No existing public symbol changes, so this
   ticket has no cross-package impact block.
+
+## t07 mutation lift — doing
+
+- Lead asked to continue on `stack/t07`.
+- Rank the old survivors, then cover visible faults
+  and remove code with no visible effect.
+- Verify every lifted range with a focused kill
+  check, then one full mutation lane at least 85.
+- Keep all source files in mutation and keep the floor.
+- Finish with the gate and all validate lanes.
+- Check whether NATS ports or processes could affect
+  the issue tracker's earlier `PORT` test failure.
