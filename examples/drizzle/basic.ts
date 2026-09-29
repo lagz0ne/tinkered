@@ -13,7 +13,7 @@ const users = pgTable("tour_users", {
 const store = drizzleStore({
   label: "tour",
   open: async (_config, { logger }) => {
-    const db = drizzle(new PGlite(), { logger });
+    const db = drizzle({ client: new PGlite(), logger });
     await db.execute(sql`create table tour_users (id serial primary key, name text not null)`);
     return db;
   },

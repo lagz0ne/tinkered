@@ -39,6 +39,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "npm:^4.3.4",
+    "drizzle-kit": "catalog:",
     "playwright": "1.55.0",
     "typescript": "^7.0.2",
     "vite": "catalog:",

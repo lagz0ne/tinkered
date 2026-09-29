@@ -32,7 +32,7 @@ function usersStore(
     target: hooks?.target,
     open: async (_config, { logger }) => {
       hooks?.opened?.();
-      const db = drizzle(new PGlite(), { logger });
+      const db = drizzle({ client: new PGlite(), logger });
       await db.execute(
         sql`create table if not exists users (id serial primary key, name text not null)`,
       );
@@ -98,7 +98,7 @@ test("one store keeps each tenant database open across request transactions unti
     target: "namespace",
     open: async (name, { logger }) => {
       opened.push(name);
-      const db = drizzle(new PGlite(), { logger });
+      const db = drizzle({ client: new PGlite(), logger });
       await db.execute(sql`create table users (id serial primary key, name text not null)`);
       return countingDb(db, transactions);
     },
@@ -156,7 +156,7 @@ test("a request config tag cannot replace its tenant database config", async () 
     target: "namespace",
     open: async (name, { logger }) => {
       opened.push(name);
-      const db = drizzle(new PGlite(), { logger });
+      const db = drizzle({ client: new PGlite(), logger });
       await db.execute(sql`create table users (id serial primary key, name text not null)`);
       return db;
     },
@@ -216,7 +216,7 @@ test("a forced close rolls back: the parked insert is absent after cancelled", a
   const store = drizzleStore<null, PgDatabase>({
     label: "users",
     open: async (_config, { logger }) => {
-      const db = drizzle(client, { logger });
+      const db = drizzle({ client, logger });
       await db.execute(
         sql`create table if not exists users (id serial primary key, name text not null)`,
       );
@@ -236,7 +236,7 @@ test("a forced close rolls back: the parked insert is absent after cancelled", a
   const closing = scope.close();
   expect((await closing).status).toBe("cancelled");
   await expect(running).rejects.toBeDefined();
-  const rows = await drizzle(client).select().from(users);
+  const rows = await drizzle({ client }).select().from(users);
   expect(rows).toEqual([]);
 });
 
@@ -258,7 +258,7 @@ test("two sequential sessions open two transactions", async () => {
   const store = drizzleStore<null, PgDatabase>({
     label: "users",
     open: async (_config, { logger }) => {
-      const inner = drizzle(new PGlite(), { logger });
+      const inner = drizzle({ client: new PGlite(), logger });
       await inner.execute(
         sql`create table if not exists users (id serial primary key, name text not null)`,
       );
@@ -308,18 +308,18 @@ test("each statement writes one db query log line with sql and never the params"
 test("at the root tx builds once and a graceful scope close commits with success", async () => {
   const client = new PGlite();
   const counter = { count: 0 };
-  await drizzle(client).execute(
+  await drizzle({ client }).execute(
     sql`create table users (id serial primary key, name text not null)`,
   );
   const store = drizzleStore<null, PgDatabase>({
     label: "users",
-    open: (_config, { logger }) => countingDb(drizzle(client, { logger }), counter),
+    open: (_config, { logger }) => countingDb(drizzle({ client, logger }), counter),
   });
   const scope = createScope({ tags: [store.config(null)] });
   await scope.run(insertOp(store), { input: "ada" });
   expect(counter.count).toBe(1);
   expect((await scope.close({ graceful: true })).status).toBe("success");
   expect(counter.count).toBe(1);
-  const rows = await drizzle(client).select().from(users);
+  const rows = await drizzle({ client }).select().from(users);
   expect(rows.map((row) => row.name)).toEqual(["ada"]);
 });

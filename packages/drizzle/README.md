@@ -1,5 +1,8 @@
 # @tinker/drizzle
 
+Requires `drizzle-orm@^0.45.2` or `drizzle-orm@^1.0.0-rc.4`.
+This repo pins Drizzle ORM and Kit to `1.0.0-rc.4`.
+
 The client is a scope resource by default; the transaction is a session resource whose
 commit is the session's success (ADR 0041). A store can also serve many tenants.
 
@@ -24,7 +27,7 @@ export const store = drizzleStore({
   open: async ({ url }: { url: string }, { logger }) => {
     const { PGlite } = await import("@electric-sql/pglite");
     const { drizzle } = await import("drizzle-orm/pglite");
-    return drizzle(new PGlite(url), { logger });
+    return drizzle({ client: new PGlite(url), logger });
   },
   close: (db) => db.$client.close(),
 });

@@ -48,6 +48,6 @@
     "vite-plus": "catalog:"
   },
   "peerDependencies": {
-    "drizzle-orm": ">=0.45"
+    "drizzle-orm": "^0.45.2 || ^1.0.0-rc.4"
   }
 }

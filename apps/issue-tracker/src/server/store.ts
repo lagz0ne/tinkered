@@ -42,7 +42,7 @@ export declare namespace Store {
 }
 
 async function openDatabase(path: string | undefined, logger: DrizzleStore.Logger) {
-  const db = drizzle(new PGlite(path), { logger });
+  const db = drizzle({ client: new PGlite(path), logger });
   await db.execute(
     sql`create table if not exists issues (id text primary key, title text not null, description text not null)`,
   );
