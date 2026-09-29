@@ -1,15 +1,11 @@
 import { data, operation, resource } from "@tinker/core";
 import { emit, hono, route, stream } from "@tinker/hono";
 import { source, type Sync } from "@tinker/sync";
+import { createSseServer } from "@tinker/sync/sse";
 import { z } from "zod";
 
 /** Sync needs nothing on the cell: its wire key comes from the row, never unit meta (ADR 0051). */
 const counter = data({ label: "counter", initial: 0 });
-
-/** One event-stream frame: a blank line ends it, so the JSON must stay on one line. */
-function frame(message: Sync.Message): string {
-  return `data: ${JSON.stringify(message)}\n\n`;
-}
 
 /** A posted register: the keys the viewer shows. Anything else is refused. */
 const registerSchema = z.object({ type: z.literal("register"), keys: z.array(z.string()) });
@@ -57,41 +53,12 @@ const wireBody = operation({
   input: z.string(),
   depends: { emit: emit.required, origin: src, posts },
   run: ({ emit, origin, posts }, { input: id, signal, defer }) => {
-    let open = true;
-    const arrivals = new Set<(message: Sync.Message) => void>();
-    const partings = new Set<() => void>();
-    const transport: Sync.Transport = {
-      send: (message) => {
-        if (open) emit(frame(message));
-      },
-      onMessage: (listener) => {
-        arrivals.add(listener);
-        return () => {
-          arrivals.delete(listener);
-        };
-      },
-      onClose: (listener) => {
-        partings.add(listener);
-        return () => {
-          partings.delete(listener);
-        };
-      },
-      close: () => {
-        if (open === false) return;
-        open = false;
-        posts.delete(id);
-        for (const part of partings) part();
-      },
-    };
-    posts.set(id, (message) => {
-      for (const arrival of arrivals) arrival(message);
+    const transport = createSseServer(emit, signal);
+    posts.set(id, (message) => transport.deliver(message));
+    transport.onClose(() => {
+      posts.delete(id);
     });
-    const onAbort = (): void => transport.close();
-    signal.addEventListener("abort", onAbort, { once: true });
-    defer(() => {
-      signal.removeEventListener("abort", onAbort);
-      transport.close();
-    });
+    defer(() => transport.close());
     return origin.connect(transport);
   },
 });

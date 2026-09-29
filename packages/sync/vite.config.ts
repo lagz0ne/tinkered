@@ -3,6 +3,7 @@ import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   pack: {
+    entry: ["src/index.ts", "src/sse.ts"],
     deps: {
       resolveDepSubpath: true,
       neverBundle: ["@tinker/core"],
@@ -23,8 +24,15 @@ export default defineConfig({
     /** Skip Stryker's leftover sandbox copies of the tests (gitignored, not ours). */
     exclude: ["**/node_modules/**", "**/dist/**", "**/.stryker-tmp/**"],
     server: { deps: { inline: ["vite-plus"] } },
-    alias: {
-      "@tinker/sync": fileURLToPath(new URL("./src/index.ts", import.meta.url)),
-    },
+    alias: [
+      {
+        find: "@tinker/sync/sse",
+        replacement: fileURLToPath(new URL("./src/sse.ts", import.meta.url)),
+      },
+      {
+        find: "@tinker/sync",
+        replacement: fileURLToPath(new URL("./src/index.ts", import.meta.url)),
+      },
+    ],
   },
 });

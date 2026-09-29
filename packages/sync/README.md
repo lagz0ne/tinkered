@@ -1,6 +1,7 @@
 # @tinker/sync
 
-A cell is the shared unit; the source holds the truth; the transport is userland's (ADR 0048, one way).
+A cell is the shared unit; the source holds the truth.
+The transport is pluggable; `@tinker/sync/sse` ships SSE (ADRs 0048 and 0077).
 Both drivers are core extensions (ADR 0050): the composition root installs them, `ready` waits for the
 initial data set, and `resolve` delivers each value.
 
@@ -27,7 +28,7 @@ origin.controller(todo.cell, { ns: seven }).set("buy milk");
 Declare the shared cells once; hand each end its rows. A row is the cell
 (or family) beside its key: `[counter, "counter"]`, `[todo, "todo"]`. The
 source owns the truth, the viewer mirrors what it registered, and the wire
-between them is yours: `memoryPair` in tests, SSE + POST or a WebSocket in
+between them is yours: `memoryPair` in tests, the shipped SSE transport or a WebSocket in
 the browser. The viewer takes its wire as a resource, so nothing is built
 before `createScope`. A driver reads rows, never unit meta: units have none (ADR 0051 §3).
 
@@ -124,19 +125,74 @@ must not throw to report a startup failure: build the error value and reject the
 startup promise through its saved reject function. Attach a rejection handler when that
 promise is created, even if startup will await it later. Keep close paths safe to call again.
 
-Three ways to build one:
+### Server-sent events
 
-Hono SSE + POST uses one `GET /sync?client=<id>` stream down and one
-`POST /sync?client=<id>` carrying registration up. The
-[issue tracker server](../../apps/issue-tracker/src/server/app.ts) and
-[browser connection](../../apps/issue-tracker/src/client/connection.ts) show the complete owned transport.
+Import both halves from `@tinker/sync/sse`.
+Neither half imports Hono.
+The caller owns the route, its register check, and its URL.
+The package owns framing, stream states, and retry handling.
 
-The server sends a ready comment before the browser posts registration. Each side queues its
-async sends in order and closes the transport when a send fails. Closing notifies the driver
-once and cancels pending browser requests. Install stream error handling before awaiting
-`scope.ready`, so losing the first snapshot rejects startup instead of leaving the screen loading.
-The stream callback returns the `source.connect(transport)` promise; it settles when the wire
-closes. Forced root shutdown closes the source connections and their stream sessions.
+```ts
+import { createSseServer, createSseClient } from "@tinker/sync/sse";
+
+const wire = createSseServer(emit, signal);
+const ended = origin.connect(wire);
+wire.deliver({ type: "register", keys: ["counter"] });
+await ended;
+```
+
+`createSseServer(write, signal)` accepts a plain chunk writer.
+The SSE server writes one JSON data line and a blank line per message.
+It delivers registers only to active listeners while open.
+A throwing SSE writer closes once and drops later sends.
+Aborting the SSE server closes once and stops delivery.
+An already aborted SSE server tells a late listener it is closed.
+Closing the SSE server notifies every active close listener once.
+`onMessage` and `onClose` return functions that stop listening.
+Attach HTTP cleanup with `onClose`; close the wire when its owner ends.
+
+The [tracker server](../../apps/issue-tracker/src/server/routes.ts)
+reads register keys from the stream URL.
+The [Hono example](../../examples/sync/hono.ts) instead routes
+POST registers to `wire.deliver` through its per-client map.
+Both return or await `source.connect(wire)` to hold the stream open.
+
+```ts
+const wire = createSseClient({
+  open: (keys) => {
+    const query = new URLSearchParams(keys.map((key) => ["keys", key]));
+    return new EventSource(`/sync?${query}`);
+  },
+  onState: (state) => health.set(state),
+  onRetry: (reconnect) => retry.watch(reconnect),
+});
+defer(() => wire.close());
+```
+
+`createSseClient` takes an injected `open(keys)` function.
+It owns each returned `Sse.Source`, an EventSource-shaped object.
+The SSE client opens with all registered keys and ignores outgoing snapshots.
+It stays connecting on retry errors and becomes live on open.
+Only an error with `readyState` 2 means the browser gave up.
+A CLOSED SSE source before the first snapshot fails and closes the transport.
+A CLOSED SSE source after a snapshot stays attached and a retry opens a fresh stream.
+Browser reconnects deliver fresh snapshots through the same SSE source.
+A restarted server's lower snapshot version still reaches the listeners.
+Malformed SSE frames before the first snapshot fail and close the transport.
+A malformed SSE frame after a snapshot fails the stream but keeps sync attached.
+Closing the SSE client parts once and prevents later sends and retry intents.
+An SSE client closed before opening tells late close listeners and opens nothing.
+An SSE client needs no state or retry hooks to receive snapshots.
+A source open failure reaches the SSE client caller unchanged.
+A close stops the retry watch and removes the source's event callbacks.
+A replaced source cannot deliver events to the transport.
+
+The [tracker connection](../../apps/issue-tracker/src/client/connection.ts)
+keeps its URL, its `openSource` tag, and its health cell mapping.
+Its retry intent is a data cell watched through `onRetry`.
+The package handles the retry without exposing a second app handle.
+
+### Other transports
 
 WebSocket (one socket per tab, same four methods, opened in a resource):
 

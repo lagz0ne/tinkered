@@ -6,7 +6,7 @@ export { isError };
 export type { Errors } from "./errors.ts";
 
 /** A cell is the shared unit; the source holds the truth; the transport is
- * userland's (ADR 0048, one way). This package holds the `family` member
+ * pluggable (ADRs 0048 and 0077, one way). This package holds the `family` member
  * factory, the message protocol with its `Transport` and the in-memory pair,
  * plus the source driver and the subscribe driver. Both drivers read the flat
  * wiring rows handed to their constructors, never scope tags (ADR 0051 §3). */
@@ -30,7 +30,7 @@ export declare namespace Sync {
         readonly version: number;
         readonly value: unknown;
       };
-  /** Userland's wire (SSE+POST, WebSocket, postMessage): send, listen, learn
+  /** A wire (SSE, WebSocket, postMessage): send, listen, learn
    * of the close, close. */
   export type Transport = {
     send(message: Message): void;

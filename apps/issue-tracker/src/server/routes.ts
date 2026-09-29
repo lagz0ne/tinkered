@@ -7,7 +7,8 @@ import { isError } from "../errors.ts";
 import { draftBody, readCapability, startDraft } from "./draft.ts";
 import { describeError } from "@tinker/stack";
 import { addComment, createIssue, editIssue, readDetail, readIssues } from "./operations.ts";
-import { readRegister, src, sseTransport } from "./sync.ts";
+import { createSseServer } from "@tinker/sync/sse";
+import { readRegister, src } from "./sync.ts";
 
 export declare namespace IssueServer {
   export type Options = {
@@ -107,7 +108,7 @@ const syncBody = operation({
   depends: { emit: emit.required, origin: src },
   run: async ({ emit, origin }, { input: register, signal, log }: Operation.Ctx<Sync.Message>) => {
     emit("retry: 1000\n\n");
-    const wire = sseTransport(emit, signal);
+    const wire = createSseServer(emit, signal);
     const connected = origin.connect(wire);
     wire.deliver(register);
     const ended = await connected;

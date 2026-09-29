@@ -1,7 +1,7 @@
 {
   "name": "@tinker/sync",
   "version": "0.0.0",
-  "description": "Tinkered sync: a cell is the shared unit; the server is the truth; the transport is userland's (ADR 0048).",
+  "description": "Tinkered sync: shared cells, the source holds the truth, with pluggable transports and SSE.",
   "homepage": "https://github.com/author/library#readme",
   "bugs": {
     "url": "https://github.com/author/library/issues"
@@ -18,6 +18,7 @@
   "type": "module",
   "exports": {
     ".": "./dist/index.mjs",
+    "./sse": "./dist/sse.mjs",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -29,7 +30,7 @@
     "dev": "vp pack --watch",
     "mutate": "stryker run",
     "prepublishOnly": "vp run build",
-    "size": "vp pack && node ../../scripts/check-size.mjs 10240",
+    "size": "vp pack && node ../../scripts/check-size.mjs 10240 dist",
     "test": "vp test"
   },
   "dependencies": {
