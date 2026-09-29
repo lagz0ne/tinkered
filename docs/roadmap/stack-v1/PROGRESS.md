@@ -46,7 +46,7 @@ Rules for every ticket:
   green.
 - **t04 core: a span carries a trace id** -- [ ] blocked by: none
   Writer: `stack/t04`, in `/home/paseo/next/tinkered-stack-t04`.
-  Next: Hono and HTTP mutation, then writer handoff.
+  Next: Opus review, then the lander's N=61 screen and label calibration.
   Every span gets a trace id when it opens, from
   its parent or from a seed a driver gives
   (ADR 0076). Hono seeds it from `traceparent`.
@@ -1249,7 +1249,10 @@ vp run http#test && vp run -r test
 - Strict style scan: one old S14 false hit, on both branch and base.
 - That hit reads `panics[0]` from an array, not a tuple.
 - Core mutation: 86.01, `EXIT 0`, one full run under the lock.
-- Hono and HTTP mutation: waiting for the shared lock.
+- Hono mutation: 88.57, `EXIT 0`.
+- HTTP mutation: 89.70, `EXIT 0`.
+- Each package ran one full mutation lane, alone under the lock.
+- Writer work is saved in Review; no landing or push was done.
 - Hot slots: 253 names, last slot 255, no headroom.
 
 ### Timing

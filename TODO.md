@@ -49,9 +49,17 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 - **stack/t08 jobs** — `@tinker/jobs`: pg-boss as a driver, a job per session, added in the request's transaction; cron (ADR 0075). Owner: lead (stack session); Astra writer `0c7adcb8`, worktree `/home/paseo/next/tinkered-stack-t08`, branched from the rebased stack/t06 (lands first); Opus reviewer when the writer reports. Verify: a rolled-back request adds no job; nothing hangs on PGlite. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t17 hono-commit** — a request commits before it answers (a failed commit answers 500, not 200 with nothing saved); any raised error rolls the request back, even when answered 4xx (ADR 0084, user 2026-09-29). Owner: lead (stack session); Astra writer `32dd77ae`, worktree `/home/paseo/next/tinkered-stack-t17`; Opus reviewer when the writer reports. Verify: a test per rule that fails on main; hono, drizzle, stack, tracker tests; `pnpm validate`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t06 migrate-step** — the tracker's tables come from migration files, run at boot under a lock (ADR 0079). Owner: lead (stack session); Astra writer `2cb63e15`, worktree `/home/paseo/next/tinkered-stack-t06`; Opus reviewer when the writer reports. Verify: a drift test fails on a mismatch; an old tracker database keeps its rows. [track](docs/roadmap/stack-v1/PROGRESS.md).
-- **stack/t04 trace-id** — core: a span carries a trace id; Hono seeds it from `traceparent` (ADR 0076). Owner: lead (stack session); Astra writer `5e69613c`, worktree `/home/paseo/next/tinkered-stack-t04`; the only core card now; Opus reviewer when the writer reports. Verify: core and hono tests, `scripts/ticket.sh`, `pnpm validate`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 
 ## Review
+
+- **stack/t04 trace-id** — spans carry W3C ids across Hono and HTTP.
+  Owner: lead (stack session); Astra writer `5e69613c`.
+  Worktree: `/home/paseo/next/tinkered-stack-t04`, branch `stack/t04`.
+  Next: Opus review, then the lander's N=61 timing and label calibration.
+  Verify: gate `EXIT 0`; 44 budget lanes PASS.
+  Mutation: core 86.01, Hono 88.57, HTTP 89.70.
+  The N=31 screen shows no checked off-path slowdown; observed calls cost more.
+  [Track and proof](docs/roadmap/stack-v1/PROGRESS.md#t04-writer-proof--2026-09-29).
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
