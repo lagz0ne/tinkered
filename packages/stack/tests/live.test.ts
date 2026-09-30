@@ -284,7 +284,7 @@ test("a failed second live root leaves the first root receiving signals", async 
   scopes.push(source);
   await source.ready;
   first.value = "refreshed";
-  source.run(sender.publish, {
+  await source.run(sender.publish, {
     input: { subject: "reuse.changed", payload: new Uint8Array() },
   });
   await expect.poll(() => a.resolve(current)).toBe("refreshed");
