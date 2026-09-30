@@ -2342,9 +2342,9 @@ All jobs finished in this turn; no rebase or push.
 
 ### t17 server mutation lift
 
-Status: Doing. Owner: stack/t17.
+Status: Review. Owner: stack/t17.
 Base: `dd8a1f18`, checked before editing; no rebase or reset.
-Next: test close and restart through real HTTP connections and raw sockets.
+Next: lead reviews and lands the tested branch.
 Verify: rank survivors, run the line kill check under the lock,
 then one full stack lane at 60 seconds with killed share at least 85%.
 Run the full requested gate, uncached browser proof, and validator.
@@ -2388,3 +2388,26 @@ No source was changed or removed; no mutation setting or floor changed.
 The temporary mutation tree was already gone after the line check.
 Full log and JSON: `stack-t17-lift-full.log` and
 `stack-t17-lift-full.json` in the briefs cache.
+
+Final gate: build, check, Hono 84, Drizzle 25, stack 68,
+tracker 79; `EXIT 0`.
+Check: 0 errors and 29 warnings, unchanged.
+The tracker browser proof ran once uncached; all 7 helper tests passed,
+`BROWSER_EXIT 0`.
+`pnpm validate`: all 48 lanes passed, `VALIDATE_EXIT 0`.
+An extra validator lock wait was cancelled before the validator started;
+that wait exited 143, then the requested direct run passed.
+Both mutation runs used the lock; neither was cancelled.
+`pnpm-workspace.yaml` already allowed the esbuild build and is unchanged.
+
+The old server survivors now killed are 174, 181, 185, 191, 192,
+193, 194, 195, 196, 197, 270, 272, 273, 275, 276, 277, 278, and 279.
+The remaining server survivors are 176, 200, 201, 204, 214, 230, and 255.
+These IDs are from the full JSON report.
+No new Jev labels or Core feedback issues.
+All three existing labels stay unchanged.
+No source, config, floor, t04 trace read, or t06 migration changed.
+No rebase, reset, or push; all jobs finished in this turn.
+
+Final logs in the briefs cache: `stack-t17-lift-gate.log`,
+`stack-t17-lift-browser.log`, and `stack-t17-lift-validate.log`.
