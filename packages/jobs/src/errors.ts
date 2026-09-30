@@ -1,5 +1,6 @@
 type Payloads = {
   InvalidConfig: { keys: string[] };
+  UnknownQueue: { queue: string };
   PieceInUse: { label: string };
   JobCancelled: { queue: string };
   CommitFailed: { errors: readonly unknown[] };

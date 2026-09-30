@@ -75,6 +75,71 @@ test("forced close cancels the running job and rolls its session back", async ()
   ]);
 });
 
+test("forced close on the last try leaves a failed job and logs its cancellation once", async () => {
+  const entered = Promise.withResolvers<void>();
+  const work = operation({
+    label: "wait on last try",
+    run: async (_deps, ctx) => {
+      entered.resolve();
+      await ctx.clock.sleep(60000, ctx.signal);
+    },
+  });
+  const { client, clock, piece, tags } = await fixture([job("wait", work, { retryLimit: 0 })]);
+  const logs: Observe.Log[] = [];
+  const scope = createScope({
+    tags,
+    clock: makeTestClock(),
+    extensions: [piece.extension],
+    observe: { log: (log) => logs.push(log) },
+  });
+  scopes.push(scope);
+  await scope.ready;
+  const id = await scope.session((s) => s.run(piece.send, { input: { queue: "wait", data: {} } }));
+  const tick = clock.advance(500);
+  await entered.promise;
+  await scope.close();
+  await tick;
+  expect((await client.query("select state from pgboss.job")).rows).toEqual([{ state: "failed" }]);
+  const failures = logs.filter((log) => log.message === "job failed");
+  expect(failures).toHaveLength(1);
+  for (const failure of failures) {
+    expect(failure.level).toBe(50);
+    expect(failure.attributes).toMatchObject({ queue: "wait", id });
+    const error = failure.attributes.error;
+    if (!isError(error, "JobCancelled")) throw error;
+    expect(error.payload).toEqual({ queue: "wait" });
+  }
+});
+
+test("a restart applies changed retry settings and removes a dropped cron schedule", async () => {
+  const save = operation({ label: "save", run: () => undefined });
+  const { client, piece, tags } = await fixture([
+    job("save", save, { cron: "* * * * *", retryLimit: 5, retryDelay: 7, retryBackoff: true }),
+  ]);
+  const first = createScope({ tags, extensions: [piece.extension] });
+  scopes.push(first);
+  await first.ready;
+  await first.close();
+  const changed = jobs([job("save", save, { retryLimit: 0 })], {
+    pglite: store.db,
+    tx: store.tx,
+    env: {},
+  });
+  const second = createScope({ tags, extensions: [changed.extension] });
+  scopes.push(second);
+  await second.ready;
+  expect(
+    (await client.query("select name, cron from pgboss.schedule where name = 'save'")).rows,
+  ).toEqual([]);
+  expect(
+    (
+      await client.query(
+        "select retry_limit, retry_delay, retry_backoff from pgboss.queue where name = 'save'",
+      )
+    ).rows,
+  ).toEqual([{ retry_limit: 0, retry_delay: 0, retry_backoff: false }]);
+});
+
 test("bad settings fail boot naming JOBS_URL before serving", async () => {
   for (const JOBS_URL of [
     undefined,

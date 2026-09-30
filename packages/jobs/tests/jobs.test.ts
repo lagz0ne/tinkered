@@ -49,6 +49,46 @@ test("a rolled back request leaves no job", async () => {
   expect((await client.query("select * from receipts")).rows).toEqual([]);
 });
 
+test("an unknown queue fails without blocking the request or close", async () => {
+  const { client, piece, tags } = await fixture([job("save", save)]);
+  const scope = createScope({ tags, extensions: [piece.extension] });
+  scopes.push(scope);
+  await scope.ready;
+  const request = scope.createSession();
+  await request.resolve(store.tx);
+  try {
+    await request.run(piece.send, { input: { queue: "nope", data: {} } });
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "UnknownQueue")) throw error;
+    expect(error.payload).toEqual({ queue: "nope" });
+  }
+  await request.close();
+  await scope.close();
+  expect(await readStates(client)).toEqual([]);
+});
+
+test("a throwing POST request returns 500 and leaves no job or receipt", async () => {
+  const { client, clock, piece, tags } = await fixture([job("save", save)]);
+  const addThenFail = operation({
+    label: "add then fail",
+    depends: { send: piece.send },
+    run: async ({ send }) => {
+      await send.run({ input: { queue: "save", data: { value: "gone" } } });
+      throw new Error("request failed");
+    },
+  });
+  const web = hono([route.post("/", addThenFail)]).extension;
+  const scope = createScope({ tags, extensions: [piece.extension, web] });
+  scopes.push(scope);
+  await scope.ready;
+  const response = await scope.resolve(web).request("/", { method: "POST" });
+  expect(response.status).toBe(500);
+  await clock.advance(1000);
+  expect(await readStates(client)).toEqual([]);
+  expect((await client.query("select * from receipts")).rows).toEqual([]);
+});
+
 test("a failing job retries then stays failed and logs one line", async () => {
   let attempts = 0;
   const cause = new Error("receipt failed");

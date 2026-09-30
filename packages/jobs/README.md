@@ -44,18 +44,25 @@ Only a dev root or a test binds the database.
 
 `send` is an operation to put in `depends`.
 It saves through that session's transaction.
+An unlisted queue raises `UnknownQueue` with `{ queue }`
+before pg-boss runs a query.
 A successful job closes its session before completion.
 A throw rolls it back and lets pg-boss retry.
 A failed commit also fails the job.
 After the last try, the job stays failed and logs one line.
 The queue uses pg-boss defaults unless its row sets
 `retryLimit`, `retryDelay` (seconds), or `retryBackoff`.
+Each start applies the row's current retry settings.
+Omitted settings reset to `retryLimit: 2`, `retryDelay: 0`,
+and `retryBackoff: false`, the pg-boss 12.35.0 defaults.
 `cron` takes a cron string and sends `{}` as the input.
+Removing `cron` from a row removes its schedule at the next start.
 Operations may use their usual input parser.
 
 Close stops fetching before core closes child sessions.
 Graceful close lets a running job finish.
 Forced close aborts the operation's signal.
+If that uses the last try, the failed job logs `JobCancelled` once.
 Operations must honor that signal when waiting.
 
 Tests bind `createJobsClock` from `@tinker/jobs/testing`.
@@ -68,12 +75,16 @@ They never sleep or patch globals.
 
 - A committed request runs its job once with its data.
 - A rolled back request leaves no job.
+- An unknown queue fails without blocking the request or close.
+- A throwing POST request returns 500 and leaves no job or receipt.
 - A failing job retries then stays failed and logs one line.
 - Each job gets its own session cell.
 - A cron row creates a job when the test clock reaches its schedule.
 - An open request can add jobs while due jobs wait for PGlite.
 - Graceful close stops fetching and lets a running job commit.
 - Forced close cancels the running job and rolls its session back.
+- Forced close on the last try leaves a failed job and logs its cancellation once.
+- A restart applies changed retry settings and removes a dropped cron schedule.
 - Bad settings fail boot naming JOBS_URL before serving.
 - A piece rejects a second live scope and restarts after close.
 - A failed later start stops jobs and leaves the borrowed database open.

@@ -3949,3 +3949,37 @@ Core itself has no change on this branch.
   - `stack-t08-all-tests-final.log`: all repo tests.
   - `stack-t08-mutation-first.log` and `.json`: first run.
   - `stack-t08-mutation-final.log` and `.json`: corrected run.
+
+### t08 reviewer round 1
+
+- Owner: stack/t08 writer; base stays `50b31bab`.
+  No rebase or push in this round.
+- Fix unknown queue sends before calling pg-boss.
+  Add the managed error `UnknownQueue` with `{ queue }`.
+- Apply retry settings on restart and remove dropped cron schedules.
+- Prove a throwing Hono request rolls back its queued job.
+  Keep the forced-close rollback test.
+- Log cancellation when it uses the job's last try.
+- Verify: each regression, required gate, coverage, prose, Jev.
+  Run mutation only if source coverage drops.
+- Caller check: this base has no jobs consumers outside its tests.
+  No existing cross-package symbol changes.
+
+### t08 round 1 fixes and gate
+
+- New regression tests failed on the old runtime code, exit 1.
+  Unknown queue send timed out, as did its close cleanup.
+  Restart kept the old cron schedule.
+  Last-try cancellation produced no failure log.
+  The new throwing-request test already passed, as reviewed.
+- Unknown queue sends now raise before any pg-boss call.
+- Queue setup creates, updates, then schedules or unschedules.
+  Omitted retry settings reset to 2 tries, 0 delay, no backoff.
+  These are pg-boss 12.35.0's defaults.
+  All queue setup still runs before workers start.
+- The final-try log now includes cancelled jobs during close.
+  The early cancellation check uses that same error path.
+- All four tests pass; the forced-close rollback test stays.
+- Required gate: build, check, jobs 24, stack 63, tracker 79.
+  `EXIT 0`; no errors and the same 29 warnings as before.
+- Next: compare coverage, finish Jev and all validation lanes.

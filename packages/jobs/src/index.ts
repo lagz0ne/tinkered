@@ -99,11 +99,7 @@ export function jobs(rows: readonly Jobs.Row[], wiring: Jobs.Wiring) {
         await worker.stop({ graceful: false });
       });
       await worker.start();
-      for (const row of rows) {
-        const { queue, operation: _operation, cron, ...retry } = row;
-        await worker.createQueue(queue, retry);
-        if (cron !== undefined) await worker.schedule(queue, cron, {}, retry);
-      }
+      await configureQueues(worker, rows);
       await next();
       for (const row of rows) {
         await worker.work(
@@ -112,11 +108,11 @@ export function jobs(rows: readonly Jobs.Row[], wiring: Jobs.Wiring) {
           async (batch) => {
             await scope.ready;
             for (const item of batch) {
-              if (closing) raise("JobCancelled", { queue: row.queue });
               try {
+                if (closing) raise("JobCancelled", { queue: row.queue });
                 await runJob(scope, row, item);
               } catch (error) {
-                if (!closing && item.retryCount >= item.retryLimit) {
+                if (item.retryCount >= item.retryLimit) {
                   log.error("job failed", { queue: row.queue, id: item.id, error });
                 }
                 throw error;
@@ -126,8 +122,12 @@ export function jobs(rows: readonly Jobs.Row[], wiring: Jobs.Wiring) {
         );
       }
       return {
-        send: (input: Jobs.Input, tx: Jobs.Transaction) =>
-          worker.send(input.queue, input.data, { db: fromDrizzle(tx, sql) }),
+        send: (input: Jobs.Input, tx: Jobs.Transaction) => {
+          if (!rows.some((row) => row.queue === input.queue)) {
+            raise("UnknownQueue", { queue: input.queue });
+          }
+          return worker.send(input.queue, input.data, { db: fromDrizzle(tx, sql) });
+        },
       };
     },
   });
@@ -145,6 +145,18 @@ function readUrl(value: string | undefined): string {
     raise("InvalidConfig", { keys: ["JOBS_URL"] });
   }
   return url.href;
+}
+
+async function configureQueues(worker: PgBoss, rows: readonly Jobs.Row[]): Promise<void> {
+  for (const row of rows) {
+    /** Match pg-boss 12.35.0 defaults so omitted settings reset on restart. */
+    const { queue, cron, retryLimit = 2, retryDelay = 0, retryBackoff = false } = row;
+    const retry = { retryLimit, retryDelay, retryBackoff };
+    await worker.createQueue(queue, retry);
+    await worker.updateQueue(queue, retry);
+    if (cron !== undefined) await worker.schedule(queue, cron, {}, retry);
+    else await worker.unschedule(queue);
+  }
 }
 
 async function stopFetching(
