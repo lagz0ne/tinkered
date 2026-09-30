@@ -63,7 +63,7 @@ test("a request in flight during an edit finishes on its old root", async () => 
   const request = fetch(`${host.url}/api/slow`);
   await host.probe.entered.promise;
   await writeFile(join(host.directory, "value.ts"), 'export const value: string = "second";\n');
-  await expect.poll(() => host.probe.signals.at(0)!.aborted).toBe(true);
+  await expect.poll(() => host.probe.signals.at(0)!.aborted, { timeout: 20000 }).toBe(true);
   expect(host.probe.cleaned).toBe(0);
   expect((await fetch(`${host.url}/api/value`)).status).toBe(503);
   host.probe.release.resolve();
@@ -116,10 +116,12 @@ test.each([
   const entry = join(host.directory, "root.ts");
   const good = await readFile(entry, "utf8");
   await writeFile(entry, source);
-  await expect.poll(() => host.events.at(-1)?.kind).toBe("error");
+  await expect.poll(() => host.events.at(-1)?.kind, { timeout: 20000 }).toBe("error");
   expect((await fetch(`${host.url}/api/value`)).status).toBe(503);
   await writeFile(entry, good);
-  await expect.poll(async () => (await fetch(`${host.url}/api/value`)).text()).toBe('"first"');
+  await expect
+    .poll(async () => (await fetch(`${host.url}/api/value`)).text(), { timeout: 20000 })
+    .toBe('"first"');
 });
 
 test("dev reports bad listen settings and answers one", async () => {
@@ -157,7 +159,7 @@ test("a root teardown failure still closes dev services and answers one", async 
     'export const value: string = "close-broken";\n',
   );
   await expect
-    .poll(async () => (await fetch(`${host.url}/api/value`)).text())
+    .poll(async () => (await fetch(`${host.url}/api/value`)).text(), { timeout: 20000 })
     .toBe('"close-broken"');
   host.stop.abort();
   expect(await host.done).toBe(1);

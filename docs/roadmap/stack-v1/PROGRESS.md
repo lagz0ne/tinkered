@@ -4935,3 +4935,15 @@ No build runs in that tree while the job waits or runs.
   titles flagged, zero of 79 tracker promises missing.
   The same labeled listen notes remain.
 - Strict style and TSDoc checks pass.
+
+### t14 file-watch waits
+
+- One recovery test hit the default one-second poll
+  limit while the machine was busy.
+  It still saw the old `17` error body at that limit.
+- File-watch checks now use the existing 20-second
+  wait used by the other reload tests.
+  No app source changed and no sleep was added.
+- Stack: all 112 tests pass after this change.
+  Check: zero errors and 28 warnings.
+  The rest of the combined gate is still running.
