@@ -2479,3 +2479,9 @@ The gate ended with `EXIT 0`.
 Check: zero errors, 28 warnings, matching main.
 Log: `stack-t17-resume-gate-clean.log`.
 The temporary main red-proof worktree was removed.
+
+All 18 test tasks passed through their package configs,
+`ALL_TESTS_EXIT 0`; 17 used cached green results.
+The ticket's four suites also passed fresh in the gate above.
+Used one task at a time after a build.
+Log: `stack-t17-resume-all-tests.log`.
