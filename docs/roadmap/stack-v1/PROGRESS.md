@@ -5004,3 +5004,11 @@ No build runs in that tree while the job waits or runs.
 - The t17 mutation marker is present.
   The lead's lock wait rule is met; final code still waits
   for t17 and t18 to land on main.
+- The size probe found 10,418 bytes of gzip output.
+  That exceeds the unchanged 10,240-byte Stack limit.
+- Stack now minifies its build, as Core already does.
+  The same probe is 6,837 bytes and passes.
+  It counts every entry and shared chunk.
+  The config check passes; source and type names stay readable.
+  This probe also borrowed the helper and removed it afterward.
+  Final validation must check the landed dependencies again.

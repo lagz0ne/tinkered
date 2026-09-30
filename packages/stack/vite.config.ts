@@ -7,6 +7,7 @@ export default defineConfig({
   },
   pack: {
     entry: ["src/index.ts", "src/dev.ts"],
+    minify: true,
     deps: {
       resolveDepSubpath: true,
       neverBundle: [
