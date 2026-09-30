@@ -59,7 +59,14 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Review
 
-- **stack/t13 trace-sink** — OTLP/JSON spans and logs, plus NATS `traceparent`. Owner: lead (stack session); Astra writer `48d2e35f`, worktree `/home/paseo/next/tinkered-stack-t13`. Next: lead review; saved, not pushed. Verify: gate exit 0; stack 78, NATS 23, tracker 69; validate 48 lanes; mutation stack 87.61, NATS 92.66. [proof](docs/roadmap/stack-v1/PROGRESS.md#t13-final-proof--2026-09-30).
+- **stack/t13 trace-sink** — OTLP/JSON spans and logs; NATS `traceparent`.
+  Owner: lead (stack session).
+  Writer: Astra `48d2e35f`, branch `stack/t13`.
+  Worktree: `/home/paseo/next/tinkered-stack-t13`.
+  Next: lead review; saved, not pushed.
+  Verify: gate exit 0; stack 78, NATS 23, tracker 69.
+  Validate: 48 lanes; mutation: stack 87.61, NATS 92.66.
+  [Proof](docs/roadmap/stack-v1/PROGRESS.md#t13-final-proof--2026-09-30).
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |

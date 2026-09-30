@@ -1939,7 +1939,7 @@ impact stack/t04: as planned (0 discrepancies). Advisory — never a gate.
   Added installed size: 10,464 bytes; archive: 6,619 → 10,101.
 - Cost probe, through `flock /tmp/mutation.lock` and
   `benchctl exec -- node bench/trace-sink.mjs`:
-  61 measured batches of 1024 fresh finished spans.
+  61 measured batches of 1024 fresh spans with no user fields.
   Minimum 2,726 ns/span; median 3,057; p95 6,809.
   The cost includes lazy id reads and queue encoding.
   It excludes HTTP, scope setup, and batch envelopes.
@@ -1980,8 +1980,14 @@ console.log(lines.length);
 ### t13 final proof — 2026-09-30
 
 - Ready for lead review; no push.
-- Rebased onto `origin/main` at `f8bc981b` before the final gate.
-  No later remote commit was present at that fetch.
+- Final base: `origin/main` at `46bf018d`.
+  The last fetch brought a board-only change; rebase kept it.
+  Build, check, the gate tests, all package tests, and all 48
+  validation lanes passed again after that rebase.
+- Mutation source and tests stayed byte-for-byte unchanged:
+  `git diff --exit-code 551b0571 HEAD -- packages/stack`
+  and the same check for `packages/nats` both passed.
+  The required full lanes were not repeated.
 - Final gate, one chain by exit code:
 
 ```sh
