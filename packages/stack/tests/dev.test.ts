@@ -73,6 +73,24 @@ test("a request in flight during an edit finishes on its old root", async () => 
     .toBe('"second"');
 });
 
+test("back-to-back saves serve each new server value", async () => {
+  const host = await createDevFixture(false);
+  expect((await host.ready).kind).toBe("ready");
+  for (let edit = 0; edit < 10; edit++) {
+    const value = `edit-${edit}`;
+    await writeFile(
+      join(host.directory, "value.ts"),
+      `export const value: string = ${JSON.stringify(value)};\n`,
+    );
+    await expect
+      .poll(async () => (await fetch(`${host.url}/api/value`)).text(), {
+        interval: 5,
+        timeout: 20000,
+      })
+      .toBe(JSON.stringify(value));
+  }
+});
+
 test("stopping during a reload signals the starting root before joining it", async () => {
   const host = await createDevFixture(false);
   expect((await host.ready).kind).toBe("ready");

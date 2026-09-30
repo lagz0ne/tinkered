@@ -447,6 +447,7 @@ Prod gets none of these defaults.
 - Three server edits close old roots and keep the same
   database and NATS handles.
 - A request in flight during an edit finishes on its old root.
+- Back-to-back saves serve each new server value.
 - A broken server edit serves 503 until a good edit.
 
 - A broken root entry stays editable on 503.

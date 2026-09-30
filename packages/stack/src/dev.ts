@@ -135,7 +135,11 @@ class DevHost {
       server: {
         middlewareMode: true,
         hmr: { server: this.listener },
-        watch: { ignored: [`${this.env.DATA_PATH}/**`] },
+        watch: {
+          ignored: [`${this.env.DATA_PATH}/**`],
+          /** Wait for a complete save; the watcher's direct change path drops rapid repeats. */
+          awaitWriteFinish: { stabilityThreshold: 50, pollInterval: 10 },
+        },
       },
       environments: {
         ssr: {

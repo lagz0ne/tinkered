@@ -4722,7 +4722,7 @@ flock /tmp/mutation.lock \
 ## t14 writer notes
 
 Owner: stack/t14 writer. Branch: `stack/t14`.
-Next: rebase onto t18, then run the final checks.
+Next: prove rapid saves, rebase onto t18, then run final checks.
 Verify: brief gate, validate, stack mutation at least 85,
 and queue verdict `b is faster` for reload versus restart.
 
@@ -5031,3 +5031,25 @@ No build runs in that tree while the job waits or runs.
   Three reloads keep the same handles and clear old timers.
   This probe borrowed t18's helper and removed it afterward.
   It is not the final gate.
+
+### t14 rapid save fix
+
+- The workspace probe passed build and check.
+  Check still has zero errors and 28 warnings.
+  Stack then missed the last of three server edits.
+  It kept serving the previous value for the whole wait.
+- Vite's bundled watcher drops repeat change events
+  for the same file for 50 milliseconds.
+  A reload can finish before that window ends.
+- A focused real-file test makes ten back-to-back saves.
+  Before the fix, it serves `edit-1` instead of `edit-2`.
+  The test fails with `EXIT 1`.
+- The host now uses the watcher's `awaitWriteFinish` path.
+  It waits for a complete save and retains rapid repeats.
+  The test keeps its checks and wait limit.
+  The green probe passes all 125 Stack and 84 tracker tests.
+  Check has zero errors and 28 warnings, matching clean main.
+  The temporary helper was removed after the probe.
+- Strict style census and TSDoc pass.
+  Jev flags no tests or missing promises in 65 titles.
+  The final gate still waits for t18 on main.
