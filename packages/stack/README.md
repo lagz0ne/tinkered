@@ -92,17 +92,20 @@ keeps the request's answer.
 For several server processes, use one subject (channel name) per app:
 
 ```ts
-extensions: [
-  web,
-  src,
-  liveUpdates(publishIssues, {
-    subject: "issues.changed",
-    env: process.env,
-  }),
-];
+const live = liveUpdates(publishIssues, {
+  subject: "issues.changed",
+  env: process.env,
+});
+const first = createScope({
+  extensions: [web, src, live],
+});
+const second = createScope({
+  extensions: [web, src, live],
+});
 ```
 
-Make a fresh live piece for each root.
+Reuse the same live piece across roots.
+Each root owns its publisher and NATS connection.
 A failed second boot leaves the first root receiving signals.
 The nested row holds the publisher and its NATS extension.
 NATS checks `NATS_URL` at start.
