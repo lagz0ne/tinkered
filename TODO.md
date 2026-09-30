@@ -39,7 +39,7 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **stack/t08 jobs** — Owner: stack/t08 writer. Next: fix test setup and gaps found by mutation. Gate EXIT 0: jobs 17, stack 63, tracker 79; validate 50/50. Verify: mutation at least 85, with killed, timeout, and survived counts. Base: local `stack/t06` at `50b31bab`. [track](docs/roadmap/stack-v1/PROGRESS.md).
+- **stack/t08 jobs** — Owner: stack/t08 writer. Next: finish the corrected mutation run. Gate EXIT 0: jobs 20, stack 63, tracker 79; validate 50/50. Verify: mutation at least 85, with killed, timeout, and survived counts. Base: local `stack/t06` at `50b31bab`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.

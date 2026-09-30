@@ -3911,3 +3911,15 @@ Core itself has no change on this branch.
 - Deviation: repeat the final mutation run after fixing setup.
   The first report had false survivors and cannot prove the floor.
   Keep its log and JSON; do not change the floor or source list.
+
+### t08 corrected final checks
+
+- Fetch still shows no `stack/t06` tag on origin.
+  The base is local t06 at `50b31bab`.
+- Gate chain: build, check, jobs 20, stack 63, tracker 79.
+  `EXIT 0`; no errors and the same 29 warnings as main.
+- `pnpm validate`: all 50 lanes pass again, exit 0.
+- Jev preflight has the same labels and notes.
+  Jev tests and promises: no flags in 20 tests.
+- No source change since the prior close fix.
+  The corrected mutation run is the last check.
