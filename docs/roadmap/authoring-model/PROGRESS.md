@@ -638,11 +638,11 @@ Queued timing: A `1c5c82fe`, B `145353bc`, 61 pairs per path.
 The same probe reads both built entries; each row used batch mode.
 Paired sign test: two-sided p below 0.01 means a seen difference.
 `op`, `run`, `session`, and `lifecycle`: no difference we can see.
-`tagged`: B slower; the ordinary-call path is being fixed.
+`tagged`: B slower in the first check; the follow-up below removes that cost.
 These five paths do not claim coverage of all timing paths.
 
 Main landed React namespace resets at `49635a5d` during this review.
-Both sets of React promises are being kept and rechecked.
+Both sets of React promises are kept; all 87 React tests pass.
 The shared Jev case bank keeps both teams' labels.
 The labels concern graph-owned state, cleanup, and typed defaults.
 Constructor nodes stay inside builders when their identities link one graph.
@@ -650,5 +650,42 @@ Whole-range review compared a mixed diff with one commit title;
 the Process source and its red test were reviewed directly.
 Old promise and census notes outside changed cases remain follow-up work.
 
-Pending: merged gates, timing recheck, all 14 fault lanes,
-Core ticket checkpoint, landing, and push.
+Follow-up source `577e7f6c`, integrated as `db6d53bf`, keeps the body callback
+out of the ordinary tagged path.
+Call reads and cleanup order remain unchanged.
+Four small close/outcome helpers fund that cold body helper.
+Core is now 16,384 bytes gzip, exactly at the cap.
+The last hot slot is 251, leaving four names.
+Merged build, check, all 18 test tasks, prose, and 48 release lanes pass.
+Check: 0 errors and 28 existing warnings in 506 files.
+
+Queued recheck: A `1c5c82fe`, B `b2fe2204`, 61 pairs per path.
+Every checked path reports no difference we can see.
+The [learnings entry](../../../research/learnings/2026-09-30-authoring-call-signal.md)
+records the limits and links both raw CSV files.
+All 14 fault lanes run one at a time under `/tmp/mutation.lock`.
+The Core ticket's advisory diff had no uncommitted source to judge;
+its commit-title flag does not contradict the reviewed source diff.
+Its impact lookup does not find this track's compound checkpoint name.
+The impact blocks above and in PACKAGES.md were written before source changes.
+SCIP indexes and public references were refreshed for all 14 packages.
+Lead review of `main..HEAD` has 0 source flags.
+Core exceeds the judge's file-size limit and was reviewed by changed function.
+
+Both label banks were kept; the merged bank has 1,827 cases.
+Full calibration and the two changed Core-flag calibrations pass.
+The new false labels name owned Layer state and the tracked close promise.
+
+Pending: all 14 fault lanes, Core ticket checkpoint, landing, and push.
+
+## Existing Process card completed
+
+The `process/early-abort` card is covered by source `5b7a0cd5`.
+A signal aborted during startup used to miss the attached listener.
+The public regression failed before the fix.
+It now returns 130 without running the command.
+Failed readiness finishes close hooks once.
+Root completion passes a signal and waits for `closed`.
+Process: 50 tests pass; fault score 94.61, above the floor of 85.
+The merged code check passes with 0 errors and 28 existing warnings.
+The existing card moved from Ready to Done; no duplicate card was added.

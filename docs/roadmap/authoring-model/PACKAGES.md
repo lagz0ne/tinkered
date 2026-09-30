@@ -361,9 +361,18 @@ No live GitHub or Cloudflare account was called.
 The live command and required settings are in
 [`examples/harness/SERVICES.md`](../../../examples/harness/SERVICES.md).
 
-A queued timing check used 61 paired rounds for five existing call paths.
-The ordinary tagged path was slower; its fix and recheck are pending.
-The other four paths reported no difference we can see.
-Fault lanes for all 14 packages are pending.
-Main's new React namespace resets are being merged and rechecked.
-Shared Jev labels retain both teams' answers; calibration is being rerun.
+Merged source `db6d53bf` passes build, check, all 18 test tasks, and prose.
+All 48 deterministic release lanes pass.
+Check: 0 errors and 28 existing warnings in 506 files.
+React: 87 tests pass, including both teams' fixes.
+Core: 790 tests pass; gzip is 16,384 bytes at the 16,384-byte cap.
+The last hot slot is 251, leaving four names.
+
+The ordinary tagged path's callback now stays in its cold session branch.
+The queued recheck used 61 paired rounds for five existing paths.
+Every path reported no difference we can see.
+[Timing proof](../../../research/learnings/2026-09-30-authoring-call-signal.md).
+Fault lanes for all 14 packages are running one at a time.
+Shared Jev labels retain both teams' answers.
+Full merged-bank calibration and both new Core-flag calibrations pass.
+The bank holds 1,827 labeled cases.

@@ -23,10 +23,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Ready
 
-| Card                                                                                                                                                                                                                                                                                                                                            | Owner         | Next                                                                                                                                                            | Verify                                                           |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout)                                                                                                                                                                                                                           | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean                    |
-| process/early-abort — `execute` attaches its abort listener after `createScope`, so an abort fired during `createScope` is missed and a server command waits forever (`packages/process/src/index.ts` near line 58). Fix: after attaching, `if (signal?.aborted) stop()`; a test whose `start` aborts the signal (core/root-lifetime committee) | lead          | one writer + Opus review                                                                                                                                        | the new test fails on main; process tests; process mutation ≥ 85 |
+| Card                                                                                                                  | Owner         | Next                                                                                                                                                            | Verify                                        |
+| --------------------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| docs/vertical — phone-readable docs: lists over tables, fences ≤ 60 chars (`docs/writing-style.md` → Vertical layout) | lead (Claude) | `node scripts/prose-lint.mjs --wide` lists 47 files; convert each when next touched, `TODO.md` and `docs/glossary.md` first; one contributor per package README | `--wide` prints 0 files; `vp run prose` clean |
 
 - **perf/warm-ctl-trade** — win back `s4_warm_ctl` (+0.3 ns, +2.8% at perf/tagged-close) without losing `warm`: both read through `nodeState`; the fix that inlined the whole warm read (611 → 613 bytes) made the bare controller lookup slower. V8 first (inlining of both loops), then N=31 `SCEN="warm s4_warm_ctl"`. Verify: neither "B slower" vs main before perf/tagged-close.
 
@@ -54,7 +53,7 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 - **authoring/packages** — check every package and app against the settled model.
   Owner: lead (authoring session); Astra writers, one package each.
-  Next: finish full release and fault checks, then land.
+  Next: finish serial fault checks, then land.
   All source fixes and the two-service Harness example are saved.
   Verify: each package has a recorded result; regressions fail before fixes;
   build/check, package and app tests, changed-package fault lanes, prose.
@@ -104,6 +103,13 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **process/early-abort** — startup abort stops before the command runs.
+  Owner: lead (authoring session); source: `5b7a0cd5`.
+  Proof: the public regression failed before the fix and now returns 130.
+  Process 50 tests pass; code check has 0 errors; fault score 94.61.
+  Root completion uses a signal and waits for `closed`.
+  [Track](docs/roadmap/authoring-model/PACKAGES.md).
 
 - **react/namespaces** — reset and refetch keep sibling project stores.
   Owner: lead (Codex); source: `878ca7ba`, Playground: `a8f131ff`.
