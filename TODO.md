@@ -52,16 +52,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Review
 
-- **stack/t04 trace-id** — W3C ids across Hono and HTTP; private ID stream.
-  Owner: lead (stack session); Astra writer `5e69613c`.
-  Worktree: `/home/paseo/next/tinkered-stack-t04`, branch `stack/t04`.
-  Next: lead review of F5, N=61 landing screen, and label calibration.
-  Verify: F1/F4/F5 regression tests; gate `EXIT=0`; core 731, Hono 65, HTTP 86; validate 46/46; zero impact gaps.
-  Prior round N=31: `opobs` 184.2 to 187.1 ns, no difference we can see; no row is b is slower.
-  Prior round core mutation: 85.38; 2686 killed, 29 timeout, 437 survived; exit 0 with 60-second timeout and two workers.
-  Hot slots: 252 names, last slot 254; one spare name.
-  [Track and proof](docs/roadmap/stack-v1/PROGRESS.md#t04-reviewer-f5--import-draws-no-random-values).
-
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
 
@@ -107,6 +97,7 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Done
 
+- **stack/t04 trace-id** — core: every observed span carries a W3C trace id and span id (lazy hex, private id stream: observation never moves a seeded `ctx.random`, ADR 0086); a session can join a remote trace; hono reads `traceparent`, http sends it; core imports no OTel; nothing draws at import (Workers-safe). Cost: `opobs` +8 ns (+4%, N=61), accepted by the user. Proof: gate EXIT 0 (core 731, hono 71, http 86), slots headroom 1, impact 0, mutation core 85.38% at 60 s (2687/29/437; killed 85.22% of decided) / hono 86.09% (291/0/45) / http 89.70% (446/7/45), validate 48/48, N=61: no other row slower. Reviewer READY (43da66df). [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t12 live-across** — a save on one server reaches tabs on another: after a commit the stack's live piece sends one empty signal per app over NATS, and every server (the sender too) re-reads from the database; no signal on a GET, a rolled-back save, or a failed commit; a handled 4xx that saved still signals. Reviewer probes: a burst of 10 saves ends on the final list everywhere. Later: send the signal whenever the commit works, not only when the sender's own re-read works. Proof: gate EXIT 0 (stack 58, nats 19, tracker 69), browser proof, stack mutation 89.47% (238/0/28; the stack lane now waits 60 s per mutant: at the default limit it gave 226/15/25 and its timed-out mutants left `/tmp/tinker-nats-*` stores), validate 48/48. Reviewer READY (0420f317). [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t07 nats** — `@tinker/nats` on the NATS v3 client (pinned): the extension checks `NATS_URL` in start and connects at boot even with no subscriptions (fail fast on an unreachable server, a deliberate reading of ADR 0081 §4); publish is an operation; a subscription row runs its operation in its own session per message, a failure logs one line and the next message runs; close drains then closes; a second live start of one piece fails `PieceInUse`. Tests run a real `nats-server` v2.15.0, SHA-256 checked, cached. Proof: gate EXIT 0 (nats 19), nats mutation 91.43% (224/0/15 at 60 s; the lane's 10 s limit gave 193/31/15, same score), validate 48/48. Reviewer READY (f9c360e0). [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t02 hono-errors** — a managed error becomes its HTTP answer through `@tinker/hono`: an error table maps a kind to a status, or a status plus a body from the payload (Rails `rescue_responses`); an unmapped error logs one line through the scope's sink and answers 500; `HTTPException` keeps its response. The tracker declares its table; every answer is byte-for-byte the same (reviewer probed each kind). Proof: gate EXIT 0 (hono 68, tracker 69), browser proof, hono mutation 85.27% (249/0/41), validate 46/46. Reviewer READY (f0f42868). [track](docs/roadmap/stack-v1/PROGRESS.md).

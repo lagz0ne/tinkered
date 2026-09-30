@@ -44,7 +44,7 @@ Rules for every ticket:
   Verify: `vp run -r build`, `vp check`,
   `vp run drizzle#test`, and the tracker's tests
   green.
-- **t04 core: a span carries a trace id** -- [ ] blocked by: none
+- **t04 core: a span carries a trace id** -- [x] landed `3b18c86`
   Writer: `stack/t04`, in `/home/paseo/next/tinkered-stack-t04`.
   Next: lead review, N=61 landing screen, and label calibration; F1/F4 and the N=31 bar pass.
   Every span gets a trace id when it opens, from

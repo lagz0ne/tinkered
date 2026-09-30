@@ -15,6 +15,70 @@ sandbox re-check of the call-path rules is done; see "Call paths through benchd"
 2026-09-29: the probe now times every scenario the same way, and `bench/ab.sh` runs one probe
 against both trees. The numbers to use are in "Call paths with warm-up and one probe" below.
 
+## stack/t04 (2026-09-30)
+
+A = main `be6a9526` (core last changed before `de72d420`).
+B = `3b18c864`, the rebased t04 head (docs only after it).
+N=61 through `benchd`, one warmed probe, medians in ns per call.
+Every row: batch in 61 of 61 on both sides.
+The box was busy (other mutation lanes), so every number is higher than older tables.
+
+```bash
+N=61 A=../tinkered-t04-base \
+  SCEN="<all 23>" bench/queued.sh
+```
+
+- The change: every observed span carries a W3C trace id and span id (ADR 0076, ADR 0086).
+- The verdict: a paired sign test over the 61 rounds, two-sided p < 0.01.
+- The bar: no row B slower.
+
+### The run
+
+- **`tagged`** — 175.9 → 176.2 (+0.3, +0.2%), slower 26/61: no difference we can see
+- **`taggeddefer`** — 431.9 → 416.4 (−15.5, −3.6%), slower 32/61: no difference we can see
+- **`taggedres`** — 4227.3 → 4850.7 (+623.4, +14.7%), slower 36/61: no difference we can see
+- **`session`** — 640.8 → 659.7 (+18.9, +2.9%), slower 35/61: no difference we can see
+- **`op`** — 71.0 → 68.1 (−2.9, −4.1%), slower 16/61: B faster
+- **`opsink`** — 72.2 → 68.8 (−3.4, −4.7%), slower 14/61: B faster
+- **`oplog`** — 313.8 → 309.1 (−4.7, −1.5%), slower 27/61: no difference we can see
+- **`opobs`** — 197.2 → 220.9 (+23.7, +12.0%), slower 52/61: B slower
+- **`opres`** — 275.6 → 274.2 (−1.4, −0.5%), slower 27/61: no difference we can see
+- **`asyncsub`** — 1340.9 → 1319.3 (−21.6, −1.6%), slower 27/61: no difference we can see
+- **`run`** — 83.8 → 83.4 (−0.4, −0.5%), slower 22/61: no difference we can see
+- **`inline`** — 170.9 → 168.7 (−2.2, −1.3%), slower 24/61: no difference we can see
+- **`s1_getctl`** — 250.6 → 256.0 (+5.4, +2.2%), slower 36/61: no difference we can see
+- **`s2_data`** — 285.8 → 295.4 (+9.6, +3.4%), slower 36/61: no difference we can see
+- **`s3_doubled`** — 554.6 → 588.7 (+34.1, +6.1%), slower 30/61: no difference we can see
+- **`s4_warm_ctl`** — 12.0 → 11.9 (−0.1, −0.8%), slower 17/61: no difference we can see
+- **`cold2`** — 869.0 → 743.6 (−125.4, −14.4%), slower 25/61: no difference we can see
+- **`cold`** — 1101.6 → 1153.9 (+52.3, +4.7%), slower 32/61: no difference we can see
+- **`create`** — 128.4 → 127.2 (−1.2, −0.9%), slower 26/61: no difference we can see
+- **`warm`** — 16.4 → 16.4 (+0.0, +0.0%), slower 28/61: no difference we can see
+- **`get1`** — 0.4 → 0.4 (+0.0, +0.0%), slower 0/61: no difference we can see
+- **`lifecycle`** — 922.9 → 932.4 (+9.5, +1.0%), slower 38/61: no difference we can see
+- **`inferdi_cold`** — 207.9 → 209.2 (+1.3, +0.6%), slower 31/61: no difference we can see
+- Raw rows: `tinkered-inv-reports/t04-land-ab.csv`.
+
+### `opobs` alone, and before F5
+
+- **`opobs` alone** (A `be6a9526`) — 192.4 → 200.0 (+7.6, +4.0%), slower 43/61: B slower
+- **`opobs`, pre-F5 `caedda14` vs head** — 199.6 → 202.3 (+2.7, +1.4%), slower 34/61: no difference we can see
+- So the cost came before F5 (the fix that seeds span ids on first observed use).
+- Raw rows: `tinkered-inv-reports/t04-land-opobs.csv`, `t04-land-opobs-pref5.csv`.
+
+### Exception (user, 2026-09-30)
+
+- `opobs` B slower (+4% alone, +12% in the all-23 run on a busy box): accepted by the user as the cost of W3C trace ids on observed calls (2026-09-30), like `s4_warm_ctl` at perf/tagged-close.
+- The bar for later changes is the new number.
+
+### Other bars at landing
+
+- Gate `EXIT=0`; core 731, hono 71, http 86 tests.
+- Core mutation 85.38 at 60 s per mutant: 2687 killed, 29 timeout, 437 survived.
+- Hono mutation 86.09; http mutation 89.70.
+- `promises_tagged` = 2.
+- `pnpm validate`: 48 lanes PASS; slot headroom 1 name.
+
 ## perf/tagged-100 (2026-09-29)
 
 A = main `2148e48` (core last changed in `16d9282`).
