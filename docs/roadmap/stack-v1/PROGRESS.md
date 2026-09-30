@@ -2469,3 +2469,13 @@ The tracker checks freshness and missing rows before writing.
 None of its routes need writes kept after a raised error.
 
 Proof logs use `stack-t17-resume-*` in the briefs cache.
+
+Rebased all 17 commits onto `217a4fe3` without conflicts.
+That main change only moved the board cards back to Doing.
+Install passed; the worktree is clean.
+Fresh gate after the old mutation stopped:
+build, check, Hono 86, Drizzle 25, Stack 111, tracker 79.
+The gate ended with `EXIT 0`.
+Check: zero errors, 28 warnings, matching main.
+Log: `stack-t17-resume-gate-clean.log`.
+The temporary main red-proof worktree was removed.
