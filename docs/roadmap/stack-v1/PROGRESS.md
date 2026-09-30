@@ -452,7 +452,7 @@ npx --no-install stryker run \
   Verify: two server scopes on one PGlite and a
   real `nats-server`: a save through one reaches a
   subscriber on the other.
-- **t13 the trace sink** -- [ ] Doing; owner: stack/t13 writer
+- **t13 the trace sink** -- [ ] Review; owner: stack/t13 writer
   The stack sends spans and logs over OTLP to
   `OTEL_EXPORTER_OTLP_ENDPOINT` (ADR 0076). NATS
   messages carry `traceparent` (ADR 0080). A
@@ -1913,7 +1913,7 @@ impact stack/t04: as planned (0 discrepancies). Advisory — never a gate.
   a deadline bounds each HTTP send.
 - Impact: add `traceSink` and `TraceSink` to stack.
   Existing callers need no change.
-  NATS public signatures stay the same;
+  NATS publish and subscribe call forms stay the same;
   publish and subscription now carry trace context.
   Check stack and the issue tracker as consumers.
 
@@ -1933,7 +1933,10 @@ impact stack/t04: as planned (0 discrepancies). Advisory — never a gate.
   The fixture now has short `listen` and `close` methods.
 - The OTLP writer adds zero dependencies.
   Stack built install files: 11,513 → 18,555 bytes.
-  Added install bytes: 7,042; added gzip code: 2,077.
+  Added built files: 7,042 bytes; added gzip code: 2,077.
+  `npm pack --dry-run --ignore-scripts --json` also counts
+  the README: installed size 18,639 → 29,103 bytes.
+  Added installed size: 10,464 bytes; archive: 6,619 → 10,101.
 - Cost probe, through `flock /tmp/mutation.lock` and
   `benchctl exec -- node bench/trace-sink.mjs`:
   61 measured batches of 1024 fresh finished spans.
@@ -1945,7 +1948,7 @@ impact stack/t04: as planned (0 discrepancies). Advisory — never a gate.
 - Assumptions: one sink per root; fixed queue and timer limits;
   HTTP/JSON only; failed sends are dropped without retry.
   These keep the sink small and put a bound on shutdown.
-- No existing public signature changed, so no old SCIP
+- No public operation call form changed, so no old SCIP
   symbol must disappear.
 
 ### t13 core feedback
@@ -1973,3 +1976,48 @@ await scope.close({ graceful: true });
 // Expected: 1. Actual: 0.
 console.log(lines.length);
 ```
+
+### t13 final proof — 2026-09-30
+
+- Ready for lead review; no push.
+- Rebased onto `origin/main` at `f8bc981b` before the final gate.
+  No later remote commit was present at that fetch.
+- Final gate, one chain by exit code:
+
+```sh
+vp run -r build && vp check \
+  && vp run stack#test && vp run nats#test \
+  && vp run @tinker-issue-tracker#test
+# EXIT 0
+```
+
+- Build passed.
+- Check: 0 errors, 29 warnings; base also has 29.
+- Stack: 78 tests; NATS: 23; tracker: 69; all passed.
+- All package tests: `vp run -r test`, exit 0.
+- `pnpm validate`: all 48 lanes passed, exit 0.
+  `pnpm-workspace.yaml` was restored and is not in the diff.
+- Each full mutation lane ran once, at the end, alone
+  under `flock /tmp/mutation.lock`, with its 60 s timeout.
+  Stack: 87.61; killed 407, timeout 3, survived 58,
+  no coverage 0, errors 0; exit 0.
+  NATS: 92.66; killed 164, timeout 0, survived 10,
+  no coverage 3, errors 0; exit 0.
+- Jev test and README checks have no flags or gaps.
+  The final source check has one explained driver-state flag;
+  `wrapsCallersStep` is a noisy note.
+- Labels:
+  `stateOutsideCell=false`, NATS `stopSubscriptions`:
+  already in the bank as `ab70cbe9e7ba`.
+  `effectWithoutDefer=false`, old receiver fixture:
+  `64193ad59b5f`.
+  `stateOutsideCell=false`, old receiver fixture:
+  `049e8ad8bd5c`.
+- `node tools/jev/calibrate.mjs` completed, exit 0.
+  Its saved JSON is included with the labels.
+- Both package style censuses: OK.
+- Raw gate logs, mutation JSON, and cost results:
+  `.bench/stack-t13-proof/` in the writer worktree.
+- No target was dropped.
+  The HTTP/JSON choice, fixed limits, one piece per root,
+  and dropping failed batches are the noted assumptions.
