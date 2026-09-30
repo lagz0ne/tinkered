@@ -5299,8 +5299,6 @@ function runStartChain(
 /** Run access uses the run's trace and borrow set. Other hooks own their cleanup at their
  * session; root start and close use the root. Reads bypass the root-only resolve onion. */
 class ExtensionCtx implements Scope.ExtensionCtx {
-  declare readonly clock: Clock.Handle;
-  declare readonly random: Random.Handle;
   declare readonly label: string;
   declare readonly ns: readonly Namespace[] | undefined;
   declare private owner: Layer;
@@ -5316,8 +5314,12 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     this.label = label;
     this.ns = chain;
     this.flight = run;
-    this.clock = owner.clock;
-    this.random = owner.random;
+  }
+  get clock(): Clock.Handle {
+    return this.owner.clock;
+  }
+  get random(): Random.Handle {
+    return this.owner.random;
   }
   private get ctx(): OperationCtx<unknown> | undefined {
     return this.flight === undefined ? undefined : hookCtx(this.flight);
@@ -5905,10 +5907,7 @@ function invokeRunHooks<T, I>(
         | Operation.Handle<unknown, unknown>
         | Scope.Inline<Scope.Depends, unknown, unknown>;
       const next = (): unknown => at(index + 1);
-      if (ext.hooks?.run)
-        return ext.hooks.run(
-          hookEvent({ kind: "run", op, call, next }, run.owner, ext.label, chain, run),
-        );
+      if (ext.hooks?.run) return ext.hooks.run(new RunEvent(run, ext.label, chain, op, call, next));
       return ext.run?.(op, call, next);
     });
   return at(0);
@@ -5996,7 +5995,29 @@ function hookEvent<const D extends Scope.ExtensionDetails[keyof Scope.ExtensionD
   owner: Layer,
   label: string,
   chain: readonly Namespace[] | undefined = owner.ns,
-  run?: HookRun,
 ): Scope.ExtensionCtx & D {
-  return Object.assign(new ExtensionCtx(owner, label, chain, run), detail);
+  return Object.assign(new ExtensionCtx(owner, label, chain), detail);
+}
+
+/** Run events use one object with direct field writes; the other hook kinds stay on the cold
+ * event builder. Reading only the call and `next` does not make any access functions. */
+class RunEvent extends ExtensionCtx {
+  declare readonly kind: "run";
+  declare readonly op: Scope.ExtensionDetails["run"]["op"];
+  declare readonly call: Scope.Invocation<unknown> | undefined;
+  declare readonly next: () => unknown;
+  constructor(
+    run: HookRun,
+    label: string,
+    chain: readonly Namespace[] | undefined,
+    op: Scope.ExtensionDetails["run"]["op"],
+    call: Scope.Invocation<unknown> | undefined,
+    next: () => unknown,
+  ) {
+    super(run.owner, label, chain, run);
+    this.kind = "run";
+    this.op = op;
+    this.call = call;
+    this.next = next;
+  }
 }
