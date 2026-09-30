@@ -187,6 +187,12 @@ Close the app first, then close telemetry to flush the last app spans.
 Keep observation off inside telemetry by default, to avoid exporting itself.
 Keep `traceSink(wiring)` valid as the legacy root-wiring form.
 
+Failed setup must still finish the telemetry root's close.
+The close hook must not build a queue that never started.
+Track successful queue setup in a root-owned data cell.
+Verify missing settings and invalid settings through ready and closed.
+This changes no public signature or resource target.
+
 ```ts
 const tracing = traceSink();
 const telemetryStop = new AbortController();
