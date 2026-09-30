@@ -367,3 +367,15 @@
     display: none;
   }
 }
+
+@media (max-width: 600px) {
+  .source-bar {
+    flex-wrap: wrap;
+  }
+  .source-bar > .source-picker {
+    flex-basis: 100%;
+  }
+  .source-bar > [title] {
+    max-width: calc(100% - 100px);
+  }
+}
