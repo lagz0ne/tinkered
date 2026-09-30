@@ -68,19 +68,21 @@ function lazyCheckRoute(): Process.Route {
 /** A server is the driver extension serving from its `start`; the command waits for the signal. */
 const ticker = extension({
   label: "ticker",
-  start: (scope, ctx, next) => {
-    const out = scope.resolve(io);
-    let ticks = 0;
-    out.write("listening\n");
-    const timer = setInterval(() => {
-      ticks += 1;
-      void scope.session(() => ticks);
-    }, 10);
-    ctx.defer(() => {
-      clearInterval(timer);
-      out.write(`stopped after ${ticks} ticks\n`);
-    });
-    return next();
+  hooks: {
+    start: (event) => {
+      const out = event.scope.resolve(io);
+      let ticks = 0;
+      out.write("listening\n");
+      const timer = setInterval(() => {
+        ticks += 1;
+        void event.scope.session(() => ticks);
+      }, 10);
+      event.defer(() => {
+        clearInterval(timer);
+        out.write(`stopped after ${ticks} ticks\n`);
+      });
+      return event.next();
+    },
   },
 });
 const waitForSignal = operation({

@@ -24,19 +24,21 @@ export async function runServer(stop: AbortSignal): Promise<number> {
   const ended = new AbortController();
   const stdio = extension({
     label: "stdio",
-    start: async (scope, _ctx, next) => {
-      await next();
-      const server = scope.resolve(ext);
-      const done = (): void => ended.abort();
-      process.stdin.once("end", done);
-      server.server.onclose = done;
-      scope.onClose(async () => {
-        process.stdin.removeListener("end", done);
-        server.server.onclose = undefined;
-        await server.close();
-      });
-      await server.connect(new StdioServerTransport());
-      if (process.stdin.readableEnded) done();
+    hooks: {
+      start: async (event) => {
+        await event.next();
+        const server = event.scope.resolve(ext);
+        const done = (): void => ended.abort();
+        process.stdin.once("end", done);
+        server.server.onclose = done;
+        event.scope.onClose(async () => {
+          process.stdin.removeListener("end", done);
+          server.server.onclose = undefined;
+          await server.close();
+        });
+        await server.connect(new StdioServerTransport());
+        if (process.stdin.readableEnded) done();
+      },
     },
   });
   const scope = createScope({

@@ -27,19 +27,21 @@ const stopping = data<boolean>({ label: "coder.stopping", initial: false });
  * server it built and connects the transport, which closes in its `defer`. */
 const stdio = extension({
   label: "coder.stdio",
-  start: async (scope, ctx, next) => {
-    await next();
-    const server = scope.resolve(searchMcp);
-    const stop = scope.controller(stopping);
-    const done = (): void => stop.set(true);
-    process.stdin.once("end", done);
-    server.server.onclose = done;
-    ctx.defer(async () => {
-      process.stdin.removeListener("end", done);
-      await server.close();
-    });
-    await server.connect(new StdioServerTransport());
-    if (process.stdin.readableEnded) done();
+  hooks: {
+    start: async (event) => {
+      await event.next();
+      const server = event.scope.resolve(searchMcp);
+      const stop = event.scope.controller(stopping);
+      const done = (): void => stop.set(true);
+      process.stdin.once("end", done);
+      server.server.onclose = done;
+      event.defer(async () => {
+        process.stdin.removeListener("end", done);
+        await server.close();
+      });
+      await server.connect(new StdioServerTransport());
+      if (process.stdin.readableEnded) done();
+    },
   },
 });
 
