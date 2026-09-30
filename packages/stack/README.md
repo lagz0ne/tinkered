@@ -159,6 +159,8 @@ Manual sessions do not trigger it.
 One publisher can be shared by several roots.
 After commit it reads that root's tags and updates its cells,
 even when the request has its own values.
+A committed request publishes root state in its own namespace.
+Request drafts stay in their session; publication reads committed storage.
 A handled error answer (4xx) still commits its session,
 so it republishes and signals.
 A boot read failure rejects ready.
@@ -194,6 +196,7 @@ One app subject fits one operation that reads all published
 cells; a subject per cell would repeat that same read.
 The signal carries no saved data.
 Every process reads the database again, including the sender.
+An incoming live signal refreshes root state in each receiving namespace.
 Those reads never send another signal.
 The app's read must be safe to repeat; `publishIssues`
 keeps equal snapshots unchanged.

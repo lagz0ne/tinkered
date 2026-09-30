@@ -12,7 +12,8 @@ export declare namespace LiveUpdates {
   };
 }
 
-/** The operation writes the root's published cells from committed storage.
+/** The operation writes the root's published cells in the request's namespace
+ * from committed storage.
  * Boot failures reject ready; failures after commit are logged and leave the
  * request's answer intact. Manual sessions and GET requests stay silent. */
 export function publishAfterCommit(
@@ -23,15 +24,16 @@ export function publishAfterCommit(
 
 /** List the returned wiring as one nested row in the root's extensions.
  * The publisher and NATS extension belong to that root. Each empty signal
- * re-runs the operation at the root, including on the sender. That read must
- * be safe to repeat; it never sends a signal. NATS owns subscription cleanup. */
+ * re-runs the operation at the root in the receiving namespace, including on
+ * the sender. That read must be safe to repeat; it never sends a signal.
+ * NATS owns subscription cleanup. */
 export function liveUpdates(
   publish: Operation.Handle<unknown, void>,
   wiring: LiveUpdates.Wiring,
 ): readonly Scope.Extension[] {
   const refresh = resource({
     label: "stack.rootPublish",
-    target: "scope",
+    target: "namespace",
     depends: { publish },
     factory: ({ publish }) => publish,
   });
@@ -73,7 +75,7 @@ function createPublisher(
   });
   const root = resource({
     label: "stack.rootPublisher",
-    target: "scope",
+    target: "namespace",
     depends: { republish },
     factory: ({ republish }) => republish,
   });
@@ -86,7 +88,8 @@ function createPublisher(
       await scope.run(publish);
     },
     session: async (handle, next) => {
-      /** Resolve while the session is live; the controller belongs to the root. */
+      /** Resolve while the session is live; the controller belongs to the root
+       * and keeps this session's namespace after the session closes. */
       const republish = handle.resolve(root);
       const ended = await next();
       const found = handle.resolve(request.optional);
