@@ -12,20 +12,20 @@
   "effectWithoutDefer": {
     "status": "provisional",
     "trues": 4,
-    "falses": 98,
-    "medianTrue": 0.77,
-    "medianFalse": 0.22,
-    "separation": 0.56,
-    "ordered": 0.81,
+    "falses": 99,
+    "medianTrue": 0.76,
+    "medianFalse": 0.34,
+    "separation": 0.42,
+    "ordered": 0.82,
     "at": "2026-09-30"
   },
   "stateOutsideCell": {
     "status": "provisional",
     "trues": 3,
-    "falses": 209,
-    "medianTrue": 0.9,
+    "falses": 211,
+    "medianTrue": 0.87,
     "medianFalse": 0.55,
-    "separation": 0.35,
+    "separation": 0.32,
     "ordered": 0.98,
     "at": "2026-09-30"
   },

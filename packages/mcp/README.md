@@ -44,9 +44,11 @@ const ext = mcp({
 Install the extension, resolve the server once ready, connect the transport
 you want:
 
-```ts
+```text
 import { createScope } from "@tinker/core";
-const { StdioServerTransport } = await import("@modelcontextprotocol/sdk/server/stdio.js");
+const { StdioServerTransport } = await import(
+  "@modelcontextprotocol/sdk/server/stdio.js"
+);
 
 const scope = createScope({ extensions: [ext] });
 await scope.ready;
@@ -183,11 +185,16 @@ const options = {
 
 Drive it in a test for real — the in-memory pair plus the SDK's own client:
 
-```ts
-const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
-const { InMemoryTransport } = await import("@modelcontextprotocol/sdk/inMemory.js");
+```text
+const { Client } = await import(
+  "@modelcontextprotocol/sdk/client/index.js"
+);
+const { InMemoryTransport } = await import(
+  "@modelcontextprotocol/sdk/inMemory.js"
+);
 
-const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+const [clientTransport, serverTransport] =
+  InMemoryTransport.createLinkedPair();
 await server.connect(serverTransport);
 const client = new Client({ name: "test", version: "0" });
 await client.connect(clientTransport);
