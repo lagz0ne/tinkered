@@ -55,30 +55,35 @@ export async function execute(
   out: Process.Io,
   opts?: { readonly signal?: AbortSignal; readonly usage?: string },
 ): Promise<number> {
-  const signal = opts?.signal;
+  const { signal, usage } = opts ?? {};
   /** Read through a call, never a narrowed constant: the signal may abort mid-run. */
   const cancelled = (): boolean => signal?.aborted === true;
   if (cancelled()) return 130;
-  const scope = rootFor(entry, rest, out);
-  const stop = (): void => void scope.close();
-  signal?.addEventListener("abort", stop, { once: true });
-  try {
-    await scope.ready;
-    return readResult(await scope.settle(entry.op), out, cancelled(), opts?.usage);
-  } catch (error: unknown) {
-    /** Only a failed start or a closed root lands here: `settle` itself never throws. */
-    return readFailure(error, out, cancelled(), opts?.usage);
-  } finally {
-    signal?.removeEventListener("abort", stop);
-    await scope.close({ graceful: !cancelled() });
-  }
-}
-
-function rootFor(entry: Process.Entry, rest: readonly string[], out: Process.Io): Scope.Handle {
-  return createScope({
+  const ended = new AbortController();
+  const scope = createScope({
     ...entry.options,
+    signal: ended.signal,
     tags: [argv(rest), env(readEnv()), io(out), entry.options?.tags],
   });
+  let stopping: Promise<Scope.Result> | undefined;
+  /** Command abort cancels active work; the completion signal only asks for graceful close. */
+  const stop = (): void => {
+    stopping = scope.close();
+  };
+  signal?.addEventListener("abort", stop, { once: true });
+  try {
+    if (cancelled()) stop();
+    await scope.ready;
+    return readResult(await scope.settle(entry.op), out, cancelled(), usage);
+  } catch (error: unknown) {
+    /** Only a failed start or a closed root lands here: `settle` itself never throws. */
+    return readFailure(error, out, cancelled(), usage);
+  } finally {
+    signal?.removeEventListener("abort", stop);
+    ended.abort();
+    await scope.closed;
+    await stopping;
+  }
 }
 
 /** What a settled run answers: its own code, 130 when cancelled (by the signal, or by a forced

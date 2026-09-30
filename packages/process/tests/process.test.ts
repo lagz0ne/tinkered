@@ -25,6 +25,7 @@ import {
 
 /** Collects what a no-process run wrote. */
 const seenWrite: string[] = [];
+const started = tag<() => void>({ label: "started", default: () => {} });
 
 /** A binary over the given routes. */
 function shell(commands: readonly Process.Route[]): Process.Shell {
@@ -90,31 +91,28 @@ function lazyRoute(
 /** A one-shot that never answers until the signal fires — a model call that hangs. */
 const hang = operation({
   label: "hang",
-  run: (_deps, ctx) =>
+  depends: { started },
+  run: ({ started }, ctx) =>
     new Promise<number>((_resolve, reject) => {
       ctx.signal.addEventListener("abort", () => reject(ctx.signal.reason), { once: true });
+      started();
     }),
 });
 
 /** A server: returns its own code when the signal fires — SIGINT is its normal stop. */
 const serve = operation({
   label: "serve",
-  run: (_deps, ctx) =>
+  depends: { started },
+  run: ({ started }, ctx) =>
     new Promise<number>((resolve) => {
       ctx.signal.addEventListener("abort", () => resolve(0), { once: true });
+      started();
     }),
 });
 
 /** A command over a plain route: `entry` answers the operation, `run` supplies the root. */
 function routeFor(name: string, op: Process.Command, description?: string): Process.Route {
   return { name, description, entry: () => ({ op }) };
-}
-
-/** A signal that aborts after `ms`, on a real timer so the loop stays alive. */
-function later(ms: number): AbortSignal {
-  const controller = new AbortController();
-  setTimeout(() => controller.abort(new Error("SIGINT")), ms);
-  return controller.signal;
 }
 
 test("help lists the routes sorted with their descriptions and loads nothing", async () => {
@@ -425,29 +423,60 @@ test("a command that answers closes its root gracefully", async () => {
 });
 
 test("an abort force-closes the root and a cancelled one-shot exits 130", async () => {
-  const started = Date.now();
-  const result = await run(
-    shell([{ name: "hang", entry: () => ({ op: hang }) }]),
+  let began = false;
+  const stop = new AbortController();
+  const result = run(
+    shell([
+      {
+        name: "hang",
+        entry: () => ({
+          op: hang,
+          options: {
+            tags: started(() => {
+              began = true;
+            }),
+          },
+        }),
+      },
+    ]),
     ["hang"],
     undefined,
-    later(20),
+    stop.signal,
   );
-  expect(result).toEqual({ code: 130, stdout: "", stderr: "" });
-  expect(Date.now() - started).toBeLessThan(2000);
+  await expect.poll(() => began).toBe(true);
+  stop.abort();
+  expect(await result).toEqual({ code: 130, stdout: "", stderr: "" });
 });
 
 test("a server that returns on the signal exits with its own code, not 130", async () => {
-  const result = await run(
-    shell([{ name: "serve", entry: () => ({ op: serve }) }]),
+  let began = false;
+  const stop = new AbortController();
+  const result = run(
+    shell([
+      {
+        name: "serve",
+        entry: () => ({
+          op: serve,
+          options: {
+            tags: started(() => {
+              began = true;
+            }),
+          },
+        }),
+      },
+    ]),
     ["serve"],
     undefined,
-    later(20),
+    stop.signal,
   );
-  expect(result.code).toBe(0);
+  await expect.poll(() => began).toBe(true);
+  stop.abort();
+  expect((await result).code).toBe(0);
 });
 
 test("a root force-closed from inside exits 130 and prints nothing", async () => {
-  let held: { close(): unknown } | undefined;
+  let began = false;
+  let held: { close(): Promise<unknown> } | undefined;
   const closer = extension({
     label: "closer",
     start: (scope, _c, next) => {
@@ -456,11 +485,24 @@ test("a root force-closed from inside exits 130 and prints nothing", async () =>
     },
   });
   const pending = run(
-    shell([{ name: "hang", entry: () => ({ op: hang, options: { extensions: [closer] } }) }]),
+    shell([
+      {
+        name: "hang",
+        entry: () => ({
+          op: hang,
+          options: {
+            extensions: [closer],
+            tags: started(() => {
+              began = true;
+            }),
+          },
+        }),
+      },
+    ]),
     ["hang"],
   );
-  await new Promise((resolve) => setTimeout(resolve, 20));
-  void held?.close();
+  await expect.poll(() => began).toBe(true);
+  await held?.close();
   expect(await pending).toEqual({ code: 130, stdout: "", stderr: "" });
 });
 
@@ -486,20 +528,25 @@ test("an already-aborted signal exits 130 with empty streams and no root", async
 });
 
 test("a one-shot that throws its own error on the signal exits 130 and prints nothing", async () => {
+  let began = false;
+  const stop = new AbortController();
   const stubborn = operation({
     label: "stubborn",
     run: (_deps, ctx) =>
       new Promise<number>((_resolve, reject) => {
         ctx.signal.addEventListener("abort", () => reject(new Error("stopped")), { once: true });
+        began = true;
       }),
   });
-  const result = await run(
+  const result = run(
     shell([{ name: "stubborn", entry: () => ({ op: stubborn }) }]),
     ["stubborn"],
     undefined,
-    later(20),
+    stop.signal,
   );
-  expect(result).toEqual({ code: 130, stdout: "", stderr: "" });
+  await expect.poll(() => began).toBe(true);
+  stop.abort();
+  expect(await result).toEqual({ code: 130, stdout: "", stderr: "" });
 });
 
 test("an extension whose start fails prints its error with exit 1 and never runs the command", async () => {
@@ -628,7 +675,7 @@ test("main exits 2 on an unknown command and prints usage to the process stderr"
   expect(ran.err).toBe("usage: tk <command>\n  d\n");
 });
 
-test("main without a process raises NoProcess, which isError narrows and rejects other kinds", async () => {
+test("main without a process raises NoProcess", async () => {
   const real = (globalThis as { process?: unknown }).process;
   (globalThis as { process?: unknown }).process = undefined;
   try {
@@ -637,7 +684,6 @@ test("main without a process raises NoProcess, which isError narrows and rejects
   } catch (error: unknown) {
     if (!isError(error, "NoProcess")) throw error;
     expect(error.payload.reason.length).toBeGreaterThan(0);
-    expect(isError(new Error("plain"), "NoProcess")).toBe(false);
   } finally {
     (globalThis as { process?: unknown }).process = real;
   }

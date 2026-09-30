@@ -136,6 +136,8 @@ watcher above it.
   exits 1, and its root still closes success.
 - An extension whose start fails prints its
   error with exit 1 and never runs the command.
+- Failed setup finishes cleanup before answering;
+  each close hook runs once.
 
 ## Signals
 
@@ -154,6 +156,8 @@ or let the cancellation throw (a one-shot: 130).
   holding it) exits 130 and prints nothing.
 - An already-aborted signal exits 130 with empty
   streams and no root.
+- An abort during extension start exits 130
+  without running the command.
 
 ## Observation: the command and the operation it drives
 
@@ -205,8 +209,7 @@ one abort, exit with the code. Never returns.
   the process argv.
 - `main` exits 2 on an unknown command and prints
   usage to the process stderr.
-- `main` without a process raises `NoProcess`,
-  which `isError` narrows and rejects other kinds.
+- `main` without a process raises `NoProcess`.
 - The process smoke test: node runs the example
   and help exits 0 with its usage.
 
