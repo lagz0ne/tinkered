@@ -1,5 +1,12 @@
 import type { Data, Many, Namespace, Resource, Scope } from "@tinker/core";
-import { data, extension, isError as isCoreError, namespace, readMany } from "@tinker/core";
+import {
+  data,
+  extension,
+  isError as isCoreError,
+  namespace,
+  readMany,
+  resource,
+} from "@tinker/core";
 import { fail, isError, raise, type Errors } from "./errors.ts";
 
 export { isError };
@@ -200,91 +207,99 @@ function memberController(
  * forced session close resolves `cancelled`. */
 export function source(wiring: Sync.Wiring): Scope.Extension<Sync.Source> {
   const cells = readMany(wiring.cells, isRow);
-  let closeSource: () => void = () => undefined;
-  let forcedClosing = false;
+  const sourceState = resource({
+    label: "sync.source.state",
+    target: "scope",
+    factory: () => ({ close: (): void => undefined, forcedClosing: false }),
+  });
   return extension<Sync.Source>({
     label: "sync.source",
-    start: async (scope, _ctx, next) => {
-      type Entry = { cell: Data.Cell<unknown>; ns?: Namespace; version: number };
-      const live = new Map<Sync.Transport, Set<string>>();
-      const unwatches: Array<() => void> = [];
-      function snapshot(key: string, entry: Entry): Sync.Message {
-        return {
-          type: "snapshot",
-          key,
-          version: entry.version,
-          value: memberController(scope, entry.cell, entry.ns).get(),
-        };
-      }
-      function fanout(key: string, entry: Entry): void {
-        const out = snapshot(key, entry);
-        for (const [transport, keys] of live) {
-          if (keys.has(key)) transport.send(out);
+    hooks: {
+      start: async (event) => {
+        const scope = event.scope;
+        const state = event.resolve(sourceState);
+        type Entry = { cell: Data.Cell<unknown>; ns?: Namespace; version: number };
+        const live = new Map<Sync.Transport, Set<string>>();
+        const unwatches: Array<() => void> = [];
+        function snapshot(key: string, entry: Entry): Sync.Message {
+          return {
+            type: "snapshot",
+            key,
+            version: entry.version,
+            value: memberController(scope, entry.cell, entry.ns).get(),
+          };
         }
-      }
-      const published = readPublished(cells, (key, cell, ns) => {
-        const entry: Entry = { cell, ns, version: 0 };
-        unwatches.push(
-          memberController(scope, cell, ns).watch(() => {
-            entry.version += 1;
-            fanout(key, entry);
-          }),
-        );
-        return entry;
-      });
-      closeSource = () => {
-        for (const transport of live.keys()) transport.close();
-        live.clear();
-        published.stop();
-        for (const unwatch of unwatches) unwatch();
-        unwatches.length = 0;
-      };
-      function connect(transport: Sync.Transport): Promise<Scope.Result> {
-        const session = scope.createSession();
-        const keys = new Set<string>();
-        live.set(transport, keys);
-        const stopMessages = transport.onMessage((message) => {
-          if (message.type !== "register") {
-            transport.close();
-            return;
+        function fanout(key: string, entry: Entry): void {
+          const out = snapshot(key, entry);
+          for (const [transport, keys] of live) {
+            if (keys.has(key)) transport.send(out);
           }
-          const wanted = message.keys;
-          const registered = session.settle({
-            label: "sync register",
-            run: (_deps, ctx) => {
-              for (const key of wanted) {
-                const entry = published.entryFor(key);
-                if (entry === undefined) {
-                  transport.close();
-                  return;
+        }
+        const published = readPublished(cells, (key, cell, ns) => {
+          const entry: Entry = { cell, ns, version: 0 };
+          unwatches.push(
+            memberController(scope, cell, ns).watch(() => {
+              entry.version += 1;
+              fanout(key, entry);
+            }),
+          );
+          return entry;
+        });
+        state.close = () => {
+          for (const transport of live.keys()) transport.close();
+          live.clear();
+          published.stop();
+          for (const unwatch of unwatches) unwatch();
+          unwatches.length = 0;
+        };
+        function connect(transport: Sync.Transport): Promise<Scope.Result> {
+          const session = scope.createSession();
+          const keys = new Set<string>();
+          live.set(transport, keys);
+          const stopMessages = transport.onMessage((message) => {
+            if (message.type !== "register") {
+              transport.close();
+              return;
+            }
+            const wanted = message.keys;
+            const registered = session.settle({
+              label: "sync register",
+              run: (_deps, ctx) => {
+                for (const key of wanted) {
+                  const entry = published.entryFor(key);
+                  if (entry === undefined) {
+                    transport.close();
+                    return;
+                  }
+                  keys.add(key);
+                  transport.send(snapshot(key, entry));
                 }
-                keys.add(key);
-                transport.send(snapshot(key, entry));
-              }
-              ctx.log("sync keys", { count: wanted.length });
-            },
+                ctx.log("sync keys", { count: wanted.length });
+              },
+            });
+            if (registered.status !== "success") transport.close();
           });
-          if (registered.status !== "success") transport.close();
-        });
-        const parted = new Promise<void>((resolve) => {
-          transport.onClose(() => {
-            resolve();
+          const parted = new Promise<void>((resolve) => {
+            transport.onClose(() => {
+              resolve();
+            });
           });
-        });
-        return parted.then(() => {
-          stopMessages();
-          live.delete(transport);
-          if (forcedClosing) return session.close();
-          return session.close({ graceful: true });
-        });
-      }
-      await next();
-      return { connect };
-    },
-    close: (options, next) => {
-      forcedClosing = options.graceful !== true;
-      closeSource();
-      return next();
+          return parted.then(() => {
+            stopMessages();
+            live.delete(transport);
+            if (state.forcedClosing) return session.close();
+            return session.close({ graceful: true });
+          });
+        }
+        await event.next();
+        return { connect };
+      },
+      close: (event) => {
+        const state = event.resolve(sourceState);
+        state.forcedClosing = event.options.graceful !== true;
+        state.close();
+        return event.next();
+      },
     },
   });
 }
@@ -315,148 +330,156 @@ export function subscribe(
   wiring: Sync.Wiring,
 ): Scope.Extension<Sync.Subscription> {
   const cells = readMany(wiring.cells, isRow);
-  let closeClient: () => void = () => undefined;
-  let closing = false;
+  const clientState = resource({
+    label: "sync.subscribe.state",
+    target: "scope",
+    factory: () => ({ close: (): void => undefined, closing: false }),
+  });
   return extension<Sync.Subscription>({
     label: "sync.subscribe",
-    start: async (scope, ctx, next) => {
-      const transport = await scope.resolve(link);
-      let shut = false;
-      let stopMessages: () => void = () => undefined;
-      let stopParted: () => void = () => undefined;
-      const published = readPublished(cells, (_key, cell, ns) => ({ cell, ns }));
-      const stops: Array<() => void> = [];
-      const first: string[] = [];
-      for (const key of published.entries.keys()) first.push(key);
-      const missing = new Set<string>(first);
-      if (closing) {
-        published.stop();
-        transport.close();
-        raise("SyncNotReady", { label: "subscribe", missing: first });
-      }
-      let waiters: { settle: () => void; fail: () => void } | undefined;
-      function stop(): void {
-        if (shut) return;
-        shut = true;
-        stopMessages();
-        for (const release of stops) release();
-        published.stop();
-        stopParted();
-      }
-      function broken(): Errors.Of<"SyncNotReady"> {
-        return fail("SyncNotReady", { label: "subscribe", missing: [...missing] });
-      }
-      function failStart(): void {
-        if (waiters === undefined) return;
-        const waiting = waiters;
-        waiters = undefined;
-        stop();
-        transport.close();
-        waiting.fail();
-      }
-      function violate(): void {
-        if (waiters === undefined) {
-          stop();
+    hooks: {
+      start: async (event) => {
+        const scope = event.scope;
+        const state = event.resolve(clientState);
+        const transport = await scope.resolve(link);
+        let shut = false;
+        let stopMessages: () => void = () => undefined;
+        let stopParted: () => void = () => undefined;
+        const published = readPublished(cells, (_key, cell, ns) => ({ cell, ns }));
+        const stops: Array<() => void> = [];
+        const first: string[] = [];
+        for (const key of published.entries.keys()) first.push(key);
+        const missing = new Set<string>(first);
+        if (state.closing) {
+          published.stop();
           transport.close();
-          return;
+          raise("SyncNotReady", { label: "subscribe", missing: first });
         }
-        failStart();
-      }
-      function fill(key: string, value: unknown): void {
-        const entry = published.entryFor(key);
-        if (entry === undefined) {
-          violate();
-          return;
+        let waiters: { settle: () => void; fail: () => void } | undefined;
+        function stop(): void {
+          if (shut) return;
+          shut = true;
+          stopMessages();
+          for (const release of stops) release();
+          published.stop();
+          stopParted();
         }
-        try {
-          memberController(scope, entry.cell, entry.ns).set(value);
-        } catch (error: unknown) {
-          if (!isCoreError(error, "DataValidationFailed")) throw error;
-          violate();
-          return;
+        function broken(): Errors.Of<"SyncNotReady"> {
+          return fail("SyncNotReady", { label: "subscribe", missing: [...missing] });
         }
-        if (missing.delete(key) && missing.size === 0 && waiters !== undefined) {
+        function failStart(): void {
+          if (waiters === undefined) return;
           const waiting = waiters;
           waiters = undefined;
-          waiting.settle();
-        }
-      }
-      function joined(key: string): void {
-        if (shut) return;
-        transport.send({ type: "register", keys: [key] });
-      }
-      stopMessages = transport.onMessage((message) => {
-        if (shut) return;
-        if (message.type !== "snapshot") {
-          violate();
-          return;
-        }
-        fill(message.key, message.value);
-      });
-      stopParted = transport.onClose(() => {
-        if (waiters === undefined) {
-          stop();
-          return;
-        }
-        failStart();
-      });
-      closeClient = () => {
-        stop();
-        transport.close();
-      };
-      transport.send({ type: "register", keys: first });
-      for (const [unit, name] of cells) {
-        if (isFamily(unit)) {
-          const label = name;
-          stops.push(
-            unit.onMember((id) => {
-              joined(`${label}/${id}`);
-            }),
-          );
-        }
-      }
-      function noteRejection(promise: Promise<unknown>): void {
-        promise.then(undefined, () => undefined);
-      }
-      const waited = new Promise<void>((resolve, reject) => {
-        if (missing.size === 0) {
-          resolve();
-          return;
-        }
-        waiters = {
-          settle: resolve,
-          fail: () => {
-            try {
-              reject(broken());
-            } catch {
-              return;
-            }
-          },
-        };
-      });
-      noteRejection(waited);
-      ctx.signal.addEventListener(
-        "abort",
-        () => {
-          if (waiters !== undefined) failStart();
-        },
-        { once: true },
-      );
-      const settled = waited.then(async () => {
-        await next();
-        function close(): void {
           stop();
           transport.close();
+          waiting.fail();
         }
-        return { close };
-      });
-      noteRejection(settled);
-      return settled;
-    },
-    close: (_options, next) => {
-      closing = true;
-      closeClient();
-      return next();
+        function violate(): void {
+          if (waiters === undefined) {
+            stop();
+            transport.close();
+            return;
+          }
+          failStart();
+        }
+        function fill(key: string, value: unknown): void {
+          const entry = published.entryFor(key);
+          if (entry === undefined) {
+            violate();
+            return;
+          }
+          try {
+            memberController(scope, entry.cell, entry.ns).set(value);
+          } catch (error: unknown) {
+            if (!isCoreError(error, "DataValidationFailed")) throw error;
+            violate();
+            return;
+          }
+          if (missing.delete(key) && missing.size === 0 && waiters !== undefined) {
+            const waiting = waiters;
+            waiters = undefined;
+            waiting.settle();
+          }
+        }
+        function joined(key: string): void {
+          if (shut) return;
+          transport.send({ type: "register", keys: [key] });
+        }
+        stopMessages = transport.onMessage((message) => {
+          if (shut) return;
+          if (message.type !== "snapshot") {
+            violate();
+            return;
+          }
+          fill(message.key, message.value);
+        });
+        stopParted = transport.onClose(() => {
+          if (waiters === undefined) {
+            stop();
+            return;
+          }
+          failStart();
+        });
+        state.close = () => {
+          stop();
+          transport.close();
+        };
+        transport.send({ type: "register", keys: first });
+        for (const [unit, name] of cells) {
+          if (isFamily(unit)) {
+            const label = name;
+            stops.push(
+              unit.onMember((id) => {
+                joined(`${label}/${id}`);
+              }),
+            );
+          }
+        }
+        function noteRejection(promise: Promise<unknown>): void {
+          promise.then(undefined, () => undefined);
+        }
+        const waited = new Promise<void>((resolve, reject) => {
+          if (missing.size === 0) {
+            resolve();
+            return;
+          }
+          waiters = {
+            settle: resolve,
+            fail: () => {
+              try {
+                reject(broken());
+              } catch {
+                return;
+              }
+            },
+          };
+        });
+        noteRejection(waited);
+        event.signal.addEventListener(
+          "abort",
+          () => {
+            if (waiters !== undefined) failStart();
+          },
+          { once: true },
+        );
+        const settled = waited.then(async () => {
+          await event.next();
+          function close(): void {
+            stop();
+            transport.close();
+          }
+          return { close };
+        });
+        noteRejection(settled);
+        return settled;
+      },
+      close: (event) => {
+        const state = event.resolve(clientState);
+        state.closing = true;
+        state.close();
+        return event.next();
+      },
     },
   });
 }

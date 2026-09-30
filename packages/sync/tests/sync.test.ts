@@ -832,6 +832,131 @@ test("connect resolves cancelled on a forced root close", async () => {
   far.close();
 });
 
+test("closing a reused source leaves the other root's wire and updates alive", async () => {
+  const src = source({ cells: [[counter, "counter"]] });
+  const first = createScope({ extensions: [src] });
+  const second = createScope({ extensions: [src] });
+  await Promise.all([first.ready, second.ready]);
+  const [firstNear, firstFar] = memoryPair();
+  const [secondNear, secondFar] = memoryPair();
+  const firstDone = first.resolve(src).connect(firstNear);
+  const secondDone = second.resolve(src).connect(secondNear);
+  const closed: string[] = [];
+  firstFar.onClose(() => closed.push("first"));
+  secondFar.onClose(() => closed.push("second"));
+  try {
+    await first.close();
+    expect(closed).toEqual(["first"]);
+    const initial = new Promise<Sync.Message>((resolve) => secondFar.onMessage(resolve));
+    secondFar.send({ type: "register", keys: ["counter"] });
+    await initial;
+    const updated = new Promise<Sync.Message>((resolve) => secondFar.onMessage(resolve));
+    second.controller(counter).set(7);
+    expect(await updated).toEqual({ type: "snapshot", key: "counter", version: 1, value: 7 });
+    secondFar.close();
+    expect((await secondDone).status).toBe("success");
+  } finally {
+    firstFar.close();
+    secondFar.close();
+    await Promise.all([firstDone, secondDone, second.close()]);
+  }
+});
+
+test("a reused subscription starts fresh after its first root closes", async () => {
+  const sub = subscribe(
+    resource({
+      label: "fresh wire",
+      factory: () => {
+        const [, far] = memoryPair();
+        return far;
+      },
+    }),
+    { cells: [] },
+  );
+  const first = createScope({ extensions: [sub] });
+  await first.ready;
+  await first.close({ graceful: true });
+  const second = createScope({ extensions: [sub] });
+  try {
+    await expect(second.ready).resolves.toBeUndefined();
+  } finally {
+    await second.close({ graceful: true });
+  }
+});
+
+test("closing a reused subscription keeps the other root receiving snapshots", async () => {
+  const [firstNear, firstFar] = memoryPair();
+  const [secondNear, secondFar] = memoryPair();
+  let builds = 0;
+  const sub = subscribe(
+    resource({
+      label: "separate wires",
+      factory: () => (++builds === 1 ? firstFar : secondFar),
+    }),
+    { cells: [[counter, "counter"]] },
+  );
+  const first = createScope({ extensions: [sub] });
+  const second = createScope({ extensions: [sub] });
+  firstNear.send({ type: "snapshot", key: "counter", version: 0, value: 1 });
+  secondNear.send({ type: "snapshot", key: "counter", version: 0, value: 2 });
+  await Promise.all([first.ready, second.ready]);
+  const closed: string[] = [];
+  firstNear.onClose(() => closed.push("first"));
+  secondNear.onClose(() => closed.push("second"));
+  try {
+    await first.close({ graceful: true });
+    expect(closed).toEqual(["first"]);
+    const updated = reached((listener) => second.controller(counter).watch(listener), 7);
+    secondNear.send({ type: "snapshot", key: "counter", version: 1, value: 7 });
+    await updated;
+    expect(second.resolve(counter)).toBe(7);
+  } finally {
+    firstNear.close();
+    secondNear.close();
+    await second.close({ graceful: true });
+  }
+});
+
+test("closing a reused subscription during transport build leaves the ready root open", async () => {
+  const [firstNear, firstFar] = memoryPair();
+  const [secondNear, secondFar] = memoryPair();
+  let build: (transport: Sync.Transport) => void = () => undefined;
+  const building = new Promise<Sync.Transport>((resolve) => {
+    build = resolve;
+  });
+  let builds = 0;
+  const sub = subscribe(
+    resource({
+      label: "pending wire",
+      factory: () => (++builds === 1 ? building : secondFar),
+    }),
+    { cells: [] },
+  );
+  const first = createScope({ extensions: [sub] });
+  const checked = first.ready.then(
+    () => expect.unreachable(),
+    (error: unknown) => {
+      if (!isError(error, "SyncNotReady")) throw error;
+      expect(error.payload.missing).toEqual([]);
+    },
+  );
+  const second = createScope({ extensions: [sub] });
+  await second.ready;
+  const closed: string[] = [];
+  firstNear.onClose(() => closed.push("first"));
+  secondNear.onClose(() => closed.push("second"));
+  const closing = first.close({ graceful: true });
+  build(firstFar);
+  try {
+    await Promise.all([checked, closing]);
+    expect(closed).toEqual(["first"]);
+  } finally {
+    firstNear.close();
+    secondNear.close();
+    await second.close({ graceful: true });
+  }
+});
+
 test("the recipe registers by identity, then streams the snapshot down", async () => {
   const scope = createScope({ extensions: [web, src] });
   try {

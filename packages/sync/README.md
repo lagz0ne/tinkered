@@ -81,6 +81,7 @@ transport first (their sessions resolve), then the scope closes.
 A closed source lets go of its families and watchers.
 A source whose start failed lets go of its families; its watchers go with the failed scope.
 A member made after that still works, and another scope's source still publishes it.
+Closing a reused source leaves the other root's wire and updates alive.
 
 ## Subscribe
 
@@ -96,6 +97,9 @@ A graceful close while the transport builds rejects `ready` with `SyncNotReady` 
 It sends nothing first, and it rejects `ready` even with no rows.
 Sync does not reconnect: the resource owns any rewiring and hands over one steady transport (ADR 0070).
 The resource lives as long as the scope.
+A reused subscription starts fresh after its first root closes.
+Closing a reused subscription keeps the other root receiving snapshots.
+Closing a reused subscription during transport build leaves the ready root open.
 
 Ready means the viewer holds its initial data set:
 the start sends one `register { keys }` with every row's singleton key and
