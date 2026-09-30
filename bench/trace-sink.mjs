@@ -24,16 +24,6 @@ const endpoint = `http://127.0.0.1:${collector.address().port}`;
 const samples = [];
 const count = 1024;
 const op = operation({ label: "probe", run: () => "ok" });
-let span;
-const source = createScope({
-  observe: {
-    export: (finished) => {
-      span = finished;
-    },
-  },
-});
-source.run(op);
-await source.close();
 try {
   for (let round = 0; round < 71; round++) {
     const sink = traceSink({
@@ -46,8 +36,12 @@ try {
       clock: makeTestClock(),
     });
     await scope.ready;
+    const spans = [];
+    const source = createScope({ observe: { export: (span) => spans.push(span) } });
+    for (let i = 0; i < count; i++) source.run(op);
+    await source.close();
     const start = process.hrtime.bigint();
-    for (let i = 0; i < count; i++) sink.observe.export(span);
+    for (const span of spans) sink.observe.export(span);
     const ns = Number(process.hrtime.bigint() - start) / count;
     if (round >= 10) samples.push(ns);
     await scope.close({ graceful: true });
