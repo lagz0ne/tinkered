@@ -189,7 +189,7 @@ test("a different app subject leaves its published cells alone", async () => {
   expect(published).toEqual([]);
 });
 
-test("a handled 4xx answer still commits and signals", async () => {
+test("a raised error mapped to 4xx rolls back and sends no signal", async () => {
   const observer = await signals();
   const web = hono([route.post("/issues", saveTaken)], {
     onError: errorResponses({ Taken: 409 }),
@@ -205,11 +205,10 @@ test("a handled 4xx answer still commits and signals", async () => {
   await scope.ready;
   const response = await scope.resolve(web).request("/issues", { method: "POST" });
   expect(response.status).toBe(409);
-  await expect.poll(() => observer.messages.length).toBe(1);
   await scope.close({ graceful: true });
   await observer.scope.close({ graceful: true });
-  expect((await db.query("select title from issues")).rows).toEqual([{ title: "Taken" }]);
-  expect(observer.messages).toEqual([{ subject: "issues.changed", payload: new Uint8Array() }]);
+  expect((await db.query("select title from issues")).rows).toEqual([]);
+  expect(observer.messages).toEqual([]);
 });
 
 test.each(["", "issues.*", "issues.>", "issues..changed", ".issues", "issues.", "issues changed"])(
