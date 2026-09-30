@@ -527,6 +527,19 @@ export declare namespace Scope {
     extensions?: Many<Extension<unknown>>;
   };
 
+  export type RootOptions = Options & {
+    /** Ask the root to close gracefully once `ready` resolves, even if already aborted.
+     * A failed start closes forcibly instead. This never aborts `ctx.signal` (ADR 0085). */
+    readonly signal?: AbortSignal;
+  };
+
+  export type RootHandle = Handle & {
+    /** Core's own close Result, after the close hooks finish. Pending while open; settles once
+     * and never rejects. Only roots made with a stop signal have it (ADR 0085).
+     * A hook that skips `next()` leaves it pending; a hook's throw is not part of the Result. */
+    readonly closed: Promise<Result>;
+  };
+
   /** How a scope settled: cleanly, by an inside-out failure, or as a cancellation. */
   export type Outcome =
     | { readonly status: "success" }
@@ -656,8 +669,9 @@ export declare namespace Scope {
      * ({@link CloseOptions}, ADR 0028). Always resolves to a {@link Result} describing the actual
      * settled state + any teardown errors — never throws (0027). */
     close(opts?: CloseOptions): Promise<Result>;
-    /** Settles when every installed extension's `start` chain settled (ADR 0050). A scope with no
-     * extensions is ready at once (one shared, already-resolved promise). */
+    /** Wait for every extension's start. A failed start closes through the handle's close hooks
+     * and rejects with the start error only after cleanup ends (ADR 0085). A close already under
+     * way is joined. A scope with no extensions is ready at once. */
     readonly ready: Promise<void>;
   };
 }
@@ -4566,12 +4580,16 @@ function handleFor(layer: Layer): Scope.Handle {
 }
 
 /** Create a scope: the root of a layer chain that reads, controls, and runs cells, resources, tags, and operations. */
-export function createScope(options?: Scope.Options): Scope.Handle {
+export function createScope(
+  options: Scope.RootOptions & { readonly signal: AbortSignal },
+): Scope.RootHandle;
+export function createScope(options?: Scope.RootOptions): Scope.Handle;
+export function createScope(options?: Scope.RootOptions): Scope.Handle {
   const layer = makeRootLayer(options);
   const plain = handleFor(layer);
   const exts = readMany(options?.extensions);
-  if (exts.length === 0) return plain;
-  return extendHandle(layer, plain, exts);
+  if (exts.length === 0 && options?.signal === undefined) return plain;
+  return extendHandle(layer, plain, exts, options?.signal);
 }
 
 /** A node to release and the layer that owns it. Release and invalidation sit at the END of this
@@ -5201,11 +5219,13 @@ function closeThrough(
 /** Run the extensions' `start` onion (ADR 0050): registration order, first is outermost. Each
  * start's returned value (awaited) is stored per extension; the records flip `settled` only when
  * that extension's start settled. A rejected start records the layer failure (so a later close
- * settles `failed`), force-closes the scope at once, and rejects `ready` with the same error. */
+ * settles `failed`), closes through the current handle, and rejects `ready` with the same error
+ * only after that close ends. A close already under way is joined without running hooks again. */
 function runStartChain(
   layer: Layer,
   scope: Scope.Handle,
   exts: readonly Scope.Extension<unknown>[],
+  lifetime: RootLifetime,
   done: () => void,
   failed: (error: unknown) => void,
 ): void {
@@ -5221,10 +5241,13 @@ function runStartChain(
     }
   };
   ignoreRejection(
-    at(0).then(done, (error: unknown) => {
+    at(0).then(done, async (error: unknown) => {
       layer.failure ??= { cause: error };
-      ignoreRejection(closeLayer(layer, true, false));
-      failed(error);
+      try {
+        await (lifetime.closing ?? layer.closing ?? scope.close());
+      } finally {
+        failed(error);
+      }
     }),
   );
 }
@@ -5326,20 +5349,15 @@ function extendHandle(
   layer: Layer,
   plain: Scope.Handle,
   exts: readonly Scope.Extension<unknown>[],
+  signal: AbortSignal | undefined,
 ): Scope.Handle {
   const records = new Map<Scope.Extension<unknown>, ExtRec>();
   for (const ext of exts) records.set(ext, { settled: false, value: undefined });
   EXTENSIONS.set(layer, records);
   const closers = exts.filter((ext) => ext.close !== undefined);
   const resolvers = exts.filter((ext) => ext.resolve !== undefined);
-  const runners = exts.filter((ext) => ext.run !== undefined);
-  const writers = exts.filter((ext) => ext.write !== undefined);
-  const sessions = exts.filter((ext) => ext.session !== undefined);
-  layer.exts = {
-    runners: runners.length > 0 ? runners : undefined,
-    writers: writers.length > 0 ? writers : undefined,
-    sessions: sessions.length > 0 ? sessions : undefined,
-  };
+  layer.exts = readExtRoutes(exts);
+  const sessions = layer.exts.sessions;
   let settleReady: () => void = noop;
   let failReady: (error: unknown) => void = noop;
   const ready = new Promise<void>((resolveReady, rejectReady) => {
@@ -5347,16 +5365,92 @@ function extendHandle(
     failReady = rejectReady;
   });
   ignoreRejection(ready);
+  const lifetime: RootLifetime = {};
+  const closed =
+    signal === undefined
+      ? undefined
+      : new Promise<Scope.Result>((resolveClosed) => {
+          lifetime.finish = resolveClosed;
+        });
   const extended: Scope.Handle = {
     ...plain,
-    close: closers.length === 0 ? plain.close : closeThrough(layer, closers),
+    ...(closed === undefined ? {} : { closed }),
+    close: watchRootClose(
+      layer,
+      closers.length === 0 ? (options) => plain.close(options) : closeThrough(layer, closers),
+      lifetime,
+    ),
     ready,
   };
   if (resolvers.length > 0) extended.resolve = resolveThrough(layer, resolvers);
-  if (sessions.length > 0)
+  if (sessions !== undefined)
     extended.createSession = (options?: Scope.Options) => wrapSession(layer, options, sessions);
-  runStartChain(layer, extended, exts, settleReady, failReady);
+  if (signal !== undefined) listenForStop(extended, signal, lifetime);
+  runStartChain(layer, extended, exts, lifetime, settleReady, failReady);
   return extended;
+}
+
+function readExtRoutes(exts: readonly Scope.Extension<unknown>[]): ExtRoutes {
+  const runners = exts.filter((ext) => ext.run !== undefined);
+  const writers = exts.filter((ext) => ext.write !== undefined);
+  const sessions = exts.filter((ext) => ext.session !== undefined);
+  return {
+    runners: runners.length > 0 ? runners : undefined,
+    writers: writers.length > 0 ? writers : undefined,
+    sessions: sessions.length > 0 ? sessions : undefined,
+  };
+}
+
+/** Only the extension path owns this state. The first close includes the hooks' after-work;
+ * a start failure joins it, and a stop request never starts another close (ADR 0085). */
+type RootLifetime = {
+  closing?: Promise<Scope.Result>;
+  finish?: (ended: Scope.Result) => void;
+  unlisten?: () => void;
+};
+
+function watchRootClose(
+  layer: Layer,
+  close: Scope.Handle["close"],
+  lifetime: RootLifetime,
+): Scope.Handle["close"] {
+  return (options) => {
+    lifetime.unlisten?.();
+    if (lifetime.closing !== undefined) return close(options);
+    return (lifetime.closing = finishRootClose(layer, close, options, lifetime));
+  };
+}
+
+/** Hook returns and throws keep their existing meaning for `close()`. Only the real close's
+ * Result reaches `closed`, after the first chain's after-work, even when a hook throws. */
+async function finishRootClose(
+  layer: Layer,
+  close: Scope.Handle["close"],
+  options: Scope.CloseOptions | undefined,
+  lifetime: RootLifetime,
+): Promise<Scope.Result> {
+  try {
+    return await close(options);
+  } finally {
+    if (lifetime.finish !== undefined && layer.closing !== undefined)
+      lifetime.finish(await layer.closing);
+  }
+}
+
+function listenForStop(scope: Scope.Handle, signal: AbortSignal, lifetime: RootLifetime): void {
+  const stop = (): void => {
+    ignoreRejection(
+      scope.ready.then(() => {
+        if (lifetime.closing === undefined) return scope.close({ graceful: true });
+      }),
+    );
+  };
+  lifetime.unlisten = () => {
+    signal.removeEventListener("abort", stop);
+    lifetime.unlisten = undefined;
+  };
+  signal.addEventListener("abort", stop, { once: true });
+  if (signal.aborted) stop();
 }
 
 /** The `resolve` onion (ADR 0050, core/t33): registration order, first is outermost. An

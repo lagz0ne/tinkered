@@ -209,3 +209,49 @@ ADR 0024 (API), ADR 0026 (decisions), ADR 0025 (analysis/bug map), and the bug/r
   streaming). Budgets green: size 15.1 KB gzip (< 30 KB), mutation 77.45%. Code carried the lt3
   CONFIRM-CLEAN review unchanged.
   _Accept:_ every live ledger class has a deterministic seam test; gate green; limitations documented.
+
+## core/root-lifetime — ADR 0085
+
+- **Owner:** core/root-lifetime writer.
+- **State:** Review; the lead owns the board card and landing.
+- **Next:** finish the budget, mutation, and Jev checks.
+- **Verify:** full build, check, and workspace tests; core mutation at least 85;
+  promise budget unchanged; every validate lane green; prose and new-code style checks.
+- **Change:** a root may take a stop signal and expose `closed`.
+  A failed start joins cleanup and every close hook before `ready` rejects.
+  Signal closes wait for start and leave work's `ctx.signal` alone.
+- **Scope:** only core and these two track notes changed.
+  Stack, process, sync, tracker, and example migrations stay with their own cards.
+- **Caller review:** core, hono, process, stack, sync, the tracker, the playground,
+  and the core, drizzle, tinkerer, mcp, and hono examples use roots or readiness.
+  The full workspace test run passed without changing any existing test.
+- **First green step:** build, `vp check`, and `vp run -r test` returned 0.
+  `vp check` printed 28 warnings; no new warning points at this change.
+  The 19 new lifetime cases passed.
+- **Regression proof:** both tests below failed on the unchanged base `f8bc981b`.
+  The first read `['ready', 'cleanup']`; it expected `['cleanup', 'ready']`.
+  The second read `[]`; it expected every handle and hook before/after event.
+  The run returned 1; the same tests pass after the fix.
+- **Slots:** new runtime names stay after `invalidateResource`:
+  `readExtRoutes`, `watchRootClose`, `finishRootClose`, and `listenForStop`.
+  The new local state also sits after that anchor.
+  The plain handle, layer record, close layer, session path, and run path are unchanged.
+- **Style:** the new test file's strict census returned 0.
+  The whole core census returned 1 on both this branch and main `82a30895`.
+  Both have the same old S14, T02, T06, T08, and T07 hits.
+  These are outside this ticket; no new strict hit was added.
+- **Assumptions:** the brief's fixed base is the comparison point while main moves.
+  The existing board card belongs to the lead, so this writer leaves `TODO.md` alone.
+  The given worktree was already installed and built; no pull or install was needed.
+- **Core feedback:** no new request beyond the two accepted ADR 0085 follow-ups.
+  A hook can still replace the result returned by `close()`:
+
+  ```ts
+  close: async (_options, next) => {
+    await next();
+    return { status: "success" };
+  };
+  ```
+
+  A forced close then answers success while `closed` holds core's cancelled Result.
+  The new test keeps that stated limit visible for `core/close-hook-scope`.
