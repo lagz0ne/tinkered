@@ -460,52 +460,52 @@ test("a port already in use fails boot without closing its owner", async () => {
   }
 });
 
-test.each([false, true])(
-  "a cancelled root with teardown errors %s answers the exit code",
-  async (broken) => {
-    const release = Promise.withResolvers<void>();
-    const entered = Promise.withResolvers<void>();
-    const waiting = operation({
-      label: "waiting",
-      run: () => {
-        entered.resolve();
-        return release.promise;
-      },
+test.each([
+  { detail: "without teardown errors", broken: false, code: 0 },
+  { detail: "with teardown errors", broken: true, code: 1 },
+])("a cancelled root $detail answers $code", async ({ broken, code }) => {
+  const release = Promise.withResolvers<void>();
+  const entered = Promise.withResolvers<void>();
+  const waiting = operation({
+    label: "waiting",
+    run: () => {
+      entered.resolve();
+      return release.promise;
+    },
+  });
+  const scope = createScope({ signal: new AbortController().signal });
+  await scope.ready;
+  if (broken)
+    scope.onClose(() => {
+      throw new Error("cancel cleanup broke");
     });
-    const scope = createScope({ signal: new AbortController().signal });
-    await scope.ready;
-    if (broken)
-      scope.onClose(() => {
-        throw new Error("cancel cleanup broke");
-      });
-    const work = scope.settle(waiting);
-    await entered.promise;
-    const closing = scope.close();
-    release.resolve();
-    await work;
-    await closing;
-    const result = await scope.closed;
-    expect(result.status).toBe("cancelled");
-    const lines: string[] = [];
-    expect(
-      readExitCode(
-        result,
-        {
-          ...jsonLines((line) => lines.push(line)),
-          clock: Date.now,
-        },
-        "shutdown",
-      ),
-    ).toBe(broken ? 1 : 0);
-    expect(lines.map((line) => JSON.parse(line))).toEqual(
-      broken
-        ? [
-            expect.objectContaining({
-              message: "shutdown failed",
-              teardown: [expect.objectContaining({ error: "cancel cleanup broke" })],
-            }),
-          ]
-        : [],
-    );
-  },
-);
+  const work = scope.run(waiting);
+  await entered.promise;
+  const closing = scope.close();
+  release.resolve();
+  await work;
+  await closing;
+  const result = await scope.closed;
+  expect(result.status).toBe("cancelled");
+  const lines: string[] = [];
+  expect(
+    readExitCode(
+      result,
+      {
+        ...jsonLines((line) => lines.push(line)),
+        clock: Date.now,
+      },
+      "shutdown",
+    ),
+  ).toBe(code);
+  expect(lines.map((line) => JSON.parse(line))).toEqual(
+    broken
+      ? [
+          expect.objectContaining({
+            message: "shutdown failed",
+            teardown: [expect.objectContaining({ error: "cancel cleanup broke" })],
+          }),
+        ]
+      : [],
+  );
+});

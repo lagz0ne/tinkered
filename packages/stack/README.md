@@ -16,11 +16,11 @@ The server opens the port after all later starts finish.
 ```ts
 import { createScope } from "@tinker/core";
 import { hono } from "@tinker/hono";
-import { jsonLines, readExitCode, server } from "@tinker/stack";
+import * as stack from "@tinker/stack";
 
 async function run(stop: AbortSignal) {
   const observe = {
-    ...jsonLines((line) => {
+    ...stack.jsonLines((line) => {
       process.stdout.write(`${line}\n`);
     }),
     clock: Date.now,
@@ -28,7 +28,7 @@ async function run(stop: AbortSignal) {
   const web = hono([]).extension;
   const scope = createScope({
     extensions: [
-      server(web, {
+      stack.server(web, {
         env: process.env,
         clientDir: "./dist/client",
         observe,
@@ -42,7 +42,8 @@ async function run(stop: AbortSignal) {
     () => true,
     () => false,
   );
-  return readExitCode(await scope.closed, observe, started ? "shutdown" : "boot");
+  const phase = started ? "shutdown" : "boot";
+  return stack.readExitCode(await scope.closed, observe, phase);
 }
 
 if (import.meta.main) {
