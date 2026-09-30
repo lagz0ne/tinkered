@@ -250,6 +250,54 @@ const box = session.controller(coder.inbox);
 box.update((list) => [...list, steer("go")]);
 ```
 
+## Persistence
+
+`persistence({ frame })` declares one set of units.
+It returns `file`, `transcript`, and `extension`.
+Install `extension`; bind `file` in each namespace.
+
+The transcript resource restores messages and owns
+one watch per session and namespace.
+A namespace without a file tag does not save messages.
+Closing the owner stops its watch.
+
+Session creation prepares the inherited namespace
+before it returns.
+A run prepares its selected namespace before the action.
+A direct set also prepares its namespace before any turn.
+
+Reads do not prepare a transcript.
+Before a direct update in a namespace that has not
+run yet, resolve its transcript first:
+
+```ts
+const coder = tinkerer({ label: "coder" });
+const history = persistence({ frame: coder });
+const reviewer = namespace({
+  tags: [history.file("./reviewer.jsonl")],
+});
+const scope = createScope({
+  extensions: [history.extension],
+});
+const session = scope.createSession();
+session.resolve(history.transcript, { ns: reviewer });
+session
+  .controller(coder.messages, { ns: reviewer })
+  .update((saved) => [...saved, { role: "user", content: "Review the diff" }]);
+```
+
+The update first reads the cell, then writes it.
+Preparing only at the write would miss the saved history.
+A direct set still replaces the whole message list.
+
+- A direct set prepares its namespace file before any turn.
+- Resolving a namespace transcript keeps saved messages in a later update.
+- One persistence definition saves per-call namespaces to their own files.
+- A session restores its inherited namespace before a direct update.
+- Preparing a transcript again does not append a message twice.
+- A closed session stops saving changes inherited from its parent.
+- A reused persistence definition keeps each root's file and cleanup separate.
+
 ## Persist
 
 Save a conversation to a JSONL file and resume it.
@@ -261,6 +309,8 @@ one session, install one extension and file per
 namespace: `persist({ frame, ns: a, file: aFile })`.
 Without `ns`, it follows the session's ambient
 namespace. Never share a file between coders.
+This fixed-file form prepares sessions only.
+A root write before session creation does not save to the file.
 
 - A turn's messages are appended to the file one
   JSON line each.
@@ -270,6 +320,7 @@ namespace. Never share a file between coders.
   a missing file reads as an empty transcript.
 - A session with no file to read keeps the
   messages it inherited.
+- Legacy persistence saves a direct session write before any turn.
 - Two files under one scope keep two transcripts
   apart.
 
