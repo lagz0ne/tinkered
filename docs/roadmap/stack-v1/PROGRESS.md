@@ -247,8 +247,8 @@ prose-lint: 0 hits
 
 - Owner: stack/t06 writer.
 - Base: `50b31bab`, including the lander's rebase and fixes.
-- State: mutation checks passed; final gate remains.
-- Next: the gate, all validation lanes, then review.
+- State: Review; all requested checks passed.
+- Next: lead review and landing.
 - Verify: each named range, Drizzle at least 85, and the gate.
 - Assumption: keep the lander's head; do not rebase this follow-up.
 - Node's promisified `execFile` adds stdout to every rejection.
@@ -298,6 +298,15 @@ npx --no-install stryker run \
   Its first run passed all 25 tests.
   Stryker recovered from one worker's `SIGILL` exit;
   the final report has no error rows and matches the current source.
+- Final gate ran once under `/tmp/mutation.lock`: `EXIT 0`.
+  Build passed; check found 0 errors and 29 warnings.
+  Drizzle passed 25 tests, stack 63, and the tracker 79.
+  The Drizzle gate result was cached; validation then reran it
+  with `--no-cache` and passed.
+- `pnpm validate` ran under the same lock: all 48 lanes passed,
+  `EXIT 0`; `pnpm-workspace.yaml` was restored afterward.
+- Prose passed with 0 hits; no new Jev labels or Core feedback.
+- Keep the lander's base; no rebase, reset, or push in this follow-up.
 
 ## Tickets
 
