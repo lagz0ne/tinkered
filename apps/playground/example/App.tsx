@@ -295,19 +295,17 @@ const css = `
   .scene:has(.tile:focus-visible) .field { mask-image: none; }
   .tile { position: relative; display: block; width: 100%; aspect-ratio: 1; border: 0; padding: 0;
     border-radius: 0; cursor: pointer; transform-style: preserve-3d;
-    box-shadow: inset 0 0 0 1px #bbf4e138; }
-  .tile::before { content: ""; position: absolute; inset: 0; pointer-events: none;
-    background: linear-gradient(135deg, #caffec13, transparent 65%); border-radius: inherit; }
-  .tile:hover::before, .tile:focus-visible::before { background: #d6ef9c44; box-shadow: inset 0 0 0 1px var(--lime); }
-  .tile:focus-visible { outline-offset: 3px; }
-  .tile.converge { box-shadow: inset 0 0 0 1px #edfff7bb, 0 0 20px #9ce5d144; }
-  .wall { position: absolute; display: block; backface-visibility: hidden; pointer-events: none; box-shadow: inset 0 0 0 1px #caffec0a; }
+    outline: 1px solid #bbf4e138; outline-offset: -1px; }
+  .tile.converge { outline-color: #edfff7bb; }
+  .tile:hover { outline-color: var(--lime); }
+  .tile:focus-visible { outline: 2px solid var(--lime); outline-offset: 3px; }
+  .wall { position: absolute; display: block; backface-visibility: hidden; pointer-events: none; }
   .wall.n { left: 0; width: 100%; top: -1px; height: 1px; transform-origin: 50% 100%; }
   .wall.s { left: 0; width: 100%; top: 100%; height: 1px; transform-origin: 50% 0%; }
   .wall.e { top: 0; height: 100%; left: 100%; width: 1px; transform-origin: 0% 50%; }
   .wall.w { top: 0; height: 100%; left: -1px; width: 1px; transform-origin: 100% 50%; }
   .arrow { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
-  .arrow svg { width: 55%; height: 55%; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: square; stroke-linejoin: miter; }
+  .arrow svg { width: 55%; height: 55%; fill: none; stroke-width: 1.4; stroke-linecap: square; stroke-linejoin: miter; }
   .scene-caption { position: absolute; bottom: 13px; left: 0; right: 0; text-align: center;
     color: #a6bfb6; font: 10px/1.5 var(--mono); letter-spacing: .02em; pointer-events: none; }
   .press-mark { display: inline-block; width: 24px; height: 24px; margin-right: 8px;

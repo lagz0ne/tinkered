@@ -35,10 +35,10 @@ function topOf(water: { calm: boolean; hue: number; sat: number; lit: number }, 
 function arrowOf(
   shade: Shade,
   water: { hue: number; lit: number },
-): { color: string; transform: string; opacity: number } {
-  if (shade.i <= 0.1) return { color: "transparent", transform: "none", opacity: 0 };
+): { stroke: string; transform: string; opacity: number } {
+  if (shade.i <= 0.1) return { stroke: "transparent", transform: "none", opacity: 0 };
   return {
-    color: `hsl(${(water.hue + 180) % 360} 72% ${Math.max(14, Math.min(44, 100 - water.lit))}%)`,
+    stroke: `hsl(${(water.hue + 180) % 360} 72% ${Math.max(14, Math.min(44, 100 - water.lit))}%)`,
     transform: `rotate(${shade.a}deg)`,
     opacity: Math.min(1, shade.i * 1.6),
   };
@@ -71,6 +71,7 @@ export const Tile = memo(function Tile({
   };
   const low = wall(0.4);
   const high = wall(0.52);
+  const arrow = arrowOf(shade, water);
   return (
     <button
       type="button"
@@ -99,9 +100,13 @@ export const Tile = memo(function Tile({
         style={{ transform: `rotateY(90deg) scaleX(${h})`, background: high }}
         aria-hidden="true"
       />
-      <span className="arrow" style={arrowOf(shade, water)} aria-hidden="true">
+      <span
+        className="arrow"
+        style={{ transform: arrow.transform, opacity: arrow.opacity }}
+        aria-hidden="true"
+      >
         <svg viewBox="0 0 24 24">
-          <path d="M4 12h16m-7-7 7 7-7 7" />
+          <path d="M4 12h16m-7-7 7 7-7 7" stroke={arrow.stroke} />
         </svg>
       </span>
     </button>
