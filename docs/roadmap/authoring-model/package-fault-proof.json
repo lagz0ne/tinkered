@@ -1,0 +1,90 @@
+{
+  "sourceCheckpoint": "46bf1f74",
+  "floor": 85,
+  "execution": "serial under /tmp/mutation.lock",
+  "firstFullRunCheckpoint": "db6d53bf",
+  "firstStackScore": 83.84,
+  "stackRerunExitCode": 0,
+  "unchangedPackageCount": 13,
+  "checkedFileCount": 374,
+  "initialInputsSha256": "d058d56f505e371f89c9dbd630925915659cb06e9674bd22ea88e9f2d4fa6347",
+  "finalInputsSha256": "4c2a3967737f814d2dad557252d030a427284f4ecdf2bbbec29192a6469dd80e",
+  "changedInputs": [
+    "packages/stack/tests/otlp-fixture.ts",
+    "packages/stack/tests/trace-failure.test.ts",
+    "packages/stack/tests/trace-roots.test.ts",
+    "packages/stack/tests/trace.test.ts"
+  ],
+  "packages": [
+    {
+      "name": "blueprint",
+      "score": 86.0,
+      "inputsSha256": "2eff6a91b06071dc88cfa225eae632bba478f8b8643783c52d4f4cc1b3f76d39"
+    },
+    {
+      "name": "core",
+      "score": 85.55,
+      "inputsSha256": "54e782c233eef2f061bed7be196b598b5822ad2ab59f0b816ef65d6e454ae478"
+    },
+    {
+      "name": "drizzle",
+      "score": 93.86,
+      "inputsSha256": "8fce035660696b116ac20a2d6fc638ba4c5e21ebd1be651e85db0c5dd1b00314"
+    },
+    {
+      "name": "harness",
+      "score": 85.64,
+      "inputsSha256": "64b1fa287a9b90f406ab2ffc23b0cfda0d95f62cfe6dc85f5a36369a7ce5fd49"
+    },
+    {
+      "name": "hono",
+      "score": 86.43,
+      "inputsSha256": "2c537763a12ae23ed157bb15ff042e09143c4307794f1ec42786981b300f19bf"
+    },
+    {
+      "name": "http",
+      "score": 89.7,
+      "inputsSha256": "57109b8f8fc37220cdf4e59f39841a3e094a34ad9ee3df2c5b638f1af8b1c197"
+    },
+    {
+      "name": "mcp",
+      "score": 98.51,
+      "inputsSha256": "9795bfb6fd0902394c39c288406a432471486308f44378cd55a936a0b71c4416"
+    },
+    {
+      "name": "nats",
+      "score": 87.67,
+      "inputsSha256": "c58e6b797d8c3f30a6e5a4f05db1734b8f127cf7d5bae03bfcc46d035542b688"
+    },
+    {
+      "name": "process",
+      "score": 94.61,
+      "inputsSha256": "9d3ab68f9c02af4760ccb12932675fd6bce90b87f222a49c3d4ee0cc5e4b6898"
+    },
+    {
+      "name": "react",
+      "score": 92.75,
+      "inputsSha256": "ecce3ddd933a96c5fde0072e3a17069736a7028f266d4d231f7fa3bc5f86739e"
+    },
+    {
+      "name": "stack",
+      "score": 85.95,
+      "inputsSha256": "0a3432fa20860af70062563cfc08095882ef8dd4659615202be67fff831af610"
+    },
+    {
+      "name": "sync",
+      "score": 86.31,
+      "inputsSha256": "cd12af6141b3e79d69422489d52ff417ca95da4b763eb6b1138a766669871a56"
+    },
+    {
+      "name": "tinkerer",
+      "score": 91.82,
+      "inputsSha256": "0c75b75125f1843f9c19854a2f329253bd4d6d2a3b1fd51539b149f5c8706246"
+    },
+    {
+      "name": "utils",
+      "score": 100.0,
+      "inputsSha256": "2579615b301a84ba93de452c1bda63e289a0d1e84c20e12d5de4b2fa8422ed99"
+    }
+  ]
+}

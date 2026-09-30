@@ -1,7 +1,7 @@
 # Authoring rules across packages and apps
 
 Date: 2026-09-30.
-Status: Review; build, check, tests, and release lanes pass.
+Status: Review; all checks pass; main verification and push remain.
 Owner: lead (authoring session).
 Writer model: Astra, xhigh; one package per writer.
 
@@ -372,7 +372,24 @@ The ordinary tagged path's callback now stays in its cold session branch.
 The queued recheck used 61 paired rounds for five existing paths.
 Every path reported no difference we can see.
 [Timing proof](../../../research/learnings/2026-09-30-authoring-call-signal.md).
-Fault lanes for all 14 packages are running one at a time.
+All 14 fault lanes ran one at a time.
+Thirteen passed the floor of 85; Stack scored 83.84.
+The ticket script hid that failure behind its best-effort mutation step.
+The lead's score check caught it; the unpublished checkpoint tag was removed.
+Stack patch `46bf1f74` moves trace setup inside registered tests.
+A broken factory now fails a test instead of hiding its whole suite.
+Public tests also check failed-span lines and promised drop warnings.
+The focused check caught 13 previously missed faults.
+No runtime source, mutation setting, or threshold changed.
+The full Stack rerun passed, exit 0, with score 85.95.
+Stack has 106 passing tests; the tracker has 79.
+All 14 packages now pass their floor of 85.
+The other 13 packages match the files from their passing runs.
+Across 374 checked inputs, only four Stack test files changed.
+Runtime source is unchanged by the Stack test patch.
+The [fault proof](package-fault-proof.json) records scores and file hashes.
+Final build, check, all 18 test tasks, prose, and 48 release lanes pass.
+Core remains 16,384 bytes gzip at its 16,384-byte cap.
 Shared Jev labels retain both teams' answers.
 Full merged-bank calibration and both new Core-flag calibrations pass.
 The bank holds 1,827 labeled cases.

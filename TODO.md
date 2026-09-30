@@ -53,7 +53,8 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 - **authoring/packages** — check every package and app against the settled model.
   Owner: lead (authoring session); Astra writers, one package each.
-  Next: finish serial fault checks, then land.
+  Next: land and verify the main checkout, then push.
+  All 14 fault lanes passed; Stack's test fix scored 85.95.
   All source fixes and the two-service Harness example are saved.
   Verify: each package has a recorded result; regressions fail before fixes;
   build/check, package and app tests, changed-package fault lanes, prose.

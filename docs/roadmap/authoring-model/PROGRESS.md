@@ -598,7 +598,7 @@ Its build copies the checked Core and React files into the browser vendor files.
 A browser probe runs an object hook with the correct namespace.
 It returns 42 and closes with success.
 
-## All current packages and apps — review in progress
+## All current packages and apps — checked, ready to land
 
 The user asked for this round on 2026-09-30.
 Scope: all 14 packages, all three apps, and a Harness service example.
@@ -676,7 +676,60 @@ Both label banks were kept; the merged bank has 1,827 cases.
 Full calibration and the two changed Core-flag calibrations pass.
 The new false labels name owned Layer state and the tracked close promise.
 
-Pending: all 14 fault lanes, Core ticket checkpoint, landing, and push.
+The Core ticket script ran all 14 fault lanes one at a time.
+Thirteen passed; Stack scored 83.84, below its floor of 85.
+The script's best-effort mutation step hid that failure and made a checkpoint.
+The lead checked all scores and removed the unpublished checkpoint tag.
+Nothing was pushed.
+
+Stack patch `46bf1f74` changes only tests, their collector fixture, and README.
+Trace setup now runs inside registered tests, so a broken factory fails a test.
+Public cases check failed-span output and promised drop warnings.
+The focused check caught 13 previously missed faults.
+Stack has 106 passing tests; tracker has 79.
+The full Stack fault rerun passed, exit 0, with score 85.95.
+Source, test, and config hashes match the other 13 passing runs.
+Only four Stack test inputs changed across 374 checked files.
+Runtime source did not change after the first full fault run.
+The [fault proof](package-fault-proof.json) records each score and its input hash.
+
+All 14 final scores pass the floor of 85:
+
+- Blueprint: 86.00.
+- Core: 85.55.
+- Drizzle: 93.86.
+- Harness: 85.64.
+- Hono: 86.43.
+- HTTP: 89.70.
+- MCP: 98.51.
+- NATS: 87.67.
+- Process: 94.61.
+- React: 92.75.
+- Stack: 85.95.
+- Sync: 86.31.
+- Tinkerer: 91.82.
+- Utils: 100.00.
+
+Final build, check, all 18 test tasks, and prose pass, exit 0.
+Release validation: all 48 deterministic lanes pass, exit 0.
+Core size: 16,384 bytes gzip; cap: 16,384.
+Stack's strict style census passes; TSDoc has 0 rows.
+The final whole-range review has 0 source flags.
+Its one commit-title flag was checked against the mixed source diff.
+No new Jev labels were added after the passing calibration.
+
+Observed final logs:
+
+- `/tmp/tinkered-authoring-packages-final-build.log`
+- `/tmp/tinkered-authoring-packages-final-check.log`
+- `/tmp/tinkered-authoring-packages-final-tests.log`
+- `/tmp/tinkered-authoring-packages-final-prose.log`
+- `/tmp/tinkered-authoring-packages-final-validate.log`
+- `/tmp/tinkered-authoring-packages-final-size.log`
+- `/tmp/tinkered-authoring-packages-stack-mutate-final.log`
+- `/tmp/tinkered-authoring-packages-final-mutation-results.json`
+
+Pending: main verification, final checkpoint tag, and push.
 
 ## Existing Process card completed
 
