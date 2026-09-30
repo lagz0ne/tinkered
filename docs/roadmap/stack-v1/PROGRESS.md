@@ -2506,3 +2506,13 @@ Log: `stack-t17-resume-validate.log`.
 Browser proof and validation ran before the mutation lanes,
 using their queue wait; the source stayed unchanged.
 Only the two fresh mutation lanes remain.
+
+Fresh full Hono lane: `HONO_MUTATION_EXIT 0`.
+370 killed, zero timed out, 56 survived, two without coverage.
+No errors; all 428 mutants stayed included.
+Killed share: `370 / (370 + 0 + 56) = 86.85%`.
+Stryker score: 86.45%; both clear the floor of 85.
+Ran once under the lock, with a 60-second limit and two runners.
+Log and JSON: `stack-t17-resume-hono-mutation` in the briefs cache.
+Stack was already waiting and starts after Hono releases the lock.
+The source and mutation settings stayed unchanged.
