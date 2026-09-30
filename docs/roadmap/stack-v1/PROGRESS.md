@@ -386,7 +386,7 @@ npx --no-install stryker run \
   Verify: `vp run stack#test` boots, stops, and
   fails boot on a bad `PORT` naming it; the
   tracker's tests pass.
-- **t06 the migrate step** -- [ ] blocked by: t03, t05
+- **t06 the migrate step** -- [x] landed `53db559`
   The tracker's tables come from migration files.
   At boot and in test setup the migrate step takes
   a Postgres lock, then runs Drizzle's migrations
