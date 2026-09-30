@@ -24,12 +24,13 @@ test("the graph traces publish and the subscription operation", async () => {
   });
   try {
     await scope.ready;
+    spans.length = 0;
     const send = operation({
       label: "send",
       depends: { publish: bus.publish },
       run: ({ publish }) => publish.run({ input: { subject: "trace", payload: new Uint8Array() } }),
     });
-    scope.run(send);
+    void scope.run(send);
     await expect.poll(() => spans.length).toBe(4);
     expect(
       spans.map((span) => ({

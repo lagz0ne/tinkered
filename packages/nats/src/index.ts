@@ -1,5 +1,5 @@
-import { extension, operation } from "@tinker/core";
-import type { Operation, Scope } from "@tinker/core";
+import { extension, operation, resource, tag } from "@tinker/core";
+import type { Namespace, Operation, Scope } from "@tinker/core";
 import type { NatsConnection, Subscription } from "@nats-io/transport-node";
 import { raise } from "./errors.ts";
 
@@ -11,12 +11,23 @@ export declare namespace Nats {
   type Message = { subject: string; payload: Uint8Array };
   type Load<T> = () => Operation.Handle<T, Message> | PromiseLike<Operation.Handle<T, Message>>;
   type Row = { subject: string; load: Load<unknown> };
+  type Config = {
+    url: string;
+    /** Borrowed from a dev host. Only this piece's subscriptions close with the scope. */
+    connection?: NatsConnection;
+  };
   type Wiring = {
     env: { NATS_URL?: string };
     /** Borrowed from a dev host. Only this piece's subscriptions close with the scope. */
     connection?: NatsConnection;
   };
+  /** Resolving the resource prepares this namespace's incoming subscriptions too. */
+  type Connection = { send(message: Message): void };
 }
+
+const closedConnection: Nats.Connection = {
+  send: () => raise("NotStarted", {}),
+};
 
 /** One row per subject. Wildcards follow NATS subject rules. */
 export function subscribe<T>(
@@ -26,111 +37,174 @@ export function subscribe<T>(
   return { subject, load: typeof op === "function" ? op : () => op };
 }
 
-/** A piece belongs to one live root at a time and can restart after close.
- * The extension owns the connection unless wiring lends one.
- * Close drains subscriptions while sessions can still run, then closes the root.
- * The start defer also reaps the connection when boot fails before the caller closes. */
-export function nats(rows: readonly Nats.Row[], wiring: Nats.Wiring) {
-  let owner: Scope.Handle | undefined;
-  const bridge = extension({
-    label: "nats",
-    start: async (scope, ctx, next) => {
-      if (owner) raise("PieceInUse", { label: ctx.label });
-      owner = scope;
-      let stopped = false;
-      let closingScope = false;
-      let quiet: (() => Promise<void>) | undefined;
-      let close: (() => Promise<void>) | undefined;
-      const release = () => {
-        if (owner === scope) owner = undefined;
-      };
-      const closeScope = scope.close.bind(scope);
-      /** Core's close hook has no scope. Bind here so closing a rejected or old scope
-       * cannot drain the live owner's subscriptions. Keep the full core close chain. */
-      scope.close = async (options) => {
-        closingScope = true;
-        const finish = () => closeScope(options);
-        try {
-          /** The defer reports drain errors. Keep the connection open for root cleanup. */
-          return await (options?.graceful && quiet ? quiet().then(finish, finish) : finish());
-        } finally {
-          release();
-        }
-      };
+/** Share one definition across roots and namespaces. Each namespace owns its connection
+ * and subscriptions until the root closes; a lent SDK connection stays with its lender.
+ * The extension checks the initial config before later starts and prepares its namespace
+ * after them. Resolving `connection` or publishing prepares another selected namespace.
+ * Each definition needs its own config and driver identities to keep separate buses apart. */
+export function nats(rows: readonly Nats.Row[], wiring?: Nats.Wiring) {
+  const config = tag<Nats.Config>({ label: "nats.config" });
+  const settings = resource({
+    label: "nats.settings",
+    target: "namespace",
+    depends: { config: config.optional },
+    factory: ({ config }) => ({
+      url: readUrl(config.present ? config.value.url : wiring?.env.NATS_URL),
+      connection: config.present ? config.value.connection : wiring?.connection,
+    }),
+  });
+  const driver = resource({
+    label: "nats.driver",
+    target: "scope",
+    factory: (_deps, ctx) => {
+      const driver = new Driver();
+      ctx.defer(() => driver.finish());
+      return driver;
+    },
+  });
+  const connection = resource({
+    label: "nats.connection",
+    target: "namespace",
+    depends: { settings, driver },
+    factory: async ({ settings, driver }, ctx): Promise<Nats.Connection> => {
+      const scope = driver.readScope();
+      const service = new Connection(!settings.connection);
+      driver.connections.add(service);
       ctx.defer(async () => {
-        stopped = true;
         try {
-          await close?.();
+          await service.close();
         } finally {
-          /** Failed boot closes through core without calling the scope handle. */
-          if (!closingScope) release();
+          driver.connections.delete(service);
         }
       });
-      const url = readUrl(wiring.env.NATS_URL);
-      await next();
       const { connect } = await import("@nats-io/transport-node");
-      const connection = wiring.connection ?? (await connect({ servers: url }));
-      const subscriptions: Subscription[] = [];
-      const pending = new Set<Promise<void>>();
-      let stopping: Promise<void> | undefined;
-      quiet = () => (stopping ??= stopSubscriptions(subscriptions, pending));
-      let closing: Promise<void> | undefined;
-      const stop = quiet;
-      close = () => (closing ??= drain(connection, stop, !wiring.connection));
-      const send = (message: Nats.Message): void =>
-        connection.publish(message.subject, message.payload);
-      if (stopped) {
-        await close();
-      } else {
+      ctx.signal.throwIfAborted();
+      const client = settings.connection ?? (await connect({ servers: settings.url }));
+      service.attach(client);
+      ctx.signal.throwIfAborted();
+      if (!driver.stopping) {
         for (const row of rows) {
           const receive = await row.load();
-          subscriptions.push(
-            connection.subscribe(row.subject, {
+          ctx.signal.throwIfAborted();
+          if (driver.stopping) break;
+          service.subscriptions.push(
+            client.subscribe(row.subject, {
               callback: (error, message) => {
-                const work = scope.session((session) =>
-                  session.run({
-                    label: `nats ${row.subject}`,
-                    depends: { receive },
-                    run: async ({ receive }, runCtx) => {
-                      if (error) {
-                        runCtx.log.error("nats subscription failed", {
-                          subject: row.subject,
-                          error,
-                        });
-                        return;
-                      }
-                      const result = await receive.settle({
-                        input: { subject: message.subject, payload: new Uint8Array(message.data) },
-                      });
-                      if (result.status === "failed") {
-                        runCtx.log.error("nats operation failed", {
-                          subject: message.subject,
-                          error: result.error,
-                        });
-                      }
-                    },
-                  }),
-                );
-                pending.add(work);
-                const settled = () => pending.delete(work);
-                work.then(settled, settled);
+                if (ctx.signal.aborted) return;
+                const work = deliver(scope, ctx.ns, row.subject, receive, error, message);
+                service.track(work);
               },
             }),
           );
         }
-        await connection.flush();
+        await client.flush();
       }
-      return { send };
+      return { send: service.send };
+    },
+  });
+  const bridge = extension({
+    label: "nats",
+    hooks: {
+      start: async (event) => {
+        const owner = event.resolve(driver);
+        owner.start(event.scope);
+        event.resolve(settings);
+        await event.next();
+        return owner.stopping ? closedConnection : event.resolve(connection);
+      },
+      close: async (event) => {
+        const owner = event.resolve(driver);
+        if (event.options.graceful) await owner.quiet();
+        return event.next();
+      },
     },
   });
   const publish = operation({
     label: "nats.publish",
-    depends: { bridge },
-    run: ({ bridge: live }, ctx: Operation.Ctx<Nats.Message>) => {
-      live.send(ctx.input);
+    depends: { connection },
+    run: async ({ connection }, ctx: Operation.Ctx<Nats.Message>) => {
+      connection.send(ctx.input);
     },
   });
-  return { extension: bridge, publish };
+  return { extension: bridge, publish, config, connection };
+}
+
+class Driver {
+  private scope: Scope.Handle | undefined;
+  readonly connections = new Set<Connection>();
+  stopping = false;
+
+  start(scope: Scope.Handle): void {
+    this.scope = scope;
+  }
+
+  readScope(): Scope.Handle {
+    if (!this.scope) raise("NotStarted", {});
+    return this.scope;
+  }
+
+  async quiet(): Promise<void> {
+    this.stopping = true;
+    /** Resource cleanup reports a failed drain after the scope has closed its sessions. */
+    await Promise.allSettled([...this.connections].map((connection) => connection.quiet()));
+  }
+
+  finish(): void {
+    this.stopping = true;
+    this.scope = undefined;
+  }
+}
+
+class Connection {
+  readonly subscriptions: Subscription[] = [];
+  private pending = new Set<Promise<void>>();
+  private client: NatsConnection | undefined;
+  private owned: boolean;
+  private stopping: Promise<void> | undefined;
+  private closing: Promise<void> | undefined;
+
+  constructor(owned: boolean) {
+    this.owned = owned;
+  }
+
+  attach(client: NatsConnection): void {
+    this.client = client;
+  }
+
+  readonly send = (message: Nats.Message): void => {
+    const client = this.client;
+    if (!client) raise("NotStarted", {});
+    client.publish(message.subject, message.payload);
+  };
+
+  track(work: Promise<void>): void {
+    this.pending.add(work);
+    const settled = () => this.pending.delete(work);
+    work.then(settled, settled);
+  }
+
+  quiet(): Promise<void> {
+    return (this.stopping ??= stopSubscriptions(this.subscriptions, this.pending));
+  }
+
+  close(): Promise<void> {
+    return (this.closing ??= this.finish());
+  }
+
+  private async finish(): Promise<void> {
+    try {
+      await this.quiet();
+      if (this.owned) await this.client?.drain();
+    } catch (error) {
+      /** A failed final flush must still release an owned connection. */
+      if (this.owned) await this.client?.close();
+      throw error;
+    } finally {
+      this.client = undefined;
+      this.subscriptions.length = 0;
+      this.pending.clear();
+    }
+  }
 }
 
 function readUrl(value: string | undefined): string {
@@ -141,19 +215,32 @@ function readUrl(value: string | undefined): string {
   return url.href;
 }
 
-async function drain(
-  connection: NatsConnection,
-  stop: () => Promise<void>,
-  owned: boolean,
+function deliver(
+  scope: Scope.Handle,
+  ns: readonly Namespace[] | undefined,
+  subject: string,
+  receive: Operation.Handle<unknown, Nats.Message>,
+  error: Error | null,
+  message: { subject: string; data: Uint8Array },
 ): Promise<void> {
-  try {
-    await stop();
-    if (owned) await connection.drain();
-  } catch (error) {
-    /** Connection drain can reject its final flush on disconnect without closing the client. */
-    if (owned) await connection.close();
-    throw error;
-  }
+  return scope.session({ ns }, (session) =>
+    session.run({
+      label: `nats ${subject}`,
+      depends: { receive },
+      run: async ({ receive }, ctx) => {
+        if (error) {
+          ctx.log.error("nats subscription failed", { subject, error });
+          return;
+        }
+        const result = await receive.settle({
+          input: { subject: message.subject, payload: new Uint8Array(message.data) },
+        });
+        if (result.status === "failed") {
+          ctx.log.error("nats operation failed", { subject: message.subject, error: result.error });
+        }
+      },
+    }),
+  );
 }
 
 async function stopSubscriptions(

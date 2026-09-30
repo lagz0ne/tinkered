@@ -16,9 +16,7 @@ const receive = operation({
     return new TextDecoder().decode(ctx.input.payload);
   },
 });
-const bus = nats([subscribe("updates.*", receive)], {
-  env: { NATS_URL: "nats://127.0.0.1:4222" },
-});
+const bus = nats([subscribe("updates.*", receive)]);
 const send = operation({
   label: "send",
   depends: { publish: bus.publish },
@@ -30,34 +28,87 @@ const send = operation({
       },
     }),
 });
-const scope = createScope({ extensions: [bus.extension] });
+const scope = createScope({
+  tags: [bus.config({ url: "nats://127.0.0.1:4222" })],
+  extensions: [bus.extension],
+});
 await scope.ready;
-scope.run(send);
+void scope.run(send);
 await scope.close({ graceful: true });
 ```
 
-Use one `nats(rows, wiring)` piece per live root.
-A second live start fails with `PieceInUse`.
-Its payload names the piece: `{ label: "nats" }`.
-The piece can start again after the first scope closes.
-`wiring.env` supplies `NATS_URL`; there is no default.
+One `nats(rows)` definition can serve several roots.
+Each root owns its connections and subscriptions.
+Closing or failing one root leaves the other roots alone.
+The definition can start again after a root closes.
+
+Bind settings with `bus.config({ url })` on the root or namespace.
+`nats(rows, { env })` still accepts `env.NATS_URL` as a fallback.
+A config tag wins over that fallback.
+There is no default URL.
+The initial config is checked before later starts run.
 The URL must use `nats://` or `tls://` and name a host.
 The NATS v3 Node client is pinned to 3.4.0.
 Each publish sends a subject and byte payload.
-Publish queues the bytes; scope close flushes them.
+Publish returns a promise and queues the bytes.
+`void scope.run(bus.publish, { input })` stays tracked by the scope.
+Graceful close waits for queued publishes and flushes them.
 NATS pub/sub does not save messages for later delivery.
 
 `subscribe(subject, operation)` makes a driver row.
-A loader function can return the operation at boot.
+A loader returns the operation when each connection starts.
 Use a loader when the operation depends on `bus.publish`.
 Each message copies its payload into its own session.
 A failed operation writes one error through the scope's
 log sink and leaves the subscription open.
 
-A dev host can lend `wiring.connection` to the piece.
+A dev host can lend `connection` through `bus.config`
+or the old `wiring.connection` fallback.
 Its owner must close it after the scopes end.
 The piece drains only its own subscriptions on that
 connection; it leaves the connection open.
+
+## Named connections
+
+One connection serves each selected namespace until root close.
+Incoming messages open sessions in that namespace too.
+The root's selected namespace is ready after later starts finish.
+Other namespaces start on their first publish or explicit resolve.
+The driver never scans for namespaces.
+
+```ts
+const east = namespace({
+  tags: [bus.config({ url: "nats://east:4222" })],
+});
+const west = namespace({
+  tags: [bus.config({ url: "nats://west:4222" })],
+});
+const scope = createScope({
+  ns: east,
+  extensions: [bus.extension],
+});
+await scope.ready;
+await scope.resolve(bus.connection, { ns: west });
+await scope.run(bus.publish, {
+  ns: west,
+  input: {
+    subject: "updates.saved",
+    payload: new TextEncoder().encode("42"),
+  },
+});
+await scope.close({ graceful: true });
+```
+
+Import `namespace` from `@tinker/core` for this example.
+`bus.connection` prepares subscriptions as well as sending.
+Its plain handle has `send(message)`; no SDK client escapes.
+After ready, `scope.resolve(bus.extension)` returns the sender
+for the root's initial namespace.
+Resolving it without the extension raises `NotStarted`.
+Calling its `send` handle after close raises `NotStarted`.
+Graceful close stops incoming work and waits for replies
+before the scope closes its resources.
+Forced close aborts running messages before cleanup.
 
 Trace headers, JetStream, KV, and object store wait for
 later tickets.
@@ -110,7 +161,12 @@ try {
 ## Promises tested
 
 - Publish reaches a subscription operation with its subject and payload.
-- A piece rejects a second live scope and can restart after close.
+- Connection setup requires the bus extension on its root.
+- Resolving the extension returns its root namespace's prepared sender.
+- A shared piece serves independent roots and restarts after one closes.
+- Closing a failed root leaves a later root using the same piece alive.
+- Namespace config routes publish and incoming sessions through separate connections.
+- Resolving a selected connection prepares incoming service without a publish.
 - Each message gets its own session resources and closes them.
 - A failed operation logs one error and the next message still runs.
 - Scope close drains queued messages and their replies before closing the connection.

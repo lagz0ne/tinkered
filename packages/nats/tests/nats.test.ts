@@ -5,8 +5,10 @@ import {
   createScope,
   data,
   extension,
+  namespace,
   operation,
   resource,
+  tag,
   type Observe,
   type Operation,
 } from "@tinker/core";
@@ -40,66 +42,41 @@ test("publish reaches a subscription operation with its subject and payload", as
       depends: { publish: bus.publish },
       run: ({ publish }) => publish.run({ input: message }),
     });
-    scope.run(send);
+    void scope.run(send);
     expect(await received.promise).toEqual(message);
   } finally {
     await scope.close({ graceful: true });
   }
 });
 
-test("a piece rejects a second live scope and can restart after close", async () => {
-  const received: number[] = [];
+test("a shared piece serves independent roots and restarts after one closes", async () => {
+  const identity = tag<string>({ label: "identity" });
+  const received: string[] = [];
   const receive = operation({
     label: "receive",
-    run: (_deps, ctx: Operation.Ctx<Nats.Message>) => {
-      received.push(ctx.input.payload[0]);
+    depends: { identity },
+    run: ({ identity }, ctx: Operation.Ctx<Nats.Message>) => {
+      received.push(`${identity}:${ctx.input.payload[0]}`);
     },
   });
   const bus = nats([subscribe("shared", receive)], { env: { NATS_URL: server.url } });
-  const closingStarted = Promise.withResolvers<void>();
-  const releaseClose = Promise.withResolvers<void>();
-  const gate = extension({
-    label: "closeGate",
-    close: async (_options, next) => {
-      const result = await next();
-      closingStarted.resolve();
-      await releaseClose.promise;
-      return result;
-    },
-  });
-  const first = createScope({ extensions: [bus.extension, gate] });
-  const scopes = [first];
+  const first = createScope({ tags: [identity("first")], extensions: [bus.extension] });
+  const second = createScope({ tags: [identity("second")], extensions: [bus.extension] });
+  const scopes = [first, second];
   try {
-    await first.ready;
-    const second = createScope({ extensions: [bus.extension] });
-    scopes.push(second);
-    await expect(second.ready).rejects.toMatchObject({
-      kind: "PieceInUse",
-      payload: { label: "nats" },
-    });
-    await second.close({ graceful: true });
-    first.run(bus.publish, { input: { subject: "shared", payload: new Uint8Array([1]) } });
-    await expect.poll(() => received).toEqual([1]);
-    const closing = first.close({ graceful: true });
-    await closingStarted.promise;
-    const duringClose = createScope({ extensions: [bus.extension] });
-    scopes.push(duringClose);
-    await expect(duringClose.ready).rejects.toMatchObject({
-      kind: "PieceInUse",
-      payload: { label: "nats" },
-    });
-    await duringClose.close({ graceful: true });
-    releaseClose.resolve();
-    expect(await closing).toEqual({ status: "success" });
-    const reloaded = createScope({ extensions: [bus.extension] });
-    scopes.push(reloaded);
-    await reloaded.ready;
+    await Promise.all([first.ready, second.ready]);
+    void first.run(bus.publish, { input: { subject: "shared", payload: new Uint8Array([1]) } });
+    await expect.poll(() => received.toSorted()).toEqual(["first:1", "second:1"]);
     await first.close({ graceful: true });
-    await second.close({ graceful: true });
-    reloaded.run(bus.publish, { input: { subject: "shared", payload: new Uint8Array([2]) } });
-    await expect.poll(() => received).toEqual([1, 2]);
+    const restarted = createScope({ tags: [identity("restarted")], extensions: [bus.extension] });
+    scopes.push(restarted);
+    await restarted.ready;
+    await first.close({ graceful: true });
+    void second.run(bus.publish, { input: { subject: "shared", payload: new Uint8Array([2]) } });
+    await expect
+      .poll(() => received.toSorted())
+      .toEqual(["first:1", "restarted:2", "second:1", "second:2"]);
   } finally {
-    releaseClose.resolve();
     for (const scope of scopes.reverse()) await scope.close({ graceful: true });
   }
 });
@@ -133,8 +110,8 @@ test("each message gets its own session resources and closes them", async () => 
   const scope = createScope({ extensions: [bus.extension] });
   try {
     await scope.ready;
-    scope.run(bus.publish, { input: message });
-    scope.run(bus.publish, { input: message });
+    void scope.run(bus.publish, { input: message });
+    void scope.run(bus.publish, { input: message });
     await expect.poll(() => closed.length).toBe(2);
     expect(seen[0]).not.toBe(seen[1]);
     expect(closed).toEqual(seen);
@@ -163,9 +140,9 @@ test("a failed operation logs one error and the next message still runs", async 
   });
   try {
     await scope.ready;
-    scope.run(bus.publish, { input: { subject: "failures", payload: new Uint8Array([1]) } });
+    void scope.run(bus.publish, { input: { subject: "failures", payload: new Uint8Array([1]) } });
     await expect.poll(() => logs.length).toBe(1);
-    scope.run(bus.publish, { input: { subject: "failures", payload: new Uint8Array([2]) } });
+    void scope.run(bus.publish, { input: { subject: "failures", payload: new Uint8Array([2]) } });
     await expect.poll(() => received).toEqual([2]);
     expect(logs).toMatchObject([
       {
@@ -196,14 +173,14 @@ test("scope close drains queued messages and their replies before closing the co
     run: async ({ publish }, ctx: Operation.Ctx<Nats.Message>) => {
       started.resolve();
       await release.promise;
-      publish.run({ input: { subject: "replies", payload: ctx.input.payload } });
+      void publish.run({ input: { subject: "replies", payload: ctx.input.payload } });
     },
   });
   const scope = createScope({ extensions: [bus.extension] });
   try {
     await scope.ready;
-    scope.run(bus.publish, { input: { subject: "drain", payload: new Uint8Array([1]) } });
-    scope.run(bus.publish, { input: { subject: "drain", payload: new Uint8Array([2]) } });
+    void scope.run(bus.publish, { input: { subject: "drain", payload: new Uint8Array([1]) } });
+    void scope.run(bus.publish, { input: { subject: "drain", payload: new Uint8Array([2]) } });
     await started.promise;
     let closed = false;
     const closing = scope.close({ graceful: true }).then((result) => {
@@ -235,14 +212,14 @@ test("a borrowed connection stays open while this scope's subscriptions stop", a
       seen.push(ctx.input);
     },
   });
-  const bus = nats([subscribe(message.subject, receive)], {
-    env: { NATS_URL: server.url.replace("nats:", "tls:") },
-    connection: peer,
+  const bus = nats([subscribe(message.subject, receive)]);
+  const scope = createScope({
+    tags: [bus.config({ url: server.url.replace("nats:", "tls:"), connection: peer })],
+    extensions: [bus.extension],
   });
-  const scope = createScope({ extensions: [bus.extension] });
   try {
     await scope.ready;
-    scope.run(bus.publish, { input: message });
+    void scope.run(bus.publish, { input: message });
     await expect.poll(() => seen.length).toBe(1);
     await scope.close({ graceful: true });
     peer.publish(message.subject, message.payload);
@@ -271,7 +248,7 @@ test("a publish-only scope flushes queued bytes to a peer before it closes", asy
   const payload = new Uint8Array(512 * 1024).fill(7);
   try {
     await scope.ready;
-    scope.run(bus.publish, { input: { subject: "outbound", payload } });
+    void scope.run(bus.publish, { input: { subject: "outbound", payload } });
     await scope.close({ graceful: true });
     expect(Buffer.from(await received.promise).toString("base64")).toBe(
       Buffer.from(payload).toString("base64"),
@@ -371,7 +348,7 @@ test("forced close aborts a running message and closes the connection", async ()
   const scope = createScope({ extensions: [bus.extension] });
   try {
     await scope.ready;
-    scope.run(bus.publish, { input: { subject: "abort", payload: new Uint8Array() } });
+    void scope.run(bus.publish, { input: { subject: "abort", payload: new Uint8Array() } });
     await started.promise;
     expect(await scope.close()).toMatchObject({ status: "cancelled", teardownErrors: undefined });
     await expect
@@ -426,5 +403,138 @@ test("failed boot keeps its cause and closes any connection without cleanup erro
     } finally {
       await scope.close();
     }
+  }
+});
+
+test("namespace config routes publish and incoming sessions through separate connections", async () => {
+  const other = await startNatsServer();
+  const identity = tag<string>({ label: "identity" });
+  const received: string[] = [];
+  const receive = operation({
+    label: "receive",
+    depends: { identity },
+    run: ({ identity }, ctx: Operation.Ctx<Nats.Message>) => {
+      received.push(`${identity}:${ctx.input.payload[0]}`);
+    },
+  });
+  const bus = nats([subscribe("namespaced", receive)]);
+  const east = namespace({ tags: [bus.config({ url: server.url }), identity("east")] });
+  const west = namespace({ tags: [bus.config({ url: other.url }), identity("west")] });
+  const scope = createScope({ ns: east, extensions: [bus.extension] });
+  try {
+    await scope.ready;
+    await scope.run(bus.publish, {
+      input: { subject: "namespaced", payload: new Uint8Array([1]) },
+    });
+    await scope.run(bus.publish, {
+      ns: west,
+      input: { subject: "namespaced", payload: new Uint8Array([2]) },
+    });
+    await scope.run(bus.publish, {
+      ns: west,
+      input: { subject: "namespaced", payload: new Uint8Array([3]) },
+    });
+    await expect.poll(() => received.toSorted()).toEqual(["east:1", "west:2", "west:3"]);
+    await scope.close({ graceful: true });
+    await expect
+      .poll(async () => (await fetch(`${other.monitorUrl}/connz`)).json())
+      .toMatchObject({ num_connections: 0 });
+  } finally {
+    await scope.close();
+    await other.close();
+  }
+});
+
+test("resolving a selected connection prepares incoming service without a publish", async () => {
+  const other = await startNatsServer();
+  const identity = tag<string>({ label: "identity" });
+  const received: string[] = [];
+  const receive = operation({
+    label: "receive",
+    depends: { identity },
+    run: ({ identity }, _ctx: Operation.Ctx<Nats.Message>) => {
+      received.push(identity);
+    },
+  });
+  const bus = nats([subscribe("prepared", receive)], { env: { NATS_URL: server.url } });
+  const east = namespace({ tags: [identity("east")] });
+  const west = namespace({ tags: [bus.config({ url: other.url }), identity("west")] });
+  const scope = createScope({ ns: east, extensions: [bus.extension] });
+  const peer = await connect({ servers: other.url });
+  try {
+    await scope.ready;
+    await scope.resolve(bus.connection, { ns: west });
+    peer.publish("prepared", new Uint8Array());
+    await peer.flush();
+    await expect.poll(() => received).toEqual(["west"]);
+  } finally {
+    await scope.close({ graceful: true });
+    await peer.close();
+    await other.close();
+  }
+});
+
+test("closing a failed root leaves a later root using the same piece alive", async () => {
+  const failure = new Error("later start failed");
+  const later = extension({
+    label: "later",
+    start: () => {
+      throw failure;
+    },
+  });
+  const received: Nats.Message[] = [];
+  const receive = operation({
+    label: "receive",
+    run: (_deps, ctx: Operation.Ctx<Nats.Message>) => {
+      received.push(ctx.input);
+    },
+  });
+  const bus = nats([subscribe(message.subject, receive)], { env: { NATS_URL: server.url } });
+  const failed = createScope({ extensions: [bus.extension, later] });
+  await expect(failed.ready).rejects.toBe(failure);
+  const live = createScope({ extensions: [bus.extension] });
+  try {
+    await live.ready;
+    await failed.close({ graceful: true });
+    await live.run(bus.publish, { input: message });
+    await expect.poll(() => received).toEqual([message]);
+  } finally {
+    await failed.close();
+    await live.close({ graceful: true });
+  }
+});
+
+test("connection setup requires the bus extension on its root", async () => {
+  const bus = nats([], { env: { NATS_URL: server.url } });
+  const scope = createScope();
+  try {
+    await scope.resolve(bus.connection);
+    expect.unreachable();
+  } catch (error) {
+    if (!isError(error, "NotStarted")) throw error;
+  } finally {
+    await scope.close();
+  }
+});
+
+test("resolving the extension returns its root namespace's prepared sender", async () => {
+  const identity = tag({ label: "identity", default: "default" });
+  const received = Promise.withResolvers<{ identity: string; message: Nats.Message }>();
+  const receive = operation({
+    label: "receive",
+    depends: { identity },
+    run: ({ identity }, ctx: Operation.Ctx<Nats.Message>) => {
+      received.resolve({ identity, message: ctx.input });
+    },
+  });
+  const bus = nats([subscribe(message.subject, receive)]);
+  const owner = namespace({ tags: [bus.config({ url: server.url }), identity("owner")] });
+  const scope = createScope({ ns: owner, extensions: [bus.extension] });
+  try {
+    await scope.ready;
+    scope.resolve(bus.extension).send(message);
+    expect(await received.promise).toEqual({ identity: "owner", message });
+  } finally {
+    await scope.close({ graceful: true });
   }
 });

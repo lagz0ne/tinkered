@@ -1,5 +1,5 @@
 type Payloads = {
-  PieceInUse: { label: string };
+  NotStarted: Record<string, never>;
   InvalidConfig: { key: "NATS_URL" };
   DownloadFailed: { url: string; status: number };
   ChecksumMismatch: { file: string };
