@@ -27,6 +27,7 @@ function start(root, port) {
       DATA_PATH: join(root, "data/issues"),
       PORT: String(port),
       DRAFT_HELPER: "0",
+      XDG_CACHE_HOME: resolve(".bench/cache"),
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -50,13 +51,15 @@ function start(root, port) {
         throw new Error(`early exit ${code}/${signal}: ${errorText}`);
       }),
     ]);
-  return { child, exited, ready };
+  return { child, exited, ready, output: () => errorText };
 }
 
 async function stop(host) {
   host.child.kill("SIGTERM");
   const [code, signal] = await host.exited;
-  if (code !== 0 || signal !== null) throw new Error(`stop failed: ${code}/${signal}`);
+  if (code !== 0 || signal !== null) {
+    throw new Error(`stop failed: ${code}/${signal}: ${host.output()}`);
+  }
 }
 
 async function run() {

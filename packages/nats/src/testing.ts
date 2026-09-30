@@ -3,14 +3,21 @@ import { execFile, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
-import { join, sep } from "node:path";
+import { isAbsolute, join, sep } from "node:path";
 import { promisify } from "node:util";
 import { raise } from "./errors.ts";
 
 export { isError } from "./errors.ts";
 
 const release = "https://github.com/nats-io/nats-server/releases/download/v2.15.0";
-const cache = join(homedir(), ".cache", "tinkered", "nats-server", "2.15.0");
+/** A sandbox can lend a populated cache without changing the process's home (XDG). */
+const cacheHome = process.env.XDG_CACHE_HOME ?? "";
+const cache = join(
+  isAbsolute(cacheHome) ? cacheHome : join(homedir(), ".cache"),
+  "tinkered",
+  "nats-server",
+  "2.15.0",
+);
 const architectures: Record<string, string> = { x64: "amd64", ia32: "386", arm: "arm7" };
 const host = `${process.platform === "win32" ? "windows" : process.platform}-${architectures[process.arch] ?? process.arch}`;
 const stem = `nats-server-v2.15.0-${host}`;

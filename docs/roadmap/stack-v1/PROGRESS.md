@@ -4947,3 +4947,34 @@ No build runs in that tree while the job waits or runs.
 - Stack: all 112 tests pass after this change.
   Check: zero errors and 28 warnings.
   The rest of the combined gate is still running.
+
+### t14 resume and cache impact
+
+- Owner: stack/t14 writer.
+- Next: finish the cache proof, then rebase on t17 and t18.
+- Verify: the full gate, queued restart versus reload,
+  stack and NATS mutation at least 85, and validation.
+- Started at `8612d74f`; the worktree had no saved edits.
+  The paused patch was absent.
+- Replayed the 13 t14 commits onto `217a4fe3`.
+  Dropped 32 inherited t08, t17, and t18 commits.
+  Those tickets belong to their resumed writers.
+  No branch commit named `board:` needed removal.
+- Main's notes, publisher fixes, and root rules stay.
+  The host still lends handles through the third root argument.
+  The host owns the port; the root owns its stop and close.
+- The first build stops at t18's absent `exit.ts`.
+  The final checks wait for its landing.
+- The queue uses another home with no cached NATS server.
+  Its network is off and its home is read-only.
+- Precedent: the XDG cache folder setting.
+  Its path must be absolute; empty or relative paths
+  keep the home cache.
+  [XDG rule](https://specifications.freedesktop.org/basedir/latest/).
+- `installNatsServer` and `startNatsServer` keep their signatures.
+  Their default cache honors `XDG_CACHE_HOME`.
+  Only the test helper changes; prod NATS settings stay explicit.
+- Callers: NATS helper tests, stack dev hosts and live tests,
+  tracker dev and browser tests, and `bench/dev-cycle.mjs`.
+  The probe sets an absolute cache path inside its clean tree.
+  Setup seeds that cache before the queue runs.

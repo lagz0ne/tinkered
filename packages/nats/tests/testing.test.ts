@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { createServer as createHttpServer } from "node:http";
 import { createServer } from "node:net";
 import { connect } from "@nats-io/transport-node";
-import { mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { promisify } from "node:util";
@@ -74,6 +74,47 @@ test("a bad checksum refuses the binary", async () => {
     await rm(cache, { recursive: true, force: true });
   }
 });
+
+test.each(["absolute", "empty", "relative"])(
+  "the local server uses an absolute XDG cache or the home cache (%s)",
+  async (setting) => {
+    const binary = await installNatsServer();
+    const cache = await mkdtemp(join(homedir(), ".cache", "nats-xdg-"));
+    const target = join(cache, "tinkered", "nats-server", "2.15.0");
+    try {
+      await cp(dirname(dirname(binary)), target, { recursive: true });
+      const source = `
+        import { installNatsServer, startNatsServer } from "@tinker/nats/testing";
+        const server = await startNatsServer();
+        try {
+          const monitor = await (await fetch(server.monitorUrl + "/varz")).json();
+          console.log(JSON.stringify({ binary: await installNatsServer(), version: monitor.version }));
+        } finally {
+          await server.close();
+        }
+      `;
+      const result = await promisify(execFile)(
+        process.execPath,
+        ["--input-type=module", "-e", source],
+        {
+          env: {
+            ...process.env,
+            XDG_CACHE_HOME: setting === "absolute" ? cache : setting === "empty" ? "" : "relative",
+          },
+        },
+      );
+      expect(JSON.parse(result.stdout)).toEqual({
+        binary:
+          setting === "absolute"
+            ? join(target, basename(dirname(binary)), basename(binary))
+            : binary,
+        version: "2.15.0",
+      });
+    } finally {
+      await rm(cache, { recursive: true, force: true });
+    }
+  },
+);
 
 test("download errors name the URL and status while bad bytes fail checksum", async () => {
   const binary = await installNatsServer();

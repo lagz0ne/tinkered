@@ -131,6 +131,7 @@ Saved issues reach the list route and sync stream before the port opens.
 A `PORT` that is not a whole number from 1 to 65535 stops the boot with
 `BadListenSettings`, which names every bad listen key.
 A bad `PORT` creates no database.
+`runServer` answers one for a bad `PORT`.
 
 Prod needs a NATS server at `NATS_URL`.
 It refuses a missing `HOST`, `PORT`, `DATA_PATH`, or `NATS_URL`.

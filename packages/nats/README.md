@@ -135,6 +135,8 @@ It checks the archive against the published SHA-256.
 Later installs check the saved archive and use the cache.
 The default cache is under the user's home:
 `~/.cache/tinkered/nats-server/2.15.0`.
+An absolute `XDG_CACHE_HOME` replaces `~/.cache`.
+Empty or relative settings keep the home cache.
 A custom cache folder is accepted for damaged-cache tests.
 Tests can also supply a download base as the second argument:
 
@@ -188,6 +190,7 @@ try {
 - Bad `NATS_URL` fails boot naming the key.
 - The graph names connection setup and traces publish and the subscription operation.
 - The helper fetches the pinned server once and reuses its home cache.
+- The local server uses an absolute XDG cache or the home cache.
 - A bad checksum refuses the binary.
 - Download errors name the URL and status while bad bytes fail checksum.
 - Forced close aborts a running message and closes the connection.
