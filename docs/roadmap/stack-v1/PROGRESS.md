@@ -2080,6 +2080,7 @@ vp run -r build && vp check \
   median 93, p95 197; all 72,704 spans reached the collector.
   Trace source and tests did not change in the outside rebase.
   [Cost notes](../../../research/learnings/2026-09-30-trace-sink-flush.md).
+
 ## t17 writer notes
 
 Owner: stack/t17 writer. Branch: `stack/t17`.
@@ -2411,3 +2412,60 @@ No rebase, reset, or push; all jobs finished in this turn.
 
 Final logs in the briefs cache: `stack-t17-lift-gate.log`,
 `stack-t17-lift-browser.log`, and `stack-t17-lift-validate.log`.
+
+### t17 resume on the authoring model
+
+Owner: stack/t17 writer. Status: Doing.
+Next: finish the fresh gate, both mutation lanes,
+four uncached browser runs, and the validator.
+Verify: the gate exits zero; each lane's killed share reaches 85%.
+The lead owns landing. Nothing is pushed by this writer.
+
+The worktree arrived at `547c23a1`, not the brief's `188e3337`.
+Its board commit touched only this file.
+Dropped that commit with `git reset --hard HEAD~1`.
+That also discarded the saved docs-only edit.
+Assumption: the same board-only landing commit had been rebased.
+The remaining head, `2298ea28`, already included `741f5f84`.
+The first rebase had no new conflicts.
+
+Read ADRs 0084–0091 from origin/main before checking the merge.
+Hono keeps main's aborted-request and failed-stream-start cleanup,
+its trace reads, and Core's call ownership.
+It also keeps t17's session body, commit before reply,
+rollback after a raised error, and fresh 500 after failed close.
+Stack keeps its per-start listener state and `PieceInUse` owner.
+Close stops accepting requests before draining them.
+The listener closes idle sockets after their last response.
+Main's publisher and telemetry changes are unchanged.
+
+Fresh main check at `217a4fe3`: zero errors, 28 warnings.
+The branch check has the same count.
+Fresh main red proof: nine failures and four passing guards.
+Commit failure still answers 201; mapped and unmapped errors keep A.
+Failed stream commit still ends its body without an error.
+Main now passes the synchronous stream cleanup guard.
+Only the ticket's tests and their dependencies were copied there.
+The main source stayed unchanged.
+
+An old lander was still testing mutations in this worktree.
+Asked it to stop and release the worktree through Paseo.
+It stopped before this writer started a mutation lane.
+The overlapping run caused two Drizzle test timeouts.
+The gate will be repeated after that job stopped.
+
+Jev source flags: stream owns request close;
+server defer owns listener stop; the closing flag belongs to that listener.
+The three labels remain false.
+The stream label now captures the merged source.
+The noisy `wrapsCallersStep` note owes no label.
+No README promise gaps; strict style census and prose pass.
+The old Hono helper-size and count notes are unchanged.
+They are plain notes, with no model judge to label.
+
+Assumption: a raised error rolls back;
+a returned 4xx alone does not fail a request.
+The tracker checks freshness and missing rows before writing.
+None of its routes need writes kept after a raised error.
+
+Proof logs use `stack-t17-resume-*` in the briefs cache.
