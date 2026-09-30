@@ -271,7 +271,13 @@ function serveRequests(scope: Scope.Handle, wiring: HonoScope.Wiring = {}): Midd
     } finally {
       if (c.get("tinker.session") && !c.get("tinker.kept")) {
         const result = await c.get("tinker.close")(true);
-        if (readCloseError(result, c, false)) c.res = c.text("internal", 500);
+        if (readCloseError(result, c, false)) {
+          c.res = undefined;
+          c.res = new Response("internal", {
+            status: 500,
+            headers: { "content-type": "text/plain; charset=UTF-8" },
+          });
+        }
       }
     }
   });

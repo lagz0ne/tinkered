@@ -51,6 +51,8 @@ if (import.meta.main) {
 extension and env object.
 `start` reads env once.
 The scope owns the port and closes it.
+A server piece belongs to one live root at a time.
+A second live root raises `PieceInUse` with `{ label: "stack.server" }`.
 
 - `PORT` must be decimal digits from 1 to 65535.
 - `HOST` must be an IP address or DNS host name.
@@ -251,6 +253,9 @@ A later commit or a new boot reads the current database.
 
 ## Promises
 
+- A server piece restarts after close.
+  Each start logs `listening`, and each close releases its port.
+- A second live root cannot take or stop the server piece.
 - Opens the port only after every other start finishes.
 - A stop refuses new requests while it waits for an in-flight request.
   It answers zero after the open requests finish.

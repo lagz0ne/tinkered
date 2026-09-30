@@ -6,6 +6,50 @@ import { readFreePort } from "./fixtures.ts";
 
 const answer = operation({ label: "answer", run: () => "ready" });
 
+test("a server piece restarts after close", async () => {
+  const env = { HOST: "127.0.0.1", PORT: await readFreePort() };
+  const lines: string[] = [];
+  const observe = jsonLines((line) => lines.push(line));
+  const web = hono([route.get("/ready", answer)]).extension;
+  const piece = server(web, { env, clientDir: "/missing-client", observe });
+  const url = `http://${env.HOST}:${env.PORT}/ready`;
+  for (let round = 0; round < 2; round++) {
+    const scope = createScope({ extensions: [piece, web], observe });
+    try {
+      await scope.ready;
+      expect(await (await fetch(url)).json()).toBe("ready");
+    } finally {
+      await scope.close({ graceful: true });
+    }
+    await expect(fetch(url)).rejects.toThrow();
+  }
+  expect(
+    lines.map((line) => JSON.parse(line)).filter((line) => line.message === "listening"),
+  ).toHaveLength(2);
+});
+
+test("a second live root cannot take or stop the server piece", async () => {
+  const env = { HOST: "127.0.0.1", PORT: await readFreePort() };
+  const web = hono([route.get("/ready", answer)]).extension;
+  const piece = server(web, { env, clientDir: "/missing-client" });
+  const owner = createScope({ extensions: [piece, web] });
+  try {
+    await owner.ready;
+    const refused = createScope({ extensions: [piece, web] });
+    try {
+      await expect(refused.ready).rejects.toMatchObject({
+        kind: "PieceInUse",
+        payload: { label: "stack.server" },
+      });
+    } finally {
+      await refused.close({ graceful: true });
+    }
+    expect(await (await fetch(`http://${env.HOST}:${env.PORT}/ready`)).json()).toBe("ready");
+  } finally {
+    await owner.close({ graceful: true });
+  }
+});
+
 test("opens the port only after every other start finishes", async () => {
   const env = { HOST: "127.0.0.1", PORT: await readFreePort() };
   const entered = Promise.withResolvers<void>();

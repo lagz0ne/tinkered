@@ -23,22 +23,52 @@ export function server(
   web: Scope.Extension<Parameters<HonoScope.Serve>[0]>,
   options: Server.Options,
 ): Scope.Extension<void> {
-  let close: (() => Promise<void>) | undefined;
-  let stopping: Promise<void> | undefined;
-  let stopped = false;
-  const stop = (): Promise<void> | undefined => {
-    stopped = true;
-    if (close) stopping ??= close();
-    return stopping;
-  };
+  let owner: Scope.Handle | undefined;
   return extension({
     label: "stack.server",
     start: async (scope, ctx, next) => {
+      if (owner) raise("PieceInUse", { label: ctx.label });
+      owner = scope;
+      let close: (() => Promise<void>) | undefined;
+      let stopping: Promise<void> | undefined;
+      let stopped = false;
+      let closingScope = false;
+      const stop = (): Promise<void> | undefined => {
+        stopped = true;
+        if (close) stopping ??= close();
+        return stopping;
+      };
+      const release = () => {
+        if (owner === scope) owner = undefined;
+      };
+      const closeScope = scope.close.bind(scope);
+      /** The close hook has no scope. Bind here so a rejected or old root
+       * cannot close the live owner's listener (as in the NATS piece). */
+      scope.close = async (options) => {
+        closingScope = true;
+        try {
+          /** The defer joins this promise after requests drain and reports listener errors. */
+          stop()?.then(
+            () => undefined,
+            () => undefined,
+          );
+          return await closeScope(options);
+        } finally {
+          release();
+        }
+      };
+      ctx.defer(async () => {
+        try {
+          await stop();
+        } finally {
+          /** Failed boot closes through core without calling the scope handle. */
+          if (!closingScope) release();
+        }
+      });
       const settings = readSettings(options.env);
       await next();
       const app = scope.resolve(web);
       mountClient(app, options.clientDir);
-      ctx.defer(stop);
       close = await listen(app, settings);
       if (stopped) await stop();
       else
@@ -49,14 +79,6 @@ export function server(
           attributes: settings,
           span: undefined,
         });
-    },
-    close: (_options, next) => {
-      /** The defer joins this same promise and reports a listener failure. */
-      stop()?.then(
-        () => undefined,
-        () => undefined,
-      );
-      return next();
     },
   });
 }

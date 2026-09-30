@@ -1,4 +1,5 @@
 type Payloads = {
+  PieceInUse: { label: string };
   BadLiveSubject: { subject: string };
   BadListenSettings: { keys: string[] };
   BadTraceSettings: { keys: string[] };

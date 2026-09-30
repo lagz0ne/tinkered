@@ -303,9 +303,14 @@ const { extension: web } = hono(issueRoutes, {
 
 ### Commit and rollback
 
+The `http request` line and request span record the built status; a close failure adds one `request failed` line and answers 500.
+
 - A failed commit answers 500, logs one line, and saves nothing.
   Any teardown error or unexpected failed close replaces the built answer
   with `internal` and writes one `request failed` line through the scope sink.
+- A failed commit drops the built answer's headers.
+  This includes cookies and location headers set through the context
+  or returned in a Response.
 - A save followed by a mapped 409 rolls back and keeps the mapped answer.
 - A save followed by an unmapped error answers 500 and rolls back.
 - A successful save commits before its answer arrives.

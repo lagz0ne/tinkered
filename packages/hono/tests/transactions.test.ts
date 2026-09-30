@@ -69,6 +69,39 @@ test("a failed commit answers 500, logs one line, and saves nothing", async () =
   }
 }, 30_000);
 
+test("a failed commit drops the built answer's headers", async () => {
+  const { extension: web } = hono([
+    route.post("/context", duplicate, {
+      respond: (value, c) => {
+        c.header("location", "/x/1");
+        c.header("set-cookie", "sid=abc");
+        return c.text(value, 201);
+      },
+    }),
+    route.post("/response", duplicate, {
+      respond: (value) =>
+        new Response(value, {
+          status: 201,
+          headers: { location: "/x/1", "set-cookie": "sid=abc" },
+        }),
+    }),
+  ]);
+  const scope = createScope({ tags: [store.config(null)], extensions: [web] });
+  try {
+    await scope.ready;
+    for (const path of ["/context", "/response"]) {
+      const response = await scope.resolve(web).request(path, { method: "POST" });
+      expect(response.status).toBe(500);
+      expect(await response.text()).toBe("internal");
+      expect(response.headers.get("content-type")).toBe("text/plain; charset=UTF-8");
+      expect.soft(response.headers.get("set-cookie"), path).toBeNull();
+      expect.soft(response.headers.get("location"), path).toBeNull();
+    }
+  } finally {
+    await scope.close();
+  }
+}, 30_000);
+
 test("a save followed by a mapped 409 rolls back and keeps the mapped answer", async () => {
   const { extension: web } = hono([route.post("/issues", saveThenRaise)], {
     onError: errorResponses<{ IssueConflict: { title: string } }>({

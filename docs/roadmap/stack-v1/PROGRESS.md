@@ -2159,7 +2159,7 @@ Tracker route audit:
 - The browser proof compares the full saved detail before
   and after a stale 409; the issue and activity stay unchanged.
 
-Core feedback: a driver that maps a raised error must keep
+Core behavior: a driver that maps a raised error must keep
 a session body to carry that failure.
 A bare session plus `settle` recovers the error by design:
 
@@ -2174,6 +2174,7 @@ expect(ended.status).toBe("failed");
 Hono uses `scope.session` and rethrows the original error
 in its body after building the mapped answer.
 No core change is needed for this fix.
+This is by design, not a Core feedback issue.
 
 ### t17 rebase
 
@@ -2290,3 +2291,51 @@ The two cleanup failures on main are in `stack-t17-cleanup-main-red.log`.
 The final validator output is in `stack-t17-final-validate.log`.
 All long jobs finished in this turn.
 Nothing was pushed.
+
+### t17 review round 1
+
+Status: Review. Owner: stack/t17.
+Next: lead reviews the three fixes and lands the branch.
+Verify: new tests fail before the fixes, then pass.
+Run the requested build, check, Hono, Drizzle, stack, and tracker gate,
+plus prose, Jev, and the strict style census.
+Keep this branch's base; do not rebase or push.
+Hono source changed only for F2; mutation was not repeated.
+
+Choice: reject a second live root with `PieceInUse`, as NATS does.
+Bind close to its root because the extension close hook has no scope.
+Each start owns its listener state; close releases the piece for reuse.
+The callers are the tracker's server root and stack's server,
+client, and settings tests.
+No caller needs to change.
+
+Before the fixes, all three new tests failed on this branch:
+
+- Restart: the second closed root still answered 500.
+- A second live root: ready raised the port-in-use error,
+  not `PieceInUse`.
+- Failed commit: both response builders kept `sid=abc`
+  and `/x/1` in their cookie and location headers.
+
+The tests now pass, including both header-building paths.
+F2 clears the built answer before setting a fresh 500 Response.
+F3 documents the built status in the request log and span.
+The log still runs where it did before this review.
+
+Gate: build, check, Hono 81, Drizzle 13, stack 60,
+tracker 69; `EXIT 0`.
+Check: 0 errors and 29 warnings, unchanged.
+Prose: 0 hits. Strict style census: OK.
+Jev: 0 of 81 Hono titles and 0 of 27 stack titles flagged.
+No README promise gaps; nine Hono and one stack matches unsure.
+The three existing helper-size/count notes are unchanged;
+the new tests add no helpers.
+The three labels are already in the bank and remain false:
+`effectWithoutDefer` for `stream` and `listen`,
+and `stateOutsideCell` for `listen`.
+No new source flag or Core feedback issue.
+
+Logs are in `/home/paseo/.cache/tinkered-briefs/`:
+`stack-t17-review1-red-stack.log`, `stack-t17-review1-red-hono.log`,
+`stack-t17-review1-green.log`, and `stack-t17-review1-jev.log`.
+All jobs finished in this turn; no rebase or push.
