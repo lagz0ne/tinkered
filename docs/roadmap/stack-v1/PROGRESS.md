@@ -2792,6 +2792,17 @@ SCIP, lifetime lint, stack mutation K/T/S, and validation.
   These plain notes need no label.
 - Strict style census: OK; TSDoc: zero S26 rows.
   Prose lint: zero hits.
+- All 18 package test tasks pass through their own configs,
+  `ALL_TESTS_EXIT 0`.
+- The browser proof and seven browser helper tests pass,
+  `BROWSER_EXIT 0`.
+- The real entry answers GET with HTTP 200 and exits 0
+  on SIGTERM.
+  Bad PORT exits 1, writes one boot failure line,
+  names only PORT, and creates no database.
+- The final fetch still points to `217a4fe3`.
+  `git rebase origin/main` reports up to date.
+- The clean main check worktree was removed.
 - Logs: `/tmp/stack-t18-resume-gate-final.log`,
   `/tmp/stack-t18-main-baseline.log`,
   `/tmp/stack-t18-resume-red.log`,
