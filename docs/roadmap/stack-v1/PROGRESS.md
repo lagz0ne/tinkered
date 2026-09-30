@@ -2083,7 +2083,8 @@ vp run -r build && vp check \
 ## t17 writer notes
 
 Owner: stack/t17 writer. Branch: `stack/t17`.
-Next: finish the final mutation run, then lead review.
+Status: Review.
+Next: lead reviews and lands `stack/t17`.
 Verify: Hono, Drizzle, stack, tracker, browser proof,
 `vp check`, `pnpm validate`, Hono mutation at least 85.
 
@@ -2254,3 +2255,38 @@ Check: 0 errors, 29 warnings.
 All 17 package test tasks passed again from cached results.
 The browser proof ran again without cache; all 7 helpers passed.
 `ALL_BROWSER_EXIT 0`.
+
+### t17 final proof
+
+Final full Hono run, with the two cleanup tests:
+86.06, 321 killed, 0 timed out, 50 survived,
+2 without coverage, 0 errors; `MUTATION_FINAL_EXIT 0`.
+Used `--timeoutMS 60000 --concurrency 2` under the lock.
+Both source files and all 373 mutations stay included.
+The floor stays 85.
+
+Six former survivors now report `Killed`:
+
+- `src/index.ts:338` and `339`: closing once.
+- `src/index.ts:383`: two ways to skip the writer cleanup log.
+- `src/index.ts:390`: two ways to skip the cancel cleanup log.
+
+The last `pnpm validate` passed all 48 checks, `VALIDATE_EXIT 0`.
+`pnpm-workspace.yaml` has no branch change.
+The last fetch and rebase still point to `be6a9526`.
+The migrate ticket has not landed on `origin/main`.
+The source and tests are the ones checked by the final gate.
+
+Proof logs are in `/home/paseo/.cache/tinkered-briefs/`.
+Mutation logs and JSON files use these names:
+
+- `stack-t17-mutation-default`
+- `stack-t17-mutation-60s`
+- `stack-t17-mutation-final`
+
+The gate is in `stack-t17-final-gate.log`.
+The last browser run is in `stack-t17-final-all-browser.log`.
+The two cleanup failures on main are in `stack-t17-cleanup-main-red.log`.
+The final validator output is in `stack-t17-final-validate.log`.
+All long jobs finished in this turn.
+Nothing was pushed.
