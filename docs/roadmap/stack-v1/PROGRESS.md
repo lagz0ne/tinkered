@@ -408,7 +408,7 @@ npx --no-install stryker run \
   a missing `NATS_URL` fails boot naming it.
   nats patches core's `scope.close` on its handle
   until core/close-hook-scope lands.
-- **t08 jobs stack piece** -- [ ] blocked by: t06
+- **t08 jobs stack piece** -- [ ] Review; landing waits for t06
   `@tinker/jobs` runs pg-boss as a driver. Each
   job's operation runs in its own session: success
   commits, failure rolls back and retries
@@ -3923,3 +3923,29 @@ Core itself has no change on this branch.
   Jev tests and promises: no flags in 20 tests.
 - No source change since the prior close fix.
   The corrected mutation run is the last check.
+
+### t08 final proof
+
+- Corrected full mutation run: 86.99%, exit 0.
+  Counts: 127 killed, 0 timeout, 17 survived, 2 no coverage.
+  All 146 mutations stayed in the run; the floor stayed at 85.
+  `timeoutMS` stayed at 60000 from the first config.
+- Deleting `jobs()` is now killed by a test.
+  The first report marked that deletion survived with zero tests.
+  One remaining module-load failure still reports zero tests.
+  It counts against the score, not as a killed mutation.
+- Both full runs held `/tmp/mutation.lock` and ended in this turn.
+  The first report remains saved, including its failed score.
+- The final repo test command passes all 18 package tasks, exit 0.
+  The required gate, all 50 validation lanes, prose, and style pass.
+- A fresh fetch still has no `stack/t06` tag on origin.
+  `origin/main` remains `be6a9526`.
+  This branch's base is local t06 at `50b31bab`.
+- Card moved to Review; no push.
+  Next: lead review, then landing after t06.
+- Logs and reports are in `/home/paseo/.cache/tinkered-briefs/`:
+  - `stack-t08-final-gate2.log`: required gate.
+  - `stack-t08-validate2.log`: 50 passing lanes.
+  - `stack-t08-all-tests-final.log`: all repo tests.
+  - `stack-t08-mutation-first.log` and `.json`: first run.
+  - `stack-t08-mutation-final.log` and `.json`: corrected run.
