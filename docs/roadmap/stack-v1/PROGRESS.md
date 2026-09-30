@@ -2539,7 +2539,7 @@ Core feedback: none new.
 
 Owner: stack/t18 writer.
 Branch: `stack/t18`.
-Next: lead review and landing; writer checks are complete.
+Next: run the resume checks on current main.
 Verify: stack and tracker tests, browser proof, real entry
 exit codes, plain lifetime rules, validation, and mutation.
 
@@ -2736,3 +2736,65 @@ EXIT=0
   `/tmp/stack-t18-r1-red-test.log`.
 - Next: run the full stack mutation lane once under
   the lock, then save its proof here.
+
+### t18 resume on main
+
+Owner: stack/t18 writer.
+Status: Doing.
+Next: run the full gate, then mutation and validation.
+Verify: stack and tracker tests, browser proof, real entry,
+SCIP, lifetime lint, stack mutation K/T/S, and validation.
+
+- Base: `217a4fe3` from `origin/main`.
+- Another writer rebased the same worktree onto the
+  stopped lander's t17 tip while the briefs were read.
+  Its `1a01f415` held the same eight t18 commits.
+  Used `git rebase --onto origin/main 547c23a1` to move
+  only those eight onto main.
+  This leaves out t17 and its board commit.
+- The first t18 commit conflicted in this file.
+  Kept main's notes and t18's notes.
+  Left t17's notes on its own branch.
+- The duplicate writer then repeated its t17 rebase
+  during the build, producing `f5ba6331`.
+  Stopped the duplicate run and the mixed-base gate.
+  Saved the useful trace test edit and its README line.
+  Discarded unsaved track notes.
+  Restored the completed main rebase at `cc96f012`.
+  Reapplied the test and README edits.
+- No rebase is in progress; no old gate is still running.
+- Kept main's trace cleanup fix (`da27c9cc`).
+  Missing or invalid config still closes with its boot error.
+  Its test now checks exit code 1 and one boot failure line.
+- Assumption: ready's outcome supplies the log phase.
+  Core owns cleanup through `signal` and `closed`.
+- No t17 code is needed: the main-only build and gate pass.
+- Gate: build, check, stack, tracker; `EXIT 0`.
+  Stack: 109 tests in 12 files.
+  Tracker: 79 tests in nine files.
+  Check: zero errors and 28 warnings.
+  The clean main check at `217a4fe3` also has 28 warnings.
+- The boot teardown test fails with the old helper behavior:
+  its log has no teardown field, `RED_EXIT 1`.
+  Restoring the fix makes it pass, `GREEN_EXIT 0`.
+  The source is restored with no diff.
+- SCIP: the old helper has no definition or reference.
+  The new helper is used by the server and trace tests.
+  `rg runUntilStop packages/ apps/` has no matches.
+- Jev: zero source flags and zero of 52 test titles flagged.
+  No missing README promises; one old title is unsure.
+  New label lines: none.
+- The required directory lint has no S19, S27, S28,
+  or S29 row; these rules are present on main.
+  Seven old factory notes remain.
+  The trace factory makes its own config tag and graph.
+  The test database factory binds its own migrations.
+  These plain notes need no label.
+- Strict style census: OK; TSDoc: zero S26 rows.
+  Prose lint: zero hits.
+- Logs: `/tmp/stack-t18-resume-gate-final.log`,
+  `/tmp/stack-t18-main-baseline.log`,
+  `/tmp/stack-t18-resume-red.log`,
+  `/tmp/stack-t18-resume-green.log`,
+  `/tmp/stack-t18-resume-jev.log`, and
+  `/tmp/stack-t18-resume-lint.log`.

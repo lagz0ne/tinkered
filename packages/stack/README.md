@@ -131,6 +131,7 @@ Each root keeps its own settings, writer, and queue.
 Closing one root or failing its setup leaves the others running.
 Missing config or bad settings reject `ready` and finish
 `closed` as `failed` with the same error.
+The exit-code helper logs `boot failed` and answers 1.
 Close all apps before telemetry to export their final cleanup spans
 and logs.
 Leave observation off in the telemetry scope so exports do not
@@ -330,6 +331,8 @@ A later commit or a new boot reads the current database.
 - The timer exports finished spans while a stream is still open.
 - Graceful close exports queued spans, failed status, and cleanup logs.
 - Missing or bad OTLP settings stop boot and name every key.
+- Telemetry with missing or invalid config finishes cleanup
+  and reports one boot failure.
 - A bad OTLP endpoint fails boot naming only its key.
 - A missing service name fails boot naming only its key.
 - A down, slow, or 500 collector keeps requests and close working and logs once per burst.
