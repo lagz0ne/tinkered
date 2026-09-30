@@ -9,6 +9,7 @@ export declare namespace LiveUpdates {
     /** One literal subject per app, shared by its server processes. */
     subject: string;
     env: Nats.Wiring["env"];
+    connection?: Nats.Wiring["connection"];
   };
 }
 
@@ -42,7 +43,10 @@ export function liveUpdates(
     depends: { refresh },
     run: ({ refresh }, _ctx: Operation.Ctx<Nats.Message>) => refresh.run(),
   });
-  const bus = nats([subscribe(wiring.subject, receive)], { env: wiring.env });
+  const bus = nats([subscribe(wiring.subject, receive)], {
+    env: wiring.env,
+    connection: wiring.connection,
+  });
   const changed = operation({
     label: "stack.changed",
     depends: { send: bus.publish },

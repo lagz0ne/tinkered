@@ -1,5 +1,8 @@
 type Payloads = {
   PieceInUse: { label: string };
+  BadDevEntry: Record<string, never>;
+  DevRootStopped: { code: number };
+  DevCleanupFailed: { errors: unknown[] };
   BadLiveSubject: { subject: string };
   BadListenSettings: { keys: string[] };
   BadTraceSettings: { keys: string[] };

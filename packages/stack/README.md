@@ -390,3 +390,61 @@ the helper keeps that type fix at the library boundary.
 - The test helper migrates once and gives each clone
   its own rows.
 - The test helper rejects a migration failure.
+
+## Dev host
+
+The separate `@tinker/stack/dev` entry owns the dev process.
+The main entry never loads Vite or the local NATS server.
+Install the optional `vite-plus` peer to use dev.
+
+```ts
+import { runDev } from "@tinker/stack/dev";
+
+await runDev(
+  {
+    root: process.cwd(),
+    entry: "src/server/main.ts",
+    env: process.env,
+    nats: true,
+    report: (event) => {
+      process.stdout.write(`${JSON.stringify(event)}\n`);
+    },
+  },
+  stop.signal,
+);
+```
+
+The entry exports `runServer(env, stop, host)`.
+It still owns its scope and returns an exit code after close.
+The third argument is `Dev.Wiring`.
+It lends `client` (PGlite) and `connection` (NATS).
+Pass them to the store and NATS pieces; never close them.
+After creating the root, hand over its ready app promise:
+
+```ts
+host?.ready(scope.ready.then(() => scope.resolve(web)));
+```
+
+When `host` is present, omit the root's `server` row.
+The host keeps the port and Vite's client middleware open.
+Vite owns client file paths; the app owns its API routes.
+A server edit stops the old root, awaits its exit,
+and imports the new root through Vite's runner.
+Only a ready root receives new requests.
+During reload or failed boot, app requests receive 503.
+A failed boot's answer includes the error.
+A good edit retries without restarting the process.
+
+Dev defaults are `127.0.0.1`, port `4311`, and
+`./data/issues` under `root`.
+Set `DATA_PATH` to choose another database folder.
+`nats: true` starts the pinned local NATS server and binds
+its URL; the NATS piece borrows the host's one connection.
+`liveUpdates` also accepts `connection` for that purpose.
+Prod gets none of these defaults.
+
+- Dev serves the app and Vite client from one listener.
+- Three server edits close old roots and keep the same
+  database and NATS handles.
+- A request in flight during an edit finishes on its old root.
+- A broken server edit serves 503 until a good edit.

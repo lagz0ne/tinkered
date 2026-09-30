@@ -1337,6 +1337,9 @@ importers:
       '@hono/node-server':
         specifier: 1.19.17
         version: 1.19.17(hono@4.13.8)
+      '@nats-io/transport-node':
+        specifier: 3.4.0
+        version: 3.4.0
       '@tinker/core':
         specifier: workspace:*
         version: link:../core

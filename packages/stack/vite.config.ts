@@ -1,11 +1,18 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
+  resolve: {
+    alias: { "@tinker/stack/dev": fileURLToPath(new URL("./src/dev.ts", import.meta.url)) },
+  },
   pack: {
+    entry: ["src/index.ts", "src/dev.ts"],
     deps: {
       resolveDepSubpath: true,
       neverBundle: [
         "@tinker/core",
+        "vite-plus",
+        "@nats-io/transport-node",
         "@tinker/hono",
         "@tinker/nats",
         "@tinker/drizzle",

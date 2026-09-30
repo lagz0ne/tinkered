@@ -87,7 +87,7 @@ export function server(
   });
 }
 
-function readSettings(env: Server.Env): { host: string; port: number } {
+export function readSettings(env: Server.Env): { host: string; port: number } {
   const keys: string[] = [];
   const port = /^\d+$/.test(env.PORT ?? "") ? Number(env.PORT) : Number.NaN;
   if (!(port >= 1 && port <= 65535)) keys.push("PORT");
