@@ -9,7 +9,9 @@ export default defineConfig({
   },
   fmt: {},
   test: {
-    include: ["harness/services.test.ts", "react/form.test.ts"],
+    include: ["*.test.ts"],
+    /** Allow PGlite to start while other test packages share the CPU. */
+    testTimeout: 30_000,
     server: { deps: { inline: ["vite-plus"] } },
   },
 });

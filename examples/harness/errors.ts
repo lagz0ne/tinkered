@@ -1,3 +1,5 @@
+import type { Scope } from "@tinker/core";
+
 export declare namespace Errors {
   export type Payloads = { InvalidSettings: { fields: string[] } };
   export type Name = keyof Payloads;
@@ -11,4 +13,13 @@ export function raise<N extends Errors.Name>(kind: N, payload: Errors.Payloads[N
 
 export function isError<N extends Errors.Name>(value: unknown, kind: N): value is Errors.Of<N> {
   return value instanceof Error && "kind" in value && value.kind === kind;
+}
+
+/** A successful run must still report a failed root or its first teardown error. */
+export function checkClosed(result: Scope.Result): void {
+  if (result.status === "failed") throw result.error;
+  if (result.teardownErrors?.length) {
+    const [error] = result.teardownErrors;
+    throw error;
+  }
 }

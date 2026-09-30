@@ -1,0 +1,32 @@
+{
+  "name": "@tinker/example-react",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "vp check",
+    "test": "vp test",
+    "dev": "vp dev",
+    "build": "vp build",
+    "preview": "vp preview"
+  },
+  "dependencies": {
+    "@tinker/core": "workspace:*",
+    "@tinker/react": "workspace:*",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^7.0.2",
+    "vite": "npm:@voidzero-dev/vite-plus-core@0.3.1",
+    "vite-plus": "0.3.1"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "packageManager": "pnpm@12.4.1"
+}

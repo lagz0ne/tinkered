@@ -3,7 +3,7 @@ import { claudeCode, harness, type ClaudeCode } from "@tinker/harness";
 import { config, HttpRequest, send } from "@tinker/http";
 import { expose } from "@tinker/mcp";
 import { z } from "zod";
-import { raise } from "./errors.ts";
+import { checkClosed, raise } from "./errors.ts";
 
 export { isError } from "./errors.ts";
 export type { Errors } from "./errors.ts";
@@ -17,6 +17,7 @@ const settingsSchema = z.object({
 export declare namespace Services {
   export type Settings = z.output<typeof settingsSchema>;
   export type Routes = { github: Namespace; cloudflare: Namespace };
+  export type Output = { write: (text: string) => void; error: (text: string) => void };
 }
 
 /** Each root chooses the two HTTP namespaces; the reusable graph captures neither key. */
@@ -134,33 +135,49 @@ export function serviceTags(settings: Services.Settings) {
 const launchSchema = settingsSchema.extend({ prompts: z.array(z.string().trim().min(1)).min(1) });
 
 /** The process edge validates env and argv once, before opening a root or loading the SDK. */
-async function main(): Promise<void> {
+export async function runServices(
+  env: Record<string, string | undefined>,
+  args: readonly string[],
+  cwd: string,
+  output: Services.Output,
+): Promise<number> {
+  const [first, ...rest] = args;
   const launch = launchSchema.safeParse({
-    githubToken: process.env.GITHUB_TOKEN,
-    cloudflareToken: process.env.CLOUDFLARE_API_TOKEN,
-    cwd: process.cwd(),
-    prompts: process.argv.slice(2),
+    githubToken: env.GITHUB_TOKEN,
+    cloudflareToken: env.CLOUDFLARE_API_TOKEN,
+    cwd,
+    prompts: first === "--" ? rest : args,
   });
   if (!launch.success) {
     raise("InvalidSettings", { fields: launch.error.issues.map((issue) => issue.path.join(".")) });
   }
   const stop = new AbortController();
   const root = createScope({ signal: stop.signal, tags: serviceTags(launch.data) });
-  await root.ready;
+  let completed = false;
   try {
+    await root.ready;
     const session = root.createSession();
+    let exitCode = 0;
     for (const prompt of launch.data.prompts) {
       const result = await session.run(services.send, { input: { prompt } });
-      if (result.subtype === "success") process.stdout.write(`${result.result}\n`);
+      if (result.subtype === "success") output.write(`${result.result}\n`);
       else {
-        process.stderr.write(`${result.errors.join("\n")}\n`);
-        process.exitCode = 1;
+        output.error(`${result.errors.join("\n")}\n`);
+        exitCode = 1;
       }
     }
+    completed = true;
+    return exitCode;
   } finally {
     stop.abort();
-    await root.closed;
+    const result = await root.closed;
+    if (completed) checkClosed(result);
   }
 }
 
-if (import.meta.main) await main();
+if (import.meta.main) {
+  process.exitCode = await runServices(process.env, process.argv.slice(2), process.cwd(), {
+    write: (text) => process.stdout.write(text),
+    error: (text) => process.stderr.write(text),
+  });
+}

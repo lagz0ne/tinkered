@@ -135,3 +135,13 @@ Merge in a separate checkout so running fault lanes keep stable source files.
 Hono and Stack need fresh normal tests and isolated fault scores on the merged code.
 The final caller audit, build, check, consumer tests, and release lanes must rerun.
 Other packages may reuse completed lanes only if their checked inputs and runtime dependencies match.
+
+## Landed examples impact before the merge
+
+Main `600992f7` splits the examples into 11 runnable projects.
+Keep its project layout, exports, checks, and tests.
+The MCP and Process examples share hook code changed here.
+Merge both changes and migrate every current example to event hooks.
+Use a separate checkout while the first fault gate runs.
+The final build, code check, example tests, and caller audit must include these projects.
+Package fault scores can carry forward only where package inputs and runtime dependencies match.

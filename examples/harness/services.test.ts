@@ -9,7 +9,7 @@ import type {
   SDKResultMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { services, serviceTags } from "./services.ts";
+import { services, serviceTags } from "./index.ts";
 
 const settings = { githubToken: "github-only", cloudflareToken: "cloudflare-only", cwd: "/work" };
 const recordedResult: SDKResultMessage = {

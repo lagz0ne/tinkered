@@ -1,37 +1,63 @@
-import { readFileSync } from "node:fs";
-import { createScope, namespace } from "@tinker/core";
-import { tinkerer } from "@tinker/tinkerer";
+import { createScope } from "@tinker/core";
+import { backend, type HttpClient } from "@tinker/http";
+import type { Tinkerer } from "@tinker/tinkerer";
+import { z } from "zod";
+import { a, b, coder } from "./coder.ts";
+import { checkClosed, raise } from "./errors.ts";
 
-/** One frame, declared once (ADR 0057); each coder is a namespace on it (ADR 0059). */
-const coder = tinkerer();
+const settings = z.object({
+  apiKey: z.string().trim().min(1),
+  baseUrl: z.url({ protocol: /^https?$/ }),
+  model: z.string().trim().min(1),
+  prompt: z.string().trim().min(1),
+});
 
-/** Two real coders from one graph (needs a Muse token; not run by tests). */
-export async function tour(): Promise<string> {
-  const keyFile = process.env.MUSE_TOKEN_FILE ?? "/home/paseo/pilot/.muse-token";
-  const key = readFileSync(keyFile, "utf8").trim();
-  const common = {
-    model: "muse-spark-1.3-contributor",
-    baseUrl: "https://api.meta.ai/v1",
-    headers: { authorization: `Bearer ${key}` },
-  };
-  const a = namespace({ tags: [coder.config({ ...common, system: "You are coder A." })] });
-  const b = namespace({ tags: [coder.config({ ...common, system: "You are coder B." })] });
-  const scope = createScope();
-  const session = scope.createSession();
-  const prompt = process.argv[2] ?? "Say hi in five words.";
-  for (const { name, ns } of [
-    { name: "A", ns: a },
-    { name: "B", ns: b },
-  ]) {
-    session.controller(coder.text, { ns }).watch((next, prev) => {
-      process.stdout.write(next.slice(prev.length));
-    });
-    process.stdout.write(`${name}: `);
-    const reply = await session.run(coder.turn, { input: prompt, ns });
-    process.stdout.write("\n");
-    console.log(`${name} usage: ${reply.usage.input} in, ${reply.usage.output} out`);
+export declare namespace Tour {
+  type Reply = { name: string; text: string; usage: Tinkerer.Usage };
+}
+
+/** Validate settings before opening a root; the demo supplies its own HTTP backend. */
+export async function tour(raw: unknown, transport?: HttpClient.Backend): Promise<Tour.Reply[]> {
+  const parsed = settings.safeParse(raw);
+  if (!parsed.success) {
+    raise("InvalidSettings", { fields: parsed.error.issues.map((issue) => issue.path.join(".")) });
   }
-  const result = session.resolve(coder.text, { ns: b });
-  await scope.close();
-  return result;
+  const { apiKey, baseUrl, model, prompt } = parsed.data;
+  const stop = new AbortController();
+  const root = createScope({
+    signal: stop.signal,
+    tags: [
+      coder.config({ model, baseUrl, headers: { authorization: `Bearer ${apiKey}` } }),
+      ...(transport === undefined ? [] : [backend(transport)]),
+    ],
+  });
+  let completed = false;
+  try {
+    await root.ready;
+    const session = root.createSession();
+    const replies: Tour.Reply[] = [];
+    for (const { name, ns } of [
+      { name: "A", ns: a },
+      { name: "B", ns: b },
+    ]) {
+      const reply = await session.run(coder.turn, { input: prompt, ns });
+      replies.push({ name, text: session.resolve(coder.text, { ns }), usage: reply.usage });
+    }
+    completed = true;
+    return replies;
+  } finally {
+    stop.abort();
+    const result = await root.closed;
+    if (completed) checkClosed(result);
+  }
+}
+
+if (import.meta.main) {
+  const replies = await tour({
+    apiKey: process.env.TINKERER_API_KEY,
+    baseUrl: process.env.TINKERER_BASE_URL,
+    model: process.env.TINKERER_MODEL,
+    prompt: process.env.TINKERER_PROMPT ?? "Say hi in five words.",
+  });
+  process.stdout.write(`${JSON.stringify(replies, null, 2)}\n`);
 }

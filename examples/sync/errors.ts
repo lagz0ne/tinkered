@@ -1,8 +1,13 @@
 export declare namespace Errors {
-  type Payloads = { GoneTab: { id: string } };
+  type Payloads = {
+    GoneTab: { id: string };
+    NoStream: { status: number };
+    RegistrationFailed: { status: number };
+    StreamEnded: { client: string };
+  };
 }
 
-/** A posted register cannot reach a tab whose stream has ended. */
+/** Error payloads identify the failed tab or response without retaining a stream. */
 export function raise<N extends keyof Errors.Payloads>(
   kind: N,
   payload: Errors.Payloads[N],

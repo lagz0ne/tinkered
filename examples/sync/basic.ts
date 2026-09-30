@@ -1,33 +1,72 @@
-import { createScope, data, resource } from "@tinker/core";
-import { memoryPair, source, subscribe } from "@tinker/sync";
+import { createScope, resource, tag, type Scope } from "@tinker/core";
+import { memoryPair, subscribe, type Sync } from "@tinker/sync";
+import { counter, src } from "./counter.ts";
 
-/** Sync needs nothing on the cell: its wire key comes from the row, never unit meta (ADR 0051). */
-const counter = data({ label: "counter", initial: 0 });
+/** The source root owns the connection promise and gives the guest its half of the wire. */
+const connection = resource({
+  label: "counter.connection",
+  target: "scope",
+  depends: { origin: src },
+  factory: ({ origin }, ctx) => {
+    const [left, right] = memoryPair();
+    const done = origin.connect(left);
+    ctx.defer(async () => {
+      left.close();
+      await done;
+    });
+    return right;
+  },
+});
 
-/** One shared declaration, two scopes, one wire: the origin scope installs
- * the source extension with the counter row; the viewer installs the
- * subscribe extension over a resource that hands it its end of the pair; `await guest.ready` holds
- * until the snapshot lands, then the tour reads the viewer cell and
- * detaches. Answers the published key plus the final viewer value. */
-export async function tour(): Promise<string> {
-  const src = source({ cells: [[counter, "counter"]] });
-  const scope = createScope({ extensions: [src] });
-  await scope.ready;
-  scope.controller(counter).set(1);
-  const [left, right] = memoryPair();
-  const done = scope.resolve(src).connect(left);
-  const pipe = resource({ label: "pipe", factory: () => right });
-  const sub = subscribe(pipe, { cells: [[counter, "counter"]] });
-  const guest = createScope({ extensions: [sub] });
+const wire = tag<Sync.Transport>({ label: "counter.wire" });
+const pipe = resource({
+  label: "counter.pipe",
+  target: "scope",
+  depends: { wire },
+  factory: ({ wire }, ctx) => {
+    ctx.defer(() => wire.close());
+    return wire;
+  },
+});
+const sub = subscribe(pipe, { cells: [[counter, "counter"]] });
+
+/** A new pair of roots reuses one graph; guest readiness waits for the source snapshot. */
+export async function tour(value = 1): Promise<string> {
+  const originStop = new AbortController();
+  const origin = createScope({ signal: originStop.signal, extensions: [src] });
+  let output: string;
+  let guestEnd: Scope.Result;
+  let originEnd: Scope.Result;
   try {
-    await guest.ready;
-  } catch (error) {
-    await scope.close();
-    throw error;
+    await origin.ready;
+    origin.controller(counter).set(value);
+    const transport = origin.resolve(connection);
+    const guestStop = new AbortController();
+    const guest = createScope({
+      signal: guestStop.signal,
+      extensions: [sub],
+      tags: wire(transport),
+    });
+    try {
+      await guest.ready;
+      output = `counter:${guest.resolve(counter)}`;
+    } finally {
+      guestStop.abort();
+      originStop.abort();
+      guestEnd = await guest.closed;
+    }
+  } finally {
+    originStop.abort();
+    originEnd = await origin.closed;
   }
-  const answer = `counter:${guest.resolve(counter)}`;
-  guest.resolve(sub).close();
-  await done;
-  await Promise.all([scope.close({ graceful: true }), guest.close({ graceful: true })]);
-  return answer;
+  for (const end of [guestEnd, originEnd]) {
+    if (end.status === "failed") throw end.error;
+    if (end.teardownErrors?.length) {
+      const [error] = end.teardownErrors;
+      throw error;
+    }
+  }
+  return output;
 }
+
+if (import.meta.main) process.stdout.write(`${await tour()}\n`);

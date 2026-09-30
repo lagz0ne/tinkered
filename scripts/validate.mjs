@@ -26,10 +26,7 @@ const lanes = [
   // Ambient time/random (ADR 0034, 0062): read "now" and randomness off ctx, never a hidden
   // global; only the systemClock/systemRandom declarations carry the `@ambientSource` TSDoc tag.
   ["ambient reads off ctx (no bare time/random)", `node scripts/check-ambient.mjs`],
-  [
-    "cast-free examples (0 casts)",
-    `bash -c 'test $(grep -rcE "\\\\bas [A-Za-z{(]|\\\\bas unknown|[a-zA-Z0-9_)\\\\]]!" examples/core | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
-  ],
+  ["cast-free examples (0 casts)", "node scripts/check-example-casts.mjs examples/core"],
   [
     "both entries (pure universal bundle)",
     `bash -c 'grep -qE "^import|from \\"node:" packages/core/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/core/dist/index.mjs\\").then(m=>process.exit(m.createScope?0:1))"'`,
@@ -37,10 +34,7 @@ const lanes = [
   // @tinker/http (ADR 0035, http-v1 t05): the same three deterministic promises for the frame.
   ["http tests", `${VP} run --no-cache http#test`],
   ["http size (<= 10 kB gzip)", `${VP} run --no-cache http#size`],
-  [
-    "http cast-free examples (0 casts)",
-    `bash -c 'test $(grep -rcE "\\\\bas [A-Za-z{(]|\\\\bas unknown|[a-zA-Z0-9_)\\\\]]!" examples/http | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
-  ],
+  ["http cast-free examples (0 casts)", "node scripts/check-example-casts.mjs examples/http"],
   [
     "http pure universal bundle",
     `bash -c 'grep -qE "from \\"node:" packages/http/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/http/dist/index.mjs\\").then(m=>process.exit(m.send&&m.attempt?0:1))"'`,
@@ -48,10 +42,7 @@ const lanes = [
   // @tinker/hono (ADR 0039/0040/0051, drivers t03): same promises; `hono` is a peer import, `node:` is not.
   ["hono tests", `${VP} run --no-cache hono#test`],
   ["hono size (<= 10 kB gzip)", `${VP} run --no-cache hono#size`],
-  [
-    "hono cast-free examples (0 casts)",
-    `bash -c 'test $(grep -rcE "\\\\bas [A-Za-z{(]|\\\\bas unknown|[a-zA-Z0-9_)\\\\]]!" examples/hono | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
-  ],
+  ["hono cast-free examples (0 casts)", "node scripts/check-example-casts.mjs examples/hono"],
   [
     "hono pure universal bundle",
     `bash -c 'grep -qE "from \\"node:" packages/hono/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/hono/dist/index.mjs\\").then(m=>process.exit(m.hono&&m.route&&m.stream?0:1))"'`,
@@ -59,10 +50,7 @@ const lanes = [
   // @tinker/drizzle (ADR 0041, drizzle-v1 t02): same promises; drizzle-orm is types-only at runtime.
   ["drizzle tests", `${VP} run --no-cache drizzle#test`],
   ["drizzle size (<= 10 kB gzip)", `${VP} run --no-cache drizzle#size`],
-  [
-    "drizzle cast-free examples (0 casts)",
-    `bash -c 'test $(grep -rcE "\\\\bas [A-Za-z{(]|\\\\bas unknown|[a-zA-Z0-9_)\\\\]]!" examples/drizzle | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
-  ],
+  ["drizzle cast-free examples (0 casts)", "node scripts/check-example-casts.mjs examples/drizzle"],
   [
     "drizzle pure universal bundle (no node:, no drizzle-orm at runtime)",
     `bash -c 'grep -qE "from \\"node:|drizzle-orm" packages/drizzle/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/drizzle/dist/index.mjs\\").then(m=>process.exit(m.drizzleStore?0:1))"'`,
@@ -72,7 +60,7 @@ const lanes = [
   ["process size (<= 10 kB gzip)", `${VP} run --no-cache process#size`],
   [
     "process cast-free examples (0 casts)",
-    `bash -c 'test $(grep -rcE "\\\\bas [A-Za-z{(]|\\\\bas unknown|[a-zA-Z0-9_)\\\\]]!" examples/process-cli | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
+    "node scripts/check-example-casts.mjs examples/process-cli",
   ],
   [
     "process pure universal bundle",
@@ -89,10 +77,7 @@ const lanes = [
   // @tinker/harness (ADR 0043, harness-v1 t05): same promises; the SDKs, zod, and the MCP SDK never reach dist at runtime.
   ["harness tests", `${VP} run --no-cache harness#test`],
   ["harness size (<= 10 kB gzip)", `${VP} run --no-cache harness#size`],
-  [
-    "harness cast-free examples (0 casts)",
-    `bash -c 'test $(grep -rcE "\\bas [A-Za-z{(]|\\bas unknown|[a-zA-Z0-9_)\\]]!" examples/harness | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
-  ],
+  ["harness cast-free examples (0 casts)", "node scripts/check-example-casts.mjs examples/harness"],
   [
     "harness pure universal bundle (SDKs only behind import(); no zod/MCP at runtime)",
     `bash -c 'grep -qE "from \\"(node:|@anthropic-ai/claude-agent-sdk|@openai/codex-sdk|zod|@modelcontextprotocol)" packages/harness/dist/index.mjs && exit 1 || node --input-type=module -e "import(\\"./packages/harness/dist/index.mjs\\").then(m=>process.exit(m.harness&&m.claudeCode&&m.codex?0:1))"'`,
@@ -101,10 +86,7 @@ const lanes = [
   // the SDK reaches dist only through server/mcp.js.
   ["mcp tests", `${VP} run --no-cache mcp#test`],
   ["mcp size (<= 10 kB gzip)", `${VP} run --no-cache mcp#size`],
-  [
-    "mcp cast-free examples (0 casts)",
-    `bash -c 'test $(grep -rcE "\\bas [A-Za-z{(]|\\bas unknown|[a-zA-Z0-9_)\\]]!" examples/mcp | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
-  ],
+  ["mcp cast-free examples (0 casts)", "node scripts/check-example-casts.mjs examples/mcp"],
   [
     "mcp pure bundle (runtime imports: @tinker/core + the SDK's server/mcp.js only)",
     `bash -c 'grep -qE "from \\"(node:|zod)" packages/mcp/dist/index.mjs && exit 1; grep -E "from \\"@modelcontextprotocol/sdk/" packages/mcp/dist/index.mjs | grep -v "server/mcp.js" | grep -q . && exit 1 || node --input-type=module -e "import(\\"./packages/mcp/dist/index.mjs\\").then(m=>process.exit(m.mcp&&m.expose&&m.answerTool?0:1))"'`,
@@ -113,10 +95,7 @@ const lanes = [
   // userland's, so dist imports only @tinker/core at runtime.
   ["sync tests", `${VP} run --no-cache sync#test`],
   ["sync size (<= 10 kB gzip)", `${VP} run --no-cache sync#size`],
-  [
-    "sync cast-free examples (0 casts)",
-    `bash -c 'test $(grep -rcE "\\bas [A-Za-z{(]|\\bas unknown|[a-zA-Z0-9_)\\]]!" examples/sync | awk -F: "{s+=\\$2} END{print s+0}") -eq 0'`,
-  ],
+  ["sync cast-free examples (0 casts)", "node scripts/check-example-casts.mjs examples/sync"],
   [
     "two hands (ADR 0051: Scope.Handle only at a root, in a driver src, or a test)",
     "scripts/two-hands.sh",

@@ -73,14 +73,16 @@ Use a shell with Claude Code auth already set.
 Set `GITHUB_TOKEN` and `CLOUDFLARE_API_TOKEN` there.
 The entry checks tokens and prompts before opening the root.
 An `InvalidSettings` error names fields without storing tokens.
+The entry removes one leading `--` from the arguments.
+That task separator is never sent as a prompt.
 
 From the repo root:
 
 ```bash
-vp install --frozen-lockfile
+vp install
 vp run -r build
 cd examples/harness
-vp exec node --experimental-strip-types services.ts \
+vp run services -- \
   "Read octocat/Hello-World and zones for example.com." \
   "Read them again and compare with your last answer."
 ```
@@ -104,7 +106,8 @@ API sources checked on 2026-09-30:
 ## Run without accounts
 
 ```bash
-vp run @tinker/examples#test
+cd examples/harness
+vp test
 ```
 
 [services.test.ts](services.test.ts) replaces the public SDK resource
@@ -112,7 +115,7 @@ with a fake and binds a recording HTTP backend.
 It checks full URLs, separate tokens, parsed replies, the shared
 conversation, root cleanup, toolkit limits, and failed replies.
 It makes no live account calls.
-The examples test task also runs under `vp run -r test`.
+The package test task also runs under `vp run -r test`.
 
 [github]: https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#get-a-repository
 [cloudflare]: https://developers.cloudflare.com/api/resources/zones/methods/list/
