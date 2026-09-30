@@ -5413,7 +5413,13 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     if (this.flight === undefined) return controller;
     return {
       run: (call?: Scope.Invocation<unknown>) => this.use(() => controller.run(call)),
-      settle: (call?: Scope.Invocation<unknown>) => this.use(() => controller.settle(call)),
+      settle: (call?: Scope.Invocation<unknown>) => {
+        try {
+          return this.use(() => controller.settle(call));
+        } catch (error) {
+          return failedRun(this.owner, error);
+        }
+      },
     };
   }
   private invoke(

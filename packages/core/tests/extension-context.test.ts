@@ -393,9 +393,10 @@ test("an event union narrows its payload and keeps old callbacks working", async
   await scope.close();
 });
 
-test("a waiting hook can use its saved controllers during graceful close", async () => {
+test("saved controllers stay usable through a waiting hook and its graceful cleanup", async () => {
   const gate = deferred();
   const cell = data({ initial: 0 });
+  const events: string[] = [];
   const child = operation({ label: "child", depends: { cell }, run: ({ cell }) => cell });
   const task = operation({ label: "task", run: () => 7 });
   const scope = createScope({
@@ -408,8 +409,16 @@ test("a waiting hook can use its saved controllers during graceful close", async
             const counter = event.controller(cell);
             const read = event.controller(child);
             await gate.promise;
+            const unwatch = counter.watch((value) => events.push(`watch:${value}`));
+            event.defer(() => {
+              unwatch();
+              counter.update((value) => value + 1);
+              events.push("unwatched");
+            });
             counter.set(4);
-            expect(await Promise.resolve(read.run())).toBe(4);
+            counter.update((value) => value + 1);
+            events.push(`get:${counter.get()}`);
+            events.push(`child:${await Promise.resolve(read.run())}`);
             return event.next();
           },
         },
@@ -421,6 +430,64 @@ test("a waiting hook can use its saved controllers during graceful close", async
   gate.resolve();
   expect(await running).toBe(7);
   expect((await closing).status).toBe("success");
+  expect(events).toEqual(["watch:4", "watch:5", "get:5", "child:5", "unwatched"]);
+});
+
+test("a saved operation settle returns cancellation when its waiting hook is forced closed", async () => {
+  const gate = deferred();
+  const aborted = deferred();
+  const child = operation({ label: "child", run: () => 3 });
+  const task = operation({ label: "task", run: () => 7 });
+  const scope = createScope({
+    extensions: [
+      extension({
+        label: "settle after abort",
+        hooks: {
+          run: async (event) => {
+            if (event.op !== task) return event.next();
+            const controller = event.controller(child);
+            event.signal.addEventListener("abort", aborted.resolve, { once: true });
+            await gate.promise;
+            return controller.settle();
+          },
+        },
+      }),
+    ],
+  });
+  const running = Promise.resolve(scope.run(task));
+  const closing = scope.close();
+  await aborted.promise;
+  gate.resolve();
+  expect(await running).toMatchObject({ status: "cancelled" });
+  await closing;
+});
+
+test("a saved operation settle returns failed Disposed after its hook ends", async () => {
+  const child = operation({ label: "child", run: () => 3 });
+  const task = operation({ label: "task", run: () => 7 });
+  const saved: Scope.OperationController<number, void>[] = [];
+  const scope = createScope({
+    extensions: [
+      extension({
+        label: "settle after hook",
+        hooks: {
+          run: (event) => {
+            if (event.op !== task) return event.next();
+            saved.push(event.controller(child));
+            return event.next();
+          },
+        },
+      }),
+    ],
+  });
+  scope.run(task);
+  const [controller] = saved;
+  expect(controller.settle()).toMatchObject({
+    status: "failed",
+    kind: "error",
+    error: { kind: "Disposed" },
+  });
+  await scope.close();
 });
 
 test("concurrent and repeated closes join the same root hook once", async () => {
