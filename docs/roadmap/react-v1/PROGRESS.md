@@ -29,7 +29,6 @@ The five added app checks pass with all 64 Playground tests.
 Browser checks at 1,440, 390, and 320 pixels pass.
 They prove preserved sibling drafts, project caches, and ocean document.
 All Sessions buttons meet 44 pixels; phone layouts have no side scroll.
-Live deployment remains in review.
 
 The full build, check, and all 17 test tasks pass.
 Check reports no errors and the same 28 existing warnings.
@@ -43,6 +42,18 @@ Twenty survive; no changed version lacks coverage.
 The two new surviving branches pass undefined to Core's existing defaults.
 Core implements `release` and `releaseNs` with the same function.
 No source change is needed for those equivalent branches.
+
+The checked source is pushed to main.
+[Live Playground](https://playground.tini.works).
+Dokploy deployment `jQGlXdi_unIfjjaO_MrMH` is done.
+The running container is healthy and uses the checked image.
+Its image source is `a8f131ff`; later commits only record proof.
+The live index, Core file, and React file match the build byte for byte.
+Live browser checks pass at 1,440, 390, and 320 pixels.
+All reset, refetch, route return, and sibling cache checks pass.
+Source navigation works; the same ocean document stays mounted.
+No page errors or side scroll were observed.
+Main's fresh build and check also pass, with the same 28 warnings.
 
 Proof files are under `.bench/react-namespaces`.
 
