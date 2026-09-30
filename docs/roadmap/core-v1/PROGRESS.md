@@ -256,6 +256,22 @@ ADR 0024 (API), ADR 0026 (decisions), ADR 0025 (analysis/bug map), and the bug/r
   A forced close then answers success while `closed` holds core's cancelled Result.
   The new test keeps that stated limit visible for `core/close-hook-scope`.
 
+### Known limits
+
+- Roots that still call `close()` after a rejected `ready` run each close hook twice on a failed start:
+  core's forced close, then their own close.
+  These callers include stack's `runUntilStop`, process's `execute` finally, tracker fixtures,
+  and examples.
+  On main each hook ran once.
+  Every hook in the repo is safe to repeat, and all lanes pass.
+  The migration tickets delete those catches.
+  Probe: `/tmp/rl-probe/p6main.mts` prints `[a, bad]` on main and `[a, bad, a, bad]` on this branch.
+- A replaced `close` that waits before calling core's close is not yet seen by core.
+  An abort during that wait starts another close, so the hooks can run twice.
+  NATS drains before calling core's close.
+  `core/close-hook-scope` owns this gap under "a root's hooks run once".
+  Probe: `/tmp/rl-probe/p1.mts`, case P5.
+
 ### Jev review
 
 - `preflight.mjs main..HEAD`: exit 0; 62 flagged units, no file flags.

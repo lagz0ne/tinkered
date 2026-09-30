@@ -50,9 +50,10 @@ process.exitCode = exitCode(end);
 - A failed start records its error and closes through the handle's current `close`.
   Every close hook runs, including its after-work.
   `ready` rejects with the start error only after that forced close ends.
-  A close already under way wins; the failed start joins it without running hooks again.
-  An abort never adds a second close after a failed start or a manual close.
-- The root drops its abort listener as soon as any close begins, before the hooks run.
+  A close already under way in core wins; the failed start joins it without running hooks again.
+  An abort adds no second close once a close reaches core.
+  A replaced `close` that waits first (NATS drains) is seen only when it calls core's close.
+- The root drops its abort listener as soon as a close reaches core, before the hooks run.
   A signal close runs each hook with `graceful: true`.
   A later forced close joins it and keeps its Result.
 - Only a root given a `signal` has `closed`; sessions take no stop signal.
