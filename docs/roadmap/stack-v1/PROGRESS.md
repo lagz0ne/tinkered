@@ -2485,3 +2485,16 @@ All 18 test tasks passed through their package configs,
 The ticket's four suites also passed fresh in the gate above.
 Used one task at a time after a build.
 Log: `stack-t17-resume-all-tests.log`.
+
+All four tracker browser proofs passed without cache.
+Each run also passed its seven helper tests.
+Each printed `BROWSER_<run>_EXIT 0`.
+They check saved rows, stale 409 edits, and live reconnect after restart.
+They also check phone-sized controls and no sideways scroll.
+No tracker source or browser test was changed.
+Logs: `stack-t17-resume-browser-1.log` through `-4.log`.
+
+One Hono lock wait exited 143 before any mutation tests started.
+The empty log and lack of a child process proved it was only waiting.
+Stopped that wait to run the four browser proofs.
+The full Hono lane still runs once with a 60-second limit.
