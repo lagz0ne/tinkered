@@ -11,7 +11,7 @@ const lanes = [
   ["stack tests", `${VP} run --no-cache stack#test`],
   ["stack size (<= 10 kB gzip)", `${VP} run --no-cache stack#size`],
   ["tests", `${VP} run --no-cache core#test`],
-  ["size (<= 30 kB gzip)", `${VP} run --no-cache core#size`],
+  ["core size (<= 15 kB gzip)", `${VP} run --no-cache core#size`],
   ["promises (0 sync / <=10 async)", `${strip} bench/promises.mjs`],
   ["deep-chain (no overflow)", `${strip} bench/deep.mjs`],
   ["live-heap-per-request", `node --expose-gc --experimental-strip-types bench/heap.mjs`],
