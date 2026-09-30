@@ -679,3 +679,11 @@ Keep saved user code and provide the existing Reset demo action.
 Verify with build/check, package and app tests, and style census.
 Review the real page at desktop and phone widths.
 Check the deployed files against the build after Dokploy reports done.
+
+User follow-up: crisp isometric tiles and drawn wave vectors.
+The sea should feel endless beyond the frame.
+Buttons and panels need the same care as the tiles.
+Apply the same detail to Code and Benchmark.
+Keep benchmark work and counts fair; do not change the numbers for looks.
+A second Astra writer owns Benchmark and source-view components.
+The first writer owns the sea, the shell, and Code layout.

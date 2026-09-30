@@ -1,7 +1,7 @@
 # Authoring model
 
 Date: 2026-09-30.
-Status: 16 KiB cap approved; final merged gates and landing in progress.
+Status: all merged gates pass; checkpoint saved for landing.
 Owner: lead (authoring-model session).
 
 ## Fixes authorized
@@ -542,7 +542,7 @@ The merge cut a single-use getter while keeping resource read order.
 The pass-through event and no-hook paths did not change in that cut.
 SCIP indexes and references were refreshed after the merge.
 The review covers the root signal path and NATS's optional span argument.
-The Core ticket gate is running all fault lanes one package at a time.
+The Core ticket gate finished all 14 fault lanes one package at a time.
 Merged Core fault score: 85.55, above the required floor of 85.
 
 Merged logs:
@@ -554,3 +554,24 @@ Merged logs:
 - `/tmp/tinkered-authoring-landing-ticket.log`
 - `/tmp/tinkered-authoring-landing-scip-refs.log`
 - `/tmp/tinkered-authoring-landing-final-calibration.log`
+
+## Final checkpoint
+
+Checkpoint: `dfaad530`; tag: `core/tauthoring-model`.
+The ticket gate completed and saved the checked work.
+The lead checked every printed score and fresh report.
+All 14 fault lanes pass the floor of 85.
+No failed lane was hidden by the ticket script.
+
+Changed package scores after the merge:
+
+- Core: 85.55.
+- NATS: 87.67.
+- Sync: 85.22.
+- Tinkerer: 95.19.
+- Stack: 85.36.
+
+The playground release branch includes this checkpoint.
+Its build copies the checked Core and React files into the browser vendor files.
+The browser probe runs an object hook with the correct namespace.
+It returns 42 and closes with success.

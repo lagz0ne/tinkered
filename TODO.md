@@ -41,19 +41,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 ## Doing
 
 - **playground/awwwards** — finish authoring changes and polish Tile storm.
-  Owner: lead (playground release); writer: Astra, xhigh.
-  Next: refine the ocean scene and shell; review on desktop and phone.
+  Owner: lead (playground release); writers: Astra, xhigh.
+  Next: refine the ocean, Code, and Benchmark; review on desktop and phone.
   Verify: build/check, all app tests, style census, prose;
   live controls, source links, full screen, current vendor files;
   Dokploy deployment done and live files match the build.
   [Track](docs/roadmap/playground-v2/PROGRESS.md).
-
-- **authoring/model** — lazy event objects and the five authoring fixes.
-  Owner: lead (authoring-model session); Astra writers, one package each.
-  Next: finish the merged gates under the approved 16 KiB cap, then land.
-  Verify: build/check, package and app tests, ticket gate, validation;
-  all five package fault scores at least 85; prose.
-  [Track](docs/roadmap/authoring-model/PROGRESS.md).
 
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
@@ -111,6 +104,11 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **authoring/model** — all five fixes pass the merged gates.
+  Proof: checkpoint `dfaad530`; all 48 release lanes and 14 fault lanes pass.
+  Core: 16,373 bytes gzip under the approved 16,384-byte cap.
+  [Track](docs/roadmap/authoring-model/PROGRESS.md).
 
 - **migrate/root-lifetime** — Astra writer + Opus review (one fix round); tag `migrate/root-lifetime`; ADR 0085. Every root outside core and stack stops closing itself after a rejected `ready`: the tracker's test fixtures and `src/client/main.tsx`, the examples, and the sync tests (each ran its close hooks twice since core/root-lifetime; a tracker test now counts one close). `examples/mcp/serve.ts` is the model entry: `createScope({ …, signal: AbortSignal.any([stop, ended.signal]) })`, `await scope.closed`, exit code failed → 1, teardown errors → 1, else 0. S29 rows left: only stack's `runUntilStop` (stack/t18). Tracker 79 tests, browser 7, sync mutation 86.60 (398 killed, 9 timeout, 61 survived, 2 no cover), validate 48 PASS. Jev: 2 `inputDefaultMasks` labels; calibrated (proven, sep 54%, ordered 95%).
 - **stack/t13 trace-sink** — the stack's trace sink sends spans and logs as OTLP/JSON to `OTEL_EXPORTER_OTLP_ENDPOINT` (our own writer, no dependency, ~10 KB): spans queue by reference and encode at flush (the sink adds ~5 µs per request over local JSON logs); bounded queue; a dead or slow collector never fails a request, a forced close aborts in 4 ms, a graceful close flushes within 1 s; ok spans UNSET, failed spans code 2; logs carry severity and their span's ids; `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_SERVICE_NAME` checked in start. NATS publish carries `traceparent`; a subscriber joins the trace; tracing off sends no header. Payload checked against the official OTLP proto code. Proof: gate EXIT 0 (stack 92, nats 24, tracker 79), stack mutation 85.61% (465/5/76), nats mutation 92.74% (166/0/10), validate 48/48. Reviewer READY (52f8099b). [track](docs/roadmap/stack-v1/PROGRESS.md).

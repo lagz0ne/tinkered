@@ -23,7 +23,7 @@ The finding paths below describe the reviewed baseline, `2700a440`.
   Real-server tests cover publish routing and incoming sessions.
 
 The first landing attempt failed the old 15 KiB cap.
-The user then chose 16 KiB; the merged fault checks are running.
+The user then chose 16 KiB; all 14 merged fault checks now pass.
 The first event cost probe led to a simpler run-event constructor.
 The final probe found no difference between legacy and object hooks.
 Before the merge, all five changed packages passed the fault-check floor.
