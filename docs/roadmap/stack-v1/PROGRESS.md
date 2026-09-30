@@ -493,7 +493,7 @@ npx --no-install stryker run \
   `vp check` and its tests, and boots in dev and
   prod.
 
-- **t17 hono answers a failed commit** -- [ ] blocked by: none
+- **t17 hono answers a failed commit** -- [x] landed 223e7c24 (blocked by: none)
   Found by the t12 review. A request's session
   closes before its answer leaves; a failed commit
   answers 500 (today: 200 with nothing saved). Any
