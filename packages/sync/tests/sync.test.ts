@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 import { setImmediate } from "node:timers/promises";
-import { createScope, data, resource, type Observe } from "@tinker/core";
+import { createScope, data, extension, resource, type Observe } from "@tinker/core";
 import {
   family,
   isError,
@@ -955,6 +955,56 @@ test("closing a reused subscription during transport build leaves the ready root
     secondNear.close();
     await second.close({ graceful: true });
   }
+});
+
+test("a source releases its family when a later extension fails to start", async () => {
+  const notes = family({ label: "failed-start-notes", initial: "" });
+  const failure = new Error("later start failed");
+  const origin = createScope({
+    extensions: [
+      source({ cells: [[notes, "notes"]] }),
+      extension({
+        label: "later failure",
+        start: () => {
+          throw failure;
+        },
+      }),
+    ],
+  });
+  await expect(origin.ready).rejects.toBe(failure);
+  notes("after failure");
+  expect(notes.members()).toEqual(["after failure"]);
+  await origin.close();
+});
+
+test("a subscription closes its borrowed wire once when a later extension fails to start", async () => {
+  const [, far] = memoryPair();
+  let closes = 0;
+  const transport: Sync.Transport = {
+    send: (message) => far.send(message),
+    onMessage: (listener) => far.onMessage(listener),
+    onClose: (listener) => far.onClose(listener),
+    close: () => {
+      closes += 1;
+      far.close();
+    },
+  };
+  const failure = new Error("later start failed");
+  const guest = createScope({
+    extensions: [
+      subscribe(resource({ label: "borrowed wire", factory: () => transport }), { cells: [] }),
+      extension({
+        label: "later failure",
+        start: () => {
+          throw failure;
+        },
+      }),
+    ],
+  });
+  await expect(guest.ready).rejects.toBe(failure);
+  expect(closes).toBe(1);
+  await guest.close();
+  expect(closes).toBe(1);
 });
 
 test("the recipe registers by identity, then streams the snapshot down", async () => {

@@ -82,6 +82,7 @@ A closed source lets go of its families and watchers.
 A source whose start failed lets go of its families; its watchers go with the failed scope.
 A member made after that still works, and another scope's source still publishes it.
 Closing a reused source leaves the other root's wire and updates alive.
+A source releases its family when a later extension fails to start.
 
 ## Subscribe
 
@@ -100,6 +101,7 @@ The resource lives as long as the scope.
 A reused subscription starts fresh after its first root closes.
 Closing a reused subscription keeps the other root receiving snapshots.
 Closing a reused subscription during transport build leaves the ready root open.
+A subscription closes its borrowed wire once when a later extension fails to start.
 
 Ready means the viewer holds its initial data set:
 the start sends one `register { keys }` with every row's singleton key and

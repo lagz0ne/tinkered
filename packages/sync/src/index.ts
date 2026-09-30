@@ -210,7 +210,20 @@ export function source(wiring: Sync.Wiring): Scope.Extension<Sync.Source> {
   const sourceState = resource({
     label: "sync.source.state",
     target: "scope",
-    factory: () => ({ close: (): void => undefined, forcedClosing: false }),
+    factory: (_deps, ctx) => {
+      const state = {
+        close: (): void => undefined,
+        forcedClosing: false,
+        stopped: false,
+        stop(): void {
+          if (this.stopped) return;
+          this.stopped = true;
+          this.close();
+        },
+      };
+      ctx.defer(() => state.stop());
+      return state;
+    },
   });
   return extension<Sync.Source>({
     label: "sync.source",
@@ -297,7 +310,7 @@ export function source(wiring: Sync.Wiring): Scope.Extension<Sync.Source> {
       close: (event) => {
         const state = event.resolve(sourceState);
         state.forcedClosing = event.options.graceful !== true;
-        state.close();
+        state.stop();
         return event.next();
       },
     },
@@ -333,7 +346,19 @@ export function subscribe(
   const clientState = resource({
     label: "sync.subscribe.state",
     target: "scope",
-    factory: () => ({ close: (): void => undefined, closing: false }),
+    factory: (_deps, ctx) => {
+      const state = {
+        close: (): void => undefined,
+        closing: false,
+        stop(): void {
+          if (this.closing) return;
+          this.closing = true;
+          this.close();
+        },
+      };
+      ctx.defer(() => state.stop());
+      return state;
+    },
   });
   return extension<Sync.Subscription>({
     label: "sync.subscribe",
@@ -476,8 +501,7 @@ export function subscribe(
       },
       close: (event) => {
         const state = event.resolve(clientState);
-        state.closing = true;
-        state.close();
+        state.stop();
         return event.next();
       },
     },
