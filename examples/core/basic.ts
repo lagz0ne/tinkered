@@ -1,4 +1,12 @@
-import { createScope, data, makeTestClock, operation, resource, tag } from "@tinker/core";
+import {
+  createScope,
+  data,
+  makeTestClock,
+  operation,
+  resource,
+  tag,
+  type Scope,
+} from "@tinker/core";
 
 const region = tag<string>({ label: "region" });
 const count = data({ label: "count", initial: 0 });
@@ -27,32 +35,48 @@ const stamp = operation({
   run: (_deps, { clock }) => clock.currentTimeMillis(),
 });
 
-/** A cast-free tour of the public API: every value's type is INFERRED — no `as`, no non-null `!`.
- * Units are declared once at module level (ADR 0057); `tour` only wires a scope and runs them.
+/** Units are declared once; each tour owns its scope and reads its result before cleanup.
  * An inline body runs on the same call object with one span, and nothing is cached for it.
  * `scope.resolve` builds a resource once and reads that one instance after. */
 export async function tour(): Promise<number> {
-  const scope = createScope({ tags: [region("eu")], clock: makeTestClock({ now: 0 }) });
-  const c = scope.controller(count);
-  c.set(21);
-  const seen: number[] = [];
-  c.watch((v) => seen.push(v));
-
-  const n = scope.run(doubled);
-  const inline = scope.run(
-    { depends: { count }, run: ({ count }, { input }) => count + input },
-    { input: 1 },
-  );
-  const s = scope.resolve(store);
-  s.add("first");
-  const t = scope.run(stamp);
-
-  const inSession = await scope.session((child) => {
-    child.controller(count).set(100);
-    return child.run(doubled);
+  const stop = new AbortController();
+  const scope = createScope({
+    signal: stop.signal,
+    tags: [region("eu")],
+    clock: makeTestClock({ now: 0 }),
   });
+  let total: number;
+  let end: Scope.Result;
+  try {
+    await scope.ready;
+    const counter = scope.controller(count);
+    counter.set(21);
+    const seen: number[] = [];
+    counter.watch((value) => seen.push(value));
 
-  const result = await scope.close();
-  const teardownOk = result.status === "success" || result.status === "cancelled";
-  return n + s.size() + inSession + c.get() + seen.length + t + inline + (teardownOk ? 0 : 1);
+    const twiceCount = scope.run(doubled);
+    const inline = scope.run(
+      { depends: { count }, run: ({ count }, { input }) => count + input },
+      { input: 1 },
+    );
+    const rows = scope.resolve(store);
+    rows.add("first");
+    const time = scope.run(stamp);
+
+    const inSession = await scope.session((child) => {
+      child.controller(count).set(100);
+      return child.run(doubled);
+    });
+
+    total = twiceCount + rows.size() + inSession + counter.get() + seen.length + time + inline;
+  } finally {
+    stop.abort();
+    end = await scope.closed;
+  }
+  if (end.status === "failed") throw end.error;
+  if (end.teardownErrors?.length) {
+    const [error] = end.teardownErrors;
+    throw error;
+  }
+  return total;
 }

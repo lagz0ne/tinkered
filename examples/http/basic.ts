@@ -1,8 +1,10 @@
-import { createScope, operation } from "@tinker/core";
+import { createScope, operation, type Scope } from "@tinker/core";
 import { backend, config, HttpRequest, HttpResponse, send, type HttpClient } from "@tinker/http";
 import { z } from "zod";
 
-const listRepos = operation({
+const replySchema = z.string();
+
+export const listRepos = operation({
   label: "github.listRepos",
   input: z.string(),
   depends: { send },
@@ -10,7 +12,7 @@ const listRepos = operation({
     const res = await sendIt.run({
       input: HttpRequest.get(`/users/${ctx.input}/repos`),
     });
-    return res.text();
+    return res.json(replySchema);
   },
 });
 
@@ -24,7 +26,7 @@ const createIssue = operation({
     }),
 });
 
-const onboard = operation({
+export const onboard = operation({
   label: "onboard",
   input: z.string(),
   depends: { repos: listRepos, issue: createIssue },
@@ -37,10 +39,8 @@ const onboard = operation({
   },
 });
 
-/** A cast-free tour of the declared units: two operations on `send`, and a userland
- * operation that depends on both and hands a fresh token to one call via `tags`. Every value's
- * type is INFERRED — no `as`, no non-null `!`. The units are declared once at module level
- * (ADR 0057); `tour` only wires a scope and runs them. */
+/** The declared operations share `send`; call tags give only the issue request a fresh token.
+ * The recording backend keeps this tour local, including its sample GitHub URLs. */
 export async function tour(): Promise<string> {
   const seen: HttpRequest.Record[] = [];
   const fake: HttpClient.Backend = (request) => {
@@ -48,7 +48,9 @@ export async function tour(): Promise<string> {
     return Promise.resolve(HttpResponse.make(request, { status: 200, body: '"ok"' }));
   };
 
+  const stop = new AbortController();
   const scope = createScope({
+    signal: stop.signal,
     tags: [
       backend(fake),
       config({
@@ -58,9 +60,26 @@ export async function tour(): Promise<string> {
       }),
     ],
   });
-  const repos = await scope.run(listRepos, { input: "octocat" });
-  const created = await scope.run(onboard, { input: "hello" });
-  const sent = HttpRequest.toUrl(seen[0]);
-  await scope.close();
-  return `${repos} ${created.status} ${sent}`;
+  let output: string;
+  let end: Scope.Result;
+  try {
+    await scope.ready;
+    const repos = await scope.run(listRepos, { input: "octocat" });
+    const created = await scope.run(onboard, { input: "hello" });
+    const [firstRequest] = seen;
+    output = `${repos} ${created.status} ${HttpRequest.toUrl(firstRequest)}`;
+  } finally {
+    stop.abort();
+    end = await scope.closed;
+  }
+  if (end.status === "failed") throw end.error;
+  if (end.teardownErrors?.length) {
+    const [error] = end.teardownErrors;
+    throw error;
+  }
+  return output;
+}
+
+if (import.meta.main) {
+  process.stdout.write(`${await tour()}\n`);
 }

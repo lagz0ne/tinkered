@@ -2,11 +2,8 @@ import { createScope, data, operation } from "@tinker/core";
 import { ScopeProvider, useData, useRun } from "@tinker/react";
 import { z } from "zod";
 
-/** One draft cell: the whole form is one record, so one write replaces the draft. */
-export type Draft = { readonly title: string; readonly description: string };
-
 /** The draft one form edits. Cleared on a successful save. */
-export const draft = data<Draft>({ label: "draft", initial: { title: "", description: "" } });
+export const draft = data({ label: "draft", initial: { title: "", description: "" } });
 
 /** The two fields, each optional: a patch touches one at a time. */
 const patchSchema = z.object({ title: z.string().optional(), description: z.string().optional() });
@@ -38,27 +35,33 @@ export const saveDraft = operation({
   },
 });
 
-/** All form state lives in the scope, not in React: no `useState`, no `useEffect`. So
- * `form.test.ts` drives the same operations with no DOM. */
+/** The public operations let the form test use the same graph without a DOM. */
 export function DraftForm(): React.ReactElement {
   const current = useData(draft);
   const type = useRun(typeDraft);
   const saveRun = useRun(saveDraft);
   return (
-    <form>
-      <input
-        aria-label="title"
-        value={current.title}
-        onChange={(event) => type.run({ input: { title: event.target.value } })}
-      />
-      <input
-        aria-label="description"
-        value={current.description}
-        onChange={(event) => type.run({ input: { description: event.target.value } })}
-      />
-      <button type="button" onClick={() => saveRun.run()}>
-        {saveRun.status === "success" ? "saved" : "save"}
-      </button>
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        saveRun.run();
+      }}
+    >
+      <label>
+        Title
+        <input
+          value={current.title}
+          onChange={(event) => type.run({ input: { title: event.target.value } })}
+        />
+      </label>
+      <label>
+        Description
+        <input
+          value={current.description}
+          onChange={(event) => type.run({ input: { description: event.target.value } })}
+        />
+      </label>
+      <button type="submit">{saveRun.status === "success" ? "saved" : "save"}</button>
     </form>
   );
 }

@@ -1,0 +1,31 @@
+{
+  "name": "@tinker/example-sync",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Sync one counter between local roots or through a local Hono stream.",
+  "type": "module",
+  "scripts": {
+    "check": "vp check",
+    "test": "vp test",
+    "start": "node --experimental-strip-types basic.ts",
+    "dev": "node --experimental-strip-types basic.ts",
+    "hono": "node --experimental-strip-types hono.ts"
+  },
+  "dependencies": {
+    "@tinker/core": "workspace:*",
+    "@tinker/hono": "workspace:*",
+    "@tinker/sync": "workspace:*",
+    "hono": "^4.13.8",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "typescript": "^7.0.2",
+    "vite": "npm:@voidzero-dev/vite-plus-core@0.3.1",
+    "vite-plus": "0.3.1"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "packageManager": "pnpm@12.4.1"
+}

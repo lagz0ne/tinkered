@@ -1,55 +1,57 @@
-import { createScope, operation } from "@tinker/core";
+import { createScope, extension, resource } from "@tinker/core";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { z } from "zod";
-import { expose, mcp } from "@tinker/mcp";
+import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
+import { searchMcp } from "./search.ts";
+import { checkClosed } from "./errors.ts";
 
-const searchShape = { q: z.string() };
-
-const search = operation({
-  label: "search",
-  input: z.object(searchShape),
-  run: (_deps, ctx) => [`hit:${ctx.input.q}`],
+const memory = resource({
+  label: "memory.transports",
+  target: "scope",
+  factory: (_deps, ctx) => {
+    const [client, server] = InMemoryTransport.createLinkedPair();
+    ctx.defer(() => client.close());
+    ctx.defer(() => server.close());
+    return { client, server };
+  },
 });
 
-/** Read one text part off a tool result's content: the tour's one read of
- * the SDK's shape, narrowed by control flow. */
-function readTextPart(part: unknown): string {
-  if (typeof part !== "object" || part === null) return "";
-  if (!("type" in part) || !("text" in part)) return "";
-  if (part.type !== "text" || typeof part.text !== "string") return "";
-  return part.text;
-}
+const connected = extension({
+  label: "memory.server",
+  hooks: {
+    start: async (event) => {
+      await event.next();
+      const server = event.resolve(searchMcp);
+      event.defer(() => server.close());
+      await server.connect(event.resolve(memory).server);
+    },
+  },
+});
 
-function readFirstText(answered: object): string {
-  if (!("content" in answered)) return "";
-  const content: unknown = answered.content;
-  if (!Array.isArray(content)) return "";
-  const [first] = content;
-  return readTextPart(first);
-}
-
-/** A cast-free tour of the driver: a tool is an operation plus its row facts,
- * `mcp({ tools })` is the extension, and a harness reaches it over MCP — here
- * through the SDK's in-memory pair against the resolved server. Answers the
- * listed names and the first call's text. */
+/** The SDK schema reads the tool reply at the edge; imports start no client or server. */
 export async function tour(): Promise<string> {
-  const ext = mcp({
-    name: "coder",
-    version: "1.0.0",
-    tools: [expose(search, { description: "search the index", schema: searchShape })],
-  });
-  const scope = createScope({ extensions: [ext] });
-  await scope.ready;
-  const server = scope.resolve(ext);
-  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  await server.connect(serverTransport);
-  const client = new Client({ name: "tour", version: "0" });
-  await client.connect(clientTransport);
-  const listed = await client.listTools();
-  const names = listed.tools.map((entry) => entry.name).join(",");
-  const answered = await client.callTool({ name: "search", arguments: { q: "owls" } });
-  const text = readFirstText(answered);
-  await scope.close({ graceful: true });
-  return `${names}=${text}`;
+  const stop = new AbortController();
+  const root = createScope({ signal: stop.signal, extensions: [connected, searchMcp] });
+  const client = new Client({ name: "tour", version: "1.0.0" });
+  let completed = false;
+  try {
+    await root.ready;
+    await client.connect(root.resolve(memory).client);
+    const listed = await client.listTools();
+    const answered = await client.request(
+      { method: "tools/call", params: { name: "search", arguments: { q: "owls" } } },
+      CallToolResultSchema,
+    );
+    const text = answered.content.find((part) => part.type === "text")?.text ?? "";
+    const result = `${listed.tools.map((entry) => entry.name).join(",")}=${text}`;
+    completed = true;
+    return result;
+  } finally {
+    const [clientResult] = await Promise.allSettled([client.close()]);
+    stop.abort();
+    const result = await root.closed;
+    if (completed) checkClosed(clientResult, result);
+  }
 }
+
+if (import.meta.main) process.stdout.write(`${await tour()}\n`);

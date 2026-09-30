@@ -63,9 +63,7 @@ function SpanCount(): React.ReactElement {
   );
 }
 
-/** A cast-free tour of `@tinker/react` — every value's type is INFERRED, no `as`, no `!`. The whole
- * seam in one tree: providers, a reactive read/write cell with release-to-reset, a suspending
- * resource, an imperative operation, and a (manually refreshed) span inspector. */
+/** The provider owns the scope; the mounted view owns the span refresh state. */
 export function App(): React.ReactElement {
   return (
     <ScopeProvider create={() => createScope({ observe: { history: 200 } })}>

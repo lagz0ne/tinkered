@@ -3,11 +3,7 @@ import { expose } from "@tinker/mcp";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { claudeCode, harness } from "@tinker/harness";
-
-function parsePrompt(raw: unknown): string {
-  if (typeof raw !== "string") throw new Error("bad prompt");
-  return raw;
-}
+import { checkClosed } from "./errors.ts";
 
 /** Which index a session searches: a per-session binding the tool reads. */
 const index = tag<string>({ label: "index", default: "docs" });
@@ -32,24 +28,31 @@ const searchTool = expose(search, {
 const coder = harness({ label: "coder", adapter: claudeCode, tools: [searchTool] });
 const ask = operation({
   label: "coder.ask",
-  input: parsePrompt,
+  input: z.string().trim().min(1),
   depends: { send: coder.send },
-  run: async ({ send }, ctx) => {
-    const result = await send.run({ input: { prompt: ctx.input } });
-    return result;
-  },
+  run: ({ send }, ctx) => send.run({ input: { prompt: ctx.input } }),
 });
 
-/** The real adapter (needs Claude Code auth — not run by tests).
- * The model may call `search`.
- * Units are declared once at module level (ADR 0057); `tour` only wires a scope and runs them. */
-export async function tour(): Promise<string> {
-  const scope = createScope({
-    tags: [claudeCode.options({ cwd: process.cwd(), allowedTools: ["mcp__coder__search"] })],
+/** Requires Claude Code auth; the tool reads the session's index tag. */
+export async function tour(cwd: string): Promise<string> {
+  const stop = new AbortController();
+  const root = createScope({
+    signal: stop.signal,
+    tags: [claudeCode.options({ cwd, allowedTools: ["mcp__coder__search"] })],
   });
-  const session = scope.createSession({ tags: [index("code")] });
-  await session.run(ask, { input: "search for the word harness" });
-  const answer = session.resolve(coder.text);
-  await scope.close();
-  return answer;
+  let completed = false;
+  try {
+    await root.ready;
+    const session = root.createSession({ tags: [index("code")] });
+    await session.run(ask, { input: "search for the word harness" });
+    const result = session.resolve(coder.text);
+    completed = true;
+    return result;
+  } finally {
+    stop.abort();
+    const result = await root.closed;
+    if (completed) checkClosed(result);
+  }
 }
+
+if (import.meta.main) process.stdout.write(`${await tour(process.cwd())}\n`);
