@@ -338,6 +338,9 @@ importers:
       '@hono/node-server':
         specifier: 1.19.17
         version: 1.19.17(hono@4.13.8)
+      '@tinker/nats':
+        specifier: workspace:*
+        version: link:../../packages/nats
       '@types/node':
         specifier: ^24
         version: 24.13.5

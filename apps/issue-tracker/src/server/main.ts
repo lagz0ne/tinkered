@@ -5,7 +5,6 @@ import { createScope, extension } from "@tinker/core";
 import { jsonLines, liveUpdates, readExitCode, server } from "@tinker/stack";
 import { draftTags, type DraftConfig } from "./draft.ts";
 import { issueServer } from "./routes.ts";
-import { publish } from "./publish.ts";
 import { storeConfig } from "./store.ts";
 import { migrateIssues } from "./migrations.ts";
 import { src } from "./sync.ts";
@@ -59,13 +58,11 @@ export async function runServer(
       migrateIssues,
       web,
       src,
-      env.NATS_URL === undefined
-        ? publish()
-        : liveUpdates(publishIssues, {
-            subject: "issues.changed",
-            env,
-            connection: host?.connection,
-          }),
+      liveUpdates(publishIssues, {
+        subject: "issues.changed",
+        env,
+        connection: host?.connection,
+      }),
     ],
     observe,
     signal: stop,

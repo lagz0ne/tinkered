@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setImmediate as nextTurn } from "node:timers/promises";
 import { chromium, type Browser, type Page } from "playwright";
+import { startNatsServer } from "@tinker/nats/testing";
 import { fail, parseIssue, parseIssueDetail, parseIssueList, type Issues } from "../src/index.ts";
 
 type Exit = { readonly code: number | null; readonly signal: NodeJS.Signals | null };
@@ -54,7 +55,7 @@ async function bounded<T>(promise: Promise<T>, label: string): Promise<T> {
   return Promise.race([promise, readTimeout(label)]);
 }
 
-function ownServer(port: number, db: string): OwnedServer {
+function ownServer(port: number, db: string, natsUrl: string): OwnedServer {
   const child = spawn(process.execPath, ["--experimental-strip-types", "src/server/main.ts"], {
     cwd: APP,
     env: {
@@ -62,6 +63,7 @@ function ownServer(port: number, db: string): OwnedServer {
       HOST: "127.0.0.1",
       PORT: String(port),
       DATA_PATH: db,
+      NATS_URL: natsUrl,
       DRAFT_HELPER: "0",
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -102,8 +104,8 @@ async function waitOk(base: string, server: OwnedServer): Promise<void> {
   }
 }
 
-async function startServer(port: number, db: string): Promise<OwnedServer> {
-  const server = ownServer(port, db);
+async function startServer(port: number, db: string, natsUrl: string): Promise<OwnedServer> {
+  const server = ownServer(port, db, natsUrl);
   try {
     await waitOk(`http://127.0.0.1:${port}`, server);
   } catch (error: unknown) {
@@ -208,6 +210,7 @@ function parseEditSent(postData: string | null): number {
 async function main(): Promise<void> {
   const { dir, db } = tempData();
   const port = await freePort();
+  const bus = await startNatsServer();
   const base = `http://127.0.0.1:${port}`;
   let server: OwnedServer | undefined;
   let spare: OwnedServer | undefined;
@@ -245,6 +248,7 @@ async function main(): Promise<void> {
       await owned.close().catch((error: unknown) => failures.push(String(error)));
     }
     await closeServers(failures);
+    await bus.close().catch((error: unknown) => failures.push(String(error)));
     removeTemp(dir);
     assert.deepEqual(failures, []);
   }
@@ -257,7 +261,7 @@ async function main(): Promise<void> {
   }
   async function startMain(): Promise<void> {
     if (server !== undefined) throw fail("SyncDropped", { reason: "server already running" });
-    server = await startServer(port, db);
+    server = await startServer(port, db, bus.url);
   }
   try {
     browser = await chromium.launch();

@@ -4880,3 +4880,34 @@ No build runs in that tree while the job waits or runs.
   Check: zero errors and 28 warnings.
 - Both sets of track notes and error names were kept.
   Jev labels were merged with `label.mjs --merge`.
+
+### t14 trace rebase and prod settings
+
+- Rebased onto `origin/main` at `4c88cded`.
+  Kept t13's trace and NATS source exactly.
+  Kept the prepared t17 and t18 changes.
+- Combined stack: 112 tests pass; exit 0.
+  Check: zero errors and 28 warnings.
+- Prod could hide a missing NATS_URL by choosing local
+  publishing. ADR 0082 says prod gets no defaults.
+  Assumption: the tracker lists live updates in prod,
+  so NATS_URL is required just like its other settings.
+- The missing-NATS test failed before the source fix:
+  the root kept running; exit 1 for the test run.
+  It now reports InvalidConfig naming NATS_URL and exits 1.
+- Impact: the full root's server test and browser proof
+  now start a real NATS server and pass its URL.
+  The bad-port entry test still fails before other work.
+  Dev and the timing probe already get the host's URL.
+  Prod's README command supplies all four required keys.
+- Added the NATS test helper as an app dev dependency.
+  No NATS or Drizzle source changed in t14.
+- Build, check, tracker 84, browser proof, seven browser
+  helper tests, and prose pass; exit 0.
+- Jev after the rebase: zero source file flags,
+  zero of 56 test titles flagged, zero of 55 stack
+  promises missing, one unsure.
+- The listen notes match existing false labels:
+  `2252a62b58c7` and `d71ffdcc28db`.
+  The root owns the closer; its closing flag tracks
+  the HTTP listener, not app state.

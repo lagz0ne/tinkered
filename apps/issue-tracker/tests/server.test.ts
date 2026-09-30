@@ -5,6 +5,7 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createScope } from "@tinker/core";
+import { startNatsServer } from "@tinker/nats/testing";
 import { expect, test } from "vite-plus/test";
 import {
   createIssue,
@@ -83,11 +84,12 @@ test("the first HTTP read and sync snapshot contain saved issues while the port 
 
 test("runServer serves saved issues until stop and then answers zero", async () => {
   const dir = await mkdtemp(join(tmpdir(), "issues-root-"));
+  const bus = await startNatsServer();
   const port = await readFreePort();
   const base = `http://127.0.0.1:${port}`;
   const stop = new AbortController();
   const ended = runServer(
-    { HOST: "127.0.0.1", PORT: String(port), DATA_PATH: join(dir, "db") },
+    { HOST: "127.0.0.1", PORT: String(port), DATA_PATH: join(dir, "db"), NATS_URL: bus.url },
     stop.signal,
   );
   try {
@@ -105,6 +107,7 @@ test("runServer serves saved issues until stop and then answers zero", async () 
   } finally {
     stop.abort();
     await ended;
+    await bus.close();
     await rm(dir, { recursive: true, force: true });
   }
 });

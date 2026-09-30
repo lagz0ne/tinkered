@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { cp, mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, onTestFinished, test } from "vite-plus/test";
@@ -88,12 +89,24 @@ test("dev reload keeps saved issues, ends sync, and SIGTERM exits zero", async (
   await expect(fetch(url)).rejects.toThrow();
 }, 90000);
 
-test.each(["HOST", "PORT", "DATA_PATH"])("prod refuses a missing %s", async (key) => {
+test.each(["HOST", "PORT", "DATA_PATH", "NATS_URL"])("prod refuses a missing %s", async (key) => {
+  const directory = await mkdtemp(join(tmpdir(), "tracker-prod-"));
+  const stop = new AbortController();
   const env: NodeJS.ProcessEnv = {
     HOST: "127.0.0.1",
     PORT: String(await readFreePort()),
-    DATA_PATH: "/missing/prod-data",
+    DATA_PATH: join(directory, "db"),
+    NATS_URL: "nats://127.0.0.1:4222",
   };
   delete env[key];
-  expect(await runServer(env, new AbortController().signal)).toBe(1);
+  let code: number | undefined;
+  const done = runServer(env, stop.signal).then((value) => {
+    code = value;
+  });
+  onTestFinished(async () => {
+    stop.abort();
+    await done;
+    await rm(directory, { recursive: true, force: true });
+  });
+  await expect.poll(() => code, { timeout: 10000 }).toBe(1);
 });

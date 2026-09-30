@@ -111,7 +111,9 @@ summary; one that is not text answers 400 and runs no model.
 ```bash
 vp install
 vp run --no-cache --filter '@tinker-issue-tracker...' build
-HOST=127.0.0.1 PORT=4311 DATA_PATH=./data/issues \
+HOST=127.0.0.1 PORT=4311 \
+  DATA_PATH=./data/issues \
+  NATS_URL=nats://127.0.0.1:4222 \
   vp run @tinker-issue-tracker#start
 ```
 
@@ -130,7 +132,8 @@ A `PORT` that is not a whole number from 1 to 65535 stops the boot with
 `BadListenSettings`, which names every bad listen key.
 A bad `PORT` creates no database.
 
-Prod refuses a missing `HOST`, `PORT`, or `DATA_PATH`.
+Prod needs a NATS server at `NATS_URL`.
+It refuses a missing `HOST`, `PORT`, `DATA_PATH`, or `NATS_URL`.
 Only the dev host supplies local defaults.
 
 A bad `HOST` also stops boot before the port opens.
@@ -367,4 +370,4 @@ These defaults never apply to `start` or `preview`.
 
 - Dev reload keeps saved issues, ends sync,
   and SIGTERM exits zero.
-- Prod refuses a missing HOST, PORT, or DATA_PATH.
+- Prod refuses a missing HOST, PORT, DATA_PATH, or NATS_URL.

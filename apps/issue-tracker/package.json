@@ -36,6 +36,7 @@
     "@anthropic-ai/claude-agent-sdk": "catalog:",
     "@electric-sql/pglite": "catalog:",
     "@hono/node-server": "1.19.17",
+    "@tinker/nats": "workspace:*",
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
