@@ -205,3 +205,24 @@ test("a piece rejects a second live root and can restart after its owner closes"
   await scope.ready;
   expect((await post(url, "sign-in/email")).status).toBe(200);
 });
+
+test("a changed auth secret rejects a cookie from the prior root", async () => {
+  const cookie = await signIn(url);
+  expect(await (await fetch(`${url}/me`, { headers: { cookie } })).json()).toMatchObject({
+    email: person.email,
+  });
+  await scope.close({ graceful: true });
+  scope = createScope({
+    tags: [
+      store.config(client),
+      identity.config({
+        ...settings,
+        BETTER_AUTH_SECRET: "a-new-test-only-secret-with-at-least-32-characters",
+      }),
+    ],
+    extensions: [web, identity.extension],
+  });
+  scopes.push(scope);
+  await scope.ready;
+  expect(await (await fetch(`${url}/me`, { headers: { cookie } })).json()).toBeNull();
+});

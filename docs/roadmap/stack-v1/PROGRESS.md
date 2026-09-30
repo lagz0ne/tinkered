@@ -3077,13 +3077,18 @@ await closing;
   and `stack-t10-mutation.json` in
   `/home/paseo/.cache/tinkered-briefs/`.
 - Two real test gaps appeared among the survivors.
-  The HTTP fixture used Better Auth's default base URL,
-  so dropping the supplied settings still passed.
-  It now uses `http://auth.example.test`.
+  Dropping the supplied settings still passed the HTTP tests.
+  A nondefault base URL did not catch this either.
+  The HTTP fixture now uses `http://auth.example.test`.
 - The second-owner test now rejects `BadAuthSettings` before
   accepting `PieceInUse`, proving those errors stay distinct.
+- The first narrow check killed all five error-kind changes,
+  including the three old survivors.
+  Dropping the settings still survived; the check exited 1.
+- Added a public check that changing the secret on restart
+  rejects a cookie from the prior root.
 - No runtime source changed after the full lane.
-  The next check targets the four survivors these tests catch.
+  The next check repeats those two source lines.
 - The brief allows one full lane.
   A fresh full score of at least 85 remains a landing check;
   the failed full result is not a pass.

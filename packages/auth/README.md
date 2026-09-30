@@ -85,6 +85,7 @@ The check does not edit that file.
 - A wrong password keeps Better Auth's status and answer.
 - Sign in and requests take turns with work holding the one database connection.
 - A piece rejects a second live root and can restart after its owner closes.
+- A changed auth secret rejects a cookie from the prior root.
 - Bad auth settings stop boot before the port opens and name every bad key.
 - Auth wiring without its started piece rejects the request with a named error.
 - Fresh auth generation matches the saved schema and rejects an edited copy.
