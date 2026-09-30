@@ -39,6 +39,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **examples/standalone** — each example has its own package and entry.
+  Owner: lead (Codex); writers: Astra, one package at a time.
+  Next: split packages, fix authoring gaps, and check exported copies.
+  Verify: outside-repo install, check, tests, and run for every example;
+  full build, code check, tests, prose, and strict style census.
+  [Track](docs/roadmap/examples-v1/PROGRESS.md).
+
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
