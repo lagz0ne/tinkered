@@ -12,7 +12,7 @@ export type PlaygroundFile = { name: string; content: string };
 /** The bundler entry. The preview runs this file; other files are reached via relative imports. */
 export const ENTRY = "main.tsx";
 
-/** The default project — the Ripples example. Its sources are real modules under `example/`
+/** The default project — the Tile storm example. Its sources are real modules under `example/`
  * (consumer code, like the repo's `examples/`: type-checked against the workspace packages by
  * `vp check`, written in the consumer idiom rather than package rules), loaded here as text (`?raw`)
  * for the editor. The preview compiles them in the browser with esbuild-wasm. */

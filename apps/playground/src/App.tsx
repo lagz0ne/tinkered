@@ -79,23 +79,23 @@ function ViewToggle(): ReactElement {
       aria-label={label}
       aria-pressed={view === v}
       title={label}
-      className={
-        "flex min-h-11 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring " +
-        (view === v
-          ? "bg-background text-foreground shadow-sm"
-          : "text-muted-foreground hover:text-foreground")
-      }
+      className="view-button"
     >
-      <Icon className="size-3.5" />
-      <span className="hidden sm:inline">{label}</span>
+      <Icon className="view-icon size-3.5" aria-hidden="true" />
+      <span className={v === "bench" ? "benchmark-label" : undefined}>{label}</span>
+      {v === "bench" && (
+        <span className="benchmark-short" aria-hidden="true">
+          Bench
+        </span>
+      )}
     </button>
   );
   return (
-    <div className="flex items-center gap-0.5 rounded-lg bg-muted p-0.5">
+    <nav className="view-toggle" aria-label="Playground views">
       {item("play", "Play", Gamepad2)}
       {item("editor", "Code", Code2)}
       {item("bench", "Benchmark", BarChart3)}
-    </div>
+    </nav>
   );
 }
 
@@ -111,7 +111,7 @@ function Preview(): ReactElement {
     <iframe
       title="Live preview"
       sandbox="allow-scripts allow-same-origin"
-      className="absolute inset-0 h-full w-full border-0 bg-[#04101f]"
+      className="absolute inset-0 h-full w-full border-0 bg-background"
       srcDoc={bundle === undefined ? "" : previewDocument(bundle)}
       inert={covered}
     />
@@ -181,7 +181,7 @@ function ThemeSelect(): ReactElement {
   const choose = useRun(setTheme);
   return (
     <Select value={theme} onValueChange={(v) => choose.run({ rawInput: v })}>
-      <SelectTrigger size="sm" className="h-8">
+      <SelectTrigger size="sm" className="h-11">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -203,12 +203,14 @@ function ResetButton({ compact }: { compact: boolean }): ReactElement {
       <TooltipTrigger asChild>
         <Button
           variant="ghost"
-          className={compact ? "size-11 shrink-0 p-0" : "h-11 shrink-0 gap-1.5 px-2"}
+          className={
+            compact ? "shell-reset size-11 shrink-0 p-0" : "shell-reset h-11 shrink-0 gap-2 px-3"
+          }
           onClick={() => run.run()}
           aria-label="Reset demo"
         >
           <RotateCcw />
-          {!compact && <span>Reset demo</span>}
+          {!compact && <span className="reset-label">Reset demo</span>}
         </Button>
       </TooltipTrigger>
       <TooltipContent>Load the latest starter demo. Replaces saved code edits.</TooltipContent>
@@ -236,30 +238,37 @@ function FullscreenButton(props: { stage: RefObject<HTMLDivElement | null> }): R
   );
 }
 
-function BottomBar(props: { stage: RefObject<HTMLDivElement | null> }): ReactElement {
+function Toolbar(props: { stage: RefObject<HTMLDivElement | null> }): ReactElement {
   const view = useData(viewCell);
   return (
-    <div className="shell-chrome flex h-12 shrink-0 items-center gap-3 border-t bg-background/80 px-3 backdrop-blur">
-      <span className="hidden text-xs font-semibold tracking-tight text-muted-foreground sm:inline">
-        tinkered
-      </span>
+    <header className="shell-chrome">
+      <div className="shell-top">
+        <div className="shell-brand" aria-label="Tinkered playground">
+          <span className="shell-mark" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+          <span>
+            tinkered<span className="shell-subtitle"> / playground</span>
+          </span>
+        </div>
+        <ViewToggle />
+        <div className="shell-actions">
+          {view !== "bench" && <ResetButton compact={view === "editor"} />}
+          {view === "play" && <FullscreenButton stage={props.stage} />}
+        </div>
+      </div>
       {view === "editor" && (
-        <div className="min-w-0 flex-1">
-          <Tabs />
+        <div className="shell-filebar">
+          <div className="min-w-0 flex-1">
+            <Tabs />
+          </div>
+          <StatusDot />
+          <ThemeSelect />
         </div>
       )}
-      <div className="ml-auto flex items-center gap-2">
-        <ViewToggle />
-        {view === "editor" && (
-          <>
-            <StatusDot />
-            <ThemeSelect />
-          </>
-        )}
-        {view !== "bench" && <ResetButton compact={view === "editor"} />}
-        {view === "play" && <FullscreenButton stage={props.stage} />}
-      </div>
-    </div>
+    </header>
   );
 }
 
@@ -285,8 +294,9 @@ function CodeOverlay(): ReactElement {
     hop.run({ input: place });
   };
   return (
-    <div className="absolute inset-0 z-10 flex flex-col bg-background">
-      <div className="flex items-center gap-2 border-b px-2 py-1.5">
+    <div className="code-overlay absolute inset-0 z-10 flex flex-col bg-background">
+      <div className="source-bar flex items-center gap-2 border-b px-3 py-2">
+        <span className="source-label">Source</span>
         <SourcePicker active={shown} />
         <span
           title={shown}
@@ -303,7 +313,7 @@ function CodeOverlay(): ReactElement {
       <div className="min-h-0 flex-1">
         <Editor />
       </div>
-      <div className="flex items-center gap-2 border-t px-2 py-1.5">
+      <div className="code-nav flex items-center gap-2 border-t px-3 py-2">
         <NavButton label="Follow symbol" hint="F12 or Ctrl-click a name" onClick={follow}>
           <Crosshair className="size-4" />
           <span>Follow symbol</span>
@@ -346,7 +356,7 @@ function NavButton(props: {
       disabled={props.disabled}
       title={props.hint}
       aria-label={props.label}
-      className="flex min-h-11 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors enabled:hover:bg-accent disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+      className="code-nav-button"
     >
       {props.children}
     </button>
@@ -411,8 +421,8 @@ export function App(): ReactElement {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const handle = useResource(immersive);
   return (
-    <div className="flex h-full flex-col" data-mode={mode}>
-      <BottomBar stage={stageRef} />
+    <div className="playground-shell flex h-full flex-col" data-mode={mode}>
+      <Toolbar stage={stageRef} />
       <Stage stage={stageRef} onExit={() => handle.exit()} />
     </div>
   );

@@ -4,6 +4,7 @@ import type { ReactElement } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { ticker } from "./engine";
+import { grid } from "./state";
 
 /** Building the resource starts the wave engine. The provider OWNS the scope: it creates it here
  * and closes it on unmount, and closing runs every resource's `defer` — the engine stops itself, so
@@ -14,7 +15,7 @@ function Engine(): ReactElement {
 }
 
 createRoot(document.getElementById("root")!).render(
-  <ScopeProvider create={() => createScope()}>
+  <ScopeProvider create={() => createScope({ tags: [grid({ cols: 12, rows: 12 })] })}>
     <Engine />
   </ScopeProvider>,
 );

@@ -8,7 +8,7 @@ import { board, IDLE, sameShade, type Shade } from "./state";
 const SLAB = 10;
 const PER_UNIT = 34;
 
-/** The water a tile paints with: the engine's hue while a wave passes, otherwise a deep-navy
+/** The water a tile paints with: the engine's hue while a wave passes, otherwise a deep-water
  * checker that varies with the tile's index so the calm sea is not one flat slab. */
 function waterOf(
   shade: Shade,
@@ -17,9 +17,9 @@ function waterOf(
   const calm = shade.i === 0 && shade.z === 0;
   return {
     calm,
-    hue: calm ? 205 : shade.h,
-    sat: calm ? 45 : shade.s,
-    lit: calm ? (k % 2 === 0 ? 15 : 17) : shade.l,
+    hue: calm ? 184 : shade.h,
+    sat: calm ? 32 : shade.s,
+    lit: calm ? (k % 2 === 0 ? 20 : 23) : shade.l,
   };
 }
 
@@ -100,7 +100,9 @@ export const Tile = memo(function Tile({
         aria-hidden="true"
       />
       <span className="arrow" style={arrowOf(shade, water)} aria-hidden="true">
-        ➜
+        <svg viewBox="0 0 24 24">
+          <path d="M4 12h16m-7-7 7 7-7 7" />
+        </svg>
       </span>
     </button>
   );
