@@ -2452,7 +2452,7 @@ An old lander was still testing mutations in this worktree.
 Asked it to stop and release the worktree through Paseo.
 It stopped before this writer started a mutation lane.
 The overlapping run caused two Drizzle test timeouts.
-The gate will be repeated after that job stopped.
+The gate passed when repeated after that job stopped.
 
 Jev source flags: stream owns request close;
 server defer owns listener stop; the closing flag belongs to that listener.
@@ -2497,7 +2497,7 @@ Logs: `stack-t17-resume-browser-1.log` through `-4.log`.
 One Hono lock wait exited 143 before any mutation tests started.
 The empty log and lack of a child process proved it was only waiting.
 Stopped that wait to run the four browser proofs.
-The full Hono lane still runs once with a 60-second limit.
+The full Hono lane then ran once with a 60-second limit.
 
 `pnpm validate` passed all 48 lanes, `VALIDATE_EXIT 0`.
 The workspace already allowed esbuild; restored the file after the run.
@@ -2505,7 +2505,7 @@ It has no branch change.
 Log: `stack-t17-resume-validate.log`.
 Browser proof and validation ran before the mutation lanes,
 using their queue wait; the source stayed unchanged.
-Only the two fresh mutation lanes remain.
+Both fresh mutation lanes followed.
 
 Fresh full Hono lane: `HONO_MUTATION_EXIT 0`.
 370 killed, zero timed out, 56 survived, two without coverage.
@@ -2514,5 +2514,23 @@ Killed share: `370 / (370 + 0 + 56) = 86.85%`.
 Stryker score: 86.45%; both clear the floor of 85.
 Ran once under the lock, with a 60-second limit and two runners.
 Log and JSON: `stack-t17-resume-hono-mutation` in the briefs cache.
-Stack was already waiting and starts after Hono releases the lock.
+Stack was already waiting and started after Hono released the lock.
 The source and mutation settings stayed unchanged.
+
+Fresh full Stack lane: `STACK_MUTATION_EXIT 0`.
+552 killed, three timed out, 89 survived, two without coverage.
+No errors; all 646 mutants stayed included.
+Killed share: `552 / (552 + 3 + 89) = 85.71%`.
+Stryker score: 85.91%; both clear the floor of 85.
+Ran once under the lock, with a 60-second limit and two runners.
+Log and JSON: `stack-t17-resume-stack-mutation` in the briefs cache.
+Hono had already started when the shared-lock request arrived.
+Kept it running and queued Stack, as the lead's fallback allowed.
+Stack took the lock next; no lane ran between them.
+
+Both lanes ended before creating `t17-mutation.done` in the briefs cache.
+The marker now lets the other writers queue their lanes.
+The checked Hono, Stack, tracker, Core, and lockfile trees are unchanged.
+No code or tests changed during this resume.
+The branch is ready for lead review; this writer did not push.
+Core feedback: none new.
