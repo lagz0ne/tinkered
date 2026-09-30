@@ -3315,3 +3315,26 @@ they do not require keeping the old commit or rollback behavior.
 - Used `origin/main..HEAD` for Jev.
   Local main has unrelated example work ahead of origin.
 - Fresh fetch still points to `870beab4`.
+
+### Final rebased gate and browser proof
+
+- Named gate: build, check, auth, Hono, stack; `EXIT 0`.
+- Auth: 16 tests; Hono: 91; stack: 111.
+- Every repo test task ran uncached: 19 tasks passed.
+  Core: 790 tests; tracker: 79.
+- Main and branch both have 28 warnings and no errors.
+- Close-phase regression: build passed, then the test failed
+  without the fix, `EXIT 1`: got 503 where main promises 500.
+  Restored the fix and rebuilt before the final gate.
+- Tracker browser proof ran once, uncached, `EXIT 0`.
+  The browser run and all 7 helper tests pass.
+- Used the full `@tinker-issue-tracker` task name.
+  The short `issue-tracker` name matched no task.
+- The source from the trace reader through the end of Hono
+  is byte-for-byte the same as main.
+- Logs: `stack-t10-resume-gate-final.log`,
+  `stack-t10-resume-browser.log`,
+  `stack-t10-resume-regression.log`, and
+  `stack-t10-resume-main-check.log` in the briefs cache.
+- Next: auth and Hono mutation lanes, alone under the lock,
+  then validation and the lead's review.
