@@ -62,16 +62,17 @@ then wait for that serving lifetime. A harness runs `node cli.ts mcp`:
 ```ts
 import { extension, operation } from "@tinker/core";
 import { main, type Process } from "@tinker/process";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
-// ext = the mcp({ … }) extension built above.
+/** ext and StdioServerTransport are defined above. */
 const stdio = extension({
   label: "coder.stdio",
-  start: async (scope, ctx, next) => {
-    await next();
-    const server = scope.resolve(ext);
-    ctx.defer(() => server.close());
-    await server.connect(new StdioServerTransport());
+  hooks: {
+    start: async (event) => {
+      await event.next();
+      const server = event.scope.resolve(ext);
+      event.defer(() => server.close());
+      await server.connect(new StdioServerTransport());
+    },
   },
 });
 
@@ -79,8 +80,10 @@ const stdio = extension({
 const serveMcp = operation({
   label: "mcp",
   run: (_deps, ctx) =>
-    new Promise<number>((resolve) =>
-      ctx.signal.addEventListener("abort", () => resolve(0), { once: true }),
+    new Promise<number>((done) =>
+      ctx.signal.addEventListener("abort", () => done(0), {
+        once: true,
+      }),
     ),
 });
 

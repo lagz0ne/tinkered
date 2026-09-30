@@ -236,10 +236,12 @@ test("a failed call recovers through settle: a panic and a raised error answer i
   const closed: string[] = [];
   const sessions = extension({
     label: "sessions",
-    session: async (_handle, next) => {
-      const ended = await next();
-      closed.push(ended.status);
-      return ended;
+    hooks: {
+      session: async (event) => {
+        const ended = await event.next();
+        closed.push(ended.status);
+        return ended;
+      },
     },
   });
   const panics = operation({
@@ -279,10 +281,12 @@ test("a throwing respond answers isError with one ok:true line, a failed span, a
   const closed: string[] = [];
   const sessions = extension({
     label: "sessions",
-    session: async (_handle, next) => {
-      const ended = await next();
-      closed.push(ended.status);
-      return ended;
+    hooks: {
+      session: async (event) => {
+        const ended = await event.next();
+        closed.push(ended.status);
+        return ended;
+      },
     },
   });
   const ext = mcp({
@@ -368,9 +372,11 @@ test("an extension run hook sees the call's arguments as the mcp op's input", as
   const inputs: unknown[] = [];
   const watch = extension({
     label: "watch",
-    run: (op, call, next) => {
-      if (op.label === "mcp search") inputs.push(call?.input);
-      return next();
+    hooks: {
+      run: (event) => {
+        if (event.op.label === "mcp search") inputs.push(event.call?.input);
+        return event.next();
+      },
     },
   });
   const ext = mcp({

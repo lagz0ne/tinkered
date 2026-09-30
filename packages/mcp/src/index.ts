@@ -102,28 +102,29 @@ function readCall(
       .then(answerCall, failCall);
 }
 
-/** The MCP driver, an extension (ADR 0051): `start` resolves its hand once
- * (`await next()`, so a second extension's `start` work is visible), then builds
- * the one `McpServer` — one tool per wiring row, each call answered through the
- * row's operation. The value is the server. This `start` is the extension's ONE
- * use of the scope: per call it opens a session from the captured root handle.
+/** The MCP driver, an extension (ADR 0051): `start` awaits `event.next()` so
+ * later extensions finish before it builds one `McpServer`. Each wiring row
+ * registers one tool answered through that row's operation. The returned
+ * value is the server; each tool opens a session from the captured root handle.
  * Connecting a transport is the root's job. The label is `mcp:<name>`, so a
  * `NotResolved` names which server was not ready. */
 export function mcp(wiring: Mcp.Wiring): Scope.Extension<McpServer> {
   return extension<McpServer>({
     label: `mcp:${wiring.name}`,
-    start: async (scope, _ctx, next) => {
-      await next();
-      const server = new McpServer({ name: wiring.name, version: wiring.version });
-      for (const row of readMany(wiring.tools)) {
-        const name = row.meta.name ?? row.op.label;
-        server.registerTool(
-          name,
-          { description: row.meta.description, inputSchema: row.meta.schema },
-          readCall(scope, name, row.op, row.meta),
-        );
-      }
-      return server;
+    hooks: {
+      start: async (event) => {
+        await event.next();
+        const server = new McpServer({ name: wiring.name, version: wiring.version });
+        for (const row of readMany(wiring.tools)) {
+          const name = row.meta.name ?? row.op.label;
+          server.registerTool(
+            name,
+            { description: row.meta.description, inputSchema: row.meta.schema },
+            readCall(event.scope, name, row.op, row.meta),
+          );
+        }
+        return server;
+      },
     },
   });
 }

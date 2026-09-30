@@ -33,22 +33,20 @@ async function linkClient(
  * server on scope close. `closes` records each server's own close.
  * List it before the server it serves: only then does its `next()` settle that
  * server's `start`; listed after, the resolve fails with `NotResolved`. */
-function serve(
-  ext: Scope.Extension<McpServer>,
-  name: string,
-  closes: string[],
-): Scope.Extension<unknown> {
+function serve(ext: Scope.Extension<McpServer>, name: string, closes: string[]) {
   return extension({
     label: `${name}.serve`,
-    start: async (scope, ctx, next) => {
-      await next();
-      const server = scope.resolve(ext);
-      const [, transport] = InMemoryTransport.createLinkedPair();
-      ctx.defer(() => {
-        closes.push(name);
-        return server.close();
-      });
-      await server.connect(transport);
+    hooks: {
+      start: async (event) => {
+        await event.next();
+        const server = event.scope.resolve(ext);
+        const [, transport] = InMemoryTransport.createLinkedPair();
+        event.defer(() => {
+          closes.push(name);
+          return server.close();
+        });
+        await server.connect(transport);
+      },
     },
   });
 }
