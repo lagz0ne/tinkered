@@ -422,13 +422,15 @@ test("one scope close stops both servers once; a second close stops neither agai
 
 test("a root extension listed after the server it reads fails ready with NotResolved naming that server; listed first, both start", async () => {
   const pinged: string[] = [];
-  /** A root extension that reads its server in `start`: one warm-up request once `next()` settles it. */
+  /** A root extension that reads its server in `start`: one warm-up request once `event.next()` settles it. */
   const warm = (ext: Scope.Extension<Hono>, name: string): Scope.Extension<unknown> =>
     extension({
       label: `${name}.warm`,
-      start: async (scope, _ctx, next) => {
-        await next();
-        pinged.push(await (await scope.resolve(ext).request("/ping")).text());
+      hooks: {
+        start: async (event) => {
+          await event.next();
+          pinged.push(await (await event.scope.resolve(ext).request("/ping")).text());
+        },
       },
     });
   const one = operation({ label: "one", run: () => "one" });
@@ -436,7 +438,7 @@ test("a root extension listed after the server it reads fails ready with NotReso
   const { extension: first } = hono([route.get("/ping", one)], { name: "one" });
   const { extension: second } = hono([route.get("/ping", two)], { name: "two" });
   /**
-   * The first pair is in order; the second root sits after its server, so its `next()` cannot
+   * The first pair is in order; the second root sits after its server, so its `event.next()` cannot
    * settle that server's `start` before the resolve.
    */
   const wrong = createScope({
@@ -559,7 +561,7 @@ test("a close landing mid-bind still reaps the listener exactly once", async () 
   const ping = operation({ label: "ping", run: () => "pong" });
   /**
    * Set once `start` is parked inside the bind, not merely scheduled: the close must land while
-   * the bind is still pending for the race to be real. `serve` ran means `ctx.defer` already
+   * the bind is still pending for the race to be real. `serve` ran means `event.defer` already
    * registered, so the close cannot take the idle fast path.
    */
   let bound = false;

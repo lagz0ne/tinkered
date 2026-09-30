@@ -76,7 +76,7 @@ export declare namespace HonoScope {
     readonly mount?: (app: Hono) => void;
     /** Bind the process edge (a port, a test fake): runs after mount and is
      * awaited before `start` settles — a refusing port fails boot, never a
-     * request. The returned stop runs on scope close (`ctx.defer`), so two
+     * request. The returned stop runs on scope close (`event.defer`), so two
      * `hono` extensions on one scope are two servers one close reaps. */
     readonly serve?: Serve;
   };
@@ -117,8 +117,8 @@ function isManagedError(error: unknown): error is Error & { kind: string; payloa
   );
 }
 
-/** A resource's ctx reaches the scope's sink; an extension's start ctx has no
- * logger. Keep this logger for the server's lifetime, including hand mounts. */
+/** Resolve the request logger through the root's middleware and keep it for
+ * the server's lifetime, including hand mounts. */
 const requestErrors = resource({
   label: "hono.errors",
   factory:
@@ -155,7 +155,7 @@ type SessionEnv = {
 /** The Hono driver, an extension the scope owns (ADR 0060): `hono(routes)`
  * returns the route value plus the bridge extension — the entrypoint pulls the
  * scope at boot through `createScope({ extensions })`, never the reverse.
- * `start` resolves its hand once (`await next()`, so a second extension's
+ * `start` resolves its hand once (`await event.next()`, so a second extension's
  * `start` work is visible), loads every row's operation once (a rejecting
  * loader rejects `start` — `ready` rejects, the scope closes failed, boot
  * fails never a request), then builds the one Hono app: the session
@@ -173,29 +173,32 @@ export function hono(
   return {
     extension: extension<Hono>({
       label: wiring?.name === undefined ? "hono" : `hono:${wiring.name}`,
-      start: async (scope, ctx, next) => {
-        await next();
-        const mounted = await Promise.all(
-          readMany(routes).map(async (row) => ({ row, op: await row.load() })),
-        );
-        const app = new Hono()
-          .onError(scope.resolve(requestErrors))
-          .use(serveRequests(scope, wiring));
-        for (const { row, op } of mounted) app.on(row.method, row.path, answerRoute(op, row.route));
-        wiring?.mount?.(app);
-        /** Register the stop BEFORE the bind settles, so a close landing mid-bind
-         * still drains this defer (and keeps the fast-close path off the table).
-         * The defer reads the settled stop out of the box; when the bind lands
-         * after the defer already ran, it stops at once — exactly one stop either way. */
-        let served: HonoScope.Served | undefined;
-        let stopped = false;
-        ctx.defer(() => {
-          stopped = true;
-          return readStop(served);
-        });
-        served = await wiring?.serve?.(app);
-        if (stopped) await readStop(served);
-        return app;
+      hooks: {
+        start: async (event) => {
+          await event.next();
+          const mounted = await Promise.all(
+            readMany(routes).map(async (row) => ({ row, op: await row.load() })),
+          );
+          const app = new Hono()
+            .onError(event.scope.resolve(requestErrors))
+            .use(serveRequests(event.scope, wiring));
+          for (const { row, op } of mounted)
+            app.on(row.method, row.path, answerRoute(op, row.route));
+          wiring?.mount?.(app);
+          /** Register the stop BEFORE the bind settles, so a close landing mid-bind
+           * still drains this defer (and keeps the fast-close path off the table).
+           * The defer reads the settled stop out of the box; when the bind lands
+           * after the defer already ran, it stops at once — exactly one stop either way. */
+          let served: HonoScope.Served | undefined;
+          let stopped = false;
+          event.defer(() => {
+            stopped = true;
+            return readStop(served);
+          });
+          served = await wiring?.serve?.(app);
+          if (stopped) await readStop(served);
+          return app;
+        },
       },
     }),
   };
