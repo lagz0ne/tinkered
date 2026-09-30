@@ -5310,6 +5310,7 @@ class ExtensionCtx implements Scope.ExtensionCtx {
   declare private runner: Scope.Handle["run"] | undefined;
   declare private settler: Scope.Handle["settle"] | undefined;
   declare private cleanup: Resource.Ctx["defer"] | undefined;
+  declare private raiser: Resource.Ctx["raise"] | undefined;
   constructor(owner: Layer, label: string, chain = owner.ns, run?: HookRun) {
     this.owner = owner;
     this.label = label;
@@ -5457,7 +5458,7 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     return this.ctx?.log ?? noop;
   }
   get raise(): Resource.Ctx["raise"] {
-    return this.ctx?.raise ?? ((kind, payload) => raiseFrom(this, kind, payload));
+    return (this.raiser ??= (kind, payload) => raiseFrom(this.ctx ?? this, kind, payload));
   }
   get signal(): AbortSignal {
     return signalOf(this.owner);

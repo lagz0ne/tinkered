@@ -600,3 +600,27 @@ test("an unreturned body keeps its span open and records its failure", async () 
   expect(scope.spans()).toMatchObject([{ name: "task", status: "failed", error: cause }]);
   expect(originOf(cause)?.path).toEqual(["task"]);
 });
+
+test("a saved event raise keeps one run in the failure path after next", async () => {
+  const scope = createScope({
+    extensions: [
+      extension({
+        label: "saved raise",
+        hooks: {
+          run: (event) => {
+            const { raise } = event;
+            event.next();
+            raise("Denied", { reason: "after body" });
+          },
+        },
+      }),
+    ],
+  });
+  const task = operation({ label: "task", run: () => 3 });
+  expect(scope.settle(task)).toMatchObject({
+    status: "failed",
+    kind: "error",
+    origin: { path: ["task"] },
+  });
+  await scope.close();
+});
