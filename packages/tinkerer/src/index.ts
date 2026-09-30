@@ -5,6 +5,7 @@ import type { HttpResponse } from "@tinker/http";
 import { z } from "zod";
 import { isError, raise } from "./errors.ts";
 import type { Errors } from "./errors.ts";
+import { consumeStep, readStepEvents } from "./step.ts";
 import { bash, bashDescription, bashInput } from "./tools/bash.ts";
 import { edit, editDescription, editInput } from "./tools/edit.ts";
 import { cwd, read, readDescription, readInput } from "./tools/read.ts";
@@ -129,6 +130,8 @@ export declare namespace Tinkerer {
     readonly status: Data.Cell<Status>;
     readonly text: Data.Cell<string>;
     readonly usage: Data.Cell<Usage>;
+    /** Transfers its response iterator to the caller. Keep the calling owner alive until
+     * iteration ends; breaking or returning the iterator closes its reader. */
     readonly step: Operation.Handle<Promise<AsyncIterable<HttpResponse.SseEvent>>, StepInput>;
     readonly turn: Operation.Handle<Promise<Reply>, string>;
     readonly mode: Tag.Handle<Mode>;
@@ -226,7 +229,15 @@ export function tinkerer(
           body: HttpRequest.bodyJson(ctx.input.body),
         }),
       });
-      return res.sse();
+      return readStepEvents(res);
+    },
+  });
+  const stream = operation({
+    label: `${label}.stream`,
+    depends: { step },
+    run: async ({ step }, ctx: Operation.Ctx<StreamInput>) => {
+      const events = await step.run({ input: ctx.input.request });
+      await consumeStep(events, ctx.input.onEvent, ctx.signal);
     },
   });
   const toolDeps = readToolDeps(rows);
@@ -237,7 +248,7 @@ export function tinkerer(
     depends: {
       configs: configTag.all,
       mode: mode.optional,
-      step,
+      stream,
       messages: messages.controller,
       status: status.controller,
       text: text.controller,
@@ -456,24 +467,47 @@ type FoldedStep =
       readonly steered: false;
     };
 
+/** Only values cross into the step child. Conversation controllers stay with the turn. */
+type StreamInput = {
+  readonly request: Tinkerer.StepInput;
+  readonly onEvent: (event: HttpResponse.SseEvent) => void;
+};
+
 async function foldStep(
-  events: AsyncIterable<HttpResponse.SseEvent>,
+  stream: Scope.OperationController<Promise<void>, StreamInput>,
+  request: Tinkerer.StepInput,
   deps: Pick<TurnCells, "text" | "usage">,
   inbox: Scope.DataController<readonly Tinkerer.Entry[]>,
+  signal: AbortSignal,
 ): Promise<FoldedStep> {
   const parts = new Map<number, { id: string; name: string; args: string }>();
   let finish: string | undefined;
-  for await (const event of events) {
-    if (event.data !== "[DONE]")
-      finish = foldChunk(JSON.parse(event.data) as Tinkerer.Chunk, deps, parts, finish);
-    if (steerPending(inbox)) return { finish, steered: true };
+  const stop = new AbortController();
+  const unwatch = inbox.watch((entries) => {
+    if (entries.some((entry) => entry.kind === "steer")) stop.abort();
+  });
+  try {
+    if (steerPending(inbox)) stop.abort();
+    const settled = await stream.settle({
+      signal: stop.signal,
+      input: {
+        request,
+        onEvent: (event) => {
+          if (event.data !== "[DONE]")
+            finish = foldChunk(JSON.parse(event.data) as Tinkerer.Chunk, deps, parts, finish);
+        },
+      },
+    });
+    if (settled.status === "failed") throw settled.error;
+    signal.throwIfAborted();
+    if (stop.signal.aborted) return { finish, steered: true };
+    if (settled.status === "cancelled") throw settled.reason;
+    return { finish, calls: [...parts.values()], steered: false };
+  } finally {
+    unwatch();
   }
-  return { finish, calls: [...parts.values()], steered: false };
 }
 
-/** Whether the inbox holds a steer entry: read between stream events, so leaving the loop (and
- * its `return`, which cancels the stream) always happens with the generator suspended at a yield,
- * never mid-read. */
 function steerPending(inbox: Scope.DataController<readonly Tinkerer.Entry[]>): boolean {
   return inbox.get().some((entry) => entry.kind === "steer");
 }
@@ -741,10 +775,7 @@ type TurnConfig = {
 type LoopDeps = TurnCells & {
   readonly settings: Scope.DataController<Tinkerer.Settings | undefined>;
   readonly inbox: Scope.DataController<readonly Tinkerer.Entry[]>;
-  readonly step: Scope.OperationController<
-    Promise<AsyncIterable<HttpResponse.SseEvent>>,
-    Tinkerer.StepInput
-  >;
+  readonly stream: Scope.OperationController<Promise<void>, StreamInput>;
 } & ToolSlots;
 
 /** The ReAct loop: step, fold (racing a steer), then tool calls or a stop. A steer interrupts the
@@ -758,10 +789,13 @@ async function runLoop(
     drainInbox(deps, steerOnly);
     deps.text.set("");
     const settings = readSettings(deps.settings, cfg.label);
-    const events = await deps.step.run({
-      input: readStepInput(cfg, settings, deps.messages.get()),
-    });
-    const folded = await foldStep(events, deps, deps.inbox);
+    const folded = await foldStep(
+      deps.stream,
+      readStepInput(cfg, settings, deps.messages.get()),
+      deps,
+      deps.inbox,
+      ctx.signal,
+    );
     if (folded.steered) {
       keepPartial(deps.messages, deps.text.get());
       continue;

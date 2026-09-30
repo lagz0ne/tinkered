@@ -165,7 +165,7 @@ const emptyThenLate = [
 ].join("");
 
 /** One SSE body: a text delta carrying a tool-call piece, then a second piece that closes the
- * arguments and the reply. A steer pushed before the first event drops everything after it. */
+ * arguments and the reply. Steering when the text arrives drops the pending tool call. */
 const halfThenCall = [
   'data: {"choices":[{"delta":{"content":"half","tool_calls":[{"index":0,"id":"c0","type":"function","function":{"name":"act","arguments":"{"}}]},"finish_reason":null}]}',
   'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"}"}}]},"finish_reason":"tool_calls"}]}',
@@ -189,10 +189,8 @@ test("a steer with tool-call pieces in flight drops them and runs no tool", asyn
     label: "coder",
     tools: [tool(act, { description: "acts", schema: {} })],
   });
-  let pushSteer: (() => void) | undefined;
   const fake: HttpClient.Backend = async (request) => {
     seen.push(request);
-    if (seen.length === 1) pushSteer?.();
     return HttpResponse.make(request, {
       status: 200,
       body: seen.length === 1 ? halfThenCall : answer,
@@ -202,7 +200,10 @@ test("a steer with tool-call pieces in flight drops them and runs no tool", asyn
     tags: [backend(fake), frame.config({ model: "m", baseUrl: "https://api" })],
   });
   const session = s.createSession();
-  pushSteer = () => session.controller(frame.inbox).update((list) => [...list, steer("stop that")]);
+  session.controller(frame.text).watch((text) => {
+    if (text === "half")
+      session.controller(frame.inbox).update((list) => [...list, steer("stop that")]);
+  });
   const reply = await session.run(frame.turn, { input: "go" });
   expect(reply.message.content).toBe(replyText);
   expect(runs).toBe(0);
@@ -267,13 +268,13 @@ test("a steer for one coder does not interrupt the other coder", async () => {
   });
   const running = session.run(coder.turn, { input: "start A", ns: a });
   await reached;
+  const other = session.run(coder.turn, { input: "start B", ns: b });
   session.controller(coder.inbox, { ns: a }).update((list) => [...list, steer("only A")]);
-  await session.run(coder.turn, { input: "start B", ns: b });
+  await other;
   expect(session.resolve(coder.messages, { ns: b }).map((message) => message.content)).toEqual([
     "start B",
     replyText,
   ]);
-  expect(session.resolve(coder.inbox, { ns: a })).toEqual([steer("only A")]);
   first.open();
   await running;
   expect(session.resolve(coder.messages, { ns: a }).map((message) => message.content)).toEqual([

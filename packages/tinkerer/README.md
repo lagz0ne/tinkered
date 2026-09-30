@@ -9,7 +9,7 @@ not storage. The default is `"tinkerer"`.
 ```text
 one tinkerer() frame
   ├── config, mode (tags)
-  ├── turn → step → http.send (ops)
+  ├── turn → stream → step → http.send (ops)
   └── messages, status, text,
       usage, settings, inbox (cells)
           ├── namespace A: coder A's values
@@ -66,13 +66,22 @@ With the default label, the span tree is:
 
 ```text
 tinkerer.turn
-  tinkerer.http.step
-    http.send
-      http.attempt
+  tinkerer.stream
+    tinkerer.http.step
+      http.send
+        http.attempt
 ```
 
 `tools` and `gate` still shape the graph;
 build a separate frame if either differs.
+
+The private stream action owns one request and
+its response reader until reading ends.
+The public `step` still returns an event iterator.
+Its caller keeps the calling owner alive until
+iteration ends and returns the iterator when done.
+The turn consumes it inside the stream action;
+the conversation keeps its cells and tool resources.
 
 ## Turns
 
@@ -238,6 +247,16 @@ the entry is consumed.
 - A steer interrupts the step in flight, keeps
   the partial text as an assistant message, and
   re-enters as a user message.
+- A steer restarts a stalled stream without another event.
+- A steer restarts a request while HTTP headers are pending.
+- A steer cancels an HTTP retry wait before the clock advances.
+- The old request and reader close before the
+  next request starts.
+  A real fetch stays alive until its response
+  has been read.
+- Forced close stops the reader and settles
+  the turn as cancelled.
+  Ending the step removes its inbox watch.
 - A steer carrying a mode patches the settings
   before the next step.
 - A steer drops the tool calls still streaming;

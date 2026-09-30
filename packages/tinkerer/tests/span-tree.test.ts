@@ -42,9 +42,10 @@ test("a turn in a namespace nests the step, send and attempt under the default l
   await session.run(coder.turn, { input: "hi", ns: a });
   expect(shape(scope.spans())).toEqual([
     "tinkerer.turn",
-    "  tinkerer.http.step",
-    "    http.send",
-    "      http.attempt",
+    "  tinkerer.stream",
+    "    tinkerer.http.step",
+    "      http.send",
+    "        http.attempt",
   ]);
   await scope.close();
 });
@@ -72,13 +73,15 @@ test("a tool call appears in the trace as its own operation under the turn", asy
   expect(runs).toEqual(["ran"]);
   expect(shape(scope.spans())).toEqual([
     "coder.turn",
-    "  coder.http.step",
-    "    http.send",
-    "      http.attempt",
+    "  coder.stream",
+    "    coder.http.step",
+    "      http.send",
+    "        http.attempt",
     "  act",
-    "  coder.http.step",
-    "    http.send",
-    "      http.attempt",
+    "  coder.stream",
+    "    coder.http.step",
+    "      http.send",
+    "        http.attempt",
   ]);
   await scope.close();
 });
