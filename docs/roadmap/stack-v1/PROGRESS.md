@@ -3065,3 +3065,25 @@ await closing;
 - Fresh fetch still points to `origin/main` at `be6a9526`.
   Neither `stack/t06` nor `stack/t17` has landed there.
 - The full auth mutation lane is queued again under the lock.
+
+### t10 full mutation result and test gaps
+
+- The one full lane finished with `EXIT 1`: score 81.11.
+  Killed: 73; timeout: 0; survived: 17.
+  No coverage: 0; errors: 0; total: 90.
+- The unchanged tests passed before mutation began.
+  The config kept `timeoutMS: 60000` and floor 85.
+- Full log and JSON are saved as `stack-t10-mutation.log`
+  and `stack-t10-mutation.json` in
+  `/home/paseo/.cache/tinkered-briefs/`.
+- Two real test gaps appeared among the survivors.
+  The HTTP fixture used Better Auth's default base URL,
+  so dropping the supplied settings still passed.
+  It now uses `http://auth.example.test`.
+- The second-owner test now rejects `BadAuthSettings` before
+  accepting `PieceInUse`, proving those errors stay distinct.
+- No runtime source changed after the full lane.
+  The next check targets the four survivors these tests catch.
+- The brief allows one full lane.
+  A fresh full score of at least 85 remains a landing check;
+  the failed full result is not a pass.

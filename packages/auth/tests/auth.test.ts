@@ -15,7 +15,7 @@ const store = drizzleStore({
 const identity = auth(store.db, schema);
 const settings = {
   BETTER_AUTH_SECRET: "test-only-secret-with-at-least-32-characters",
-  BETTER_AUTH_URL: "http://localhost:3000",
+  BETTER_AUTH_URL: "http://auth.example.test",
 };
 const person = {
   name: "Ada",
@@ -189,6 +189,7 @@ test("a piece rejects a second live root and can restart after its owner closes"
     await rejected.ready;
     expect.unreachable();
   } catch (error) {
+    if (isError(error, "BadAuthSettings")) throw error;
     if (!isError(error, "PieceInUse")) throw error;
     expect(error.payload).toEqual({ label: "auth" });
   } finally {
