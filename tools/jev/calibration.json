@@ -142,11 +142,11 @@
   "inputDefaultMasks": {
     "status": "proven",
     "trues": 34,
-    "falses": 67,
+    "falses": 69,
     "medianTrue": 0.92,
     "medianFalse": 0.38,
     "separation": 0.54,
-    "ordered": 0.97,
+    "ordered": 0.95,
     "at": "2026-09-30"
   },
   "noOpRejected": {
