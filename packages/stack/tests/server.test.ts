@@ -3,7 +3,7 @@ import { connect } from "node:net";
 import { createScope, extension, operation } from "@tinker/core";
 import { emit, hono, route, stream } from "@tinker/hono";
 import { expect, test } from "vite-plus/test";
-import { jsonLines, runUntilStop, server } from "../src/index.ts";
+import { jsonLines, readExitCode, server } from "../src/index.ts";
 import { readFreePort } from "./fixtures.ts";
 
 const answer = operation({ label: "answer", run: () => "ready" });
@@ -248,7 +248,9 @@ test("a stop refuses new requests while it waits for an in-flight request", asyn
     },
   });
   const web = hono([route.get("/slow", slow)]).extension;
+  const stop = new AbortController();
   const scope = createScope({
+    signal: stop.signal,
     extensions: [
       server(web, { env, clientDir: "/missing-client" }),
       web,
@@ -261,8 +263,9 @@ test("a stop refuses new requests while it waits for an in-flight request", asyn
       }),
     ],
   });
-  const stop = new AbortController();
-  const ended = runUntilStop(scope, stop.signal, { clock: Date.now });
+  const ended = scope.closed.then((result) =>
+    readExitCode(result, { clock: Date.now }, "shutdown"),
+  );
   let didEnd = false;
   const joined = ended.then((code) => {
     didEnd = true;
@@ -292,8 +295,22 @@ test.each(["127.0.0.1", "::1"])(
   async (HOST) => {
     const env = { HOST, PORT: await readFreePort() };
     const web = hono([]).extension;
-    const scope = createScope({ extensions: [server(web, { env, clientDir: "/missing" }), web] });
-    expect(await runUntilStop(scope, AbortSignal.abort(), { clock: Date.now })).toBe(0);
+    const scope = createScope({
+      extensions: [server(web, { env, clientDir: "/missing" }), web],
+      signal: AbortSignal.abort(),
+    });
+    const lines: string[] = [];
+    expect(
+      readExitCode(
+        await scope.closed,
+        {
+          ...jsonLines((line) => lines.push(line)),
+          clock: Date.now,
+        },
+        "shutdown",
+      ),
+    ).toBe(0);
+    expect(lines).toEqual([]);
     await expect(
       fetch(`http://[${env.HOST === "::1" ? "::1" : "::ffff:127.0.0.1"}]:${env.PORT}/`),
     ).rejects.toThrow();
@@ -304,6 +321,8 @@ test("failed boot waits for cleanup before logging and answering one", async () 
   const env = { HOST: "127.0.0.1", PORT: await readFreePort() };
   const cleaned = Promise.withResolvers<void>();
   const cleaning = Promise.withResolvers<void>();
+  const afterClose = Promise.withResolvers<void>();
+  const finishClose = Promise.withResolvers<void>();
   const web = hono([]).extension;
   const broken = extension({
     label: "broken",
@@ -314,19 +333,30 @@ test("failed boot waits for cleanup before logging and answering one", async () 
       });
       throw new Error("boot broke");
     },
+    close: async (_options, next) => {
+      const result = await next();
+      afterClose.resolve();
+      await finishClose.promise;
+      return result;
+    },
   });
   const scope = createScope({
     extensions: [server(web, { env, clientDir: "/missing" }), web, broken],
+    signal: new AbortController().signal,
   });
   const lines: string[] = [];
   const observe = { ...jsonLines((line) => lines.push(line)), clock: () => 42 };
-  const ended = runUntilStop(scope, new AbortController().signal, observe);
+  const ended = scope.closed.then((result) => readExitCode(result, observe, "boot"));
   try {
     await cleaning.promise;
     expect(lines).toEqual([]);
     await expect(fetch(`http://${env.HOST}:${env.PORT}/`)).rejects.toThrow();
+    cleaned.resolve();
+    await afterClose.promise;
+    expect(lines).toEqual([]);
   } finally {
     cleaned.resolve();
+    finishClose.resolve();
   }
   expect(await ended).toBe(1);
   expect(lines.map((line) => JSON.parse(line))).toEqual([
@@ -347,14 +377,21 @@ test("a failed close logs shutdown failed and answers one", async () => {
       throw new Error("work broke");
     },
   });
-  const scope = createScope();
+  const stop = new AbortController();
+  const scope = createScope({ signal: stop.signal });
+  await scope.ready;
   await expect(scope.run(failed)).rejects.toThrow();
+  stop.abort();
   const lines: string[] = [];
   expect(
-    await runUntilStop(scope, AbortSignal.abort(), {
-      ...jsonLines((line) => lines.push(line)),
-      clock: Date.now,
-    }),
+    readExitCode(
+      await scope.closed,
+      {
+        ...jsonLines((line) => lines.push(line)),
+        clock: Date.now,
+      },
+      "shutdown",
+    ),
   ).toBe(1);
   expect(lines.map((line) => JSON.parse(line))).toEqual([
     expect.objectContaining({
@@ -367,16 +404,22 @@ test("a failed close logs shutdown failed and answers one", async () => {
 });
 
 test("teardown errors log shutdown failed and answer one", async () => {
-  const scope = createScope();
+  const stop = new AbortController();
+  const scope = createScope({ signal: stop.signal });
   scope.onClose(() => {
     throw new Error("close broke");
   });
+  stop.abort();
   const lines: string[] = [];
   expect(
-    await runUntilStop(scope, AbortSignal.abort(), {
-      ...jsonLines((line) => lines.push(line)),
-      clock: Date.now,
-    }),
+    readExitCode(
+      await scope.closed,
+      {
+        ...jsonLines((line) => lines.push(line)),
+        clock: Date.now,
+      },
+      "shutdown",
+    ),
   ).toBe(1);
   expect(lines.map((line) => JSON.parse(line))).toEqual([
     expect.objectContaining({
@@ -394,21 +437,75 @@ test("a port already in use fails boot without closing its owner", async () => {
   await owner.ready;
   const refused = createScope({
     extensions: [server(second, { env, clientDir: "/missing" }), second],
+    signal: new AbortController().signal,
   });
   try {
     const lines: string[] = [];
     expect(
-      await runUntilStop(refused, new AbortController().signal, {
-        ...jsonLines((line) => lines.push(line)),
-        clock: Date.now,
-      }),
+      readExitCode(
+        await refused.closed,
+        {
+          ...jsonLines((line) => lines.push(line)),
+          clock: Date.now,
+        },
+        "boot",
+      ),
     ).toBe(1);
     expect(lines.map((line) => JSON.parse(line))).toContainEqual(
       expect.objectContaining({ message: "boot failed" }),
     );
     expect(await (await fetch(`http://${env.HOST}:${env.PORT}/ready`)).json()).toBe("ready");
   } finally {
-    await refused.close();
     await owner.close();
   }
 });
+
+test.each([false, true])(
+  "a cancelled root with teardown errors %s answers the exit code",
+  async (broken) => {
+    const release = Promise.withResolvers<void>();
+    const entered = Promise.withResolvers<void>();
+    const waiting = operation({
+      label: "waiting",
+      run: () => {
+        entered.resolve();
+        return release.promise;
+      },
+    });
+    const scope = createScope({ signal: new AbortController().signal });
+    await scope.ready;
+    if (broken)
+      scope.onClose(() => {
+        throw new Error("cancel cleanup broke");
+      });
+    const work = scope.settle(waiting);
+    await entered.promise;
+    const closing = scope.close();
+    release.resolve();
+    await work;
+    await closing;
+    const result = await scope.closed;
+    expect(result.status).toBe("cancelled");
+    const lines: string[] = [];
+    expect(
+      readExitCode(
+        result,
+        {
+          ...jsonLines((line) => lines.push(line)),
+          clock: Date.now,
+        },
+        "shutdown",
+      ),
+    ).toBe(broken ? 1 : 0);
+    expect(lines.map((line) => JSON.parse(line))).toEqual(
+      broken
+        ? [
+            expect.objectContaining({
+              message: "shutdown failed",
+              teardown: [expect.objectContaining({ error: "cancel cleanup broke" })],
+            }),
+          ]
+        : [],
+    );
+  },
+);

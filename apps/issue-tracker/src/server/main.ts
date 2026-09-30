@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { createScope } from "@tinker/core";
-import { jsonLines, liveUpdates, runUntilStop, server } from "@tinker/stack";
+import { jsonLines, liveUpdates, readExitCode, server } from "@tinker/stack";
 import { draftTags, type DraftConfig } from "./draft.ts";
 import { issueServer } from "./routes.ts";
 import { publish } from "./publish.ts";
@@ -45,8 +45,13 @@ export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal): Prom
         : liveUpdates(publishIssues, { subject: "issues.changed", env }),
     ],
     observe,
+    signal: stop,
   });
-  return runUntilStop(scope, stop, observe);
+  const started = await scope.ready.then(
+    () => true,
+    () => false,
+  );
+  return readExitCode(await scope.closed, observe, started ? "shutdown" : "boot");
 }
 
 if (import.meta.main) {
