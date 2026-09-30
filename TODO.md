@@ -38,6 +38,13 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **stack/t13 trace-sink** — reviewer fix round 1.
+  Owner: lead (stack session); writer: Astra.
+  Branch: `stack/t13`; no rebase and no push.
+  Next: fix all six review items and add their tests.
+  Verify: build, check, stack, NATS, tracker, and validate.
+  [Track](docs/roadmap/stack-v1/PROGRESS.md).
+
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
@@ -58,15 +65,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
   serve.ts exits 0 on SIGTERM and stdin end; S19/S29 fixtures and lint rows; gates green.
 
 ## Review
-
-- **stack/t13 trace-sink** — OTLP/JSON spans and logs; NATS `traceparent`.
-  Owner: lead (stack session).
-  Writer: Astra `48d2e35f`, branch `stack/t13`.
-  Worktree: `/home/paseo/next/tinkered-stack-t13`.
-  Next: lead review; saved, not pushed.
-  Verify: gate exit 0; stack 78, NATS 23, tracker 69.
-  Validate: 48 lanes; mutation: stack 87.61, NATS 92.66.
-  [Proof](docs/roadmap/stack-v1/PROGRESS.md#t13-final-proof--2026-09-30).
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |

@@ -78,14 +78,16 @@ export function nats(rows: readonly Nats.Row[], wiring: Nats.Wiring) {
       const stop = quiet;
       close = () => (closing ??= drain(connection, stop, !wiring.connection));
       const send = (message: Nats.Message, span: Observe.Span | undefined): void => {
-        const carrier = headers();
         if (span) {
+          const carrier = headers();
           carrier.set(
             "traceparent",
             `00-${span.traceId}-${span.spanId}-${span.sampled ? "01" : "00"}`,
           );
+          connection.publish(message.subject, message.payload, { headers: carrier });
+        } else {
+          connection.publish(message.subject, message.payload);
         }
-        connection.publish(message.subject, message.payload, { headers: carrier });
       };
       if (stopped) {
         await close();

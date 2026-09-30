@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, test } from "vite-plus/test";
-import { connect, headers } from "@nats-io/transport-node";
+import { connect, headers, type Msg } from "@nats-io/transport-node";
 import { startNatsServer, type NatsServer } from "@tinker/nats/testing";
 import { createScope, operation, type Observe, type Operation } from "@tinker/core";
 import { nats, subscribe, type Nats } from "../src/index.ts";
@@ -140,6 +140,30 @@ test("a future NATS traceparent preserves its known ids and sampled bit", async 
       .toMatchObject({ traceId, parentSpanId, sampled: true, status: "ok" });
   } finally {
     await scope.close({ graceful: true });
+    await peer.close();
+  }
+});
+
+test("publish with observation off sends only payload bytes and no headers", async () => {
+  const peer = await connect({ servers: server.url });
+  const received = Promise.withResolvers<Msg>();
+  const sub = peer.subscribe("plain", {
+    callback: (error, message) => (error ? received.reject(error) : received.resolve(message)),
+  });
+  const bus = nats([], { env: { NATS_URL: server.url }, connection: peer });
+  const scope = createScope({ extensions: bus.extension });
+  try {
+    await scope.ready;
+    await peer.flush();
+    const before = peer.stats();
+    const payload = new TextEncoder().encode("plain message");
+    scope.run(bus.publish, { input: { subject: "plain", payload } });
+    const message = await received.promise;
+    expect(message.headers).toBeUndefined();
+    expect(peer.stats().outBytes - before.outBytes).toBe(payload.length);
+  } finally {
+    await scope.close();
+    sub.unsubscribe();
     await peer.close();
   }
 });

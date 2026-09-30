@@ -156,11 +156,11 @@ test("a recovered collector ends a failure burst so a later fault logs again", a
 });
 
 test.each([
-  { padding: "", count: 2050, kept: 2048 },
-  { padding: "x".repeat(350_000), count: 3, kept: 2 },
+  { padding: "", count: 2050, kept: 2048, oversized: false },
+  { padding: "x".repeat(350_000), count: 3, kept: 2, oversized: true },
 ])(
   "the queue bounds record count and bytes and drops new records with one local warning (%#)",
-  async ({ padding, count, kept }) => {
+  async ({ padding, count, kept, oversized }) => {
     const collector = await new Receiver().listen();
     const lines: string[] = [];
     const sink = traceSink({
@@ -174,12 +174,13 @@ test.each([
     });
     try {
       await scope.ready;
-      scope.run({
-        label: "oversized",
-        run: (_deps, ctx) => {
-          ctx.obs.span!.attributes.large = "界".repeat(400_000);
-        },
-      });
+      if (oversized)
+        scope.run({
+          label: "oversized",
+          run: (_deps, ctx) => {
+            ctx.obs.span!.attributes.large = "界".repeat(400_000);
+          },
+        });
       const queued = operation({
         label: "queued",
         run: (_deps, ctx) => {
@@ -225,6 +226,131 @@ test("a broken local writer and an unencodable record do not stop later exports"
     expect(scope.run(ping)).toBe("pong");
     expect(await scope.close({ graceful: true })).toEqual({ status: "success" });
     expect(spans(collector.state.packets).map((span) => span.name)).toEqual(["ping"]);
+  } finally {
+    await scope.close();
+    await collector.close();
+  }
+});
+
+test.each([202, 204])("a collector response of %i delivers the batch", async (status) => {
+  const collector = await new Receiver().listen();
+  collector.state.status = status;
+  const lines: string[] = [];
+  const sink = traceSink({
+    env: { OTEL_EXPORTER_OTLP_ENDPOINT: collector.url, OTEL_SERVICE_NAME: "accepted" },
+    write: (line) => lines.push(line),
+  });
+  const scope = createScope({
+    extensions: sink.extension,
+    observe: sink.observe,
+    clock: makeTestClock(),
+  });
+  try {
+    await scope.ready;
+    scope.run(ping);
+    await scope.close({ graceful: true });
+    expect(spans(collector.state.packets).map((span) => span.name)).toEqual(["ping"]);
+    expect(lines.filter((line) => line.includes("OTLP records dropped"))).toEqual([]);
+  } finally {
+    await scope.close();
+    await collector.close();
+  }
+});
+
+test.each([false, true])(
+  "forced close drops queued records and makes no new request (in flight: %s)",
+  async (inFlight) => {
+    const collector = await new Receiver().listen();
+    collector.state.hang = true;
+    const lines: string[] = [];
+    const clock = makeTestClock();
+    const sink = traceSink({
+      env: { OTEL_EXPORTER_OTLP_ENDPOINT: collector.url, OTEL_SERVICE_NAME: "forced" },
+      write: (line) => lines.push(line),
+    });
+    const scope = createScope({
+      extensions: sink.extension,
+      observe: { ...sink.observe, log: undefined },
+      clock,
+    });
+    try {
+      await scope.ready;
+      scope.run(ping);
+      if (inFlight) {
+        clock.advance(1000);
+        await expect.poll(() => collector.state.packets.length).toBe(1);
+        scope.run(ping);
+      }
+      expect(await scope.close()).toMatchObject({ status: "cancelled", teardownErrors: undefined });
+      expect(collector.state.packets).toHaveLength(inFlight ? 1 : 0);
+      expect(lines.filter((line) => line.includes("OTLP records dropped"))).toHaveLength(1);
+    } finally {
+      await scope.close();
+      await collector.close();
+    }
+  },
+);
+
+test("graceful close shares one deadline between an in-flight batch and the final batch", async () => {
+  const collector = await new Receiver().listen();
+  collector.state.hang = true;
+  const clock = makeTestClock();
+  const lines: string[] = [];
+  const sink = traceSink({
+    env: { OTEL_EXPORTER_OTLP_ENDPOINT: collector.url, OTEL_SERVICE_NAME: "deadline" },
+    write: (line) => lines.push(line),
+  });
+  const scope = createScope({
+    extensions: sink.extension,
+    observe: { ...sink.observe, log: undefined },
+    clock,
+  });
+  try {
+    await scope.ready;
+    scope.run(ping);
+    clock.advance(1000);
+    await expect.poll(() => collector.state.packets.length).toBe(1);
+    scope.run(ping);
+    const closing = scope.close({ graceful: true });
+    clock.advance(1000);
+    expect(await closing).toEqual({ status: "success" });
+    expect(collector.state.packets).toHaveLength(1);
+    expect(lines.filter((line) => line.includes("OTLP records dropped"))).toHaveLength(1);
+  } finally {
+    await scope.close();
+    await collector.close();
+  }
+});
+
+test("a full queue drops a new record without encoding it", async () => {
+  const collector = await new Receiver().listen();
+  const sink = traceSink({
+    env: { OTEL_EXPORTER_OTLP_ENDPOINT: collector.url, OTEL_SERVICE_NAME: "full" },
+    write: () => {},
+  });
+  const scope = createScope({
+    extensions: sink.extension,
+    observe: { ...sink.observe, log: undefined },
+    clock: makeTestClock(),
+  });
+  let encoded = false;
+  try {
+    await scope.ready;
+    for (let i = 0; i < 2048; i++) scope.run(ping);
+    scope.run({
+      label: "dropped",
+      run: (_deps, ctx) => {
+        ctx.obs.span!.attributes.value = {
+          toJSON: () => {
+            encoded = true;
+            return "dropped";
+          },
+        };
+      },
+    });
+    await scope.close({ graceful: true });
+    expect(encoded).toBe(false);
+    expect(spans(collector.state.packets)).toHaveLength(2048);
   } finally {
     await scope.close();
     await collector.close();

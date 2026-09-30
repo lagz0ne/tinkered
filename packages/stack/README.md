@@ -110,23 +110,35 @@ Core already supplies the ids and finished spans;
 using the official exporters would require SDK span objects.
 The logs SDK stays out, as ADR 0076 requires.
 
-- Each finished span is copied to JSON at close.
-  No open span tree is kept.
+- Each finished span and log is retained by reference until flush.
+  OTLP reads ids and encodes attributes only at flush.
+  Local JSON logs still encode at the call site.
 - Core span kinds become the `tinker.kind` attribute.
-  OTLP kind is INTERNAL (1); ok is 1 and failed is 2.
+  OTLP kind is INTERNAL (1).
+  An ok span leaves status UNSET by omitting it.
+  A failed span has code 2 and its error message.
+  A thrown value that is not an Error uses `String(value)`.
 - Times are epoch nanoseconds written as decimal strings.
 - Log levels map as 20→5, 30→9, 40→13, and 50→17.
   Each log keeps its span's trace id and span id.
-- String, boolean, and finite number attributes keep their types.
+- String and boolean attributes keep their types.
+  Bigint and safe integer attributes use decimal `intValue` strings.
+  Other finite numbers use `doubleValue`.
   Other values become JSON text, or `String(value)` for undefined.
   A record that cannot be encoded is dropped.
 - A timer flushes once per second after the last batch ends.
-  Scope close joins that batch and flushes all queued records,
+  Graceful close joins that batch and flushes queued records,
   including logs from resource cleanup.
-- The queue holds at most 2048 records and 1 MiB of record bytes.
-  A batch in flight has the same bounds.
-  New records are dropped when the queue is full.
+  Its one-second deadline starts at close and covers both batches.
+- Forced close aborts any send, drops queued records, and sends nothing new.
+  It does not wait for the send deadline.
+- The queue holds at most 2048 finished span or log references.
+  A full queue drops new records without encoding them.
+  Flush caps the batch at 1 MiB of encoded record bytes.
+  Records that would exceed that cap are dropped.
+  A batch in flight has the same count and byte bounds.
 - Each send has a one-second deadline.
+  Any 2xx response delivers the batch, including 202 and 204.
   Failed batches are dropped with no retry.
   A request never waits for this network work.
 - One local JSON warning names a failure burst.

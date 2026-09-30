@@ -63,9 +63,8 @@ test("one request exports one trace with its remote parent, span fields, and ser
       kind: 1,
       startTimeUnixNano: "1700000000123000000",
       endTimeUnixNano: "1700000000125000000",
-      status: { code: 1 },
       attributes: [
-        { key: "count", value: { doubleValue: 3 } },
+        { key: "count", value: { intValue: "3" } },
         { key: "tinker.kind", value: { stringValue: "operation" } },
       ],
       events: [
@@ -76,6 +75,7 @@ test("one request exports one trace with its remote parent, span fields, and ser
         },
       ],
     });
+    expect(childSpan).not.toHaveProperty("status");
     expect(
       collector.state.packets.find((packet) => packet.path === "/otel/v1/traces"),
     ).toMatchObject({
@@ -237,10 +237,129 @@ test("graceful close exports queued spans, failed status, and cleanup logs", asy
     if (failed.status !== "failed") return expect.unreachable();
     expect(spans(collector.state.packets).find((span) => span.name === "fails")?.status).toEqual({
       code: 2,
+      message: "1",
     });
     expect(
       logs(collector.state.packets).find((line) => line.body.stringValue === "cleanup"),
     ).toMatchObject({ traceId: expect.any(String), spanId: expect.any(String) });
+  } finally {
+    await scope.close();
+    await collector.close();
+  }
+});
+
+test("OTLP reads span and log attributes only when the batch flushes", async () => {
+  const collector = await new Receiver().listen();
+  const sink = traceSink({
+    env: { OTEL_EXPORTER_OTLP_ENDPOINT: collector.url, OTEL_SERVICE_NAME: "deferred" },
+    write: () => {},
+  });
+  const scope = createScope({
+    extensions: sink.extension,
+    observe: sink.observe,
+    clock: makeTestClock(),
+  });
+  let phase = "request";
+  const reads: string[] = [];
+  const attribute = {
+    toJSON: () => {
+      reads.push(phase);
+      return phase;
+    },
+  };
+  try {
+    await scope.ready;
+    scope.run({
+      label: "deferred",
+      run: (_deps, ctx) => {
+        ctx.obs.span!.attributes.value = attribute;
+        ctx.log("deferred log", { value: attribute });
+      },
+    });
+    expect(reads).toEqual(["request"]);
+    phase = "flush";
+    await scope.close({ graceful: true });
+    expect(spans(collector.state.packets)[0].attributes[0]).toEqual({
+      key: "value",
+      value: { stringValue: '"flush"' },
+    });
+    expect(
+      logs(collector.state.packets).find((line) => line.body.stringValue === "deferred log")
+        ?.attributes,
+    ).toEqual([{ key: "value", value: { stringValue: '"flush"' } }]);
+  } finally {
+    await scope.close();
+    await collector.close();
+  }
+});
+
+test("bigint and safe integer attributes arrive as decimal integers without losing the span", async () => {
+  const collector = await new Receiver().listen();
+  const sink = traceSink({
+    env: { OTEL_EXPORTER_OTLP_ENDPOINT: collector.url, OTEL_SERVICE_NAME: "numbers" },
+    write: () => {},
+  });
+  const scope = createScope({
+    extensions: sink.extension,
+    observe: sink.observe,
+    clock: makeTestClock(),
+  });
+  try {
+    await scope.ready;
+    scope.run({
+      label: "numbers",
+      run: (_deps, ctx) => {
+        Object.assign(ctx.obs.span!.attributes, {
+          big: 10n,
+          status: 200,
+          negative: -3,
+          max: Number.MAX_SAFE_INTEGER,
+          fraction: 1.5,
+          unsafe: Number.MAX_SAFE_INTEGER + 1,
+        });
+      },
+    });
+    await scope.close({ graceful: true });
+    expect(spans(collector.state.packets).map((span) => span.attributes)).toEqual([
+      [
+        { key: "big", value: { intValue: "10" } },
+        { key: "status", value: { intValue: "200" } },
+        { key: "negative", value: { intValue: "-3" } },
+        { key: "max", value: { intValue: "9007199254740991" } },
+        { key: "fraction", value: { doubleValue: 1.5 } },
+        { key: "unsafe", value: { doubleValue: 9007199254740992 } },
+        { key: "tinker.kind", value: { stringValue: "operation" } },
+      ],
+    ]);
+  } finally {
+    await scope.close();
+    await collector.close();
+  }
+});
+
+test("a failed span keeps a thrown value as its status message", async () => {
+  const collector = await new Receiver().listen();
+  const sink = traceSink({
+    env: { OTEL_EXPORTER_OTLP_ENDPOINT: collector.url, OTEL_SERVICE_NAME: "status" },
+    write: () => {},
+  });
+  const scope = createScope({
+    extensions: sink.extension,
+    observe: sink.observe,
+    clock: makeTestClock(),
+  });
+  try {
+    await scope.ready;
+    expect(
+      scope.settle({
+        label: "string failure",
+        run: () => {
+          throw "broken";
+        },
+      }).status,
+    ).toBe("failed");
+    await scope.close({ graceful: true });
+    expect(spans(collector.state.packets)[0].status).toEqual({ code: 2, message: "broken" });
   } finally {
     await scope.close();
     await collector.close();

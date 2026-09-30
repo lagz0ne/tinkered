@@ -14,7 +14,7 @@ export type Span = {
   endTimeUnixNano: string;
   attributes: Attribute[];
   events: { name: string; timeUnixNano: string; attributes: Attribute[] }[];
-  status: { code: number };
+  status?: { code: number; message?: string };
 };
 export type Log = {
   traceId?: string;

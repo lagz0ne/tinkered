@@ -8,6 +8,7 @@ function nanos(time: number): string {
 
 function value(value: unknown): object {
   if (typeof value === "boolean") return { boolValue: value };
+  if (typeof value === "bigint" || Number.isSafeInteger(value)) return { intValue: String(value) };
   if (typeof value === "number" && Number.isFinite(value)) return { doubleValue: value };
   if (typeof value === "string") return { stringValue: value };
   return { stringValue: JSON.stringify(value) ?? String(value) };
@@ -17,7 +18,8 @@ function attributes(fields: Record<string, unknown>): object[] {
   return Object.entries(fields).map(([key, entry]) => ({ key, value: value(entry) }));
 }
 
-/** Copy the finished span into a wire record; the queue retains no core objects. */
+/** Encode at flush, after the queue has retained the finished core span.
+ * This is where lazy W3C ids are read and attributes become wire values. */
 export function encodeSpan(span: Observe.Span): string {
   return JSON.stringify({
     traceId: span.traceId,
@@ -34,7 +36,13 @@ export function encodeSpan(span: Observe.Span): string {
       timeUnixNano: nanos(event.time),
       attributes: attributes(event.attributes),
     })),
-    status: { code: span.status === "failed" ? 2 : 1 },
+    status:
+      span.status === "failed"
+        ? {
+            code: 2,
+            message: span.error instanceof Error ? span.error.message : String(span.error),
+          }
+        : undefined,
   });
 }
 

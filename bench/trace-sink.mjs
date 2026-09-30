@@ -1,5 +1,5 @@
 /** Run only through benchctl from a clean tree. The timed part is the public
- * export callback: copy one finished span into the bounded queue. HTTP and
+ * export callback: retain one finished span in the bounded queue. HTTP and
  * scope setup/close are outside that part; the receiver checks delivery. */
 import { once } from "node:events";
 import { createServer } from "node:http";
@@ -49,7 +49,7 @@ try {
   samples.sort((a, b) => a - b);
   console.log(
     JSON.stringify({
-      scenario: "copy finished span to OTLP queue",
+      scenario: "retain finished span in OTLP queue",
       count,
       samples: samples.length,
       minNs: samples[0],

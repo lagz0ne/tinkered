@@ -64,7 +64,8 @@ Each subscription opens a session with that remote trace
 and parent, including the sampled bit.
 Missing or bad headers start a fresh trace, even when the
 root has a trace seed.
-With observation off, publish needs no trace ids.
+With observation off, publish sends only payload bytes and no headers.
+It needs no trace ids.
 JetStream, KV, and object store wait for later tickets.
 
 ## Tests need `nats-server`

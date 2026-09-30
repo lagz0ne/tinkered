@@ -2027,3 +2027,32 @@ vp run -r build && vp check \
 - No target was dropped.
   The HTTP/JSON choice, fixed limits, one piece per root,
   and dropping failed batches are the noted assumptions.
+
+### t13 reviewer fix round 1 — 2026-09-30
+
+- User asked for all six fixes, with no rebase and no push.
+- Queue retains finished span and log references.
+  Flush reads ids and encodes them, in arrival order.
+  Count is capped before enqueue; bytes are capped at flush.
+  A full queue never encodes the rejected record.
+- Bigint and safe integer attributes use decimal strings.
+  Other finite numbers keep their double value.
+- Forced close aborts the send and drops queued records.
+  Graceful close has one shared second for network work.
+  Assumption: that window starts when the close hook starts.
+  It uses the scope clock; tests advance the test clock.
+- Ok spans omit status; failed spans carry code 2 and a message.
+- Every 2xx reply counts as delivered; tests use 202 and 204.
+- NATS builds headers only when a calling span exists.
+  The new test checks a raw subscriber and sent byte counts.
+  Both checks also pass on the old code with this installed client:
+  its empty headers encode to zero bytes, but still select HPUB.
+  Kept the branch change small, as the review permits.
+- Eleven stack checks fail against the old implementation.
+  The forced-close pair was rerun after fixing its expected
+  core result: forced close returns cancelled, not success.
+  Both fail because the old sink sends a new request at close.
+- First green step: build; check 0 errors and 29 warnings;
+  stack 87 tests; NATS 24 tests; prose 0 hits.
+- Core feedback is unchanged from the first round.
+  No span-kind, traceparent-parser, or core-clock change.

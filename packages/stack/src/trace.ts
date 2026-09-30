@@ -13,19 +13,19 @@ export declare namespace TraceSink {
 }
 
 /** Make one piece per root, passing both its extension and observe config.
- * The root owns the queue and timer. Env is read at start; queued data is copied.
- * Close joins the bounded network work after core exports its last spans. */
+ * The root owns the queue and timer. It retains finished spans and logs until
+ * flush reads their ids and encodes them. Only graceful close flushes. */
 export function traceSink(wiring: TraceSink.Wiring) {
   const local = jsonLines(wiring.write);
   let queue: TraceQueue | undefined;
   const observe: Observe.Config = {
     export: (span) => {
       writeLocal(() => local.export?.(span));
-      queue?.add("traces", () => encodeSpan(span));
+      queue?.add(span);
     },
     log: (entry) => {
       writeLocal(() => local.log?.(entry));
-      queue?.add("logs", () => encodeLog(entry));
+      queue?.add(entry);
     },
   };
   return {
@@ -34,18 +34,23 @@ export function traceSink(wiring: TraceSink.Wiring) {
       label: "stack.trace",
       start: async (_scope, ctx, next) => {
         const settings = readSettings(wiring.env);
-        queue = new TraceQueue(settings, ctx.clock, local);
-        const timer = queue.start();
+        const owned = new TraceQueue(settings, ctx.clock, local);
+        queue = owned;
+        const timer = owned.start();
         ctx.defer(async () => {
-          await queue!.stop(timer);
+          await owned.stop(timer);
         });
         await next();
       },
-      close: async (_options, next) => {
-        const result = await next();
-        await queue?.flush();
-        queue = undefined;
-        return result;
+      close: async (options, next) => {
+        const owned = queue;
+        owned?.beginClose(options.graceful === true);
+        try {
+          return await next();
+        } finally {
+          await owned?.finishClose();
+          queue = undefined;
+        }
       },
     }),
   };
@@ -81,11 +86,14 @@ class TraceQueue {
   private settings: { endpoint: string; service: string };
   private clock: Clock.Handle;
   private local: Observe.Config;
-  private records = { traces: [] as string[], logs: [] as string[] };
-  private bytes = 0;
+  private records: (Observe.Span | Observe.Log)[] = [];
+  private state: "open" | "graceful" | "stopped" = "open";
   private warned = false;
   private pending?: Promise<void>;
   private stopTimer = new AbortController();
+  private stopDeadline = new AbortController();
+  private requests = new AbortController();
+  private deadline?: Promise<void>;
 
   constructor(
     settings: { endpoint: string; service: string },
@@ -97,22 +105,16 @@ class TraceQueue {
     this.local = local;
   }
 
-  add(signal: "traces" | "logs", encode: () => string): void {
-    try {
-      const record = encode();
-      const bytes = Buffer.byteLength(record);
-      if (
-        this.records.traces.length + this.records.logs.length >= 2048 ||
-        this.bytes + bytes > 1_048_576
-      ) {
-        this.warn("queue full");
-        return;
-      }
-      this.records[signal].push(record);
-      this.bytes += bytes;
-    } catch {
-      this.warn("record could not be encoded");
+  add(record: Observe.Span | Observe.Log): void {
+    if (this.state === "stopped") {
+      this.warn("scope closed");
+      return;
     }
+    if (this.records.length >= 2048) {
+      this.warn("queue full");
+      return;
+    }
+    this.records.push(record);
   }
 
   async start(): Promise<void> {
@@ -127,19 +129,72 @@ class TraceQueue {
   }
 
   async stop(timer: Promise<void>): Promise<void> {
-    this.stopTimer.abort();
+    /** A failed start can run defers without running the close hook. */
+    if (this.state === "open") this.beginClose(false);
     await timer;
-    await this.flush();
+  }
+
+  beginClose(graceful: boolean): void {
+    this.stopTimer.abort();
+    if (!graceful) this.drop("scope closed");
+    else if (this.state === "open") {
+      this.state = "graceful";
+      this.deadline = this.waitForDeadline();
+    }
+  }
+
+  async finishClose(): Promise<void> {
+    if (this.state === "graceful") await this.flush();
+    this.state = "stopped";
+    this.stopDeadline.abort();
+    await this.deadline;
+  }
+
+  private async waitForDeadline(): Promise<void> {
+    try {
+      await this.clock.sleep(1000, this.stopDeadline.signal);
+    } catch {
+      return;
+    }
+    this.drop("collector unavailable");
+  }
+
+  private drop(reason: string): void {
+    this.state = "stopped";
+    if (this.records.length || this.pending) this.warn(reason);
+    this.records = [];
+    this.requests.abort();
   }
 
   async flush(): Promise<void> {
     await this.pending;
-    if (this.bytes === 0) return;
+    if (this.state === "stopped") return;
     const records = this.records;
-    this.records = { traces: [], logs: [] };
-    this.bytes = 0;
-    this.pending = this.send(records);
-    await this.pending;
+    this.records = [];
+    const batch = { traces: [] as string[], logs: [] as string[] };
+    let bytes = 0;
+    for (const record of records) {
+      try {
+        const log = "level" in record;
+        const encoded = log ? encodeLog(record) : encodeSpan(record);
+        const size = Buffer.byteLength(encoded);
+        if (bytes + size > 1_048_576) {
+          this.warn("queue full");
+          continue;
+        }
+        batch[log ? "logs" : "traces"].push(encoded);
+        bytes += size;
+      } catch {
+        this.warn("record could not be encoded");
+      }
+    }
+    if (bytes === 0) return;
+    this.pending = this.send(batch);
+    try {
+      await this.pending;
+    } finally {
+      this.pending = undefined;
+    }
   }
 
   private async send(records: { traces: string[]; logs: string[] }): Promise<void> {
@@ -160,11 +215,11 @@ class TraceQueue {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: encodeBatch(this.settings.service, signal, records),
-        signal: controller.signal,
+        signal: AbortSignal.any([controller.signal, this.requests.signal]),
         redirect: "error",
       });
       await response.body?.cancel();
-      return response.status === 200;
+      return response.ok;
     } catch {
       return false;
     } finally {
