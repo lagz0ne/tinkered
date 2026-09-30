@@ -980,13 +980,19 @@ function closesIn(body, roots, facts) {
     .map((n) => ["S29", n.start, "S29.ready"]);
 }
 
+function readyStatementRoot(node, facts) {
+  if (node.type !== "ExpressionStatement") return null;
+  const expression = returnedValue(node.expression);
+  return expression.type === "AwaitExpression" ? readyRoot(expression.argument, facts) : null;
+}
+
+/** Other work can fail after ready resolved, so its catch still owns cleanup. */
 function readyTryHits(node, facts) {
   if (!node.handler) return [];
-  const roots = lifetimeBody(node.block)
-    .filter((n) => n.type === "AwaitExpression")
-    .map((n) => readyRoot(n.argument, facts))
-    .filter(Boolean);
-  return closesIn(node.handler.body, new Set(roots), facts);
+  const roots = node.block.body.map((statement) => readyStatementRoot(statement, facts));
+  const [root] = roots;
+  if (!root || !roots.every((binding) => binding === root)) return [];
+  return closesIn(node.handler.body, new Set([root]), facts);
 }
 
 function readyCatchHits(node, facts) {

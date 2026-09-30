@@ -3,7 +3,7 @@
 // never gates; exits 0.
 //
 //   node tools/jev/lint.mjs [paths…] [--all] [--limit N] [--json out.json]
-//   default paths: examples/ and apps/issue-tracker/src (git-tracked .ts/.tsx; tests get plain rules only)
+//   default paths: examples/ and apps/issue-tracker/src (git-tracked .ts/.tsx; tests get only S29)
 //   --all also judges data/tag declarations, functions under 150 chars, and composition roots
 //   (functions that call createScope) — all skipped by default
 import { execSync } from "node:child_process";
@@ -104,7 +104,7 @@ for (const file of files) {
   const isTest = TEST_PATH.test(file);
   const codeHits = isTest ? [] : unitCouldBeModuleLevel(source, file);
   const units = hasKey && !isTest ? slice(source, file).filter(wanted) : [];
-  const shape = shapeOf(source, file);
+  const shape = shapeOf(source, file).filter((row) => !isTest || row.id === "S29");
   if (units.length === 0 && codeHits.length === 0 && shape.length === 0) continue;
   console.log(file);
   for (const hit of codeHits) {

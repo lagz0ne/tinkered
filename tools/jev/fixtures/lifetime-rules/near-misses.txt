@@ -82,3 +82,19 @@ async function outerHidden() {
   for (const scope of writers) scope.ready.catch(() => scope.close());
   scope.ready.catch(() => { return scope.close(); function scope() {} });
 }
+async function workAfterReady() {
+  const scope = createScope({});
+  try { await scope.ready; await scope.run(work); }
+  catch (error) { await scope.close(); throw error; }
+}
+async function workBeforeReady() {
+  const scope = createScope({});
+  try { await load(); await scope.ready; }
+  catch { await scope.close(); }
+}
+async function twoReadyRoots() {
+  const first = createScope();
+  const second = createScope();
+  try { await first.ready; await second.ready; }
+  catch { await first.close(); }
+}

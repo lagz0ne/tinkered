@@ -212,8 +212,8 @@ JEV_TOKEN_FILE=/dev/null node tools/jev/lint.mjs \
   Other packages' drivers take the handle their extension's `start` received by design.
   Writer gate: source files under `src/`, plus the repo lane.
   Neither lane counts tests: a test is its own root.
-  Fix: a helper takes plain values; the root owns its lifetime.
-- **S29 lifetimeByHand, ready** — a `try` block awaits `scope.ready` and its `catch` calls `scope.close()`.
+  Fix: "a helper works on plain values; read and write cells inside the operation body".
+- **S29 lifetimeByHand, ready** — a `try` block only awaits the same root's `scope.ready` and its `catch` calls `scope.close()`.
   Also `scope.ready.catch(fail)` and `scope.ready.then(ok, fail)` when the failure callback closes that root.
   The row points at the close call; a callback used twice gets one row.
   A root is a const from `createScope` or `useScope`, or a name typed as `Scope.Handle` or `Scope.RootHandle`.
@@ -234,9 +234,9 @@ The writer gate checks every file.
 Both lanes skip all of `packages/core/`, which implements the lifetime itself.
 Both check **ready** in tests too: a test's own root has the same cleanup promise.
 Tests keep their explicit stops, so **stop** skips tests.
-The lint runs plain rules on tests without sending them to the model judges.
+The lint runs only S29 on tests without sending them to the model judges.
 
-Safe shapes: `finally` cleanup around work with no abort wait, a close of a different root, a stream writer or plain object with `ready` and `close`, sessions, and a forced close on abort.
+Safe shapes: a try that does other work besides awaiting ready, a try that awaits different roots, `finally` cleanup around work with no abort wait, a close of a different root, a stream writer or plain object with `ready` and `close`, sessions, and a forced close on abort.
 Fixtures in `fixtures/lifetime-rules/` cover those shapes and both hit forms.
 
 Accepted misses and limits:

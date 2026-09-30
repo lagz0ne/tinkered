@@ -150,11 +150,19 @@ void describe("S29 lifetimeByHand", () => {
     );
   });
 
-  void it("the repo lint lists ready catches in test files with no model key", () => {
+  void it("the repo lint prints only S29 for tests with an error assertion and React state", () => {
     const dir = mkdtempSync(join(tmpdir(), "jev-lifetime-"));
     try {
-      const file = join(dir, "ready.test.ts");
-      writeFileSync(file, ready);
+      const file = join(dir, "ready.test.tsx");
+      writeFileSync(
+        file,
+        ready +
+          [
+            'import { useState } from "react";',
+            "function View() { const [value] = useState(0); return <p>{value}</p>; }",
+            "expect(error).toBeInstanceOf(Error);",
+          ].join("\n"),
+      );
       const output = execFileSync(process.execPath, ["tools/jev/lint.mjs", file], {
         cwd: new URL("../../", import.meta.url),
         env: { ...process.env, AI_GATEWAY_API_KEY: "", JEV_TOKEN_FILE: "/dev/null" },
@@ -162,8 +170,8 @@ void describe("S29 lifetimeByHand", () => {
         stdio: ["ignore", "pipe", "pipe"],
       });
       assert.deepEqual(
-        [...output.matchAll(/L(\d+) S29:/g)].map((m) => Number(m[1])),
-        [6, 12, 16, 20, 26, 35, 41],
+        [...output.matchAll(/▪ L(\d+) ([\w.-]+):/g)].map((m) => [m[2], Number(m[1])]),
+        [6, 12, 16, 20, 26, 35, 41].map((line) => ["S29", line]),
       );
     } finally {
       rmSync(dir, { recursive: true, force: true });
