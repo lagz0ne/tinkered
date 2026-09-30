@@ -4761,3 +4761,65 @@ The root call resolves only after its scope has closed.
 Assumption: the dev entry lists `nats: true` when its root
 uses NATS; the tracker lists it.
 No default is inferred from `NODE_ENV`.
+
+### t14 first green steps
+
+- Commits: `e92bed82`, `2bb76ca8`, `b1e053b5`,
+  `e7945f55`.
+- The gate on `f8acfee5` passed: build, check,
+  stack 74, NATS 19, Drizzle 25, tracker 83; exit 0.
+- A later cleanup test brought stack to 75; exit 0.
+- Check has zero errors and 28 warnings.
+  A separate clean `origin/main` tree at `f8acfee5`
+  also has 28 warnings.
+- `pnpm validate`: all 48 lanes passed, exit 0.
+- The real tracker process keeps a saved issue on an edit.
+  Its old sync stream ends; the changed route serves.
+  SIGTERM closes the process with exit code 0.
+- Using `once` for SIGTERM first failed that test:
+  the process ended with signal SIGTERM, not code 0.
+  A loaded dependency resends a signal when the app's
+  handler is gone. The dev entry now keeps its handlers
+  until cleanup ends, then removes them.
+- Root tests cover three edits, exact PGlite and NATS
+  identity, old `closed` promises, timer cleanup,
+  removed stop listeners, and no extra subscription.
+- A separate `liveUpdates` test counts one NATS connection
+  through three roots, with zero subscriptions after close.
+- Syntax errors, boot errors, and a bad entry stay on 503
+  until a good edit; a held old request finishes unchanged.
+- A root teardown error still closes the retained services
+  and answers 1.
+
+### t14 review checks so far
+
+- Jev uses `origin/main..HEAD`: local `main` is still at
+  t06 and includes unrelated core work in `main..HEAD`.
+  The wider run was stopped; core is outside this ticket.
+- Source file flags: none.
+- The publisher's unchanged `unitCouldBeModuleLevel` note
+  needs no label: the receive operation uses this piece's
+  root read through `refresh`.
+- Noisy `~wrapsCallersStep` notes need no label.
+- The existing `listen` label is false: `server` registers
+  its defer before awaiting the bind, then takes the closer.
+- Test fixture labels are false: `startFixture` transfers
+  the stop controller and run promise to `createDevFixture`.
+  `onTestFinished` aborts, joins, and removes the files.
+  The event list is test observation state.
+- Cases: `4f4556b42b3b`, `7b7d2a1fc16f`,
+  `f0ba1a67fca4`; the listen case already exists.
+- TSDoc and the strict style census passed.
+- Core feedback: no new failing case.
+
+### t14 timing setup
+
+`bench/dev-cycle.mjs` compares five edits with five
+full dev-process restarts of the tracker.
+Both sides include the same first boot, data creation,
+HTTP checks, and final cleanup.
+The result is for that whole loop, not one warm edit.
+Each run edits a copy under `.bench` and uses its own data.
+Timing uses `benchctl ab` under the shared mutation lock,
+from a clean worktree under `/home/paseo`.
+No build runs in that tree while the job waits or runs.
