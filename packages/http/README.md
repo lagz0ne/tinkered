@@ -105,6 +105,39 @@ const onboard = operation({
 `HttpRequest.modify(req, options)` keeps the fragment and body the options leave out.
 `HttpRequest.modify` with `acceptJson: true` sets the `accept` header to `application/json`.
 
+## Cancel one call
+
+Pass `signal` on a call to stop its work without closing the root.
+This also stops an HTTP retry wait before the clock advances.
+For that stopped wait, `settle` returns `cancelled` with the same abort reason.
+The root can still send the next request.
+
+Read the response body inside that call's endpoint operation.
+The call owns a child session, which closes when the operation ends.
+Native fetch can abort a body read after headers arrive;
+return parsed data before that session closes.
+
+```ts
+const readRepo = operation({
+  label: "github.readRepo",
+  depends: { send },
+  run: async ({ send: sendIt }) => {
+    const response = await sendIt.run({
+      input: HttpRequest.get("/repos/octocat/Hello-World"),
+    });
+    return await response.json();
+  },
+});
+
+const callStop = new AbortController();
+const pending = scope.settle(readRepo, {
+  ns: github,
+  signal: callStop.signal,
+});
+callStop.abort("new request");
+const result = await pending;
+```
+
 ## Retry: a config value
 
 `config({ retry: { times, delay? } })` — `times` extra attempts after the first (default 0),

@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { createScope, operation, makeTestClock } from "@tinker/core";
+import { createScope, operation, makeTestClock, namespace } from "@tinker/core";
 import {
   backend,
   config,
@@ -12,6 +12,7 @@ import {
 
 const flakyRetry = { times: 2, delay: (n: number) => n * 1000 };
 const retryingRetry = { times: 2 };
+const github = namespace({ tags: config({ baseUrl: "https://api.github.com" }) });
 
 const flakyText = operation({
   label: "flaky.text",
@@ -154,6 +155,58 @@ test("closing during backoff cancels the scope without another retry", async () 
   expect(outcome).not.toBe(boom);
   if (outcome instanceof Error && isHttpError(outcome, "RequestFailed")) throw outcome;
   expect(calls).toBe(1);
+});
+
+test("a call signal cancels a namespaced retry wait and leaves the root usable", async () => {
+  const seen: string[] = [];
+  const delays: number[] = [];
+  const wobbly: HttpClient.Backend = async (request) => {
+    seen.push(HttpRequest.toUrl(request));
+    return HttpResponse.make(request, { status: seen.length === 1 ? 503 : 200 });
+  };
+  const clock = makeTestClock();
+  const stop = new AbortController();
+  const callStop = new AbortController();
+  const reason = { instruction: "send the next request" };
+  const scope = createScope({
+    signal: stop.signal,
+    clock,
+    tags: [
+      backend(wobbly),
+      config({
+        retry: {
+          times: 2,
+          delay: (attempt) => {
+            delays.push(attempt);
+            return 1000;
+          },
+        },
+      }),
+    ],
+  });
+  await scope.ready;
+  try {
+    const running = scope.settle(send, {
+      ns: github,
+      signal: callStop.signal,
+      input: HttpRequest.get("/retry"),
+    });
+    await until(() => delays.length === 1);
+    expect(delays).toEqual([1]);
+    callStop.abort(reason);
+    const cancelled = await running;
+    if (cancelled.status !== "cancelled") expect.unreachable();
+    expect(cancelled.reason).toBe(reason);
+
+    const fresh = await scope.run(send, { ns: github, input: HttpRequest.get("/fresh") });
+    expect(fresh.status).toBe(200);
+    clock.advance(1000);
+    await drain();
+    expect(seen).toEqual(["https://api.github.com/retry", "https://api.github.com/fresh"]);
+  } finally {
+    stop.abort();
+    await scope.closed;
+  }
 });
 
 test("without retry a rejecting backend fails Transport after one call with its cause", async () => {
