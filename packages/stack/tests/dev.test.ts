@@ -132,3 +132,21 @@ test("dev refuses an occupied port without closing its owner", async () => {
   expect(await refused.done).toBe(1);
   expect(await (await fetch(`${owner.url}/api/value`)).json()).toBe("first");
 });
+
+test("a root teardown failure still closes dev services and answers one", async () => {
+  const host = await createDevFixture();
+  expect(await host.ready).toEqual({ kind: "ready", url: host.url });
+  await writeFile(
+    join(host.directory, "value.ts"),
+    'export const value: string = "close-broken";\n',
+  );
+  await expect
+    .poll(async () => (await fetch(`${host.url}/api/value`)).text())
+    .toBe('"close-broken"');
+  host.stop.abort();
+  expect(await host.done).toBe(1);
+  expect(host.probe.clients.at(-1)!.closed).toBe(true);
+  expect(host.probe.connections.at(-1)!.isClosed()).toBe(true);
+  expect(host.probe.timers.size).toBe(0);
+  await expect(fetch(host.url)).rejects.toThrow();
+});

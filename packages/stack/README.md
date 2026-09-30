@@ -454,3 +454,6 @@ Prod gets none of these defaults.
 - Dev refuses an occupied port without closing its owner.
 
 - Live updates borrow one connection across roots.
+
+- A root teardown failure still closes dev services
+  and answers one.
