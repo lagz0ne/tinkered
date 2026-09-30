@@ -4722,7 +4722,7 @@ flock /tmp/mutation.lock \
 ## t14 writer notes
 
 Owner: stack/t14 writer. Branch: `stack/t14`.
-Next: build the dev host, then prove reload and stop.
+Next: rebase onto t18, then run the final checks.
 Verify: brief gate, validate, stack mutation at least 85,
 and queue verdict `b is faster` for reload versus restart.
 
@@ -5012,3 +5012,22 @@ No build runs in that tree while the job waits or runs.
   The config check passes; source and type names stay readable.
   This probe also borrowed the helper and removed it afterward.
   Final validation must check the landed dependencies again.
+
+### t14 rebase after t17
+
+- Rebased onto `870beab4`, the t17 landing.
+  Install passes; the worktree is clean after the rebase.
+- Notes: keep all main notes, then append the t14 notes.
+- Errors: keep t17's `PieceInUse` and all three dev errors.
+- Review labels: keep the landed bank in full.
+  Add only the three t14 fixture labels.
+  Leave old dependency labels with their own writers.
+- The server merge keeps t17's listener stop and drain.
+  Its only t14 change exports the settings reader
+  inside the package for the dev host.
+- The build still needs t18's absent `exit.ts`.
+- All 12 dev tests pass against the landed t17 code.
+  The held request finishes on its old root.
+  Three reloads keep the same handles and clear old timers.
+  This probe borrowed t18's helper and removed it afterward.
+  It is not the final gate.
