@@ -944,6 +944,8 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
   short-circuits: inner starts never run, the refused body never runs.
 - `update(fn)` runs through the write chain with the computed value; the cell controller is cached
   per cell.
+- Requesting a cell controller after close raises `Disposed`, even when it was cached.
+- A closed scope with session hooks refuses a new session with `Disposed`.
 - A write chain skips an extension with no write hook.
 - A write chain that skips still refuses when the writer denies.
 - Resource and operation controllers from the extended handle stay plain: reads and runs bypass the write
