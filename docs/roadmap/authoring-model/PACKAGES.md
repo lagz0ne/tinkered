@@ -1,7 +1,7 @@
 # Authoring rules across packages and apps
 
 Date: 2026-09-30.
-Status: Review; all checks pass; main verification and push remain.
+Status: Done; all checks pass; landed on main.
 Owner: lead (authoring session).
 Writer model: Astra, xhigh; one package per writer.
 
@@ -393,3 +393,9 @@ Core remains 16,384 bytes gzip at its 16,384-byte cap.
 Shared Jev labels retain both teams' answers.
 Full merged-bank calibration and both new Core-flag calibrations pass.
 The bank holds 1,827 labeled cases.
+
+Main fast-forwarded to proof checkpoint `8db3aede`.
+Its fresh frozen install, build, check, all 18 test tasks, prose, and size pass.
+The main checkout matches all 374 fault-checked source, test, and config inputs.
+Core is 16,384 bytes gzip; code check has 0 errors and 28 existing warnings.
+The final checkpoint tag is `core/tauthoring-packages`.

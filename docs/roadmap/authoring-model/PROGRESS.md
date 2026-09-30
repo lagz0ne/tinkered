@@ -598,7 +598,7 @@ Its build copies the checked Core and React files into the browser vendor files.
 A browser probe runs an object hook with the correct namespace.
 It returns 42 and closes with success.
 
-## All current packages and apps — checked, ready to land
+## All current packages and apps — done
 
 The user asked for this round on 2026-09-30.
 Scope: all 14 packages, all three apps, and a Harness service example.
@@ -729,7 +729,22 @@ Observed final logs:
 - `/tmp/tinkered-authoring-packages-stack-mutate-final.log`
 - `/tmp/tinkered-authoring-packages-final-mutation-results.json`
 
-Pending: main verification, final checkpoint tag, and push.
+Main fast-forwarded to proof checkpoint `8db3aede`.
+Its fresh frozen install, build, check, all 18 test tasks, prose, and size pass.
+Code check: 0 errors and 28 existing warnings in 506 files.
+Core size: 16,384 bytes gzip at the 16,384-byte cap.
+All 374 checked source, test, and config inputs match the fault-tested checkout.
+The final checkpoint tag is `core/tauthoring-packages`.
+The card moved from Review to Done after this proof was observed.
+
+Main verification logs:
+
+- `/tmp/tinkered-authoring-packages-landed-install.log`
+- `/tmp/tinkered-authoring-packages-landed-build.log`
+- `/tmp/tinkered-authoring-packages-landed-check.log`
+- `/tmp/tinkered-authoring-packages-landed-tests.log`
+- `/tmp/tinkered-authoring-packages-landed-prose.log`
+- `/tmp/tinkered-authoring-packages-landed-size.log`
 
 ## Existing Process card completed
 

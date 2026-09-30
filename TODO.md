@@ -51,15 +51,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Review
 
-- **authoring/packages** — check every package and app against the settled model.
-  Owner: lead (authoring session); Astra writers, one package each.
-  Next: land and verify the main checkout, then push.
-  All 14 fault lanes passed; Stack's test fix scored 85.95.
-  All source fixes and the two-service Harness example are saved.
-  Verify: each package has a recorded result; regressions fail before fixes;
-  build/check, package and app tests, changed-package fault lanes, prose.
-  [Track](docs/roadmap/authoring-model/PACKAGES.md).
-
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
 
@@ -104,6 +95,19 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **authoring/packages** — checked all 14 packages and all three apps.
+  Owner: lead (authoring session); source: `46bf1f74`.
+  Fixed owner, namespace, setup, and steering gaps with public tests.
+  Core call signals stop one action and leave its parent alive.
+  Trace is a reusable extension with its own telemetry scope.
+  Added the two-service Harness example and the authoring guide.
+  Proof: build/check, all 18 test tasks, prose, and 48 release lanes pass.
+  All 14 package fault scores pass the floor of 85; Stack is 85.95.
+  Main's fresh install and checks pass; all 374 checked inputs match.
+  Core is 16,384 bytes gzip at the approved 16 KiB cap.
+  Checkpoint tag: `core/tauthoring-packages`.
+  [Track](docs/roadmap/authoring-model/PACKAGES.md).
 
 - **process/early-abort** — startup abort stops before the command runs.
   Owner: lead (authoring session); source: `5b7a0cd5`.
