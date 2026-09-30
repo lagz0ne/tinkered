@@ -2809,3 +2809,35 @@ SCIP, lifetime lint, stack mutation K/T/S, and validation.
   `/tmp/stack-t18-resume-green.log`,
   `/tmp/stack-t18-resume-jev.log`, and
   `/tmp/stack-t18-resume-lint.log`.
+
+### t18 checks after t17 landed
+
+- Waited for the lead's t17 mutation marker.
+  The cancelled lock wait had not started a lane.
+  Waited again until the lead confirmed t17 had landed.
+- Rebased only t18's ten commits onto `870beab4`.
+  This is `origin/main`, tagged `stack/t17`.
+  No unlanded t17 commit remains on this branch.
+- Conflict: `docs/roadmap/stack-v1/PROGRESS.md`.
+  Main adds t17's checked landing notes.
+  The ticket adds t18's impact and proof notes.
+  Kept both sets; no source conflict needed a choice.
+- Install: exit 0; no file changed.
+- The ticket's one gate chain passed, `GATE_EXIT 0`.
+  Build passed; check has zero errors and 28 warnings.
+  Stack: 114 tests in 12 files.
+  Tracker: 79 tests in nine files.
+- Browser proof and seven browser helper tests pass,
+  `BROWSER_EXIT 0`.
+- The real entry serves HTTP 200 and exits 0 on SIGTERM.
+  Bad PORT exits 1 with exactly one boot failure line.
+  Its payload names only PORT; it creates no database.
+- SCIP finds no old helper; `rg` has no old caller.
+  The required lint has no S19, S27, S28, or S29 row.
+- Strict style census: OK; TSDoc has zero S26 rows.
+- Logs: `/tmp/stack-t18-final-gate.log`,
+  `/tmp/stack-t18-final-browser.log`,
+  `/tmp/stack-t18-final-entry.log`, and
+  `/tmp/stack-t18-final-bad-port.log`.
+- The earlier mutation proof is from the paused base.
+  The current lane and validation still need to run.
