@@ -452,7 +452,7 @@ npx --no-install stryker run \
   Verify: two server scopes on one PGlite and a
   real `nats-server`: a save through one reaches a
   subscriber on the other.
-- **t13 the trace sink** -- [ ] Review; owner: stack/t13 writer
+- **t13 the trace sink** -- [x] landed `f28d7ed`
   The stack sends spans and logs over OTLP to
   `OTEL_EXPORTER_OTLP_ENDPOINT` (ADR 0076). NATS
   messages carry `traceparent` (ADR 0080). A
@@ -461,6 +461,7 @@ npx --no-install stryker run \
   Verify: `vp run stack#test` against a local OTLP
   receiver: one request gives one trace with all
   its spans.
+  Open (low): a failed span with no error message exports the text `undefined` (otlp.ts); the span queue caps by count (2048), bytes only per batch.
 - **t14 the dev host** -- [ ] blocked by: t06, t07
   `vp run dev` is one process that keeps PGlite,
   `nats-server`, and Vite open (ADR 0082). An edit
