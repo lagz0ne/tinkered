@@ -2612,3 +2612,52 @@ scripts/scip.sh refs 'readExitCode' stack
 - The README's root example fits a 60-character line.
 - t17 is still absent from `origin/main` at `f8acfee5`.
   The final rebase, gate, and mutation run wait for it.
+
+### t18 final gate before mutation
+
+- Rebased onto t17's checked commit `31334686`, then
+  onto `origin/main` at `b78302c1` for S19 and S29.
+  Assumption: the checked t17 branch is the intended
+  dependency while its landing on main is still pending.
+  Its replayed tip is `090d07e8` in this branch.
+  The t17 server and Hono source are unchanged.
+- Kept the tracker's order: server, migrate, web, src,
+  then the live piece when NATS_URL is set, else publish.
+- The only rebase conflict was the track notes.
+  Both sets of notes are kept.
+
+```sh
+vp run -r build && vp check \
+  && vp run stack#test \
+  && vp run @tinker-issue-tracker#test
+```
+
+```text
+check: 0 errors, 28 warnings
+stack: 70 passed (8 files)
+tracker: 79 passed (9 files)
+EXIT 0
+```
+
+- The warning count matches the main baseline check.
+- `pnpm validate`: all 48 lanes pass, exit 0.
+- `vp run -r test`: all 17 tasks pass, exit 0.
+- Browser proof and seven browser-helper tests: exit 0.
+  One earlier browser attempt overlapped validation's
+  package rebuild and could not import stack's dist.
+  Running it after validation passed without a code change.
+- Real entry: SIGTERM exits 0 with no boot failure line.
+  Bad PORT exits 1 with exactly one `boot failed` line,
+  whose `payload.keys` is `["PORT"]`.
+- New plain rules: no S19, S27, S28, or S29 rows in
+  the tracker's server source or the stack's source.
+  The same two factory notes remain; no label is owed.
+- Jev over this ticket's diff: zero source flags.
+  Stack tests: zero of 35 titles flagged.
+  README promises: zero missing lines.
+  New label lines: none.
+- SCIP: the deleted helper prints `(none)`.
+  Its replacement has refs in the public entry and tests.
+  No old helper remains in tracked packages or apps.
+- Style census: OK. Prose lint: zero hits.
+- Core feedback: no new failing case.
