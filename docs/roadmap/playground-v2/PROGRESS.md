@@ -662,7 +662,7 @@ Review labels were recalibrated after the false finding.
 ## Tile storm detail pass
 
 Date: 2026-09-30.
-Status: Review; final live checks remain.
+Status: Done; pushed and deployed; live checks pass.
 Owner: lead (playground release).
 Writer: Astra, xhigh; package: playground.
 
@@ -794,3 +794,40 @@ Final logs:
 - `/tmp/tinkered-playground-final-review.log`
 - `/tmp/tinkered-playground-storm-ab.log`
 - `/tmp/tinkered-playground-final-browser-benchmark.log`
+
+## Detail pass release
+
+Released source: `c55801d3`, pushed to main.
+[Live playground](https://playground.tini.works).
+Dokploy deployment `0VnmMiw0C2em0uYXyidCf` is done.
+The deployment log confirms the container was recreated and started.
+The container is healthy and uses the checked image:
+`sha256:d865814ba5ad4da09ee0edea1dbad701528ca4e6fd112c5bcf78a31305de1217`.
+
+The live index, Core vendor file, and React vendor file match the build byte for byte.
+The Core vendor file also matches the built Core package.
+Main's fresh build and check pass, with the same 28 warnings.
+The domain, path, port, service, and network settings stay the same.
+
+Live browser checks pass at 1440, 390, and 320 pixels.
+The storm has 144 tiles and tall waves.
+Four turns fit the keyboard view at both phone widths.
+Source search, read-only Core, F12, and Back work.
+The same storm stays alive through Code, Benchmark, and full screen.
+Reduced motion and Clear work.
+No page errors were observed.
+This checks phone-sized Chromium, not a physical Android phone.
+
+The live vendor probe uses a namespace with an ocean project tag.
+An object run hook receives that exact namespace and returns 42.
+Its close hook runs once, and graceful close returns success.
+
+Rollback image: `tinkered-playground:before-playground-217a0218`.
+Tag that image as `tinkered-playground:latest`, then redeploy this same compose to roll back.
+
+Live proof logs:
+
+- `/tmp/tinkered-playground-live-browser.log`
+- `/tmp/tinkered-playground-live-deploy-log.json`
+- `/tmp/tinkered-playground-main-build.log`
+- `/tmp/tinkered-playground-main-check.log`

@@ -52,14 +52,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Review
 
-- **playground/awwwards** — isometric sea, Code, and Benchmark detail pass.
-  Owner: lead (playground release); writers: Astra, xhigh.
-  Next: deploy the checked build and check the public page.
-  Verify: build/check, package and app tests, style census, prose;
-  live controls, source links, full screen, current vendor files;
-  Dokploy deployment done and live files match the build.
-  [Track](docs/roadmap/playground-v2/PROGRESS.md).
-
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
 
@@ -104,6 +96,12 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **playground/awwwards** — refined sea, Code, and Benchmark are live.
+  Proof: source `c55801d3`; build/check, 17 test tasks, 48 release lanes pass.
+  Paired storm verdict: b is faster; 25.5% less time in the headless check.
+  Deployment done, healthy image, matching live files, desktop and phone checks pass.
+  [Track](docs/roadmap/playground-v2/PROGRESS.md).
 
 - **authoring/model** — lazy object hooks and all five module fixes.
   Landed and pushed at `dfaad530`; tag `core/tauthoring-model`.
