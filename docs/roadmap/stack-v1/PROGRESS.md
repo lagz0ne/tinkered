@@ -4722,7 +4722,7 @@ flock /tmp/mutation.lock \
 ## t14 writer notes
 
 Owner: stack/t14 writer. Branch: `stack/t14`.
-Next: prove rapid saves, rebase onto t18, then run final checks.
+Next: rebase onto t18, then run the final checks.
 Verify: brief gate, validate, stack mutation at least 85,
 and queue verdict `b is faster` for reload versus restart.
 
@@ -5053,3 +5053,15 @@ No build runs in that tree while the job waits or runs.
 - Strict style census and TSDoc pass.
   Jev flags no tests or missing promises in 65 titles.
   The final gate still waits for t18 on main.
+
+### t14 rebase after examples
+
+- Main moved to `22b91ecf` with stand-alone examples.
+  The rebase had no conflicts.
+  Install passes for all 30 workspaces; the tree is clean.
+- Clean main build and check pass.
+  Check has zero errors and 28 warnings in 558 files.
+- The t17 marker is present, as the lead required.
+  t18's fresh mutation run still waits for the shared lock.
+  Its exit helper is not yet on main.
+  t14's final timing and mutation runs have not started.
