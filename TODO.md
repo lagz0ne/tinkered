@@ -39,6 +39,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **authoring/hooks** — remove positional extension hooks.
+  Owner: lead (authoring session); Astra writers, xhigh, one package each.
+  Next: record callers, migrate extensions, and remove Core's old dispatch.
+  Verify: no old declarations remain; build/check, all consumer tests,
+  prose, release checks, and each changed package's isolated fault lane.
+  Core stays within 16,384 bytes gzip.
+  [Track](docs/roadmap/authoring-model/HOOKS.md).
+
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
