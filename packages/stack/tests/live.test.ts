@@ -11,6 +11,7 @@ import { PGlite } from "@electric-sql/pglite";
 import {
   createScope,
   data,
+  extension,
   operation,
   resource,
   tag,
@@ -20,7 +21,7 @@ import {
 } from "@tinker/core";
 import { drizzleStore } from "@tinker/drizzle";
 import { errorResponses, hono, route } from "@tinker/hono";
-import { isError as isNatsError, nats, subscribe as onNats, type Nats } from "@tinker/nats";
+import { nats, subscribe as onNats, type Nats } from "@tinker/nats";
 import { startNatsServer, type NatsServer } from "@tinker/nats/testing";
 import { memoryPair, source, subscribe } from "@tinker/sync";
 import { isError, liveUpdates } from "../src/index.ts";
@@ -249,7 +250,7 @@ test("a failed database commit sends no signal", async () => {
   expect((await db.query("select title from issues")).rows).toEqual([{ title: "A" }]);
 });
 
-test("a rejected second live root leaves the first root receiving signals", async () => {
+test("a failed second live root leaves the first root receiving signals", async () => {
   const saved = tag<{ value: string }>({ label: "saved" });
   const current = data({ label: "current", initial: "" });
   const publish = operation({
@@ -257,25 +258,27 @@ test("a rejected second live root leaves the first root receiving signals", asyn
     depends: { saved, current: current.controller },
     run: ({ saved, current }) => current.set(saved.value),
   });
-  const shared = liveUpdates(publish, {
+  const [publisher, bus] = liveUpdates(publish, {
     subject: "reuse.changed",
     env: { NATS_URL: server.url },
   });
+  const failure = new Error("later start failed");
+  const later = extension({
+    label: "later",
+    start: () => {
+      throw failure;
+    },
+  });
   const first = { value: "first" };
-  const a = createScope({ tags: [saved(first)], extensions: [shared] });
+  const a = createScope({ tags: [saved(first)], extensions: [publisher, bus] });
   scopes.push(a);
   await a.ready;
   const b = createScope({
     tags: [saved({ value: "second" })],
-    extensions: [shared],
+    extensions: [publisher, later, bus],
   });
   scopes.push(b);
-  try {
-    await b.ready;
-    expect.unreachable();
-  } catch (error) {
-    if (!isNatsError(error, "PieceInUse")) throw error;
-  }
+  await expect(b.ready).rejects.toBe(failure);
   const sender = nats([], { env: { NATS_URL: server.url } });
   const source = createScope({ extensions: [sender.extension] });
   scopes.push(source);

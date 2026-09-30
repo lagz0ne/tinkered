@@ -103,7 +103,7 @@ extensions: [
 ```
 
 Make a fresh live piece for each root.
-A rejected second boot leaves the first root receiving signals.
+A failed second boot leaves the first root receiving signals.
 The nested row holds the publisher and its NATS extension.
 NATS checks `NATS_URL` at start.
 A subject must have nonempty parts split by dots,
