@@ -71,7 +71,7 @@ Use resource ownership and middleware as the precedent.
 - **t15 request lifetime** — blocked by: other work reviewed first.
   Check Hono's already-aborted requests and synchronous stream failures.
   Check Process's existing early-abort card against the root lifetime rule.
-- **t16 trace wiring** — blocked by: the pending root-binding shape choice.
+- **t16 trace wiring** — blocked by: none.
   Give each root its own observer and queue.
   Keep the reusable graph free of live queues.
 
@@ -132,6 +132,64 @@ A synchronous stream body failure must release its session.
 The other team's `stack/t17` changes the same middleware.
 Work in an isolated tree and preserve its commit-before-response work.
 Recheck both sets of promises after merging main.
+
+### t14: unchanged Tinkerer API; steering wakes a waiting step
+
+Callers: `examples/tinkerer/real.ts`;
+Tinkerer command, files, gate, inbox, log, namespace, persistence,
+span-tree, tools, and turn tests.
+Persistence watches messages through `src/persist.ts`.
+No production package outside Tinkerer imports its turn today.
+ADR 0053 promises that steering interrupts an in-flight step.
+The wakeup and stream cleanup belong to that turn's owner.
+Keep messages, tool results, and namespace state in their existing cells.
+
+### t16: trace extension stays at the center
+
+User steering: the observer needs its own graph, possibly its own scope.
+Add `traceSink()` as a reusable extension resolved to `Observe.Config`.
+The extension exposes its fixed settings tag.
+Its telemetry scope owns the queue, export actions, and cleanup.
+The observed app borrows its callback config.
+Close the app first, then close telemetry to flush the last app spans.
+Keep observation off inside telemetry by default, to avoid exporting itself.
+Keep `traceSink(wiring)` valid as the legacy root-wiring form.
+
+```ts
+const tracing = traceSink();
+const telemetryStop = new AbortController();
+const telemetry = createScope({
+  signal: telemetryStop.signal,
+  tags: tracing.config({
+    env: {
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4318",
+      OTEL_SERVICE_NAME: "service-tools",
+    },
+    write: (line) => process.stdout.write(`${line}\n`),
+  }),
+  extensions: [tracing],
+});
+await telemetry.ready;
+const appStop = new AbortController();
+const app = createScope({
+  signal: appStop.signal,
+  observe: telemetry.resolve(tracing),
+});
+await app.closed;
+telemetryStop.abort();
+await telemetry.closed;
+```
+
+Callers: Stack trace and trace-failure tests and the Stack README.
+There are no production callers of `traceSink` today.
+Public symbols: `traceSink`, `TraceSink.Extension`, its config tag.
+List their SCIP callers before code and after the change.
+The extension may be reused; each telemetry root owns its own graph values.
+Prove two telemetry roots send to their own collectors.
+Prove closing A preserves B and the final app-close spans reach telemetry.
+Prove bad setup cleans up and cannot stop another root's queue.
+Public callbacks remain the existing `Observe.Config` shape.
+No Core observer API change or automatic private root is needed.
 
 ### Writer handoff
 

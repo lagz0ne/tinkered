@@ -2,6 +2,9 @@
 
 A starter for creating a Vite+ monorepo.
 
+[Authoring packages and apps](docs/best-practices.md)
+explains units, owners, and namespace instances.
+
 ## Development
 
 - Check everything is ready:

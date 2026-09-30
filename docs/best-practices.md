@@ -1,150 +1,166 @@
-# Building an app on `@tinker/*` — best practices
+# Authoring packages and apps
 
-Date: 2026-09-20. Source: the issue-tracker audit
-([contributor audit](roadmap/issue-tracker-v1/audit-2026-09-20.md),
-[lead server review](roadmap/issue-tracker-v1/server-review-2026-09-20.md)) read against ADRs
-0036–0050 and the tours in `examples/`. Hand this file to the next agent that writes or reviews
-an app on the library. The golden example is `apps/playground` (ADR 0049).
+Declare the graph once.
+A graph is the set of named units and their dependencies.
+Reuse it across roots, sessions, and namespace instances.
 
-## Why an example app exists
+A graph builder such as `harness()` or `drizzleStore()` is valid.
+Call it once for the authored configuration.
+It must leave live state with the instance that owns it.
 
-An example shows the library's value. Every line must pay into one of three goals:
+## Pick the unit by what it does
 
-| Goal                                            | What it means in code                                                                                                                                                                                                                          | How to check it                                                                                                                                     |
-| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Fewer lines where the library owns lifetime** | Sessions, commits, cancellation, spans, and errors come from the library; app code does not redo them. On the view side expect more names, not fewer lines (11 cells and 12 operations replaced 36 `useState`); the win there is the next row. | Server: no `new Promise`, no `tail.then`, no manual `close()` of a thing a scope owns. View: no `useState`/`useEffect`; every state has one writer. |
-| **Readable**                                    | A reader sees WHAT a thing is from its shape: cell, resource, operation, tag.                                                                                                                                                                  | Every exported unit is one of the four builders. Helpers take values only.                                                                          |
-| **Seam-testable with `preset`**                 | A test creates a scope, binds tags, presets the edges, runs operations, reads cells. No server, no DOM.                                                                                                                                        | Each operation has at least one test that is `createScope` + `scope.run(op)`.                                                                       |
+- **Tag** — fixed settings and labels.
+  Bind URLs, tokens, paths, and mode choices here.
+- **Data** — mutable state that callers read or watch.
+  Operations and extensions write it through bound controllers.
+- **Resource** — a reusable value with setup and cleanup.
+  Declare dependencies and release owned work with `defer`.
+- **Operation** — an action with input and a result.
+  Validate outside input once, then use typed facts.
+- **Extension** — the engine that drives a module's goal.
+  Wrap work, act on state, and use the current owner and namespace.
+- **Namespace** — a key with fixed tags.
+  It selects settings and keeps instance state apart.
 
-## The one law
+A pure helper may take and return values.
+View state and editor handles may belong to their mounted view.
+Do not add an extension to a pure helper or a thin view adapter.
 
-**Everything is a `data`, a `resource`, or an `operation`.** Config is a `tag`. The composition
-root (`main.ts`, or a test) is the only place that calls `createScope`, `scope.resolve`,
-`scope.run`, `scope.controller`, `scope.session`, or hands the handle to a driver.
+## Keep lifetime with its owner
 
-```text
-what is it?                        → unit         → who owns it
-a value the UI or server reads      → data         → the scope; written only by operations (or a driver)
-anything that subscribes, listens,
-  polls, connects, opens, streams   → resource     → its scope or session; cleanup is `defer`
-anything a user, request, CLI,
-  or tool asks for                  → operation    → runs once per call; deps declared; input parsed at the door
-an environment choice               → tag          → bound at the root; rebound in a test
-none of the above                   → glue         → must justify itself in one TSDoc line, or be deleted
-```
+The precedent is request middleware and a database transaction.
+A request opens a session; its end commits or rolls back its work.
+A root owns the resources shared by its sessions.
 
-A helper is allowed only over **values**: `applyEdit(saved, input, now)`. It never takes a scope,
-a session, a controller, or a transaction handle. `tx` and `db` are delivered by `depends`, and
-they stay inside the operation body.
+Resource targets choose sharing:
 
-## Rules
+- `scope`: one value for the root.
+- `namespace`: one value per namespace in that root.
+- `session`: one value per session and namespace.
 
-Each rule: the imperative, the smell to grep, the shape, the goal it pays into.
+A namespace does not start or stop an instance.
+End its scope or session to discard live state.
+Keep watches, readers, queues, and tool controllers with that owner.
+A reusable definition must not retain them after close.
 
-| #   | Rule                                                                                                                                                                                                                                                                                                                                                                                                                  | Smell (grep)                                                                                                       | Shape                                                                                                                                                                                                           | Goal        |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| 1   | One composition root per process creates the scope, installs extensions, awaits `ready`, closes graceful.                                                                                                                                                                                                                                                                                                             | `createScope` outside `main.ts`/`main.tsx`/tests                                                                   | `const scope = createScope({ tags, extensions }); await scope.ready; … await scope.close({ graceful: true })`                                                                                                   | readable    |
-| 2   | `Scope.Handle` has two hands: the composition root that called `createScope` (a file, or a test) and an extension's `start`. No other public function takes or returns it. Gate: `scripts/two-hands.sh` (a validate lane).                                                                                                                                                                                            | `Scope.Handle` in any file that does not call `createScope`, outside a driver's `src` and tests                    | `createScope({ tags, extensions: [hono({ routes }), source({ cells })] })` at the root; `extension({ start: (scope, …) => … })` in a driver                                                                     | testable    |
-| 3   | Declare every operation at module level; a builder function never creates one.                                                                                                                                                                                                                                                                                                                                        | `operation({` inside a `function`                                                                                  | `export const createIssue = operation({ label, input, depends, run })`                                                                                                                                          | testable    |
-| 4   | An operation owns its work: `depends` deliver values; `run` reads and writes them. No forwarding to a closure.                                                                                                                                                                                                                                                                                                        | `run: (_deps, ctx) => something(ctx.input)` where `something` is not a dep                                         | `depends: { tx: store.tx }, run: async ({ tx }, ctx) => { await tx.insert(…) }`                                                                                                                                 | fewer lines |
-| 5   | Never call `scope.*` inside a `run`, a `factory`, a route body, or a helper.                                                                                                                                                                                                                                                                                                                                          | `scope\.` outside the root and tests                                                                               | values come from `depends`; drivers read at the edge                                                                                                                                                            | testable    |
-| 6   | Drivers are extensions and exposure is wiring: flat rows handed to `hono(routes, wiring?)`, `mcp({ tools })`, `source({ cells })`. `@tinker/process`, not a driver, owns argv routing (ADR 0056). No route/tool tags, and there is no meta: a unit carries no static bindings (drivers/t08). `scope.resolve(ext)` after `ready` is the driver handle; the process edge (listen, stdio, argv, exit) stays at the root. | `new Hono()`, `honoApp(`, `mcpServer(`, `cli(`, `run({ scope`, `commands(`, `sync(cell)`, `meta: [tool(` on a unit | `const { extension: web } = hono([route.post("/api/issues", createIssue, { input, respond })], { onError }); createScope({ extensions: [web] }); await scope.ready; serve({ fetch: scope.resolve(web).fetch })` | fewer lines |
-| 7   | A request's session IS the transaction. Run the domain op with `handle(op)`; the graceful close commits.                                                                                                                                                                                                                                                                                                              | `scope.session(` inside a route or a saver                                                                         | `handle(createIssue, { input })`; `createIssue.depends = { tx: store.tx }`                                                                                                                                      | fewer lines |
-| 8   | Every effect is a resource with `defer` cleanup. Nothing is stopped by hand.                                                                                                                                                                                                                                                                                                                                          | `useEffect`, `addEventListener` + manual remove, `.close()` in app code, `let closed = false`                      | `resource({ factory: (deps, { defer, signal }) => { …; defer(() => stop()); return api } })`                                                                                                                    | fewer lines |
-| 9   | Every form field, notice, filter, and selection is a `data` cell. Components read with `useData`, run with `useRun`.                                                                                                                                                                                                                                                                                                  | `useState`, `useRef` in a component                                                                                | `const title = data({ label: "draftTitle", initial: "" }); useData(title); useController(title)`                                                                                                                | testable    |
-| 10  | Read only the slice a component renders.                                                                                                                                                                                                                                                                                                                                                                              | `useData(wholeList)` in a detail view                                                                              | `useData(issueList, (l) => l.find(i => i.id === id), sameRevision)`                                                                                                                                             | readable    |
-| 11  | Config is a tag, never a struct field or a closure.                                                                                                                                                                                                                                                                                                                                                                   | `enabled:`, `baseUrl` on a struct; `process.env` outside the root                                                  | `const draftHelper = tag<{ enabled; baseUrl }>({ label: "draft" }); depends: { draft: draftHelper }`                                                                                                            | testable    |
-| 12  | One parser per command shared by HTTP, CLI, and MCP. The zod shape is the parser.                                                                                                                                                                                                                                                                                                                                     | `read*Args` beside `parse*Input` beside `*Shape`                                                                   | `input: z.object(createShape).parse`, `expose(op, { description, schema: createShape })`                                                                                                                        | fewer lines |
-| 13  | No hand-rolled lifetime: no promise tails, waiters, queues, maps of senders, or manual close flags.                                                                                                                                                                                                                                                                                                                   | `tail.then(`, `new Promise<void>`, `settled`, `new Map<string, (`                                                  | serialize in a resource; cancel via `ctx.signal`; wait via `scope.ready` / `close()`. A link that can drop is one resource that rewires itself from its health and intent cells (ADR 0070)                      | fewer lines |
-| 14  | A tagged call opens the session. Do not `createSession` by hand.                                                                                                                                                                                                                                                                                                                                                      | `createSession(`, `session.close(`                                                                                 | `scope.run(draftTurn, { input, tags: [draftGuardrails] })`                                                                                                                                                      | fewer lines |
-| 15  | Publish committed state from one root-owned place, once, by updating the cell with the returned value.                                                                                                                                                                                                                                                                                                                | `scope.run(listAll)` after every save                                                                              | `controller(issueList).update((l) => replace(l, saved))`                                                                                                                                                        | readable    |
-| 16  | Tests are entrypoints: `createScope({ tags, presets })`, `scope.run(op)`, read cells. Import only the seam.                                                                                                                                                                                                                                                                                                           | a test that boots the whole app to check one op                                                                    | see the recipe below                                                                                                                                                                                            | testable    |
-| 17  | Pass the frame its tools. `drizzleStore.open(config, { logger })` — keep the `db query` log lines.                                                                                                                                                                                                                                                                                                                    | `open: (path) => openDatabase(path)`                                                                               | `open: (path, { logger }) => drizzle(new PGlite(path), { logger })`                                                                                                                                             | readable    |
+## Give extensions bound access
 
-## The seam test recipe (rule 16)
+Object hooks receive one lazy event.
+Its `kind` selects the payload; `next()` continues the chain.
+Access follows the actual owner and namespace of the work.
 
 ```ts
-import { createScope, preset } from "@tinker/core";
-import { createIssue, editIssue, listIssues, store, issueList } from "../src/index.ts";
-
-const scope = createScope({ tags: [store.config(undefined)] }); // in-memory PGlite
-const saved = await scope.run(createIssue, {
-  input: { title: "First", description: "x" },
-  tags: [],
+const managed = tag({
+  label: "managed",
+  default: false,
 });
-const all = await scope.run(listIssues);
-expect(all.map((i) => i.title)).toEqual(["First"]);
-await scope.close({ graceful: true });
+const calls = data({ label: "calls", initial: 0 });
+const engine = extension({
+  label: "service.engine",
+  hooks: {
+    run(event) {
+      if (event.resolve(managed)) {
+        event.controller(calls).update((n) => n + 1);
+      }
+      return event.next();
+    },
+  },
+});
+const github = namespace({ tags: managed(true) });
 ```
 
-`preset(node, replacement)` swaps an edge for one test: an endpoint operation (`postIssue`), a
-fixed clock via `makeTestClock`, a fake harness `query`. The operation under test does not change.
+A run hook can wait before or after `next()` and own cleanup.
+Use `event.resolve(resource)` for setup the engine needs.
+Resolve hooks wrap direct root reads only.
+They do not cover dependency or session reads.
+Use an explicit setup resource when those paths need readiness.
 
-Preset the node the app owns, not the transport under it. An app test never binds a fake on the
-`backend` tag: that is `@tinker/http`'s own seam, and a route table matched by method and URL is
-a second server. The node itself must speak every outcome a test wants to preset — a 409 is
-raised as `IssueConflict` by `patchIssue`, so a preset rejects with the same error the graph
-handles (2026-09-21, `tracker/preset-seam`). Each test builds its own scope and counts calls in
-its own closure; a shared boot helper hides which edges a test needs.
+Legacy hooks remain valid when their existing arguments fit the case.
+If both forms name the same hook, the object form wins.
+Do not rewrite a callback just to change its syntax.
 
-## The issue tracker, classified
+## Observation has its own graph
 
-What each thing in `apps/issue-tracker` is, after the 2026-09-20 reshape (`a098dc3`). The last column is what the audit found before it.
+Observer callbacks accept spans and logs.
+They do not receive the owner that created that work.
+Give a queued observer its own telemetry scope.
 
-| Thing                                    | Unit                         | Owner                   | Today                                              |
-| ---------------------------------------- | ---------------------------- | ----------------------- | -------------------------------------------------- |
-| saved issue list                         | `data` (`issueList`, synced) | server scope            | ✔ `shared/issues.ts:306`                           |
-| PGlite client / transaction              | `resource` (drizzle frame)   | scope / request session | ✔ `store.ts`; but `logger` dropped                 |
-| create / edit / comment / read / list    | `operation`                  | module level            | ✔ `operations.ts`; wrapped again in `app.ts:58-84` |
-| HTTP routes                              | `tag` (`route.*`)            | root                    | ✘ hand-mounted on `new Hono()`                     |
-| serial save queue (PGlite is 1-conn)     | `resource` (scope)           | scope                   | ✘ closures over `scope` in `bridge.ts:44-63`       |
-| publish-after-commit                     | root-owned write, one place  | root                    | ✘ `publishList(scope)` re-reads the table          |
-| draft on/off, public base URL, data path | `tag`                        | root                    | ✘ `Booted.Draft` struct                            |
-| sync source / subscribe                  | extension (driver)           | root                    | ✔                                                  |
-| SSE wire per tab                         | `resource` (session)         | request session         | ✘ inline in the route + `owned` wrapper            |
-| harness draft turn                       | `operation` + tagged call    | request session         | ✘ `runDraft(owner)` hand-manages a session         |
-| live draft text / status                 | `data` (harness cells)       | draft session           | ✔ cells exist; watched by hand                     |
-| browser tab connection                   | `resource` (scope)           | tab scope               | ✘ `connectTab` imperative                          |
-| form fields, notices, filter, selection  | `data`                       | tab scope               | ✘ 36 `useState`, 6 `useEffect`, 3 `useRef`         |
-| submit / save / comment / reconnect      | `operation`                  | module level            | ✘ `async function submit(event)` in components     |
-| CLI / MCP tools                          | `operation` + `expose` row   | module level            | ✔ `tools/issues.ts`                                |
+That scope owns the trace extension, queue resource, and export actions.
+The app borrows the observer config resolved by the extension.
+Close the app first, then close telemetry to send the final spans.
+Leave observation off in telemetry unless self-observation is intended.
 
-## Target file tree
+## One agent, two services
 
-```text
-apps/issue-tracker/src/
-├── errors.ts                 # registry (keep)
-├── shared/
-│   ├── issues.ts             # parsers + issueList cell (keep)
-│   └── draft.ts              # parsers (keep)
-├── server/
-│   ├── store.ts              # drizzle frame, logger wired
-│   ├── operations.ts         # 5 domain ops (keep) + saveQueue resource
-│   ├── routes.ts             # route.* tag bindings + onError
-│   ├── sync.ts               # SSE transport as a session resource
-│   ├── draft.ts              # triage harness + draftTurn (keep); no runDraft
-│   └── main.ts               # THE root: createScope, hono, ready, graceful close
-├── client/
-│   ├── api.ts                # http ops (keep)
-│   ├── state.ts              # form/selection/notice cells
-│   ├── actions.ts            # submit/save/comment/reconnect operations
-│   ├── connection.ts         # tab connection resource (EventSource + subscribe)
-│   ├── App.tsx               # reads cells, runs ops; no hooks but useData/useRun/useResource
-│   └── main.tsx              # THE root for the tab
-└── tools/issues.ts           # CLI + MCP ops (keep)
+Keep the conversation in one session.
+Select the service namespace on each HTTP call.
+Both services use the same `send` declaration.
+
+```ts
+const github = namespace({
+  tags: httpConfig({
+    baseUrl: "https://api.github.com",
+    headers: { authorization: "Bearer github-token" },
+  }),
+});
+const cloudflare = namespace({
+  tags: httpConfig({
+    baseUrl: "https://api.cloudflare.com/client/v4",
+    headers: { authorization: "Bearer cloudflare-token" },
+  }),
+});
+await send.run({
+  ns: github,
+  input: HttpRequest.get("/repos/octocat/Hello-World"),
+});
+await send.run({
+  ns: cloudflare,
+  input: HttpRequest.get("/zones"),
+});
 ```
 
-Deleted: `server/bridge.ts`, the six wrappers in `app.ts`, the draft stream scaffold, the
-`owned` transport wrapper, every `useState`. Measured after the reshape: server 992 → 802 lines, client 1169 → 1941,
-source 2.9k → 3.6k, tests 2.2k → 2.8k. The server shrank; the view grew into named, headless-tested units.
+These are separate settings, with one HTTP graph.
+They may share a root-owned workspace resource.
+See the complete [Harness example](../examples/harness/SERVICES.md).
 
-## Known gaps in the library (do not paper over them silently)
+## Keep the root small
 
-Recorded in [core-feedback.md](roadmap/core-feedback.md), 2026-09-20 rows. When one of these
-forces glue, write the glue in ONE named place with a TSDoc line that names the gap.
+The entry file reads process or browser inputs and wires the graph.
+It owns output and stop signals.
+Use Core's root lifetime: pass a signal and await `closed`.
+Do not close a root again after its `ready` rejects.
+Do not pass its handle through app helpers.
 
-1. A session's cell write does not reach the root cell; there is no "after this session committed" hook.
-2. ~~hono's `route.input` is not awaited, so JSON bodies are read outside `handle`.~~ Closed 2026-09-20: `input` may return a promise; a rejected read is `InputRejected` → 400.
-3. ~~hono's `stream` `emit` is not safe from a sync `Transport.send`.~~ Closed 2026-09-20: `emit` is synchronous.
-4. No built-in way to run one call at a time on a single-connection store.
-5. No documented form-cell pattern for React.
+Declare domain operations and resources outside request bodies.
+Helpers over values may parse, format, or transform those values.
+A driver receives the root through its extension event.
+App code calls declared actions through dependencies.
+
+## Handle results at the right place
+
+Use `run()` when failure should reach the owner.
+Use `settle()` when the caller handles a failed or cancelled result.
+Catching a run rejection does not recover that failure for the owner.
+
+After a commit, publish from committed storage through a root controller.
+Keep the request namespace on that controller.
+Do not publish from the session's draft cells.
+
+## Check the public promise
+
+A test creates its own root, runs the public action, and reads the result.
+A regression must fail before its fix.
+Use real dependencies or public fakes; do not patch globals or mock code.
+
+An app test presets the app's endpoint operation.
+An HTTP integration test may bind a recording backend.
+The service example checks the real HTTP graph through that backend.
+Use a controlled clock for time; do not sleep to wait for state.
+
+Run build before check and consumer tests.
+Run prose after changing Markdown.
+Record the observed proof on the board.
+
+The [package and app review](roadmap/authoring-model/PACKAGES.md)
+tracks the current source paths, fixes, and checks.
