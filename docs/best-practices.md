@@ -76,9 +76,8 @@ Resolve hooks wrap direct root reads only.
 They do not cover dependency or session reads.
 Use an explicit setup resource when those paths need readiness.
 
-Legacy hooks remain valid when their existing arguments fit the case.
-If both forms name the same hook, the object form wins.
-Do not rewrite a callback just to change its syntax.
+Declare all extension hooks inside `hooks`.
+Each hook takes one bound event.
 
 ## Observation has its own graph
 

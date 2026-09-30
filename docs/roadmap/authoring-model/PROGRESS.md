@@ -757,3 +757,13 @@ Root completion passes a signal and waits for `closed`.
 Process: 50 tests pass; fault score 94.61, above the floor of 85.
 The merged code check passes with 0 errors and 28 existing warnings.
 The existing card moved from Ready to Done; no duplicate card was added.
+
+## Remove positional extension hooks — in progress
+
+The user asked for this migration after the package review landed.
+The impact block and package briefs are in [HOOKS.md](HOOKS.md).
+ADR 0092 replaces ADR 0089's compatibility rule with one event hook form.
+The graph, namespace, ownership, and middleware behavior stay the same.
+The 16 KiB Core cap stays in force.
+Current source and tests are being migrated in isolated package worktrees.
+Historical decisions and past proof retain the API they recorded.
