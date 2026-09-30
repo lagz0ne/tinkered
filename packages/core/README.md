@@ -33,6 +33,54 @@ A schema's refusal arrives as the `DataValidationFailed` cause: `SchemaRejected 
 A schema that answers with a promise is refused with `SchemaAsync { vendor }`; every edge parses
 before it runs.
 
+## Root lifetime
+
+Give a root a stop signal and await its final Result (ADR 0085):
+
+```ts
+const scope = createScope({ ...pieces, signal: stop });
+const end = await scope.closed;
+process.exitCode = exitCode(end);
+```
+
+- `signal` asks the root to close gracefully once `ready` resolves.
+  An abort before or during start waits for start to end.
+  The root stays usable until then.
+  In-flight work can finish; the stop never aborts `ctx.signal`.
+  A waiting run hook and its cleanup count as in-flight work.
+- A failed start records its error and closes through the handle's current `close`.
+  Every close hook runs, including its after-work.
+  `ready` rejects with the start error only after that forced close ends.
+  A close already under way in core wins; the failed start joins it without running hooks again.
+  An abort adds no second close once a close reaches core.
+  A replaced `close` that waits first (NATS drains) is seen only when it calls core's close.
+- The root drops its abort listener as soon as a close reaches core, before the hooks run.
+  A signal close runs each hook with `graceful: true`.
+  A later forced close joins it and keeps its Result.
+- Only a root given a `signal` has `closed`; sessions take no stop signal.
+  `closed` stays pending while open, settles once, and never rejects.
+  It holds core's own Result after the close hooks finish their after-work.
+  A hook's returned substitute does not change it.
+  Each ordinary `close()` shares that Result; the first call's `withData` wins.
+- A hook that skips `next()` or throws before it leaves `closed` pending.
+  A hook's throw after `next()` still lets `closed` resolve.
+  Hook throws are not yet in the Result; `core/close-hook-scope` owns that change.
+
+The exit-code choice stays outside core.
+Stack uses 1 for a failed Result or any teardown error, and 0 otherwise.
+A cancelled Result is a clean stop there.
+Process keeps its own forced stop and exit code 130.
+
+```ts
+import type { Scope } from "@tinker/core";
+
+function exitCode(end: Scope.Result): number {
+  if (end.status === "failed") return 1;
+  if (end.teardownErrors?.length) return 1;
+  return 0;
+}
+```
+
 ## Extensions
 
 An extension is middleware over the scope's verbs (ADR 0050). Declare it with

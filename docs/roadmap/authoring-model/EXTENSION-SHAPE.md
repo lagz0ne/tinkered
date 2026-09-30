@@ -1,7 +1,7 @@
 # Extension access, derived from cases
 
 Date: 2026-09-30.
-Status: saved and tested on `authoring/model-fixes`; Core size gate is red.
+Status: saved and tested; merged landing checks use the approved 16 KiB cap.
 
 ## Rules
 
@@ -236,4 +236,5 @@ independent roots, and real NATS server routing.
 The [progress log](PROGRESS.md) records gates and measurements.
 Queued probes found no difference between legacy and object hooks.
 They also found no slowdown on the path with no hooks.
-Core still exceeds its size cap; landing waits for that gate.
+The user approved a 16 KiB Core cap.
+Final checks cover the merge with newer root-lifetime and trace work.

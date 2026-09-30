@@ -1,7 +1,7 @@
 # Authoring model review
 
 Date: 2026-09-30.
-Status: fixes saved and tested; Core size gate blocks landing.
+Status: fixes reviewed; 16 KiB cap approved; merged landing checks running.
 
 The proposed context addresses a real access gap.
 It does not by itself give live state the right owner.
@@ -22,7 +22,8 @@ The finding paths below describe the reviewed baseline, `2700a440`.
 - NATS owns connections per root and namespace.
   Real-server tests cover publish routing and incoming sessions.
 
-Core's size cap still fails.
+The first landing attempt failed the old 15 KiB cap.
+The user then chose 16 KiB; merged checks are running.
 The first event cost probe led to a simpler run-event constructor.
 The final probe found no difference between legacy and object hooks.
 All five changed packages pass the required fault-check floor.

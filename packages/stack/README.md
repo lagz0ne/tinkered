@@ -74,6 +74,82 @@ Each call writes one JSON object without a newline;
 the root adds the newline when it writes to stdout.
 `describeError(error)` keeps error fields for the log.
 
+## Traces and logs over OTLP
+
+`traceSink({ env, write })` returns `extension` and `observe`.
+Make a fresh piece for each root and pass both:
+
+```ts
+const traces = traceSink({
+  env: {
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4318",
+    OTEL_SERVICE_NAME: "issue-tracker",
+  },
+  write: (line) => process.stdout.write(`${line}\n`),
+});
+const scope = createScope({
+  extensions: [traces.extension, web],
+  observe: traces.observe,
+});
+```
+
+List the piece before extensions that do work at boot.
+Start reads both settings once.
+There are no defaults, including in dev.
+`BadTraceSettings.payload.keys` names every missing or bad key.
+The endpoint must use HTTP or HTTPS, with no credentials,
+query, or fragment.
+The service name must contain text after trimming spaces.
+
+The sink sends [OTLP/JSON][otlp] by HTTP POST.
+It adds `/v1/traces` and `/v1/logs` to the endpoint path,
+following the [OTLP endpoint rule][otel-endpoint].
+Both carry `service.name` and the scope name `@tinker/stack`.
+It adds no outside package dependency.
+Core already supplies the ids and finished spans;
+using the official exporters would require SDK span objects.
+The logs SDK stays out, as ADR 0076 requires.
+
+- Each finished span and log is retained by reference until flush.
+  OTLP reads ids and encodes attributes only at flush.
+  Local JSON logs still encode at the call site.
+- Core span kinds become the `tinker.kind` attribute.
+  OTLP kind is INTERNAL (1).
+  An ok span leaves status UNSET by omitting it.
+  A failed span has code 2 and its error message.
+  A thrown value that is not an Error uses `String(value)`.
+- Times are epoch nanoseconds written as decimal strings.
+- Log levels map as 20→5, 30→9, 40→13, and 50→17.
+  Each log keeps its span's trace id and span id.
+- String and boolean attributes keep their types.
+  Bigint and safe integer attributes use decimal `intValue` strings.
+  Other finite numbers use `doubleValue`.
+  Other values become JSON text, or `String(value)` for undefined.
+  A record that cannot be encoded is dropped.
+- A timer flushes once per second after the last batch ends.
+  Graceful close joins that batch and flushes queued records,
+  including logs from resource cleanup.
+  Its one-second deadline starts at close and covers both batches.
+- Forced close aborts any send, drops queued records, and sends nothing new.
+  It does not wait for the send deadline.
+- The queue holds at most 2048 finished span or log references.
+  A full queue drops new records without encoding them.
+  Flush caps the batch at 1 MiB of encoded record bytes.
+  Records that would exceed that cap are dropped.
+  A batch in flight has the same count and byte bounds.
+- Each send has a one-second deadline.
+  Any 2xx response delivers the batch, including 202 and 204.
+  Failed batches are dropped with no retry.
+  A request never waits for this network work.
+- One local JSON warning names a failure burst.
+  A full successful batch ends the burst.
+  The warning never goes back into the export queue.
+- Local JSON logs and failed spans still go to `write`.
+  A broken local writer does not stop work or export.
+
+[otlp]: https://github.com/open-telemetry/opentelemetry-proto/blob/main/docs/specification.md
+[otel-endpoint]: https://opentelemetry.io/docs/specs/otel/protocol/exporter/#endpoint-urls-for-otlphttp
+
 ## Publish after commit
 
 `publishAfterCommit(publishIssues)` runs the app's read
@@ -172,6 +248,18 @@ A later commit or a new boot reads the current database.
 - A manual session does not publish after boot.
 - The graph traces the changed signal and the root re-read.
 - An invalid live subject fails boot.
+
+- One request exports one trace with its remote parent, span fields, and service.
+- Log lines carry their span ids, mapped severity, time, and attributes.
+- The timer exports finished spans while a stream is still open.
+- Graceful close exports queued spans, failed status, and cleanup logs.
+- Missing or bad OTLP settings stop boot and name every key.
+- A bad OTLP endpoint fails boot naming only its key.
+- A missing service name fails boot naming only its key.
+- A down, slow, or 500 collector keeps requests and close working and logs once per burst.
+- A recovered collector ends a failure burst so a later fault logs again.
+- The queue bounds record count and bytes and drops new records with one local warning.
+- A broken local writer and an unencodable record do not stop later exports.
 
 ## Checks
 

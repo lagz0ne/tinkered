@@ -1,6 +1,6 @@
 import { extension, operation, resource, tag } from "@tinker/core";
-import type { Namespace, Operation, Scope } from "@tinker/core";
-import type { NatsConnection, Subscription } from "@nats-io/transport-node";
+import type { Namespace, Observe, Operation, Scope } from "@tinker/core";
+import type { Msg, MsgHdrs, NatsConnection, Subscription } from "@nats-io/transport-node";
 import { raise } from "./errors.ts";
 
 export { isError } from "./errors.ts";
@@ -22,7 +22,7 @@ export declare namespace Nats {
     connection?: NatsConnection;
   };
   /** Resolving the resource prepares this namespace's incoming subscriptions too. */
-  type Connection = { send(message: Message): void };
+  type Connection = { send(message: Message, span?: Observe.Span): void };
 }
 
 const closedConnection: Nats.Connection = {
@@ -77,10 +77,10 @@ export function nats(rows: readonly Nats.Row[], wiring?: Nats.Wiring) {
           driver.connections.delete(service);
         }
       });
-      const { connect } = await import("@nats-io/transport-node");
+      const { connect, headers } = await import("@nats-io/transport-node");
       ctx.signal.throwIfAborted();
       const client = settings.connection ?? (await connect({ servers: settings.url }));
-      service.attach(client);
+      service.attach(client, headers);
       ctx.signal.throwIfAborted();
       if (!driver.stopping) {
         for (const row of rows) {
@@ -123,7 +123,7 @@ export function nats(rows: readonly Nats.Row[], wiring?: Nats.Wiring) {
     label: "nats.publish",
     depends: { connection },
     run: async ({ connection }, ctx: Operation.Ctx<Nats.Message>) => {
-      connection.send(ctx.input);
+      connection.send(ctx.input, ctx.obs.span);
     },
   });
   return { extension: bridge, publish, config, connection };
@@ -158,7 +158,7 @@ class Driver {
 class Connection {
   readonly subscriptions: Subscription[] = [];
   private pending = new Set<Promise<void>>();
-  private client: NatsConnection | undefined;
+  private live: { client: NatsConnection; headers: () => MsgHdrs } | undefined;
   private owned: boolean;
   private stopping: Promise<void> | undefined;
   private closing: Promise<void> | undefined;
@@ -167,14 +167,20 @@ class Connection {
     this.owned = owned;
   }
 
-  attach(client: NatsConnection): void {
-    this.client = client;
+  attach(client: NatsConnection, headers: () => MsgHdrs): void {
+    this.live = { client, headers };
   }
 
-  readonly send = (message: Nats.Message): void => {
-    const client = this.client;
-    if (!client) raise("NotStarted", {});
-    client.publish(message.subject, message.payload);
+  readonly send = (message: Nats.Message, span?: Observe.Span): void => {
+    const live = this.live;
+    if (!live) raise("NotStarted", {});
+    if (span) {
+      const carrier = live.headers();
+      carrier.set("traceparent", `00-${span.traceId}-${span.spanId}-${span.sampled ? "01" : "00"}`);
+      live.client.publish(message.subject, message.payload, { headers: carrier });
+    } else {
+      live.client.publish(message.subject, message.payload);
+    }
   };
 
   track(work: Promise<void>): void {
@@ -194,17 +200,32 @@ class Connection {
   private async finish(): Promise<void> {
     try {
       await this.quiet();
-      if (this.owned) await this.client?.drain();
+      if (this.owned) await this.live?.client.drain();
     } catch (error) {
       /** A failed final flush must still release an owned connection. */
-      if (this.owned) await this.client?.close();
+      if (this.owned) await this.live?.client.close();
       throw error;
     } finally {
-      this.client = undefined;
+      this.live = undefined;
       this.subscriptions.length = 0;
       this.pending.clear();
     }
   }
+}
+
+/** The NATS carrier follows the same W3C validation as Hono: an invalid
+ * or absent header clears any root seed before opening the message session. */
+function readTraceparent(header: string | undefined): Observe.Trace | null {
+  if (!header) return null;
+  const match =
+    /^(?<version>[0-9a-f]{2})-(?<traceId>[0-9a-f]{32})-(?<parentSpanId>[0-9a-f]{16})-(?<flags>[0-9a-f]{2})(?<suffix>-.*)?$/.exec(
+      header,
+    );
+  if (!match) return null;
+  const { version, traceId, parentSpanId, flags, suffix } = match.groups!;
+  if (version === "ff" || (version === "00" && suffix !== undefined)) return null;
+  if (/^0+$/.test(traceId) || /^0+$/.test(parentSpanId)) return null;
+  return { traceId, parentSpanId, sampled: (Number.parseInt(flags, 16) & 1) === 1 };
 }
 
 function readUrl(value: string | undefined): string {
@@ -221,25 +242,30 @@ function deliver(
   subject: string,
   receive: Operation.Handle<unknown, Nats.Message>,
   error: Error | null,
-  message: { subject: string; data: Uint8Array },
+  message: Msg,
 ): Promise<void> {
-  return scope.session({ ns }, (session) =>
-    session.run({
-      label: `nats ${subject}`,
-      depends: { receive },
-      run: async ({ receive }, ctx) => {
-        if (error) {
-          ctx.log.error("nats subscription failed", { subject, error });
-          return;
-        }
-        const result = await receive.settle({
-          input: { subject: message.subject, payload: new Uint8Array(message.data) },
-        });
-        if (result.status === "failed") {
-          ctx.log.error("nats operation failed", { subject: message.subject, error: result.error });
-        }
-      },
-    }),
+  return scope.session(
+    { ns, trace: readTraceparent(error ? undefined : message.headers?.get("traceparent")) },
+    (session) =>
+      session.run({
+        label: `nats ${subject}`,
+        depends: { receive },
+        run: async ({ receive }, ctx) => {
+          if (error) {
+            ctx.log.error("nats subscription failed", { subject, error });
+            return;
+          }
+          const result = await receive.settle({
+            input: { subject: message.subject, payload: new Uint8Array(message.data) },
+          });
+          if (result.status === "failed") {
+            ctx.log.error("nats operation failed", {
+              subject: message.subject,
+              error: result.error,
+            });
+          }
+        },
+      }),
   );
 }
 

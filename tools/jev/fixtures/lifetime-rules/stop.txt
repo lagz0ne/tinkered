@@ -1,0 +1,41 @@
+async function listener(stop: AbortSignal) {
+  const scope = createScope();
+  stop.addEventListener("abort", () => {
+    return scope.close({ graceful: true });
+  });
+}
+async function namedListener(stop: AbortSignal) {
+  const scope = createScope();
+  function end() {
+    return scope.close({ graceful: true });
+  }
+  stop.addEventListener("abort", end);
+}
+async function inline(stop: AbortSignal) {
+  const scope = createScope();
+  await new Promise<void>((resolve) => {
+    stop.addEventListener("abort", resolve, { once: true });
+  });
+  await scope.close({ graceful: true });
+}
+async function local(stop: AbortSignal) {
+  const scope = createScope();
+  const stopped = new Promise<void>((resolve) => {
+    if (stop.aborted) resolve();
+  });
+  await stopped;
+  await scope.close({ graceful: true });
+}
+async function event(stop: AbortSignal) {
+  const scope = createScope();
+  await once(stop, "abort");
+  await scope.close({ graceful: true });
+}
+async function localListener(stop: AbortSignal) {
+  const scope = createScope();
+  const stopped = new Promise<void>((resolve) => {
+    stop.addEventListener("abort", resolve);
+  });
+  await stopped;
+  await scope.close({ graceful: true });
+}

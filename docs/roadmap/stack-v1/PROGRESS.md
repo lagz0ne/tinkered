@@ -452,7 +452,7 @@ npx --no-install stryker run \
   Verify: two server scopes on one PGlite and a
   real `nats-server`: a save through one reaches a
   subscriber on the other.
-- **t13 the trace sink** -- [ ] blocked by: t04, t05
+- **t13 the trace sink** -- [x] landed `547e060`
   The stack sends spans and logs over OTLP to
   `OTEL_EXPORTER_OTLP_ENDPOINT` (ADR 0076). NATS
   messages carry `traceparent` (ADR 0080). A
@@ -461,6 +461,7 @@ npx --no-install stryker run \
   Verify: `vp run stack#test` against a local OTLP
   receiver: one request gives one trace with all
   its spans.
+  Open (low): a failed span with no error message exports the text `undefined` (otlp.ts); the span queue caps by count (2048), bytes only per batch.
 - **t14 the dev host** -- [ ] blocked by: t06, t07
   `vp run dev` is one process that keeps PGlite,
   `nats-server`, and Vite open (ADR 0082). An edit
@@ -501,6 +502,15 @@ npx --no-install stryker run \
   Verify: a test per rule that fails on today's
   main; `vp run hono#test`, tracker tests, browser
   proof, `pnpm validate`.
+
+- **t18 the stack's roots on the stop signal** -- [ ] blocked by: none
+  core/root-lifetime landed (ADR 0085). The stack
+  drops `runUntilStop` for an exit-code helper over
+  a plain `Result`; the tracker's server root passes
+  its stop signal to `createScope` and awaits
+  `scope.closed`. Session tinkered-04 moves the rest.
+  Verify: no `runUntilStop` left; SIGTERM exits 0;
+  stack and tracker tests; `pnpm validate`.
 
 ## t05 writer notes
 
@@ -1887,3 +1897,186 @@ impact stack/t04: as planned (0 discrepancies). Advisory — never a gate.
 - Prose: zero hits; `PROSE_EXIT=0`.
 - Source commit: `2cb01a4f`; the card returns to Review.
 - Raw proof: `.bench/stack-t04-f5-proof/`.
+
+## t13 writer plan
+
+- Base: `f8bc981b`, from `origin/main` after t04 and t05.
+- Next: add the OTLP/JSON piece and NATS trace headers.
+- Verify: stack, NATS, and tracker tests; full gate;
+  `pnpm validate`; both mutation lanes at least 85.
+- Assumption: a fresh trace sink belongs to each root.
+- Use a small OTLP/JSON writer, with no OTel dependency.
+  Core already supplies ids, times, and finished spans.
+  The official exporters would need SDK-shaped spans and
+  the logs SDK excluded by ADR 0076.
+- Queue copies encoded records, never the span tree.
+  Cap records and bytes; one batch at a time;
+  a deadline bounds each HTTP send.
+- Impact: add `traceSink` and `TraceSink` to stack.
+  Existing callers need no change.
+  NATS publish and subscribe call forms stay the same;
+  publish and subscription now carry trace context.
+  Check stack and the issue tracker as consumers.
+
+### t13 first green step
+
+- Stack: 77 tests passed; NATS: 23 tests passed.
+- `vp check`: 0 errors, 29 warnings.
+  The clean base at `f8bc981b` also has 29 warnings.
+- `vp run prose`: 0 hits.
+- Jev tests: 0 flags for stack and NATS.
+  README promises: 0 gaps for both.
+- Jev preflight: no file flags.
+  The driver cleanup set is owned by NATS, not app data.
+  Its `stateOutsideCell=false` label is already in the bank.
+  The HTTP test receiver owns its packets and socket;
+  both fixture flags are labeled false.
+  The fixture now has short `listen` and `close` methods.
+- The OTLP writer adds zero dependencies.
+  Stack built install files: 11,513 → 18,555 bytes.
+  Added built files: 7,042 bytes; added gzip code: 2,077.
+  `npm pack --dry-run --ignore-scripts --json` also counts
+  the README: installed size 18,639 → 29,103 bytes.
+  Added installed size: 10,464 bytes; archive: 6,619 → 10,101.
+- Cost probe, through `flock /tmp/mutation.lock` and
+  `benchctl exec -- node bench/trace-sink.mjs`:
+  61 measured batches of 1024 fresh spans with no user fields.
+  Minimum 2,726 ns/span; median 3,057; p95 6,809.
+  The cost includes lazy id reads and queue encoding.
+  It excludes HTTP, scope setup, and batch envelopes.
+  All 72,704 spans arrived, including warmup batches.
+  This is a cost measure, not a before/after speed claim.
+- Assumptions: one sink per root; fixed queue and timer limits;
+  HTTP/JSON only; failed sends are dropped without retry.
+  These keep the sink small and put a bound on shutdown.
+- No public operation call form changed, so no old SCIP
+  symbol must disappear.
+
+### t13 core feedback
+
+`start` still drops logs (`core/start-log` already tracks it).
+The sink writes failure lines through local `jsonLines`
+instead of the start context.
+This public probe printed expected 1, actual 0:
+
+```ts
+const lines = [];
+const scope = createScope({
+  observe: { log: (line) => lines.push(line) },
+  extensions: [
+    extension({
+      label: "boot-log",
+      start: (_scope, ctx) => {
+        ctx.log.warn("boot warning");
+      },
+    }),
+  ],
+});
+await scope.ready;
+await scope.close({ graceful: true });
+// Expected: 1. Actual: 0.
+console.log(lines.length);
+```
+
+### t13 final proof — 2026-09-30
+
+- Ready for lead review; no push.
+- Final base: `origin/main` at `46bf018d`.
+  The last fetch brought a board-only change; rebase kept it.
+  Build, check, the gate tests, all package tests, and all 48
+  validation lanes passed again after that rebase.
+- Mutation source and tests stayed byte-for-byte unchanged:
+  `git diff --exit-code 551b0571 HEAD -- packages/stack`
+  and the same check for `packages/nats` both passed.
+  The required full lanes were not repeated.
+- Final gate, one chain by exit code:
+
+```sh
+vp run -r build && vp check \
+  && vp run stack#test && vp run nats#test \
+  && vp run @tinker-issue-tracker#test
+# EXIT 0
+```
+
+- Build passed.
+- Check: 0 errors, 29 warnings; base also has 29.
+- Stack: 78 tests; NATS: 23; tracker: 69; all passed.
+- All package tests: `vp run -r test`, exit 0.
+- `pnpm validate`: all 48 lanes passed, exit 0.
+  `pnpm-workspace.yaml` was restored and is not in the diff.
+- Each full mutation lane ran once, at the end, alone
+  under `flock /tmp/mutation.lock`, with its 60 s timeout.
+  Stack: 87.61; killed 407, timeout 3, survived 58,
+  no coverage 0, errors 0; exit 0.
+  NATS: 92.66; killed 164, timeout 0, survived 10,
+  no coverage 3, errors 0; exit 0.
+- Jev test and README checks have no flags or gaps.
+  The final source check has one explained driver-state flag;
+  `wrapsCallersStep` is a noisy note.
+- Labels:
+  `stateOutsideCell=false`, NATS `stopSubscriptions`:
+  already in the bank as `ab70cbe9e7ba`.
+  `effectWithoutDefer=false`, old receiver fixture:
+  `64193ad59b5f`.
+  `stateOutsideCell=false`, old receiver fixture:
+  `049e8ad8bd5c`.
+- `node tools/jev/calibrate.mjs` completed, exit 0.
+  Its saved JSON is included with the labels.
+- Both package style censuses: OK.
+- Raw gate logs, mutation JSON, and cost results:
+  `.bench/stack-t13-proof/` in the writer worktree.
+- No target was dropped.
+  The HTTP/JSON choice, fixed limits, one piece per root,
+  and dropping failed batches are the noted assumptions.
+
+### t13 reviewer fix round 1 — 2026-09-30
+
+- User asked for all six fixes, with no rebase and no push.
+- Queue retains finished span and log references.
+  Flush reads ids and encodes them, in arrival order.
+  Count is capped before enqueue; bytes are capped at flush.
+  A full queue never encodes the rejected record.
+- Bigint and safe integer attributes use decimal strings.
+  Other finite numbers keep their double value.
+- Forced close aborts the send and drops queued records.
+  Graceful close has one shared second for network work.
+  Assumption: that window starts when the close hook starts.
+  It uses the scope clock; tests advance the test clock.
+- Ok spans omit status; failed spans carry code 2 and a message.
+- Every 2xx reply counts as delivered; tests use 202 and 204.
+- NATS builds headers only when a calling span exists.
+  The new test checks a raw subscriber and sent byte counts.
+  Both checks also pass on the old code with this installed client:
+  its empty headers encode to zero bytes, but still select HPUB.
+  Kept the branch change small, as the review permits.
+- Eleven stack checks fail against the old implementation.
+  The forced-close pair was rerun after fixing its expected
+  core result: forced close returns cancelled, not success.
+  Both fail because the old sink sends a new request at close.
+- First green step: build; check 0 errors and 29 warnings;
+  stack 87 tests; NATS 24 tests; prose 0 hits.
+- Core feedback is unchanged from the first round.
+  No span-kind, traceparent-parser, or core-clock change.
+
+#### Round 1 fresh gate after an outside worktree change
+
+- First fix commit: `9c964de1`.
+- While validation ran, another process rebased this worktree.
+  The reflog records it at 02:44 UTC on 2026-09-30.
+  The writer ran no rebase command.
+  The new base is `2700a440`, which adds t06.
+  The fix commit is now `54922a9b`.
+  Kept those incoming changes and ran `vp install` and build.
+- The mixed-tree validation failed two lanes and is not proof.
+  Its check and stack tests ran while t06 files changed.
+- Fresh gate: EXIT 0; stack 92, NATS 24, tracker 79 tests.
+  Check: 0 errors, 29 warnings, unchanged from the old base.
+- Jev: no file flags, test flags, or README gaps.
+  The NATS cleanup-state flag keeps its existing false label,
+  `ab70cbe9e7ba`; no new labels were added.
+  The `wrapsCallersStep` hit remains a noisy note.
+  Style census: OK for both packages.
+- Callback cost at `9c964de1`: minimum 47 ns/span,
+  median 93, p95 197; all 72,704 spans reached the collector.
+  Trace source and tests did not change in the outside rebase.
+  [Cost notes](../../../research/learnings/2026-09-30-trace-sink-flush.md).

@@ -12,12 +12,7 @@ const counter = data({ label: "counter", initial: 0 });
 export async function tour(): Promise<string> {
   const src = source({ cells: [[counter, "counter"]] });
   const scope = createScope({ extensions: [src] });
-  try {
-    await scope.ready;
-  } catch (error) {
-    await scope.close();
-    throw error;
-  }
+  await scope.ready;
   scope.controller(counter).set(1);
   const [left, right] = memoryPair();
   const done = scope.resolve(src).connect(left);
@@ -27,7 +22,6 @@ export async function tour(): Promise<string> {
   try {
     await guest.ready;
   } catch (error) {
-    await guest.close();
     await scope.close();
     throw error;
   }

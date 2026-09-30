@@ -114,8 +114,16 @@ Forced close aborts running messages before cleanup.
 It stops pending setup before later subscription loaders run.
 The graph names each resource built during connection setup.
 
-Trace headers, JetStream, KV, and object store wait for
-later tickets.
+## Trace headers
+
+An observed publish sets the W3C `traceparent` header.
+Each subscription opens a session with that remote trace
+and parent, including the sampled bit.
+Missing or bad headers start a fresh trace, even when the
+root has a trace seed.
+With observation off, publish sends only payload bytes and no headers.
+It needs no trace ids.
+JetStream, KV, and object store wait for later tickets.
 
 ## Tests need `nats-server`
 
@@ -194,5 +202,10 @@ try {
 - A denied subscription logs its subject and closes only an owned connection.
   Graceful close returns `{ status: "success" }` with no teardown errors,
   for both owned and borrowed connections.
+
+- A traced publish joins the subscriber operation to the same trace and parent.
+- A malformed or absent NATS traceparent starts a new trace without failing the message.
+- A future NATS traceparent preserves its known ids and sampled bit.
+- Publish with observation off sends only payload bytes and no headers.
 
 [release]: https://github.com/nats-io/nats-server/releases/tag/v2.15.0

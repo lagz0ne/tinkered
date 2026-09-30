@@ -56,12 +56,7 @@ async function boot(options: Boot = {}) {
     presets: options.presets,
     observe: options.observe,
   });
-  try {
-    await scope.ready;
-  } catch (error: unknown) {
-    await scope.close();
-    throw error;
-  }
+  await scope.ready;
   return { scope, app: scope.resolve(server) };
 }
 

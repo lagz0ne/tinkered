@@ -6,6 +6,12 @@ deterministic lane and fails on any regression (proven: a seeded cast fails it).
 via `vp run core#mutate`; the wall-clock timing lanes run via `bench` in a clean sandbox (not
 in-container).
 
+## Current size cap — 2026-09-30
+
+The user chose 16 KiB, 16,384 bytes gzip, for the authoring-model landing.
+`packages/core/package.json` and the release gate enforce that limit.
+This replaces the earlier 15 KiB limit; the older measurements below remain history.
+
 ## Timing follow-up status — 2026-09-28
 
 `perf/op-parity` is no longer parked: `benchd` is the runner. `bench/queued.sh` sends
@@ -341,18 +347,18 @@ A = `origin/main` `31613e7`; B = `fb35497` (core) with this `bench/`. N=31.
 
 ## All lanes at t19 (green together)
 
-| lane                | budget                          | t19 measurement                          | how                                           |
-| ------------------- | ------------------------------- | ---------------------------------------- | --------------------------------------------- |
-| bundle size (gzip)  | ≤10 kB preferred / 15 kB max    | **8,056 B** (2026-09-21, minified)       | `vp run core#size` → `scripts/check-size.mjs` |
-| promises — sync     | **0**                           | **0**                                    | `bench/promises.mjs` (async_hooks census)     |
-| promises — async    | ≤10 (representative toggle)     | **5**                                    | `bench/promises.mjs`                          |
-| live heap / request | a few KB (~hand-wired DI)       | **3,871 B**                              | `bench/heap.mjs` (`--expose-gc`)              |
-| mutation score      | Stryker break ≥ 60              | **77.45%**                               | `vp run core#mutate`                          |
-| complexity          | ≤ 8 (cyclomatic)                | **8** (hard cap)                         | oxlint `complexity` (`vite.config.ts`)        |
-| CRAP                | ≤ 30                            | **8.73** (12.1 at the 60% floor)         | `scripts/check-crap.mjs` (cap² ·(1−cov)³+cap) |
-| both entries        | pure universal ESM              | **pure** (no node imports/globals)       | dist purity grep + node import smoke          |
-| cast-free examples  | 0 casts, typecheck clean        | **0 casts**                              | `packages/core/examples/*.ts` + `vp check`    |
-| deep chains         | teardown iterative, no overflow | **10k+ safe**; build ceilings documented | `bench/deep.mjs` (see below)                  |
+| lane                | budget                                       | t19 measurement                          | how                                           |
+| ------------------- | -------------------------------------------- | ---------------------------------------- | --------------------------------------------- |
+| bundle size (gzip)  | ≤15 kB (10 kB preferred, dropped 2026-09-30) | **8,056 B** (2026-09-21, minified)       | `vp run core#size` → `scripts/check-size.mjs` |
+| promises — sync     | **0**                                        | **0**                                    | `bench/promises.mjs` (async_hooks census)     |
+| promises — async    | ≤10 (representative toggle)                  | **5**                                    | `bench/promises.mjs`                          |
+| live heap / request | a few KB (~hand-wired DI)                    | **3,871 B**                              | `bench/heap.mjs` (`--expose-gc`)              |
+| mutation score      | Stryker break ≥ 60                           | **77.45%**                               | `vp run core#mutate`                          |
+| complexity          | ≤ 8 (cyclomatic)                             | **8** (hard cap)                         | oxlint `complexity` (`vite.config.ts`)        |
+| CRAP                | ≤ 30                                         | **8.73** (12.1 at the 60% floor)         | `scripts/check-crap.mjs` (cap² ·(1−cov)³+cap) |
+| both entries        | pure universal ESM                           | **pure** (no node imports/globals)       | dist purity grep + node import smoke          |
+| cast-free examples  | 0 casts, typecheck clean                     | **0 casts**                              | `packages/core/examples/*.ts` + `vp check`    |
+| deep chains         | teardown iterative, no overflow              | **10k+ safe**; build ceilings documented | `bench/deep.mjs` (see below)                  |
 
 ## Call paths (t27)
 
@@ -644,6 +650,11 @@ The lesson: reuse the controller's live record, so each warm resolve skips a sec
   `packages/core/vite.config.ts`). Before that, TSDoc rode along in `dist/index.mjs`:
   25,901 B gzip with comments, 10,630 B without, 8,056 B minified. The cap moved
   30,720 → 15,360 B; TSDoc still ships in `dist/index.d.mts`.
+- **2026-09-30:** 14,744 B gzip at `stack/t04` (8,056 B on 09-21: errors, the perf fast paths,
+  and trace ids grew it). The user accepted about 15 kB and dropped the 10 kB preference; the
+  cap stays 15,360 B. The package no longer ships `dist/index.mjs.map` (304 KB, a full copy of
+  the source with its comments): `files` lists only `dist/*.mjs` and `dist/*.d.mts`. The map is
+  still built, because `scripts/check-slots.mjs` reads it.
 
 ## Big-sample A/B after the drivers track (2026-09-20)
 

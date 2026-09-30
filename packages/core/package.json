@@ -13,7 +13,8 @@
     "url": "git+https://github.com/author/library.git"
   },
   "files": [
-    "dist"
+    "dist/*.mjs",
+    "dist/*.d.mts"
   ],
   "type": "module",
   "exports": {
@@ -25,7 +26,7 @@
   },
   "scripts": {
     "build": "vp pack",
-    "size": "vp pack && node ../../scripts/check-size.mjs 15360",
+    "size": "vp pack && node ../../scripts/check-size.mjs 16384",
     "dev": "vp pack --watch",
     "test": "vp test",
     "mutate": "stryker run",

@@ -3,7 +3,7 @@
 // never gates; exits 0.
 //
 //   node tools/jev/lint.mjs [paths…] [--all] [--limit N] [--json out.json]
-//   default paths: examples/ and apps/issue-tracker/src (git-tracked .ts/.tsx, no tests)
+//   default paths: examples/ and apps/issue-tracker/src (git-tracked .ts/.tsx; tests get only S29)
 //   --all also judges data/tag declarations, functions under 150 chars, and composition roots
 //   (functions that call createScope) — all skipped by default
 import { execSync } from "node:child_process";
@@ -16,6 +16,8 @@ import { inspectShape } from "./shape.mjs";
 /** Per-judge status from `tools/jev/calibrate.mjs`: a `noisy` judge prints as a note (`~`), never as a flag. */
 const CALIBRATION = readCalibration();
 const isNoisy = (id) => CALIBRATION[id]?.status === "noisy";
+
+const TEST_PATH = /(^|\/)tests\/|\.(test|spec|browser)\./;
 
 const DEFAULT = [
   "examples/*.ts",
@@ -39,7 +41,7 @@ function listFiles(specs) {
   const quoted = globs.map((s) => `'${s}'`).join(" ");
   const listed = globs.length ? execSync(`git ls-files -- ${quoted}`, { encoding: "utf8" }) : "";
   return [...direct, ...listed.split("\n")].filter(
-    (f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$|\.d\.ts$/.test(f),
+    (f) => /\.tsx?$/.test(f) && !f.endsWith(".d.ts"),
   );
 }
 
@@ -99,9 +101,10 @@ console.log(`jev lint (advisory) — ${files.length} file(s)\n`);
 for (const file of files) {
   if (report.length >= limit) break;
   const source = readFileSync(file, "utf8");
-  const codeHits = unitCouldBeModuleLevel(source, file);
-  const units = hasKey ? slice(source, file).filter(wanted) : [];
-  const shape = shapeOf(source, file);
+  const isTest = TEST_PATH.test(file);
+  const codeHits = isTest ? [] : unitCouldBeModuleLevel(source, file);
+  const units = hasKey && !isTest ? slice(source, file).filter(wanted) : [];
+  const shape = shapeOf(source, file).filter((row) => !isTest || row.id === "S29");
   if (units.length === 0 && codeHits.length === 0 && shape.length === 0) continue;
   console.log(file);
   for (const hit of codeHits) {

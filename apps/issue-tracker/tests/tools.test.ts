@@ -28,12 +28,7 @@ async function boot() {
     tags: [store.config(await cloneDatabase())],
     extensions: [server, migrateIssues, publish()],
   });
-  try {
-    await scope.ready;
-  } catch (error: unknown) {
-    await scope.close();
-    throw error;
-  }
+  await scope.ready;
   return { scope, app: scope.resolve(server) };
 }
 

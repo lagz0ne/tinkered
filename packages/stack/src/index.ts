@@ -10,3 +10,5 @@ export { isError } from "./errors.ts";
 export type { Errors } from "./errors.ts";
 export { liveUpdates, publishAfterCommit } from "./publish.ts";
 export type { LiveUpdates } from "./publish.ts";
+export { traceSink } from "./trace.ts";
+export type { TraceSink } from "./trace.ts";
