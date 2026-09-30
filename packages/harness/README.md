@@ -248,6 +248,8 @@ The in-process path is Claude's zero-process fast path: the adapter registers on
 MCP server named after the frame (built once per thread, beside any `mcpServers` you bound —
 under the frame's own label the frame's server wins),
 one SDK tool per row, and maps the value with `answerTool` exactly as the driver does.
+A reused tool server gives each turn its own tool span and trace.
+A tool request after its turn ends rejects with `TurnEnded`.
 The model needs `allowedTools: ["mcp__coder__search"]` (or an `approve` op) to call it
 without a prompt. With both `approve` and `tools`, one turn answers the approval and still
 calls the tool.

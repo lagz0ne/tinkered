@@ -90,7 +90,7 @@ const search = expose(
   { description: "find things", schema: { q: z.string() } },
 );
 
-test("the graph produces the trace: the tool nests under the send", async () => {
+test("a reused tool server gives each turn its own tool span and trace", async () => {
   const seen: {
     servers: {
       name: string;
@@ -125,9 +125,14 @@ test("the graph produces the trace: the tool nests under the send", async () => 
     observe: { history: 30 },
     presets: [preset(claudeCode.sdk, async () => sdk)],
   });
-  const result = await scope.createSession().run(askTools, { input: "hello" });
-  expect(result).toBe("Hello");
-  expect(shape(scope.spans())).toEqual(["coder.ask", "  coder.send", "    search"]);
+  const session = scope.createSession();
+  await session.run(askTools, { input: "hello" });
+  await session.run(askTools, { input: "again" });
+  const spans = scope.spans();
+  const sends = spans.filter((span) => span.name === "coder.send");
+  const tools = spans.filter((span) => span.name === "search");
+  expect(tools.map((span) => span.parentId)).toEqual(sends.map((span) => span.id));
+  expect(tools.map((span) => span.traceId)).toEqual(sends.map((span) => span.traceId));
   await scope.close();
 });
 

@@ -11,7 +11,7 @@ import type {
 } from "@anthropic-ai/claude-agent-sdk";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import { claudeCode, harness, type ClaudeCode, type Harness } from "../src/index.ts";
+import { claudeCode, harness, isError, type ClaudeCode, type Harness } from "../src/index.ts";
 import {
   parsePrompt,
   readResult,
@@ -123,6 +123,21 @@ test("the in-process server is built once per thread and reused across turns", a
   expect(seen.servers[0].name).toBe("coder");
   expect(seen.queries.length).toBe(2);
   expect(seen.queries[1]?.mcpServers?.coder).toBe(seen.queries[0]?.mcpServers?.coder);
+  await scope.close();
+});
+
+test("a tool request after its turn ends rejects with TurnEnded", async () => {
+  const seen: Seen = { servers: [], queries: [], results: [] };
+  const coder = harness({ label: "coder", adapter: claudeCode, tools: [searchTool] });
+  const scope = createScope({ presets: [preset(claudeCode.sdk, async () => fakeSdk(seen))] });
+  const session = scope.createSession();
+  await session.run(coder.send, { input: { prompt: "hello" } });
+  const failed = await seen.servers[0].tools[0].handler({ q: "late" }, {}).then(
+    () => undefined,
+    (error: unknown) => error,
+  );
+  if (!isError(failed, "TurnEnded")) throw failed;
+  expect(failed.payload.harness).toBe("claudeCode");
   await scope.close();
 });
 

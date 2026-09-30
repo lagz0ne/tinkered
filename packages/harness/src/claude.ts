@@ -143,8 +143,12 @@ export const claudeCode: ClaudeCode.Adapter = {
 
 /** What one thread remembers between turns: the last session id (resumed by the next `query`)
  * and its in-process tool server, built on the first turn that carries tools and reused after
- * (the tools do not change between turns). */
-type ThreadState = { lastId: string | undefined; server: McpServerConfig | undefined };
+ * (the tools do not change between turns). Tool controllers belong only to the active turn. */
+type ThreadState = {
+  lastId: string | undefined;
+  server: McpServerConfig | undefined;
+  tools?: Harness.TurnCalls<ClaudeCode.Calls>["tools"];
+};
 
 /** What stops one turn: the `query`'s own aborter, a child of the thread's (so a failed approval
  * stops this turn's process and the thread still runs the next turn), and the approval failure
@@ -177,10 +181,12 @@ function startClaude(
       const forward = (): void => stop.aborter.abort(aborter.signal.reason);
       if (aborter.signal.aborted) forward();
       else aborter.signal.addEventListener("abort", forward, { once: true });
+      state.tools = calls.tools;
       try {
         const opened = readTurnOptions(sdk, options, state, stop, calls, hooks);
         return await runQuery(sdk, turn, opened, stop, state, hooks);
       } finally {
+        state.tools = undefined;
         aborter.signal.removeEventListener("abort", forward);
       }
     },
@@ -209,7 +215,7 @@ function readTurnOptions(
       : { ...options, resume: state.lastId, abortController: stop.aborter };
   if (calls.approve !== undefined) opened.canUseTool = readCanUseTool(calls.approve, stop, hooks);
   if (calls.tools !== undefined) {
-    state.server ??= readServer(sdk, hooks.label, calls.tools);
+    state.server ??= readServer(sdk, hooks.label, calls.tools, state);
     opened.mcpServers = { ...options.mcpServers, [hooks.label]: state.server };
   }
   return opened;
@@ -258,17 +264,21 @@ function readThrown(error: unknown, stop: TurnStop, hooks: Harness.Hooks): unkno
  * or a panic alike) rejects the handler with its own error, and the SDK reports it to the model:
  * the call runs through `settle` because the SDK recovers it, so the failure does not fail the
  * session (ADR 0067). A cancelled op rejects with its reason. A tool op's value type is
- * `unknown`, so its settle is a Result or a promise of one, and `await` takes either. */
+ * `unknown`, so its settle is a Result or a promise of one, and `await` takes either.
+ * The fixed tool order selects the current turn's controller; no completed turn is retained. */
 function readServer(
   sdk: ClaudeCode.Sdk,
   label: string,
   tools: readonly Harness.ToolCall<ClaudeCode.Calls>[],
+  state: ThreadState,
 ): McpServerConfig {
   return sdk.createSdkMcpServer({
     name: label,
-    tools: tools.map(({ op, meta, run }) =>
+    tools: tools.map(({ op, meta }, index) =>
       sdk.tool(meta.name ?? op.label, meta.description, meta.schema, async (args) => {
-        const result = await run.settle({ rawInput: args });
+        const tool = state.tools?.[index];
+        if (tool === undefined) raise("TurnEnded", { harness: "claudeCode" });
+        const result = await tool.run.settle({ rawInput: args });
         if (result.status === "success") return answerTool(meta, result.value);
         throw result.status === "failed" ? result.error : result.reason;
       }),
