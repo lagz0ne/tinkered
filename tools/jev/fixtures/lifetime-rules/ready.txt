@@ -1,0 +1,43 @@
+async function boot() {
+  const scope = createScope();
+  try {
+    await scope.ready;
+  } catch (error) {
+    await scope.close();
+    throw error;
+  }
+}
+const screen = () => {
+  const scope = useScope();
+  return scope.ready.catch(() => scope.close());
+};
+const scope: Scope.RootHandle = getRoot();
+scope.ready.then(ok, function fail() {
+  return scope.close();
+});
+async function typed(scope: Pick<Scope.Handle, "ready" | "close">) {
+  try { await scope.ready; } catch {
+    await scope.close();
+  }
+}
+async function named() {
+  const scope = createScope();
+  const fail = async () => {
+    await scope.close();
+  };
+  scope.ready.catch(fail);
+  scope.ready.then(ok, fail);
+}
+async function declared() {
+  const scope = createScope();
+  scope.ready.then(undefined, fail);
+  function fail() {
+    return scope.close();
+  }
+}
+async function wrapped() {
+  const scope = core.createScope() satisfies Scope.RootHandle;
+  try { await (scope.ready); } catch {
+    await scope.close();
+  }
+}

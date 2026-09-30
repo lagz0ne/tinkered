@@ -1,0 +1,84 @@
+async function work() {
+  const scope = createScope();
+  try { await scope.ready; await scope.run(load); }
+  finally { await scope.close({ graceful: true }); }
+}
+async function different() {
+  const first = createScope();
+  const second = createScope();
+  try { await second.ready; } catch { await first.close(); }
+  second.ready.catch(() => first.close());
+}
+async function stream(writer: WritableStreamDefaultWriter) {
+  try { await writer.ready; } catch { await writer.close(); }
+  writer.ready.catch(() => writer.close());
+}
+async function object() {
+  const scope = { ready: Promise.resolve(), close() {} };
+  try { await scope.ready; } catch { await scope.close(); }
+}
+async function session(root: Scope.Handle) {
+  const scope: Scope.Handle = root.createSession();
+  try { await scope.ready; } catch { await scope.close(); }
+  scope.ready.then(ok, () => scope.close());
+}
+async function forced(stop: AbortSignal) {
+  const scope = createScope();
+  stop.addEventListener("abort", () => scope.close());
+  await new Promise((resolve) => stop.addEventListener("abort", resolve));
+  await scope.close({ graceful: false });
+}
+async function borrowed(scope: Scope.RootHandle, stop: AbortSignal) {
+  stop.addEventListener("abort", () => scope.close({ graceful: true }));
+  await once(stop, "abort");
+  await scope.close({ graceful: true });
+}
+async function sameSpelling() {
+  const scope = createScope();
+  try { await scope.ready; } catch (scope) { await scope.close(); }
+  scope.ready.catch((scope) => scope.close());
+  try { await scope.ready; } catch { const scope = createScope(); await scope.close(); }
+  try { await scope.ready; } catch { function later() { scope.close(); } }
+  scope.ready.catch(() => { const scope = createScope(); return scope.close(); });
+}
+async function otherFunction() {
+  const scope = createScope();
+  function stream(scope: WritableStreamDefaultWriter) {
+    scope.ready.catch(() => scope.close());
+  }
+  function later(scope) {
+    return scope.ready.then(ok, () => scope.close());
+  }
+}
+async function nestedWait(stop: AbortSignal) {
+  const scope = createScope();
+  async function unrelated() { await once(stop, "abort"); }
+  await scope.close({ graceful: true });
+}
+async function notAbort(stop: AbortSignal) {
+  const scope = createScope();
+  stop.addEventListener("end", () => scope.close({ graceful: true }));
+  await new Promise((resolve) => stop.addEventListener("end", resolve));
+  await once(stop, "end");
+  await scope.close({ graceful: true });
+}
+async function notGraceful(stop: AbortSignal) {
+  const scope = createScope();
+  await once(stop, "abort");
+  await scope.close({ graceful: true, ...options });
+}
+async function notYet(stop: AbortSignal) {
+  const scope = createScope();
+  await scope.close({ graceful: true });
+  await once(stop, "abort");
+}
+async function onlyRead() {
+  const scope = createScope();
+  try { scope.ready; } catch { await scope.close(); }
+}
+async function outerHidden() {
+  const scope = createScope();
+  { const scope = writer; scope.ready.catch(() => scope.close()); }
+  for (const scope of writers) scope.ready.catch(() => scope.close());
+  scope.ready.catch(() => { return scope.close(); function scope() {} });
+}

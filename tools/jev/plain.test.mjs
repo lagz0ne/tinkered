@@ -186,7 +186,7 @@ void describe("plain rules in a source file", () => {
     );
   });
 
-  void it("S18 and S19 are writer policy: the repo's own lint does not report them", () => {
+  void it("S18 stays writer policy: the repo's own lint does not report it", () => {
     const src =
       'import { operation } from "@tinker/core";\nfunction f() { return operation({ label: "x", run: () => 1 }); }\n';
     assert.deepEqual(hits(src, SRC, false), []);

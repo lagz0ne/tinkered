@@ -103,6 +103,8 @@ head.
     values. Copying a container does not copy its contents. No pools or caches
     on a guess; release retained references.
 
+    A root's lifetime is core's: pass `signal`, await `closed`; never catch `ready` to close the same root; never pass a scope to a helper (ADR 0085, S19, S29).
+
 13. **Change safety.** A new failure mode or a lifecycle change means listing
     every caller before merging. A test asserts only a shipped guarantee.
 

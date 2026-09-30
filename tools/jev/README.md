@@ -94,7 +94,8 @@ One call cannot carry it: core's `index.ts` failed with `max_tokens_exceeded`.
 It prints `skipped: too big for one call`, still judges that file's units, and exits 0.
 `review.mjs` skips the same way.
 
-Plain rules: `plain.mjs` checks the census rules the writer guidelines share (T01–T08, S02, S05, S06, S12, S13) on the syntax tree and its comment list, so text inside a string never counts. S17 (a type assertion in source, except `as const` and `[] as T[]`), S18 (a `data`, `operation`, `resource`, or `tag` call from `@tinker/core`, or a `family` call from `@tinker/sync`, inside a function; a driver's `extension` is left out, ADR 0051), and S19 (a helper whose parameter type holds a controller, scope, or session) run in writer mode only: the gate asks for them; the repo's own lint does not. Arrow and function-expression consts are units in every file, like `function` declarations. A helper function's unit also carries `uses`: the lines of its own file that call it, so a judge sees what happens to the value it returns.
+Plain rules: `plain.mjs` checks the census rules the writer guidelines share (T01–T08, S02, S05, S06, S12, S13) on the syntax tree and its comment list, so text inside a string never counts. S17 (a type assertion in source, except `as const` and `[] as T[]`) and S18 (a `data`, `operation`, `resource`, or `tag` call from `@tinker/core`, or a `family` call from `@tinker/sync`, inside a function; a driver's `extension` is left out, ADR 0051) run in writer mode only: the gate asks for them; the repo's own lint does not.
+S19 (a helper whose parameter type holds a controller, scope, or session) also has a repo lane, below. Arrow and function-expression consts are units in every file, like `function` declarations. A helper function's unit also carries `uses`: the lines of its own file that call it, so a judge sees what happens to the value it returns.
 `lint.mjs` lists its rows; the writer-trial gate blocks on each one (ADR 0068).
 
 ### Hand-rolled rules (S20–S25)
@@ -191,6 +192,64 @@ JEV_TOKEN_FILE=/dev/null node tools/jev/lint.mjs \
 Fixtures in `fixtures/entry-rules/` keep the old tracker `createApp` from `9aece1e` and the playground's `tinkerLib` from `apps/playground/src/bench/runners.ts`.
 The first hits S28; the second returns closures and stays clear.
 Tests also keep the ADR 0078 `runServer` shape and a test's own `boot()` helper clear.
+
+### Lifetime by hand (S19 lane, S29)
+
+ADR 0085 gives core the root's stop signal and cleanup wait.
+These rules flag code that does those jobs again.
+Run the repo lint with no model key:
+
+```bash
+JEV_TOKEN_FILE=/dev/null node tools/jev/lint.mjs \
+  apps/ examples/ packages/ | grep -E 'S19|S29'
+```
+
+- **S19 helper takes a handle** — a top-level helper whose parameter type holds a controller, scope, or session.
+  Includes `Pick<Scope.Handle, "ready" | "close">` and `Scope.RootHandle`.
+  A bare `Root` does not count: React DOM owns that type.
+  Same-file type aliases with a handle in their body count too.
+  Repo lint: `apps/*/src`, `examples/`, and `packages/stack/src`.
+  Other packages' drivers take the handle their extension's `start` received by design.
+  Writer gate: source files under `src/`, plus the repo lane.
+  Neither lane counts tests: a test is its own root.
+  Fix: a helper takes plain values; the root owns its lifetime.
+- **S29 lifetimeByHand, ready** — a `try` block awaits `scope.ready` and its `catch` calls `scope.close()`.
+  Also `scope.ready.catch(fail)` and `scope.ready.then(ok, fail)` when the failure callback closes that root.
+  The row points at the close call; a callback used twice gets one row.
+  A root is a const from `createScope` or `useScope`, or a name typed as `Scope.Handle` or `Scope.RootHandle`.
+  A typed parameter counts here, including stack's old `runUntilStop`; S19 names the passed handle too.
+  Each use must refer to the same binding: a new name in a block, catch, or function hides the outer name.
+  A known `createSession` handle never counts, even when typed as `Scope.Handle`.
+  Fix: nothing to close: `ready` rejects only after the forced close ended and every close hook ran (ADR 0085).
+- **S29 lifetimeByHand, stop** — a function makes a const with `createScope`, then closes it with `{ graceful: true }` after an abort wait.
+  Counts an `addEventListener("abort", F)` whose callback closes the root.
+  Also counts an awaited `new Promise`, inline or in a local name, whose body listens for `"abort"` or reads `.aborted`.
+  An `await once(signal, "abort")` counts too.
+  Only closes of a root made in that function count: a passed handle is S19's job.
+  The row points at the close call.
+  Fix: `createScope({ ...pieces, signal: stop })`, then `const end = await scope.closed`.
+
+S29 repo source lane: `apps/`, `examples/`, and `packages/*/src`.
+The writer gate checks every file.
+Both lanes skip all of `packages/core/`, which implements the lifetime itself.
+Both check **ready** in tests too: a test's own root has the same cleanup promise.
+Tests keep their explicit stops, so **stop** skips tests.
+The lint runs plain rules on tests without sending them to the model judges.
+
+Safe shapes: `finally` cleanup around work with no abort wait, a close of a different root, a stream writer or plain object with `ready` and `close`, sessions, and a forced close on abort.
+Fixtures in `fixtures/lifetime-rules/` cover those shapes and both hit forms.
+
+Accepted misses and limits:
+
+- S19 sees top-level helpers and direct same-file aliases; it does not follow imported or chained aliases.
+- S29 sees the written `Scope.Handle` and `Scope.RootHandle` types; it does not resolve type aliases.
+- It does not follow renamed maker imports, root aliases, assignments after a declaration, or handles stored in object fields.
+- A call named `createScope` or `useScope` counts without checking its import.
+- A callback can be inline or a named function in this file; calls through other helpers do not count.
+- A ready wait must directly await `.ready`; `Promise.all`, a saved ready promise, and nested callbacks are missed.
+- An abort promise must contain the listener or `.aborted` read in its executor body; separately wired resolvers are missed.
+- Stop uses source order within the same function; it does not prove which branch runs or which signal fired.
+- Stop needs literal `{ graceful: true }`; a saved options object or a later spread is missed.
 
 ### TSDoc (S26)
 

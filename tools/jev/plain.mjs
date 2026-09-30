@@ -53,6 +53,8 @@ const MESSAGES = {
   S26: "malformed TSDoc: the TSDoc parser rejects this doc",
   "S26.param": "a @param names no parameter of the declaration it documents",
   S27: "unguarded entry: a top-level await starts the program when a test imports it (ADR 0078)",
+  "S29.ready": "lifetimeByHand: a failed ready closes the same root again (ADR 0085)",
+  "S29.stop": "lifetimeByHand: an abort wait closes its root gracefully by hand (ADR 0085)",
   S28: "returned root: a function hands back a scope it made; build, use, and close the root in one function, and let a test build its own root (ADR 0078)",
 };
 
@@ -68,6 +70,9 @@ const FIXES = {
   S26: "escape `@`, `{`, `}`, and `>` in prose with a backslash, or put code in backticks on one line: `` `@tinker/core` ``, `{@link createScope}`",
   "S26.param": "`@param input - …` with the parameter's own name, or delete the line",
   S27: "`if (import.meta.main) await main(shell);`; for a server, `if (import.meta.main) process.exitCode = await runServer(process.env, stop.signal);`",
+  "S29.ready":
+    "nothing to close: `ready` rejects only after the forced close ended and every close hook ran (ADR 0085)",
+  "S29.stop": "`createScope({ ...pieces, signal: stop })`, then `const end = await scope.closed`",
   S28: "`runServer(env, stop)` builds, uses, and closes its root, then returns an exit code or a Result",
 };
 
@@ -331,7 +336,7 @@ function parseRow(errors, starts) {
 }
 
 // ---------- no wrapper (ADR 0060, best-practices rules 3 and "helpers over values") ----------
-// Writer policy only: S18 and S19 run when `writer` is set, like S17.
+// S18 is writer policy. S19 also checks app roots, examples, and stack source.
 
 /** The unit builders S18 counts, by the module that exports them. A `family` is a keyed cell
  *  memoized per id (glossary), so one made inside a function is a second family under the same
@@ -341,7 +346,8 @@ const UNIT_BUILDERS = new Map([
   ["@tinker/core", new Set(["data", "operation", "resource", "tag"])],
   ["@tinker/sync", new Set(["family"])],
 ]);
-const HANDLE_TYPE = /\b(DataController|Controller|Scope\.Handle|Scope\.Session|Session)\b/;
+const HANDLE_TYPE =
+  /\b(DataController|Controller|Scope\.Handle|Scope\.RootHandle|Scope\.Session|Session)\b/;
 const FN_NODE = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"]);
 
 /** Local names the file imports by name from `module` for one of `wanted`. */
@@ -431,10 +437,14 @@ function handleParams(source, program) {
 }
 
 /** The writer-mode no-wrapper rows of one source file: [id, offset] pairs. */
-function noWrapperHits(source, program) {
+function noWrapperHits(source, program, file, writer) {
+  if (kindOf(file) === "test") return [];
+  const writerSource = writer && SRC_PATH.test(file);
   return [
-    ...builderCallsInFunctions(program, builderNames(program)),
-    ...handleParams(source, program),
+    ...(writerSource ? builderCallsInFunctions(program, builderNames(program)) : []),
+    ...(writerSource || /(^|\/)(apps\/[^/]+\/src\/|examples\/|packages\/stack\/src\/)/.test(file)
+      ? handleParams(source, program)
+      : []),
   ];
 }
 
@@ -849,6 +859,225 @@ const returnedRootAt = (node, facts) =>
     ? [node.start]
     : [];
 
+// ---------- lifetime by hand (ADR 0085) ----------
+
+const CORE_PATH = /(^|\/)packages\/core\//;
+const SCOPE_TYPE = /\bScope\.(Handle|RootHandle)\b/;
+const ROOT_MAKERS = new Set(["createScope", "useScope"]);
+
+/** One record per declaration, so an inner name never stands for an outer root. */
+function bindLifetime(pattern, init, kind, frame, source) {
+  const id = pattern?.type === "AssignmentPattern" ? pattern.left : pattern;
+  const simple = id?.type === "Identifier";
+  const ann = simple ? id.typeAnnotation : null;
+  const typed = ann && SCOPE_TYPE.test(source.slice(ann.start, ann.end));
+  for (const name of boundNames(pattern))
+    frame.names.set(name, {
+      init: simple ? init : null,
+      kind,
+      typed,
+      fn: frame.fn,
+    });
+}
+
+function lifetimeVariables(node, frame, source) {
+  let target = frame;
+  if (node.kind === "var") while (!target.functionScope) target = target.parent;
+  for (const decl of node.declarations) bindLifetime(decl.id, decl.init, node.kind, target, source);
+}
+
+function lifetimeDeclarations(node, frame, source) {
+  if (node.type === "VariableDeclaration") lifetimeVariables(node, frame, source);
+  if (node.type === "CatchClause") bindLifetime(node.param, null, "catch", frame, source);
+  if (node.type === "FunctionDeclaration" || node.type === "ClassDeclaration")
+    bindLifetime(node.id, node, "declaration", frame, source);
+  if (node.type === "ImportDeclaration")
+    for (const spec of node.specifiers) bindLifetime(spec.local, null, "import", frame, source);
+}
+
+function lifetimeFrame(node, outer, source) {
+  if (FN_NODE.has(node.type)) {
+    const frame = { names: new Map(), parent: outer, fn: node, functionScope: true };
+    if (node.id) bindLifetime(node.id, node, "declaration", frame, source);
+    for (const param of node.params) bindLifetime(param, null, "param", frame, source);
+    return frame;
+  }
+  return ROOT_BLOCKS.has(node.type)
+    ? { names: new Map(), parent: outer, fn: outer.fn, functionScope: false }
+    : outer;
+}
+
+/** Build scopes before reading any uses; a later declaration still hides an outer name. */
+function lifetimeFacts(source, program) {
+  const frames = new WeakMap();
+  const nodes = [];
+  const visit = (node, outer) => {
+    if (!node) return;
+    if (Array.isArray(node)) return node.forEach((n) => visit(n, outer));
+    if (node.type === "FunctionDeclaration") lifetimeDeclarations(node, outer, source);
+    const frame = lifetimeFrame(node, outer, source);
+    frames.set(node, frame);
+    nodes.push(node);
+    lifetimeDeclarations(node, frame, source);
+    for (const child of childrenOf(node)) visit(child, frame);
+  };
+  visit(program, { names: new Map(), parent: null, fn: null, functionScope: true });
+  return { frames, nodes };
+}
+
+function lifetimeBinding(node, facts) {
+  const at = returnedValue(node);
+  if (at?.type !== "Identifier") return null;
+  for (let frame = facts.frames.get(at); frame; frame = frame.parent)
+    if (frame.names.has(at.name)) return frame.names.get(at.name);
+  return null;
+}
+
+/** Sessions never count, even if their variable uses the shared Scope.Handle type. */
+function knownRoot(binding) {
+  if (!binding) return false;
+  const init = returnedValue(binding.init);
+  const maker = init?.type === "CallExpression" ? calleeName(init.callee) : null;
+  if (maker === "createSession") return false;
+  return Boolean(binding.typed || (binding.kind === "const" && ROOT_MAKERS.has(maker)));
+}
+
+/** Statements executed in this body, with nested function bodies left to their own callers. */
+function lifetimeBody(node) {
+  const nodes = [];
+  const visit = (at) => {
+    if (!at) return;
+    if (Array.isArray(at)) return at.forEach(visit);
+    if (FN_NODE.has(at.type)) return;
+    nodes.push(at);
+    for (const child of childrenOf(at)) visit(child);
+  };
+  visit(node);
+  return nodes;
+}
+
+function lifetimeCallback(node, facts) {
+  const at = returnedValue(node);
+  const fn = at?.type === "Identifier" ? returnedValue(lifetimeBinding(at, facts)?.init) : at;
+  return FN_NODE.has(fn?.type) ? fn : null;
+}
+
+function readyRoot(node, facts) {
+  const at = returnedValue(node);
+  if (propOf(at) !== "ready") return null;
+  const binding = lifetimeBinding(at.object, facts);
+  return knownRoot(binding) ? binding : null;
+}
+
+function closeRoot(node, facts) {
+  if (node.type !== "CallExpression" || propOf(node.callee) !== "close") return null;
+  return lifetimeBinding(node.callee.object, facts);
+}
+
+function closesIn(body, roots, facts) {
+  return lifetimeBody(body)
+    .filter((n) => roots.has(closeRoot(n, facts)))
+    .map((n) => ["S29", n.start, "S29.ready"]);
+}
+
+function readyTryHits(node, facts) {
+  if (!node.handler) return [];
+  const roots = lifetimeBody(node.block)
+    .filter((n) => n.type === "AwaitExpression")
+    .map((n) => readyRoot(n.argument, facts))
+    .filter(Boolean);
+  return closesIn(node.handler.body, new Set(roots), facts);
+}
+
+function readyCatchHits(node, facts) {
+  if (node.type === "TryStatement") return readyTryHits(node, facts);
+  if (node.type !== "CallExpression") return [];
+  const method = propOf(node.callee);
+  if (method !== "catch" && method !== "then") return [];
+  const root = readyRoot(node.callee.object, facts);
+  const fail = lifetimeCallback(node.arguments[method === "catch" ? 0 : 1], facts);
+  return root && fail ? closesIn(fail.body, new Set([root]), facts) : [];
+}
+
+const abortListener = (node) =>
+  node.type === "CallExpression" &&
+  propOf(node.callee) === "addEventListener" &&
+  node.arguments[0]?.value === "abort";
+
+function abortWait(node, facts) {
+  let at = returnedValue(node.argument);
+  if (at?.type === "Identifier") at = returnedValue(lifetimeBinding(at, facts)?.init);
+  if (at?.type === "CallExpression")
+    return calleeName(at.callee) === "once" && at.arguments[1]?.value === "abort";
+  return abortPromise(at, facts);
+}
+
+function abortPromise(at, facts) {
+  if (at?.type !== "NewExpression" || at.callee.name !== "Promise") return false;
+  const executor = lifetimeCallback(at.arguments[0], facts);
+  return (
+    executor !== null &&
+    lifetimeBody(executor.body).some((n) => abortListener(n) || propOf(n) === "aborted")
+  );
+}
+
+/** Only a literal true opts into graceful close; a forced stop remains the caller's job. */
+function gracefulClose(node) {
+  if (node.type !== "CallExpression" || propOf(node.callee) !== "close") return false;
+  const options = returnedValue(node.arguments[0]);
+  if (options?.type !== "ObjectExpression") return false;
+  const last = options.properties.findLast(
+    (p) => p.type === "SpreadElement" || p.computed || (p.key?.name ?? p.key?.value) === "graceful",
+  );
+  return last?.type === "Property" && !last.computed && last.value.value === true;
+}
+
+function ownedRoot(node, owner, facts) {
+  const binding = closeRoot(node, facts);
+  return (
+    owner !== null && binding?.fn === owner && binding.kind === "const" && makesRoot(binding.init)
+  );
+}
+
+function stopListenerHits(node, facts) {
+  if (!abortListener(node)) return [];
+  const fn = lifetimeCallback(node.arguments[1], facts);
+  if (!fn) return [];
+  const owner = facts.frames.get(node).fn;
+  return lifetimeBody(fn.body)
+    .filter((n) => gracefulClose(n) && ownedRoot(n, owner, facts))
+    .map((n) => ["S29", n.start, "S29.stop"]);
+}
+
+function stopWaitHits(node, waits, facts) {
+  if (!gracefulClose(node)) return [];
+  const owner = facts.frames.get(node).fn;
+  if (!ownedRoot(node, owner, facts)) return [];
+  const init = closeRoot(node, facts).init;
+  return waits.some(
+    (wait) =>
+      facts.frames.get(wait).fn === owner && init.start < wait.start && wait.start < node.start,
+  )
+    ? [["S29", node.start, "S29.stop"]]
+    : [];
+}
+
+/** Ready still owns cleanup in a test; stop checks keep the non-test lane. */
+function lifetimeHits(source, program, file, writer) {
+  if (CORE_PATH.test(file)) return [];
+  if (!writer && !USERLAND.test(file) && !PACKAGE_SRC.test(file) && kindOf(file) !== "test")
+    return [];
+  const facts = lifetimeFacts(source, program);
+  const waits = facts.nodes.filter((n) => n.type === "AwaitExpression" && abortWait(n, facts));
+  const hits = facts.nodes.flatMap((node) => [
+    ...readyCatchHits(node, facts),
+    ...(kindOf(file) === "test"
+      ? []
+      : [...stopListenerHits(node, facts), ...stopWaitHits(node, waits, facts)]),
+  ]);
+  return [...new Map(hits.map((hit) => [`${hit[1]}:${hit[2]}`, hit])).values()];
+}
+
 /** Which hand-rolled rules one file gets, by lane and path. */
 function handRolledScope(file, writer) {
   return {
@@ -905,7 +1134,8 @@ function handRolledHits(source, program, file, writer) {
 function programHits(source, program, file, writer) {
   const kind = kindOf(file);
   return [
-    ...(writer && kind === "src" ? noWrapperHits(source, program) : []),
+    ...noWrapperHits(source, program, file, writer),
+    ...lifetimeHits(source, program, file, writer),
     ...(kind === "test" ? [] : handRolledHits(source, program, file, writer)),
   ];
 }
