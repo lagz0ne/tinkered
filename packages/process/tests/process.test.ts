@@ -336,9 +336,11 @@ test("an entry's own options bind tags and extensions on that command's root onl
   const seen: string[] = [];
   const spy = extension({
     label: "spy",
-    start: (_scope, _ctx, next) => {
-      seen.push("started");
-      return next();
+    hooks: {
+      start: (event) => {
+        seen.push("started");
+        return event.next();
+      },
     },
   });
   const tell = operation({
@@ -409,9 +411,11 @@ test("a command that answers closes its root gracefully", async () => {
   const modes: (boolean | undefined)[] = [];
   const spy = extension({
     label: "spy",
-    close: (options, next) => {
-      modes.push(options.graceful);
-      return next();
+    hooks: {
+      close: (event) => {
+        modes.push(event.options.graceful);
+        return event.next();
+      },
     },
   });
   const quiet = operation({ label: "quiet", run: () => 0 });
@@ -479,9 +483,11 @@ test("a root force-closed from inside exits 130 and prints nothing", async () =>
   let held: { close(): Promise<unknown> } | undefined;
   const closer = extension({
     label: "closer",
-    start: (scope, _c, next) => {
-      held = scope;
-      return next();
+    hooks: {
+      start: (event) => {
+        held = event.scope;
+        return event.next();
+      },
     },
   });
   const pending = run(
@@ -510,9 +516,11 @@ test("an already-aborted signal exits 130 with empty streams and no root", async
   let roots = 0;
   const spy = extension({
     label: "spy",
-    start: (_s, _c, next) => {
-      roots += 1;
-      return next();
+    hooks: {
+      start: (event) => {
+        roots += 1;
+        return event.next();
+      },
     },
   });
   const controller = new AbortController();
@@ -560,8 +568,10 @@ test("an extension whose start fails prints its error with exit 1 and never runs
   });
   const broken = extension({
     label: "broken",
-    start: () => {
-      throw new Error("no start");
+    hooks: {
+      start: () => {
+        throw new Error("no start");
+      },
     },
   });
   let stderr = "";
