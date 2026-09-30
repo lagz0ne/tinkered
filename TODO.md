@@ -54,7 +54,7 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 - **playground/awwwards** — isometric sea, Code, and Benchmark detail pass.
   Owner: lead (playground release); writers: Astra, xhigh.
-  Next: finish the paired storm check, run the merged gates, and deploy.
+  Next: deploy the checked build and check the public page.
   Verify: build/check, package and app tests, style census, prose;
   live controls, source links, full screen, current vendor files;
   Dokploy deployment done and live files match the build.

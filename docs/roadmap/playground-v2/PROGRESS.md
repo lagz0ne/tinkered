@@ -662,7 +662,7 @@ Review labels were recalibrated after the false finding.
 ## Tile storm detail pass
 
 Date: 2026-09-30.
-Status: Doing.
+Status: Review; final live checks remain.
 Owner: lead (playground release).
 Writer: Astra, xhigh; package: playground.
 
@@ -687,3 +687,110 @@ Apply the same detail to Code and Benchmark.
 Keep benchmark work and counts fair; do not change the numbers for looks.
 A second Astra writer owns Benchmark and source-view components.
 The first writer owns the sea, the shell, and Code layout.
+
+## Detail pass proof
+
+The scene, controls, Code, and Benchmark now share one ocean palette.
+The board uses an isometric view and fades past the frame.
+All 144 live tiles keep their solid walls and wave direction arrows.
+Keyboard focus fits the full board so every tile can be reached.
+The extra face shadows and gradients are gone.
+Each arrow changes its own path color, which cuts inherited style work.
+The engine and storm pace stay the same.
+
+Checked render source: `217a0218`.
+The final unit-label fix is `0d6f5320`.
+The release includes authoring checkpoint `dfaad530` and landing record `d9444e68`.
+The browser vendor files and package sources are rebuilt from that source.
+
+Observed gates at `9737a017`:
+
+- Full build: exit 0.
+- Check: exit 0; no errors and 28 existing warnings.
+- All 17 package and app test tasks: exit 0.
+- All 48 release lanes: pass.
+- Strict style census and TSDoc check: exit 0.
+- Lead Jev review: zero flags.
+- Review labels were calibrated and committed at `5ed4dc3e`.
+
+The final unit fix also passes build, check, and all 59 playground tests.
+Its browser check fails before the fix and passes after it.
+At 1440, 390, and 320 pixels, the heading keeps `µs` in lower case.
+Uppercase styling had made the microsecond unit look like milliseconds.
+No benchmark timing code or sample counts changed.
+
+Browser checks cover real controls, four turns, tall waves, and full screen.
+The phone has no sideways scroll and controls are at least 44 pixels tall.
+Reduced motion keeps colors and arrows while stopping the tile lift.
+The same game document stays alive across Play, Code, and Benchmark.
+Source search, read-only files, symbol jumps, and history pass.
+Final visual review found no remaining layout defect.
+
+## Storm drawing check
+
+The host queue ran the same browser probe on one CPU core.
+Before: the polished scene at `153c5137`.
+After: the render fix at `217a0218`.
+Both use the same engine, 144 tiles, storm, and viewport of 1440 by 1000.
+Each run warms 60 frames and samples 180 frames.
+Seven paired rounds alternate the order of the two builds.
+
+Queue job: `f49e8ae54c06`.
+Verdict: **b is faster**.
+Command median: 32,159 ms before; 23,949 ms after.
+The command took 25.5% less time.
+Its 95% gap range was -16,347 to -7,763 ms.
+This includes browser startup and warmup.
+It is a headless stress check, not a device frame-rate promise.
+
+Three retained browser traces per side also show less drawing work:
+
+- Median frame gap: 116.6 ms before; 83.3 ms after.
+- Style work over the sampled frames: 4.592 s before; 1.466 s after.
+- Main-thread work: 11.281 s before; 7.475 s after.
+- All runs kept 144 tiles and reported no page errors.
+
+The first trace showed that removing the field mask did not help.
+Removing face effects and inherited arrow color did help.
+That is why the fix changes the faces and arrow paths.
+
+## Benchmark page proof
+
+The queue ran three complete browser benchmarks.
+Every library returned its real results with no page errors.
+The phone page fits without sideways scroll.
+One Tinker slice update renders one component.
+The Context baseline renders all 50 components for that change.
+The bars use each column's full median scale.
+Speed labels keep the existing spread and gap checks.
+Results still include cases where other libraries are faster.
+
+Temporary browser preview:
+<https://p-50bd6dbbd2a1.preview.tini.works>.
+The public release uses the existing playground domain.
+
+## Final source gates
+
+The lead reran the full gates after unit fix `0d6f5320`.
+Full build, check, all 17 test tasks, and all 48 release lanes pass.
+Check still reports no errors and 28 existing warnings.
+The last test run used 16 valid cache results and one fresh tracker result.
+The writer had already run the 59 playground tests on this exact source.
+Prose also passes.
+
+A final queued browser benchmark uses the final build.
+Every library returns results and the actual heading keeps `µs`.
+There are no page errors or phone scroll issues.
+The timed storm source is unchanged by the unit-label fix.
+
+Final logs:
+
+- `/tmp/tinkered-playground-release-build.log`
+- `/tmp/tinkered-playground-release-check.log`
+- `/tmp/tinkered-playground-release-tests.log`
+- `/tmp/tinkered-playground-release-validate.log`
+- `/tmp/tinkered-playground-final-census.log`
+- `/tmp/tinkered-playground-final-tsdoc.log`
+- `/tmp/tinkered-playground-final-review.log`
+- `/tmp/tinkered-playground-storm-ab.log`
+- `/tmp/tinkered-playground-final-browser-benchmark.log`
