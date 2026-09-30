@@ -452,7 +452,7 @@ npx --no-install stryker run \
   Verify: two server scopes on one PGlite and a
   real `nats-server`: a save through one reaches a
   subscriber on the other.
-- **t13 the trace sink** -- [x] landed `f28d7ed`
+- **t13 the trace sink** -- [x] landed `547e060`
   The stack sends spans and logs over OTLP to
   `OTEL_EXPORTER_OTLP_ENDPOINT` (ADR 0076). NATS
   messages carry `traceparent` (ADR 0080). A
