@@ -130,9 +130,8 @@ A `PORT` that is not a whole number from 1 to 65535 stops the boot with
 `BadListenSettings`, which names every bad listen key.
 A bad `PORT` creates no database.
 
-A missing `PORT` means 4311 in this dev app.
-A missing `HOST` means `127.0.0.1` here.
-The stack itself supplies neither default.
+Prod refuses a missing `HOST`, `PORT`, or `DATA_PATH`.
+Only the dev host supplies local defaults.
 
 A bad `HOST` also stops boot before the port opens.
 The entry uses `@tinker/stack` for the listener,
@@ -335,3 +334,37 @@ Disk restart tests still open a saved database.
   and matches a fresh schema.
 - The tracker drift check passes and rejects a column
   added only in a temp schema copy.
+
+## Work on the app
+
+From this repo's root:
+
+```bash
+vp install
+vp run -r build
+vp run @tinker-issue-tracker#dev
+```
+
+Or, after that first build, from this app's folder:
+
+```bash
+vp run dev
+```
+
+Open `http://127.0.0.1:4311`.
+Dev keeps one process, one database, and one local NATS server.
+Vite serves the client and updates it as client files change.
+A server edit closes the old root and starts a fresh one.
+Saved issues stay; sync ends and the browser reconnects.
+A bad edit shows 503 until the next good edit.
+Ctrl-C or SIGTERM closes the app and all dev services.
+
+Dev defaults to `HOST=127.0.0.1`, `PORT=4311`, and
+`DATA_PATH=./data/issues` under this app's folder.
+It starts the pinned NATS server from the home cache.
+The first use downloads and checks that server's release.
+These defaults never apply to `start` or `preview`.
+
+- Dev reload keeps saved issues, ends sync,
+  and SIGTERM exits zero.
+- Prod refuses a missing HOST, PORT, or DATA_PATH.

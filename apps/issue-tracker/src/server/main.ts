@@ -1,5 +1,7 @@
+import type { Dev } from "@tinker/stack/dev";
 import { join } from "node:path";
-import { createScope } from "@tinker/core";
+import { raise } from "../errors.ts";
+import { createScope, extension } from "@tinker/core";
 import { jsonLines, liveUpdates, readExitCode, server } from "@tinker/stack";
 import { draftTags, type DraftConfig } from "./draft.ts";
 import { issueServer } from "./routes.ts";
@@ -21,10 +23,14 @@ function readDraftOptIn(
   };
 }
 
-/** The app's one full root. Dev defaults belong here; server checks them first.
- * Migrations and saved-issue publishing finish before the server opens its port. */
-export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal): Promise<number> {
-  const listen = { PORT: env.PORT ?? "4311", HOST: env.HOST ?? "127.0.0.1" };
+/** The app's one full root. The dev host alone binds local defaults.
+ * Dev lends handles and owns the listener; prod checks settings before serving. */
+export async function runServer(
+  env: NodeJS.ProcessEnv,
+  stop: AbortSignal,
+  host?: Dev.Wiring,
+): Promise<number> {
+  const listen = env;
   const observe = {
     ...jsonLines((line) => process.stdout.write(`${line}\n`)),
     clock: Date.now,
@@ -32,21 +38,44 @@ export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal): Prom
   const web = issueServer();
   const scope = createScope({
     tags: [
-      storeConfig({ kind: "open", url: env.DATA_PATH ?? "./data/issues" }),
-      draftTags(readDraftOptIn(env, listen.HOST, listen.PORT)),
+      storeConfig(
+        host
+          ? { kind: "borrow", client: host.client }
+          : { kind: "open", url: env.DATA_PATH },
+      ),
+      draftTags(readDraftOptIn(env, listen.HOST ?? "", listen.PORT ?? "")),
     ],
     extensions: [
-      server(web, { env: listen, clientDir: join(process.cwd(), "dist", "client"), observe }),
+      host
+        ? []
+        : server(web, { env: listen, clientDir: join(process.cwd(), "dist", "client"), observe }),
+      !host &&
+        extension({
+          label: "issues.data-settings",
+          hooks: {
+            start(event) {
+              if (env.DATA_PATH === undefined || env.DATA_PATH === "") {
+                raise("BadDataSettings", { keys: ["DATA_PATH"] });
+              }
+              return event.next();
+            },
+          },
+        }),
       migrateIssues,
       web,
       src,
       env.NATS_URL === undefined
         ? publish()
-        : liveUpdates(publishIssues, { subject: "issues.changed", env }),
+        : liveUpdates(publishIssues, {
+            subject: "issues.changed",
+            env,
+            connection: host?.connection,
+          }),
     ],
     observe,
     signal: stop,
   });
+  host?.ready(scope.ready.then(() => scope.resolve(web)));
   const phase = await scope.ready.then(
     () => "shutdown" as const,
     () => "boot" as const,
