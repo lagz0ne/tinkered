@@ -4911,3 +4911,27 @@ No build runs in that tree while the job waits or runs.
   `2252a62b58c7` and `d71ffdcc28db`.
   The root owns the closer; its closing flag tracks
   the HTTP listener, not app state.
+
+### t14 all incoming work
+
+- The full gate on `4c88cded` passed: build, check,
+  stack 112, NATS 24, Drizzle 25, tracker 84; exit 0.
+  All 48 validation lanes passed too.
+- Assumption: t08's reviewed branch at `5e968706`
+  is the intended dependency while its landing waits.
+  Rebased onto it, then onto `origin/main` at `37d87dca`.
+  This branch now keeps t08, t13, t17, and t18.
+- The stack, Hono, NATS, and tracker server source
+  still match timing copy `314b1a13` exactly.
+- Kept all track notes and merged the Jev case bank.
+  Removed one extra blank line from the merged board.
+- The old `runUntilStop` SCIP query prints `(none)`.
+  Live-update, NATS, and exit-reader refs are checked.
+- The first queue run failed before any timing result.
+  Its stop check hid the child process's first error.
+  The probe now keeps that output; a queue probe waits
+  behind the jobs mutation run to show the cause.
+- Final review: zero source file flags, zero of 59 test
+  titles flagged, zero of 79 tracker promises missing.
+  The same labeled listen notes remain.
+- Strict style and TSDoc checks pass.
