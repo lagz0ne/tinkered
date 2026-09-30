@@ -2339,3 +2339,28 @@ Logs are in `/home/paseo/.cache/tinkered-briefs/`:
 `stack-t17-review1-red-stack.log`, `stack-t17-review1-red-hono.log`,
 `stack-t17-review1-green.log`, and `stack-t17-review1-jev.log`.
 All jobs finished in this turn; no rebase or push.
+
+### t17 server mutation lift
+
+Status: Doing. Owner: stack/t17.
+Base: `dd8a1f18`, checked before editing; no rebase or reset.
+Next: test close and restart through real HTTP connections and raw sockets.
+Verify: rank survivors, run the line kill check under the lock,
+then one full stack lane at 60 seconds with killed share at least 85%.
+Run the full requested gate, uncached browser proof, and validator.
+Keep t04's traceparent read and t06's migrate step unchanged.
+
+Ranked all 48 survivors; 25 are in `server.ts`.
+The survivor judge is marked noisy, so its rows are advice only.
+Added real-socket checks for an old root closing again,
+failed-start cleanup and reuse, and the last stream chunk at stop.
+The live-owner test now holds a close hook after draining and
+checks that a new root still gets `PieceInUse` until close ends.
+The existing in-flight request and restart tests stay in the gate.
+No source or mutation setting changed.
+
+First green step: build, check, stack 68, prose; `EXIT 0`.
+Check has 0 errors and 29 warnings.
+Jev: 0 of 35 titles flagged; no README gaps, one unsure.
+No changed source to judge and no new label owed.
+Strict style census: OK.

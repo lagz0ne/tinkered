@@ -256,6 +256,10 @@ A later commit or a new boot reads the current database.
 - A server piece restarts after close.
   Each start logs `listening`, and each close releases its port.
 - A second live root cannot take or stop the server piece.
+  The piece stays owned until the full close chain ends.
+- An old root's second close keeps the new server owner.
+- A failed start closes its listener and frees the server piece.
+- Stop closes the keep-alive socket after the last stream chunk.
 - Opens the port only after every other start finishes.
 - A stop refuses new requests while it waits for an in-flight request.
   It answers zero after the open requests finish.
