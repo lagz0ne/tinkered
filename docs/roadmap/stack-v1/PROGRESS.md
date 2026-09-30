@@ -3223,3 +3223,18 @@ they do not require keeping the old commit or rollback behavior.
   `/home/paseo/.cache/tinkered-briefs/`.
 - Next: full Hono mutation, with a 60 second tool timeout
   and two workers, alone under the same lock.
+
+### t10 fresh Hono mutation proof
+
+- One fresh full Hono run, after auth: `EXIT 0`.
+  Killed: 275; timeout: 0; survived: 45.
+  No coverage: 3; errors: 0.
+- The lead's score is `275 / 320 = 85.94%`.
+  Stryker's total, which counts the three uncovered changes,
+  is 85.14 percent and passes its unchanged floor of 85.
+- Command: `vp run --no-cache hono#mutate`, under the lock,
+  with `--timeoutMS 60000 --concurrency 2`.
+  No Hono config or runtime file changed in this follow-up.
+- Logs: `stack-t10-hono-full-1.log` and
+  `stack-t10-hono-full-1.json` in the same cache folder.
+- Next: the requested full gate, then `pnpm validate`.
