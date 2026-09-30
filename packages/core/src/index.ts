@@ -2167,20 +2167,26 @@ function obsCtx(layer: Layer, span: SpanImpl | undefined): Observe.Ctx {
   };
 }
 
-function logFor(obs: Obs, span: SpanImpl | undefined): Observe.Logger {
+function logFor(obs: Obs, span: SpanImpl | undefined, extension?: string): Observe.Logger {
   const sink = obs.log;
   if (!sink) return noop;
-  const min = obs.level;
   const at = (level: number) => (message: string, attributes?: Record<string, unknown>) => {
-    if (level < min) return;
-    isolate(() => sink({ time: obs.clock(), level, message, attributes: attributes ?? {}, span }));
+    if (level < obs.level) return;
+    isolate(() =>
+      sink({
+        time: obs.clock(),
+        level,
+        message,
+        attributes: extension === undefined ? (attributes ?? {}) : { ...attributes, extension },
+        span,
+      }),
+    );
   };
-  return Object.assign(at(LEVELS.info), {
-    debug: at(LEVELS.debug),
-    info: at(LEVELS.info),
-    warn: at(LEVELS.warn),
-    error: at(LEVELS.error),
-  });
+  const log = at(LEVELS.info) as Observe.Logger;
+  for (const name in LEVELS) {
+    log[name as keyof typeof LEVELS] = at(LEVELS[name as keyof typeof LEVELS]);
+  }
+  return log;
 }
 
 function recordUsed(
@@ -5295,6 +5301,7 @@ class ExtensionCtx implements Scope.ExtensionCtx {
   declare private settler: Scope.Handle["settle"] | undefined;
   declare private cleanup: Resource.Ctx["defer"] | undefined;
   declare private raiser: Resource.Ctx["raise"] | undefined;
+  declare private logTools: Observe.Logger | undefined;
   constructor(owner: Layer, label: string, chain = owner.ns, run?: HookRun) {
     this.owner = owner;
     this.label = label;
@@ -5308,16 +5315,16 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     return this.owner.random;
   }
   private get ctx(): OperationCtx<unknown> | undefined {
-    return this.flight === undefined ? undefined : hookCtx(this.flight);
+    return this.flight && hookCtx(this.flight);
   }
   private use<T>(fn: () => T): T {
-    return this.flight === undefined ? fn() : withHookAccess(this.flight, fn);
+    return this.flight ? withHookAccess(this.flight, fn) : fn();
   }
   get resolve(): Scope.Handle["resolve"] {
     return (this.resolver ??= ((target: Scope.Dependency, ns?: Scope.NsArg): unknown =>
       this.use(() => {
         const chain = ns === undefined ? this.ns : nsChainOf(ns.ns);
-        if (this.owner.closed && this.flight === undefined)
+        if (this.owner.closed && !this.flight)
           return resolveHeld(this.owner, target, chain === undefined ? undefined : { ns: chain });
         if (isResource(target)) return this.resource(target, chain).resolve();
         return resolveNs(this.owner, target, chain);
@@ -5341,7 +5348,7 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     chain: readonly Namespace[] | undefined,
   ): Scope.DataController<unknown> {
     const controller = dataController(this.owner, target, chain);
-    if (this.flight === undefined) return controller;
+    if (!this.flight) return controller;
     return {
       get: () => this.use(() => controller.get()),
       set: (value) => this.use(() => controller.set(value)),
@@ -5355,7 +5362,7 @@ class ExtensionCtx implements Scope.ExtensionCtx {
   ): Scope.ResourceController<unknown> {
     const controller = resourceController(this.owner, target, this.flight?.span, chain);
     const run = this.flight;
-    if (run === undefined) return controller;
+    if (!run) return controller;
     const selected: SelectedResource = (owner, target, state) =>
       addBorrow(instanceOf(owner, target, state), (run.held ??= createBorrows()));
     const owner = ownerOf(this.owner, target);
@@ -5392,7 +5399,7 @@ class ExtensionCtx implements Scope.ExtensionCtx {
       run(call?: Scope.Invocation<unknown>): unknown;
       settle(call?: Scope.Invocation<unknown>): unknown;
     };
-    if (this.flight === undefined) return controller;
+    if (!this.flight) return controller;
     return {
       run: (call?: Scope.Invocation<unknown>) => this.use(() => controller.run(call)),
       settle: (call?: Scope.Invocation<unknown>) => {
@@ -5449,7 +5456,7 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     return this.ctx?.obs ?? OFF_OBS;
   }
   get log(): Observe.Logger {
-    return this.ctx?.log ?? noop;
+    return this.ctx?.log ?? (this.logTools ??= logFor(this.owner.obs, undefined, this.label));
   }
   get raise(): Resource.Ctx["raise"] {
     return (this.raiser ??= (kind, payload) => raiseFrom(this.ctx ?? this, kind, payload));

@@ -436,6 +436,13 @@ Each observed operation writes one step line to the `log` sink:
 This needs observation (`export` or `history`) and a `log` sink.
 Resource builds write no step line.
 
+Both start forms send logs before and after `await next()` to the scope's `observe.log`.
+They use its clock and level filter, even without span observation.
+The bare call uses `info`; `debug`, `info`, `warn`, and `error` pick a level.
+Each line keeps caller attributes and sets `attributes.extension` to the extension's label.
+Start opens no span, so its log lines have `span: undefined`.
+Object close hooks use the same logger; callback close hooks receive no ctx.
+
 ## Namespaces
 
 A resource factory's `ctx.ns` is the chain used for its dependencies.
@@ -909,6 +916,13 @@ Titles that name no user-facing guarantee (type checks, budgets, past-bug regres
 
 ### Observation
 
+- Extension start logs before and after next reach the scope sink without a span.
+- A destructured extension start logger sends every level without span observation.
+- An info threshold drops extension start debug lines before reading the clock.
+- Extension start logging without a sink reads no clock or attributes.
+- A failed extension start delivers the log before its throw.
+- A throwing extension start log sink does not fail ready.
+- An object close hook logs before and after next with the scope filter and clock.
 - A destructured operation logger stays the same and sends every level in order.
 - A destructured resource logger stays the same and keeps the level threshold.
 - A resource keeps its observation tools and exports manual events and children.
