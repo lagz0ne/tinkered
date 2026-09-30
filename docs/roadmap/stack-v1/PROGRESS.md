@@ -2939,9 +2939,9 @@ MUTATION_EXIT 0
 ## t10 writer work
 
 - Owner: stack/t10 writer (Codex), branch `stack/t10`.
-- Status: Doing.
-- Base: local `stack/t06` at `50b31bab`.
-- Next: add auth with a fixture app and one migration history.
+- Status: Review; the fresh full mutation gate is still open.
+- Base: local `stack/t06` at `c68802fd`.
+- Next: lead review, then a full auth mutation score of at least 85.
 - Verify: HTTP auth tests, Hono and stack tests, gate,
   validation, and one auth mutation lane at least 85.
 - Assumption: the example app lives in
@@ -3092,3 +3092,48 @@ await closing;
 - The brief allows one full lane.
   A fresh full score of at least 85 remains a landing check;
   the failed full result is not a pass.
+
+### t10 survivor proof and handoff
+
+- Final narrow check: `EXIT 0`, score 100.
+  Killed: 6; timeout: 0; survived: 0.
+- These four survivors from the full report are now `[Killed]`:
+  14, 16, and 17 at `src/errors.ts:22`;
+  96 at `src/index.ts:88`.
+- Compared all three runtime files with the full report's source.
+  They are unchanged.
+  Only the tests and their docs changed after that run.
+- The first run's 73 kills plus four new kills are 77 of 90,
+  or 85.56 percent across the two reports.
+  This is combined proof, not a fresh full-lane score.
+- Saved the narrow log and JSON as
+  `stack-t10-survivor-check-final.log` and
+  `stack-t10-survivor-check-final.json` in the same cache folder.
+- Final gate: build, check, auth, stack, and all repo tests;
+  `EXIT 0`.
+  Auth: 16; Hono: 73; stack: 63; tracker: 79.
+  All 18 test tasks pass; check still has 29 warnings.
+- Re-ran `pnpm validate` after the secret-change test.
+  All 50 lanes pass, `EXIT 0`.
+- Jev tests and README promises: no flags on the auth changes.
+  Strict style census and prose pass.
+- Latest fetch: `origin/main` is still `be6a9526`.
+  No `stack/t06` or `stack/t17` tag has landed there.
+- No push; no own mutation or test job left running.
+
+The narrow check was:
+
+```sh
+cd packages/auth
+flock /tmp/mutation.lock \
+  vp exec stryker run \
+  --mutate 'src/errors.ts:22-22,src/index.ts:88-88' \
+  --reporters clear-text,json
+```
+
+The lead's remaining full gate is:
+
+```sh
+flock /tmp/mutation.lock \
+  vp run --no-cache auth#mutate
+```
