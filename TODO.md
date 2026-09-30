@@ -61,6 +61,13 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Review
 
+- **authoring/model** — lazy event objects and the five authoring fixes are saved.
+  Owner: lead (authoring-model session); Astra writers, one package each.
+  Next: settle Core's size cap, then rerun its ticket gate before landing.
+  Verify: build/check and all tests pass; all five fault scores exceed 85.
+  Release validation is 47/48; Core is 787 bytes above its size cap.
+  [Track](docs/roadmap/authoring-model/PROGRESS.md).
+
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
 

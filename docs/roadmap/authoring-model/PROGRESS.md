@@ -1,0 +1,517 @@
+# Authoring model
+
+Date: 2026-09-30.
+Status: all five fixes saved and tested; Core size gate blocks landing.
+Owner: lead (authoring-model session).
+
+## Fixes authorized
+
+The user asked to handle all five review findings on 2026-09-30.
+The user then asked for one discriminated event object that is lazy and cheap.
+Use `hooks: { run(event), close(event) }` beside the existing callback form.
+The event contains `kind`, the call data, `next`, and owner-bound access.
+Access is built when used; pass-through hooks do not need that context.
+Named hooks keep dispatch limited to the kinds the extension uses.
+Work in isolated checkouts; do not replace the active root-lifetime work.
+
+## Tickets
+
+- **t01 hook owners and lifetime** — blocked by: none.
+  Model: Astra, xhigh; package: core.
+  Hooks receive namespace-bound access to their actual owner.
+  Waiting before or after `next` belongs to the run.
+  Verify: inherited and explicit namespaces, tagged calls,
+  resource holds, cleanup, graceful and forced close.
+- **t02 Sync owners** — blocked by: t01 for integration.
+  Model: Astra, xhigh; package: sync.
+  One definition serves two roots and can restart after close.
+  Verify: closing A preserves B's transport and data updates.
+- **t03 Stack publisher owner** — blocked by: none.
+  Model: Astra, xhigh; package: stack.
+  A commit refreshes its own root's published data.
+  Verify: reuse one publisher across two roots and POST only in A.
+- **t04 persistence setup** — blocked by: t01.
+  Model: Astra, xhigh; package: tinkerer.
+  Namespace tags select transcript files; direct writes still save.
+  Verify: direct writes before a turn, per-call namespaces,
+  restored history, one watch per owner, and close cleanup.
+- **t05 NATS instances** — blocked by: t01.
+  Model: Astra, xhigh; package: nats.
+  Namespace config selects a reusable connection resource.
+  Verify: two namespaces use two connections and reuse one graph;
+  one closed root cannot affect another root's connection.
+
+## Impact before code
+
+Public type: `Scope.Extension` gains optional object-form `hooks`.
+Public type: `Scope.ExtensionEvent` is a union selected by `kind`.
+Each event provides current owner access and `ns`.
+Public type: `Resource.Ctx` gains the namespace chain used for its build.
+NATS needs that chain to route incoming messages into the right session.
+Existing top-level callbacks keep their arguments and result types.
+Tagged calls enter their real child before run hooks, including legacy hooks.
+This order gives new hooks the same owner as the body.
+New callbacks get one event with payload, continuation, and lazy access.
+Consumers: all extension declarations in core tests, Sync, Tinkerer,
+Stack, NATS, Hono, MCP, and examples must still type-check.
+NATS and persistence add namespace config tags while keeping existing
+constructor calls working through their existing default settings.
+SCIP references and full consumer tests are checked before completion.
+
+## Progress on fixes
+
+- Toolchain setup and frozen dependency install passed.
+  `vp env doctor` now passes; the full main build passes.
+- Main check passes with 0 errors and 29 warnings after formatting our docs.
+- Stack owner regressions failed before the fix and pass afterward.
+  Stack 65 and tracker 79 tests passed, with 48 validation lanes green.
+  Writer commits: `0e911137`, `0a6905b8`.
+- Core's event implementation passes 756 tests and the build/check gate.
+  Writer commits: `aea80bca`, `444b7772`, `2b5c8cb5`.
+  Final constructor: `fb4fd6c2`; callback-order note: `c6912392`.
+  Review fixed early input parsing in a refused hook,
+  caught and unreturned body failures, and a saved raise's origin.
+  Final review caught saved `settle` calls throwing on closed admission.
+  Two tests failed before `3011a93f`; they now return flat Results.
+  The hot-name slot check passes at 252 names, last slot 254.
+  The package size gate is still open; no budget increase is approved.
+- Sync's four owner regressions failed before the fix and pass afterward.
+  Writer commit: `fb34c18b`.
+  Review added resource cleanup for failed boot; two more regressions prove it.
+  Fix-round commit: `f8b5ac59`.
+  The fix round passes 75 Sync tests and the build/check gate.
+- Persistence keeps the legacy session-only behavior.
+  Its new tagged API exposes a setup resource for non-ambient controller reads.
+  Writer commit: `014938f6`; Tinkerer passes 97 tests.
+- NATS keeps constructor settings as a fallback for namespace config tags.
+  Its setup resource owns connections; the root driver opens message sessions.
+  Writer commit: `fdb34ebf`; 28 tests use real NATS servers.
+  Boundary tests in `94583f40` cover setup and shutdown without source changes.
+  The extension's resolved sender remains available.
+
+## Cost checks
+
+Queue probes use clean checkouts, not hand timing.
+The 61-pair no-hook probe compares `2700a440` and `444b7772`.
+It measured medians 63.2 and 63.0 ns, with MAD 0.5 and 0.2 ns.
+No speed gain is claimed from that result.
+
+The first event pass-through probe was slower than legacy callbacks.
+`benchctl ab` reported `b is slower`: 3018 versus 5866 ms
+for ten million calls, a 94.4% increase.
+The final run event uses direct fields on one object.
+It makes no intermediate payload object or copy.
+
+The final legacy/event probe reports `no difference we can see`.
+Medians were 2822 and 2831 ms for ten million calls.
+The paired change was 0.3%, with a 95% range of −137 to 221 ms.
+The old/new event probe reports `b is faster`, a 49.1% reduction.
+
+A final no-hook probe reports `b is faster`.
+Medians were 3901 and 3821 ms for fifty million calls.
+No speed gain is promised; these checks found no slowdown.
+
+Current Core bundle: 16,147 bytes gzip.
+The existing cap is 15,360 bytes, leaving 787 bytes to resolve.
+The cap has not changed.
+The final size review found no small cut that recovers all 787 bytes.
+Sharing more context or cleanup code needs new lifetime and cost checks.
+
+Core constructor follow-up: `fb4fd6c2`.
+
+## Fault checks
+
+Full package mutation lanes run alone under `/tmp/mutation.lock`.
+The required floor remains 85 for every package.
+
+- Stack: 88.29, exit 0.
+- Sync: 85.43, exit 0.
+- Tinkerer: 95.19, exit 0.
+- NATS first run: 78.40, exit 1.
+  Public setup and close tests were added for shipped promises.
+  Final run: 85.80, exit 0; 139 killed, 18 survived, 5 uncovered.
+- Core first run: 85.12, exit 0.
+  Final run: 85.36, exit 0, after the saved-settle fix.
+  Counts: 2898 killed, 30 timed out, 476 survived, 26 uncovered, 3 errors.
+
+## Final gate results
+
+- Full build: exit 0.
+- Code check: exit 0, 0 errors and 29 baseline warnings.
+- Recursive package and app tests: exit 0, all 17 tasks pass.
+- Release validation: 47 of 48 lanes pass, exit 1.
+  The only failure is Core size, 16,147 bytes against 15,360.
+- Core ticket gate: exit 1 at the same size check.
+  Its code check and recursive tests pass.
+  It made no checkpoint, tag, or landing.
+- Full fault lanes pass for all five changed packages.
+- Final queued event probe: no difference we can see versus legacy hooks.
+- New source and tests add no style hits.
+  Existing Core and Tinkerer strict hits were also reproduced on main.
+
+Logs are saved under `/tmp/tinkered-authoring-final*`.
+The ticket log is `/tmp/tinkered-authoring-final-ticket.log`.
+The release log is `/tmp/tinkered-authoring-final-validate.log`.
+The board keeps this saved work in Review while the size gate is red.
+
+## Lead review
+
+The source and test diffs were reviewed.
+New Core access keeps resources held and work tracked.
+Sync also has resource cleanup for failed startup.
+Stack deliberately keeps post-commit publication on the root.
+NATS keeps its resolved sender and old config fallback.
+Persistence states its explicit setup rule before direct reads.
+
+Jev review could not read the large Core file in one call.
+The lead read its diff; unit preflight was also completed.
+The combined review flagged commit overclaim using a shortened diff.
+The full diff and passing tests support the recorded changes.
+Core adds 15 ownership labels; calibration completed at `54c5b7e7`.
+
+SCIP indexes were refreshed for the five changed packages.
+Refs confirm Extension types and Resource.Ctx.ns use across consumers.
+Full consumer build and tests passed together.
+Check reports 0 errors and the same 29 baseline warnings.
+
+Integration branch: `authoring/model-fixes`.
+Integration checkout: `/home/paseo/next/tinkered-authoring-fixes`.
+
+Current shape: [Extension access, derived from cases](EXTENSION-SHAPE.md).
+ADR 0089 records the accepted object API.
+The implementation is saved; final gates still control landing.
+
+Current review: [module findings and proof](REVIEW.md).
+The review reproduced Sync owner leaks and early close during a run hook.
+It also found a Stack owner capture, a gap in the persistence sketch,
+and NATS wiring that still selects factory instances instead of namespaces.
+The original focused checks passed 174 tests before the new regressions.
+The five findings now have saved fixes and passing focused checks.
+
+## Starting point
+
+The notes below record the design discussion and probes before the fixes.
+The current implementation and gate results are above.
+
+The user proposes three roles:
+
+- Tags, resources, operations, and data form the public API.
+- An extension runs the work needed by a module.
+- A namespace supplies settings and separates instances.
+
+The existing precedents are a keyed service map for namespaces
+and a system that starts and stops services for extensions.
+See ADR 0059, ADR 0060, and ADR 0064.
+ADR 0081 already keeps outside libraries behind authoring units.
+
+## Agreed roles
+
+User clarification, 2026-09-30:
+
+- Tags provide static values.
+  Different namespaces may bind different values.
+- Data is mutable state by design: read, watch, set, and update.
+- Resources provide reusable values with a managed lifetime and cleanup.
+- Operations are actions.
+- Extensions must know which namespace they are handling.
+- Namespace tags tell an extension what to manage.
+- Extensions must be able to control that instance's state.
+- Keep the authored graph and namespace bindings immutable.
+  Reuse declarations; data values change within scopes and sessions.
+- Close the owning session to discard an instance's session-owned state.
+  Shared dependencies can outlive that session.
+  This replaces the proposed namespace disposal API (ADR 0088).
+- Isolation means multiple instances with separate settings and state.
+  GitHub and Cloudflare HTTP clients use different namespaces.
+  They may share the same directory management.
+- A module needs the public promise listed below.
+
+These are design requirements, not claims that the missing hooks exist.
+Keep ADR 0070's rule: a status has one writer, its owner.
+That decision already uses the controller precedent: watch state and act.
+How extensions discover namespaces is still open.
+
+## What the code adds to this picture
+
+```text
+Scope — extensions and shared resources
+├─ GitHub session — GitHub namespace
+└─ Cloudflare session — Cloudflare namespace
+   Same fixed graph; separate live state.
+```
+
+- Core supplies controllers.
+  Operations receive them through `depends`.
+  An extension can use them, but need not exist for them to work.
+  Source: `packages/core/src/index.ts`, `Scope.SlotValue` and `Scope.Handle`.
+- A namespace selects settings and storage.
+  Its public shape has only an identity and tag bindings.
+  Source: `packages/core/src/index.ts`, `Namespace` and `namespace`.
+- Scopes and sessions own lifetime.
+  A resource's target chooses sharing within that lifetime.
+  Source: `packages/core/README.md`, Namespaces.
+- Plain operations can drive other operations through `depends`.
+  The two-agent relay already does this without an extension.
+  Source: `packages/harness/tests/namespaces.test.ts`.
+
+## Code gaps and rules to settle
+
+### 1. How an engine serves an instance
+
+An extension starts once per installed entry.
+Its start value is stored by extension identity, not namespace.
+Creating a namespace does not install or start an extension.
+Source: `packages/core/src/index.ts`, `extendHandle` and `resolveExtension`.
+
+Case: two mail accounts share one send operation.
+The root must say which engine serves each account.
+It must also decide when each account's settings are checked.
+ADR 0081 checks a piece's config at start; core has no list of namespaces
+whose settings every extension must check.
+
+Agreed: tags on a namespace tell an extension what to control.
+Open: how that namespace reaches the extension, and when settings are checked.
+Session-target resources belong to the disposable session.
+Namespace-target resources remain root-owned and outlive a child session.
+
+### 2. Which instance a hook is handling
+
+Run hooks receive the caller's input object.
+An inherited namespace need not appear in that object.
+Write and resolve hooks receive no namespace argument.
+Source: `packages/core/src/index.ts`, `Scope.Extension`,
+`operationController`, and `writeWithHooks`.
+
+Case: two agents write the same declared status cell.
+A hook receives the cell and value but cannot tell the namespace.
+Per-instance limits or write rules need that context.
+Also, resolve hooks still wrap root reads only, while run and write hooks
+reach child sessions and operation dependencies.
+Source: `resolveThrough` and `packages/core/tests/ext-hooks-layers.test.ts`.
+
+Agreed: the extension must know the active namespace and control its state.
+Open: the hook context, which reads it covers, and how its controllers
+keep the active session as well as the namespace.
+
+### 3. Close the session that owns the state
+
+Agreed: use session lifetime to discard live state.
+The authored graph and namespace key remain reusable.
+`session.close()` already cleans its own values and resources.
+Source: `packages/core/src/index.ts`, `Scope.Handle` and `Resource.Handle`.
+
+Choose resource targets by their intended owner:
+
+- `session`: this session's client, freed when the session closes.
+- `scope`: a shared directory service, kept until the root closes.
+- `namespace`: a root-owned value per key, also kept past child close.
+
+The last target is not suitable for a client that must die with a session.
+A request child also gets its own session-target resources; an instance
+session is not an automatic parent cache for those child resources.
+ADR 0064's ownership rule still applies.
+
+### 4. How separate instances share a dependency
+
+`ns: [agent, tenant]` is a fallback search.
+It does not assign tenant resources to the tenant automatically.
+A fresh namespace-target resource builds under the first key.
+Source: ADR 0064, Decided: where a chain keeps a build.
+
+Case: agents A and B need separate histories and one tenant database pool.
+The design needs an explicit way to keep that pool under the tenant key
+while their other state stays under their agent keys.
+This can begin as a wiring recipe; no new primitive is agreed.
+
+### 5. What isolation promises
+
+Namespace reads can fall back to another key or the default.
+A call can explicitly select another namespace.
+Scope-target resources are shared across namespaces.
+Source: `packages/core/README.md`, Namespaces.
+
+Agreed: isolation means support for multiple instances.
+The user's example is GitHub and Cloudflare clients in separate namespaces
+with shared directory management.
+Access control and strict no-fallback reads are outside this requirement.
+
+### 6. What a module promises its callers
+
+The unit kinds exist, but a module still needs to state:
+
+- Which settings are required.
+- Which operations callers may run.
+- Which data callers may read or write.
+- Which failures callers should handle.
+- Which resources are shared and who closes them.
+- How it connects to another module or an outside event.
+
+Existing tools cover much of this: exports, `depends`, tag readers,
+error registries, resource targets, and driver wiring rows.
+See ADR 0051 and ADR 0081.
+The missing part is one authoring recipe that puts these rules together.
+No module container API is agreed.
+
+## Static graph, disposable session
+
+The user clarified: throw away the session and keep the graph immutable.
+ADR 0088 replaces ADR 0087's proposed namespace disposal rule.
+
+At the composition root, using existing API:
+
+```ts
+const githubSession = scope.createSession({ ns: github });
+const cloudflareSession = scope.createSession({
+  ns: cloudflare,
+});
+
+await githubSession.close();
+```
+
+GitHub's session-owned state and resources are freed.
+Cloudflare and the shared scope-owned directory service stay live.
+The graph and both namespace keys remain unchanged.
+This uses the existing close rules, including graceful close when requested.
+
+The graph is fixed, but values can still be built lazily.
+Creating a session does not create new unit declarations or dependency edges.
+Extensions operate on live state in the right session and namespace.
+
+One existing limit still needs care: passing `ns` changes the storage key
+within the current session; it does not jump to a persistent sibling session.
+The cross-instance relay case from ADR 0059 must keep that distinction.
+Next: settle state ownership across requests and calls before choosing
+the extension context API.
+
+## What the next probes found
+
+Checked on 2026-09-30 through the core entry.
+These are limits of the current rules, not claims that shipped tests fail.
+
+### A session is a lifetime, not another name for a namespace
+
+Several namespaces can share a session and end together.
+Separate sessions are useful when their lifetimes differ.
+Do not turn the earlier two-session example into a one-to-one rule.
+
+Two cases need a clear owner rule before the hook API is fixed.
+
+**Requests using one live instance:**
+
+```text
+Scope — shared directories
+├─ GitHub session — client and state
+│  ├─ Request A — temporary work
+│  └─ Request B — temporary work
+└─ Cloudflare session — client and state
+```
+
+This picture describes the intended sharing, not current resource lookup.
+The probe built a session-target client in the GitHub session.
+A request child built another client.
+Writing a data cell in the child did not update the GitHub session's cell.
+The owner still read 10 after the child wrote 11 and closed.
+Existing cell shadowing is useful for request data, but it cannot also mean
+that every write changes long-lived instance state.
+
+**One operation calling two live instances:**
+
+The probe wrote 10 and 20 in two sibling sessions under different namespaces.
+A relay at the root called the same read operation once per namespace.
+It read `[0, 0]`, not `[10, 20]`.
+Direct reads from the two sessions still gave `[10, 20]`.
+`ns` chooses a storage key in the current session; it does not find a sibling.
+Keep ADR 0059's cross-instance call case when designing ownership.
+
+Source: `packages/core/tests/namespaces.test.ts`,
+`packages/harness/tests/namespaces.test.ts`, and the direct entry probe.
+
+### Hooks need the effective context
+
+The probe ran one operation in two sessions with different ambient namespaces.
+Both run hooks received `call?.ns === undefined`.
+Two writes of the same value to the same declared cell gave identical
+write-hook arguments despite writing different namespace stores.
+An extension cannot choose the right instance from those arguments alone.
+
+Proposed requirement: expose the effective namespace and tags, the calling
+session, and controllers bound to the intended state owner.
+The owner rule comes first; a hook that only gets the caller can still write
+the wrong store.
+Source: `packages/core/src/index.ts`, `Scope.Extension` and `operationController`.
+
+### Fixed declarations; mutable data
+
+The user clarified the boundary: tags are static, data is mutable,
+resources provide lifecycle and reuse, and operations are actions.
+The fixed graph describes those units and how they depend on one another.
+Its data values are expected to change.
+
+This removes data immutability from the list of missing design capabilities.
+Data already provides `get`, `set`, `update`, and `watch` through a controller.
+Resource creation and cleanup already follow the selected owner.
+The remaining question is which namespace and session those controllers use.
+
+The probes also found that bindings retain config object references and cells
+can share an initial object until written.
+Those facts describe the current implementation; they do not change these roles
+or establish a new requirement to freeze or copy all values.
+Source: `packages/core/src/index.ts`, `tag`, `namespace`, and `data`.
+
+### Selection, readiness, and writers still need rules
+
+- Tags say which extension applies, but do not register a namespace with it.
+  Settle when it sees the instance and validates its settings.
+- If initialization must finish before use, define where callers wait.
+  Root `ready` alone does not describe instances created after boot.
+- Keep one owner for each state cell (ADR 0070).
+  Two extensions matching the same namespace must not compete for that cell.
+- A controller's own write must not cause it to repeat forever.
+  A rule for observing changes must distinguish them from requesting changes.
+- Watches and background work must end with their owner.
+  Closing one instance must not close a shared dependency still in use.
+
+These are design checks; the probes above did not demonstrate new failures
+for extension readiness, competing writers, or cleanup.
+
+## Initial checks
+
+- The follow-up entry probes confirmed request-client duplication, local child
+  writes, sibling-session separation, missing hook context, and shared mutable
+  config or initial values.
+  All assertions matched the current behavior.
+- A direct probe through the core entry passed on 2026-09-30:
+  closing GitHub's session freed its client; Cloudflare and the shared resource
+  stayed live; a fresh session reused the same namespace with fresh state;
+  root close cleaned the remaining resources.
+  This proves ownership with in-memory resources, not a live HTTP integration.
+- `vp run prose`: passed, 0 hits in 147 tracked files.
+- The new note's direct prose check: passed, 0 hits.
+- Core namespace, release, and extension tests: 115 passed in 4 files.
+  Command from `packages/core`:
+
+  ```bash
+  vp test tests/namespaces.test.ts \
+    tests/named-release.test.ts tests/extensions.test.ts \
+    tests/ext-hooks-layers.test.ts
+  ```
+
+The workspace build failed in `@tinker/react` with TS2688:
+`Cannot find type definition file for 'node'`.
+Log: `/tmp/tinkered-authoring-model-build.log`.
+
+- `vp check`: failed, 54 errors and 29 warnings in unchanged code.
+  Format check passed.
+  Log: `/tmp/tinkered-authoring-model-check.log`.
+- `vp run -r test`: failed; Jev cannot import `@microsoft/tsdoc`.
+  The full test run did not complete.
+  Log: `/tmp/tinkered-authoring-model-tests.log`.
+
+`vp env doctor` also failed: missing command shims.
+Its suggested command is `vp env setup`.
+Node resolves to `/usr/local/bin/node`, not a Vite+ shim.
+This was inspected only; setup was not changed.
+
+The glossary's extension row had said session calls and dependency writes
+bypass hooks; corrected to a short meaning matching current behavior.
+Source comments repeat that old limit and remain follow-up work.
