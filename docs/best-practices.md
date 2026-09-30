@@ -91,6 +91,36 @@ The app borrows the observer config resolved by the extension.
 Close the app first, then close telemetry to send the final spans.
 Leave observation off in telemetry unless self-observation is intended.
 
+```ts
+const tracing = traceSink();
+const toolStop = new AbortController();
+const telemetry = createScope({
+  signal: toolStop.signal,
+  extensions: [tracing],
+  tags: tracing.config({
+    env: {
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4318",
+      OTEL_SERVICE_NAME: "service-tools",
+    },
+    write: (line) => process.stdout.write(`${line}\n`),
+  }),
+});
+await telemetry.ready;
+const appStop = new AbortController();
+const app = createScope({
+  signal: appStop.signal,
+  observe: telemetry.resolve(tracing),
+});
+appStop.abort();
+await app.closed;
+toolStop.abort();
+await telemetry.closed;
+```
+
+Import `traceSink` from `@tinker/stack`.
+Logger and devtools graphs may use the same ownership rule.
+They keep their own extension, resources, state, and actions.
+
 ## One agent, two services
 
 Keep the conversation in one session.
@@ -142,6 +172,27 @@ App code calls declared actions through dependencies.
 Use `run()` when failure should reach the owner.
 Use `settle()` when the caller handles a failed or cancelled result.
 Catching a run rejection does not recover that failure for the owner.
+
+Give one action a call signal when it must stop on its own.
+The call gets a child session, as a tagged call does.
+Session resources and data writes stay with that child.
+Namespaces still select the settings for that work.
+
+```ts
+const stepStop = new AbortController();
+const pending = step.settle({
+  input: "check the services",
+  signal: stepStop.signal,
+});
+stepStop.abort();
+const result = await pending;
+if (result.status === "failed") throw result.error;
+```
+
+Abort stops child work that uses `ctx.signal`, including HTTP retries.
+The call waits for cleanup before answering.
+A handled cancelled result keeps the parent conversation alive.
+Keep conversation cells in the parent and consume the step's result there.
 
 After a commit, publish from committed storage through a root controller.
 Keep the request namespace on that controller.

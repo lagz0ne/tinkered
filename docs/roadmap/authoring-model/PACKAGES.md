@@ -253,11 +253,11 @@ No timing change or claim is part of these tickets.
 - **Core** — `src/index.ts` and `tests/extension-context.test.ts`.
   The event carries owner and namespace access.
   Existing tests cover tags, state, waits, cleanup, and reuse.
-  No new Core API is needed.
+  t17 adds the user-approved signal to one owned call.
 - **HTTP** — `src/client.ts` and `tests/endpoints.test.ts`.
   Shared declarations fit: config and backend tags, send and attempt actions.
-  The README's two-session example hides namespace-based service wiring.
-  The Harness example will check that wiring through the public send action.
+  The README now shows separate service namespaces.
+  The Harness example checks that wiring through the public send action.
 - **Utils** — `src/index.ts`.
   One pure string helper; no live state or owner to fix.
 - **MCP** — `src/index.ts`.
@@ -281,24 +281,29 @@ No timing change or claim is part of these tickets.
   Family shares a namespace-key directory by its public contract.
   It creates one cell; new keys do not add graph nodes or edges.
   Each root owns its values, listeners, and transports.
+  A public test covers shared keys across two roots and closing one.
 - **Stack** — `src/publish.ts` and namespace tests.
   Fixed default-namespace controllers in post-commit and live refresh.
   Writer checkpoint: `5d37b496`; lead review passed.
-  Trace queue wiring remains under review.
+  Trace now exposes a reusable extension with its own telemetry graph.
+  Public tests keep two collectors apart and export final app cleanup.
 - **React** — `src/index.ts` and hook owner tests.
-  Three proven owner/error gaps are being fixed in t12.
+  Fixed handled run failure, old-provider results, and sync resource errors.
+  Writer checkpoint: `60bb1146`; lead review passed.
 - **Blueprint** — `src/blueprint.ts`, `src/extract.ts`, and corpus.
-  Namespace targets and extension writers are missing.
-  t13 adds their accepted authoring shape.
+  Namespace targets and extension writers are accepted.
+  Direct named calls in object hooks are checked.
+  Writer checkpoint: `5c64ddbd`; lead review passed.
 - **Tinkerer** — `src/index.ts` and inbox tests.
   Tags, cells, tools, and persistence fit.
   Steering during a stalled read needs a public regression check.
 - **Hono** — `src/index.ts` and stream tests.
-  A pre-aborted request and synchronous body failure miss cleanup.
-  t15 proves and fixes those paths.
+  Fixed pre-aborted requests and synchronous body cleanup.
+  Writer checkpoint: `db011d27`; lead review passed.
 - **Process** — `src/index.ts` and the existing early-abort card.
   Process inputs are root tags; commands are actions.
-  The root helper and missed startup abort need t15's lifetime check.
+  Fixed startup abort and kept root completion with signal and closed.
+  Writer checkpoint: `2d639c49`; lead review passed.
 
 ## App coverage
 
