@@ -1,4 +1,4 @@
-import { extension, operation, type Operation, type Scope } from "@tinker/core";
+import { extension, operation, resource, type Operation, type Scope } from "@tinker/core";
 import { request } from "@tinker/hono";
 import { nats, subscribe, type Nats } from "@tinker/nats";
 import { describeError } from "./observe.ts";
@@ -29,10 +29,16 @@ export function liveUpdates(
   publish: Operation.Handle<unknown, void>,
   wiring: LiveUpdates.Wiring,
 ): readonly Scope.Extension[] {
-  let refresh: () => unknown;
+  const refresh = resource({
+    label: "stack.rootPublish",
+    target: "scope",
+    depends: { publish },
+    factory: ({ publish }) => publish,
+  });
   const receive = operation({
     label: "stack.refresh",
-    run: (_deps, _ctx: Operation.Ctx<Nats.Message>) => refresh(),
+    depends: { refresh },
+    run: ({ refresh }, _ctx: Operation.Ctx<Nats.Message>) => refresh.run(),
   });
   const bus = nats([subscribe(wiring.subject, receive)], { env: wiring.env });
   const changed = operation({
@@ -40,11 +46,10 @@ export function liveUpdates(
     depends: { send: bus.publish },
     run: ({ send }) => send.run({ input: { subject: wiring.subject, payload: new Uint8Array() } }),
   });
-  const publisher = createPublisher(publish, changed, (run) => {
+  const publisher = createPublisher(publish, changed, () => {
     if (!/^[^\s.*>]+(?:\.[^\s.*>]+)*$/.test(wiring.subject)) {
       raise("BadLiveSubject", { subject: wiring.subject });
     }
-    refresh = run;
   });
   return [publisher, bus.extension];
 }
@@ -52,30 +57,37 @@ export function liveUpdates(
 function createPublisher(
   publish: Operation.Handle<unknown, void>,
   changed?: Operation.Handle<unknown, void>,
-  onStart?: (refresh: () => unknown) => void,
+  onStart?: () => void,
 ): Scope.Extension<void> {
-  let republish: () => Promise<unknown>;
+  const republish = operation({
+    label: "publish after commit",
+    depends: { publish, ...(changed ? { changed } : {}) },
+    run: async ({ publish, changed }, ctx) => {
+      try {
+        await publish.run();
+        if (changed) await changed.run();
+      } catch (error) {
+        ctx.log.error("publish failed", describeError(error));
+      }
+    },
+  });
+  const root = resource({
+    label: "stack.rootPublisher",
+    target: "scope",
+    depends: { republish },
+    factory: ({ republish }) => republish,
+  });
   return extension({
     label: "stack.publish",
     start: async (scope, _ctx, next) => {
-      onStart?.(() => scope.run(publish));
-      republish = () =>
-        scope.run({
-          label: "publish after commit",
-          depends: { publish },
-          run: async ({ publish: read }, ctx) => {
-            try {
-              await read.run();
-              if (changed) await scope.run(changed);
-            } catch (error) {
-              ctx.log.error("publish failed", describeError(error));
-            }
-          },
-        });
+      onStart?.();
       await next();
+      scope.resolve(root);
       await scope.run(publish);
     },
     session: async (handle, next) => {
+      /** Resolve while the session is live; the controller belongs to the root. */
+      const republish = handle.resolve(root);
       const ended = await next();
       const found = handle.resolve(request.optional);
       if (
@@ -84,7 +96,7 @@ function createPublisher(
         found.present &&
         found.value.method !== "GET"
       ) {
-        await republish();
+        await republish.run();
       }
       return ended;
     },

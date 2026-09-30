@@ -80,6 +80,9 @@ the root adds the newline when it writes to stdout.
 operation at boot and after each committed non-GET request.
 The operation reads storage and sets the root's sync cells.
 Manual sessions do not trigger it.
+One publisher can be shared by several roots.
+After commit it reads that root's tags and updates its cells,
+even when the request has its own values.
 A handled error answer (4xx) still commits its session,
 so it republishes and signals.
 A boot read failure rejects ready.
@@ -99,7 +102,8 @@ extensions: [
 ];
 ```
 
-Make a fresh piece for each root.
+Make a fresh live piece for each root.
+A rejected second boot leaves the first root receiving signals.
 The nested row holds the publisher and its NATS extension.
 NATS checks `NATS_URL` at start.
 A subject must have nonempty parts split by dots,

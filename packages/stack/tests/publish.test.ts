@@ -1,4 +1,4 @@
-import { createScope, data, extension, operation, type Observe } from "@tinker/core";
+import { createScope, data, extension, operation, resource, tag, type Observe } from "@tinker/core";
 import { hono, route } from "@tinker/hono";
 import { expect, test } from "vite-plus/test";
 import { publishAfterCommit } from "../src/index.ts";
@@ -92,5 +92,50 @@ test("a manual session does not publish after boot", async () => {
     expect(reads).toBe(1);
   } finally {
     await scope.close();
+  }
+});
+
+test("a reused publisher refreshes the root that committed, not the last root or request", async () => {
+  const storage = tag<{ value: string }>({ label: "storage" });
+  const committed = resource({
+    label: "committed",
+    target: "scope",
+    depends: { storage },
+    factory: ({ storage }) => storage,
+  });
+  const publish = operation({
+    label: "publish",
+    depends: { storage, list: list.controller },
+    run: ({ storage, list }) => list.set(storage.value),
+  });
+  const save = operation({
+    label: "save",
+    depends: { committed, list: list.controller },
+    run: ({ committed, list }) => {
+      committed.value += " saved";
+      list.set("request draft");
+      return "saved";
+    },
+  });
+  const publisher = publishAfterCommit(publish);
+  const web = hono([route.post("/", save)], {
+    tags: () => storage({ value: "request" }),
+  }).extension;
+  const a = createScope({
+    tags: [storage({ value: "A" })],
+    extensions: [web, publisher],
+  });
+  const b = createScope({
+    tags: [storage({ value: "B" })],
+    extensions: [publisher],
+  });
+  try {
+    await a.ready;
+    await b.ready;
+    await a.resolve(web).request("/", { method: "POST" });
+    expect([a.resolve(list), b.resolve(list)]).toEqual(["A saved", "B"]);
+  } finally {
+    await a.close();
+    await b.close();
   }
 });

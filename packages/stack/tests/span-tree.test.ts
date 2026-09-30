@@ -33,9 +33,10 @@ test("the graph traces the changed signal and the root re-read", async () => {
       { name: "POST /", parent: undefined },
       { name: "publish", parent: "publish after commit" },
       { name: "nats.publish", parent: "stack.changed" },
-      { name: "stack.changed", parent: undefined },
+      { name: "stack.changed", parent: "publish after commit" },
       { name: "publish after commit", parent: undefined },
-      { name: "publish", parent: undefined },
+      { name: "stack.rootPublish", parent: "stack.refresh" },
+      { name: "publish", parent: "stack.rootPublish" },
       { name: "stack.refresh", parent: "nats trace.changed" },
       { name: "nats trace.changed", parent: undefined },
     ]);
