@@ -46,6 +46,9 @@ Binding the same cell twice stays ready with one registration key.
 The cell's `initial`, `parse`, and `eq` apply in every namespace.
 Two members hold independent values, including over the wire.
 `members()` lists ids in creation order; `onMember` fires once per new id.
+A family shares its ID-to-namespace directory across roots.
+Each root owns its cell values, driver listeners, and transports.
+Closing one root leaves another root using that family able to receive new IDs.
 A family row publishes its members under `${label}/${id}` of the row's
 label — registration is by identity: only the members the viewer holds go
 down, never the whole family. The label is a wire-key prefix, not a storage key.
