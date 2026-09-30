@@ -2567,3 +2567,36 @@ scripts/scip.sh index stack
 scripts/scip.sh refs 'runUntilStop' stack
 scripts/scip.sh refs 'readExitCode' stack
 ```
+
+### t18 first green step
+
+- Commit `4ad58653` replaces the old helper with
+  `readExitCode` and moves the tracker onto core's stop
+  signal and `closed` result.
+- Build, `vp check`, and stack tests: exit 0.
+  Stack: 65 tests in eight files.
+  Check: zero errors and 28 warnings.
+  A separate `origin/main` worktree at `f8acfee5` also
+  built and checked with zero errors and 28 warnings.
+- Tracker: 79 tests in nine files, exit 0.
+- Browser proof and seven browser-helper tests: exit 0.
+- The real server entry answered 0 on SIGTERM.
+  Bad PORT answered 1 with one `boot failed` line and
+  `payload.keys` equal to `["PORT"]`.
+- SCIP: `runUntilStop` printed `(none)`.
+  `git grep` found no old helper in packages or apps.
+  `rg` is not on PATH; `git grep` checked tracked files.
+- Jev over `origin/main..HEAD`: no source flags.
+  Stack tests: zero of 30 titles flagged.
+  README promises: zero missing lines.
+  No labels were needed for this ticket.
+- The required `main..HEAD` run also read core's root
+  lifetime changes because local main was still at t06.
+  Its 61 unit flags are outside this ticket's diff.
+  The remote-base run above checks only this ticket.
+- The plain directory lint found no S19, S27, S28, or
+  S29 rows. S19's wider reach and S29 have not landed.
+  Two unchanged factory notes remain in `publish.ts`
+  and `testing.ts`: each factory binds its own inputs.
+- TSDoc: zero S26 rows. Style census: OK.
+- Core feedback: no new failing case.
