@@ -2394,7 +2394,8 @@ function isCancel(layer: Layer, error: unknown): boolean {
 }
 
 function endFor(layer: Layer, status: "ok" | "failed", error: unknown): Scope.End {
-  if (status === "failed") return rejectEnd(layer, error);
+  if (status === "failed")
+    return isCancel(layer, error) ? { status: "cancelled" } : { status: "failed", error };
   return layer.aborted ? { status: "cancelled" } : SUCCESS;
 }
 
@@ -2584,7 +2585,7 @@ function runTagged<T, I>(
     tagged = runSessionWith(
       layer,
       { tags, ns: chain },
-      (child) => runUntagged(child, target, parent, inner, chain, undefined, nested),
+      runTaggedBody.bind(undefined, target, parent, inner, chain, nested),
       caller,
       call.signal,
     ) as Awaited<T> | Promise<Awaited<T>>;
@@ -4077,13 +4078,6 @@ function drainDefers(layer: Layer, entries: DeferEntry[], end: Scope.End): Promi
   return entries.length === 0 ? READY : drainEntries(layer, entries, end);
 }
 
-/** A layer's body end, classified at the moment the body settled (`bodyEnd`, attached at session
- * creation so the abort-state reflects whether the body was interrupted, not the later own-close
- * abort — Q5). A bodyless layer returns undefined (its outcome comes from the close request). */
-function classifyBody(layer: Layer): Promise<Scope.Outcome | undefined> {
-  return layer.bodyEnd ?? Promise.resolve(undefined);
-}
-
 /** The reality-only settlement reducer (ADR 0028): a real failure wins — the body threw, an owned-work
  * op rejected, or a descendant really failed (bubbled into `layer.failure`/`descendantFailure`) — then
  * an interrupted body settles `cancelled`, else `success`. No wished outcome participates. Records the
@@ -4105,16 +4099,6 @@ function settleOutcome(layer: Layer, body: Scope.Outcome | undefined): Scope.Out
   }
   if (layer.cancelled) return { status: "cancelled" };
   return SUCCESS;
-}
-
-/** Drive every currently-attached child to close (children first, awaited sequentially). The mode is
- * re-checked per child: once an EARLIER child's failure has been collected (pushed into this layer's
- * `descendantFailure` while we awaited it), the remaining children close FORCED so their resources roll
- * back too. Collection is NOT done here: each child's real failure + teardown errors flow up through
- * `finishLayer` (swept push), so a child that already finished and detached still reaches its ancestor.
- * With no child, reuse READY: the caller still awaits, keeping the close phase order. */
-function closeChildren(layer: Layer, force: boolean): Promise<void> {
-  return layer.children.size === 0 ? READY : closeEach(layer, force);
 }
 
 /** Whether a scope has nothing to tear down, so `close` can settle synchronously (see {@link fastClose}):
@@ -4249,16 +4233,20 @@ function buildResult(
   return { status: "success", teardownErrors };
 }
 
-/** Whether a layer's teardown rolls its subtree back (resources see `cancelled`) rather than committing
- * gracefully: the close is forced, an ancestor already aborted it, or it is FAILING — a real failure
+/** Mark body cancellation and decide whether teardown rolls the subtree back (resources see
+ * `cancelled`) rather than committing gracefully: the close is forced, an ancestor already aborted
+ * it, or it is FAILING — a real failure
  * (body throw, or an already-recorded owned-work / descendant failure) rolls the subtree back even
  * under a graceful close (transaction-abort). */
-function rollsBack(layer: Layer, forced: boolean, body: Scope.Outcome | undefined): boolean {
-  return (
+function prepareTeardown(layer: Layer, forced: boolean, body: Scope.Outcome | undefined): boolean {
+  const rollback =
     forced ||
     body?.status === "failed" ||
-    (failureOf(layer) ?? layer.descendantFailure) !== undefined
-  );
+    (failureOf(layer) ?? layer.descendantFailure) !== undefined;
+  /** A session settles cancelled iff its body was interrupted; a bodyless scope iff teardown rolls
+   * back. A body that succeeded is never cancelled by its forced self-close. */
+  if (body ? body.status === "cancelled" : rollback) layer.cancelled = true;
+  return rollback;
 }
 
 function collectLayerInstances(layer: Layer): ResourceInstance[] {
@@ -4303,13 +4291,12 @@ function startClose(
   markSwept(layer);
   const run = async (): Promise<Scope.Result> => {
     if (forced) abortSubtree(layer);
-    const body = await classifyBody(layer);
-    const rollback = rollsBack(layer, forced, body);
-    /** A session settles cancelled iff its body was interrupted; a bodyless scope iff its teardown rolls
-     * back (POSIX-style: forced rolls resources back, graceful commits) — a body that SUCCEEDED is never
-     * cancelled by a forced self-close. */
-    if (body ? body.status === "cancelled" : rollback) layer.cancelled = true;
-    await closeChildren(layer, rollback);
+    /** Read the end recorded when the body settled, before its own close abort (Q5).
+     * A bodyless layer gets its outcome from the close request. */
+    const body = await (layer.bodyEnd ?? Promise.resolve(undefined));
+    const rollback = prepareTeardown(layer, forced, body);
+    /** An empty child list still yields here, keeping the close phase order. */
+    await (layer.children.size === 0 ? READY : closeEach(layer, rollback));
     while (layer.pending.size) await Promise.all(layer.pending);
     const settled = settleOutcome(layer, body);
     const instances = collectLayerInstances(layer);
@@ -5637,6 +5624,8 @@ type RootLifetime = {
   unlisten?: () => void;
 };
 
+/** Hook returns and throws keep their existing meaning for `close()`. Only the real close's
+ * Result reaches `closed`, after the first chain's after-work, even when a hook throws. */
 function watchRootClose(
   layer: Layer,
   close: Scope.Handle["close"],
@@ -5645,24 +5634,15 @@ function watchRootClose(
   return (options) => {
     lifetime.unlisten?.();
     if (lifetime.closing !== undefined) return close(options);
-    return (lifetime.closing = finishRootClose(layer, close, options, lifetime));
+    return (lifetime.closing = (async () => {
+      try {
+        return await close(options);
+      } finally {
+        if (lifetime.finish !== undefined && layer.closing !== undefined)
+          lifetime.finish(await layer.closing);
+      }
+    })());
   };
-}
-
-/** Hook returns and throws keep their existing meaning for `close()`. Only the real close's
- * Result reaches `closed`, after the first chain's after-work, even when a hook throws. */
-async function finishRootClose(
-  layer: Layer,
-  close: Scope.Handle["close"],
-  options: Scope.CloseOptions | undefined,
-  lifetime: RootLifetime,
-): Promise<Scope.Result> {
-  try {
-    return await close(options);
-  } finally {
-    if (lifetime.finish !== undefined && layer.closing !== undefined)
-      lifetime.finish(await layer.closing);
-  }
 }
 
 function listenForStop(scope: Scope.Handle, signal: AbortSignal, lifetime: RootLifetime): void {
@@ -5715,6 +5695,18 @@ function resolveThrough(
     return at(target, 0, chain);
   };
   return chained as Scope.Handle["resolve"];
+}
+
+/** Bound only for the session path, so ordinary tagged frames retain no body callback context. */
+function runTaggedBody<T, I>(
+  target: Operation.Handle<T, I>,
+  parent: SpanImpl | undefined,
+  call: Scope.Invocation<I> | undefined,
+  chain: readonly Namespace[] | undefined,
+  nested: boolean,
+  child: Layer,
+): T {
+  return runUntagged(child, target, parent, call, chain, undefined, nested);
 }
 
 /** A session under a root that installed `session` hooks: the whole life inside their onion. Cold
@@ -5799,8 +5791,12 @@ async function drainEntries(layer: Layer, entries: DeferEntry[], end: Scope.End)
   for (let i = entries.length - 1; i >= 0; i--) await drainCloseEntry(layer, entries[i], end);
 }
 
-/** {@link closeChildren}'s work when there is any: every child in turn, forced once a failure is
- * on record. */
+/** Drive every currently-attached child to close (children first, awaited sequentially). The mode is
+ * re-checked per child: once an EARLIER child's failure has been collected (pushed into this layer's
+ * `descendantFailure` while we awaited it), the remaining children close FORCED so their resources roll
+ * back too. Collection is NOT done here: each child's real failure + teardown errors flow up through
+ * `finishLayer` (swept push), so a child that already finished and detached still reaches its ancestor.
+ * Its caller reuses READY with no child, keeping the close phase order. */
 async function closeEach(layer: Layer, force: boolean): Promise<void> {
   for (const child of Array.from(layer.children)) {
     await closeLayer(
@@ -5856,10 +5852,6 @@ function expandFrame(frame: Layer, parent: Layer): void {
  * these frames before the existing sweep and abort code sees the tree. */
 function materializeActiveFrames(): void {
   for (let frame = activeTagged; frame; frame = frame.previous) materialize(frame);
-}
-
-function rejectEnd(layer: Layer, error: unknown): Scope.End {
-  return isCancel(layer, error) ? { status: "cancelled" } : { status: "failed", error };
 }
 
 /** A best-effort outcome for a re-entrant close ack before the layer has settled: whatever real state
