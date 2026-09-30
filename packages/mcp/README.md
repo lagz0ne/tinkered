@@ -4,12 +4,10 @@ A tool is an operation plus its description facts; harnesses reach it over MCP
 through a driver (ADR 0046, ADR 0051).
 
 ```text
-operation({ label: "search", input: z.object(schema).parse, depends, run })   ← a plain op
-expose(search, { description, schema })                ← one wiring row: the op + its tool facts
-scope = createScope({ extensions: [mcp({ name, version, tools: rows })] })    ← the driver
-await scope.ready; server = scope.resolve(ext) → McpServer                   ← start registers one tool per row
-   call → session → inline op `mcp search` → the op (subflow) → answerTool(meta, value) | isError
-harness: mcpServers: { coder: { command: "node", args: ["tools.ts"] } }   ← every harness, Paseo too
+harness calls a tool
+  MCP driver opens a session
+    inline operation calls the exposed operation
+      answerTool returns the result
 ```
 
 Declare a tool row — an ordinary operation plus its static facts. `Mcp.Tool`
@@ -34,7 +32,12 @@ const search = operation({
 const ext = mcp({
   name: "coder",
   version: "1.0.0",
-  tools: [expose(search, { description: "search the index", schema })],
+  tools: [
+    expose(search, {
+      description: "search the index",
+      schema,
+    }),
+  ],
 });
 ```
 
@@ -43,7 +46,7 @@ you want:
 
 ```ts
 import { createScope } from "@tinker/core";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+const { StdioServerTransport } = await import("@modelcontextprotocol/sdk/server/stdio.js");
 
 const scope = createScope({ extensions: [ext] });
 await scope.ready;
@@ -159,27 +162,40 @@ cancel reason's text; the `mcp search` span fails with that reason.
 Point a harness at the process. Claude:
 
 ```ts
-claudeCode.options({ mcpServers: { coder: { command: "node", args: ["tools.ts"] } } });
+claudeCode.options({
+  mcpServers: {
+    coder: { command: "node", args: ["tools.ts"] },
+  },
+});
 ```
 
 Codex:
 
 ```ts
-{ config: { mcp_servers: { coder: { command: "node", args: ["tools.ts"] } } } };
+const options = {
+  config: {
+    mcp_servers: {
+      coder: { command: "node", args: ["tools.ts"] },
+    },
+  },
+};
 ```
 
 Drive it in a test for real — the in-memory pair plus the SDK's own client:
 
 ```ts
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
+const { InMemoryTransport } = await import("@modelcontextprotocol/sdk/inMemory.js");
 
 const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
 await server.connect(serverTransport);
 const client = new Client({ name: "test", version: "0" });
 await client.connect(clientTransport);
 await client.listTools();
-await client.callTool({ name: "search", arguments: { q: "owls" } });
+await client.callTool({
+  name: "search",
+  arguments: { q: "owls" },
+});
 ```
 
 The MCP SDK and zod are peers, never bundled. A tool is always a row: an op

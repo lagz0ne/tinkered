@@ -762,7 +762,7 @@ The existing card moved from Ready to Done; no duplicate card was added.
 
 The user asked for this migration after the package review landed.
 The impact block and package briefs are in [HOOKS.md](HOOKS.md).
-ADR 0092 replaces ADR 0089's compatibility rule with one event hook form.
+ADR 0093 replaces ADR 0089's compatibility rule with one event hook form.
 The graph, namespace, ownership, and middleware behavior stay the same.
 The 16 KiB Core cap stays in force.
 Current source and tests are being migrated in isolated package worktrees.

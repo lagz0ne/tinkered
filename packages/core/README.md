@@ -398,11 +398,17 @@ call's `tags`, `presets`, `extensions`, and every driver's rows (`routes`, `tool
 spread:
 
 ```ts
-const shared = [group("net"), audit && trace(true)]; // only `false` is "nothing", never 0 or ""
+/** Only false is nothing; 0 and "" remain values. */
+const shared = [group("net"), audit && trace(true)];
 createScope({ tags: [region("eu"), shared] });
-scope.run(op, { tags: zone("us") }); // a single binding is a tagged call
-scope.createSession({ tags: [request(raw), wiring.tags?.(c)] }); // an absent group is skipped
-createScope({ extensions: [scope?.extensions, ext] }); // same for extensions and presets
+/** A single binding is a tagged call. */
+scope.run(op, { tags: zone("us") });
+/** An absent group is skipped. */
+scope.createSession({
+  tags: [request(raw), wiring.tags?.(c)],
+});
+/** Extensions and presets take the same list shape. */
+createScope({ extensions: [scope?.extensions, ext] });
 ```
 
 A call whose `tags` is nothing, or a list that flattens to nothing, is an untagged call: it runs

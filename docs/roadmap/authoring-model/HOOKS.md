@@ -45,6 +45,8 @@ Callers to migrate:
 - The tracker tool entry and client test.
 - MCP and Process examples.
 - Blueprint source fixtures and Jev authored-code fixtures, when found.
+  Jev's existing body reader must find `hooks.start` for its same clock checks.
+  Update that API path and its fixtures; keep the rule and judge bank unchanged.
 - Current README and authoring guide examples.
 
 Check named and imported aliases through SCIP before and after code.

@@ -1,4 +1,4 @@
-# 0092 Extension hooks use the event form only
+# 0093 Extension hooks use the event form only
 
 Date: 2026-09-30. Status: accepted.
 
