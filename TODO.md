@@ -40,6 +40,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **authoring/packages** — check every package and app against the settled model.
+  Owner: lead (authoring session); Astra writers, one package each.
+  Next: read all public shapes; fix owner and namespace gaps;
+  add the Harness example for GitHub and Cloudflare.
+  Verify: each package has a recorded result; regressions fail before fixes;
+  build/check, package and app tests, changed-package fault lanes, prose.
+  [Track](docs/roadmap/authoring-model/PACKAGES.md).
+
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
