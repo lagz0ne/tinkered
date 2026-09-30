@@ -2600,3 +2600,15 @@ scripts/scip.sh refs 'readExitCode' stack
   and `testing.ts`: each factory binds its own inputs.
 - TSDoc: zero S26 rows. Style census: OK.
 - Core feedback: no new failing case.
+
+### t18 wider checks before the t17 landing
+
+- `pnpm validate`: all 48 lanes passed, exit 0.
+- `vp run -r build && vp run -r test`: exit 0;
+  all 17 workspace test tasks passed.
+- The cancellation test now awaits `run()` instead of
+  discarding a `settle()` result; each case names its
+  exit code. Build, check, and stack tests passed again.
+- The README's root example fits a 60-character line.
+- t17 is still absent from `origin/main` at `f8acfee5`.
+  The final rebase, gate, and mutation run wait for it.

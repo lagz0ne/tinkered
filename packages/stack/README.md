@@ -43,7 +43,8 @@ async function run(stop: AbortSignal) {
     () => false,
   );
   const phase = started ? "shutdown" : "boot";
-  return stack.readExitCode(await scope.closed, observe, phase);
+  const end = await scope.closed;
+  return stack.readExitCode(end, observe, phase);
 }
 
 if (import.meta.main) {
