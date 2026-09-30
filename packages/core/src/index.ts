@@ -2193,7 +2193,6 @@ class OperationControl<T, I> {
   declare private parent: SpanImpl | undefined;
   declare private chain: readonly Namespace[] | undefined;
   declare private hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>;
-  declare private replay: Replay;
   /** Set on the first `settle` read only; `declare` keeps them off the constructor's shape. */
   declare private twin: OperationControl<T, I> | undefined;
   declare private settler: ((call?: Scope.Invocation<I>) => unknown) | undefined;
@@ -2204,7 +2203,6 @@ class OperationControl<T, I> {
     parent: SpanImpl | undefined,
     chain: readonly Namespace[] | undefined,
     hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
-    replay: Replay,
   ) {
     this.run = run;
     this.layer = layer;
@@ -2212,7 +2210,6 @@ class OperationControl<T, I> {
     this.parent = parent;
     this.chain = chain;
     this.hookTarget = hookTarget;
-    this.replay = replay;
   }
   get settle(): (call?: Scope.Invocation<I>) => unknown {
     if (this.settler === undefined) {
@@ -2232,7 +2229,6 @@ class OperationControl<T, I> {
       control.chain,
       RECOVERED,
       control.hookTarget,
-      control.replay,
     ) as OperationControl<U, J>);
   }
 }
@@ -2412,7 +2408,10 @@ function runDefers(
 /** An operation's parsed raw input (no parser means void input). A throwing parse is the edge
  * rejecting the value: `DataValidationFailed { label, cause }`, the same registry error a data or tag
  * parse raises — so a driver maps it (400) without knowing the parser. */
-function parseInput<I>(target: Operation.Handle<unknown, I>, rawInput: unknown): I {
+function parseInput<I>(
+  target: Pick<Operation.Handle<unknown, I>, "label" | "input">,
+  rawInput: unknown,
+): I {
   if (!target.input) return undefined as I;
   return admit(target.label, target.input, rawInput);
 }
@@ -2445,7 +2444,7 @@ class OperationCtx<I> implements Operation.Ctx<I> {
   declare readonly random: Random.Handle;
   constructor(
     owner: Layer,
-    target: Operation.Handle<unknown, I>,
+    target: Pick<Operation.Handle<unknown, I>, "label" | "input">,
     call: Scope.Invocation<I> | undefined,
     span: SpanImpl | undefined,
   ) {
@@ -2475,6 +2474,11 @@ class OperationCtx<I> implements Operation.Ctx<I> {
   }
   get raise(): Operation.Ctx<I>["raise"] {
     return (kind, payload) => raiseFrom(this, kind, payload);
+  }
+  /** A hook and its body register into one ordered defer list, even when the hook needed a
+   * context before the body's input was parsed. Plain runs never call this. */
+  static shareDefers(from: OperationCtx<unknown>, to: OperationCtx<unknown>): void {
+    to.defers = from.defers ??= [];
   }
   static defersOf<J>(
     ctx: OperationCtx<J>,
@@ -2744,11 +2748,10 @@ function executorFor<T, I>(
   parent: SpanImpl | undefined,
   chain: readonly Namespace[] | undefined,
   caller: RunState | undefined,
-  replay: Replay,
 ): (call?: Scope.Invocation<I>) => unknown {
   const sees = seesResourceOf(target);
   return (call?: Scope.Invocation<I>): unknown =>
-    runOnce(layer, target, parent, chain, caller, replay, sees, call);
+    runOnce(layer, target, parent, chain, caller, false, sees, call);
 }
 
 /** The single entry every run takes — declared, subflow, and inline alike. A call carrying
@@ -2828,11 +2831,10 @@ function operationController<T, I>(
   chain: readonly Namespace[] | undefined = layer.ns,
   caller?: RunState,
   hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I> = target,
-  replay: Replay = false,
 ): Scope.OperationController<T, I> {
-  const execute = executorFor(layer, target, parent, chain, caller, replay);
+  const execute = executorFor(layer, target, parent, chain, caller);
   const runners = layer.exts.runners;
-  if (runners === undefined || replay)
+  if (runners === undefined)
     return new OperationControl(
       execute,
       layer,
@@ -2840,7 +2842,6 @@ function operationController<T, I>(
       parent,
       chain,
       hookTarget,
-      replay,
     ) as Scope.OperationController<T, I>;
   const run = (call?: Scope.Invocation<I>): unknown =>
     runHookCall(layer, target, parent, chain, caller, hookTarget, call);
@@ -2851,178 +2852,7 @@ function operationController<T, I>(
     parent,
     chain,
     hookTarget,
-    replay,
   ) as Scope.OperationController<T, I>;
-}
-
-/** Hooked calls select their owner before starting the hook chain. A tagged call therefore
- * passes the same child through session hooks, run hooks, and the body, once each. */
-function runHookCall<T, I>(
-  layer: Layer,
-  target: Operation.Handle<T, I>,
-  parent: SpanImpl | undefined,
-  inherited: readonly Namespace[] | undefined,
-  caller: RunState | undefined,
-  hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
-  call: Scope.Invocation<I> | undefined,
-): unknown {
-  ensureOpen(layer);
-  const chain = call?.ns === undefined ? inherited : nsChainOf(call.ns);
-  if (!hasCallTags(call))
-    return runHookChain(layer, target, parent, chain, caller, hookTarget, call);
-  const result = runSessionWith(
-    layer,
-    { tags: call?.tags, ns: chain },
-    (child) => runHookChain(child, target, parent, chain, undefined, hookTarget, call),
-    caller,
-  );
-  if (caller) track(layer, result, runFailure(layer, caller));
-  return result;
-}
-
-/** Access belongs to this active run only. Graceful close seals public handles at once but
- * still lets an existing hook continue its body; forced close refuses a late continuation. */
-type HookRun = {
-  owner: Layer;
-  ctx: OperationCtx<unknown>;
-  held: HeldBorrows | undefined;
-  active: boolean;
-  caller: RunState | undefined;
-  bodies?: Promise<unknown>[];
-};
-let activeHookOwner: Layer | undefined;
-
-function withHookAccess<T>(run: HookRun, fn: () => T): T {
-  if (!run.active) raise("Disposed", { reason: "run is finished" });
-  if (run.owner.aborted) throw run.owner.abortReason;
-  const previous = activeHookOwner;
-  activeHookOwner = run.owner;
-  buildDepth++;
-  try {
-    return fn();
-  } finally {
-    buildDepth--;
-    activeHookOwner = previous;
-  }
-}
-
-function hookCanRead(layer: Layer): boolean {
-  for (let owner = activeHookOwner; owner; owner = owner.parent) {
-    if (owner === layer) return !layer.aborted;
-  }
-  return false;
-}
-
-function runHookChain<T, I>(
-  layer: Layer,
-  target: Operation.Handle<T, I>,
-  parent: SpanImpl | undefined,
-  chain: readonly Namespace[] | undefined,
-  caller: RunState | undefined,
-  hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
-  call: Scope.Invocation<I> | undefined,
-): unknown {
-  const span = openSpan(layer.obs, layer, parent, target.label, "operation");
-  const held = takeBorrows(target);
-  let ctx: OperationCtx<I> | undefined;
-  let run: HookRun | undefined;
-  let result: unknown;
-  try {
-    ctx = new OperationCtx(layer, target, call, span);
-    run = { owner: layer, ctx, held, active: true, caller };
-    result = invokeRunHooks(run, target, hookTarget, call, chain);
-  } catch (error) {
-    stampOrigin(error, target.label, span, ctx, endsFlight(caller, false));
-    if (caller !== RECOVERED) stick(layer, error);
-    closeSpan(layer.obs, span, "failed", error);
-    if (run) finishHookRun(run, "failed", error);
-    else finishRun(layer, ctx, held, "failed", error);
-    throw error;
-  }
-  const finish = (status: "ok" | "failed", error?: unknown): void => {
-    if (status === "failed") stampOrigin(error, target.label, span, ctx, endsFlight(caller, false));
-    closeSpan(layer.obs, span, status, error);
-    if (run) finishHookRun(run, status, error);
-  };
-  if (!isThenable(result)) {
-    finish("ok");
-    return result;
-  }
-  const promise = Promise.resolve(result);
-  track(layer, promise, runFailure(layer, caller), finish);
-  return promise;
-}
-
-function invokeRunHooks<T, I>(
-  run: HookRun,
-  target: Operation.Handle<T, I>,
-  hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
-  call: Scope.Invocation<I> | undefined,
-  chain: readonly Namespace[] | undefined,
-): unknown {
-  const runners = run.owner.exts.runners ?? [];
-  const at = (index: number): unknown =>
-    withHookAccess(run, () => {
-      if (index === runners.length) return runHookBody(run, target, chain);
-      const ext = runners[index];
-      const op = hookTarget as
-        | Operation.Handle<unknown, unknown>
-        | Scope.Inline<Scope.Depends, unknown, unknown>;
-      const next = (): unknown => at(index + 1);
-      if (ext.hooks?.run)
-        return ext.hooks.run(
-          hookEvent({ kind: "run", op, call, next }, run.owner, ext.label, chain, run),
-        );
-      return ext.run?.(op, call, next);
-    });
-  return at(0);
-}
-
-function runHookBody<T, I>(
-  run: HookRun,
-  target: Operation.Handle<T, I>,
-  chain: readonly Namespace[] | undefined,
-): unknown {
-  const ctx = run.ctx as OperationCtx<I>;
-  const deps = readOpDeps(run.owner, target, ctx.span, run.held, chain, ctx);
-  const pending = parked;
-  const override = presetFor(run.owner, target) as Operation.Handle<T, I>["run"] | undefined;
-  const body = (): T => withHookAccess(run, () => runBody(override, target, deps, ctx, undefined));
-  const result = pending === undefined ? body() : settleDeps(deps, pending).then(body);
-  if (isThenable(result)) {
-    const promise = Promise.resolve(result);
-    (run.bodies ??= []).push(promise);
-    track(run.owner, promise, runFailure(run.owner, run.caller));
-    return promise;
-  }
-  return result;
-}
-
-/** A hook may start `next()` then return a substitute. That body still owns its cleanup and
- * resource holds. Its tracked promise prevents close from dropping the unreturned work. */
-function finishHookRun(run: HookRun, status: "ok" | "failed", error?: unknown): void {
-  if (run.bodies !== undefined) {
-    const pending = run.bodies;
-    run.bodies = undefined;
-    track(
-      run.owner,
-      Promise.allSettled(pending).then((ends) => {
-        const failed = ends.find((end) => end.status === "rejected");
-        finishHookRun(run, failed === undefined ? status : "failed", failed?.reason ?? error);
-      }),
-      noop,
-    );
-    return;
-  }
-  const fns = OperationCtx.defersOf(run.ctx);
-  const done = (): void => {
-    run.active = false;
-    releaseBorrows(run.held);
-  };
-  const tail =
-    fns === undefined ? undefined : runDefers(run.owner, fns, endFor(run.owner, status, error));
-  if (tail) drainAsync(tail, done);
-  else done();
 }
 
 /** Run `target` on the tagged call's session layer with the tag-stripped call (ADR 0038), through
@@ -3962,13 +3792,6 @@ function addBorrow(instance: ResourceInstance, held: HeldBorrows): void {
 function takeBorrows(target: Operation.Handle<unknown, unknown>): HeldBorrows | undefined {
   if ((target as BorrowFlag)[borrowSym] !== true) return undefined;
   return createBorrows();
-}
-
-function createBorrows(): HeldBorrows {
-  const list: ResourceInstance[] = [];
-  let settle: () => void = noop;
-  const done = new Promise<void>((resolve) => (settle = resolve));
-  return { list, done, settle };
 }
 
 function removeBorrow(instance: ResourceInstance, work: Promise<unknown>): void {
@@ -5473,83 +5296,20 @@ function runStartChain(
   );
 }
 
-/** An event carries payload eagerly; common access is created on its first read. Prototype
- * accessors keep `event.next()` from making controllers, signals, or an access context. */
-class HookEvent implements Scope.ExtensionCtx {
-  private access: ExtensionCtx | undefined;
-  private owner: Layer;
-  private name: string;
-  private chain: readonly Namespace[] | undefined;
-  private flight: HookRun | undefined;
-  constructor(owner: Layer, label: string, chain: readonly Namespace[] | undefined, run?: HookRun) {
-    this.owner = owner;
-    this.name = label;
-    this.chain = chain;
-    this.flight = run;
-  }
-  private get ctx(): ExtensionCtx {
-    return (this.access ??= new ExtensionCtx(this.owner, this.name, this.chain, this.flight));
-  }
-  get ns(): readonly Namespace[] | undefined {
-    return this.chain;
-  }
-  get label(): string {
-    return this.name;
-  }
-  get resolve(): Scope.Handle["resolve"] {
-    return this.ctx.resolve;
-  }
-  get controller(): Scope.Handle["controller"] {
-    return this.ctx.controller;
-  }
-  get run(): Scope.Handle["run"] {
-    return this.ctx.run;
-  }
-  get settle(): Scope.Handle["settle"] {
-    return this.ctx.settle;
-  }
-  get defer(): Resource.Ctx["defer"] {
-    return this.ctx.defer;
-  }
-  get signal(): AbortSignal {
-    return this.ctx.signal;
-  }
-  get clock(): Clock.Handle {
-    return this.owner.clock;
-  }
-  get random(): Random.Handle {
-    return this.owner.random;
-  }
-  get obs(): Observe.Ctx {
-    return this.ctx.obs;
-  }
-  get log(): Observe.Logger {
-    return this.ctx.log;
-  }
-  get raise(): Resource.Ctx["raise"] {
-    return this.ctx.raise;
-  }
-}
-
-function hookEvent<const D extends Scope.ExtensionDetails[keyof Scope.ExtensionDetails]>(
-  detail: D,
-  owner: Layer,
-  label: string,
-  chain: readonly Namespace[] | undefined = owner.ns,
-  run?: HookRun,
-): Scope.ExtensionCtx & D {
-  return Object.assign(new HookEvent(owner, label, chain, run), detail);
-}
-
 /** Run access uses the run's trace and borrow set. Other hooks own their cleanup at their
  * session; root start and close use the root. Reads bypass the root-only resolve onion. */
 class ExtensionCtx implements Scope.ExtensionCtx {
-  readonly clock: Clock.Handle;
-  readonly random: Random.Handle;
-  readonly label: string;
-  readonly ns: readonly Namespace[] | undefined;
-  private owner: Layer;
-  private flight: HookRun | undefined;
+  declare readonly clock: Clock.Handle;
+  declare readonly random: Random.Handle;
+  declare readonly label: string;
+  declare readonly ns: readonly Namespace[] | undefined;
+  declare private owner: Layer;
+  declare private flight: HookRun | undefined;
+  declare private resolver: Scope.Handle["resolve"] | undefined;
+  declare private controllerFor: Scope.Handle["controller"] | undefined;
+  declare private runner: Scope.Handle["run"] | undefined;
+  declare private settler: Scope.Handle["settle"] | undefined;
+  declare private cleanup: Resource.Ctx["defer"] | undefined;
   constructor(owner: Layer, label: string, chain = owner.ns, run?: HookRun) {
     this.owner = owner;
     this.label = label;
@@ -5557,6 +5317,9 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     this.flight = run;
     this.clock = owner.clock;
     this.random = owner.random;
+  }
+  private get ctx(): OperationCtx<unknown> | undefined {
+    return this.flight === undefined ? undefined : hookCtx(this.flight);
   }
   private use<T>(fn: () => T): T {
     return this.flight === undefined ? fn() : withHookAccess(this.flight, fn);
@@ -5567,25 +5330,29 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     return (owner, target, state) =>
       addBorrow(instanceOf(owner, target, state), (run.held ??= createBorrows()));
   }
-  readonly resolve = ((target: Scope.Dependency, ns?: Scope.NsArg): unknown =>
-    this.use(() => {
-      const chain = ns === undefined ? this.ns : nsChainOf(ns.ns);
-      if (this.owner.closed && this.flight === undefined)
-        return resolveHeld(this.owner, target, chain === undefined ? undefined : { ns: chain });
-      if (isResource(target)) return this.resource(target, chain).resolve();
-      return resolveNs(this.owner, target, chain);
-    })) as Scope.Handle["resolve"];
-  readonly controller = ((
-    target: Data.Cell<unknown> | Resource.Handle<unknown> | Operation.Handle<unknown, unknown>,
-    ns?: Scope.NsArg,
-  ): unknown =>
-    this.use(() => {
-      ensureOpen(this.owner);
-      const chain = ns === undefined ? this.ns : nsChainOf(ns.ns);
-      if (isData(target)) return this.cell(target, chain);
-      if (isResource(target)) return this.resource(target, chain);
-      return this.operation(target, chain);
-    })) as Scope.Handle["controller"];
+  get resolve(): Scope.Handle["resolve"] {
+    return (this.resolver ??= ((target: Scope.Dependency, ns?: Scope.NsArg): unknown =>
+      this.use(() => {
+        const chain = ns === undefined ? this.ns : nsChainOf(ns.ns);
+        if (this.owner.closed && this.flight === undefined)
+          return resolveHeld(this.owner, target, chain === undefined ? undefined : { ns: chain });
+        if (isResource(target)) return this.resource(target, chain).resolve();
+        return resolveNs(this.owner, target, chain);
+      })) as Scope.Handle["resolve"]);
+  }
+  get controller(): Scope.Handle["controller"] {
+    return (this.controllerFor ??= ((
+      target: Data.Cell<unknown> | Resource.Handle<unknown> | Operation.Handle<unknown, unknown>,
+      ns?: Scope.NsArg,
+    ): unknown =>
+      this.use(() => {
+        ensureOpen(this.owner);
+        const chain = ns === undefined ? this.ns : nsChainOf(ns.ns);
+        if (isData(target)) return this.cell(target, chain);
+        if (isResource(target)) return this.resource(target, chain);
+        return this.operation(target, chain);
+      })) as Scope.Handle["controller"]);
+  }
   private cell(
     target: Data.Cell<unknown>,
     chain: readonly Namespace[] | undefined,
@@ -5603,7 +5370,7 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     target: Resource.Handle<unknown>,
     chain: readonly Namespace[] | undefined,
   ): Scope.ResourceController<unknown> {
-    const controller = resourceController(this.owner, target, this.flight?.ctx.span, chain);
+    const controller = resourceController(this.owner, target, this.flight?.span, chain);
     const selected = this.selected;
     if (selected === undefined) return controller;
     const owner = ownerOf(this.owner, target);
@@ -5614,7 +5381,7 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     return {
       resolve: () =>
         this.use(() => {
-          const value = resourceSlot(this.owner, target, this.flight?.ctx.span, chain, selected);
+          const value = resourceSlot(this.owner, target, this.flight?.span, chain, selected);
           return state()?.promise ?? value;
         }),
       get: () =>
@@ -5633,9 +5400,9 @@ class ExtensionCtx implements Scope.ExtensionCtx {
     const controller = operationController(
       this.owner,
       target,
-      this.flight?.ctx.span,
+      this.flight?.span,
       chain,
-      this.flight?.ctx,
+      this.ctx,
     ) as {
       run(call?: Scope.Invocation<unknown>): unknown;
       settle(call?: Scope.Invocation<unknown>): unknown;
@@ -5653,38 +5420,44 @@ class ExtensionCtx implements Scope.ExtensionCtx {
   ): unknown {
     return this.use(() => {
       if (!isOperation(op))
-        return runInline(this.owner, op, call, caller, this.ns, this.flight?.ctx.span);
+        return runInline(this.owner, op, call, caller, this.ns, this.flight?.span);
       const controller = operationController(
         this.owner,
         op,
-        this.flight?.ctx.span,
+        this.flight?.span,
         this.ns,
         caller,
       ) as { run(call?: Scope.Invocation<unknown>): unknown };
       return controller.run(call);
     });
   }
-  readonly run = ((
-    op: Operation.Handle<unknown, unknown> | Scope.Inline<Scope.Depends, unknown, unknown>,
-    call?: Scope.Invocation<unknown>,
-  ): unknown => this.invoke(op, call, this.flight?.ctx)) as Scope.Handle["run"];
-  readonly settle = ((
-    op: Operation.Handle<unknown, unknown> | Scope.Inline<Scope.Depends, unknown, unknown>,
-    call?: Scope.Invocation<unknown>,
-  ): unknown =>
-    settleRun(this.owner, () => this.invoke(op, call, RECOVERED))) as Scope.Handle["settle"];
-  readonly defer = (fn: (end: Scope.End) => void | PromiseLike<void>): void => {
-    if (this.flight) this.flight.ctx.defer(fn);
-    else addDefer(this.owner, { fn, instance: undefined });
-  };
+  get run(): Scope.Handle["run"] {
+    return (this.runner ??= ((
+      op: Operation.Handle<unknown, unknown> | Scope.Inline<Scope.Depends, unknown, unknown>,
+      call?: Scope.Invocation<unknown>,
+    ): unknown => this.invoke(op, call, this.ctx)) as Scope.Handle["run"]);
+  }
+  get settle(): Scope.Handle["settle"] {
+    return (this.settler ??= ((
+      op: Operation.Handle<unknown, unknown> | Scope.Inline<Scope.Depends, unknown, unknown>,
+      call?: Scope.Invocation<unknown>,
+    ): unknown =>
+      settleRun(this.owner, () => this.invoke(op, call, RECOVERED))) as Scope.Handle["settle"]);
+  }
+  get defer(): Resource.Ctx["defer"] {
+    return (
+      this.ctx?.defer ??
+      (this.cleanup ??= (fn) => addDefer(this.owner, { fn, instance: undefined }))
+    );
+  }
   get obs(): Observe.Ctx {
-    return this.flight?.ctx.obs ?? OFF_OBS;
+    return this.ctx?.obs ?? OFF_OBS;
   }
   get log(): Observe.Logger {
-    return this.flight?.ctx.log ?? noop;
+    return this.ctx?.log ?? noop;
   }
   get raise(): Resource.Ctx["raise"] {
-    return this.flight?.ctx.raise ?? ((kind, payload) => raiseFrom(this, kind, payload));
+    return this.ctx?.raise ?? ((kind, payload) => raiseFrom(this, kind, payload));
   }
   get signal(): AbortSignal {
     return signalOf(this.owner);
@@ -6001,4 +5774,228 @@ function propagateSweptOutcome(layer: Layer, parent: Layer): void {
 function clearBindings(layer: Layer): void {
   if (layer.presets !== undefined) layer.presets = undefined;
   layer.tags = undefined;
+}
+
+/** Hooked calls select their owner before starting the hook chain. A tagged call therefore
+ * passes the same child through session hooks, run hooks, and the body, once each. */
+function runHookCall<T, I>(
+  layer: Layer,
+  target: Operation.Handle<T, I>,
+  parent: SpanImpl | undefined,
+  inherited: readonly Namespace[] | undefined,
+  caller: RunState | undefined,
+  hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
+  call: Scope.Invocation<I> | undefined,
+): unknown {
+  ensureOpen(layer);
+  const chain = call?.ns === undefined ? inherited : nsChainOf(call.ns);
+  if (!hasCallTags(call))
+    return runHookChain(layer, target, parent, chain, caller, hookTarget, call);
+  const result = runSessionWith(
+    layer,
+    { tags: call?.tags, ns: chain },
+    (child) => runHookChain(child, target, parent, chain, undefined, hookTarget, call),
+    caller,
+  );
+  if (caller) track(layer, result, runFailure(layer, caller));
+  return result;
+}
+
+/** Access belongs to this active run only. Graceful close seals public handles at once but
+ * still lets an existing hook continue its body; forced close refuses a late continuation. */
+type HookRun = {
+  owner: Layer;
+  ctx?: OperationCtx<unknown>;
+  span: SpanImpl | undefined;
+  label: string;
+  call: Scope.Invocation<unknown> | undefined;
+  held: HeldBorrows | undefined;
+  active: boolean;
+  caller: RunState | undefined;
+  bodies?: Promise<unknown>[];
+  failure?: { error: unknown };
+};
+let activeHookOwner: Layer | undefined;
+
+function withHookAccess<T>(run: HookRun, fn: () => T): T {
+  if (!run.active) raise("Disposed", { reason: "run is finished" });
+  if (run.owner.aborted) throw run.owner.abortReason;
+  const previous = activeHookOwner;
+  activeHookOwner = run.owner;
+  buildDepth++;
+  try {
+    return fn();
+  } finally {
+    buildDepth--;
+    activeHookOwner = previous;
+  }
+}
+
+function hookCanRead(layer: Layer): boolean {
+  for (let owner = activeHookOwner; owner; owner = owner.parent) {
+    if (owner === layer) return !layer.aborted;
+  }
+  return false;
+}
+
+function runHookChain<T, I>(
+  layer: Layer,
+  target: Operation.Handle<T, I>,
+  parent: SpanImpl | undefined,
+  chain: readonly Namespace[] | undefined,
+  caller: RunState | undefined,
+  hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
+  call: Scope.Invocation<I> | undefined,
+): unknown {
+  const span = openSpan(layer.obs, layer, parent, target.label, "operation");
+  const run: HookRun = {
+    owner: layer,
+    span,
+    label: target.label,
+    call,
+    held: undefined,
+    active: true,
+    caller,
+  };
+  const finish = (status: "ok" | "failed", error?: unknown): void => {
+    finishHookRun(run, status, error);
+  };
+  let result: unknown;
+  try {
+    result = invokeRunHooks(run, target, hookTarget, call, chain);
+  } catch (error) {
+    failHookRun(run, error);
+    finish("failed", error);
+    throw error;
+  }
+  if (!isThenable(result)) {
+    finish("ok");
+    return result;
+  }
+  const promise = Promise.resolve(result);
+  track(layer, promise, (error) => failHookRun(run, error), finish);
+  return promise;
+}
+
+/** Hook tools can precede input parsing. Only `next()` admits the input; both contexts share
+ * the same span and ordered cleanup list once a body starts. */
+function hookCtx(run: HookRun): OperationCtx<unknown> {
+  return (run.ctx ??= new OperationCtx(
+    run.owner,
+    { label: run.label, input: undefined },
+    run.call,
+    run.span,
+  ));
+}
+
+function invokeRunHooks<T, I>(
+  run: HookRun,
+  target: Operation.Handle<T, I>,
+  hookTarget: Operation.Handle<T, I> | Scope.Inline<Scope.Depends, T, I>,
+  call: Scope.Invocation<I> | undefined,
+  chain: readonly Namespace[] | undefined,
+): unknown {
+  const runners = run.owner.exts.runners ?? [];
+  const at = (index: number): unknown =>
+    withHookAccess(run, () => {
+      if (index === runners.length) return runHookBody(run, target, chain);
+      const ext = runners[index];
+      const op = hookTarget as
+        | Operation.Handle<unknown, unknown>
+        | Scope.Inline<Scope.Depends, unknown, unknown>;
+      const next = (): unknown => at(index + 1);
+      if (ext.hooks?.run)
+        return ext.hooks.run(
+          hookEvent({ kind: "run", op, call, next }, run.owner, ext.label, chain, run),
+        );
+      return ext.run?.(op, call, next);
+    });
+  return at(0);
+}
+
+function runHookBody<T, I>(
+  run: HookRun,
+  target: Operation.Handle<T, I>,
+  chain: readonly Namespace[] | undefined,
+): unknown {
+  try {
+    const ctx = new OperationCtx(
+      run.owner,
+      target,
+      run.call as Scope.Invocation<I> | undefined,
+      run.span,
+    );
+    if (run.ctx) OperationCtx.shareDefers(run.ctx, ctx);
+    run.ctx = ctx;
+    run.held ??= takeBorrows(target);
+    const deps = readOpDeps(run.owner, target, ctx.span, run.held, chain, ctx);
+    const pending = parked;
+    const override = presetFor(run.owner, target) as Operation.Handle<T, I>["run"] | undefined;
+    const body = (): T =>
+      withHookAccess(run, () => runBody(override, target, deps, ctx, undefined));
+    const result = pending === undefined ? body() : settleDeps(deps, pending).then(body);
+    if (isThenable(result)) {
+      const promise = Promise.resolve(result);
+      (run.bodies ??= []).push(promise);
+      track(run.owner, promise, (error) => failHookRun(run, error));
+      return promise;
+    }
+    return result;
+  } catch (error) {
+    failHookRun(run, error);
+    throw error;
+  }
+}
+
+function failHookRun(run: HookRun, error: unknown): void {
+  if (run.failure !== undefined && run.failure.error === error) return;
+  run.failure = { error };
+  stampOrigin(error, run.label, run.span, run.ctx, endsFlight(run.caller, false));
+  if (run.caller !== RECOVERED) stick(run.owner, error);
+}
+
+/** A hook may start `next()` then return a substitute. That body still owns its cleanup and
+ * resource holds. Its tracked promise prevents close from dropping the unreturned work. */
+function finishHookRun(run: HookRun, status: "ok" | "failed", error?: unknown): void {
+  if (run.bodies !== undefined) {
+    const pending = run.bodies;
+    run.bodies = undefined;
+    track(
+      run.owner,
+      Promise.allSettled(pending).then(() => finishHookRun(run, status, error)),
+      noop,
+    );
+    return;
+  }
+  if (run.failure !== undefined) {
+    status = "failed";
+    error = run.failure.error;
+  }
+  closeSpan(run.owner.obs, run.span, status, error);
+  const fns = run.ctx === undefined ? undefined : OperationCtx.defersOf(run.ctx);
+  const done = (): void => {
+    run.active = false;
+    releaseBorrows(run.held);
+  };
+  const tail =
+    fns === undefined ? undefined : runDefers(run.owner, fns, endFor(run.owner, status, error));
+  if (tail) drainAsync(tail, done);
+  else done();
+}
+
+function createBorrows(): HeldBorrows {
+  const list: ResourceInstance[] = [];
+  let settle: () => void = noop;
+  const done = new Promise<void>((resolve) => (settle = resolve));
+  return { list, done, settle };
+}
+
+function hookEvent<const D extends Scope.ExtensionDetails[keyof Scope.ExtensionDetails]>(
+  detail: D,
+  owner: Layer,
+  label: string,
+  chain: readonly Namespace[] | undefined = owner.ns,
+  run?: HookRun,
+): Scope.ExtensionCtx & D {
+  return Object.assign(new ExtensionCtx(owner, label, chain, run), detail);
 }

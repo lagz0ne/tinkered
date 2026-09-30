@@ -98,6 +98,7 @@ A namespace chain selects buckets in that owner; it does not find a sibling sess
 `Scope.ExtensionEvent` is the union of these event shapes.
 `Scope.ExtensionEvents["run"]` names one shape.
 Existing top-level callbacks keep their positional arguments.
+A run hook may refuse raw input before its parser runs.
 An object hook wins when the same extension declares both forms for one verb.
 
 Graceful close joins hook waits before and after `next()`.
@@ -105,6 +106,8 @@ A waiting hook can still use its saved controllers during graceful close.
 Forced close aborts its signal and prevents a late `next()` from starting the body.
 Resource reads through a run event retain the selected instance through hook and run cleanup.
 A hook that starts `next()` and returns a substitute still owns that body's work.
+That body keeps its span open until it ends; its failure still marks the span.
+Catching a body's panic in its hook does not erase the owner's failure.
 A hook-started action shares the active trace; a dropped failure stays on the owner.
 `event.settle` receives a child failure without failing the owner.
 

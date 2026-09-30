@@ -509,3 +509,94 @@ test("resource contexts expose the namespace chain used by their dependencies", 
   }
   await scope.close();
 });
+
+for (const form of ["legacy", "event"]) {
+  test(`a ${form} hook can refuse raw input before its parser runs`, async () => {
+    const cause = new Error("bad input");
+    const task = operation({
+      label: "task",
+      input: () => {
+        throw cause;
+      },
+      run: () => "body",
+    });
+    const scope = createScope({
+      extensions: [
+        form === "legacy"
+          ? extension({ label: "refuse", run: () => "refused" })
+          : extension({
+              label: "refuse",
+              hooks: {
+                run: (event) => {
+                  event.defer(() => undefined);
+                  return "refused";
+                },
+              },
+            }),
+      ],
+    });
+    expect(scope.run(task, { rawInput: "invalid" })).toBe("refused");
+    expect((await scope.close({ graceful: true })).status).toBe("success");
+  });
+}
+
+test("catching a body's panic in its hook does not erase the owned failure", async () => {
+  const cause = new Error("body failed");
+  const scope = createScope({
+    extensions: [
+      extension({
+        label: "catch",
+        hooks: {
+          run: (event) => {
+            try {
+              return event.next();
+            } catch (error) {
+              if (error !== cause) throw error;
+              return "caught";
+            }
+          },
+        },
+      }),
+    ],
+  });
+  const task = operation({
+    label: "task",
+    run: () => {
+      throw cause;
+    },
+  });
+  expect(scope.run(task)).toBe("caught");
+  expect(await scope.close({ graceful: true })).toMatchObject({ status: "failed", error: cause });
+});
+
+test("an unreturned body keeps its span open and records its failure", async () => {
+  const gate = deferred();
+  const cause = new Error("body failed");
+  const scope = createScope({
+    observe: { history: 5 },
+    extensions: [
+      extension({
+        label: "substitute",
+        hooks: {
+          run: (event) => {
+            event.next();
+            return "substitute";
+          },
+        },
+      }),
+    ],
+  });
+  const task = operation({
+    label: "task",
+    run: async () => {
+      await gate.promise;
+      throw cause;
+    },
+  });
+  expect(scope.run(task)).toBe("substitute");
+  expect(scope.spans()).toHaveLength(0);
+  gate.resolve();
+  await scope.close({ graceful: true });
+  expect(scope.spans()).toMatchObject([{ name: "task", status: "failed", error: cause }]);
+  expect(originOf(cause)?.path).toEqual(["task"]);
+});
