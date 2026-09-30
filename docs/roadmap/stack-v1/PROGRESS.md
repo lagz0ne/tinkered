@@ -2056,3 +2056,26 @@ vp run -r build && vp check \
   stack 87 tests; NATS 24 tests; prose 0 hits.
 - Core feedback is unchanged from the first round.
   No span-kind, traceparent-parser, or core-clock change.
+
+#### Round 1 fresh gate after an outside worktree change
+
+- First fix commit: `9c964de1`.
+- While validation ran, another process rebased this worktree.
+  The reflog records it at 02:44 UTC on 2026-09-30.
+  The writer ran no rebase command.
+  The new base is `2700a440`, which adds t06.
+  The fix commit is now `54922a9b`.
+  Kept those incoming changes and ran `vp install` and build.
+- The mixed-tree validation failed two lanes and is not proof.
+  Its check and stack tests ran while t06 files changed.
+- Fresh gate: EXIT 0; stack 92, NATS 24, tracker 79 tests.
+  Check: 0 errors, 29 warnings, unchanged from the old base.
+- Jev: no file flags, test flags, or README gaps.
+  The NATS cleanup-state flag keeps its existing false label,
+  `ab70cbe9e7ba`; no new labels were added.
+  The `wrapsCallersStep` hit remains a noisy note.
+  Style census: OK for both packages.
+- Callback cost at `9c964de1`: minimum 47 ns/span,
+  median 93, p95 197; all 72,704 spans reached the collector.
+  Trace source and tests did not change in the outside rebase.
+  [Cost notes](../../../research/learnings/2026-09-30-trace-sink-flush.md).
