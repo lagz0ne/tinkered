@@ -2375,3 +2375,16 @@ optional logging, the clock choice, and three input-check changes.
 The late-bind guard still handles close racing with listen;
 no code was judged safe to remove merely because its mutant survived.
 The line log is `stack-t17-lift-lines.log` in the briefs cache.
+
+Full stack lane, once and alone under the lock, at 60 seconds:
+282 killed, 3 timed out, 30 survived; `FULL_MUTATION_EXIT 0`.
+Killed share is `282 / (282 + 3 + 30) = 89.52%`, above 85%.
+Stryker's score, which includes timeouts, is 90.48%.
+All three timeouts are in `migrate.ts`.
+Server: 103 killed, 0 timed out, 7 survived.
+All 315 mutants remain included, with no uncovered mutants or errors.
+The new tests killed the same 18 old server survivors in the full lane.
+No source was changed or removed; no mutation setting or floor changed.
+The temporary mutation tree was already gone after the line check.
+Full log and JSON: `stack-t17-lift-full.log` and
+`stack-t17-lift-full.json` in the briefs cache.
