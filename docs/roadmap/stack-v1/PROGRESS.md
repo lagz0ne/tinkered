@@ -4978,3 +4978,23 @@ No build runs in that tree while the job waits or runs.
   tracker dev and browser tests, and `bench/dev-cycle.mjs`.
   The probe sets an absolute cache path inside its clean tree.
   Setup seeds that cache before the queue runs.
+
+### t14 resume probes
+
+- Clean main at `217a4fe3`: install, build, and check pass.
+  Check has zero errors and 28 warnings.
+- The XDG process test failed before the cache fix.
+  It returned the home path instead of the supplied cache.
+  All three cases pass after the fix.
+  All 36 NATS tests pass; the changed-file check is clean.
+- Prose, TSDoc, and the strict style census pass.
+  NATS Jev tests and promises have no flags.
+- The tracker README now states the bad-PORT exit promise.
+- The dev probes temporarily borrowed t18's exit helper.
+  The helper and its temporary export were removed afterward.
+  They are probes, not the final gate on landed main.
+- Stack: all 12 dev tests pass against main's current Core.
+  Tracker: all five dev tests pass, including a real process.
+  The saved issue survives an edit, sync ends, and SIGTERM exits 0.
+- The final gate, timing, and mutation still wait for the
+  dependencies on main and the shared mutation lock.
