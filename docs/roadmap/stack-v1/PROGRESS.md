@@ -3270,3 +3270,48 @@ they do not require keeping the old commit or rollback behavior.
 - Final logs: `stack-t10-followup-gate.log`,
   `stack-t10-followup-validate.log`, and
   `stack-t10-followup-jev-base.log` in the same cache folder.
+
+## t10 resume — 2026-09-30
+
+- Owner: stack/t10 writer.
+- Base checked: `c68802fd` is an ancestor of the paused head.
+- Rebased with `--onto origin/main c68802fd`.
+- Main is `870beab4`; t06 and t17 are both in it.
+- No paused edits or board-landing commits were present.
+- Assumption: use the saved fixture app and its migrations.
+- Keep main's session body, abort cleanup, stream cleanup,
+  commit before answer, and rollback on every raised error.
+- Drop t10's own client-abort guard: main already answers 499.
+- Keep async tags, the pre-close drain, and forced-close 499.
+- Return 503 during the drain.
+  Once close ends, keep main's Hono error path for late requests.
+
+### Impact before the final fix
+
+- Public change: `HonoScope.Wiring.tags` accepts a promise.
+- Callers: auth wiring, Hono tests, and the tracker route wiring.
+- All other Hono consumers use the shared session body.
+- Check SCIP refs for `HonoScope/Wiring#tags`.
+- Run every package's tests and the tracker browser proof.
+- Verify: the named gate, both mutation lanes, and validation.
+
+### First rebased gate
+
+- Build, check, auth, Hono, and stack: `EXIT 0`.
+- Auth: 16 tests; Hono: 91; stack: 111.
+- Check: 0 errors, 28 warnings.
+- Fresh main check at `870beab4`: 0 errors, 28 warnings.
+  Main's build and check also ended with `EXIT 0`.
+- Strict style census and TSDoc pass.
+- SCIP finds the promise-tag hook in auth's source and tests.
+- Jev: no file flags or missing README promises.
+- Three local auth units stay inside each piece.
+  Moving its tags out would join separate auth pieces.
+- Existing Hono helper-size and helper-count notes stay as-is.
+  Those helpers predate this ticket and use public APIs.
+- Label the new request-close state as driver cleanup.
+  Each promise is joined and each pending entry is released.
+- Main's stream already has the same false effect label.
+- Used `origin/main..HEAD` for Jev.
+  Local main has unrelated example work ahead of origin.
+- Fresh fetch still points to `870beab4`.

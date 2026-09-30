@@ -40,8 +40,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 ## Doing
 
 - **stack/t10 auth-signin** — Owner: stack/t10 writer (Codex).
-  Next: add auth and await the cookie read before the request session.
-  Verify: auth, Hono, and stack tests; gate; validation; mutation at least 85.
+  Next: finish the rebase checks, then hand it to the lead.
+  Verify: auth, Hono, stack, all repo tests, browser proof,
+  validation, and both mutation floors of 85.
   [Proof](docs/roadmap/stack-v1/PROGRESS.md).
 
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
@@ -62,7 +63,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 - **stack/t08 jobs** — Resumed 2026-09-30 (user: Sol writes, the lead lands). Sol writer `04d6e604` rebasing with `--onto` main; reviewer READY at `da34b8cf` (b372d629); the lead lands. Resume notes: `~/.cache/tinkered-briefs/stack-resume.md`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **core/start-log** — Resumed 2026-09-30: built main still drops start logs in BOTH hook forms (`[]`); Sol writer `c3f272c1` fixed both (branch `core/start-log` at `098929e0`; gate, timing no row slower, core mutation 85.33%, validate 48/48; core at exactly 16,384 B). Waits for the authoring work's `authoring/hooks` branch, which removes the positional hooks: then rebase and keep only the object-hook path, then an Opus review and the lead lands. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t14 dev-host** — Resumed 2026-09-30 (user: Sol writes, the lead lands). Sol writer `c4f5f4d3` rebasing and finishing the dev host. Resume notes: `~/.cache/tinkered-briefs/stack-resume.md`. [track](docs/roadmap/stack-v1/PROGRESS.md).
-- **stack/t10 auth-signin** — Rebased onto main with t17 and t18 by Sol writer `cfabd9f8` (head `dca8561b`; gate green; auth 85.56%, hono 86.72%; validate 50/50). First review: Opus `06eab677` running. The lead lands. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **perf/explicit-uses** — declare the ctx features a unit uses (`uses: ["defer", "signal"]`). The committee (Astra + Fable) found an estimated 10–40 ns per run and a migration of every package; the user skipped it (2026-09-29, ADR 0073). Resume when: a graph consumer needs per-unit lifetime facts, or the per-run ctx becomes the main cost of a hot path. Next: the measure-only ceiling screen in `/home/paseo/next/tinkered-inv-reports/committee-uses.md`.
 
 - **jev/handrolled** — survey, bridge analysis, ADR 0070, and plain rules S20–S25 landed

@@ -217,26 +217,31 @@ function readStop(served: HonoScope.Served | undefined): void | PromiseLike<void
 type RequestReads = {
   pending?: Set<Promise<Response | void>>;
   forced: boolean;
+  phase: "open" | "closing" | "closed";
   closing?: Promise<Scope.Result>;
 };
 
 function serveRequests(scope: Scope.Handle, wiring: HonoScope.Wiring | undefined): Middleware {
   const logError = scope.resolve(requestErrors);
-  const reads: RequestReads = { forced: false };
+  const reads: RequestReads = { forced: false, phase: "open" };
   const close = scope.close.bind(scope);
   /** Core closes a handle to new sessions as soon as close starts. Drain accepted
    * tag reads first, while they can still open their request sessions. Capturing
    * this root's close also keeps separate starts of one extension independent. */
   scope.close = (options) => {
     if (reads.closing) return reads.closing;
+    reads.phase = "closing";
     reads.forced = options?.graceful !== true;
-    return (reads.closing =
+    const closing =
       reads.forced || !reads.pending?.size
         ? close(options)
-        : Promise.allSettled(reads.pending).then(() => close(options)));
+        : Promise.allSettled(reads.pending).then(() => close(options));
+    return (reads.closing = closing.finally(() => {
+      reads.phase = "closed";
+    }));
   };
   return createMiddleware<SessionEnv>((c, next) => {
-    if (reads.closing) return Promise.resolve(new Response(null, { status: 503 }));
+    if (reads.phase === "closing") return Promise.resolve(new Response(null, { status: 503 }));
     c.set("tinker.onError", wiring?.onError);
     c.set("tinker.logError", logError);
     const tags = wiring?.tags?.(c);
@@ -280,39 +285,36 @@ async function serveSession(
   const raw = c.req.raw;
   const answered = Promise.withResolvers<void>();
   const finished = Promise.withResolvers<void>();
-  const lifetime = scope.session(
-    options,
-    async (session) => {
-      c.set("tinker.session", session);
-      c.set("tinker.close", async (graceful) => {
-        const closing = session.close(graceful ? { graceful: true } : undefined);
-        finished.resolve();
-        const result = await closing;
-        const ended = await settled;
-        raw.signal.removeEventListener("abort", onAbort);
-        return result.status === "success" && !result.teardownErrors?.length ? ended : result;
-      });
-      const onAbort = (): void => {
-        ignoreRejection(session.close());
-      };
-      raw.signal.addEventListener("abort", onAbort, { once: true });
-      try {
-        if (raw.signal.aborted) {
-          onAbort();
-          c.res = new Response(null, { status: 499 });
-        } else await next();
-      } catch (error: unknown) {
-        answered.reject(error);
-        throw error;
-      } finally {
-        answered.resolve();
-      }
-      await finished.promise;
-      const failure = c.get("tinker.failure");
-      if (failure) throw failure.error;
-      if (c.error) throw c.error;
-    },
-  );
+  const lifetime = scope.session(options, async (session) => {
+    c.set("tinker.session", session);
+    c.set("tinker.close", async (graceful) => {
+      const closing = session.close(graceful ? { graceful: true } : undefined);
+      finished.resolve();
+      const result = await closing;
+      const ended = await settled;
+      raw.signal.removeEventListener("abort", onAbort);
+      return result.status === "success" && !result.teardownErrors?.length ? ended : result;
+    });
+    const onAbort = (): void => {
+      ignoreRejection(session.close());
+    };
+    raw.signal.addEventListener("abort", onAbort, { once: true });
+    try {
+      if (raw.signal.aborted) {
+        onAbort();
+        c.res = new Response(null, { status: 499 });
+      } else await next();
+    } catch (error: unknown) {
+      answered.reject(error);
+      throw error;
+    } finally {
+      answered.resolve();
+    }
+    await finished.promise;
+    const failure = c.get("tinker.failure");
+    if (failure) throw failure.error;
+    if (c.error) throw c.error;
+  });
   /** Join the session hooks as well as structural close; their errors remain failures. */
   const settled = lifetime.then(
     (): Scope.Result => ({ status: "success" }),

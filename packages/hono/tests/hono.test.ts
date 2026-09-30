@@ -665,9 +665,12 @@ test("a graceful close waits for async tags and the request they prepare", async
   }).extension;
   const scope = createScope({ extensions: [web] });
   await scope.ready;
-  const answer = scope.resolve(web).request("/");
+  const app = scope.resolve(web);
+  const answer = app.request("/");
   const closing = scope.close({ graceful: true });
+  const refused = app.request("/");
   finish();
+  expect((await refused).status).toBe(503);
   expect(await (await answer).json()).toBe("ok");
   expect((await closing).status).toBe("success");
 });
