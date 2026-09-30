@@ -767,3 +767,6 @@ The graph, namespace, ownership, and middleware behavior stay the same.
 The 16 KiB Core cap stays in force.
 Current source and tests are being migrated in isolated package worktrees.
 Historical decisions and past proof retain the API they recorded.
+
+The hooks-only start-log probe still drops both lines around `event.next()`.
+This migration does not close `core/start-log`.

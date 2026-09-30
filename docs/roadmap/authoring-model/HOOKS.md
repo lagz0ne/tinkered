@@ -46,7 +46,7 @@ Callers to migrate:
 - MCP and Process examples.
 - Blueprint source fixtures and Jev authored-code fixtures, when found.
   Jev's existing body reader must find `hooks.start` for its same clock checks.
-  Update that API path and its fixtures; keep the rule and judge bank unchanged.
+  Update that API path and its fixtures; keep the rule and judge questions unchanged.
 - Current README and authoring guide examples.
 
 Check named and imported aliases through SCIP before and after code.
@@ -79,4 +79,59 @@ Do not fix old unrelated source or tests just to clear advisory notes.
 
 ## Proof
 
-Pending: caller inventory, migration, normal gates, fault lanes, and landing.
+The source migration is saved and reviewed.
+Core removes all six old type members and dispatch paths.
+MCP, Hono, Stack, NATS, Sync, and Process use event hooks throughout.
+The tracker and current MCP and Process examples use event hooks, too.
+Already-migrated runtime code keeps its existing hook shape.
+
+The literal audit checked 203 extension calls in 343 current source and doc files.
+All 203 calls use a literal config; none declares a positional hook.
+SCIP indexed all 14 packages after the build.
+None references the six removed `Scope.Extension` methods.
+Current docs describe only the event form.
+Historical records and traceSink's constructor remain unchanged.
+
+Frozen install, build, and code check pass, exit 0.
+Code check: 0 errors and 28 existing warnings in 508 files.
+Core size: 16,275 bytes gzip, below the 16,384-byte cap.
+All 48 release lanes pass, exit 0.
+Prose has 0 hits; the two edited package READMEs have no wide fenced lines.
+Changed source TSDoc has 0 rows.
+The source census has one unchanged Core S14 read: `panics[0]`.
+No changed source line adds a strict census hit.
+
+The first full test run failed two tracker child-start tests.
+Release validation was rebuilding their package files in parallel.
+Their helper hides child stderr, so the exact child error was not saved.
+With package files stable, all five config tests pass, exit 0.
+The final full test run finished before the size rebuild; all 18 tasks pass, exit 0.
+
+The whole-range Jev review has 0 flags.
+Core exceeds its file-size limit; the lead read the changed functions instead.
+Three changed-unit flags were labelled false with reasons.
+They describe root-owned Core bookkeeping, not state on a reusable definition.
+The two existing judges were calibrated and their result was saved.
+Writer test reviews found no new test-quality flags.
+Old unrelated flags and helper-size notes stay outside this migration.
+
+The start-log probe emits no sink lines before or after `event.next()`.
+Removing old hooks does not fix `core/start-log`; that card still has work.
+Proof: `/tmp/tinkered-hooks-start-log-probe.log`.
+
+The shared fault queue is reserved for stack/t17's Hono and Stack lanes first.
+The hooks gate ended only its own lock wait, PID 923144.
+It requeues after `/home/paseo/.cache/tinkered-briefs/t17-mutation.done` exists.
+Remaining: final full gate, all 14 isolated fault lanes, and landing.
+
+## Landed t17 impact before the merge
+
+Upstream `870beab4` lands stack/t17 while the first fault gate runs.
+Its Hono and Stack code shares the start-hook area changed here.
+Keep t17's commit-before-answer behavior, close handling, and regression tests.
+Migrate any positional declarations it adds or preserves to the event form.
+Public `extension`, `Scope.Extension`, and `Scope.Hooks` still use one form.
+Merge in a separate checkout so running fault lanes keep stable source files.
+Hono and Stack need fresh normal tests and isolated fault scores on the merged code.
+The final caller audit, build, check, consumer tests, and release lanes must rerun.
+Other packages may reuse completed lanes only if their checked inputs and runtime dependencies match.
