@@ -4075,3 +4075,24 @@ EXIT 0
   `stack-t08-resume-gate.log`,
   `stack-t08-resume-main-check.log`, and
   `stack-t08-resume-jev-*.log`.
+
+### t08 resume jobs mutation — 2026-09-30
+
+- All 19 package test tasks pass: `EXIT 0`.
+- Jobs mutation ran alone under `/tmp/mutation.lock`.
+  It completed in the foreground with `EXIT 0`.
+- Jobs: 133 killed, 1 timeout, 20 survived.
+  No coverage: 3.
+- Killed / (killed + timeout + survived): 86.36%.
+  Stryker score: 85.35%, above its 85 floor.
+- Proof: `~/.cache/tinkered-briefs/` files
+  `stack-t08-resume-jobs-mutation.log` and
+  `stack-t08-resume-jobs-mutation.json`.
+- The lead reserved the next lock turn for t17.
+  Waited in the foreground, polling once a minute,
+  until `t17-mutation.done` existed.
+- After that file appeared, fetched origin again.
+  `origin/main` is still `217a4fe3`; t17 is absent.
+  The mapped 4xx job test still waits for that fix.
+- Stack mutation is queued after the done file.
+  Next: its result, then `pnpm validate`.
