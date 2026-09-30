@@ -4823,3 +4823,23 @@ Each run edits a copy under `.bench` and uses its own data.
 Timing uses `benchctl ab` under the shared mutation lock,
 from a clean worktree under `/home/paseo`.
 No build runs in that tree while the job waits or runs.
+
+### t14 workspace check after the lint rebase
+
+- Rebased onto `origin/main` at `b78302c1`.
+  The rebase kept every t14 change without a conflict.
+- Reinstalled, rebuilt, then ran check and all tests.
+  Check: zero errors and 28 warnings.
+  All 17 workspace test tasks passed; exit 0.
+  Stack: 75 tests. Tracker: 83 tests.
+- Jev: zero source file flags; the same listen label
+  and publisher notes remain.
+  Test titles: zero of 38 flagged.
+  Stack promises: zero of 37 missing.
+  Tracker promises: zero of 79 missing, 11 unsure.
+- SCIP refs found the live-update callers in stack
+  and the NATS piece in its package and fixtures.
+- Timing still waits for the shared mutation lock.
+  No build runs in the separate timing tree.
+- The t18, t17, t13, and t08 work has not yet reached
+  `origin/main`; the final gate must include it.
