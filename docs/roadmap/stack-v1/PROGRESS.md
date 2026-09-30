@@ -2364,3 +2364,14 @@ Check has 0 errors and 29 warnings.
 Jev: 0 of 35 titles flagged; no README gaps, one unsure.
 No changed source to judge and no new label owed.
 Strict style census: OK.
+
+Line kill check, `src/server.ts:35-125`, under `/tmp/mutation.lock`:
+`[Killed] 91`, `[Timeout] 0`, `[Survived] 7`; `EXIT 0`.
+Killed share: 92.86%; no errors or uncovered mutants.
+Eighteen of the 25 old server survivors were killed.
+All idle-socket and release survivors were killed.
+The remaining seven are the late-bind stop flag and branch,
+optional logging, the clock choice, and three input-check changes.
+The late-bind guard still handles close racing with listen;
+no code was judged safe to remove merely because its mutant survived.
+The line log is `stack-t17-lift-lines.log` in the briefs cache.
