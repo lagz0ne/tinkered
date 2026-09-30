@@ -44,16 +44,6 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Review
 
-- **stack/t08 jobs** — Owner: stack/t08 writer, branch `stack/t08`.
-  Next: review the four fixes from round 1.
-  Verify: gate `EXIT 0`; jobs 24, stack 63, tracker 79.
-  All 18 package test tasks and all 50 validation lanes pass.
-  Coverage did not drop; mutation was not rerun, as reviewed.
-  Prior mutation: 86.99%; 127 killed, 0 timeout, 17 survived, 2 no coverage.
-  Base stays `50b31bab`; no rebase or push.
-  [track](docs/roadmap/stack-v1/PROGRESS.md).
-
-
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
 

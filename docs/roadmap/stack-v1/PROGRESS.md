@@ -408,7 +408,7 @@ npx --no-install stryker run \
   a missing `NATS_URL` fails boot naming it.
   nats patches core's `scope.close` on its handle
   until core/close-hook-scope lands.
-- **t08 jobs stack piece** -- [ ] Review; landing waits for t06
+- **t08 jobs stack piece** -- [ ] Review; resume checks in progress
   `@tinker/jobs` runs pg-boss as a driver. Each
   job's operation runs in its own session: success
   commits, failure rolls back and retries
@@ -4021,3 +4021,57 @@ Core itself has no change on this branch.
   - `stack-t08-round1-all-tests.log`: all package tests.
   - `stack-t08-round1-coverage-before/coverage-summary.json`.
   - `stack-t08-round1-coverage-after/coverage-summary.json`.
+
+### t08 resume gate — 2026-09-30
+
+- Owner: stack/t08 writer.
+  Branch: `stack/t08`.
+- Discarded the paused lander's uncommitted board,
+  track, and calibration edits, as requested.
+- The diff from reviewed `da34b8cf` to old head `5e968706`
+  contains code changes from the earlier base change.
+  It changes 49 files overall.
+  The jobs package itself has no change in that diff.
+- `50b31bab` is no longer an ancestor.
+  Landed t06 at `2700a440` is an ancestor.
+- Rebasing from `2700a440` tried to replay old main commits.
+  It hit `scripts/validate.mjs`; that attempt was aborted.
+- Rebased the ten jobs commits from their actual main fork,
+  `4c88cded`, onto `origin/main` at `217a4fe3`.
+  No jobs landing commit was present to drop.
+- The completed rebase had one conflict:
+  `tools/jev/cases.jsonl`.
+  Kept main's labels and the two jobs labels.
+- Main's stack code and the jobs code needed no merge edits.
+  Drizzle still commits before the jobs extension starts.
+  Main's publisher, namespace, trace, and close behavior stays.
+- Restored `TODO.md` from current main.
+  Old jobs commits had restored a stale Review card.
+  The lead owns the current board and landing.
+- Gate: jobs 24, stack 106, tracker 79 tests pass.
+  Build and check pass: 0 errors, 28 warnings.
+  A clean `origin/main` worktree also has 28 warnings.
+
+```bash
+vp run -r build && vp check \
+  && vp run jobs#test && vp run stack#test \
+  && vp run @tinker-issue-tracker#test
+EXIT 0
+```
+
+- Jev tests: 0 flags in 24 tests.
+  README promises: 0 gaps in 24 titles.
+- Jev preflight: the private clock tag has its saved
+  `leakedInternal false` label.
+  It is shared only inside the package.
+  The remaining hits are a noisy note and two hints.
+- Strict style census: OK.
+  Prose lint passes.
+- t17 is absent from `origin/main` at this gate.
+  The mapped 4xx job test still waits for its rollback fix.
+- Next: all package tests, jobs and stack mutation under
+  `/tmp/mutation.lock`, then `pnpm validate`.
+- Proof logs: `~/.cache/tinkered-briefs/` files named
+  `stack-t08-resume-gate.log`,
+  `stack-t08-resume-main-check.log`, and
+  `stack-t08-resume-jev-*.log`.
