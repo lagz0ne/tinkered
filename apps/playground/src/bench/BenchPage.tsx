@@ -247,7 +247,9 @@ function ResultsTable({ results }: { results: LibResult[] }): ReactElement {
       <section className="bench-results" aria-label="Measured library results">
         <div className="bench-results-heading">
           <div>
-            <span className="bench-eyebrow">Measurements / µs</span>
+            <span className="bench-eyebrow">
+              Measurements / <span className="bench-unit">µs</span>
+            </span>
             <h2>Every library. Same work.</h2>
           </div>
           <span className="bench-results-order">

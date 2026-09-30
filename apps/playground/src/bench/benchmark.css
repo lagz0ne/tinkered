@@ -34,6 +34,9 @@
   letter-spacing: 0.12em;
   color: #a0b9b1;
 }
+.bench-unit {
+  text-transform: none;
+}
 .bench-status-light {
   width: 5px;
   height: 5px;
