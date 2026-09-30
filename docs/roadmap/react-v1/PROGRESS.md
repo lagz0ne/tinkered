@@ -1,5 +1,51 @@
 # react v1 — build progress
 
+## Namespace reset — 2026-09-30
+
+The user approved form and route sessions with namespace-aware reset.
+The brief is [namespace reset](issues/18-namespace-reset.md).
+Source: `878ca7ba`; Playground: `a8f131ff`.
+
+React saves each session's namespace head with its live handle.
+Nested sessions inherit it; independent roots clear the React key.
+`useRelease(project)` selects an explicit key for reset.
+`useResource(profile, { ns: project })` selects its read and refetch key.
+Scope resources keep their shared release behavior.
+A chain reset keeps fallback stores, which a later read can reuse.
+An opaque app-owned scope needs an explicit hook key.
+Core source and namespace lifetime do not change.
+
+Two browser checks failed before the source fix.
+One caught sibling resource loss; one caught a default value being erased.
+Both pass after the fix.
+React's 20 browser files and all 83 tests pass.
+The gzip build is 4,598 bytes under the 10,240-byte cap.
+Build, package check, prose, TSDoc, and strict census pass.
+The separate reader found no material bugs.
+
+The Playground has a lazy Sessions view with Harbor and Beacon forms.
+It shows field reset, form reset, route leave and return, and brief refetch.
+The five added app checks pass with all 64 Playground tests.
+Browser checks at 1,440, 390, and 320 pixels pass.
+They prove preserved sibling drafts, project caches, and ocean document.
+All Sessions buttons meet 44 pixels; phone layouts have no side scroll.
+Live deployment remains in review.
+
+The full build, check, and all 17 test tasks pass.
+Check reports no errors and the same 28 existing warnings.
+All 48 release lanes pass under the shared test lock.
+The final source review has no flags.
+The three reviewed Jev labels are false; calibration passes.
+SCIP confirms the public hook changes and their callers.
+The isolated React fault check passes at 93.10, above its floor of 85.
+It catches 219 changed versions and 51 that time out.
+Twenty survive; no changed version lacks coverage.
+The two new surviving branches pass undefined to Core's existing defaults.
+Core implements `release` and `releaseNs` with the same function.
+No source change is needed for those equivalent branches.
+
+Proof files are under `.bench/react-namespaces`.
+
 `@tinker/react`: a thin React adapter over `@tinker/core` (ADR 0030). One green git
 checkpoint per ticket. Progress is linear and resettable: land tickets in order, tag
 each, reset to any tag if a slice goes wrong.

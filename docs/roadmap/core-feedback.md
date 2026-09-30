@@ -1,5 +1,33 @@
 # Core feedback from authoring
 
+## React namespace reset — 2026-09-30
+
+Found by `react/namespaces`.
+A Core handle does not expose its ambient namespace.
+The adapter knows keys set on its own session providers.
+An externally made scope needs an explicit hook key.
+This is a documented limit; no Core change is requested.
+The explicit key is an honest use of the existing API.
+
+```tsx
+const project = namespace();
+const root = createScope({ ns: project });
+
+<ScopeProvider scope={root}>
+  <Editor />
+</ScopeProvider>;
+```
+
+Inside that editor:
+
+```tsx
+const reset = useRelease(project);
+const profile = useResource(projectProfile, {
+  ns: project,
+  suspense: false,
+});
+```
+
 The other side of the spectrum: every integration (http, hono, drizzle, cli, claude, codex) is built to
 find what core lacks or gets wrong. Contributors end each report with a **Core feedback** section; the
 lead records the candidates here with the integration that surfaced them. A candidate becomes a core

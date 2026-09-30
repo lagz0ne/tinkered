@@ -40,13 +40,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **react/namespaces** — reset and refetch only the chosen namespace.
-  Owner: lead (Codex); writers: Astra, one package each.
-  Next: settle the adapter shape, fix it, and show form and route cleanup.
-  Verify: failing browser checks on main, sibling buckets stay, session cleanup,
-  build/check, all test tasks, release lanes, and React mutation at least 85.
-  [Track](docs/roadmap/react-v1/PROGRESS.md).
-
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
@@ -58,6 +51,15 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 - **stack/t17 hono-commit** — a request commits before it answers (a failed commit answers 500, not 200 with nothing saved); any raised error rolls the request back, even when answered 4xx (ADR 0084, user 2026-09-29). Owner: lead (stack session); Astra writer `32dd77ae`, worktree `/home/paseo/next/tinkered-stack-t17`; Opus reviewer when the writer reports. Verify: a test per rule that fails on main; hono, drizzle, stack, tracker tests; `pnpm validate`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 
 ## Review
+
+- **react/namespaces** — reset and refetch only the chosen namespace.
+  Owner: lead (Codex); source: `878ca7ba`, Playground: `a8f131ff`.
+  Next: deploy the checked image and verify the live site.
+  Seen: two failing checks before the fix; React 83 tests, Playground 64 tests.
+  Desktop and two phone sizes pass; the ocean stays alive across all views.
+  Seen: full build/check/tests, 48 release lanes, and React fault score 93.10.
+  Verify: the matching healthy live build and all live reset checks.
+  [Track](docs/roadmap/react-v1/PROGRESS.md).
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
