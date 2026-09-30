@@ -38,6 +38,7 @@ function start(root, port) {
   });
   const lines = createInterface({ input: child.stdout });
   lines.on("line", (line) => {
+    errorText += `${line}\n`;
     const event = JSON.parse(line);
     if (event.kind === "ready") events.emit("ready");
     if (event.kind === "error") events.emit("error", new Error(JSON.stringify(event)));
@@ -88,7 +89,7 @@ async function run() {
       await response.arrayBuffer();
     }
   } finally {
-    await stop(host);
+    if (host.child.exitCode === null && host.child.signalCode === null) await stop(host);
     await rm(directory, { recursive: true, force: true });
   }
 }
