@@ -1,4 +1,4 @@
-import type { Data, Observe, Operation, Resource, Scope } from "@tinker/core";
+import type { Data, Observe, Operation, Resource, RunResult, Scope } from "@tinker/core";
 import type { ReactNode } from "react";
 import {
   createContext,
@@ -7,6 +7,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useReducer,
   useRef,
@@ -267,6 +268,16 @@ async function settle<T>(run: () => T): Promise<Outcome<Awaited<T>>> {
   }
 }
 
+function resolveResource<T>(
+  controller: Scope.ResourceController<T>,
+): Outcome<Scope.ResourceValue<T>> {
+  try {
+    return { ok: true, value: controller.resolve() };
+  } catch (error) {
+    return { ok: false, error };
+  }
+}
+
 export declare namespace Query {
   /** Options for {@link useResource}: `suspense: false` renders a local status instead of suspending. */
   export type Options = { readonly suspense?: boolean };
@@ -299,6 +310,15 @@ function queryHandle<T>(state: Query.State<T>, refetch: () => void): Query.Handl
   };
 }
 
+function readResourceState<T>(
+  built: Outcome<Scope.ResourceValue<T>>,
+  settled: Query.State<Awaited<T>> | undefined,
+): Query.State<Awaited<T>> {
+  if (!built.ok) return { status: "error", data: undefined, error: built.error };
+  if (isThenable(built.value)) return settled ?? QUERY_PENDING;
+  return { status: "success", data: built.value as Awaited<T>, error: undefined };
+}
+
 /** Read a resource's built value from the nearest scope. A synchronously-built resource returns its
  * value directly (no promise). An async build suspends: the promise is handed to React's `use`, so a
  * `<Suspense>` fallback shows while pending and the value renders once it settles. Core builds once
@@ -321,19 +341,18 @@ export function useResource<T>(
   const scope = useScope();
   const controller = useMemo(() => scope.controller(handle), [scope, handle]);
   const [, bump] = useReducer((n: number) => n + 1, 0);
-  const built = controller.resolve();
-  const pending = isThenable(built) ? (built as PromiseLike<Awaited<T>>) : undefined;
+  const built = resolveResource(controller);
+  const pending =
+    built.ok && isThenable(built.value) ? (built.value as PromiseLike<Awaited<T>>) : undefined;
   const local = options?.suspense === false;
   const settled = useSettled(local ? pending : undefined);
   const refetch = useCallback(() => {
     scope.release(handle);
     bump();
   }, [scope, handle]);
-  if (!local) return pending ? (use(pending) as Awaited<T>) : (built as Awaited<T>);
-  const state: Query.State<Awaited<T>> = pending
-    ? (settled ?? QUERY_PENDING)
-    : { status: "success", data: built as Awaited<T>, error: undefined };
-  return queryHandle(state, refetch);
+  if (local) return queryHandle(readResourceState(built, settled), refetch);
+  if (!built.ok) throw built.error;
+  return pending ? (use(pending) as Awaited<T>) : (built.value as Awaited<T>);
 }
 
 /** The settled state of `pending`, or undefined while it is in flight (or when there is nothing to
@@ -413,6 +432,12 @@ function settledState<T>(outcome: Outcome<T>): Query.State<T> {
     : { status: "error", data: undefined, error: outcome.error };
 }
 
+function readRunOutcome<T>(result: RunResult<T>): Outcome<T> {
+  return result.status === "success"
+    ? { ok: true, value: result.value }
+    : { ok: false, error: result.status === "failed" ? result.error : result.reason };
+}
+
 function notify<T, I>(
   on: Run.Options<T, I> | undefined,
   outcome: Outcome<T>,
@@ -433,28 +458,51 @@ function notify<T, I>(
  * with `variables` = the call), `runAsync(input)` also returns the value or rejects, `reset()`
  * returns to idle. A rejection never reaches an error boundary (that is {@link useResource}'s job).
  * Only the latest run publishes state: a slower earlier run that settles after a newer one (or after
- * `reset`) is dropped, though its `options` callbacks still fire. */
+ * `reset`) is dropped, though its `options` callbacks still fire. Changing the provider or operation
+ * clears the view and stops the old owner's state and callback writes; its caller still gets the result.
+ * Handled failures are received through Core's `settle`, so a panic does not fail the owner. */
 export function useRun<T, I>(
   op: Operation.Handle<T, I>,
   options?: Run.Options<Awaited<T>, I>,
 ): Run.Handle<Awaited<T>, I> {
   const scope = useScope();
   const controller = useMemo(() => scope.controller(op), [scope, op]);
-  const [state, setState] = useState<Run.State<Awaited<T>, I>>(IDLE);
-  const runId = useRef(0);
+  const owner = useMemo(() => ({ live: false, runId: 0 }), [controller]);
+  const [published, setPublished] = useState<
+    | {
+        owner: typeof owner;
+        state: Run.State<Awaited<T>, I>;
+      }
+    | undefined
+  >(undefined);
+  useLayoutEffect(() => {
+    owner.live = true;
+    setPublished(undefined);
+    return () => {
+      owner.live = false;
+    };
+  }, [owner]);
+  const state = published?.owner === owner ? published.state : IDLE;
   const latest = useRef(options);
   latest.current = options;
   const invoke = useCallback(
     async (call: Scope.CallArgs<I>): Promise<Outcome<Awaited<T>>> => {
-      const id = (runId.current += 1);
+      const id = (owner.runId += 1);
       const [variables] = call;
-      setState({ status: "pending", data: undefined, error: undefined, variables });
-      const outcome = await settle(() => controller.run(...call));
-      if (runId.current === id) setState({ ...settledState(outcome), variables });
-      notify(latest.current, outcome, variables);
+      if (owner.live)
+        setPublished({
+          owner,
+          state: { status: "pending", data: undefined, error: undefined, variables },
+        });
+      const outcome = readRunOutcome(await controller.settle(...call));
+      if (owner.live) {
+        if (owner.runId === id)
+          setPublished({ owner, state: { ...settledState(outcome), variables } });
+        notify(latest.current, outcome, variables);
+      }
       return outcome;
     },
-    [controller],
+    [controller, owner],
   );
   const run = useCallback(
     (...call: Scope.CallArgs<I>): void => {
@@ -471,9 +519,9 @@ export function useRun<T, I>(
     [invoke],
   );
   const reset = useCallback((): void => {
-    runId.current += 1;
-    setState(IDLE);
-  }, []);
+    owner.runId += 1;
+    if (owner.live) setPublished(undefined);
+  }, [owner]);
   return {
     ...state,
     isIdle: state.status === "idle",

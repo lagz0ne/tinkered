@@ -124,6 +124,31 @@ test("suspense:false reports a synchronous build as success at once", async () =
   await scope.close();
 });
 
+test("suspense:false reports a synchronous failure locally and refetches it", async () => {
+  const scope = createScope();
+  let failing = true;
+  const flaky = resource({
+    label: "sync-flaky",
+    factory: () => {
+      if (failing) throw new Error("sync failure");
+      return 7;
+    },
+  });
+  const screen = await render(
+    <ScopeProvider scope={scope}>
+      <Catch fallback={() => <p>boundary</p>}>
+        <Local handle={flaky} />
+      </Catch>
+    </ScopeProvider>,
+  );
+
+  await expect.element(screen.getByText("status:error")).toBeVisible();
+  failing = false;
+  await screen.getByRole("button", { name: "refetch" }).click();
+  await expect.element(screen.getByText("data:7")).toBeVisible();
+  await scope.close();
+});
+
 test("a refetch after switching handles rebuilds the current one fresh", async () => {
   const scope = createScope();
   let builds = 0;

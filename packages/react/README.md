@@ -46,20 +46,34 @@ function App() {
 
 ## The seam
 
-| export                                     | what it does                                                                                                                                                                                                       |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ScopeProvider`                            | Puts a scope on context: `scope={handle}` (app-owned) or `create={() => …}` (owned, closed on unmount).                                                                                                            |
-| `SessionProvider`                          | Opens a child session for the subtree; **unmount force-closes it** (resources roll back). Nearest `Handle` wins; writes shadow the parent.                                                                         |
-| `useScope`                                 | The nearest scope `Handle` (raises `NoProvider` outside a provider).                                                                                                                                               |
-| `useData`                                  | Reactive read of a cell; `useData(cell, selector, isEqual?)` reads a slice.                                                                                                                                        |
-| `useData(cell, { writable: true })`        | `[value, set]`, a `useState`-like pair; add a selector as the second argument for `[slice, set]`.                                                                                                                  |
-| `useController`                            | A cell's read/write controller for writes; a write-only view subscribes to nothing.                                                                                                                                |
-| `useResource`                              | A resource's built value; async builds **suspend**, a failed build throws to the error boundary.                                                                                                                   |
-| `useResource(handle, { suspense: false })` | No Suspense: react-query-like `{ status, data, error, isPending, isSuccess, isError, refetch }`; `refetch` releases and rebuilds.                                                                                  |
-| `useRun`                                   | Run an operation imperatively, react-query mutation shape: `{ status, data, error, variables, isIdle/isPending/isSuccess/isError, run, runAsync, reset }` + `onSuccess/onError/onSettled` options. Never suspends. |
-| `useRelease`                               | `release(cellOrResource)` — revert a cell, or drop a resource so a retry rebuilds it.                                                                                                                              |
-| `useSpans`                                 | A snapshot of the scope's span history (for an inspector; observation must be on).                                                                                                                                 |
-| `isError`                                  | Narrow an unknown error to this package's registry (`NoProvider`).                                                                                                                                                 |
+- `ScopeProvider` puts a scope on context.
+  Pass `scope={handle}` for an app-owned scope,
+  or `create={() => createScope()}` to close it on unmount.
+- `SessionProvider` opens a child session for its children.
+  Unmount force-closes it; resources roll back.
+  The nearest handle wins, and writes shadow the parent.
+- `useScope` reads the nearest scope handle.
+  It raises `NoProvider` outside a provider.
+- `useData` reads a cell and updates the view when it changes.
+  `useData(cell, selector, isEqual?)` reads a slice.
+- `useData(cell, { writable: true })` returns `[value, set]`.
+  Add a selector as the second argument for `[slice, set]`.
+- `useController` reads a cell's controller for writes.
+  A view that only writes subscribes to nothing.
+- `useResource` reads a resource's built value.
+  Async builds suspend; a failed build throws to the error boundary.
+- `useResource(handle, { suspense: false })` returns local query state.
+  It has `status`, `data`, `error`, and a flag for each status.
+  Its `refetch` releases the resource and rebuilds it.
+- `useRun` runs an operation without suspending.
+  It has `status`, `data`, `error`, `variables`, and a flag for each status.
+  Call `run`, `runAsync`, or `reset`.
+  Options accept `onSuccess`, `onError`, and `onSettled` callbacks.
+- `useRelease` returns `release(cellOrResource)`.
+  Release reverts a cell or drops a resource so a retry rebuilds it.
+- `useSpans` reads the scope's span history for an inspector.
+  Observation must be on.
+- `isError` narrows an unknown error to this package's `NoProvider` error.
 
 ## Testing
 
@@ -114,6 +128,7 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 - resolve() hands back one stable promise per owner, while pending and after settle.
 - A query reports its status through one flag at a time.
 - A synchronous build reports success at once with suspense:false.
+- With suspense:false, a synchronous failure stays local and refetch can rebuild it.
 - Reading through a new scope builds in the new scope.
 - A synchronous build commits on the first flushed render with no suspend.
 - The hook returns the exact instance core cached for the owner.
@@ -121,6 +136,10 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 ### useRun
 
 - A failing operation stays in error state and does not throw to an error boundary.
+- A handled operation panic stays in error state and the root closes successfully.
+- Switching providers clears the previous run state.
+- Switching providers drops late results and callbacks; the caller still gets its value.
+- Switching operations drops late results and callbacks from the old operation.
 - Reset from a success clears status, data, and error.
 - Reset from an error clears status, data, and error.
 - A run from before reset never overwrites a newer run that settled after it.
@@ -128,6 +147,7 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 - Switching the operation runs the new one, not the stale one.
 - Switching the operation rebinds runAsync to the new one.
 - A synchronous operation runs to success with its value.
+- runAsync returns the value or rejects with the failure while state tracks both.
 - Only the latest run publishes: a stale earlier run that settles later is dropped.
 - A run with only onSettled reports success without onSuccess.
 - A run with only onSettled reports failure without onError.

@@ -49,7 +49,7 @@ function Exposer({
   return <p>status:{run.status}</p>;
 }
 
-test("a failing operation stays in error state and does not throw to an error boundary", async () => {
+test("a handled operation panic stays in error state and the root closes successfully", async () => {
   captured = undefined;
   const scope = createScope();
   const gate = deferred<number>();
@@ -77,7 +77,7 @@ test("a failing operation stays in error state and does not throw to an error bo
   expect(captured).toBe(failure);
   await expect.element(screen.getByText("boundary")).not.toBeInTheDocument();
 
-  await scope.close();
+  expect((await scope.close({ graceful: true })).status).toBe("success");
 });
 
 test("reset from a success clears status, data, and error", async () => {
