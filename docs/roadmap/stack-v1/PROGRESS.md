@@ -2537,8 +2537,9 @@ Core feedback: none new.
 
 ## t18 writer — 2026-09-30
 
-Owner: stack/t18 writer. Branch: `stack/t18`.
-Next: replace the lifetime helper, then run the gate.
+Owner: stack/t18 writer.
+Branch: `stack/t18`.
+Next: lead review and landing; writer checks are complete.
 Verify: stack and tracker tests, browser proof, real entry
 exit codes, plain lifetime rules, validation, and mutation.
 
@@ -2619,7 +2620,7 @@ scripts/scip.sh refs 'readExitCode' stack
   onto `origin/main` at `b78302c1` for S19 and S29.
   Assumption: the checked t17 branch is the intended
   dependency while its landing on main is still pending.
-  Its replayed tip is `090d07e8` in this branch.
+  The t17 code ends at `090d07e8` in this branch.
   The t17 server and Hono source are unchanged.
 - Kept the tracker's order: server, migrate, web, src,
   then the live piece when NATS_URL is set, else publish.
@@ -2659,5 +2660,39 @@ EXIT 0
 - SCIP: the deleted helper prints `(none)`.
   Its replacement has refs in the public entry and tests.
   No old helper remains in tracked packages or apps.
-- Style census: OK. Prose lint: zero hits.
+- Style census: OK.
+- Prose lint: zero hits.
 - Core feedback: no new failing case.
+
+### t18 final mutation and handoff
+
+- The full stack lane ran once, alone under the lock.
+  Its config kept `timeoutMS: 60000` and the floor of 85.
+
+```sh
+flock /tmp/mutation.lock \
+  vp run --no-cache stack#mutate
+```
+
+```text
+All files: 88.74%
+Killed: 268
+Timeout: 0
+Survived: 33
+No coverage: 1
+Errors: 0
+EXIT 0
+```
+
+- The new exit helper scored 85.71%: 18 killed and
+  three survived, with no timeout or uncovered code.
+- Report: `packages/stack/reports/mutation/mutation.json`.
+  The command log is `/tmp/stack-t18-mutation.log`.
+- This proof covers the checked t17 code plus t18 on
+  `origin/main` at `b78302c1`.
+  t13 landed on main while this lane waited for the lock;
+  it is outside this tested base.
+  The lead must rebase and run the landing checks on
+  current main, as the contributor rules require.
+- New Jev label lines: none; no new Core feedback.
+- No push. The card is in Review.
