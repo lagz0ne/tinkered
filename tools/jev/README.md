@@ -154,8 +154,10 @@ Run the repo lint for both rules:
 
 ```bash
 JEV_TOKEN_FILE=/dev/null node tools/jev/lint.mjs \
-  apps examples 'packages/*/src' | grep -E 'S2[78]'
+  apps/ examples/ packages/ | grep -E 'S2[78]'
 ```
+
+- Pass folders, not a glob: `lint.mjs` hands each one to `git ls-files`, which matches a quoted `'packages/*/src'` to no file. Each rule keeps to its own lane by path.
 
 - `JEV_TOKEN_FILE=/dev/null` gives `lint.mjs` no key, so no model runs: it prints only the plain rows, in about 2 seconds.
 - Each hit prints as `▪ L<line> S27: …` under its file.
