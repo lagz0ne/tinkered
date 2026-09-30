@@ -1,7 +1,7 @@
 # Authoring model
 
 Date: 2026-09-30.
-Status: all five fixes saved and tested; Core size gate blocks landing.
+Status: 16 KiB cap approved; final merged gates and landing in progress.
 Owner: lead (authoring-model session).
 
 ## Fixes authorized
@@ -74,7 +74,7 @@ SCIP references and full consumer tests are checked before completion.
   Final review caught saved `settle` calls throwing on closed admission.
   Two tests failed before `3011a93f`; they now return flat Results.
   The hot-name slot check passes at 252 names, last slot 254.
-  The package size gate is still open; no budget increase is approved.
+  The user approved a 16 KiB Core cap on 2026-09-30.
 - Sync's four owner regressions failed before the fix and pass afterward.
   Writer commit: `fb34c18b`.
   Review added resource cleanup for failed boot; two more regressions prove it.
@@ -111,9 +111,10 @@ A final no-hook probe reports `b is faster`.
 Medians were 3901 and 3821 ms for fifty million calls.
 No speed gain is promised; these checks found no slowdown.
 
-Current Core bundle: 16,147 bytes gzip.
-The existing cap is 15,360 bytes, leaving 787 bytes to resolve.
-The cap has not changed.
+Before the remote merge, Core was 16,147 bytes gzip.
+The old cap was 15,360 bytes, leaving 787 bytes to resolve.
+The user chose a 16 KiB cap, 16,384 bytes, on 2026-09-30.
+The cap and release-check label now use that limit.
 The final size review found no small cut that recovers all 787 bytes.
 Sharing more context or cleanup code needs new lifetime and cost checks.
 
@@ -134,7 +135,7 @@ The required floor remains 85 for every package.
   Final run: 85.36, exit 0, after the saved-settle fix.
   Counts: 2898 killed, 30 timed out, 476 survived, 26 uncovered, 3 errors.
 
-## Final gate results
+## Gates before the size choice
 
 - Full build: exit 0.
 - Code check: exit 0, 0 errors and 29 baseline warnings.
@@ -155,7 +156,8 @@ The required floor remains 85 for every package.
 Logs are saved under `/tmp/tinkered-authoring-final*`.
 The ticket log is `/tmp/tinkered-authoring-final-ticket.log`.
 The release log is `/tmp/tinkered-authoring-final-validate.log`.
-The board keeps this saved work in Review while the size gate is red.
+These results are from before the approved cap change and remote merge.
+The final landing results will be recorded below.
 
 ## Lead review
 
@@ -518,3 +520,37 @@ This was inspected only; setup was not changed.
 The glossary's extension row had said session calls and dependency writes
 bypass hooks; corrected to a short meaning matching current behavior.
 Source comments repeat that old limit and remain follow-up work.
+
+## Landing after the size choice
+
+The user chose 16 KiB and asked to finish landing on 2026-09-30.
+The remote branch had 31 newer commits at `37d87dca`.
+The integration merge keeps RootLifetime and the NATS trace work.
+Core recognizes both hook forms on the new root path.
+A signal-root object-hook regression failed before the route fix.
+Both Jev label banks were kept; the final bank has 1,794 labeled cases.
+Calibration passed, exit 0; its updated report is saved for the checkpoint.
+Final gates follow the merge; earlier fault scores do not cover it.
+
+Merged build: exit 0.
+Merged code check: exit 0, 0 errors and 28 existing warnings.
+All 17 package and app test tasks pass, exit 0.
+Core passes 776 tests; NATS 33; Stack 94; Sync 75; Tinkerer 97.
+Release validation: all 48 lanes pass, exit 0.
+Core is 16,373 bytes gzip against the approved 16,384-byte cap.
+The merge cut a single-use getter while keeping resource read order.
+The pass-through event and no-hook paths did not change in that cut.
+SCIP indexes and references were refreshed after the merge.
+The review covers the root signal path and NATS's optional span argument.
+The Core ticket gate is running all fault lanes one package at a time.
+Merged Core fault score: 85.55, above the required floor of 85.
+
+Merged logs:
+
+- `/tmp/tinkered-authoring-merged-build.log`
+- `/tmp/tinkered-authoring-merged-check.log`
+- `/tmp/tinkered-authoring-merged-tests.log`
+- `/tmp/tinkered-authoring-merged-validate.log`
+- `/tmp/tinkered-authoring-landing-ticket.log`
+- `/tmp/tinkered-authoring-landing-scip-refs.log`
+- `/tmp/tinkered-authoring-landing-final-calibration.log`

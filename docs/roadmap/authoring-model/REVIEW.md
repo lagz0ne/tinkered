@@ -23,11 +23,12 @@ The finding paths below describe the reviewed baseline, `2700a440`.
   Real-server tests cover publish routing and incoming sessions.
 
 The first landing attempt failed the old 15 KiB cap.
-The user then chose 16 KiB; merged checks are running.
+The user then chose 16 KiB; the merged fault checks are running.
 The first event cost probe led to a simpler run-event constructor.
 The final probe found no difference between legacy and object hooks.
-All five changed packages pass the required fault-check floor.
-Release validation passes 47 of 48 lanes; only Core size fails.
+Before the merge, all five changed packages passed the fault-check floor.
+All 48 merged release lanes now pass.
+Core is 16,373 bytes gzip against the approved 16,384-byte cap.
 
 ## Findings
 
