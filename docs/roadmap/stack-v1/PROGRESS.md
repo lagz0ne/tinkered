@@ -3974,7 +3974,8 @@ Core itself has no change on this branch.
   The new throwing-request test already passed, as reviewed.
 - Unknown queue sends now raise before any pg-boss call.
 - Queue setup creates, updates, then schedules or unschedules.
-  Omitted retry settings reset to 2 tries, 0 delay, no backoff.
+  Omitted settings reset to `retryLimit: 2`, `retryDelay: 0`,
+  and `retryBackoff: false`.
   These are pg-boss 12.35.0's defaults.
   All queue setup still runs before workers start.
 - The final-try log now includes cancelled jobs during close.
@@ -3983,3 +3984,40 @@ Core itself has no change on this branch.
 - Required gate: build, check, jobs 24, stack 63, tracker 79.
   `EXIT 0`; no errors and the same 29 warnings as before.
 - Next: compare coverage, finish Jev and all validation lanes.
+
+### t08 round 1 final proof
+
+- The required gate passed, exit 0.
+  Jobs: 24 tests; stack: 63; tracker: 79.
+  Check: no errors and the same 29 warnings.
+- `pnpm validate`: all 50 lanes pass, exit 0.
+  `vp run -r test`: all 18 package tasks pass, exit 0.
+- Coverage before and after, over every jobs source file:
+  - Lines: 100% to 100% (73/73 to 79/79).
+  - Functions: 100% to 100% (20/20 to 22/22).
+  - Statements: 98.82% to 98.91% (84/85 to 91/92).
+  - Branches: 95.34% to 95.65% (41/43 to 44/46).
+    No file lost coverage in any of these measures.
+    Mutation was not rerun, as requested for this fix round.
+- Coverage used `@vitest/coverage-v8` 4.1.11 from the home cache.
+  The temporary module link was removed after the checks.
+  Repo package files have no new tool dependency.
+- Jev tests and promises: no flags in 24 tests.
+  The two existing jobs labels still apply:
+  `leakedInternal false` for the private clock tag;
+  `stateOutsideCell false` for test client cleanup.
+  The tracker entry has its inherited false label.
+  The stack test resource still needs its own database client.
+  Other hits were hints or a noisy judge; no new labels.
+- Prose and strict style census pass.
+  No new Core feedback; the earlier close-hook probe still applies.
+- Base snapshot stays `50b31bab`; no rebase or push.
+  Card returns to Review for the round 1 fixes.
+- Proof files share `/home/paseo/.cache/tinkered-briefs/`:
+  - `stack-t08-round1-red-queue.log`: send and close timeouts.
+  - `stack-t08-round1-red-other.log`: two failures and the passing throw test.
+  - `stack-t08-round1-gate.log`: required gate.
+  - `stack-t08-round1-validate.log`: all 50 lanes.
+  - `stack-t08-round1-all-tests.log`: all package tests.
+  - `stack-t08-round1-coverage-before/coverage-summary.json`.
+  - `stack-t08-round1-coverage-after/coverage-summary.json`.

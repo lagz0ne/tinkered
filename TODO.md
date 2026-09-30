@@ -39,24 +39,20 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **stack/t08 jobs** — Owner: stack/t08 writer, branch `stack/t08`.
-  Next: finish coverage, Jev, and validation for round 1.
-  Verify: required gate, no loss of coverage, prose and Jev.
-  Base stays `50b31bab`; no rebase or push.
-  [track](docs/roadmap/stack-v1/PROGRESS.md).
-
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
 ## Review
 
 - **stack/t08 jobs** — Owner: stack/t08 writer, branch `stack/t08`.
-  Next: lead review, then land after t06.
-  Verify: gate `EXIT 0`; jobs 20, stack 63, tracker 79; all repo tests pass.
-  All 50 validation lanes pass.
-  Mutation: 86.99%; 127 killed, 0 timeout, 17 survived, 2 no coverage.
-  Base: local `stack/t06` at `50b31bab`; nothing pushed.
+  Next: review the four fixes from round 1.
+  Verify: gate `EXIT 0`; jobs 24, stack 63, tracker 79.
+  All 18 package test tasks and all 50 validation lanes pass.
+  Coverage did not drop; mutation was not rerun, as reviewed.
+  Prior mutation: 86.99%; 127 killed, 0 timeout, 17 survived, 2 no coverage.
+  Base stays `50b31bab`; no rebase or push.
   [track](docs/roadmap/stack-v1/PROGRESS.md).
+
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
