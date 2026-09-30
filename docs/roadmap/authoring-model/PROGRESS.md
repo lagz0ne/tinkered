@@ -139,6 +139,9 @@ The required floor remains 85 for every package.
 - Full build: exit 0.
 - Code check: exit 0, 0 errors and 29 baseline warnings.
 - Recursive package and app tests: exit 0, all 17 tasks pass.
+- Prose lint: exit 0, 0 hits in 150 tracked files.
+  The three new decisions also pass when checked outside the frozen path.
+  All six new notes have no wide fenced lines or table rows.
 - Release validation: 47 of 48 lanes pass, exit 1.
   The only failure is Core size, 16,147 bytes against 15,360.
 - Core ticket gate: exit 1 at the same size check.
