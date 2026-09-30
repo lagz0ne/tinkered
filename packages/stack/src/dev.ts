@@ -118,7 +118,8 @@ class DevHost {
   }
 
   private async openVite(): Promise<void> {
-    const host = this;
+    const reload = () => this.reload();
+    const serverDirectory = `${dirname(this.entry)}${sep}`;
     this.vite = await createVite({
       root: this.options.root,
       appType: "custom",
@@ -136,7 +137,7 @@ class DevHost {
               const environment = createRunnableDevEnvironment(name, config, {
                 runnerOptions: { hmr: false },
               });
-              host.runner = environment.runner;
+              this.runner = environment.runner;
               return environment;
             },
           },
@@ -148,9 +149,9 @@ class DevHost {
           async hotUpdate({ file, modules }) {
             if (this.environment.name !== "ssr") return;
             if (!/\.[cm]?[jt]sx?$/.test(file)) return;
-            if (modules.length === 0 && !file.startsWith(`${dirname(host.entry)}${sep}`)) return;
+            if (modules.length === 0 && !file.startsWith(serverDirectory)) return;
             this.environment.moduleGraph.invalidateAll();
-            await host.reload();
+            await reload();
             return [];
           },
         },

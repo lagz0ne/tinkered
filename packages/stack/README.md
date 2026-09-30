@@ -65,7 +65,7 @@ A second live root raises `PieceInUse` with `{ label: "stack.server" }`.
 - Neither setting has a default.
 - `BadListenSettings.payload.keys` lists every bad key.
 - The root passes env; the package never reads it.
-- Dev defaults belong in the app's root.
+- Only the dev host binds local defaults.
 
 `createScope({ signal: stop })` owns start and stop.
 The root reads `scope.ready` only to name the log line.
@@ -448,3 +448,9 @@ Prod gets none of these defaults.
   database and NATS handles.
 - A request in flight during an edit finishes on its old root.
 - A broken server edit serves 503 until a good edit.
+
+- A broken root entry stays editable on 503.
+- Dev reports bad listen settings and answers one.
+- Dev refuses an occupied port without closing its owner.
+
+- Live updates borrow one connection across roots.

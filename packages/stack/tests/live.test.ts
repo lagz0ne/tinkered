@@ -305,3 +305,38 @@ test("a failed second live root leaves the first root receiving signals", async 
   });
   await expect.poll(() => a.resolve(current)).toBe("refreshed");
 });
+
+test("live updates borrow one connection across roots", async () => {
+  const { connect } = await import("@nats-io/transport-node");
+  const connection = await connect({ servers: server.url });
+  try {
+    for (let root = 0; root < 3; root++) {
+      const scope = createScope({
+        tags: [store.config(db)],
+        extensions: [
+          liveUpdates(publish, {
+            subject: "issues.changed",
+            env: { NATS_URL: server.url },
+            connection,
+          }),
+        ],
+      });
+      try {
+        await scope.ready;
+        expect(await (await fetch(`${server.monitorUrl}/connz`)).json()).toMatchObject({
+          num_connections: 1,
+          connections: [{ subscriptions: 1 }],
+        });
+      } finally {
+        await scope.close({ graceful: true });
+      }
+      expect(connection.isClosed()).toBe(false);
+      expect(await (await fetch(`${server.monitorUrl}/connz`)).json()).toMatchObject({
+        num_connections: 1,
+        connections: [{ subscriptions: 0 }],
+      });
+    }
+  } finally {
+    await connection.close();
+  }
+});

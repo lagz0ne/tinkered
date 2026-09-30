@@ -1,5 +1,6 @@
-import { cp, mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
+import { cp, mkdtemp, rm, symlink } from "node:fs/promises";
 import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { PGlite } from "@electric-sql/pglite";
@@ -22,43 +23,46 @@ export type DevProbe = {
   timers: Set<NodeJS.Timeout>;
 };
 
-export async function createDevFixture(nats = true) {
-  const base = fileURLToPath(new URL("../../../scratch/", import.meta.url));
-  await mkdir(base, { recursive: true });
-  const directory = await mkdtemp(join(base, "dev-"));
+const require = createRequire(import.meta.url);
+
+async function createDevDirectory() {
+  const directory = await mkdtemp(join(tmpdir(), "tinker-dev-"));
   await cp(fileURLToPath(new URL("./dev-app", import.meta.url)), directory, { recursive: true });
   await symlink(
     fileURLToPath(new URL("../node_modules", import.meta.url)),
     join(directory, "node_modules"),
   );
-  const probe: DevProbe = createRequire(import.meta.url)(join(directory, "probe.cjs"));
+  return directory;
+}
+
+function startFixture(options: Dev.Options) {
   const events: Dev.Event[] = [];
   const first = Promise.withResolvers<Dev.Event>();
   const stop = new AbortController();
-  const options = {
-    root: directory,
-    entry: "root.ts",
-    env: { PORT: await readFreePort() },
-    nats,
-    report: (event: Dev.Event) => {
-      events.push(event);
-      first.resolve(event);
+  const done = runDev(
+    {
+      ...options,
+      report: (event) => {
+        events.push(event);
+        first.resolve(event);
+      },
     },
-  };
-  const done = runDev(options, stop.signal);
+    stop.signal,
+  );
+  return { events, ready: first.promise, stop, done };
+}
+
+export async function createDevFixture(nats = true, env: NodeJS.ProcessEnv = {}) {
+  const directory = await createDevDirectory();
+  const probe: DevProbe = require(join(directory, "probe.cjs"));
+  const PORT = env.PORT ?? (await readFreePort());
+  const host = startFixture({ root: directory, entry: "root.ts", env: { ...env, PORT }, nats });
   onTestFinished(async () => {
     probe.release.resolve();
-    stop.abort();
-    await done;
+    host.stop.abort();
+    await host.done;
+    delete require.cache[join(directory, "probe.cjs")];
     await rm(directory, { recursive: true, force: true });
   });
-  return {
-    directory,
-    probe,
-    events,
-    stop,
-    done,
-    ready: first.promise,
-    url: `http://127.0.0.1:${options.env.PORT}`,
-  };
+  return { ...host, directory, probe, url: `http://127.0.0.1:${PORT}` };
 }
