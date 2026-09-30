@@ -169,6 +169,8 @@ With observation off no span is recorded and the request still answers.
 The session closes gracefully (commit) after the handler; forced (rollback) on client
 abort; a `stream` route closes when the body ends. Outside the extension's
 middleware, `stream` raises `NoSession`.
+An already-aborted request closes cancelled without running its route.
+It answers 499.
 
 `emit` is synchronous, so a `Sync.Transport.send` or any `watch` callback may call it directly; a throw means the client went away (ADR 0021: SSE is an adapter over watched cells).
 
@@ -188,6 +190,7 @@ Both sessions end when the request ends.
 The body has its own span named by its label.
 Its signal, clock, and log remain available after the request span ends.
 The session closes when the body finishes or the client cancels.
+A synchronous stream body failure releases the body and request resources.
 A session resource's defer runs only after the last chunk was read.
 Cancelling the reader mid-body force-closes the session and stops the writer.
 A body may settle a failing subflow and still finish its stream without a reader error.

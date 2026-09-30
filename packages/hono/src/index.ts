@@ -217,7 +217,7 @@ function serveRequests(scope: Scope.Handle, wiring: HonoScope.Wiring | undefined
     const session = scope.createSession({
       tags: [request(raw), wiring?.tags?.(c)],
       trace: readTraceparent(raw.headers.get("traceparent")),
-      ...(ns === undefined ? {} : { ns }),
+      ns,
     });
     c.set("tinker.session", session);
     c.set("tinker.onError", wiring?.onError);
@@ -226,6 +226,11 @@ function serveRequests(scope: Scope.Handle, wiring: HonoScope.Wiring | undefined
     };
     raw.signal.addEventListener("abort", onAbort, { once: true });
     try {
+      if (raw.signal.aborted) {
+        onAbort();
+        c.res = new Response(null, { status: 499 });
+        return;
+      }
       await next();
     } finally {
       if (!(c as Context<SessionEnv>).get("tinker.kept")) {
@@ -295,7 +300,6 @@ export function stream(
 ): Response {
   const session = (c as Context<SessionEnv>).get("tinker.session");
   if (!session) raise("NoSession", { label: "stream" });
-  (c as Context<SessionEnv>).set("tinker.kept", true);
   const encoder = new TextEncoder();
   let closed = false;
   const closeOnce = (graceful: boolean): void => {
@@ -338,6 +342,8 @@ export function stream(
       closeOnce(false);
     },
   });
+  /** A synchronous start failure leaves cleanup with the request middleware. */
+  (c as Context<SessionEnv>).set("tinker.kept", true);
   if (c.res.headers.get("content-type") === null)
     c.header("Content-Type", "text/plain; charset=UTF-8");
   return c.body(readable);
