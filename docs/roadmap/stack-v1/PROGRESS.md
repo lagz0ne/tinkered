@@ -3207,3 +3207,19 @@ Keep its request body and stream close rules when joining the
 session code at `src/index.ts:273`.
 The t10 changes above prepare tags before that body starts;
 they do not require keeping the old commit or rollback behavior.
+
+### t10 fresh auth mutation proof
+
+- Fresh full auth run: `EXIT 0`.
+  Killed: 77; timeout: 0; survived: 13.
+  No coverage: 0; errors: 0.
+- The killed-only score is `77 / 90 = 85.56%`.
+  This is a new full run, not the earlier combined proof.
+  No further auth lift was needed.
+- The auth sandbox folder was already absent before the run.
+  Stryker made a fresh sandbox and tested all 90 changes.
+- Logs: `stack-t10-auth-full-2.log` and
+  `stack-t10-auth-full-2.json` in
+  `/home/paseo/.cache/tinkered-briefs/`.
+- Next: full Hono mutation, with a 60 second tool timeout
+  and two workers, alone under the same lock.
