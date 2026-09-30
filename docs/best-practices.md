@@ -193,6 +193,7 @@ Abort stops child work that uses `ctx.signal`, including HTTP retries.
 The call waits for cleanup before answering.
 A handled cancelled result keeps the parent conversation alive.
 Keep conversation cells in the parent and consume the step's result there.
+Finish streamed work before returning from a signal-owned action.
 
 After a commit, publish from committed storage through a root controller.
 Keep the request namespace on that controller.

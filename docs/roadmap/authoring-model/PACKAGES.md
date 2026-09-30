@@ -1,7 +1,7 @@
 # Authoring rules across packages and apps
 
 Date: 2026-09-30.
-Status: Doing; source review in progress.
+Status: Review; source saved, final gates pending.
 Owner: lead (authoring session).
 Writer model: Astra, xhigh; one package per writer.
 
@@ -40,7 +40,7 @@ Use resource ownership and middleware as the precedent.
   Apply the same rules to app-owned state and work.
   Keep comparison demos and build-time page tools in their own role.
   Verify: all three apps have a checked result; affected app tests pass.
-- **t08 service example** — blocked by: the Harness and HTTP review.
+- **t08 service example** — blocked by: none.
   One agent calls GitHub and Cloudflare through declared tools.
   Service namespaces select separate HTTP settings.
   Verify: both tools run through Harness with no token mix-up;
@@ -68,7 +68,7 @@ Use resource ownership and middleware as the precedent.
 - **t14 controller waits** — blocked by: none.
   Check Tinkerer's steering while a stream or HTTP response waits.
   Fix only the public steering promise proved broken by a test.
-- **t15 request lifetime** — blocked by: other work reviewed first.
+- **t15 request lifetime** — blocked by: none.
   Check Hono's already-aborted requests and synchronous stream failures.
   Check Process's existing early-abort card against the root lifetime rule.
 - **t16 trace wiring** — blocked by: none.
@@ -154,6 +154,13 @@ No production package outside Tinkerer imports its turn today.
 ADR 0053 promises that steering interrupts an in-flight step.
 The wakeup and stream cleanup belong to that turn's owner.
 Keep messages, tool results, and namespace state in their existing cells.
+
+Declare a private stream action once beside the public step.
+Its signal child owns both headers and response iteration.
+It sends chunks to a plain callback that writes the parent's cells.
+The public step signature and presets remain valid.
+The span tree gains the declared stream action between turn and step.
+Check Tinkerer's span-tree test and README alongside the wait tests.
 
 ### t15 Process: finish the existing early-abort card
 
@@ -254,6 +261,9 @@ No timing change or claim is part of these tickets.
   The event carries owner and namespace access.
   Existing tests cover tags, state, waits, cleanup, and reuse.
   t17 adds the user-approved signal to one owned call.
+  Fourteen public cases cover cancellation and unchanged calls.
+  Session helper cleanup funds the change within the existing size cap.
+  Writer checkpoints: `8354f72c`, `546f20f3`; lead review passed.
 - **HTTP** — `src/client.ts` and `tests/endpoints.test.ts`.
   Shared declarations fit: config and backend tags, send and attempt actions.
   The README now shows separate service namespaces.
@@ -296,7 +306,10 @@ No timing change or claim is part of these tickets.
   Writer checkpoint: `5c64ddbd`; lead review passed.
 - **Tinkerer** — `src/index.ts` and inbox tests.
   Tags, cells, tools, and persistence fit.
-  Steering during a stalled read needs a public regression check.
+  Fixed stalled headers, body reads, and retry waits.
+  Real fetch tests cover steering and forced close.
+  The conversation owns its cells; a child owns each stream action.
+  Writer checkpoint: `3c8b893f`; lead review passed.
 - **Hono** — `src/index.ts` and stream tests.
   Fixed pre-aborted requests and synchronous body cleanup.
   Writer checkpoint: `db011d27`; lead review passed.

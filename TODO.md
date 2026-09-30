@@ -40,14 +40,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **authoring/packages** — check every package and app against the settled model.
-  Owner: lead (authoring session); Astra writers, one package each.
-  Next: read all public shapes; fix owner and namespace gaps;
-  add the Harness example for GitHub and Cloudflare.
-  Verify: each package has a recorded result; regressions fail before fixes;
-  build/check, package and app tests, changed-package fault lanes, prose.
-  [Track](docs/roadmap/authoring-model/PACKAGES.md).
-
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
@@ -59,6 +51,14 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 - **stack/t17 hono-commit** — a request commits before it answers (a failed commit answers 500, not 200 with nothing saved); any raised error rolls the request back, even when answered 4xx (ADR 0084, user 2026-09-29). Owner: lead (stack session); Astra writer `32dd77ae`, worktree `/home/paseo/next/tinkered-stack-t17`; Opus reviewer when the writer reports. Verify: a test per rule that fails on main; hono, drizzle, stack, tracker tests; `pnpm validate`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 
 ## Review
+
+- **authoring/packages** — check every package and app against the settled model.
+  Owner: lead (authoring session); Astra writers, one package each.
+  Next: finish full release and fault checks, then land.
+  All source fixes and the two-service Harness example are saved.
+  Verify: each package has a recorded result; regressions fail before fixes;
+  build/check, package and app tests, changed-package fault lanes, prose.
+  [Track](docs/roadmap/authoring-model/PACKAGES.md).
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
