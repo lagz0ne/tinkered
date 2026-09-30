@@ -66,7 +66,7 @@ Rules for every ticket:
   mcp Observe/Span# tests/mcp.test.ts
   process Observe/Span# tests/span-tree.test.ts
   react Observe/Span# src/index.ts tests/use-spans.test.tsx
-  stack Observe/Span# src/observe.ts tests/observe.test.ts
+  stack Observe/Span# src/observe.ts tests/live.test.ts tests/observe.test.ts tests/span-tree.test.ts
   tinkerer Observe/Span# tests/span-tree.test.ts
   core Observe/Trace# src/index.ts tests/trace.test.ts
   core Scope/Options#typeLiteral206:trace src/index.ts
@@ -78,9 +78,9 @@ Rules for every ticket:
   core Observe/Trace#typeLiteral36:parentSpanId src/index.ts tests/trace.test.ts
   core Observe/Trace#typeLiteral36:sampled src/index.ts tests/trace.test.ts
   hono Observe/Trace# src/index.ts
-  hono Observe/Span#typeLiteral212:traceId tests/trace.test.ts
-  hono Observe/Span#typeLiteral212:spanId tests/trace.test.ts
-  hono Observe/Span#typeLiteral212:parentSpanId tests/trace.test.ts
+  hono Observe/Span#typeLiteral248:traceId tests/trace.test.ts
+  hono Observe/Span#typeLiteral248:spanId tests/trace.test.ts
+  hono Observe/Span#typeLiteral248:parentSpanId tests/trace.test.ts
   http Observe/Span#typeLiteral148:traceId src/client.ts tests/trace.test.ts
   http Observe/Span#typeLiteral148:spanId src/client.ts tests/trace.test.ts
   http Observe/Span#typeLiteral148:sampled src/client.ts

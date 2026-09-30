@@ -5,6 +5,8 @@ Date: 2026-09-29. Status: accepted (direction; the shape is set in its core tick
 carries a level), 0062 (random is ambient), 0074 (the stack). Research:
 `docs/roadmap/stack-v1/RESEARCH.md`, round 2.
 
+> Superseded in part by 0086 (2026-09-29): ids draw from a private stream, not the ambient random.
+
 ## Context
 
 The user wants the stack to speak OpenTelemetry for logs and traces.
