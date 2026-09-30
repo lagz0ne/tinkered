@@ -8,4 +8,8 @@ export default defineConfig({
     },
   },
   fmt: {},
+  test: {
+    include: ["harness/services.test.ts", "react/form.test.ts"],
+    server: { deps: { inline: ["vite-plus"] } },
+  },
 });

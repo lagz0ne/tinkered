@@ -5,21 +5,30 @@ published name (`@tinker/core`, `@tinker/react`, …) — the same surface a con
 version bump flows straight through them (ADR 0045). Every value's type is **inferred**: no `as`, no
 non-null `!`.
 
-| Folder           | Reads                                                                                                                                                      |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `core/`          | the whole `@tinker/core` API: data, operation, resource, clock                                                                                             |
-| `react/`         | the `@tinker/react` seam: providers, cells, suspending resource; `form.tsx` (one-cell draft, `typeDraft` + `saveDraft`)                                    |
-| `http/`          | the `@tinker/http` frame: client, endpoints, per-call tags                                                                                                 |
-| `hono/`          | the `@tinker/hono` driver: scope at the entrypoint, per-request session                                                                                    |
-| `drizzle/`       | the `@tinker/drizzle` store on PGlite                                                                                                                      |
-| `process/`       | the `@tinker/process` tour: `app.ts` (operation, streaming, lazy, and server commands)                                                                     |
-| `process-cli/`   | a cast-free `basic.ts` (the `run` seam) and `main.ts` (a real entrypoint)                                                                                  |
-| `harness/`       | the `@tinker/harness` frame: `basic.ts` (fake `query`), `real.ts` / `codex.ts` (real adapters), `approvals.ts` / `tools.ts`                                |
-| `mcp/`           | the `@tinker/mcp` driver: `basic.ts` (in-memory client), `serve.ts` (stdio), `cli.ts` (an `mcp` command through `@tinker/process`)                         |
-| `sync/`          | the `@tinker/sync` pair: `source(wiring)` / `subscribe(link, wiring)` over `memoryPair`, a family of cells; `hono.ts` serves the pair over an event stream |
-| `issue-tracker/` | the runnable [`apps/issue-tracker`](../apps/issue-tracker/README.md): real issues over HTTP, sync, CLI, MCP, and an optional triage draft                  |
+- **core:** data, operations, resources, and the clock.
+- **react:** providers, cells, and a suspending resource.
+  `form.tsx` uses one draft cell with `typeDraft` and `saveDraft`.
+- **http:** the client, endpoints, and per-call tags.
+- **hono:** a scope at the entrypoint and a session per request.
+- **drizzle:** the store on PGlite.
+- **process:** `app.ts` has operation, streaming, lazy, and server commands.
+- **process-cli:** `basic.ts` shows the `run` seam.
+  `main.ts` is a real entrypoint.
+- **harness:** `basic.ts` uses a fake SDK query.
+  `real.ts` and `codex.ts` use real adapters.
+  `approvals.ts` and `tools.ts` add permission checks and tools.
+- **mcp:** `basic.ts` uses an in-memory client.
+  `serve.ts` uses stdio; `cli.ts` uses a process command.
+- **sync:** `source` and `subscribe` connect through `memoryPair`.
+  `hono.ts` serves them over an event stream.
+- **issue-tracker:** the runnable [app](../apps/issue-tracker/README.md)
+  has real issues over HTTP, sync, CLI, MCP, and an optional triage draft.
 
 Combine concepts by importing several packages in one file — that is the point of keeping them here
 rather than inside each package.
+
+[One agent, two services](harness/SERVICES.md) is a complete Harness example.
+One conversation reads GitHub and Cloudflare through separate HTTP settings.
+Run its tests, with no live accounts, through `vp run @tinker/examples#test`.
 
 The cast-free grep and the CLI smoke test in `scripts/validate.mjs` read this folder.

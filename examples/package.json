@@ -5,7 +5,8 @@
   "description": "Cast-free tours of the public @tinker/* surface — one place for docs and combined concepts.",
   "type": "module",
   "scripts": {
-    "check": "vp check"
+    "check": "vp check",
+    "test": "vp test"
   },
   "dependencies": {
     "@tinker/core": "workspace:*",
