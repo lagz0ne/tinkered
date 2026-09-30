@@ -4377,7 +4377,7 @@ function runSessionWith<R>(
   parent: Layer,
   options: Scope.Options | undefined,
   body: (child: Layer, handle?: Scope.Handle) => R | PromiseLike<R>,
-  caller: RunState | undefined,
+  caller?: RunState,
   signal?: AbortSignal,
 ): R | Promise<R> {
   let child: Layer;
@@ -4386,7 +4386,22 @@ function runSessionWith<R>(
   try {
     signal?.throwIfAborted();
     const sessions = parent.exts.sessions;
-    child = startChild(parent, options, caller, signal);
+    ensureOpen(parent);
+    child = makeLayer(parent, options);
+    child.failureOwner = caller;
+    if (signal) {
+      /** Seal writes now, then let the session join its body and cleanup before it detaches. */
+      const abort = (): void => {
+        child.closed = true;
+        abortSubtree(child, signal.reason);
+      };
+      signal.addEventListener("abort", abort, { once: true });
+      addDefer(child, {
+        fn: () => signal.removeEventListener("abort", abort),
+        instance: undefined,
+      });
+      if (signal.aborted) abort();
+    }
     if (sessions !== undefined) {
       return runSessionWrapped(child, body, sessions);
     }
@@ -4394,34 +4409,6 @@ function runSessionWith<R>(
     return Promise.reject(error) as Promise<R>;
   }
   return endSession(child, runBodyWith(child, body));
-}
-
-/** Open a session's child layer under `parent`: the open check, the layer, its failure owner.
- * Throws what the caller turns into a rejection (a closed parent, a bad `ns`, a preset that
- * fails its parse). Shared by {@link runSessionWith} and the tagged call's own start. */
-function startChild(
-  parent: Layer,
-  options: Scope.Options | undefined,
-  caller: RunState | undefined,
-  signal?: AbortSignal,
-): Layer {
-  ensureOpen(parent);
-  const child = makeLayer(parent, options);
-  child.failureOwner = caller;
-  if (signal) {
-    /** Seal writes now, then let the session join its body and cleanup before it detaches. */
-    const abort = (): void => {
-      child.closed = true;
-      abortSubtree(child, signal.reason);
-    };
-    signal.addEventListener("abort", abort, { once: true });
-    addDefer(child, {
-      fn: () => signal.removeEventListener("abort", abort),
-      instance: undefined,
-    });
-    if (signal.aborted) abort();
-  }
-  return child;
 }
 
 /** End a session whose body has started. A session's handle closes when its body ends, like a
@@ -4498,13 +4485,9 @@ function runSession<R>(
   options: Scope.Options | undefined,
   fn: (scope: Scope.Handle) => R | PromiseLike<R>,
 ): Promise<R> {
-  const life = runSessionWith(
-    parent,
-    options,
-    (child, handle) => fn(handle ?? handleFor(child)),
-    undefined,
+  return Promise.resolve(
+    runSessionWith(parent, options, (child, handle) => fn(handle ?? handleFor(child))),
   );
-  return life instanceof Promise ? life : Promise.resolve(life);
 }
 
 /** Start a session body, normalizing to a promise. `fn` is called synchronously
@@ -5103,35 +5086,6 @@ function ownEntry(
 
 export { isError };
 export type { Errors } from "./errors.ts";
-
-/** The session body's value, or undefined if it rejected — the body's end (success/failed/cancelled)
- * is classified authoritatively by `startClose` via `classifyBody` (ADR 0026). */
-function bodyResult<R>(body: Promise<R>): Promise<R | undefined> {
-  return body.then(
-    (value) => value,
-    () => undefined,
-  );
-}
-
-/** A session's own life: run the body, force-close, keep the body's value beside the close `Result`.
- * `close()` never throws (ADR 0027/0028); the `Result` decides resolve/reject in
- * {@link settleSessionEnded}. The self-close is FORCED — the body is done, so any still-running
- * owned work is aborted rather than awaited; the body's own outcome decides success/cancelled. */
-async function runSessionEnded<R>(
-  child: Layer,
-  start: (child: Layer) => Promise<R>,
-): Promise<{ result: unknown; ended: Scope.Result }> {
-  const started = start(child);
-  child.body = started;
-  child.bodyEnd = started.then(
-    (): Scope.Outcome => (child.aborted ? { status: "cancelled" } : SUCCESS),
-    (cause: unknown): Scope.Outcome =>
-      isCancel(child, cause) ? { status: "cancelled" } : { status: "failed", error: cause },
-  );
-  const result = await bodyResult(started);
-  const ended = await closeLayer(child, true, false);
-  return { result, ended };
-}
 
 /** A record that keeps a session's close on the full path: a built resource instance, default or
  * named, or a watcher, default or named. */
@@ -5776,9 +5730,23 @@ async function runSessionWrapped<R>(
   const handle = withSessionCreate(handleFor(child), child, sessions);
   let wrapped: { result: unknown; ended: Scope.Result };
   try {
-    wrapped = await sessionThrough(sessions, handle, child, () =>
-      runSessionEnded(child, (c) => Promise.resolve(runBodyWith(c, body, handle))),
-    );
+    wrapped = await sessionThrough(sessions, handle, child, async () => {
+      const started = Promise.resolve(runBodyWith(child, body, handle));
+      child.body = started;
+      child.bodyEnd = started.then(
+        (): Scope.Outcome => (child.aborted ? { status: "cancelled" } : SUCCESS),
+        (cause: unknown): Scope.Outcome =>
+          isCancel(child, cause) ? { status: "cancelled" } : { status: "failed", error: cause },
+      );
+      const result = await started.then(
+        (value) => value,
+        () => undefined,
+      );
+      /** The body is done, so force-close any owned work. Its own outcome decides cancellation;
+       * the close Result decides resolve/reject in {@link settleSessionEnded} (ADR 0027/0028). */
+      const ended = await closeLayer(child, true, false);
+      return { result, ended };
+    });
   } finally {
     freeAfterHooks(child, hooks);
   }
@@ -5945,10 +5913,10 @@ function runHookCall<T, I>(
     return runHookChain(layer, target, parent, chain, caller, hookTarget, call);
   const result = runSessionWith(
     layer,
-    { tags: call?.tags, ns: chain },
+    { tags: call.tags, ns: chain },
     (child) => runHookChain(child, target, parent, chain, undefined, hookTarget, call),
     caller,
-    call?.signal,
+    call.signal,
   );
   if (caller) track(layer, result, runFailure(layer, caller));
   return result;
