@@ -73,6 +73,22 @@ test("a request in flight during an edit finishes on its old root", async () => 
     .toBe('"second"');
 });
 
+test("stopping during a reload signals the starting root before joining it", async () => {
+  const host = await createDevFixture(false);
+  expect((await host.ready).kind).toBe("ready");
+  await writeFile(join(host.directory, "value.ts"), 'export const value: string = "slow-boot";\n');
+  await host.probe.entered.promise;
+  host.stop.abort();
+  try {
+    await expect.poll(() => host.probe.signals.at(-1)!.aborted).toBe(true);
+  } finally {
+    host.probe.release.resolve();
+  }
+  expect(await host.done).toBe(0);
+  expect(host.probe.clients.at(-1)!.closed).toBe(true);
+  await expect(fetch(host.url)).rejects.toThrow();
+});
+
 test.each(['export const value: string = "broken";', "export const value = ;"])(
   "a broken server edit serves 503 until a good edit (%s)",
   async (source) => {

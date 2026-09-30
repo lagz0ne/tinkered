@@ -455,5 +455,7 @@ Prod gets none of these defaults.
 
 - Live updates borrow one connection across roots.
 
+- Stopping during a reload signals the starting root
+  before joining it.
 - A root teardown failure still closes dev services
   and answers one.

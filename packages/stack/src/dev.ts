@@ -39,7 +39,7 @@ export declare namespace Dev {
  * Each root owns its scope and answers only after closed. Stop joins any reload
  * before releasing the retained services; a broken app stays editable on 503. */
 export async function runDev(options: Dev.Options, stop: AbortSignal): Promise<number> {
-  const host = new DevHost(options);
+  const host = new DevHost(options, stop);
   const scope = createScope({
     signal: stop,
     extensions: [
@@ -59,6 +59,7 @@ export async function runDev(options: Dev.Options, stop: AbortSignal): Promise<n
 
 class DevHost {
   private options: Dev.Options;
+  private signal: AbortSignal;
   private env: NodeJS.ProcessEnv;
   private entry: string;
   private listener: HttpServer;
@@ -74,8 +75,9 @@ class DevHost {
   private stopping = false;
   private url = "";
 
-  constructor(options: Dev.Options) {
+  constructor(options: Dev.Options, signal: AbortSignal) {
     this.options = options;
+    this.signal = signal;
     this.entry = resolve(options.root, options.entry);
     this.env = {
       ...options.env,
@@ -173,7 +175,7 @@ class DevHost {
         const run = readRoot(entry);
         const stop = new AbortController();
         const ready = Promise.withResolvers<Dev.App>();
-        const done = run(this.env, stop.signal, {
+        const done = run(this.env, AbortSignal.any([stop.signal, this.signal]), {
           client: this.client!,
           connection: this.connection,
           ready: (app) => ready.resolve(app),

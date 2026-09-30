@@ -4843,3 +4843,18 @@ No build runs in that tree while the job waits or runs.
   No build runs in the separate timing tree.
 - The t18, t17, t13, and t08 work has not yet reached
   `origin/main`; the final gate must include it.
+
+### t14 stop while reloading
+
+- A new regression test held the next root in start,
+  then stopped the host.
+  Before the fix, the root's stop signal stayed live:
+  one test failed, exit 1.
+- Each root now uses `AbortSignal.any` to join the
+  reload signal with the host's stop signal.
+  Stop reaches a starting root before the host joins it.
+- After the fix: build, check, stack 76, and prose pass;
+  exit 0. Check remains at zero errors and 28 warnings.
+- Cancelled the earlier timing wait before it acquired
+  the lock or ran code; its exit was 143.
+  The final timing run will use the final source.

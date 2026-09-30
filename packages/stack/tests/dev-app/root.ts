@@ -49,6 +49,10 @@ export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal, host:
             if (value === "close-broken") ctx.raise("CloseFailed", { value });
           });
           await host.client.exec("create table if not exists kept (title text)");
+          if (value === "slow-boot") {
+            probe.entered.resolve();
+            await probe.release.promise;
+          }
           if (value === "broken") ctx.raise("BootFailed", { value });
         },
       }),
