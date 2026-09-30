@@ -6,7 +6,7 @@ import type { ContentfulStatusCode, StatusCode } from "hono/utils/http-status";
 import type { JSONValue } from "hono/utils/types";
 import type { Many, Namespace, Observe, Operation, RunResult, Scope, Tag } from "@tinker/core";
 import { extension, isError as isCoreError, readMany, resource, tag } from "@tinker/core";
-import { isError, raise } from "./errors.ts";
+import { isError, makeError, raise } from "./errors.ts";
 
 type Endpoint = (c: Context) => Promise<Response>;
 
@@ -146,9 +146,12 @@ function describeError(error: unknown): Record<string, unknown> {
 
 type SessionEnv = {
   Variables: {
-    "tinker.session": Scope.Handle;
+    "tinker.session": Scope.Handle | undefined;
     "tinker.onError": HonoScope.OnError | undefined;
     "tinker.kept": boolean;
+    "tinker.failure": { error: unknown } | undefined;
+    "tinker.close": (graceful: boolean) => Promise<Scope.Result>;
+    "tinker.logError": (error: Error, c: Context) => Response;
   };
 };
 
@@ -210,35 +213,74 @@ function readStop(served: HonoScope.Served | undefined): void | PromiseLike<void
   return served.close();
 }
 
-/** Open one session per request, bound with the request plus any request-derived tags.
- * A client abort force-closes the session (rollback); after the handler the session
- * closes graceful (commit). */
-function serveRequests(scope: Scope.Handle, wiring: HonoScope.Wiring | undefined): Middleware {
+/** The session body owns the route's failure even when Hono maps it to a response.
+ * Hold that body until the reply or stream is done; start close before releasing it so
+ * graceful close still drains owned work, while a client abort still forces rollback. */
+function serveRequests(scope: Scope.Handle, wiring: HonoScope.Wiring = {}): Middleware {
+  const logError = scope.resolve(requestErrors);
   return createMiddleware<SessionEnv>(async (c, next) => {
     const raw = c.req.raw;
-    const ns = wiring?.ns?.(c);
-    const session = scope.createSession({
-      tags: [request(raw), wiring?.tags?.(c)],
-      trace: readTraceparent(raw.headers.get("traceparent")),
-      ns,
-    });
-    c.set("tinker.session", session);
-    c.set("tinker.onError", wiring?.onError);
-    const onAbort = (): void => {
-      ignoreRejection(session.close());
-    };
-    raw.signal.addEventListener("abort", onAbort, { once: true });
+    const answered = Promise.withResolvers<void>();
+    const finished = Promise.withResolvers<void>();
+    c.set("tinker.onError", wiring.onError);
+    c.set("tinker.logError", logError);
+    const lifetime = scope.session(
+      {
+        tags: [request(raw), wiring.tags?.(c)],
+        trace: readTraceparent(raw.headers.get("traceparent")),
+        ns: wiring.ns?.(c),
+      },
+      async (session) => {
+        c.set("tinker.session", session);
+        c.set("tinker.close", async (graceful) => {
+          const closing = session.close(graceful ? { graceful: true } : undefined);
+          finished.resolve();
+          const result = await closing;
+          const ended = await settled;
+          raw.signal.removeEventListener("abort", onAbort);
+          return result.status === "success" && !result.teardownErrors?.length ? ended : result;
+        });
+        const onAbort = (): void => {
+          ignoreRejection(session.close());
+        };
+        raw.signal.addEventListener("abort", onAbort, { once: true });
+        try {
+          if (raw.signal.aborted) {
+            onAbort();
+            c.res = new Response(null, { status: 499 });
+          } else await next();
+        } catch (error: unknown) {
+          answered.reject(error);
+          throw error;
+        } finally {
+          answered.resolve();
+        }
+        await finished.promise;
+        const failure = c.get("tinker.failure");
+        if (failure) throw failure.error;
+        if (c.error) throw c.error;
+      },
+    );
+    /** Join the session hooks as well as structural close; their errors remain failures. */
+    const settled = lifetime.then(
+      (): Scope.Result => ({ status: "success" }),
+      (error: unknown): Scope.Result => {
+        answered.reject(error);
+        return { status: "failed", error };
+      },
+    );
     try {
-      if (raw.signal.aborted) {
-        onAbort();
-        c.res = new Response(null, { status: 499 });
-        return;
-      }
-      await next();
+      await answered.promise;
     } finally {
-      if (!(c as Context<SessionEnv>).get("tinker.kept")) {
-        raw.signal.removeEventListener("abort", onAbort);
-        await session.close({ graceful: true });
+      if (c.get("tinker.session") && !c.get("tinker.kept")) {
+        const result = await c.get("tinker.close")(true);
+        if (readCloseError(result, c, false)) {
+          c.res = undefined;
+          c.res = new Response("internal", {
+            status: 500,
+            headers: { "content-type": "text/plain; charset=UTF-8" },
+          });
+        }
       }
     }
   });
@@ -257,6 +299,20 @@ function readTraceparent(header: string | null): Observe.Trace | null {
   if (version === "ff" || (version === "00" && suffix !== undefined)) return null;
   if (/^0+$/.test(traceId) || /^0+$/.test(parentSpanId)) return null;
   return { traceId, parentSpanId, sampled: (Number.parseInt(flags, 16) & 1) === 1 };
+}
+
+/** An answered route failure and a client abort already have an answer. Only an
+ * extra close failure replaces it. Teardown errors always count, on every status. */
+function readCloseError(
+  result: Scope.Result,
+  c: Context<SessionEnv>,
+  bodyHandled: boolean,
+): Error | undefined {
+  const answered = bodyHandled || c.get("tinker.failure") || c.error || c.req.raw.signal.aborted;
+  if (!result.teardownErrors?.length && (result.status === "success" || answered)) return;
+  const error = makeError("RequestCloseFailed", { result });
+  c.get("tinker.logError")(error, c);
+  return error;
 }
 
 /** One `emit` call enqueues one chunk: strings are UTF-8 encoded, bytes pass through.
@@ -305,10 +361,10 @@ export function stream(
   if (!session) raise("NoSession", { label: "stream" });
   const encoder = new TextEncoder();
   let closed = false;
-  const closeOnce = (graceful: boolean): void => {
+  const closeOnce = (graceful: boolean): Promise<Scope.Result> | undefined => {
     if (closed) return;
     closed = true;
-    ignoreRejection(session.close(graceful ? { graceful: true } : undefined));
+    return (c as Context<SessionEnv>).get("tinker.close")(graceful);
   };
   const readable = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -324,25 +380,41 @@ export function stream(
         tags: [call?.tags, emit(write)],
         ...(call?.ns === undefined ? {} : { ns: call.ns }),
       });
-      const running = body.run(op, {
-        input: call?.input,
-        rawInput: call?.rawInput,
-      } as Scope.ProvideInput<unknown>);
+      let running: unknown;
+      try {
+        running = body.run(op, {
+          input: call?.input,
+          rawInput: call?.rawInput,
+        } as Scope.ProvideInput<unknown>);
+      } catch (error: unknown) {
+        (c as Context<SessionEnv>).set("tinker.kept", false);
+        throw error;
+      }
       const settled = Promise.resolve(running);
       const finish = settled.then(
-        () => {
-          controller.close();
-          closeOnce(true);
+        async () => {
+          const result = await closeOnce(true);
+          if (!result) return;
+          const error = readCloseError(
+            result,
+            c as Context<SessionEnv>,
+            result.status === "cancelled",
+          );
+          if (error) controller.error(error);
+          else controller.close();
         },
-        (error: unknown) => {
+        async (error: unknown) => {
+          (c as Context<SessionEnv>).set("tinker.failure", { error });
           controller.error(error);
-          closeOnce(true);
+          const result = await closeOnce(true);
+          if (result) readCloseError(result, c as Context<SessionEnv>, true);
         },
       );
       ignoreRejection(finish);
     },
-    cancel() {
-      closeOnce(false);
+    async cancel() {
+      const result = await closeOnce(false);
+      if (result) readCloseError(result, c as Context<SessionEnv>, true);
     },
   });
   /** A synchronous start failure leaves cleanup with the request middleware. */
@@ -425,8 +497,8 @@ function settleFlow<T, I>(
 
 /** Build the request run: input to op subflow to respond to status + one log line.
  * The subflow runs through `settle` (ADR 0067), so a failure answered here, a panic
- * included, never fails the request session; a value returned after a client
- * abort still answers, as `run` would. `onError` answers first;
+ * included, is handed back to the session body to fail the request (ADR 0084).
+ * A value returned after a client abort still answers, as `run` would. `onError` answers first;
  * otherwise the default map turns a handled failure into a Response (400/500,
  * request span `ok`) and rethrows the rest — the unmapped path is Hono's, so it
  * writes no log line (Hono's `onError` decides that status). */
@@ -462,6 +534,7 @@ function readRoute<T, I>(
     const respond: HonoScope.Respond<T> = route.respond ?? defaultRespond;
     const readInput = route.input;
     const fail = async (error: unknown): Promise<Response> => {
+      (c as Context<SessionEnv>).set("tinker.failure", { error });
       const mapped = await mapError(error, c, onError, ctx.signal);
       if (mapped === undefined) {
         done(new Response(null, { status: 499 }));
