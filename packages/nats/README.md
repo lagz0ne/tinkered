@@ -104,7 +104,8 @@ Import `namespace` from `@tinker/core` for this example.
 Its plain handle has `send(message)`; no SDK client escapes.
 After ready, `scope.resolve(bus.extension)` returns the sender
 for the root's initial namespace.
-Resolving it without the extension raises `NotStarted`.
+Resolving `bus.connection` without the installed extension
+raises `NotStarted`.
 Calling its `send` handle after close raises `NotStarted`.
 Graceful close stops incoming work and waits for replies
 before the scope closes its resources.
