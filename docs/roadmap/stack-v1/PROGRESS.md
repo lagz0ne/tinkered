@@ -2939,9 +2939,9 @@ MUTATION_EXIT 0
 ## t10 writer work
 
 - Owner: stack/t10 writer (Codex), branch `stack/t10`.
-- Status: Doing; lead requested fresh full mutation proof.
+- Status: Review; both fresh full mutation runs pass.
 - Base: local `stack/t06` at `c68802fd`.
-- Next: full auth and Hono mutation runs, then the full gate.
+- Next: lead review, then join the listed Hono changes with t17.
 - Verify: HTTP auth tests, Hono and stack tests, gate,
   validation, and one auth mutation lane at least 85.
 - Assumption: the example app lives in
@@ -3238,3 +3238,35 @@ they do not require keeping the old commit or rollback behavior.
 - Logs: `stack-t10-hono-full-1.log` and
   `stack-t10-hono-full-1.json` in the same cache folder.
 - Next: the requested full gate, then `pnpm validate`.
+
+### t10 follow-up final gate
+
+- The requested chain passes by exit code, `EXIT 0`:
+  build, check, auth, Hono, stack, then every repo test task.
+- Check: 0 errors and 29 warnings, matching the checked base.
+  Auth: 16; Hono: 73; stack: 63; tracker: 79.
+  All 18 repo test tasks pass.
+- Then `pnpm validate` passes all 50 lanes, `EXIT 0`.
+  Restored `pnpm-workspace.yaml`; it has no branch change.
+- Strict census, TSDoc, prose, and SCIP refs pass.
+  No public symbol was removed.
+- Main advanced while the mutation runs waited.
+  Stopped only this worktree's advisory `main..HEAD` reader:
+  it was reading newer core and HTTP changes outside this ticket.
+  Re-ran Jev on the held base, `c68802fd..HEAD`.
+  It has no file flags and the same explained unit notes.
+- The two `stateOutsideCell` labels and the stream's
+  `effectWithoutDefer` label remain false; no new labels.
+  Request bookkeeping belongs to the started server root.
+  The stream already owns its close path.
+  Each auth frame needs its own config and user tags.
+- No runtime source, test, or package config changed in this
+  follow-up; only the board and these proof notes changed.
+- No rebase or push.
+  Base is still local t06 at
+  `c68802fd96fc26fa606dd2419662979164e52b26`.
+- All own long jobs finished in this turn.
+  Status: Review; next is the lead's review and later t17 rebase.
+- Final logs: `stack-t10-followup-gate.log`,
+  `stack-t10-followup-validate.log`, and
+  `stack-t10-followup-jev-base.log` in the same cache folder.
