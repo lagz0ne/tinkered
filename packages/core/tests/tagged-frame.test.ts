@@ -268,6 +268,6 @@ test("session hooks read the first write after next and run hooks fire once", as
     run: ({ cell }) => cell.set(9),
   });
   await root.run(op, { tags });
-  expect(events).toEqual(["run", "before:call", "after:9"]);
+  expect(events).toEqual(["before:call", "run", "after:9"]);
   await root.close();
 });
