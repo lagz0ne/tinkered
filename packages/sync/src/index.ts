@@ -367,17 +367,17 @@ export function subscribe(
         const scope = event.scope;
         const state = event.resolve(clientState);
         const transport = await scope.resolve(link);
+        state.close = () => transport.close();
+        if (state.closing) state.close();
         let shut = false;
         let stopMessages: () => void = () => undefined;
         let stopParted: () => void = () => undefined;
         const published = readPublished(cells, (_key, cell, ns) => ({ cell, ns }));
         const stops: Array<() => void> = [];
-        const first: string[] = [];
-        for (const key of published.entries.keys()) first.push(key);
+        const first = [...published.entries.keys()];
         const missing = new Set<string>(first);
         if (state.closing) {
           published.stop();
-          transport.close();
           raise("SyncNotReady", { label: "subscribe", missing: first });
         }
         let waiters: { settle: () => void; fail: () => void } | undefined;
@@ -431,6 +431,10 @@ export function subscribe(
           if (shut) return;
           transport.send({ type: "register", keys: [key] });
         }
+        state.close = () => {
+          stop();
+          transport.close();
+        };
         stopMessages = transport.onMessage((message) => {
           if (shut) return;
           if (message.type !== "snapshot") {
@@ -446,11 +450,9 @@ export function subscribe(
           }
           failStart();
         });
-        state.close = () => {
-          stop();
-          transport.close();
-        };
-        transport.send({ type: "register", keys: first });
+        if (shut) stopParted();
+        if (!shut) transport.send({ type: "register", keys: first });
+        if (shut) throw broken();
         for (const [unit, name] of cells) {
           if (isFamily(unit)) {
             const label = name;
