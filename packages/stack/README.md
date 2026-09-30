@@ -76,8 +76,50 @@ the root adds the newline when it writes to stdout.
 
 ## Traces and logs over OTLP
 
-`traceSink({ env, write })` returns `extension` and `observe`.
-Make a fresh piece for each root and pass both:
+`traceSink()` defines an extension for a telemetry scope,
+which owns the queue, export operations, and timer.
+Its `config` tag supplies that scope's settings and local writer.
+After `ready`, resolve the extension to get an observe config
+that app roots can borrow:
+
+```ts
+const tracing = traceSink();
+const telemetryStop = new AbortController();
+const telemetry = createScope({
+  signal: telemetryStop.signal,
+  extensions: [tracing],
+  tags: tracing.config({
+    env: {
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4318",
+      OTEL_SERVICE_NAME: "issue-tracker",
+    },
+    write: (line) => process.stdout.write(`${line}\n`),
+  }),
+});
+await telemetry.ready;
+
+const appStop = new AbortController();
+const app = createScope({
+  signal: appStop.signal,
+  extensions: [web],
+  observe: telemetry.resolve(tracing),
+});
+await app.closed;
+telemetryStop.abort();
+await telemetry.closed;
+```
+
+Reuse the same `tracing` definition in separate telemetry roots.
+Each root keeps its own settings, writer, and queue.
+Closing one root or failing its setup leaves the others running.
+Close all apps before telemetry to export their final cleanup spans
+and logs.
+Leave observation off in the telemetry scope so exports do not
+create more records to export.
+
+The legacy `traceSink({ env, write })` form returns `extension`
+and `observe` for one observed root.
+Make a fresh piece per root and pass both:
 
 ```ts
 const traces = traceSink({

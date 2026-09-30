@@ -1,4 +1,15 @@
-import { extension, LEVELS, type Clock, type Observe } from "@tinker/core";
+import {
+  extension,
+  LEVELS,
+  operation,
+  resource,
+  tag,
+  type Clock,
+  type Observe,
+  type Operation,
+  type Scope,
+  type Tag,
+} from "@tinker/core";
 import { raise } from "./errors.ts";
 import { jsonLines } from "./observe.ts";
 import { encodeBatch, encodeLog, encodeSpan } from "./otlp.ts";
@@ -10,12 +21,83 @@ export declare namespace TraceSink {
     /** Local JSON lines, without a trailing newline. Never sent back to OTLP. */
     write: (line: string) => void;
   };
+  type Extension = Scope.Extension<Observe.Config> & {
+    readonly config: Tag.Handle<Wiring>;
+  };
 }
 
-/** Make one piece per root, passing both its extension and observe config.
- * The root owns the queue and timer. It retains finished spans and logs until
- * flush reads their ids and encodes them. Only graceful close flushes. */
-export function traceSink(wiring: TraceSink.Wiring) {
+/** Reuse this definition in telemetry roots with their own config tags.
+ * Resolve it after ready and lend its observe config to app roots. Close the
+ * apps before telemetry so graceful close exports their final records. */
+export function traceSink(): TraceSink.Extension;
+/** Legacy root-only wiring: make a fresh piece per observed root and pass
+ * both its extension and observe config. Only graceful close flushes. */
+export function traceSink(wiring: TraceSink.Wiring): {
+  observe: Observe.Config;
+  extension: Scope.Extension<void>;
+};
+export function traceSink(wiring?: TraceSink.Wiring) {
+  return wiring === undefined ? createTraceExtension() : createRootTraceSink(wiring);
+}
+
+function createTraceExtension(): TraceSink.Extension {
+  const config = tag<TraceSink.Wiring>({ label: "stack.trace.config" });
+  const queue = resource({
+    label: "stack.trace.queue",
+    target: "scope",
+    depends: { config: config.required },
+    factory: ({ config }, ctx) => {
+      const owned = new TraceQueue(readSettings(config.env), ctx.clock, jsonLines(config.write));
+      ctx.defer(() => owned.stop());
+      return owned;
+    },
+  });
+  const ingest = operation({
+    label: "stack.trace.ingest",
+    depends: { queue },
+    run: ({ queue }, ctx: Operation.Ctx<Observe.Span | Observe.Log>) => queue.ingest(ctx.input),
+  });
+  const exportBatch = operation({
+    label: "stack.trace.export",
+    depends: { queue },
+    run: ({ queue }) => queue.flush(),
+  });
+  const observe = resource({
+    label: "stack.trace.observe",
+    target: "scope",
+    depends: { ingest },
+    factory: ({ ingest }): Observe.Config => ({
+      export: (span) => ingest.run({ input: span }),
+      log: (entry) => ingest.run({ input: entry }),
+    }),
+  });
+  return Object.assign(
+    extension({
+      label: "stack.trace",
+      hooks: {
+        start: async (event) => {
+          const owned = event.resolve(queue);
+          const exporter = event.controller(exportBatch);
+          owned.start(() => exporter.run());
+          await event.next();
+          return event.resolve(observe);
+        },
+        close: async (event) => {
+          const owned = event.resolve(queue);
+          owned.beginClose(event.options.graceful === true);
+          try {
+            return await event.next();
+          } finally {
+            await owned.finishClose();
+          }
+        },
+      },
+    }),
+    { config },
+  );
+}
+
+function createRootTraceSink(wiring: TraceSink.Wiring) {
   const local = jsonLines(wiring.write);
   let queue: TraceQueue | undefined;
   const observe: Observe.Config = {
@@ -36,9 +118,9 @@ export function traceSink(wiring: TraceSink.Wiring) {
         const settings = readSettings(wiring.env);
         const owned = new TraceQueue(settings, ctx.clock, local);
         queue = owned;
-        const timer = owned.start();
+        owned.start(() => owned.flush());
         ctx.defer(async () => {
-          await owned.stop(timer);
+          await owned.stop();
         });
         await next();
       },
@@ -90,6 +172,7 @@ class TraceQueue {
   private state: "open" | "graceful" | "stopped" = "open";
   private warned = false;
   private pending?: Promise<void>;
+  private timer?: Promise<void>;
   private stopTimer = new AbortController();
   private stopDeadline = new AbortController();
   private requests = new AbortController();
@@ -105,6 +188,11 @@ class TraceQueue {
     this.local = local;
   }
 
+  ingest(record: Observe.Span | Observe.Log): void {
+    writeLocal(() => ("level" in record ? this.local.log?.(record) : this.local.export?.(record)));
+    this.add(record);
+  }
+
   add(record: Observe.Span | Observe.Log): void {
     if (this.state === "stopped") {
       this.warn("scope closed");
@@ -117,21 +205,26 @@ class TraceQueue {
     this.records.push(record);
   }
 
-  async start(): Promise<void> {
+  start(flush: () => Promise<void>): void {
+    this.timer = this.runTimer(flush);
+  }
+
+  private async runTimer(flush: () => Promise<void>): Promise<void> {
     while (!this.stopTimer.signal.aborted) {
       try {
         await this.clock.sleep(1000, this.stopTimer.signal);
       } catch {
         return;
       }
-      await this.flush();
+      if (this.stopTimer.signal.aborted) return;
+      await flush();
     }
   }
 
-  async stop(timer: Promise<void>): Promise<void> {
+  async stop(): Promise<void> {
     /** A failed start can run defers without running the close hook. */
     if (this.state === "open") this.beginClose(false);
-    await timer;
+    await this.timer;
   }
 
   beginClose(graceful: boolean): void {
