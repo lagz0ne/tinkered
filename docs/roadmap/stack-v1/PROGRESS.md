@@ -3338,3 +3338,81 @@ they do not require keeping the old commit or rollback behavior.
   `stack-t10-resume-main-check.log` in the briefs cache.
 - Next: auth and Hono mutation lanes, alone under the lock,
   then validation and the lead's review.
+
+### Rebase conflicts
+
+- `packages/hono/src/index.ts`: t10 prepares cookie tags;
+  main owns the request body and close result.
+  Keep preparation outside main's moved session body.
+  Drop the old t10 session body and client-abort guard.
+- `packages/hono/README.md`: main promises commit and cleanup;
+  t10 promises async tags.
+  Keep both, with a new async-tags section.
+- `docs/roadmap/stack-v1/PROGRESS.md`: keep main's later proof
+  and append t10's saved proof and these resume notes.
+- `TODO.md`: keep main's board and update only the t10 card.
+  Remove its old parked row while this writer resumes it.
+- `tools/jev/cases.jsonl`: keep both banks' rows.
+  Label the changed request preparation and moved session body.
+- Later t10 Hono patches met code already kept in the first
+  replayed commit; keep that code and replay their tests.
+- No board-landing commit needed dropping or reverting.
+
+### Hono changes kept for auth after the rebase
+
+All paths in this list are under `packages/hono`.
+
+- `src/index.ts:71`: tags can return a promise.
+  Auth's cookie read must finish before `store.tx` opens.
+- `src/index.ts:214`: one started root owns pending reads,
+  its close phase, forced-close mode, and one close promise.
+  Core cannot own a cookie read before its session exists.
+- `src/index.ts:228`: graceful close waits for accepted reads
+  and their requests before core refuses new sessions.
+  Forced close starts at once; repeat close joins the same work.
+- `src/index.ts:236`: mark the root closed when close ends.
+  Keep main's error handler for late requests after that point.
+- `src/index.ts:241`: new requests answer 503 while closing.
+  They cannot add a cookie read after the drain starts.
+- `src/index.ts:244`: read tags before opening the session.
+  Sync hooks keep main's tags, trace, namespace read order.
+  Async hooks wait, then bind the user beside the raw request.
+- `src/index.ts:259`: hold each async read through its reply
+  and release it on success or failure.
+  A stream has its owned session before this promise leaves.
+  A rejected cookie read fails its request, not root close.
+- `src/index.ts:265`: answer 499 when a cookie read finishes
+  after forced close; never run the prepared operation.
+- `src/index.ts:276`: move main's session body into one helper.
+  Both sync and async tags use its commit and rollback rules.
+  Main's abort cleanup and stream rules stay intact.
+- `tests/hono.test.ts:585`: prove tags precede session resources.
+- `tests/hono.test.ts:619`: prove abort during tags answers 499
+  and runs no operation, using main's abort branch.
+- `tests/hono.test.ts:652`: prove accepted requests finish during
+  graceful close, while new requests answer 503.
+- `tests/hono.test.ts:676`: prove a failed cookie read does not
+  make root close fail.
+- `tests/hono.test.ts:687`: prove forced close answers 499
+  after tags and runs no operation.
+- `README.md:347`: promise the async-read order and close rules.
+
+Main already covers a client abort once the session exists.
+The t10-only guard before session creation was dropped.
+Main does not drain cookie reads before sessions exist.
+That drain and the forced-close 499 still belong to t10.
+
+### Core feedback kept from the saved branch
+
+Core blocks new sessions before a close hook can drain preparation.
+Hono still wraps this root's close to finish accepted cookie reads.
+A hook before that block would remove the workaround.
+Without it, the accepted request below answers 500 on close.
+
+```ts
+const reply = app.request("/me");
+const closing = scope.close({ graceful: true });
+finishCookieRead();
+await reply;
+await closing;
+```
