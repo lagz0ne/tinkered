@@ -4718,3 +4718,46 @@ flock /tmp/mutation.lock \
   No new Core feedback or workaround was needed.
 - Saved work waits in Review for the lead to land it.
   The writer made no push.
+
+## t14 writer notes
+
+Owner: stack/t14 writer. Branch: `stack/t14`.
+Next: build the dev host, then prove reload and stop.
+Verify: brief gate, validate, stack mutation at least 85,
+and queue verdict `b is faster` for reload versus restart.
+
+### Impact before code
+
+- Add `@tinker/stack/dev` as a separate entry.
+  Only that entry loads Vite and the local NATS server.
+- Add an optional third argument to `runServer`.
+  It lends a PGlite client and NATS connection.
+  Its `ready` callback takes a promise for the web app.
+  The root still awaits its own `closed` and returns a code.
+- Dev omits the root's `server` row.
+  The dev host owns one listener for the whole run.
+  It routes only to a web app whose root is ready.
+- The tracker store already borrows `{ client }`.
+  `Nats.Wiring.connection` already borrows a connection.
+  No change to drizzle or NATS is needed.
+- Add `connection` to `LiveUpdates.Wiring` and pass it
+  through to the NATS piece.
+  Callers: stack live tests and the tracker's full root.
+- Prod loses the root's data and listen defaults.
+  Tests already pass listen settings and a data folder.
+  Dev binds the data folder, host, port, and local NATS URL.
+- Review refs for `liveUpdates`, `LiveUpdates`, and `nats`
+  after `scripts/scip.sh index stack nats drizzle`.
+  Check tracker callers with `git grep runServer`.
+
+### Choices
+
+The precedent is Rails' kept database pool (ADR 0082).
+The root keeps the signal and `closed` rule (ADR 0085).
+A promise hands the web app to the host without handing
+it a scope, or letting it serve before ready.
+The root call resolves only after its scope has closed.
+
+Assumption: the dev entry lists `nats: true` when its root
+uses NATS; the tracker lists it.
+No default is inferred from `NODE_ENV`.
