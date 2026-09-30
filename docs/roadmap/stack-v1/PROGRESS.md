@@ -1916,3 +1916,60 @@ impact stack/t04: as planned (0 discrepancies). Advisory — never a gate.
   NATS public signatures stay the same;
   publish and subscription now carry trace context.
   Check stack and the issue tracker as consumers.
+
+### t13 first green step
+
+- Stack: 77 tests passed; NATS: 23 tests passed.
+- `vp check`: 0 errors, 29 warnings.
+  The clean base at `f8bc981b` also has 29 warnings.
+- `vp run prose`: 0 hits.
+- Jev tests: 0 flags for stack and NATS.
+  README promises: 0 gaps for both.
+- Jev preflight: no file flags.
+  The driver cleanup set is owned by NATS, not app data.
+  Its `stateOutsideCell=false` label is already in the bank.
+  The HTTP test receiver owns its packets and socket;
+  both fixture flags are labeled false.
+  The fixture now has short `listen` and `close` methods.
+- The OTLP writer adds zero dependencies.
+  Stack built install files: 11,513 → 18,555 bytes.
+  Added install bytes: 7,042; added gzip code: 2,077.
+- Cost probe, through `flock /tmp/mutation.lock` and
+  `benchctl exec -- node bench/trace-sink.mjs`:
+  61 measured batches of 1024 fresh finished spans.
+  Minimum 2,726 ns/span; median 3,057; p95 6,809.
+  The cost includes lazy id reads and queue encoding.
+  It excludes HTTP, scope setup, and batch envelopes.
+  All 72,704 spans arrived, including warmup batches.
+  This is a cost measure, not a before/after speed claim.
+- Assumptions: one sink per root; fixed queue and timer limits;
+  HTTP/JSON only; failed sends are dropped without retry.
+  These keep the sink small and put a bound on shutdown.
+- No existing public signature changed, so no old SCIP
+  symbol must disappear.
+
+### t13 core feedback
+
+`start` still drops logs (`core/start-log` already tracks it).
+The sink writes failure lines through local `jsonLines`
+instead of the start context.
+This public probe printed expected 1, actual 0:
+
+```ts
+const lines = [];
+const scope = createScope({
+  observe: { log: (line) => lines.push(line) },
+  extensions: [
+    extension({
+      label: "boot-log",
+      start: (_scope, ctx) => {
+        ctx.log.warn("boot warning");
+      },
+    }),
+  ],
+});
+await scope.ready;
+await scope.close({ graceful: true });
+// Expected: 1. Actual: 0.
+console.log(lines.length);
+```
