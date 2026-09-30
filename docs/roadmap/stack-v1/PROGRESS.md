@@ -2534,3 +2534,36 @@ The checked Hono, Stack, tracker, Core, and lockfile trees are unchanged.
 No code or tests changed during this resume.
 The branch is ready for lead review; this writer did not push.
 Core feedback: none new.
+
+## t18 writer — 2026-09-30
+
+Owner: stack/t18 writer. Branch: `stack/t18`.
+Next: replace the lifetime helper, then run the gate.
+Verify: stack and tracker tests, browser proof, real entry
+exit codes, plain lifetime rules, validation, and mutation.
+
+### t18 impact before code
+
+- Remove the public `runUntilStop` function.
+  Its callers are the tracker's server entry and the
+  stack's server tests; the stack README shows it too.
+- Add `readExitCode(result, observe, phase)`.
+  The result and observe config are borrowed.
+  The helper owns no scope and does not wait or close.
+- A failed result or any teardown error answers 1.
+  Every other result, including cancellation, answers 0.
+- Assumption: the root supplies `"boot"` or `"shutdown"`
+  because core's result has no boot marker.
+  Reading ready's outcome chooses the existing log line;
+  only core owns cleanup and the stop listener.
+- Keep the tracker's extension order from t06.
+  Rebase on t17 before the final gate and keep its server
+  changes. Leave the parallel root migration alone.
+- Review: index stack and check both helper symbols.
+  The removed symbol must print `(none)`.
+
+```sh
+scripts/scip.sh index stack
+scripts/scip.sh refs 'runUntilStop' stack
+scripts/scip.sh refs 'readExitCode' stack
+```
