@@ -1,7 +1,15 @@
-import { Info, Loader2, Play } from "lucide-react";
+import {
+  ArrowUpRight,
+  Info,
+  Layers3,
+  Loader2,
+  Network,
+  Play,
+  RotateCw,
+  ScanLine,
+} from "lucide-react";
 import { useState } from "react";
 import type { ReactElement } from "react";
-import { Button } from "@/components/ui/button.tsx";
 import { isError } from "@/errors.ts";
 import { cn } from "@/lib/utils.ts";
 import {
@@ -21,6 +29,7 @@ import {
   type Stat,
   UPDATE_SAMPLES,
 } from "./runners.ts";
+import "./benchmark.css";
 
 function fmtUs(v: number): string {
   if (v >= 100) return `${Math.round(v)}`;
@@ -38,49 +47,46 @@ const floor1 = (k: number): string => (Math.floor(k * 10) / 10).toFixed(1);
 
 const isTinker = (r: LibResult) => r.name.includes("tinker");
 
-function Metric({ label, stat, best }: { label: string; stat: Stat; best: Stat }): ReactElement {
+function Metric({
+  label,
+  stat,
+  best,
+  ceiling,
+}: {
+  label: string;
+  stat: Stat;
+  best: Stat;
+  ceiling: number;
+}): ReactElement {
   const isFastest = !faster(best, stat);
-  const pct = Math.max(3, (stat.median / (best.median * 4)) * 100);
+  const pct = (stat.median / ceiling) * 100;
   return (
-    <div className="min-w-0">
-      <div className="mb-1 flex items-baseline justify-between gap-2 text-[11px] text-muted-foreground">
-        <span className="shrink-0 whitespace-nowrap">{label}</span>
-        <span className="tabular-nums">
-          {fmtUs(stat.median)} µs
-          <span className="ml-1 text-muted-foreground/70">±{spreadPct(stat)}%</span>
-          <span
-            className={cn(
-              "ml-1.5 rounded px-1 py-px font-semibold whitespace-nowrap",
-              isFastest ? "bg-emerald-100 text-emerald-700" : "bg-muted text-foreground/70",
-            )}
-          >
-            {isFastest ? "≈ fastest" : `${floor1(stat.median / best.median)}× slower`}
-          </span>
+    <div className={cn("bench-metric", isFastest && "bench-metric-fastest")}>
+      <div className="bench-metric-label">{label}</div>
+      <div className="bench-metric-value">
+        <span>
+          {fmtUs(stat.median)} <small>µs</small>
         </span>
+        <span className="bench-spread">±{spreadPct(stat)}%</span>
       </div>
-      <div className="relative h-2 overflow-hidden rounded-full bg-muted">
-        <div
-          className={cn(
-            "absolute inset-y-0 left-0 rounded-full transition-[width] duration-700 ease-out",
-            isFastest ? "bg-emerald-500" : "bg-zinc-400",
-          )}
-          style={{ width: `${Math.min(100, pct)}%` }}
-        />
+      <div className="bench-meter" aria-hidden="true">
+        <div className="bench-meter-fill" style={{ width: `${pct}%` }} />
       </div>
+      <span className="bench-comparison">
+        {isFastest ? "≈ fastest" : `${floor1(stat.median / best.median)}× slower`}
+      </span>
     </div>
   );
 }
 
-/** The naive baseline's re-render pill gets a one-sentence "why" next to it. SVG elements have no
- * `title` prop in React's types (a real SVG tooltip needs a child `<title>` element instead), so
- * the tooltip text lives on a wrapping `span`. */
+/** The baseline uses a single Context value, so every consumer observes every change. */
 function WhyNaive(): ReactElement {
   return (
     <span
-      className="inline-flex shrink-0"
+      className="bench-naive-note"
       title="One context value object — every consumer re-renders on any change; the fine-grained libraries subscribe per slice."
     >
-      <Info className="size-3.5 text-muted-foreground" aria-label="why" />
+      <Info className="size-3.5" aria-label="why" />
     </span>
   );
 }
@@ -90,46 +96,46 @@ function ResultRow({
   bestUpdate,
   bestMount,
   bestFanout,
+  maxUpdate,
+  maxMount,
+  maxFanout,
 }: {
   r: LibResult;
   bestUpdate: Stat;
   bestMount: Stat;
   bestFanout: Stat;
+  maxUpdate: number;
+  maxMount: number;
+  maxFanout: number;
 }): ReactElement {
   const tinker = isTinker(r);
   const ideal = r.metrics.rerenders <= 1;
   const fanoutLabel = r.fanoutNote ? `fan-out (${r.fanoutNote})` : "fan-out";
   return (
-    <div
-      className={cn(
-        "grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 border-b px-4 py-3 last:border-0 md:grid-cols-[1fr_auto_1.4fr_1.4fr_1.4fr] md:items-center",
-        tinker && "bg-primary/5",
-        r.control && "text-muted-foreground",
-      )}
-    >
-      <span className={cn("text-sm", tinker ? "font-semibold" : "font-medium")}>{r.name}</span>
-      <div className="flex items-center justify-self-end gap-1">
+    <article className={cn("bench-result", tinker && "bench-result-tinker")}>
+      <div className="bench-library">
+        <h3>{r.name}</h3>
+        <span>
+          {r.control
+            ? "No-store control"
+            : r.fine
+              ? "Per-slice subscription"
+              : "Shared Context value"}
+        </span>
+      </div>
+      <div className="bench-render-count">
         <span
-          className={cn(
-            "rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums",
-            ideal ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700",
-          )}
+          className={cn("bench-render-value", ideal && "bench-render-ideal")}
           title="components re-rendered by one update"
         >
-          {r.metrics.rerenders}× re-render
+          {r.metrics.rerenders}× <span>re-render</span>
         </span>
         {!r.fine && <WhyNaive />}
       </div>
-      <div className="col-span-2 md:col-span-1">
-        <Metric label="update" stat={r.metrics.update} best={bestUpdate} />
-      </div>
-      <div className="col-span-2 md:col-span-1">
-        <Metric label="mount" stat={r.metrics.mount} best={bestMount} />
-      </div>
-      <div className="col-span-2 md:col-span-1">
-        <Metric label={fanoutLabel} stat={r.metrics.fanout} best={bestFanout} />
-      </div>
-    </div>
+      <Metric label="update" stat={r.metrics.update} best={bestUpdate} ceiling={maxUpdate} />
+      <Metric label="mount" stat={r.metrics.mount} best={bestMount} ceiling={maxMount} />
+      <Metric label={fanoutLabel} stat={r.metrics.fanout} best={bestFanout} ceiling={maxFanout} />
+    </article>
   );
 }
 
@@ -149,13 +155,11 @@ function GapBadges({
   metric: (r: LibResult) => Stat;
 }): ReactElement {
   return (
-    <ul className="mt-2 flex flex-wrap gap-1.5">
+    <ul className="bench-gap-list">
       {others.map((o) => (
-        <li
-          key={o.name}
-          className="rounded-full border bg-background px-2.5 py-0.5 text-xs tabular-nums"
-        >
-          {gapWords(metric(o), tinker)} <b>{o.name}</b>
+        <li key={o.name}>
+          <span>{gapWords(metric(o), tinker)}</span>
+          <b>{o.name}</b>
         </li>
       ))}
     </ul>
@@ -168,30 +172,59 @@ function Takeaway({ results }: { results: LibResult[] }): ReactElement | null {
   if (!tinker) return null;
   const others = results.filter((r) => r !== tinker && !r.control);
   return (
-    <div className="mt-6 rounded-xl border bg-muted/30 p-4 text-sm leading-relaxed">
-      <p>
-        <b>Re-render count.</b> One update re-renders <b>{tinker.metrics.rerenders} component</b>{" "}
-        with @tinker/react
-        {naive && (
-          <>
-            {" "}
-            — <b>{naive.name}</b> re-renders all <b>{naive.metrics.rerenders}</b>, that's{" "}
-            <b>{naive.metrics.rerenders}× the component renders</b> for the same change
-          </>
-        )}
-        .
-      </p>
-      <p className="mt-2">
-        <b>Update speed.</b> @tinker/react applies one change in{" "}
-        <b>{fmtUs(tinker.metrics.update.median)} µs</b> (±{spreadPct(tinker.metrics.update)}%):
-      </p>
-      <GapBadges tinker={tinker.metrics.update} others={others} metric={(r) => r.metrics.update} />
-      <p className="mt-2">
-        <b>Fan-out.</b> One write that all {N} components read applies in{" "}
-        <b>{fmtUs(tinker.metrics.fanout.median)} µs</b> (±{spreadPct(tinker.metrics.fanout)}%):
-      </p>
-      <GapBadges tinker={tinker.metrics.fanout} others={others} metric={(r) => r.metrics.fanout} />
-    </div>
+    <section className="bench-takeaway" aria-label="Tinker results in context">
+      <div className="bench-section-heading">
+        <span className="bench-eyebrow">Reading the results</span>
+        <h2>@tinker/react, in context.</h2>
+      </div>
+      <div className="bench-takeaway-grid">
+        <article className="bench-takeaway-item">
+          <span className="bench-eyebrow">01 / Re-render count</span>
+          <p className="bench-takeaway-number">
+            {tinker.metrics.rerenders}
+            <small> component</small>
+          </p>
+          <p>
+            One update with @tinker/react.
+            {naive && (
+              <>
+                {" "}
+                <b>{naive.name}</b> re-renders all <b>{naive.metrics.rerenders}</b> —{" "}
+                <b>{naive.metrics.rerenders}× the component renders</b> for the same change.
+              </>
+            )}
+          </p>
+        </article>
+        <article className="bench-takeaway-item">
+          <span className="bench-eyebrow">02 / Update speed</span>
+          <p className="bench-takeaway-number">
+            {fmtUs(tinker.metrics.update.median)}
+            <small> µs</small>
+          </p>
+          <p>One changed slice. ±{spreadPct(tinker.metrics.update)}% spread.</p>
+          <GapBadges
+            tinker={tinker.metrics.update}
+            others={others}
+            metric={(r) => r.metrics.update}
+          />
+        </article>
+        <article className="bench-takeaway-item">
+          <span className="bench-eyebrow">03 / Fan-out</span>
+          <p className="bench-takeaway-number">
+            {fmtUs(tinker.metrics.fanout.median)}
+            <small> µs</small>
+          </p>
+          <p>
+            One write, all {N} components. ±{spreadPct(tinker.metrics.fanout)}% spread.
+          </p>
+          <GapBadges
+            tinker={tinker.metrics.fanout}
+            others={others}
+            metric={(r) => r.metrics.fanout}
+          />
+        </article>
+      </div>
+    </section>
   );
 }
 
@@ -206,35 +239,67 @@ function ResultsTable({ results }: { results: LibResult[] }): ReactElement {
   const bestUpdate = fastest.metrics.update;
   const bestMount = quickestMount.metrics.mount;
   const bestFanout = quickestFanout.metrics.fanout;
+  const maxUpdate = Math.max(...results.map((r) => r.metrics.update.median));
+  const maxMount = Math.max(...results.map((r) => r.metrics.mount.median));
+  const maxFanout = Math.max(...results.map((r) => r.metrics.fanout.median));
   return (
     <>
-      <Takeaway results={results} />
-      <div className="mt-4 overflow-hidden rounded-xl border">
-        <div className="hidden grid-cols-[1fr_auto_1.4fr_1.4fr_1.4fr] items-center gap-x-4 border-b bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground md:grid">
-          <span>Library · fastest update first</span>
-          <span className="text-right">per update</span>
-          <span>update (lower is better)</span>
-          <span>mount (lower is better)</span>
-          <span>fan-out · 1 write → 50 re-renders</span>
+      <section className="bench-results" aria-label="Measured library results">
+        <div className="bench-results-heading">
+          <div>
+            <span className="bench-eyebrow">Measurements / µs</span>
+            <h2>Every library. Same work.</h2>
+          </div>
+          <span className="bench-results-order">
+            Fastest update first <ArrowUpRight aria-hidden="true" className="size-3.5" />
+          </span>
         </div>
-        {sorted.map((r) => (
-          <ResultRow
-            key={r.name}
-            r={r}
-            bestUpdate={bestUpdate}
-            bestMount={bestMount}
-            bestFanout={bestFanout}
-          />
-        ))}
-      </div>
-      <p className="mt-2 text-xs text-muted-foreground">
-        Median of {UPDATE_SAMPLES} update, {FANOUT_SAMPLES} fan-out, and {MOUNT_SAMPLES} mount
-        samples, taken in interleaved rounds; ± is half the interquartile range. "N× slower" is
-        against the fastest in that column and is only claimed when the gap is ≥{GAP_FLOOR}×{" "}
-        <i>and</i> the two spreads don't overlap. The <i>control</i> row is plain per-component
-        useState — the floor for one synchronous re-render; every library's number is its overhead
-        above that.
-      </p>
+        <div className="bench-table">
+          <div className="bench-table-heading" aria-hidden="true">
+            <span>Library</span>
+            <span>Per update</span>
+            <span>
+              Update <small>↓ better</small>
+            </span>
+            <span>
+              Mount <small>↓ better</small>
+            </span>
+            <span>
+              Fan-out <small>↓ better</small>
+            </span>
+          </div>
+          {sorted.map((r) => (
+            <ResultRow
+              key={r.name}
+              r={r}
+              bestUpdate={bestUpdate}
+              bestMount={bestMount}
+              bestFanout={bestFanout}
+              maxUpdate={maxUpdate}
+              maxMount={maxMount}
+              maxFanout={maxFanout}
+            />
+          ))}
+        </div>
+        <p className="bench-result-note">
+          Lower times are better. Each column shares a scale; its longest bar is the slowest median.
+          Fan-out is one write → {N} re-renders.
+        </p>
+      </section>
+      <Takeaway results={results} />
+      <details className="bench-method-note">
+        <summary>
+          <Info aria-hidden="true" className="size-4" /> How to read these numbers <span>+</span>
+        </summary>
+        <p>
+          Median of {UPDATE_SAMPLES} update, {FANOUT_SAMPLES} fan-out, and {MOUNT_SAMPLES} mount
+          samples, taken in interleaved rounds; ± is half the interquartile range. “N× slower” is
+          against the fastest in that column and is only claimed when the gap is ≥{GAP_FLOOR}×{" "}
+          <i>and</i> the two spreads don’t overlap. The <i>control</i> row is plain per-component
+          useState — the floor for one synchronous re-render; every library’s number includes its
+          overhead above that.
+        </p>
+      </details>
     </>
   );
 }
@@ -263,12 +328,80 @@ async function runRounds(
 }
 
 function BenchNotice({ error }: { error: string | null }): ReactElement {
-  if (error) return <p className="mt-3 text-sm text-destructive">{error}</p>;
+  if (error)
+    return (
+      <div className="bench-notice bench-error" role="alert">
+        <Info aria-hidden="true" className="size-5" />
+        <div>
+          <h2>Run stopped.</h2>
+          <p>{error}</p>
+        </div>
+      </div>
+    );
   return (
-    <p className="mt-8 text-sm text-muted-foreground">
-      Click <b>Run benchmark</b> to measure @tinker/react against Zustand, Jotai, Legend State v2
-      &amp; v3, Preact Signals, a naive React Context baseline, and a plain useState control.
-    </p>
+    <div className="bench-notice">
+      <ScanLine aria-hidden="true" className="size-6" />
+      <div>
+        <h2>Ready when you are.</h2>
+        <p>
+          Run benchmark to compare @tinker/react, Zustand, Jotai, Legend State v2 &amp; v3, Preact
+          Signals, a naive React Context baseline, and a plain useState control.
+        </p>
+      </div>
+      <span className="bench-notice-tag">Awaiting a run</span>
+    </div>
+  );
+}
+
+function BenchProtocol(): ReactElement {
+  return (
+    <div className="bench-protocol" aria-label="Benchmark workloads">
+      <div className="bench-protocol-item">
+        <ScanLine aria-hidden="true" />
+        <div>
+          <span>01 / Update</span>
+          <p>
+            One slice changes.
+            <br />
+            Count the re-renders.
+          </p>
+        </div>
+        <span className="bench-protocol-samples">
+          {UPDATE_SAMPLES}
+          <small> samples</small>
+        </span>
+      </div>
+      <div className="bench-protocol-item">
+        <Layers3 aria-hidden="true" />
+        <div>
+          <span>02 / Mount</span>
+          <p>
+            {N} components.
+            <br />
+            Measure the first render.
+          </p>
+        </div>
+        <span className="bench-protocol-samples">
+          {MOUNT_SAMPLES}
+          <small> samples</small>
+        </span>
+      </div>
+      <div className="bench-protocol-item">
+        <Network aria-hidden="true" />
+        <div>
+          <span>03 / Fan-out</span>
+          <p>
+            One shared write.
+            <br />
+            All {N} components render.
+          </p>
+        </div>
+        <span className="bench-protocol-samples">
+          {FANOUT_SAMPLES}
+          <small> samples</small>
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -323,28 +456,75 @@ export function BenchPage(): ReactElement {
   const label = running ? "Running…" : results ? "Run again" : "Run benchmark";
 
   return (
-    <div className="h-full overflow-auto">
-      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
-        <header className="mb-6">
-          <h1 className="text-2xl font-semibold tracking-tight">Store benchmark</h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            {N} components, each subscribed to <b>one</b> slice. We update a single slice and count
-            how many components re-render (<b>1 is ideal</b>), plus update and mount time — the{" "}
-            <b>median</b> of many interleaved rounds. Real React, in <b>your</b> browser: numbers
-            are relative and move with CPU load, not the CI benchmark. Every library runs its
-            source-audited best configuration.
-          </p>
+    <div className="bench-page">
+      <div className="bench-content">
+        <header className="bench-header">
+          <div className="bench-intro">
+            <span className="bench-eyebrow">
+              <span className="bench-status-light" /> Store benchmark / React
+            </span>
+            <h1>
+              The cost of
+              <br />
+              <em>a change.</em>
+            </h1>
+            <p>One slice. {N} components. How much work does one update really take?</p>
+          </div>
+          <div className="bench-specimen">
+            <div className="bench-specimen-heading">
+              <span>Test specimen</span>
+              <span>{N} / components</span>
+            </div>
+            <div className="bench-specimen-stage" aria-hidden="true">
+              <div className="bench-specimen-grid">
+                {Array.from({ length: N }, (_, i) => (
+                  <span key={i} className={i === 22 ? "bench-specimen-cell-active" : undefined} />
+                ))}
+              </div>
+            </div>
+            <p>
+              One slice per component<span>{N} independent reads</span>
+            </p>
+          </div>
         </header>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={run} disabled={running}>
-            {running ? <Loader2 className="animate-spin" /> : <Play />}
-            {label}
-          </Button>
-          {running && <span className="text-sm text-muted-foreground">{progress}</span>}
+        <BenchProtocol />
+
+        <div className="bench-run-bar">
+          <button className="bench-run-button" type="button" onClick={run} disabled={running}>
+            {running ? (
+              <Loader2 aria-hidden="true" className="bench-running-icon" />
+            ) : results ? (
+              <RotateCw aria-hidden="true" />
+            ) : (
+              <Play aria-hidden="true" />
+            )}
+            <span>{label}</span>
+            <ArrowUpRight aria-hidden="true" className="bench-run-arrow" />
+          </button>
+          <p>
+            Real React. Your browser.<span>Times vary with your device and CPU load.</span>
+          </p>
+          <span className="bench-run-footnote">
+            Median of interleaved rounds<small>Source-audited library setups</small>
+          </span>
         </div>
 
+        {running && (
+          <div className="bench-progress" role="status" aria-live="polite">
+            <div>
+              <span className="bench-eyebrow">Measurement in progress</span>
+              <span>{progress}</span>
+            </div>
+            <progress aria-label={progress} />
+            <p>Libraries take turns each round. Warm-up samples are discarded.</p>
+          </div>
+        )}
         {results ? <ResultsTable results={results} /> : !running && <BenchNotice error={error} />}
+        <footer className="bench-footer">
+          <span>Measure. Compare. Repeat.</span>
+          <span>Results belong to this browser, not the CI benchmark.</span>
+        </footer>
       </div>
     </div>
   );

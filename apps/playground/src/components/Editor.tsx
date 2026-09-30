@@ -1,6 +1,7 @@
 import { useResource } from "@tinker/react";
 import type { ReactElement } from "react";
 import { codeEditor } from "@/lib/code-editor.ts";
+import "./code-view.css";
 
 /** The mount point of the `codeEditor` resource's host. The component holds no editor state at
  * all: the resource owns the CodeMirror view for the whole scope, and the callback ref simply
@@ -13,7 +14,7 @@ export function Editor(): ReactElement {
       ref={(el) => {
         if (el !== null && el.firstElementChild !== editor.host) el.replaceChildren(editor.host);
       }}
-      className="h-full min-h-0"
+      className="code-editor h-full min-h-0"
     />
   );
 }

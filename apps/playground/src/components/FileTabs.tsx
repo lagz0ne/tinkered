@@ -1,4 +1,4 @@
-import { Plus, X } from "lucide-react";
+import { FileCode2, Plus, X } from "lucide-react";
 import type { ReactElement } from "react";
 import { cn } from "@/lib/utils.ts";
 
@@ -29,10 +29,10 @@ export function FileTabs({
   onRename,
 }: FileTabsProps): ReactElement {
   return (
-    <div className="flex min-w-0 items-center gap-1">
-      <div className="flex min-w-0 items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="file-tabs">
+      <div className="file-tabs-scroll">
         {files.map((name) => (
-          <div key={name} className="flex shrink-0 items-center gap-0.5">
+          <div key={name} className={cn("file-tab", name === active && "file-tab-active")}>
             {renaming === name ? (
               <input
                 autoFocus
@@ -47,7 +47,7 @@ export function FileTabs({
                   if (e.key === "Escape") onRenameOpen(undefined);
                 }}
                 aria-label={`Rename ${name}`}
-                className="h-11 w-28 rounded-md bg-accent px-2.5 font-mono text-xs outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                className="file-tab-rename"
               />
             ) : (
               <button
@@ -55,14 +55,10 @@ export function FileTabs({
                 onClick={() => onSelect(name)}
                 onDoubleClick={() => onRenameOpen(name)}
                 aria-current={name === active}
-                className={cn(
-                  "flex min-h-11 cursor-pointer items-center rounded-md px-2.5 text-xs font-medium transition-colors select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring",
-                  name === active
-                    ? "bg-accent text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
+                className="file-tab-name"
               >
-                <span className="font-mono">{name}</span>
+                <FileCode2 aria-hidden="true" className="size-3.5" />
+                <span>{name}</span>
               </button>
             )}
             {files.length > 1 && renaming !== name && (
@@ -70,21 +66,16 @@ export function FileTabs({
                 type="button"
                 onClick={() => onClose(name)}
                 aria-label={`Close ${name}`}
-                className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                className="file-tab-close"
               >
-                <X className="size-3.5" />
+                <X aria-hidden="true" className="size-3.5" />
               </button>
             )}
           </div>
         ))}
       </div>
-      <button
-        type="button"
-        onClick={onAdd}
-        className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
-        aria-label="New file"
-      >
-        <Plus className="size-4" />
+      <button type="button" onClick={onAdd} className="file-tab-add" aria-label="New file">
+        <Plus aria-hidden="true" className="size-4" />
       </button>
     </div>
   );
