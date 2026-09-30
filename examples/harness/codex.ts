@@ -1,33 +1,40 @@
 import { createScope, operation } from "@tinker/core";
 import { codex, harness } from "@tinker/harness";
-
-function parsePrompt(raw: unknown): string {
-  if (typeof raw !== "string") throw new Error("bad prompt");
-  return raw;
-}
+import { z } from "zod";
+import { checkClosed } from "./errors.ts";
 
 const coder = harness({ label: "coder", adapter: codex });
 const ask = operation({
   label: "coder.ask",
-  input: parsePrompt,
+  input: z.string().trim().min(1),
   depends: { send: coder.send },
-  run: async ({ send }, ctx) => {
-    const result = await send.run({ input: { input: ctx.input } });
-    return result;
-  },
+  run: ({ send }, ctx) => send.run({ input: { input: ctx.input } }),
 });
 
-/** The real adapter (needs Codex auth — not run by tests).
- * Prints `text` while streaming.
- * Units are declared once at module level (ADR 0057); `tour` only wires a scope and runs them. */
-export async function tour(): Promise<string> {
-  const scope = createScope({
-    tags: [codex.options({ workingDirectory: process.cwd(), sandboxMode: "read-only" })],
+/** Requires an authenticated SDK; the caller owns any streamed output. */
+export async function tour(cwd: string, write: (text: string) => void): Promise<string> {
+  const stop = new AbortController();
+  const root = createScope({
+    signal: stop.signal,
+    tags: [codex.options({ workingDirectory: cwd, sandboxMode: "read-only" })],
   });
-  const session = scope.createSession();
-  session.controller(coder.text).watch((next) => process.stdout.write(next));
-  await session.run(ask, { input: "say hello in five words" });
-  const answer = session.resolve(coder.text);
-  await scope.close();
-  return answer;
+  let completed = false;
+  try {
+    await root.ready;
+    const session = root.createSession();
+    session.controller(coder.text).watch((next, previous) => write(next.slice(previous.length)));
+    await session.run(ask, { input: "say hello in five words" });
+    const result = session.resolve(coder.text);
+    completed = true;
+    return result;
+  } finally {
+    stop.abort();
+    const result = await root.closed;
+    if (completed) checkClosed(result);
+  }
+}
+
+if (import.meta.main) {
+  await tour(process.cwd(), (text) => process.stdout.write(text));
+  process.stdout.write("\n");
 }

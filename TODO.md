@@ -39,13 +39,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **examples/standalone** — each example has its own package and entry.
-  Owner: lead (Codex); writers: Astra, one package at a time.
-  Next: split packages, fix authoring gaps, and check exported copies.
-  Verify: outside-repo install, check, tests, and run for every example;
-  full build, code check, tests, prose, and strict style census.
-  [Track](docs/roadmap/examples-v1/PROGRESS.md).
-
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
@@ -109,6 +102,13 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 [All blockers and parked work reviewed 2026-09-19](docs/roadmap/blocked-and-parked-review.md).
 
 ## Done
+
+- **examples/standalone** — all eleven examples run on their own.
+  Owner: lead (Codex); Astra writers; Opus 5.5 READY.
+  Proof: every exported copy passed install, check, tests, and run.
+  Full build, check, package tests, prose, and strict census passed.
+  All 48 release checks passed; Jev calibration is saved.
+  [Track](docs/roadmap/examples-v1/PROGRESS.md).
 
 - **authoring/packages** — checked all 14 packages and all three apps.
   Owner: lead (authoring session); source: `46bf1f74`.

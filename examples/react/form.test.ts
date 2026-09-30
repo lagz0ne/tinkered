@@ -1,10 +1,12 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, preset } from "@tinker/core";
-import { draft, save, saveDraft, typeDraft } from "./form.js";
+import { draft, save, saveDraft, typeDraft } from "./index.ts";
 
 test("typing then saving posts once and clears the draft", async () => {
   const seen: string[] = [];
+  const stop = new AbortController();
   const scope = createScope({
+    signal: stop.signal,
     presets: [
       preset(save, (_deps, ctx) => {
         seen.push("post");
@@ -13,6 +15,7 @@ test("typing then saving posts once and clears the draft", async () => {
     ],
   });
   try {
+    await scope.ready;
     scope.run(typeDraft, { input: { title: "x" } });
     expect(scope.resolve(draft)).toEqual({ title: "x", description: "" });
     const saved = await scope.run(saveDraft);
@@ -20,6 +23,7 @@ test("typing then saving posts once and clears the draft", async () => {
     expect(seen).toEqual(["post"]);
     expect(scope.resolve(draft)).toEqual({ title: "", description: "" });
   } finally {
-    await scope.close();
+    stop.abort();
+    await scope.closed;
   }
 });

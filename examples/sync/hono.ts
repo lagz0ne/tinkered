@@ -1,12 +1,12 @@
-import { data, operation, resource } from "@tinker/core";
+import { createScope, operation, resource, type Scope } from "@tinker/core";
 import { emit, hono, route, stream } from "@tinker/hono";
-import { source, type Sync } from "@tinker/sync";
+import type { Sync } from "@tinker/sync";
 import { createSseServer } from "@tinker/sync/sse";
 import { z } from "zod";
 import { raise } from "./errors.ts";
+import { src } from "./counter.ts";
 
-/** Sync needs nothing on the cell: its wire key comes from the row, never unit meta (ADR 0051). */
-const counter = data({ label: "counter", initial: 0 });
+export { src } from "./counter.ts";
 
 /** A posted register: the keys the viewer shows. Anything else is refused. */
 const registerSchema = z.object({ type: z.literal("register"), keys: z.array(z.string()) });
@@ -23,10 +23,6 @@ const posts = resource({
     return wires;
   },
 });
-
-/** The source extension, one identity per process: the root installs this same
- * object and the `/sync` row's op declares it in `depends`. */
-export const src = source({ cells: [[counter, "counter"]] });
 
 /** Check the source and inbox are up before sending the stream headers. */
 const openWire = operation({
@@ -82,3 +78,46 @@ export const { extension: web } = hono([
     respond: (_delivery, c) => c.text("ok"),
   }),
 ]);
+
+/** Read one locally emitted SSE frame without opening a port or making a network request. */
+export async function honoTour(): Promise<string> {
+  const stop = new AbortController();
+  const root = createScope({ signal: stop.signal, extensions: [web, src] });
+  let output: string;
+  let end: Scope.Result;
+  try {
+    await root.ready;
+    const app = root.resolve(web);
+    const response = await app.request("/sync?client=demo");
+    if (response.body === null) raise("NoStream", { status: response.status });
+    const reader = response.body.getReader();
+    try {
+      const posted = await app.request("/sync?client=demo", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ type: "register", keys: ["counter"] }),
+      });
+      if (!posted.ok) raise("RegistrationFailed", { status: posted.status });
+      const first = await reader.read();
+      if (first.done) raise("StreamEnded", { client: "demo" });
+      output = new TextDecoder().decode(first.value).trim();
+    } finally {
+      try {
+        await reader.cancel();
+      } finally {
+        reader.releaseLock();
+      }
+    }
+  } finally {
+    stop.abort();
+    end = await root.closed;
+  }
+  if (end.status === "failed") throw end.error;
+  if (end.teardownErrors?.length) {
+    const [error] = end.teardownErrors;
+    throw error;
+  }
+  return output;
+}
+
+if (import.meta.main) process.stdout.write(`${await honoTour()}\n`);

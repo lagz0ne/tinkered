@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, relative, resolve, sep } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -50,6 +50,23 @@ function collectLibraries(manifest) {
   return names;
 }
 
+function copyExample(name, target) {
+  const prefix = `examples/${name}/`;
+  const files = execFileSync(
+    "git",
+    ["ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", `examples/${name}`],
+    { cwd: root, encoding: "utf8" },
+  )
+    .split("\0")
+    .filter(Boolean);
+  mkdirSync(target);
+  for (const file of files) {
+    const destination = join(target, file.slice(prefix.length));
+    mkdirSync(dirname(destination), { recursive: true });
+    cpSync(join(root, file), destination);
+  }
+}
+
 /** Copies one consumer and its built library archives; the copy owns every file it needs. */
 export function exportExample(name, destination) {
   if (!exampleNames().includes(name)) {
@@ -64,19 +81,10 @@ export function exportExample(name, destination) {
   if (existsSync(target)) throw new Error(`The destination already exists: ${target}`);
   const names = collectLibraries(manifest);
 
-  cpSync(source, target, {
-    recursive: true,
-    filter: (path) => {
-      const file = basename(path);
-      return (
-        !["node_modules", "dist", "vendor", "pnpm-lock.yaml"].includes(file) &&
-        (!file.startsWith(".env") || file === ".env.example")
-      );
-    },
-  });
+  copyExample(name, target);
   const vendor = join(target, "vendor");
   mkdirSync(vendor);
-  const overrides = { "vite@*": "npm:@voidzero-dev/vite-plus-core@0.3.1" };
+  const overrides = { "vite@*": manifest.devDependencies.vite };
   for (const dependency of names) {
     const filename = `${dependency.replace("@", "").replace("/", "-")}.tgz`;
     execFileSync("vp", ["pm", "pack", "--out", join(vendor, filename)], {
@@ -93,7 +101,17 @@ export function exportExample(name, destination) {
   writeFileSync(join(target, "package.json"), `${JSON.stringify(manifest, null, 2)}\n`);
   writeFileSync(
     join(target, "pnpm-workspace.yaml"),
-    `${JSON.stringify({ packages: ["."], overrides, allowBuilds: { esbuild: true } }, null, 2)}\n`,
+    [
+      "packages:",
+      "  - .",
+      "overrides:",
+      ...Object.entries(overrides).map(
+        ([key, value]) => `  ${key.startsWith("@") ? JSON.stringify(key) : key}: ${value}`,
+      ),
+      "allowBuilds:",
+      "  esbuild: true",
+      "",
+    ].join("\n"),
   );
   return target;
 }
@@ -105,7 +123,8 @@ if (import.meta.main) {
     process.exitCode = 1;
   } else {
     const folder = exportExample(args[0], args[1]);
+    const command = readPackage(folder).scripts.start === undefined ? "dev" : "start";
     console.log(`Exported ${args[0]} to ${folder}`);
-    console.log(`cd ${folder}\nvp install\nvp run check\nvp run test\nvp run start`);
+    console.log(`cd ${folder}\nvp install\nvp run check\nvp run test\nvp run ${command}`);
   }
 }
