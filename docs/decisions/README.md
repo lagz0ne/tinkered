@@ -67,4 +67,6 @@ by a new decision that names the old one.
 
 - [0090](0090-a-call-signal-owns-and-stops-one-action.md): a call signal stops one owned action.
 - [0091](0091-tool-graphs-may-own-a-separate-scope.md): tool graphs may have separate owners.
+- [0092](0092-each-example-is-a-stand-alone-package.md): each example owns its package and run steps.
+
 - [0093](0093-extension-hooks-use-the-event-form-only.md): extension hooks use one event form.

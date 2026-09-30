@@ -1,34 +1,83 @@
-# @tinker/examples
+# Stand-alone examples
 
-Cast-free tours of the public `@tinker/*` surface, one per concept. These import each package by its
-published name (`@tinker/core`, `@tinker/react`, …) — the same surface a consumer sees — so a release
-version bump flows straight through them (ADR 0045). Every value's type is **inferred**: no `as`, no
-non-null `!`.
+Each folder is its own private project.
+It owns its dependencies, config, checks, and run steps.
+It imports libraries by their public names.
+No example imports another example or a library's source.
 
-- **core:** data, operations, resources, and the clock.
-- **react:** providers, cells, and a suspending resource.
-  `form.tsx` uses one draft cell with `typeDraft` and `saveDraft`.
-- **http:** the client, endpoints, and per-call tags.
-- **hono:** a scope at the entrypoint and a session per request.
-- **drizzle:** the store on PGlite.
-- **process:** `app.ts` has operation, streaming, lazy, and server commands.
-- **process-cli:** `basic.ts` shows the `run` seam.
-  `main.ts` is a real entrypoint.
-- **harness:** `basic.ts` uses a fake SDK query.
-  `real.ts` and `codex.ts` use real adapters.
-  `approvals.ts` and `tools.ts` add permission checks and tools.
-- **mcp:** `basic.ts` uses an in-memory client.
-  `serve.ts` uses stdio; `cli.ts` uses a process command.
-- **sync:** `source` and `subscribe` connect through `memoryPair`.
-  `hono.ts` serves them over an event stream.
-- **issue-tracker:** the runnable [app](../apps/issue-tracker/README.md)
-  has real issues over HTTP, sync, CLI, MCP, and an optional triage draft.
+## Run in this repo
 
-Combine concepts by importing several packages in one file — that is the point of keeping them here
-rather than inside each package.
+Build the libraries first:
 
-[One agent, two services](harness/SERVICES.md) is a complete Harness example.
-One conversation reads GitHub and Cloudflare through separate HTTP settings.
-Run its tests, with no live accounts, through `vp run @tinker/examples#test`.
+```bash
+vp install --frozen-lockfile
+vp run -r build
+```
 
-The cast-free grep and the CLI smoke test in `scripts/validate.mjs` read this folder.
+Then run one example from its own folder:
+
+```bash
+cd examples/core
+vp run check
+vp run test
+vp run start
+```
+
+The React example starts with `vp run dev`.
+Its `vp run build` command makes a browser build.
+Each README lists the other commands and the output to expect.
+The default runs use local data or public fakes.
+Live AI and service commands need your own account settings.
+
+## Run outside this repo
+
+The libraries are not on npm yet.
+Export one project with the built libraries beside it:
+
+```bash
+vp run example:export -- core /tmp/tinker-core
+cd /tmp/tinker-core
+vp install
+vp run check
+vp run test
+vp run start
+```
+
+Choose a new folder outside the repo.
+The export copies that example and packs its required libraries.
+The copy uses local archives in `vendor/`.
+It has no dependency on this repo, its catalog, or a sibling example.
+It skips local installs, build output, and secret env files.
+The original examples keep workspace links for correct build order.
+This follows [pnpm's packing rules](https://pnpm.io/workspaces).
+
+## Choose an example
+
+- [Core](core/README.md): data, operations, resources, and a clock.
+- [HTTP](http/README.md): requests, endpoints, and call tags.
+- [Hono](hono/README.md): routes and a session per request.
+- [Drizzle](drizzle/README.md): a local PGlite database.
+- [Process](process/README.md): commands, streams, and stop signals.
+- [Process CLI](process-cli/README.md): a command entry and lazy loads.
+- [Harness](harness/README.md): conversations, tools, and approvals.
+  [Two services](harness/SERVICES.md) uses separate HTTP settings.
+- [MCP](mcp/README.md): tools over memory or stdio.
+- [Sync](sync/README.md): data updates over memory or an event stream.
+- [React](react/README.md): a counter, profile, and draft form.
+- [Tinkerer](tinkerer/README.md): two agents with separate settings.
+
+The full [issue tracker](../apps/issue-tracker/README.md) combines these ideas.
+
+## Check every copy
+
+```bash
+vp run example:check
+```
+
+This exports each example into a fresh folder outside the repo.
+It installs, checks, tests, and runs that copy.
+It also builds and serves the React browser entry.
+The log gives the copy's path so you can inspect it.
+
+Authoring rules: [best-practices.md](../docs/best-practices.md).
+Package layout: [ADR 0092](../docs/decisions/0092-each-example-is-a-stand-alone-package.md).

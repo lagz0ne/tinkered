@@ -39,13 +39,12 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **authoring/hooks** — remove positional extension hooks.
-  Owner: lead (authoring session); Astra writers, xhigh, one package each.
-  Next: record callers, migrate extensions, and remove Core's old dispatch.
-  Verify: no old declarations remain; build/check, all consumer tests,
-  prose, release checks, and each changed package's isolated fault lane.
-  Core stays within 16,384 bytes gzip.
-  [Track](docs/roadmap/authoring-model/HOOKS.md).
+- **examples/standalone** — each example has its own package and entry.
+  Owner: lead (Codex); writers: Astra, one package at a time.
+  Next: split packages, fix authoring gaps, and check exported copies.
+  Verify: outside-repo install, check, tests, and run for every example;
+  full build, code check, tests, prose, and strict style census.
+  [Track](docs/roadmap/examples-v1/PROGRESS.md).
 
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
@@ -58,6 +57,14 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 - **stack/t17 hono-commit** — a request commits before it answers (a failed commit answers 500, not 200 with nothing saved); any raised error rolls the request back, even when answered 4xx (ADR 0084, user 2026-09-29). Owner: lead (stack session); Astra writer `32dd77ae`, worktree `/home/paseo/next/tinkered-stack-t17`; Opus reviewer when the writer reports. Verify: a test per rule that fails on main; hono, drizzle, stack, tracker tests; `pnpm validate`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 
 ## Review
+
+- **authoring/hooks** — remove positional extension hooks.
+  Owner: lead (authoring session); Astra writers, xhigh, one package each.
+  Next: finish caller checks, all gates, and the 14 isolated fault lanes.
+  Verify: no old declarations remain; build/check, all consumer tests,
+  prose, release checks, and all 14 packages' isolated fault lanes.
+  Core stays within 16,384 bytes gzip.
+  [Track](docs/roadmap/authoring-model/HOOKS.md).
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |

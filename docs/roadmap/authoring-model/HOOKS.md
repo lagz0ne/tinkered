@@ -1,7 +1,7 @@
 # One extension hook shape
 
 Date: 2026-09-30.
-Status: Doing.
+Status: Review.
 Owner: lead (authoring session).
 Writer model: Astra, xhigh; one package per writer.
 
