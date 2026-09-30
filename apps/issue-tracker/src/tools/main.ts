@@ -16,24 +16,26 @@ function readBaseUrl(): string {
 const stopping = data<boolean>({ label: "issues.stopping", initial: false });
 
 /** Serve the issue MCP server over stdio. An extension's `start` is its one use
- * of the scope (ADR 0051): `next()` starts the MCP driver first, then this
+ * of the scope (ADR 0051): `event.next()` starts the MCP driver first, then this
  * resolves the server it built and connects the transport. The serving lifetime
  * is the extension's — the transport closes in its `defer`, on every path. */
 const stdio = extension({
   label: "issues.stdio",
-  start: async (scope, ctx, next) => {
-    await next();
-    const server = scope.resolve(issuesMcp);
-    const stop = scope.controller(stopping);
-    const done = (): void => stop.set(true);
-    process.stdin.once("end", done);
-    server.server.onclose = done;
-    ctx.defer(async () => {
-      process.stdin.removeListener("end", done);
-      await server.close();
-    });
-    await server.connect(new StdioServerTransport());
-    if (process.stdin.readableEnded) done();
+  hooks: {
+    start: async (event) => {
+      await event.next();
+      const server = event.scope.resolve(issuesMcp);
+      const stop = event.scope.controller(stopping);
+      const done = (): void => stop.set(true);
+      process.stdin.once("end", done);
+      server.server.onclose = done;
+      event.defer(async () => {
+        process.stdin.removeListener("end", done);
+        await server.close();
+      });
+      await server.connect(new StdioServerTransport());
+      if (process.stdin.readableEnded) done();
+    },
   },
 });
 

@@ -570,9 +570,11 @@ test("a stream that cannot be opened fails the boot with its own error", async (
       subscribe(wire, { cells: [[issueList, "issues"]] }),
       extension({
         label: "boot-cleanup",
-        close: (_options, next) => {
-          closes += 1;
-          return next();
+        hooks: {
+          close: (event) => {
+            closes += 1;
+            return event.next();
+          },
         },
       }),
     ],
