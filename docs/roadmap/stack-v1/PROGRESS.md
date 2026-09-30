@@ -4998,3 +4998,9 @@ No build runs in that tree while the job waits or runs.
   The saved issue survives an edit, sync ends, and SIGTERM exits 0.
 - The final gate, timing, and mutation still wait for the
   dependencies on main and the shared mutation lock.
+- The browser probe also passed, with all seven helper tests.
+  It used the same temporary helper, removed after the check.
+- Tracker Jev promises now have zero gaps in 79 titles.
+- The t17 mutation marker is present.
+  The lead's lock wait rule is met; final code still waits
+  for t17 and t18 to land on main.
