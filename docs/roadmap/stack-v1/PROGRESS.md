@@ -2939,9 +2939,9 @@ MUTATION_EXIT 0
 ## t10 writer work
 
 - Owner: stack/t10 writer (Codex), branch `stack/t10`.
-- Status: Review; the fresh full mutation gate is still open.
+- Status: Doing; lead requested fresh full mutation proof.
 - Base: local `stack/t06` at `c68802fd`.
-- Next: lead review, then a full auth mutation score of at least 85.
+- Next: full auth and Hono mutation runs, then the full gate.
 - Verify: HTTP auth tests, Hono and stack tests, gate,
   validation, and one auth mutation lane at least 85.
 - Assumption: the example app lives in
@@ -3137,3 +3137,73 @@ The lead's remaining full gate is:
 flock /tmp/mutation.lock \
   vp run --no-cache auth#mutate
 ```
+
+### t10 lead follow-up
+
+- Keep the current base; do not rebase onto the pending t17.
+- Run fresh full auth mutation, then Hono mutation, alone.
+  Count kills as `killed / (killed + timeout + survived)`.
+  The required floor is 85 percent.
+- List each Hono change and why auth needs it before review.
+- Re-run the full gate and validation; commit by path.
+
+### t10 Hono changes to keep with t17
+
+All paths below are under `packages/hono`.
+All changes serve auth's async cookie read; none were removed.
+
+- `src/index.ts:70`: the tag hook accepts a promise.
+  Auth must read its session cookie before a request can open
+  `store.tx`, since PGlite has one connection.
+- `src/index.ts:212`: each started server owns its pending
+  reads, forced-close flag, and one close promise.
+  Auth can have requests waiting on the cookie database read
+  before core has a request session to own.
+- `src/index.ts:224`: wrap this root's close.
+  Graceful close drains accepted reads and their requests
+  before core blocks new sessions.
+  Forced close starts at once; repeat close returns its promise.
+  Without this order, an accepted auth request can answer 500
+  during graceful shutdown because it cannot open its session.
+- `src/index.ts:233`: reject new requests with 503 while draining.
+  New cookie reads must not enter after shutdown chose the
+  accepted set it will drain.
+- `src/index.ts:234`: read request hooks, then pass their bound
+  tags and namespace to the request session.
+  Only promise tags wait; sync tags keep their old call order.
+  Auth needs the wait; other callers need their sync behavior.
+- `src/index.ts:247`: retain each async read through its response,
+  and release it on success or failure.
+  This covers the gap before the request session exists and
+  hands any kept stream back to core's session close path.
+  A failed auth read fails its request, not the root's close.
+- `src/index.ts:253`: answer 499 after a forced close.
+  A cookie read that finishes later must not start an operation.
+- `src/index.ts:264`: move the old session body to `serveSession`.
+  Both sync and async tags use it without adding an await to
+  sync callers; typed context also removes the old cast.
+  Its session, error hook, abort listener, and stream cleanup
+  are the prior code moved into this helper.
+- `src/index.ts:272`: answer 499 for an already-aborted request.
+  A client can abort while auth reads its cookie, before the
+  session's abort listener exists.
+  The operation must not run once that cookie read ends.
+- `tests/hono.test.ts:585`: proves the cookie read order before
+  a session resource opens, standing in for the transaction.
+- `tests/hono.test.ts:619`: proves abort during that read prevents
+  the operation and answers 499.
+- `tests/hono.test.ts:652`: proves graceful shutdown finishes the
+  accepted read and request instead of answering 500.
+- `tests/hono.test.ts:673`: proves a rejected auth read fails
+  only that request and leaves graceful close successful.
+- `tests/hono.test.ts:684`: proves forced shutdown does not run
+  an operation after its cookie read ends.
+- `README.md:296`: states those async-read promises and the
+  promise-returning hook so auth callers can rely on them.
+
+For the later rebase, t17 owns commit-before-answer and rollback
+after a raised error.
+Keep its request body and stream close rules when joining the
+session code at `src/index.ts:273`.
+The t10 changes above prepare tags before that body starts;
+they do not require keeping the old commit or rollback behavior.
