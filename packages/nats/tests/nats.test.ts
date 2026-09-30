@@ -309,8 +309,10 @@ test("missing NATS_URL fails boot before later starts and names the key", async 
     let started = false;
     const later = extension({
       label: "later",
-      start: () => {
-        started = true;
+      hooks: {
+        start: () => {
+          started = true;
+        },
       },
     });
     const scope = createScope({ extensions: [bus.extension, later] });
@@ -371,7 +373,7 @@ test("forced close aborts a running message and closes the connection", async ()
 
 test("close during boot reaps a connection that opens later", async () => {
   const release = Promise.withResolvers<void>();
-  const gate = extension({ label: "bootGate", start: () => release.promise });
+  const gate = extension({ label: "bootGate", hooks: { start: () => release.promise } });
   const bus = nats([], { env: { NATS_URL: server.url } });
   const scope = createScope({ extensions: [bus.extension, gate] });
   try {
@@ -392,8 +394,10 @@ test("failed boot keeps its cause and closes any connection without cleanup erro
   for (const failBeforeConnect of [true, false]) {
     const gate = extension({
       label: "badStart",
-      start: () => {
-        if (failBeforeConnect) throw failure;
+      hooks: {
+        start: () => {
+          if (failBeforeConnect) throw failure;
+        },
       },
     });
     const bus = nats([subscribe("bootFail", () => Promise.reject(failure))], {
@@ -488,8 +492,10 @@ test("closing a failed root leaves a later root using the same piece alive", asy
   const failure = new Error("later start failed");
   const later = extension({
     label: "later",
-    start: () => {
-      throw failure;
+    hooks: {
+      start: () => {
+        throw failure;
+      },
     },
   });
   const received: Nats.Message[] = [];
