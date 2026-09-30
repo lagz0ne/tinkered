@@ -309,13 +309,17 @@ export declare namespace Scope {
 
   /** How a subflow call is supplied (ADR 0022, 0038): a pre-typed `input` (parse skipped), or a
    * raw `rawInput` (run through the operation's parse), plus per-call ambient tag bindings and
-   * per-call namespace (ADR 0059). A call carrying `tags` opens a child session for that run
+   * per-call namespace (ADR 0059). A call carrying `tags` or `signal` opens a child session for that run
    * (ADR 0038; a value when it ended in place, a promise when it must wait, ADR 0072). A defined
    * `input` wins; an `undefined` `input` counts as absent, so `rawInput` is parsed instead. */
   export type Invocation<I> = {
     readonly input?: I;
     readonly rawInput?: unknown;
     readonly tags?: Tag.Bindings;
+    /** Own this call in a child session (ADR 0090). Abort stops its work through `ctx.signal`
+     * and waits for cleanup. The exact reason is preserved; a different late error still fails.
+     * Session resources and data writes belong to the child, as with a tagged call. */
+    readonly signal?: AbortSignal;
     /** The storage bucket for this call (ADR 0059): one namespace or a read-through chain.
      * Absent resolves in the layer's ambient namespace (or the default bucket). */
     readonly ns?: Ns;
@@ -328,12 +332,14 @@ export declare namespace Scope {
         readonly input: I;
         readonly rawInput?: never;
         readonly tags?: Tag.Bindings;
+        readonly signal?: AbortSignal;
         readonly ns?: Ns;
       }
     | {
         readonly input?: never;
         readonly rawInput: unknown;
         readonly tags?: Tag.Bindings;
+        readonly signal?: AbortSignal;
         readonly ns?: Ns;
       };
 
@@ -348,15 +354,15 @@ export declare namespace Scope {
 
   /** A callable handle onto one operation — always a function, never a value (ADR 0022). A
    * void-input operation is called `run()`; an input-carrying one must supply `input` or
-   * `rawInput`. A call carrying `tags` opens a child session for the run (ADR 0038): it returns
+   * `rawInput`. A call carrying `tags` or `signal` opens a child session for the run (ADR 0038, 0090): it returns
    * the run's value when that session ended in place, a promise when it must wait (ADR 0072),
    * so it types as `T | Promise<Awaited<T>>`, like an untagged run whose body may be async. The
-   * tagged overload comes first so a call carrying `tags` gets that type even though an untagged
+   * owned overload comes first so a call carrying `tags` or `signal` gets that type even though a plain
    * shape would also match. */
   export type OperationController<T, I> = {
-    run(...call: TaggedCall<I>): T | Promise<Awaited<T>>;
+    run(...call: OwnedCall<I>): T | Promise<Awaited<T>>;
     run(...call: CallArgs<I>): T;
-    settle(...call: TaggedCall<I>): RunResult<Awaited<T>> | Promise<RunResult<Awaited<T>>>;
+    settle(...call: OwnedCall<I>): RunResult<Awaited<T>> | Promise<RunResult<Awaited<T>>>;
     settle(...call: CallArgs<I>): Settled<T>;
   };
 
@@ -385,8 +391,17 @@ export declare namespace Scope {
    * input the call object
    * holds only `tags`; otherwise it holds the run's `input` (or `rawInput`) plus `tags`. */
   export type TaggedCall<I> = [I] extends [void]
-    ? [call: { readonly tags: Bindings; readonly ns?: Ns }]
+    ? [call: { readonly tags: Bindings; readonly ns?: Ns; readonly signal?: AbortSignal }]
     : [call: ProvideInput<I> & { readonly tags: Bindings }];
+
+  /** Tags or a signal give a call its own session, whose cleanup may be asynchronous. */
+  export type OwnedCall<I> =
+    | TaggedCall<I>
+    | [
+        call: ([I] extends [void] ? Invocation<I> : ProvideInput<I>) & {
+          readonly signal: AbortSignal;
+        },
+      ];
 
   /** An inline operation: a config with the same deps + body shape as `operation()`, but no
    * identity — no label requirement, no parse, no preset (ADR 0037). The body's parameter is
@@ -400,17 +415,42 @@ export declare namespace Scope {
 
   /** The call object an inline run takes (ADR 0037, 0038): the same invocation shape as a
    * declared run, minus `rawInput` (there is no parse). `I` is inferred from `call.input`;
-   * with nothing to pass, omit the call and `I` is void. A call carrying `tags` opens a
+   * with nothing to pass, omit the call and `I` is void. A call carrying `tags` or `signal` opens a
    * child session for the run (a value when it ended in place, a promise when it must wait). */
   export type InlineCall<I> = [I] extends [void]
-    ? [call?: { readonly tags?: Bindings; readonly ns?: Ns }]
-    : [call: { readonly input: I; readonly tags?: Bindings; readonly ns?: Ns }];
+    ? [call?: { readonly tags?: Bindings; readonly ns?: Ns; readonly signal?: AbortSignal }]
+    : [
+        call: {
+          readonly input: I;
+          readonly tags?: Bindings;
+          readonly ns?: Ns;
+          readonly signal?: AbortSignal;
+        },
+      ];
 
   /** An inline run carrying `tags` (ADR 0038): a value when its session ended in place, a promise
    * when it must wait (ADR 0072). */
   export type TaggedInlineCall<I> = [I] extends [void]
-    ? [call: { readonly tags: Bindings; readonly ns?: Ns }]
-    : [call: { readonly input: I; readonly tags: Bindings; readonly ns?: Ns }];
+    ? [call: { readonly tags: Bindings; readonly ns?: Ns; readonly signal?: AbortSignal }]
+    : [
+        call: {
+          readonly input: I;
+          readonly tags: Bindings;
+          readonly ns?: Ns;
+          readonly signal?: AbortSignal;
+        },
+      ];
+
+  /** An inline call with its own session, selected by tags or a signal. */
+  export type OwnedInlineCall<I> =
+    | TaggedInlineCall<I>
+    | [
+        call: { readonly signal: AbortSignal; readonly tags?: Bindings; readonly ns?: Ns } & ([
+          I,
+        ] extends [void]
+          ? { readonly input?: I }
+          : { readonly input: I }),
+      ];
 
   /** The per-call namespace argument of `resolve`/`controller` (ADR 0059):
    * `scope.resolve(cell, { ns })`, `scope.controller(cell, { ns })`. */
@@ -670,18 +710,18 @@ export declare namespace Scope {
      * settled (`NotResolved` before, or when the extension is not installed on this scope). */
     resolve<T>(ext: Extension<T>): T;
     /** Run an operation now — the everyday call; `controller(op).run(call)` is the long form.
-     * Same `CallArgs`/`Invocation` rules as before (ADR 0022). A call carrying `tags` opens a
+     * Same `CallArgs`/`Invocation` rules as before (ADR 0022). A call carrying `tags` or `signal` opens a
      * child session for the run (ADR 0038): the run's value when that session ended in place, a
      * promise when it must wait (ADR 0072). Also runs an inline operation config (ADR 0037) —
      * same call object, minus `rawInput` — through the same controller path, with one span named
-     * `label ?? "inline"` and nothing cached in the layer. The tagged overloads come first so a
-     * call carrying `tags` gets the `T | Promise` type even though an untagged shape would also
+     * `label ?? "inline"` and nothing cached in the layer. The owned overloads come first so a
+     * call carrying `tags` or `signal` gets the `T | Promise` type even though a plain shape would also
      * match. */
-    run<T, I>(op: Operation.Handle<T, I>, ...call: TaggedCall<I>): T | Promise<Awaited<T>>;
+    run<T, I>(op: Operation.Handle<T, I>, ...call: OwnedCall<I>): T | Promise<Awaited<T>>;
     run<T, I>(op: Operation.Handle<T, I>, ...call: CallArgs<I>): T;
     run<const D extends Depends = Record<string, never>, R = unknown, I = void>(
       inline: Inline<D, R, I>,
-      ...call: TaggedInlineCall<I>
+      ...call: OwnedInlineCall<I>
     ): R | Promise<Awaited<R>>;
     run<const D extends Depends = Record<string, never>, R = unknown, I = void>(
       inline: Inline<D, R, I>,
@@ -690,12 +730,12 @@ export declare namespace Scope {
     /** Run without throwing: return a value, failure with its origin, or cancellation. */
     settle<T, I>(
       op: Operation.Handle<T, I>,
-      ...call: TaggedCall<I>
+      ...call: OwnedCall<I>
     ): RunResult<Awaited<T>> | Promise<RunResult<Awaited<T>>>;
     settle<T, I>(op: Operation.Handle<T, I>, ...call: CallArgs<I>): Settled<T>;
     settle<const D extends Depends = Record<string, never>, R = unknown, I = void>(
       inline: Inline<D, R, I>,
-      ...call: TaggedInlineCall<I>
+      ...call: OwnedInlineCall<I>
     ): RunResult<Awaited<R>> | Promise<RunResult<Awaited<R>>>;
     settle<const D extends Depends = Record<string, never>, R = unknown, I = void>(
       inline: Inline<D, R, I>,
@@ -2229,7 +2269,7 @@ class OperationControl<T, I> {
     if (this.settler === undefined) {
       const layer = this.layer;
       const twin = OperationControl.recovered(this);
-      this.settler = (call) => settleRun(layer, () => twin.run(call));
+      this.settler = (call) => settleRun(layer, () => twin.run(call), call?.signal);
     }
     return this.settler;
   }
@@ -2346,11 +2386,11 @@ function isCancelReason(error: unknown): boolean {
   return typeof error === "object" && error !== null && cancelBrand in error;
 }
 
-/** A rejection caused by our own cancellation — a clean cancel, not a failure (ADR 0026). The layer
- * must be aborted AND the error must be a branded cancel reason (from this layer or a descendant it
- * awaited); a real error rejecting during close is unbranded and still counts as a failure. */
+/** A rejection caused by this cancellation (ADR 0026, 0090): the owner must be aborted and the
+ * error must be its exact reason, or a Core cancel reason from an awaited descendant. A different
+ * real error still fails, even if it arrives after abort. */
 function isCancel(layer: Layer, error: unknown): boolean {
-  return layer.aborted && isCancelReason(error);
+  return layer.aborted && (error === layer.abortReason || isCancelReason(error));
 }
 
 function endFor(layer: Layer, status: "ok" | "failed", error: unknown): Scope.End {
@@ -2510,17 +2550,18 @@ function hasCallNs(call: Scope.Invocation<unknown> | undefined): boolean {
   return call?.ns !== undefined;
 }
 
-/** True when a call carries tag bindings (ADR 0038): one optional `tags` read, no chain.
- * A tagged call opens a child session for the run; anything else takes the untagged body
- * inline below. Nothing (`undefined`/`null`/`false`) and `tags: []` count as untagged (no session
- * for an empty binding list); a single binding or a non-empty list counts as tagged. */
-function hasCallTags(call: Scope.Invocation<unknown> | undefined): boolean {
+/** Tags or a signal give the call a child session (ADR 0038, 0090). Empty bindings alone
+ * (`undefined`, `null`, `false`, or `[]`) leave the call on its existing owner. */
+function hasCallSession<I>(
+  call: Scope.Invocation<I> | undefined,
+): call is Scope.Invocation<I> & ({ tags: Scope.Bindings } | { signal: AbortSignal }) {
+  if (call?.signal !== undefined) return true;
   const tags = call?.tags;
   if (isNothing(tags)) return false;
   return isNotList(tags) || tags.length !== 0;
 }
 
-/** Run `target` in a child session bound with the call's tags (ADR 0038) — sugar over
+/** Run `target` in a child session bound with the call's tags or signal (ADR 0038, 0090) — sugar over
  * `session({ tags }, (s) => s.run(target, { input }))`. The value comes back as the body gave it
  * when the session ended in place, and through a promise when the session must wait (ADR 0072).
  * `parent` carries through so a subflow's span still nests under its caller. */
@@ -2529,7 +2570,7 @@ function runTagged<T, I>(
   target: Operation.Handle<T, I>,
   parent: SpanImpl | undefined,
   caller: RunState | undefined,
-  call: Scope.Invocation<I> & { readonly tags: Scope.Bindings },
+  call: Scope.Invocation<I>,
   inheritedChain: readonly Namespace[] | undefined,
 ): Awaited<T> | Promise<Awaited<T>> {
   const tags = call.tags;
@@ -2538,18 +2579,26 @@ function runTagged<T, I>(
     call.input === undefined && call.rawInput === undefined ? undefined : stripTags(call);
   const nested = caller !== undefined;
   let tagged: Awaited<T> | Promise<Awaited<T>>;
-  if (layer.exts.sessions !== undefined) {
-    /** Under `session` hooks the body must be a function the onion can call. Cold path. */
+  if (call.signal !== undefined || layer.exts.sessions !== undefined) {
+    /** Hooks need a body the onion can call; cancellation needs an attached child owner. */
     tagged = runSessionWith(
       layer,
       { tags, ns: chain },
       (child) => runUntagged(child, target, parent, inner, chain, undefined, nested),
       caller,
+      call.signal,
     ) as Awaited<T> | Promise<Awaited<T>>;
   } else {
-    tagged = runTaggedFrame(layer, target, parent, caller, tags, chain, inner, nested) as
-      | Awaited<T>
-      | Promise<Awaited<T>>;
+    tagged = runTaggedFrame(
+      layer,
+      target,
+      parent,
+      caller,
+      tags as Scope.Bindings,
+      chain,
+      inner,
+      nested,
+    ) as Awaited<T> | Promise<Awaited<T>>;
   }
   if (caller) track(layer, tagged, runFailure(layer, caller));
   return tagged;
@@ -2769,7 +2818,7 @@ function executorFor<T, I>(
 }
 
 /** The single entry every run takes — declared, subflow, and inline alike. A call carrying
- * `tags` opens a child session for the run (ADR 0038; a value or a promise, ADR 0072); a call
+ * `tags` or `signal` opens a child session for the run (ADR 0038, 0090; a value or a promise, ADR 0072); a call
  * carrying `ns` runs on a view of the layer (ADR 0059); anything else runs the body below. A plain
  * function: a controller's `run` is a one-line closure over it, and a replay on a fresh child layer
  * calls it directly, with no closure or context of its own. `sees` is the target's
@@ -2784,15 +2833,7 @@ function runOnce<T, I>(
   sees: boolean,
   call: Scope.Invocation<I> | undefined,
 ): unknown {
-  if (hasCallTags(call))
-    return runTagged(
-      layer,
-      target,
-      parent,
-      caller,
-      call as Scope.Invocation<I> & { readonly tags: Scope.Bindings },
-      chain,
-    );
+  if (hasCallSession(call)) return runTagged(layer, target, parent, caller, call, chain);
   if (hasCallNs(call))
     return runNsCall(
       layer,
@@ -3980,8 +4021,10 @@ function markAborted(layer: Layer, reason: unknown): void {
   layer.abort?.abort(reason);
 }
 
-function abortSubtree(root: Layer): void {
-  const reason = root.aborted ? root.abortReason : new CancelReason();
+function abortSubtree(
+  root: Layer,
+  reason = root.aborted ? root.abortReason : new CancelReason(),
+): void {
   markAborted(root, reason);
   const stack: Layer[] = [...root.children];
   while (stack.length) {
@@ -4335,17 +4378,18 @@ function runSessionWith<R>(
   options: Scope.Options | undefined,
   body: (child: Layer, handle?: Scope.Handle) => R | PromiseLike<R>,
   caller: RunState | undefined,
+  signal?: AbortSignal,
 ): R | Promise<R> {
   let child: Layer;
   /** What an async function would reject with, rejected: a closed parent, a bad `ns`, a preset
    * that fails its parse. The body's own throw is not here; {@link runBodyWith} keeps it. */
   try {
+    signal?.throwIfAborted();
     const sessions = parent.exts.sessions;
+    child = startChild(parent, options, caller, signal);
     if (sessions !== undefined) {
-      ensureOpen(parent);
-      return runSessionWrapped(parent, options, body, sessions, caller);
+      return runSessionWrapped(child, body, sessions);
     }
-    child = startChild(parent, options, caller);
   } catch (error) {
     return Promise.reject(error) as Promise<R>;
   }
@@ -4359,10 +4403,24 @@ function startChild(
   parent: Layer,
   options: Scope.Options | undefined,
   caller: RunState | undefined,
+  signal?: AbortSignal,
 ): Layer {
   ensureOpen(parent);
   const child = makeLayer(parent, options);
   child.failureOwner = caller;
+  if (signal) {
+    /** Seal writes now, then let the session join its body and cleanup before it detaches. */
+    const abort = (): void => {
+      child.closed = true;
+      abortSubtree(child, signal.reason);
+    };
+    signal.addEventListener("abort", abort, { once: true });
+    addDefer(child, {
+      fn: () => signal.removeEventListener("abort", abort),
+      instance: undefined,
+    });
+    if (signal.aborted) abort();
+  }
   return child;
 }
 
@@ -4457,9 +4515,11 @@ function runSession<R>(
 function runBodyWith<R>(
   child: Layer,
   fn: (child: Layer, handle?: Scope.Handle) => R | PromiseLike<R>,
+  handle?: Scope.Handle,
 ): R | Promise<R> {
   try {
-    return adoptBody(fn(child));
+    if (child.closed && child.aborted) throw child.abortReason;
+    return adoptBody(fn(child, handle));
   } catch (error) {
     return Promise.reject(error) as Promise<R>;
   }
@@ -4591,19 +4651,23 @@ function handleFor(layer: Layer): Scope.Handle {
   }) as Scope.Handle["run"];
   /** `settle` runs through a twin controller whose caller is RECOVERED; `run` stays as it was. */
   const settle = ((op: unknown, call?: Scope.Invocation<unknown>) =>
-    settleRun(layer, () => {
-      ensureOpen(layer);
-      if (!isOperation(op))
-        return runInline(
-          layer,
-          op as Scope.Inline<Scope.Depends, unknown, unknown>,
-          call,
-          RECOVERED,
-        );
-      return OperationControl.recovered(controllerOf(op) as OperationControl<unknown, unknown>).run(
-        call,
-      );
-    })) as Scope.Handle["settle"];
+    settleRun(
+      layer,
+      () => {
+        ensureOpen(layer);
+        if (!isOperation(op))
+          return runInline(
+            layer,
+            op as Scope.Inline<Scope.Depends, unknown, unknown>,
+            call,
+            RECOVERED,
+          );
+        return OperationControl.recovered(
+          controllerOf(op) as OperationControl<unknown, unknown>,
+        ).run(call);
+      },
+      call?.signal,
+    )) as Scope.Handle["settle"];
   return {
     controller,
     resolve,
@@ -5217,8 +5281,9 @@ function sessionThrough(
 
 /** `settle`'s Result for what `run` threw or rejected with: a cancel reason on an aborted layer is
  * `cancelled`; anything else is `failed`. */
-function failedRun(layer: Layer, error: unknown): RunResult<never> {
-  if (isCancel(layer, error)) return { status: "cancelled", reason: error };
+function failedRun(layer: Layer, error: unknown, signal?: AbortSignal): RunResult<never> {
+  if (isCancel(layer, error) || (signal?.aborted && error === signal.reason))
+    return { status: "cancelled", reason: error };
   recover(layer, error);
   closeOrigin(error);
   const origin = originOf(error);
@@ -5232,16 +5297,17 @@ function failedRun(layer: Layer, error: unknown): RunResult<never> {
 function settleRun(
   layer: Layer,
   run: () => unknown,
+  signal?: AbortSignal,
 ): RunResult<unknown> | Promise<RunResult<unknown>> {
   try {
     const result = run();
     if (!isThenable(result)) return { status: "success", value: result };
     return Promise.resolve(result).then(
       (value): RunResult<unknown> => ({ status: "success", value }),
-      (error: unknown) => failedRun(layer, error),
+      (error: unknown) => failedRun(layer, error, signal),
     );
   } catch (error) {
-    return failedRun(layer, error);
+    return failedRun(layer, error, signal);
   }
 }
 
@@ -5470,7 +5536,11 @@ class ExtensionCtx implements Scope.ExtensionCtx {
       op: Operation.Handle<unknown, unknown> | Scope.Inline<Scope.Depends, unknown, unknown>,
       call?: Scope.Invocation<unknown>,
     ): unknown =>
-      settleRun(this.owner, () => this.invoke(op, call, RECOVERED))) as Scope.Handle["settle"]);
+      settleRun(
+        this.owner,
+        () => this.invoke(op, call, RECOVERED),
+        call?.signal,
+      )) as Scope.Handle["settle"]);
   }
   get defer(): Resource.Ctx["defer"] {
     return (
@@ -5492,19 +5562,6 @@ class ExtensionCtx implements Scope.ExtensionCtx {
   }
 }
 
-/** {@link runBodyWith} with a prebuilt handle — the wrapped session path hands the body the same
- * handle the hooks received (whose `createSession` stays wrapped). */
-function runBodyWithTo<R>(
-  child: Layer,
-  handle: Scope.Handle,
-  fn: (child: Layer, handle: Scope.Handle) => R | PromiseLike<R>,
-): Promise<R> {
-  try {
-    return Promise.resolve(fn(child, handle));
-  } catch (error) {
-    return Promise.reject(error);
-  }
-}
 /** A handle whose `createSession` wraps every child in the root's `session` chain (ADR 0051): the
  * direct `resolve` stays plain; run and write hooks follow the inherited routes.
  * Only built when hooks exist; the unwrapped path never enters. */
@@ -5710,21 +5767,17 @@ function resolveThrough(
  * path only — the hooks' handles are built eagerly here, never on the unwrapped path above. The
  * body receives the same handle the hooks do, so a session created under a session stays wrapped. */
 async function runSessionWrapped<R>(
-  parent: Layer,
-  options: Scope.Options | undefined,
+  child: Layer,
   body: (child: Layer, handle?: Scope.Handle) => R | PromiseLike<R>,
   sessions: readonly Scope.Extension<unknown>[],
-  caller?: RunState,
 ): Promise<R> {
-  const child = makeLayer(parent, options);
-  child.failureOwner = caller;
   const hooks: SessionHooks = { settle: undefined, phase: "open", moved: false };
   SESSION_HOOKS.set(child, hooks);
   const handle = withSessionCreate(handleFor(child), child, sessions);
   let wrapped: { result: unknown; ended: Scope.Result };
   try {
     wrapped = await sessionThrough(sessions, handle, child, () =>
-      runSessionEnded(child, (c) => runBodyWithTo(c, handle, body)),
+      runSessionEnded(child, (c) => Promise.resolve(runBodyWith(c, body, handle))),
     );
   } finally {
     freeAfterHooks(child, hooks);
@@ -5875,7 +5928,7 @@ function clearBindings(layer: Layer): void {
   layer.tags = undefined;
 }
 
-/** Hooked calls select their owner before starting the hook chain. A tagged call therefore
+/** Hooked calls select their owner before starting the hook chain. An owned call therefore
  * passes the same child through session hooks, run hooks, and the body, once each. */
 function runHookCall<T, I>(
   layer: Layer,
@@ -5888,13 +5941,14 @@ function runHookCall<T, I>(
 ): unknown {
   ensureOpen(layer);
   const chain = call?.ns === undefined ? inherited : nsChainOf(call.ns);
-  if (!hasCallTags(call))
+  if (!hasCallSession(call))
     return runHookChain(layer, target, parent, chain, caller, hookTarget, call);
   const result = runSessionWith(
     layer,
     { tags: call?.tags, ns: chain },
     (child) => runHookChain(child, target, parent, chain, undefined, hookTarget, call),
     caller,
+    call?.signal,
   );
   if (caller) track(layer, result, runFailure(layer, caller));
   return result;

@@ -288,6 +288,41 @@ A forced close after a sticky panic settles `failed`, not `cancelled`.
 
 ## Resource cleanup
 
+A call can own a stop signal (ADR 0090):
+
+```ts
+const stop = new AbortController();
+const result = step.settle({
+  input: "check services",
+  signal: stop.signal,
+});
+stop.abort("new instruction");
+const ended = await result;
+```
+
+- `run` and `settle` accept a call `signal`, including inline runs.
+- The call opens a child session, just like a call with tags.
+  Its data writes and session resources belong to that child.
+  They are released before the call settles.
+  A later call gets new session resources; scope resources stay shared.
+- Aborting the call stops its body and subflows through `ctx.signal`.
+  Work must pass that signal to its waits or check it.
+  This also stops waits, such as retry sleeps, that use `ctx.signal`.
+- An already aborted call starts no body, parse, resource, or hook.
+- A call stopped by its signal preserves the exact `signal.reason`.
+  `run` rejects with it; `settle` returns it after cleanup ends.
+  A different error after abort still returns `failed`.
+  A handled cancel or failure leaves the caller alive.
+- A call keeps its input parsing, tags, and namespace.
+  The namespace selects values; the child session owns their lifetime.
+- A call signal can still stop work while its owner closes gracefully.
+  Forced owner close stops the child even if the call signal stays live.
+- Run and session hooks share the call's lifetime.
+  Abort blocks a late body start.
+  Graceful close keeps active run-hook access alive until the hook ends.
+- Finishing the call removes its abort listener.
+  Calls without a signal keep their existing return shape and lifetime.
+
 Stop in-flight work through `ctx.signal`. A forced close aborts the signal, waits for
 in-flight operations and resource builds to settle, then runs resource `ctx.defer` hooks.
 Waiting until `defer` to stop work that close is waiting for can deadlock.
