@@ -1,6 +1,7 @@
 type Payloads = {
   BadLiveSubject: { subject: string };
   BadListenSettings: { keys: string[] };
+  BadTraceSettings: { keys: string[] };
 };
 
 export declare namespace Errors {

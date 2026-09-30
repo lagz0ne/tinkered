@@ -1,5 +1,5 @@
 import { extension, operation } from "@tinker/core";
-import type { Operation, Scope } from "@tinker/core";
+import type { Observe, Operation, Scope } from "@tinker/core";
 import type { NatsConnection, Subscription } from "@nats-io/transport-node";
 import { raise } from "./errors.ts";
 
@@ -68,7 +68,7 @@ export function nats(rows: readonly Nats.Row[], wiring: Nats.Wiring) {
       });
       const url = readUrl(wiring.env.NATS_URL);
       await next();
-      const { connect } = await import("@nats-io/transport-node");
+      const { connect, headers } = await import("@nats-io/transport-node");
       const connection = wiring.connection ?? (await connect({ servers: url }));
       const subscriptions: Subscription[] = [];
       const pending = new Set<Promise<void>>();
@@ -77,8 +77,16 @@ export function nats(rows: readonly Nats.Row[], wiring: Nats.Wiring) {
       let closing: Promise<void> | undefined;
       const stop = quiet;
       close = () => (closing ??= drain(connection, stop, !wiring.connection));
-      const send = (message: Nats.Message): void =>
-        connection.publish(message.subject, message.payload);
+      const send = (message: Nats.Message, span: Observe.Span | undefined): void => {
+        const carrier = headers();
+        if (span) {
+          carrier.set(
+            "traceparent",
+            `00-${span.traceId}-${span.spanId}-${span.sampled ? "01" : "00"}`,
+          );
+        }
+        connection.publish(message.subject, message.payload, { headers: carrier });
+      };
       if (stopped) {
         await close();
       } else {
@@ -87,29 +95,36 @@ export function nats(rows: readonly Nats.Row[], wiring: Nats.Wiring) {
           subscriptions.push(
             connection.subscribe(row.subject, {
               callback: (error, message) => {
-                const work = scope.session((session) =>
-                  session.run({
-                    label: `nats ${row.subject}`,
-                    depends: { receive },
-                    run: async ({ receive }, runCtx) => {
-                      if (error) {
-                        runCtx.log.error("nats subscription failed", {
-                          subject: row.subject,
-                          error,
+                const work = scope.session(
+                  {
+                    trace: readTraceparent(error ? undefined : message.headers?.get("traceparent")),
+                  },
+                  (session) =>
+                    session.run({
+                      label: `nats ${row.subject}`,
+                      depends: { receive },
+                      run: async ({ receive }, runCtx) => {
+                        if (error) {
+                          runCtx.log.error("nats subscription failed", {
+                            subject: row.subject,
+                            error,
+                          });
+                          return;
+                        }
+                        const result = await receive.settle({
+                          input: {
+                            subject: message.subject,
+                            payload: new Uint8Array(message.data),
+                          },
                         });
-                        return;
-                      }
-                      const result = await receive.settle({
-                        input: { subject: message.subject, payload: new Uint8Array(message.data) },
-                      });
-                      if (result.status === "failed") {
-                        runCtx.log.error("nats operation failed", {
-                          subject: message.subject,
-                          error: result.error,
-                        });
-                      }
-                    },
-                  }),
+                        if (result.status === "failed") {
+                          runCtx.log.error("nats operation failed", {
+                            subject: message.subject,
+                            error: result.error,
+                          });
+                        }
+                      },
+                    }),
                 );
                 pending.add(work);
                 const settled = () => pending.delete(work);
@@ -127,10 +142,25 @@ export function nats(rows: readonly Nats.Row[], wiring: Nats.Wiring) {
     label: "nats.publish",
     depends: { bridge },
     run: ({ bridge: live }, ctx: Operation.Ctx<Nats.Message>) => {
-      live.send(ctx.input);
+      live.send(ctx.input, ctx.obs.span);
     },
   });
   return { extension: bridge, publish };
+}
+
+/** The NATS carrier follows the same W3C validation as Hono: an invalid
+ * or absent header clears any root seed before opening the message session. */
+function readTraceparent(header: string | undefined): Observe.Trace | null {
+  if (!header) return null;
+  const match =
+    /^(?<version>[0-9a-f]{2})-(?<traceId>[0-9a-f]{32})-(?<parentSpanId>[0-9a-f]{16})-(?<flags>[0-9a-f]{2})(?<suffix>-.*)?$/.exec(
+      header,
+    );
+  if (!match) return null;
+  const { version, traceId, parentSpanId, flags, suffix } = match.groups!;
+  if (version === "ff" || (version === "00" && suffix !== undefined)) return null;
+  if (/^0+$/.test(traceId) || /^0+$/.test(parentSpanId)) return null;
+  return { traceId, parentSpanId, sampled: (Number.parseInt(flags, 16) & 1) === 1 };
 }
 
 function readUrl(value: string | undefined): string {

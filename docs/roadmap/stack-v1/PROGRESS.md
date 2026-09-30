@@ -452,7 +452,7 @@ npx --no-install stryker run \
   Verify: two server scopes on one PGlite and a
   real `nats-server`: a save through one reaches a
   subscriber on the other.
-- **t13 the trace sink** -- [ ] blocked by: t04, t05
+- **t13 the trace sink** -- [ ] Doing; owner: stack/t13 writer
   The stack sends spans and logs over OTLP to
   `OTEL_EXPORTER_OTLP_ENDPOINT` (ADR 0076). NATS
   messages carry `traceparent` (ADR 0080). A
@@ -1896,3 +1896,23 @@ impact stack/t04: as planned (0 discrepancies). Advisory — never a gate.
 - Prose: zero hits; `PROSE_EXIT=0`.
 - Source commit: `2cb01a4f`; the card returns to Review.
 - Raw proof: `.bench/stack-t04-f5-proof/`.
+
+## t13 writer plan
+
+- Base: `f8bc981b`, from `origin/main` after t04 and t05.
+- Next: add the OTLP/JSON piece and NATS trace headers.
+- Verify: stack, NATS, and tracker tests; full gate;
+  `pnpm validate`; both mutation lanes at least 85.
+- Assumption: a fresh trace sink belongs to each root.
+- Use a small OTLP/JSON writer, with no OTel dependency.
+  Core already supplies ids, times, and finished spans.
+  The official exporters would need SDK-shaped spans and
+  the logs SDK excluded by ADR 0076.
+- Queue copies encoded records, never the span tree.
+  Cap records and bytes; one batch at a time;
+  a deadline bounds each HTTP send.
+- Impact: add `traceSink` and `TraceSink` to stack.
+  Existing callers need no change.
+  NATS public signatures stay the same;
+  publish and subscription now carry trace context.
+  Check stack and the issue tracker as consumers.

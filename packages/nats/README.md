@@ -59,8 +59,13 @@ Its owner must close it after the scopes end.
 The piece drains only its own subscriptions on that
 connection; it leaves the connection open.
 
-Trace headers, JetStream, KV, and object store wait for
-later tickets.
+An observed publish sets the W3C `traceparent` header.
+Each subscription opens a session with that remote trace
+and parent, including the sampled bit.
+Missing or bad headers start a fresh trace, even when the
+root has a trace seed.
+With observation off, publish needs no trace ids.
+JetStream, KV, and object store wait for later tickets.
 
 ## Tests need `nats-server`
 
@@ -132,3 +137,9 @@ try {
   for both owned and borrowed connections.
 
 [release]: https://github.com/nats-io/nats-server/releases/tag/v2.15.0
+
+- A traced publish joins the subscriber operation to the same trace and parent.
+
+- A malformed or absent NATS traceparent starts a new trace without failing the message.
+
+- A future NATS traceparent preserves its known ids and sampled bit.
