@@ -476,11 +476,11 @@ const STATE_HOOKS = new Set(["useState", "useReducer"]);
 const TRANSPORT_PAIR = new Set(["onMessage", "onClose"]);
 const LISTEN = /^on[A-Z]/;
 const HANDLE_MAKERS = new Set(["createScope", "createSession", "useScope"]);
-/** The unit body each core builder takes: the config key holding the function. */
+/** The config path to each core builder's body; extension hooks are nested. */
 const UNIT_BODY = new Map([
-  ["operation", "run"],
-  ["resource", "factory"],
-  ["extension", "start"],
+  ["operation", ["run"]],
+  ["resource", ["factory"]],
+  ["extension", ["hooks", "start"]],
 ]);
 
 /** The global a name reads: `x` itself, or `x` off `globalThis`, `window`, or `self`. */
@@ -699,23 +699,27 @@ const isRawFetch = (node) => node.type === "CallExpression" && globalName(node.c
 const isComponentState = (node) =>
   node.type === "CallExpression" && STATE_HOOKS.has(calleeName(node.callee));
 
-/** The unit body one call declares: the function under its builder's body key (`local` maps a
- *  local builder name to that key). */
+/** Imported aliases use the same body path as the core builder they name. */
 function bodiesOf(node, local) {
-  const key = node.type === "CallExpression" ? local.get(node.callee?.name) : undefined;
-  const config = key === undefined ? null : node.arguments[0];
-  if (config?.type !== "ObjectExpression") return [];
-  return config.properties
-    .filter((p) => p.type === "Property" && p.key?.name === key && fnOf(p) !== null)
-    .map((p) => p.value);
+  const path = node.type === "CallExpression" ? local.get(node.callee?.name) : undefined;
+  if (path === undefined) return [];
+  let values = [node.arguments[0]];
+  for (const key of path) {
+    values = values.flatMap((config) => {
+      if (config?.type !== "ObjectExpression") return [];
+      return config.properties
+        .filter((p) => p.type === "Property" && p.key?.name === key)
+        .map((p) => p.value);
+    });
+  }
+  return values.filter((value) => FN_NODE.has(value?.type));
 }
 
-/** Every unit body in the file: the function under `run`, `factory`, or `start` in the config
- *  of an operation, resource, or extension imported from @tinker/core. */
+/** Only imported core builders define the bodies S21 checks. */
 function unitBodies(program) {
   const local = new Map();
-  for (const [name, key] of UNIT_BODY)
-    for (const as of importedNames(program, "@tinker/core", new Set([name]))) local.set(as, key);
+  for (const [name, path] of UNIT_BODY)
+    for (const as of importedNames(program, "@tinker/core", new Set([name]))) local.set(as, path);
   const fns = [];
   walk(program, (n) => fns.push(...bodiesOf(n, local)));
   return fns;

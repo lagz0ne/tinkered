@@ -151,7 +151,7 @@ void describe("plain rules in a source file", () => {
     const src = [
       'import { extension } from "@tinker/core";',
       "export function mcp(rows: readonly Row[]) {",
-      '  return extension({ label: "mcp", start: (scope, ctx, next) => next() });',
+      '  return extension({ label: "mcp", hooks: { start: (event) => event.next() } });',
       "}",
     ].join("\n");
     assert.deepEqual(hits(src, SRC), []);
@@ -273,7 +273,7 @@ void describe("hand-rolled rules: code that redoes what tinker gives", () => {
       "const kill = (child: Child) => setTimeout(() => child.kill(), 5);",
       "export const ticker = extension({",
       '  label: "ticker",',
-      "  start: (scope, ctx, next) => { setInterval(tick, 10); return next(); },",
+      "  hooks: { start: (event) => { setInterval(tick, 10); return event.next(); } },",
       "});",
       'export const stamp = operation({ label: "stamp", run: () => Date.now() });',
     ].join("\n");
