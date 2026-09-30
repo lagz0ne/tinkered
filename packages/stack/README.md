@@ -304,9 +304,12 @@ A later commit or a new boot reads the current database.
 - A bad OTLP endpoint fails boot naming only its key.
 - A missing service name fails boot naming only its key.
 - A down, slow, or 500 collector keeps requests and close working and logs once per burst.
+  A collector that accepts traces but refuses logs still warns once per burst.
 - A recovered collector ends a failure burst so a later fault logs again.
 - The queue bounds record count and bytes and drops new records with one local warning.
-- A broken local writer and an unencodable record do not stop later exports.
+- A broken local writer does not stop export.
+- An unencodable record warns locally and leaves later spans exportable.
+- Forced close keeps cleanup logs local and warns that their export was dropped.
 
 ## Checks
 

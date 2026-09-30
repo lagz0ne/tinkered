@@ -208,9 +208,10 @@ test("the timer exports finished spans while a stream is still open", async () =
 
 test("graceful close exports queued spans, failed status, and cleanup logs", async () => {
   const collector = await new Receiver().listen();
+  const lines: string[] = [];
   const sink = traceSink({
     env: { OTEL_EXPORTER_OTLP_ENDPOINT: collector.url, OTEL_SERVICE_NAME: "close" },
-    write: () => {},
+    write: (line) => lines.push(line),
   });
   const owned = resource({
     label: "owned",
@@ -239,6 +240,9 @@ test("graceful close exports queued spans, failed status, and cleanup logs", asy
       code: 2,
       message: "1",
     });
+    expect(
+      lines.map((line) => JSON.parse(line)).filter((line) => line.kind === "span"),
+    ).toMatchObject([{ name: "fails", status: "failed" }]);
     expect(
       logs(collector.state.packets).find((line) => line.body.stringValue === "cleanup"),
     ).toMatchObject({ traceId: expect.any(String), spanId: expect.any(String) });

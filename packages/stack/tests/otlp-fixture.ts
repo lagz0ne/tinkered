@@ -39,6 +39,7 @@ export type Packet = {
 export class Receiver {
   state = {
     status: 200,
+    statusByPath: {} as Record<string, number>,
     hang: false,
     packets: [] as { path: string; type?: string; body: Packet }[],
   };
@@ -55,7 +56,11 @@ export class Receiver {
         body: JSON.parse(body),
       });
       if (!this.state.hang)
-        res.writeHead(this.state.status, { "content-type": "application/json" }).end("{}");
+        res
+          .writeHead(this.state.statusByPath[req.url!] ?? this.state.status, {
+            "content-type": "application/json",
+          })
+          .end("{}");
     });
   });
   url = "";

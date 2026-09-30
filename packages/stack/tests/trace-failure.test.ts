@@ -1,10 +1,16 @@
-import { createScope, extension, makeTestClock, operation } from "@tinker/core";
+import { createScope, extension, makeTestClock, operation, resource } from "@tinker/core";
 import { hono, route } from "@tinker/hono";
 import { expect, test } from "vite-plus/test";
 import { isError, traceSink, type TraceSink } from "../src/index.ts";
 import { Receiver, spans } from "./otlp-fixture.ts";
 
 const ping = operation({ label: "ping", run: () => "pong" });
+const cleanupLog = resource({
+  label: "cleanup log",
+  factory: (_deps, ctx) => {
+    ctx.defer(() => ctx.log("cleanup"));
+  },
+});
 
 test.each<TraceSink.Env>([
   {},
@@ -77,11 +83,12 @@ test("a missing service name fails boot naming only its key", async () => {
   }
 });
 
-test.each(["down", "500", "slow"])(
+test.each(["down", "500", "slow", "partial"])(
   "a %s collector keeps requests and close working and logs once per burst",
   async (failure) => {
     const collector = await new Receiver().listen();
     collector.state.status = 500;
+    if (failure === "partial") collector.state.statusByPath["/v1/traces"] = 200;
     collector.state.hang = failure === "slow";
     if (failure === "down") await collector.close();
     const lines: string[] = [];
@@ -202,13 +209,36 @@ test.each([
   },
 );
 
-test("a broken local writer and an unencodable record do not stop later exports", async () => {
+test("a broken local writer does not stop export", async () => {
   const collector = await new Receiver().listen();
   const sink = traceSink({
     env: { OTEL_EXPORTER_OTLP_ENDPOINT: collector.url, OTEL_SERVICE_NAME: "writer" },
     write: () => {
       throw new Error("disk full");
     },
+  });
+  const scope = createScope({
+    extensions: sink.extension,
+    observe: sink.observe,
+    clock: makeTestClock(),
+  });
+  try {
+    await scope.ready;
+    expect(scope.run(ping)).toBe("pong");
+    expect(await scope.close({ graceful: true })).toEqual({ status: "success" });
+    expect(spans(collector.state.packets).map((span) => span.name)).toEqual(["ping"]);
+  } finally {
+    await scope.close();
+    await collector.close();
+  }
+});
+
+test("an unencodable record warns locally and leaves later spans exportable", async () => {
+  const collector = await new Receiver().listen();
+  const lines: string[] = [];
+  const sink = traceSink({
+    env: { OTEL_EXPORTER_OTLP_ENDPOINT: collector.url, OTEL_SERVICE_NAME: "encoding" },
+    write: (line) => lines.push(line),
   });
   const scope = createScope({
     extensions: sink.extension,
@@ -226,6 +256,48 @@ test("a broken local writer and an unencodable record do not stop later exports"
     expect(scope.run(ping)).toBe("pong");
     expect(await scope.close({ graceful: true })).toEqual({ status: "success" });
     expect(spans(collector.state.packets).map((span) => span.name)).toEqual(["ping"]);
+    expect(
+      lines
+        .map((line) => JSON.parse(line))
+        .filter((line) => line.message === "OTLP records dropped"),
+    ).toEqual([
+      {
+        kind: "log",
+        time: 0,
+        level: 40,
+        message: "OTLP records dropped",
+        reason: "record could not be encoded",
+      },
+    ]);
+  } finally {
+    await scope.close();
+    await collector.close();
+  }
+});
+
+test("forced close keeps cleanup logs local and warns that their export was dropped", async () => {
+  const collector = await new Receiver().listen();
+  const lines: string[] = [];
+  const sink = traceSink({
+    env: { OTEL_EXPORTER_OTLP_ENDPOINT: collector.url, OTEL_SERVICE_NAME: "cleanup" },
+    write: (line) => lines.push(line),
+  });
+  const scope = createScope({
+    extensions: sink.extension,
+    observe: { ...sink.observe, export: undefined },
+    clock: makeTestClock(),
+  });
+  try {
+    await scope.ready;
+    scope.resolve(cleanupLog);
+    await scope.close();
+    expect(
+      lines.map((line) => JSON.parse(line)).map(({ message, reason }) => ({ message, reason })),
+    ).toEqual([
+      { message: "cleanup", reason: undefined },
+      { message: "OTLP records dropped", reason: "scope closed" },
+    ]);
+    expect(collector.state.packets).toEqual([]);
   } finally {
     await scope.close();
     await collector.close();

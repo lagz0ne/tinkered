@@ -12,7 +12,6 @@ import { expect, test } from "vite-plus/test";
 import { isError as isStackError, traceSink } from "../src/index.ts";
 import { logs, Receiver, spans } from "./otlp-fixture.ts";
 
-const tracing = traceSink();
 const work = operation({
   label: "work",
   run: (_deps, ctx: Operation.Ctx<string>) => ctx.log(ctx.input),
@@ -31,6 +30,7 @@ const broken = extension({
 });
 
 test("one tracing definition keeps two collectors and writers apart when one root closes", async () => {
+  const tracing = traceSink();
   const collectorA = await new Receiver().listen();
   const collectorB = await new Receiver().listen();
   const linesA: string[] = [];
@@ -117,6 +117,7 @@ test("one tracing definition keeps two collectors and writers apart when one roo
 });
 
 test("closing the app before telemetry exports its last cleanup span and log", async () => {
+  const tracing = traceSink();
   const collector = await new Receiver().listen();
   const telemetryStop = new AbortController();
   const telemetry = createScope({
@@ -151,6 +152,7 @@ test("closing the app before telemetry exports its last cleanup span and log", a
 });
 
 test("failed telemetry setup cleans its root and leaves the other queue running", async () => {
+  const tracing = traceSink();
   const collector = await new Receiver().listen();
   const stop = new AbortController();
   const telemetry = createScope({
@@ -201,6 +203,7 @@ test("failed telemetry setup cleans its root and leaves the other queue running"
 test.each(["missing", "invalid"])(
   "telemetry with %s config rejects ready and settles closed with the same failure",
   async (config) => {
+    const tracing = traceSink();
     const telemetry = createScope({
       signal: new AbortController().signal,
       extensions: [tracing],
@@ -237,6 +240,7 @@ test.each(["missing", "invalid"])(
 test.each([false, true])(
   "forced telemetry close cancels export without cleanup errors (in flight: %s)",
   async (inFlight) => {
+    const tracing = traceSink();
     const collector = await new Receiver().listen();
     collector.state.hang = true;
     const clock = makeTestClock();
