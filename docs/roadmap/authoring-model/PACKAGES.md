@@ -82,7 +82,7 @@ Use resource ownership and middleware as the precedent.
 
 ## Impact before code
 
-No Core API change is planned.
+The user approved one Core API change: per-call cancellation in t17.
 The 16 KiB Core cap stays in force.
 Any public symbol or lifetime change gets its caller list here before code.
 Existing constructor forms remain valid unless the user settles a change.
@@ -100,6 +100,12 @@ Callers: tracker client connection and server routes;
 `examples/sync/{basic,hono}.ts`; Stack integration tests.
 A closed transport rejects readiness with `SyncNotReady`.
 A conflicting setup closes its borrowed wire before readiness rejects.
+
+The family directory shares namespace identities across roots.
+That matches ADR 0048; it does not add graph nodes or edges.
+Keep the API and document the shared directory.
+Verify that each root keeps its own values after the other root closes.
+No public signature or lifetime change is needed for that check.
 
 ### t11: unchanged Stack API; owner namespace reaches publication
 
@@ -272,7 +278,9 @@ No timing change or claim is part of these tickets.
 - **Sync** — `src/index.ts` and startup tests.
   Fixed preclosed-wire readiness and failed-setup cleanup.
   Writer checkpoint: `5bdaa90f`; lead review passed.
-  Family identity and member discovery still need a final model check.
+  Family shares a namespace-key directory by its public contract.
+  It creates one cell; new keys do not add graph nodes or edges.
+  Each root owns its values, listeners, and transports.
 - **Stack** — `src/publish.ts` and namespace tests.
   Fixed default-namespace controllers in post-commit and live refresh.
   Writer checkpoint: `5d37b496`; lead review passed.

@@ -148,7 +148,7 @@
 | term            | meaning |
 | --------------- | ------- |
 | synced cell     | A `data` cell named in a `[cell, key]` row: the same module imported on both sides; its `parse` is the edge for a snapshot from the wire (ADR 0048). |
-| family          | `family({ label, initial, parse?, eq? })`: `(id) => Data.Cell<T>`, memoized per id, each member a synced cell keyed `label/id`. A cell with an id; `onMember` fires once per new member. |
+| family | One cell with a shared ID-to-namespace key directory; values belong to each root. |
 | identity        | The key a family member syncs under: `label/id`. Matching between a client and its source is by family and identity. |
 | registration    | The client scope's `sync(cell \| family)` bindings, sent as `register { keys }`: every bound singleton and every member the client holds (new members register the moment they exist). Nothing is pushed unasked. |
 | source          | `source()`: the source extension installed with `createScope({ extensions })` — `{ connect(transport) }` opens a session per subscriber, answers each `register` with the initial snapshots (an inline op `sync register`), then fans out every change on a registered key. The scope's cells are the truth. |
