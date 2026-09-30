@@ -214,13 +214,13 @@ ADR 0024 (API), ADR 0026 (decisions), ADR 0025 (analysis/bug map), and the bug/r
 
 - **Owner:** core/root-lifetime writer.
 - **State:** Review; the lead owns the board card and landing.
-- **Next:** finish the budget, mutation, and Jev checks.
+- **Next:** lead review and landing; all writer gates have finished.
 - **Verify:** full build, check, and workspace tests; core mutation at least 85;
   promise budget unchanged; every validate lane green; prose and new-code style checks.
 - **Change:** a root may take a stop signal and expose `closed`.
   A failed start joins cleanup and every close hook before `ready` rejects.
   Signal closes wait for start and leave work's `ctx.signal` alone.
-- **Scope:** only core and these two track notes changed.
+- **Scope:** core, these two track notes, and the required Jev labels changed.
   Stack, process, sync, tracker, and example migrations stay with their own cards.
 - **Caller review:** core, hono, process, stack, sync, the tracker, the playground,
   and the core, drizzle, tinkerer, mcp, and hono examples use roots or readiness.
@@ -243,7 +243,7 @@ ADR 0024 (API), ADR 0026 (decisions), ADR 0025 (analysis/bug map), and the bug/r
 - **Assumptions:** the brief's fixed base is the comparison point while main moves.
   The existing board card belongs to the lead, so this writer leaves `TODO.md` alone.
   The given worktree was already installed and built; no pull or install was needed.
-- **Core feedback:** no new request beyond the two accepted ADR 0085 follow-ups.
+- **Core feedback:** no new request beyond the accepted close-hook follow-up.
   A hook can still replace the result returned by `close()`:
 
   ```ts
@@ -255,3 +255,185 @@ ADR 0024 (API), ADR 0026 (decisions), ADR 0025 (analysis/bug map), and the bug/r
 
   A forced close then answers success while `closed` holds core's cancelled Result.
   The new test keeps that stated limit visible for `core/close-hook-scope`.
+
+### Jev review
+
+- `preflight.mjs main..HEAD`: exit 0; 62 flagged units, no file flags.
+  There were 65 non-noisy judge answers to label.
+  Core owns its records and cleanup; moving them into user data cells or resource defers
+  would make the owner depend on the system it implements.
+  All 65 answers are false; 57 labels already existed and eight were added.
+  `runInline`'s noisy `wrapsCallersStep` note owes no label.
+- New `stateOutsideCell false` labels: `closeLayer`, `runStartChain`, `extendHandle`,
+  `watchRootClose`, `finishRootClose`, and `listenForStop`.
+- New `effectWithoutDefer false` labels: `extendHandle` and `listenForStop`.
+  The root removes its stop listener before any hook runs; a defer would run too late.
+- The contributor brief requires `tools/jev/cases.jsonl` despite the target's short path list.
+  Those eight label rows are the only added file outside the target list.
+  Calibration belongs to the lead's landing step.
+- `tests.mjs core`: exit 0; no hit in the new lifetime file.
+  The old plain hits remain, as the brief requires existing tests to stay unchanged.
+  Four `isErrorInExpect` hits are in `errors.test.ts` and `namespaces.test.ts`.
+  `caught-subflow.test.ts` has the existing timer used to observe a host rejection.
+  Three `toBeThenToEqual` hits compare value shape and a _different_ object's identity:
+  two named-release tests and the session-end test use `not.toBe` to prove a fresh object.
+  They do not repeat the same assertion.
+- `promises.mjs core`: exit 0; 37 old titles had no chosen README line.
+  All 13 direct lifetime titles read by Jev matched a README line.
+  Its title scan skips the six table-driven cases; their promises are in the root lifetime section.
+  The 62 unsure answers owe no change.
+  The notes below map the old titles to broader promises or implementation details.
+  No extra contract is added just to match a test title.
+- Plain test findings and promise picks have no judge in `label.mjs`.
+  Their answers are recorded here; no new Jev rule was added.
+
+### Earlier promise-pick notes
+
+- **async is typed through the graph: an op over an async resource is an async op.**
+  The public types already require an async body for async resource deps; this title checks that type rule, not another runtime promise.
+- **an old build rejecting after release does not fail a session that got the replacement.**
+  Resources already promises that a late old build cannot drop its replacement or its edges; the test checks that isolation during a session.
+- **a closed session's dependency edges are pruned so a later release skips it.**
+  Resources already says release skips a closed session. Pruning its edges is how core keeps that promise.
+- **a sink returning a thenable whose then getter throws is isolated.**
+  Observation already says a hostile thenable cannot fail an operation or leak a rejection; the sentence spans two lines.
+- **close runs defers in reverse registration order (LIFO).**
+  Scopes, sessions, and close already promises latest-first cleanup. LIFO is the same order.
+- **closing a deeply nested scope tree does not overflow.**
+  The deep tree is a stress case of closing all children; its particular depth is not a separate API limit.
+- **close collects a session child born and finished during its ancestor's body wait.**
+  Close already joins a running session body and its children. The birth timing checks that general rule.
+- **scope.run runs an operation with no call args.**
+  The public CallArgs type makes a void-input call optional. The title checks that existing call form.
+- **two resolve hooks nest in registration order.**
+  Extensions already says the first registered resolve hook is outermost; two hooks are one case of that order.
+- **a cached write controller still rejects controller(cell) after close.**
+  Scopes, sessions, and close already rejects late writes on a closed scope. A cached controller does not reopen it.
+- **a scope with no session hook runs session bodies and closes the child session.**
+  The session(fn) promise already closes the child on return or throw, without requiring any hook.
+- **a watcher borrowing a replacement cannot hold the old instance.**
+  Resources already isolates an old build from its replacement. A borrower belongs to the instance it used.
+- **interleaved resource hooks keep reverse registration order.**
+  Latest-first cleanup is already promised. Interleaving does not change registration order.
+- **interleaved release hooks keep reverse registration order.**
+  Resource cleanup and release use the same registered hooks. This is the existing latest-first rule during release.
+- **a circular resource does not hold itself open after rejection.**
+  Resources already reports CircularResource. Keeping no self-borrow is the internal means to let cleanup finish.
+- **release awaits interleaved async hooks in reverse registration order.**
+  Latest-first cleanup is already promised and async cleanup is awaited. Interleaving combines those rules.
+- **a warmed context-aware pool without cleanup can feed a client.**
+  A warmed pool is still the one cached resource instance; adding a ctx parameter does not change that promise.
+- **a hookless session client frees its hold on a root resource when it closes.**
+  A session closes its resources whether or not a factory registered cleanup. Its internal hold counter is not a separate API.
+- **a hookless factory can retry after a synchronous failure.**
+  The documented sticky rule is for a rejected async build. This title checks the plain synchronous factory path.
+- **releaseNs waits for its own live borrow but not a sibling namespace.**
+  Namespaces already isolates buckets; release waits for the borrower of the selected instance, not unrelated work.
+- **release passed point-free to forEach releases each cell.**
+  Passing release directly to forEach exercises its existing one-target call form, not a new release mode.
+- **releaseNs on parent data cleans child resources before parent resources.**
+  Resources already promises dependent-first release and cross-session cleanup. Named data uses the same order.
+- **releaseNs ignores data and resource buckets that were never built or already released.**
+  Clearing a named bucket that is absent leaves it absent. No new operation or return value is promised.
+- **releaseNs from a closed session cannot unlink the root's named pool.**
+  A closed session has no right to release more resources. The root pool remains governed by its own owner.
+- **a rebuilt named data dependent leaves its old fallback entry.**
+  The namespace fallback-entry bookkeeping is private; the public promise is that release affects only current dependents.
+- **a tagged sync run that raises a managed error rejects with it.**
+  Operations already promises that a rejected operation keeps its cause. Tags do not replace that error.
+- **a run's borrow is released after its sync defer, so a release and a close do not wait on it.**
+  The borrow counter is private. The public promise is that finished work no longer holds up release or close.
+- **a closed scope with session hooks refuses a new session.**
+  A closed scope refuses new work; adding session hooks does not reopen it.
+- **a then getter is read once: the body value is the first read's.**
+  The getter-read count is an implementation detail. ADR 0027 does not promise behavior for changing hostile thenables.
+- **a tagged subflow inside a tagged run: the inner waits (a body is running), the outer waits for it.**
+  Operations already promises that a tagged call waits when its session must wait; nested owned work is such a case.
+- **the first async defer keeps the tagged call pending.**
+  Cleanup is awaited before a tagged session ends. Its first async defer is one case of that promise.
+- **a parent close inside an untouched tagged body sees that body.**
+  Close already joins a running child body; allocating the child lazily does not weaken that rule.
+- **the first resource build sees inherited namespaces and the call's tags.**
+  Namespaces already says tagged subflows inherit the ambient namespace; Operations says tagged calls see call tags.
+- **a data controller from an idle tagged call refuses a late write.**
+  A closed session refuses late writes. Ending the tagged session in place has the same public rule.
+- **adopting a body's late then method keeps its tagged controller writable.**
+  The changing then property probes how core adopts a body result; it is not a new guarantee for hostile thenables.
+- **a tagged session adopts a callable made thenable by run cleanup.**
+  A callable made thenable during cleanup is an implementation probe; ADR 0027 leaves adversarial values outside its promise.
+- **wait: a session resource built for the run, even with no cleanup.**
+  Operations already says a tagged call waits when its session must wait and owns session resources until it closes.
+
+### Final proof
+
+- **Saved code:** `77d64388` on `core/root-lifetime`.
+- **Gate:** `vp run -r build && vp check && vp run -r test` returned 0.
+  Core printed 32 files and 750 passing tests, including the 19 new lifetime cases.
+  All 17 workspace test tasks passed; existing tests stayed unchanged.
+- **Mutation:** the core lane ran alone under `/tmp/mutation.lock` and returned 0.
+  Score: 85.66, above 85.
+  Killed 2742; timed out 29; survived 436; no coverage 28; errors 6.
+  The Stryker report is `packages/core/reports/mutation/mutation.json`.
+- **Promise budget:** both this branch and main `82a30895` returned 0.
+
+  ```text
+  sync-lane promises:  0   (budget 0)
+  async-toggle promises: 5   (budget <=10)
+  METRIC promises_tagged=2
+  ```
+
+- **Validate:** final build and `pnpm validate` returned 0; all 48 lanes passed.
+  The workspace already allowed esbuild; `pnpm-workspace.yaml` was restored unchanged.
+- **Slots:** 252 hot names; last hot slot 254; one spare name.
+  Anchor: `invalidateResource`, line 4601.
+  New functions: `readExtRoutes` 5393, `watchRootClose` 5412,
+  `finishRootClose` 5426, `listenForStop` 5440.
+  Every new runtime declaration is after the anchor.
+- **Prose:** final `vp run prose` returned 0.
+- **TSDoc:** `node tools/jev/docs.mjs` on the changed TypeScript files returned 0.
+  No S26 row.
+- **Jev:** preflight, tests, promises, and labels each returned 0.
+  Eight new false labels are saved; the notes above answer the old plain and promise hits.
+- **Style:** new lifetime test strict census returned 0.
+  Whole-core census returned 1 on both branch and main, with identical old strict hits.
+  The new code adds none; the existing tests remain untouched.
+- **Timing:** none run; the lead owns the queued timing check.
+
+The two regressions failed on the unchanged main core code at `f8bc981b`.
+First: a rejected start rejects ready only after its forced cleanup ends.
+
+```diff
+- Expected
++ Received
+
+  [
+-   "cleanup",
+    "ready",
++   "cleanup",
+  ]
+```
+
+Second: a rejected start runs every close hook through the current handle.
+
+```diff
+- Expected
++ Received
+
+- [
+-   "handle:before",
+-   "first:before",
+-   "second:before",
+-   "second:after",
+-   "first:after",
+-   "handle:after",
+- ]
++ []
+```
+
+```text
+Tests 2 failed (2)
+EXIT=1
+```
+
+Both now pass.
+Full logs from this writer run are `/tmp/core-root-lifetime-*.log`.

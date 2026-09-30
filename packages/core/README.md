@@ -69,6 +69,16 @@ Stack uses 1 for a failed Result or any teardown error, and 0 otherwise.
 A cancelled Result is a clean stop there.
 Process keeps its own forced stop and exit code 130.
 
+```ts
+import type { Scope } from "@tinker/core";
+
+function exitCode(end: Scope.Result): number {
+  if (end.status === "failed") return 1;
+  if (end.teardownErrors?.length) return 1;
+  return 0;
+}
+```
+
 ## Extensions
 
 An extension is middleware over the scope's verbs (ADR 0050). Declare it with
