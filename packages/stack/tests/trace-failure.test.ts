@@ -23,8 +23,10 @@ test.each<TraceSink.Env>([
       sink.extension,
       extension({
         label: "later",
-        start: () => {
-          started = true;
+        hooks: {
+          start: () => {
+            started = true;
+          },
         },
       }),
     ],

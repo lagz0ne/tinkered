@@ -81,27 +81,29 @@ function createPublisher(
   });
   return extension({
     label: "stack.publish",
-    start: async (scope, _ctx, next) => {
-      onStart?.();
-      await next();
-      scope.resolve(root);
-      await scope.run(publish);
-    },
-    session: async (handle, next) => {
-      /** Resolve while the session is live; the controller belongs to the root
-       * and keeps this session's namespace after the session closes. */
-      const republish = handle.resolve(root);
-      const ended = await next();
-      const found = handle.resolve(request.optional);
-      if (
-        ended.status === "success" &&
-        !ended.teardownErrors?.length &&
-        found.present &&
-        found.value.method !== "GET"
-      ) {
-        await republish.run();
-      }
-      return ended;
+    hooks: {
+      start: async (event) => {
+        onStart?.();
+        await event.next();
+        event.scope.resolve(root);
+        await event.scope.run(publish);
+      },
+      session: async (event) => {
+        /** Resolve while the session is live; the controller belongs to the root
+         * and keeps this session's namespace after the session closes. */
+        const republish = event.handle.resolve(root);
+        const ended = await event.next();
+        const found = event.handle.resolve(request.optional);
+        if (
+          ended.status === "success" &&
+          !ended.teardownErrors?.length &&
+          found.present &&
+          found.value.method !== "GET"
+        ) {
+          await republish.run();
+        }
+        return ended;
+      },
     },
   });
 }

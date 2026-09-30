@@ -40,15 +40,17 @@ test("two starts on one database migrate once under a lock released before the n
   const checked = Promise.withResolvers<unknown>();
   const after = extension({
     label: "after",
-    start: async (_scope, _ctx, next) => {
-      checked.resolve(
-        (
-          await client.query(
-            "select count(*)::int as locks from pg_locks where locktype = 'advisory'",
-          )
-        ).rows,
-      );
-      await next();
+    hooks: {
+      start: async (event) => {
+        checked.resolve(
+          (
+            await client.query(
+              "select count(*)::int as locks from pg_locks where locktype = 'advisory'",
+            )
+          ).rows,
+        );
+        await event.next();
+      },
     },
   });
   const second = createScope({ extensions: [migrate(database, { migrationsFolder }), after] });

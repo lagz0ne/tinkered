@@ -265,8 +265,10 @@ test("a failed second live root leaves the first root receiving signals", async 
   const failure = new Error("later start failed");
   const later = extension({
     label: "later",
-    start: () => {
-      throw failure;
+    hooks: {
+      start: () => {
+        throw failure;
+      },
     },
   });
   const first = { value: "first" };

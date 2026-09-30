@@ -23,18 +23,20 @@ export function migrate(
 ): Scope.Extension<void> {
   return extension({
     label: "stack.migrate",
-    start: async (scope, _ctx, next) => {
-      const { sql } = await import("drizzle-orm");
-      const { migrateDatabase } = await import("@tinker/drizzle/migrations");
-      const db = await scope.resolve(database);
-      await db.transaction(async (tx) => {
-        await tx.execute(
-          sql`select pg_advisory_xact_lock(${migrationLock.classId}, ${migrationLock.objectId})`,
-        );
-        await options.baseline?.(tx);
-        await migrateDatabase(tx, { migrationsFolder: options.migrationsFolder });
-      });
-      await next();
+    hooks: {
+      start: async (event) => {
+        const { sql } = await import("drizzle-orm");
+        const { migrateDatabase } = await import("@tinker/drizzle/migrations");
+        const db = await event.scope.resolve(database);
+        await db.transaction(async (tx) => {
+          await tx.execute(
+            sql`select pg_advisory_xact_lock(${migrationLock.classId}, ${migrationLock.objectId})`,
+          );
+          await options.baseline?.(tx);
+          await migrateDatabase(tx, { migrationsFolder: options.migrationsFolder });
+        });
+        await event.next();
+      },
     },
   });
 }

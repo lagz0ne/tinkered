@@ -11,8 +11,10 @@ test.each([undefined, "", "abc", "80x", "0", "65536", "-1", "1.2", " 80"])(
     let started = false;
     const later = extension({
       label: "later",
-      start: () => {
-        started = true;
+      hooks: {
+        start: () => {
+          started = true;
+        },
       },
     });
     const scope = createScope({
@@ -89,8 +91,10 @@ test.each<Server.Env>([
   const reached = new Error("next start reached");
   const next = extension({
     label: "next",
-    start: () => {
-      throw reached;
+    hooks: {
+      start: () => {
+        throw reached;
+      },
     },
   });
   const web = hono([]).extension;

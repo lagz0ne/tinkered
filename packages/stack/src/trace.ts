@@ -121,25 +121,27 @@ function createRootTraceSink(wiring: TraceSink.Wiring) {
     observe,
     extension: extension({
       label: "stack.trace",
-      start: async (_scope, ctx, next) => {
-        const settings = readSettings(wiring.env);
-        const owned = new TraceQueue(settings, ctx.clock, local);
-        queue = owned;
-        owned.start(() => owned.flush());
-        ctx.defer(async () => {
-          await owned.stop();
-        });
-        await next();
-      },
-      close: async (options, next) => {
-        const owned = queue;
-        owned?.beginClose(options.graceful === true);
-        try {
-          return await next();
-        } finally {
-          await owned?.finishClose();
-          queue = undefined;
-        }
+      hooks: {
+        start: async (event) => {
+          const settings = readSettings(wiring.env);
+          const owned = new TraceQueue(settings, event.clock, local);
+          queue = owned;
+          owned.start(() => owned.flush());
+          event.defer(async () => {
+            await owned.stop();
+          });
+          await event.next();
+        },
+        close: async (event) => {
+          const owned = queue;
+          owned?.beginClose(event.options.graceful === true);
+          try {
+            return await event.next();
+          } finally {
+            await owned?.finishClose();
+            queue = undefined;
+          }
+        },
       },
     }),
   };

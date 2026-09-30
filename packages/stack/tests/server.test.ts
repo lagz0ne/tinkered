@@ -12,10 +12,12 @@ test("opens the port only after every other start finishes", async () => {
   const release = Promise.withResolvers<void>();
   const later = extension({
     label: "later",
-    start: async (_scope, _ctx, next) => {
-      await next();
-      entered.resolve();
-      await release.promise;
+    hooks: {
+      start: async (event) => {
+        await event.next();
+        entered.resolve();
+        await release.promise;
+      },
     },
   });
   const lines: string[] = [];
@@ -67,9 +69,11 @@ test("a stop waits for an in-flight request and answers zero", async () => {
       web,
       extension({
         label: "closing",
-        close: (_opts, next) => {
-          closing.resolve();
-          return next();
+        hooks: {
+          close: (event) => {
+            closing.resolve();
+            return event.next();
+          },
         },
       }),
     ],
@@ -121,12 +125,14 @@ test("failed boot waits for cleanup before logging and answering one", async () 
   const web = hono([]).extension;
   const broken = extension({
     label: "broken",
-    start: (_scope, ctx) => {
-      ctx.defer(() => {
-        cleaning.resolve();
-        return cleaned.promise;
-      });
-      throw new Error("boot broke");
+    hooks: {
+      start: (event) => {
+        event.defer(() => {
+          cleaning.resolve();
+          return cleaned.promise;
+        });
+        throw new Error("boot broke");
+      },
     },
   });
   const scope = createScope({

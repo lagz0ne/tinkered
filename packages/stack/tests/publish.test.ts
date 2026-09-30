@@ -16,8 +16,10 @@ test("local publishing runs after later starts and before the first request", as
   });
   const later = extension({
     label: "later",
-    start: () => {
-      saved = "ready";
+    hooks: {
+      start: () => {
+        saved = "ready";
+      },
     },
   });
   const web = hono([route.get("/", read)]).extension;

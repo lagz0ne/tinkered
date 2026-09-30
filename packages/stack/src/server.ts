@@ -23,27 +23,29 @@ export function server(
 ): Scope.Extension<void> {
   return extension({
     label: "stack.server",
-    start: async (scope, ctx, next) => {
-      const settings = readSettings(options.env);
-      await next();
-      const app = scope.resolve(web);
-      mountClient(app, options.clientDir);
-      let close: (() => Promise<void>) | undefined;
-      let stopped = false;
-      ctx.defer(() => {
-        stopped = true;
-        return close?.();
-      });
-      close = await listen(app, settings);
-      if (stopped) await close();
-      else
-        options.observe?.log?.({
-          time: options.observe.clock?.() ?? ctx.clock.currentTimeMillis(),
-          level: LEVELS.info,
-          message: "listening",
-          attributes: settings,
-          span: undefined,
+    hooks: {
+      start: async (event) => {
+        const settings = readSettings(options.env);
+        await event.next();
+        const app = event.scope.resolve(web);
+        mountClient(app, options.clientDir);
+        let close: (() => Promise<void>) | undefined;
+        let stopped = false;
+        event.defer(() => {
+          stopped = true;
+          return close?.();
         });
+        close = await listen(app, settings);
+        if (stopped) await close();
+        else
+          options.observe?.log?.({
+            time: options.observe.clock?.() ?? event.clock.currentTimeMillis(),
+            level: LEVELS.info,
+            message: "listening",
+            attributes: settings,
+            span: undefined,
+          });
+      },
     },
   });
 }
