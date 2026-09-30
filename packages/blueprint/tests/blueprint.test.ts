@@ -126,7 +126,7 @@ test("dataNoWriter produces one finding per data node with no writer", () => {
       source: "plain",
       check: "dataNoWriter",
       node: "issueList",
-      detail: "no operation or resource depends on it",
+      detail: "no operation, resource, or extension depends on it",
       blocking: true,
     },
   ]);

@@ -1,12 +1,12 @@
 id: unitFits
-applies: [data, resource, operation, tag]
+applies: [data, resource, operation, tag, extension]
 needs: [promise, why, work]
 kind: choice
 status: provisional
 compare: kind
 ask: >-
   Which unit fits this node:
-  data, resource, operation, or tag?
+  data, resource, operation, tag, or extension?
 choices:
   data: >-
     a piece of state kept and read over
@@ -25,6 +25,10 @@ choices:
     an environment choice — a URL, path,
     flag, or setting — bound at the root
     and rebound in tests
+  extension: >-
+    an engine that controls work through
+    hooks bound to the current owner and key;
+    live state stays in resources or data
 shapes:
   data: >-
     const x = data({ label: "x", initial });
@@ -41,3 +45,6 @@ shapes:
     const x = tag<Config>({ label: "x" });
     // bound at the root:
     createScope({ tags: [x(value)] })
+  extension: >-
+    const x = extension({ label: "x", hooks: {
+    run(event) { return event.next(); } } })

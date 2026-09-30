@@ -9,13 +9,13 @@ export type { Errors } from "./errors.ts";
 export declare namespace Blueprint {
   /** One parsed node. `kind` is the YAML key; `depends` is always an array. */
   export type Node = {
-    readonly kind: "data" | "resource" | "operation" | "tag";
+    readonly kind: "data" | "resource" | "operation" | "tag" | "extension";
     readonly name: string;
     readonly promise: string;
     readonly why: string;
     readonly depends: readonly string[];
     readonly work?: string;
-    readonly target?: "scope" | "session";
+    readonly target?: "scope" | "namespace" | "session";
   };
   /** The parsed file: nodes in file order plus the two edge readers. */
   export type Graph = {
@@ -35,12 +35,13 @@ export declare namespace Blueprint {
     /** Identifier roots of the `depends` values, in order (a dotted name reads as its own
      * text — ADR 0055 §1: a frame's part is not a unit of its own). */
     readonly depends: readonly string[];
-    readonly target?: "scope" | "session";
-    /** The source text of `run` / `factory`; `data` and `tag` units carry none. */
+    readonly target?: Node["target"];
+    /** The source text of `run`, `factory`, or the extension's `hooks` object.
+     * `data` and `tag` units carry none. */
     readonly body?: string;
   };
   /** A node field, or a neighbour list, a template may read. `body` is the linked unit's
-   * `run`/`factory` text (ADR 0055 §4) — `check` never asks a template that needs it. */
+   * `run`/`factory`/`hooks` text (ADR 0055 §4) — `check` never asks a template that needs it. */
   export type StateField =
     | "kind"
     | "name"
@@ -96,7 +97,7 @@ export declare namespace Blueprint {
   /** The Jev engine: which model, which key. Bound at the root; a test never binds it. */
   export type Engine = { readonly model: string; readonly apiKey: string };
   /** What the judge sees for one node: the node, plus its one-hop neighbours, plus `body`
-   * (the linked unit's `run`/`factory` text) when a `verify` call or a `source:` eval carries
+   * (the linked unit's `run`/`factory`/`hooks` text) when a `verify` call or a `source:` eval carries
    * one — absent for every `check` call, which never links code. */
   export type NodeState = Node & {
     readonly uses: readonly Node[];
@@ -203,19 +204,25 @@ const tagEntry = z.strictObject({ tag: base });
 const operationEntry = z.strictObject({
   operation: base.extend({ work: z.string().optional() }),
 });
+const extensionEntry = z.strictObject({
+  extension: base.extend({ work: z.string().optional() }),
+});
 const resourceEntry = z.strictObject({
   resource: base.extend({
     work: z.string().optional(),
-    target: z.enum(["scope", "session"]).default("scope"),
+    target: z.enum(["scope", "namespace", "session"]).default("scope"),
   }),
 });
 
-const entries = z.array(z.union([dataEntry, tagEntry, operationEntry, resourceEntry]));
+const entries = z.array(
+  z.union([dataEntry, tagEntry, operationEntry, resourceEntry, extensionEntry]),
+);
 
 function readNode(entry: Parsed[number]): Blueprint.Node {
   if ("data" in entry) return { kind: "data", ...entry.data };
   if ("tag" in entry) return { kind: "tag", ...entry.tag };
   if ("operation" in entry) return { kind: "operation", ...entry.operation };
+  if ("extension" in entry) return { kind: "extension", ...entry.extension };
   return { kind: "resource", ...entry.resource };
 }
 
@@ -292,7 +299,7 @@ function unknownNames(nodes: readonly Blueprint.Node[]): readonly Blueprint.Find
   );
 }
 
-/** One finding per `data` node no operation or resource names in `depends`.
+/** One finding per `data` node no operation, resource, or extension names in `depends`.
  * The file cannot tell a read from a write, so any dependent counts as a writer. */
 function unwrittenData(graph: Blueprint.Graph): readonly Blueprint.Finding[] {
   return graph.nodes
@@ -304,7 +311,7 @@ function unwrittenData(graph: Blueprint.Graph): readonly Blueprint.Finding[] {
       source: "plain" as const,
       check: "dataNoWriter",
       node: node.name,
-      detail: "no operation or resource depends on it",
+      detail: "no operation, resource, or extension depends on it",
       blocking: true,
     }));
 }
@@ -495,7 +502,7 @@ export function parseSuggestInput(raw: unknown): { readonly words: string } {
   return { words: call.data.words };
 }
 
-const nodeKind = z.enum(["data", "resource", "operation", "tag"]);
+const nodeKind = z.enum(["data", "resource", "operation", "tag", "extension"]);
 
 const stateField = z.enum([
   "kind",

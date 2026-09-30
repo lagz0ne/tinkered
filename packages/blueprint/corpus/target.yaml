@@ -6,7 +6,8 @@ status: provisional
 compare: target
 ask: >-
   One copy for the whole scope,
-  or one per session?
+  one per namespace until root close,
+  or one per session and namespace?
 choices:
   scope: >-
     one shared copy for the process:
@@ -16,3 +17,7 @@ choices:
     one per request, tab, call, or turn:
     a transaction, a request context,
     per-call state
+  namespace: >-
+    one copy per namespace, owned by the root:
+    separate service clients or tenant pools
+    shared across requests until root close

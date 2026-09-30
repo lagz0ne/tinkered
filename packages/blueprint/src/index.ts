@@ -514,7 +514,7 @@ function labeled(label: string, value: string): string {
 function distribution(answer: Blueprint.Answer): string {
   if (answer.type !== "choice") return "";
   return Object.entries(answer.probabilities ?? {})
-    .sort((a, b) => b[1] - a[1])
+    .sort(([, left], [, right]) => right - left)
     .map(([choice, p]) => `${choice} ${pct(p)}`)
     .join(", ");
 }

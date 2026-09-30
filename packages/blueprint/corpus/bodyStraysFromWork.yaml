@@ -1,5 +1,5 @@
 id: bodyStraysFromWork
-applies: [operation, resource]
+applies: [operation, resource, extension]
 needs: [work, body, depends]
 kind: boolean
 status: provisional

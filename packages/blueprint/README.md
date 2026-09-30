@@ -93,21 +93,55 @@ ok: 2 nodes, 2 units, 0 findings
 ## The file format
 
 - A blueprint is a YAML list of nodes.
-- The kind is the key: `data`, `resource`, `operation`, or `tag`. A name is
-  a node; `depends` names nodes exactly.
+- The kind is the key: `data`, `resource`, `operation`, `tag`, or `extension`.
+- A name is a node; `depends` names nodes exactly.
 - Each node carries `name`, `promise`, and `why`; `why` is required — a
   missing or borrowed reason is how a redundant or misused unit shows
   itself.
 - `depends` names nodes exactly; it defaults to `[]`.
 - `work` says what the unit does in one line, where it helps.
-- `target` lives on `resource` only: `scope` or `session`; it defaults to
-  `scope`.
+- `target` lives on `resource` only: `scope`, `namespace`, or `session`.
+  It defaults to `scope`.
+- A namespace resource has one value per key, owned until the root closes.
+  Closing a child session leaves that value alive.
 - A name holds letters, digits, and `_`. A dot in a name is an error.
 - Unknown keys are an error: a typo is a typo.
-- Data used only by other data still needs an operation or resource writer.
+- Data used only by other data still needs an operation, resource, or extension writer.
 - Nodes keep file order. `uses` reads what a node names; `usedBy` reads
   what names it. A name nothing has, or a dangling `depends` entry, reads
   as no nodes — `uses`/`usedBy` never throw.
+
+An extension writes data through declared direct object-hook access.
+The YAML lists those units in `depends`:
+
+```yaml
+- data:
+    name: active
+    promise: the count of managed runs
+    why: the engine owns the count
+- extension:
+    name: engine
+    depends: [active]
+    promise: count managed runs in their owner and key
+    why: each owner keeps its own count
+    work: add one before continuing the run
+```
+
+```ts
+const active = data({ label: "active", initial: 0 });
+const engine = extension({
+  label: "engine",
+  hooks: {
+    run(event) {
+      event.controller(active).update((n) => n + 1);
+      return event.next();
+    },
+  },
+});
+```
+
+The extension definition keeps no live count.
+The event selects its owner's data under the current namespace key.
 
 The ADR's own example (`docs/decisions/0052-*.md`):
 
@@ -139,12 +173,13 @@ The ADR's own example (`docs/decisions/0052-*.md`):
   With no key, `check` fails `NoKey`.
 - The file argument is the first argv entry that is not a flag and is not
   `--key-file`'s value.
+- Check rejects a call without the file text as its parse failure.
 - `--json` prints the report as one JSON object and nothing else.
 - Plain output is one line per finding, then a summary line:
 
 ```text
-dataNoWriter   issueList  no operation
-  or resource depends on it
+dataNoWriter   issueList  no operation,
+  resource, or extension depends on it
 ~unitFits      saveIssue  reads as
   resource (72%)
 ok: 5 nodes, 2 findings
@@ -180,8 +215,7 @@ key. It needs no key — the plain checks alone are useful without one,
 unlike `check`.
 
 - A node named `x` is linked to the unit whose `label` is `"x"`
-  (`data`/`resource`/`operation`/`tag({ label: "x" })`) — the same rule
-  `check` uses to read a node, applied to code instead of yaml.
+  in a `data`, `resource`, `operation`, `tag`, or `extension` call.
 - `src-dir` is walked recursively for every `*.ts` file, skipping
   `*.test.ts` and `*.d.ts`; each file is parsed once with `oxc-parser`.
   Nested source counts, while tests, declarations, and JS files do not.
@@ -192,10 +226,22 @@ unlike `check`.
 - Calls that are not named top-level `const` units are skipped.
 - A unit without a literal string label is skipped.
 - A resource's non-literal target reads as `scope`.
-- A unit is one `const x = data|resource|operation|tag({ … })`, read for
-  its `kind`, `label`, `depends`, `target`, and (`operation`/`resource`
-  only) its `run`/`factory` body text. A unit without a literal `label`
-  is never extracted — the diff cannot name it.
+- A namespace resource blueprint verifies against namespace source.
+- Namespace source cannot pass verification as a shared scope resource.
+- A unit is one top-level `const` call to one of the five kinds.
+  It supplies `kind`, `label`, `depends`, and `target`.
+  Operations and resources also supply their inline `run` or `factory` body.
+- An extension's literal `hooks` object supplies its body.
+  `verify` sends an extension's hooks body to the body judge.
+- A named inline object hook supplies its direct dependencies.
+  `event.controller(active)`, `event.resolve(client)`, and `event.run(send)`
+  supply `active`, `client`, and `send` once each.
+  The event parameter may have any name; the target must be an identifier.
+- Extension source checks skip dynamic access and nested helper bodies.
+  They do not follow aliases, fields, computed access, or function calls that choose a target.
+  Referenced hooks, spreads, and a destructured event parameter supply no dependencies.
+  Write direct calls when verification must check the edge.
+- A unit without a literal `label` is never extracted — the diff cannot name it.
 - Five checks, in this order, every line blocking:
 
 ```text
@@ -239,10 +285,10 @@ ok: 5 nodes, 6 units, 5 findings
   `*.ts` file (`NoSource`).
 
 **With a key**, `verify` also asks every template whose `needs`
-includes `body` — one `judge.ask` per node that has a body (operations
-and resources); `check` never asks these (`corpus.forKind(kind, {
+includes `body` — one `judge.ask` per node that has a body (operations,
+resources, and extensions); `check` never asks these (`corpus.forKind(kind, {
 body: true })` versus `check`'s default `{ body: false }`). `state.body`
-is the unit's `run`/`factory` text, linked by label as above:
+is the unit's `run`/`factory`/`hooks` text, linked by label as above:
 
 ```bash
 node packages/blueprint/dist/main.mjs \
@@ -282,6 +328,8 @@ body templates skipped: no key
 ```
 
 ## explain, evals
+
+The shipped choices offer extensions and namespace resources.
 
 - With no markdown flag, `explain` uses plain text. Choice templates
   print their comparison and shape for each choice in either format;
@@ -334,7 +382,7 @@ shape.resource: const x = resource({ label: "x", target,
   `target`) and `shapes` (one target-shape string per choice, printed by
   `explain` and by `suggest`). `shapes`'s keys must equal `choices`'s
   keys, else the load fails `InvalidTemplate`.
-- An `applies` entry outside the four kinds, or a `needs` entry outside
+- An `applies` entry outside the five kinds, or a `needs` entry outside
   the ten fields, fails the load with `InvalidTemplate`.
 - The corpus loads every `*.yaml` once per scope, sorted by id. A node-scope
   template sits under `forKind(kind)`; a pair-scope template sits under
@@ -379,7 +427,7 @@ one law` (`unit:`) or `unclear (<pick> only <pct>)` (`target:`).
   `expect` (a boolean, or the option name a choice template should
   pick), `blueprint` (the same node list a blueprint file holds), and,
   for a `body` template, `source` (a TypeScript snippet). The grade's
-  state is the target node plus `body` — the `run`/`factory` text of
+  state is the target node plus `body` — the `run`/`factory`/`hooks` text of
   `source`'s unit labeled `target`, through `readUnits` (ADR 0055 §5); a
   `source` naming no such unit fails `InvalidEval`.
 - A `bad` file shows one distinct way the template's defect appears; a
