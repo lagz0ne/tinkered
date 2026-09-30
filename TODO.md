@@ -40,6 +40,14 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
+- **playground/awwwards** — finish authoring changes and polish Tile storm.
+  Owner: lead (playground release); writer: Astra, xhigh.
+  Next: refine the ocean scene and shell; review on desktop and phone.
+  Verify: build/check, all app tests, style census, prose;
+  live controls, source links, full screen, current vendor files;
+  Dokploy deployment done and live files match the build.
+  [Track](docs/roadmap/playground-v2/PROGRESS.md).
+
 - **authoring/model** — lazy event objects and the five authoring fixes.
   Owner: lead (authoring-model session); Astra writers, one package each.
   Next: finish the merged gates under the approved 16 KiB cap, then land.

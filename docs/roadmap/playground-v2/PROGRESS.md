@@ -658,3 +658,24 @@ including Preact Signals, with no page errors.
 This was phone-sized Chromium, not physical Android Edge.
 The existing domain mapping is unchanged.
 Review labels were recalibrated after the false finding.
+
+## Tile storm detail pass
+
+Date: 2026-09-30.
+Status: Doing.
+Owner: lead (playground release).
+Writer: Astra, xhigh; package: playground.
+
+The user asked to finish the authoring changes and deploy the playground.
+Keep the same ocean tile concept and refine its look and small details.
+The checked authoring branch is the build base.
+The vendor files and browsable package sources must come from that base.
+
+The view may change type, spacing, color, light, and control layout.
+Keep waves, board turns, sliders, storm, keyboard input, and clear.
+Keep the same game alive across Play, Code, Benchmark, and full screen.
+Keep saved user code and provide the existing Reset demo action.
+
+Verify with build/check, package and app tests, and style census.
+Review the real page at desktop and phone widths.
+Check the deployed files against the build after Dokploy reports done.
