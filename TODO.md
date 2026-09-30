@@ -40,14 +40,6 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **playground/awwwards** — finish authoring changes and polish Tile storm.
-  Owner: lead (playground release); writers: Astra, xhigh.
-  Next: refine the ocean, Code, and Benchmark; review on desktop and phone.
-  Verify: build/check, all app tests, style census, prose;
-  live controls, source links, full screen, current vendor files;
-  Dokploy deployment done and live files match the build.
-  [Track](docs/roadmap/playground-v2/PROGRESS.md).
-
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
@@ -59,6 +51,14 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 - **stack/t17 hono-commit** — a request commits before it answers (a failed commit answers 500, not 200 with nothing saved); any raised error rolls the request back, even when answered 4xx (ADR 0084, user 2026-09-29). Owner: lead (stack session); Astra writer `32dd77ae`, worktree `/home/paseo/next/tinkered-stack-t17`; Opus reviewer when the writer reports. Verify: a test per rule that fails on main; hono, drizzle, stack, tracker tests; `pnpm validate`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 
 ## Review
+
+- **playground/awwwards** — isometric sea, Code, and Benchmark detail pass.
+  Owner: lead (playground release); writers: Astra, xhigh.
+  Next: finish the paired storm check, run the merged gates, and deploy.
+  Verify: build/check, package and app tests, style census, prose;
+  live controls, source links, full screen, current vendor files;
+  Dokploy deployment done and live files match the build.
+  [Track](docs/roadmap/playground-v2/PROGRESS.md).
 
 | Card | Owner | Next | Verify |
 | ---- | ----- | ---- | ------ |
@@ -105,9 +105,12 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Done
 
-- **authoring/model** — all five fixes pass the merged gates.
-  Proof: checkpoint `dfaad530`; all 48 release lanes and 14 fault lanes pass.
-  Core: 16,373 bytes gzip under the approved 16,384-byte cap.
+- **authoring/model** — lazy object hooks and all five module fixes.
+  Landed and pushed at `dfaad530`; tag `core/tauthoring-model`.
+  Core: 16,373 bytes gzip under the approved 16 KiB cap.
+  Proof: build/check, all 17 test tasks, 48 release lanes, and prose passed.
+  All 14 package fault scores meet the floor of 85.
+  The eight task checkouts and branches were removed.
   [Track](docs/roadmap/authoring-model/PROGRESS.md).
 
 - **migrate/root-lifetime** — Astra writer + Opus review (one fix round); tag `migrate/root-lifetime`; ADR 0085. Every root outside core and stack stops closing itself after a rejected `ready`: the tracker's test fixtures and `src/client/main.tsx`, the examples, and the sync tests (each ran its close hooks twice since core/root-lifetime; a tracker test now counts one close). `examples/mcp/serve.ts` is the model entry: `createScope({ …, signal: AbortSignal.any([stop, ended.signal]) })`, `await scope.closed`, exit code failed → 1, teardown errors → 1, else 0. S29 rows left: only stack's `runUntilStop` (stack/t18). Tracker 79 tests, browser 7, sync mutation 86.60 (398 killed, 9 timeout, 61 survived, 2 no cover), validate 48 PASS. Jev: 2 `inputDefaultMasks` labels; calibrated (proven, sep 54%, ordered 95%).

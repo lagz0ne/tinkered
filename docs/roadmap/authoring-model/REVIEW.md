@@ -1,11 +1,11 @@
 # Authoring model review
 
 Date: 2026-09-30.
-Status: fixes reviewed; 16 KiB cap approved; merged landing checks running.
+Status: fixes reviewed and landed; all final checks passed.
 
 The proposed context addresses a real access gap.
 It does not by itself give live state the right owner.
-All five cases now have passing tests on `authoring/model-fixes`.
+All five cases have passing tests on main at `dfaad530`.
 The final gates are recorded in [the progress log](PROGRESS.md).
 The finding paths below describe the reviewed baseline, `2700a440`.
 
@@ -23,10 +23,11 @@ The finding paths below describe the reviewed baseline, `2700a440`.
   Real-server tests cover publish routing and incoming sessions.
 
 The first landing attempt failed the old 15 KiB cap.
-The user then chose 16 KiB; all 14 merged fault checks now pass.
+The user then chose 16 KiB; all merged fault checks passed.
 The first event cost probe led to a simpler run-event constructor.
 The final probe found no difference between legacy and object hooks.
 Before the merge, all five changed packages passed the fault-check floor.
+After the merge, all 14 package fault scores meet the floor of 85.
 All 48 merged release lanes now pass.
 Core is 16,373 bytes gzip against the approved 16,384-byte cap.
 

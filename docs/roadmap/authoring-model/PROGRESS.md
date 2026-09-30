@@ -1,8 +1,12 @@
 # Authoring model
 
 Date: 2026-09-30.
-Status: all merged gates pass; checkpoint saved for landing.
+Status: Done; all checks passed; landed and pushed on main.
 Owner: lead (authoring-model session).
+
+Source checkpoint: `dfaad530`; tag: `core/tauthoring-model`.
+Core: 16,373 bytes gzip under the approved 16,384-byte cap.
+All 17 test tasks, 48 release lanes, and 14 fault lanes pass.
 
 ## Fixes authorized
 
@@ -157,7 +161,7 @@ Logs are saved under `/tmp/tinkered-authoring-final*`.
 The ticket log is `/tmp/tinkered-authoring-final-ticket.log`.
 The release log is `/tmp/tinkered-authoring-final-validate.log`.
 These results are from before the approved cap change and remote merge.
-The final landing results will be recorded below.
+The final landing results are recorded below.
 
 ## Lead review
 
@@ -179,12 +183,12 @@ Refs confirm Extension types and Resource.Ctx.ns use across consumers.
 Full consumer build and tests passed together.
 Check reports 0 errors and the same 29 baseline warnings.
 
-Integration branch: `authoring/model-fixes`.
-Integration checkout: `/home/paseo/next/tinkered-authoring-fixes`.
+Integration used branch `authoring/model-fixes` in its own checkout.
+That checkout and branch were removed after landing.
 
 Current shape: [Extension access, derived from cases](EXTENSION-SHAPE.md).
 ADR 0089 records the accepted object API.
-The implementation is saved; final gates still control landing.
+The implementation landed and all final gates passed.
 
 Current review: [module findings and proof](REVIEW.md).
 The review reproduced Sync owner leaks and early close during a run hook.
@@ -529,7 +533,7 @@ The integration merge keeps RootLifetime and the NATS trace work.
 Core recognizes both hook forms on the new root path.
 A signal-root object-hook regression failed before the route fix.
 Both Jev label banks were kept; the final bank has 1,794 labeled cases.
-Calibration passed, exit 0; its updated report is saved for the checkpoint.
+Calibration passed, exit 0; its updated report is in the checkpoint.
 Final gates follow the merge; earlier fault scores do not cover it.
 
 Merged build: exit 0.
@@ -542,8 +546,33 @@ The merge cut a single-use getter while keeping resource read order.
 The pass-through event and no-hook paths did not change in that cut.
 SCIP indexes and references were refreshed after the merge.
 The review covers the root signal path and NATS's optional span argument.
-The Core ticket gate finished all 14 fault lanes one package at a time.
+The Core ticket gate passed, exit 0, and made `core/tauthoring-model`.
+Its fault lanes ran one package at a time under `/tmp/mutation.lock`.
 Merged Core fault score: 85.55, above the required floor of 85.
+
+All 14 fault lanes passed their own floor check:
+
+- Core: 85.55.
+- NATS: 87.67.
+- Stack: 85.36.
+- Sync: 85.22.
+- Tinkerer: 95.19.
+- Utils: 100.00.
+- MCP: 98.51.
+- HTTP: 89.70.
+- Drizzle: 93.86.
+- Hono: 86.09.
+- React: 93.16.
+- Process: 96.10.
+- Harness: 85.29.
+- Blueprint: 86.27.
+
+Main fast-forwarded to `dfaad530` and was pushed with the checkpoint tag.
+Source and test hashes match the fault-checked checkout for all 14 packages.
+Main's fresh frozen install, build, check, tests, prose, and size passed.
+Its check reports 0 errors and the same 28 existing warnings.
+Its size check reports 16,373 bytes against the 16,384-byte cap.
+Only the eight task checkouts and their eight branches were removed.
 
 Merged logs:
 
@@ -554,24 +583,17 @@ Merged logs:
 - `/tmp/tinkered-authoring-landing-ticket.log`
 - `/tmp/tinkered-authoring-landing-scip-refs.log`
 - `/tmp/tinkered-authoring-landing-final-calibration.log`
+- `/tmp/tinkered-authoring-landing-mutation-results.json`
+- `/tmp/tinkered-authoring-landed-install.log`
+- `/tmp/tinkered-authoring-landed-build.log`
+- `/tmp/tinkered-authoring-landed-check.log`
+- `/tmp/tinkered-authoring-landed-tests.log`
+- `/tmp/tinkered-authoring-landed-prose.log`
+- `/tmp/tinkered-authoring-landed-size.log`
 
-## Final checkpoint
+## Playground build proof
 
-Checkpoint: `dfaad530`; tag: `core/tauthoring-model`.
-The ticket gate completed and saved the checked work.
-The lead checked every printed score and fresh report.
-All 14 fault lanes pass the floor of 85.
-No failed lane was hidden by the ticket script.
-
-Changed package scores after the merge:
-
-- Core: 85.55.
-- NATS: 87.67.
-- Sync: 85.22.
-- Tinkerer: 95.19.
-- Stack: 85.36.
-
-The playground release branch includes this checkpoint.
+The playground release branch includes checkpoint `dfaad530`.
 Its build copies the checked Core and React files into the browser vendor files.
-The browser probe runs an object hook with the correct namespace.
+A browser probe runs an object hook with the correct namespace.
 It returns 42 and closes with success.

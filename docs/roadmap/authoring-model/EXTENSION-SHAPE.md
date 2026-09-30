@@ -1,7 +1,7 @@
 # Extension access, derived from cases
 
 Date: 2026-09-30.
-Status: saved and tested; merged landing checks use the approved 16 KiB cap.
+Status: landed on main; all checks pass under the approved 16 KiB cap.
 
 ## Rules
 
