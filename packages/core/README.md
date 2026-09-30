@@ -439,6 +439,7 @@ Resource builds write no step line.
 Both start forms send logs before and after `await next()` to the scope's `observe.log`.
 They use its clock and level filter, even without span observation.
 The bare call uses `info`; `debug`, `info`, `warn`, and `error` pick a level.
+
 Each line keeps caller attributes and sets `attributes.extension` to the extension's label.
 Start opens no span, so its log lines have `span: undefined`.
 Object close hooks use the same logger; callback close hooks receive no ctx.
