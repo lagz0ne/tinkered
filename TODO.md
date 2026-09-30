@@ -105,6 +105,15 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Done
 
+- **react/namespaces** — reset and refetch keep sibling project stores.
+  Owner: lead (Codex); source: `878ca7ba`, Playground: `a8f131ff`.
+  Pushed to main; [live Sessions lab](https://playground.tini.works).
+  Proof: two red checks before the fix; React 83 and Playground 64 tests pass.
+  Full build/check/tests, 48 release lanes, and React fault score 93.10 pass.
+  The live image is healthy and its files match the checked build.
+  Live resets, route return, caches, and source navigation pass at three widths.
+  [Track](docs/roadmap/react-v1/PROGRESS.md).
+
 - **playground/awwwards** — refined sea, Code, and Benchmark are live.
   Proof: source `c55801d3`; build/check, 17 test tasks, 48 release lanes pass.
   Paired storm verdict: b is faster; 25.5% less time in the headless check.

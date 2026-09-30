@@ -1,4 +1,4 @@
-import type { Data, Observe, Operation, Resource, RunResult, Scope } from "@tinker/core";
+import type { Data, Namespace, Observe, Operation, Resource, RunResult, Scope } from "@tinker/core";
 import type { ReactNode } from "react";
 import {
   createContext,
@@ -20,6 +20,7 @@ export { isError } from "./errors.ts";
 export type { Errors } from "./errors.ts";
 
 const ScopeContext = createContext<Scope.Handle | undefined>(undefined);
+const NamespaceContext = createContext<Namespace | undefined>(undefined);
 
 /** Start a scope's teardown without awaiting; a scope owns its own shutdown and never throws
  * (ADR 0027), so the unmounting subtree does not wait on the result. */
@@ -67,12 +68,15 @@ function OwnedScopeProvider(props: {
 }
 
 /** Put a `@tinker/core` scope on React context for the subtree. Hooks resolve against the nearest
- * provider's scope. */
+ * provider's scope. This independent scope clears an outer React session's reset key. */
 export function ScopeProvider(props: ScopeProviderProps): ReactNode {
-  if (props.scope !== undefined) {
-    return createElement(ScopeContext.Provider, { value: props.scope, children: props.children });
-  }
-  return createElement(OwnedScopeProvider, { create: props.create, children: props.children });
+  return createElement(NamespaceContext.Provider, {
+    value: undefined,
+    children:
+      props.scope !== undefined
+        ? createElement(ScopeContext.Provider, { value: props.scope, children: props.children })
+        : createElement(OwnedScopeProvider, { create: props.create, children: props.children }),
+  });
 }
 
 /** Open a child session for a subtree: created on mount from the nearest scope, force-closed on
@@ -82,6 +86,7 @@ export function ScopeProvider(props: ScopeProviderProps): ReactNode {
  * discarded or replayed mount closes its own session and the next live mount opens a fresh one. The
  * session is published paired with the parent it belongs to; if the nearest scope changes, the old
  * session is never exposed for the new parent (render null until the effect opens a fresh one).
+ * The reset namespace head is saved with this session, including an inherited key.
  * `options` apply when the session is created — changing them for the same parent has no effect until
  * the provider remounts. */
 export function SessionProvider(props: {
@@ -89,21 +94,31 @@ export function SessionProvider(props: {
   readonly options?: Scope.Options;
 }): ReactNode {
   const parent = useScope();
+  const inherited = useContext(NamespaceContext);
   const optionsRef = useRef(props.options);
   optionsRef.current = props.options;
-  const [owned, setOwned] = useState<{ parent: Scope.Handle; session: Scope.Handle } | undefined>(
-    undefined,
-  );
+  const [owned, setOwned] = useState<
+    { parent: Scope.Handle; session: Scope.Handle; ns?: Namespace } | undefined
+  >(undefined);
   useEffect(() => {
-    const session = parent.createSession(optionsRef.current);
-    setOwned({ parent, session });
+    const options = optionsRef.current;
+    const session = parent.createSession(options);
+    const ns = options?.ns;
+    const [head] = ns === undefined ? [inherited] : "tags" in ns ? [ns] : ns;
+    setOwned({ parent, session, ns: head });
     return () => {
       setOwned(undefined);
       closeScope(session);
     };
-  }, [parent]);
+  }, [parent, inherited]);
   if (owned === undefined || owned.parent !== parent) return null;
-  return createElement(ScopeContext.Provider, { value: owned.session, children: props.children });
+  return createElement(NamespaceContext.Provider, {
+    value: owned.ns,
+    children: createElement(ScopeContext.Provider, {
+      value: owned.session,
+      children: props.children,
+    }),
+  });
 }
 
 /** Read the nearest scope `Handle`. Raises `NoProvider` when used outside a {@link ScopeProvider}. */
@@ -279,11 +294,14 @@ function resolveResource<T>(
 }
 
 export declare namespace Query {
-  /** Options for {@link useResource}: `suspense: false` renders a local status instead of suspending. */
-  export type Options = { readonly suspense?: boolean };
+  /** `suspense: false` renders local query state. `ns` selects the same named bucket for reads
+   * and refetch. Without it, the scope's ambient namespace supplies reads and a React session
+   * supplies the reset key when known. */
+  export type Options = { readonly suspense?: boolean; readonly ns?: Namespace };
   /** The build state of a resource read with `{ suspense: false }`: a synchronous build is `success`
    * at once; an async build is `pending` until it settles; a failed build stays `error` until
-   * `refetch` (which releases the instance and builds a fresh generation). */
+   * `refetch` clears the selected bucket. The next read can build a fresh generation or reuse
+   * a fallback that remains in the namespace chain. */
   export type State<T> =
     | { readonly status: "pending"; readonly data: undefined; readonly error: undefined }
     | { readonly status: "success"; readonly data: T; readonly error: undefined }
@@ -297,6 +315,7 @@ export declare namespace Query {
 }
 
 const QUERY_PENDING = { status: "pending", data: undefined, error: undefined } as const;
+const QUERY_OPTIONS: Query.Options = {};
 
 type Settled<T> = { readonly key: PromiseLike<unknown>; readonly state: Query.State<T> };
 
@@ -325,31 +344,39 @@ function readResourceState<T>(
  * per owner and returns the same promise on every resolve (including a rejected build, which stays
  * until release), so a Suspense retry reuses that promise rather than rebuilding (ADR 0032).
  * With `{ suspense: false }` nothing suspends or throws: the hook returns a react-query-like
- * `{ status, data, error, isPending, isSuccess, isError, refetch }` for a local loading state. */
+ * `{ status, data, error, isPending, isSuccess, isError, refetch }` for a local loading state.
+ * An explicit `ns` selects both reads and refetch; otherwise refetch uses the React session's
+ * saved head when known. Clearing a head leaves fallback buckets intact, so the next read may
+ * reuse a fallback. Shared scope resources retain their broad release (see {@link useRelease}). */
 export function useResource<T>(
   handle: Resource.Handle<T>,
-  options?: { suspense?: true },
+  options?: { suspense?: true; ns?: Namespace },
 ): Awaited<T>;
 export function useResource<T>(
   handle: Resource.Handle<T>,
-  options: { suspense: false },
+  options: { suspense: false; ns?: Namespace },
 ): Query.Handle<Awaited<T>>;
 export function useResource<T>(
   handle: Resource.Handle<T>,
-  options?: Query.Options,
+  options: Query.Options = QUERY_OPTIONS,
 ): Awaited<T> | Query.Handle<Awaited<T>> {
   const scope = useScope();
-  const controller = useMemo(() => scope.controller(handle), [scope, handle]);
+  const ns = options.ns;
+  const release = useRelease(ns);
+  const controller = useMemo(
+    () => scope.controller(handle, ns === undefined ? undefined : { ns }),
+    [scope, handle, ns],
+  );
   const [, bump] = useReducer((n: number) => n + 1, 0);
   const built = resolveResource(controller);
   const pending =
     built.ok && isThenable(built.value) ? (built.value as PromiseLike<Awaited<T>>) : undefined;
-  const local = options?.suspense === false;
+  const local = options.suspense === false;
   const settled = useSettled(local ? pending : undefined);
   const refetch = useCallback(() => {
-    scope.release(handle);
+    release(handle);
     bump();
-  }, [scope, handle]);
+  }, [release, handle]);
   if (local) return queryHandle(readResourceState(built, settled), refetch);
   if (!built.ok) throw built.error;
   return pending ? (use(pending) as Awaited<T>) : (built.value as Awaited<T>);
@@ -534,12 +561,26 @@ export function useRun<T, I>(
   };
 }
 
-/** Release a node at the nearest scope: reset a `data` cell to its inherited/initial value (notifying
- * `useData` readers) or drop a resource's instance so the next `useResource` rebuilds a fresh
- * generation. Pair with an error-boundary reset to retry a failed resource (ADR 0032). */
-export function useRelease(): (node: Data.Cell<unknown> | Resource.Handle<unknown>) => void {
+/** Reset a node in an explicit namespace, or the nearest React session's saved namespace head.
+ * Clearing a head can expose a fallback; fallback keys remain intact. Scope-target resources and
+ * calls with no known key retain Core's broad release. Opaque app-owned scope namespaces need an
+ * explicit key, since a Core handle does not expose its ambient namespace. */
+export function useRelease(
+  ns?: Namespace,
+): (node: Data.Cell<unknown> | Resource.Handle<unknown>) => void {
   const scope = useScope();
-  return useCallback((node) => scope.release(node), [scope]);
+  const inherited = useContext(NamespaceContext);
+  const selected = ns ?? inherited;
+  return useCallback(
+    (node) => {
+      if (selected === undefined || ("target" in node && node.target === "scope")) {
+        scope.release(node);
+      } else {
+        scope.releaseNs(node, selected);
+      }
+    },
+    [scope, selected],
+  );
 }
 
 /** Read the nearest scope's bounded span history (ADR 0030) for an inspector/devtools view — a

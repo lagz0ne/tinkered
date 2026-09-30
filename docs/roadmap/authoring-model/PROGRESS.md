@@ -597,3 +597,58 @@ The playground release branch includes checkpoint `dfaad530`.
 Its build copies the checked Core and React files into the browser vendor files.
 A browser probe runs an object hook with the correct namespace.
 It returns 42 and closes with success.
+
+## All current packages and apps — review in progress
+
+The user asked for this round on 2026-09-30.
+Scope: all 14 packages, all three apps, and a Harness service example.
+The package-by-package audit and impact lists are in
+[PACKAGES.md](PACKAGES.md).
+
+Saved changes fix Harness turn ownership, Sync setup cleanup,
+Stack namespace publication, React owner results, Blueprint source checks,
+Hono request cleanup, Process startup abort, and Tinkerer stream steering.
+Trace is a reusable extension with a separate telemetry graph.
+Each root owns its queue, export work, timer, and final flush.
+Missing or invalid trace settings now let the root finish closing.
+
+The user picked a signal on one Core call.
+That call owns a child session and all its waits and retries.
+Cancel waits for cleanup and keeps the caller's owner alive.
+Tinkerer's stream action consumes the response inside that child lifetime.
+Conversation cells remain with the parent.
+No-signal calls keep their existing result and resource targets.
+
+Source `da27c9cc` passed full build, check, all 18 test tasks, and prose.
+Check: 0 errors and 28 existing warnings in 500 files.
+Release validation: all 48 deterministic lanes pass.
+Core size: 16,382 bytes gzip against the 16,384-byte cap.
+The size funder keeps reads, promise boundaries, and cleanup order.
+SCIP references before and after cover all 14 packages.
+
+The example gives one Harness conversation two declared tools.
+GitHub and Cloudflare use separate HTTP namespaces and tokens.
+Both share the Harness working-directory setting.
+Six service tests cover two turns, token separation, root reuse,
+URL validation, response limits, and failed responses.
+No live service account was called.
+The example also keeps the existing React form test task.
+
+Queued timing: A `1c5c82fe`, B `145353bc`, 61 pairs per path.
+The same probe reads both built entries; each row used batch mode.
+Paired sign test: two-sided p below 0.01 means a seen difference.
+`op`, `run`, `session`, and `lifecycle`: no difference we can see.
+`tagged`: B slower; the ordinary-call path is being fixed.
+These five paths do not claim coverage of all timing paths.
+
+Main landed React namespace resets at `49635a5d` during this review.
+Both sets of React promises are being kept and rechecked.
+The shared Jev case bank keeps both teams' labels.
+The labels concern graph-owned state, cleanup, and typed defaults.
+Constructor nodes stay inside builders when their identities link one graph.
+Whole-range review compared a mixed diff with one commit title;
+the Process source and its red test were reviewed directly.
+Old promise and census notes outside changed cases remain follow-up work.
+
+Pending: merged gates, timing recheck, all 14 fault lanes,
+Core ticket checkpoint, landing, and push.

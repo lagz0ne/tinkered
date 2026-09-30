@@ -54,12 +54,18 @@ test("sourceFiles lists the session files with the read-only package sources", (
     "@tinker/core/errors.ts",
     "@tinker/react/index.ts",
     "@tinker/react/errors.ts",
+    "sessions/App.tsx",
+    "sessions/model.ts",
+    "src/errors.ts",
   ]);
   expect(sources.filter((s) => !s.editable).map((s) => s.name)).toEqual([
     "@tinker/core/index.ts",
     "@tinker/core/errors.ts",
     "@tinker/react/index.ts",
     "@tinker/react/errors.ts",
+    "sessions/App.tsx",
+    "sessions/model.ts",
+    "src/errors.ts",
   ]);
 });
 
@@ -71,6 +77,23 @@ test("opening a package source leaves the editable session untouched", () => {
     file: "@tinker/core/index.ts",
     offset: 41,
   });
+});
+
+test("the Sessions source links to its model without changing the editable ocean", () => {
+  const scope = createScope();
+  scope.run(openSource, { input: { file: "sessions/App.tsx", offset: 0 } });
+  expect(
+    scope.run(followDefinition, {
+      input: {
+        file: "sessions/App.tsx",
+        offset: at(contentOf("sessions/App.tsx"), "projectBrief"),
+      },
+    }),
+  ).toEqual({
+    file: "sessions/model.ts",
+    offset: contentOf("sessions/model.ts").indexOf("projectBrief ="),
+  });
+  expect(scope.resolve(filesCell)).toEqual([...DEFAULT_FILES]);
 });
 
 test("following an imported name lands on the library's declaration", () => {

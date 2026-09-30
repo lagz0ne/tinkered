@@ -239,9 +239,10 @@
 }
 @media (max-width: 760px) {
   .shell-top {
-    display: flex;
-    min-height: 56px;
-    gap: 8px;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: 48px 44px;
+    min-height: 92px;
+    gap: 0 8px;
     padding-inline: 14px;
   }
   .shell-brand {
@@ -258,10 +259,13 @@
     width: 2px;
   }
   .view-toggle {
-    margin-left: auto;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
     gap: 0;
   }
   .view-button {
+    flex: 1;
     min-width: 44px;
     padding-inline: 9px;
     font-size: 10px;
@@ -283,6 +287,8 @@
     padding: 0;
   }
   .shell-actions {
+    grid-column: 2;
+    grid-row: 1;
     gap: 0;
   }
   .shell-filebar {
@@ -297,7 +303,7 @@
 @media (max-width: 360px) {
   .shell-top {
     padding-inline: 8px;
-    gap: 4px;
+    column-gap: 4px;
   }
   .shell-mark {
     display: none;

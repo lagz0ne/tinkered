@@ -1,5 +1,51 @@
 # Playground: tile storm
 
+## Sessions lab — 2026-09-30
+
+Source: `a8f131ff`; React adapter: `878ca7ba`.
+The new Sessions tab shows two separate project drafts.
+Harbor and Beacon each use a stable namespace key.
+A route owns a session; its form owns a child session.
+Reset title clears one field and keeps its notes.
+Reset form closes the child and starts fresh fields.
+Leave route closes the route and its child form.
+Return opens a fresh draft with the saved project brief.
+Refetch brief rebuilds only that project's named resource.
+Its build count records real local builds.
+Form and route close abort the form's temporary signal.
+
+The lab uses the ocean's ink, salt, foam, and lime colors.
+Phone tabs use two rows; fields use readable 16-pixel text.
+All Sessions buttons meet 44 pixels.
+View source opens the real Sessions code.
+The ocean document stays mounted through all four views.
+The storm and benchmark workload do not change.
+
+All 64 app tests pass, including five new Sessions checks.
+The full build, check, tests, and all 48 release lanes pass.
+Browser checks pass at 1,440, 390, and 320 pixels.
+They cover all resets, sibling drafts, caches, and code navigation.
+There is no side scroll or page error at those sizes.
+A separate reader also checked keyboard reset and route return.
+The isolated React fault check passes at 93.10, above its floor of 85.
+The source is pushed to main.
+[Live Playground](https://playground.tini.works).
+Dokploy deployment `jQGlXdi_unIfjjaO_MrMH` is done.
+The running container is healthy and uses the checked image:
+`sha256:9deb9dd4d82c19dd531b6a1aa13b5571005b4c99df492f9b7a4fe361ffc1aa47`.
+Its image source is `a8f131ff`; later commits only record proof.
+The live index, Core file, and React file match the build byte for byte.
+The saved compose and domain settings match after deployment.
+Main's fresh build and check pass, with the same 28 warnings.
+Live browser checks pass at 1,440, 390, and 320 pixels.
+All field, form, route, cache, and code navigation checks pass.
+The same ocean document stays mounted; no page errors were observed.
+These are phone-sized Chromium checks, not physical device tests.
+
+Rollback image: `tinkered-playground:before-react-namespaces-a8f131ff`.
+Tag it as `tinkered-playground:latest` and redeploy this same compose to roll back.
+Proof files are under `.bench/react-namespaces`.
+
 ## Request
 
 - Show a 3D board with solid tiles and rising waves.

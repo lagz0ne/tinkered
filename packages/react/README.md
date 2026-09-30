@@ -11,7 +11,7 @@ adds no store, no cache, no reducer, no query-key ([ADR 0030](../../docs/decisio
 ## Install
 
 ```bash
-vp install   # react is a peerDependency (>= 19 — the async path uses use())
+vp install
 ```
 
 ## 60-second example
@@ -20,21 +20,25 @@ vp install   # react is a peerDependency (>= 19 — the async path uses use())
 
 ```tsx
 const count = data({ label: "count", initial: 0 });
-const profile = resource({ label: "profile", factory: async () => ({ name: "Ada" }) });
+const profile = resource({
+  label: "profile",
+  factory: () => Promise.resolve({ name: "Ada" }),
+});
 
 function Counter() {
-  const value = useData(count); // reactive read
-  const control = useController(count); // write handle (subscribes to nothing)
-  return <button onClick={() => control.update((n) => n + 1)}>count {value}</button>;
+  const value = useData(count);
+  const control = useController(count);
+  const increment = () => control.update((n) => n + 1);
+  return <button onClick={increment}>count {value}</button>;
 }
 
 function ProfileCard() {
-  return <p>{useResource(profile).name}</p>; // suspends until built
+  return <p>{useResource(profile).name}</p>;
 }
 
 function App() {
   return (
-    <ScopeProvider create={() => createScope()}>
+    <ScopeProvider create={createScope}>
       <Counter />
       <Suspense fallback={<p>loading…</p>}>
         <ProfileCard />
@@ -46,34 +50,107 @@ function App() {
 
 ## The seam
 
-- `ScopeProvider` puts a scope on context.
-  Pass `scope={handle}` for an app-owned scope,
-  or `create={() => createScope()}` to close it on unmount.
-- `SessionProvider` opens a child session for its children.
-  Unmount force-closes it; resources roll back.
-  The nearest handle wins, and writes shadow the parent.
-- `useScope` reads the nearest scope handle.
-  It raises `NoProvider` outside a provider.
-- `useData` reads a cell and updates the view when it changes.
-  `useData(cell, selector, isEqual?)` reads a slice.
-- `useData(cell, { writable: true })` returns `[value, set]`.
-  Add a selector as the second argument for `[slice, set]`.
-- `useController` reads a cell's controller for writes.
-  A view that only writes subscribes to nothing.
-- `useResource` reads a resource's built value.
-  Async builds suspend; a failed build throws to the error boundary.
+- `ScopeProvider` supplies an app-owned scope with `scope={handle}`.
+  Its `create` form owns the scope and closes it on unmount.
+- `SessionProvider` opens a child session for its subtree.
+  Unmount force-closes that session.
+  Writes stay in the session.
+- `useScope` returns the nearest Core handle.
+  Without a provider, it raises `NoProvider`.
+- `useData(cell)` reads a cell and follows its changes.
+  A selector reads part of its value.
+- `useData(cell, { writable: true })` returns the value and a setter.
+- `useController` supplies writes without subscribing the component.
+- `useResource` reads a built resource.
+  Async builds suspend; failures reach the error boundary.
 - `useResource(handle, { suspense: false })` returns local query state.
-  It has `status`, `data`, `error`, and a flag for each status.
-  Its `refetch` releases the resource and rebuilds it.
-- `useRun` runs an operation without suspending.
-  It has `status`, `data`, `error`, `variables`, and a flag for each status.
-  Call `run`, `runAsync`, or `reset`.
-  Options accept `onSuccess`, `onError`, and `onSettled` callbacks.
-- `useRelease` returns `release(cellOrResource)`.
-  Release reverts a cell or drops a resource so a retry rebuilds it.
-- `useSpans` reads the scope's span history for an inspector.
-  Observation must be on.
-- `isError` narrows an unknown error to this package's `NoProvider` error.
+  It includes `status`, `data`, `error`, and `refetch`.
+- `useRun` runs an operation and reports the latest result.
+  It supplies `run`, `runAsync`, `reset`, and result callbacks.
+- `useRelease` resets a cell or releases a resource.
+- `useSpans` reads the scope's span history when observation is on.
+- `isError` checks errors from this package.
+
+## Project keys and reset
+
+Declare a namespace once and reuse its identity.
+Use an explicit key when the scope belongs to the app:
+
+```tsx
+const project42 = namespace();
+const draft = data({ label: "draft", initial: "" });
+const profile = resource({
+  label: "profile",
+  target: "namespace",
+  factory: () => ({ name: "Ada" }),
+});
+
+function ProjectTools() {
+  const reset = useRelease(project42);
+  const resetField = () => reset(draft);
+  const query = useResource(profile, {
+    ns: project42,
+    suspense: false,
+  });
+  return (
+    <>
+      <button onClick={resetField}>Reset field</button>
+      <button onClick={query.refetch}>Refresh</button>
+    </>
+  );
+}
+```
+
+`useResource` accepts `ns` with either suspense mode.
+The key selects both the read and its refetch.
+Changing that option selects the new key on the next render.
+`useRelease(key)` selects only the reset key.
+An explicit key wins over an inherited session key.
+
+Inside `SessionProvider`, omitted hook keys use its saved namespace head.
+A child session inherits that key unless its own `options.ns` replaces it.
+Reads still follow Core's full namespace chain.
+Reset clears only the chain's first key.
+A read may then expose a fallback value or reuse a fallback resource.
+Refetch never clears fallback keys to force a new build.
+
+A scope resource is shared across keys.
+Reset and refetch still use Core's broad release for that resource.
+With no known key, the hooks keep their existing broad release behavior.
+Core handles do not expose their ambient namespace.
+React cannot infer a key from an app-owned scope alone.
+Use explicit hook keys or `SessionProvider` options in that case.
+An independent `ScopeProvider` clears any outer React namespace key.
+
+## Form and route lifetimes
+
+A namespace is a reusable key.
+Its session owns the temporary state and resources.
+Use nested sessions for a route and its form:
+
+```tsx
+<ScopeProvider create={createScope}>
+  <SessionProvider key="42" options={{ ns: project42 }}>
+    <SessionProvider key="form:1">
+      <ProjectTools />
+    </SessionProvider>
+  </SessionProvider>
+</ScopeProvider>
+```
+
+Inside the form, `useRelease()` resets one field in its session.
+Other fields and the form's session stay live.
+Change the form key to discard all of that form's local state.
+Unmount the route to close its form and route sessions.
+Both actions stop owned work and clean session resources.
+Returning with the same namespace key starts fresh session state.
+Namespace resources remain owned by the root and can be reused.
+
+Session options apply when the session is created.
+Changing them for the same parent does not change a live session's reset key.
+Remount the provider to apply new options.
+Reset callbacks and cell controllers stay stable on ordinary renders.
+An explicit resource controller is reused while scope, resource, and key stay the same.
 
 ## Testing
 
@@ -85,7 +162,7 @@ test-only API.
 Tests import `@tinker/core` from its **built** `dist`, so build core first. From the workspace root:
 
 ```bash
-vp run core#build   # then:
+vp run core#build
 vp run -r test
 ```
 
@@ -156,9 +233,27 @@ This appendix states each behaviour the seam tests pin, one line per promise, gr
 
 ### SessionProvider
 
+- A data write under a session stays local and does not reach the parent scope.
 - Switching the parent scope never exposes the old session, even if the old parent is closed.
 - A session-target resource is one instance per SessionProvider; siblings are distinct.
 - A scope-target resource is the same instance across sibling sessions.
+
+### Namespace reset
+
+- A session refetch keeps sibling and default namespace resources.
+- An explicit field reset keeps sibling and default values at the same owner.
+- Explicit resource reads and refetch follow the current key on an app-owned scope.
+- A nested session inherits its parent's reset key.
+- An inner session's explicit key replaces its parent's reset key.
+- An explicit reset key overrides the React session's key.
+- Changing session options without remounting keeps the live reset key.
+- A chain refetch clears its head and reuses its fallback.
+- A named session can still refetch a shared scope resource.
+- An independent borrowed scope clears an outer session's reset key.
+- An independent owned scope clears an outer session's reset key.
+- A field reset keeps the form owner, other fields, and hook identities.
+- A keyed form reset cancels its work and keeps the route alive.
+- Leaving a route cleans its form and returning reuses the project key.
 
 ### isError
 

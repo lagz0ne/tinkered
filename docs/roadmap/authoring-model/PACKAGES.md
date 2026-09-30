@@ -1,7 +1,7 @@
 # Authoring rules across packages and apps
 
 Date: 2026-09-30.
-Status: Review; source saved, final gates pending.
+Status: Review; build, check, tests, and release lanes pass.
 Owner: lead (authoring session).
 Writer model: Astra, xhigh; one package per writer.
 
@@ -345,4 +345,25 @@ No timing change or claim is part of these tickets.
 
 ## Proof
 
-Pending: build, code check, tests, fault checks for changed packages, and prose.
+At source checkpoint `da27c9cc`:
+
+- Full build passed, exit 0.
+- Code check passed: 0 errors and 28 existing warnings.
+- All 18 package and app test tasks passed, exit 0.
+- All 48 deterministic release lanes passed, exit 0.
+- Prose passed, exit 0.
+- Core size: 16,382 bytes gzip; cap: 16,384.
+- Core hot-name headroom: two names.
+- All bug fixes have public tests that failed before the fix.
+
+The service example uses a fake SDK and an HTTP backend in its tests.
+No live GitHub or Cloudflare account was called.
+The live command and required settings are in
+[`examples/harness/SERVICES.md`](../../../examples/harness/SERVICES.md).
+
+A queued timing check used 61 paired rounds for five existing call paths.
+The ordinary tagged path was slower; its fix and recheck are pending.
+The other four paths reported no difference we can see.
+Fault lanes for all 14 packages are pending.
+Main's new React namespace resets are being merged and rechecked.
+Shared Jev labels retain both teams' answers; calibration is being rerun.
