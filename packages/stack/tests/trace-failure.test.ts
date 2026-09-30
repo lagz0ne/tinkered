@@ -155,39 +155,51 @@ test("a recovered collector ends a failure burst so a later fault logs again", a
   }
 });
 
-test("the queue bounds record count and bytes and drops new records with one local warning", async () => {
-  const collector = await new Receiver().listen();
-  const lines: string[] = [];
-  const sink = traceSink({
-    env: { OTEL_EXPORTER_OTLP_ENDPOINT: collector.url, OTEL_SERVICE_NAME: "bounded" },
-    write: (line) => lines.push(line),
-  });
-  const scope = createScope({
-    extensions: sink.extension,
-    observe: { ...sink.observe, log: undefined },
-    clock: makeTestClock(),
-  });
-  try {
-    await scope.ready;
-    scope.run({
-      label: "oversized",
-      run: (_deps, ctx) => {
-        ctx.obs.span!.attributes.large = "界".repeat(400_000);
-      },
+test.each([
+  { padding: "", count: 2050, kept: 2048 },
+  { padding: "x".repeat(350_000), count: 3, kept: 2 },
+])(
+  "the queue bounds record count and bytes and drops new records with one local warning (%#)",
+  async ({ padding, count, kept }) => {
+    const collector = await new Receiver().listen();
+    const lines: string[] = [];
+    const sink = traceSink({
+      env: { OTEL_EXPORTER_OTLP_ENDPOINT: collector.url, OTEL_SERVICE_NAME: "bounded" },
+      write: (line) => lines.push(line),
     });
-    for (let i = 0; i < 2050; i++) scope.run(ping);
-    expect(await scope.close({ graceful: true })).toEqual({ status: "success" });
-    expect(spans(collector.state.packets).map((span) => span.name)).toEqual(
-      Array.from({ length: 2048 }, () => "ping"),
-    );
-    expect(lines.map((line) => JSON.parse(line))).toEqual([
-      { kind: "log", time: 0, level: 40, message: "OTLP records dropped", reason: "queue full" },
-    ]);
-  } finally {
-    await scope.close();
-    await collector.close();
-  }
-});
+    const scope = createScope({
+      extensions: sink.extension,
+      observe: { ...sink.observe, log: undefined },
+      clock: makeTestClock(),
+    });
+    try {
+      await scope.ready;
+      scope.run({
+        label: "oversized",
+        run: (_deps, ctx) => {
+          ctx.obs.span!.attributes.large = "界".repeat(400_000);
+        },
+      });
+      const queued = operation({
+        label: "queued",
+        run: (_deps, ctx) => {
+          ctx.obs.span!.attributes.padding = padding;
+        },
+      });
+      for (let i = 0; i < count; i++) scope.run(queued);
+      expect(await scope.close({ graceful: true })).toEqual({ status: "success" });
+      expect(spans(collector.state.packets).map((span) => span.name)).toEqual(
+        Array.from({ length: kept }, () => "queued"),
+      );
+      expect(lines.map((line) => JSON.parse(line))).toEqual([
+        { kind: "log", time: 0, level: 40, message: "OTLP records dropped", reason: "queue full" },
+      ]);
+    } finally {
+      await scope.close();
+      await collector.close();
+    }
+  },
+);
 
 test("a broken local writer and an unencodable record do not stop later exports", async () => {
   const collector = await new Receiver().listen();
