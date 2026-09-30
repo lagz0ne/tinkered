@@ -964,8 +964,10 @@ test("a source releases its family when a later extension fails to start", async
       source({ cells: [[notes, "notes"]] }),
       extension({
         label: "later failure",
-        start: () => {
-          throw failure;
+        hooks: {
+          start: () => {
+            throw failure;
+          },
         },
       }),
     ],
@@ -994,8 +996,10 @@ test("a subscription closes its borrowed wire once when a later extension fails 
       subscribe(resource({ label: "borrowed wire", factory: () => transport }), { cells: [] }),
       extension({
         label: "later failure",
-        start: () => {
-          throw failure;
+        hooks: {
+          start: () => {
+            throw failure;
+          },
         },
       }),
     ],
