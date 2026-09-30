@@ -493,7 +493,7 @@ npx --no-install stryker run \
   `vp check` and its tests, and boots in dev and
   prod.
 
-- **t17 hono answers a failed commit** -- [ ] blocked by: none
+- **t17 hono answers a failed commit** -- [x] landed 223e7c24 (blocked by: none)
   Found by the t12 review. A request's session
   closes before its answer leaves; a failed commit
   answers 500 (today: 200 with nothing saved). Any
@@ -2080,3 +2080,457 @@ vp run -r build && vp check \
   median 93, p95 197; all 72,704 spans reached the collector.
   Trace source and tests did not change in the outside rebase.
   [Cost notes](../../../research/learnings/2026-09-30-trace-sink-flush.md).
+
+## t17 writer notes
+
+Owner: stack/t17 writer. Branch: `stack/t17`.
+Status: Review.
+Next: lead reviews and lands `stack/t17`.
+Verify: Hono, Drizzle, stack, tracker, browser proof,
+`vp check`, `pnpm validate`, Hono mutation at least 85.
+
+The request and stream close behavior changes.
+Callers: the issue tracker, stack tests, Hono tests,
+and the Hono, Drizzle, and sync examples.
+No existing symbol is renamed or removed.
+`RequestCloseFailed` is a new Hono error kind.
+The successful-save case is a guard and stays green on main.
+
+First green step: Hono 73 tests pass.
+`vp check`: 0 errors, 29 warnings.
+`vp run prose`: 0 hits.
+
+Before the fix, at `8df4b19b` (fetched origin/main):
+
+```text
+failed commit: expected 500, received 201
+mapped 409: expected [], received [{title: 'A'}]
+unmapped error: expected [], received [{title: 'A'}]
+stream commit: reader resolved done instead of rejecting
+Tests: 4 failed, 1 passed
+```
+
+The successful-save guard passed before and after.
+The unmapped managed error also kept writes before the fix.
+Hono now gives the request a session body.
+The body rethrows the route error after Hono builds its answer.
+This makes both mapped and unmapped errors roll back.
+The close waits for teardown and session hooks before the answer leaves.
+A stream waits for close before it ends cleanly.
+
+### Stream and tracker checks
+
+- Hono: 78 tests pass.
+- Stack: 38 tests pass.
+- Tracker: 69 tests pass.
+- Browser proof and its 7 helper tests pass.
+- Main at `8df4b19b`: `vp check` has 29 warnings,
+  the same count as this branch.
+- Main keeps `success` for both mapped panic and raised-error tests.
+  The new expected outcome, `failed`, fails there.
+- Main returns 200 when a session hook reports failure.
+  It returns 409 when cleanup fails after a mapped error.
+  Both now return 500 and log once.
+- A synchronous stream error keeps the old 500 body,
+  and its request closes before that answer leaves.
+- Late requests after scope close and a final chunk during
+  forced shutdown are guards for the old behavior.
+
+The tracker needed one extra fix in `packages/stack/src/server.ts`.
+Waiting for stream close exposed an HTTP stop gap:
+an old keep-alive connection could ask the closed scope for `/sync`.
+Its 500 stopped the browser from reconnecting after restart.
+The listener now stops accepting requests before the scope drains.
+It also closes idle connections when their last response finishes.
+The public stop test fails on main: a late fetch returns 500
+instead of refusing the connection.
+The browser proof failed without the idle-connection fix.
+No tracker source or browser test was changed.
+
+Tracker route audit:
+
+- `createIssue` writes an issue and activity in one transaction.
+  A later database error now rolls them both back.
+- `editIssue` calls `checkFresh` before `writeIssue` or activity.
+  A stale 409 never relied on keeping a write.
+- `addComment` calls `loadSaved` before writing.
+  A missing issue never relied on keeping a comment.
+- Input checks run before those operations write.
+- Detail, list, draft, and sync routes do not save through `store.tx`.
+- The browser proof compares the full saved detail before
+  and after a stale 409; the issue and activity stay unchanged.
+
+Core behavior: a driver that maps a raised error must keep
+a session body to carry that failure.
+A bare session plus `settle` recovers the error by design:
+
+```ts
+const s = scope.createSession();
+await s.settle(saveThenRaise);
+const ended = await s.close({ graceful: true });
+expect(ended.status).toBe("failed");
+// Gets success; the write commits.
+```
+
+Hono uses `scope.session` and rethrows the original error
+in its body after building the mapped answer.
+No core change is needed for this fix.
+This is by design, not a Core feedback issue.
+
+### t17 rebase
+
+Rebased onto `6330012c`, which includes t12.
+Kept all t12 source and track notes.
+Its new mapped-error test expected a 409 to commit and signal.
+Updated that test and its README line for ADR 0084:
+a raised error keeps its 409, rolls back, and sends no signal.
+Only the two appended track-note blocks conflicted.
+The five PGlite tests use a 30-second limit:
+three hit the old five-second limit on the busy host.
+Their checks are unchanged.
+
+The updated live test fails on main at `6330012c`:
+it finds the saved `Taken` row instead of no rows.
+The final close tests fail there too: hook failure answers 200,
+teardown after a mapped error answers 409, and a synchronous
+stream error leaves its request cleanup pending.
+The late-request and forced-final-chunk guards both pass there.
+
+Jev: 0 of 78 Hono titles and 0 of 25 stack titles flagged.
+No README promise gaps; nine Hono and one stack matches unsure.
+The three old Hono helper-size/count notes are unchanged.
+They are plain checks, with no model judge to label.
+The new tests add no helpers.
+Labels: `effectWithoutDefer=false` for `stream` and `listen`;
+`stateOutsideCell=false` for `listen`.
+Stream completion owns the request close.
+The server defer joins the listener stop promise.
+The listener's close flag is private stop bookkeeping.
+The noisy `wrapsCallersStep` note owes no label.
+
+Gate on `6330012c`: build, check, Hono 78, Drizzle 13,
+stack 58, tracker 69, prose; `EXIT 0`.
+Check: 0 errors and 29 warnings, matching main.
+Strict style census: OK.
+
+The browser proof and its 7 helper tests pass on the new base,
+`BROWSER_EXIT 0`.
+It checks stale edits, saved rows after restart,
+and live sync reconnect after a server stop.
+Assumption: a raised error causes rollback;
+a normal returned 4xx response does not by itself mean failure.
+
+All 17 package test tasks passed through their own configs,
+`ALL_TESTS_EXIT 0`; four used cached green results.
+Used `vp run -r --concurrency-limit 1 test` after the build.
+The final fetch still points to `6330012c`.
+The migrate ticket has not landed yet.
+
+`pnpm validate`: all 48 checks passed, `VALIDATE_EXIT 0`.
+Ran in the foreground under `/tmp/mutation.lock`.
+Restored `pnpm-workspace.yaml`; it has no branch change.
+
+### t17 mutation checks
+
+First full Hono run: 92.76, 273 killed, 73 timed out,
+25 survived, 2 without coverage, 0 errors; `EXIT 0`.
+The busy-host rerun used `--timeoutMS 60000 --concurrency 2`.
+It got 84.45, 315 killed, 0 timed out, 56 survived,
+2 without coverage, 0 errors; `EXIT 1`.
+The first score hid gaps behind timeouts.
+One earlier launch passed an extra `--` to Stryker;
+it rejected those flags before running any tests.
+
+Added two public checks for real cleanup failures:
+reader cancellation logs the cleanup failure once;
+a failed writer keeps its reader error and logs cleanup once.
+Both fail on main at `6330012c`: the failure log is empty.
+Both pass on this branch, with no further source change.
+Hono now has 80 passing tests.
+Jev: 0 of 80 titles flagged, no README gaps, eight unsure.
+Check: 0 errors, 29 warnings; prose and strict census pass.
+Rebased onto `be6a9526`; its only change is the board.
+
+Final gate after the new tests and rebase: build, check,
+Hono 80, Drizzle 13, stack 58, tracker 69; `EXIT 0`.
+Check: 0 errors, 29 warnings.
+All 17 package test tasks passed again from cached results.
+The browser proof ran again without cache; all 7 helpers passed.
+`ALL_BROWSER_EXIT 0`.
+
+### t17 final proof
+
+Final full Hono run, with the two cleanup tests:
+86.06, 321 killed, 0 timed out, 50 survived,
+2 without coverage, 0 errors; `MUTATION_FINAL_EXIT 0`.
+Used `--timeoutMS 60000 --concurrency 2` under the lock.
+Both source files and all 373 mutations stay included.
+The floor stays 85.
+
+Six former survivors now report `Killed`:
+
+- `src/index.ts:338` and `339`: closing once.
+- `src/index.ts:383`: two ways to skip the writer cleanup log.
+- `src/index.ts:390`: two ways to skip the cancel cleanup log.
+
+The last `pnpm validate` passed all 48 checks, `VALIDATE_EXIT 0`.
+`pnpm-workspace.yaml` has no branch change.
+The last fetch and rebase still point to `be6a9526`.
+The migrate ticket has not landed on `origin/main`.
+The source and tests are the ones checked by the final gate.
+
+Proof logs are in `/home/paseo/.cache/tinkered-briefs/`.
+Mutation logs and JSON files use these names:
+
+- `stack-t17-mutation-default`
+- `stack-t17-mutation-60s`
+- `stack-t17-mutation-final`
+
+The gate is in `stack-t17-final-gate.log`.
+The last browser run is in `stack-t17-final-all-browser.log`.
+The two cleanup failures on main are in `stack-t17-cleanup-main-red.log`.
+The final validator output is in `stack-t17-final-validate.log`.
+All long jobs finished in this turn.
+Nothing was pushed.
+
+### t17 review round 1
+
+Status: Review. Owner: stack/t17.
+Next: lead reviews the three fixes and lands the branch.
+Verify: new tests fail before the fixes, then pass.
+Run the requested build, check, Hono, Drizzle, stack, and tracker gate,
+plus prose, Jev, and the strict style census.
+Keep this branch's base; do not rebase or push.
+Hono source changed only for F2; mutation was not repeated.
+
+Choice: reject a second live root with `PieceInUse`, as NATS does.
+Bind close to its root because the extension close hook has no scope.
+Each start owns its listener state; close releases the piece for reuse.
+The callers are the tracker's server root and stack's server,
+client, and settings tests.
+No caller needs to change.
+
+Before the fixes, all three new tests failed on this branch:
+
+- Restart: the second closed root still answered 500.
+- A second live root: ready raised the port-in-use error,
+  not `PieceInUse`.
+- Failed commit: both response builders kept `sid=abc`
+  and `/x/1` in their cookie and location headers.
+
+The tests now pass, including both header-building paths.
+F2 clears the built answer before setting a fresh 500 Response.
+F3 documents the built status in the request log and span.
+The log still runs where it did before this review.
+
+Gate: build, check, Hono 81, Drizzle 13, stack 60,
+tracker 69; `EXIT 0`.
+Check: 0 errors and 29 warnings, unchanged.
+Prose: 0 hits. Strict style census: OK.
+Jev: 0 of 81 Hono titles and 0 of 27 stack titles flagged.
+No README promise gaps; nine Hono and one stack matches unsure.
+The three existing helper-size/count notes are unchanged;
+the new tests add no helpers.
+The three labels are already in the bank and remain false:
+`effectWithoutDefer` for `stream` and `listen`,
+and `stateOutsideCell` for `listen`.
+No new source flag or Core feedback issue.
+
+Logs are in `/home/paseo/.cache/tinkered-briefs/`:
+`stack-t17-review1-red-stack.log`, `stack-t17-review1-red-hono.log`,
+`stack-t17-review1-green.log`, and `stack-t17-review1-jev.log`.
+All jobs finished in this turn; no rebase or push.
+
+### t17 server mutation lift
+
+Status: Review. Owner: stack/t17.
+Base: `dd8a1f18`, checked before editing; no rebase or reset.
+Next: lead reviews and lands the tested branch.
+Verify: rank survivors, run the line kill check under the lock,
+then one full stack lane at 60 seconds with killed share at least 85%.
+Run the full requested gate, uncached browser proof, and validator.
+Keep t04's traceparent read and t06's migrate step unchanged.
+
+Ranked all 48 survivors; 25 are in `server.ts`.
+The survivor judge is marked noisy, so its rows are advice only.
+Added real-socket checks for an old root closing again,
+failed-start cleanup and reuse, and the last stream chunk at stop.
+The live-owner test now holds a close hook after draining and
+checks that a new root still gets `PieceInUse` until close ends.
+The existing in-flight request and restart tests stay in the gate.
+No source or mutation setting changed.
+
+First green step: build, check, stack 68, prose; `EXIT 0`.
+Check has 0 errors and 29 warnings.
+Jev: 0 of 35 titles flagged; no README gaps, one unsure.
+No changed source to judge and no new label owed.
+Strict style census: OK.
+
+Line kill check, `src/server.ts:35-125`, under `/tmp/mutation.lock`:
+`[Killed] 91`, `[Timeout] 0`, `[Survived] 7`; `EXIT 0`.
+Killed share: 92.86%; no errors or uncovered mutants.
+Eighteen of the 25 old server survivors were killed.
+All idle-socket and release survivors were killed.
+The remaining seven are the late-bind stop flag and branch,
+optional logging, the clock choice, and three input-check changes.
+The late-bind guard still handles close racing with listen;
+no code was judged safe to remove merely because its mutant survived.
+The line log is `stack-t17-lift-lines.log` in the briefs cache.
+
+Full stack lane, once and alone under the lock, at 60 seconds:
+282 killed, 3 timed out, 30 survived; `FULL_MUTATION_EXIT 0`.
+Killed share is `282 / (282 + 3 + 30) = 89.52%`, above 85%.
+Stryker's score, which includes timeouts, is 90.48%.
+All three timeouts are in `migrate.ts`.
+Server: 103 killed, 0 timed out, 7 survived.
+All 315 mutants remain included, with no uncovered mutants or errors.
+The new tests killed the same 18 old server survivors in the full lane.
+No source was changed or removed; no mutation setting or floor changed.
+The temporary mutation tree was already gone after the line check.
+Full log and JSON: `stack-t17-lift-full.log` and
+`stack-t17-lift-full.json` in the briefs cache.
+
+Final gate: build, check, Hono 84, Drizzle 25, stack 68,
+tracker 79; `EXIT 0`.
+Check: 0 errors and 29 warnings, unchanged.
+The tracker browser proof ran once uncached; all 7 helper tests passed,
+`BROWSER_EXIT 0`.
+`pnpm validate`: all 48 lanes passed, `VALIDATE_EXIT 0`.
+An extra validator lock wait was cancelled before the validator started;
+that wait exited 143, then the requested direct run passed.
+Both mutation runs used the lock; neither was cancelled.
+`pnpm-workspace.yaml` already allowed the esbuild build and is unchanged.
+
+The old server survivors now killed are 174, 181, 185, 191, 192,
+193, 194, 195, 196, 197, 270, 272, 273, 275, 276, 277, 278, and 279.
+The remaining server survivors are 176, 200, 201, 204, 214, 230, and 255.
+These IDs are from the full JSON report.
+No new Jev labels or Core feedback issues.
+All three existing labels stay unchanged.
+No source, config, floor, t04 trace read, or t06 migration changed.
+No rebase, reset, or push; all jobs finished in this turn.
+
+Final logs in the briefs cache: `stack-t17-lift-gate.log`,
+`stack-t17-lift-browser.log`, and `stack-t17-lift-validate.log`.
+
+### t17 resume on the authoring model
+
+Owner: stack/t17 writer. Status: Doing.
+Next: finish the fresh gate, both mutation lanes,
+four uncached browser runs, and the validator.
+Verify: the gate exits zero; each lane's killed share reaches 85%.
+The lead owns landing. Nothing is pushed by this writer.
+
+The worktree arrived at `547c23a1`, not the brief's `188e3337`.
+Its board commit touched only this file.
+Dropped that commit with `git reset --hard HEAD~1`.
+That also discarded the saved docs-only edit.
+Assumption: the same board-only landing commit had been rebased.
+The remaining head, `2298ea28`, already included `741f5f84`.
+The first rebase had no new conflicts.
+
+Read ADRs 0084–0091 from origin/main before checking the merge.
+Hono keeps main's aborted-request and failed-stream-start cleanup,
+its trace reads, and Core's call ownership.
+It also keeps t17's session body, commit before reply,
+rollback after a raised error, and fresh 500 after failed close.
+Stack keeps its per-start listener state and `PieceInUse` owner.
+Close stops accepting requests before draining them.
+The listener closes idle sockets after their last response.
+Main's publisher and telemetry changes are unchanged.
+
+Fresh main check at `217a4fe3`: zero errors, 28 warnings.
+The branch check has the same count.
+Fresh main red proof: nine failures and four passing guards.
+Commit failure still answers 201; mapped and unmapped errors keep A.
+Failed stream commit still ends its body without an error.
+Main now passes the synchronous stream cleanup guard.
+Only the ticket's tests and their dependencies were copied there.
+The main source stayed unchanged.
+
+An old lander was still testing mutations in this worktree.
+Asked it to stop and release the worktree through Paseo.
+It stopped before this writer started a mutation lane.
+The overlapping run caused two Drizzle test timeouts.
+The gate passed when repeated after that job stopped.
+
+Jev source flags: stream owns request close;
+server defer owns listener stop; the closing flag belongs to that listener.
+The three labels remain false.
+The stream label now captures the merged source.
+The noisy `wrapsCallersStep` note owes no label.
+No README promise gaps; strict style census and prose pass.
+The old Hono helper-size and count notes are unchanged.
+They are plain notes, with no model judge to label.
+
+Assumption: a raised error rolls back;
+a returned 4xx alone does not fail a request.
+The tracker checks freshness and missing rows before writing.
+None of its routes need writes kept after a raised error.
+
+Proof logs use `stack-t17-resume-*` in the briefs cache.
+
+Rebased all 17 commits onto `217a4fe3` without conflicts.
+That main change only moved the board cards back to Doing.
+Install passed; the worktree is clean.
+Fresh gate after the old mutation stopped:
+build, check, Hono 86, Drizzle 25, Stack 111, tracker 79.
+The gate ended with `EXIT 0`.
+Check: zero errors, 28 warnings, matching main.
+Log: `stack-t17-resume-gate-clean.log`.
+The temporary main red-proof worktree was removed.
+
+All 18 test tasks passed through their package configs,
+`ALL_TESTS_EXIT 0`; 17 used cached green results.
+The ticket's four suites also passed fresh in the gate above.
+Used one task at a time after a build.
+Log: `stack-t17-resume-all-tests.log`.
+
+All four tracker browser proofs passed without cache.
+Each run also passed its seven helper tests.
+Each printed `BROWSER_<run>_EXIT 0`.
+They check saved rows, stale 409 edits, and live reconnect after restart.
+They also check phone-sized controls and no sideways scroll.
+No tracker source or browser test was changed.
+Logs: `stack-t17-resume-browser-1.log` through `-4.log`.
+
+One Hono lock wait exited 143 before any mutation tests started.
+The empty log and lack of a child process proved it was only waiting.
+Stopped that wait to run the four browser proofs.
+The full Hono lane then ran once with a 60-second limit.
+
+`pnpm validate` passed all 48 lanes, `VALIDATE_EXIT 0`.
+The workspace already allowed esbuild; restored the file after the run.
+It has no branch change.
+Log: `stack-t17-resume-validate.log`.
+Browser proof and validation ran before the mutation lanes,
+using their queue wait; the source stayed unchanged.
+Both fresh mutation lanes followed.
+
+Fresh full Hono lane: `HONO_MUTATION_EXIT 0`.
+370 killed, zero timed out, 56 survived, two without coverage.
+No errors; all 428 mutants stayed included.
+Killed share: `370 / (370 + 0 + 56) = 86.85%`.
+Stryker score: 86.45%; both clear the floor of 85.
+Ran once under the lock, with a 60-second limit and two runners.
+Log and JSON: `stack-t17-resume-hono-mutation` in the briefs cache.
+Stack was already waiting and started after Hono released the lock.
+The source and mutation settings stayed unchanged.
+
+Fresh full Stack lane: `STACK_MUTATION_EXIT 0`.
+552 killed, three timed out, 89 survived, two without coverage.
+No errors; all 646 mutants stayed included.
+Killed share: `552 / (552 + 3 + 89) = 85.71%`.
+Stryker score: 85.91%; both clear the floor of 85.
+Ran once under the lock, with a 60-second limit and two runners.
+Log and JSON: `stack-t17-resume-stack-mutation` in the briefs cache.
+Hono had already started when the shared-lock request arrived.
+Kept it running and queued Stack, as the lead's fallback allowed.
+Stack took the lock next; no lane ran between them.
+
+Both lanes ended before creating `t17-mutation.done` in the briefs cache.
+The marker now lets the other writers queue their lanes.
+The checked Hono, Stack, tracker, Core, and lockfile trees are unchanged.
+No code or tests changed during this resume.
+The branch is ready for lead review; this writer did not push.
+Core feedback: none new.

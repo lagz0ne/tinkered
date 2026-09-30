@@ -957,18 +957,27 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@electric-sql/pglite':
+        specifier: 0.5.8
+        version: 0.5.8
       '@stryker-mutator/core':
         specifier: 'catalog:'
         version: 10.0.0(@types/node@26.5.1)
       '@stryker-mutator/vitest-runner':
         specifier: 'catalog:'
         version: 10.0.0(@stryker-mutator/core@10.0.0(@types/node@26.5.1))(vitest@4.1.11)
+      '@tinker/drizzle':
+        specifier: workspace:*
+        version: link:../drizzle
       '@types/node':
         specifier: ^26.1.1
         version: 26.5.1
       bumpp:
         specifier: ^11.1.0
         version: 11.1.0
+      drizzle-orm:
+        specifier: 1.0.0-rc.4
+        version: 1.0.0-rc.4(@electric-sql/pglite@0.5.8)(effect@3.22.2)(zod@4.6.2)
       hono:
         specifier: 'catalog:'
         version: 4.13.8

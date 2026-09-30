@@ -51,6 +51,8 @@ if (import.meta.main) {
 extension and env object.
 `start` reads env once.
 The scope owns the port and closes it.
+A server piece belongs to one live root at a time.
+A second live root raises `PieceInUse` with `{ label: "stack.server" }`.
 
 - `PORT` must be decimal digits from 1 to 65535.
 - `HOST` must be an IP address or DNS host name.
@@ -205,8 +207,8 @@ After commit it reads that root's tags and updates its cells,
 even when the request has its own values.
 A committed request publishes root state in its own namespace.
 Request drafts stay in their session; publication reads committed storage.
-A handled error answer (4xx) still commits its session,
-so it republishes and signals.
+A raised error mapped to 4xx rolls back its session,
+so it sends no signal (ADR 0084).
 A boot read failure rejects ready.
 A read failure after commit logs `publish failed` and
 keeps the request's answer.
@@ -251,8 +253,17 @@ A later commit or a new boot reads the current database.
 
 ## Promises
 
+- A server piece restarts after close.
+  Each start logs `listening`, and each close releases its port.
+- A second live root cannot take or stop the server piece.
+  The piece stays owned until the full close chain ends.
+- An old root's second close keeps the new server owner.
+- A failed start closes its listener and frees the server piece.
+- Stop closes the keep-alive socket after the last stream chunk.
 - Opens the port only after every other start finishes.
-- A stop waits for an in-flight request and answers zero.
+- A stop refuses new requests while it waits for an in-flight request.
+  It answers zero after the open requests finish.
+  Keep-alive connections close when their last response finishes during stop.
 - An already stopped signal closes after boot and
   answers zero.
 - Failed boot waits for cleanup before logging and
@@ -285,7 +296,7 @@ A later commit or a new boot reads the current database.
 - Closing one server removes its NATS subscription while the
   other keeps publishing.
 - A different app subject leaves its published cells alone.
-- A handled 4xx answer still commits and signals.
+- A raised error mapped to 4xx rolls back and sends no signal.
 - Live updates require NATS_URL at boot.
 - Local publishing runs after later starts and before the
   first request.

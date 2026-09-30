@@ -166,8 +166,12 @@ Core writes a separate step line with the operation's label, `ms`, and outcome w
 An unmapped error writes no `http request` line, but core still logs the failed step.
 A throwing route op settles the request span failed and reaches Hono's `onError`.
 With observation off no span is recorded and the request still answers.
-The session closes gracefully (commit) after the handler; forced (rollback) on client
-abort; a `stream` route closes when the body ends. Outside the extension's
+The request session closes before its answer leaves (ADR 0084).
+A successful route commits before the caller receives the answer.
+A plain row on the same app still commits right after the handler.
+A route that raises any error rolls back, including a mapped 4xx.
+Client abort force-closes the session and rolls back.
+A `stream` route closes when the body ends. Outside the extension's
 middleware, `stream` raises `NoSession`.
 An already-aborted request closes cancelled without running its route.
 It answers 499.
@@ -181,6 +185,7 @@ The body is a declared operation, not a callback.
 It reads `emit` with `depends: { emit: emit.required }`.
 The call may carry `input` and `tags` as usual.
 The stream binds `emit` for this run.
+The body yields each chunk as the clock advances, then ends.
 `emit` sends byte chunks unchanged to the reader.
 A stream call's `ns` picks the body run's namespace bindings.
 The body runs in its own child session, as a tagged call does (ADR 0038).
@@ -236,14 +241,14 @@ start, since a later call cannot upgrade an in-progress graceful close.
 
 A missing required tag answers `internal` in the response body.
 A missing required tag answers 500 with the request span ok.
-The request session commits on success, rolls back on abort, fails on an unmapped error.
+The request session commits on success and rolls back on abort or a raised error.
 
 `hono(routes, { onError: (e, c) => Response | undefined })` answers first; `undefined`
 falls through to the table. A mapped failure settles the request span `ok`.
 `onError` answers first: a parse failure becomes 418 while `MissingTag` keeps 500.
 
 The route runs its operation through `settle`.
-A failure `onError` answers, a panic included, closes the request session `success`.
+A failure `onError` answers, a panic included, closes the request session `failed`.
 An operation that finishes after a client abort still answers its value and logs 200.
 
 ### Error tables
@@ -295,6 +300,39 @@ const { extension: web } = hono(issueRoutes, {
   Error causes keep their details; other causes become text.
 - An `HTTPException` keeps its status, body, and headers
   without a `request failed` line.
+
+### Commit and rollback
+
+The `http request` line and request span record the built status; a close failure adds one `request failed` line and answers 500.
+
+- A failed commit answers 500, logs one line, and saves nothing.
+  Any teardown error or unexpected failed close replaces the built answer
+  with `internal` and writes one `request failed` line through the scope sink.
+- A failed commit drops the built answer's headers.
+  This includes cookies and location headers set through the context
+  or returned in a Response.
+- A save followed by a mapped 409 rolls back and keeps the mapped answer.
+- A save followed by an unmapped error answers 500 and rolls back.
+- A successful save commits before its answer arrives.
+  Its status, body, and headers stay unchanged.
+- A stream whose commit fails errors its body and logs one line.
+  Its headers have already left, so its status stays unchanged.
+  The reader sees the close failure before the stream can finish cleanly.
+  Its `RequestCloseFailed` error carries the close result in `payload.result`.
+
+- A failed session hook replaces the built answer with 500 and one failure line.
+- A teardown error replaces a mapped answer with 500 and one failure line.
+  Even an `HTTPException` in teardown counts as a close failure.
+- A synchronous stream error keeps its 500 and closes its request session failed.
+
+A request after scope close reaches Hono's error handler.
+This lets a late browser reconnect finish while the server stops.
+
+A stream body can answer a forced shutdown with a final chunk.
+A cancelled close without teardown errors keeps that final body.
+
+Cleanup failure on reader cancellation logs one request failure.
+Cleanup failure after a writer error logs once and keeps the reader error.
 
 ## Trace ids
 

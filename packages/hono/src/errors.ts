@@ -1,5 +1,8 @@
+import type { Scope } from "@tinker/core";
+
 /** Payload type for each hono error. The registry is the only place this package throws. */
 type Payloads = {
+  RequestCloseFailed: { result: Scope.Result };
   NoSession: { label: string };
   InputRejected: { label: string; cause: unknown };
 };
