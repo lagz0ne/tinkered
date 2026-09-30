@@ -26,11 +26,8 @@ const indexes =
 
 async function boot(client: PGlite) {
   const scope = createScope({ tags: [store.config({ client })], extensions: [migrateIssues] });
-  try {
-    await scope.ready;
-  } finally {
-    await scope.close();
-  }
+  await scope.ready;
+  await scope.close();
 }
 
 test("a fresh tracker boots from migration files and its next boot applies nothing", async () => {

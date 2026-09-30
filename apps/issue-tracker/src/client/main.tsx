@@ -43,7 +43,6 @@ async function start(element: ReturnType<typeof createRoot>): Promise<boolean> {
   try {
     await scope.ready;
   } catch {
-    await scope.close();
     return false;
   }
   scope.resolve(detailRefresh);

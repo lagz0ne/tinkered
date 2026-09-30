@@ -25,7 +25,8 @@ function readFirstText(answered: object): string {
   if (!("content" in answered)) return "";
   const content: unknown = answered.content;
   if (!Array.isArray(content)) return "";
-  return readTextPart(content[0]);
+  const [first] = content;
+  return readTextPart(first);
 }
 
 /** A cast-free tour of the driver: a tool is an operation plus its row facts,
@@ -39,12 +40,7 @@ export async function tour(): Promise<string> {
     tools: [expose(search, { description: "search the index", schema: searchShape })],
   });
   const scope = createScope({ extensions: [ext] });
-  try {
-    await scope.ready;
-  } catch (error) {
-    await scope.close();
-    throw error;
-  }
+  await scope.ready;
   const server = scope.resolve(ext);
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);

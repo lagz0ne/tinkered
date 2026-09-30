@@ -759,7 +759,6 @@ test("two cells under one key reject startup with SyncConflict", async () => {
       expect(error.payload.key).toBe("t07-dup");
     },
   );
-  await origin.close();
 });
 
 test("binding the same cell twice stays ready with one registration key", async () => {
@@ -834,12 +833,7 @@ test("connect resolves cancelled on a forced root close", async () => {
 
 test("the recipe registers by identity, then streams the snapshot down", async () => {
   const scope = createScope({ extensions: [web, src] });
-  try {
-    await scope.ready;
-  } catch (error) {
-    await scope.close();
-    throw error;
-  }
+  await scope.ready;
   const app = scope.resolve(web);
   function readerOf(streamed: Response): ReadableStreamDefaultReader<Uint8Array> {
     const body = streamed.body;
@@ -1168,7 +1162,6 @@ test("a source whose startup fails with SyncConflict lets go of its family", asy
       if (!isError(error, "SyncConflict")) throw error;
     },
   );
-  await origin.close();
   todo("7");
   expect(todo.members()).toEqual(["7"]);
 });

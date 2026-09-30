@@ -1,5 +1,5 @@
 import { setImmediate as nextTurn } from "node:timers/promises";
-import { createScope, preset } from "@tinker/core";
+import { createScope, extension, preset } from "@tinker/core";
 import { isError as isSyncError, subscribe } from "@tinker/sync";
 import { expect, test } from "vite-plus/test";
 import {
@@ -519,7 +519,6 @@ test("a stream the browser gives up on before the first snapshot fails the boot 
       expect(error.payload.missing).toEqual(["issues"]);
     },
   );
-  await tab.scope.close();
 });
 
 test("a malformed frame writes failed and closes the stream, and sync stays attached", async () => {
@@ -559,6 +558,7 @@ test("scope close closes the stream and fires onClose once", async () => {
 });
 
 test("a stream that cannot be opened fails the boot with its own error", async () => {
+  let closes = 0;
   const scope = createScope({
     tags: [
       ...TAGS,
@@ -566,7 +566,16 @@ test("a stream that cannot be opened fails the boot with its own error", async (
         throw fail("SyncDropped", { reason: "no stream" });
       }),
     ],
-    extensions: [subscribe(wire, { cells: [[issueList, "issues"]] })],
+    extensions: [
+      subscribe(wire, { cells: [[issueList, "issues"]] }),
+      extension({
+        label: "boot-cleanup",
+        close: (_options, next) => {
+          closes += 1;
+          return next();
+        },
+      }),
+    ],
   });
   await scope.ready.then(
     () => {
@@ -577,5 +586,5 @@ test("a stream that cannot be opened fails the boot with its own error", async (
       expect(error.payload.reason).toBe("no stream");
     },
   );
-  await scope.close();
+  expect(closes).toBe(1);
 });

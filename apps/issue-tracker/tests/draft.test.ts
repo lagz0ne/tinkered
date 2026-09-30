@@ -39,12 +39,7 @@ async function boot(path: { client: import("@electric-sql/pglite").PGlite }, opt
     presets: options.presets,
     observe: options.observe,
   });
-  try {
-    await scope.ready;
-  } catch (error: unknown) {
-    await scope.close();
-    throw error;
-  }
+  await scope.ready;
   return { scope, app: scope.resolve(server) };
 }
 
