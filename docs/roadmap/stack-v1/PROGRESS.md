@@ -2498,3 +2498,11 @@ One Hono lock wait exited 143 before any mutation tests started.
 The empty log and lack of a child process proved it was only waiting.
 Stopped that wait to run the four browser proofs.
 The full Hono lane still runs once with a 60-second limit.
+
+`pnpm validate` passed all 48 lanes, `VALIDATE_EXIT 0`.
+The workspace already allowed esbuild; restored the file after the run.
+It has no branch change.
+Log: `stack-t17-resume-validate.log`.
+Browser proof and validation ran before the mutation lanes,
+using their queue wait; the source stayed unchanged.
+Only the two fresh mutation lanes remain.
