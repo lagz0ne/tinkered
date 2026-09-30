@@ -1,4 +1,5 @@
 import {
+  data,
   extension,
   LEVELS,
   operation,
@@ -42,6 +43,11 @@ export function traceSink(wiring?: TraceSink.Wiring) {
 
 function createTraceExtension(): TraceSink.Extension {
   const config = tag<TraceSink.Wiring>({ label: "stack.trace.config" });
+  /** Close must not resolve a failed queue and block the rest of cleanup. */
+  const startedQueue = data<TraceQueue | undefined>({
+    label: "stack.trace.startedQueue",
+    initial: undefined,
+  });
   const queue = resource({
     label: "stack.trace.queue",
     target: "scope",
@@ -77,18 +83,19 @@ function createTraceExtension(): TraceSink.Extension {
       hooks: {
         start: async (event) => {
           const owned = event.resolve(queue);
+          event.controller(startedQueue).set(owned);
           const exporter = event.controller(exportBatch);
           owned.start(() => exporter.run());
           await event.next();
           return event.resolve(observe);
         },
         close: async (event) => {
-          const owned = event.resolve(queue);
-          owned.beginClose(event.options.graceful === true);
+          const owned = event.resolve(startedQueue);
+          owned?.beginClose(event.options.graceful === true);
           try {
             return await event.next();
           } finally {
-            await owned.finishClose();
+            await owned?.finishClose();
           }
         },
       },

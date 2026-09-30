@@ -112,6 +112,8 @@ await telemetry.closed;
 Reuse the same `tracing` definition in separate telemetry roots.
 Each root keeps its own settings, writer, and queue.
 Closing one root or failing its setup leaves the others running.
+Missing config or bad settings reject `ready` and finish
+`closed` as `failed` with the same error.
 Close all apps before telemetry to export their final cleanup spans
 and logs.
 Leave observation off in the telemetry scope so exports do not

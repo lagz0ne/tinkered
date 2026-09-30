@@ -9,7 +9,7 @@ import {
   type Operation,
 } from "@tinker/core";
 import { expect, test } from "vite-plus/test";
-import { traceSink } from "../src/index.ts";
+import { isError as isStackError, traceSink } from "../src/index.ts";
 import { logs, Receiver, spans } from "./otlp-fixture.ts";
 
 const tracing = traceSink();
@@ -197,6 +197,42 @@ test("failed telemetry setup cleans its root and leaves the other queue running"
     await collector.close();
   }
 });
+
+test.each(["missing", "invalid"])(
+  "telemetry with %s config rejects ready and settles closed with the same failure",
+  async (config) => {
+    const telemetry = createScope({
+      signal: new AbortController().signal,
+      extensions: [tracing],
+      tags:
+        config === "missing"
+          ? undefined
+          : tracing.config({
+              env: { OTEL_EXPORTER_OTLP_ENDPOINT: "file:///tmp/collector", OTEL_SERVICE_NAME: " " },
+              write: () => {},
+            }),
+    });
+    const failure = await telemetry.ready.then(
+      () => expect.unreachable(),
+      (error: unknown) => error,
+    );
+    if (config === "missing") {
+      if (!isError(failure, "MissingTag")) throw failure;
+    } else {
+      if (!isStackError(failure, "BadTraceSettings")) throw failure;
+      expect(failure.payload.keys).toEqual(["OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_SERVICE_NAME"]);
+    }
+    let status = "pending";
+    const closing = telemetry.closed.then((result) => {
+      status = result.status;
+      return result;
+    });
+    await expect.poll(() => status).toBe("failed");
+    const result = await closing;
+    if (result.status !== "failed") expect.unreachable();
+    expect(result.error).toBe(failure);
+  },
+);
 
 test.each([false, true])(
   "forced telemetry close cancels export without cleanup errors (in flight: %s)",
