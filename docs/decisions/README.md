@@ -64,3 +64,6 @@ by a new decision that names the old one.
 | [0087](0087-extensions-control-tagged-namespaces-the-scope-disposes-their-state.md) | Extensions control tagged instances; the scope disposes their state |
 | [0088](0088-keep-the-graph-static-close-the-session-to-discard-state.md) | Static graph; close the session to discard state; replaces 0087's disposal rule |
 | [0089](0089-extension-hooks-receive-one-lazy-owner-bound-event.md) | One event object gives hooks lazy access to the right owner and namespace |
+
+- [0090](0090-a-call-signal-owns-and-stops-one-action.md): a call signal stops one owned action.
+- [0091](0091-tool-graphs-may-own-a-separate-scope.md): tool graphs may have separate owners.

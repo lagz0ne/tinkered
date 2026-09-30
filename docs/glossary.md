@@ -408,3 +408,10 @@ New sections are lists, one term per item.
   shares. A span gets it when it opens, from its
   parent or from the `traceparent` header
   (ADR 0076).
+
+## Tool and call owners
+
+| term | meaning |
+| --- | --- |
+| call signal | Stops one action and its child work; the caller stays alive. |
+| tool scope | Owns a logger, observer, or devtools graph. |

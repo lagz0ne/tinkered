@@ -212,3 +212,27 @@ Proof: kitchen-01 worker-3-attempt-1 check-1, teacher 52/53.
 | An extension's `start` ctx logs nowhere: `ctx.log` there is `OFF_LOG`, so a boot line is dropped even with an observe sink. Stack pieces write to the sink directly. The hono workaround (a resource's logger) adds one `hono.errors` span per scope at boot; it goes when core/start-log lands. | stack/t05, stack/t02 (hono.errors span), stack/t07 | **ticket** — core/start-log (after stack/t04) |
 | W3C `traceparent` parsing and formatting now lives in three packages (hono reads it, http writes it, nats does both). One shared helper, beside the trace types, would keep them in step. | stack/t04 (hono, http), stack/t13 (nats) | **ticket** — core/traceparent (second asker) |
 | Span times are whole milliseconds (the clock's `currentTimeMillis`), so a span under 1 ms exports with 0 duration; tracing wants sub-ms times. | stack/t13 review | candidate |
+
+
+## A call needs its own stop, 2026-09-30
+
+Tinkerer steering cannot stop a pending HTTP header or retry wait.
+Its controller accepts tags and namespace keys, with no call signal.
+Stopping the whole conversation would discard the work that must continue.
+
+```ts
+const running = session.settle(coder.turn, {
+  input: "start",
+});
+session.controller(coder.inbox).update((entries) => [
+  ...entries, steer("switch"),
+]);
+await running;
+```
+
+The first backend waits for abort and never supplies headers.
+The replacement request never starts.
+A signal supplied on one Core call can stop its child work.
+The user chose that boundary for tools such as observers and devtools too.
+Status: accepted authoring t17; see ADR 0090.
+Proof: `packages/tinkerer/tests/stalled-steer.test.ts`.

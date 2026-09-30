@@ -74,6 +74,11 @@ Use resource ownership and middleware as the precedent.
 - **t16 trace wiring** — blocked by: none.
   Give each root its own observer and queue.
   Keep the reusable graph free of live queues.
+- **t17 call cancellation** — blocked by: none.
+  The user picked `Scope.Invocation.signal` on 2026-09-30.
+  A signal gives one call a child owner and stops only that work.
+  Verify: HTTP waits, retry waits, cleanup, namespaces, and recovery;
+  all consumers pass and Core stays within 16,384 bytes gzip.
 
 ## Impact before code
 
@@ -144,6 +149,20 @@ ADR 0053 promises that steering interrupts an in-flight step.
 The wakeup and stream cleanup belong to that turn's owner.
 Keep messages, tool results, and namespace state in their existing cells.
 
+### t15 Process: finish the existing early-abort card
+
+Callers: Process `run` and `main`; Process tests;
+`examples/process-cli/basic.ts` and package CLI entry files.
+The public `execute` signature and forced-stop exit code stay unchanged.
+Inline root creation instead of returning a scope from `rootFor`.
+Use a completion signal and `closed` for the root's graceful end.
+An external command abort still force-cancels its active work.
+Check an abort fired during start immediately after attaching its listener.
+Do not call close again after failed readiness.
+Verify: startup abort returns 130 without running the command;
+failed setup finishes its close hooks once.
+This completes `process/early-abort` already on the board.
+
 ### t16: trace extension stays at the center
 
 User steering: the observer needs its own graph, possibly its own scope.
@@ -190,6 +209,27 @@ Prove closing A preserves B and the final app-close spans reach telemetry.
 Prove bad setup cleans up and cannot stop another root's queue.
 Public callbacks remain the existing `Observe.Config` shape.
 No Core observer API change or automatic private root is needed.
+
+### t17: Core invocation and call argument types gain a signal
+
+Public symbols: `Scope.Invocation`, `ProvideInput`, `CallArgs`,
+`TaggedArgs`, inline call arguments, and operation controller overloads.
+Callers: every package and app that runs or settles an action;
+Core extension events and subflows; all examples.
+Index all 14 packages and check SCIP references before and after code.
+The explicit consumer is Tinkerer's in-flight step and HTTP retries.
+Logger, observer, and devtools actions may use the same boundary.
+
+Reuse the tagged-call child lifetime as the precedent.
+The namespace key stays fixed; the new child owns work and cleanup.
+Only calls with a signal need this extra owner.
+An already-aborted signal starts no body or backend.
+Cancel stops the call's signal, waits for cleanup, and detaches listeners.
+`settle` reports cancellation without failing the caller's owner.
+Do not add an HTTP-only stop setting or a private hidden root.
+Do not change no-signal invocation results or resource targets.
+The existing 16 KiB Core budget remains a hard gate.
+Use the existing ticket checks and queue for any measured cost claim.
 
 ### Writer handoff
 
