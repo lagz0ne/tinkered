@@ -17,8 +17,8 @@ export declare namespace HttpClient {
     request: HttpRequest.Record,
     signal: AbortSignal,
   ) => Promise<HttpResponse.Handle>;
-  /** Client configuration, bound on the shared `config` tag at any layer (scope, session, per
-   * call) and merged nearest-wins: a base URL prepended to relative paths, headers merged under
+  /** Client configuration, bound on the shared `config` tag in a namespace, scope, session, or
+   * call and merged nearest-wins: a base URL prepended to relative paths, headers merged under
    * the request's own, a retry policy (default never retry), and a status predicate (default
    * accept all). Plain values — no factory, no closure. */
   export type Config = {
@@ -102,7 +102,7 @@ function readFetchParams(pairs: readonly (readonly [string, string])[]): URLSear
 }
 
 /** The shared slot for how a request is sent; default `fetchBackend`. Bind another backend on a
- * scope or session to observe or replace the transport — `preset` is never needed for this. */
+ * namespace, scope, session, or call to replace the transport; no `preset` is needed. */
 export const backend: Tag.Handle<HttpClient.Backend> = tag({
   label: "http.backend",
   default: fetchBackend,
@@ -172,8 +172,9 @@ export function applyConfig(
 }
 
 /** The shared config slot; no default (absent means no bindings, `.all` reads `[]`). Bind
- * `baseUrl`, `headers`, `retry`, and `accept` at any layer — scope, session, per call. Two
- * clients (github, stripe) are two sessions binding this one tag. */
+ * `baseUrl`, `headers`, `retry`, and `accept` on a namespace, scope, session, or call.
+ * Namespaces select separate service settings in the same graph; scopes and sessions own
+ * the work's lifetime and cleanup. */
 export const config: Tag.Handle<HttpClient.Config> = tag({ label: "http.config" });
 
 /** One send through the backend. Its own span carries the method, url, attempt, and status,

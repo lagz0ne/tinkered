@@ -1,28 +1,69 @@
 # @tinker/http
 
-An HTTP client as a **frame** of core primitives (ADR 0035): a pre-wired graph with slots the
-user fills in. Nothing in it runs until an operation resolves.
+Shared tags and operations make the HTTP client (ADR 0035).
+Declare the app graph once and reuse it across roots and namespaces.
+A request starts when `send` runs.
 
-```text
-declared units (no factory — import them)
-├── backend            (shared tag)             slot: how a request is sent; default fetchBackend
-├── config             (shared tag)             slot: baseUrl, headers, retry, accept — scope, session, or per call
-├── send               (operation)              merges config, validates the URL, retries via attempt
-└── attempt            (operation)              one send through the backend; the swappable seam
-```
+- `backend` is the tag for how a request is sent.
+  Its default is `fetchBackend`.
+- `config` is the tag for the base URL, headers, retry, and accepted status.
+- `send` merges settings, checks the URL, and retries through `attempt`.
+- `attempt` sends one request through the backend.
 
-Two clients (github, stripe) are two sessions binding the one `config` tag:
+## Two services in one scope
+
+Give GitHub and Cloudflare separate namespace settings.
+Both reuse the same `config`, `send`, `attempt`, and `backend` declarations.
+The token strings below are example values.
 
 ```ts
-const github = scope.createSession({
-  tags: [config({ baseUrl: "https://api.github.com" })],
+import { createScope, namespace } from "@tinker/core";
+import { config, HttpRequest, send } from "@tinker/http";
+
+const github = namespace({
+  tags: config({
+    baseUrl: "https://api.github.com",
+    headers: {
+      authorization: "Bearer github-example-token",
+    },
+  }),
 });
-const stripe = scope.createSession({
-  tags: [config({ baseUrl: "https://api.stripe.com" })],
+const cloudflare = namespace({
+  tags: config({
+    baseUrl: "https://api.cloudflare.com/client/v4",
+    headers: {
+      authorization: "Bearer cloudflare-example-token",
+    },
+  }),
 });
-await github.run(listRepos, { input: "octocat" });
-await stripe.run(createCharge, { input: charge });
+
+const stop = new AbortController();
+const scope = createScope({ signal: stop.signal });
+await scope.ready;
+try {
+  const repo = await scope.run(send, {
+    ns: github,
+    input: HttpRequest.get("/repos/octocat/Hello-World"),
+  });
+  const zones = await scope.run(send, {
+    ns: cloudflare,
+    input: HttpRequest.get("/zones"),
+  });
+  console.log(await repo.json(), await zones.json());
+} finally {
+  stop.abort();
+  await scope.closed;
+}
 ```
+
+Namespaces select settings; scopes and sessions own lifetime and cleanup.
+A session can call both namespaces within the same lifetime.
+Changing `ns` does not create a session.
+The same graph and namespace keys can be used in another root;
+closing one root leaves the other root usable.
+
+See [one agent, two services](../../examples/harness/SERVICES.md)
+for a Harness agent that uses these namespaces through two tools.
 
 ## Operations: declared by the author, on `send`
 
@@ -43,17 +84,21 @@ const listRepos = operation({
   },
 });
 
-// a composing operation: depends on the resource that owns the token and on the endpoint,
-// and hands a fresh token to one subflow call via tags (a child session for that call, ADR 0038)
+/** The auth resource owns the token. One call gets a fresh
+ * token through tags (a child session, ADR 0038). */
 const onboard = operation({
   label: "onboard",
   input: parseIssue,
   depends: { auth, issue: createIssue },
-  run: async ({ auth, issue }, { input }) =>
-    issue.run({
+  run: async ({ auth, issue }, { input }) => {
+    const token = await auth.token();
+    return issue.run({
       input,
-      tags: [config({ headers: { authorization: `Bearer ${await auth.token()}` } })],
-    }),
+      tags: config({
+        headers: { authorization: `Bearer ${token}` },
+      }),
+    });
+  },
 });
 ```
 
@@ -76,7 +121,10 @@ A backend failure that a forced close lands on rejects with the abort reason, no
 
 ```ts
 createScope({
-  tags: [config({ baseUrl: "https://api", retry: { times: 2, delay: (n) => n * 1000 } })],
+  tags: config({
+    baseUrl: "https://api",
+    retry: { times: 2, delay: (n) => n * 1000 },
+  }),
 });
 ```
 
@@ -99,7 +147,10 @@ catch handler). Default accept all.
 
 ```ts
 createScope({
-  tags: [config({ baseUrl: "https://api", accept: (status) => status < 300 })],
+  tags: config({
+    baseUrl: "https://api",
+    accept: (status) => status < 300,
+  }),
 });
 ```
 
@@ -109,7 +160,9 @@ dispatches by status — an exact status beats its class bucket (`"2xx"`/`"3xx"`
 anything unmatched falls to `orElse`:
 
 ```ts
-const res = await send.run({ input: HttpRequest.get("/api/repo") });
+const res = await send.run({
+  input: HttpRequest.get("/api/repo"),
+});
 return HttpResponse.matchStatus(res, {
   404: () => null,
   "2xx": (ok) => ok.json(parseRepo),
@@ -122,14 +175,15 @@ return HttpResponse.matchStatus(res, {
 `filterStatusOk` passes 200 through 299; 300 raises `ResponseFailed/StatusCode`.
 Each class bucket catches only its own hundreds: 204 is `2xx`, 302 `3xx`, 418 `4xx`, 503 `5xx`.
 
-## Config: one tag, three levels, same merge rule
+## Config: settings merge nearest first
 
+Bind `config` on a namespace, scope, session, or call.
 `mergeConfig` takes a `.all` list (nearest first): `baseUrl` is the nearest binding that has
 one; `headers` merge key by key, nearer winning. `applyConfig` prepends the `baseUrl` and puts
 the request's own headers on top (request wins).
 
 ```ts
-// scope: the common case — base URL and a service token, once
+/** Scope defaults: base URL and service token. */
 createScope({
   tags: [
     config({
@@ -138,12 +192,21 @@ createScope({
     }),
   ],
 });
-// session: a tenant/user token for everything in that session; baseUrl inherited from the scope
-scope.session({ tags: [config({ headers: { authorization: `Bearer ${user}` } })] }, run);
-// per call: a composing operation hands a fresh token to one subflow call
+/** Session token; the scope supplies the base URL. */
+await scope.session(
+  {
+    tags: config({
+      headers: { authorization: `Bearer ${user}` },
+    }),
+  },
+  run,
+);
+/** One call gets a fresh token. */
 scope.run(listRepos, {
   input: "octocat",
-  tags: [config({ headers: { authorization: `Bearer ${fresh}` } })],
+  tags: config({
+    headers: { authorization: `Bearer ${fresh}` },
+  }),
 });
 ```
 
@@ -162,9 +225,14 @@ No helper ships for this — a three-line closure on the tag records the outgoin
 const seen: HttpRequest.Record[] = [];
 const fake: HttpClient.Backend = async (req) => {
   seen.push(req);
-  return HttpResponse.make(req, { status: 200, body: JSON.stringify([]) });
+  return HttpResponse.make(req, {
+    status: 200,
+    body: JSON.stringify([]),
+  });
 };
-createScope({ tags: [backend(fake), config({ baseUrl: "https://api" })] });
+createScope({
+  tags: [backend(fake), config({ baseUrl: "https://api" })],
+});
 ```
 
 ## Server-sent events
