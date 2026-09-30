@@ -502,6 +502,15 @@ npx --no-install stryker run \
   main; `vp run hono#test`, tracker tests, browser
   proof, `pnpm validate`.
 
+- **t18 the stack's roots on the stop signal** -- [ ] blocked by: none
+  core/root-lifetime landed (ADR 0085). The stack
+  drops `runUntilStop` for an exit-code helper over
+  a plain `Result`; the tracker's server root passes
+  its stop signal to `createScope` and awaits
+  `scope.closed`. Session tinkered-04 moves the rest.
+  Verify: no `runUntilStop` left; SIGTERM exits 0;
+  stack and tracker tests; `pnpm validate`.
+
 ## t05 writer notes
 
 Owner: stack/t05 writer. Branch: `stack/t05`.
