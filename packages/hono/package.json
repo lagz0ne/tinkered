@@ -36,11 +36,14 @@
     "@tinker/core": "workspace:*"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
     "@stryker-mutator/core": "catalog:",
     "@stryker-mutator/vitest-runner": "catalog:",
     "@tinker/core": "workspace:*",
+    "@tinker/drizzle": "workspace:*",
     "@types/node": "^26.1.1",
     "bumpp": "^11.1.0",
+    "drizzle-orm": "1.0.0-rc.4",
     "hono": "catalog:",
     "typescript": "^7.0.2",
     "vite": "catalog:",
