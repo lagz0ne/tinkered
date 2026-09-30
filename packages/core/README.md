@@ -111,8 +111,10 @@ Catching a body's panic in its hook does not erase the owner's failure.
 A hook-started action shares the active trace; a dropped failure stays on the owner.
 `event.settle` receives a child failure without failing the owner.
 
-A tagged call creates its actual child before run hooks start.
+A tagged call now enters its actual child before run hooks start.
+This order applies to object hooks and existing top-level callbacks.
 Its session hook runs before its run hook; each runs once.
+
 Start and close can resolve a root-owned resource to keep state apart across roots.
 Concurrent and repeated closes join the same close hook once.
 
