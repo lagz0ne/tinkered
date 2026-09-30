@@ -27,12 +27,14 @@ for (const wait of ["before", "after"]) {
       extensions: [
         extension({
           label: "wait",
-          run: async (_op, _call, next) => {
-            if (wait === "before") await gate.promise;
-            const value = next();
-            if (wait === "after") await gate.promise;
-            events.push("hook ended");
-            return value;
+          hooks: {
+            run: async (event) => {
+              if (wait === "before") await gate.promise;
+              const value = event.next();
+              if (wait === "after") await gate.promise;
+              events.push("hook ended");
+              return value;
+            },
           },
         }),
       ],
@@ -368,7 +370,7 @@ test("a hook can settle a child failure without failing its owner", async () => 
   expect((await scope.close({ graceful: true })).status).toBe("success");
 });
 
-test("an event union narrows its payload and keeps old callbacks working", async () => {
+test("an event union narrows its payload by kind", async () => {
   const events: string[] = [];
   const hook = (event: Scope.ExtensionEvent): unknown => {
     if (event.kind === "run") events.push(event.op.label ?? "inline");
@@ -376,20 +378,11 @@ test("an event union narrows its payload and keeps old callbacks working", async
     return event.next();
   };
   const scope = createScope({
-    extensions: [
-      extension({ label: "events", hooks: { run: hook, resolve: hook } }),
-      extension({
-        label: "legacy",
-        run: (_op, _call, next) => {
-          events.push("legacy");
-          return next();
-        },
-      }),
-    ],
+    extensions: [extension({ label: "events", hooks: { run: hook, resolve: hook } })],
   });
   expect(scope.run(operation({ label: "task", run: () => 3 }))).toBe(3);
   expect(scope.resolve(data({ label: "cell", initial: 4 }))).toBe(4);
-  expect(events).toEqual(["task", "legacy", "cell"]);
+  expect(events).toEqual(["task", "cell"]);
   await scope.close();
 });
 
@@ -577,35 +570,31 @@ test("resource contexts expose the namespace chain used by their dependencies", 
   await scope.close();
 });
 
-for (const form of ["legacy", "event"]) {
-  test(`a ${form} hook can refuse raw input before its parser runs`, async () => {
-    const cause = new Error("bad input");
-    const task = operation({
-      label: "task",
-      input: () => {
-        throw cause;
-      },
-      run: () => "body",
-    });
-    const scope = createScope({
-      extensions: [
-        form === "legacy"
-          ? extension({ label: "refuse", run: () => "refused" })
-          : extension({
-              label: "refuse",
-              hooks: {
-                run: (event) => {
-                  event.defer(() => undefined);
-                  return "refused";
-                },
-              },
-            }),
-      ],
-    });
-    expect(scope.run(task, { rawInput: "invalid" })).toBe("refused");
-    expect((await scope.close({ graceful: true })).status).toBe("success");
+test("a hook can refuse raw input before its parser runs", async () => {
+  const cause = new Error("bad input");
+  const task = operation({
+    label: "task",
+    input: () => {
+      throw cause;
+    },
+    run: () => "body",
   });
-}
+  const scope = createScope({
+    extensions: [
+      extension({
+        label: "refuse",
+        hooks: {
+          run: (event) => {
+            event.defer(() => undefined);
+            return "refused";
+          },
+        },
+      }),
+    ],
+  });
+  expect(scope.run(task, { rawInput: "invalid" })).toBe("refused");
+  expect((await scope.close({ graceful: true })).status).toBe("success");
+});
 
 test("catching a body's panic in its hook does not erase the owned failure", async () => {
   const cause = new Error("body failed");

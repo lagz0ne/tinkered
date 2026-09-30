@@ -10,9 +10,11 @@ test("a tagged subflow in a named run uses session hooks", async () => {
   let sessions = 0;
   const spy = extension({
     label: "spy",
-    session: async (_handle, next) => {
-      sessions += 1;
-      return next();
+    hooks: {
+      session: async (event) => {
+        sessions += 1;
+        return event.next();
+      },
     },
   });
   const marker = tag({ label: "marker", default: 0 });

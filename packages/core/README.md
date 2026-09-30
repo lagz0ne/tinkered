@@ -83,21 +83,26 @@ function exitCode(end: Scope.Result): number {
 
 ## Extensions
 
-An extension is middleware over the scope's verbs (ADR 0050). Declare it with
-`extension({ label, start, close })`, install it at the composition root with
-`createScope({ extensions })`, wait with `await scope.ready`, and read its
-value with `scope.resolve(ext)`.
+An extension is middleware over the scope's verbs (ADR 0050).
+Declare its callbacks under `hooks` and install it with `createScope({ extensions })`.
+Wait with `await scope.ready`, then read its value with `scope.resolve(ext)`.
 
 ```ts
 import { createScope, extension } from "@tinker/core";
 
 const events = extension({
   label: "events",
-  start: (scope, ctx, next) => {
-    ctx.defer((end) => console.log("closed:", end.status));
-    return next().then(() => ({ connect: () => true }));
+  hooks: {
+    start: (event) => {
+      event.defer((end) => {
+        console.log("closed:", end.status);
+      });
+      return event.next().then(() => ({
+        connect: () => true,
+      }));
+    },
+    close: (event) => event.next(),
   },
-  close: (opts, next) => next(),
 });
 
 const scope = createScope({ extensions: [events] });
@@ -106,7 +111,7 @@ scope.resolve(events).connect();
 await scope.close({ graceful: true });
 ```
 
-New hooks take one event object.
+Each hook takes one event object.
 `event.kind` names the hook and narrows its fields.
 Common access is built on first use.
 Reading `op`, `call`, `ns`, or `next` does not build that access.
@@ -145,9 +150,7 @@ A namespace chain selects buckets in that owner; it does not find a sibling sess
 
 `Scope.ExtensionEvent` is the union of these event shapes.
 `Scope.ExtensionEvents["run"]` names one shape.
-Existing top-level callbacks keep their positional arguments.
 A run hook may refuse raw input before its parser runs.
-An object hook wins when the same extension declares both forms for one verb.
 
 Graceful close joins hook waits before and after `next()`.
 A waiting hook can still use its saved controllers during graceful close.
@@ -164,8 +167,7 @@ A hook-started action shares the active trace; a dropped failure stays on the ow
 It returns `cancelled` when a waiting hook is forced closed.
 It returns `failed` with `Disposed` when called after that hook ends.
 
-A tagged call now enters its actual child before run hooks start.
-This order applies to object hooks and existing top-level callbacks.
+A tagged call enters its actual child before run hooks start.
 Its session hook runs before its run hook; each runs once.
 
 Start and close can resolve a root-owned resource to keep state apart across roots.
@@ -174,6 +176,7 @@ Concurrent and repeated closes join the same close hook once.
 Resolve hooks cover direct root `resolve` calls only.
 Session reads, dependency reads, controller reads, and event reads bypass them.
 An event's own reads do not enter the same resolve hook again.
+The start event's `scope.resolve` still enters root resolve hooks.
 
 A `resolve` hook wraps snapshot reads on the root handle (first registered is outermost; skip
 `next()` to short-circuit with a substitute):
@@ -181,7 +184,9 @@ A `resolve` hook wraps snapshot reads on the root handle (first registered is ou
 ```ts
 const gate = extension({
   label: "gate",
-  resolve: (target, next) => (allowed ? next() : "denied"),
+  hooks: {
+    resolve: (event) => (allowed ? event.next() : "denied"),
+  },
 });
 ```
 
@@ -191,11 +196,13 @@ outermost; skip `next()` to refuse a call with a substitute):
 ```ts
 const audit = extension({
   label: "audit",
-  run: async (_op, _call, next) => {
-    console.log("before");
-    const out = await next();
-    console.log("after");
-    return out;
+  hooks: {
+    run: async (event) => {
+      console.log("before");
+      const out = await event.next();
+      console.log("after");
+      return out;
+    },
   },
 });
 ```
@@ -211,8 +218,13 @@ to refuse a write, leaving the value and watchers unchanged):
 ```ts
 const even = extension({
   label: "even",
-  write: (_cell, value, next) => {
-    if (typeof value !== "number" || value % 2 === 0) next();
+  hooks: {
+    write: (event) => {
+      const { value } = event;
+      if (typeof value !== "number" || value % 2 === 0) {
+        event.next();
+      }
+    },
   },
 });
 ```

@@ -2640,9 +2640,11 @@ test("presets and extensions take the same authored shape: nested lists and fals
   const mark = (label: string): Scope.Extension<void> =>
     extension({
       label,
-      start: (_scope, _ctx, next) => {
-        seen.push(label);
-        return next();
+      hooks: {
+        start: (event) => {
+          seen.push(label);
+          return event.next();
+        },
       },
     });
   const scope = createScope({
@@ -4538,10 +4540,12 @@ test("ready waits for an async start", async () => {
   let started = false;
   const ext = extension({
     label: "slow",
-    start: async (_scope, _ctx, next) => {
-      await gate;
-      await next();
-      started = true;
+    hooks: {
+      start: async (event) => {
+        await gate;
+        await event.next();
+        started = true;
+      },
     },
   });
   const scope = createScope({ extensions: [ext] });
@@ -4562,7 +4566,9 @@ test("a rejected start rejects ready and fails the scope", async () => {
   const boom = new Error("boom-start");
   const ext = extension({
     label: "bad",
-    start: () => Promise.reject(boom),
+    hooks: {
+      start: () => Promise.reject(boom),
+    },
   });
   const scope = createScope({ extensions: [ext] });
   await expect(scope.ready).rejects.toBe(boom);
@@ -4574,18 +4580,22 @@ test("start hooks nest: the first registered runs outermost", async () => {
   const order: string[] = [];
   const a = extension({
     label: "a",
-    start: async (_scope, _ctx, next) => {
-      order.push("a:before");
-      await next();
-      order.push("a:after");
+    hooks: {
+      start: async (event) => {
+        order.push("a:before");
+        await event.next();
+        order.push("a:after");
+      },
     },
   });
   const b = extension({
     label: "b",
-    start: async (_scope, _ctx, next) => {
-      order.push("b:before");
-      await next();
-      order.push("b:after");
+    hooks: {
+      start: async (event) => {
+        order.push("b:before");
+        await event.next();
+        order.push("b:after");
+      },
     },
   });
   const scope = createScope({ extensions: [a, b] });
@@ -4598,13 +4608,17 @@ test("a start that skips next short-circuits the inner starts", async () => {
   let innerRan = false;
   const outer = extension({
     label: "outer",
-    start: () => Promise.resolve(),
+    hooks: {
+      start: () => Promise.resolve(),
+    },
   });
   const inner = extension({
     label: "inner",
-    start: () => {
-      innerRan = true;
-      return Promise.resolve();
+    hooks: {
+      start: () => {
+        innerRan = true;
+        return Promise.resolve();
+      },
     },
   });
   const scope = createScope({ extensions: [outer, inner] });
@@ -4620,10 +4634,12 @@ test("resolve(ext) fails with NotResolved before ready", async () => {
   });
   const ext = extension<number>({
     label: "num",
-    start: async (_scope, _ctx, next) => {
-      await gate;
-      await next();
-      return 41;
+    hooks: {
+      start: async (event) => {
+        await gate;
+        await event.next();
+        return 41;
+      },
     },
   });
   const scope = createScope({ extensions: [ext] });
@@ -4646,10 +4662,12 @@ test("resolve(ext) reads the start value once ready", async () => {
   });
   const ext = extension<number>({
     label: "num",
-    start: async (_scope, _ctx, next) => {
-      await gate;
-      await next();
-      return 41;
+    hooks: {
+      start: async (event) => {
+        await gate;
+        await event.next();
+        return 41;
+      },
     },
   });
   const scope = createScope({ extensions: [ext] });
@@ -4665,12 +4683,14 @@ test("a close hook wraps the structural close", async () => {
   let inner: string | undefined;
   const ext = extension({
     label: "wrap",
-    close: async (_opts, next) => {
-      order.push("before");
-      const result = await next();
-      inner = result.status;
-      order.push("after");
-      return result;
+    hooks: {
+      close: async (event) => {
+        order.push("before");
+        const result = await event.next();
+        inner = result.status;
+        order.push("after");
+        return result;
+      },
     },
   });
   const scope = createScope({ extensions: [ext] });
@@ -4685,11 +4705,13 @@ test("ctx.defer registered in start runs at close with the settled end", async (
   let seen: string | undefined;
   const ext = extension({
     label: "deferred",
-    start: (_scope, ctx, next) => {
-      ctx.defer((end) => {
-        seen = end.status;
-      });
-      return next();
+    hooks: {
+      start: (event) => {
+        event.defer((end) => {
+          seen = end.status;
+        });
+        return event.next();
+      },
     },
   });
   const scope = createScope({ extensions: [ext] });
@@ -4703,11 +4725,13 @@ test("ctx.signal aborts on a forced close", async () => {
   let aborted = false;
   const ext = extension({
     label: "watcher",
-    start: (_scope, ctx, next) => {
-      ctx.signal.addEventListener("abort", () => {
-        aborted = true;
-      });
-      return next();
+    hooks: {
+      start: (event) => {
+        event.signal.addEventListener("abort", () => {
+          aborted = true;
+        });
+        return event.next();
+      },
     },
   });
   const scope = createScope({ extensions: [ext] });
@@ -4719,7 +4743,9 @@ test("ctx.signal aborts on a forced close", async () => {
 test("a session after ready has an already-resolved ready", async () => {
   const ext = extension({
     label: "base",
-    start: (_scope, _ctx, next) => next(),
+    hooks: {
+      start: (event) => event.next(),
+    },
   });
   const scope = createScope({ extensions: [ext] });
   await scope.ready;
@@ -4729,8 +4755,18 @@ test("a session after ready has an already-resolved ready", async () => {
 });
 
 test("resolve of an extension that is not installed throws NotResolved", async () => {
-  const installed = extension({ label: "in", start: (_scope, _ctx, next) => next() });
-  const other = extension({ label: "out", start: (_scope, _ctx, next) => next() });
+  const installed = extension({
+    label: "in",
+    hooks: {
+      start: (event) => event.next(),
+    },
+  });
+  const other = extension({
+    label: "out",
+    hooks: {
+      start: (event) => event.next(),
+    },
+  });
   const scope = createScope({ extensions: [installed] });
   await scope.ready;
   try {
@@ -4748,11 +4784,13 @@ test("a resolve hook wraps a cell read: before, next, after", async () => {
   const cell = data({ initial: 7 });
   const wrap = extension({
     label: "wrap",
-    resolve: (target, next) => {
-      log.push("before");
-      const value = next();
-      log.push("after");
-      return value;
+    hooks: {
+      resolve: (event) => {
+        log.push("before");
+        const value = event.next();
+        log.push("after");
+        return value;
+      },
     },
   });
   const scope = createScope({ extensions: [wrap] });
@@ -4767,7 +4805,9 @@ test("a resolve hook that skips next short-circuits with a substitute", async ()
   const cell = data({ initial: 7 });
   const deny = extension({
     label: "deny",
-    resolve: (_target, _next) => 42,
+    hooks: {
+      resolve: () => 42,
+    },
   });
   const scope = createScope({ extensions: [deny] });
   await scope.ready;
@@ -4782,20 +4822,24 @@ test("two resolve hooks nest in registration order", async () => {
   const cell = data({ initial: 1 });
   const a = extension({
     label: "a",
-    resolve: (_target, next) => {
-      order.push("a:before");
-      const value = next();
-      order.push("a:after");
-      return value;
+    hooks: {
+      resolve: (event) => {
+        order.push("a:before");
+        const value = event.next();
+        order.push("a:after");
+        return value;
+      },
     },
   });
   const b = extension({
     label: "b",
-    resolve: (_target, next) => {
-      order.push("b:before");
-      const value = next();
-      order.push("b:after");
-      return value;
+    hooks: {
+      resolve: (event) => {
+        order.push("b:before");
+        const value = event.next();
+        order.push("b:after");
+        return value;
+      },
     },
   });
   const scope = createScope({ extensions: [a, b] });
@@ -4811,9 +4855,11 @@ test("a resolve hook also wraps tag and resource reads", async () => {
   const pool = resource({ label: "pool", factory: () => 9 });
   const count = extension({
     label: "count",
-    resolve: (_target, next) => {
-      calls += 1;
-      return next();
+    hooks: {
+      resolve: (event) => {
+        calls += 1;
+        return event.next();
+      },
     },
   });
   const scope = createScope({ extensions: [count] });
@@ -4831,13 +4877,17 @@ test("resolve(ext) bypasses the resolve chain", async () => {
   let calls = 0;
   const base = extension({
     label: "base",
-    start: (_scope, _ctx, next) => next(),
+    hooks: {
+      start: (event) => event.next(),
+    },
   });
   const count = extension({
     label: "count",
-    resolve: (_target, next) => {
-      calls += 1;
-      return next();
+    hooks: {
+      resolve: (event) => {
+        calls += 1;
+        return event.next();
+      },
     },
   });
   const scope = createScope({ extensions: [base, count] });
@@ -4852,9 +4902,11 @@ test("a session read bypasses the resolve chain", async () => {
   const cell = data({ initial: 3 });
   const count = extension({
     label: "count",
-    resolve: (_target, next) => {
-      calls += 1;
-      return next();
+    hooks: {
+      resolve: (event) => {
+        calls += 1;
+        return event.next();
+      },
     },
   });
   const scope = createScope({ extensions: [count] });
@@ -4871,11 +4923,13 @@ test("a run hook wraps a declared operation call: before, next, after", async ()
   const triple = operation({ label: "triple", run: () => 3 });
   const wrap = extension({
     label: "wrap",
-    run: (_op, _call, next) => {
-      log.push("before");
-      const out = next();
-      log.push("after");
-      return out;
+    hooks: {
+      run: (event) => {
+        log.push("before");
+        const out = event.next();
+        log.push("after");
+        return out;
+      },
     },
   });
   const scope = createScope({ extensions: [wrap] });
@@ -4895,7 +4949,12 @@ test("a run hook that skips next refuses the call and the body never runs", asyn
       return 1;
     },
   });
-  const deny = extension({ label: "deny", run: () => "denied" });
+  const deny = extension({
+    label: "deny",
+    hooks: {
+      run: () => "denied",
+    },
+  });
   const scope = createScope({ extensions: [deny] });
   await scope.ready;
   expect(scope.run(op)).toBe("denied");
@@ -4908,20 +4967,24 @@ test("two run hooks nest in registration order", async () => {
   const op = operation({ label: "op", run: () => 1 });
   const a = extension({
     label: "a",
-    run: (_op, _call, next) => {
-      order.push("a:before");
-      const out = next();
-      order.push("a:after");
-      return out;
+    hooks: {
+      run: (event) => {
+        order.push("a:before");
+        const out = event.next();
+        order.push("a:after");
+        return out;
+      },
     },
   });
   const b = extension({
     label: "b",
-    run: (_op, _call, next) => {
-      order.push("b:before");
-      const out = next();
-      order.push("b:after");
-      return out;
+    hooks: {
+      run: (event) => {
+        order.push("b:before");
+        const out = event.next();
+        order.push("b:after");
+        return out;
+      },
     },
   });
   const scope = createScope({ extensions: [a, b] });
@@ -4935,9 +4998,11 @@ test("a run hook sees an inline config too", async () => {
   let calls = 0;
   const count = extension({
     label: "count",
-    run: (_op, _call, next) => {
-      calls += 1;
-      return next();
+    hooks: {
+      run: (event) => {
+        calls += 1;
+        return event.next();
+      },
     },
   });
   const scope = createScope({ extensions: [count] });
@@ -4961,9 +5026,11 @@ test("a run hook passes the call through to the operation unchanged", async () =
   });
   const pass = extension({
     label: "pass",
-    run: (_op, call, next) => {
-      seenCall = call;
-      return next();
+    hooks: {
+      run: (event) => {
+        seenCall = event.call;
+        return event.next();
+      },
     },
   });
   const scope = createScope({ extensions: [pass] });
@@ -4979,7 +5046,9 @@ test("a tagged call opens its child session under the run hook", async () => {
   const read = operation({ label: "read", depends: { zone }, run: ({ zone }) => zone });
   const pass = extension({
     label: "pass",
-    run: (_op, _call, next) => next(),
+    hooks: {
+      run: (event) => event.next(),
+    },
   });
   const scope = createScope({ extensions: [pass] });
   await scope.ready;
@@ -4992,9 +5061,11 @@ test("a session run from an extended scope passes through the run hook", async (
   const op = operation({ label: "op", run: () => "ran" });
   const count = extension({
     label: "count",
-    run: (_op, _call, next) => {
-      calls += 1;
-      return next();
+    hooks: {
+      run: (event) => {
+        calls += 1;
+        return event.next();
+      },
     },
   });
   const scope = createScope({ extensions: [count] });
@@ -5011,11 +5082,13 @@ test("a write hook wraps controller(cell).set: before, next, after", async () =>
   let seen: unknown = "unset";
   const wrap = extension({
     label: "wrap",
-    write: (_cell, value, next) => {
-      log.push("before");
-      seen = value;
-      next();
-      log.push("after");
+    hooks: {
+      write: (event) => {
+        log.push("before");
+        seen = event.value;
+        event.next();
+        log.push("after");
+      },
     },
   });
   const scope = createScope({ extensions: [wrap] });
@@ -5034,7 +5107,12 @@ test("a write hook wraps controller(cell).set: before, next, after", async () =>
 
 test("a write hook that skips next refuses the write: value and watchers unchanged", async () => {
   const cell = data({ initial: 1, parse: asNumber });
-  const deny = extension({ label: "deny", write: () => undefined });
+  const deny = extension({
+    label: "deny",
+    hooks: {
+      write: () => undefined,
+    },
+  });
   const scope = createScope({ extensions: [deny] });
   await scope.ready;
   let fires = 0;
@@ -5052,18 +5130,22 @@ test("two write hooks nest in registration order", async () => {
   const cell = data({ initial: 0 });
   const a = extension({
     label: "a",
-    write: (_cell, _value, next) => {
-      order.push("a:before");
-      next();
-      order.push("a:after");
+    hooks: {
+      write: (event) => {
+        order.push("a:before");
+        event.next();
+        order.push("a:after");
+      },
     },
   });
   const b = extension({
     label: "b",
-    write: (_cell, _value, next) => {
-      order.push("b:before");
-      next();
-      order.push("b:after");
+    hooks: {
+      write: (event) => {
+        order.push("b:before");
+        event.next();
+        order.push("b:after");
+      },
     },
   });
   const scope = createScope({ extensions: [a, b] });
@@ -5079,9 +5161,11 @@ test("update(fn) runs through the chain with the computed value", async () => {
   let seen: unknown = "unset";
   const spy = extension({
     label: "spy",
-    write: (_cell, value, next) => {
-      seen = value;
-      next();
+    hooks: {
+      write: (event) => {
+        seen = event.value;
+        event.next();
+      },
     },
   });
   const scope = createScope({ extensions: [spy] });
@@ -5097,7 +5181,9 @@ test("the wrapped cell controller is cached per cell", async () => {
   const second = data({ initial: 0 });
   const spy = extension({
     label: "spy",
-    write: (_cell, _value, next) => next(),
+    hooks: {
+      write: (event) => event.next(),
+    },
   });
   const scope = createScope({ extensions: [spy] });
   await scope.ready;
@@ -5110,7 +5196,9 @@ test("a cached write controller still rejects controller(cell) after close", asy
   const cell = data({ initial: 0 });
   const spy = extension({
     label: "spy",
-    write: (_cell, _value, next) => next(),
+    hooks: {
+      write: (event) => event.next(),
+    },
   });
   const scope = createScope({ extensions: [spy] });
   await scope.ready;
@@ -5128,9 +5216,11 @@ test("resource and operation controllers from the extended handle stay plain", a
   let writes = 0;
   const count = extension({
     label: "count",
-    write: (_cell, _value, next) => {
-      writes += 1;
-      next();
+    hooks: {
+      write: (event) => {
+        writes += 1;
+        event.next();
+      },
     },
   });
   const scope = createScope({ extensions: [count] });
@@ -5154,9 +5244,11 @@ test("a session write from an extended scope passes through the write hook", asy
   const cell = data({ initial: 0, parse: asNumber });
   const count = extension({
     label: "count",
-    write: (_cell, _value, next) => {
-      writes += 1;
-      next();
+    hooks: {
+      write: (event) => {
+        writes += 1;
+        event.next();
+      },
     },
   });
   const scope = createScope({ extensions: [count] });
@@ -5173,9 +5265,11 @@ test("a dependency controller write passes through the layer's write hook", asyn
   const cell = data({ initial: 0, parse: asNumber });
   const count = extension({
     label: "count",
-    write: (_cell, _value, next) => {
-      writes += 1;
-      next();
+    hooks: {
+      write: (event) => {
+        writes += 1;
+        event.next();
+      },
     },
   });
   const bump = operation({
@@ -5197,12 +5291,14 @@ test("two session hooks nest in registration order and both see success", async 
   const track = (label: string) =>
     extension({
       label,
-      session: async (_handle, next) => {
-        order.push(`${label}:before`);
-        const ended = await next();
-        seen.push(ended.status);
-        order.push(`${label}:after`);
-        return ended;
+      hooks: {
+        session: async (event) => {
+          order.push(`${label}:before`);
+          const ended = await event.next();
+          seen.push(ended.status);
+          order.push(`${label}:after`);
+          return ended;
+        },
       },
     });
   const scope = createScope({ extensions: [track("a"), track("b")] });
@@ -5217,10 +5313,12 @@ test("createSession plus an explicit close runs the chain: graceful success, for
   const seen: string[] = [];
   const spy = extension({
     label: "spy",
-    session: async (_handle, next) => {
-      const ended = await next();
-      seen.push(ended.status);
-      return ended;
+    hooks: {
+      session: async (event) => {
+        const ended = await event.next();
+        seen.push(ended.status);
+        return ended;
+      },
     },
   });
   const scope = createScope({ extensions: [spy] });
@@ -5237,10 +5335,12 @@ test("session(fn) reports the close Result: success, a failed run, a forced clos
   const seen: string[] = [];
   const spy = extension({
     label: "spy",
-    session: async (_handle, next) => {
-      const ended = await next();
-      seen.push(ended.status);
-      return ended;
+    hooks: {
+      session: async (event) => {
+        const ended = await event.next();
+        seen.push(ended.status);
+        return ended;
+      },
     },
   });
   const scope = createScope({ extensions: [spy] });
@@ -5273,11 +5373,13 @@ test("a tagged call runs the session chain once", async () => {
   const seen: string[] = [];
   const spy = extension({
     label: "spy",
-    session: async (_handle, next) => {
-      calls += 1;
-      const ended = await next();
-      seen.push(ended.status);
-      return ended;
+    hooks: {
+      session: async (event) => {
+        calls += 1;
+        const ended = await event.next();
+        seen.push(ended.status);
+        return ended;
+      },
     },
   });
   const scope = createScope({ extensions: [spy] });
@@ -5292,11 +5394,13 @@ test("a session created under a session is wrapped", async () => {
   const order: string[] = [];
   const spy = extension({
     label: "spy",
-    session: async (_handle, next) => {
-      order.push("before");
-      const ended = await next();
-      order.push("after");
-      return ended;
+    hooks: {
+      session: async (event) => {
+        order.push("before");
+        const ended = await event.next();
+        order.push("after");
+        return ended;
+      },
     },
   });
   const scope = createScope({ extensions: [spy] });
@@ -5328,9 +5432,11 @@ test("a scope with no session hook binds a tagged call's tags", async () => {
 test("an operation depending on an extension receives the start value after ready", async () => {
   const ext = extension<{ connect(): number }>({
     label: "driver",
-    start: async (_scope, _ctx, next) => {
-      await next();
-      return { connect: () => 7 };
+    hooks: {
+      start: async (event) => {
+        await event.next();
+        return { connect: () => 7 };
+      },
     },
   });
   const use = operation({
@@ -5348,10 +5454,12 @@ test("running an operation on a pending extension dependency raises NotResolved"
   const gate = deferred();
   const ext = extension<{ connect(): number }>({
     label: "driver",
-    start: async (_scope, _ctx, next) => {
-      await gate.promise;
-      await next();
-      return { connect: () => 7 };
+    hooks: {
+      start: async (event) => {
+        await gate.promise;
+        await event.next();
+        return { connect: () => 7 };
+      },
     },
   });
   const use = operation({
@@ -5376,7 +5484,9 @@ test("running an operation on a pending extension dependency raises NotResolved"
 test("an operation depending on an extension reads the start value", async () => {
   const ext = extension<{ connect(): number }>({
     label: "driver",
-    start: (_scope, _ctx, next) => next().then(() => ({ connect: () => 7 })),
+    hooks: {
+      start: (event) => event.next().then(() => ({ connect: () => 7 })),
+    },
   });
   const use = operation({
     label: "use",
@@ -5396,15 +5506,19 @@ test("a session hook that skips next still lets the session run and close", asyn
   const seen: string[] = [];
   const skim = extension({
     label: "skim",
-    session: async (_handle, next) => {
-      const ended = await next();
-      seen.push(ended.status);
-      return ended;
+    hooks: {
+      session: async (event) => {
+        const ended = await event.next();
+        seen.push(ended.status);
+        return ended;
+      },
     },
   });
   const skip = extension({
     label: "skip",
-    session: async () => ({ status: "success" }) as const,
+    hooks: {
+      session: async () => ({ status: "success" }) as const,
+    },
   });
   const scope = createScope({ extensions: [skim, skip] });
   await scope.ready;
@@ -5417,7 +5531,9 @@ test("a throwing session hook rejects the session with its error", async () => {
   const boom = new Error("hook-boom");
   const bad = extension({
     label: "bad",
-    session: () => Promise.reject(boom),
+    hooks: {
+      session: () => Promise.reject(boom),
+    },
   });
   const scope = createScope({ extensions: [bad] });
   await scope.ready;
@@ -5429,10 +5545,12 @@ test("a session felled by a forced parent close still settles next() as cancelle
   const seen: string[] = [];
   const spy = extension({
     label: "spy",
-    session: async (_handle, next) => {
-      const ended = await next();
-      seen.push(ended.status);
-      return ended;
+    hooks: {
+      session: async (event) => {
+        const ended = await event.next();
+        seen.push(ended.status);
+        return ended;
+      },
     },
   });
   const scope = createScope({ extensions: [spy] });
@@ -5446,10 +5564,12 @@ test("a session felled by a graceful parent close still settles next() as succes
   const seen: string[] = [];
   const spy = extension({
     label: "spy",
-    session: async (_handle, next) => {
-      const ended = await next();
-      seen.push(ended.status);
-      return ended;
+    hooks: {
+      session: async (event) => {
+        const ended = await event.next();
+        seen.push(ended.status);
+        return ended;
+      },
     },
   });
   const scope = createScope({ extensions: [spy] });

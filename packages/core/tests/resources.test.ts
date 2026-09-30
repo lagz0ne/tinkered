@@ -380,7 +380,9 @@ test("a failing start fails the scope with its cause", async () => {
   const cause = new Error("start-boom");
   const ext = extension({
     label: "bad",
-    start: () => Promise.reject(cause),
+    hooks: {
+      start: () => Promise.reject(cause),
+    },
   });
   const scope = createScope({ extensions: [ext] });
   const thrown = await scope.ready.then(

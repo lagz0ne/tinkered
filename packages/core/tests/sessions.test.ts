@@ -6,8 +6,10 @@ test("a session hook that throws before next still lets the body run and rethrow
   let ran = false;
   const bad = extension({
     label: "bad",
-    session: () => {
-      throw boom;
+    hooks: {
+      session: () => {
+        throw boom;
+      },
     },
   });
   const scope = createScope({ extensions: [bad] });
@@ -31,10 +33,12 @@ test("two session hooks see each ordered end in turn", async () => {
   const track = (label: string) =>
     extension({
       label,
-      session: async (_handle, next) => {
-        const ended = await next();
-        order.push(`${label}:${ended.status}`);
-        return ended;
+      hooks: {
+        session: async (event) => {
+          const ended = await event.next();
+          order.push(`${label}:${ended.status}`);
+          return ended;
+        },
       },
     });
   const scope = createScope({ extensions: [track("one"), track("two")] });
@@ -199,7 +203,9 @@ test("a wrapped session body that throws sync still drains cleanups then reports
   const seen: string[] = [];
   const spy = extension({
     label: "spy",
-    session: async (_handle, next) => next(),
+    hooks: {
+      session: async (event) => event.next(),
+    },
   });
   const leaky = resource({
     label: "leaky",
@@ -234,11 +240,13 @@ test("three session hooks nest in registration order", async () => {
   const hook = (label: string) =>
     extension({
       label,
-      session: async (_handle, next) => {
-        order.push(`${label}:before`);
-        const ended = await next();
-        order.push(`${label}:after`);
-        return ended;
+      hooks: {
+        session: async (event) => {
+          order.push(`${label}:before`);
+          const ended = await event.next();
+          order.push(`${label}:after`);
+          return ended;
+        },
       },
     });
   const scope = createScope({ extensions: [hook("a"), hook("b"), hook("c")] });
@@ -252,10 +260,12 @@ test("a close hook sees the settled end", async () => {
   const seen: unknown[] = [];
   const ext = extension({
     label: "spy",
-    close: async (_opts, next) => {
-      const result = await next();
-      seen.push(result.status);
-      return result;
+    hooks: {
+      close: async (event) => {
+        const result = await event.next();
+        seen.push(result.status);
+        return result;
+      },
     },
   });
   const scope = createScope({ extensions: [ext] });
@@ -267,7 +277,9 @@ test("a close hook sees the settled end", async () => {
 test("a graceful close through hooks settles success", async () => {
   const ext = extension({
     label: "pass",
-    close: (_opts, next) => next(),
+    hooks: {
+      close: (event) => event.next(),
+    },
   });
   const scope = createScope({ extensions: [ext] });
   await scope.ready;
@@ -280,7 +292,9 @@ test("a failing body with a failing cleanup reports both causes", async () => {
   const cleanup = new Error("cleanup-boom");
   const spy = extension({
     label: "spy",
-    session: async (_handle, next) => next(),
+    hooks: {
+      session: async (event) => event.next(),
+    },
   });
   const leaky = resource({
     label: "leaky",
@@ -311,7 +325,9 @@ test("a failing body with a failing cleanup reports both causes", async () => {
 test("a session that ends cancelled rejects with its reason", async () => {
   const spy = extension({
     label: "spy",
-    session: async (_handle, next) => next(),
+    hooks: {
+      session: async (event) => event.next(),
+    },
   });
   const scope = createScope({ extensions: [spy] });
   await scope.ready;
@@ -325,11 +341,13 @@ test("session hooks wrap sessions nested two deep", async () => {
   const order: string[] = [];
   const spy = extension({
     label: "spy",
-    session: async (_handle, next) => {
-      order.push("before");
-      const ended = await next();
-      order.push("after");
-      return ended;
+    hooks: {
+      session: async (event) => {
+        order.push("before");
+        const ended = await event.next();
+        order.push("after");
+        return ended;
+      },
     },
   });
   const scope = createScope({ extensions: [spy] });
@@ -421,7 +439,9 @@ test("a wrapped session cut by a forced close rejects", async () => {
   });
   const spy = extension({
     label: "spy",
-    session: async (_handle, next) => next(),
+    hooks: {
+      session: async (event) => event.next(),
+    },
   });
   const scope = createScope({ extensions: [spy] });
   await scope.ready;
@@ -446,7 +466,9 @@ test("a clean body with a failing cleanup still reports the cleanup", async () =
   const cleanup = new Error("cleanup-boom");
   const spy = extension({
     label: "spy",
-    session: async (_handle, next) => next(),
+    hooks: {
+      session: async (event) => event.next(),
+    },
   });
   const leaky = resource({
     label: "leaky",

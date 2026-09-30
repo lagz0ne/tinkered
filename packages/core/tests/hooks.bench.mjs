@@ -11,7 +11,6 @@ const cell = data({ initial: 1 });
 const op = operation({ label: "probe", run: () => 1 });
 const hooks = {
   plain: [],
-  legacy: [extension({ label: "pass", run: (_op, _call, next) => next() })],
   event: [extension({ label: "pass", hooks: { run: (event) => event.next() } })],
   access: [
     extension({

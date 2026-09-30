@@ -109,10 +109,12 @@ test("a session hook reads the session's cells and tags after next", async () =>
   const seen: unknown[] = [];
   const reader = extension({
     label: "reader",
-    session: async (handle, next) => {
-      const ended = await next();
-      seen.push(handle.resolve(draft), handle.resolve(zone));
-      return ended;
+    hooks: {
+      session: async (event) => {
+        const ended = await event.next();
+        seen.push(event.handle.resolve(draft), event.handle.resolve(zone));
+        return ended;
+      },
     },
   });
   const root = createScope({ extensions: [reader] });
@@ -127,13 +129,15 @@ test("a session hook cannot write a cell or read a resource after next", async (
   const errors: unknown[] = [];
   const reader = extension({
     label: "reader",
-    session: async (handle, next) => {
-      const ended = await next();
-      errors.push(
-        thrown(() => handle.controller(draft).set(1)),
-        thrown(() => handle.resolve(db)),
-      );
-      return ended;
+    hooks: {
+      session: async (event) => {
+        const ended = await event.next();
+        errors.push(
+          thrown(() => event.handle.controller(draft).set(1)),
+          thrown(() => event.handle.resolve(db)),
+        );
+        return ended;
+      },
     },
   });
   const root = createScope({ extensions: [reader] });
@@ -146,7 +150,9 @@ test("a session hook cannot write a cell or read a resource after next", async (
 test("a hooked session's reads throw once its hooks return", async () => {
   const reader = extension({
     label: "reader",
-    session: async (_handle, next) => next(),
+    hooks: {
+      session: async (event) => event.next(),
+    },
   });
   const root = createScope({ extensions: [reader] });
   const session = root.createSession();

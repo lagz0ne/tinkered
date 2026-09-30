@@ -118,9 +118,11 @@ test("wait: a session hook wraps the tagged call once", async () => {
     extensions: [
       extension({
         label: "hook",
-        session: async (_s, next) => {
-          seen++;
-          return next();
+        hooks: {
+          session: async (event) => {
+            seen++;
+            return event.next();
+          },
         },
       }),
     ],

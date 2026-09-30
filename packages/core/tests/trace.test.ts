@@ -279,7 +279,12 @@ test("observation off leaves the ambient random stream untouched", async () => {
 });
 
 test("a session copies its remote trace seed and child sessions inherit it", async () => {
-  const hook = extension({ label: "sessions", session: (_session, next) => next() });
+  const hook = extension({
+    label: "sessions",
+    hooks: {
+      session: (event) => event.next(),
+    },
+  });
   const scope = createScope({ observe: { history: 20 }, extensions: hook });
   await scope.ready;
   const given = { ...seed };

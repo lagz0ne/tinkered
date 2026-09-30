@@ -588,21 +588,7 @@ export declare namespace Scope {
   export type Extension<T = unknown> = {
     readonly [extensionSym]: true;
     readonly label: string;
-    /** Object hooks take precedence over a legacy hook with the same name. */
     readonly hooks?: Hooks<T>;
-    start?(scope: Handle, ctx: Resource.Ctx, next: () => Promise<void>): T | PromiseLike<T>;
-    resolve?(
-      target: Data.Cell<unknown> | Resource.Handle<unknown> | Tag.Handle<unknown>,
-      next: () => unknown,
-    ): unknown;
-    run?(
-      op: Operation.Handle<unknown, unknown> | Inline<Depends, unknown, unknown>,
-      call: Invocation<unknown> | undefined,
-      next: () => unknown,
-    ): unknown;
-    write?(cell: Data.Cell<unknown>, value: unknown, next: () => void): void;
-    close?(options: CloseOptions, next: () => Promise<Result>): Promise<Result>;
-    session?(handle: Handle, next: () => Promise<Result>): Promise<Result>;
   };
 
   export type Options = {
@@ -798,29 +784,6 @@ const edgeTo = <K extends string, N>(kind: K, target: N): Edge<K, N> => ({
 export function extension<T = void>(config: {
   readonly label: string;
   readonly hooks?: Scope.Hooks<T>;
-  readonly start?: (
-    scope: Scope.Handle,
-    ctx: Resource.Ctx,
-    next: () => Promise<void>,
-  ) => T | PromiseLike<T>;
-  readonly resolve?: (
-    target: Data.Cell<unknown> | Resource.Handle<unknown> | Tag.Handle<unknown>,
-    next: () => unknown,
-  ) => unknown;
-  readonly run?: (
-    op: Operation.Handle<unknown, unknown> | Scope.Inline<Scope.Depends, unknown, unknown>,
-    call: Scope.Invocation<unknown> | undefined,
-    next: () => unknown,
-  ) => unknown;
-  readonly write?: (cell: Data.Cell<unknown>, value: unknown, next: () => void) => void;
-  readonly close?: (
-    options: Scope.CloseOptions,
-    next: () => Promise<Scope.Result>,
-  ) => Promise<Scope.Result>;
-  readonly session?: (
-    handle: Scope.Handle,
-    next: () => Promise<Scope.Result>,
-  ) => Promise<Scope.Result>;
 }): Scope.Extension<T> {
   return { ...config, [extensionSym]: true as const };
 }
@@ -1678,11 +1641,9 @@ function writeWithHooks<T>(
     if (index === writers.length) return writeCell(layer, target, value, chain);
     const ext = writers[index];
     const next = (): void => at(index + 1);
-    if (ext.hooks?.write)
-      ext.hooks.write(
-        hookEvent({ kind: "write", cell: target, value, next }, layer, ext.label, chain),
-      );
-    else ext.write?.(target, value, next);
+    ext.hooks!.write!(
+      hookEvent({ kind: "write", cell: target, value, next }, layer, ext.label, chain),
+    );
   };
   at(0);
 }
@@ -5199,9 +5160,7 @@ function sessionThrough(
     const next = (): Promise<Scope.Result> => (inner ??= at(index + 1)).then(({ ended }) => ended);
     let outcome: Promise<Scope.Result>;
     try {
-      outcome = ext.hooks?.session
-        ? ext.hooks.session(hookEvent({ kind: "session", handle, next }, owner, ext.label))
-        : ext.session!(handle, next);
+      outcome = ext.hooks!.session!(hookEvent({ kind: "session", handle, next }, owner, ext.label));
     } catch (error) {
       const done = inner ?? ensure();
       ignoreRejection(done);
@@ -5278,9 +5237,7 @@ function closeThrough(
       if (index >= closers.length) return close();
       const closer = closers[index];
       const next = (): Promise<Scope.Result> => at(index + 1);
-      if (closer.hooks?.close)
-        return closer.hooks.close(hookEvent({ kind: "close", options, next }, layer, closer.label));
-      return closer.close === undefined ? next() : closer.close(options, next);
+      return closer.hooks!.close!(hookEvent({ kind: "close", options, next }, layer, closer.label));
     };
     return (closing = at(0));
   };
@@ -5303,11 +5260,10 @@ function runStartChain(
     if (index >= exts.length) return;
     const ext = exts[index];
     const next = (): Promise<void> => at(index + 1);
-    let value: unknown;
-    if (ext.hooks?.start)
-      value = await ext.hooks.start(hookEvent({ kind: "start", scope, next }, layer, ext.label));
-    else if (ext.start) value = await ext.start(scope, new ExtensionCtx(layer, ext.label), next);
-    else return next();
+    if (!ext.hooks?.start) return next();
+    const value = await ext.hooks.start(
+      hookEvent({ kind: "start", scope, next }, layer, ext.label),
+    );
     const rec = EXTENSIONS.get(layer)?.get(ext);
     if (rec !== undefined) {
       rec.value = value;
@@ -5565,10 +5521,8 @@ function extendHandle(
   const records = new Map<Scope.Extension<unknown>, ExtRec>();
   for (const ext of exts) records.set(ext, { settled: false, value: undefined });
   EXTENSIONS.set(layer, records);
-  const closers = exts.filter((ext) => ext.close !== undefined || ext.hooks?.close !== undefined);
-  const resolvers = exts.filter(
-    (ext) => ext.resolve !== undefined || ext.hooks?.resolve !== undefined,
-  );
+  const closers = exts.filter((ext) => ext.hooks?.close !== undefined);
+  const resolvers = exts.filter((ext) => ext.hooks?.resolve !== undefined);
   layer.exts = readExtRoutes(exts);
   const sessions = layer.exts.sessions;
   let settleReady: () => void = noop;
@@ -5604,11 +5558,9 @@ function extendHandle(
 }
 
 function readExtRoutes(exts: readonly Scope.Extension<unknown>[]): ExtRoutes {
-  const runners = exts.filter((ext) => ext.run !== undefined || ext.hooks?.run !== undefined);
-  const writers = exts.filter((ext) => ext.write !== undefined || ext.hooks?.write !== undefined);
-  const sessions = exts.filter(
-    (ext) => ext.session !== undefined || ext.hooks?.session !== undefined,
-  );
+  const runners = exts.filter((ext) => ext.hooks?.run !== undefined);
+  const writers = exts.filter((ext) => ext.hooks?.write !== undefined);
+  const sessions = exts.filter((ext) => ext.hooks?.session !== undefined);
   return {
     runners: runners.length > 0 ? runners : undefined,
     writers: writers.length > 0 ? writers : undefined,
@@ -5682,11 +5634,9 @@ function resolveThrough(
     }
     const next = (): unknown => at(target, index + 1, chain);
     const ext = resolvers[index];
-    if (ext.hooks?.resolve)
-      return ext.hooks.resolve(
-        hookEvent({ kind: "resolve", target, next }, layer, ext.label, chain),
-      );
-    return ext.resolve === undefined ? next() : ext.resolve(target, next);
+    return ext.hooks!.resolve!(
+      hookEvent({ kind: "resolve", target, next }, layer, ext.label, chain),
+    );
   };
   const chained = (target: OnionTarget, ns?: Scope.NsArg): unknown => {
     ensureOpen(layer);
@@ -6017,8 +5967,7 @@ function invokeRunHooks<T, I>(
         | Operation.Handle<unknown, unknown>
         | Scope.Inline<Scope.Depends, unknown, unknown>;
       const next = (): unknown => at(index + 1);
-      if (ext.hooks?.run) return ext.hooks.run(new RunEvent(run, ext.label, chain, op, call, next));
-      return ext.run?.(op, call, next);
+      return ext.hooks!.run!(new RunEvent(run, ext.label, chain, op, call, next));
     });
   return at(0);
 }

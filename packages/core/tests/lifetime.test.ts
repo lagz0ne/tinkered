@@ -19,13 +19,15 @@ test("a rejected start rejects ready only after its forced cleanup ends", async 
   const error = new Error("start failed");
   const piece = extension({
     label: "failed-start",
-    start: (_scope, ctx) => {
-      ctx.defer(async () => {
-        cleanupStarted.release();
-        await cleanup.promise;
-        events.push("cleanup");
-      });
-      throw error;
+    hooks: {
+      start: (event) => {
+        event.defer(async () => {
+          cleanupStarted.release();
+          await cleanup.promise;
+          events.push("cleanup");
+        });
+        throw error;
+      },
     },
   });
   const scope = createScope({ extensions: [piece] });
@@ -44,33 +46,37 @@ test("a rejected start runs every close hook through the current handle", async 
   const error = new Error("start failed");
   const first = extension({
     label: "first",
-    start: (scope, _ctx, next) => {
-      const close = scope.close.bind(scope);
-      scope.close = async (options) => {
-        events.push("handle:before");
-        const ended = await close(options);
-        events.push("handle:after");
+    hooks: {
+      start: (event) => {
+        const close = event.scope.close.bind(event.scope);
+        event.scope.close = async (options) => {
+          events.push("handle:before");
+          const ended = await close(options);
+          events.push("handle:after");
+          return ended;
+        };
+        return event.next();
+      },
+      close: async (event) => {
+        events.push("first:before");
+        const ended = await event.next();
+        events.push("first:after");
         return ended;
-      };
-      return next();
-    },
-    close: async (_options, next) => {
-      events.push("first:before");
-      const ended = await next();
-      events.push("first:after");
-      return ended;
+      },
     },
   });
   const second = extension({
     label: "second",
-    start: () => {
-      throw error;
-    },
-    close: async (_options, next) => {
-      events.push("second:before");
-      const ended = await next();
-      events.push("second:after");
-      return ended;
+    hooks: {
+      start: () => {
+        throw error;
+      },
+      close: async (event) => {
+        events.push("second:before");
+        const ended = await event.next();
+        events.push("second:after");
+        return ended;
+      },
     },
   });
   const scope = createScope({ extensions: [first, second] });
@@ -93,17 +99,19 @@ test("a start that fails during close joins the hooks already running", async ()
   const error = new Error("late start failure");
   const piece = extension({
     label: "overlap",
-    start: async () => {
-      await start.promise;
-      throw error;
-    },
-    close: async (_options, next) => {
-      events.push("close:before");
-      closing.release();
-      await cleanup.promise;
-      const ended = await next();
-      events.push("close:after");
-      return ended;
+    hooks: {
+      start: async () => {
+        await start.promise;
+        throw error;
+      },
+      close: async (event) => {
+        events.push("close:before");
+        closing.release();
+        await cleanup.promise;
+        const ended = await event.next();
+        events.push("close:after");
+        return ended;
+      },
     },
   });
   const scope = createScope({ extensions: [piece] });
@@ -129,17 +137,19 @@ test("closed reports the start error after cleanup even when a stop was requeste
   const closes: Scope.CloseOptions[] = [];
   const piece = extension({
     label: "failed-start",
-    start: (_scope, ctx) => {
-      ctx.defer(async () => {
-        cleanupStarted.release();
-        await cleanup.promise;
-      });
-      stop.abort();
-      throw error;
-    },
-    close: (options, next) => {
-      closes.push(options);
-      return next();
+    hooks: {
+      start: (event) => {
+        event.defer(async () => {
+          cleanupStarted.release();
+          await cleanup.promise;
+        });
+        stop.abort();
+        throw error;
+      },
+      close: (event) => {
+        closes.push(event.options);
+        return event.next();
+      },
     },
   });
   const scope = createScope({ signal: stop.signal, extensions: [piece] });
@@ -163,13 +173,15 @@ test.each([false, true])(
     const events: string[] = [];
     const piece = extension({
       label: "slow-start",
-      start: async (scope, ctx) => {
-        await start.promise;
-        scope.controller(count).set(3);
-        ctx.defer(() => {
-          events.push("cleanup");
-        });
-        events.push("start");
+      hooks: {
+        start: async (event) => {
+          await start.promise;
+          event.scope.controller(count).set(3);
+          event.defer(() => {
+            events.push("cleanup");
+          });
+          events.push("start");
+        },
       },
     });
     const scope = createScope({ signal: stop.signal, extensions: [piece] });
@@ -198,9 +210,11 @@ test("a stop lets in-flight work finish without aborting its ctx signal", async 
   });
   const piece = extension({
     label: "close-start",
-    close: (_options, next) => {
-      closing.release();
-      return next();
+    hooks: {
+      close: (event) => {
+        closing.release();
+        return event.next();
+      },
     },
   });
   const scope = createScope({ signal: stop.signal, extensions: [piece] });
@@ -219,9 +233,11 @@ test("a stop after a manual close does not run close hooks again", async () => {
   const modes: Scope.CloseOptions[] = [];
   const piece = extension({
     label: "close-once",
-    close: (options, next) => {
-      modes.push(options);
-      return next();
+    hooks: {
+      close: (event) => {
+        modes.push(event.options);
+        return event.next();
+      },
     },
   });
   const scope = createScope({ signal: stop.signal, extensions: [piece] });
@@ -319,11 +335,13 @@ test("closed waits for close hooks' after-work and keeps core's Result", async (
   let result: Scope.Result | undefined;
   const piece = extension({
     label: "after-work",
-    close: async (_options, next) => {
-      result = await next();
-      afterStarted.release();
-      await after.promise;
-      return { status: "success" };
+    hooks: {
+      close: async (event) => {
+        result = await event.next();
+        afterStarted.release();
+        await after.promise;
+        return { status: "success" };
+      },
     },
   });
   const scope = createScope({ signal: new AbortController().signal, extensions: [piece] });
@@ -341,9 +359,11 @@ test("closed resolves core's Result when a close hook throws after next", async 
   const error = new Error("close hook failed");
   const piece = extension({
     label: "throw-after-close",
-    close: async (_options, next) => {
-      await next();
-      throw error;
+    hooks: {
+      close: async (event) => {
+        await event.next();
+        throw error;
+      },
     },
   });
   const scope = createScope({ signal: new AbortController().signal, extensions: [piece] });
@@ -358,9 +378,11 @@ test.each([false, true])(
     const error = new Error("close refused");
     const piece = extension({
       label: "skip-close",
-      close: () => {
-        if (throws) throw error;
-        return Promise.resolve({ status: "success" });
+      hooks: {
+        close: () => {
+          if (throws) throw error;
+          return Promise.resolve({ status: "success" });
+        },
       },
     });
     const scope = createScope({ signal: new AbortController().signal, extensions: [piece] });
@@ -376,10 +398,12 @@ test("the root drops its stop listener before any close hook runs", async () => 
   const listeners: number[] = [];
   const piece = extension({
     label: "check-listener",
-    close: (_options, next) => {
-      listeners.push(getEventListeners(stop.signal, "abort").length);
-      stop.abort();
-      return next();
+    hooks: {
+      close: (event) => {
+        listeners.push(getEventListeners(stop.signal, "abort").length);
+        stop.abort();
+        return event.next();
+      },
     },
   });
   const scope = createScope({ signal: stop.signal, extensions: [piece] });
@@ -394,24 +418,28 @@ test("a signal close runs every close hook gracefully through the current handle
   const modes: Scope.CloseOptions[] = [];
   const first = extension({
     label: "first",
-    start: (scope, _ctx, next) => {
-      const close = scope.close.bind(scope);
-      scope.close = (options) => {
-        modes.push(options ?? {});
-        return close(options);
-      };
-      return next();
-    },
-    close: (options, next) => {
-      modes.push(options);
-      return next();
+    hooks: {
+      start: (event) => {
+        const close = event.scope.close.bind(event.scope);
+        event.scope.close = (options) => {
+          modes.push(options ?? {});
+          return close(options);
+        };
+        return event.next();
+      },
+      close: (event) => {
+        modes.push(event.options);
+        return event.next();
+      },
     },
   });
   const second = extension({
     label: "second",
-    close: (options, next) => {
-      modes.push(options);
-      return next();
+    hooks: {
+      close: (event) => {
+        modes.push(event.options);
+        return event.next();
+      },
     },
   });
   const scope = createScope({ signal: stop.signal, extensions: [first, second] });

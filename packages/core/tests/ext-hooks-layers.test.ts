@@ -9,9 +9,11 @@ test("a tagged run invokes its hook once with the original call", async () => {
     extensions: [
       extension({
         label: "spy",
-        run: (_op, call, next) => {
-          seen.push(call);
-          return next();
+        hooks: {
+          run: (event) => {
+            seen.push(event.call);
+            return event.next();
+          },
         },
       }),
     ],
@@ -34,9 +36,11 @@ test("a subflow run invokes its hook once", async () => {
     extensions: [
       extension({
         label: "spy",
-        run: (op, _call, next) => {
-          seen.push(op.label ?? "inline");
-          return next();
+        hooks: {
+          run: (event) => {
+            seen.push(event.op.label ?? "inline");
+            return event.next();
+          },
         },
       }),
     ],
@@ -54,9 +58,11 @@ test("a tagged run in a session invokes its hook once", async () => {
     extensions: [
       extension({
         label: "spy",
-        run: (_op, call, next) => {
-          seen.push(call);
-          return next();
+        hooks: {
+          run: (event) => {
+            seen.push(event.call);
+            return event.next();
+          },
         },
       }),
     ],
@@ -74,9 +80,11 @@ test("an inline run in a session invokes its hook with the inline config", async
     extensions: [
       extension({
         label: "spy",
-        run: (op, _call, next) => {
-          seen.push(op);
-          return next();
+        hooks: {
+          run: (event) => {
+            seen.push(event.op);
+            return event.next();
+          },
         },
       }),
     ],
@@ -104,7 +112,10 @@ test("a run hook that skips next stops a subflow with its substitute", async () 
     extensions: [
       extension({
         label: "deny",
-        run: (op, _call, next) => ("label" in op && op.label === "child" ? "denied" : next()),
+        hooks: {
+          run: (event) =>
+            "label" in event.op && event.op.label === "child" ? "denied" : event.next(),
+        },
       }),
     ],
   });
@@ -132,9 +143,11 @@ test("a run hook that throws stops a subflow before its body", async () => {
     extensions: [
       extension({
         label: "deny",
-        run: (op, _call, next) => {
-          if (op.label === "child") throw cause;
-          return next();
+        hooks: {
+          run: (event) => {
+            if (event.op.label === "child") throw cause;
+            return event.next();
+          },
         },
       }),
     ],
@@ -160,7 +173,12 @@ test("an async run hook keeps a dropped subflow's rejection on the scope", async
       return "dropped";
     },
   });
-  const gate = extension({ label: "gate", run: async (_op, _call, next) => next() });
+  const gate = extension({
+    label: "gate",
+    hooks: {
+      run: async (event) => event.next(),
+    },
+  });
   const scope = createScope({ extensions: [gate] });
   await scope.ready;
   expect(await scope.run(drop)).toBe("dropped");
@@ -175,9 +193,11 @@ test("a namespaced write invokes its hook once", async () => {
     extensions: [
       extension({
         label: "spy",
-        write: (_cell, value, next) => {
-          seen.push(value);
-          next();
+        hooks: {
+          write: (event) => {
+            seen.push(event.value);
+            event.next();
+          },
         },
       }),
     ],
@@ -199,12 +219,14 @@ test("two run hooks keep registration order on a subflow", async () => {
   const hook = (label: string) =>
     extension({
       label,
-      run: (op, _call, next) => {
-        if (op.label !== "child") return next();
-        order.push(`${label}:before`);
-        const result = next();
-        order.push(`${label}:after`);
-        return result;
+      hooks: {
+        run: (event) => {
+          if (event.op.label !== "child") return event.next();
+          order.push(`${label}:before`);
+          const result = event.next();
+          order.push(`${label}:after`);
+          return result;
+        },
       },
     });
   const scope = createScope({ extensions: [hook("a"), hook("b")] });
@@ -220,16 +242,18 @@ test("two hooks keep registration order on a child layer", async () => {
   const hook = (label: string) =>
     extension({
       label,
-      run: (_op, _call, next) => {
-        order.push(`${label}:run-before`);
-        const result = next();
-        order.push(`${label}:run-after`);
-        return result;
-      },
-      write: (_cell, _value, next) => {
-        order.push(`${label}:write-before`);
-        next();
-        order.push(`${label}:write-after`);
+      hooks: {
+        run: (event) => {
+          order.push(`${label}:run-before`);
+          const result = event.next();
+          order.push(`${label}:run-after`);
+          return result;
+        },
+        write: (event) => {
+          order.push(`${label}:write-before`);
+          event.next();
+          order.push(`${label}:write-after`);
+        },
       },
     });
   const scope = createScope({ extensions: [hook("a"), hook("b")] });

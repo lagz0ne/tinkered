@@ -217,7 +217,12 @@ test("a tagged subflow inherits its named caller's namespace", async () => {
 });
 
 test("named calls keep the real layer lifecycle and extension registry", async () => {
-  const readyValue = extension({ label: "readyValue", start: async () => 42 });
+  const readyValue = extension({
+    label: "readyValue",
+    hooks: {
+      start: async () => 42,
+    },
+  });
   const named = namespace();
   const cell = data({ label: "cell", initial: 0, parse: asNumber });
   const readExtension = operation({
@@ -246,9 +251,11 @@ test("a tagged subflow in a named run uses session hooks", async () => {
   let sessions = 0;
   const spy = extension({
     label: "spy",
-    session: async (_handle, next) => {
-      sessions += 1;
-      return next();
+    hooks: {
+      session: async (event) => {
+        sessions += 1;
+        return event.next();
+      },
     },
   });
   const marker = tag({ label: "marker", default: 0 });
@@ -268,8 +275,10 @@ test("a tagged subflow in a named run uses session hooks", async () => {
 test("pass-through extensions preserve namespaces for writes and resolves", async () => {
   const pass = extension({
     label: "pass",
-    resolve: (_target, next) => next(),
-    write: (_target, _value, next) => next(),
+    hooks: {
+      resolve: (event) => event.next(),
+      write: (event) => event.next(),
+    },
   });
   const named = namespace();
   const cell = data({ label: "cell", initial: 0, parse: asNumber });

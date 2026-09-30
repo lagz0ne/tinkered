@@ -91,9 +91,11 @@ test("a closed scope with session hooks refuses a new session", async () => {
     extensions: [
       extension({
         label: "hook",
-        session: async (_s, next) => {
-          seen++;
-          return next();
+        hooks: {
+          session: async (event) => {
+            seen++;
+            return event.next();
+          },
         },
       }),
     ],

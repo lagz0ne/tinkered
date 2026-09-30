@@ -248,15 +248,17 @@ test("session hooks read the first write after next and run hooks fire once", as
     extensions: [
       extension({
         label: "observe-first-use",
-        run: (_target, _call, next) => {
-          events.push("run");
-          return next();
-        },
-        session: async (session, next) => {
-          events.push(`before:${session.resolve(zone)}`);
-          const end = await next();
-          events.push(`after:${session.resolve(cell)}`);
-          return end;
+        hooks: {
+          run: (event) => {
+            events.push("run");
+            return event.next();
+          },
+          session: async (event) => {
+            events.push(`before:${event.handle.resolve(zone)}`);
+            const end = await event.next();
+            events.push(`after:${event.handle.resolve(cell)}`);
+            return end;
+          },
         },
       }),
     ],
