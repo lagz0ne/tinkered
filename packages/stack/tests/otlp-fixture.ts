@@ -36,39 +36,43 @@ export type Packet = {
   }[];
 };
 
-export async function receiver() {
-  const state = {
+export class Receiver {
+  state = {
     status: 200,
     hang: false,
     packets: [] as { path: string; type?: string; body: Packet }[],
   };
-  const server = createServer((req, res) => {
+  private server = createServer((req, res) => {
     let body = "";
     req.setEncoding("utf8");
     req.on("data", (chunk: string) => {
       body += chunk;
     });
     req.on("end", () => {
-      state.packets.push({
+      this.state.packets.push({
         path: req.url!,
         type: req.headers["content-type"],
         body: JSON.parse(body),
       });
-      if (!state.hang)
-        res.writeHead(state.status, { "content-type": "application/json" }).end("{}");
+      if (!this.state.hang)
+        res.writeHead(this.state.status, { "content-type": "application/json" }).end("{}");
     });
-  }).listen(0, "127.0.0.1");
-  await once(server, "listening");
-  const address = server.address();
-  if (!address || typeof address === "string") return expect.unreachable();
-  return {
-    state,
-    url: `http://127.0.0.1:${address.port}`,
-    close: () => {
-      server.closeAllConnections();
-      return new Promise<void>((resolve) => server.close(() => resolve()));
-    },
-  };
+  });
+  url = "";
+
+  async listen(): Promise<this> {
+    this.server.listen(0, "127.0.0.1");
+    await once(this.server, "listening");
+    const address = this.server.address();
+    if (!address || typeof address === "string") return expect.unreachable();
+    this.url = `http://127.0.0.1:${address.port}`;
+    return this;
+  }
+
+  close(): Promise<void> {
+    this.server.closeAllConnections();
+    return new Promise((resolve) => this.server.close(() => resolve()));
+  }
 }
 
 export function spans(packets: { body: Packet }[]): Span[] {

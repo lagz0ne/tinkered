@@ -2,7 +2,7 @@ import { createScope, extension, makeTestClock, operation } from "@tinker/core";
 import { hono, route } from "@tinker/hono";
 import { expect, test } from "vite-plus/test";
 import { isError, traceSink, type TraceSink } from "../src/index.ts";
-import { receiver, spans } from "./otlp-fixture.ts";
+import { Receiver, spans } from "./otlp-fixture.ts";
 
 const ping = operation({ label: "ping", run: () => "pong" });
 
@@ -80,7 +80,7 @@ test("a missing service name fails boot naming only its key", async () => {
 test.each(["down", "500", "slow"])(
   "a %s collector keeps requests and close working and logs once per burst",
   async (failure) => {
-    const collector = await receiver();
+    const collector = await new Receiver().listen();
     collector.state.status = 500;
     collector.state.hang = failure === "slow";
     if (failure === "down") await collector.close();
@@ -124,7 +124,7 @@ test.each(["down", "500", "slow"])(
 );
 
 test("a recovered collector ends a failure burst so a later fault logs again", async () => {
-  const collector = await receiver();
+  const collector = await new Receiver().listen();
   collector.state.status = 500;
   const lines: string[] = [];
   const sink = traceSink({
@@ -156,7 +156,7 @@ test("a recovered collector ends a failure burst so a later fault logs again", a
 });
 
 test("the queue bounds record count and bytes and drops new records with one local warning", async () => {
-  const collector = await receiver();
+  const collector = await new Receiver().listen();
   const lines: string[] = [];
   const sink = traceSink({
     env: { OTEL_EXPORTER_OTLP_ENDPOINT: collector.url, OTEL_SERVICE_NAME: "bounded" },
@@ -190,7 +190,7 @@ test("the queue bounds record count and bytes and drops new records with one loc
 });
 
 test("a broken local writer and an unencodable record do not stop later exports", async () => {
-  const collector = await receiver();
+  const collector = await new Receiver().listen();
   const sink = traceSink({
     env: { OTEL_EXPORTER_OTLP_ENDPOINT: collector.url, OTEL_SERVICE_NAME: "writer" },
     write: () => {

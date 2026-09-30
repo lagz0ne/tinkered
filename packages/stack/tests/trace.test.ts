@@ -2,13 +2,13 @@ import { createScope, makeTestClock, operation, resource } from "@tinker/core";
 import { emit, hono, route, stream } from "@tinker/hono";
 import { expect, test } from "vite-plus/test";
 import { traceSink } from "../src/index.ts";
-import { logs, receiver, spans } from "./otlp-fixture.ts";
+import { logs, Receiver, spans } from "./otlp-fixture.ts";
 
 const traceId = "4bf92f3577b34da6a3ce929d0e0e4736";
 const parentSpanId = "00f067aa0ba902b7";
 
 test("one request exports one trace with its remote parent, span fields, and service", async () => {
-  const collector = await receiver();
+  const collector = await new Receiver().listen();
   const clock = makeTestClock({ now: 1_700_000_000_123 });
   const sink = traceSink({
     env: {
@@ -98,7 +98,7 @@ test("one request exports one trace with its remote parent, span fields, and ser
 });
 
 test("log lines carry their span ids, mapped severity, time, and attributes", async () => {
-  const collector = await receiver();
+  const collector = await new Receiver().listen();
   const sink = traceSink({
     env: { OTEL_EXPORTER_OTLP_ENDPOINT: collector.url, OTEL_SERVICE_NAME: "logs" },
     write: () => {},
@@ -163,7 +163,7 @@ test("log lines carry their span ids, mapped severity, time, and attributes", as
 });
 
 test("the timer exports finished spans while a stream is still open", async () => {
-  const collector = await receiver();
+  const collector = await new Receiver().listen();
   const clock = makeTestClock();
   const sink = traceSink({
     env: { OTEL_EXPORTER_OTLP_ENDPOINT: collector.url, OTEL_SERVICE_NAME: "stream" },
@@ -207,7 +207,7 @@ test("the timer exports finished spans while a stream is still open", async () =
 });
 
 test("graceful close exports queued spans, failed status, and cleanup logs", async () => {
-  const collector = await receiver();
+  const collector = await new Receiver().listen();
   const sink = traceSink({
     env: { OTEL_EXPORTER_OTLP_ENDPOINT: collector.url, OTEL_SERVICE_NAME: "close" },
     write: () => {},
