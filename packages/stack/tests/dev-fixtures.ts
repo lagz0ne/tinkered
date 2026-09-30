@@ -1,7 +1,7 @@
-import { cp, mkdtemp, rm, symlink } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, realpath, rm, symlink } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { PGlite } from "@electric-sql/pglite";
 import type { Scope } from "@tinker/core";
@@ -28,10 +28,13 @@ const require = createRequire(import.meta.url);
 async function createDevDirectory() {
   const directory = await mkdtemp(join(tmpdir(), "tinker-dev-"));
   await cp(fileURLToPath(new URL("./dev-app", import.meta.url)), directory, { recursive: true });
-  await symlink(
-    fileURLToPath(new URL("../node_modules", import.meta.url)),
-    join(directory, "node_modules"),
-  );
+  const modules = fileURLToPath(new URL("../node_modules", import.meta.url));
+  const target = join(directory, "node_modules", "@tinker");
+  await mkdir(target, { recursive: true });
+  for (const name of ["core", "hono", "nats"]) {
+    await symlink(join(modules, "@tinker", name), join(target, name));
+  }
+  await symlink(dirname(await realpath(modules)), join(target, "stack"));
   return directory;
 }
 

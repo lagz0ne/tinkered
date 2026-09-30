@@ -11,15 +11,11 @@ import { migrateIssues } from "./migrations.ts";
 import { src } from "./sync.ts";
 import { publishIssues } from "./operations.ts";
 
-function readDraftOptIn(
-  env: NodeJS.ProcessEnv,
-  host: string,
-  port: string,
-): DraftConfig | undefined {
+function readDraftOptIn(env: NodeJS.ProcessEnv): DraftConfig | undefined {
   if (env.DRAFT_HELPER !== "1" && env.DRAFT_HELPER !== "true") return undefined;
   return {
     enabled: true,
-    baseUrl: env.PUBLIC_BASE_URL || `http://${host}:${port}`,
+    baseUrl: env.PUBLIC_BASE_URL || `http://${env.HOST ?? ""}:${env.PORT ?? ""}`,
   };
 }
 
@@ -30,7 +26,6 @@ export async function runServer(
   stop: AbortSignal,
   host?: Dev.Wiring,
 ): Promise<number> {
-  const listen = env;
   const observe = {
     ...jsonLines((line) => process.stdout.write(`${line}\n`)),
     clock: Date.now,
@@ -43,12 +38,12 @@ export async function runServer(
           ? { kind: "borrow", client: host.client }
           : { kind: "open", url: env.DATA_PATH },
       ),
-      draftTags(readDraftOptIn(env, listen.HOST ?? "", listen.PORT ?? "")),
+      draftTags(readDraftOptIn(env)),
     ],
     extensions: [
       host
         ? []
-        : server(web, { env: listen, clientDir: join(process.cwd(), "dist", "client"), observe }),
+        : server(web, { env, clientDir: join(process.cwd(), "dist", "client"), observe }),
       !host &&
         extension({
           label: "issues.data-settings",

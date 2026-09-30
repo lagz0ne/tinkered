@@ -4858,3 +4858,25 @@ No build runs in that tree while the job waits or runs.
 - Cancelled the earlier timing wait before it acquired
   the lock or ran code; its exit was 143.
   The final timing run will use the final source.
+
+### t14 root and server merge
+
+- Assumption: t18's checked branch at `07ca8e2c`
+  is the intended dependency while its landing waits.
+  Rebased onto it to prepare the merge.
+  It includes t17's checked Hono and server changes.
+  The final rebase still uses `origin/main`.
+- Kept t17's server code; only `readSettings` is exported
+  inside the package so the dev entry can use it.
+- Kept t18's root signal, ready outcome, and exit reader.
+  Both the dev root and its test app now use `readExitCode`.
+  No `runUntilStop` remains in packages or apps.
+- The copied test app links the public stack package,
+  so it can import the same exit reader as a real app.
+- Draft settings now read their own host and port
+  from the same env object; their values stay the same.
+- Gate: build, check, stack 83, NATS 19, Drizzle 25,
+  tracker 83; exit 0.
+  Check: zero errors and 28 warnings.
+- Both sets of track notes and error names were kept.
+  Jev labels were merged with `label.mjs --merge`.

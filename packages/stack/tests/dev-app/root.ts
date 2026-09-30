@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import { createScope, extension, operation, type Operation } from "@tinker/core";
 import { hono, route } from "@tinker/hono";
 import { nats, subscribe, type Nats } from "@tinker/nats";
+import { readExitCode } from "@tinker/stack";
 import type { Dev } from "@tinker/stack/dev";
 import type { DevProbe } from "../dev-fixtures.ts";
 import { value } from "./value.ts";
@@ -60,10 +61,9 @@ export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal, host:
   });
   probe.closed.push(scope.closed);
   host.ready(scope.ready.then(() => scope.resolve(web)));
-  await scope.ready.then(
+  const started = await scope.ready.then(
     () => true,
     () => false,
   );
-  const result = await scope.closed;
-  return Number(result.status === "failed" || Boolean(result.teardownErrors?.length));
+  return readExitCode(await scope.closed, { clock: Date.now }, started ? "shutdown" : "boot");
 }

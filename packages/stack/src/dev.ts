@@ -12,6 +12,7 @@ import { createServer as createVite, createRunnableDevEnvironment } from "vite-p
 import type { ModuleRunner } from "vite-plus/module-runner";
 import type { ViteDevServer } from "vite-plus";
 import { raise } from "./errors.ts";
+import { readExitCode } from "./exit.ts";
 import { readSettings } from "./server.ts";
 
 export declare namespace Dev {
@@ -52,9 +53,14 @@ export async function runDev(options: Dev.Options, stop: AbortSignal): Promise<n
       }),
     ],
   });
-  await scope.ready.catch((error: unknown) => options.report?.({ kind: "error", error }));
-  const end = await scope.closed;
-  return Number(end.status === "failed" || Boolean(end.teardownErrors?.length));
+  const started = await scope.ready.then(
+    () => true,
+    (error: unknown) => {
+      options.report?.({ kind: "error", error });
+      return false;
+    },
+  );
+  return readExitCode(await scope.closed, { clock: Date.now }, started ? "shutdown" : "boot");
 }
 
 class DevHost {
