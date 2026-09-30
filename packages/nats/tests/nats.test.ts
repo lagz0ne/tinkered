@@ -304,18 +304,28 @@ test("a denied subscription logs its subject and closes only an owned connection
   }
 });
 
-test("missing NATS_URL fails boot naming the key", async () => {
-  const bus = nats([], { env: {} });
-  const scope = createScope({ extensions: [bus.extension] });
-  expect.assertions(1);
-  try {
-    await scope.ready;
-  } catch (error) {
-    if (isError(error, "ChecksumMismatch")) throw error;
-    if (!isError(error, "InvalidConfig")) throw error;
-    expect(error.payload.key).toBe("NATS_URL");
-  } finally {
-    await scope.close();
+test("missing NATS_URL fails boot before later starts and names the key", async () => {
+  for (const bus of [nats([]), nats([], { env: {} })]) {
+    let started = false;
+    const later = extension({
+      label: "later",
+      start: () => {
+        started = true;
+      },
+    });
+    const scope = createScope({ extensions: [bus.extension, later] });
+    try {
+      try {
+        await scope.ready;
+        expect.unreachable();
+      } catch (error) {
+        if (!isError(error, "InvalidConfig")) throw error;
+        expect(error.payload.key).toBe("NATS_URL");
+      }
+      expect(started).toBe(false);
+    } finally {
+      await scope.close();
+    }
   }
 });
 
@@ -536,5 +546,127 @@ test("resolving the extension returns its root namespace's prepared sender", asy
     expect(await received.promise).toEqual({ identity: "owner", message });
   } finally {
     await scope.close({ graceful: true });
+  }
+});
+
+test("a saved sender reports NotStarted after its root closes", async () => {
+  const bus = nats([], { env: { NATS_URL: server.url } });
+  const scope = createScope({ extensions: [bus.extension] });
+  try {
+    await scope.ready;
+    const sender = scope.resolve(bus.extension);
+    await scope.close({ graceful: true });
+    try {
+      sender.send(message);
+      expect.unreachable();
+    } catch (error) {
+      if (!isError(error, "NotStarted")) throw error;
+    }
+  } finally {
+    await scope.close();
+  }
+});
+
+test("a refused connection keeps its boot error without teardown errors", async () => {
+  const stopped = await startNatsServer();
+  await stopped.close();
+  const bus = nats([], { env: { NATS_URL: stopped.url } });
+  const scope = createScope({ extensions: [bus.extension] });
+  try {
+    const failure = await scope.ready.then(
+      () => expect.unreachable(),
+      (error: unknown) => error,
+    );
+    expect(await scope.close()).toMatchObject({
+      status: "failed",
+      error: failure,
+      teardownErrors: undefined,
+    });
+  } finally {
+    await scope.close();
+  }
+});
+
+test("graceful close during namespace setup leaves no late borrowed subscription", async () => {
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const peer = await connect({ servers: server.url });
+  const receive = operation({
+    label: "receive",
+    run: (_deps, _ctx: Operation.Ctx<Nats.Message>) => undefined,
+  });
+  let loads = 0;
+  const bus = nats(
+    [
+      subscribe("late", async () => {
+        loads++;
+        if (loads === 2) {
+          started.resolve();
+          await release.promise;
+        }
+        return receive;
+      }),
+    ],
+    { env: { NATS_URL: server.url } },
+  );
+  const west = namespace({ tags: [bus.config({ url: server.url, connection: peer })] });
+  const scope = createScope({ extensions: [bus.extension] });
+  try {
+    await scope.ready;
+    const preparing = scope.resolve(bus.connection, { ns: west });
+    await started.promise;
+    const closing = scope.close({ graceful: true });
+    await peer.flush();
+    release.resolve();
+    await preparing;
+    expect(await closing).toEqual({ status: "success" });
+    const received = peer.stats().inMsgs;
+    peer.publish("late", message.payload);
+    await peer.flush();
+    expect(peer.stats().inMsgs).toBe(received);
+  } finally {
+    release.resolve();
+    await scope.close();
+    await peer.close();
+  }
+});
+
+test("forced close stops pending setup before later subscription loaders run", async () => {
+  const started = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const peer = await connect({ servers: server.url });
+  const loads: string[] = [];
+  const receive = operation({
+    label: "receive",
+    run: (_deps, _ctx: Operation.Ctx<Nats.Message>) => undefined,
+  });
+  const bus = nats([
+    subscribe("first", async () => {
+      loads.push("first");
+      started.resolve();
+      await release.promise;
+      return receive;
+    }),
+    subscribe("second", () => {
+      loads.push("second");
+      return receive;
+    }),
+  ]);
+  const scope = createScope({
+    tags: [bus.config({ url: server.url, connection: peer })],
+    extensions: [bus.extension],
+  });
+  try {
+    await started.promise;
+    const closing = scope.close();
+    release.resolve();
+    const result = await closing;
+    if (result.status !== "failed") expect.unreachable();
+    await expect(scope.ready).rejects.toBe(result.error);
+    expect(loads).toEqual(["first"]);
+  } finally {
+    release.resolve();
+    await scope.close();
+    await peer.close();
   }
 });

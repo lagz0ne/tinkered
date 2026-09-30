@@ -109,7 +109,10 @@ raises `NotStarted`.
 Calling its `send` handle after close raises `NotStarted`.
 Graceful close stops incoming work and waits for replies
 before the scope closes its resources.
+Pending setup leaves no late subscription on a borrowed connection.
 Forced close aborts running messages before cleanup.
+It stops pending setup before later subscription loaders run.
+The graph names each resource built during connection setup.
 
 Trace headers, JetStream, KV, and object store wait for
 later tickets.
@@ -164,6 +167,7 @@ try {
 - Publish reaches a subscription operation with its subject and payload.
 - Connection setup requires the bus extension on its root.
 - Resolving the extension returns its root namespace's prepared sender.
+- A saved sender reports NotStarted after its root closes.
 - A shared piece serves independent roots and restarts after one closes.
 - Closing a failed root leaves a later root using the same piece alive.
 - Namespace config routes publish and incoming sessions through separate connections.
@@ -172,15 +176,18 @@ try {
 - A failed operation logs one error and the next message still runs.
 - Scope close drains queued messages and their replies before closing the connection.
 - A borrowed connection stays open while this scope's subscriptions stop.
-- Missing `NATS_URL` fails boot naming the key.
+- Missing NATS_URL fails boot before later starts and names the key.
 - Bad `NATS_URL` fails boot naming the key.
-- The graph traces publish and the subscription operation.
+- The graph names connection setup and traces publish and the subscription operation.
 - The helper fetches the pinned server once and reuses its home cache.
 - A bad checksum refuses the binary.
 - Download errors name the URL and status while bad bytes fail checksum.
 - Forced close aborts a running message and closes the connection.
 - Close during boot reaps a connection that opens later.
 - Failed boot keeps its cause and closes any connection without cleanup errors.
+- A refused connection keeps its boot error without teardown errors.
+- Graceful close during namespace setup leaves no late borrowed subscription.
+- Forced close stops pending setup before later subscription loaders run.
 - A started server closes its connections and frees both ports and its store.
 - A server that rejects its config removes its store before reporting failure.
 - A publish-only scope flushes queued bytes to a peer before it closes.

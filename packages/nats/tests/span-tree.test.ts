@@ -11,7 +11,7 @@ afterAll(async () => {
   await server.close();
 });
 
-test("the graph traces publish and the subscription operation", async () => {
+test("the graph names connection setup and traces publish and the subscription operation", async () => {
   const spans: Observe.Span[] = [];
   const receive = operation({
     label: "receive",
@@ -24,6 +24,11 @@ test("the graph traces publish and the subscription operation", async () => {
   });
   try {
     await scope.ready;
+    expect(spans.map((span) => span.name).toSorted()).toEqual([
+      "nats.connection",
+      "nats.driver",
+      "nats.settings",
+    ]);
     spans.length = 0;
     const send = operation({
       label: "send",
