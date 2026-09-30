@@ -6,6 +6,7 @@ import {
   Code2,
   Crosshair,
   Gamepad2,
+  Layers2,
   Maximize,
   Minimize2,
   RotateCcw,
@@ -69,6 +70,10 @@ const BenchPage = lazy(() =>
   import("@/bench/BenchPage.tsx").then((m) => ({ default: m.BenchPage })),
 );
 
+const SessionsPage = lazy(() =>
+  import("../example/sessions/App.tsx").then((m) => ({ default: m.SessionsPage })),
+);
+
 function ViewToggle(): ReactElement {
   const view = useData(viewCell);
   const select = useRun(setView);
@@ -94,13 +99,14 @@ function ViewToggle(): ReactElement {
     <nav className="view-toggle" aria-label="Playground views">
       {item("play", "Play", Gamepad2)}
       {item("editor", "Code", Code2)}
+      {item("sessions", "Sessions", Layers2)}
       {item("bench", "Benchmark", BarChart3)}
     </nav>
   );
 }
 
 /** THE one preview iframe for the whole shell: mounted for every view, its `srcDoc` driven only by
- * the bundle cell — switching to Code, Benchmark, or full screen never remounts it or resets the
+ * the bundle cell — switching views or full screen never remounts it or resets the
  * running game. Views that are not Play simply cover it with an overlay, and `inert` takes the
  * covered game out of the tab order and out of assistive tech while it cannot be seen. */
 function Preview(): ReactElement {
@@ -255,7 +261,7 @@ function Toolbar(props: { stage: RefObject<HTMLDivElement | null> }): ReactEleme
         </div>
         <ViewToggle />
         <div className="shell-actions">
-          {view !== "bench" && <ResetButton compact={view === "editor"} />}
+          {(view === "play" || view === "editor") && <ResetButton compact={view === "editor"} />}
           {view === "play" && <FullscreenButton stage={props.stage} />}
         </div>
       </div>
@@ -379,6 +385,29 @@ function BenchOverlay(): ReactElement {
   );
 }
 
+function SessionsOverlay(): ReactElement {
+  const open = useRun(openSource);
+  const select = useRun(setView);
+  return (
+    <div className="absolute inset-0 z-10 bg-background">
+      <Suspense
+        fallback={
+          <div className="grid h-full place-items-center text-sm text-muted-foreground">
+            Loading sessions…
+          </div>
+        }
+      >
+        <SessionsPage
+          onShowSource={() => {
+            open.run({ input: { file: "sessions/App.tsx", offset: 0 } });
+            select.run({ input: "editor" });
+          }}
+        />
+      </Suspense>
+    </div>
+  );
+}
+
 /** The visible way out of full screen: floats over the stage in both the native and the fit
  * fallback mode; Escape also clears the fit pin (the browser handles native Escape itself). */
 function ExitImmersive(props: { onExit: () => void }): ReactElement | null {
@@ -409,6 +438,7 @@ function Stage(props: {
       <Preview />
       {view === "editor" && <CodeOverlay />}
       {view === "bench" && <BenchOverlay />}
+      {view === "sessions" && <SessionsOverlay />}
       <ExitImmersive onExit={props.onExit} />
     </div>
   );

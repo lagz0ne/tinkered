@@ -6,7 +6,7 @@ import { THEMES, type ThemeId } from "@/lib/themes.ts";
 export type Status = { kind: "ok" | "error" | "info"; text: string; ms?: number };
 /** A top-level view: the game (default), the code editor, or the benchmark. `play` renders the
  * preview edge to edge; `editor` keeps the same mounted iframe underneath a code overlay. */
-export type View = "play" | "editor" | "bench";
+export type View = "play" | "editor" | "sessions" | "bench";
 /** How the stage is shown: in the shell window, pinned over everything (fit fallback), or native
  * full screen. */
 export type Mode = "window" | "fit" | "native";
