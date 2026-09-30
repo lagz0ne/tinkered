@@ -9,7 +9,11 @@ export function readExitCode(
   phase: "boot" | "shutdown",
 ): number {
   if (result.status === "failed") {
-    writeFailure(observe, `${phase} failed`, describeError(result.error));
+    const attributes = describeError(result.error);
+    if (result.teardownErrors !== undefined && result.teardownErrors.length > 0) {
+      attributes.teardown = result.teardownErrors.map(describeError);
+    }
+    writeFailure(observe, `${phase} failed`, attributes);
     return 1;
   }
   if (result.teardownErrors !== undefined && result.teardownErrors.length > 0) {

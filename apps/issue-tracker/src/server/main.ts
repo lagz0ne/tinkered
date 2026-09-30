@@ -47,11 +47,11 @@ export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal): Prom
     observe,
     signal: stop,
   });
-  const started = await scope.ready.then(
-    () => true,
-    () => false,
+  const phase = await scope.ready.then(
+    () => "shutdown" as const,
+    () => "boot" as const,
   );
-  return readExitCode(await scope.closed, observe, started ? "shutdown" : "boot");
+  return readExitCode(await scope.closed, observe, phase);
 }
 
 if (import.meta.main) {

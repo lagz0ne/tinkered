@@ -16,6 +16,7 @@ The server opens the port after all later starts finish.
 ```ts
 import { createScope } from "@tinker/core";
 import { hono } from "@tinker/hono";
+import { readExitCode } from "@tinker/stack";
 import * as stack from "@tinker/stack";
 
 async function run(stop: AbortSignal) {
@@ -38,13 +39,11 @@ async function run(stop: AbortSignal) {
     observe,
     signal: stop,
   });
-  const started = await scope.ready.then(
-    () => true,
-    () => false,
+  const phase = await scope.ready.then(
+    () => "shutdown" as const,
+    () => "boot" as const,
   );
-  const phase = started ? "shutdown" : "boot";
-  const end = await scope.closed;
-  return stack.readExitCode(end, observe, phase);
+  return readExitCode(await scope.closed, observe, phase);
 }
 
 if (import.meta.main) {
@@ -81,7 +80,8 @@ Use `"boot"` when ready failed and `"shutdown"` otherwise;
 the result itself does not name the phase.
 A failed result returns 1 and logs `boot failed` or
 `shutdown failed`, with the error's fields.
-Teardown errors return 1 and log `shutdown failed`.
+Its teardown errors join that same line.
+Otherwise, teardown errors return 1 and log `shutdown failed`.
 Other results return 0 without a failure log;
 this includes a cancelled result with no teardown errors.
 
@@ -283,6 +283,7 @@ A later commit or a new boot reads the current database.
   answers zero.
 - Failed boot waits for cleanup before logging and
   answering one.
+- A failed boot with teardown errors logs both on one boot failed line.
 - A failed close logs shutdown failed and answers one.
 - Teardown errors log shutdown failed and answer one.
 - A cancelled root without teardown errors answers zero.

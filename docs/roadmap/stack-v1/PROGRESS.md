@@ -2696,3 +2696,43 @@ EXIT 0
   current main, as the contributor rules require.
 - New Jev label lines: none; no new Core feedback.
 - No push. The card is in Review.
+
+### t18 reviewer fix round 1
+
+- Keep teardown errors on the same failed boot log line.
+  Prove it through a real root with two start hooks.
+- Read the log phase straight from ready in the server
+  entry and README example.
+- Assumption: this round keeps the reviewed base and
+  touches only the two fixes, their test, and this proof.
+- The new test failed without the fix: the single log
+  line had no `teardown` field.
+  The fix adds that field and keeps the message,
+  other fields, and exit code of one.
+- Gate: build, check, stack tests, tracker tests.
+
+```text
+check: 0 errors, 28 warnings
+stack: 71 passed (8 files)
+tracker: 79 passed (9 files)
+EXIT=0
+```
+
+- The warning count matches the reviewed base.
+- Prose lint: zero hits; README code lines under 60.
+- Jev lint: no S19, S27, S28, or S29 rows.
+  The two old factory notes remain in `liveUpdates`
+  and `createTestDatabase`: each binds its own inputs.
+  These plain code notes need no labels.
+- Jev pre-flight: zero flags in the changed source.
+  Stack tests: zero of 36 titles flagged.
+  README promises: zero missing lines.
+  The new test matches its promise exactly.
+  One unsure old live-signal title is already promised
+  across two README lines; no change is needed.
+- Style census: OK.
+- New Jev label lines: none; no new Core feedback.
+- Logs: `/tmp/stack-t18-r1-gate.log` and
+  `/tmp/stack-t18-r1-red-test.log`.
+- Next: run the full stack mutation lane once under
+  the lock, then save its proof here.

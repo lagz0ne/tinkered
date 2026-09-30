@@ -370,6 +370,43 @@ test("failed boot waits for cleanup before logging and answering one", async () 
   ]);
 });
 
+test("a failed boot with teardown errors logs both on one boot failed line", async () => {
+  const cleanup = extension({
+    label: "cleanup",
+    start: (scope, _ctx, next) => {
+      scope.onClose(() => {
+        throw new Error("close broke");
+      });
+      return next();
+    },
+  });
+  const broken = extension({
+    label: "broken",
+    start: () => {
+      throw new Error("boot broke");
+    },
+  });
+  const scope = createScope({
+    extensions: [cleanup, broken],
+    signal: new AbortController().signal,
+  });
+  const lines: string[] = [];
+  const observe = { ...jsonLines((line) => lines.push(line)), clock: () => 42 };
+  expect(readExitCode(await scope.closed, observe, "boot")).toBe(1);
+  expect(lines.map((line) => JSON.parse(line))).toEqual([
+    {
+      kind: "log",
+      time: 42,
+      level: 50,
+      message: "boot failed",
+      error: "boot broke",
+      name: "Error",
+      stack: expect.any(String),
+      teardown: [{ error: "close broke", name: "Error", stack: expect.any(String) }],
+    },
+  ]);
+});
+
 test("a failed close logs shutdown failed and answers one", async () => {
   const failed = operation({
     label: "failed",
