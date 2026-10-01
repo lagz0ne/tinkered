@@ -4557,3 +4557,63 @@ flock /tmp/mutation.lock bash -c \
 - Keep mail optional for existing callers.
   An app registers the shipped templates or its own
   under the same names, then supplies a send operation.
+
+### t11 mail and HTTP proof
+
+- Added verify and reset hooks to the optional mail wiring.
+  The app registers React Email templates in its mail piece.
+  It can replace either template under the same name.
+- Reuse the app's sender and `BETTER_AUTH_URL`.
+  No new setting or table is needed.
+- Better Auth's after-commit hook avoids a second connection
+  while its sign-up transaction is open.
+  The mail insert borrows auth's database after commit.
+  The README names the gap if that insert fails after commit.
+- Six HTTP tests prove both links, both template replacements,
+  duplicate sign-up, a later sign-up failure, and PGlite turns.
+- Before the hooks, the verify and reset tests failed
+  because no mail job was saved; red proof has `EXIT 1`.
+- Brought in the finished local t09 SMTP fix.
+  The only conflict was appended track notes; kept both.
+  Then rebased the branch onto `origin/main` at `91964db3`.
+  That rebase had no conflicts.
+  The fetched main still has no `stack/t09` tag.
+- Fresh gate passed:
+
+```bash
+vp run -r build && vp check \
+  && vp run --no-cache auth#test \
+  && vp run --no-cache mail#test \
+  && vp run --no-cache jobs#test \
+  && vp run --no-cache stack#test \
+  && vp run --no-cache @tinker-issue-tracker#test
+```
+
+```text
+check: 0 errors, 28 warnings
+main check: 0 errors, 28 warnings
+auth: 25 passed
+mail: 13 passed
+jobs: 26 passed
+stack: 114 passed
+tracker: 80 passed
+EXIT 0
+```
+
+- Jev: no file flags, test flags, or README gaps.
+  Each auth definition keeps its own config and user tags.
+  Its settings resource depends on that config tag.
+  Those plain module-level notes need no labels.
+  Mail's saved false mock-owner label still applies.
+  The test owns the backend; scopes borrow it.
+  The noisy wrapper notes owe no label.
+- Strict census passes on auth source and the changed test.
+  The package-wide scan also sees four generated pure markers
+  in the unchanged auth schema; main has the same four.
+  TSDoc and prose pass.
+- Logs: `stack-t11-final-gate.log`, `stack-t11-red.log`,
+  `stack-t11-main-check.log`, and `stack-t11-jev-final.log`
+  in `~/.cache/tinkered-briefs/`.
+- Core feedback: none; no Core workaround was needed.
+- Next: all package tests, release checks, then auth mutation
+  once under `/tmp/mutation.lock`.
