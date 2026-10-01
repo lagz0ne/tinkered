@@ -19,6 +19,7 @@
     "@tinker/drizzle": "workspace:*",
     "@tinker/hono": "workspace:*",
     "@tinker/http": "workspace:*",
+    "@tinker/jobs": "workspace:*",
     "@tinker/react": "workspace:*",
     "@tinker/stack": "workspace:*",
     "@tinker/sync": "workspace:*",

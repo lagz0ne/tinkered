@@ -1,0 +1,24 @@
+import { operation } from "@tinker/core";
+import { job, jobs } from "@tinker/jobs";
+import { readNote } from "../shared/notes.ts";
+import { receipts } from "./schema.ts";
+import { database, transaction } from "./store.ts";
+
+const saveReceipt = operation({
+  label: "receipts.save",
+  input: readNote,
+  depends: { tx: transaction },
+  run: ({ tx }, { input }) => tx.insert(receipts).values(input).onConflictDoNothing(),
+});
+const dailyReceipt = operation({
+  label: "receipts.daily",
+  depends: { tx: transaction },
+  run: ({ tx }) => tx.insert(receipts).values({ title: "Daily check" }).onConflictDoNothing(),
+});
+
+export function createJobs(env: NodeJS.ProcessEnv) {
+  return jobs(
+    [job("receipt", saveReceipt), job("daily-check", dailyReceipt, { cron: "0 9 * * *" })],
+    { env, pglite: database, tx: transaction },
+  );
+}

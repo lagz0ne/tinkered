@@ -5809,3 +5809,12 @@ eq: (a, b) => a.length === b.length;
 - Fresh app: 4 tests pass; generator: 12 pass.
 - No new check warning.
 - Next: one job and one cron row.
+
+### t16 jobs
+
+- One queue row writes a receipt in its own session.
+- One cron row writes a daily receipt.
+- Both borrow the static database and transaction.
+- Both tests use the jobs clock and wait for saved rows.
+- Fresh app: 6 tests pass; generator: 12 pass.
+- Next: React Email and the mail mock.
