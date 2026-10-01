@@ -5557,3 +5557,20 @@ No build runs in that tree while the job waits or runs.
 - Router checked on npm: `1.170.41`; pin that exact version.
 - SSR docs still call the server functions experimental.
   Source: [TanStack SSR](https://tanstack.com/router/latest/docs/guide/ssr).
+
+### t15 first page and stream proof
+
+- Added `@tinker/stack/pages`, mounted through Hono's wiring.
+- The app keeps its page, router, and cell-read operation.
+- No loader fetches; each request keeps one published snapshot.
+- The browser fills its cells before React and SSE start.
+- Prod builds both bundles and reads Vite's client manifest.
+- Dev borrows the kept SSR runner through `load(path)`.
+- Stack: 142 tests passed, including commit and abort.
+- The tracker first-chunk test fails on `c125c72b`.
+  The old HTML has only the Loading shell, not the saved title.
+  Proof: `stack-t15-base-red-real.log` in the briefs cache.
+- Check: zero errors, 28 warnings, the same as the base.
+- The latest Router pin was refused by the one-day install rule.
+  Kept the rule and pinned `1.170.40` from the brief.
+- Next: finish browser checks, commit, rebase, then all gates.

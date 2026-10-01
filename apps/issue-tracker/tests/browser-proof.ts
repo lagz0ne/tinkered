@@ -56,7 +56,7 @@ async function bounded<T>(promise: Promise<T>, label: string): Promise<T> {
 }
 
 function ownServer(port: number, db: string, natsUrl: string): OwnedServer {
-  const child = spawn(process.execPath, ["--experimental-strip-types", "src/server/main.ts"], {
+  const child = spawn(process.execPath, ["dist/server/main.js"], {
     cwd: APP,
     env: {
       ...process.env,
@@ -338,7 +338,25 @@ async function main(): Promise<void> {
       false,
     );
 
-    await firstTab.reload();
+    const html = await (await fetch(base)).text();
+    assert.ok(html.includes(`<strong>${title}</strong>`));
+    assert.ok(html.indexOf(`<strong>${title}</strong>`) < html.indexOf('id="client-entry"'));
+    const scripts = (url: URL) =>
+      url.pathname.startsWith("/assets/") && url.pathname.endsWith(".js");
+    const boot = Promise.withResolvers<void>();
+    await firstTab.route(scripts, async (asset) => {
+      await boot.promise;
+      await asset.continue();
+    });
+    const reloaded = firstTab.reload();
+    await rowFor(firstTab, title).first().waitFor();
+    assert.equal(
+      await firstTab.evaluate(() => document.documentElement.dataset.serverPage),
+      "true",
+    );
+    boot.resolve();
+    await reloaded;
+    await firstTab.unroute(scripts);
     await firstTab.getByRole("heading", { name: "Issues" }).waitFor();
     await rowFor(firstTab, title).first().waitFor();
     await selectIssue(firstTab, title);

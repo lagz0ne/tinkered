@@ -19,6 +19,7 @@
   "exports": {
     ".": "./dist/index.mjs",
     "./dev": "./dist/dev.mjs",
+    "./pages": "./dist/pages.mjs",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -41,7 +42,9 @@
     "@tinker/drizzle": "workspace:*",
     "@tinker/hono": "workspace:*",
     "@tinker/nats": "workspace:*",
-    "drizzle-orm": "catalog:"
+    "@tinker/react": "workspace:*",
+    "drizzle-orm": "catalog:",
+    "react": "catalog:"
   },
   "devDependencies": {
     "@electric-sql/pglite": "catalog:",
@@ -50,6 +53,9 @@
     "@tinker/drizzle": "workspace:*",
     "@tinker/sync": "workspace:*",
     "@types/node": "26.5.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "react-dom": "catalog:",
     "typescript": "7.0.2",
     "vite": "catalog:",
     "vite-plus": "catalog:"

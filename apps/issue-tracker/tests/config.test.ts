@@ -1,6 +1,6 @@
 import { once } from "node:events";
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline";
@@ -10,13 +10,13 @@ import { createScope, operation } from "@tinker/core";
 import { backend, HttpRequest, HttpResponse, isError as isHttpError, send } from "@tinker/http";
 import { api } from "../src/index.ts";
 
-const APP = join(dirname(fileURLToPath(import.meta.url)), "..");
+const APP = dirname(realpathSync(join(dirname(fileURLToPath(import.meta.url)), "../node_modules")));
 
 /** Settings fail before any database work. Read the boot outcome, then wait
  * for child cleanup before removing its temporary directory. */
 async function readBootResult(port: string): Promise<Record<string, unknown>> {
   const dir = mkdtempSync(join(tmpdir(), "issues-port-"));
-  const child = spawn(process.execPath, ["--experimental-strip-types", "src/server/main.ts"], {
+  const child = spawn(process.execPath, ["dist/server/main.js"], {
     cwd: APP,
     env: { ...process.env, HOST: "127.0.0.1", PORT: port, DATA_PATH: join(dir, "db") },
     stdio: ["ignore", "pipe", "ignore"],

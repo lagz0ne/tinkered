@@ -3,15 +3,20 @@ import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   resolve: {
-    alias: { "@tinker/stack/dev": fileURLToPath(new URL("./src/dev.ts", import.meta.url)) },
+    alias: {
+      "@tinker/stack/dev": fileURLToPath(new URL("./src/dev.ts", import.meta.url)),
+      "@tinker/stack/pages": fileURLToPath(new URL("./src/pages.ts", import.meta.url)),
+    },
   },
   pack: {
-    entry: ["src/index.ts", "src/dev.ts"],
+    entry: ["src/index.ts", "src/dev.ts", "src/pages.ts"],
     minify: true,
     deps: {
       resolveDepSubpath: true,
       neverBundle: [
         "@tinker/core",
+        "@tinker/react",
+        "react",
         "vite-plus",
         "@nats-io/transport-node",
         "@tinker/hono",

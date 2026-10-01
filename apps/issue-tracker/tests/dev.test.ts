@@ -84,6 +84,12 @@ test("dev reload keeps saved issues, ends sync, and SIGTERM exits zero", async (
   await expect.poll(() => output.match(/"kind":"ready"/g)?.length, { timeout: 30000 }).toBe(2);
   expect(await streamEnded).toBe(true);
   expect(await (await fetch(`${url}/api/edited`)).json()).toEqual([saved]);
+  const component = join(directory, "src/client/App.tsx");
+  const before = await readFile(component, "utf8");
+  await writeFile(component, before.replace("<h1>Issues</h1>", "<h1>Saved page edit</h1>"));
+  await expect.poll(() => output.match(/"kind":"ready"/g)?.length, { timeout: 30000 }).toBe(3);
+  expect(await (await fetch(url)).text()).toContain("<h1>Saved page edit</h1>");
+  expect(await (await fetch(`${url}/api/edited`)).json()).toEqual([saved]);
   child.kill("SIGTERM");
   expect(await exited).toEqual([0, null]);
   await expect(fetch(url)).rejects.toThrow();

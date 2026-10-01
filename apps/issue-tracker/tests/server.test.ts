@@ -82,7 +82,7 @@ test("the first HTTP read and sync snapshot contain saved issues while the port 
   }
 });
 
-test("runServer serves saved issues until stop and then answers zero", async () => {
+test("runServer sends saved titles in the first HTML and stops with zero", async () => {
   const dir = await mkdtemp(join(tmpdir(), "issues-root-"));
   const bus = await startNatsServer();
   const port = await readFreePort();
@@ -104,6 +104,15 @@ test("runServer serves saved issues until stop and then answers zero", async () 
     expect(response.status).toBe(201);
     const saved = parseIssue(await response.json());
     expect(parseIssueList(await (await fetch(`${base}/api/issues`)).json())).toEqual([saved]);
+    const page = await fetch(base);
+    expect(page.headers.get("content-type")).toContain("text/html");
+    const reader = page.body!.getReader();
+    const first = new TextDecoder().decode((await reader.read()).value);
+    expect(first).toContain("<strong>From the real root</strong>");
+    expect(first).toContain('aria-label="issues"');
+    while (!(await reader.read()).done) {
+      /** Drain the page so the request can commit. */
+    }
     stop.abort();
     expect(await ended).toBe(0);
   } finally {

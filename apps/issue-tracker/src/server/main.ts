@@ -27,7 +27,15 @@ export async function runServer(
 ): Promise<number> {
   const observe = jsonLines((line) => process.stdout.write(`${line}\n`));
   let log: Observe.Logger | undefined;
-  const web = issueServer();
+  const entry = host
+    ? await host.load<typeof import("./pages.tsx")>("src/server/pages.tsx")
+    : await import("./pages.tsx");
+  const page = entry.createIssuePages(
+    host
+      ? { script: "/src/client/page-main.tsx", styles: ["/src/client/style.css?direct"], dev: true }
+      : await entry.readPageAssets(join(process.cwd(), "dist", "client")),
+  );
+  const web = issueServer({ mount: page.mount });
   const scope = createScope({
     tags: [
       storeConfig(
@@ -58,6 +66,7 @@ export async function runServer(
             },
           },
         }),
+      page.extension,
       migrateIssues,
       web,
       src,

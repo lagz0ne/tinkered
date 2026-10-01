@@ -23,6 +23,8 @@ export declare namespace Dev {
     client: PGlite;
     connection?: Nats.Wiring["connection"];
     ready(app: Promise<App>): void;
+    /** Load a page through the kept SSR runner so its imports take part in reload. */
+    load<T>(path: string): Promise<T>;
   };
   type Root = (env: NodeJS.ProcessEnv, stop: AbortSignal, wiring: Wiring) => Promise<number>;
   type Event = { kind: "ready"; url: string } | { kind: "error"; error: unknown };
@@ -204,6 +206,7 @@ class DevHost {
           client: this.client!,
           connection: this.connection,
           ready: (app) => ready.resolve(app),
+          load: (path) => this.runner!.import(resolve(this.options.root, path)),
         }).then<RootEnd, RootEnd>(
           (code) => ({ code }),
           (error: unknown) => ({ error }),

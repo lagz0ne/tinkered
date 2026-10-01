@@ -483,3 +483,36 @@ Prod gets none of these defaults.
 - A root teardown failure still closes dev services
   and answers one.
   This also holds when the root rejects on stop.
+
+## Server pages
+
+Import `pages` from `@tinker/stack/pages`.
+It starts nothing until the root lists its extension.
+Give it the page component, a cell-read operation,
+and a renderer that returns a streamed `Response`.
+The renderer receives the request, the read values,
+and the component inside the request's React provider.
+It receives no scope.
+
+Use its `mount` in Hono's wiring after API routes.
+The catch-all page leaves `/assets/` to the file routes.
+Hono keeps the session until the renderer's body ends.
+The last read waits for commit; abort cancels both
+the renderer and the request session.
+
+- Pages render the request's cells and keep
+  the renderer's status and headers.
+- API and built assets keep their routes
+  before the catch-all page.
+- A page holds its session and waits for commit
+  before its final chunk ends.
+- A page abort through its reader or request
+  cancels the renderer and its session.
+- A renderer failure before headers reaches
+  Hono's error answer.
+- A body failure errors the page and fails its session.
+
+The dev wiring's `load(path)` uses Vite's kept SSR runner.
+Its page imports join the server's reload graph.
+A page component edit closes the old root
+and is visible on reload.

@@ -1,6 +1,7 @@
 import type { Issues } from "./shared/issues.ts";
 
 type ErrorPayloads = {
+  BadPage: Record<string, never>;
   BadDataSettings: { keys: string[] };
   BadIssue: { label: string };
   BadIssueList: { label: string };

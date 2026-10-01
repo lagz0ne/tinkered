@@ -57,6 +57,42 @@ kept. The same plain wording covers create, edit, comment, and detail
 refresh; retrying after the connection returns saves normally.
 A panic in a background detail load fails the page's scope.
 
+## Server pages
+
+The list at `/` renders on the server with TanStack Router.
+Its first HTML already contains the saved titles.
+The request reads the published issue cell once.
+Router loaders fetch nothing.
+Router's dehydrate sends those cells with the HTML.
+Its hydrate fills the browser scope before React takes over.
+The SSE wire then carries live updates.
+The same list nodes stay in place while that happens.
+
+Stack mounts one catch-all page through Hono's wiring.
+API, SSE, and built assets keep their existing routes.
+The page holds its request session until the stream ends.
+Commit finishes before the last read ends.
+A client abort closes the session as cancelled.
+An unknown page path gets TanStack's 404 page.
+
+`vp run build` builds the client and server bundles.
+`vp run start` runs `dist/server/main.js`.
+Vite's manifest names the client script and styles.
+A bad client manifest refuses page boot.
+A bad page payload refuses hydrate.
+Dev loads the page through the kept Vite SSR runner.
+A page component edit closes the old root
+and shows the changed HTML on reload.
+
+- runServer sends saved titles in the first HTML
+  and stops with zero.
+- Hydrate keeps the first list, accepts a live snapshot,
+  and stops the browser root.
+- The built page gets its client script and styles
+  from Vite's manifest, including an entry with no styles.
+- The browser proof holds client scripts back,
+  sees the server list, then checks live updates.
+
 ## Triage draft (optional helper, off by default)
 
 Selecting an issue shows a triage draft box. With the helper off it says

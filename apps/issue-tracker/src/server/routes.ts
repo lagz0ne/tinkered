@@ -14,6 +14,7 @@ export declare namespace IssueServer {
     /** Bind a port (`main.ts`) or a fake (a test); absent, the app answers only
      * `app.request`. The scope's close stops it. */
     readonly serve?: HonoScope.Serve;
+    readonly mount?: HonoScope.Wiring["mount"];
   };
 }
 
@@ -40,6 +41,7 @@ export function issueServer(options: IssueServer.Options = {}): Scope.Extension<
       DraftFailed: { status: 502, body: (payload) => payload.reason },
     }),
     serve: options.serve,
+    mount: options.mount,
   }).extension;
 }
 
