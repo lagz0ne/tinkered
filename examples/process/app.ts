@@ -3,7 +3,7 @@ import { argv, io, type Process } from "@tinker/process";
 import { z } from "zod";
 import { check } from "./check.ts";
 
-/** A command is a plain operation whose answer is the exit code (ADR 0056). */
+/** A command is a plain operation whose answer is the exit code (ADR 0096). */
 const checkCommand = operation({
   label: "check",
   depends: { argv: argv.required, io: io.required, check },
@@ -70,13 +70,28 @@ export const shell: Process.Shell = {
   name: "tk",
   version: "0.1.0",
   commands: [
-    { name: "check", description: "check a file", entry: () => ({ op: checkCommand }) },
+    {
+      name: "check",
+      description: "check a file",
+      entry: () => ({ kind: "command", op: checkCommand }),
+    },
     {
       name: "lazy-check",
       description: "check a file, loaded lazily",
-      entry: async () => ({ op: (await import("./lazy-check.ts")).lazyCheckCommand }),
+      entry: async () => ({
+        kind: "command",
+        op: (await import("./lazy-check.ts")).lazyCheckCommand,
+      }),
     },
-    { name: "count", description: "count up, streamed", entry: () => ({ op: countCommand }) },
-    { name: "serve", description: "tick until SIGINT", entry: () => ({ op: waitForSignal }) },
+    {
+      name: "count",
+      description: "count up, streamed",
+      entry: () => ({ kind: "command", op: countCommand }),
+    },
+    {
+      name: "serve",
+      description: "tick until SIGINT",
+      entry: () => ({ kind: "command", op: waitForSignal }),
+    },
   ],
 };

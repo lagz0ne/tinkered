@@ -3,8 +3,19 @@ import { makeTestClock, type Clock } from "@tinker/core";
 import { run, type Process } from "@tinker/process";
 import { shell } from "./index.ts";
 
+async function collect(input: Omit<Process.RunOptions, "shell" | "io">) {
+  const stdout: string[] = [];
+  const stderr: string[] = [];
+  const code = await run({
+    ...input,
+    shell,
+    io: { write: (text) => stdout.push(text), error: (text) => stderr.push(text) },
+  });
+  return { code, stdout: stdout.join(""), stderr: stderr.join("") };
+}
+
 test("prints help when no command is given", async () => {
-  const result = await run(shell, []);
+  const result = await collect({ args: [] });
   expect(result).toEqual({
     code: 0,
     stdout:
@@ -14,7 +25,7 @@ test("prints help when no command is given", async () => {
 });
 
 test("checks a file name", async () => {
-  expect(await run(shell, ["check", "a.yaml"])).toEqual({
+  expect(await collect({ args: ["check", "a.yaml"] })).toEqual({
     code: 0,
     stdout: "checked a.yaml\n",
     stderr: "",
@@ -22,7 +33,7 @@ test("checks a file name", async () => {
 });
 
 test("loads the lazy command and prints one JSON line", async () => {
-  expect(await run(shell, ["lazy-check", "a.yaml"])).toEqual({
+  expect(await collect({ args: ["lazy-check", "a.yaml"] })).toEqual({
     code: 0,
     stdout: '"checked a.yaml"\n',
     stderr: "",
@@ -30,19 +41,24 @@ test("loads the lazy command and prints one JSON line", async () => {
 });
 
 test("a missing file name is a usage error", async () => {
-  const result = await run(shell, ["check"]);
+  const result = await collect({ args: ["check"] });
   expect(result.code).toBe(2);
   expect(result.stderr).toContain("usage: tk <command>");
 });
 
 test("streams each count in order", async () => {
   const lines: string[] = [];
-  await run(shell, ["count", "3"], { write: (line) => lines.push(line) });
-  expect(lines).toEqual(["1 ", "2 ", "3 ", "\n"]);
+  const errors: string[] = [];
+  const code = await run({
+    shell,
+    args: ["count", "3"],
+    io: { write: (line) => lines.push(line), error: (line) => errors.push(line) },
+  });
+  expect({ code, lines, errors }).toEqual({ code: 0, lines: ["1 ", "2 ", "3 ", "\n"], errors: [] });
 });
 
 test("rejects a count that cannot end", async () => {
-  const result = await run(shell, ["count", "Infinity"]);
+  const result = await collect({ args: ["count", "Infinity"] });
   expect(result.code).toBe(2);
   expect(result.stderr).toContain("usage: tk <command>");
 });
@@ -62,17 +78,11 @@ test("stops serve and reports its completed ticks", async () => {
       return pending;
     },
   };
-  const timedShell: Process.Shell = {
-    ...shell,
-    commands: shell.commands.map((route) => ({
-      ...route,
-      entry: async (args) => {
-        const entry = await route.entry(args);
-        return { ...entry, options: { ...entry.options, clock: tickingClock } };
-      },
-    })),
-  };
-  const pending = run(timedShell, ["serve"], undefined, stop.signal);
+  const pending = collect({
+    args: ["serve"],
+    signal: stop.signal,
+    options: { clock: tickingClock },
+  });
   await firstSleep.promise;
   clock.advance(10);
   await nextSleep.promise;

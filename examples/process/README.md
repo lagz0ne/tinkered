@@ -50,9 +50,45 @@ Its install uses those copies.
 
 `app.ts` declares the command graph once.
 `index.ts` exports its static `shell` and starts no process.
-`main.ts` calls Process `main(shell)` only inside `if (import.meta.main)`.
-That command entry owns the selected command's root, signals, and cleanup.
-Tests call the public Process `run` function with `shell`.
+`main.ts` returns the exit code through its guarded entry:
+
+```ts
+import { main } from "@tinker/process";
+import { shell } from "./app.ts";
+
+if (import.meta.main) {
+  const args = process.argv.slice(2);
+  const [first, ...rest] = args;
+  process.exitCode = await main({
+    shell,
+    args: first === "--" ? rest : args,
+  });
+}
+```
+
+Each route returns `{ kind: "command", op }`.
+Process owns that command's root, signals, and cleanup.
+The app lets pending stream writes finish before exit.
+Tests supply both writers and collect only the output they need:
+
+```ts
+import { run } from "@tinker/process";
+import { shell } from "./index.ts";
+
+const output: string[] = [];
+const errors: string[] = [];
+const code = await run({
+  shell,
+  args: ["check", "a.yaml"],
+  io: {
+    write: (text) => output.push(text),
+    error: (text) => errors.push(text),
+  },
+});
+```
+
+`code` is 0 and `output` contains `"checked a.yaml\n"`.
+Common Core settings, such as a test clock, go in `run`'s `options`.
 The serve test stops after one test-clock tick and checks the final count.
 
 Run the package checks here:
