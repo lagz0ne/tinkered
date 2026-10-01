@@ -43,7 +43,7 @@ For PGlite, the package supplies its settings and native resources:
 
 ```ts
 import { namespace } from "@tinker/core";
-import { config, database, transaction } from "@tinker/drizzle/pglite";
+import { config } from "@tinker/drizzle/pglite";
 
 const issues = namespace({
   tags: [
