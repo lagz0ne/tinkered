@@ -71,7 +71,6 @@ validation 50 of 50, `EXIT 0`; prose and style pass.
 
 ## Parked
 
-- **core/start-log** — Resumed 2026-09-30: built main still drops start logs in BOTH hook forms (`[]`); Sol writer `c3f272c1` fixed both (branch `core/start-log` at `098929e0`; gate, timing no row slower, core mutation 85.33%, validate 48/48; core at exactly 16,384 B). Waits for the authoring work's `authoring/hooks` branch, which removes the positional hooks: then rebase and keep only the object-hook path, then an Opus review and the lead lands. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t14 dev-host** — Resumed 2026-09-30 (user: Sol writes, the lead lands). Sol writer `c4f5f4d3` rebasing and finishing the dev host. Resume notes: `~/.cache/tinkered-briefs/stack-resume.md`. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **perf/explicit-uses** — declare the ctx features a unit uses (`uses: ["defer", "signal"]`). The committee (Astra + Fable) found an estimated 10–40 ns per run and a migration of every package; the user skipped it (2026-09-29, ADR 0073). Resume when: a graph consumer needs per-unit lifetime facts, or the per-run ctx becomes the main cost of a hot path. Next: the measure-only ceiling screen in `/home/paseo/next/tinkered-inv-reports/committee-uses.md`.
 
@@ -108,6 +107,7 @@ validation 50 of 50, `EXIT 0`; prose and style pass.
 
 ## Done
 
+- **core/start-log** — a log written in an extension's event-form `start` or `close` hook now reaches the scope's sink, with the level filter and clock, named by the extension, no span (on main both printed `[]`; five askers: stack t02, t05, t07, t08, t13). The logger is built once per extension on first use; logging off stays a no-op. Proof: gate EXIT 0 (core 796, all repo tests; 0 errors, 28 warnings), slots headroom 4, size 16,350 B (cap 16,384), N=31 timing all "no difference we can see", changed-line mutation 85.71% (6/0/1), validate 54/54. Lead review. Sol writer c3f272c1. The stack pieces' workarounds can go now (a follow-up card).
 - **stack/t09 mail** — `@tinker/mail` on Upyo 0.6.0 and React Email (pinned): the app's operation calls `sendMail` (template + props + to/subject), which adds a mail job through the request's transaction, so a rolled-back request sends nothing; the job renders HTML and text and sends; a retryable failure retries, a permanent one fails once via `failJob(cause)` (new in `@tinker/jobs`); `MAIL_URL` (`smtp://`, login optional so Mailpit works) checked in start; a log backend for dev and Upyo's mock for tests. Proof: gate EXIT 0 (mail 13, jobs 26, stack 114; 0 errors, 28 warnings), mail mutation 89.09% (98/0/12), release checks 54/54. Lead review (one fix: optional SMTP login). Sol writer daf6d3a7. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **authoring/main-entries** — static exports and guarded app entries.
   Proof: READY review; build, check, all 30 test tasks, and prose pass.
