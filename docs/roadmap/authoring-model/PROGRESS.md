@@ -879,3 +879,16 @@ Their existing fault and timing proofs remain valid.
 Main fast-forwards to `82dff2f6` and keeps the pending peer notes.
 Its fresh install, build, code check, and prose pass, exit 0.
 Its example and package code matches the checked source `6de99118`.
+
+## Process review from its basic jobs
+
+The user asked for a fresh review of Process's complexity.
+The review follows a command, a stream, and an MCP service.
+[Findings, exact source links, and proposed shape](PROCESS-REVIEW.md).
+
+Build, check, all 50 package tests, and strict style census pass.
+Real public-entry probes still show lost output and ignored cleanup errors.
+The selected loader also stays outside the stop path.
+The proposal keeps process tags and lazy routes, removes live output
+collection, and lets extensions and Core own service lifetime.
+No runtime code or settled decision changed in this review.
