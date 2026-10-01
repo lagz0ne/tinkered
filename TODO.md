@@ -43,16 +43,16 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 
 ## Doing
 
-- **stack/t16 generator** — owner: stack/t16 writer.
-  Next: final rebase, review, mutation, and gate.
-  Verify: fresh app checks and tests; dev and prod boot;
-  changed-file mutation at least 85; full gate and validate.
-  [Track](docs/roadmap/stack-v1/PROGRESS.md).
-
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
 reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, and `pnpm validate` alone, one core card at a time.
 
 ## Review
+
+- **stack/t16 generator** — owner: stack/t16 writer.
+  Next: lead review and landing; no push.
+  Proof: full gate EXIT 0; generator 12; starter 28;
+  mutation 48/0/7 (87.27% killed); validate 56/56.
+  [Track](docs/roadmap/stack-v1/PROGRESS.md).
 
 Next: lead reviews and lands `stack/t15`; no push.
 Verify: gate `EXIT 0`; Stack 152, Hono 93, tracker 128;

@@ -484,7 +484,7 @@ npx --no-install stryker run \
   Verify: the tracker's browser test sees the list
   in the first HTML and live updates after
   hydrate; the tracker's tests green.
-- **t16 the generator** -- [ ] doing; owner: stack/t16 writer
+- **t16 the generator** -- [ ] review; owner: stack/t16 writer
   `vp create` writes a full app with every stack
   piece wired, each shown in its common case as an
   operation or a resource (ADR 0074). It is the
@@ -5890,3 +5890,74 @@ auth(database, schema, { sendMail });
 - Fresh starter: all 28 tests pass, including browser boot.
 - Strict style census covers generator and starter: OK.
 - No app files are kept in the repo.
+
+### t16 writer handoff
+
+- Owner: stack/t16 writer.
+- State: Review; the lead lands it.
+- Rebased onto origin/main at 28564dbe before the gate.
+- No rebase conflicts; no push.
+- The registered command is vp create stack-app.
+- Every stack piece is wired in the notes starter.
+- The app owns all generated files.
+- Assumption: use the tracker's PGlite and plain CSS.
+- Workspace globs already cover the package and new apps.
+- The root TypeScript config has no project reference list.
+- The fixture copies the lock and builds in prod mode.
+- Added a real mobile browser regression check.
+- The app README lists the Chromium setup command.
+- The auth checker strips only native pure annotations.
+- Full gate: build, check, all tests; EXIT 0.
+- Check: 0 errors and 28 warnings, matching the base.
+- Generator: 12 passed; fresh starter: 28 passed.
+- Stack: 152 passed; Hono: 93 passed; tracker: 128 passed.
+- Changed-src mutation only: killed 48, timeout 0,
+  survived 7; no coverage gaps or errors; EXIT 0.
+- Killed share: 48 / 55 = 87.27%, above 85.
+- Template files were not mutated.
+- Validation: all 56 lanes pass, EXIT 0.
+- Jev: 0 file flags, 0 test flags, 0 README gaps.
+- Its only noisy unit flag is the unchanged Stack pages.
+- No label is owed; the case bank has no new rows.
+- TSDoc parser: 24 source files, 0 rows.
+- Strict style census: generator and starter both OK.
+- No generated app remains in the worktree.
+- Proof logs: stack-t16-final-check.log,
+  stack-t16-mutation.log, stack-t16-validate.log,
+  stack-t16-generator-test.log, and stack-t16-census.log
+  in /home/paseo/.cache/tinkered-briefs/.
+
+#### Core feedback proof
+
+The sync start passes undefined to the typed eq inputs.
+The native probe prints TypeError before any request.
+The starter keeps the tracker's JSON equality workaround.
+
+```ts
+const notes = data<string[]>({
+  initial: [],
+  eq: (a, b) => a.length === b.length,
+});
+const stop = new AbortController();
+const scope = createScope({
+  signal: stop.signal,
+  extensions: [source({ cells: [[notes, "notes"]] })],
+});
+try {
+  await scope.ready;
+} finally {
+  stop.abort();
+  await scope.closed;
+}
+```
+
+Adding a welcome template widens post.sendMail's input.
+Auth rejects that operation with TS2322.
+The app instead declares the narrow auth enqueue operation.
+With the auth README's sendAuthJob, this fails:
+
+```ts
+const post = mail({ ...authTemplates, welcome: Welcome }, { env, from: "team@example.com" });
+const sendMail = post.sendMail(sendAuthJob);
+auth(database, schema, { sendMail });
+```

@@ -68,6 +68,9 @@ Remove `nats: true` from `src/dev.ts` too.
 Other root rows and files:
 
 - **Server:** `server(web, ...)` and the prod entry test.
+- **Store:** the `databaseConfig` tag and `src/server/store.ts`.
+  Remove the migration row and store use in notes, jobs,
+  and auth when those pieces no longer keep saved data.
 - **Migration:** `migrate(database, migrations)`.
   Remove `src/server/migrations.ts` and `drizzle/`.
 - **Jobs:** `work.extension` and `src/server/jobs.ts`.
