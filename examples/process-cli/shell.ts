@@ -25,8 +25,8 @@ export const shell: Process.Shell = {
   commands: [
     {
       name: "ping",
-      entry: async () => ({ op: (await import("./ping.ts")).pingCommand }),
+      entry: async () => ({ kind: "command", op: (await import("./ping.ts")).pingCommand }),
     },
-    { name: "greet", entry: () => ({ op: greetCommand }) },
+    { name: "greet", entry: () => ({ kind: "command", op: greetCommand }) },
   ],
 };

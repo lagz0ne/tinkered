@@ -71,10 +71,54 @@ Help loads no command.
 Every command's root closes before its result returns.
 
 `main.ts` and `basic.ts` start only inside `if (import.meta.main)`.
-Both use Process `main`, which owns stop signals and cleanup.
+The arithmetic entry returns its code to Node:
+
+```ts
+if (import.meta.main) {
+  process.exitCode = await main({ shell: arithmetic });
+}
+```
+
+The app entry keeps the `--` argument handling:
+
+```ts
+import { main } from "@tinker/process";
+import { shell } from "./shell.ts";
+
+if (import.meta.main) {
+  const args = process.argv.slice(2);
+  const [first, ...rest] = args;
+  process.exitCode = await main({
+    shell,
+    args: first === "--" ? rest : args,
+  });
+}
+```
+
+Process owns stop signals and cleanup.
+Node finishes pending stream writes before exit.
 `index.ts` exports the pieces from `shell.ts` and `basic.ts`.
 Importing these pieces starts no command or root.
-Tests pass each shell to Process `run` and check its result.
+Each route returns `{ kind: "command", op }`.
+Tests call public `run`, supply both writers, and collect their own output:
+
+```ts
+import { run } from "@tinker/process";
+import { arithmetic } from "./index.ts";
+
+const output: string[] = [];
+const errors: string[] = [];
+const code = await run({
+  shell: arithmetic,
+  args: ["double", "21"],
+  io: {
+    write: (text) => output.push(text),
+    error: (text) => errors.push(text),
+  },
+});
+```
+
+`code` is 0 and `output` contains `"42\n"`.
 
 Run the package checks here:
 
