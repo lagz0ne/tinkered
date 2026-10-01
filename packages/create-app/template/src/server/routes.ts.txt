@@ -1,8 +1,10 @@
 import { hono, route } from "@tinker/hono";
+import { syncRoute } from "./sync.ts";
 import { addNote, listNotes } from "./notes.ts";
 
 export function createWeb() {
   return hono([
+    syncRoute,
     route.get("/api/notes", listNotes),
     route.post("/api/notes", addNote, {
       input: (c) => c.req.json(),

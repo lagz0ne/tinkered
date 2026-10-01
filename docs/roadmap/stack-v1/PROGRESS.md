@@ -5781,3 +5781,20 @@ useEffect(() => props.ready?.(), [props.ready]);
 - Generator tests: 12 passed; generated app: 2 passed.
 - Root check: 0 errors and 28 warnings.
 - Next: published cell, live sync, and server pages.
+
+### t16 live sync
+
+- One published notes cell crosses the SSE wire.
+- A save signals NATS; both servers read saved notes again.
+- Fresh app: 3 tests pass; generator: 12 pass.
+- Root check: 0 errors and 28 warnings.
+- Core feedback: source start passes undefined to eq,
+  although its inputs are typed as the cell value.
+- The starter uses JSON equality, as the tracker does.
+
+```ts
+eq: (a, b) => a.length === b.length;
+```
+
+- That form throws during sync start, before any request.
+- Next: server pages.

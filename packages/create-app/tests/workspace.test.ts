@@ -45,7 +45,7 @@ test("the bin writes an app that installs, builds, checks, and passes its tests"
       cwd: root,
       encoding: "utf8",
     });
-    expect(output).toContain("1 passed");
+    expect(output).toMatch(/Tests\s+\d+ passed/);
   } finally {
     await rm(root, { recursive: true, force: true, maxRetries: 5 });
   }

@@ -1,9 +1,11 @@
 import { resolve } from "node:path";
 import { createScope, extension, type Observe } from "@tinker/core";
-import { jsonLines, migrate, readExitCode, server } from "@tinker/stack";
+import { jsonLines, liveUpdates, migrate, readExitCode, server } from "@tinker/stack";
 import { raise } from "../errors.ts";
 import { database, databaseConfig } from "./store.ts";
 import { migrations } from "./migrations.ts";
+import { publishNotes } from "./notes.ts";
+import { published } from "./sync.ts";
 import { createWeb } from "./routes.ts";
 
 export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal): Promise<number> {
@@ -27,6 +29,8 @@ export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal): Prom
       }),
       migrate(database, migrations),
       web,
+      published,
+      liveUpdates(publishNotes, { subject: "__APP_NAME__.changed", env }),
     ],
   });
   const phase = await scope.ready.then(

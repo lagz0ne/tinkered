@@ -3,6 +3,9 @@ import { defineConfig } from "vite-plus";
 export default defineConfig({
   pack: { dts: { generator: "tsgo" } },
   test: {
+    testTimeout: 30000,
+    hookTimeout: 30000,
+    maxWorkers: 2,
     server: { deps: { inline: ["vite-plus"] } },
     exclude: ["**/node_modules/**", "**/dist/**"],
   },

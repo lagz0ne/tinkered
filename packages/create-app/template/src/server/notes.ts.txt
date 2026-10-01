@@ -1,25 +1,8 @@
 import { operation } from "@tinker/core";
 import { asc } from "drizzle-orm";
-import { raise } from "../errors.ts";
+import { readNote, noteList } from "../shared/notes.ts";
 import { notes } from "./schema.ts";
-import { transaction } from "./store.ts";
-
-export declare namespace Notes {
-  type Note = { title: string };
-}
-
-function readNote(input: unknown): Notes.Note {
-  if (
-    typeof input !== "object" ||
-    input === null ||
-    !("title" in input) ||
-    typeof input.title !== "string" ||
-    input.title.trim() === ""
-  ) {
-    raise("BadNote", { input });
-  }
-  return { title: input.title.trim() };
-}
+import { database, transaction } from "./store.ts";
 
 export const addNote = operation({
   label: "notes.add",
@@ -35,4 +18,12 @@ export const listNotes = operation({
   label: "notes.list",
   depends: { tx: transaction },
   run: ({ tx }) => tx.select().from(notes).orderBy(asc(notes.title)),
+});
+
+export const publishNotes = operation({
+  label: "notes.publish",
+  depends: { db: database, notes: noteList.controller },
+  async run({ db, notes: cell }) {
+    cell.set(await db.select().from(notes).orderBy(asc(notes.title)));
+  },
 });
