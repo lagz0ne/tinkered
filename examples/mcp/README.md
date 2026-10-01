@@ -68,7 +68,7 @@ Set the client's working directory to this example folder.
 The server stops when input ends, the transport closes,
 or SIGINT or SIGTERM arrives.
 
-The command version uses `@tinker/process`:
+The CLI uses a service entry from `@tinker/process`:
 
 ```bash
 vp run cli -- --help
@@ -88,24 +88,45 @@ A leading `--` from the task runner is allowed.
 
 `search.ts` declares the operation and MCP driver once.
 Each root gets a separate server from that driver.
+
 `stdio.ts` owns each transport and its listeners.
-Its stop state lives in a data cell.
-The entry binds input and output as tags.
+It borrows the Process `stop` function and calls it when input ends.
+The same function handles transport close.
+
+The entry binds input and output with the `streams` tag.
 It borrows those streams and removes its listeners on close.
+
+The static `shell` selects the stdio and MCP extensions.
+The Process call receives the stream binding once in `options`.
+Its `main({ shell, args, options })` call returns an exit code.
+
+The guarded entry assigns that code to `process.exitCode` after cleanup.
+Imports open no transport and add no process listeners.
 
 The memory entry runs inside `if (import.meta.main)`.
 It closes its client in `finally`, even after a failed call.
+
 SIGINT and SIGTERM ask the entry to stop.
 The entry waits for `closed` and removes its signal listeners.
+
 A failed close is reported if the run itself did not fail.
 Each root owns its transport cleanup, including a failed start.
+
 The standalone root takes a stop signal and awaits `closed`.
-The command entry lets `@tinker/process` own its root.
-Imports open no transport and add no process listeners.
+It binds Process `stop` to its own root's stop controller.
+The CLI lets `@tinker/process` own its root.
 
 `vp test` checks the memory tool list and reply.
 It also calls both stdio entries with SDK clients in child processes.
-A third check ends the standalone server's input and waits for exit code 0.
+
+The standalone server stops when its input ends.
+The command server stops when its input already ended.
+
+Both stdio entries close cleanly when stdin ends.
+Both stdio entries close cleanly on SIGTERM.
+
 `index.ts` exports the memory transport, connection extension, and MCP graph.
+It also exports `stdio`, `streams`, the static `shell`, and `runServer`.
+
 The memory test owns its root and client and uses those same units.
 The stdio tests use the public entry and command.

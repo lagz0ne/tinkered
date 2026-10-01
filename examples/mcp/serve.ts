@@ -1,24 +1,7 @@
-import { createScope, extension, tag, type Scope } from "@tinker/core";
+import { createScope } from "@tinker/core";
+import { stop } from "@tinker/process";
 import { searchMcp } from "./search.ts";
-import { stdio, stopping, streams, type Stdio } from "./stdio.ts";
-
-const requestStop = tag<() => void>({ label: "stdio.requestStop" });
-const untilInputEnds = extension({
-  label: "stdio.untilInputEnds",
-  hooks: {
-    start: async (event) => {
-      await event.next();
-      const stop = event.resolve(requestStop);
-      const stopped = event.controller(stopping);
-      event.defer(
-        stopped.watch((value) => {
-          if (value) stop();
-        }),
-      );
-      if (stopped.get()) stop();
-    },
-  },
-});
+import { stdio, streams, type Stdio } from "./stdio.ts";
 
 /** End on input EOF, transport close, or the caller's stop signal, after all cleanup. */
 export async function runServer(
@@ -28,21 +11,18 @@ export async function runServer(
 ): Promise<number> {
   const ended = new AbortController();
   const root = createScope({
-    extensions: [untilInputEnds, stdio, searchMcp],
-    tags: [streams(io), requestStop(() => ended.abort())],
+    extensions: [stdio, searchMcp],
+    tags: [streams(io), stop(() => ended.abort())],
     signal: AbortSignal.any([signal, ended.signal]),
   });
-  let end: Scope.Result;
   try {
     await root.ready;
-    await root.closed;
   } catch (error) {
     report(error);
+    await root.closed;
     return 1;
-  } finally {
-    ended.abort();
-    end = await root.closed;
   }
+  const end = await root.closed;
   let exitCode = 0;
   if (end.status === "failed") {
     report(end.error);
@@ -56,14 +36,14 @@ export async function runServer(
 }
 
 if (import.meta.main) {
-  const stop = new AbortController();
-  const abort = (): void => stop.abort();
+  const ended = new AbortController();
+  const abort = (): void => ended.abort();
   process.once("SIGINT", abort);
   process.once("SIGTERM", abort);
   try {
     process.exitCode = await runServer(
       { input: process.stdin, output: process.stdout },
-      stop.signal,
+      ended.signal,
       (error) => process.stderr.write(`${String(error)}\n`),
     );
   } finally {

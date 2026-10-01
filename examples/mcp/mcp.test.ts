@@ -1,11 +1,13 @@
 import { fileURLToPath } from "node:url";
 import { PassThrough } from "node:stream";
+import { once } from "node:events";
 import { expect, test } from "vite-plus/test";
 import { createScope } from "@tinker/core";
+import { run } from "@tinker/process";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
-import { runServer, memory, connected, searchMcp } from "./index.ts";
+import { runServer, memory, connected, searchMcp, shell, streams } from "./index.ts";
 
 test("the memory example lists and calls search", async () => {
   const stop = new AbortController();
@@ -75,6 +77,32 @@ test("the standalone server stops when its input ends", async () => {
   try {
     input.end();
     expect(await runServer({ input, output }, stop.signal)).toBe(0);
+  } finally {
+    stop.abort();
+    input.destroy();
+    output.destroy();
+  }
+});
+
+test("the command server stops when its input already ended", async () => {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const stop = new AbortController();
+  const errors: string[] = [];
+  try {
+    input.resume();
+    const ended = once(input, "end");
+    input.end();
+    await ended;
+    const code = await run({
+      shell,
+      args: ["mcp"],
+      signal: stop.signal,
+      options: { tags: streams({ input, output }) },
+      io: { write: (text) => output.write(text), error: (text) => errors.push(text) },
+    });
+    expect(code).toBe(0);
+    expect(errors).toEqual([]);
   } finally {
     stop.abort();
     input.destroy();

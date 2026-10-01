@@ -1,5 +1,6 @@
 import type { Readable, Writable } from "node:stream";
-import { data, extension, tag } from "@tinker/core";
+import { extension, tag } from "@tinker/core";
+import { stop } from "@tinker/process";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { searchMcp } from "./search.ts";
 
@@ -9,7 +10,6 @@ export declare namespace Stdio {
 }
 
 export const streams = tag<Stdio.Streams>({ label: "stdio.streams" });
-export const stopping = data({ label: "stdio.stopping", initial: false });
 
 /** Start after the MCP driver; every listener and transport belongs to this root. */
 export const stdio = extension({
@@ -18,12 +18,9 @@ export const stdio = extension({
     start: async (event) => {
       await event.next();
       const server = event.resolve(searchMcp);
-      const { input, output } = event.resolve(streams);
-      const stopped = event.controller(stopping);
+      const { input, output } = event.resolve(streams.required);
+      const done = event.resolve(stop.required);
       const transport = new StdioServerTransport(input, output);
-      const done = (): void => {
-        if (!event.signal.aborted) stopped.set(true);
-      };
       event.defer(() => transport.close());
       event.defer(() => {
         server.server.onclose = undefined;
