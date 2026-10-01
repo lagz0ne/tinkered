@@ -55,7 +55,14 @@ export function auth(database: Resource.Handle<Promise<object>>, schema: Record<
   };
   const wiring: HonoScope.Wiring = {
     tags: async (c) => {
-      const session = await (await readClient()).api.getSession({ headers: c.req.raw.headers });
+      if (c.req.path.startsWith("/api/auth/")) return user(null);
+      const { response: session, headers } = await (
+        await readClient()
+      ).api.getSession({
+        headers: c.req.raw.headers,
+        returnHeaders: true,
+      });
+      for (const cookie of headers.getSetCookie()) c.header("Set-Cookie", cookie, { append: true });
       return user(
         session === null
           ? null

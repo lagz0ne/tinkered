@@ -351,6 +351,9 @@ The `tags` wiring hook can return a promise.
 Hono awaits it before opening the request session.
 A request aborted while reading async tags never runs its operation.
 A graceful close waits for async tags and the request they prepare.
-New requests answer 503 while those accepted requests drain.
+Any request arriving while the root closes answers 503,
+with async tags, sync tags, or no tags hook.
+A request without a tags hook answers 503 during graceful close.
+After close, requests reach Hono's error handler.
 A failed async tag read fails only its request.
 A forced close during async tags never runs the prepared operation.

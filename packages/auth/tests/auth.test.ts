@@ -68,25 +68,35 @@ beforeEach(async () => {
   clients.push(client);
   url = "";
   arrived = undefined;
-  web = hono([route.get("/me", visit)], {
-    ...identity.wiring,
-    tags: async (c) => {
-      arrived?.();
-      return identity.wiring.tags?.(c);
-    },
-    serve: (app) =>
-      new Promise((resolve) => {
-        const listener = serve({ fetch: app.fetch, hostname: "127.0.0.1", port: 0 }, (address) => {
-          url = `http://127.0.0.1:${address.port}`;
-          resolve(
-            () =>
-              new Promise<void>((done, fail) => {
-                listener.close((error) => (error ? fail(error) : done()));
-              }),
-          );
-        });
+  web = hono(
+    [
+      route.get("/me", visit, {
+        respond: (user, c) => c.json(user, { headers: { "Set-Cookie": "app=active; Path=/" } }),
       }),
-  }).extension;
+    ],
+    {
+      ...identity.wiring,
+      tags: async (c) => {
+        arrived?.();
+        return identity.wiring.tags?.(c);
+      },
+      serve: (app) =>
+        new Promise((resolve) => {
+          const listener = serve(
+            { fetch: app.fetch, hostname: "127.0.0.1", port: 0 },
+            (address) => {
+              url = `http://127.0.0.1:${address.port}`;
+              resolve(
+                () =>
+                  new Promise<void>((done, fail) => {
+                    listener.close((error) => (error ? fail(error) : done()));
+                  }),
+              );
+            },
+          );
+        }),
+    },
+  ).extension;
   scope = createScope({
     tags: [store.config(client), identity.config(settings)],
     extensions: [web, identity.extension],
@@ -123,6 +133,27 @@ test("sign up then sign in gives a session cookie accepted by the auth GET route
   expect(cookie).toContain("better-auth.session_token=");
   const session = await fetch(`${url}/api/auth/get-session`, { headers: { cookie } });
   expect(await session.json()).toMatchObject({ user: { name: "Ada", email: person.email } });
+});
+
+test("an app route refreshes a near-expiry session cookie and keeps its own cookie", async () => {
+  const cookie = await signIn(url);
+  await client.query("update auth.session set expires_at = now() + interval '1 day'");
+  const response = await fetch(`${url}/me`, { headers: { cookie } });
+  expect(response.headers.getSetCookie()).toEqual(
+    expect.arrayContaining([
+      expect.stringContaining("better-auth.session_token="),
+      "app=active; Path=/",
+    ]),
+  );
+});
+
+test("the auth get-session route refreshes a near-expiry session cookie", async () => {
+  const cookie = await signIn(url);
+  await client.query("update auth.session set expires_at = now() + interval '1 day'");
+  const response = await fetch(`${url}/api/auth/get-session`, { headers: { cookie } });
+  expect(response.headers.getSetCookie()).toEqual(
+    expect.arrayContaining([expect.stringContaining("better-auth.session_token=")]),
+  );
 });
 
 test("an operation reads the user after opening its transaction and reads none without a cookie", async () => {

@@ -18,6 +18,7 @@ export declare namespace Server {
 /** List first, before the Hono extension passed in: validate before other starts,
  * listen after they finish. Close stops accepting requests before draining the scope;
  * the defer joins the listener's close after those requests finish.
+ * Accepted async tag reads drain before the listener stops.
  * Env and app are borrowed; no scope is made here. */
 export function server(
   web: Scope.Extension<Parameters<HonoScope.Serve>[0]>,

@@ -3507,3 +3507,48 @@ await closing;
   No runtime source changed after the full mutation runs.
 - Core feedback is unchanged: the failing close snippet above
   shows why Hono still wraps close before session admission ends.
+
+## t10 reviewer fix round 1 — 2026-10-01
+
+- Owner: stack/t10 writer; reviewed head `dca8561b`.
+- Next: carry refreshed cookies to app answers,
+  skip the user read on auth routes, and state close rules.
+- Verify: both cookie tests fail on the reviewed head,
+  then the full repo gate, prose, both mutation lanes,
+  and validation pass.
+- The no-tags 503 is already present on the reviewed head.
+  Its new test should pass there; this finding needs docs.
+- Keep main's failed-commit header drop unchanged.
+
+### Fix round 1 failing-first proof
+
+- Runtime source still matched `dca8561b` exactly.
+  Added the tests first, then rebuilt.
+- The two near-expiry cookie tests failed, `EXIT 1`.
+  App route: only `app=active; Path=/` was returned.
+  Auth get-session route: no cookies were returned.
+  Both lacked `better-auth.session_token`.
+- The no-tags shutdown test passed on the old code, `EXIT 0`.
+  It names the already shipped 503; docs now state that rule.
+- Logs: `stack-t10-fix1-failing-first.log` and
+  `stack-t10-fix1-no-tags-baseline.log` in the briefs cache.
+
+### Fix round 1 first green step
+
+- Auth reads with `returnHeaders: true` before the session.
+  Append each returned cookie to the app answer.
+  The app's own cookie remains beside the refreshed token.
+- Skip the tag user read on `/api/auth/*`.
+  Better Auth now reads and refreshes once on its own route.
+- Hono's runtime source is unchanged.
+  Its docs now say 503 applies during any root close,
+  and late requests reach Hono's error handler after close.
+- Stack's server doc names the tag drain before listener stop.
+  No Stack runtime behavior changed.
+- Extended the existing failed-commit header-drop test
+  with an async tag cookie and an appended route cookie.
+  Its fresh 500 still drops all built headers.
+- Build, check, auth 18, Hono 92, prose: `EXIT 0`.
+  Check still has no errors and 28 warnings.
+- Next: full repo gate, advisory checks, fresh mutation,
+  then validation and review.

@@ -675,6 +675,29 @@ test("a graceful close waits for async tags and the request they prepare", async
   expect((await closing).status).toBe("success");
 });
 
+test("a request without a tags hook answers 503 during graceful close", async () => {
+  const release = Promise.withResolvers<void>();
+  const read = operation({ label: "read", run: () => "ok" });
+  const web = hono([route.get("/", read)]).extension;
+  const gate = extension({
+    label: "closeGate",
+    close: async (_options, next) => {
+      await release.promise;
+      return next();
+    },
+  });
+  const scope = createScope({ extensions: [web, gate] });
+  await scope.ready;
+  const app = scope.resolve(web);
+  const closing = scope.close({ graceful: true });
+  try {
+    expect((await app.request("/")).status).toBe(503);
+  } finally {
+    release.resolve();
+    await closing;
+  }
+});
+
 test("a failed async tag read fails only its request", async () => {
   const read = operation({ label: "read", run: () => "ok" });
   const web = hono([route.get("/", read)], {

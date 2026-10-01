@@ -46,7 +46,9 @@ It can start again after that root closes.
 Hono awaits the cookie read before opening the request session.
 Operations can then read `identity.user` even after opening
 `store.tx`, without taking a second database connection.
-Auth routes at `/api/auth/*` use Better Auth's own transactions.
+Auth routes at `/api/auth/*` read their own session;
+the tag hook skips its user read there.
+Those routes use Better Auth's own transactions.
 Its HTTP answers pass through unchanged.
 Email checks, password resets, and plugins are not enabled.
 
@@ -81,6 +83,8 @@ The check does not edit that file.
 
 - Sign up then sign in gives a session cookie accepted by the auth GET route.
 - An operation reads the user after opening its transaction and reads none without a cookie.
+- An app route refreshes a near-expiry session cookie and keeps its own cookie.
+- The auth get-session route refreshes a near-expiry session cookie.
 - Sign out ends the session even when the old cookie is sent again.
 - A wrong password keeps Better Auth's status and answer.
 - Sign in and requests take turns with work holding the one database connection.

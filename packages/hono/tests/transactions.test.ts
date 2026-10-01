@@ -80,22 +80,30 @@ test("a failed commit answers 500, logs one line, and saves nothing", async () =
 }, 30_000);
 
 test("a failed commit drops the built answer's headers", async () => {
-  const { extension: web } = hono([
-    route.post("/context", duplicate, {
-      respond: (value, c) => {
-        c.header("location", "/x/1");
-        c.header("set-cookie", "sid=abc");
-        return c.text(value, 201);
+  const { extension: web } = hono(
+    [
+      route.post("/context", duplicate, {
+        respond: (value, c) => {
+          c.header("location", "/x/1");
+          c.header("set-cookie", "sid=abc", { append: true });
+          return c.text(value, 201);
+        },
+      }),
+      route.post("/response", duplicate, {
+        respond: (value) =>
+          new Response(value, {
+            status: 201,
+            headers: { location: "/x/1", "set-cookie": "sid=abc" },
+          }),
+      }),
+    ],
+    {
+      tags: async (c) => {
+        c.header("set-cookie", "refreshed=abc", { append: true });
+        return [];
       },
-    }),
-    route.post("/response", duplicate, {
-      respond: (value) =>
-        new Response(value, {
-          status: 201,
-          headers: { location: "/x/1", "set-cookie": "sid=abc" },
-        }),
-    }),
-  ]);
+    },
+  );
   const scope = createScope({ tags: [databaseConfig(null)], extensions: [web] });
   try {
     await scope.ready;
