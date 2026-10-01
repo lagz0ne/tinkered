@@ -41,6 +41,9 @@ Finish approved work through Done. Blocked and Parked cards keep their true stat
 - **core/traceparent** — one W3C `traceparent` parse and format helper beside core's trace types; hono, http, and nats use it and drop their copies. Next: brief after the core lane frees (core/root-lifetime, then core/start-log, then core/close-hook-scope). Verify: SCIP refs show one parse and one format; core, hono, http, nats tests; `pnpm validate`.
 - **stack/span-kinds** — OTLP span kind from the driver: hono marks server spans, http client spans, nats producer and consumer spans; today every span exports INTERNAL. Next: settle where the kind hint lives (ADR 0076 §5 left it open) after core/traceparent. Verify: the sink test sees SERVER / CLIENT / PRODUCER / CONSUMER per driver.
 
+- **sync/eq-undefined** — sync's start calls a family's typed `eq(a, b)` with `undefined`, so `eq: (a, b) => a.length === b.length` throws; the generated starter uses JSON equality to dodge it (found by stack/t16). Next: a sync test with a typed `eq`, then guard the first compare. Verify: the test fails on main and passes; sync tests; changed-files mutation ≥ 85.
+- **auth/sendmail-type** — adding a template to `mail()` beside `authTemplates` makes `auth(…, { sendMail: post.sendMail(…) })` fail with TS2322; the starter wraps a narrow enqueue operation instead (found by stack/t16). Next: type auth's `sendMail` slot over the auth templates only. Verify: a type test with an extra template compiles; auth tests.
+
 ## Doing
 
 Pairs since 2026-09-29: an Astra writer (`codex/gpt-6-astra`, xhigh) and an Opus 5.5 (high)
@@ -48,11 +51,10 @@ reviewer per card (no Fable, user 2026-09-29); a lander runs mutation, timing, a
 
 ## Review
 
-- **stack/t16 generator** — owner: stack/t16 writer.
-  Next: lead review and landing; no push.
-  Proof: full gate EXIT 0; generator 12; starter 28;
-  mutation 48/0/7 (87.27% killed); validate 56/56.
-  [Track](docs/roadmap/stack-v1/PROGRESS.md).
+Next: lead review and landing; no push.
+Proof: full gate EXIT 0; generator 12; starter 28;
+mutation 48/0/7 (87.27% killed); validate 56/56.
+[Track](docs/roadmap/stack-v1/PROGRESS.md).
 
 Next: lead reviews and lands `stack/t15`; no push.
 Verify: gate `EXIT 0`; Stack 152, Hono 93, tracker 128;
@@ -141,6 +143,7 @@ validation 50 of 50, `EXIT 0`; prose and style pass.
 
 ## Done
 
+- **stack/t16 generator** — `vp create stack-app` (`@tinker/create-app`, registered in the root `vite.config.ts`) writes a full app into `apps/<name>` on `workspace:*`: server, migrate step and first migration, static store, a synced cell, live updates over NATS, a job and a cron row, mail with a React Email template, auth (sign-up, sign-in, verify, reset), a server-rendered list page, the trace sink, and the dev host; settings read at the root with a `.env.example`; each piece one row. Its tests generate an app in a temp place, then build, check, and test it (28 starter tests, a real browser test) and remove it. Proof: gate EXIT 0 (generator 12, tracker 128; 0 errors, 28 warnings), changed-file mutation 87.27% (48/0/7), validate 56/56. Lead review. Sol writer 04639f26. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **stack/t15 server-pages** — the tracker's pages render on the server with TanStack Router 1.170.40 (pinned) under one Hono route: `@tinker/stack`'s `pages()` piece reads the page's cells in the request's session, renders, and streams the HTML through Hono's `stream`, so the session stays open until the stream ends and commits then (ADR 0084); the browser boots from those values, then the SSE wire takes over; 404 pages stay server pages; the dev host renders pages through Vite and an edit shows on reload. Proof: gate EXIT 0 (stack 152, hono 93, tracker 128; 0 errors, 28 warnings), browser proof 4/4, changed-file mutation stack 86.02% (203/2/31), tracker 85.83% (327/3/51), validate 54/54. Lead review. Sol writer 3dc1eaaa. [track](docs/roadmap/stack-v1/PROGRESS.md).
 - **authoring/package-roles** — all 16 package roles checked.
   Removed unused `utils`; Drizzle and React entries name their roles.

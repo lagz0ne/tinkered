@@ -484,7 +484,7 @@ npx --no-install stryker run \
   Verify: the tracker's browser test sees the list
   in the first HTML and live updates after
   hydrate; the tracker's tests green.
-- **t16 the generator** -- [ ] review; owner: stack/t16 writer
+- **t16 the generator** -- [x] landed (blocked by: t01, t02, t11, t12, t13, t15)
   `vp create` writes a full app with every stack
   piece wired, each shown in its common case as an
   operation or a resource (ADR 0074). It is the
