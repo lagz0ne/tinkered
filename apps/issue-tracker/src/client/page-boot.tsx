@@ -1,4 +1,3 @@
-import { useEffect, type ReactNode } from "react";
 import { hydrateRoot } from "react-dom/client";
 import { hydrate } from "@tanstack/react-router/ssr/client";
 import { RouterProvider } from "@tanstack/react-router";
@@ -30,12 +29,11 @@ export async function bootPage(env: { baseUrl: string }, stop: AbortSignal): Pro
           async start(event) {
             const router = createPageRouter({
               issues: event.resolve(issueList),
+              ready: hydrated.resolve,
               hydrate: (issues) => event.controller(issueList).set(issues),
               content: (
                 <ScopeProvider scope={event.scope}>
-                  <Hydrated ready={hydrated.resolve}>
-                    <App />
-                  </Hydrated>
+                  <App />
                 </ScopeProvider>
               ),
               assets: { script: "", styles: [], dev: false },
@@ -62,9 +60,4 @@ export async function bootPage(env: { baseUrl: string }, stop: AbortSignal): Pro
     throw error;
   }
   await scope.closed;
-}
-
-function Hydrated(props: { ready: () => void; children: ReactNode }) {
-  useEffect(props.ready, [props.ready]);
-  return props.children;
 }

@@ -76,6 +76,7 @@ The page holds its request session until the stream ends.
 Commit finishes before the last read ends.
 A client abort closes the session as cancelled.
 An unknown page path gets TanStack's 404 page.
+A missing page hydrates its 404 and stops the browser root.
 
 `vp run build` builds the client and server bundles.
 `vp run start` runs `dist/server/main.js`.

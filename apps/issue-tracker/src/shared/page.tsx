@@ -5,13 +5,13 @@ import {
   Outlet,
   Scripts,
 } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { raise } from "../errors.ts";
 import { parseIssueList, type Issues } from "./issues.ts";
 
 export declare namespace Page {
   type Assets = { script: string; styles: string[]; dev: boolean };
-  type Context = { content: ReactNode; assets: Assets };
+  type Context = { content: ReactNode; assets: Assets; ready?: () => void };
   type Snapshot = { issues: readonly Issues.Issue[]; assets: Assets };
   type Options = Context & {
     issues: readonly Issues.Issue[];
@@ -40,31 +40,50 @@ function readSnapshot(raw: unknown): Page.Snapshot {
 
 const root = createRootRouteWithContext<Page.Context>()({
   component: Document,
-  notFoundComponent: () => (
-    <main>
-      <h1>Page not found</h1>
-    </main>
-  ),
+  notFoundComponent: MissingPage,
 });
 const list = createRoute({
   getParentRoute: () => root,
   path: "/",
-  component: () => root.useRouteContext().content,
+  component: List,
 });
 
 /** Router loaders do not fetch. The request's published cell is the complete first paint. */
 export function createPageRouter(options: Page.Options) {
   const router = createRouter({
     routeTree: root.addChildren([list]),
-    context: { content: options.content, assets: options.assets },
+    context: { content: options.content, assets: options.assets, ready: options.ready },
     dehydrate: (): Page.Snapshot => ({ issues: options.issues, assets: options.assets }),
     hydrate(raw) {
       const snapshot = readSnapshot(raw);
       options.hydrate?.(snapshot.issues);
-      router.update({ context: { content: options.content, assets: snapshot.assets } });
+      router.update({
+        context: { content: options.content, assets: snapshot.assets, ready: options.ready },
+      });
     },
   });
   return router;
+}
+
+function Hydrated(props: { ready?: () => void; children: ReactNode }) {
+  useEffect(() => props.ready?.(), [props.ready]);
+  return props.children;
+}
+
+function List() {
+  const { content, ready } = root.useRouteContext();
+  return <Hydrated ready={ready}>{content}</Hydrated>;
+}
+
+function MissingPage() {
+  const { ready } = root.useRouteContext();
+  return (
+    <Hydrated ready={ready}>
+      <main>
+        <h1>Page not found</h1>
+      </main>
+    </Hydrated>
+  );
 }
 
 function Document() {
