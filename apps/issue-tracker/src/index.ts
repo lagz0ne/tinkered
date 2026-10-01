@@ -40,7 +40,7 @@ export {
   writeIssue,
 } from "./server/operations.ts";
 export { migrations, migrateIssues } from "./server/migrations.ts";
-export { store } from "./server/store.ts";
+export { store, storeConfig, transaction } from "./server/store.ts";
 export type { Store } from "./server/store.ts";
 export { issueRoutes, issueServer } from "./server/routes.ts";
 export { src } from "./server/sync.ts";

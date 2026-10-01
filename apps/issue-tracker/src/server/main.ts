@@ -4,7 +4,7 @@ import { jsonLines, liveUpdates, readExitCode, server } from "@tinker/stack";
 import { draftTags, type DraftConfig } from "./draft.ts";
 import { issueServer } from "./routes.ts";
 import { publish } from "./publish.ts";
-import { store } from "./store.ts";
+import { storeConfig } from "./store.ts";
 import { migrateIssues } from "./migrations.ts";
 import { src } from "./sync.ts";
 import { publishIssues } from "./operations.ts";
@@ -32,7 +32,7 @@ export async function runServer(env: NodeJS.ProcessEnv, stop: AbortSignal): Prom
   const web = issueServer();
   const scope = createScope({
     tags: [
-      store.config(env.DATA_PATH ?? "./data/issues"),
+      storeConfig(env.DATA_PATH ?? "./data/issues"),
       draftTags(readDraftOptIn(env, listen.HOST, listen.PORT)),
     ],
     extensions: [

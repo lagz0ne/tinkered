@@ -15,7 +15,7 @@ import {
   parseIssueList,
   publish,
   readDetail,
-  store,
+  storeConfig,
   migrateIssues,
   issueServer,
 } from "../src/index.ts";
@@ -25,7 +25,7 @@ import {
 async function boot() {
   const server = issueServer();
   const scope = createScope({
-    tags: [store.config(await cloneDatabase())],
+    tags: [storeConfig(await cloneDatabase())],
     extensions: [server, migrateIssues, publish()],
   });
   await scope.ready;

@@ -12,7 +12,7 @@ export const migrations: Migrate.Options = {
   baseline: baselineIssues,
 };
 
-export const migrateIssues = migrate(store.db, migrations);
+export const migrateIssues = migrate(store, migrations);
 
 /** Only databases from the old hand-SQL history enter here. Every upgrade and
  * the journal record share the migrate step's locked transaction (ADR 0079). */

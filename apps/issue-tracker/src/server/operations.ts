@@ -12,14 +12,14 @@ import {
   type Issues,
 } from "../shared/issues.ts";
 import { raise } from "../errors.ts";
-import { activityRows, commentRows, issueRows, store } from "./store.ts";
+import { activityRows, commentRows, issueRows, store, transaction } from "./store.ts";
 
 /** Load one saved issue inside the caller's transaction. A missing id raises
  * IssueNotFound here, so the failure's origin names this step. */
 export const loadSaved = operation({
   label: "loadSaved",
   input: parseIssueId,
-  depends: { tx: store.tx },
+  depends: { tx: transaction },
   run: async ({ tx }, ctx) => {
     const rows = await tx.select().from(issueRows).where(eq(issueRows.id, ctx.input));
     const found = rows.at(0);
@@ -59,7 +59,7 @@ function editNames(input: Issues.EditInput): string[] {
 export const writeIssue = operation({
   label: "writeIssue",
   input: parseIssue,
-  depends: { tx: store.tx },
+  depends: { tx: transaction },
   run: async ({ tx }, ctx) => {
     const updated = ctx.input;
     await tx
@@ -81,7 +81,7 @@ export const writeIssue = operation({
 export const recordActivity = operation({
   label: "recordActivity",
   input: parseActivity,
-  depends: { tx: store.tx },
+  depends: { tx: transaction },
   run: async ({ tx }, ctx) => {
     await tx.insert(activityRows).values(ctx.input);
   },
@@ -91,7 +91,7 @@ export const recordActivity = operation({
 export const createIssue = operation({
   label: "createIssue",
   input: parseCreateInput,
-  depends: { tx: store.tx, record: recordActivity },
+  depends: { tx: transaction, record: recordActivity },
   run: async ({ tx, record }, ctx) => {
     const now = ctx.clock.currentTimeMillis();
     const issue: Issues.Issue = {
@@ -149,7 +149,7 @@ export const editIssue = operation({
 export const addComment = operation({
   label: "addComment",
   input: parseCommentInput,
-  depends: { tx: store.tx, load: loadSaved, record: recordActivity },
+  depends: { tx: transaction, load: loadSaved, record: recordActivity },
   run: async ({ tx, load, record }, ctx) => {
     await load.run({ input: ctx.input.issueId });
     const now = ctx.clock.currentTimeMillis();
@@ -178,7 +178,7 @@ export const addComment = operation({
 export const readDetail = operation({
   label: "readDetail",
   input: parseIssueId,
-  depends: { db: store.db },
+  depends: { db: store },
   run: async ({ db }, ctx) => {
     const rows = await db.select().from(issueRows).where(eq(issueRows.id, ctx.input));
     const found = rows.at(0);
@@ -206,7 +206,7 @@ export const readDetail = operation({
  * and the publish-after-commit share. Used during start to publish the saved list. */
 export const listIssues = operation({
   label: "listIssues",
-  depends: { db: store.db },
+  depends: { db: store },
   run: async ({ db }): Promise<readonly Issues.Issue[]> => {
     const rows = await db.select().from(issueRows).orderBy(asc(issueRows.createdAt));
     return rows.map((row) => parseIssue({ ...row }));

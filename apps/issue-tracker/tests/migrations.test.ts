@@ -6,7 +6,7 @@ import { createScope } from "@tinker/core";
 import { isError } from "@tinker/drizzle";
 import { checkDrift } from "@tinker/drizzle/migrations";
 import { expect, test } from "vite-plus/test";
-import { migrations, migrateIssues, store } from "../src/index.ts";
+import { migrations, migrateIssues, storeConfig } from "../src/index.ts";
 import { cloneDatabase } from "./database.ts";
 
 const oldSteps = [
@@ -25,7 +25,7 @@ const indexes =
   "select tablename, indexdef from pg_indexes where schemaname = 'public' order by tablename, indexname";
 
 async function boot(client: PGlite) {
-  const scope = createScope({ tags: [store.config({ client })], extensions: [migrateIssues] });
+  const scope = createScope({ tags: [storeConfig({ client })], extensions: [migrateIssues] });
   await scope.ready;
   await scope.close();
 }

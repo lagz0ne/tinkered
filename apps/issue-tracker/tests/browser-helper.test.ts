@@ -14,7 +14,7 @@ import {
   publishIssues,
   readDetail,
   src,
-  store,
+  storeConfig,
   migrateIssues,
   issueServer,
   type DraftConfig,
@@ -49,7 +49,7 @@ type Boot = {
 async function boot(path: string | undefined, options: Boot = {}) {
   const server = issueServer();
   const scope = createScope({
-    tags: [store.config(path ?? (await cloneDatabase())), draftTags(options.draft)],
+    tags: [storeConfig(path ?? (await cloneDatabase())), draftTags(options.draft)],
     extensions: [server, migrateIssues, src, publish()],
     presets: options.presets,
     observe: options.observe,

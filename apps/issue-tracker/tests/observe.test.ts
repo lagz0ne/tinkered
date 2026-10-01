@@ -1,6 +1,6 @@
 import { expect, test } from "vite-plus/test";
 import { createScope, preset } from "@tinker/core";
-import { readIssues, store, issueServer } from "../src/index.ts";
+import { readIssues, storeConfig, issueServer } from "../src/index.ts";
 import { jsonLines } from "@tinker/stack";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -19,7 +19,7 @@ test("an error no route maps answers 500 and one `request failed` line names it"
   const observe = jsonLines((line) => written.push(line));
   const server = issueServer();
   const scope = createScope({
-    tags: [store.config(tempPath())],
+    tags: [storeConfig(tempPath())],
     extensions: [server],
     observe,
     presets: [
